@@ -1,4 +1,9 @@
 # rl_policy.py
+# ==========================================================
+# Actor-Critic network for 2D CTF MARL
+# - Uses ObsEncoder to process 40-dim observations
+# - Outputs logits over MacroAction and a scalar value
+# ==========================================================
 
 from typing import Dict, Any
 
@@ -13,62 +18,58 @@ from game_field import MacroAction
 class ActorCriticNet(nn.Module):
     """
     Shared Actor-Critic network:
+      - ObsEncoder -> latent feature
+      - Actor head -> logits over MacroAction
+      - Critic head -> scalar state-value V(s)
 
-      obs (12 scalars + 25 occupancy = 37) ──> ObsEncoder
-                                               ↓ latent (latent_dim)
-                                            shared MLP trunk
-                                               ↓
-                                  ┌──────── actor head  → logits over MacroAction
-                                  └──────── critic head → scalar value
+    Obs layout (from GameField.build_observation):
+      - 15 scalars
+      - 25 occupancy cells (5x5)
+      => 40-dim vector per agent
     """
 
     def __init__(
         self,
-        obs_dim: int = 37,                 # kept for compatibility; encoder handles layout
-        n_actions: int = len(MacroAction), # automatically 14 if MacroAction has 14 entries
+        obs_dim: int = 40,                  # kept for reference / debugging
+        n_actions: int = len(MacroAction),  # should be 14 with your expanded enum
         latent_dim: int = 128,
-        trunk_hidden: int = 128,
     ):
         super().__init__()
 
-        # ObsEncoder expects:
-        #   - n_scalar: number of scalar features at the front of obs
-        #   - spatial_side: side length of square occupancy grid (5x5 = 25)
+        # Encoder knows how to split [15 scalars + 25 occupancy] = 40 dims
         self.encoder = ObsEncoder(
-            n_scalar=12,
+            n_scalar=15,
             spatial_side=5,
-            hidden_dim=latent_dim,
+            hidden_dim=128,
             latent_dim=latent_dim,
         )
 
-        # Shared trunk after encoder — gives more capacity for 14 macro-actions
-        self.trunk = nn.Sequential(
-            nn.Linear(latent_dim, trunk_hidden),
-            nn.ReLU(),
-            nn.Linear(trunk_hidden, trunk_hidden),
-            nn.ReLU(),
-        )
+        self.obs_dim = obs_dim
+        self.n_actions = n_actions
 
-        # Heads
-        self.actor = nn.Linear(trunk_hidden, n_actions)
-        self.critic = nn.Linear(trunk_hidden, 1)
+        # Policy and value heads
+        self.actor = nn.Linear(latent_dim, n_actions)
+        self.critic = nn.Linear(latent_dim, 1)
 
     def forward(self, obs: torch.Tensor):
         """
-        obs: [B, 37] or [37]
+        obs: [B, 40] or [40]
         returns:
-            logits: [B, n_actions]
-            value : [B]
+            - logits: [B, n_actions]
+            - value : [B]
         """
-        # Ensure batch dimension
         if obs.dim() == 1:
-            obs = obs.unsqueeze(0)
+            obs = obs.unsqueeze(0)  # [1, obs_dim]
 
-        latent = self.encoder(obs)          # [B, latent_dim]
-        trunk_latent = self.trunk(latent)   # [B, trunk_hidden]
+        if obs.size(-1) != self.encoder.total_dim:
+            raise ValueError(
+                f"ActorCriticNet expected obs last dim = {self.encoder.total_dim}, "
+                f"got {obs.size(-1)}"
+            )
 
-        logits = self.actor(trunk_latent)   # [B, n_actions]
-        value = self.critic(trunk_latent).squeeze(-1)  # [B]
+        latent = self.encoder(obs)               # [B, latent_dim]
+        logits = self.actor(latent)              # [B, n_actions]
+        value = self.critic(latent).squeeze(-1)  # [B]
         return logits, value
 
     @torch.no_grad()
@@ -80,7 +81,7 @@ class ActorCriticNet(nn.Module):
         """
         Sample (or take argmax) action for PPO.
 
-        obs: [B, 37] or [37]
+        obs: [B, 40] or [40]
         returns dict with:
             - "action"   (Tensor [B])
             - "log_prob" (Tensor [B])
@@ -100,9 +101,9 @@ class ActorCriticNet(nn.Module):
         log_prob = dist.log_prob(action)
 
         return {
-            "action": action,
-            "log_prob": log_prob,
-            "value": value,
+            "action": action,       # [B]
+            "log_prob": log_prob,   # [B]
+            "value": value,         # [B]
         }
 
     def evaluate_actions(
@@ -113,13 +114,16 @@ class ActorCriticNet(nn.Module):
         """
         Used by PPO for minibatch updates.
 
-        obs: [B, 37]
+        obs:     [B, 40]
         actions: [B] (long)
         returns:
             - log_probs: [B]
-            - entropy  : [B]
-            - values   : [B]
+            - entropy:   [B]
+            - values:    [B]
         """
+        if obs.dim() == 1:
+            obs = obs.unsqueeze(0)
+
         logits, values = self.forward(obs)
         dist = Categorical(logits=logits)
 
