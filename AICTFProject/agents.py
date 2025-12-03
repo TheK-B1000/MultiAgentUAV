@@ -1,181 +1,166 @@
+# agents.py
 import math
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Deque
 from collections import deque
 
-# Radius used elsewhere (e.g., "team zone" checks)
+# Constants
 TEAM_ZONE_RADIUS_CELLS = 3
-
-# Diagonal movement cost (for grid movement with 8 directions)
 DIAGONAL_COST = math.sqrt(2)
 
-
-# Type aliases for clarity
+# Type aliases
 Grid = List[List[int]]
-Cell = Tuple[int, int]
+Cell = Tuple[int, int]                    # Discrete grid cell (col, row)
+FloatPos = Tuple[float, float]            # Continuous world position
+Path = Deque[FloatPos]                    # List of float waypoints
 
 
 @dataclass
 class Agent:
-    # --- Core spatial data ---
-    x: int
-    y: int
-    side: str           # "blue" or "red"
-    cols: int           # grid width
-    rows: int           # grid height
-    grid: Grid          # underlying grid (walls, free cells, etc.)
+    # --- Construction arguments ---
+    x: float                                 # Initial spawn (now float!)
+    y: float
+    side: str                                # "blue" or "red"
+    cols: int
+    rows: int
+    grid: Grid
 
     # --- Identity / role ---
     is_miner: bool = False
-    agent_id: int = 0   # 0 or 1 within team
+    agent_id: int = 0                        # 0 or 1 within team
 
-    # --- Movement along a path ---
-    # "cells per second" – macro actions or GameField set the path; Agent just walks it.
-    move_rate_cps: float = 2.2
-    path: deque[Cell] = field(default_factory=deque)
-    move_accum: float = 0.0
+    # --- Movement ---
+    move_rate_cps: float = 2.2               # cells per second (world units/sec)
+    path: Path = field(default_factory=deque)  # Float waypoints: [(x, y), ...]
+    move_accum: float = 0.0                  # Sub-cell movement accumulator
 
-    # Smooth position for rendering / interpolation
+    # --- Position (continuous is primary now) ---
     _float_x: float = field(init=False)
     _float_y: float = field(init=False)
 
-    # --- Status flags ---
+    # --- Status ---
     enabled: bool = True
-    tag_cooldown: float = 0.0      # remaining time until respawn if disabled
+    tag_cooldown: float = 0.0
     is_carrying_flag: bool = False
     was_just_disabled: bool = False
 
-    # --- Mine capacity (if used by game logic) ---
+    # --- Mines ---
     mine_charges: int = 0
     max_mine_charges: int = 2
 
-    # --- Spawn & navigation helpers ---
-    spawn_xy: Cell = (0, 0)
-    waypoint: Optional[Cell] = None  # final target of current path
+    # --- Spawn & navigation ---
+    spawn_xy: FloatPos = (0.0, 0.0)
+    waypoint: Optional[FloatPos] = None      # Final target (for UI)
 
-    # --- RL / Reward-related helpers ---
-    prev_dist_to_flag: Optional[float] = None
-
-    # One-step event flags – should be consumed by higher-level logic
+    # --- RL / Reward one-shot events ---
     _just_picked_up_flag: bool = False
     _just_scored: bool = False
     _just_tagged_enemy: bool = False
 
-    def __post_init__(self) -> None:
-        # Clamp initial position and spawn to map bounds
-        self.x, self.y = self._clamp(self.x, self.y)
-        self.spawn_xy = self._clamp(*self.spawn_xy)
+    # --- Unique ID ---
+    unique_id: str = field(init=False)
 
-        self.path = deque()
+    def __post_init__(self) -> None:
+        # Initialize continuous position
         self._float_x = float(self.x)
         self._float_y = float(self.y)
+        self.spawn_xy = (self._float_x, self._float_y)
 
-        # Unique identifier (safe to keep for logging / debugging)
-        self.unique_id = f"{self.side}_{self.agent_id}_{self.spawn_xy[0]}_{self.spawn_xy[1]}"
+        # Unique ID for RL/reward tracking
+        spawn_str = f"{self._float_x:.1f}_{self._float_y:.1f}"
+        self.unique_id = f"{self.side}_{self.agent_id}_{spawn_str}"
 
-        # Ensure event flags are clean
+        # Ensure clean event flags
         self._just_picked_up_flag = False
         self._just_scored = False
         self._just_tagged_enemy = False
 
-    # ------------------------------------------------------------------
-    # Basic helpers
-    # ------------------------------------------------------------------
-    def _clamp(self, col: int, row: int) -> Cell:
-        """Clamp a cell into the arena bounds."""
-        c = max(0, min(self.cols - 1, col))
-        r = max(0, min(self.rows - 1, row))
-        return (c, r)
-
+    # ------------------------------------------------------------------ #
+    # Properties
+    # ------------------------------------------------------------------ #
     @property
-    def float_pos(self) -> Tuple[float, float]:
-        """Smooth position, useful for visualization."""
+    def float_pos(self) -> FloatPos:
         return self._float_x, self._float_y
 
-    def get_position(self) -> Cell:
-        """Discrete grid position."""
-        return (self.x, self.y)
+    @property
+    def cell_pos(self) -> Cell:
+        """Current discrete grid cell (for pathfinding, collision, etc.)"""
+        return int(self._float_x), int(self._float_y)
 
     def getSide(self) -> str:
         return self.side
 
-    # ------------------------------------------------------------------
-    # Status checks
-    # ------------------------------------------------------------------
     def isEnabled(self) -> bool:
-        """True if the agent is active in the game."""
         return self.enabled
 
     def isTagged(self) -> bool:
-        """
-        True if the agent is currently disabled and waiting for respawn.
-        """
-        return (not self.enabled) and self.tag_cooldown > 0.0
+        return not self.enabled and self.tag_cooldown > 0.0
 
     def isCarryingFlag(self) -> bool:
         return self.is_carrying_flag
 
-    # ------------------------------------------------------------------
-    # Flag handling + event flags
-    # ------------------------------------------------------------------
-    def setCarryingFlag(self, value: bool) -> None:
-        if not self.is_carrying_flag and value:
+    # ------------------------------------------------------------------ #
+    # Flag event handling
+    # ------------------------------------------------------------------ #
+    def setCarryingFlag(self, carrying: bool) -> None:
+        if not self.is_carrying_flag and carrying:
             self._just_picked_up_flag = True
-        elif self.is_carrying_flag and not value:
+        elif self.is_carrying_flag and not carrying:
             self._just_scored = True
-        self.is_carrying_flag = value
+        self.is_carrying_flag = carrying
 
     def consume_just_picked_up_flag(self) -> bool:
-        """Return True once when the agent has just picked up the flag."""
         v = self._just_picked_up_flag
         self._just_picked_up_flag = False
         return v
 
     def consume_just_scored(self) -> bool:
-        """Return True once when the agent has just delivered the flag."""
         v = self._just_scored
         self._just_scored = False
         return v
 
     def consume_just_tagged_enemy(self) -> bool:
-        """
-        Return True once when this agent was just disabled.
-        (Name kept for backwards compatibility; semantics = 'just got tagged').
-        """
         v = self._just_tagged_enemy
         self._just_tagged_enemy = False
         return v
 
-    # ------------------------------------------------------------------
-    # Path handling
-    # ------------------------------------------------------------------
-    def setPath(self, path: List[Cell]) -> None:
-        if not path:
+    # ------------------------------------------------------------------ #
+    # Path management (now uses float waypoints)
+    # ------------------------------------------------------------------ #
+    def setPath(self, waypoints: List[FloatPos]) -> None:
+        """Set a new path of float (x, y) waypoints (typically cell centers + 0.5)"""
+        if not waypoints:
             self.clearPath()
             return
 
-        clamped = [self._clamp(*c) for c in path]
+        # Clamp all waypoints to bounds
+        clamped = [
+            (
+                max(0.0, min(self.cols - 1.999, x)),
+                max(0.0, min(self.rows - 1.999, y))
+            )
+            for x, y in waypoints
+        ]
+
         self.path = deque(clamped)
         self.waypoint = clamped[-1] if clamped else None
-        # Reset movement accumulator for fresh path
         self.move_accum = 0.0
 
     def clearPath(self) -> None:
-        """Stop the agent from moving anywhere."""
         self.path.clear()
         self.waypoint = None
 
-    # ------------------------------------------------------------------
-    # Disable / respawn logic
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Disable / respawn
+    # ------------------------------------------------------------------ #
     def disable_for_seconds(self, seconds: float) -> None:
         if self.enabled:
             self.was_just_disabled = True
-            self._just_tagged_enemy = True   # backward-compatible event flag
+            self._just_tagged_enemy = True
             self.enabled = False
             self.tag_cooldown = max(self.tag_cooldown, seconds)
 
-            # Drop the flag if we were carrying it
+            # Drop flag
             if self.is_carrying_flag:
                 self.is_carrying_flag = False
 
@@ -184,81 +169,80 @@ class Agent:
             self.move_accum = 0.0
 
     def respawn(self) -> None:
-        """
-        Reset agent to its spawn point and clear transient state.
-        Called automatically when tag_cooldown reaches 0.
-        """
-        self.x, self.y = self.spawn_xy
-        self._float_x = float(self.x)
-        self._float_y = float(self.y)
-
+        self._float_x, self._float_y = self.spawn_xy
         self.enabled = True
         self.tag_cooldown = 0.0
         self.was_just_disabled = False
-
         self.clearPath()
         self.move_accum = 0.0
 
-        # Clear one-step flags
+        # Clear one-shot flags
         self._just_picked_up_flag = False
         self._just_scored = False
         self._just_tagged_enemy = False
 
-    # ------------------------------------------------------------------
-    # Per-timestep update
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Main per-frame update
+    # ------------------------------------------------------------------ #
     def update(self, dt: float) -> None:
         if dt <= 0.0:
             return
 
-        # Handle disabled state / respawn timer
+        # Handle respawn timer
         if not self.enabled:
-            if self.tag_cooldown > 0.0:
-                self.tag_cooldown = max(0.0, self.tag_cooldown - dt)
-                if self.tag_cooldown <= 0.0:
-                    self.respawn()
+            self.tag_cooldown = max(0.0, self.tag_cooldown - dt)
+            if self.tag_cooldown <= 0.0:
+                self.respawn()
             return
 
-        # If enabled but no path, nothing to do
+        # No path → stay still
         if not self.path:
-            # Keep float position aligned with discrete cell
-            self._float_x = float(self.x)
-            self._float_y = float(self.y)
+            cx, cy = self.cell_pos
+            self._float_x = cx + 0.5
+            self._float_y = cy + 0.5
             return
 
-        # Accumulate movement in "cells" along current path
+        # Accumulate movement
         self.move_accum += self.move_rate_cps * dt
 
-        # Consume as many whole cells as we can
+        # Follow path
         while self.move_accum >= 1.0 and self.path:
-            next_cell = self.path[0]
-            dx = next_cell[0] - self.x
-            dy = next_cell[1] - self.y
-            step_cost = DIAGONAL_COST if dx != 0 and dy != 0 else 1.0
+            next_wp = self.path[0]
+            dx = next_wp[0] - self._float_x
+            dy = next_wp[1] - self._float_y
+            dist = math.hypot(dx, dy)
+
+            if dist <= 0.01:  # Already at waypoint
+                self.path.popleft()
+                self.move_accum -= 1.0
+                if self.path:
+                    self.waypoint = self.path[-1]
+                else:
+                    self.waypoint = None
+                continue
+
+            # Determine cost to reach next waypoint
+            step_cost = dist  # True Euclidean distance
 
             if self.move_accum >= step_cost:
-                # Move into the next cell
-                self.x, self.y = next_cell
-                self._float_x = float(self.x)
-                self._float_y = float(self.y)
-
+                # Reach and pass waypoint
+                self._float_x, self._float_y = next_wp
                 self.path.popleft()
                 self.move_accum -= step_cost
-                self.waypoint = self.path[-1] if self.path else None
+                if self.path:
+                    self.waypoint = self.path[-1]
+                else:
+                    self.waypoint = None
             else:
+                # Move partially toward waypoint
+                progress = self.move_accum / step_cost
+                self._float_x += dx * progress
+                self._float_y += dy * progress
+                self.move_accum = 0.0
                 break
 
-        # Interpolate within the next cell if we're mid-step
-        if self.path:
-            next_cell = self.path[0]
-            dx = next_cell[0] - self.x
-            dy = next_cell[1] - self.y
-            step_cost = DIAGONAL_COST if dx != 0 and dy != 0 else 1.0
-
-            progress = min(self.move_accum / step_cost, 1.0)
-            self._float_x = self.x + dx * progress
-            self._float_y = self.y + dy * progress
-        else:
-            # End of path; snap float position to cell
-            self._float_x = float(self.x)
-            self._float_y = float(self.y)
+        # Final snap if path ended
+        if not self.path:
+            if self.waypoint:
+                self._float_x, self._float_y = self.waypoint
+            self.waypoint = None
