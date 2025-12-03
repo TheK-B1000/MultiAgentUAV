@@ -253,7 +253,7 @@ class GameField:
                         last_action = getattr(
                             agent,
                             "last_macro_action",
-                            MacroAction.GO_TO,  # <-- valid neutral default
+                            MacroAction.GO_TO,
                         )
                         self.compute_reward(agent, last_action, done=False)
 
@@ -687,12 +687,15 @@ class GameField:
             surface.blit(range_surface, board_rect.topleft)
 
         # Flags
+        blue_base = getattr(self.manager, "blue_flag_home", self.manager.blue_flag_position)
+        red_base = getattr(self.manager, "red_flag_home", self.manager.red_flag_position)
+
         self.draw_flag(
             surface,
             board_rect,
             cell_width,
             cell_height,
-            self.manager.blue_flag_position,
+            blue_base,  # <-- stays fixed
             (90, 170, 250),
             self.manager.blue_flag_taken,
         )
@@ -701,7 +704,7 @@ class GameField:
             board_rect,
             cell_width,
             cell_height,
-            self.manager.red_flag_position,
+            red_base,  # <-- stays fixed
             (250, 120, 70),
             self.manager.red_flag_taken,
         )
