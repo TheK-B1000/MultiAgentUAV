@@ -1,7 +1,10 @@
+# driver.py
+
 import sys
+from typing import Optional, Tuple, Any, List
+
 import pygame as pg
 import torch
-from typing import Optional, Tuple, Any, List
 
 from game_field import GameField
 from macro_actions import MacroAction
@@ -10,13 +13,26 @@ from rl_policy import ActorCriticNet
 
 class LearnedPolicy:
     """
-    Wraps ActorCriticNet so GameField.decide() can call:
-        policy.select_action(obs) -> (action_id, param)
-    """
-    def __init__(self, obs_dim: int, n_actions: int, model_path: Optional[str] = None):
-        self.device = torch.device("cpu")  # keep simple for the driver
+    Wraps ActorCriticNet so GameField.decide() can treat it as a callable:
 
-        # n_actions should match len(MacroAction)
+        policy(agent, game_field) -> MacroAction_id
+
+    Internally:
+        - builds obs via game_field.build_observation(agent)
+        - runs the ActorCriticNet
+        - returns a discrete macro-action id
+    """
+
+    def __init__(
+        self,
+        obs_dim: int,
+        n_actions: int,
+        model_path: Optional[str] = None,
+    ):
+        # Keep the driver simple: use CPU
+        self.device = torch.device("cpu")
+
+        # n_actions should match len(MacroAction) (14 in your new enum)
         self.net = ActorCriticNet(
             obs_dim=obs_dim,
             n_actions=n_actions,
@@ -28,8 +44,11 @@ class LearnedPolicy:
 
         try:
             state = torch.load(model_path, map_location=self.device)
-            # support { 'model': state_dict } or plain state_dict
-            state_dict = state.get("model", state) if isinstance(state, dict) else state
+            # support {'model': state_dict} or plain state_dict
+            if isinstance(state, dict):
+                state_dict = state.get("model", state)
+            else:
+                state_dict = state
             self.net.load_state_dict(state_dict)
             print(f"[LearnedPolicy] Loaded model from {model_path}")
             self.model_loaded = True
@@ -39,19 +58,16 @@ class LearnedPolicy:
 
         self.net.eval()
 
-    def select_action(self, obs: List[float]) -> Tuple[int, Optional[Tuple[int, int]]]:
+    # --- core RL action logic -------------------------------------------------
+
+    def _select_action_from_obs(self, obs: List[float]) -> int:
         """
-        Called by GameField.decide(agent):
-
-            obs = game_field.build_observation(agent)
-            action_id, param = policy.select_action(obs)
-
-        We’re only using discrete macro-actions for now, so param is None.
+        Internal helper: obs -> action_id
         """
         if not self.model_loaded:
             # Fallback: simple default macro-action
             fallback_action = int(MacroAction.GO_TO)
-            return fallback_action, None
+            return fallback_action
 
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
@@ -65,7 +81,22 @@ class LearnedPolicy:
                 # Shape [1], so take element 0
                 action = int(action[0].item())
 
-            return action, None
+            return int(action)
+
+    def __call__(self, agent: Any, game_field: GameField) -> int:
+        """
+        This makes the policy usable in GameField.decide():
+
+            if isinstance(policy, Policy):
+                ...
+            else:
+                action_id = policy(agent, self)
+
+        We ignore `agent` for state except to build its observation.
+        """
+        obs = game_field.build_observation(agent)
+        action_id = self._select_action_from_obs(obs)
+        return action_id
 
 
 class Driver:
@@ -91,10 +122,11 @@ class Driver:
         if self.gameField.blue_agents:
             dummy_obs = self.gameField.build_observation(self.gameField.blue_agents[0])
         else:
-            dummy_obs = [0.0] * 37  # build_observation returns 37 features
+            # build_observation returns 37 features: 12 scalars + 25 occupancy
+            dummy_obs = [0.0] * 37
 
         obs_dim = len(dummy_obs)
-        n_actions = len(MacroAction)
+        n_actions = len(MacroAction)  # should now be 14
 
         # Keep references to the original heuristic policies
         self.blue_heuristic = self.gameField.policies["blue"]
@@ -110,9 +142,13 @@ class Driver:
                 model_path="marl_policy.pth",   # expects this file next to driver.py
             )
             if self.blue_learned_policy.model_loaded:
+                # Plug our callable policy directly into GameField
                 self.gameField.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
-                print("[Driver] Blue team using LEARNED policy (marl_policy.pth)")
+                print(
+                    f"[Driver] Blue team using LEARNED policy (marl_policy.pth, "
+                    f"{n_actions} actions)"
+                )
             else:
                 print("[Driver] Blue team using HEURISTIC policy (no valid model)")
         except Exception as e:
