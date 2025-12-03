@@ -4,7 +4,7 @@ import torch
 from typing import Optional, Tuple, Any, List
 
 from game_field import GameField
-from macro_actions import MacroAction    
+from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 
 
