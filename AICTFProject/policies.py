@@ -1,6 +1,7 @@
+# policies.py
 import math
 import random
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import pygame as pg
 
 from agents import Agent
@@ -9,35 +10,48 @@ from macro_actions import MacroAction
 
 
 class Policy:
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    """Base interface for all policies."""
+    def select_action(
+        self,
+        obs: List[float],
+        agent: Agent,
+        game_field: "GameField",
+    ) -> Tuple[int, Optional[Tuple[float, float]]]:
         raise NotImplementedError
 
 
 class HeuristicPolicy(Policy):
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
-        dx_enemy_flag = obs[0]
-        dy_enemy_flag = obs[1]
-        dx_own_flag   = obs[2]
-        dy_own_flag   = obs[3]
-        is_carrying   = bool(round(obs[4]))
-        own_flag_taken   = bool(round(obs[5]))
-        enemy_flag_taken = bool(round(obs[6]))
-        side_blue     = bool(round(obs[7]))
-        ammo_norm     = obs[8] if len(obs) > 8 else 0.0
-        is_miner      = bool(round(obs[9])) if len(obs) > 9 else False
+    """Simple but effective baseline for blue team."""
+    def select_action(
+        self,
+        obs: List[float],
+        agent: Agent,
+        game_field: "GameField",
+    ) -> Tuple[int, Optional[Tuple[float, float]]]:
+        (
+            dx_enemy_flag, dy_enemy_flag,
+            dx_own_flag, dy_own_flag,
+            is_carrying, own_flag_taken, enemy_flag_taken, side_blue,
+            ammo_norm, is_miner,
+            dx_mine, dy_mine,
+        ) = obs[:12]
 
+        is_carrying = bool(round(is_carrying))
+        own_flag_taken = bool(round(own_flag_taken))
+        is_miner = bool(round(is_miner))
+
+        # Normalized position in own half (0.0 = at home, 1.0 = mid-line+)
         norm_pos = -dx_own_flag if side_blue else dx_own_flag
         norm_pos = max(0.0, min(1.0, norm_pos))
-        dist_to_base = math.hypot(dx_own_flag, dy_own_flag)
 
         if is_carrying:
             return int(MacroAction.GO_HOME), None
 
         if is_miner:
-            if ammo_norm <= 0.1 and norm_pos < 0.5:
+            if ammo_norm < 0.2 and norm_pos < 0.5:
                 return int(MacroAction.GRAB_MINE), None
-            if ammo_norm > 0.0 and dist_to_base < 0.4 and not own_flag_taken:
-                if random.random() < 0.75:
+            if ammo_norm > 0.0 and norm_pos < 0.4 and not own_flag_taken:
+                if random.random() < 0.8:
                     return int(MacroAction.PLACE_MINE), None
 
         if own_flag_taken:
@@ -48,28 +62,28 @@ class HeuristicPolicy(Policy):
         elif norm_pos <= 0.3:
             if is_miner and ammo_norm < 0.8:
                 return int(MacroAction.GRAB_MINE), None
-            else:
-                return int(MacroAction.GO_TO), None
         else:
-            r = random.random()
-            if r < 0.6:
+            if random.random() < 0.65:
                 return int(MacroAction.GET_FLAG), None
-            else:
-                return int(MacroAction.GO_TO), None
+
+        return int(MacroAction.GO_TO), None
 
 
 class OP1RedPolicy(Policy):
+    """Simple defensive red bot — guard base."""
     def __init__(self, side: str = "red"):
         self.side = side
 
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    def select_action(
+        self,
+        obs: List[float],
+        agent: Agent,
+        game_field: "GameField",
+    ) -> Tuple[int, Optional[Tuple[float, float]]]:
         gm: GameManager = game_field.manager
-        home_x, home_y = gm.get_team_zone_center(self.side)
-
-        if self.side == "red":
-            target = (min(game_field.col_count - 1, home_x + 1), home_y)
-        else:
-            target = (max(0, home_x - 1), home_y)
+        hx, hy = gm.get_team_zone_center(self.side)
+        hx += 1.5 if self.side == "red" else -1.5
+        target = (hx, hy + 0.5)
 
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
@@ -78,103 +92,106 @@ class OP1RedPolicy(Policy):
 
 
 class OP2RedPolicy(Policy):
+    """Mine-layer defense bot."""
     def __init__(self, side: str = "red"):
         self.side = side
 
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
-        gm: GameManager = game_field.manager
-        side = self.side
-
+    def select_action(
+        self,
+        obs: List[float],
+        agent: Agent,
+        game_field: "GameField",
+    ) -> Tuple[int, Optional[Tuple[float, float]]]:
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        if side == "red":
-            own_min_col, own_max_col = game_field.red_zone_col_range
-        else:
-            own_min_col, own_max_col = game_field.blue_zone_col_range
-
-        flag_x, flag_y = gm.get_team_zone_center(side)
-
-        defense_band = [
-            (c, flag_y)
-            for c in range(own_min_col, own_max_col + 1)
-        ]
+        min_col, max_col = (
+            game_field.red_zone_col_range if self.side == "red"
+            else game_field.blue_zone_col_range
+        )
+        mid_row = game_field.row_count // 2
+        defense_line = [(c + 0.5, mid_row + 0.5) for c in range(min_col, max_col + 1)]
 
         if agent.mine_charges > 0:
-            for cell in defense_band:
-                if math.hypot(agent.x - cell[0], agent.y - cell[1]) <= 1.0:
-                    return int(MacroAction.PLACE_MINE), cell
+            for spot in defense_line:
+                if math.hypot(agent._float_x - spot[0], agent._float_y - spot[1]) < 1.2:
+                    return int(MacroAction.PLACE_MINE), spot
 
-            target = random.choice(defense_band)
-            return int(MacroAction.GO_TO), target
-
-        return int(MacroAction.GRAB_MINE), None
+        target = random.choice(defense_line)
+        return int(MacroAction.GO_TO), target
 
 
 class OP3RedPolicy(Policy):
+    """Advanced coordinated red opponent — miner + interceptor."""
     def __init__(self, side: str = "red"):
         self.side = side
 
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    def select_action(
+        self,
+        obs: List[float],
+        agent: Agent,
+        game_field: "GameField",
+    ) -> Tuple[int, Optional[Tuple[float, float]]]:
         gm: GameManager = game_field.manager
         side = self.side
 
-        enemy_flag_pos = gm.get_enemy_flag_position(side)
-        my_flag_taken      = gm.red_flag_taken if side == "red" else gm.blue_flag_taken
-        enemy_flag_taken   = gm.blue_flag_taken if side == "red" else gm.red_flag_taken
-
         enemy_team = game_field.blue_agents if side == "red" else game_field.red_agents
-        our_team   = game_field.red_agents if side == "red" else game_field.blue_agents
+        our_team = game_field.red_agents if side == "red" else game_field.blue_agents
 
         enemy_carrier = next((a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()), None)
-        our_carrier   = next((a for a in our_team   if a.isCarryingFlag() and a.isEnabled()), None) if enemy_flag_taken else None
+        our_carrier = next((a for a in our_team if a.isCarryingFlag() and a.isEnabled()), None)
 
-        def dist(a1: Agent, a2: Optional[Agent]) -> float:
-            if a2 is None:
-                return 999.0
-            return math.hypot(a1.x - a2.x, a1.y - a2.y)
+        def dist_to(a: Agent, pos: Tuple[float, float]) -> float:
+            return math.hypot(a._float_x - pos[0], a._float_y - pos[1])
 
+        # Miner (agent_id == 0)
         if agent.agent_id == 0:
             if agent.isCarryingFlag():
                 return int(MacroAction.GO_HOME), None
 
-            if my_flag_taken and enemy_carrier is not None and dist(agent, enemy_carrier) < 10.0:
+            if enemy_carrier and dist_to(agent, enemy_carrier.float_pos) < 10.0:
                 return int(MacroAction.INTERCEPT_CARRIER), None
 
             return int(MacroAction.GET_FLAG), None
 
+        # Interceptor / defender (agent_id == 1)
         else:
             if agent.isCarryingFlag():
                 return int(MacroAction.GO_HOME), None
 
-            if our_carrier is not None:
-                threat = min(
+            # Protect our carrier
+            if our_carrier:
+                closest_threat = min(
                     (e for e in enemy_team if e.isEnabled()),
-                    key=lambda e: dist(e, our_carrier),
-                    default=None,
+                    key=lambda e: dist_to(e, our_carrier.float_pos),
+                    default=None
                 )
-                if threat and dist(threat, our_carrier) < 8.0:
+                if closest_threat and dist_to(closest_threat, our_carrier.float_pos) < 8.0:
                     return int(MacroAction.INTERCEPT_CARRIER), None
 
+            # Mine chokepoints
             if agent.mine_charges > 0:
                 chokepoints = [
-                    (game_field.col_count // 2, game_field.row_count // 4),
-                    (game_field.col_count // 2, 3 * game_field.row_count // 4),
-                    (game_field.col_count // 3, game_field.row_count // 2),
-                    (2 * game_field.col_count // 3, game_field.row_count // 2),
+                    (game_field.col_count * 0.5, game_field.row_count * 0.25),
+                    (game_field.col_count * 0.5, game_field.row_count * 0.75),
+                    (game_field.col_count * 0.33, game_field.row_count * 0.5),
+                    (game_field.col_count * 0.66, game_field.row_count * 0.5),
                 ]
-                agent_v = pg.Vector2(agent.x, agent.y)
                 for spot in chokepoints:
-                    if (agent_v - pg.Vector2(spot)).length() < 2.0:
+                    if dist_to(agent, spot) < 2.0:
                         return int(MacroAction.PLACE_MINE), spot
 
                 return int(MacroAction.GO_TO), random.choice(chokepoints)
 
-            if enemy_carrier is not None:
-                d = dist(agent, enemy_carrier)
-                if d < 10.0:
+            # Suppress or intercept enemy carrier
+            if enemy_carrier:
+                d = dist_to(agent, enemy_carrier.float_pos)
+                if d < 8.0:
                     return int(MacroAction.SUPPRESS_CARRIER), None
-                elif d < 18.0:
+                if d < 16.0:
                     return int(MacroAction.INTERCEPT_CARRIER), None
 
-            return int(MacroAction.DEFEND_ZONE), None
+            # Default: defend mid-line
+            mid_x = game_field.col_count * 0.5
+            target_y = agent._float_y if abs(agent._float_y - game_field.row_count * 0.5) < 5 else game_field.row_count * 0.5
+            return int(MacroAction.GO_TO), (mid_x, target_y)
