@@ -24,7 +24,7 @@ GRID_COLS = 40
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # PPO hyperparameters — aligned with Table 3 of the paper
-TOTAL_STEPS = 200_000         # safety cap; curriculum is episode-driven
+TOTAL_STEPS = 1_000_000         # safety cap; curriculum is episode-driven
 UPDATE_EVERY = 2_048          # steps per PPO update
 PPO_EPOCHS = 10
 MINIBATCH_SIZE = 256          # backward batch size (paper uses 64; 256 is fine)
@@ -32,7 +32,7 @@ MINIBATCH_SIZE = 256          # backward batch size (paper uses 64; 256 is fine)
 LR = 3e-4                      # PPO learning rate
 CLIP_EPS = 0.2                 # PPO clipping epsilon
 VALUE_COEF = 1.0               # c1 in the paper
-ENT_COEF = 0.01                # c2 in the paper
+ENT_COEF_BASE = 0.01           # base c2 (we will modulate by phase)
 MAX_GRAD_NORM = 0.5
 
 # Event-driven RL discounting (Sec. 3.5)
@@ -51,29 +51,40 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 # =========================
-# PHASE SCHEDULE (CURRICULUM)
+# CURRICULUM (PHASE ORDER + GATING)
 # =========================
 
-def get_phase_for_episode(ep: int) -> str:
-    """
-    100 OP1, 250 OP2, 500 OP3, 750 SELF → then DONE.
+# We want BLUE to win comfortably in each phase before moving on,
+# instead of advancing purely by episode index.
 
-    EP 1–100    -> OP1
-    EP 101–350  -> OP2
-    EP 351–850  -> OP3
-    EP 851–1600 -> SELF
-    EP > 1600   -> DONE
-    """
-    if ep <= 100:
-        return "OP1"
-    elif ep <= 350:   # 100 + 250
-        return "OP2"
-    elif ep <= 850:   # 100 + 250 + 500
-        return "OP3"
-    elif ep <= 1600:  # + 750
-        return "SELF"
-    else:
-        return "DONE"
+PHASE_SEQUENCE = ["OP1", "OP2", "OP3", "SELF"]
+
+# Minimal number of episodes to spend in each phase
+MIN_PHASE_EPISODES = {
+    "OP1": 300,   # give lots of time to crush the naive bot
+    "OP2": 300,
+    "OP3": 500,
+    "SELF": 750,  # you can treat SELF as "run until step cap"
+}
+
+# Target win-rates before advancing to the next phase
+TARGET_PHASE_WINRATE = {
+    "OP1": 0.90,  # ~90% vs OP1 before moving to OP2
+    "OP2": 0.85,  # ~85% vs OP2 before OP3
+    "OP3": 0.80,  # ~80% vs OP3 before SELF-play
+    # SELF: we typically run to step cap, so no gating needed
+}
+
+# Window of recent episodes we use to compute per-phase winrate
+PHASE_WINRATE_WINDOW = 50
+
+# Slightly higher exploration early, taper down as opponents get stronger
+ENT_COEF_BY_PHASE = {
+    "OP1": 0.02,
+    "OP2": 0.015,
+    "OP3": 0.010,
+    "SELF": 0.0075,
+}
 
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
@@ -213,7 +224,8 @@ def ppo_update(
     policy: ActorCriticNet,
     optimizer: optim.Optimizer,
     buffer: RolloutBuffer,
-    device: torch.device = DEVICE,
+    device: torch.device,
+    ent_coef: float,
 ):
     obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
     advantages, returns = compute_gae_event(rewards, values, dones, dts, GAMMA, GAE_LAMBDA)
@@ -248,7 +260,7 @@ def ppo_update(
             entropy_loss = entropy.mean()
 
             # PPO loss = policy + c1 * value - c2 * entropy
-            loss = policy_loss + VALUE_COEF * value_loss - ENT_COEF * entropy_loss
+            loss = policy_loss + VALUE_COEF * value_loss - ent_coef * entropy_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -315,19 +327,23 @@ def train_ppo_event(
     running_avg_return = 0.0
     start_time = time.time()
 
-    # ---- EPISODE-DRIVEN CURRICULUM ----
+    # ---- CURRICULUM STATE ----
+    phase_idx = 0
+    phase_episode_count = 0
+    phase_recent_results: List[int] = []  # 1 = blue win, 0 = else
+
     while True:
-        episode_idx += 1
-        cur_phase = get_phase_for_episode(episode_idx)
-
-        if cur_phase == "DONE":
-            # Curriculum is finished (100 OP1, 250 OP2, 500 OP3, 750 SELF)
+        # Stop if curriculum finished or step cap reached
+        if phase_idx >= len(PHASE_SEQUENCE):
+            print("[STOP] Curriculum complete (finished SELF phase).")
             break
-
-        # Optional safety: break if step cap exceeded
         if global_step >= total_steps:
             print(f"[STOP] Reached global_step safety cap ({global_step} >= {total_steps})")
             break
+
+        cur_phase = PHASE_SEQUENCE[phase_idx]
+        episode_idx += 1
+        phase_episode_count += 1
 
         # Set red opponent according to phase
         set_red_policy_for_phase(env, cur_phase)
@@ -343,7 +359,7 @@ def train_ppo_event(
         while (
             not done_episode
             and episode_steps < MAX_EPISODE_STEPS
-            and global_step < total_steps  # still as a safety guard
+            and global_step < total_steps  # safety guard
         ):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
 
@@ -416,8 +432,12 @@ def train_ppo_event(
 
             # ==== PPO UPDATE IF BUFFER FULL ====
             if buffer.size() >= UPDATE_EVERY:
-                print(f"[UPDATE] step={global_step} episode={episode_idx} buffer={buffer.size()} phase={cur_phase}")
-                ppo_update(policy, optimizer, buffer, DEVICE)
+                current_ent_coef = ENT_COEF_BY_PHASE.get(cur_phase, ENT_COEF_BASE)
+                print(
+                    f"[UPDATE] step={global_step} episode={episode_idx} "
+                    f"buffer={buffer.size()} phase={cur_phase} ent={current_ent_coef:.4f}"
+                )
+                ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
 
                 # Optional: save checkpoint
                 ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_step{global_step}.pth")
@@ -428,20 +448,32 @@ def train_ppo_event(
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
+            phase_recent_results.append(1)
         elif gm.red_score > gm.blue_score:
             result = "RED WIN"
             red_wins += 1
+            phase_recent_results.append(0)
         else:
             result = "DRAW"
             draws += 1
+            phase_recent_results.append(0)
 
-        # Running average return (simple EMA)
+        # Keep only recent window for per-phase winrate
+        if len(phase_recent_results) > PHASE_WINRATE_WINDOW:
+            phase_recent_results = phase_recent_results[-PHASE_WINRATE_WINDOW:]
+
+        # Running average return (simple EMA, global)
         running_avg_return = 0.99 * running_avg_return + 0.01 * episode_return
         avg_r = running_avg_return
 
-        # Win rate (over all finished episodes)
+        # Win rate (global)
         total_games = blue_wins + red_wins + draws
         winrate = 100.0 * blue_wins / max(1, total_games)
+
+        # Phase-local winrate
+        phase_winrate = (
+            float(sum(phase_recent_results)) / max(1, len(phase_recent_results))
+        )
 
         # Elapsed wall-clock time
         elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))
@@ -452,9 +484,32 @@ def train_ppo_event(
             f"[{episode_idx:5d}] {result:11} | "
             f"StepR {last_step_r:+6.3f} TermR {term_r:+5.2f} AvgR {avg_r:+6.3f} | "
             f"Win% {winrate:5.1f}% | "
+            f"PhaseWin {phase_winrate*100:5.1f}% | "
             f"B {blue_wins} R {red_wins} D {draws} | "
             f"{elapsed} | {cur_phase}"
         )
+
+        # ---- CURRICULUM ADVANCEMENT ----
+        # Don't gate SELF; run it to step cap.
+        if cur_phase != "SELF":
+            min_eps = MIN_PHASE_EPISODES[cur_phase]
+            target_wr = TARGET_PHASE_WINRATE[cur_phase]
+
+            # Only consider advancing if we've met minimal episodes AND have enough samples
+            if (
+                phase_episode_count >= min_eps
+                and len(phase_recent_results) >= PHASE_WINRATE_WINDOW
+                and phase_winrate >= target_wr
+            ):
+                print(
+                    f"[CURRICULUM] Phase {cur_phase} complete: "
+                    f"episodes={phase_episode_count}, "
+                    f"PhaseWin={phase_winrate*100:.1f}% "
+                    f"(target={target_wr*100:.1f}%) → advancing to next phase."
+                )
+                phase_idx += 1
+                phase_episode_count = 0
+                phase_recent_results.clear()
 
         # Optional: extra checkpoint by episodes
         if (episode_idx % 100) == 0:
