@@ -7,12 +7,7 @@ from game_field import GameField
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 
-
 class LearnedPolicy:
-    """
-    Wraps ActorCriticNet so GameField.decide() can call:
-        policy.select_action(obs) -> (action_id, param)
-    """
     def __init__(self, obs_dim: int, n_actions: int, model_path: Optional[str] = None):
         self.device = torch.device("cpu")  # keep simple for the driver
 
@@ -23,13 +18,17 @@ class LearnedPolicy:
         ).to(self.device)
 
         self.model_loaded = False
+
         if model_path is None:
-            model_path = "marl_policy.pth"   # default expected filename
+            model_path = "checkpoints/ctf_ppo_final.pth"
 
         try:
             state = torch.load(model_path, map_location=self.device)
             # support { 'model': state_dict } or plain state_dict
-            state_dict = state.get("model", state) if isinstance(state, dict) else state
+            if isinstance(state, dict) and "model" in state:
+                state_dict = state["model"]
+            else:
+                state_dict = state
             self.net.load_state_dict(state_dict)
             print(f"[LearnedPolicy] Loaded model from {model_path}")
             self.model_loaded = True
@@ -39,18 +38,16 @@ class LearnedPolicy:
 
         self.net.eval()
 
+    def __call__(self, agent, game_field) -> int:
+        # Build observation exactly like your trainer did
+        obs = game_field.build_observation(agent)
+        action_id, _ = self.select_action(obs)
+        return int(action_id)
+
     def select_action(self, obs: List[float]) -> Tuple[int, Optional[Tuple[int, int]]]:
-        """
-        Called by GameField.decide(agent):
-
-            obs = game_field.build_observation(agent)
-            action_id, param = policy.select_action(obs)
-
-        We’re only using discrete macro-actions for now, so param is None.
-        """
         if not self.model_loaded:
-            # Fallback: simple default macro-action
-            fallback_action = int(MacroAction.GO_TO)
+            # Fallback: simple macro-action that always does something sane
+            fallback_action = int(MacroAction.PATROL_ENEMY_HALF)
             return fallback_action, None
 
         with torch.no_grad():
@@ -58,6 +55,7 @@ class LearnedPolicy:
             if obs_tensor.dim() == 1:
                 obs_tensor = obs_tensor.unsqueeze(0)  # [1, obs_dim]
 
+            # ActorCriticNet.act should be the same API you used in training
             out = self.net.act(obs_tensor, deterministic=True)
             # out is a dict: { "action": Tensor, "log_prob": Tensor, "value": Tensor }
             action = out["action"]
@@ -66,7 +64,6 @@ class LearnedPolicy:
                 action = int(action[0].item())
 
             return action, None
-
 
 class Driver:
     def __init__(self):
@@ -107,12 +104,12 @@ class Driver:
             self.blue_learned_policy = LearnedPolicy(
                 obs_dim=obs_dim,
                 n_actions=n_actions,
-                model_path="marl_policy.pth",   # expects this file next to driver.py
+                model_path="checkpoints/ctf_ppo_final.pth",  # <-- FINAL MODEL HERE
             )
             if self.blue_learned_policy.model_loaded:
                 self.gameField.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
-                print("[Driver] Blue team using LEARNED policy (marl_policy.pth)")
+                print("[Driver] Blue team using LEARNED policy (checkpoints/ctf_ppo_final.pth)")
             else:
                 print("[Driver] Blue team using HEURISTIC policy (no valid model)")
         except Exception as e:
@@ -233,7 +230,7 @@ class Driver:
 
         # Model status
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: marl_policy.pth", self.size[0] - 300, 15, (100, 220, 100))
+            txt("Model: checkpoints/ctf_ppo_final.pth", self.size[0] - 360, 15, (100, 220, 100))
 
         # Input overlay
         if self.input_active:
