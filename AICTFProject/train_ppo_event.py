@@ -1,16 +1,16 @@
+# train_ppo_event.py
 import os
-import math
 from typing import Dict, List, Tuple
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.distributions import Categorical
-
 import numpy as np
 
-from game_field import GameField, MacroAction
+from game_field import GameField
 from game_manager import GameManager
+from macro_actions import MacroAction
+from policies import Policy, HeuristicPolicy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 from rl_policy import ActorCriticNet
 
 
@@ -23,7 +23,7 @@ GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# PPO hyperparameters (tweak as needed)
+# PPO hyperparameters
 TOTAL_STEPS = 50_000          # total *macro-decision* steps
 UPDATE_EVERY = 2_048          # collect this many steps before each PPO update
 PPO_EPOCHS = 10
@@ -48,14 +48,85 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 def make_env() -> GameField:
+    """Create a GameField where BLUE is external RL and RED is internal opponent."""
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
 
-    # Blue will be controlled externally (RL); Red stays internal (OP3)
-    env.use_internal_policies = False
+    # Blue is controlled by this PPO script; red uses internal policies (OP1/2/3/SELF).
+    env.use_internal_policies = True
     env.set_external_control("blue", True)
     env.set_external_control("red", False)
     return env
+
+
+# =========================
+# SELF-PLAY RED POLICY
+# =========================
+
+class SelfPlayRedPolicy(Policy):
+    """
+    SELF phase: red uses the *same* ActorCriticNet as blue,
+    but we only optimize from blue's transitions.
+
+    Matches Policy.select_action(obs, agent, game_field).
+    """
+    def __init__(self, shared_net: ActorCriticNet, device: torch.device):
+        self.net = shared_net
+        self.device = device
+
+    def select_action(self, obs: List[float], agent, game_field):
+        with torch.no_grad():
+            obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
+            if obs_tensor.dim() == 1:
+                obs_tensor = obs_tensor.unsqueeze(0)
+            out = self.net.act(obs_tensor, deterministic=False)
+            action = out["action"][0]
+            return int(action.item()), None
+
+
+# =========================
+# CURRICULUM PHASE SCHEDULE
+# =========================
+
+OP1_EPISODES  = 100
+OP2_EPISODES  = 250
+OP3_EPISODES  = 500
+SELF_EPISODES = 750
+
+TOTAL_EPISODES = OP1_EPISODES + OP2_EPISODES + OP3_EPISODES + SELF_EPISODES  # 1600
+
+
+def set_red_opponent_for_episode(
+    env: GameField,
+    policy_net: ActorCriticNet,
+    device: torch.device,
+    episode_idx: int,
+) -> str:
+    """
+    Chooses which opponent (red) to use this episode and updates env.policies["red"].
+
+    Returns phase name: "OP1", "OP2", "OP3", "SELF".
+    """
+    if episode_idx <= OP1_EPISODES:
+        # 1–100: OP1 baseline
+        red_policy = OP1RedPolicy("red")
+        phase = "OP1"
+    elif episode_idx <= OP1_EPISODES + OP2_EPISODES:
+        # 101–350: OP2 defender/minelayer
+        red_policy = OP2RedPolicy("red")
+        phase = "OP2"
+    elif episode_idx <= OP1_EPISODES + OP2_EPISODES + OP3_EPISODES:
+        # 351–850: OP3 composite opponent
+        red_policy = OP3RedPolicy("red")
+        phase = "OP3"
+    else:
+        # 851–1600: SELF play
+        red_policy = SelfPlayRedPolicy(policy_net, device)
+        phase = "SELF"
+
+    # Keep blue policy as-is (external), just swap red internal policy.
+    env.set_policies(env.policies["blue"], red_policy)
+    return phase
 
 
 # =========================
@@ -183,7 +254,7 @@ def ppo_update(
 
 
 # =========================
-# TRAINING LOOP
+# BLUE REWARD COLLECTION
 # =========================
 
 def collect_blue_rewards_for_step(
@@ -213,6 +284,10 @@ def collect_blue_rewards_for_step(
     return rewards_by_id
 
 
+# =========================
+# TRAINING LOOP
+# =========================
+
 def train_ppo_event(
     total_steps: int = TOTAL_STEPS,
     checkpoint_every: int = 10_000,
@@ -228,16 +303,24 @@ def train_ppo_event(
     global_step = 0
     episode_idx = 0
 
-    while global_step < total_steps:
+    while global_step < total_steps and episode_idx < TOTAL_EPISODES:
         # ====== NEW EPISODE ======
         episode_idx += 1
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
+        # choose red curriculum opponent for this episode
+        phase_name = set_red_opponent_for_episode(env, policy, DEVICE, episode_idx)
+        print(f"\n[EPISODE {episode_idx}] Phase = {phase_name}")
+
         done_episode = False
         episode_steps = 0
 
-        while not done_episode and episode_steps < MAX_EPISODE_STEPS and global_step < total_steps:
+        while (
+            not done_episode
+            and episode_steps < MAX_EPISODE_STEPS
+            and global_step < total_steps
+        ):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
 
             if not blue_agents:
@@ -246,7 +329,6 @@ def train_ppo_event(
                 while sim_t < DECISION_WINDOW and not gm.game_over:
                     env.update(SIM_DT)
                     sim_t += SIM_DT
-                # no obs/action for this step; just continue to next decision
                 if gm.game_over:
                     done_episode = True
                 continue
@@ -298,7 +380,12 @@ def train_ppo_event(
 
             # ==== PPO UPDATE IF BUFFER FULL ====
             if buffer.size() >= UPDATE_EVERY:
-                print(f"[UPDATE] step={global_step} episode={episode_idx} buffer={buffer.size()}")
+                print(
+                    f"[UPDATE] step={global_step} "
+                    f"episode={episode_idx} "
+                    f"buffer={buffer.size()} "
+                    f"phase={phase_name}"
+                )
                 ppo_update(policy, optimizer, buffer, DEVICE)
 
                 # Optional: save checkpoint
@@ -306,7 +393,13 @@ def train_ppo_event(
                 torch.save(policy.state_dict(), ckpt_path)
                 print(f"Saved checkpoint to {ckpt_path}")
 
-        print(f"[EPISODE {episode_idx}] steps={episode_steps} game_over={gm.game_over} global_step={global_step}")
+        print(
+            f"[EPISODE {episode_idx} DONE] "
+            f"steps={episode_steps} "
+            f"game_over={gm.game_over} "
+            f"global_step={global_step} "
+            f"phase={phase_name}"
+        )
 
     # Final model save
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_ppo_final.pth")
