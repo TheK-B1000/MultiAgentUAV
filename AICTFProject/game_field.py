@@ -401,12 +401,15 @@ class GameField:
             ex, ey = gm.get_enemy_flag_position(side)
             self._set_path_from_float(agent, (ex + 0.5, ey + 0.5), avoid_enemies=agent.isCarryingFlag())
 
+
         elif action == MacroAction.PLACE_MINE:
             target = param or (agent._float_x, agent._float_y)
             if agent.mine_charges > 0:
                 own_flag_pos = gm.get_team_zone_center(side)
-                if math.hypot(target[0] - own_flag_pos[0] - 0.5, target[1] - own_flag_pos[1] - 0.5) > 0.3:
-                    if not any(math.hypot(m.x + 0.5 - target[0], m.y + 0.5 - target[1]) < 0.4 for m in self.mines):
+                # Use continuous distance
+                if math.hypot(target[0] - (own_flag_pos[0] + 0.5), target[1] - (own_flag_pos[1] + 0.5)) > 0.5:
+                    if not any(math.hypot(m.x - target[0], m.y - target[1]) < 0.4 for m in self.mines):
+                        # ← Store at continuous position!
                         self.mines.append(Mine(target[0], target[1], side))
                         agent.mine_charges -= 1
                         setattr(agent, "_placed_mine_this_frame", True)
@@ -535,23 +538,31 @@ class GameField:
             x = int(board_rect.left + col * cell_width)
             pg.draw.line(surface, grid_color, (x, board_rect.top), (x, board_rect.bottom), 1)
 
+        # ------------------------------------------------------------------
+        # Debug ranges — now perfectly aligned with continuous positions
+        # ------------------------------------------------------------------
         if self.debug_draw_ranges or self.debug_draw_mine_ranges:
             range_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
+
             if self.debug_draw_ranges:
                 sup_radius_px = self.suppression_range_cells * min(cell_width, cell_height)
-                for a in self.blue_agents + self.red_agents:
-                    if a.isEnabled():
-                        cx = board_rect.left + a._float_x * cell_width
-                        cy = board_rect.top + a._float_y * cell_height
-                        rgba = (50, 130, 255, 190) if a.side == "blue" else (255, 110, 70, 190)
-                        pg.draw.circle(range_surface, rgba, (int(cx), int(cy)), int(sup_radius_px), width=2)
+                for agent in self.blue_agents + self.red_agents:
+                    if not agent.isEnabled():
+                        continue
+                    cx = board_rect.left + agent._float_x * cell_width
+                    cy = board_rect.top + agent._float_y * cell_height
+                    color = (50, 130, 255, 190) if agent.side == "blue" else (255, 110, 70, 190)
+                    pg.draw.circle(range_surface, color, (int(cx), int(cy)), int(sup_radius_px), width=2)
+
             if self.debug_draw_mine_ranges:
                 mine_radius_px = self.mine_radius_cells * min(cell_width, cell_height)
                 for mine in self.mines:
-                    cx = board_rect.left + (mine.x + 0.5) * cell_width
-                    cy = board_rect.top + (mine.y + 0.5) * cell_height
-                    rgba = (40, 170, 230, 170) if mine.owner_side == "blue" else (230, 120, 80, 170)
-                    pg.draw.circle(range_surface, rgba, (int(cx), int(cy)), int(mine_radius_px), width=1)
+                    # ← Now mine.x/y are continuous → no +0.5 needed!
+                    cx = board_rect.left + mine.x * cell_width
+                    cy = board_rect.top + mine.y * cell_height
+                    color = (40, 170, 230, 170) if mine.owner_side == "blue" else (230, 120, 80, 170)
+                    pg.draw.circle(range_surface, color, (int(cx), int(cy)), int(mine_radius_px), width=2)
+
             surface.blit(range_surface, board_rect.topleft)
 
         self.draw_flag(
@@ -665,29 +676,27 @@ class GameField:
         mid_x = int(board_rect.left + mid_col_index * cell_width)
         pg.draw.line(surface, (190, 190, 210), (mid_x, board_rect.top), (mid_x, board_rect.bottom), 2)
 
-    def draw_flag(
-        self,
-        surface: pg.Surface,
-        board_rect: pg.Rect,
-        cell_width: float,
-        cell_height: float,
-        grid_pos: Tuple[float, float],
-        color: Tuple[int, int, int],
-        is_taken: bool,
-    ) -> None:
-        center_x = board_rect.left + grid_pos[0] * cell_width
-        center_y = board_rect.top + grid_pos[1] * cell_height
+    def draw_flag(self, surface: pg.Surface, board_rect: pg.Rect,
+                  cell_width: float, cell_height: float,
+                  world_pos: Tuple[float, float],  # now float
+                  color: Tuple[int, int, int], is_taken: bool) -> None:
+        cx = board_rect.left + world_pos[0] * cell_width
+        cy = board_rect.top + world_pos[1] * cell_height
         radius_px = int(TEAM_ZONE_RADIUS_CELLS * min(cell_width, cell_height))
+
         zone_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
-        local_center = (int(center_x - board_rect.left), int(center_y - board_rect.top))
-        pg.draw.circle(zone_surface, (*color, 40), local_center, radius_px, width=0)
-        pg.draw.circle(zone_surface, (*color, 110), local_center, radius_px, width=2)
+        pg.draw.circle(zone_surface, (*color, 40),
+                       (int(cx - board_rect.left), int(cy - board_rect.top)),
+                       radius_px, width=0)
+        pg.draw.circle(zone_surface, (*color, 110),
+                       (int(cx - board_rect.left), int(cy - board_rect.top)),
+                       radius_px, width=2)
         surface.blit(zone_surface, board_rect.topleft)
+
         if not is_taken:
-            flag_size = int(0.5 * min(cell_width, cell_height))
-            flag_rect = pg.Rect(int(center_x - flag_size / 2), int(center_y - flag_size / 2),
-                                flag_size, flag_size)
-            pg.draw.rect(surface, color, flag_rect)
+            size = int(0.5 * min(cell_width, cell_height))
+            pg.draw.rect(surface, color,
+                         (int(cx - size // 2), int(cy - size // 2), size, size))
 
     def announce(self, text: str, color=(255, 255, 255), seconds: float = 2.0) -> None:
         self.banner_queue.append((text, color, seconds))
