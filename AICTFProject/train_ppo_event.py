@@ -3,13 +3,15 @@
 #  2D DIGITAL CTF — PPO EVENT-DRIVEN (JACOB ET AL.-INSPIRED)
 #  - 14 macro-actions (categorical targets + tactics)
 #  - Event-based rewards via GameManager
-#  - Curriculum: OP1 → OP2 → OP3 → SELF
+#  - Curriculum: OP1 → OP2 → OP3
 #  - Distance-to-flag shaping + time penalty
+#  - Emperor evaluation vs OP1/OP2/OP3 (crowning ceremony)
 # ===========================================================
 
 import os
 import time
-from typing import Dict, List, Optional
+import copy
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -75,20 +77,20 @@ RESUME_FROM: Optional[str] = None  # e.g. "checkpoints/ctf_ppo_step1798427.pth"
 # CURRICULUM (PHASE ORDER + GATING)
 # =========================
 
-PHASE_SEQUENCE = ["OP1", "OP2", "OP3", "SELF"]
+# No SELF phase now; just grind through OP1 → OP2 → OP3
+PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
     "OP1": 500,    # spend more time vs OP1 to overfit & exploit
     "OP2": 800,
     "OP3": 1200,
-    "SELF": 1000,  # not gated by winrate but we still track
 }
 
+# Softer thresholds so we actually reach OP3
 TARGET_PHASE_WINRATE = {
-    "OP1": 0.90,
-    "OP2": 0.85,
-    "OP3": 0.80,
-    # SELF not gated
+    "OP1": 0.80,
+    "OP2": 0.75,
+    "OP3": 0.70,
 }
 
 PHASE_WINRATE_WINDOW = 100
@@ -98,7 +100,6 @@ ENT_COEF_BY_PHASE = {
     "OP1": 0.02,
     "OP2": 0.0175,
     "OP3": 0.0125,
-    "SELF": 0.0100,
 }
 
 # Optional LR boost in later phases to “shake loose” better strategies
@@ -106,7 +107,6 @@ LR_MULT_BY_PHASE = {
     "OP1": 1.0,
     "OP2": 1.25,
     "OP3": 1.5,
-    "SELF": 1.5,
 }
 
 
@@ -117,15 +117,14 @@ LR_MULT_BY_PHASE = {
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
     """
     Swap the RED policy according to the current curriculum phase.
+    Blue is always RL; Red is scripted OPX.
     """
     if phase == "OP1":
         env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
         env.policies["red"] = OP2RedPolicy("red")
-    elif phase in ("OP3", "SELF"):
-        env.policies["red"] = OP3RedPolicy("red")
     else:
-        # Default: strongest baseline
+        # Default / strongest baseline
         env.policies["red"] = OP3RedPolicy("red")
 
 
@@ -302,6 +301,97 @@ def collect_blue_rewards_for_step(
 
 
 # =========================
+# EMPEROR EVALUATION
+# =========================
+
+def evaluate_emperor_crowning(
+    policy: ActorCriticNet,
+    n_games_per_opponent: int = 20,
+) -> float:
+    """
+    Run clean evaluation vs OP1, OP2, and OP3 with deterministic actions.
+    Returns a combined winrate over all evaluation games.
+    """
+    opponents: List[Tuple[str, type]] = [
+        ("OP1", OP1RedPolicy),
+        ("OP2", OP2RedPolicy),
+        ("OP3", OP3RedPolicy),
+    ]
+
+    policy.eval()
+    total_eval_games = 0
+    total_blue_wins = 0
+
+    print("   [CROWNING CEREMONY] The trial by combat begins...")
+
+    with torch.no_grad():
+        for name, OppPolicy in opponents:
+            blue_wins_vs_this = 0
+            red_wins_vs_this = 0
+            draws_vs_this = 0
+
+            for g in range(n_games_per_opponent):
+                env = make_env()
+                env.policies["red"] = OppPolicy("red")
+                gm = env.getGameManager()
+
+                env.reset_default()
+
+                done_episode = False
+                steps = 0
+
+                while not done_episode and steps < MAX_EPISODE_STEPS:
+                    blue_agents = [a for a in env.blue_agents if a.isEnabled()]
+
+                    if not blue_agents:
+                        env.update(DT)
+                        _ = gm.get_step_rewards()
+                        if gm.game_over:
+                            done_episode = True
+                        steps += 1
+                        continue
+
+                    # Deterministic macro-actions from current policy
+                    for agent in blue_agents:
+                        obs_vec = env.build_observation(agent)
+                        obs_tensor = torch.tensor(
+                            obs_vec, dtype=torch.float32, device=DEVICE
+                        )
+                        out = policy.act(obs_tensor, deterministic=True)
+                        action_id = int(out["action"][0].item())
+                        macro = MacroAction(action_id)
+                        env.apply_macro_action(agent, macro)
+
+                    env.update(DT)
+                    _ = gm.get_step_rewards()  # ignore rewards during eval
+                    steps += 1
+                    done_episode = gm.game_over
+
+                if gm.blue_score > gm.red_score:
+                    blue_wins_vs_this += 1
+                elif gm.red_score > gm.blue_score:
+                    red_wins_vs_this += 1
+                else:
+                    draws_vs_this += 1
+
+            total_games_this = n_games_per_opponent
+            total_eval_games += total_games_this
+            total_blue_wins += blue_wins_vs_this
+
+            wr = 100.0 * blue_wins_vs_this / max(1, total_games_this)
+            print(
+                f"   [EVAL] vs {name}: "
+                f"B={blue_wins_vs_this} R={red_wins_vs_this} D={draws_vs_this} "
+                f"Win%={wr:5.1f}%"
+            )
+
+    combined_score = total_blue_wins / max(1, total_eval_games)
+    policy.train()
+    print(f"   [VERDICT] Combined score: {combined_score*100:.2f}%")
+    return combined_score
+
+
+# =========================
 # MAIN TRAINING LOOP
 # =========================
 
@@ -340,15 +430,16 @@ def train_ppo_event(
     phase_idx = 0
     phase_episode_count = 0
     phase_recent_results: List[int] = []  # 1 = blue win, 0 = not win
+    best_eval_ever = 0.0  # for crowning ceremony
 
     print("\n" + "=" * 110)
     print("  2D DIGITAL CTF — PPO EVENT-DRIVEN")
-    print("  14 macro-actions • Event rewards • Curriculum vs OP1/OP2/OP3/SELF")
+    print("  14 macro-actions • Event rewards • Curriculum vs OP1/OP2/OP3")
     print("=" * 110 + "\n")
 
     while True:
         if phase_idx >= len(PHASE_SEQUENCE):
-            print("[STOP] Curriculum complete (finished SELF phase).")
+            print("[STOP] Curriculum complete (finished OP3 phase).")
             break
         if global_step >= total_steps:
             print(f"[STOP] Reached global_step safety cap ({global_step} >= {total_steps})")
@@ -364,9 +455,8 @@ def train_ppo_event(
         for g in optimizer.param_groups:
             g["lr"] = LR_BASE * lr_mult
 
-        # Reset episode
+        # Reset episode — only env.reset_default (no double gm.reset_game)
         env.reset_default()
-        gm.reset_game(reset_scores=True)
 
         done_episode = False
         episode_steps = 0
@@ -389,6 +479,7 @@ def train_ppo_event(
                 _ = gm.get_step_rewards()  # flush any events
                 if gm.game_over:
                     done_episode = True
+                episode_steps += 1
                 continue
 
             # 1) Select actions for all blue agents
@@ -452,17 +543,17 @@ def train_ppo_event(
         # EPISODE TERMINAL REWARD
         # ==============================
         if gm.blue_score > gm.red_score:
-            result = f"BLUE WIN"
+            result = "BLUE WIN"
             blue_wins += 1
             phase_recent_results.append(1)
             term_r = WIN_REWARD
         elif gm.red_score > gm.blue_score:
-            result = f"RED WIN"
+            result = "RED WIN"
             red_wins += 1
             phase_recent_results.append(0)
             term_r = LOSE_REWARD
         else:
-            result = f"DRAW"
+            result = "DRAW"
             draws += 1
             phase_recent_results.append(0)
             term_r = DRAW_REWARD
@@ -491,7 +582,7 @@ def train_ppo_event(
             1, len(phase_recent_results)
         )
 
-        # Track best model
+        # Track best model (training winrate-based)
         if winrate > BEST_WINRATE and total_games >= 50:
             BEST_WINRATE = winrate
             BEST_STATE_DICT = policy.state_dict()
@@ -531,7 +622,7 @@ def train_ppo_event(
         # ==============================
         # CURRICULUM ADVANCEMENT
         # ==============================
-        if cur_phase != "SELF":
+        if cur_phase in TARGET_PHASE_WINRATE:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
 
@@ -550,6 +641,26 @@ def train_ppo_event(
                 phase_episode_count = 0
                 phase_recent_results.clear()
 
+        # ==============================
+        # EMPEROR CROWNING CEREMONY (OP3 ONLY)
+        # ==============================
+        if cur_phase == "OP3" and (episode_idx % 200) == 0:
+            crowning_score = evaluate_emperor_crowning(
+                policy, n_games_per_opponent=20
+            )
+            if crowning_score > best_eval_ever:
+                best_eval_ever = crowning_score
+                BEST_WINRATE = crowning_score * 100.0
+                state = {
+                    "model": copy.deepcopy(policy.state_dict()),
+                    "episode": episode_idx,
+                }
+                torch.save(state, "models/CTF_TRUE_EMPEROR.pth")
+                print("   " + "=" * 70)
+                print("   >>> THE TRUE EMPEROR HAS ASCENDED <<<")
+                print("   >>> LET THE GOLDEN AGE BEGIN <<<")
+                print("   " + "=" * 70)
+
         # Extra episode-based checkpoint
         if (episode_idx % 250) == 0:
             ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_ep{episode_idx}.pth")
@@ -562,7 +673,7 @@ def train_ppo_event(
     print(f"Training complete. Final model saved to {final_path}")
 
     if BEST_STATE_DICT is not None:
-        print(f"BEST AGENT MODEL: marl_policy.pth  (Win% = {BEST_WINRATE:.2f}%)")
+        print(f"BEST AGENT MODEL (train winrate): marl_policy.pth  (Win% = {BEST_WINRATE:.2f}%)")
     else:
         print("No BEST_STATE_DICT recorded yet (maybe no wins or too few games).")
 
