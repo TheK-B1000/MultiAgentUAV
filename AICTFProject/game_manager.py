@@ -1,18 +1,24 @@
+# game_manager.py
 from dataclasses import dataclass, field
 from typing import Tuple, Optional, List, Dict, Any
 import math
 
-# ================= PAPER-INSPIRED REWARDS =================
+# ================= BASE REWARDS (PAPER-INSPIRED) =================
 WIN_TEAM_REWARD = 1.0
-FLAG_PICKUP_REWARD = 0.1
-FLAG_CARRY_HOME_REWARD = 0.5
-ENABLED_MINE_REWARD = 0.2
-ENEMY_MAV_KILL_REWARD = 0.5
-ACTION_FAILED_PUNISHMENT = -0.2
 
-# These are *shaped* penalties you're using for blue-only training:
-DRAW_PENALTY = -2.0
-LOSS_PENALTY = -1.0
+# Base progress rewards (OP1). OP2/OP3 will scale these for BLUE.
+FLAG_PICKUP_REWARD_BASE = 0.5       # OP1: 0.5 → OP2/OP3: 0.75 (via scale 1.5)
+FLAG_CARRY_HOME_REWARD_BASE = 1.0   # OP1: 1.0 → OP2/OP3: 1.5 (via scale 1.5)
+
+ENABLED_MINE_REWARD = 0.3
+ENEMY_MAV_KILL_REWARD = 0.5
+
+# Gentle step-wise punishment
+ACTION_FAILED_PUNISHMENT = -0.05
+
+# Terminal shaped penalties (small but directional)
+DRAW_PENALTY = -0.3
+LOSS_PENALTY = -0.7
 
 
 @dataclass
@@ -45,9 +51,39 @@ class GameManager:
     # List of (timestamp, agent_id, reward_value)
     reward_events: List[Tuple[float, Optional[str], float]] = field(default_factory=list)
 
-    # ------------------------------------------------------------------
+    # --- Curriculum / shaping state ---
+    phase_name: str = "OP1"  # "OP1", "OP2", "OP3", "SELF", etc.
+
+    # Distance-to-home shaping for carriers (per-team)
+    blue_carrier_prev_dist: Optional[float] = None
+    red_carrier_prev_dist: Optional[float] = None
+
+    # ==================================================================
+    # Phase utilities
+    # ==================================================================
+    def set_phase(self, phase: str) -> None:
+        """
+        Called by the trainer whenever the curriculum phase changes,
+        e.g. "OP1", "OP2", "OP3".
+        """
+        self.phase_name = phase
+
+    def _progress_scale_for_blue(self) -> float:
+        """
+        Scale BLUE's progress rewards depending on curriculum phase.
+
+        OP1: 1.0  → pickup=0.5, carry=1.0
+        OP2: 1.5  → pickup=0.75, carry=1.5
+        OP3: 1.5  → pickup=0.75, carry=1.5
+        other: 1.0
+        """
+        if self.phase_name in ("OP2", "OP3"):
+            return 1.5
+        return 1.0
+
+    # ==================================================================
     # Game reset
-    # ------------------------------------------------------------------
+    # ==================================================================
     def reset_game(self, reset_scores: bool = True) -> None:
         if reset_scores:
             self.blue_score = 0
@@ -71,9 +107,13 @@ class GameManager:
         self.blue_flag_carrier = None
         self.red_flag_carrier = None
 
-    # ------------------------------------------------------------------
+        # Reset shaping state
+        self.blue_carrier_prev_dist = None
+        self.red_carrier_prev_dist = None
+
+    # ==================================================================
     # Time + win condition
-    # ------------------------------------------------------------------
+    # ==================================================================
     def tick_seconds(self, dt: float) -> Optional[str]:
         if self.game_over or dt <= 0.0:
             return None
@@ -93,7 +133,7 @@ class GameManager:
                 self.add_reward_event(LOSS_PENALTY)
                 return "RED WINS ON TIME"
             else:
-                # Draw: penalize blue to encourage decisive play
+                # Draw: mild penalty to encourage decisive play
                 self.add_reward_event(DRAW_PENALTY)
                 return "DRAW — BOTH TEAMS LOSE"
 
@@ -109,9 +149,9 @@ class GameManager:
 
         return None
 
-    # ------------------------------------------------------------------
+    # ==================================================================
     # Flag helpers
-    # ------------------------------------------------------------------
+    # ==================================================================
     def get_enemy_flag_position(self, side: str) -> Tuple[int, int]:
         """Return the *current* position of the enemy flag for a given side."""
         return self.red_flag_position if side == "blue" else self.blue_flag_position
@@ -124,6 +164,9 @@ class GameManager:
         """Expose simulation time for event-driven RL."""
         return self.sim_time
 
+    # ------------------------------------------------------------------
+    # Flag pickup and scoring (with BLUE-only phase scaling)
+    # ------------------------------------------------------------------
     def try_pickup_enemy_flag(self, agent) -> bool:
         side = agent.getSide()
         pos_x, pos_y = agent.float_pos
@@ -142,16 +185,27 @@ class GameManager:
         if math.hypot(pos_x - enemy_flag[0], pos_y - enemy_flag[1]) > 1.0:
             return False
 
+        # Attach flag to carrier
         if side == "blue":
             self.red_flag_taken = True
             self.red_flag_carrier = agent
             self.red_flag_position = (-10, -10)  # off-map while carried
+            # Reset progress shaping baseline for blue
+            self.blue_carrier_prev_dist = None
         else:
             self.blue_flag_taken = True
             self.blue_flag_carrier = agent
             self.blue_flag_position = (-10, -10)
+            # Reset progress shaping baseline for red
+            self.red_carrier_prev_dist = None
 
-        self.add_reward_event(FLAG_PICKUP_REWARD, agent_id=agent.unique_id)
+        # Phase-scaled progress reward (BLUE only)
+        if side == "blue":
+            pickup_reward = FLAG_PICKUP_REWARD_BASE * self._progress_scale_for_blue()
+        else:
+            pickup_reward = FLAG_PICKUP_REWARD_BASE
+
+        self.add_reward_event(pickup_reward, agent_id=agent.unique_id)
         return True
 
     def try_score_if_carrying_and_home(self, agent) -> bool:
@@ -164,7 +218,13 @@ class GameManager:
                 self.red_flag_taken = False
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_carrier = None
-                self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
+
+                # Phase-scaled carry-home reward (BLUE only)
+                carry_reward = FLAG_CARRY_HOME_REWARD_BASE * self._progress_scale_for_blue()
+                self.add_reward_event(carry_reward, agent_id=agent.unique_id)
+
+                # Reset shaping state
+                self.blue_carrier_prev_dist = None
                 return True
 
         elif side == "red" and self.blue_flag_taken and self.blue_flag_carrier is agent:
@@ -173,7 +233,12 @@ class GameManager:
                 self.blue_flag_taken = False
                 self.blue_flag_position = self.blue_flag_home
                 self.blue_flag_carrier = None
-                self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
+
+                # Red uses base reward (no scaling; red isn't learning)
+                self.add_reward_event(FLAG_CARRY_HOME_REWARD_BASE, agent_id=agent.unique_id)
+
+                # Reset shaping state
+                self.red_carrier_prev_dist = None
                 return True
 
         return False
@@ -184,17 +249,58 @@ class GameManager:
             self.blue_flag_position = agent.get_position()
             self.blue_flag_carrier = None
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
+            self.blue_carrier_prev_dist = None
 
         elif self.red_flag_carrier is agent:
             self.red_flag_taken = False
             self.red_flag_position = agent.get_position()
             self.red_flag_carrier = None
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
+            self.red_carrier_prev_dist = None
 
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # Distance-to-home shaping while carrying (BLUE-focused)
+    # ==================================================================
+    def reward_flag_carry_progress(self, agent, shaping_scale: float = 0.02) -> None:
+        """
+        Potential-based shaping: when BLUE is carrying the red flag,
+        give small positive reward for moving closer to home, and
+        small negative reward for moving away.
+
+        Call this once per sim step for each agent (GameField.update).
+        """
+        side = agent.getSide()
+        pos_x, pos_y = agent.float_pos
+
+        # ---- BLUE carrier shaping (this is what helps PPO) ----
+        if side == "blue" and self.red_flag_carrier is agent:
+            # Distance from blue base
+            dist_now = math.hypot(pos_x - self.blue_flag_home[0],
+                                  pos_y - self.blue_flag_home[1])
+            prev = self.blue_carrier_prev_dist
+            if prev is not None:
+                delta = prev - dist_now  # >0: moved closer, <0: moved away
+                if abs(delta) > 1e-6:
+                    # reward ~ +0.02 * distance-improvement
+                    self.add_reward_event(shaping_scale * delta, agent_id=agent.unique_id)
+            self.blue_carrier_prev_dist = dist_now
+
+        # ---- Optional: Red carrier shaping (kept symmetric but smaller) ----
+        elif side == "red" and self.blue_flag_carrier is agent:
+            dist_now = math.hypot(pos_x - self.red_flag_home[0],
+                                  pos_y - self.red_flag_home[1])
+            prev = self.red_carrier_prev_dist
+            if prev is not None:
+                delta = prev - dist_now
+                if abs(delta) > 1e-6:
+                    # You can set shaping_scale_red = 0.0 to disable if you want.
+                    shaping_scale_red = 0.0  # effectively off for red
+                    self.add_reward_event(shaping_scale_red * delta, agent_id=agent.unique_id)
+            self.red_carrier_prev_dist = dist_now
+
+    # ==================================================================
     # Reward helpers for mines / kills / failed actions
-    # (Call these from game_field.py when events happen.)
-    # ------------------------------------------------------------------
+    # ==================================================================
     def reward_mine_placed(self, agent) -> None:
         """Reward for enabling a mine for the first time."""
         self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
@@ -207,9 +313,9 @@ class GameManager:
         """Penalty for a failed macro-action (e.g., invalid GetFlag / GoTo)."""
         self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
-    # ------------------------------------------------------------------
+    # ==================================================================
     # Reward event buffer
-    # ------------------------------------------------------------------
+    # ==================================================================
     def add_reward_event(
         self,
         value: float,
@@ -220,13 +326,21 @@ class GameManager:
         self.reward_events.append((t, agent_id, float(value)))
 
     def get_step_rewards(self) -> Dict[str, float]:
+        """
+        Aggregate reward events into per-agent rewards.
+
+        Global events (agent_id is None) are interpreted as team-level reward
+        and split evenly between the two blue agents, so DRAW/LOSS/WIN values
+        are not accidentally doubled.
+        """
         rewards: Dict[str, float] = {}
         for _, agent_id, r in self.reward_events:
             if agent_id is None:
-                # Global reward for the learning team (blue)
+                # Global reward for the learning team (blue): split evenly.
+                per_agent = r / 2.0
                 for aid in ["blue_0", "blue_1"]:
                     rewards.setdefault(aid, 0.0)
-                    rewards[aid] += r
+                    rewards[aid] += per_agent
             else:
                 rewards.setdefault(agent_id, 0.0)
                 rewards[agent_id] += r
