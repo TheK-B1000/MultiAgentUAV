@@ -1,21 +1,21 @@
-# train_ppo_event.py
 import os
 import time
-from collections import deque
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from game_field import GameField, MacroAction
+from game_field import GameField
 from game_manager import GameManager
+from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
-from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy, HeuristicPolicy
+from policies import HeuristicPolicy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+
 
 # =========================
-# BASIC CONFIG
+# BASIC CONFIG (PAPER-STYLE)
 # =========================
 
 GRID_ROWS = 30
@@ -23,51 +23,54 @@ GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# PPO hyperparameters
-TOTAL_STEPS = 300_000         # safety cap only (curriculum controls length)
-UPDATE_EVERY = 2_048          # collect this many decisions before PPO update
+# PPO hyperparameters — aligned with Table 3 of the paper
+TOTAL_STEPS = 200_000         # safety cap; curriculum is episode-driven
+UPDATE_EVERY = 2_048          # steps per PPO update
 PPO_EPOCHS = 10
-MINIBATCH_SIZE = 256
+MINIBATCH_SIZE = 256          # backward batch size (paper uses 64; 256 is fine)
 
-LR = 3e-4
-CLIP_EPS = 0.2
-VALUE_COEF = 0.5
-ENT_COEF = 0.01
+LR = 3e-4                      # PPO learning rate
+CLIP_EPS = 0.2                 # PPO clipping epsilon
+VALUE_COEF = 1.0               # c1 in the paper
+ENT_COEF = 0.01                # c2 in the paper
 MAX_GRAD_NORM = 0.5
 
-GAMMA = 0.99
-GAE_LAMBDA = 0.95
+# Event-driven RL discounting (Sec. 3.5)
+GAMMA = 0.995                  # γ in Table 3
+GAE_LAMBDA = 0.99              # λ in Table 3
 
-DECISION_WINDOW = 0.7         # seconds of simulation between macro decisions
-SIM_DT = 0.1                  # physics dt inside a decision window
+# Event-driven timing:
+# Actions are macro-actions that run for variable simulated duration.
+DECISION_WINDOW = 0.7          # maximum seconds of simulation between macro decisions
+SIM_DT = 0.1                   # simulation dt inside a decision window
 
-MAX_EPISODE_STEPS = 500       # max macro decisions per episode
+MAX_EPISODE_STEPS = 500        # max macro decisions per episode (safety cap)
 
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 # =========================
-# CURRICULUM HELPERS
+# PHASE SCHEDULE (CURRICULUM)
 # =========================
 
 def get_phase_for_episode(ep: int) -> str:
     """
-    Curriculum by EPISODE index (1-based):
+    100 OP1, 250 OP2, 500 OP3, 750 SELF → then DONE.
 
-      1–100    -> OP1
-      101–350  -> OP2  (100 + 250)
-      351–850  -> OP3  (350 + 500)
-      851–1600 -> SELF (850 + 750)
-      >1600    -> DONE
+    EP 1–100    -> OP1
+    EP 101–350  -> OP2
+    EP 351–850  -> OP3
+    EP 851–1600 -> SELF
+    EP > 1600   -> DONE
     """
     if ep <= 100:
         return "OP1"
-    elif ep <= 350:
+    elif ep <= 350:   # 100 + 250
         return "OP2"
-    elif ep <= 850:
+    elif ep <= 850:   # 100 + 250 + 500
         return "OP3"
-    elif ep <= 1600:
+    elif ep <= 1600:  # + 750
         return "SELF"
     else:
         return "DONE"
@@ -75,41 +78,44 @@ def get_phase_for_episode(ep: int) -> str:
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
     """
-    Swap the red opponent behavior according to the current curriculum phase.
-    Blue is always RL-controlled; red is fixed OPx/heuristic here.
+    Swap the RED policy according to the current curriculum phase.
+    OP1 / OP2 / OP3 use the corresponding scripted opponent.
 
-    NOTE: For true self-play in "SELF", you'd plug a learned policy on red.
-          For now we use OP3RedPolicy as the strongest scripted opponent.
+    SELF currently still uses OP3 as a strong baseline.
+    Later you can replace with self-play using a shared policy.
     """
     if phase == "OP1":
-        env.policies["red"] = OP1RedPolicy(side="red")
+        env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
-        env.policies["red"] = OP2RedPolicy(side="red")
+        env.policies["red"] = OP2RedPolicy("red")
     elif phase == "OP3":
-        env.policies["red"] = OP3RedPolicy(side="red")
+        env.policies["red"] = OP3RedPolicy("red")
     elif phase == "SELF":
-        # Placeholder: strongest scripted opponent.
-        # TODO: replace with learned policy for real self-play.
-        env.policies["red"] = OP3RedPolicy(side="red")
-    else:
-        # Fallback
-        env.policies["red"] = HeuristicPolicy()
+        # For now: still OP3 on red; self-play can be plugged in here.
+        env.policies["red"] = OP3RedPolicy("red")
 
+
+# =========================
+# ENV FACTORY
+# =========================
 
 def make_env() -> GameField:
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
 
-    # Internal policies on for RED, but not for BLUE.
+    # INTERNAL policies ON so RED can use OP1/2/3.
     env.use_internal_policies = True
-    env.set_external_control("blue", True)   # RL controls blue
-    env.set_external_control("red", False)   # internal OPx controls red
+
+    # Blue = external RL; Red = internal scripted opponent.
+    env.set_external_control("blue", True)
+    env.set_external_control("red", False)
 
     return env
 
 
 # =========================
-# ROLLOUT BUFFER
+# ROLLOUT STORAGE
+# (EVENT-DRIVEN: STORE Δt)
 # =========================
 
 class RolloutBuffer:
@@ -120,14 +126,16 @@ class RolloutBuffer:
         self.values: List[float] = []
         self.rewards: List[float] = []
         self.dones: List[bool] = []
+        self.dts: List[float] = []        # event-driven: simulated time between decisions
 
-    def add(self, obs, action, log_prob, value, reward, done):
+    def add(self, obs, action, log_prob, value, reward, done, dt):
         self.obs.append(np.array(obs, dtype=np.float32))
         self.actions.append(int(action))
         self.log_probs.append(float(log_prob))
         self.values.append(float(value))
         self.rewards.append(float(reward))
         self.dones.append(bool(done))
+        self.dts.append(float(dt))
 
     def size(self) -> int:
         return len(self.obs)
@@ -139,6 +147,7 @@ class RolloutBuffer:
         self.values.clear()
         self.rewards.clear()
         self.dones.clear()
+        self.dts.clear()
 
     def to_tensors(self, device: torch.device):
         obs = torch.tensor(np.stack(self.obs, axis=0), dtype=torch.float32, device=device)
@@ -147,23 +156,32 @@ class RolloutBuffer:
         values = torch.tensor(self.values, dtype=torch.float32, device=device)
         rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
         dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
-        return obs, actions, log_probs, values, rewards, dones
+        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
+        return obs, actions, log_probs, values, rewards, dones, dts
 
 
 # =========================
-# ADVANTAGE / RETURN
+# EVENT-DRIVEN ADVANTAGE / RETURN
+# (Sec. 3.5: A(tj) with γ^Δt and (λγ)^Δt)
 # =========================
 
-def compute_gae(
+def compute_gae_event(
     rewards: torch.Tensor,
     values: torch.Tensor,
     dones: torch.Tensor,
+    dts: torch.Tensor,
     gamma: float = GAMMA,
     lam: float = GAE_LAMBDA,
 ):
     """
-    Standard discrete-time GAE.
-    (For full event-driven GAE, you'd use γ^Δt and (λγ)^Δt with variable dt.)
+    Event-driven GAE approximation based on Sec. 3.5 of the paper.
+
+    We treat each macro decision j as occurring at time t_j, with simulated
+    duration Δt_j between t_j and t_{j+1}. Rewards r_j are the accumulated
+    reward over that interval.
+
+    TD(t_j) ≈ r_j + γ^{Δt_j} V(t_{j+1}) - V(t_j)
+    A(t_j) = TD(t_j) + (λγ)^{Δt_j} A(t_{j+1})
     """
     T = rewards.size(0)
     advantages = torch.zeros(T, device=rewards.device)
@@ -171,9 +189,15 @@ def compute_gae(
     next_value = 0.0
 
     for t in reversed(range(T)):
+        dt = dts[t]
+        # event-driven discount / decay
+        gamma_dt = gamma ** dt
+        lam_gamma_dt = (lam * gamma) ** dt
+
         mask = 1.0 - dones[t]
-        delta = rewards[t] + gamma * next_value * mask - values[t]
-        advantages[t] = delta + gamma * lam * next_advantage * mask
+        delta = rewards[t] + gamma_dt * next_value * mask - values[t]
+        advantages[t] = delta + lam_gamma_dt * next_advantage * mask
+
         next_advantage = advantages[t]
         next_value = values[t]
 
@@ -182,7 +206,7 @@ def compute_gae(
 
 
 # =========================
-# PPO UPDATE
+# PPO UPDATE (PAPER-STYLE)
 # =========================
 
 def ppo_update(
@@ -191,12 +215,10 @@ def ppo_update(
     buffer: RolloutBuffer,
     device: torch.device = DEVICE,
 ):
-    if buffer.size() == 0:
-        return
+    obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
+    advantages, returns = compute_gae_event(rewards, values, dones, dts, GAMMA, GAE_LAMBDA)
 
-    obs, actions, old_log_probs, values, rewards, dones = buffer.to_tensors(device)
-    advantages, returns = compute_gae(rewards, values, dones, GAMMA, GAE_LAMBDA)
-
+    # Standard advantage normalization (helps stability)
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
     dataset_size = obs.size(0)
@@ -225,6 +247,7 @@ def ppo_update(
             value_loss = (mb_returns - new_values).pow(2).mean()
             entropy_loss = entropy.mean()
 
+            # PPO loss = policy + c1 * value - c2 * entropy
             loss = policy_loss + VALUE_COEF * value_loss - ENT_COEF * entropy_loss
 
             optimizer.zero_grad()
@@ -236,7 +259,7 @@ def ppo_update(
 
 
 # =========================
-# REWARD COLLECTION
+# BLUE REWARD COLLECTION
 # =========================
 
 def collect_blue_rewards_for_step(
@@ -247,18 +270,18 @@ def collect_blue_rewards_for_step(
     Get per-agent rewards for BLUE from GameManager.get_step_rewards().
 
     GameManager stores events keyed by agent_id (Agent.unique_id).
-    We sum up any keys that match a given BLUE agent.
+    We'll sum up any keys that match a given BLUE agent.
     """
     raw = gm.get_step_rewards()  # clears internal buffer
 
     rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
     for k, v in raw.items():
         if k is None:
-            # Team-wide reward → split among blue agents
+            # safety; shouldn't normally happen with current GameManager
             for aid in rewards_by_id:
                 rewards_by_id[aid] += v
         else:
-            # exact match or "starts with"
+            # exact match or "starts with" if you ever fall back to short ids
             for aid in rewards_by_id:
                 if k == aid or k.startswith(aid.split("_")[0] + "_"):
                     rewards_by_id[aid] += v
@@ -267,7 +290,7 @@ def collect_blue_rewards_for_step(
 
 
 # =========================
-# TRAINING LOOP
+# TRAINING LOOP (EVENT-DRIVEN PPO + CURRICULUM)
 # =========================
 
 def train_ppo_event(
@@ -285,25 +308,28 @@ def train_ppo_event(
     global_step = 0
     episode_idx = 0
 
-    # Stats for printing
+    # Stats for pretty logging
     blue_wins = 0
     red_wins = 0
     draws = 0
-
-    last_step_r = 0.0
-    term_r = 0.0
-    recent_returns = deque(maxlen=100)
-
+    running_avg_return = 0.0
     start_time = time.time()
 
+    # ---- EPISODE-DRIVEN CURRICULUM ----
     while True:
         episode_idx += 1
         cur_phase = get_phase_for_episode(episode_idx)
 
         if cur_phase == "DONE":
-            # Curriculum complete: 100 + 250 + 500 + 750 episodes
+            # Curriculum is finished (100 OP1, 250 OP2, 500 OP3, 750 SELF)
             break
 
+        # Optional safety: break if step cap exceeded
+        if global_step >= total_steps:
+            print(f"[STOP] Reached global_step safety cap ({global_step} >= {total_steps})")
+            break
+
+        # Set red opponent according to phase
         set_red_policy_for_phase(env, cur_phase)
 
         env.reset_default()
@@ -311,69 +337,64 @@ def train_ppo_event(
 
         done_episode = False
         episode_steps = 0
-        episode_return = 0.0
-        term_r = 0.0
+        episode_return = 0.0     # sum of BLUE rewards this episode
+        last_step_r = 0.0        # mean reward of last macro-step
 
         while (
             not done_episode
             and episode_steps < MAX_EPISODE_STEPS
-            and global_step < total_steps
+            and global_step < total_steps  # still as a safety guard
         ):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
 
-            # If blue is temporarily dead, just roll sim forward until respawn
             if not blue_agents:
+                # If both blue agents disabled, just tick forward until respawn
                 sim_t = 0.0
                 while sim_t < DECISION_WINDOW and not gm.game_over:
                     env.update(SIM_DT)
                     sim_t += SIM_DT
-
                 if gm.game_over:
                     done_episode = True
                 continue
 
             # ==== 1) ACTION SELECTION FOR ALL BLUE AGENTS ====
-            decisions = []  # (agent_id, obs_vec, act_id, log_prob, value)
+            decisions: List[Tuple[str, List[float], int, float, float]] = []
+            # (agent_id, obs, action_id, log_prob, value)
 
             for agent in blue_agents:
                 obs_vec = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs_vec, dtype=torch.float32, device=DEVICE)
 
                 out = policy.act(obs_tensor, deterministic=False)
-                action_tensor = out["action"]
-                log_prob_tensor = out["log_prob"]
-                value_tensor = out["value"]
+                action_tensor = out["action"][0]
+                log_prob = out["log_prob"][0].item()
+                value = out["value"][0].item()
 
-                # Shapes are [1]
-                act_id = int(action_tensor[0].item())
-                log_prob = float(log_prob_tensor[0].item())
-                value = float(value_tensor[0].item())
-
-                macro = MacroAction(act_id)
+                action_id = int(action_tensor.item())
+                macro = MacroAction(action_id)
                 env.apply_macro_action(agent, macro)
 
-                decisions.append((agent.unique_id, obs_vec, act_id, log_prob, value))
+                decisions.append((agent.unique_id, obs_vec, action_id, log_prob, value))
 
-            # ==== 2) SIMULATE FOR DECISION WINDOW ====
+            # ==== 2) SIMULATE FOR A SHORT WINDOW (VARIABLE Δt) ====
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
                 sim_t += SIM_DT
+            dt_decision = sim_t  # event-driven: Δt between decisions
 
             # ==== 3) REWARDS FOR THIS DECISION STEP ====
             rewards_by_id = collect_blue_rewards_for_step(gm, blue_agents)
-
             step_done = gm.game_over
-            # total reward this macro step for blue team
-            step_r = sum(rewards_by_id.values())
-            last_step_r = step_r
-            episode_return += step_r
-            if step_done:
-                term_r = step_r
 
-            # Record transitions
+            step_reward_sum = 0.0
+            n_decisions = len(decisions)
+
+            # Record one transition per decision (per agent)
             for aid, obs_vec, act_id, log_p, val in decisions:
                 r = rewards_by_id.get(aid, 0.0)
+
+                step_reward_sum += r
                 buffer.add(
                     obs=obs_vec,
                     action=act_id,
@@ -381,58 +402,52 @@ def train_ppo_event(
                     value=val,
                     reward=r,
                     done=step_done,
+                    dt=dt_decision,
                 )
                 global_step += 1
+
+            # Update per-episode stats
+            episode_return += step_reward_sum
+            if n_decisions > 0:
+                last_step_r = step_reward_sum / n_decisions
 
             episode_steps += 1
             done_episode = step_done
 
             # ==== PPO UPDATE IF BUFFER FULL ====
             if buffer.size() >= UPDATE_EVERY:
-                print(f"[UPDATE] step={global_step} episode={episode_idx} "
-                      f"buffer={buffer.size()} phase={cur_phase}")
+                print(f"[UPDATE] step={global_step} episode={episode_idx} buffer={buffer.size()} phase={cur_phase}")
                 ppo_update(policy, optimizer, buffer, DEVICE)
 
                 # Optional: save checkpoint
-                ckpt_path = os.path.join(
-                    CHECKPOINT_DIR,
-                    f"ctf_ppo_step{global_step}_ep{episode_idx}_{cur_phase}.pth"
-                )
-                torch.save({"model": policy.state_dict(),
-                            "global_step": global_step,
-                            "episode": episode_idx,
-                            "phase": cur_phase},
-                           ckpt_path)
+                ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_step{global_step}.pth")
+                torch.save(policy.state_dict(), ckpt_path)
                 print(f"Saved checkpoint to {ckpt_path}")
 
-            # Safety stop on steps
-            if global_step >= total_steps:
-                done_episode = True
-                break
-
-        # ===== EPISODE DONE – UPDATE STATS & PRINT =====
-        # Who won?
+        # ====== EPISODE DONE — LOG RESULT ======
         if gm.blue_score > gm.red_score:
+            result = "BLUE WIN"
             blue_wins += 1
-            result = "BLUE_WIN"
         elif gm.red_score > gm.blue_score:
+            result = "RED WIN"
             red_wins += 1
-            result = "RED_WIN"
         else:
-            draws += 1
             result = "DRAW"
+            draws += 1
 
-        recent_returns.append(episode_return)
-        avg_r = sum(recent_returns) / max(1, len(recent_returns))
+        # Running average return (simple EMA)
+        running_avg_return = 0.99 * running_avg_return + 0.01 * episode_return
+        avg_r = running_avg_return
 
+        # Win rate (over all finished episodes)
         total_games = blue_wins + red_wins + draws
         winrate = 100.0 * blue_wins / max(1, total_games)
 
-        elapsed = time.strftime(
-            "%H:%M:%S", time.gmtime(time.time() - start_time)
-        )
+        # Elapsed wall-clock time
+        elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))
+        term_r = episode_return
 
-        # EXACT print format you requested:
+        # === Paper-style summary print ===
         print(
             f"[{episode_idx:5d}] {result:11} | "
             f"StepR {last_step_r:+6.3f} TermR {term_r:+5.2f} AvgR {avg_r:+6.3f} | "
@@ -441,17 +456,15 @@ def train_ppo_event(
             f"{elapsed} | {cur_phase}"
         )
 
-        # If safety cap hit, end training even if curriculum not finished
-        if global_step >= total_steps:
-            print("[STOP] Reached TOTAL_STEPS safety cap.")
-            break
+        # Optional: extra checkpoint by episodes
+        if (episode_idx % 100) == 0:
+            ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_ep{episode_idx}.pth")
+            torch.save(policy.state_dict(), ckpt_path)
+            print(f"[EP-CHECKPOINT] Saved model at episode {episode_idx} -> {ckpt_path}")
 
     # Final model save
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_ppo_final.pth")
-    torch.save({"model": policy.state_dict(),
-                "global_step": global_step,
-                "last_episode": episode_idx},
-               final_path)
+    torch.save(policy.state_dict(), final_path)
     print(f"Training complete. Final model saved to {final_path}")
 
 
