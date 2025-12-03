@@ -1,11 +1,11 @@
 import sys
 import pygame as pg
 import torch
-from typing import Optional, Tuple, Any, List
+from typing import Optional, Tuple, Any
 
-from game_field import GameField, MacroAction
+from game_field import GameField
+from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
-
 
 class LearnedPolicy:
     """
