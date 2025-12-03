@@ -23,87 +23,73 @@ GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# PPO hyperparameters — aligned with Table 3 of the paper
-TOTAL_STEPS = 1_000_000         # safety cap; curriculum is episode-driven
+# PPO hyperparameters
+TOTAL_STEPS = 2_500_000       # safety cap
 UPDATE_EVERY = 2_048          # steps per PPO update
 PPO_EPOCHS = 10
-MINIBATCH_SIZE = 256          # backward batch size (paper uses 64; 256 is fine)
+MINIBATCH_SIZE = 256
 
-LR = 3e-4                      # PPO learning rate
-CLIP_EPS = 0.2                 # PPO clipping epsilon
-VALUE_COEF = 1.0               # c1 in the paper
-ENT_COEF_BASE = 0.01           # base c2 (we will modulate by phase)
+LR = 3e-4                     # PPO learning rate
+CLIP_EPS = 0.2                # PPO clipping epsilon
+VALUE_COEF = 1.0              # c1
 MAX_GRAD_NORM = 0.5
 
-# Event-driven RL discounting (Sec. 3.5)
-GAMMA = 0.995                  # γ in Table 3
-GAE_LAMBDA = 0.99              # λ in Table 3
+# Event-driven RL discounting
+GAMMA = 0.995                 # γ
+GAE_LAMBDA = 0.99             # λ
 
 # Event-driven timing:
-# Actions are macro-actions that run for variable simulated duration.
-DECISION_WINDOW = 0.7          # maximum seconds of simulation between macro decisions
-SIM_DT = 0.1                   # simulation dt inside a decision window
-
-MAX_EPISODE_STEPS = 500        # max macro decisions per episode (safety cap)
+DECISION_WINDOW = 0.7         # max simulated seconds between macro decisions
+SIM_DT = 0.1                  # inner sim dt
 
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 # =========================
-# CURRICULUM (PHASE ORDER + GATING)
+# CURRICULUM: OP1 -> OP2 -> OP3
 # =========================
 
-# We want BLUE to win comfortably in each phase before moving on,
-# instead of advancing purely by episode index.
+PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]  # no SELF
 
-PHASE_SEQUENCE = ["OP1", "OP2", "OP3", "SELF"]
-
-# Minimal number of episodes to spend in each phase
 MIN_PHASE_EPISODES = {
-    "OP1": 300,   # give lots of time to crush the naive bot
+    "OP1": 300,
     "OP2": 300,
-    "OP3": 500,
-    "SELF": 750,  # you can treat SELF as "run until step cap"
+    "OP3": 500,   # stay longer vs OP3
 }
 
-# Target win-rates before advancing to the next phase
 TARGET_PHASE_WINRATE = {
-    "OP1": 0.90,  # ~90% vs OP1 before moving to OP2
-    "OP2": 0.85,  # ~85% vs OP2 before OP3
-    "OP3": 0.80,  # ~80% vs OP3 before SELF-play
-    # SELF: we typically run to step cap, so no gating needed
+    "OP1": 0.30,  # loosened for debugging; tighten later
+    "OP2": 0.50,
+    "OP3": 0.70,
 }
 
-# Window of recent episodes we use to compute per-phase winrate
 PHASE_WINRATE_WINDOW = 50
 
-# Slightly higher exploration early, taper down as opponents get stronger
 ENT_COEF_BY_PHASE = {
-    "OP1": 0.02,
-    "OP2": 0.015,
-    "OP3": 0.010,
-    "SELF": 0.0075,
+    "OP1": 0.03,
+    "OP2": 0.02,
+    "OP3": 0.015,
+}
+
+# Per-phase episode config (to avoid OP2 farming forever)
+PHASE_CONFIG = {
+    "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
+    "OP2": dict(score_limit=2, max_time=150.0, max_macro_steps=350),  # shorter & harsher
+    "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
 }
 
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
-    """
-    Swap the RED policy according to the current curriculum phase.
-    OP1 / OP2 / OP3 use the corresponding scripted opponent.
-
-    SELF currently still uses OP3 as a strong baseline.
-    Later you can replace with self-play using a shared policy.
-    """
+    """Swap the RED policy according to the current curriculum phase."""
     if phase == "OP1":
         env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
         env.policies["red"] = OP2RedPolicy("red")
     elif phase == "OP3":
         env.policies["red"] = OP3RedPolicy("red")
-    elif phase == "SELF":
-        # For now: still OP3 on red; self-play can be plugged in here.
-        env.policies["red"] = OP3RedPolicy("red")
+    else:
+        raise ValueError(f"Unknown phase: {phase}")
 
 
 # =========================
@@ -114,19 +100,15 @@ def make_env() -> GameField:
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
 
-    # INTERNAL policies ON so RED can use OP1/2/3.
-    env.use_internal_policies = True
-
-    # Blue = external RL; Red = internal scripted opponent.
-    env.set_external_control("blue", True)
-    env.set_external_control("red", False)
+    env.use_internal_policies = True        # allow RED scripted policies
+    env.set_external_control("blue", True)  # RL for blue
+    env.set_external_control("red", False)  # scripted for red
 
     return env
 
 
 # =========================
-# ROLLOUT STORAGE
-# (EVENT-DRIVEN: STORE Δt)
+# ROLLOUT STORAGE (Δt)
 # =========================
 
 class RolloutBuffer:
@@ -137,7 +119,7 @@ class RolloutBuffer:
         self.values: List[float] = []
         self.rewards: List[float] = []
         self.dones: List[bool] = []
-        self.dts: List[float] = []        # event-driven: simulated time between decisions
+        self.dts: List[float] = []        # Δt between macro decisions
 
     def add(self, obs, action, log_prob, value, reward, done, dt):
         self.obs.append(np.array(obs, dtype=np.float32))
@@ -172,8 +154,7 @@ class RolloutBuffer:
 
 
 # =========================
-# EVENT-DRIVEN ADVANTAGE / RETURN
-# (Sec. 3.5: A(tj) with γ^Δt and (λγ)^Δt)
+# EVENT-DRIVEN GAE
 # =========================
 
 def compute_gae_event(
@@ -184,16 +165,6 @@ def compute_gae_event(
     gamma: float = GAMMA,
     lam: float = GAE_LAMBDA,
 ):
-    """
-    Event-driven GAE approximation based on Sec. 3.5 of the paper.
-
-    We treat each macro decision j as occurring at time t_j, with simulated
-    duration Δt_j between t_j and t_{j+1}. Rewards r_j are the accumulated
-    reward over that interval.
-
-    TD(t_j) ≈ r_j + γ^{Δt_j} V(t_{j+1}) - V(t_j)
-    A(t_j) = TD(t_j) + (λγ)^{Δt_j} A(t_{j+1})
-    """
     T = rewards.size(0)
     advantages = torch.zeros(T, device=rewards.device)
     next_advantage = 0.0
@@ -201,7 +172,6 @@ def compute_gae_event(
 
     for t in reversed(range(T)):
         dt = dts[t]
-        # event-driven discount / decay
         gamma_dt = gamma ** dt
         lam_gamma_dt = (lam * gamma) ** dt
 
@@ -217,7 +187,7 @@ def compute_gae_event(
 
 
 # =========================
-# PPO UPDATE (PAPER-STYLE)
+# PPO UPDATE
 # =========================
 
 def ppo_update(
@@ -230,7 +200,6 @@ def ppo_update(
     obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
     advantages, returns = compute_gae_event(rewards, values, dones, dts, GAMMA, GAE_LAMBDA)
 
-    # Standard advantage normalization (helps stability)
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
     dataset_size = obs.size(0)
@@ -259,7 +228,6 @@ def ppo_update(
             value_loss = (mb_returns - new_values).pow(2).mean()
             entropy_loss = entropy.mean()
 
-            # PPO loss = policy + c1 * value - c2 * entropy
             loss = policy_loss + VALUE_COEF * value_loss - ent_coef * entropy_loss
 
             optimizer.zero_grad()
@@ -278,12 +246,6 @@ def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents,
 ) -> Dict[str, float]:
-    """
-    Get per-agent rewards for BLUE from GameManager.get_step_rewards().
-
-    GameManager stores events keyed by agent_id (Agent.unique_id).
-    We'll sum up any keys that match a given BLUE agent.
-    """
     raw = gm.get_step_rewards()  # clears internal buffer
 
     rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
@@ -293,7 +255,6 @@ def collect_blue_rewards_for_step(
             for aid in rewards_by_id:
                 rewards_by_id[aid] += v
         else:
-            # exact match or "starts with" if you ever fall back to short ids
             for aid in rewards_by_id:
                 if k == aid or k.startswith(aid.split("_")[0] + "_"):
                     rewards_by_id[aid] += v
@@ -302,7 +263,7 @@ def collect_blue_rewards_for_step(
 
 
 # =========================
-# TRAINING LOOP (EVENT-DRIVEN PPO + CURRICULUM)
+# TRAINING LOOP: OP1 -> OP2 -> OP3
 # =========================
 
 def train_ppo_event(
@@ -320,32 +281,34 @@ def train_ppo_event(
     global_step = 0
     episode_idx = 0
 
-    # Stats for pretty logging
     blue_wins = 0
     red_wins = 0
     draws = 0
     running_avg_return = 0.0
     start_time = time.time()
 
-    # ---- CURRICULUM STATE ----
+    # Curriculum state
     phase_idx = 0
     phase_episode_count = 0
-    phase_recent_results: List[int] = []  # 1 = blue win, 0 = else
+    phase_recent_results: List[int] = []  # 1 for blue win, 0 otherwise
 
-    while True:
-        # Stop if curriculum finished or step cap reached
-        if phase_idx >= len(PHASE_SEQUENCE):
-            print("[STOP] Curriculum complete (finished SELF phase).")
-            break
-        if global_step >= total_steps:
-            print(f"[STOP] Reached global_step safety cap ({global_step} >= {total_steps})")
-            break
+    # Initial episode-step cap (will be updated per-phase inside the loop)
+    current_max_episode_steps = PHASE_CONFIG[PHASE_SEQUENCE[0]]["max_macro_steps"]
 
+    while global_step < total_steps:
+        # ---- PHASE CONFIG FOR THIS EPISODE ----
         cur_phase = PHASE_SEQUENCE[phase_idx]
+        phase_cfg = PHASE_CONFIG[cur_phase]
+
+        gm.score_limit = phase_cfg["score_limit"]
+        gm.max_time = phase_cfg["max_time"]
+        current_max_episode_steps = phase_cfg["max_macro_steps"]
+        gm.set_phase(cur_phase)
+
         episode_idx += 1
         phase_episode_count += 1
 
-        # Set red opponent according to phase
+        # Set opponent for this phase
         set_red_policy_for_phase(env, cur_phase)
 
         env.reset_default()
@@ -353,18 +316,21 @@ def train_ppo_event(
 
         done_episode = False
         episode_steps = 0
-        episode_return = 0.0     # sum of BLUE rewards this episode
-        last_step_r = 0.0        # mean reward of last macro-step
+        episode_return = 0.0
+        last_step_r = 0.0
+
+        # Choose entropy coefficient for this phase
+        ENT_COEF = ENT_COEF_BY_PHASE.get(cur_phase, 0.02)
 
         while (
             not done_episode
-            and episode_steps < MAX_EPISODE_STEPS
-            and global_step < total_steps  # safety guard
+            and episode_steps < current_max_episode_steps
+            and global_step < total_steps
         ):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
 
             if not blue_agents:
-                # If both blue agents disabled, just tick forward until respawn
+                # No blue agents alive: just sim forward until terminal or window elapsed
                 sim_t = 0.0
                 while sim_t < DECISION_WINDOW and not gm.game_over:
                     env.update(SIM_DT)
@@ -373,10 +339,9 @@ def train_ppo_event(
                     done_episode = True
                 continue
 
-            # ==== 1) ACTION SELECTION FOR ALL BLUE AGENTS ====
             decisions: List[Tuple[str, List[float], int, float, float]] = []
-            # (agent_id, obs, action_id, log_prob, value)
 
+            # ====== BLUE MACRO DECISIONS ======
             for agent in blue_agents:
                 obs_vec = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs_vec, dtype=torch.float32, device=DEVICE)
@@ -392,21 +357,20 @@ def train_ppo_event(
 
                 decisions.append((agent.unique_id, obs_vec, action_id, log_prob, value))
 
-            # ==== 2) SIMULATE FOR A SHORT WINDOW (VARIABLE Δt) ====
+            # ====== SIMULATE FOR DECISION_WINDOW ======
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
                 sim_t += SIM_DT
-            dt_decision = sim_t  # event-driven: Δt between decisions
+            dt_decision = sim_t
 
-            # ==== 3) REWARDS FOR THIS DECISION STEP ====
+            # ====== COLLECT BLUE REWARDS ======
             rewards_by_id = collect_blue_rewards_for_step(gm, blue_agents)
             step_done = gm.game_over
 
             step_reward_sum = 0.0
             n_decisions = len(decisions)
 
-            # Record one transition per decision (per agent)
             for aid, obs_vec, act_id, log_p, val in decisions:
                 r = rewards_by_id.get(aid, 0.0)
 
@@ -422,7 +386,6 @@ def train_ppo_event(
                 )
                 global_step += 1
 
-            # Update per-episode stats
             episode_return += step_reward_sum
             if n_decisions > 0:
                 last_step_r = step_reward_sum / n_decisions
@@ -430,16 +393,14 @@ def train_ppo_event(
             episode_steps += 1
             done_episode = step_done
 
-            # ==== PPO UPDATE IF BUFFER FULL ====
+            # ====== PPO UPDATE WHEN BUFFER FULL ======
             if buffer.size() >= UPDATE_EVERY:
-                current_ent_coef = ENT_COEF_BY_PHASE.get(cur_phase, ENT_COEF_BASE)
                 print(
                     f"[UPDATE] step={global_step} episode={episode_idx} "
-                    f"buffer={buffer.size()} phase={cur_phase} ent={current_ent_coef:.4f}"
+                    f"buffer={buffer.size()} phase={cur_phase} ent={ENT_COEF:.4f}"
                 )
-                ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
+                ppo_update(policy, optimizer, buffer, DEVICE, ENT_COEF)
 
-                # Optional: save checkpoint
                 ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_step{global_step}.pth")
                 torch.save(policy.state_dict(), ckpt_path)
                 print(f"Saved checkpoint to {ckpt_path}")
@@ -458,44 +419,35 @@ def train_ppo_event(
             draws += 1
             phase_recent_results.append(0)
 
-        # Keep only recent window for per-phase winrate
         if len(phase_recent_results) > PHASE_WINRATE_WINDOW:
             phase_recent_results = phase_recent_results[-PHASE_WINRATE_WINDOW:]
 
-        # Running average return (simple EMA, global)
         running_avg_return = 0.99 * running_avg_return + 0.01 * episode_return
         avg_r = running_avg_return
 
-        # Win rate (global)
         total_games = blue_wins + red_wins + draws
         winrate = 100.0 * blue_wins / max(1, total_games)
+        phase_winrate = float(sum(phase_recent_results)) / max(1, len(phase_recent_results))
 
-        # Phase-local winrate
-        phase_winrate = (
-            float(sum(phase_recent_results)) / max(1, len(phase_recent_results))
-        )
-
-        # Elapsed wall-clock time
         elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))
         term_r = episode_return
 
-        # === Paper-style summary print ===
         print(
-            f"[{episode_idx:5d}] {result:11} | "
+            f"[{episode_idx:5d}] {result:8} | "
             f"StepR {last_step_r:+6.3f} TermR {term_r:+5.2f} AvgR {avg_r:+6.3f} | "
             f"Win% {winrate:5.1f}% | "
             f"PhaseWin {phase_winrate*100:5.1f}% | "
+            f"Score {gm.blue_score}:{gm.red_score} | "
             f"B {blue_wins} R {red_wins} D {draws} | "
             f"{elapsed} | {cur_phase}"
         )
 
         # ---- CURRICULUM ADVANCEMENT ----
-        # Don't gate SELF; run it to step cap.
-        if cur_phase != "SELF":
+        # Only advance if *not* already in the final phase (OP3)
+        if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
 
-            # Only consider advancing if we've met minimal episodes AND have enough samples
             if (
                 phase_episode_count >= min_eps
                 and len(phase_recent_results) >= PHASE_WINRATE_WINDOW
@@ -505,19 +457,18 @@ def train_ppo_event(
                     f"[CURRICULUM] Phase {cur_phase} complete: "
                     f"episodes={phase_episode_count}, "
                     f"PhaseWin={phase_winrate*100:.1f}% "
-                    f"(target={target_wr*100:.1f}%) → advancing to next phase."
+                    f"(target={target_wr*100:.1f}%) → advancing."
                 )
                 phase_idx += 1
                 phase_episode_count = 0
                 phase_recent_results.clear()
 
-        # Optional: extra checkpoint by episodes
+        # Episode-based checkpoints
         if (episode_idx % 100) == 0:
             ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_ep{episode_idx}.pth")
             torch.save(policy.state_dict(), ckpt_path)
             print(f"[EP-CHECKPOINT] Saved model at episode {episode_idx} -> {ckpt_path}")
 
-    # Final model save
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_ppo_final.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"Training complete. Final model saved to {final_path}")
