@@ -199,6 +199,7 @@ class GameField:
         if self.manager.game_over:
             return
 
+        # Advance global sim time / check for time or score-based terminal
         winner_text = self.manager.tick_seconds(delta_time)
         if winner_text:
             color = (
@@ -221,8 +222,8 @@ class GameField:
 
         # Process both teams
         for friendly_team, enemy_team in (
-            (self.blue_agents, self.red_agents),
-            (self.red_agents, self.blue_agents),
+                (self.blue_agents, self.red_agents),
+                (self.red_agents, self.blue_agents),
         ):
             for agent in friendly_team:
                 if not agent.isEnabled():
@@ -250,14 +251,19 @@ class GameField:
                     # External (RL) control for BLUE uses event-driven rewards
                     if agent.side == "blue":
                         last_action = getattr(
-                            agent, "last_macro_action", MacroAction.GO_TO
+                            agent,
+                            "last_macro_action",
+                            MacroAction.GO_TO,  # <-- valid neutral default
                         )
                         self.compute_reward(agent, last_action, done=False)
 
                 # 3. Movement
                 agent.update(delta_time)
 
-                # 4. Pickups & flag logic at new pos
+                # 4. Distance-to-home shaping for flag carriers
+                self.manager.reward_flag_carry_progress(agent)
+
+                # 5. Pickups & flag logic at new pos
                 self.handle_mine_pickups(agent)
                 self.apply_flag_rules(agent)
 
