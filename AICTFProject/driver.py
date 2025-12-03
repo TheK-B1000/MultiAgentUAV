@@ -1,11 +1,12 @@
 import sys
 import pygame as pg
 import torch
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List
 
 from game_field import GameField
-from macro_actions import MacroAction
+from macro_actions import MacroAction    
 from rl_policy import ActorCriticNet
+
 
 class LearnedPolicy:
     """
@@ -22,17 +23,19 @@ class LearnedPolicy:
         ).to(self.device)
 
         self.model_loaded = False
-        if model_path:
-            try:
-                state = torch.load(model_path, map_location=self.device)
-                # support { 'model': state_dict } or plain state_dict
-                state_dict = state.get("model", state) if isinstance(state, dict) else state
-                self.net.load_state_dict(state_dict)
-                print(f"[LearnedPolicy] Loaded model from {model_path}")
-                self.model_loaded = True
-            except Exception as e:
-                print(f"[LearnedPolicy] Failed to load model '{model_path}': {e}")
-                self.model_loaded = False
+        if model_path is None:
+            model_path = "marl_policy.pth"   # default expected filename
+
+        try:
+            state = torch.load(model_path, map_location=self.device)
+            # support { 'model': state_dict } or plain state_dict
+            state_dict = state.get("model", state) if isinstance(state, dict) else state
+            self.net.load_state_dict(state_dict)
+            print(f"[LearnedPolicy] Loaded model from {model_path}")
+            self.model_loaded = True
+        except Exception as e:
+            print(f"[LearnedPolicy] Failed to load model '{model_path}': {e}")
+            self.model_loaded = False
 
         self.net.eval()
 
@@ -46,7 +49,7 @@ class LearnedPolicy:
         We’re only using discrete macro-actions for now, so param is None.
         """
         if not self.model_loaded:
-            # Fallback: "simple" default macro-action
+            # Fallback: simple default macro-action
             fallback_action = int(MacroAction.GO_TO)
             return fallback_action, None
 
@@ -88,7 +91,7 @@ class Driver:
         if self.gameField.blue_agents:
             dummy_obs = self.gameField.build_observation(self.gameField.blue_agents[0])
         else:
-            dummy_obs = [0.0] * 37  # fallback, but your build_observation returns 37
+            dummy_obs = [0.0] * 37  # build_observation returns 37 features
 
         obs_dim = len(dummy_obs)
         n_actions = len(MacroAction)
@@ -104,7 +107,7 @@ class Driver:
             self.blue_learned_policy = LearnedPolicy(
                 obs_dim=obs_dim,
                 n_actions=n_actions,
-                model_path="marl_policy.pth",
+                model_path="marl_policy.pth",   # expects this file next to driver.py
             )
             if self.blue_learned_policy.model_loaded:
                 self.gameField.policies["blue"] = self.blue_learned_policy
@@ -250,6 +253,7 @@ class Driver:
             self.screen.blit(title, title.get_rect(center=(box.centerx, box.centery - 50)))
             self.screen.blit(entry, entry.get_rect(center=box.center))
             self.screen.blit(hint, hint.get_rect(center=(box.centerx, box.centery + 60)))
+
 
 if __name__ == "__main__":
     Driver().run()
