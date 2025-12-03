@@ -1,17 +1,17 @@
-# train_ppo_event.py
 import os
+import time
 from typing import Dict, List, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
 
 from game_field import GameField
 from game_manager import GameManager
 from macro_actions import MacroAction
-from policies import Policy, HeuristicPolicy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 from rl_policy import ActorCriticNet
+from policies import HeuristicPolicy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
 
 # =========================
@@ -24,7 +24,7 @@ GRID_COLS = 40
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # PPO hyperparameters
-TOTAL_STEPS = 50_000          # total *macro-decision* steps
+TOTAL_STEPS = 200_000         # safety cap; curriculum is episode-driven now
 UPDATE_EVERY = 2_048          # collect this many steps before each PPO update
 PPO_EPOCHS = 10
 MINIBATCH_SIZE = 256
@@ -41,92 +41,71 @@ GAE_LAMBDA = 0.95
 DECISION_WINDOW = 0.7         # seconds of simulation between macro decisions
 SIM_DT = 0.1                  # simulation dt inside a decision window
 
-MAX_EPISODE_STEPS = 500       # number of macro decisions per episode (safety cap)
+MAX_EPISODE_STEPS = 500       # max macro decisions per episode
 
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
+# =========================
+# PHASE SCHEDULE
+# =========================
+
+def get_phase_for_episode(ep: int) -> str:
+    """
+    100 OP1, 250 OP2, 500 OP3, 750 SELF → then DONE.
+
+    EP 1–100    -> OP1
+    EP 101–350  -> OP2
+    EP 351–850  -> OP3
+    EP 851–1600 -> SELF
+    EP > 1600   -> DONE
+    """
+    if ep <= 100:
+        return "OP1"
+    elif ep <= 350:   # 100 + 250
+        return "OP2"
+    elif ep <= 850:   # 100 + 250 + 500
+        return "OP3"
+    elif ep <= 1600:  # + 750
+        return "SELF"
+    else:
+        return "DONE"
+
+
+def set_red_policy_for_phase(env: GameField, phase: str) -> None:
+    """
+    Swap the RED policy according to the current curriculum phase.
+    OP1 / OP2 / OP3 use the corresponding scripted opponent.
+    SELF currently uses OP3 as a strong baseline (self-play extension is optional).
+    """
+    if phase == "OP1":
+        env.policies["red"] = OP1RedPolicy("red")
+    elif phase == "OP2":
+        env.policies["red"] = OP2RedPolicy("red")
+    elif phase == "OP3":
+        env.policies["red"] = OP3RedPolicy("red")
+    elif phase == "SELF":
+        # For now: still OP3 on red; later you could mirror the learned policy for true self-play.
+        env.policies["red"] = OP3RedPolicy("red")
+
+
+# =========================
+# ENV FACTORY
+# =========================
+
 def make_env() -> GameField:
-    """Create a GameField where BLUE is external RL and RED is internal opponent."""
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
 
-    # Blue is controlled by this PPO script; red uses internal policies (OP1/2/3/SELF).
+    # INTERNAL policies ON so RED can use OP1/2/3.
     env.use_internal_policies = True
+
+    # Blue = external RL; Red = internal scripted opponent.
     env.set_external_control("blue", True)
     env.set_external_control("red", False)
+
     return env
-
-
-# =========================
-# SELF-PLAY RED POLICY
-# =========================
-
-class SelfPlayRedPolicy(Policy):
-    """
-    SELF phase: red uses the *same* ActorCriticNet as blue,
-    but we only optimize from blue's transitions.
-
-    Matches Policy.select_action(obs, agent, game_field).
-    """
-    def __init__(self, shared_net: ActorCriticNet, device: torch.device):
-        self.net = shared_net
-        self.device = device
-
-    def select_action(self, obs: List[float], agent, game_field):
-        with torch.no_grad():
-            obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
-            if obs_tensor.dim() == 1:
-                obs_tensor = obs_tensor.unsqueeze(0)
-            out = self.net.act(obs_tensor, deterministic=False)
-            action = out["action"][0]
-            return int(action.item()), None
-
-
-# =========================
-# CURRICULUM PHASE SCHEDULE
-# =========================
-
-OP1_EPISODES  = 100
-OP2_EPISODES  = 250
-OP3_EPISODES  = 500
-SELF_EPISODES = 750
-
-TOTAL_EPISODES = OP1_EPISODES + OP2_EPISODES + OP3_EPISODES + SELF_EPISODES  # 1600
-
-
-def set_red_opponent_for_episode(
-    env: GameField,
-    policy_net: ActorCriticNet,
-    device: torch.device,
-    episode_idx: int,
-) -> str:
-    """
-    Chooses which opponent (red) to use this episode and updates env.policies["red"].
-
-    Returns phase name: "OP1", "OP2", "OP3", "SELF".
-    """
-    if episode_idx <= OP1_EPISODES:
-        # 1–100: OP1 baseline
-        red_policy = OP1RedPolicy("red")
-        phase = "OP1"
-    elif episode_idx <= OP1_EPISODES + OP2_EPISODES:
-        # 101–350: OP2 defender/minelayer
-        red_policy = OP2RedPolicy("red")
-        phase = "OP2"
-    elif episode_idx <= OP1_EPISODES + OP2_EPISODES + OP3_EPISODES:
-        # 351–850: OP3 composite opponent
-        red_policy = OP3RedPolicy("red")
-        phase = "OP3"
-    else:
-        # 851–1600: SELF play
-        red_policy = SelfPlayRedPolicy(policy_net, device)
-        phase = "SELF"
-
-    # Keep blue policy as-is (external), just swap red internal policy.
-    env.set_policies(env.policies["blue"], red_policy)
-    return phase
 
 
 # =========================
@@ -184,7 +163,7 @@ def compute_gae(
 ):
     """
     Standard discrete-time GAE.
-    For full event-driven GAE, you'd incorporate variable dt here (γ^Δt, (λγ)^Δt).
+    (Not fully dt-weighted yet; episode step is a single macro-decision here.)
     """
     T = rewards.size(0)
     advantages = torch.zeros(T, device=rewards.device)
@@ -303,23 +282,42 @@ def train_ppo_event(
     global_step = 0
     episode_idx = 0
 
-    while global_step < total_steps and episode_idx < TOTAL_EPISODES:
-        # ====== NEW EPISODE ======
+    # Stats for pretty logging
+    blue_wins = 0
+    red_wins = 0
+    draws = 0
+    running_avg_return = 0.0
+    start_time = time.time()
+
+    # ---- EPISODE-DRIVEN CURRICULUM ----
+    while True:
         episode_idx += 1
+        cur_phase = get_phase_for_episode(episode_idx)
+
+        if cur_phase == "DONE":
+            # Curriculum is finished (100 OP1, 250 OP2, 500 OP3, 750 SELF)
+            break
+
+        # Optional safety: break if step cap exceeded
+        if global_step >= total_steps:
+            print(f"[STOP] Reached global_step safety cap ({global_step} >= {total_steps})")
+            break
+
+        # Set red opponent according to phase
+        set_red_policy_for_phase(env, cur_phase)
+
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
-        # choose red curriculum opponent for this episode
-        phase_name = set_red_opponent_for_episode(env, policy, DEVICE, episode_idx)
-        print(f"\n[EPISODE {episode_idx}] Phase = {phase_name}")
-
         done_episode = False
         episode_steps = 0
+        episode_return = 0.0     # sum of BLUE rewards this episode
+        last_step_r = 0.0        # mean reward of last macro-step
 
         while (
             not done_episode
             and episode_steps < MAX_EPISODE_STEPS
-            and global_step < total_steps
+            and global_step < total_steps  # still as a safety guard
         ):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
 
@@ -342,14 +340,15 @@ def train_ppo_event(
                 obs_tensor = torch.tensor(obs_vec, dtype=torch.float32, device=DEVICE)
 
                 out = policy.act(obs_tensor, deterministic=False)
-                action = out["action"][0]
+                action_tensor = out["action"][0]
                 log_prob = out["log_prob"][0].item()
                 value = out["value"][0].item()
 
-                macro = MacroAction(int(action.item()))
+                action_id = int(action_tensor.item())
+                macro = MacroAction(action_id)
                 env.apply_macro_action(agent, macro)
 
-                decisions.append((agent.unique_id, obs_vec, int(action.item()), log_prob, value))
+                decisions.append((agent.unique_id, obs_vec, action_id, log_prob, value))
 
             # ==== 2) SIMULATE FOR A SHORT WINDOW ====
             sim_t = 0.0
@@ -359,12 +358,15 @@ def train_ppo_event(
 
             # ==== 3) REWARDS FOR THIS DECISION STEP ====
             rewards_by_id = collect_blue_rewards_for_step(gm, blue_agents)
-
             step_done = gm.game_over
+
+            step_reward_sum = 0.0
+            n_decisions = len(decisions)
 
             # Record one transition per decision (per agent)
             for aid, obs_vec, act_id, log_p, val in decisions:
                 r = rewards_by_id.get(aid, 0.0)
+                step_reward_sum += r
                 buffer.add(
                     obs=obs_vec,
                     action=act_id,
@@ -375,17 +377,17 @@ def train_ppo_event(
                 )
                 global_step += 1
 
+            # Update per-episode stats
+            episode_return += step_reward_sum
+            if n_decisions > 0:
+                last_step_r = step_reward_sum / n_decisions
+
             episode_steps += 1
             done_episode = step_done
 
             # ==== PPO UPDATE IF BUFFER FULL ====
             if buffer.size() >= UPDATE_EVERY:
-                print(
-                    f"[UPDATE] step={global_step} "
-                    f"episode={episode_idx} "
-                    f"buffer={buffer.size()} "
-                    f"phase={phase_name}"
-                )
+                print(f"[UPDATE] step={global_step} episode={episode_idx} buffer={buffer.size()}")
                 ppo_update(policy, optimizer, buffer, DEVICE)
 
                 # Optional: save checkpoint
@@ -393,13 +395,43 @@ def train_ppo_event(
                 torch.save(policy.state_dict(), ckpt_path)
                 print(f"Saved checkpoint to {ckpt_path}")
 
+        # ====== EPISODE DONE — LOG RESULT ======
+        if gm.blue_score > gm.red_score:
+            result = "BLUE WIN"
+            blue_wins += 1
+        elif gm.red_score > gm.blue_score:
+            result = "RED WIN"
+            red_wins += 1
+        else:
+            result = "DRAW"
+            draws += 1
+
+        # Running average return (simple EMA)
+        running_avg_return = 0.99 * running_avg_return + 0.01 * episode_return
+        avg_r = running_avg_return
+
+        # Win rate (over all finished episodes)
+        total_games = blue_wins + red_wins + draws
+        winrate = 100.0 * blue_wins / max(1, total_games)
+
+        # Elapsed wall-clock time
+        elapsed = time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))
+        term_r = episode_return
+
+        # === The exact print format you requested ===
         print(
-            f"[EPISODE {episode_idx} DONE] "
-            f"steps={episode_steps} "
-            f"game_over={gm.game_over} "
-            f"global_step={global_step} "
-            f"phase={phase_name}"
+            f"[{episode_idx:5d}] {result:11} | "
+            f"StepR {last_step_r:+6.3f} TermR {term_r:+5.2f} AvgR {avg_r:+6.3f} | "
+            f"Win% {winrate:5.1f}% | "
+            f"B {blue_wins} R {red_wins} D {draws} | "
+            f"{elapsed} | {cur_phase}"
         )
+
+        # Optional: extra checkpoint by episodes
+        if (episode_idx % 100) == 0:
+            ckpt_path = os.path.join(CHECKPOINT_DIR, f"ctf_ppo_ep{episode_idx}.pth")
+            torch.save(policy.state_dict(), ckpt_path)
+            print(f"[EP-CHECKPOINT] Saved model at episode {episode_idx} -> {ckpt_path}")
 
     # Final model save
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_ppo_final.pth")
