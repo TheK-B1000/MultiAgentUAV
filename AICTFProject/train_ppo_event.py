@@ -26,7 +26,7 @@ GRID_COLS = 40
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # PPO hyperparameters
-TOTAL_STEPS = 2_500_000
+TOTAL_STEPS = 8_000_000
 UPDATE_EVERY = 2_048
 PPO_EPOCHS = 10
 MINIBATCH_SIZE = 256
@@ -410,10 +410,6 @@ def evaluate_emperor_crowning(policy: ActorCriticNet,
     return wins / float(max(1, n_games))
 
 
-# =========================
-# TRAINING LOOP
-# =========================
-
 def train_ppo_event(total_steps=TOTAL_STEPS):
     env = make_env()
     gm = env.getGameManager()
@@ -442,23 +438,35 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
     while global_step < total_steps:
 
-        cur_phase = PHASE_SEQUENCE[phase_idx]
-        phase_cfg = PHASE_CONFIG[cur_phase]
+        episode_idx += 1
+        phase_episode_count += 1
 
+        # ===== PHASE / OPPONENT SELECTION =====
+        # Before episode 2000: normal curriculum (OP1 → OP2 → OP3, with mixing in OP3)
+        # From episode 2000 onward: always OP3 phase vs pure OP3 opponent.
+        if episode_idx >= 2000:
+            cur_phase = "OP3"
+            phase_idx = PHASE_SEQUENCE.index("OP3")
+        else:
+            cur_phase = PHASE_SEQUENCE[phase_idx]
+
+        phase_cfg = PHASE_CONFIG[cur_phase]
         gm.score_limit = phase_cfg["score_limit"]
         gm.max_time = phase_cfg["max_time"]
         max_steps = phase_cfg["max_macro_steps"]
         gm.set_phase(cur_phase)
 
-        episode_idx += 1
-        phase_episode_count += 1
-
         # --- Opponent selection ---
-        if cur_phase == "OP3":
-            opponent_tag = set_mixed_opponent_for_op3(env, phase_episode_count, phase_wr)
+        if episode_idx >= 2000:
+            # Hard-lock to pure OP3 after episode 2000
+            env.policies["red"] = OP3RedPolicy("red")
+            opponent_tag = "OP3"
         else:
-            set_red_policy_for_phase(env, cur_phase)
-            opponent_tag = cur_phase
+            if cur_phase == "OP3":
+                opponent_tag = set_mixed_opponent_for_op3(env, phase_episode_count, phase_wr)
+            else:
+                set_red_policy_for_phase(env, cur_phase)
+                opponent_tag = cur_phase
 
         env.reset_default()
         gm.reset_game(reset_scores=True)
@@ -470,8 +478,13 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         # --- Exploration strength (entropy coefficient) for this episode ---
         ENT_COEF = get_entropy_coef(cur_phase, phase_episode_count)
 
-        # Extra exploration if OP3 is getting wrecked after hard start
-        if cur_phase == "OP3" and phase_episode_count >= 900 and phase_wr < 0.20:
+        # Extra exploration if OP3 is getting wrecked after hard start (only before lock)
+        if (
+            cur_phase == "OP3"
+            and episode_idx < 2000
+            and phase_episode_count >= 900
+            and phase_wr < 0.20
+        ):
             ENT_COEF = max(ENT_COEF, 0.03)
 
         steps = 0
@@ -681,13 +694,11 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 p1 = pct_1[i] if i < len(pct_1) else 0.0
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
             print("   Cooperation patterns (episodes with ≥1 score):")
-            print(f"      miner0_runner1 (0 mines, 1 scores): {p_m0_r1:5.1f}% of window")
-            print(f"      miner1_runner0 (1 mines, 0 scores): {p_m1_r0:5.1f}% of window")
             print(f"      both_mine_and_score              : {p_both:5.1f}% of window")
             print("   =====================================================")
 
-        # === Curriculum Advance (for OP1/OP2 only) ===
-        if cur_phase != PHASE_SEQUENCE[-1]:
+        # === Curriculum Advance (for OP1/OP2 only, and only before lock) ===
+        if episode_idx < 2000 and cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
 
@@ -704,7 +715,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_final_model.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"\nTraining complete. Saved model to {final_path}")
-
 
 if __name__ == "__main__":
     train_ppo_event()
