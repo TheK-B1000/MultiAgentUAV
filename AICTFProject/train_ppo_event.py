@@ -13,7 +13,7 @@ from game_field import GameField
 from game_manager import GameManager
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
-from policies import HeuristicPolicy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
 
 # =========================
@@ -95,7 +95,7 @@ ENT_COEF_BY_PHASE = {
 
 PHASE_CONFIG = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-    "OP2": dict(score_limit=2, max_time=150.0, max_macro_steps=350),
+    "OP2": dict(score_limit=1, max_time=200.0, max_macro_steps=450),
     "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=550),
 }
 
@@ -104,6 +104,13 @@ EMPEROR_TARGET_WR = 0.80  # 80%
 
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
+    """
+    In this version (paper-style), each phase uses a fixed opponent:
+      - OP1: naive baseline
+      - OP2: defensive mines
+      - OP3: offense/defense split (one miner, one runner)
+    No mixing.
+    """
     if phase == "OP1":
         env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
@@ -224,10 +231,6 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 
     buffer.clear()
 
-
-# =========================
-# BLUE REWARD + PHASE-AWARE FREELOADER PENALTY
-# =========================
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents,
@@ -235,108 +238,73 @@ def collect_blue_rewards_for_step(
     cur_phase: str = "OP1",
 ):
     """
-    mix_alpha = 0.0 → pure team reward (everyone gets team mean).
-    mix_alpha = 1.0 → pure individual reward.
-    We stay at mix_alpha=0.0 for now (pure team reward).
+    Collect per-blue-agent rewards from GameManager.
+    - Per-agent shaping rewards (flag pickup, mines, kills) come with agent_id="blue_0"/"blue_1".
+    - Team rewards (win/loss/draw) come with agent_id=None and are split evenly.
     """
-    raw = gm.get_step_rewards()
+    raw = gm.get_step_rewards()  # {agent_id or None: reward}
 
     indiv_rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
-    for k, v in raw.items():
-        if k is None:
-            for aid in indiv_rewards_by_id:
-                indiv_rewards_by_id[aid] += v
-        else:
-            for aid in indiv_rewards_by_id:
-                if k == aid or k.startswith(aid.split("_")[0] + "_"):
-                    indiv_rewards_by_id[aid] += v
 
-    team_mean = sum(indiv_rewards_by_id.values()) / max(1, len(indiv_rewards_by_id))
+    if not indiv_rewards_by_id:
+        return indiv_rewards_by_id
 
-    # Phase-dependent freeloader penalty (light touch)
-    penalty = 0.05 if cur_phase == "OP3" else 0.02
+    # 1) Handle global team reward (None key)
+    team_r = raw.get(None, 0.0)
+    if abs(team_r) > 0.0:
+        share = team_r / len(indiv_rewards_by_id)
+        for aid in indiv_rewards_by_id:
+            indiv_rewards_by_id[aid] += share
 
-    rewards_by_id = {}
-    for aid, r_indiv in indiv_rewards_by_id.items():
-        r_final = mix_alpha * r_indiv + (1.0 - mix_alpha) * team_mean
-        # If team is doing well but this agent has almost no reward, nudge them.
-        if team_mean > 0.3 and r_indiv < 0.05:
-            r_final -= penalty
-        rewards_by_id[aid] = r_final
+    # 2) Handle agent-specific rewards
+    for aid, r in raw.items():
+        if aid is None:
+            continue
+        if aid in indiv_rewards_by_id:
+            indiv_rewards_by_id[aid] += r
+        # if you like, you can log unexpected keys:
+        # else:
+        #     print(f"[WARN] Reward for unknown agent_id={aid}: {r}")
 
-    return rewards_by_id
-
+    return indiv_rewards_by_id
 
 # =========================
-# ENTROPY + OPPONENT MIXING
+# ENTROPY SCHEDULE
 # =========================
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
     """
-    Base schedule by phase + extra boost when losing (especially OP3).
+    Base schedule by phase + *moderate* extra exploration when losing.
+    OP3 entropy should settle in the ~0.015–0.035 band, not 0.06.
     """
-    base = ENT_COEF_BY_PHASE[cur_phase]
+    base = ENT_COEF_BY_PHASE[cur_phase]  # {"OP1": 0.03, "OP2": 0.02, "OP3": 0.015}
+
     if cur_phase == "OP1":
         horizon, start_ent = 500.0, max(base, 0.04)
     elif cur_phase == "OP2":
         horizon, start_ent = 800.0, max(base, 0.03)
     else:
-        horizon, start_ent = 2000.0, max(base, 0.05)
+        # OP3: start a bit higher, but not crazy high
+        horizon, start_ent = 2000.0, max(base, 0.035)
 
     frac = min(1.0, phase_episode_count / horizon)
-    ent = start_ent - (start_ent - base) * frac
+    ent = start_ent - (start_ent - base) * frac  # decay toward base
 
-    # Extra exploration when losing, mainly for OP3
     if cur_phase == "OP3":
+        # If really getting stomped, keep a *moderate* floor, not 0.06
         if phase_wr < 0.15:
-            ent = max(ent, 0.06)  # strong boost
+            ent = max(ent, 0.035)
         elif phase_wr < 0.30:
-            ent = max(ent, 0.05)  # mild boost
+            ent = max(ent, 0.025)
 
     return float(ent)
-
-
-def set_mixed_opponent_for_op3(env: GameField, phase_episode_count: int, phase_wr: float) -> str:
-    """
-    Always use mixing in OP3 (no hard lock to pure OP3).
-    We just shift the distribution over OP1/OP2/OP3 as training progresses.
-    """
-    HARD_START = 900
-    COLLAPSE_WR = 0.20
-
-    if phase_episode_count < 300:
-        # Early OP3: lots of practice vs weaker opponents
-        p1, p2, p3 = 0.34, 0.33, 0.33
-    elif phase_episode_count < HARD_START:
-        # Middle OP3: more OP3, but still variety
-        p1, p2, p3 = 0.25, 0.25, 0.50
-    else:
-        # Late OP3: OP3-heavy, but *still* mixed to avoid overfitting
-        if phase_wr < COLLAPSE_WR:
-            # Collapsed: ease back to more OP2
-            p1, p2, p3 = 0.10, 0.30, 0.60
-        elif phase_wr < 0.50:
-            # Learning but not dominant
-            p1, p2, p3 = 0.10, 0.20, 0.70
-        else:
-            # Strong policy: mostly OP3, still a bit of structure
-            p1, p2, p3 = 0.05, 0.15, 0.80
-
-    r = random.random()
-    if r < p1:
-        env.policies["red"] = OP1RedPolicy("red")
-        return "OP1-mix"
-    elif r < p1 + p2:
-        env.policies["red"] = OP2RedPolicy("red")
-        return "OP2-mix"
-    else:
-        env.policies["red"] = OP3RedPolicy("red")
-        return "OP3"
-
 
 # =========================
 # TRUE EMPEROR EVALUATION
 # =========================
 def evaluate_emperor_crowning(policy: ActorCriticNet, device: torch.device, n_games: int = 20) -> float:
+    """
+    Evaluation strictly vs OP3 (paper-style "best opponent").
+    """
     policy.eval()
     env = make_env()
     gm = env.getGameManager()
@@ -358,6 +326,7 @@ def evaluate_emperor_crowning(policy: ActorCriticNet, device: torch.device, n_ga
 
             while not done and steps < max_steps:
                 blue_agents = [a for a in env.blue_agents if a.isEnabled()]
+
                 for agent in blue_agents:
                     obs = env.build_observation(agent)
                     obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device)
@@ -388,7 +357,19 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     env = make_env()
     gm = env.getGameManager()
 
-    policy = ActorCriticNet().to(DEVICE)
+    # --- initialize env once to infer obs_dim ---
+    env.reset_default()
+    if env.blue_agents:
+        dummy_obs = env.build_observation(env.blue_agents[0])
+    else:
+        dummy_obs = [0.0] * 42  # fallback, matches current obs builder
+
+    obs_dim = len(dummy_obs)
+    n_actions = len(MacroAction)
+
+    # Create policy with correct input/output sizes
+    policy = ActorCriticNet(input_dim=obs_dim, n_actions=n_actions).to(DEVICE)
+
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
 
@@ -422,22 +403,19 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         max_steps = phase_cfg["max_macro_steps"]
         gm.set_phase(cur_phase)
 
-        if cur_phase == "OP3":
-            opponent_tag = set_mixed_opponent_for_op3(env, phase_episode_count, phase_wr)
-        else:
-            set_red_policy_for_phase(env, cur_phase)
-            opponent_tag = cur_phase
+        # === Fixed opponent per phase (paper-style) ===
+        set_red_policy_for_phase(env, cur_phase)
+        opponent_tag = cur_phase
 
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
         done = False
-        ep_return = 0.0
-        last_step_r = 0.0
+        ep_return = 0.0  # total reward over the whole episode
+        steps = 0        # number of macro-decision steps this episode
 
         ENT_COEF = get_entropy_coef(cur_phase, phase_episode_count, phase_wr)
 
-        steps = 0
         ep_macro_counts = {0: [0] * NUM_ACTIONS, 1: [0] * NUM_ACTIONS}
         ep_mine_attempts = {0: 0, 1: 0}
         ep_combat_events = 0
@@ -448,6 +426,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             decisions = []
 
+            # === Blue macro decisions ===
             for agent in blue_agents:
                 obs = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
@@ -465,12 +444,15 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 env.apply_macro_action(agent, MacroAction(a))
                 decisions.append((agent.unique_id, obs, a, logp, val))
 
+            # === Simulate until next decision window ===
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
                 sim_t += SIM_DT
 
             dt = sim_t
+
+            # === Collect rewards ===
             rewards = collect_blue_rewards_for_step(
                 gm, blue_agents, mix_alpha=0.0, cur_phase=cur_phase
             )
@@ -493,10 +475,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 global_step += 1
 
             ep_return += step_reward_sum
-            if decisions:
-                last_step_r = step_reward_sum / len(decisions)
             steps += 1
 
+            # === PPO update ===
             if buffer.size() >= UPDATE_EVERY:
                 print(
                     f"[UPDATE] step={global_step} episode={episode_idx} "
@@ -504,7 +485,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 )
                 ppo_update(policy, optimizer, buffer, DEVICE, ENT_COEF)
 
-        # Episode end
+        # ---------------------------
+        # Episode end: result + stats
+        # ---------------------------
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
@@ -522,9 +505,11 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
 
+        avg_step_r = ep_return / max(1, steps)
+
         print(
             f"[{episode_idx:5d}] {result:8} | "
-            f"StepR {last_step_r:+.3f} "
+            f"StepR {avg_step_r:+.3f} "
             f"TermR {ep_return:+.1f} | "
             f"Score {gm.blue_score}:{gm.red_score} | "
             f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
@@ -575,10 +560,14 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     print(f"   >>> Emperor model saved → {BEST_OP3_EMPEROR_PATH} <<<")
                     print("   " + "=" * 70)
 
+        # ---------------------------
         # Cooperation HUD
+        # ---------------------------
         miner0_runner1 = ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
         miner1_runner0 = ep_score_events > 0 and ep_mine_attempts[1] > 0 and ep_mine_attempts[0] == 0
-        both_mine_and_score = ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] > 0
+        both_mine_and_score = (
+            ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] > 0
+        )
 
         coop_window.append(
             {
@@ -647,7 +636,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             )
             print("   =====================================================")
 
+        # ---------------------------
         # Curriculum advance
+        # ---------------------------
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
@@ -667,7 +658,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
     print(f"Best-so-far OP3 model (if any): {BEST_OP3_SO_FAR_PATH}")
     print(f"Emperor OP3 model (if threshold reached): {BEST_OP3_EMPEROR_PATH}")
-
 
 if __name__ == "__main__":
     train_ppo_event()
