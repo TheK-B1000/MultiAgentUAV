@@ -1,93 +1,70 @@
+# rl_policy.py
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
 from typing import Dict, Any
 
 from obs_encoder import ObsEncoder
-from macro_actions import MacroAction   # ← FIXED: import from macro_actions
+from macro_actions import MacroAction
 
 
 class ActorCriticNet(nn.Module):
     """
-    Actor-Critic network for the new observation space.
+    Actor-Critic network for the 42-D macro-action observation.
 
-    Observation layout (from GameField.build_observation):
+    Architecture (paper-aligned, fully-connected):
 
-      • 17 scalar features:
-          0  : dx_enemy_flag
-          1  : dy_enemy_flag
-          2  : dx_own_flag
-          3  : dy_own_flag
-          4  : is_carrying_flag
-          5  : own_flag_taken
-          6  : enemy_flag_taken
-          7  : side_blue
-          8  : ammo_norm
-          9  : is_miner
-          10 : dx_mine
-          11 : dy_mine
-          12 : agent_id_onehot[0]
-          13 : agent_id_onehot[1]
-          14 : teammate_mines_norm
-          15 : teammate_has_flag
-          16 : teammate_dist
+      obs (42) → shared MLP trunk (2 layers, Tanh)
+                → latent (128)
 
-      • 25 spatial features: 5×5 local occupancy grid (flattened)
+      From latent:
+        - actor head:  Linear(latent_dim → n_actions)
+        - critic head: Linear(latent_dim → 1)
 
-      → total_dim = 17 + 25 = 42
+    This is closer to a classic PPO / paper-style setup:
+    simple, linear layers with Tanh, no convolutions or extra bells.
     """
 
     def __init__(
         self,
-        n_scalar: int = 17,           # scalar part (see above)
-        spatial_side: int = 5,        # 5×5 occupancy
+        input_dim: int = 42,          # full observation dimension
         n_actions: int = len(MacroAction),
-        hidden_dim: int = 256,
-        latent_dim: int = 256,
+        hidden_dim: int = 128,
+        latent_dim: int = 128,
     ):
         super().__init__()
 
-        # Encoder that handles scalar + spatial split
+        # Shared encoder MLP
         self.encoder = ObsEncoder(
-            n_scalar=n_scalar,
-            spatial_side=spatial_side,
+            input_dim=input_dim,
             hidden_dim=hidden_dim,
             latent_dim=latent_dim,
         )
 
-        self.actor = nn.Sequential(
-            nn.Linear(latent_dim, 512),
-            nn.ReLU(),
-            nn.Linear(512, n_actions),
-        )
+        # Simple linear heads from shared latent
+        self.actor = nn.Linear(latent_dim, n_actions)
+        self.critic = nn.Linear(latent_dim, 1)
 
-        self.critic = nn.Sequential(
-            nn.Linear(latent_dim, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1),
-        )
+        self._init_heads()
 
-        # Optional: orthogonal init for stability
-        for layer in self.actor:
-            if isinstance(layer, nn.Linear):
-                nn.init.orthogonal_(layer.weight, gain=0.8)
-                nn.init.constant_(layer.bias, 0)
+    def _init_heads(self):
+        # Orthogonal init for actor/critic with appropriate gains
+        nn.init.orthogonal_(self.actor.weight, gain=0.01)  # small logits at start
+        nn.init.constant_(self.actor.bias, 0.0)
 
-        for layer in self.critic:
-            if isinstance(layer, nn.Linear):
-                nn.init.orthogonal_(layer.weight, gain=1.0)
-                nn.init.constant_(layer.bias, 0)
+        nn.init.orthogonal_(self.critic.weight, gain=1.0)
+        nn.init.constant_(self.critic.bias, 0.0)
 
     def forward(self, obs: torch.Tensor):
         """
-        obs: [B, 42] or [42]
+        obs: [B, input_dim] or [input_dim]
         returns:
             logits: [B, n_actions]
             value:  [B]  (1D, squeezed)
         """
-        latent = self.encoder(obs)
-        logits = self.actor(latent)
-        value = self.critic(latent).squeeze(-1)
+        latent = self.encoder(obs)           # [B, latent_dim]
+        logits = self.actor(latent)          # [B, n_actions]
+        value = self.critic(latent).squeeze(-1)  # [B]
         return logits, value
 
     @torch.no_grad()
@@ -134,7 +111,7 @@ class ActorCriticNet(nn.Module):
         Used in PPO update:
 
         Inputs:
-            obs:     [B, 42]
+            obs:     [B, input_dim]
             actions: [B] (LongTensor, MacroAction indices)
 
         Outputs:
