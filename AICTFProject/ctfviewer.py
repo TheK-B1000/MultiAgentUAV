@@ -65,18 +65,18 @@ class LearnedPolicy:
 
             return action, None
 
-class Driver:
+class CTFViewer:
     def __init__(self):
         rows, cols = 30, 40
         grid = [[0] * cols for _ in range(rows)]
-        self.gameField = GameField(grid)
-        self.gameManager = self.gameField.getGameManager()
+        self.game_field = GameField(grid)
+        self.game_manager = self.game_field.getGameManager()
 
         # ------------- Pygame setup -------------
         pg.init()
         self.size = (1024, 720)
         self.screen = pg.display.set_mode(self.size)
-        pg.display.set_caption("UAV CTF – Paper-Accurate MARL Environment")
+        pg.display.set_caption("UAV CTF – Trained Agent vs Paper OP3")
         self.clock = pg.time.Clock()
         self.font = pg.font.SysFont(None, 26)
         self.bigfont = pg.font.SysFont(None, 48)
@@ -85,20 +85,16 @@ class Driver:
         self.input_text = ""
 
         # ------------- RL Policy Setup -------------
-        if self.gameField.blue_agents:
-            dummy_obs = self.gameField.build_observation(self.gameField.blue_agents[0])
+        if self.game_field.blue_agents:
+            dummy_obs = self.game_field.build_observation(self.game_field.blue_agents[0])
         else:
-            dummy_obs = [0.0] * 37  # build_observation returns 37 features
-
+            dummy_obs = [0.0] * 37
         obs_dim = len(dummy_obs)
         n_actions = len(MacroAction)
 
-        # Keep references to the original heuristic policies
-        self.blue_heuristic = self.gameField.policies["blue"]
-        self.red_heuristic = self.gameField.policies["red"]
-
-        self.blue_learned_policy: Optional[LearnedPolicy] = None
-        self.use_learned_blue: bool = False
+        self.blue_baseline = self.game_field.policies["blue"]
+        self.blue_rl_policy: Optional[LearnedPolicy] = None
+        self.use_rl_blue = False
 
         try:
             self.blue_learned_policy = LearnedPolicy(
@@ -160,15 +156,15 @@ class Driver:
         elif k == pg.K_F4:
             # Toggle between heuristic and learned policy for blue
             if not self.blue_learned_policy or not self.blue_learned_policy.model_loaded:
-                print("[Driver] No learned model available!")
+                print("[CTFViewer] No learned model available!")
                 return
             self.use_learned_blue = not self.use_learned_blue
             if self.use_learned_blue:
                 self.gameField.policies["blue"] = self.blue_learned_policy
-                print("[Driver] Blue → LEARNED policy")
+                print("[CTFViewer] Blue → LEARNED policy")
             else:
                 self.gameField.policies["blue"] = self.blue_heuristic
-                print("[Driver] Blue → HEURISTIC policy")
+                print("[CTFViewer] No valid model found → using baseline policy")
         elif k == pg.K_F5:
             self.gameField.debug_draw_ranges = not self.gameField.debug_draw_ranges
         elif k == pg.K_F6:
@@ -253,4 +249,4 @@ class Driver:
 
 
 if __name__ == "__main__":
-    Driver().run()
+    CTFViewer().run()
