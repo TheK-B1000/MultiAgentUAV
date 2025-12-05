@@ -10,23 +10,21 @@ from policies import OP3RedPolicy
 
 
 class LearnedPolicy:
-    def __init__(self, obs_dim: int, n_actions: int, model_path: Optional[str] = None):
+    def __init__(self, model_path: Optional[str] = None):
         self.device = torch.device("cpu")  # keep simple for the viewer
 
-        # n_actions should match len(MacroAction)
-        self.net = ActorCriticNet(
-            obs_dim=obs_dim,
-            n_actions=n_actions,
-        ).to(self.device)
+        # Architecture must match the trainer: ActorCriticNet() with default args
+        self.net = ActorCriticNet().to(self.device)
 
         self.model_loaded = False
 
+        # Default to the final model from train_ppo_event.py
         if model_path is None:
-            model_path = "checkpoints/ctf_ppo_final.pth"
+            model_path = "checkpoints/ctf_final_model.pth"
 
         try:
             state = torch.load(model_path, map_location=self.device)
-            # support { 'model': state_dict } or plain state_dict
+            # Support {'model': state_dict} or plain state_dict
             if isinstance(state, dict) and "model" in state:
                 state_dict = state["model"]
             else:
@@ -51,20 +49,17 @@ class LearnedPolicy:
             # Fallback: simple macro-action that always does something sane
             fallback_action = int(MacroAction.GO_TO_ENEMY_FLAG) if hasattr(
                 MacroAction, "GO_TO_ENEMY_FLAG"
-            ) else int(MacroAction.GO_TO)
+            ) else int(MacroAction.PATROL_ENEMY_HALF)
             return fallback_action, None
 
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
             if obs_tensor.dim() == 1:
-                obs_tensor = obs_tensor.unsqueeze(0)  # [1, obs_dim]
+                obs_tensor = obs_tensor.unsqueeze(0)  # [1, input_dim]
 
-            # ActorCriticNet.act should be the same API you used in training
             out = self.net.act(obs_tensor, deterministic=True)
-            # out is a dict: { "action": Tensor, "log_prob": Tensor, "value": Tensor }
             action = out["action"]
             if isinstance(action, torch.Tensor):
-                # Shape [1], so take element 0
                 action = int(action[0].item())
 
             return action, None
@@ -89,20 +84,17 @@ class CTFViewer:
         self.input_active = False
         self.input_text = ""
 
-        # ------------- RL Policy / Baseline Setup -------------
-        # Sanity-check obs dimension from current GameField
+        # ----- (Optional) print detected obs_dim just for sanity -----
         if self.game_field.blue_agents:
             dummy_obs = self.game_field.build_observation(self.game_field.blue_agents[0])
         else:
-            # Updated obs builder: 17 scalars + 5x5 map = 42
             dummy_obs = [0.0] * 42
         obs_dim = len(dummy_obs)
         print(f"[CTFViewer] Detected obs_dim={obs_dim}")
-        n_actions = len(MacroAction)
 
         # ---- OP3 baseline for BOTH sides ----
-        # Red already defaults to OP3 in GameField, but we enforce it explicitly.
         if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
+            # Red = OP3 baseline
             self.game_field.policies["red"] = OP3RedPolicy("red")
 
         # Blue baseline: OP3-style policy with side="blue"
@@ -116,16 +108,14 @@ class CTFViewer:
 
         try:
             self.blue_learned_policy = LearnedPolicy(
-                obs_dim=obs_dim,
-                n_actions=n_actions,
-                model_path="checkpoints/ctf_ppo_final.pth",
+                model_path="checkpoints/ctf_final_model.pth"  # or ctf_best_so_far_op3.pth
             )
             if self.blue_learned_policy.model_loaded:
                 # Initially let RL control Blue
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
                     self.game_field.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
-                print("[CTFViewer] Blue team using LEARNED policy (checkpoints/ctf_ppo_final.pth)")
+                print("[CTFViewer] Blue team using LEARNED policy (ctf_final_model.pth)")
             else:
                 # No valid model: fall back to OP3 baseline for BLUE
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
@@ -134,7 +124,6 @@ class CTFViewer:
                 print("[CTFViewer] No valid model → Blue using OP3 baseline")
         except Exception as e:
             print(f"[CTFViewer] RL setup failed: {e}")
-            # Fall back to OP3 baseline
             if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
                 self.game_field.policies["blue"] = self.blue_op3_baseline
             self.use_learned_blue = False
@@ -257,7 +246,7 @@ class CTFViewer:
 
         # Model status
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: checkpoints/ctf_ppo_final.pth", self.size[0] - 360, 15, (100, 220, 100))
+            txt("Model: checkpoints/ctf_final_model.pth", self.size[0] - 360, 15, (100, 220, 100))
 
         # Input overlay
         if self.input_active:
