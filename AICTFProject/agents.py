@@ -70,8 +70,10 @@ class Agent:
         self._float_x = float(self.x)
         self._float_y = float(self.y)
 
-        # Unique identifier (safe to keep for logging / debugging)
-        self.unique_id = f"{self.side}_{self.agent_id}_{self.spawn_xy[0]}_{self.spawn_xy[1]}"
+        # Unique identifier used by GameManager reward_events.
+        # IMPORTANT: keep this in sync with GameManager.get_step_rewards()
+        # so global rewards (win/draw/loss) are assigned correctly.
+        self.unique_id = f"{self.side}_{self.agent_id}"
 
         # Ensure event flags are clean
         self._just_picked_up_flag = False
@@ -100,7 +102,7 @@ class Agent:
         return self.side
 
     # ------------------------------------------------------------------
-    # Status checks
+       # Status checks
     # ------------------------------------------------------------------
     def isEnabled(self) -> bool:
         """True if the agent is active in the game."""
