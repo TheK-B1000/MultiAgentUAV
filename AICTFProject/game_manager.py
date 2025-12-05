@@ -7,8 +7,8 @@ import math
 WIN_TEAM_REWARD = 1.0
 
 # Base progress rewards (OP1). OP2/OP3 will scale these for BLUE.
-FLAG_PICKUP_REWARD_BASE = 0.1
-FLAG_CARRY_HOME_REWARD_BASE = 0.5
+FLAG_PICKUP_REWARD_BASE = 0.3
+FLAG_CARRY_HOME_REWARD_BASE = 1.5
 
 # Mines & kills (base values)
 ENABLED_MINE_REWARD = 0.2
@@ -18,8 +18,8 @@ ENEMY_MAV_KILL_REWARD = 0.5
 ACTION_FAILED_PUNISHMENT = -0.2
 
 # Terminal shaped penalties (small but directional)
-DRAW_PENALTY = -0.3
-LOSS_PENALTY = -0.7
+DRAW_PENALTY = -0.1
+LOSS_PENALTY = -0.5
 
 # Extra shaping constants for mines / suppression (blue-focused)
 FLAG_CARRIER_KILL_BONUS = 0.5      # extra when killing carrier
@@ -86,8 +86,10 @@ class GameManager:
         OP3: 1.5  → pickup=0.75, carry=1.5
         other: 1.0
         """
-        if self.phase_name in ("OP2", "OP3"):
+        if self.phase_name == "OP2":
             return 1.5
+        if self.phase_name == "OP3":
+            return 1.8  # or 2.0 if you want to be more aggressive
         return 1.0
 
     # ==================================================================
