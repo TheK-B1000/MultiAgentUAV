@@ -33,6 +33,7 @@ class ObsEncoder(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
+            nn.LayerNorm(hidden_dim),
         )
 
         self.spatial_mlp = nn.Sequential(
@@ -40,6 +41,7 @@ class ObsEncoder(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
+            nn.LayerNorm(hidden_dim),
         )
 
         self.fuse = nn.Sequential(
