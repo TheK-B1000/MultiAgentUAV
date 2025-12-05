@@ -1,113 +1,81 @@
+# obs_encoder.py
 import torch
 import torch.nn as nn
 
 
 class ObsEncoder(nn.Module):
     """
-    ObsEncoder for the 42-D observation (scalar + 5×5 occupancy).
+    Paper-style ObsEncoder: simple MLP over the flat observation vector.
 
-    Layout (must match GameField.build_observation):
+    Observation layout (from GameField.build_observation):
 
       • 17 scalar features:
-          0-11 : original 12 (dx/dy flag, carrying, taken flags, side, ammo, etc.)
-          12-13: agent_id one-hot [1,0] or [0,1]
-          14   : teammate_mines_norm
-          15   : teammate_has_flag
-          16   : teammate_dist
+          0  : dx_enemy_flag
+          1  : dy_enemy_flag
+          2  : dx_own_flag
+          3  : dy_own_flag
+          4  : is_carrying_flag
+          5  : own_flag_taken
+          6  : enemy_flag_taken
+          7  : side_blue
+          8  : ammo_norm
+          9  : is_miner
+          10 : dx_mine
+          11 : dy_mine
+          12 : agent_id_onehot[0]
+          13 : agent_id_onehot[1]
+          14 : teammate_mines_norm
+          15 : teammate_has_flag
+          16 : teammate_dist
 
-      • 25 spatial (5×5 local occupancy grid)
+      • 25 spatial features: 5×5 local occupancy grid (flattened)
+
       → total_dim = 17 + 25 = 42
 
-    We process:
-      - Scalars via an MLP with residual.
-      - Spatial part via small ConvNet over the 5×5 grid.
-      - Then fuse both into a latent representation for actor/critic.
+    This encoder just applies a small MLP:
+        obs (42) → hidden_dim → latent_dim
+
+    No convs, no residual blocks, no LayerNorm: closer to the simple,
+    fully-connected networks typically used in the original paper.
     """
 
     def __init__(
         self,
-        n_scalar: int = 17,
-        spatial_side: int = 5,
-        hidden_dim: int = 256,
-        latent_dim: int = 256,
-        dropout: float = 0.05,
+        input_dim: int = 42,
+        hidden_dim: int = 128,
+        latent_dim: int = 128,
     ):
         super().__init__()
-        self.n_scalar = n_scalar
-        self.spatial_side = spatial_side
-        self.spatial_dim = spatial_side * spatial_side  # 25
+        self.input_dim = input_dim
 
-        # ── Scalar branch (richer + residual) ─────────────────────────────
-        self.scalar_net = nn.Sequential(
-            nn.Linear(n_scalar, hidden_dim),
-            nn.SiLU(),
-            nn.LayerNorm(hidden_dim),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.SiLU(),
-            nn.LayerNorm(hidden_dim),
-        )
-        self.scalar_residual = nn.Linear(n_scalar, hidden_dim)  # residual connection
-
-        # ── Spatial branch (Conv2d over 5×5 neighborhood) ─────────────────
-        self.spatial_conv = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.SiLU(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.SiLU(),
-            nn.Conv2d(64, hidden_dim, kernel_size=3, padding=1),
-            nn.SiLU(),
-            nn.AdaptiveAvgPool2d(1),  # → [B, hidden_dim, 1, 1]
-            nn.Flatten(),             # → [B, hidden_dim]
-        )
-
-        # ── Final fusion → latent ─────────────────────────────────────────
-        self.fusion = nn.Sequential(
-            nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.SiLU(),
-            nn.LayerNorm(hidden_dim),
-            nn.Dropout(dropout),
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.Tanh(),
             nn.Linear(hidden_dim, latent_dim),
+            nn.Tanh(),
         )
 
-        # Orthogonal init for stability
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain("relu"))
+            # Tanh-friendly gain
+            gain = nn.init.calculate_gain("tanh")
+            nn.init.orthogonal_(m.weight, gain=gain)
             if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Conv2d):
-            nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain("relu"))
-            if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(m.bias, 0.0)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         """
-        obs: [B, 42] or [42]
+        obs: [B, input_dim] or [input_dim]
+        returns:
+            latent: [B, latent_dim]
         """
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
 
-        expected_dim = self.n_scalar + self.spatial_dim  # 17 + 25 = 42
-        assert obs.size(1) == expected_dim, \
-            f"ObsEncoder expected {expected_dim} dims, got {obs.size(1)}"
+        assert obs.size(1) == self.input_dim, \
+            f"ObsEncoder expected {self.input_dim} dims, got {obs.size(1)}"
 
-        # Split
-        scalars = obs[:, :self.n_scalar]                    # [B, 17]
-        spatial_flat = obs[:, self.n_scalar:]               # [B, 25]
-        spatial = spatial_flat.view(-1, 1, self.spatial_side, self.spatial_side)  # [B, 1, 5, 5]
-
-        # Scalar processing + residual
-        s = self.scalar_net(scalars) + self.scalar_residual(scalars)
-        s = nn.functional.silu(s)
-
-        # Spatial processing via CNN
-        p = self.spatial_conv(spatial)                      # [B, hidden_dim]
-
-        # Fuse
-        fused = torch.cat([s, p], dim=-1)                   # [B, hidden_dim * 2]
-        latent = self.fusion(fused)
-
+        latent = self.net(obs)
         return latent
