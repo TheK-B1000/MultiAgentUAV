@@ -1,8 +1,10 @@
 # rl_policy.py
+import math
+from typing import Dict, Any
+
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
-from typing import Dict, Any
 
 from obs_encoder import ObsEncoder
 from macro_actions import MacroAction
@@ -10,24 +12,21 @@ from macro_actions import MacroAction
 
 class ActorCriticNet(nn.Module):
     """
-    Actor-Critic network for the 42-D macro-action observation.
+    Actor-Critic network for the 44-D macro-action observation.
 
     Architecture (paper-aligned, fully-connected):
 
-      obs (42) → shared MLP trunk (2 layers, Tanh)
+      obs (44) → shared MLP trunk (2 layers, Tanh)
                 → latent (128)
 
       From latent:
         - actor head:  Linear(latent_dim → n_actions)
         - critic head: Linear(latent_dim → 1)
-
-    This is closer to a classic PPO / paper-style setup:
-    simple, linear layers with Tanh, no convolutions or extra bells.
     """
 
     def __init__(
         self,
-        input_dim: int = 42,          # full observation dimension
+        input_dim: int = 44,          # full observation dimension
         n_actions: int = len(MacroAction),
         hidden_dim: int = 128,
         latent_dim: int = 128,
@@ -67,26 +66,78 @@ class ActorCriticNet(nn.Module):
         value = self.critic(latent).squeeze(-1)  # [B]
         return logits, value
 
+    # === ACTION MASKING ==================================================
+    @torch.no_grad()
+    def get_action_mask(self, agent, game_field) -> torch.Tensor:
+        """
+        Returns a boolean mask [n_actions] where False = invalid action.
+        This can be called every step during rollout by your collector.
+        """
+        n = len(MacroAction)
+        device = next(self.parameters()).device
+        mask = torch.ones(n, dtype=torch.bool, device=device)
+
+        # Can't place mine without charges
+        if getattr(agent, "mine_charges", 0) <= 0:
+            mask[MacroAction.PLACE_MINE.value] = False
+
+        # Can't grab mine if no friendly pickups within ~3 cells
+        has_friendly_pickup = any(
+            p.owner_side == agent.side and
+            math.hypot(p.x - agent._float_x, p.y - agent._float_y) < 3.0
+            for p in game_field.mine_pickups
+        )
+        if not has_friendly_pickup:
+            mask[MacroAction.GRAB_MINE.value] = False
+
+        # Optional: never DEFEND_ZONE when carrying the flag
+        if agent.isCarryingFlag():
+            mask[MacroAction.DEFEND_ZONE.value] = False
+
+        # Block INTERCEPT / SUPPRESS if no enemy carrier
+        enemy_has_flag = (
+            (agent.side == "blue" and game_field.manager.red_flag_taken) or
+            (agent.side == "red"  and game_field.manager.blue_flag_taken)
+        )
+        if not enemy_has_flag:
+            mask[MacroAction.INTERCEPT_CARRIER.value] = False
+            mask[MacroAction.SUPPRESS_CARRIER.value] = False
+
+        return mask
+
+    # === ACT (WITH OPTIONAL MASKING) =====================================
     @torch.no_grad()
     def act(
         self,
         obs: torch.Tensor,
+        agent=None,
+        game_field=None,
         deterministic: bool = False,
     ) -> Dict[str, Any]:
         """
         Used during rollout collection.
+
+        If `agent` and `game_field` are provided, action masking is applied.
 
         Returns:
             {
               "action":   LongTensor [B],
               "log_prob": FloatTensor [B],
               "value":    FloatTensor [B],
+              "mask":     BoolTensor [n_actions] or None
             }
         """
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
 
         logits, value = self.forward(obs)
+
+        mask = None
+        if agent is not None and game_field is not None:
+            # ACTION MASKING (invalid → -inf)
+            mask = self.get_action_mask(agent, game_field)  # [n_actions] bool
+            logits = logits.masked_fill(~mask, -1e10)
+
         dist = Categorical(logits=logits)
 
         if deterministic:
@@ -100,8 +151,10 @@ class ActorCriticNet(nn.Module):
             "action": action,
             "log_prob": log_prob,
             "value": value,
+            "mask": mask,
         }
 
+    # === EVALUATE (for PPO) ==============================================
     def evaluate_actions(
         self,
         obs: torch.Tensor,
