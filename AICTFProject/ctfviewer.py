@@ -11,7 +11,7 @@ from policies import OP3RedPolicy
 
 class LearnedPolicy:
     def __init__(self, model_path: Optional[str] = None):
-        self.device = torch.device("cpu")  # keep simple for the viewer
+        self.device = torch.device("cpu")
 
         # Architecture must match the trainer: ActorCriticNet() with default args
         self.net = ActorCriticNet().to(self.device)
@@ -20,7 +20,7 @@ class LearnedPolicy:
 
         # Default to the final model from train_ppo_event.py
         if model_path is None:
-            model_path = "checkpoints/master_blue.pth"
+            model_path = "checkpoints/ctf_fixed_blue_op3.pth"
 
         try:
             state = torch.load(model_path, map_location=self.device)
@@ -39,7 +39,6 @@ class LearnedPolicy:
         self.net.eval()
 
     def __call__(self, agent, game_field) -> int:
-        # Build observation exactly like your trainer did
         obs = game_field.build_observation(agent)
         action_id, _ = self.select_action(obs, agent, game_field)
         return int(action_id)
@@ -114,14 +113,14 @@ class CTFViewer:
 
         try:
             self.blue_learned_policy = LearnedPolicy(
-                model_path="checkpoints/master_blue.pth"
+                model_path="checkpoints/ctf_fixed_blue_op3.pth"
             )
             if self.blue_learned_policy.model_loaded:
                 # Initially let RL control Blue
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
                     self.game_field.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
-                print("[CTFViewer] Blue team using LEARNED policy (master_blue.pth)")
+                print("[CTFViewer] Blue team using LEARNED policy (ctf_fixed_blue_op3.pth)")
             else:
                 # No valid model: fall back to OP3 baseline for BLUE
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
@@ -138,9 +137,7 @@ class CTFViewer:
         # Ensure any OP3 policies start fresh
         self._reset_op3_policies()
 
-    # ------------------------------------------------------------------
     # Utility: reset OP3 policy internal episode state
-    # ------------------------------------------------------------------
     def _reset_op3_policies(self):
         if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
             for side in ("blue", "red"):
@@ -148,9 +145,7 @@ class CTFViewer:
                 if isinstance(pol, OP3RedPolicy) and hasattr(pol, "reset"):
                     pol.reset()
 
-    # ------------------------------------------------------------------
     # Main loop
-    # ------------------------------------------------------------------
     def run(self):
         running = True
         while running:
@@ -173,9 +168,7 @@ class CTFViewer:
         pg.quit()
         sys.exit()
 
-    # ------------------------------------------------------------------
     # Input handling
-    # ------------------------------------------------------------------
     def handle_main_key(self, event):
         k = event.key
         if k == pg.K_F1:
@@ -234,9 +227,7 @@ class CTFViewer:
             if len(self.input_text) < 3:
                 self.input_text += event.unicode
 
-    # ------------------------------------------------------------------
     # Drawing / HUD
-    # ------------------------------------------------------------------
     def draw(self):
         self.screen.fill((12, 12, 18))
 
@@ -269,7 +260,7 @@ class CTFViewer:
 
         # Model status
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: master_blue.pth",
+            txt("Model: ctf_fixed_blue_op3.pth",
                 self.size[0] - 360, score_time_y, (100, 220, 100))
 
         # Input overlay
