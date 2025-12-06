@@ -1,4 +1,3 @@
-# game_manager.py
 from dataclasses import dataclass, field
 from typing import Tuple, Optional, List, Dict, Any
 import math
@@ -6,18 +5,16 @@ import math
 # ================= BASE REWARDS (MATCHING THE 2023 UAV PAPER) =================
 # Table 3: winTeamReward, flagPickupReward, flagCarryHomeReward,
 # enabledLandMineReward, enemyMAVKillReward, actionFailedPunishment
-WIN_TEAM_REWARD = 1.0              # winTeamReward
+WIN_TEAM_REWARD = 2.0              # winTeamReward
 FLAG_PICKUP_REWARD = 0.1           # flagPickupReward
 FLAG_CARRY_HOME_REWARD = 0.5       # flagCarryHomeReward
-ENABLED_MINE_REWARD = 0.2          # enabledLandMineReward
+ENABLED_MINE_REWARD = 0.15         # enabledLandMineReward
 ENEMY_MAV_KILL_REWARD = 0.5        # enemyMAVKillReward
 ACTION_FAILED_PUNISHMENT = -0.2    # actionFailedPunishment
 MAX_REWARDED_MINES_PER_TEAM = 3
 
-# For losses and draws (paper only specifies winTeamReward; loss uses -winTeamReward,
-# and ties effectively get 0 team reward).
 LOSS_TEAM_REWARD = -WIN_TEAM_REWARD
-DRAW_TEAM_REWARD = 0.0  # no explicit draw penalty in the paper
+DRAW_TEAM_REWARD = 0.0
 
 
 @dataclass
@@ -54,20 +51,19 @@ class GameManager:
         default_factory=lambda: {"blue": 0, "red": 0}
     )
 
-    # --- Curriculum / shaping state (phase only used for logging if you want) ---
+    # --- Curriculum / shaping state ---
     phase_name: str = "OP1"  # "OP1", "OP2", "OP3", "SELF", etc.
 
-    # (We *do not* use phase-dependent scaling in the pure paper reward.)
+    # --- Per-episode mine effectiveness stats (for HUD) ---
+    blue_mine_kills_this_episode: int = 0
+    red_mine_kills_this_episode: int = 0
+    mines_placed_in_enemy_half_this_episode: int = 0
+    mines_triggered_by_red_this_episode: int = 0
 
     # ==================================================================
     # Phase utilities
     # ==================================================================
     def set_phase(self, phase: str) -> None:
-        """
-        Called by the trainer whenever the curriculum phase changes,
-        e.g. "OP1", "OP2", "OP3".
-        Note: phase does NOT affect the reward values in the paper.
-        """
         self.phase_name = phase
 
     # ==================================================================
@@ -85,6 +81,12 @@ class GameManager:
 
         # reset mine reward caps each episode
         self.team_mines_rewarded = {"blue": 0, "red": 0}
+
+        # reset per-episode mine stats
+        self.blue_mine_kills_this_episode = 0
+        self.red_mine_kills_this_episode = 0
+        self.mines_placed_in_enemy_half_this_episode = 0
+        self.mines_triggered_by_red_this_episode = 0
 
         mid_row = self.rows // 2
         self.blue_flag_home = (2, mid_row)
@@ -108,24 +110,19 @@ class GameManager:
         self.sim_time += dt
         self.current_time -= dt
 
-        # Time-based termination
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
             if self.blue_score > self.red_score:
-                # Blue wins on time: +1 team reward
-                self.add_reward_event(WIN_TEAM_REWARD)  # global => split across blue agents
+                self.add_reward_event(WIN_TEAM_REWARD)
                 return "BLUE WINS ON TIME"
             elif self.red_score > self.blue_score:
-                # Blue loses on time: -1 team reward
                 self.add_reward_event(LOSS_TEAM_REWARD)
                 return "RED WINS ON TIME"
             else:
-                # Draw: 0 team reward in the pure paper scheme
                 if abs(DRAW_TEAM_REWARD) > 0.0:
                     self.add_reward_event(DRAW_TEAM_REWARD)
                 return "DRAW — NO TEAM REWARD"
 
-        # Score-based termination
         if self.blue_score >= self.score_limit:
             self.game_over = True
             self.add_reward_event(WIN_TEAM_REWARD)
@@ -141,19 +138,16 @@ class GameManager:
     # Flag helpers
     # ==================================================================
     def get_enemy_flag_position(self, side: str) -> Tuple[int, int]:
-        """Return the *current* position of the enemy flag for a given side."""
         return self.red_flag_position if side == "blue" else self.blue_flag_position
 
     def get_team_zone_center(self, side: str) -> Tuple[int, int]:
-        """Return a reasonable 'team zone' center (flag home) for a given side."""
         return self.blue_flag_home if side == "blue" else self.red_flag_home
 
     def get_sim_time(self) -> float:
-        """Expose simulation time for event-driven RL."""
         return self.sim_time
 
     # ------------------------------------------------------------------
-    # Flag pickup and scoring (exact paper values; no phase scaling)
+    # Flag pickup and scoring
     # ------------------------------------------------------------------
     def try_pickup_enemy_flag(self, agent) -> bool:
         side = agent.getSide()
@@ -169,21 +163,18 @@ class GameManager:
         if taken_flag:
             return False
 
-        # Require proximity <= 1 cell in Euclidean distance
         if math.hypot(pos_x - enemy_flag[0], pos_y - enemy_flag[1]) > 1.0:
             return False
 
-        # Attach flag to carrier
         if side == "blue":
             self.red_flag_taken = True
             self.red_flag_carrier = agent
-            self.red_flag_position = (-10, -10)  # off-map while carried
+            self.red_flag_position = (-10, -10)
         else:
             self.blue_flag_taken = True
             self.blue_flag_carrier = agent
             self.blue_flag_position = (-10, -10)
 
-        # flagPickupReward: same for both teams in the paper
         self.add_reward_event(FLAG_PICKUP_REWARD, agent_id=agent.unique_id)
         return True
 
@@ -197,8 +188,6 @@ class GameManager:
                 self.red_flag_taken = False
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_carrier = None
-
-                # flagCarryHomeReward: same value for both teams in the paper
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
                 return True
 
@@ -208,7 +197,6 @@ class GameManager:
                 self.blue_flag_taken = False
                 self.blue_flag_position = self.blue_flag_home
                 self.blue_flag_carrier = None
-
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
                 return True
 
@@ -219,8 +207,6 @@ class GameManager:
             self.blue_flag_taken = False
             self.blue_flag_position = agent.get_position()
             self.blue_flag_carrier = None
-            # In the pure paper reward, there is no extra drop penalty beyond failed actions,
-            # but you *can* treat this as a failed action if you want.
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
         elif self.red_flag_carrier is agent:
@@ -237,10 +223,18 @@ class GameManager:
 
         # Only reward the first few mines per team
         if self.team_mines_rewarded.get(side, 0) >= MAX_REWARDED_MINES_PER_TEAM:
-            return
+            # even if we don't reward, we can still count tactical placement
+            pass
+        else:
+            self.team_mines_rewarded[side] = self.team_mines_rewarded.get(side, 0) + 1
+            self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
 
-        self.team_mines_rewarded[side] = self.team_mines_rewarded.get(side, 0) + 1
-        self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
+        # Track "mines placed in enemy half" for blue (for HUD)
+        if mine_pos is not None and side == "blue":
+            x, y = mine_pos
+            mid_x = self.cols * 0.5
+            if x > mid_x:
+                self.mines_placed_in_enemy_half_this_episode += 1
 
     def reward_enemy_killed(
         self,
@@ -253,11 +247,24 @@ class GameManager:
         or with suppression. The paper uses a single constant value.
         """
         _ = victim_agent
-        _ = cause
+
+        # Track mine kills specifically for HUD
+        if cause == "mine":
+            if killer_agent.getSide() == "blue":
+                self.blue_mine_kills_this_episode += 1
+            else:
+                self.red_mine_kills_this_episode += 1
+
         self.add_reward_event(ENEMY_MAV_KILL_REWARD, agent_id=killer_agent.unique_id)
 
+    def record_mine_triggered_by_red(self) -> None:
+        """
+        Call this from your mine-step / explosion logic when a RED
+        agent steps on a BLUE mine and triggers it.
+        """
+        self.mines_triggered_by_red_this_episode += 1
+
     def punish_failed_action(self, agent) -> None:
-        """Penalty for a failed macro-action (actionFailedPunishment)."""
         self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
     # ==================================================================
@@ -273,18 +280,6 @@ class GameManager:
         self.reward_events.append((t, agent_id, float(value)))
 
     def get_step_rewards(self) -> Dict[Optional[str], float]:
-        """
-        Aggregate reward events into a dict keyed by agent_id.
-
-        - agent_id is a string (e.g., "blue_0", "blue_1") for
-          per-agent events like flag pickup, mine enabled, etc.
-        - agent_id is None for *global* team rewards (win/loss/draw).
-
-        The trainer's collect_blue_rewards_for_step() is responsible
-        for turning the global (None) reward into per-agent values,
-        so we do NOT split it here. This removes any dependency on
-        hard-coded IDs like "blue_0"/"blue_1".
-        """
         rewards: Dict[Optional[str], float] = {}
         for _, agent_id, r in self.reward_events:
             rewards.setdefault(agent_id, 0.0)
@@ -292,4 +287,3 @@ class GameManager:
 
         self.reward_events.clear()
         return rewards
-
