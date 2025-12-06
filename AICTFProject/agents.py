@@ -43,7 +43,6 @@ class Agent:
     enabled: bool = True
     tag_cooldown: float = 0.0      # remaining time until respawn if disabled
     is_carrying_flag: bool = False
-    was_just_disabled: bool = False
 
     # --- Mine capacity (if used by game logic) ---
     mine_charges: int = 0
@@ -52,9 +51,6 @@ class Agent:
     # --- Spawn & navigation helpers ---
     spawn_xy: Cell = (0, 0)
     waypoint: Optional[Cell] = None  # final target of current path
-
-    # --- RL / Reward-related helpers ---
-    prev_dist_to_flag: Optional[float] = None
 
     # One-step event flags – should be consumed by higher-level logic
     _just_picked_up_flag: bool = False
