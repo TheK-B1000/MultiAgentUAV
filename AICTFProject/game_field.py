@@ -289,6 +289,12 @@ class GameField:
             self.announce(winner_text, color, 3.0)
             return
 
+        # ---------- NEW: small per-step time penalty for BLUE ----------
+        for agent in self.blue_agents:
+            if agent.isEnabled():
+                self.manager.add_reward_event(-0.001, agent_id=agent.unique_id)
+        # ---------------------------------------------------------------
+
         # ------------------------------------------------------------------
         # 1) Always tick ALL agents (disabled ones respawn)
         # ------------------------------------------------------------------
@@ -351,6 +357,7 @@ class GameField:
         cols = max(1, self.col_count)
         rows = max(1, self.row_count)
 
+        # ---------- Flag geometry (as before) ----------
         enemy_flag_x, enemy_flag_y = game_state.get_enemy_flag_position(side)
         own_flag_x, own_flag_y = self.manager.get_team_zone_center(side)
 
@@ -367,19 +374,33 @@ class GameField:
         else:  # side == "red"
             own_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
             enemy_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
+
         side_blue = 1.0 if side == "blue" else 0.0
         ammo_norm = agent.mine_charges / self.max_mine_charges_per_agent
         is_miner = 1.0 if getattr(agent, "is_miner", False) else 0.0
 
-        # Mine pickup direction
+        # ---------- NEW: normalized time in [0,1] ----------
+        # Paper: time/20 ∈ {0..10}, we use a [0,1] continuous version.
+        time_norm = self.manager.current_time / max(1e-6, self.manager.max_time)
+
+        # ---------- NEW: decision counter (0..13) normalized ----------
+        if not hasattr(agent, "decision_count"):
+            agent.decision_count = 0
+        decision_clamped = min(agent.decision_count, 13)
+        decision_norm = decision_clamped / 13.0
+
+        # ---------- Mine pickup direction ----------
         my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
         dx_mine = dy_mine = 0.0
         if my_pickups:
-            nearest = min(my_pickups, key=lambda p: math.hypot(p.x - ax, p.y - ay))
+            nearest = min(
+                my_pickups,
+                key=lambda p: math.hypot(p.x - ax, p.y - ay),
+            )
             dx_mine = (nearest.x - ax) / cols
             dy_mine = (nearest.y - ay) / rows
 
-        # 5x5 occupancy map
+        # ---------- 5x5 occupancy (values 0..5, later normalized to [0,1]) ----------
         occupancy = [0.0] * 25
         radius = 2
         for dy in range(-radius, radius + 1):
@@ -387,11 +408,13 @@ class GameField:
                 wx = ax + dx
                 wy = ay + dy
                 idx = (dy + radius) * 5 + (dx + radius)
+
                 if not (0 <= wx < self.col_count and 0 <= wy < self.row_count):
-                    occupancy[idx] = 1.0
+                    occupancy[idx] = 1.0  # wall / out-of-bounds
                 elif self.grid[int(wy)][int(wx)] != 0:
-                    occupancy[idx] = 1.0
+                    occupancy[idx] = 1.0  # obstacle
                 else:
+                    # Entities
                     for a in self.blue_agents + self.red_agents:
                         if a.isEnabled() and math.hypot(a._float_x - wx, a._float_y - wy) < 0.7:
                             occupancy[idx] = 2.0 if a.side == side else 3.0
@@ -403,9 +426,13 @@ class GameField:
                                 break
                         else:
                             for p in self.mine_pickups:
-                                if p.owner_side == side and math.hypot(p.x - wx, p.y - wy) < 0.7:
+                                if (p.owner_side == side and
+                                        math.hypot(p.x - wx, p.y - wy) < 0.7):
                                     occupancy[idx] = 5.0
                                     break
+
+        # ---------- NORMALIZE occupancy to [0,1] ----------
+        occupancy = [v / 5.0 for v in occupancy]
 
         # === Agent ID (0 or 1) one-hot encoding ===
         agent_id_onehot = [0.0, 0.0]
@@ -419,7 +446,7 @@ class GameField:
 
         # === Teammate info (mines carried, has_flag, distance) ===
         teammate = None
-        for a in self.blue_agents if side == "blue" else self.red_agents:
+        for a in (self.blue_agents if side == "blue" else self.red_agents):
             if a is not agent and a.isEnabled():
                 teammate = a
                 break
@@ -428,7 +455,8 @@ class GameField:
         teammate_has_flag = 1.0 if (teammate and teammate.isCarryingFlag()) else 0.0
         teammate_dist = math.hypot(ax - teammate._float_x, ay - teammate._float_y) / cols if teammate else 0.0
 
-        # Final observation: 17 scalars + 25 occupancy = 42-D
+        # Final observation:
+        #   19 scalars + 25 occupancy = 44-D
         obs = [
             dx_enemy_flag, dy_enemy_flag,
             dx_own_flag, dy_own_flag,
@@ -441,6 +469,8 @@ class GameField:
             teammate_mines_norm,
             teammate_has_flag,
             teammate_dist,
+            time_norm,  # NEW
+            decision_norm,  # NEW
         ]
         obs.extend(occupancy)
         return obs
@@ -638,6 +668,11 @@ class GameField:
     def decide(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
+
+        # Increment decision counter for state feature
+        if not hasattr(agent, "decision_count"):
+            agent.decision_count = 0
+        agent.decision_count += 1
 
         obs = self.build_observation(agent)
         policy = self.policies.get(agent.side)
@@ -1071,6 +1106,7 @@ class GameField:
             )
             agent.spawn_xy = (col, row)
             agent.mine_charges = 0
+            agent.decision_count = 0  # << NEW: per-episode decision counter
             self.blue_agents.append(agent)
 
         # Red
@@ -1089,6 +1125,7 @@ class GameField:
             )
             agent.spawn_xy = (col, row)
             agent.mine_charges = 0
+            agent.decision_count = 0  # << NEW
             self.red_agents.append(agent)
 
     def spawn_mine_pickups(self) -> None:
