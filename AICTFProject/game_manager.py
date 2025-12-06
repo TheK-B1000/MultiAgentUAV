@@ -11,6 +11,10 @@ ENABLED_MINE_REWARD = 0.05
 ENEMY_MAV_KILL_REWARD = 0.2
 ACTION_FAILED_PUNISHMENT = -0.2
 
+# Seconds a dropped flag stays on the field before auto-returning home
+FLAG_RETURN_DELAY = 5.0
+
+
 @dataclass
 class GameManager:
     cols: int
@@ -36,6 +40,10 @@ class GameManager:
     blue_flag_home: Tuple[int, int] = (0, 0)
     red_flag_home: Tuple[int, int] = (0, 0)
 
+    # --- Flag drop timers (for auto-return) ---
+    blue_flag_drop_time: Optional[float] = None
+    red_flag_drop_time: Optional[float] = None
+
     # --- Simulation time and reward buffer ---
     sim_time: float = 0.0
     # List of (timestamp, agent_id, reward_value)
@@ -50,6 +58,11 @@ class GameManager:
     mines_placed_in_enemy_half_this_episode: int = 0
     mines_triggered_by_red_this_episode: int = 0
     mines_rewarded_by_agent: Dict[str, bool] = field(default_factory=dict)
+
+    # Track per-team mine rewards (if you cap them anywhere else)
+    team_mines_rewarded: Dict[str, int] = field(
+        default_factory=lambda: {"blue": 0, "red": 0}
+    )
 
     # ==================================================================
     # Phase utilities
@@ -92,8 +105,12 @@ class GameManager:
         self.blue_flag_carrier = None
         self.red_flag_carrier = None
 
+        # clear drop timers
+        self.blue_flag_drop_time = None
+        self.red_flag_drop_time = None
+
     # ==================================================================
-    # Time + win condition
+    # Time + win condition + flag auto-return
     # ==================================================================
     def tick_seconds(self, dt: float) -> Optional[str]:
         if self.game_over or dt <= 0.0:
@@ -101,6 +118,11 @@ class GameManager:
 
         self.sim_time += dt
         self.current_time -= dt
+
+        # -------------------------------------
+        # AUTO-RETURN DROPPED FLAGS
+        # -------------------------------------
+        self._update_flag_auto_return()
 
         # -------------------------------------
         # TIMEOUT CONDITION
@@ -132,6 +154,27 @@ class GameManager:
 
         return None
 
+    def _update_flag_auto_return(self) -> None:
+        """
+        If a flag has been dropped on the field (not taken and not at home),
+        and enough time has passed, snap it back to its home position.
+        """
+        # BLUE flag auto-return
+        if (not self.blue_flag_taken
+                and self.blue_flag_position != self.blue_flag_home
+                and self.blue_flag_drop_time is not None):
+            if self.sim_time - self.blue_flag_drop_time >= FLAG_RETURN_DELAY:
+                self.blue_flag_position = self.blue_flag_home
+                self.blue_flag_drop_time = None  # timer consumed
+
+        # RED flag auto-return
+        if (not self.red_flag_taken
+                and self.red_flag_position != self.red_flag_home
+                and self.red_flag_drop_time is not None):
+            if self.sim_time - self.red_flag_drop_time >= FLAG_RETURN_DELAY:
+                self.red_flag_position = self.red_flag_home
+                self.red_flag_drop_time = None  # timer consumed
+
     # ==================================================================
     # Flag helpers
     # ==================================================================
@@ -158,20 +201,25 @@ class GameManager:
             enemy_flag = self.blue_flag_position
             taken_flag = self.blue_flag_taken
 
+        # Already taken by someone else
         if taken_flag:
             return False
 
+        # Must be close enough to pick up
         if math.hypot(pos_x - enemy_flag[0], pos_y - enemy_flag[1]) > 1.0:
             return False
 
+        # Take the flag and hide it off-map while carried
         if side == "blue":
             self.red_flag_taken = True
             self.red_flag_carrier = agent
             self.red_flag_position = (-10, -10)
+            self.red_flag_drop_time = None  # cancel any drop timer
         else:
             self.blue_flag_taken = True
             self.blue_flag_carrier = agent
             self.blue_flag_position = (-10, -10)
+            self.blue_flag_drop_time = None
 
         self.add_reward_event(FLAG_PICKUP_REWARD, agent_id=agent.unique_id)
         return True
@@ -180,38 +228,96 @@ class GameManager:
         side = agent.getSide()
         pos_x, pos_y = agent.float_pos
 
+        # BLUE scoring with RED flag
         if side == "blue" and self.red_flag_taken and self.red_flag_carrier is agent:
             if math.hypot(pos_x - self.blue_flag_home[0], pos_y - self.blue_flag_home[1]) <= 2.0:
                 self.blue_score += 1
                 self.red_flag_taken = False
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_carrier = None
+                self.red_flag_drop_time = None
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
                 return True
 
+        # RED scoring with BLUE flag
         elif side == "red" and self.blue_flag_taken and self.blue_flag_carrier is agent:
             if math.hypot(pos_x - self.red_flag_home[0], pos_y - self.red_flag_home[1]) <= 2.0:
                 self.red_score += 1
                 self.blue_flag_taken = False
                 self.blue_flag_position = self.blue_flag_home
                 self.blue_flag_carrier = None
+                self.blue_flag_drop_time = None
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
                 return True
 
         return False
 
+    # ------------------------------------------------------------------
+    # Flag drop on death / disable
+    # ------------------------------------------------------------------
     def drop_flag_if_carrier_disabled(self, agent) -> None:
+        """
+        Drop the flag at the agent's current position IF this agent is
+        currently a flag carrier. This MUST be called at the moment the
+        agent is disabled, BEFORE any respawn-position changes.
+
+        The flag stays on the field for FLAG_RETURN_DELAY seconds and then
+        auto-returns to its home if nobody picks it up.
+        """
+        # Use the agent's current float_pos to decide where the flag lands
+        if hasattr(agent, "float_pos"):
+            fx, fy = agent.float_pos
+            drop_pos = (int(round(fx)), int(round(fy)))
+        else:
+            drop_pos = agent.get_position()
+
         if self.blue_flag_carrier is agent:
             self.blue_flag_taken = False
-            self.blue_flag_position = agent.get_position()
+            self.blue_flag_position = drop_pos
             self.blue_flag_carrier = None
+            self.blue_flag_drop_time = self.sim_time
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
         elif self.red_flag_carrier is agent:
             self.red_flag_taken = False
-            self.red_flag_position = agent.get_position()
+            self.red_flag_position = drop_pos
             self.red_flag_carrier = None
+            self.red_flag_drop_time = self.sim_time
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
+
+    # ==================================================================
+    # Agent lifecycle helpers (for death / respawn)
+    # ==================================================================
+    def handle_agent_death(self, agent) -> None:
+        """
+        Call this exactly once when an agent is disabled/killed,
+        BEFORE you move or respawn the agent.
+
+        This ensures that if the agent was carrying a flag, the flag is
+        dropped at the death position and does NOT follow them to spawn.
+        """
+        self.drop_flag_if_carrier_disabled(agent)
+
+    def clear_flag_carrier_if_agent(self, agent) -> None:
+        """
+        Extra safety: call this at the start of any respawn logic.
+        If for some reason the agent is still marked as a carrier,
+        reset flag state so they never 'respawn with the flag'.
+        Does NOT move dropped flags back to base – that's handled by timers.
+        """
+        if self.blue_flag_carrier is agent:
+            self.blue_flag_carrier = None
+            self.blue_flag_taken = False
+            # If we got here, we don't know where the flag should be,
+            # safest is send it home.
+            self.blue_flag_position = self.blue_flag_home
+            self.blue_flag_drop_time = None
+
+        if self.red_flag_carrier is agent:
+            self.red_flag_carrier = None
+            self.red_flag_taken = False
+            self.red_flag_position = self.red_flag_home
+            self.red_flag_drop_time = None
 
     # ==================================================================
     # Reward helpers for mines / kills / failed actions
@@ -236,10 +342,10 @@ class GameManager:
                 self.mines_placed_in_enemy_half_this_episode += 1
 
     def reward_enemy_killed(
-            self,
-            killer_agent,
-            victim_agent: Optional[Any] = None,
-            cause: Optional[str] = None,
+        self,
+        killer_agent,
+        victim_agent: Optional[Any] = None,
+        cause: Optional[str] = None,
     ) -> None:
         if cause == "mine":
             if killer_agent.getSide() == "blue":
