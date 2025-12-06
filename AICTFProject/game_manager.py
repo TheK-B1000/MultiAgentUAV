@@ -3,19 +3,13 @@ from typing import Tuple, Optional, List, Dict, Any
 import math
 
 # ================= BASE REWARDS (MATCHING THE 2023 UAV PAPER) =================
-# Table 3: winTeamReward, flagPickupReward, flagCarryHomeReward,
-# enabledLandMineReward, enemyMAVKillReward, actionFailedPunishment
-WIN_TEAM_REWARD = 2.0              # winTeamReward
-FLAG_PICKUP_REWARD = 0.2          # flagPickupReward
-FLAG_CARRY_HOME_REWARD = 0.6       # flagCarryHomeReward
-ENABLED_MINE_REWARD = 0.1        # enabledLandMineReward
-ENEMY_MAV_KILL_REWARD = 0.5        # enemyMAVKillReward
-ACTION_FAILED_PUNISHMENT = -0.2    # actionFailedPunishment
-MAX_REWARDED_MINES_PER_TEAM = 3
 
-LOSS_TEAM_REWARD = -WIN_TEAM_REWARD
-DRAW_TEAM_REWARD = 0.0
-
+WIN_TEAM_REWARD = 1.0
+FLAG_PICKUP_REWARD = 0.1
+FLAG_CARRY_HOME_REWARD = 0.5
+ENABLED_MINE_REWARD = 0.2
+ENEMY_MAV_KILL_REWARD = 0.5
+ACTION_FAILED_PUNISHMENT = -0.2
 
 @dataclass
 class GameManager:
@@ -46,10 +40,6 @@ class GameManager:
     sim_time: float = 0.0
     # List of (timestamp, agent_id, reward_value)
     reward_events: List[Tuple[float, Optional[str], float]] = field(default_factory=list)
-
-    team_mines_rewarded: Dict[str, int] = field(
-        default_factory=lambda: {"blue": 0, "red": 0}
-    )
 
     # --- Curriculum / shaping state ---
     phase_name: str = "OP1"  # "OP1", "OP2", "OP3", "SELF", etc.
@@ -110,26 +100,32 @@ class GameManager:
         self.sim_time += dt
         self.current_time -= dt
 
+        # -------------------------------------
+        # TIMEOUT CONDITION
+        # -------------------------------------
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
             if self.blue_score > self.red_score:
                 self.add_reward_event(WIN_TEAM_REWARD)
                 return "BLUE WINS ON TIME"
             elif self.red_score > self.blue_score:
-                self.add_reward_event(LOSS_TEAM_REWARD)
+                # No LOSS_TEAM_REWARD needed — trainer adds final -1
                 return "RED WINS ON TIME"
             else:
-                if abs(DRAW_TEAM_REWARD) > 0.0:
-                    self.add_reward_event(DRAW_TEAM_REWARD)
+                # No draw reward needed — trainer handles terminal bonus
                 return "DRAW — NO TEAM REWARD"
 
+        # -------------------------------------
+        # SCORE LIMIT CONDITION
+        # -------------------------------------
         if self.blue_score >= self.score_limit:
             self.game_over = True
             self.add_reward_event(WIN_TEAM_REWARD)
             return "BLUE WINS BY SCORE!"
+
         if self.red_score >= self.score_limit:
             self.game_over = True
-            self.add_reward_event(LOSS_TEAM_REWARD)
+            # No LOSS_TEAM_REWARD — let trainer apply -1 at terminal
             return "RED WINS BY SCORE!"
 
         return None
@@ -221,13 +217,7 @@ class GameManager:
     def reward_mine_placed(self, agent, mine_pos: Optional[Tuple[int, int]] = None) -> None:
         side = agent.getSide()
 
-        # Only reward the first few mines per team
-        if self.team_mines_rewarded.get(side, 0) >= MAX_REWARDED_MINES_PER_TEAM:
-            # even if we don't reward, we can still count tactical placement
-            pass
-        else:
-            self.team_mines_rewarded[side] = self.team_mines_rewarded.get(side, 0) + 1
-            self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
+        self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
 
         # Track "mines placed in enemy half" for blue (for HUD)
         if mine_pos is not None and side == "blue":
