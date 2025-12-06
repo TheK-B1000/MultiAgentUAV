@@ -13,11 +13,7 @@ class Pathfinder:
       - Dynamic obstacles in `self.blocked` (agents, mines, etc.).
       - Optional diagonal movement with corner-cutting protection.
 
-    Typical usage:
-      - Construct once with the static grid.
-      - Before each path query, set `blocked` to current dynamic obstacles
-        (e.g., agents, active mines).
-      - Call `astar(start, goal)` to get a list of cells [next_step, ..., goal].
+    TODO - Adjust for continuous
     """
 
     def __init__(
@@ -37,60 +33,29 @@ class Pathfinder:
         # Dynamic obstacles (agents + mines, set by GameField before path queries)
         self.blocked: Set[Coord] = set()
 
-        # For convenience, you can store static walls here if you want to snapshot them,
-        # but current code uses `grid` directly for static passability.
         self.original_blocked: Set[Coord] = set()
 
-    # ------------------------------------------------------------------
     # Grid state management
-    # ------------------------------------------------------------------
     def update_grid(self, grid: Grid, rows: int, cols: int) -> None:
-        """
-        Update static grid and dimensions. Clears dynamic obstacles.
-        """
         self.grid = grid
         self.rows = rows
         self.cols = cols
         self.blocked.clear()
 
     def setDynamicObstacles(self, blocked_cells: List[Coord]) -> None:
-        """
-        Replace the current set of dynamic obstacles (agents, mines, etc.).
-        """
         self.blocked = set(blocked_cells)
 
-    # ------------------------------------------------------------------
     # Basic checks
-    # ------------------------------------------------------------------
     def inBounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.cols and 0 <= y < self.rows
 
     def isStaticPassable(self, x: int, y: int) -> bool:
-        """
-        True if the cell is inside the map and not a wall.
-
-        Convention: grid[row][col] == 0 → free, anything else → wall.
-        """
         if not self.inBounds(x, y):
             return False
         return self.grid[y][x] == 0
 
-    # ------------------------------------------------------------------
     # Neighbor generation
-    # ------------------------------------------------------------------
-    def getNeighbors(
-        self,
-        cell_x: int,
-        cell_y: int,
-        goal: Optional[Coord] = None,
-    ) -> List[Coord]:
-        """
-        Generate passable neighbors for (cell_x, cell_y), respecting:
-          - in-bounds
-          - static walls
-          - dynamic obstacles (self.blocked)
-          - optional diagonal moves and corner cutting rules
-        """
+    def getNeighbors(self, cell_x: int, cell_y: int, goal: Optional[Coord] = None, ) -> List[Coord]:
         steps = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # cardinal
         if self.allow_diagonal:
             steps += [(1, 1), (1, -1), (-1, 1), (-1, -1)]  # diagonals
@@ -153,14 +118,6 @@ class Pathfinder:
         return path
 
     def astar(self, start: Coord, goal: Coord) -> Optional[List[Coord]]:
-        """
-        Compute a path from start to goal using A*.
-
-        Returns:
-          - [] if start == goal (already there).
-          - A list [next_step, ..., goal] if reachable.
-          - None if no path is found.
-        """
         if start == goal:
             # Agent is already at goal – no steps needed.
             return []
