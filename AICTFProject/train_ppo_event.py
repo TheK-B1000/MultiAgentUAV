@@ -95,7 +95,7 @@ ENT_COEF_BY_PHASE = {
 
 PHASE_CONFIG = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-    "OP2": dict(score_limit=1, max_time=200.0, max_macro_steps=450),
+    "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=450),
     "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=550),
 }
 
@@ -304,9 +304,9 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) 
 
     if cur_phase == "OP3":
         if phase_wr < 0.35:
-            ent = max(ent, 0.052)
+            ent = max(ent, 0.035)
         elif phase_wr < 0.50:
-            ent = max(ent, 0.038)
+            ent = max(ent, 0.036)
 
     return float(ent)
 
