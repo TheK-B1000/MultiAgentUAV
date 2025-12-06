@@ -526,9 +526,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         # Strong, unambiguous terminal team reward (on top of env's own team reward).
         final_bonus = 0.0
         if gm.blue_score > gm.red_score:
-            final_bonus = +1.0
+            final_bonus = +2.0
         elif gm.red_score > gm.blue_score:
-            final_bonus = -1.0
+            final_bonus = -2.0
         else:
             final_bonus = 0.0  # optional small negative for draw if you want to avoid draw hell
 
