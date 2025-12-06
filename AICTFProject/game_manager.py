@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Tuple, Optional, List, Dict, Any
 import math
 
-# ================= BASE REWARDS (MATCHING THE 2023 UAV PAPER) =================
+# ================= BASE REWARDS =================
 
 WIN_TEAM_REWARD = 2.0
 FLAG_PICKUP_REWARD = 0.05
@@ -10,8 +10,6 @@ FLAG_CARRY_HOME_REWARD = 1.5
 ENABLED_MINE_REWARD = 0.05
 ENEMY_MAV_KILL_REWARD = 0.2
 ACTION_FAILED_PUNISHMENT = -0.2
-
-# Seconds a dropped flag stays on the field before auto-returning home
 FLAG_RETURN_DELAY = 5.0
 
 
@@ -64,15 +62,9 @@ class GameManager:
         default_factory=lambda: {"blue": 0, "red": 0}
     )
 
-    # ==================================================================
-    # Phase utilities
-    # ==================================================================
     def set_phase(self, phase: str) -> None:
         self.phase_name = phase
 
-    # ==================================================================
-    # Game reset
-    # ==================================================================
     def reset_game(self, reset_scores: bool = True) -> None:
         if reset_scores:
             self.blue_score = 0
@@ -109,39 +101,28 @@ class GameManager:
         self.blue_flag_drop_time = None
         self.red_flag_drop_time = None
 
-    # ==================================================================
     # Time + win condition + flag auto-return
-    # ==================================================================
     def tick_seconds(self, dt: float) -> Optional[str]:
         if self.game_over or dt <= 0.0:
             return None
 
         self.sim_time += dt
         self.current_time -= dt
-
-        # -------------------------------------
         # AUTO-RETURN DROPPED FLAGS
-        # -------------------------------------
         self._update_flag_auto_return()
 
-        # -------------------------------------
         # TIMEOUT CONDITION
-        # -------------------------------------
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
             if self.blue_score > self.red_score:
                 self.add_reward_event(WIN_TEAM_REWARD)
                 return "BLUE WINS ON TIME"
             elif self.red_score > self.blue_score:
-                # No LOSS_TEAM_REWARD needed — trainer adds final -1
                 return "RED WINS ON TIME"
             else:
-                # No draw reward needed — trainer handles terminal bonus
                 return "DRAW — NO TEAM REWARD"
 
-        # -------------------------------------
         # SCORE LIMIT CONDITION
-        # -------------------------------------
         if self.blue_score >= self.score_limit:
             self.game_over = True
             self.add_reward_event(WIN_TEAM_REWARD)
@@ -149,16 +130,11 @@ class GameManager:
 
         if self.red_score >= self.score_limit:
             self.game_over = True
-            # No LOSS_TEAM_REWARD — let trainer apply -1 at terminal
             return "RED WINS BY SCORE!"
 
         return None
 
     def _update_flag_auto_return(self) -> None:
-        """
-        If a flag has been dropped on the field (not taken and not at home),
-        and enough time has passed, snap it back to its home position.
-        """
         # BLUE flag auto-return
         if (not self.blue_flag_taken
                 and self.blue_flag_position != self.blue_flag_home
@@ -175,9 +151,7 @@ class GameManager:
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_drop_time = None  # timer consumed
 
-    # ==================================================================
     # Flag helpers
-    # ==================================================================
     def get_enemy_flag_position(self, side: str) -> Tuple[int, int]:
         return self.red_flag_position if side == "blue" else self.blue_flag_position
 
@@ -187,9 +161,7 @@ class GameManager:
     def get_sim_time(self) -> float:
         return self.sim_time
 
-    # ------------------------------------------------------------------
     # Flag pickup and scoring
-    # ------------------------------------------------------------------
     def try_pickup_enemy_flag(self, agent) -> bool:
         side = agent.getSide()
         pos_x, pos_y = agent.float_pos
@@ -252,18 +224,8 @@ class GameManager:
 
         return False
 
-    # ------------------------------------------------------------------
     # Flag drop on death / disable
-    # ------------------------------------------------------------------
     def drop_flag_if_carrier_disabled(self, agent) -> None:
-        """
-        Drop the flag at the agent's current position IF this agent is
-        currently a flag carrier. This MUST be called at the moment the
-        agent is disabled, BEFORE any respawn-position changes.
-
-        The flag stays on the field for FLAG_RETURN_DELAY seconds and then
-        auto-returns to its home if nobody picks it up.
-        """
         # Use the agent's current float_pos to decide where the flag lands
         if hasattr(agent, "float_pos"):
             fx, fy = agent.float_pos
@@ -285,26 +247,11 @@ class GameManager:
             self.red_flag_drop_time = self.sim_time
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
-    # ==================================================================
     # Agent lifecycle helpers (for death / respawn)
-    # ==================================================================
     def handle_agent_death(self, agent) -> None:
-        """
-        Call this exactly once when an agent is disabled/killed,
-        BEFORE you move or respawn the agent.
-
-        This ensures that if the agent was carrying a flag, the flag is
-        dropped at the death position and does NOT follow them to spawn.
-        """
         self.drop_flag_if_carrier_disabled(agent)
 
     def clear_flag_carrier_if_agent(self, agent) -> None:
-        """
-        Extra safety: call this at the start of any respawn logic.
-        If for some reason the agent is still marked as a carrier,
-        reset flag state so they never 'respawn with the flag'.
-        Does NOT move dropped flags back to base – that's handled by timers.
-        """
         if self.blue_flag_carrier is agent:
             self.blue_flag_carrier = None
             self.blue_flag_taken = False
@@ -319,14 +266,12 @@ class GameManager:
             self.red_flag_position = self.red_flag_home
             self.red_flag_drop_time = None
 
-    # ==================================================================
     # Reward helpers for mines / kills / failed actions
-    # ==================================================================
     def reward_mine_placed(self, agent, mine_pos: Optional[Tuple[int, int]] = None) -> None:
         side = agent.getSide()
         uid = getattr(agent, "unique_id", None)
 
-        # ---------- MATCH PAPER: enabledMineReward only once per UAV per episode ----------
+        # ---------- enabledMineReward only once per UAV per episode ----------
         if uid is not None:
             already_rewarded = self.mines_rewarded_by_agent.get(uid, False)
             if not already_rewarded:
@@ -334,7 +279,7 @@ class GameManager:
                 self.mines_rewarded_by_agent[uid] = True
         # ---------------------------------------------------------------------
 
-        # Track HUD stats (mines in enemy half) – this can still run every time
+        # Track HUD stats
         if mine_pos is not None and side == "blue":
             x, y = mine_pos
             mid_x = self.cols * 0.5
@@ -356,18 +301,12 @@ class GameManager:
         self.add_reward_event(ENEMY_MAV_KILL_REWARD, agent_id=killer_agent.unique_id)
 
     def record_mine_triggered_by_red(self) -> None:
-        """
-        Call this from your mine-step / explosion logic when a RED
-        agent steps on a BLUE mine and triggers it.
-        """
         self.mines_triggered_by_red_this_episode += 1
 
     def punish_failed_action(self, agent) -> None:
         self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
-    # ==================================================================
     # Reward event buffer
-    # ==================================================================
     def add_reward_event(
         self,
         value: float,
