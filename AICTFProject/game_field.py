@@ -750,12 +750,10 @@ class GameField:
                 if mine.owner_side == "blue" and agent.side == "red":
                     self.manager.record_mine_triggered_by_red()
 
-                # Flag + disable logic
-                if agent.isCarryingFlag():
-                    self.manager.drop_flag_if_carrier_disabled(agent)
-                    agent.setCarryingFlag(False)
-
+                # Just disable; Agent.disable_for_seconds will call
+                # GameManager.handle_agent_death and drop the flag correctly.
                 agent.disable_for_seconds(self.respawn_seconds)
+
                 self.mines.remove(mine)
                 break
 
@@ -787,11 +785,9 @@ class GameField:
                     cause="suppression",
                 )
 
-            # Flag + disable logic
-            if agent.isCarryingFlag():
-                self.manager.drop_flag_if_carrier_disabled(agent)
-                agent.setCarryingFlag(False)
-
+            # Just disable; Agent.disable_for_seconds will:
+            # - Drop the flag via GameManager.handle_agent_death
+            # - Clear local carrying state
             agent.disable_for_seconds(self.respawn_seconds)
 
     def apply_flag_rules(self, agent: Agent) -> None:
@@ -1103,10 +1099,11 @@ class GameField:
                 move_rate_cps=rng.uniform(2.0, 2.4),
                 agent_id=i,
                 is_miner=(i == 0),
+                game_manager=self.manager,  # <-- IMPORTANT
             )
             agent.spawn_xy = (col, row)
             agent.mine_charges = 0
-            agent.decision_count = 0  # << NEW: per-episode decision counter
+            agent.decision_count = 0
             self.blue_agents.append(agent)
 
         # Red
@@ -1122,10 +1119,11 @@ class GameField:
                 move_rate_cps=rng.uniform(2.0, 2.4),
                 agent_id=i,
                 is_miner=(i == 0),
+                game_manager=self.manager,  # <-- IMPORTANT
             )
             agent.spawn_xy = (col, row)
             agent.mine_charges = 0
-            agent.decision_count = 0  # << NEW
+            agent.decision_count = 0
             self.red_agents.append(agent)
 
     def spawn_mine_pickups(self) -> None:
