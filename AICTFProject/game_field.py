@@ -94,7 +94,6 @@ class GameField:
 
         # UI / rewards bookkeeping
         self.banner_queue: List[Tuple[str, Tuple[int, int, int], float]] = []
-        self.reward_accumulator: Dict[str, float] = {}
 
         self.debug_draw_ranges = True
         self.debug_draw_mine_ranges = True
@@ -221,7 +220,6 @@ class GameField:
 
         self.spawn_agents()
         self.spawn_mine_pickups()
-        self.reward_accumulator.clear()
         self.decision_cooldown_seconds_by_agent.clear()
 
         # NOTE: we intentionally do NOT touch self.policies here so that
@@ -362,8 +360,13 @@ class GameField:
         dy_own_flag = (own_flag_y - ay) / rows
 
         is_carrying_flag = 1.0 if agent.isCarryingFlag() else 0.0
-        own_flag_taken = 1.0 if (game_state.blue_flag_taken if side == "red" else game_state.red_flag_taken) else 0.0
-        enemy_flag_taken = 1.0 if (game_state.red_flag_taken if side == "red" else game_state.blue_flag_taken) else 0.0
+
+        if side == "blue":
+            own_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
+            enemy_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
+        else:  # side == "red"
+            own_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
+            enemy_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
         side_blue = 1.0 if side == "blue" else 0.0
         ammo_norm = agent.mine_charges / self.max_mine_charges_per_agent
         is_miner = 1.0 if getattr(agent, "is_miner", False) else 0.0
@@ -944,7 +947,6 @@ class GameField:
             )
 
     def draw_halves_and_center_line(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
-        rect_width, rect_height = board_rect.height, board_rect.height
         rect_width, rect_height = board_rect.width, board_rect.height
         cell_width = rect_width / max(1, self.col_count)
 
