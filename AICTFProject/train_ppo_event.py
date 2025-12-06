@@ -78,7 +78,7 @@ PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 MIN_PHASE_EPISODES = {
     "OP1": 400,
     "OP2": 600,
-    "OP3": 1200,
+    "OP3": 1600,
 }
 
 TARGET_PHASE_WINRATE = {
@@ -302,13 +302,16 @@ def evaluate_emperor_crowning(policy: ActorCriticNet, device: torch.device, n_ga
 
     wins = 0
     with torch.no_grad():
-        for _ in range(n_games):
+        for game_idx in range(n_games):
+            # different seed / randomness per eval game
+            random.seed(1234 + game_idx)
+            np.random.seed(1234 + game_idx)
+
             env.reset_default()
             gm.reset_game(reset_scores=True)
             gm.set_phase("OP3")
             env.policies["red"] = OP3RedPolicy("red")
 
-            # Reset OP3 internal episode state if needed
             red_pol = env.policies.get("red")
             if hasattr(red_pol, "reset"):
                 red_pol.reset()
@@ -344,7 +347,6 @@ def evaluate_emperor_crowning(policy: ActorCriticNet, device: torch.device, n_ga
 
     policy.train()
     return wins / max(1, n_games)
-
 
 # =========================
 # MAIN TRAINING LOOP
@@ -384,8 +386,8 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
     # Best OP3 champion tracking
     best_op3_wr = 0.0
-    BEST_OP3_EMPEROR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_true_emperor_op3.pth")
-    BEST_OP3_SO_FAR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_best_so_far_op3.pth")
+    BEST_OP3_EMPEROR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_true_blue_op3.pth")
+    BEST_OP3_SO_FAR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_best_blue_so_far_op3.pth")
 
     # Anti-collapse: best OP3 phase winrate during training
     best_op3_phase_wr = 0.0
@@ -493,6 +495,26 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
+            # === TERMINAL BONUS (win / lose / draw) ===
+            # Injected into the *last* step of the episode, not as a fake extra step.
+            if done and blue_agents:
+                score_diff = gm.blue_score - gm.red_score
+                if score_diff > 0:
+                    # Blue wins: reward grows with margin
+                    final_bonus = 2.0 + 1.5 * score_diff
+                elif score_diff < 0:
+                    # Blue loses: strongly negative
+                    final_bonus = -2.0 + 1.5 * score_diff
+                else:
+                    # Draws are slightly bad to avoid eternal 0:0
+                    final_bonus = -0.5
+
+                if final_bonus != 0.0:
+                    share = final_bonus / len(blue_agents)
+                    for agent in blue_agents:
+                        uid = agent.unique_id
+                        rewards[uid] = rewards.get(uid, 0.0) + share
+
             # =============================
             # No extra shaping (paper style)
             # =============================
@@ -544,43 +566,23 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             draws += 1
             phase_recent.append(0)
 
-        score_diff = gm.blue_score - gm.red_score
-
-        if score_diff > 0:
-            # Blue wins: reward grows with margin
-            final_bonus = 2.0 + 1.5 * score_diff
-        elif score_diff < 0:
-            # Blue loses: strongly negative
-            final_bonus = -2.0 + 1.5 * score_diff
-        else:
-            # Draws are slightly bad to avoid eternal 0:0
-            final_bonus = -0.5
-
-        if final_bonus != 0.0:
-            blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-            if blue_agents:
-                share = final_bonus / len(blue_agents)
-                for agent in blue_agents:
-                    dummy_obs = env.build_observation(agent)
-                    buffer.add(dummy_obs, 0, 0.0, 0.0, share, True, 1.0)
-
         if len(phase_recent) > PHASE_WINRATE_WINDOW:
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
 
-        # --- Anti-collapse: revert if OP3 phase winrate collapses ---
+        # --- Anti-collapse: revert if OP3 phase winrate collapses (late OP3 only) ---
         if cur_phase == "OP3":
             if phase_wr > best_op3_phase_wr:
                 best_op3_phase_wr = phase_wr
             else:
                 if (
-                    phase_episode_count > 200
-                    and best_op3_phase_wr - phase_wr > 0.20
-                    and os.path.exists(BEST_OP3_SO_FAR_PATH)
+                        phase_episode_count > 1600  # only after many OP3 episodes
+                        and best_op3_phase_wr - phase_wr > 0.20
+                        and os.path.exists(BEST_OP3_SO_FAR_PATH)
                 ):
                     print(
                         "   [ANTI-COLLAPSE] OP3 phase winrate dropped "
-                        f"from {best_op3_phase_wr*100:.1f}% to {phase_wr*100:.1f}%"
+                        f"from {best_op3_phase_wr * 100:.1f}% to {phase_wr * 100:.1f}%"
                     )
                     print(
                         f"   [ANTI-COLLAPSE] Reloading best-so-far OP3 checkpoint: "
@@ -606,7 +608,11 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         )
 
         # ---------- OP3 "CROWNING CEREMONY" EVAL ----------
-        if cur_phase == "OP3" and episode_idx % 200 == 0:
+        if (
+                cur_phase == "OP3"
+                and phase_episode_count >= 1600  # at least 1600 OP3 episodes
+                and phase_episode_count % 200 == 0  # then every 200 OP3 episodes
+        ):
             print("   [CROWNING CEREMONY] The trial by combat begins...")
             crowning_score = evaluate_emperor_crowning(policy, device=DEVICE, n_games=100)
             print(f"   [VERDICT] OP3 winrate: {crowning_score * 100:.2f}%")
@@ -648,7 +654,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     print("   " + "=" * 70)
 
                     print("\n[TRAINING STOP] Emperor crowned; stopping further PPO updates.")
-                    final_path = os.path.join(CHECKPOINT_DIR, "marl_policy.pth")
+                    final_path = os.path.join(CHECKPOINT_DIR, "master_blue.pth")
                     torch.save(policy.state_dict(), final_path)
                     print(f"Final model saved to: {final_path}")
                     print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
@@ -770,7 +776,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 phase_episode_count = 0
                 phase_recent.clear()
 
-    final_path = os.path.join(CHECKPOINT_DIR, "marl_policy.pth")
+    final_path = os.path.join(CHECKPOINT_DIR, "master_blue.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"\nTraining complete. Final model: {final_path}")
     print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
