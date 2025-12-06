@@ -4,11 +4,11 @@ import math
 
 # ================= BASE REWARDS (MATCHING THE 2023 UAV PAPER) =================
 
-WIN_TEAM_REWARD = 1.0
+WIN_TEAM_REWARD = 2.0
 FLAG_PICKUP_REWARD = 0.05
-FLAG_CARRY_HOME_REWARD = 1.0
+FLAG_CARRY_HOME_REWARD = 1.5
 ENABLED_MINE_REWARD = 0.05
-ENEMY_MAV_KILL_REWARD = 0.1
+ENEMY_MAV_KILL_REWARD = 0.2
 ACTION_FAILED_PUNISHMENT = -0.2
 
 @dataclass
@@ -219,7 +219,7 @@ class GameManager:
 
         self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
 
-        # Track "mines placed in enemy half" for blue (for HUD)
+        # Track "mines placed in enemy half" for blue (for HUD + later, if you want shaping)
         if mine_pos is not None and side == "blue":
             x, y = mine_pos
             mid_x = self.cols * 0.5
@@ -227,18 +227,11 @@ class GameManager:
                 self.mines_placed_in_enemy_half_this_episode += 1
 
     def reward_enemy_killed(
-        self,
-        killer_agent,
-        victim_agent: Optional[Any] = None,
-        cause: Optional[str] = None,
+            self,
+            killer_agent,
+            victim_agent: Optional[Any] = None,
+            cause: Optional[str] = None,
     ) -> None:
-        """
-        enemyMAVKillReward: reward for killing an opponent with a mine
-        or with suppression. The paper uses a single constant value.
-        """
-        _ = victim_agent
-
-        # Track mine kills specifically for HUD
         if cause == "mine":
             if killer_agent.getSide() == "blue":
                 self.blue_mine_kills_this_episode += 1
