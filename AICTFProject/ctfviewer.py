@@ -46,11 +46,7 @@ class LearnedPolicy:
 
     def select_action(self, obs: List[float]) -> Tuple[int, Optional[Tuple[int, int]]]:
         if not self.model_loaded:
-            # Fallback: simple macro-action that always does something sane
-            fallback_action = int(MacroAction.GO_TO_ENEMY_FLAG) if hasattr(
-                MacroAction, "GO_TO_ENEMY_FLAG"
-            ) else int(MacroAction.PATROL_ENEMY_HALF)
-            return fallback_action, None
+            return int(MacroAction.GO_TO), None
 
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
@@ -231,7 +227,7 @@ class CTFViewer:
         # Top row: menu / help
         menu_text = (
             "F1: Reset | F2: Agent Count | F3: SwapZones | "
-            "R: SoftReset | F4: ToggleRL | F5/F6: DebugDraw"
+            "R: SoftReset | F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
         )
         txt(menu_text, 30, 15, (200, 200, 220))
 
