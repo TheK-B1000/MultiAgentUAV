@@ -1,4 +1,3 @@
-# policies.py
 import math
 import random
 from typing import List
@@ -14,10 +13,6 @@ class Policy:
 
 
 class HeuristicPolicy(Policy):
-    """
-    Optional: generic heuristic you can use for debugging / non-paper tests.
-    This is *not* part of the IHMC opponents, but it's harmless to keep.
-    """
     def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
         dx_enemy_flag = obs[0]
         dy_enemy_flag = obs[1]
@@ -178,7 +173,6 @@ class OP3RedPolicy(Policy):
             return int(MacroAction.GO_TO), (flag_x, flag_y)
 
         # After we have a mine near the flag (or no charges), just defend.
-        # This is still very dumb: just loiters around midline.
         return int(MacroAction.DEFEND_ZONE), (flag_x, flag_y)
 
     # --- Attacker logic -------------------------------------------------
