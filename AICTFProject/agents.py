@@ -84,51 +84,35 @@ class Agent:
     # Basic helpers
     # ------------------------------------------------------------------
     def _clamp(self, col: int, row: int) -> Cell:
-        """Clamp a cell into the arena bounds."""
         c = max(0, min(self.cols - 1, col))
         r = max(0, min(self.rows - 1, row))
         return (c, r)
 
     @property
     def float_pos(self) -> Tuple[float, float]:
-        """Smooth position, useful for visualization and flag drop."""
         return self._float_x, self._float_y
 
     def get_position(self) -> Cell:
-        """Discrete grid position."""
         return (self.x, self.y)
 
     def getSide(self) -> str:
         return self.side
 
-    # ------------------------------------------------------------------
     # Status checks
-    # ------------------------------------------------------------------
     def isEnabled(self) -> bool:
-        """True if the agent is active in the game."""
         return self.enabled
 
     def isTagged(self) -> bool:
-        """True if the agent is currently disabled and waiting for respawn."""
         return (not self.enabled) and self.tag_cooldown > 0.0
 
     def isCarryingFlag(self) -> bool:
         return self.is_carrying_flag
 
-    # ------------------------------------------------------------------
     # Attach / wiring to GameManager
-    # ------------------------------------------------------------------
     def attach_game_manager(self, gm: Any) -> None:
-        """
-        Convenience helper so you can do:
-            agent.attach_game_manager(game_manager)
-        after construction.
-        """
         self.game_manager = gm
 
-    # ------------------------------------------------------------------
     # Flag handling + event flags
-    # ------------------------------------------------------------------
     def setCarryingFlag(self, value: bool) -> None:
         """
         Update local flag-carrying state and set one-step event flags.
@@ -146,29 +130,21 @@ class Agent:
         self.is_carrying_flag = value
 
     def consume_just_picked_up_flag(self) -> bool:
-        """Return True once when the agent has just picked up the flag."""
         v = self._just_picked_up_flag
         self._just_picked_up_flag = False
         return v
 
     def consume_just_scored(self) -> bool:
-        """Return True once when the agent has just delivered the flag."""
         v = self._just_scored
         self._just_scored = False
         return v
 
     def consume_just_tagged_enemy(self) -> bool:
-        """
-        Return True once when this agent was just disabled/tagged.
-        (Name kept for backwards compatibility; semantics = 'just got tagged').
-        """
         v = self._just_tagged_enemy
         self._just_tagged_enemy = False
         return v
 
-    # ------------------------------------------------------------------
     # Path handling
-    # ------------------------------------------------------------------
     def setPath(self, path: List[Cell]) -> None:
         if not path:
             self.clearPath()
@@ -181,7 +157,6 @@ class Agent:
         self.move_accum = 0.0
 
     def clearPath(self) -> None:
-        """Stop the agent from moving anywhere."""
         self.path.clear()
         self.waypoint = None
 
@@ -214,10 +189,6 @@ class Agent:
             self.move_accum = 0.0
 
     def respawn(self) -> None:
-        """
-        Reset agent to its spawn point and clear transient state.
-        Called automatically when tag_cooldown reaches 0.
-        """
         # Extra safety: make absolutely sure GameManager does not
         # still think this agent is a flag carrier.
         if self.game_manager is not None:
@@ -242,9 +213,7 @@ class Agent:
         # On respawn we definitely are not carrying a flag
         self.is_carrying_flag = False
 
-    # ------------------------------------------------------------------
     # Per-timestep update
-    # ------------------------------------------------------------------
     def update(self, dt: float) -> None:
         if dt <= 0.0:
             return
