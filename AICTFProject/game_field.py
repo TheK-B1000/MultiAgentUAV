@@ -12,9 +12,7 @@ from macro_actions import MacroAction
 from policies import Policy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
 
-# --------------------------------------------------------------------------------------
 # Mines & pickups
-# --------------------------------------------------------------------------------------
 @dataclass
 class Mine:
     x: int
@@ -31,9 +29,7 @@ class MinePickup:
     charges: int = 1
 
 
-# --------------------------------------------------------------------------------------
 # GameField — main 2D simulation environment
-# --------------------------------------------------------------------------------------
 class GameField:
     def __init__(self, grid: List[List[int]]):
         self.grid = grid
@@ -50,15 +46,11 @@ class GameField:
         self.mines_per_team = 4
         self.max_mine_charges_per_agent = 2
 
-        # ------------------------------------------------------------------
-        # Policy wiring (paper-style scripted opponents)
-        # ------------------------------------------------------------------
+        # Policy wiring
         self.use_internal_policies = True
         self.external_control_for_side = {"blue": False, "red": False}
 
         # By default, BOTH teams use the paper's OP3-style scripted policy
-        # (offense+defense split). The driver/trainer is free to override
-        # self.policies["blue"] at startup with a LearnedPolicy, etc.
         self.policies: Dict[str, Any] = {
             "blue": OP3RedPolicy("blue"),  # baseline scripted OP3 on BLUE side
             "red": OP3RedPolicy("red"),    # default opponent: OP3
@@ -82,7 +74,8 @@ class GameField:
 
         # ------------------------------------------------------------------
         # Paper-style: categorical 2D targets (50 random predetermined cells)
-        # These are fixed per reset and can be used by RL instead of continuous coords.
+        # These are fixed per reset and can be used by RL instead of continuous coords
+        # TODO - Convert into Continuous for GRE
         # ------------------------------------------------------------------
         self.num_macro_targets: int = 50
         self.macro_targets: List[Tuple[int, int]] = []  # list of (x, y) grid cells
@@ -100,9 +93,7 @@ class GameField:
 
         self.reset_default()
 
-    # ------------------------------------------------------------------
     # Setup & configuration
-    # ------------------------------------------------------------------
     def _init_zones(self) -> None:
         total_cols = max(1, self.col_count)
         third = max(1, total_cols // 3)
@@ -120,12 +111,6 @@ class GameField:
         self.red_zone_col_range = (red_min, red_max)
 
     def _init_macro_targets(self, seed: Optional[int] = None) -> None:
-        """
-        Paper-style categorical 2D targets:
-        Pre-generate N random free cells to sample via a categorical distribution.
-
-        RL can output an index in [0, num_macro_targets) and we map it to (x, y).
-        """
         rng = random.Random(seed if seed is not None else 1337)
         self.macro_targets.clear()
 
@@ -148,10 +133,6 @@ class GameField:
             self.macro_targets.append(rng.choice(free_cells))
 
     def get_macro_target(self, index: int) -> Tuple[int, int]:
-        """
-        Return the categorical macro target at a given index.
-        Index is modulo the number of targets to stay safe.
-        """
         if not self.macro_targets:
             self._init_macro_targets()
         if self.num_macro_targets <= 0:
@@ -161,9 +142,6 @@ class GameField:
         return self.macro_targets[idx]
 
     def get_all_macro_targets(self) -> List[Tuple[int, int]]:
-        """
-        Helper for RL/training code to inspect the fixed target set.
-        """
         if not self.macro_targets:
             self._init_macro_targets()
         return list(self.macro_targets)
@@ -172,21 +150,10 @@ class GameField:
         return self.manager
 
     def set_policies(self, blue: Any, red: Any) -> None:
-        """
-        Allow trainer/driver to override both policies at once.
-        'blue' and 'red' can be Policy instances or callables(agent, game_field)->action_id.
-        """
         self.policies["blue"] = blue
         self.policies["red"] = red
 
     def set_red_opponent(self, mode: str) -> None:
-        """
-        Convenience helper for experiments:
-
-            mode in {"OP1", "OP2", "OP3"}
-
-        Used in training to schedule OP1→OP2→OP3 opponents.
-        """
         mode = mode.upper()
         self.opponent_mode = mode
         if mode == "OP1":
@@ -205,25 +172,18 @@ class GameField:
         for side in ("blue", "red"):
             self.external_control_for_side[side] = external
 
-    # ------------------------------------------------------------------
+
     # Test cases / reset
-    # ------------------------------------------------------------------
     def reset_default(self) -> None:
         self._init_zones()
         self.manager.reset_game()
         self.agents_per_team = 2
         self.mines.clear()
         self.mine_pickups.clear()
-
-        # Re-initialize macro targets each reset (paper-style "fixed" set per experiment)
         self._init_macro_targets(seed=self.agents_per_team)
-
         self.spawn_agents()
         self.spawn_mine_pickups()
         self.decision_cooldown_seconds_by_agent.clear()
-
-        # NOTE: we intentionally do NOT touch self.policies here so that
-        # the Driver/trainer's choice of blue policy persists across resets.
 
     def runTestCase1(self) -> None:
         self.reset_default()
@@ -241,10 +201,6 @@ class GameField:
         self.spawn_mine_pickups()
 
     def runTestCase3(self) -> None:
-        """
-        Swap zones and swap flag homes manually — avoids relying on missing
-        GameManager.set_flag_position.
-        """
         self.manager.reset_game(reset_scores=True)
 
         # Swap zone definitions
@@ -255,7 +211,6 @@ class GameField:
 
         middle_row = self.row_count // 2
 
-        # Manually set new "home" positions
         self.manager.blue_flag_home = (self.col_count - 2, middle_row)
         self.manager.red_flag_home = (1, middle_row)
         self.manager.blue_flag_position = self.manager.blue_flag_home
@@ -289,27 +244,20 @@ class GameField:
             self.announce(winner_text, color, 3.0)
             return
 
-        # ---------- NEW: small per-step time penalty for BLUE ----------
+        # ---------- small per-step time penalty for BLUE ----------
         for agent in self.blue_agents:
             if agent.isEnabled():
                 self.manager.add_reward_event(-0.001, agent_id=agent.unique_id)
-        # ---------------------------------------------------------------
 
-        # ------------------------------------------------------------------
         # 1) Always tick ALL agents (disabled ones respawn)
-        # ------------------------------------------------------------------
         for agent in self.blue_agents + self.red_agents:
             agent.update(delta_time)
 
-        # ------------------------------------------------------------------
         # 2) Pathfinder dynamic obstacles: only ENABLED agents
-        # ------------------------------------------------------------------
         occupied = [(int(a.x), int(a.y)) for a in self.blue_agents + self.red_agents if a.isEnabled()]
         self.pathfinder.setDynamicObstacles(occupied)
 
-        # ------------------------------------------------------------------
         # 3) Process both teams
-        # ------------------------------------------------------------------
         for friendly_team, enemy_team in (
                 (self.blue_agents, self.red_agents),
                 (self.red_agents, self.blue_agents),
@@ -337,9 +285,7 @@ class GameField:
                 self.handle_mine_pickups(agent)
                 self.apply_flag_rules(agent)
 
-        # ------------------------------------------------------------------
         # 4) Banner fade-out
-        # ------------------------------------------------------------------
         if self.banner_queue:
             text, color, t = self.banner_queue[-1]
             t = max(0.0, t - delta_time)
@@ -347,9 +293,7 @@ class GameField:
             if t <= 0.0:
                 self.banner_queue.pop()
 
-    # ------------------------------------------------------------------
     # Observation builder for RL / policies
-    # ------------------------------------------------------------------
     def build_observation(self, agent: Agent) -> List[float]:
         side = agent.side
         game_state = self.manager
@@ -357,7 +301,7 @@ class GameField:
         cols = max(1, self.col_count)
         rows = max(1, self.row_count)
 
-        # ---------- Flag geometry (as before) ----------
+        # ---------- Flag geometry  ----------
         enemy_flag_x, enemy_flag_y = game_state.get_enemy_flag_position(side)
         own_flag_x, own_flag_y = self.manager.get_team_zone_center(side)
 
@@ -379,11 +323,10 @@ class GameField:
         ammo_norm = agent.mine_charges / self.max_mine_charges_per_agent
         is_miner = 1.0 if getattr(agent, "is_miner", False) else 0.0
 
-        # ---------- NEW: normalized time in [0,1] ----------
         # Paper: time/20 ∈ {0..10}, we use a [0,1] continuous version.
         time_norm = self.manager.current_time / max(1e-6, self.manager.max_time)
 
-        # ---------- NEW: decision counter (0..13) normalized ----------
+        # ---------- decision counter (0..13) normalized ----------
         if not hasattr(agent, "decision_count"):
             agent.decision_count = 0
         decision_clamped = min(agent.decision_count, 13)
@@ -475,9 +418,7 @@ class GameField:
         obs.extend(occupancy)
         return obs
 
-    # ------------------------------------------------------------------
     # Macro-action executor
-    # ------------------------------------------------------------------
     def random_point_in_enemy_half(self, side: str) -> Tuple[int, int]:
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
@@ -506,15 +447,7 @@ class GameField:
             random.randint(0, self.row_count - 1),
         )
 
-    def apply_macro_action(
-        self, agent: Agent, action: MacroAction, param: Optional[Any] = None
-    ) -> None:
-        """
-        param can be:
-          - None                     -> default behavior (e.g. random enemy half)
-          - (x, y)                   -> explicit coordinate
-          - int index (for GO_TO / PLACE_MINE) -> categorical macro target (paper-style)
-        """
+    def apply_macro_action( self, agent: Agent, action: MacroAction, param: Optional[Any] = None ) -> None:
         if not agent.isEnabled():
             return
 
@@ -524,12 +457,6 @@ class GameField:
         start = (agent.x, agent.y)
 
         def resolve_target_from_param(default_target: Tuple[int, int]) -> Tuple[int, int]:
-            """
-            Helper to interpret param as either:
-                - (x, y) tuple/list, or
-                - categorical index into macro_targets (int/float),
-                - or fall back to default_target.
-            """
             if param is None:
                 return default_target
 
@@ -662,9 +589,7 @@ class GameField:
             # Simple mid-line defense
             safe_set_path((self.col_count // 2, agent.y))
 
-    # ------------------------------------------------------------------
     # Policy-driven decision
-    # ------------------------------------------------------------------
     def decide(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
@@ -688,9 +613,7 @@ class GameField:
         action = MacroAction(action_id)
         self.apply_macro_action(agent, action, param)
 
-    # ------------------------------------------------------------------
     # Mines / pickups / suppression / flags
-    # ------------------------------------------------------------------
     def handle_mine_pickups(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
@@ -749,9 +672,6 @@ class GameField:
 
                 if mine.owner_side == "blue" and agent.side == "red":
                     self.manager.record_mine_triggered_by_red()
-
-                # Just disable; Agent.disable_for_seconds will call
-                # GameManager.handle_agent_death and drop the flag correctly.
                 agent.disable_for_seconds(self.respawn_seconds)
 
                 self.mines.remove(mine)
@@ -769,7 +689,6 @@ class GameField:
         ]
 
         if len(close_enemies) >= 2:
-            # Choose a suppressor to credit. Prefer BLUE if present.
             killer_agent = None
             blue_suppressors = [e for e in close_enemies if getattr(e, "side", None) == "blue"]
             if blue_suppressors:
@@ -806,9 +725,7 @@ class GameField:
                     2.0,
                 )
 
-    # ------------------------------------------------------------------
     # Rendering
-    # ------------------------------------------------------------------
     def draw(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
         rect_width, rect_height = board_rect.width, board_rect.height
         cell_width = rect_width / max(1, self.col_count)
@@ -1053,9 +970,7 @@ class GameField:
     def announce(self, text: str, color=(255, 255, 255), seconds: float = 2.0) -> None:
         self.banner_queue.append((text, color, seconds))
 
-    # ------------------------------------------------------------------
     # Spawning
-    # ------------------------------------------------------------------
     def spawn_agents(self) -> None:
         rng = random.Random(self.agents_per_team)
 
@@ -1119,7 +1034,7 @@ class GameField:
                 move_rate_cps=rng.uniform(2.0, 2.4),
                 agent_id=i,
                 is_miner=(i == 0),
-                game_manager=self.manager,  # <-- IMPORTANT
+                game_manager=self.manager,
             )
             agent.spawn_xy = (col, row)
             agent.mine_charges = 0
