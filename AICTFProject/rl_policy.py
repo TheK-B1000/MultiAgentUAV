@@ -1,4 +1,3 @@
-# rl_policy.py
 import math
 from typing import Dict, Any
 
@@ -13,20 +12,10 @@ from macro_actions import MacroAction
 class ActorCriticNet(nn.Module):
     """
     Actor-Critic network for the 44-D macro-action observation.
-
-    Architecture (paper-aligned, fully-connected):
-
-      obs (44) → shared MLP trunk (2 layers, Tanh)
-                → latent (128)
-
-      From latent:
-        - actor head:  Linear(latent_dim → n_actions)
-        - critic head: Linear(latent_dim → 1)
     """
-
     def __init__(
         self,
-        input_dim: int = 44,          # full observation dimension
+        input_dim: int = 44, # full observation dimension
         n_actions: int = len(MacroAction),
         hidden_dim: int = 128,
         latent_dim: int = 128,
@@ -55,24 +44,13 @@ class ActorCriticNet(nn.Module):
         nn.init.constant_(self.critic.bias, 0.0)
 
     def forward(self, obs: torch.Tensor):
-        """
-        obs: [B, input_dim] or [input_dim]
-        returns:
-            logits: [B, n_actions]
-            value:  [B]  (1D, squeezed)
-        """
         latent = self.encoder(obs)           # [B, latent_dim]
         logits = self.actor(latent)          # [B, n_actions]
         value = self.critic(latent).squeeze(-1)  # [B]
         return logits, value
 
-    # === ACTION MASKING ==================================================
     @torch.no_grad()
     def get_action_mask(self, agent, game_field) -> torch.Tensor:
-        """
-        Returns a boolean mask [n_actions] where False = invalid action.
-        This can be called every step during rollout by your collector.
-        """
         n = len(MacroAction)
         device = next(self.parameters()).device
         mask = torch.ones(n, dtype=torch.bool, device=device)
@@ -105,28 +83,8 @@ class ActorCriticNet(nn.Module):
 
         return mask
 
-    # === ACT (WITH OPTIONAL MASKING) =====================================
     @torch.no_grad()
-    def act(
-        self,
-        obs: torch.Tensor,
-        agent=None,
-        game_field=None,
-        deterministic: bool = False,
-    ) -> Dict[str, Any]:
-        """
-        Used during rollout collection.
-
-        If `agent` and `game_field` are provided, action masking is applied.
-
-        Returns:
-            {
-              "action":   LongTensor [B],
-              "log_prob": FloatTensor [B],
-              "value":    FloatTensor [B],
-              "mask":     BoolTensor [n_actions] or None
-            }
-        """
+    def act(self, obs: torch.Tensor, agent=None, game_field=None, deterministic: bool = False, ) -> Dict[str, Any]:
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
 
@@ -154,24 +112,7 @@ class ActorCriticNet(nn.Module):
             "mask": mask,
         }
 
-    # === EVALUATE (for PPO) ==============================================
-    def evaluate_actions(
-        self,
-        obs: torch.Tensor,
-        actions: torch.Tensor,
-    ):
-        """
-        Used in PPO update:
-
-        Inputs:
-            obs:     [B, input_dim]
-            actions: [B] (LongTensor, MacroAction indices)
-
-        Outputs:
-            log_probs: [B]
-            entropy:   [B]
-            values:    [B]
-        """
+    def evaluate_actions( self, obs: torch.Tensor, actions: torch.Tensor,):
         logits, values = self.forward(obs)
         dist = Categorical(logits=logits)
         log_probs = dist.log_prob(actions)
