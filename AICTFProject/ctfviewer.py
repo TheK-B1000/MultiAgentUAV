@@ -1,5 +1,3 @@
-# ctfviewer.py
-
 import sys
 import pygame as pg
 import torch
@@ -22,7 +20,7 @@ class LearnedPolicy:
 
         # Default to the final model from train_ppo_event.py
         if model_path is None:
-            model_path = "checkpoints/ctf_final_model.pth"
+            model_path = "checkpoints/master_blue.pth"
 
         try:
             state = torch.load(model_path, map_location=self.device)
@@ -116,14 +114,14 @@ class CTFViewer:
 
         try:
             self.blue_learned_policy = LearnedPolicy(
-                model_path="checkpoints/ctf_final_model.pth"  # or ctf_best_so_far_op3.pth
+                model_path="checkpoints/master_blue.pth"
             )
             if self.blue_learned_policy.model_loaded:
                 # Initially let RL control Blue
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
                     self.game_field.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
-                print("[CTFViewer] Blue team using LEARNED policy (ctf_final_model.pth)")
+                print("[CTFViewer] Blue team using LEARNED policy (master_blue.pth)")
             else:
                 # No valid model: fall back to OP3 baseline for BLUE
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
