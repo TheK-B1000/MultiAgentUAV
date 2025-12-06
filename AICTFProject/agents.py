@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 from collections import deque
 
 # Radius used elsewhere (e.g., "team zone" checks)
@@ -8,7 +8,6 @@ TEAM_ZONE_RADIUS_CELLS = 3
 
 # Diagonal movement cost (for grid movement with 8 directions)
 DIAGONAL_COST = math.sqrt(2)
-
 
 # Type aliases for clarity
 Grid = List[List[int]]
@@ -57,6 +56,9 @@ class Agent:
     _just_scored: bool = False
     _just_tagged_enemy: bool = False
 
+    # Reference to GameManager (optional, injected by env or setup)
+    game_manager: Optional[Any] = field(default=None, repr=False)
+
     def __post_init__(self) -> None:
         # Clamp initial position and spawn to map bounds
         self.x, self.y = self._clamp(self.x, self.y)
@@ -67,8 +69,6 @@ class Agent:
         self._float_y = float(self.y)
 
         # Unique identifier used by GameManager reward_events.
-        # IMPORTANT: keep this in sync with GameManager.get_step_rewards()
-        # so global rewards (win/draw/loss) are assigned correctly.
         self.unique_id = f"{self.side}_{self.agent_id}"
 
         # Ensure event flags are clean
@@ -76,6 +76,9 @@ class Agent:
         self._just_scored = False
         self._just_tagged_enemy = False
         self.decision_count: int = 0
+
+        # Track whether we were just disabled this episode
+        self.was_just_disabled: bool = False
 
     # ------------------------------------------------------------------
     # Basic helpers
@@ -88,7 +91,7 @@ class Agent:
 
     @property
     def float_pos(self) -> Tuple[float, float]:
-        """Smooth position, useful for visualization."""
+        """Smooth position, useful for visualization and flag drop."""
         return self._float_x, self._float_y
 
     def get_position(self) -> Cell:
@@ -99,29 +102,47 @@ class Agent:
         return self.side
 
     # ------------------------------------------------------------------
-       # Status checks
+    # Status checks
     # ------------------------------------------------------------------
     def isEnabled(self) -> bool:
         """True if the agent is active in the game."""
         return self.enabled
 
     def isTagged(self) -> bool:
-        """
-        True if the agent is currently disabled and waiting for respawn.
-        """
+        """True if the agent is currently disabled and waiting for respawn."""
         return (not self.enabled) and self.tag_cooldown > 0.0
 
     def isCarryingFlag(self) -> bool:
         return self.is_carrying_flag
 
     # ------------------------------------------------------------------
+    # Attach / wiring to GameManager
+    # ------------------------------------------------------------------
+    def attach_game_manager(self, gm: Any) -> None:
+        """
+        Convenience helper so you can do:
+            agent.attach_game_manager(game_manager)
+        after construction.
+        """
+        self.game_manager = gm
+
+    # ------------------------------------------------------------------
     # Flag handling + event flags
     # ------------------------------------------------------------------
     def setCarryingFlag(self, value: bool) -> None:
+        """
+        Update local flag-carrying state and set one-step event flags.
+        NOTE: GameManager owns the canonical flag carrier state; this
+        is just for the agent's local / RL observation layer.
+        """
         if not self.is_carrying_flag and value:
+            # Just picked up the flag
             self._just_picked_up_flag = True
         elif self.is_carrying_flag and not value:
+            # Stopped carrying – higher-level logic can interpret
+            # this as 'scored' when appropriate.
             self._just_scored = True
+
         self.is_carrying_flag = value
 
     def consume_just_picked_up_flag(self) -> bool:
@@ -138,7 +159,7 @@ class Agent:
 
     def consume_just_tagged_enemy(self) -> bool:
         """
-        Return True once when this agent was just disabled.
+        Return True once when this agent was just disabled/tagged.
         (Name kept for backwards compatibility; semantics = 'just got tagged').
         """
         v = self._just_tagged_enemy
@@ -168,15 +189,25 @@ class Agent:
     # Disable / respawn logic
     # ------------------------------------------------------------------
     def disable_for_seconds(self, seconds: float) -> None:
+        """
+        Disable/tag this agent for a given duration.
+        IMPORTANT:
+        - Calls GameManager.handle_agent_death(self) so the flag is
+          dropped at the death position and does NOT follow on respawn.
+        - Clears movement and local carrying state.
+        """
         if self.enabled:
             self.was_just_disabled = True
-            self._just_tagged_enemy = True   # backward-compatible event flag
+            self._just_tagged_enemy = True
             self.enabled = False
             self.tag_cooldown = max(self.tag_cooldown, seconds)
 
-            # Drop the flag if we were carrying it
-            if self.is_carrying_flag:
-                self.is_carrying_flag = False
+            # Let GameManager handle dropping the flag, rewards, etc.
+            if self.game_manager is not None:
+                self.game_manager.handle_agent_death(self)
+
+            # Local view: we are no longer carrying a flag
+            self.is_carrying_flag = False
 
             # Stop moving
             self.clearPath()
@@ -187,6 +218,11 @@ class Agent:
         Reset agent to its spawn point and clear transient state.
         Called automatically when tag_cooldown reaches 0.
         """
+        # Extra safety: make absolutely sure GameManager does not
+        # still think this agent is a flag carrier.
+        if self.game_manager is not None:
+            self.game_manager.clear_flag_carrier_if_agent(self)
+
         self.x, self.y = self.spawn_xy
         self._float_x = float(self.x)
         self._float_y = float(self.y)
@@ -202,6 +238,9 @@ class Agent:
         self._just_picked_up_flag = False
         self._just_scored = False
         self._just_tagged_enemy = False
+
+        # On respawn we definitely are not carrying a flag
+        self.is_carrying_flag = False
 
     # ------------------------------------------------------------------
     # Per-timestep update
