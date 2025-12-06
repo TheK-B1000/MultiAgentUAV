@@ -269,7 +269,7 @@ class CTFViewer:
 
         # Model status
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: checkpoints/ctf_final_model.pth",
+            txt("Model: master_blue.pth",
                 self.size[0] - 360, score_time_y, (100, 220, 100))
 
         # Input overlay
