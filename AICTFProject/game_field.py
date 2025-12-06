@@ -280,21 +280,19 @@ class GameField:
         if self.manager.game_over:
             return
 
-        # Advance global sim time / check for time or score-based terminal
+        # Advance global sim time / check for terminal condition
         winner_text = self.manager.tick_seconds(delta_time)
         if winner_text:
             color = (
-                (90, 170, 250)
-                if "BLUE" in winner_text
-                else (250, 120, 70)
-                if "RED" in winner_text
-                else (230, 230, 230)
+                (90, 170, 250) if "BLUE" in winner_text else
+                (250, 120, 70) if "RED" in winner_text else
+                (230, 230, 230)
             )
             self.announce(winner_text, color, 3.0)
             return
 
         # ------------------------------------------------------------------
-        # 1) Always tick ALL agents so disabled ones can count down & respawn
+        # 1) Always tick ALL agents (disabled ones respawn)
         # ------------------------------------------------------------------
         for agent in self.blue_agents + self.red_agents:
             agent.update(delta_time)
@@ -302,16 +300,11 @@ class GameField:
         # ------------------------------------------------------------------
         # 2) Pathfinder dynamic obstacles: only ENABLED agents
         # ------------------------------------------------------------------
-        occupied = [
-            (int(a.x), int(a.y))
-            for a in self.blue_agents + self.red_agents
-            if a.isEnabled()
-        ]
+        occupied = [(int(a.x), int(a.y)) for a in self.blue_agents + self.red_agents if a.isEnabled()]
         self.pathfinder.setDynamicObstacles(occupied)
 
         # ------------------------------------------------------------------
-        # 3) Process both teams (hazards, decisions, flags, shaping...)
-        #    Only do this for enabled agents.
+        # 3) Process both teams
         # ------------------------------------------------------------------
         for friendly_team, enemy_team in (
                 (self.blue_agents, self.red_agents),
@@ -321,8 +314,8 @@ class GameField:
                 if not agent.isEnabled():
                     continue
 
-                # 1. Hazards
-                self.apply_mine_damage(agent)
+                # 1. Hazards — THIS IS WHERE MINE KILLS ARE TRACKED
+                self.apply_mine_damage(agent)  # ← now tracks kills!
                 self.apply_suppression(agent, enemy_team)
 
                 # 2. Decision-making
@@ -715,6 +708,9 @@ class GameField:
                         victim_agent=agent,
                         cause="mine",
                     )
+
+                if mine.owner_side == "blue" and agent.side == "red":
+                    self.manager.record_mine_triggered_by_red()
 
                 # Flag + disable logic
                 if agent.isCarryingFlag():
