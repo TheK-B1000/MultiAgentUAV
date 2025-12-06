@@ -196,54 +196,56 @@ class OP2RedPolicy(Policy):
 
 class OP3RedPolicy(Policy):
     """
-    OP3 (paper): two-role opponent.
-      - One attacker that goes for the enemy flag and returns home.
-      - One defender that plays like OP2 (mine line in front of own end zone).
-
-    No extra heuristics, no time-based logic, no hold-position action.
+    OP3 (paper-style, weak):
+    - Two agents:
+      - Agent 0: Defender
+          * Places (roughly) one mine near its own flag, then defends.
+      - Agent 1: Attacker
+          * Goes straight for the enemy flag with GET_FLAG.
+    - No reloading, no smart intercepts, no fancy pathing.
     """
     def __init__(self, side: str = "red"):
         self.side = side
+        # Track if the defender has already placed its "key" mine
+        self.defender_placed_mine = False
 
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
-        gm: GameManager = game_field.manager
+    def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField"):
         side = self.side
+        flag_x, flag_y = gm.get_team_zone_center(side)
 
-        # If this agent is carrying a flag, always go home.
+        # Once carrying a flag (edge case), go home.
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        # -------------- Agent 0: ATTACKER --------------
+        # If we still haven't placed our key mine and we have charges:
+        if not self.defender_placed_mine and agent.mine_charges > 0:
+            # If close enough to flag, drop a mine near it
+            if math.hypot(agent.x - flag_x, agent.y - flag_y) <= 1.5:
+                self.defender_placed_mine = True
+                return int(MacroAction.PLACE_MINE), (flag_x, flag_y)
+
+            # Otherwise walk directly to our flag area
+            return int(MacroAction.GO_TO), (flag_x, flag_y)
+
+        # After placing the mine (or no charges), just defend around the flag
+        return int(MacroAction.DEFEND_ZONE), (flag_x, flag_y)
+
+    def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField"):
+        # If already carrying enemy flag, go home.
+        if agent.isCarryingFlag():
+            return int(MacroAction.GO_HOME), None
+
+        # Otherwise, always try to get the flag.
+        # The GET_FLAG macro should handle moving toward the enemy flag.
+        return int(MacroAction.GET_FLAG), None
+
+    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+        gm: GameManager = game_field.manager
+
+        # Hard-assign roles by agent_id:
+        #   agent_id == 0 → defender
+        #   agent_id != 0 → attacker
         if agent.agent_id == 0:
-            # Simple: always go for the enemy flag.
-            return int(MacroAction.GET_FLAG), None
-
-        # -------------- Agent 1+: DEFENDER(S) ----------
-        # Behavior: same as OP2, purely defensive.
-
-        # Own zone column range
-        if side == "red":
-            own_min_col, own_max_col = game_field.red_zone_col_range
+            return self._defender_action(agent, gm, game_field)
         else:
-            own_min_col, own_max_col = game_field.blue_zone_col_range
-
-        # Center row of our end zone
-        flag_x, flag_y = gm.get_team_zone_center(side)
-
-        # Horizontal band in front of our end zone
-        defense_band = [
-            (c, flag_y)
-            for c in range(own_min_col, own_max_col + 1)
-        ]
-
-        # If we have mines: place them along this band
-        if agent.mine_charges > 0:
-            for cell in defense_band:
-                if math.hypot(agent.x - cell[0], agent.y - cell[1]) <= 1.0:
-                    return int(MacroAction.PLACE_MINE), cell
-
-            target = random.choice(defense_band)
-            return int(MacroAction.GO_TO), target
-
-        # No mines left → go grab more
-        return int(MacroAction.GRAB_MINE), None
+            return self._attacker_action(agent, gm, game_field)
