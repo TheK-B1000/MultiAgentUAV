@@ -256,8 +256,7 @@ class CTFViewer:
 
         # Top row: menu / help
         menu_text = (
-            "F1: Reset | F2: Agent Count | F3: SwapZones | "
-            "R: SoftReset | F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
+            "F1: Reset | F2: Agent Count | F3: SwapZones | F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
         )
         txt(menu_text, 30, 15, (200, 200, 220))
 
@@ -272,7 +271,8 @@ class CTFViewer:
 
         # Model status
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: checkpoints/ctf_final_model.pth", self.size[0] - 360, 15, (100, 220, 100))
+            txt("Model: checkpoints/ctf_final_model.pth",
+                self.size[0] - 360, score_time_y, (100, 220, 100))
 
         # Input overlay
         if self.input_active:
