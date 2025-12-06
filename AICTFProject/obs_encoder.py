@@ -9,7 +9,7 @@ class ObsEncoder(nn.Module):
 
     Observation layout (from GameField.build_observation):
 
-      • 17 scalar features:
+      • 19 scalar features:
           0  : dx_enemy_flag
           1  : dy_enemy_flag
           2  : dx_own_flag
@@ -27,21 +27,17 @@ class ObsEncoder(nn.Module):
           14 : teammate_mines_norm
           15 : teammate_has_flag
           16 : teammate_dist
+          17 : time_norm
+          18 : decision_norm
 
-      • 25 spatial features: 5×5 local occupancy grid (flattened)
+      • 25 spatial features: 5×5 local occupancy grid (flattened, normalized to [0,1])
 
-      → total_dim = 17 + 25 = 42
-
-    This encoder just applies a small MLP:
-        obs (42) → hidden_dim → latent_dim
-
-    No convs, no residual blocks, no LayerNorm: closer to the simple,
-    fully-connected networks typically used in the original paper.
+      → total_dim = 19 + 25 = 44
     """
 
     def __init__(
         self,
-        input_dim: int = 42,
+        input_dim: int = 44,
         hidden_dim: int = 128,
         latent_dim: int = 128,
     ):
@@ -59,7 +55,6 @@ class ObsEncoder(nn.Module):
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            # Tanh-friendly gain
             gain = nn.init.calculate_gain("tanh")
             nn.init.orthogonal_(m.weight, gain=gain)
             if m.bias is not None:
