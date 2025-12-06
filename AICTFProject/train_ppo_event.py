@@ -1,5 +1,3 @@
-# train_ppo_event.py
-
 import os
 import time
 import math
@@ -18,9 +16,6 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
-# =========================
-# FULLY DETERMINISTIC SEEDING
-# =========================
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -29,10 +24,7 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-
-# =========================
-# BASIC CONFIG (PAPER-STYLE)
-# =========================
+# CONFIG
 GRID_ROWS = 30
 GRID_COLS = 40
 
@@ -60,19 +52,12 @@ SIM_DT = 0.1
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
-
-# =========================
-# COOP HUD CONFIG
-# =========================
 COOP_HUD_EVERY = 50
 COOP_WINDOW = 50
 NUM_ACTIONS = len(MacroAction)
 ACTION_NAMES = [ma.name for ma in sorted(MacroAction, key=lambda m: m.value)]
 
 
-# =========================
-# CURRICULUM (OP1 → OP2 → OP3)
-# =========================
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
@@ -101,14 +86,8 @@ PHASE_CONFIG = {
     "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=550),
 }
 
-# Target OP3 winrate for emperor save
-EMPEROR_TARGET_WR = 0.80  # 80%
-
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
-    """
-    Paper-style fixed opponent per phase.
-    """
     if phase == "OP1":
         env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
@@ -119,9 +98,6 @@ def set_red_policy_for_phase(env: GameField, phase: str) -> None:
         raise ValueError(f"Unknown phase: {phase}")
 
 
-# =========================
-# ENV FACTORY
-# =========================
 def make_env() -> GameField:
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
@@ -133,9 +109,6 @@ def make_env() -> GameField:
     return env
 
 
-# =========================
-# ROLLOUT BUFFER
-# =========================
 class RolloutBuffer:
     def __init__(self):
         self.obs = []
@@ -171,10 +144,6 @@ class RolloutBuffer:
         dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
         return obs, actions, log_probs, values, rewards, dones, dts
 
-
-# =========================
-# EVENT-DRIVEN GAE
-# =========================
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     T = rewards.size(0)
     advantages = torch.zeros(T, device=rewards.device)
@@ -193,10 +162,6 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     returns = advantages + values
     return advantages, returns
 
-
-# =========================
-# PPO UPDATE
-# =========================
 def ppo_update(policy, optimizer, buffer, device, ent_coef):
     obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
     advantages, returns = compute_gae_event(rewards, values, dones, dts)
@@ -231,24 +196,7 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 
     buffer.clear()
 
-
-def collect_blue_rewards_for_step(
-    gm: GameManager,
-    blue_agents,
-    mix_alpha: float = 0.0,
-    cur_phase: str = "OP1",
-):
-    """
-    Purely relay the environment rewards to the blue agents.
-
-    Assumes GameManager.get_step_rewards() already implements Table 3:
-      - winTeamReward
-      - flagPickupReward
-      - flagCarryHomeReward
-      - enabledLandMineReward
-      - enemyMAVKillReward
-      - actionFailedPunishment
-    """
+def collect_blue_rewards_for_step(gm: GameManager, blue_agents, mix_alpha: float = 0.0, cur_phase: str = "OP1", ):
     raw = gm.get_step_rewards()
 
     indiv_rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
@@ -271,10 +219,6 @@ def collect_blue_rewards_for_step(
 
     return indiv_rewards_by_id
 
-
-# =========================
-# ENTROPY SCHEDULE
-# =========================
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
     base = ENT_COEF_BY_PHASE[cur_phase]
 
@@ -288,69 +232,6 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) 
     frac = min(1.0, phase_episode_count / horizon)
     return float(start_ent - (start_ent - base) * frac)
 
-# =========================
-# TRUE EMPEROR EVALUATION
-# =========================
-def evaluate_emperor_crowning(policy: ActorCriticNet, device: torch.device, n_games: int = 20) -> float:
-    policy.eval()
-    env = make_env()
-    gm = env.getGameManager()
-    cfg = PHASE_CONFIG["OP3"]
-    gm.score_limit = cfg["score_limit"]
-    gm.max_time = cfg["max_time"]
-    gm.set_phase("OP3")
-
-    wins = 0
-    with torch.no_grad():
-        for game_idx in range(n_games):
-            # different seed / randomness per eval game
-            random.seed(1234 + game_idx)
-            np.random.seed(1234 + game_idx)
-
-            env.reset_default()
-            gm.reset_game(reset_scores=True)
-            gm.set_phase("OP3")
-            env.policies["red"] = OP3RedPolicy("red")
-
-            red_pol = env.policies.get("red")
-            if hasattr(red_pol, "reset"):
-                red_pol.reset()
-
-            done = False
-            steps = 0
-            max_steps = cfg["max_macro_steps"]
-
-            while not done and steps < max_steps:
-                blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-
-                for agent in blue_agents:
-                    obs = env.build_observation(agent)
-                    obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device)
-                    out = policy.act(
-                        obs_tensor,
-                        agent=agent,
-                        game_field=env,
-                        deterministic=True,
-                    )
-                    a = int(out["action"][0].item())
-                    env.apply_macro_action(agent, MacroAction(a))
-
-                sim_t = 0.0
-                while sim_t < DECISION_WINDOW and not gm.game_over:
-                    env.update(SIM_DT)
-                    sim_t += SIM_DT
-                done = gm.game_over
-                steps += 1
-
-            if gm.blue_score > gm.red_score:
-                wins += 1
-
-    policy.train()
-    return wins / max(1, n_games)
-
-# =========================
-# MAIN TRAINING LOOP
-# =========================
 def train_ppo_event(total_steps=TOTAL_STEPS):
     set_seed(42)
 
@@ -384,14 +265,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Rolling window for cooperation HUD
     coop_window = deque(maxlen=COOP_WINDOW)
 
-    # Best OP3 champion tracking
-    best_op3_wr = 0.0
-    BEST_OP3_EMPEROR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
-    BEST_OP3_SO_FAR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_fixed _blue_so_far_op3.pth")
-
-    # Anti-collapse: best OP3 phase winrate during training
-    best_op3_phase_wr = 0.0
-
     while global_step < total_steps:
         episode_idx += 1
         phase_episode_count += 1
@@ -409,7 +282,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
-        # Reset OP3 per-episode state (defender placed mine flag, etc.)
+        # Reset OP3 per-episode state
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
             red_pol.reset()
@@ -490,14 +363,12 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 gm, blue_agents, mix_alpha=0.0, cur_phase=cur_phase
             )
 
-            # === SMALL TIME PENALTY (encourages faster scoring) ===
+            # === SMALL TIME PENALTY ===
             for agent in env.blue_agents:
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
-            # =============================
-            # No extra shaping (paper style)
-            # =============================
+            # No extra shaping
             for agent, _, act, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
                 if MacroAction(act) == MacroAction.PLACE_MINE:
@@ -550,32 +421,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
 
-        # --- Anti-collapse: revert if OP3 phase winrate collapses (late OP3 only) ---
-        if cur_phase == "OP3":
-            if phase_wr > best_op3_phase_wr:
-                best_op3_phase_wr = phase_wr
-            else:
-                if (
-                        phase_episode_count > 2000  # only after many OP3 episodes
-                        and best_op3_phase_wr - phase_wr > 0.20
-                        and os.path.exists(BEST_OP3_SO_FAR_PATH)
-                ):
-                    print(
-                        "   [ANTI-COLLAPSE] OP3 phase winrate dropped "
-                        f"from {best_op3_phase_wr * 100:.1f}% to {phase_wr * 100:.1f}%"
-                    )
-                    print(
-                        f"   [ANTI-COLLAPSE] Reloading best-so-far OP3 checkpoint: "
-                        f"{BEST_OP3_SO_FAR_PATH}"
-                    )
-
-                    ckpt = torch.load(BEST_OP3_SO_FAR_PATH, map_location=DEVICE)
-                    policy.load_state_dict(ckpt["model"])
-
-                    phase_recent.clear()
-                    phase_episode_count = 0
-                    phase_wr = best_op3_phase_wr
-
         avg_step_r = ep_return / max(1, steps)
 
         print(
@@ -587,62 +432,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
-        # ---------- OP3 "CROWNING CEREMONY" EVAL ----------
-        if (
-                cur_phase == "OP3"
-                and phase_episode_count >= 2000
-                and phase_episode_count % 200 == 0  # then every 200 OP3 episodes
-        ):
-            print("   [CROWNING CEREMONY] The trial by combat begins...")
-            crowning_score = evaluate_emperor_crowning(policy, device=DEVICE, n_games=100)
-            print(f"   [VERDICT] OP3 winrate: {crowning_score * 100:.2f}%")
-
-            if crowning_score > best_op3_wr:
-                prev = best_op3_wr
-                best_op3_wr = crowning_score
-
-                torch.save(
-                    {
-                        "model": policy.state_dict(),
-                        "episode": episode_idx,
-                        "winrate": crowning_score,
-                    },
-                    BEST_OP3_SO_FAR_PATH,
-                )
-                print(
-                    f"   [PROGRESS] New best OP3 winrate so far: "
-                    f"{best_op3_wr * 100:.2f}% (prev {prev * 100:.2f}%)"
-                )
-                print(f"   [PROGRESS] Best-so-far model saved → {BEST_OP3_SO_FAR_PATH}")
-
-                if crowning_score >= EMPEROR_TARGET_WR:
-                    torch.save(
-                        {
-                            "model": policy.state_dict(),
-                            "episode": episode_idx,
-                            "winrate": crowning_score,
-                        },
-                        BEST_OP3_EMPEROR_PATH,
-                    )
-                    print("   " + "=" * 70)
-                    print("   >>> THE TRUE EMPEROR HAS ASCENDED (OP3 CHAMPION SAVED) <<<")
-                    print(
-                        f"   >>> Winrate: {crowning_score * 100:.2f}% "
-                        f"@ episode {episode_idx} <<<"
-                    )
-                    print(f"   >>> Emperor model saved → {BEST_OP3_EMPEROR_PATH} <<<")
-                    print("   " + "=" * 70)
-
-                    print("\n[TRAINING STOP] Emperor crowned; stopping further PPO updates.")
-                    final_path = os.path.join(CHECKPOINT_DIR, "fixed_master_blue.pth")
-                    torch.save(policy.state_dict(), final_path)
-                    print(f"Final model saved to: {final_path}")
-                    print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
-                    return
-
-        # ---------------------------
         # Cooperation HUD
-        # ---------------------------
         miner0_runner1 = ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
         miner1_runner0 = ep_score_events > 0 and ep_mine_attempts[1] > 0 and ep_mine_attempts[0] == 0
         both_mine_and_score = (
@@ -756,13 +546,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 phase_episode_count = 0
                 phase_recent.clear()
 
-    final_path = os.path.join(CHECKPOINT_DIR, "fixed_master_blue.pth")
+    # BEST TRAINED BLUE AGENT
+    final_path = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
     torch.save(policy.state_dict(), final_path)
-    print(f"\nTraining complete. Final model: {final_path}")
-    print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
-    print(f"Best-so-far OP3 model (if any): {BEST_OP3_SO_FAR_PATH}")
-    print(f"Emperor OP3 model (if threshold reached): {BEST_OP3_EMPEROR_PATH}")
-
+    print(f"\nTraining complete. Final model saved to: {final_path}")
 
 if __name__ == "__main__":
     train_ppo_event()
