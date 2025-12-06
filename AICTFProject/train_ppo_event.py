@@ -386,8 +386,8 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
     # Best OP3 champion tracking
     best_op3_wr = 0.0
-    BEST_OP3_EMPEROR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_true_blue_op3.pth")
-    BEST_OP3_SO_FAR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_best_blue_so_far_op3.pth")
+    BEST_OP3_EMPEROR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
+    BEST_OP3_SO_FAR_PATH = os.path.join(CHECKPOINT_DIR, "ctf_fixed _blue_so_far_op3.pth")
 
     # Anti-collapse: best OP3 phase winrate during training
     best_op3_phase_wr = 0.0
@@ -634,7 +634,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     print("   " + "=" * 70)
 
                     print("\n[TRAINING STOP] Emperor crowned; stopping further PPO updates.")
-                    final_path = os.path.join(CHECKPOINT_DIR, "master_blue.pth")
+                    final_path = os.path.join(CHECKPOINT_DIR, "fixed_master_blue.pth")
                     torch.save(policy.state_dict(), final_path)
                     print(f"Final model saved to: {final_path}")
                     print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
@@ -756,7 +756,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 phase_episode_count = 0
                 phase_recent.clear()
 
-    final_path = os.path.join(CHECKPOINT_DIR, "master_blue.pth")
+    final_path = os.path.join(CHECKPOINT_DIR, "fixed_master_blue.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"\nTraining complete. Final model: {final_path}")
     print(f"Best OP3 eval winrate achieved: {best_op3_wr * 100:.2f}%")
