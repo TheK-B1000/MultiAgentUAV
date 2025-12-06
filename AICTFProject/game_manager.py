@@ -49,6 +49,7 @@ class GameManager:
     red_mine_kills_this_episode: int = 0
     mines_placed_in_enemy_half_this_episode: int = 0
     mines_triggered_by_red_this_episode: int = 0
+    mines_rewarded_by_agent: Dict[str, bool] = field(default_factory=dict)
 
     # ==================================================================
     # Phase utilities
@@ -77,6 +78,7 @@ class GameManager:
         self.red_mine_kills_this_episode = 0
         self.mines_placed_in_enemy_half_this_episode = 0
         self.mines_triggered_by_red_this_episode = 0
+        self.mines_rewarded_by_agent.clear()
 
         mid_row = self.rows // 2
         self.blue_flag_home = (2, mid_row)
@@ -216,10 +218,17 @@ class GameManager:
     # ==================================================================
     def reward_mine_placed(self, agent, mine_pos: Optional[Tuple[int, int]] = None) -> None:
         side = agent.getSide()
+        uid = getattr(agent, "unique_id", None)
 
-        self.add_reward_event(ENABLED_MINE_REWARD, agent_id=agent.unique_id)
+        # ---------- MATCH PAPER: enabledMineReward only once per UAV per episode ----------
+        if uid is not None:
+            already_rewarded = self.mines_rewarded_by_agent.get(uid, False)
+            if not already_rewarded:
+                self.add_reward_event(ENABLED_MINE_REWARD, agent_id=uid)
+                self.mines_rewarded_by_agent[uid] = True
+        # ---------------------------------------------------------------------
 
-        # Track "mines placed in enemy half" for blue (for HUD + later, if you want shaping)
+        # Track HUD stats (mines in enemy half) – this can still run every time
         if mine_pos is not None and side == "blue":
             x, y = mine_pos
             mid_x = self.cols * 0.5
