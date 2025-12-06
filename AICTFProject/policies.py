@@ -137,43 +137,51 @@ class OP3RedPolicy(Policy):
     """
     OP3 (paper-style, intentionally weak / scripted):
 
-    - Two agents:
-      - Agent 0: Defender
-          * Places (roughly) one mine near its own flag, then defends.
-      - Agent 1: Attacker
-          * Goes straight for the enemy flag with GET_FLAG.
-    - No smart intercepts, no macro coordination. This is your non-ML baseline.
+    - Two agents (assume agent_id 0 and 1):
+        * Agent 0: Defender
+            - Tries to place ONE mine near its own flag.
+            - Then just defends near the flag.
+        * Agent 1: Attacker
+            - Always goes for the enemy flag.
+    - No clever intercepts, no long-term memory. Behavior is purely based
+      on current environment state, like in the paper.
     """
+
     def __init__(self, side: str = "red"):
         self.side = side
-        # Track if the defender has already placed its "key" mine
-        self.defender_placed_mine = False
 
-    def reset(self):
-        """Call this at episode reset if you reuse the same policy instance."""
-        self.defender_placed_mine = False
-
+    # --- Defender logic -------------------------------------------------
     def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField"):
         side = self.side
         flag_x, flag_y = gm.get_team_zone_center(side)
 
-        # Once carrying a flag (edge case), go home.
+        # If somehow carrying a flag, just go home.
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        # If we still haven't placed our key mine and we have charges:
-        if not self.defender_placed_mine and agent.mine_charges > 0:
-            # If close enough to flag, drop a mine near it
+        # ---- STATLESS "has placed mine" check ----
+        # Consider our key mine "placed" if there is ANY friendly mine
+        # within ~1.5 cells of our flag.
+        has_flag_mine = any(
+            (m.owner_side == side) and
+            (math.hypot(m.x - flag_x, m.y - flag_y) <= 1.5)
+            for m in game_field.mines
+        )
+
+        # If we still haven't placed that mine and we have charges:
+        if (not has_flag_mine) and agent.mine_charges > 0:
+            # If close to flag, drop a mine there
             if math.hypot(agent.x - flag_x, agent.y - flag_y) <= 1.5:
-                self.defender_placed_mine = True
                 return int(MacroAction.PLACE_MINE), (flag_x, flag_y)
 
-            # Otherwise walk directly to our flag area
+            # Otherwise walk directly to flag area
             return int(MacroAction.GO_TO), (flag_x, flag_y)
 
-        # After placing the mine (or if no charges), just defend around the flag
+        # After we have a mine near the flag (or no charges), just defend.
+        # This is still very dumb: just loiters around midline.
         return int(MacroAction.DEFEND_ZONE), (flag_x, flag_y)
 
+    # --- Attacker logic -------------------------------------------------
     def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField"):
         # If already carrying enemy flag, go home.
         if agent.isCarryingFlag():
@@ -182,13 +190,14 @@ class OP3RedPolicy(Policy):
         # Otherwise, always try to get the flag.
         return int(MacroAction.GET_FLAG), None
 
+    # --- Main dispatch --------------------------------------------------
     def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
-        gm: GameManager = game_field.manager  # noqa: F841 (kept for symmetry / future tweaks)
+        gm: GameManager = game_field.manager  # kept for symmetry / future tweaks
 
         # Hard-assign roles by agent_id:
         #   agent_id == 0 → defender
         #   agent_id != 0 → attacker
-        if agent.agent_id == 0:
+        if getattr(agent, "agent_id", 0) == 0:
             return self._defender_action(agent, gm, game_field)
         else:
             return self._attacker_action(agent, gm, game_field)
