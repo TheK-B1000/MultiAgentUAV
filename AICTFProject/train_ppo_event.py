@@ -102,6 +102,7 @@ PHASE_CONFIG = {
 # Target OP3 winrate for emperor save
 EMPEROR_TARGET_WR = 0.80  # 80%
 
+
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
     """
     Paper-style fixed opponent per phase.
@@ -234,7 +235,7 @@ def collect_blue_rewards_for_step(
     cur_phase: str = "OP1",
 ):
     """
-    Purely relay the environment rewards to the blue agents.
+    Purely relay the environment rewards to the blue agents + small living cost.
 
     Assumes GameManager.get_step_rewards() already implements Table 3:
       - winTeamReward
@@ -243,6 +244,9 @@ def collect_blue_rewards_for_step(
       - enabledLandMineReward
       - enemyMAVKillReward
       - actionFailedPunishment
+
+    PLUS:
+      -0.001 per blue agent per decision step.
     """
     raw = gm.get_step_rewards()
 
@@ -264,7 +268,12 @@ def collect_blue_rewards_for_step(
         if aid in indiv_rewards_by_id:
             indiv_rewards_by_id[aid] += r
 
+    # living cost
+    for aid in indiv_rewards_by_id:
+        indiv_rewards_by_id[aid] -= 0.001
+
     return indiv_rewards_by_id
+
 
 # =========================
 # ENTROPY SCHEDULE
@@ -320,7 +329,7 @@ def evaluate_emperor_crowning(policy: ActorCriticNet, device: torch.device, n_ga
                 for agent in blue_agents:
                     obs = env.build_observation(agent)
                     obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device)
-                    out = policy.act(obs_tensor)
+                    out = policy.act(obs_tensor, agent=agent, game_field=env, deterministic=False)
                     a = int(out["action"][0].item())
                     env.apply_macro_action(agent, MacroAction(a))
 
@@ -351,7 +360,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     if env.blue_agents:
         dummy_obs = env.build_observation(env.blue_agents[0])
     else:
-        dummy_obs = [0.0] * 42
+        dummy_obs = [0.0] * 44  # current obs dim
 
     obs_dim = len(dummy_obs)
     n_actions = len(MacroAction)
@@ -399,7 +408,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
-        # make sure per-episode stats are clean
+        # per-episode stats clean
         gm.blue_mine_kills_this_episode = 0
         gm.red_mine_kills_this_episode = 0
         gm.mines_triggered_by_red_this_episode = 0
@@ -425,7 +434,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             for agent in blue_agents:
                 obs = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
-                out = policy.act(obs_tensor)
+                out = policy.act(obs_tensor, agent=agent, game_field=env)
                 a = int(out["action"][0].item())
                 logp = float(out["log_prob"][0].item())
                 val = float(out["value"][0].item())
@@ -464,19 +473,15 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
             dt = sim_t
 
-            # collect rewards
+            # collect rewards (paper-style + living cost)
             rewards = collect_blue_rewards_for_step(
                 gm, blue_agents, mix_alpha=0.0, cur_phase=cur_phase
             )
             done = gm.game_over
 
-            # =============================
-            # No extra shaping (paper style)
-            # =============================
+            # (no extra shaping; paper-style)
             for agent, _, act, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
-
-                # Just track stats for HUD / debugging if you want:
                 if MacroAction(act) == MacroAction.PLACE_MINE:
                     ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
@@ -490,7 +495,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             if total_team_reward > 0.0 and blue_score_delta == 0:
                 ep_combat_events += 1
 
-            # add to buffer (with living cost)
+            # add to buffer
             step_reward_sum = 0.0
             for agent, obs, act, logp, val, _, _, _ in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
@@ -523,14 +528,14 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             draws += 1
             phase_recent.append(0)
 
-        # Strong, unambiguous terminal team reward (on top of env's own team reward).
-        final_bonus = 0.0
-        if gm.blue_score > gm.red_score:
-            final_bonus = +2.0
-        elif gm.red_score > gm.blue_score:
-            final_bonus = -2.0
+        score_diff = gm.blue_score - gm.red_score
+
+        if score_diff > 0:
+            final_bonus = 2.0 + 1.5 * score_diff
+        elif score_diff < 0:
+            final_bonus = -2.0 + 1.5 * score_diff  # score_diff is negative here
         else:
-            final_bonus = 0.0  # optional small negative for draw if you want to avoid draw hell
+            final_bonus = -0.5
 
         if final_bonus != 0.0:
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
@@ -538,7 +543,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 share = final_bonus / len(blue_agents)
                 for agent in blue_agents:
                     dummy_obs = env.build_observation(agent)
-                    # done=True, dt=1.0 for this synthetic terminal "step"
                     buffer.add(dummy_obs, 0, 0.0, 0.0, share, True, 1.0)
 
         if len(phase_recent) > PHASE_WINRATE_WINDOW:
