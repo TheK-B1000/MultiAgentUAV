@@ -75,6 +75,7 @@ class Agent:
         self._just_picked_up_flag = False
         self._just_scored = False
         self._just_tagged_enemy = False
+        self.decision_count: int = 0
 
     # ------------------------------------------------------------------
     # Basic helpers
