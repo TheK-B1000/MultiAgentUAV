@@ -402,7 +402,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         # make sure per-episode stats are clean
         gm.blue_mine_kills_this_episode = 0
         gm.red_mine_kills_this_episode = 0
-        gm.blue_mines_triggered_by_red_this_episode = 0
+        gm.mines_triggered_by_red_this_episode = 0
 
         done = False
         ep_return = 0.0
@@ -416,9 +416,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         ep_score_events = 0
         prev_blue_score = gm.blue_score
         ep_mines_placed_by_uid = {}
-
-        # for HUD mine stats
-        mines_in_enemy_half_count = 0
 
         while not done and steps < max_steps and global_step < total_steps:
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
@@ -653,11 +650,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 "miner0_runner1": 1 if miner0_runner1 else 0,
                 "miner1_runner0": 1 if miner1_runner0 else 0,
                 "both_mine_and_score": 1 if both_mine_and_score else 0,
-                # NEW mine effectiveness stats for HUD:
                 "blue_mine_kills": gm.blue_mine_kills_this_episode,
                 "red_mine_kills": gm.red_mine_kills_this_episode,
-                "mines_placed_in_enemy_half": mines_in_enemy_half_count,
-                "mines_triggered_by_red": gm.blue_mines_triggered_by_red_this_episode,
+                "mines_placed_in_enemy_half": gm.mines_placed_in_enemy_half_this_episode,
+                "mines_triggered_by_red": gm.mines_triggered_by_red_this_episode,
             }
         )
 
