@@ -37,7 +37,7 @@ GRID_COLS = 40
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # PPO hyperparameters
-TOTAL_STEPS = 4_000_000
+TOTAL_STEPS = 3_000_000
 UPDATE_EVERY = 2_048
 PPO_EPOCHS = 10
 MINIBATCH_SIZE = 256
@@ -101,22 +101,6 @@ PHASE_CONFIG = {
 
 # Target OP3 winrate for emperor save
 EMPEROR_TARGET_WR = 0.80  # 80%
-
-# =========================
-# SHAPING COEFFICIENTS
-# =========================
-FLAG_DIST_SCALE = 0.01
-MINE_SPAM_PENALTY = 0.04       # softened globally
-OP3_FORWARD_BONUS = 0.02
-FREE_MINES_PER_AGENT = 3
-MINE_TACTICAL_BONUS = 0.06     # stronger reward for good mines
-
-# =========================
-# GLOBAL REWARD SCALING & LIVING COST
-# =========================
-BASE_REWARD_SCALE = 0.25
-LIVING_COST = 0.01
-
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
     """
@@ -249,13 +233,24 @@ def collect_blue_rewards_for_step(
     mix_alpha: float = 0.0,
     cur_phase: str = "OP1",
 ):
+    """
+    Purely relay the environment rewards to the blue agents.
+
+    Assumes GameManager.get_step_rewards() already implements Table 3:
+      - winTeamReward
+      - flagPickupReward
+      - flagCarryHomeReward
+      - enabledLandMineReward
+      - enemyMAVKillReward
+      - actionFailedPunishment
+    """
     raw = gm.get_step_rewards()
 
     indiv_rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
     if not indiv_rewards_by_id:
         return indiv_rewards_by_id
 
-    # global team reward (None key)
+    # team reward under key None (if your GM uses that)
     team_r = raw.get(None, 0.0)
     if abs(team_r) > 0.0:
         share = team_r / len(indiv_rewards_by_id)
@@ -269,22 +264,7 @@ def collect_blue_rewards_for_step(
         if aid in indiv_rewards_by_id:
             indiv_rewards_by_id[aid] += r
 
-    # strong terminal bonus on last step
-    if gm.game_over:
-        if gm.blue_score > gm.red_score:
-            bonus = +8.0
-        elif gm.blue_score < gm.red_score:
-            bonus = -8.0
-        else:
-            bonus = 0.0
-
-        if bonus != 0.0:
-            share = bonus / len(indiv_rewards_by_id)
-            for aid in indiv_rewards_by_id:
-                indiv_rewards_by_id[aid] += share
-
     return indiv_rewards_by_id
-
 
 # =========================
 # ENTROPY SCHEDULE
@@ -493,47 +473,15 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             )
             done = gm.game_over
 
-            # scale base rewards
-            for k in list(rewards.keys()):
-                rewards[k] *= BASE_REWARD_SCALE
-
             # =============================
-            # FLAG PROGRESS & MINE SHAPING
+            # No extra shaping (paper style)
             # =============================
             for agent, _, act, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
 
-                cur_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
-                dist_delta = prev_flag_dist - cur_flag_dist
-
-                # flag progress
-                if dist_delta > 0:
-                    rewards[uid] = rewards.get(uid, 0.0) + FLAG_DIST_SCALE * dist_delta
-
-                # mine shaping
+                # Just track stats for HUD / debugging if you want:
                 if MacroAction(act) == MacroAction.PLACE_MINE:
-                    ep_mines_placed_by_uid[uid] += 1
-
-                    is_tactical = False
-                    if gm.phase_name == "OP3" and agent.getSide() == "blue":
-                        mid_x = GRID_COLS * 0.5
-                        if agent.x >= mid_x and 0.2 * GRID_ROWS <= agent.y <= 0.8 * GRID_ROWS:
-                            is_tactical = True
-
-                    if is_tactical:
-                        rewards[uid] = rewards.get(uid, 0.0) + MINE_TACTICAL_BONUS
-                        mines_in_enemy_half_count += 1
-
-                    if ep_mines_placed_by_uid[uid] > FREE_MINES_PER_AGENT:
-                        penalty = MINE_SPAM_PENALTY
-                        if gm.phase_name == "OP3":
-                            penalty *= 0.4  # softer spam penalty in OP3
-                        rewards[uid] = rewards.get(uid, 0.0) - penalty
-
-                # OP3 forward bonus
-                if gm.phase_name == "OP3" and agent.getSide() == "blue":
-                    if agent.x > GRID_COLS * 0.60:
-                        rewards[uid] = rewards.get(uid, 0.0) + OP3_FORWARD_BONUS
+                    ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
             # HUD stats (scores & combat)
             blue_score_delta = gm.blue_score - prev_blue_score
@@ -549,7 +497,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             step_reward_sum = 0.0
             for agent, obs, act, logp, val, _, _, _ in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
-                r -= LIVING_COST
                 step_reward_sum += r
                 buffer.add(obs, act, logp, val, r, done, dt)
                 global_step += 1
@@ -565,16 +512,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 )
                 ppo_update(policy, optimizer, buffer, DEVICE, ENT_COEF)
 
-        # --- Extra episode-level shaping for “both mine and score” ---
-        if ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] > 0:
-            team_bonus = 1.0 * BASE_REWARD_SCALE  # e.g., +0.25 total
-            blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-            if blue_agents:
-                share = team_bonus / len(blue_agents)
-                for agent in blue_agents:
-                    dummy_obs = env.build_observation(agent)
-                    buffer.add(dummy_obs, 0, 0.0, 0.0, share, True, 1.0)
-
         # ------------- Episode end: result + stats -------------
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
@@ -588,6 +525,24 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             result = "DRAW"
             draws += 1
             phase_recent.append(0)
+
+        # Strong, unambiguous terminal team reward (on top of env's own team reward).
+        final_bonus = 0.0
+        if gm.blue_score > gm.red_score:
+            final_bonus = +1.0
+        elif gm.red_score > gm.blue_score:
+            final_bonus = -1.0
+        else:
+            final_bonus = 0.0  # optional small negative for draw if you want to avoid draw hell
+
+        if final_bonus != 0.0:
+            blue_agents = [a for a in env.blue_agents if a.isEnabled()]
+            if blue_agents:
+                share = final_bonus / len(blue_agents)
+                for agent in blue_agents:
+                    dummy_obs = env.build_observation(agent)
+                    # done=True, dt=1.0 for this synthetic terminal "step"
+                    buffer.add(dummy_obs, 0, 0.0, 0.0, share, True, 1.0)
 
         if len(phase_recent) > PHASE_WINRATE_WINDOW:
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
@@ -782,10 +737,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 p0 = pct_0[i] if i < len(pct_0) else 0.0
                 p1 = pct_1[i] if i < len(pct_1) else 0.0
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
-            print("   Cooperation patterns (episodes with ≥1 score):")
-            print(
-                f"      both_mine_and_score              : {p_both:5.1f}% of window"
-            )
             print("   =====================================================")
 
         # ---------------------------
