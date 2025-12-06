@@ -556,7 +556,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 best_op3_phase_wr = phase_wr
             else:
                 if (
-                        phase_episode_count > 1600  # only after many OP3 episodes
+                        phase_episode_count > 2000  # only after many OP3 episodes
                         and best_op3_phase_wr - phase_wr > 0.20
                         and os.path.exists(BEST_OP3_SO_FAR_PATH)
                 ):
@@ -590,7 +590,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         # ---------- OP3 "CROWNING CEREMONY" EVAL ----------
         if (
                 cur_phase == "OP3"
-                and phase_episode_count >= 1600  # at least 1600 OP3 episodes
+                and phase_episode_count >= 2000
                 and phase_episode_count % 200 == 0  # then every 200 OP3 episodes
         ):
             print("   [CROWNING CEREMONY] The trial by combat begins...")
