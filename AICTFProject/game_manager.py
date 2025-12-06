@@ -6,9 +6,9 @@ import math
 # Table 3: winTeamReward, flagPickupReward, flagCarryHomeReward,
 # enabledLandMineReward, enemyMAVKillReward, actionFailedPunishment
 WIN_TEAM_REWARD = 2.0              # winTeamReward
-FLAG_PICKUP_REWARD = 0.1           # flagPickupReward
-FLAG_CARRY_HOME_REWARD = 0.5       # flagCarryHomeReward
-ENABLED_MINE_REWARD = 0.15         # enabledLandMineReward
+FLAG_PICKUP_REWARD = 0.2          # flagPickupReward
+FLAG_CARRY_HOME_REWARD = 0.6       # flagCarryHomeReward
+ENABLED_MINE_REWARD = 0.1        # enabledLandMineReward
 ENEMY_MAV_KILL_REWARD = 0.5        # enemyMAVKillReward
 ACTION_FAILED_PUNISHMENT = -0.2    # actionFailedPunishment
 MAX_REWARDED_MINES_PER_TEAM = 3
