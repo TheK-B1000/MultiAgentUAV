@@ -76,15 +76,15 @@ ACTION_NAMES = [ma.name for ma in sorted(MacroAction, key=lambda m: m.value)]
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
-    "OP1": 400,
-    "OP2": 600,
-    "OP3": 1600,
+    "OP1": 500,
+    "OP2": 1000,
+    "OP3": 2000,
 }
 
 TARGET_PHASE_WINRATE = {
-    "OP1": 0.30,
-    "OP2": 0.50,
-    "OP3": 0.70,
+    "OP1": 0.99,
+    "OP2": 0.90,
+    "OP3": 0.80,
 }
 
 PHASE_WINRATE_WINDOW = 50
@@ -494,26 +494,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             for agent in env.blue_agents:
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
-
-            # === TERMINAL BONUS (win / lose / draw) ===
-            # Injected into the *last* step of the episode, not as a fake extra step.
-            if done and blue_agents:
-                score_diff = gm.blue_score - gm.red_score
-                if score_diff > 0:
-                    # Blue wins: reward grows with margin
-                    final_bonus = 2.0 + 1.5 * score_diff
-                elif score_diff < 0:
-                    # Blue loses: strongly negative
-                    final_bonus = -2.0 + 1.5 * score_diff
-                else:
-                    # Draws are slightly bad to avoid eternal 0:0
-                    final_bonus = -0.5
-
-                if final_bonus != 0.0:
-                    share = final_bonus / len(blue_agents)
-                    for agent in blue_agents:
-                        uid = agent.unique_id
-                        rewards[uid] = rewards.get(uid, 0.0) + share
 
             # =============================
             # No extra shaping (paper style)
