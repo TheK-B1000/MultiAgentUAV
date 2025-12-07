@@ -2,16 +2,15 @@ from dataclasses import dataclass, field
 from typing import Tuple, Optional, List, Dict, Any
 import math
 
-# ================= BASE REWARDS =================
-
-WIN_TEAM_REWARD = 2.0
-FLAG_PICKUP_REWARD = 0.05
-FLAG_CARRY_HOME_REWARD = 1.5
-ENABLED_MINE_REWARD = 0.05
-ENEMY_MAV_KILL_REWARD = 0.2
+WIN_TEAM_REWARD = 1.0
+FLAG_PICKUP_REWARD = 0.1
+FLAG_CARRY_HOME_REWARD = 0.5
+ENABLED_MINE_REWARD = 0.2
+ENEMY_MAV_KILL_REWARD = 0.5
 ACTION_FAILED_PUNISHMENT = -0.2
-FLAG_RETURN_DELAY = 5.0
 
+# Seconds a dropped flag stays on the field before auto-returning home
+FLAG_RETURN_DELAY = 5.0
 
 @dataclass
 class GameManager:
@@ -115,6 +114,7 @@ class GameManager:
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
             if self.blue_score > self.red_score:
+                # BLUE is the learning side, so only BLUE wins trigger team reward
                 self.add_reward_event(WIN_TEAM_REWARD)
                 return "BLUE WINS ON TIME"
             elif self.red_score > self.blue_score:
@@ -211,7 +211,7 @@ class GameManager:
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
                 return True
 
-        # RED scoring with BLUE flag
+        # RED scoring with BLUE flag (no RL reward, scripted opponent)
         elif side == "red" and self.blue_flag_taken and self.blue_flag_carrier is agent:
             if math.hypot(pos_x - self.red_flag_home[0], pos_y - self.red_flag_home[1]) <= 2.0:
                 self.red_score += 1
@@ -219,7 +219,7 @@ class GameManager:
                 self.blue_flag_position = self.blue_flag_home
                 self.blue_flag_carrier = None
                 self.blue_flag_drop_time = None
-                self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
+                # no team reward for blue here; blue lost this point
                 return True
 
         return False
@@ -255,8 +255,6 @@ class GameManager:
         if self.blue_flag_carrier is agent:
             self.blue_flag_carrier = None
             self.blue_flag_taken = False
-            # If we got here, we don't know where the flag should be,
-            # safest is send it home.
             self.blue_flag_position = self.blue_flag_home
             self.blue_flag_drop_time = None
 
@@ -271,17 +269,16 @@ class GameManager:
         side = agent.getSide()
         uid = getattr(agent, "unique_id", None)
 
-        # ---------- enabledMineReward only once per UAV per episode ----------
+        # enabledMineReward only once per UAV per episode
         if uid is not None:
             already_rewarded = self.mines_rewarded_by_agent.get(uid, False)
             if not already_rewarded:
                 self.add_reward_event(ENABLED_MINE_REWARD, agent_id=uid)
                 self.mines_rewarded_by_agent[uid] = True
-        # ---------------------------------------------------------------------
 
         # Track HUD stats
         if mine_pos is not None and side == "blue":
-            x, y = mine_pos
+            x, _ = mine_pos
             mid_x = self.cols * 0.5
             if x > mid_x:
                 self.mines_placed_in_enemy_half_this_episode += 1
@@ -306,7 +303,7 @@ class GameManager:
     def punish_failed_action(self, agent) -> None:
         self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
-    # Reward event buffer
+    # Reward event buffer (for event-driven RL)
     def add_reward_event(
         self,
         value: float,
