@@ -9,6 +9,9 @@ from rl_policy import ActorCriticNet
 from policies import OP3RedPolicy
 
 
+DEFAULT_MODEL_PATH = "checkpoints/ctf_fixed_blue_op3.pth"
+
+
 class LearnedPolicy:
     def __init__(self, model_path: Optional[str] = None):
         self.device = torch.device("cpu")
@@ -18,9 +21,9 @@ class LearnedPolicy:
 
         self.model_loaded = False
 
-        # Default to the final model from train_ppo_event.py
+        # Default to the final model from train_ppo_event.py (paper-style RL)
         if model_path is None:
-            model_path = "checkpoints/ctf_fixed_blue_op3.pth"
+            model_path = DEFAULT_MODEL_PATH
 
         try:
             state = torch.load(model_path, map_location=self.device)
@@ -50,12 +53,13 @@ class LearnedPolicy:
         game_field,
     ) -> Tuple[int, Optional[Tuple[int, int]]]:
         if not self.model_loaded:
+            # Safe default: GoTo (paper macro-action 0)
             return int(MacroAction.GO_TO), None
 
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
             if obs_tensor.dim() == 1:
-                obs_tensor = obs_tensor.unsqueeze(0)  # [1, input_dim]
+                obs_tensor = obs_tensor.unsqueeze(0)  # [1, obs_dim] or [1, C, H, W]
 
             out = self.net.act(
                 obs_tensor,
@@ -72,6 +76,7 @@ class LearnedPolicy:
 
 class CTFViewer:
     def __init__(self):
+        # Grid dimensions (paper-style 2v2 CTF discretization)
         rows, cols = 30, 40
         grid = [[0] * cols for _ in range(rows)]
         self.game_field = GameField(grid)
@@ -81,7 +86,7 @@ class CTFViewer:
         pg.init()
         self.size = (1024, 720)
         self.screen = pg.display.set_mode(self.size)
-        pg.display.set_caption("UAV CTF – Trained Agent vs OP3 Baseline")
+        pg.display.set_caption("UAV CTF – RL Blue vs OP3 Red (Paper-style)")
         self.clock = pg.time.Clock()
         self.font = pg.font.SysFont(None, 26)
         self.bigfont = pg.font.SysFont(None, 48)
@@ -89,17 +94,17 @@ class CTFViewer:
         self.input_active = False
         self.input_text = ""
 
-        # ----- (Optional) print detected obs_dim just for sanity -----
+        # ----- Sanity: print detected observation dimension -----
         if self.game_field.blue_agents:
             dummy_obs = self.game_field.build_observation(self.game_field.blue_agents[0])
         else:
-            dummy_obs = [0.0] * 42
-        obs_dim = len(dummy_obs)
+            dummy_obs = [0.0] * 44  # matches paper-style 44-D MLP obs
+        obs_dim = len(dummy_obs) if hasattr(dummy_obs, "__len__") else "tensor"
         print(f"[CTFViewer] Detected obs_dim={obs_dim}")
 
         # ---- OP3 baseline for BOTH sides ----
         if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-            # Red = OP3 baseline
+            # Red = OP3 baseline (scripted opponent)
             self.game_field.policies["red"] = OP3RedPolicy("red")
 
         # Blue baseline: OP3-style policy with side="blue"
@@ -112,15 +117,13 @@ class CTFViewer:
         self.use_learned_blue: bool = False  # start with baseline OP3
 
         try:
-            self.blue_learned_policy = LearnedPolicy(
-                model_path="checkpoints/ctf_fixed_blue_op3.pth"
-            )
+            self.blue_learned_policy = LearnedPolicy(model_path=DEFAULT_MODEL_PATH)
             if self.blue_learned_policy.model_loaded:
                 # Initially let RL control Blue
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
                     self.game_field.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
-                print("[CTFViewer] Blue team using LEARNED policy (ctf_fixed_blue_op3.pth)")
+                print(f"[CTFViewer] Blue team using LEARNED policy ({DEFAULT_MODEL_PATH})")
             else:
                 # No valid model: fall back to OP3 baseline for BLUE
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
@@ -231,7 +234,7 @@ class CTFViewer:
     def draw(self):
         self.screen.fill((12, 12, 18))
 
-        hud_h = 100  # Increased HUD height to fit two rows
+        hud_h = 100  # HUD height to fit two rows cleanly
         field_rect = pg.Rect(20, hud_h + 10, self.size[0] - 40, self.size[1] - hud_h - 30)
         self.game_field.draw(self.screen, field_rect)
 
@@ -245,7 +248,8 @@ class CTFViewer:
 
         # Top row: menu / help
         menu_text = (
-            "F1: Reset | F2: Agent Count | F3: SwapZones | F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
+            "F1: Reset | F2: Agent Count | F3: SwapZones | "
+            "F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
         )
         txt(menu_text, 30, 15, (200, 200, 220))
 
@@ -258,9 +262,9 @@ class CTFViewer:
         txt(f"RED: {gm.red_score}", 200, score_time_y, (255, 100, 100))
         txt(f"Time: {int(gm.current_time)}s", 380, score_time_y, (220, 220, 255))
 
-        # Model status
+        # Model status – moved down to score row so it does not block the menu
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: ctf_fixed_blue_op3.pth",
+            txt(f"Model: {DEFAULT_MODEL_PATH}",
                 self.size[0] - 360, score_time_y, (100, 220, 100))
 
         # Input overlay
