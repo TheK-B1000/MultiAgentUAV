@@ -1,4 +1,3 @@
-# game_field.py
 import random
 import math
 from dataclasses import dataclass
@@ -8,30 +7,37 @@ import pygame as pg
 from game_manager import GameManager
 from agents import Agent, TEAM_ZONE_RADIUS_CELLS
 from pathfinder import Pathfinder
+
 from macro_actions import MacroAction
-from policies import Policy, HeuristicPolicy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+from policies import Policy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
+# Physical arena dimensions
+ARENA_WIDTH_M = 10.0       # meters (X direction)
+ARENA_HEIGHT_M = 4.28      # meters (Y direction)
 
-# --------------------------------------------------------------------------------------
-# Mines & pickups — now float positions
-# --------------------------------------------------------------------------------------
+# CNN map resolution for observations
+CNN_COLS = 20
+CNN_ROWS = 20
+NUM_CNN_CHANNELS = 7
+
+# Mines & pickups
 @dataclass
 class Mine:
-    x: float
-    y: float
+    x: int
+    y: int
     owner_side: str  # "blue" or "red"
+    owner_id: Optional[str] = None  # unique_id of placing agent (if known)
+
 
 @dataclass
 class MinePickup:
-    x: float
-    y: float
+    x: int
+    y: int
     owner_side: str  # "blue" or "red"
     charges: int = 1
 
 
-# --------------------------------------------------------------------------------------
-# GameField — fully continuous 2D simulation environment
-# --------------------------------------------------------------------------------------
+# GameField — main 2D simulation environment
 class GameField:
     def __init__(self, grid: List[List[int]]):
         self.grid = grid
@@ -43,7 +49,6 @@ class GameField:
         # Mines / pickups
         self.mines: List[Mine] = []
         self.mine_pickups: List[MinePickup] = []
-
         self.mine_radius_cells = 1.5
         self.suppression_range_cells = 2.0
         self.mines_per_team = 4
@@ -52,9 +57,11 @@ class GameField:
         # Policy wiring
         self.use_internal_policies = True
         self.external_control_for_side = {"blue": False, "red": False}
-        self.policies: Dict[str, Policy] = {
-            "blue": HeuristicPolicy(),
-            "red": OP3RedPolicy("red"),
+
+        # By default, BOTH teams use the paper's OP3-style scripted policy
+        self.policies: Dict[str, Any] = {
+            "blue": OP3RedPolicy("blue"),  # baseline scripted OP3 on BLUE side
+            "red": OP3RedPolicy("red"),    # default opponent: OP3
         }
         self.opponent_mode: str = "OP3"
 
@@ -64,7 +71,7 @@ class GameField:
         self.blue_agents: List[Agent] = []
         self.red_agents: List[Agent] = []
 
-        # Pathfinding — now continuous-aware
+        # Pathfinding
         self.pathfinder = Pathfinder(
             self.grid,
             self.row_count,
@@ -73,6 +80,18 @@ class GameField:
             block_corners=True,
         )
 
+        # Physical cell size in meters (mapping grid -> 10m x 4.28m)
+        self.cell_width_m = ARENA_WIDTH_M / max(1, self.col_count)
+        self.cell_height_m = ARENA_HEIGHT_M / max(1, self.row_count)
+
+        # ------------------------------------------------------------------
+        # Paper-style: categorical 2D targets over 50 random grid positions.
+        # The policy outputs an index (0..49), which is mapped to a 30×40
+        # grid cell via self.macro_targets.
+        # ------------------------------------------------------------------
+        self.num_macro_targets: int = 50
+        self.macro_targets: List[Tuple[int, int]] = []  # list of (x, y) grid cells
+
         # Timers
         self.respawn_seconds = 2.0
         self.decision_interval_seconds = 0.7
@@ -80,31 +99,69 @@ class GameField:
 
         # UI / rewards bookkeeping
         self.banner_queue: List[Tuple[str, Tuple[int, int, int], float]] = []
-        self.reward_accumulator: Dict[str, float] = {}
+
         self.debug_draw_ranges = True
         self.debug_draw_mine_ranges = True
 
         self.reset_default()
 
-    # ------------------------------------------------------------------
     # Setup & configuration
-    # ------------------------------------------------------------------
     def _init_zones(self) -> None:
         total_cols = max(1, self.col_count)
         third = max(1, total_cols // 3)
+
         blue_min = 0
         blue_max = third - 1
+
         red_min = total_cols - third
         red_max = total_cols - 1
+
         blue_max = max(blue_min, blue_max)
         red_min = min(red_min, red_max)
+
         self.blue_zone_col_range = (blue_min, blue_max)
         self.red_zone_col_range = (red_min, red_max)
+
+    def _init_macro_targets(self, seed: Optional[int] = None) -> None:
+        rng = random.Random(seed if seed is not None else 1337)
+        self.macro_targets.clear()
+
+        # Prefer free cells (grid == 0); if none, use all cells
+        free_cells = [
+            (x, y)
+            for y in range(self.row_count)
+            for x in range(self.col_count)
+            if self.grid[y][x] == 0
+        ]
+        if not free_cells:
+            free_cells = [
+                (x, y)
+                for y in range(self.row_count)
+                for x in range(self.col_count)
+            ]
+
+        # Sample with replacement to get exactly num_macro_targets positions
+        for _ in range(self.num_macro_targets):
+            self.macro_targets.append(rng.choice(free_cells))
+
+    def get_macro_target(self, index: int) -> Tuple[int, int]:
+        if not self.macro_targets:
+            self._init_macro_targets()
+        if self.num_macro_targets <= 0:
+            # Fallback: just pick center if something goes wrong
+            return self.col_count // 2, self.row_count // 2
+        idx = int(index) % self.num_macro_targets
+        return self.macro_targets[idx]
+
+    def get_all_macro_targets(self) -> List[Tuple[int, int]]:
+        if not self.macro_targets:
+            self._init_macro_targets()
+        return list(self.macro_targets)
 
     def getGameManager(self) -> GameManager:
         return self.manager
 
-    def set_policies(self, blue: Policy, red: Policy) -> None:
+    def set_policies(self, blue: Any, red: Any) -> None:
         self.policies["blue"] = blue
         self.policies["red"] = red
 
@@ -127,18 +184,55 @@ class GameField:
         for side in ("blue", "red"):
             self.external_control_for_side[side] = external
 
-    # ------------------------------------------------------------------
-    # Test cases / reset — FULLY PRESERVED
-    # ------------------------------------------------------------------
+
+    # ------------ Coordinate mapping helpers ------------
+
+    def grid_to_world(self, col: int, row: int) -> Tuple[float, float]:
+        """
+        Map a grid cell (col, row) to physical coordinates (x, y) in meters.
+        Centers the point in the cell.
+        """
+        x = (col + 0.5) * self.cell_width_m
+        y = (row + 0.5) * self.cell_height_m
+        return x, y
+
+    def world_to_cnn_cell(self, x_m: float, y_m: float) -> Tuple[int, int]:
+        """
+        Map physical coordinates (x, y) in meters to a 20x20 CNN cell index.
+        """
+        # Normalize to [0,1]
+        u = max(0.0, min(1.0, x_m / ARENA_WIDTH_M))
+        v = max(0.0, min(1.0, y_m / ARENA_HEIGHT_M))
+
+        col = int(u * CNN_COLS)
+        row = int(v * CNN_ROWS)
+
+        if col >= CNN_COLS:
+            col = CNN_COLS - 1
+        if row >= CNN_ROWS:
+            row = CNN_ROWS - 1
+
+        return col, row
+
+    def grid_to_cnn_cell(self, col: int, row: int) -> Tuple[int, int]:
+        """
+        Convenience: map a grid cell (col,row) directly into CNN coordinates.
+        """
+        x_m, y_m = self.grid_to_world(col, row)
+        return self.world_to_cnn_cell(x_m, y_m)
+
+
+
+    # Test cases / reset
     def reset_default(self) -> None:
         self._init_zones()
         self.manager.reset_game()
         self.agents_per_team = 2
         self.mines.clear()
         self.mine_pickups.clear()
+        self._init_macro_targets(seed=self.agents_per_team)
         self.spawn_agents()
         self.spawn_mine_pickups()
-        self.reward_accumulator.clear()
         self.decision_cooldown_seconds_by_agent.clear()
 
     def runTestCase1(self) -> None:
@@ -149,70 +243,76 @@ class GameField:
         self.manager.reset_game()
         self.mines.clear()
         self.mine_pickups.clear()
+
+        # New macro target set when agent count changes
+        self._init_macro_targets(seed=self.agents_per_team)
+
         self.spawn_agents()
         self.spawn_mine_pickups()
 
     def runTestCase3(self) -> None:
-        """Swap zones and flag homes — mirrored map"""
         self.manager.reset_game(reset_scores=True)
+
         # Swap zone definitions
         self.blue_zone_col_range, self.red_zone_col_range = (
             self.red_zone_col_range,
             self.blue_zone_col_range,
         )
+
         middle_row = self.row_count // 2
-        # Manually set new "home" positions
+
         self.manager.blue_flag_home = (self.col_count - 2, middle_row)
         self.manager.red_flag_home = (1, middle_row)
-        self.manager.blue_flag_position = (self.manager.blue_flag_home[0] + 0.5,
-                                           self.manager.blue_flag_home[1] + 0.5)
-        self.manager.red_flag_position = (self.manager.red_flag_home[0] + 0.5,
-                                          self.manager.red_flag_home[1] + 0.5)
+        self.manager.blue_flag_position = self.manager.blue_flag_home
+        self.manager.red_flag_position = self.manager.red_flag_home
         self.manager.blue_flag_taken = False
         self.manager.red_flag_taken = False
         self.manager.blue_flag_carrier = None
         self.manager.red_flag_carrier = None
+
         self.mines.clear()
         self.mine_pickups.clear()
+
+        # New macro targets for this swapped layout
+        self._init_macro_targets(seed=self.agents_per_team + 1234)
+
         self.spawn_agents()
         self.spawn_mine_pickups()
 
-    # ------------------------------------------------------------------
-    # Per-frame update
-    # ------------------------------------------------------------------
     def update(self, delta_time: float) -> None:
         if self.manager.game_over:
             return
 
+        # Advance global sim time / check for terminal condition
         winner_text = self.manager.tick_seconds(delta_time)
         if winner_text:
             color = (
-                (90, 170, 250) if "BLUE" in winner_text
-                else (250, 120, 70) if "RED" in winner_text
-                else (230, 230, 230)
+                (90, 170, 250) if "BLUE" in winner_text else
+                (250, 120, 70) if "RED" in winner_text else
+                (230, 230, 230)
             )
             self.announce(winner_text, color, 3.0)
             return
 
-        # Dynamic obstacles — continuous positions
-        all_agents = self.blue_agents + self.red_agents
-        self.pathfinder.set_dynamic_obstacles(
-            agents=all_agents,
-            extra_blocks=None,
-            enemy_inflation_radius=0,
-            enemy_agents=None,
-        )
+        # 1) Always tick ALL agents (disabled ones respawn)
+        for agent in self.blue_agents + self.red_agents:
+            agent.update(delta_time)
 
+        # 2) Pathfinder dynamic obstacles: only ENABLED agents
+        occupied = [(int(a.x), int(a.y)) for a in self.blue_agents + self.red_agents if a.isEnabled()]
+        self.pathfinder.setDynamicObstacles(occupied)
+
+        # 3) Process both teams
         for friendly_team, enemy_team in (
-            (self.blue_agents, self.red_agents),
-            (self.red_agents, self.blue_agents),
+                (self.blue_agents, self.red_agents),
+                (self.red_agents, self.blue_agents),
         ):
             for agent in friendly_team:
                 if not agent.isEnabled():
                     continue
 
-                # 1. Hazards
-                self.apply_mine_damage(agent)
+                # 1. Hazards — THIS IS WHERE MINE KILLS ARE TRACKED
+                self.apply_mine_damage(agent)  # ← now tracks kills!
                 self.apply_suppression(agent, enemy_team)
 
                 # 2. Decision-making
@@ -225,19 +325,12 @@ class GameField:
                 if self.use_internal_policies and not side_external and cooldown <= 0.0:
                     self.decide(agent)
                     self.decision_cooldown_seconds_by_agent[agent_key] = self.decision_interval_seconds
-                else:
-                    if agent.side == "blue":
-                        last_action = getattr(agent, "last_macro_action", MacroAction.GO_TO)
-                        self.compute_reward(agent, last_action, done=False)
 
-                # 3. Movement
-                agent.update(delta_time)
-
-                # 4. Pickups & flag logic
+                # 3. Pickups & flag logic
                 self.handle_mine_pickups(agent)
                 self.apply_flag_rules(agent)
 
-        # Banner fade-out
+        # 4) Banner fade-out
         if self.banner_queue:
             text, color, t = self.banner_queue[-1]
             t = max(0.0, t - delta_time)
@@ -245,231 +338,265 @@ class GameField:
             if t <= 0.0:
                 self.banner_queue.pop()
 
-    # ------------------------------------------------------------------
-    # RL reward hook
-    # ------------------------------------------------------------------
-    def compute_reward(self, agent: Agent, action: MacroAction, done: bool) -> float:
-        if action == MacroAction.PLACE_MINE and agent.mine_charges > 0:
-            if getattr(agent, "_first_mine_this_life", True):
-                self.manager.reward_mine_placed(agent)
-                agent._first_mine_this_life = False
-        if getattr(agent, "_killed_enemy_this_frame", False):
-            self.manager.reward_enemy_killed(agent)
-            agent._killed_enemy_this_frame = False
-        if getattr(agent, "_action_failed_this_frame", False):
-            self.manager.punish_failed_action(agent)
-            agent._action_failed_this_frame = False
-        return 0.0
+    # Observation builder for RL / policies (7-channel 20x20 CNN)
+    def build_observation(self, agent: Agent) -> List[List[List[float]]]:
+        """
+        Builds a 7-channel 20x20 spatial observation for the given agent.
 
-    # ------------------------------------------------------------------
-    # Observation builder
-    # ------------------------------------------------------------------
-    def build_observation(self, agent: Agent) -> List[float]:
-        side = agent.side
+        Channels (C, H, W) = (7, 20, 20):
+
+        0: Own UAV position
+        1: Teammate UAVs (same side, excluding self)
+        2: Enemy UAVs
+        3: Friendly mines
+        4: Enemy mines
+        5: Own flag
+        6: Enemy flag
+
+        Each channel is a 20x20 grid where cells are 1.0 if the entity is present
+        in that CNN cell, 0.0 otherwise. Multiple entities in the same cell simply
+        keep the value at 1.0.
+        """
+        side = agent.side  # "blue" or "red"
         game_state = self.manager
-        ax, ay = agent._float_x, agent._float_y
-        cols = max(1, self.col_count)
-        rows = max(1, self.row_count)
 
-        enemy_flag_x, enemy_flag_y = game_state.get_enemy_flag_position(side)
-        own_flag_x, own_flag_y = self.manager.get_team_zone_center(side)
-
-        dx_enemy_flag = (enemy_flag_x + 0.5 - ax) / cols
-        dy_enemy_flag = (enemy_flag_y + 0.5 - ay) / rows
-        dx_own_flag = (own_flag_x + 0.5 - ax) / cols
-        dy_own_flag = (own_flag_y + 0.5 - ay) / rows
-
-        is_carrying_flag = 1.0 if agent.isCarryingFlag() else 0.0
-        own_flag_taken = 1.0 if (game_state.blue_flag_taken if side == "red" else game_state.red_flag_taken) else 0.0
-        enemy_flag_taken = 1.0 if (game_state.red_flag_taken if side == "red" else game_state.blue_flag_taken) else 0.0
-        side_blue = 1.0 if side == "blue" else 0.0
-        ammo_norm = agent.mine_charges / self.max_mine_charges_per_agent
-        is_miner = 1.0 if getattr(agent, "is_miner", False) else 0.0
-
-        my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
-        dx_mine = dy_mine = 0.0
-        if my_pickups:
-            nearest = min(my_pickups, key=lambda p: math.hypot(p.x + 0.5 - ax, p.y + 0.5 - ay))
-            dx_mine = (nearest.x + 0.5 - ax) / cols
-            dy_mine = (nearest.y + 0.5 - ay) / rows
-
-        occupancy = [0.0] * 25
-        radius = 2
-        for dy in range(-radius, radius + 1):
-            for dx in range(-radius, radius + 1):
-                wx = ax + dx
-                wy = ay + dy
-                idx = (dy + radius) * 5 + (dx + radius)
-                if not (0 <= wx < self.col_count and 0 <= wy < self.row_count):
-                    occupancy[idx] = 1.0
-                elif self.grid[int(wy)][int(wx)] != 0:
-                    occupancy[idx] = 1.0
-                else:
-                    for a in self.blue_agents + self.red_agents:
-                        if a.isEnabled() and math.hypot(a._float_x - wx, a._float_y - wy) < 0.7:
-                            occupancy[idx] = 2.0 if a.side == side else 3.0
-                            break
-                    else:
-                        for m in self.mines:
-                            if math.hypot(m.x + 0.5 - wx, m.y + 0.5 - wy) < 0.7:
-                                occupancy[idx] = 4.0
-                                break
-                        else:
-                            for p in self.mine_pickups:
-                                if p.owner_side == side and math.hypot(p.x + 0.5 - wx, p.y + 0.5 - wy) < 0.7:
-                                    occupancy[idx] = 5.0
-                                    break
-
-        obs = [
-            dx_enemy_flag, dy_enemy_flag,
-            dx_own_flag, dy_own_flag,
-            is_carrying_flag, own_flag_taken, enemy_flag_taken,
-            side_blue, ammo_norm, is_miner,
-            dx_mine, dy_mine,
+        # Initialize C x H x W with zeros
+        channels: List[List[List[float]]] = [
+            [[0.0 for _ in range(CNN_COLS)] for _ in range(CNN_ROWS)]
+            for _ in range(NUM_CNN_CHANNELS)
         ]
-        obs.extend(occupancy)
-        return obs
 
-    # ------------------------------------------------------------------
-    # Macro-action executor — continuous targets
-    # ------------------------------------------------------------------
-    def random_point_in_enemy_half(self, side: str) -> Tuple[float, float]:
+        # Helper to set a cell in a given channel
+        def set_chan(c: int, col: int, row: int) -> None:
+            if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
+                channels[c][row][col] = 1.0
+
+        # --- 0: own UAV ---
+        own_col, own_row = int(agent.x), int(agent.y)
+        own_cnn_col, own_cnn_row = self.grid_to_cnn_cell(own_col, own_row)
+        set_chan(0, own_cnn_col, own_cnn_row)
+
+        # Decide friendly/enemy sets
+        friendly_team = self.blue_agents if side == "blue" else self.red_agents
+        enemy_team = self.red_agents if side == "blue" else self.blue_agents
+
+        # --- 1: teammate UAVs (same side, excluding self) ---
+        for a in friendly_team:
+            if a is agent or not a.isEnabled():
+                continue
+            c, r = self.grid_to_cnn_cell(int(a.x), int(a.y))
+            set_chan(1, c, r)
+
+        # --- 2: enemy UAVs ---
+        for a in enemy_team:
+            if not a.isEnabled():
+                continue
+            c, r = self.grid_to_cnn_cell(int(a.x), int(a.y))
+            set_chan(2, c, r)
+
+        # --- 3 & 4: mines (friendly vs enemy) ---
+        for m in self.mines:
+            c, r = self.grid_to_cnn_cell(int(m.x), int(m.y))
+            if m.owner_side == side:
+                set_chan(3, c, r)  # friendly mines
+            else:
+                set_chan(4, c, r)  # enemy mines
+
+        # --- 5 & 6: flags (own vs enemy) ---
+        if side == "blue":
+            own_flag_pos = game_state.blue_flag_position
+            enemy_flag_pos = game_state.red_flag_position
+        else:
+            own_flag_pos = game_state.red_flag_position
+            enemy_flag_pos = game_state.blue_flag_position
+
+        # own flag
+        c_own_flag, r_own_flag = self.grid_to_cnn_cell(int(own_flag_pos[0]), int(own_flag_pos[1]))
+        set_chan(5, c_own_flag, r_own_flag)
+
+        # enemy flag
+        c_enemy_flag, r_enemy_flag = self.grid_to_cnn_cell(int(enemy_flag_pos[0]), int(enemy_flag_pos[1]))
+        set_chan(6, c_enemy_flag, r_enemy_flag)
+
+        return channels
+
+    # Macro-action executor
+    def random_point_in_enemy_half(self, side: str) -> Tuple[int, int]:
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
+
         if side == "blue":
             enemy_min_col, enemy_max_col = red_min_col, red_max_col
         else:
             enemy_min_col, enemy_max_col = blue_min_col, blue_max_col
+
         return (
-            random.randint(enemy_min_col, enemy_max_col) + 0.5,
-            random.randint(0, self.row_count - 1) + 0.5,
+            random.randint(enemy_min_col, enemy_max_col),
+            random.randint(0, self.row_count - 1),
         )
 
-    def random_point_in_own_half(self, side: str) -> Tuple[float, float]:
+    def random_point_in_own_half(self, side: str) -> Tuple[int, int]:
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
+
         if side == "blue":
             own_min_col, own_max_col = blue_min_col, blue_max_col
         else:
             own_min_col, own_max_col = red_min_col, red_max_col
+
         return (
-            random.randint(own_min_col, own_max_col) + 0.5,
-            random.randint(0, self.row_count - 1) + 0.5,
+            random.randint(own_min_col, own_max_col),
+            random.randint(0, self.row_count - 1),
         )
-
-    def _set_path_from_float(self, agent: Agent, target: Tuple[float, float],
-                             avoid_enemies: bool = False, radius: int = 1) -> None:
-        start_cell = (int(agent._float_x), int(agent._float_y))
-        goal_cell = (int(target[0] + 0.5), int(target[1] + 0.5))
-
-        enemy_team = self.red_agents if agent.side == "blue" else self.blue_agents
-        self.pathfinder.set_dynamic_obstacles(
-            agents=self.blue_agents + self.red_agents,
-            enemy_inflation_radius=radius if avoid_enemies else 0,
-            enemy_agents=enemy_team if avoid_enemies else None,
-        )
-
-        path = self.pathfinder.find_path(start_cell, goal_cell)
-        if not path:
-            fallback = self.random_point_in_own_half(agent.side)
-            path = self.pathfinder.find_path(start_cell, (int(fallback[0]), int(fallback[1]))) or []
-        agent.setPath([(x + 0.5, y + 0.5) for x, y in path])
 
     def apply_macro_action(
-        self, agent: Agent, action: MacroAction, param: Optional[Tuple[float, float]] = None
+            self,
+            agent: Agent,
+            action: MacroAction,
+            param: Optional[Any] = None
     ) -> None:
         if not agent.isEnabled():
             return
+
         agent.last_macro_action = action
         side = agent.side
         gm = self.manager
+        start = (agent.x, agent.y)
 
+        def resolve_target_from_param(default_target: Tuple[int, int]) -> Tuple[int, int]:
+            if param is None:
+                return default_target
+
+            # Coordinate param
+            if isinstance(param, (tuple, list)) and len(param) == 2:
+                return int(param[0]), int(param[1])
+
+            # Treat anything else numeric-like as an index into macro_targets
+            try:
+                idx = int(param)
+            except (TypeError, ValueError):
+                return default_target
+
+            return self.get_macro_target(idx)
+
+        def safe_set_path(
+                target: Tuple[int, int],
+                avoid_enemies: bool = False,
+                radius: int = 1,
+        ):
+            # Inflate dynamic obstacles near enemies if avoid_enemies=True
+            original_blocked = set(self.pathfinder.blocked)
+            blocked = set(original_blocked)
+            if avoid_enemies:
+                enemy_team = self.red_agents if side == "blue" else self.blue_agents
+                for e in enemy_team:
+                    if e.isEnabled():
+                        for dx in range(-radius, radius + 1):
+                            for dy in range(-radius, radius + 1):
+                                blocked.add((e.x + dx, e.y + dy))
+            self.pathfinder.blocked = blocked
+            path = self.pathfinder.astar(start, target)
+            self.pathfinder.blocked = original_blocked
+
+            # Fallback to own half if no path
+            if not path:
+                fallback = self.random_point_in_own_half(side)
+                path = self.pathfinder.astar(start, fallback) or []
+            agent.setPath(path)
+
+        # ------------------------------------------------------------------
+        # 5 paper-style macro actions
+        # ------------------------------------------------------------------
         if action == MacroAction.GO_TO:
-            target = param or self.random_point_in_enemy_half(side)
-            self._set_path_from_float(agent, target, avoid_enemies=agent.isCarryingFlag())
+            # Default: random point in enemy half
+            default_target = self.random_point_in_enemy_half(side)
+            target = resolve_target_from_param(default_target)
+            safe_set_path(target, avoid_enemies=agent.isCarryingFlag())
 
         elif action == MacroAction.GRAB_MINE:
             my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
             if my_pickups:
-                nearest = min(my_pickups, key=lambda p: math.hypot(p.x + 0.5 - agent._float_x,
-                                                                 p.y + 0.5 - agent._float_y))
-                self._set_path_from_float(agent, (nearest.x + 0.5, nearest.y + 0.5))
+                nearest = min(
+                    my_pickups,
+                    key=lambda p: (p.x - agent.x) ** 2 + (p.y - agent.y) ** 2,
+                )
+                safe_set_path((nearest.x, nearest.y))
             else:
-                self._set_path_from_float(agent, self.random_point_in_own_half(side))
+                # If no pickups, wander in own half
+                safe_set_path(self.random_point_in_own_half(side))
 
         elif action == MacroAction.GET_FLAG:
             ex, ey = gm.get_enemy_flag_position(side)
-            self._set_path_from_float(agent, (ex + 0.5, ey + 0.5), avoid_enemies=agent.isCarryingFlag())
-
+            safe_set_path((ex, ey), avoid_enemies=agent.isCarryingFlag())
 
         elif action == MacroAction.PLACE_MINE:
-            target = param or (agent._float_x, agent._float_y)
+            # Default target: current tile
+            default_target = (agent.x, agent.y)
+            target = resolve_target_from_param(default_target)
+
             if agent.mine_charges > 0:
-                own_flag_pos = gm.get_team_zone_center(side)
-                # Use continuous distance
-                if math.hypot(target[0] - (own_flag_pos[0] + 0.5), target[1] - (own_flag_pos[1] + 0.5)) > 0.5:
-                    if not any(math.hypot(m.x - target[0], m.y - target[1]) < 0.4 for m in self.mines):
-                        # ← Store at continuous position!
-                        self.mines.append(Mine(target[0], target[1], side))
+                own_flag_pos = (
+                    gm.blue_flag_position if side == "blue" else gm.red_flag_position
+                )
+                # No duplicate mines on the same tile
+                if not any(m.x == target[0] and m.y == target[1] for m in self.mines):
+                    # Don't let them stack directly under their own flag
+                    if target != own_flag_pos:
+                        # Create mine with owner_id so we can credit the correct agent
+                        self.mines.append(
+                            Mine(
+                                x=target[0],
+                                y=target[1],
+                                owner_side=side,
+                                owner_id=getattr(agent, "unique_id", None),
+                            )
+                        )
                         agent.mine_charges -= 1
-                        setattr(agent, "_placed_mine_this_frame", True)
-            agent.setPath([])
+                        # Reward placement (blue gets phase-scaled mine reward)
+                        self.manager.reward_mine_placed(agent, mine_pos=target)
+
+            # Optionally move after placing (fallback path)
+            safe_set_path(target)
 
         elif action == MacroAction.GO_HOME:
             home = gm.get_team_zone_center(side)
-            self._set_path_from_float(agent, (home[0] + 0.5, home[1] + 0.5), avoid_enemies=True, radius=2)
+            safe_set_path(home, avoid_enemies=True, radius=2)
 
-        elif action == MacroAction.INTERCEPT_CARRIER:
-            if (side == "red" and gm.blue_flag_taken) or (side == "blue" and gm.red_flag_taken):
-                enemy_team = self.blue_agents if side == "red" else self.red_agents
-                carrier = next((a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()), None)
-                if carrier:
-                    self._set_path_from_float(agent, (carrier._float_x, carrier._float_y))
-                    return
-            ex, ey = gm.get_enemy_flag_position(side)
-            self._set_path_from_float(agent, (ex + 0.5, ey + 0.5))
-
-        elif action == MacroAction.SUPPRESS_CARRIER:
-            if (side == "red" and gm.blue_flag_taken) or (side == "blue" and gm.red_flag_taken):
-                enemy_team = self.blue_agents if side == "red" else self.red_agents
-                carrier = next((a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()), None)
-                if carrier:
-                    self._set_path_from_float(agent, (carrier._float_x, carrier._float_y), avoid_enemies=False)
-                    return
-            ex, ey = gm.get_enemy_flag_position(side)
-            self._set_path_from_float(agent, (ex + 0.5, ey + 0.5))
-
-        elif action == MacroAction.DEFEND_ZONE:
-            self._set_path_from_float(agent, (self.col_count // 2 + 0.5, agent._float_y))
-
-    # ------------------------------------------------------------------
     # Policy-driven decision
-    # ------------------------------------------------------------------
     def decide(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
+
+        # Increment decision counter for state feature
+        if not hasattr(agent, "decision_count"):
+            agent.decision_count = 0
+        agent.decision_count += 1
+
         obs = self.build_observation(agent)
         policy = self.policies.get(agent.side)
+
+        # Scripted policy (Policy subclass) or simple callable
         if isinstance(policy, Policy):
             action_id, param = policy.select_action(obs, agent, self)
         else:
+            # Fallback: treat as a callable(agent, game_field) -> action_id
             action_id = policy(agent, self)
             param = None
+
         action = MacroAction(action_id)
         self.apply_macro_action(agent, action, param)
 
-    # ------------------------------------------------------------------
     # Mines / pickups / suppression / flags
-    # ------------------------------------------------------------------
     def handle_mine_pickups(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
         if not hasattr(agent, "mine_charges"):
             return
+
         for pickup in list(self.mine_pickups):
             if pickup.owner_side != agent.side:
                 continue
-            if math.hypot(pickup.x + 0.5 - agent._float_x, pickup.y + 0.5 - agent._float_y) < 0.6:
+            if agent.x == pickup.x and agent.y == pickup.y:
                 if agent.mine_charges < self.max_mine_charges_per_agent:
                     needed = self.max_mine_charges_per_agent - agent.mine_charges
                     taken = min(needed, pickup.charges)
@@ -481,47 +608,97 @@ class GameField:
     def apply_mine_damage(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
+
         for mine in list(self.mines):
+            # Skip friendly mines
             if mine.owner_side == agent.side:
                 continue
-            dist = math.hypot(mine.x + 0.5 - agent._float_x, mine.y + 0.5 - agent._float_y)
+
+            dist = math.hypot(mine.x - agent.x, mine.y - agent.y)
             if dist <= self.mine_radius_cells:
-                if agent.isCarryingFlag():
-                    self.manager.drop_flag_if_carrier_disabled(agent)
-                    agent.setCarryingFlag(False)
+                # Who do we credit for this kill?
+                killer_agent = None
+
+                # 1) If we have an owner_id, try to find that agent
+                if mine.owner_id is not None:
+                    for a in (self.blue_agents + self.red_agents):
+                        if getattr(a, "unique_id", None) == mine.owner_id:
+                            killer_agent = a
+                            break
+
+                # 2) Fallback: for blue mines with missing owner_id, credit a miner
+                if killer_agent is None and mine.owner_side == "blue":
+                    killer_agent = next(
+                        (a for a in self.blue_agents if getattr(a, "is_miner", False)),
+                        None,
+                    )
+                    if killer_agent is None and self.blue_agents:
+                        killer_agent = self.blue_agents[0]
+
+                # Reward kill only if the killer is BLUE (learning team)
+                if killer_agent is not None and getattr(killer_agent, "side", None) == "blue":
+                    self.manager.reward_enemy_killed(
+                        killer_agent=killer_agent,
+                        victim_agent=agent,
+                        cause="mine",
+                    )
+
+                if mine.owner_side == "blue" and agent.side == "red":
+                    self.manager.record_mine_triggered_by_red()
                 agent.disable_for_seconds(self.respawn_seconds)
+
                 self.mines.remove(mine)
                 break
 
     def apply_suppression(self, agent: Agent, enemies: List[Agent]) -> None:
         if not agent.isEnabled():
             return
+
         close_enemies = [
-            e for e in enemies
-            if e.isEnabled() and math.hypot(e._float_x - agent._float_x, e._float_y - agent._float_y) <= self.suppression_range_cells
+            e
+            for e in enemies
+            if e.isEnabled()
+               and math.hypot(e.x - agent.x, e.y - agent.y) <= self.suppression_range_cells
         ]
+
         if len(close_enemies) >= 2:
-            if agent.isCarryingFlag():
-                self.manager.drop_flag_if_carrier_disabled(agent)
-                agent.setCarryingFlag(False)
+            killer_agent = None
+            blue_suppressors = [e for e in close_enemies if getattr(e, "side", None) == "blue"]
+            if blue_suppressors:
+                killer_agent = blue_suppressors[0]
+            elif close_enemies:
+                killer_agent = close_enemies[0]
+
+            # Reward suppression kill only if the suppressor is BLUE
+            if killer_agent is not None and getattr(killer_agent, "side", None) == "blue":
+                self.manager.reward_enemy_killed(
+                    killer_agent=killer_agent,
+                    victim_agent=agent,
+                    cause="suppression",
+                )
+
+            # Just disable; Agent.disable_for_seconds will:
+            # - Drop the flag via GameManager.handle_agent_death
+            # - Clear local carrying state
             agent.disable_for_seconds(self.respawn_seconds)
 
     def apply_flag_rules(self, agent: Agent) -> None:
         if self.manager.try_pickup_enemy_flag(agent):
             if not agent.isCarryingFlag():
                 agent.setCarryingFlag(True)
+
         if agent.isCarryingFlag():
             if self.manager.try_score_if_carrying_and_home(agent):
                 agent.setCarryingFlag(False)
                 self.announce(
                     "BLUE SCORES!" if agent.side == "blue" else "RED SCORES!",
-                    (90, 170, 250) if agent.side == "blue" else (250, 120, 70),
+                    (90, 170, 250)
+                    if agent.side == "blue"
+                    else (250, 120, 70),
                     2.0,
                 )
 
-    # ------------------------------------------------------------------
-    # Rendering — fully continuous
-    # ------------------------------------------------------------------
+    # Rendering
     def draw(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
         rect_width, rect_height = board_rect.width, board_rect.height
         cell_width = rect_width / max(1, self.col_count)
@@ -534,50 +711,71 @@ class GameField:
         for row in range(self.row_count + 1):
             y = int(board_rect.top + row * cell_height)
             pg.draw.line(surface, grid_color, (board_rect.left, y), (board_rect.right, y), 1)
+
         for col in range(self.col_count + 1):
             x = int(board_rect.left + col * cell_width)
             pg.draw.line(surface, grid_color, (x, board_rect.top), (x, board_rect.bottom), 1)
 
-        # ------------------------------------------------------------------
-        # Debug ranges — now perfectly aligned with continuous positions
-        # ------------------------------------------------------------------
+        # Debug ranges
         if self.debug_draw_ranges or self.debug_draw_mine_ranges:
             range_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
 
             if self.debug_draw_ranges:
                 sup_radius_px = self.suppression_range_cells * min(cell_width, cell_height)
-                for agent in self.blue_agents + self.red_agents:
-                    if not agent.isEnabled():
-                        continue
-                    cx = board_rect.left + agent._float_x * cell_width
-                    cy = board_rect.top + agent._float_y * cell_height
-                    color = (50, 130, 255, 190) if agent.side == "blue" else (255, 110, 70, 190)
-                    pg.draw.circle(range_surface, color, (int(cx), int(cy)), int(sup_radius_px), width=2)
 
-            if self.debug_draw_mine_ranges:
+                def draw_sup_range(agent: Agent, rgba: Tuple[int, int, int, int]) -> None:
+                    cx = (agent.x + 0.5) * cell_width
+                    cy = (agent.y + 0.5) * cell_height
+                    local_center = (int(cx), int(cy))
+                    pg.draw.circle(range_surface, rgba, local_center, int(sup_radius_px), width=2)
+
+                for a in self.blue_agents:
+                    if a.isEnabled():
+                        draw_sup_range(a, (50, 130, 255, 190))
+                for a in self.red_agents:
+                    if a.isEnabled():
+                        draw_sup_range(a, (255, 110, 70, 190))
+
+            if self.debug_draw_mine_ranges and self.mines:
                 mine_radius_px = self.mine_radius_cells * min(cell_width, cell_height)
                 for mine in self.mines:
-                    # ← Now mine.x/y are continuous → no +0.5 needed!
-                    cx = board_rect.left + mine.x * cell_width
-                    cy = board_rect.top + mine.y * cell_height
-                    color = (40, 170, 230, 170) if mine.owner_side == "blue" else (230, 120, 80, 170)
-                    pg.draw.circle(range_surface, color, (int(cx), int(cy)), int(mine_radius_px), width=2)
+                    cx = (mine.x + 0.5) * cell_width
+                    cy = (mine.y + 0.5) * cell_height
+                    local_center = (int(cx), int(cy))
+                    rgba = (
+                        (40, 170, 230, 170)
+                        if mine.owner_side == "blue"
+                        else (230, 120, 80, 170)
+                    )
+                    pg.draw.circle(range_surface, rgba, local_center, int(mine_radius_px), width=1)
 
             surface.blit(range_surface, board_rect.topleft)
 
+        # Flags
+        blue_base = getattr(self.manager, "blue_flag_home", self.manager.blue_flag_position)
+        red_base = getattr(self.manager, "red_flag_home", self.manager.red_flag_position)
+
         self.draw_flag(
-            surface, board_rect, cell_width, cell_height,
-            (self.manager.blue_flag_position[0], self.manager.blue_flag_position[1]),
-            (90, 170, 250), self.manager.blue_flag_taken,
+            surface,
+            board_rect,
+            cell_width,
+            cell_height,
+            blue_base,  # <-- stays fixed
+            (90, 170, 250),
+            self.manager.blue_flag_taken,
         )
         self.draw_flag(
-            surface, board_rect, cell_width, cell_height,
-            (self.manager.red_flag_position[0], self.manager.red_flag_position[1]),
-            (250, 120, 70), self.manager.red_flag_taken,
+            surface,
+            board_rect,
+            cell_width,
+            cell_height,
+            red_base,  # <-- stays fixed
+            (250, 120, 70),
+            self.manager.red_flag_taken,
         )
 
         # Mine pickups
-        for pickup in self.mine_pickups:
+        def draw_mine_pickup(pickup: MinePickup) -> None:
             cx = board_rect.left + (pickup.x + 0.5) * cell_width
             cy = board_rect.top + (pickup.y + 0.5) * cell_height
             r_outer = int(0.3 * min(cell_width, cell_height))
@@ -587,8 +785,11 @@ class GameField:
             pg.draw.circle(surface, color, (int(cx), int(cy)), r_outer, width=2)
             pg.draw.circle(surface, color, (int(cx), int(cy)), r_inner)
 
+        for pickup in self.mine_pickups:
+            draw_mine_pickup(pickup)
+
         # Armed mines
-        for mine in self.mines:
+        def draw_mine(mine: Mine) -> None:
             cx = board_rect.left + (mine.x + 0.5) * cell_width
             cy = board_rect.top + (mine.y + 0.5) * cell_height
             r = int(0.35 * min(cell_width, cell_height))
@@ -596,50 +797,60 @@ class GameField:
             pg.draw.circle(surface, color, (int(cx), int(cy)), r)
             pg.draw.circle(surface, (5, 5, 8), (int(cx), int(cy)), r, width=1)
 
+        for mine in self.mines:
+            draw_mine(mine)
+
         # Agents
-        for agent in self.blue_agents + self.red_agents:
-            if not agent.isEnabled() and not agent.isTagged():
-                continue
-            center_x = board_rect.left + agent._float_x * cell_width
-            center_y = board_rect.top + agent._float_y * cell_height
+        def draw_agent(agent: Agent, body_rgb, enemy_flag_rgb):
+            center_x = board_rect.left + (agent.x + 0.5) * cell_width
+            center_y = board_rect.top + (agent.y + 0.5) * cell_height
             tri_size = 0.45 * min(cell_width, cell_height)
 
+            target_x, target_y = self.manager.get_enemy_flag_position(agent.getSide())
             if agent.path:
                 target_x, target_y = agent.path[0]
-            else:
-                ex, ey = self.manager.get_enemy_flag_position(agent.side)
-                target_x, target_y = ex + 0.5, ey + 0.5
-            to_target_x = target_x - agent._float_x
-            to_target_y = target_y - agent._float_y
-            magnitude = max(math.hypot(to_target_x, to_target_y), 1e-6)
+
+            to_target_x = target_x - agent.x
+            to_target_y = target_y - agent.y
+            magnitude = max(
+                (to_target_x * to_target_x + to_target_y * to_target_y) ** 0.5, 1e-6
+            )
             unit_x, unit_y = to_target_x / magnitude, to_target_y / magnitude
             left_x, left_y = -unit_y, unit_x
 
-            tip = (center_x + unit_x * tri_size, center_y + unit_y * tri_size)
-            left = (center_x - unit_x * tri_size * 0.6 + left_x * tri_size * 0.6,
-                    center_y - unit_y * tri_size * 0.6 + left_y * tri_size * 0.6)
-            right = (center_x - unit_x * tri_size * 0.6 - left_x * tri_size * 0.6,
-                     center_y - unit_y * tri_size * 0.6 - left_y * tri_size * 0.6)
+            tip = (
+                int(center_x + unit_x * tri_size),
+                int(center_y + unit_y * tri_size),
+            )
+            left = (
+                int(center_x - unit_x * tri_size * 0.6 + left_x * tri_size * 0.6),
+                int(center_y - unit_y * tri_size * 0.6 + left_y * tri_size * 0.6),
+            )
+            right = (
+                int(center_x - unit_x * tri_size * 0.6 - left_x * tri_size * 0.6),
+                int(center_y - unit_y * tri_size * 0.6 - left_y * tri_size * 0.6),
+            )
 
-            body_color = (0, 180, 255) if agent.side == "blue" else (255, 120, 40)
-            if not agent.isEnabled():
-                body_color = (50, 50, 55)
-            pg.draw.polygon(surface, body_color, [(int(tip[0]), int(tip[1])),
-                                                 (int(left[0]), int(left[1])),
-                                                 (int(right[0]), int(right[1]))])
+            body_color = body_rgb if agent.isEnabled() else (50, 50, 55)
+            pg.draw.polygon(surface, body_color, (tip, left, right))
 
             if agent.isCarryingFlag():
                 flag_size = int(tri_size * 0.5)
-                fx = int(center_x - unit_x * tri_size * 0.8)
-                fy = int(center_y - unit_y * tri_size * 0.8)
-                flag_color = (250, 120, 70) if agent.side == "blue" else (90, 170, 250)
-                pg.draw.rect(surface, flag_color,
-                             (fx - flag_size//2, fy - flag_size//2, flag_size, flag_size))
+                flag_rect = pg.Rect(
+                    tip[0] - flag_size // 2,
+                    tip[1] - flag_size // 2,
+                    flag_size,
+                    flag_size,
+                )
+                pg.draw.rect(surface, enemy_flag_rgb, flag_rect)
 
             if agent.isTagged():
-                pg.draw.polygon(surface, (245, 245, 245), [(int(tip[0]), int(tip[1])),
-                                                          (int(left[0]), int(left[1])),
-                                                          (int(right[0]), int(right[1]))], width=2)
+                pg.draw.polygon(surface, (245, 245, 245), (tip, left, right), width=2)
+
+        for agent in self.blue_agents:
+            draw_agent(agent, (0, 180, 255), (250, 120, 70))
+        for agent in self.red_agents:
+            draw_agent(agent, (255, 120, 40), (90, 170, 250))
 
         # Banner
         if self.banner_queue:
@@ -648,11 +859,18 @@ class GameField:
             font = pg.font.SysFont(None, 48)
             faded_color = tuple(int(channel * fade_factor) for channel in color)
             img = font.render(text, True, faded_color)
-            surface.blit(img, (board_rect.centerx - img.get_width() // 2, board_rect.top + 12))
+            surface.blit(
+                img,
+                (
+                    board_rect.centerx - img.get_width() // 2,
+                    board_rect.top + 12,
+                ),
+            )
 
     def draw_halves_and_center_line(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
         rect_width, rect_height = board_rect.width, board_rect.height
         cell_width = rect_width / max(1, self.col_count)
+
         def fill_cols(col_start: int, col_end: int, rgba: Tuple[int, int, int, int]) -> None:
             if col_start > col_end:
                 return
@@ -663,49 +881,73 @@ class GameField:
             band_surface.fill(rgba)
             surface.blit(band_surface, (x0, board_rect.top))
 
+        total_cols = max(1, self.col_count)
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
+
         mid_start = blue_max_col + 1
         mid_end = red_min_col - 1
+
         fill_cols(blue_min_col, blue_max_col, (15, 45, 120, 140))
+
         if mid_start <= mid_end:
             fill_cols(mid_start, mid_end, (40, 40, 55, 90))
+
         fill_cols(red_min_col, red_max_col, (120, 45, 15, 140))
 
-        mid_col_index = self.col_count // 2
+        mid_col_index = total_cols // 2
         mid_x = int(board_rect.left + mid_col_index * cell_width)
-        pg.draw.line(surface, (190, 190, 210), (mid_x, board_rect.top), (mid_x, board_rect.bottom), 2)
+        pg.draw.line(
+            surface,
+            (190, 190, 210),
+            (mid_x, board_rect.top),
+            (mid_x, board_rect.bottom),
+            2,
+        )
 
-    def draw_flag(self, surface: pg.Surface, board_rect: pg.Rect,
-                  cell_width: float, cell_height: float,
-                  world_pos: Tuple[float, float],  # now float
-                  color: Tuple[int, int, int], is_taken: bool) -> None:
-        cx = board_rect.left + world_pos[0] * cell_width
-        cy = board_rect.top + world_pos[1] * cell_height
+    def draw_flag(
+        self,
+        surface: pg.Surface,
+        board_rect: pg.Rect,
+        cell_width: float,
+        cell_height: float,
+        grid_pos: Tuple[int, int],
+        color: Tuple[int, int, int],
+        is_taken: bool,
+    ) -> None:
+        grid_x, grid_y = grid_pos
+        center_x = board_rect.left + (grid_x + 0.5) * cell_width
+        center_y = board_rect.top + (grid_y + 0.5) * cell_height
         radius_px = int(TEAM_ZONE_RADIUS_CELLS * min(cell_width, cell_height))
 
         zone_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
-        pg.draw.circle(zone_surface, (*color, 40),
-                       (int(cx - board_rect.left), int(cy - board_rect.top)),
-                       radius_px, width=0)
-        pg.draw.circle(zone_surface, (*color, 110),
-                       (int(cx - board_rect.left), int(cy - board_rect.top)),
-                       radius_px, width=2)
+        local_center = (
+            int(center_x - board_rect.left),
+            int(center_y - board_rect.top),
+        )
+
+        pg.draw.circle(zone_surface, (*color, 40), local_center, radius_px, width=0)
+        pg.draw.circle(zone_surface, (*color, 110), local_center, radius_px, width=2)
         surface.blit(zone_surface, board_rect.topleft)
 
         if not is_taken:
-            size = int(0.5 * min(cell_width, cell_height))
-            pg.draw.rect(surface, color,
-                         (int(cx - size // 2), int(cy - size // 2), size, size))
+            flag_size = int(0.5 * min(cell_width, cell_height))
+            flag_rect = pg.Rect(
+                int(center_x - flag_size / 2),
+                int(center_y - flag_size / 2),
+                flag_size,
+                flag_size,
+            )
+            pg.draw.rect(surface, color, flag_rect)
 
     def announce(self, text: str, color=(255, 255, 255), seconds: float = 2.0) -> None:
         self.banner_queue.append((text, color, seconds))
 
-    # ------------------------------------------------------------------
-    # Spawning — float positions
-    # ------------------------------------------------------------------
+    # Spawning
     def spawn_agents(self) -> None:
         rng = random.Random(self.agents_per_team)
+
+        # Clear everything
         for a in self.blue_agents + self.red_agents:
             a.mine_charges = 0
         self.blue_agents.clear()
@@ -717,40 +959,59 @@ class GameField:
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
 
-        blue_cells = [(r, c) for r in range(self.row_count) for c in range(blue_min_col, blue_max_col + 1)]
-        red_cells  = [(r, c) for r in range(self.row_count) for c in range(red_min_col, red_max_col + 1)]
+        blue_cells = [
+            (r, c)
+            for r in range(self.row_count)
+            for c in range(blue_min_col, blue_max_col + 1)
+        ]
+        red_cells = [
+            (r, c)
+            for r in range(self.row_count)
+            for c in range(red_min_col, red_max_col + 1)
+        ]
         rng.shuffle(blue_cells)
         rng.shuffle(red_cells)
+
         n = self.agents_per_team
 
+        # Blue
         for i in range(min(n, len(blue_cells))):
             row, col = blue_cells[i]
             agent = Agent(
-                x=col + 0.5, y=row + 0.5,
+                x=col,
+                y=row,
                 side="blue",
-                cols=self.col_count, rows=self.row_count,
+                cols=self.col_count,
+                rows=self.row_count,
                 grid=self.grid,
                 move_rate_cps=rng.uniform(2.0, 2.4),
                 agent_id=i,
                 is_miner=(i == 0),
+                game_manager=self.manager,  # <-- IMPORTANT
             )
-            agent.spawn_xy = (col + 0.5, row + 0.5)
+            agent.spawn_xy = (col, row)
             agent.mine_charges = 0
+            agent.decision_count = 0
             self.blue_agents.append(agent)
 
+        # Red
         for i in range(min(n, len(red_cells))):
             row, col = red_cells[i]
             agent = Agent(
-                x=col + 0.5, y=row + 0.5,
+                x=col,
+                y=row,
                 side="red",
-                cols=self.col_count, rows=self.row_count,
+                cols=self.col_count,
+                rows=self.row_count,
                 grid=self.grid,
                 move_rate_cps=rng.uniform(2.0, 2.4),
                 agent_id=i,
                 is_miner=(i == 0),
+                game_manager=self.manager,
             )
-            agent.spawn_xy = (col + 0.5, row + 0.5)
+            agent.spawn_xy = (col, row)
             agent.mine_charges = 0
+            agent.decision_count = 0
             self.red_agents.append(agent)
 
     def spawn_mine_pickups(self) -> None:
@@ -760,23 +1021,33 @@ class GameField:
         red_min_col, red_max_col = self.red_zone_col_range
 
         def spawn_for_band(owner_side: str, col_min: int, col_max: int) -> None:
-            all_cells = [(row, col) for row in range(self.row_count) for col in range(col_min, col_max + 1)]
+            all_cells = [
+                (row, col)
+                for row in range(self.row_count)
+                for col in range(col_min, col_max + 1)
+            ]
             rng.shuffle(all_cells)
             placed = 0
             max_pickups = self.mines_per_team
+
             flag_pos = (
-                self.manager.blue_flag_position if owner_side == "blue"
+                self.manager.blue_flag_position
+                if owner_side == "blue"
                 else self.manager.red_flag_position
             )
+
             for row, col in all_cells:
-                if math.hypot(col + 0.5 - flag_pos[0], row + 0.5 - flag_pos[1]) < 1.0:
+                if (col, row) == flag_pos:
                     continue
-                self.mine_pickups.append(MinePickup(x=col, y=row, owner_side=owner_side, charges=1))
+                self.mine_pickups.append(
+                    MinePickup(x=col, y=row, owner_side=owner_side, charges=1)
+                )
                 placed += 1
                 if placed >= max_pickups:
                     break
 
         spawn_for_band("blue", blue_min_col, blue_max_col)
         spawn_for_band("red", red_min_col, red_max_col)
+
 
 __all__ = ["GameField", "MacroAction"]

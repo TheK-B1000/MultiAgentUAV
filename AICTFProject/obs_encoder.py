@@ -1,90 +1,83 @@
-# obs_encoder.py
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class ObsEncoder(nn.Module):
     """
-    Advanced encoder for the 37-D observation vector from the continuous CTF environment.
+    CNN over a 7-channel 20x20 spatial observation.
 
-    Observation breakdown (37 dims):
-        0-11 : Scalar features (12 total)
-               [dx_enemy_flag, dy_enemy_flag,
-                dx_own_flag,    dy_own_flag,
-                is_carrying_flag, own_flag_taken, enemy_flag_taken, side_blue,
-                ammo_norm, is_miner, dx_mine_pickup, dy_mine_pickup]
+    Observation layout (from GameField.build_observation):
 
-        12-36: 5x5 local occupancy grid (25 values)
-               0=empty, 1=wall/out-of-bounds, 2=friendly, 3=enemy, 4=mine, 5=own_pickup
+        Shape: [C, H, W] = [7, 20, 20]
+
+        Channels:
+          0: Own UAV position
+          1: Teammate UAVs (same side, excluding self)
+          2: Enemy UAVs
+          3: Friendly mines
+          4: Enemy mines
+          5: Own flag
+          6: Enemy flag
     """
 
     def __init__(
         self,
-        n_scalar: int = 12,
-        spatial_size: int = 5,
-        embed_dim: int = 128,
-        latent_dim: int = 256,
+        in_channels: int = 7,
+        height: int = 20,
+        width: int = 20,
+        latent_dim: int = 128,
     ):
         super().__init__()
-        self.n_scalar = n_scalar
-        self.spatial_size = spatial_size
-        self.spatial_channels = 8  # Learned spatial feature maps
+        self.in_channels = in_channels
+        self.height = height
+        self.width = width
+        self.latent_dim = latent_dim
 
-        # --- Scalar branch ---
-        self.scalar_net = nn.Sequential(
-            nn.Linear(n_scalar, embed_dim),
-            nn.LayerNorm(embed_dim),
-            nn.ReLU(),
-            nn.Linear(embed_dim, embed_dim),
-            nn.ReLU(),
+        # Simple CNN stack: keep H,W = 20x20 via padding
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
         )
 
-        # --- Spatial branch: treat 5x5 as 1-channel image ---
-        self.spatial_conv = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, self.spatial_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
+        # After conv: channels = 64, H=W=20 → flat_dim = 64 * 20 * 20
+        flat_dim = 64 * height * width
+
+        self.fc = nn.Sequential(
+            nn.Linear(flat_dim, latent_dim),
+            nn.ReLU(inplace=True),
         )
 
-        # Flatten spatial features
-        self.spatial_flatten_size = self.spatial_channels * spatial_size * spatial_size
+        self.apply(self._init_weights)
 
-        # --- Fusion ---
-        self.fusion = nn.Sequential(
-            nn.Linear(embed_dim + self.spatial_flatten_size, latent_dim),
-            nn.LayerNorm(latent_dim),
-            nn.ReLU(),
-            nn.Linear(latent_dim, latent_dim),
-            nn.ReLU(),
-        )
+    def _init_weights(self, m):
+        if isinstance(m, nn.Conv2d):
+            nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain("relu"))
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0.0)
+        elif isinstance(m, nn.Linear):
+            nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain("relu"))
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0.0)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            obs: [B, 37] or [37]
-
-        Returns:
+        obs: [B, C, H, W] or [C, H, W]
+        returns:
             latent: [B, latent_dim]
         """
-        if obs.dim() == 1:
-            obs = obs.unsqueeze(0)  # [1, 37]
-        B = obs.shape[0]
+        if obs.dim() == 3:
+            # [C, H, W] -> [1, C, H, W]
+            obs = obs.unsqueeze(0)
 
-        # Split
-        scalars = obs[:, : self.n_scalar]                    # [B, 12]
-        spatial_flat = obs[:, self.n_scalar :]               # [B, 25]
+        assert obs.dim() == 4, f"ObsEncoder expects 4D tensor [B,C,H,W], got {obs.shape}"
+        b, c, h, w = obs.shape
+        assert c == self.in_channels, f"Expected {self.in_channels} channels, got {c}"
+        assert h == self.height and w == self.width, \
+            f"Expected spatial size {self.height}x{self.width}, got {h}x{w}"
 
-        # Process scalars
-        s_feat = self.scalar_net(scalars)                    # [B, embed_dim]
-
-        # Process spatial: reshape to [B, 1, 5, 5]
-        spatial = spatial_flat.view(B, 1, self.spatial_size, self.spatial_size)
-        p_feat = self.spatial_conv(spatial)                  # [B, C, 5, 5]
-        p_feat = p_feat.view(B, -1)                          # [B, C*5*5]
-
-        # Fuse
-        combined = torch.cat([s_feat, p_feat], dim=-1)
-        latent = self.fusion(combined)
+        x = self.conv(obs)                 # [B, 64, 20, 20]
+        x = x.view(b, -1)                  # [B, 64*20*20]
+        latent = self.fc(x)                # [B, latent_dim]
         return latent
