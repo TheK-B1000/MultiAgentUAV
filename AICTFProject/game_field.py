@@ -11,6 +11,14 @@ from pathfinder import Pathfinder
 from macro_actions import MacroAction
 from policies import Policy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
+# Physical arena dimensions
+ARENA_WIDTH_M = 10.0       # meters (X direction)
+ARENA_HEIGHT_M = 4.28      # meters (Y direction)
+
+# CNN map resolution for observations
+CNN_COLS = 20
+CNN_ROWS = 20
+NUM_CNN_CHANNELS = 7
 
 # Mines & pickups
 @dataclass
@@ -72,10 +80,14 @@ class GameField:
             block_corners=True,
         )
 
+        # Physical cell size in meters (mapping grid -> 10m x 4.28m)
+        self.cell_width_m = ARENA_WIDTH_M / max(1, self.col_count)
+        self.cell_height_m = ARENA_HEIGHT_M / max(1, self.row_count)
+
         # ------------------------------------------------------------------
-        # Paper-style: categorical 2D targets (50 random predetermined cells)
-        # These are fixed per reset and can be used by RL instead of continuous coords
-        # TODO - Convert into Continuous for GRE
+        # Paper-style: categorical 2D targets over 50 random grid positions.
+        # The policy outputs an index (0..49), which is mapped to a 30×40
+        # grid cell via self.macro_targets.
         # ------------------------------------------------------------------
         self.num_macro_targets: int = 50
         self.macro_targets: List[Tuple[int, int]] = []  # list of (x, y) grid cells
@@ -171,6 +183,44 @@ class GameField:
     def set_all_external_control(self, external: bool) -> None:
         for side in ("blue", "red"):
             self.external_control_for_side[side] = external
+
+
+    # ------------ Coordinate mapping helpers ------------
+
+    def grid_to_world(self, col: int, row: int) -> Tuple[float, float]:
+        """
+        Map a grid cell (col, row) to physical coordinates (x, y) in meters.
+        Centers the point in the cell.
+        """
+        x = (col + 0.5) * self.cell_width_m
+        y = (row + 0.5) * self.cell_height_m
+        return x, y
+
+    def world_to_cnn_cell(self, x_m: float, y_m: float) -> Tuple[int, int]:
+        """
+        Map physical coordinates (x, y) in meters to a 20x20 CNN cell index.
+        """
+        # Normalize to [0,1]
+        u = max(0.0, min(1.0, x_m / ARENA_WIDTH_M))
+        v = max(0.0, min(1.0, y_m / ARENA_HEIGHT_M))
+
+        col = int(u * CNN_COLS)
+        row = int(v * CNN_ROWS)
+
+        if col >= CNN_COLS:
+            col = CNN_COLS - 1
+        if row >= CNN_ROWS:
+            row = CNN_ROWS - 1
+
+        return col, row
+
+    def grid_to_cnn_cell(self, col: int, row: int) -> Tuple[int, int]:
+        """
+        Convenience: map a grid cell (col,row) directly into CNN coordinates.
+        """
+        x_m, y_m = self.grid_to_world(col, row)
+        return self.world_to_cnn_cell(x_m, y_m)
+
 
 
     # Test cases / reset
@@ -293,130 +343,87 @@ class GameField:
             if t <= 0.0:
                 self.banner_queue.pop()
 
-    # Observation builder for RL / policies
-    def build_observation(self, agent: Agent) -> List[float]:
-        side = agent.side
+    # Observation builder for RL / policies (7-channel 20x20 CNN)
+    def build_observation(self, agent: Agent) -> List[List[List[float]]]:
+        """
+        Builds a 7-channel 20x20 spatial observation for the given agent.
+
+        Channels (C, H, W) = (7, 20, 20):
+
+        0: Own UAV position
+        1: Teammate UAVs (same side, excluding self)
+        2: Enemy UAVs
+        3: Friendly mines
+        4: Enemy mines
+        5: Own flag
+        6: Enemy flag
+
+        Each channel is a 20x20 grid where cells are 1.0 if the entity is present
+        in that CNN cell, 0.0 otherwise. Multiple entities in the same cell simply
+        keep the value at 1.0.
+        """
+        side = agent.side  # "blue" or "red"
         game_state = self.manager
-        ax, ay = agent._float_x, agent._float_y
-        cols = max(1, self.col_count)
-        rows = max(1, self.row_count)
 
-        # ---------- Flag geometry  ----------
-        enemy_flag_x, enemy_flag_y = game_state.get_enemy_flag_position(side)
-        own_flag_x, own_flag_y = self.manager.get_team_zone_center(side)
-
-        dx_enemy_flag = (enemy_flag_x - ax) / cols
-        dy_enemy_flag = (enemy_flag_y - ay) / rows
-        dx_own_flag = (own_flag_x - ax) / cols
-        dy_own_flag = (own_flag_y - ay) / rows
-
-        is_carrying_flag = 1.0 if agent.isCarryingFlag() else 0.0
-
-        if side == "blue":
-            own_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
-            enemy_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
-        else:  # side == "red"
-            own_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
-            enemy_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
-
-        side_blue = 1.0 if side == "blue" else 0.0
-        ammo_norm = agent.mine_charges / self.max_mine_charges_per_agent
-        is_miner = 1.0 if getattr(agent, "is_miner", False) else 0.0
-
-        # Paper: time/20 ∈ {0..10}, we use a [0,1] continuous version.
-        time_norm = self.manager.current_time / max(1e-6, self.manager.max_time)
-
-        # ---------- decision counter (0..13) normalized ----------
-        if not hasattr(agent, "decision_count"):
-            agent.decision_count = 0
-        decision_clamped = min(agent.decision_count, 13)
-        decision_norm = decision_clamped / 13.0
-
-        # ---------- Mine pickup direction ----------
-        my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
-        dx_mine = dy_mine = 0.0
-        if my_pickups:
-            nearest = min(
-                my_pickups,
-                key=lambda p: math.hypot(p.x - ax, p.y - ay),
-            )
-            dx_mine = (nearest.x - ax) / cols
-            dy_mine = (nearest.y - ay) / rows
-
-        # ---------- 5x5 occupancy (values 0..5, later normalized to [0,1]) ----------
-        occupancy = [0.0] * 25
-        radius = 2
-        for dy in range(-radius, radius + 1):
-            for dx in range(-radius, radius + 1):
-                wx = ax + dx
-                wy = ay + dy
-                idx = (dy + radius) * 5 + (dx + radius)
-
-                if not (0 <= wx < self.col_count and 0 <= wy < self.row_count):
-                    occupancy[idx] = 1.0  # wall / out-of-bounds
-                elif self.grid[int(wy)][int(wx)] != 0:
-                    occupancy[idx] = 1.0  # obstacle
-                else:
-                    # Entities
-                    for a in self.blue_agents + self.red_agents:
-                        if a.isEnabled() and math.hypot(a._float_x - wx, a._float_y - wy) < 0.7:
-                            occupancy[idx] = 2.0 if a.side == side else 3.0
-                            break
-                    else:
-                        for m in self.mines:
-                            if math.hypot(m.x - wx, m.y - wy) < 0.7:
-                                occupancy[idx] = 4.0
-                                break
-                        else:
-                            for p in self.mine_pickups:
-                                if (p.owner_side == side and
-                                        math.hypot(p.x - wx, p.y - wy) < 0.7):
-                                    occupancy[idx] = 5.0
-                                    break
-
-        # ---------- NORMALIZE occupancy to [0,1] ----------
-        occupancy = [v / 5.0 for v in occupancy]
-
-        # === Agent ID (0 or 1) one-hot encoding ===
-        agent_id_onehot = [0.0, 0.0]
-        if hasattr(agent, "agent_id") and agent.agent_id in (0, 1):
-            agent_id_onehot[agent.agent_id] = 1.0
-        else:
-            if "0" in str(agent.unique_id):
-                agent_id_onehot[0] = 1.0
-            if "1" in str(agent.unique_id):
-                agent_id_onehot[1] = 1.0
-
-        # === Teammate info (mines carried, has_flag, distance) ===
-        teammate = None
-        for a in (self.blue_agents if side == "blue" else self.red_agents):
-            if a is not agent and a.isEnabled():
-                teammate = a
-                break
-
-        teammate_mines_norm = (teammate.mine_charges / self.max_mine_charges_per_agent) if teammate else 0.0
-        teammate_has_flag = 1.0 if (teammate and teammate.isCarryingFlag()) else 0.0
-        teammate_dist = math.hypot(ax - teammate._float_x, ay - teammate._float_y) / cols if teammate else 0.0
-
-        # Final observation:
-        #   19 scalars + 25 occupancy = 44-D
-        obs = [
-            dx_enemy_flag, dy_enemy_flag,
-            dx_own_flag, dy_own_flag,
-            is_carrying_flag,
-            own_flag_taken, enemy_flag_taken,
-            side_blue,
-            ammo_norm, is_miner,
-            dx_mine, dy_mine,
-            agent_id_onehot[0], agent_id_onehot[1],
-            teammate_mines_norm,
-            teammate_has_flag,
-            teammate_dist,
-            time_norm,  # NEW
-            decision_norm,  # NEW
+        # Initialize C x H x W with zeros
+        channels: List[List[List[float]]] = [
+            [[0.0 for _ in range(CNN_COLS)] for _ in range(CNN_ROWS)]
+            for _ in range(NUM_CNN_CHANNELS)
         ]
-        obs.extend(occupancy)
-        return obs
+
+        # Helper to set a cell in a given channel
+        def set_chan(c: int, col: int, row: int) -> None:
+            if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
+                channels[c][row][col] = 1.0
+
+        # --- 0: own UAV ---
+        own_col, own_row = int(agent.x), int(agent.y)
+        own_cnn_col, own_cnn_row = self.grid_to_cnn_cell(own_col, own_row)
+        set_chan(0, own_cnn_col, own_cnn_row)
+
+        # Decide friendly/enemy sets
+        friendly_team = self.blue_agents if side == "blue" else self.red_agents
+        enemy_team = self.red_agents if side == "blue" else self.blue_agents
+
+        # --- 1: teammate UAVs (same side, excluding self) ---
+        for a in friendly_team:
+            if a is agent or not a.isEnabled():
+                continue
+            c, r = self.grid_to_cnn_cell(int(a.x), int(a.y))
+            set_chan(1, c, r)
+
+        # --- 2: enemy UAVs ---
+        for a in enemy_team:
+            if not a.isEnabled():
+                continue
+            c, r = self.grid_to_cnn_cell(int(a.x), int(a.y))
+            set_chan(2, c, r)
+
+        # --- 3 & 4: mines (friendly vs enemy) ---
+        for m in self.mines:
+            c, r = self.grid_to_cnn_cell(int(m.x), int(m.y))
+            if m.owner_side == side:
+                set_chan(3, c, r)  # friendly mines
+            else:
+                set_chan(4, c, r)  # enemy mines
+
+        # --- 5 & 6: flags (own vs enemy) ---
+        if side == "blue":
+            own_flag_pos = game_state.blue_flag_position
+            enemy_flag_pos = game_state.red_flag_position
+        else:
+            own_flag_pos = game_state.red_flag_position
+            enemy_flag_pos = game_state.blue_flag_position
+
+        # own flag
+        c_own_flag, r_own_flag = self.grid_to_cnn_cell(int(own_flag_pos[0]), int(own_flag_pos[1]))
+        set_chan(5, c_own_flag, r_own_flag)
+
+        # enemy flag
+        c_enemy_flag, r_enemy_flag = self.grid_to_cnn_cell(int(enemy_flag_pos[0]), int(enemy_flag_pos[1]))
+        set_chan(6, c_enemy_flag, r_enemy_flag)
+
+        return channels
 
     # Macro-action executor
     def random_point_in_enemy_half(self, side: str) -> Tuple[int, int]:
