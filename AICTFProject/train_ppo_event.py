@@ -125,25 +125,20 @@ def make_env() -> GameField:
 
 # ROLLOUT BUFFER (CNN OBS)
 class RolloutBuffer:
-    """
-    Stores transitions with event-driven dt for GAE.
-
-    obs:  [C,H,W] = [7,20,20] per step, stacked to [T,7,20,20]
-    """
-
     def __init__(self):
         self.obs = []
-        self.actions = []
+        self.macro_actions = []
+        self.target_actions = []
         self.log_probs = []
         self.values = []
         self.rewards = []
         self.dones = []
         self.dts = []
 
-    def add(self, obs, action, log_prob, value, reward, done, dt):
-        # obs is 7x20x20 list; convert to np array and keep channels-first
+    def add(self, obs, macro_action, target_action, log_prob, value, reward, done, dt):
         self.obs.append(np.array(obs, dtype=np.float32))
-        self.actions.append(int(action))
+        self.macro_actions.append(int(macro_action))
+        self.target_actions.append(int(target_action))
         self.log_probs.append(float(log_prob))
         self.values.append(float(value))
         self.rewards.append(float(reward))
@@ -157,21 +152,15 @@ class RolloutBuffer:
         self.__init__()
 
     def to_tensors(self, device):
-        """
-        Returns:
-            obs:      [T, 7, 20, 20]
-            actions:  [T]
-            log_probs, values, rewards, dones, dts: [T]
-        """
         obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)
-        actions = torch.tensor(self.actions, dtype=torch.long, device=device)
+        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)
+        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)
         log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
         values = torch.tensor(self.values, dtype=torch.float32, device=device)
         rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
         dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
         dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
-        return obs, actions, log_probs, values, rewards, dones, dts
-
+        return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
 
 # EVENT-DRIVEN GAE
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
@@ -199,9 +188,17 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     return advantages, returns
 
 
-# PPO UPDATE
 def ppo_update(policy, optimizer, buffer, device, ent_coef):
-    obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
+    (
+        obs,
+        macro_actions,
+        target_actions,
+        old_log_probs,
+        values,
+        rewards,
+        dones,
+        dts,
+    ) = buffer.to_tensors(device)
 
     advantages, returns = compute_gae_event(rewards, values, dones, dts)
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
@@ -212,12 +209,17 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
         for start in range(0, obs.size(0), MINIBATCH_SIZE):
             mb_idx = idxs[start:start + MINIBATCH_SIZE]
             mb_obs = obs[mb_idx]
-            mb_actions = actions[mb_idx]
+            mb_macro = macro_actions[mb_idx]
+            mb_target = target_actions[mb_idx]
             mb_old_log_probs = old_log_probs[mb_idx]
             mb_advantages = advantages[mb_idx]
             mb_returns = returns[mb_idx]
 
-            new_log_probs, entropy, new_values = policy.evaluate_actions(mb_obs, mb_actions)
+            new_log_probs, entropy, new_values = policy.evaluate_actions(
+                mb_obs,
+                mb_macro,
+                mb_target,
+            )
 
             ratio = torch.exp(new_log_probs - mb_old_log_probs)
             surr1 = ratio * mb_advantages
@@ -234,7 +236,6 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
             optimizer.step()
 
     buffer.clear()
-
 
 # REWARD COLLECTION (BLUE)
 def collect_blue_rewards_for_step(
@@ -309,7 +310,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     n_actions = len(MacroAction)
 
     # ActorCriticNet now uses CNN encoder internally; input_dim is ignored.
-    policy = ActorCriticNet(n_actions=n_actions).to(DEVICE)
+    policy = ActorCriticNet(
+        n_macros=n_actions,
+        n_targets=env.num_macro_targets,  # uses the 50 macro_targets from GameField
+    ).to(DEVICE)
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
 
@@ -374,9 +378,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             decisions = []
 
-            # === 1) BLUE macro decisions (PPO) ===
+            # === Blue macro decisions ===
             for agent in blue_agents:
-                obs = env.build_observation(agent)  # 7x20x20 nested list
+                obs = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
 
                 out = policy.act(
@@ -385,14 +389,16 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     game_field=env,
                     deterministic=False,
                 )
-                a = int(out["action"][0].item())
+
+                macro_idx = int(out["macro_action"][0].item())
+                target_idx = int(out["target_action"][0].item())
                 logp = float(out["log_prob"][0].item())
                 val = float(out["value"][0].item())
 
                 local_id = getattr(agent, "agent_id", 0)
-                if local_id in ep_macro_counts and 0 <= a < NUM_ACTIONS:
-                    ep_macro_counts[local_id][a] += 1
-                    if MacroAction(a) == MacroAction.PLACE_MINE:
+                if local_id in ep_macro_counts and 0 <= macro_idx < NUM_ACTIONS:
+                    ep_macro_counts[local_id][macro_idx] += 1
+                    if MacroAction(macro_idx) == MacroAction.PLACE_MINE:
                         ep_mine_attempts[local_id] += 1
 
                 if agent.unique_id not in ep_mines_placed_by_uid:
@@ -409,14 +415,14 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                         ex, ey = gm.blue_flag_position
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
 
-                # Apply macro-action into the environment
-                env.apply_macro_action(agent, MacroAction(a))
+                # IMPORTANT: pass target_idx as param → GameField will map via get_macro_target
+                env.apply_macro_action(agent, MacroAction(macro_idx), target_idx)
 
                 decisions.append(
-                    (agent, obs, a, logp, val, prev_flag_dist, ex, ey)
+                    (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
 
-            # === 2) Simulate until next decision window ===
+            # --- simulate until next decision window ---
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
@@ -425,23 +431,23 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             dt = sim_t
             done = gm.game_over
 
-            # === 3) Collect rewards from environment ===
+            # collect rewards
             rewards = collect_blue_rewards_for_step(
                 gm, blue_agents, mix_alpha=0.0, cur_phase=cur_phase
             )
 
-            # Small per-step time penalty for all blue agents
+            # small time penalty for all blue agents
             for agent in env.blue_agents:
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
-            # Track mine placements per UID
-            for agent, _, act, _, _, prev_flag_dist, ex, ey in decisions:
+            # no extra shaping; just track mine placement
+            for agent, _, macro_idx, target_idx, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
-                if MacroAction(act) == MacroAction.PLACE_MINE:
+                if MacroAction(macro_idx) == MacroAction.PLACE_MINE:
                     ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
-            # HUD stats (scores & combat)
+            # HUD stats logic unchanged...
             blue_score_delta = gm.blue_score - prev_blue_score
             if blue_score_delta > 0:
                 ep_score_events += blue_score_delta
@@ -451,18 +457,18 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             if total_team_reward > 0.0 and blue_score_delta == 0:
                 ep_combat_events += 1
 
-            # === 4) Add transitions to PPO buffer ===
+            # --- add to PPO buffer ---
             step_reward_sum = 0.0
-            for agent, obs, act, logp, val, _, _, _ in decisions:
+            for agent, obs, macro_idx, target_idx, logp, val, _, _, _ in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
                 step_reward_sum += r
-                buffer.add(obs, act, logp, val, r, done, dt)
+                buffer.add(obs, macro_idx, target_idx, logp, val, r, done, dt)
                 global_step += 1
 
             ep_return += step_reward_sum
             steps += 1
 
-            # === 5) PPO update if buffer is full ===
+            # PPO update
             if buffer.size() >= UPDATE_EVERY:
                 print(
                     f"[UPDATE] step={global_step} episode={episode_idx} "
