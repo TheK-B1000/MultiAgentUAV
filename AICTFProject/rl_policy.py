@@ -11,21 +11,32 @@ from macro_actions import MacroAction
 
 class ActorCriticNet(nn.Module):
     """
-    Actor-Critic network for the 44-D macro-action observation.
+    Actor-Critic network for the 7-channel 20x20 CNN observation.
+
+    Input to forward()/act():
+        obs: [B, 7, 20, 20] or [7, 20, 20]
+
+    Output:
+        - Policy logits over macro-actions (MacroAction)
+        - State-value estimate V(s)
     """
+
     def __init__(
         self,
-        input_dim: int = 44, # full observation dimension
+        # NOTE: input_dim & hidden_dim kept for backward compatibility,
+        # but are not used now that we have a CNN encoder.
+        input_dim: int = 44,  # ignored, legacy
         n_actions: int = len(MacroAction),
-        hidden_dim: int = 128,
+        hidden_dim: int = 128,  # ignored, legacy
         latent_dim: int = 128,
     ):
         super().__init__()
 
-        # Shared encoder MLP
+        # Shared encoder: CNN over 7x20x20 → latent_dim
         self.encoder = ObsEncoder(
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
+            in_channels=7,
+            height=20,
+            width=20,
             latent_dim=latent_dim,
         )
 
@@ -44,9 +55,16 @@ class ActorCriticNet(nn.Module):
         nn.init.constant_(self.critic.bias, 0.0)
 
     def forward(self, obs: torch.Tensor):
-        latent = self.encoder(obs)           # [B, latent_dim]
-        logits = self.actor(latent)          # [B, n_actions]
-        value = self.critic(latent).squeeze(-1)  # [B]
+        """
+        obs: [B, 7, 20, 20] or [7, 20, 20]
+        returns:
+            logits: [B, n_actions]
+            value : [B]
+        """
+        # ObsEncoder handles 3D vs 4D
+        latent = self.encoder(obs)                # [B, latent_dim]
+        logits = self.actor(latent)               # [B, n_actions]
+        value = self.critic(latent).squeeze(-1)   # [B]
         return logits, value
 
     @torch.no_grad()
@@ -84,9 +102,18 @@ class ActorCriticNet(nn.Module):
         return mask
 
     @torch.no_grad()
-    def act(self, obs: torch.Tensor, agent=None, game_field=None, deterministic: bool = False, ) -> Dict[str, Any]:
-        if obs.dim() == 1:
-            obs = obs.unsqueeze(0)
+    def act(
+        self,
+        obs: torch.Tensor,
+        agent=None,
+        game_field=None,
+        deterministic: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        obs: [7, 20, 20] or [B, 7, 20, 20]
+        """
+        if obs.dim() == 3:
+            obs = obs.unsqueeze(0)  # [1, 7, 20, 20]
 
         logits, value = self.forward(obs)
 
@@ -106,13 +133,24 @@ class ActorCriticNet(nn.Module):
         log_prob = dist.log_prob(action)
 
         return {
-            "action": action,
-            "log_prob": log_prob,
-            "value": value,
+            "action": action,       # [B]
+            "log_prob": log_prob,  # [B]
+            "value": value,        # [B]
             "mask": mask,
         }
 
-    def evaluate_actions( self, obs: torch.Tensor, actions: torch.Tensor,):
+    def evaluate_actions(
+        self,
+        obs: torch.Tensor,
+        actions: torch.Tensor,
+    ):
+        """
+        obs: [B, 7, 20, 20]
+        actions: [B] (MacroAction indices)
+        """
+        if obs.dim() == 3:
+            obs = obs.unsqueeze(0)
+
         logits, values = self.forward(obs)
         dist = Categorical(logits=logits)
         log_probs = dist.log_prob(actions)
