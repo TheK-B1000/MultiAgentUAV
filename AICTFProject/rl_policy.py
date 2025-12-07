@@ -19,15 +19,22 @@ class ActorCriticNet(nn.Module):
     Output:
         - Policy logits over macro-actions (MacroAction)
         - State-value estimate V(s)
+
+    MacroAction (paper-style, 5 actions):
+        0: GO_TO
+        1: GRAB_MINE
+        2: GET_FLAG
+        3: PLACE_MINE
+        4: GO_HOME
     """
 
     def __init__(
         self,
         # NOTE: input_dim & hidden_dim kept for backward compatibility,
         # but are not used now that we have a CNN encoder.
-        input_dim: int = 44,  # ignored, legacy
+        input_dim: int = 44,          # ignored, legacy
         n_actions: int = len(MacroAction),
-        hidden_dim: int = 128,  # ignored, legacy
+        hidden_dim: int = 128,        # ignored, legacy
         latent_dim: int = 128,
     ):
         super().__init__()
@@ -67,8 +74,20 @@ class ActorCriticNet(nn.Module):
         value = self.critic(latent).squeeze(-1)   # [B]
         return logits, value
 
+    # ------------------------------------------------------------------
+    # Action masking for the 5 macro-actions
+    # ------------------------------------------------------------------
     @torch.no_grad()
     def get_action_mask(self, agent, game_field) -> torch.Tensor:
+        """
+        Returns a boolean mask over actions, where True = allowed.
+
+        0: GO_TO       (always allowed)
+        1: GRAB_MINE   (only if a friendly pickup is nearby)
+        2: GET_FLAG    (always allowed)
+        3: PLACE_MINE  (only if we have mine_charges > 0)
+        4: GO_HOME     (always allowed)
+        """
         n = len(MacroAction)
         device = next(self.parameters()).device
         mask = torch.ones(n, dtype=torch.bool, device=device)
@@ -86,19 +105,7 @@ class ActorCriticNet(nn.Module):
         if not has_friendly_pickup:
             mask[MacroAction.GRAB_MINE.value] = False
 
-        # Optional: never DEFEND_ZONE when carrying the flag
-        if agent.isCarryingFlag():
-            mask[MacroAction.DEFEND_ZONE.value] = False
-
-        # Block INTERCEPT / SUPPRESS if no enemy carrier
-        enemy_has_flag = (
-            (agent.side == "blue" and game_field.manager.red_flag_taken) or
-            (agent.side == "red"  and game_field.manager.blue_flag_taken)
-        )
-        if not enemy_has_flag:
-            mask[MacroAction.INTERCEPT_CARRIER.value] = False
-            mask[MacroAction.SUPPRESS_CARRIER.value] = False
-
+        # GO_TO, GET_FLAG, GO_HOME are always allowed
         return mask
 
     @torch.no_grad()
