@@ -454,7 +454,12 @@ class GameField:
             random.randint(0, self.row_count - 1),
         )
 
-    def apply_macro_action( self, agent: Agent, action: MacroAction, param: Optional[Any] = None ) -> None:
+    def apply_macro_action(
+            self,
+            agent: Agent,
+            action: MacroAction,
+            param: Optional[Any] = None
+    ) -> None:
         if not agent.isEnabled():
             return
 
@@ -471,7 +476,7 @@ class GameField:
             if isinstance(param, (tuple, list)) and len(param) == 2:
                 return int(param[0]), int(param[1])
 
-            # Treat anything else numeric-like as an index
+            # Treat anything else numeric-like as an index into macro_targets
             try:
                 idx = int(param)
             except (TypeError, ValueError):
@@ -480,9 +485,9 @@ class GameField:
             return self.get_macro_target(idx)
 
         def safe_set_path(
-            target: Tuple[int, int],
-            avoid_enemies: bool = False,
-            radius: int = 1,
+                target: Tuple[int, int],
+                avoid_enemies: bool = False,
+                radius: int = 1,
         ):
             # Inflate dynamic obstacles near enemies if avoid_enemies=True
             original_blocked = set(self.pathfinder.blocked)
@@ -504,7 +509,9 @@ class GameField:
                 path = self.pathfinder.astar(start, fallback) or []
             agent.setPath(path)
 
-        # Core actions
+        # ------------------------------------------------------------------
+        # 5 paper-style macro actions
+        # ------------------------------------------------------------------
         if action == MacroAction.GO_TO:
             # Default: random point in enemy half
             default_target = self.random_point_in_enemy_half(side)
@@ -520,6 +527,7 @@ class GameField:
                 )
                 safe_set_path((nearest.x, nearest.y))
             else:
+                # If no pickups, wander in own half
                 safe_set_path(self.random_point_in_own_half(side))
 
         elif action == MacroAction.GET_FLAG:
@@ -558,43 +566,6 @@ class GameField:
         elif action == MacroAction.GO_HOME:
             home = gm.get_team_zone_center(side)
             safe_set_path(home, avoid_enemies=True, radius=2)
-
-        # OP3 extras: intercept / suppress / defend
-        elif action == MacroAction.INTERCEPT_CARRIER:
-            if (side == "red" and gm.blue_flag_taken) or (
-                side == "blue" and gm.red_flag_taken
-            ):
-                enemy_team = self.blue_agents if side == "red" else self.red_agents
-                carrier = next(
-                    (a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()),
-                    None,
-                )
-                if carrier:
-                    safe_set_path(
-                        (carrier.x, carrier.y), avoid_enemies=agent.isCarryingFlag()
-                    )
-                    return
-            ex, ey = gm.get_enemy_flag_position(side)
-            safe_set_path((ex, ey))
-
-        elif action == MacroAction.SUPPRESS_CARRIER:
-            if (side == "red" and gm.blue_flag_taken) or (
-                side == "blue" and gm.red_flag_taken
-            ):
-                enemy_team = self.blue_agents if side == "red" else self.red_agents
-                carrier = next(
-                    (a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()),
-                    None,
-                )
-                if carrier:
-                    safe_set_path((carrier.x, carrier.y), avoid_enemies=False)
-                    return
-            ex, ey = gm.get_enemy_flag_position(side)
-            safe_set_path((ex, ey))
-
-        elif action == MacroAction.DEFEND_ZONE:
-            # Simple mid-line defense
-            safe_set_path((self.col_count // 2, agent.y))
 
     # Policy-driven decision
     def decide(self, agent: Agent) -> None:
