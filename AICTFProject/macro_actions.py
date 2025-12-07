@@ -6,6 +6,3 @@ class MacroAction(IntEnum):
     GET_FLAG = 2
     PLACE_MINE = 3
     GO_HOME = 4
-    INTERCEPT_CARRIER = 5
-    SUPPRESS_CARRIER = 6
-    DEFEND_ZONE = 7
