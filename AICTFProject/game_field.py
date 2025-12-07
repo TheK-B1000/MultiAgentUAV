@@ -294,11 +294,6 @@ class GameField:
             self.announce(winner_text, color, 3.0)
             return
 
-        # ---------- small per-step time penalty for BLUE ----------
-        for agent in self.blue_agents:
-            if agent.isEnabled():
-                self.manager.add_reward_event(-0.001, agent_id=agent.unique_id)
-
         # 1) Always tick ALL agents (disabled ones respawn)
         for agent in self.blue_agents + self.red_agents:
             agent.update(delta_time)
