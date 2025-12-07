@@ -16,6 +16,8 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
+
+# FULLY DETERMINISTIC SEEDING
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -24,13 +26,14 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-# CONFIG
-GRID_ROWS = 30
+
+# BASIC CONFIG (PAPER-STYLE)
+GRID_ROWS = 30          # matches 30x40 grid we’ve been using
 GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# PPO hyperparameters
+# PPO hyperparameters (paper-style)
 TOTAL_STEPS = 3_000_000
 UPDATE_EVERY = 2_048
 PPO_EPOCHS = 10
@@ -41,23 +44,27 @@ CLIP_EPS = 0.2
 VALUE_COEF = 1.0
 MAX_GRAD_NORM = 0.5
 
-# Event-driven RL discounting
+# Event-driven RL discounting (continuous in time)
 GAMMA = 0.995
 GAE_LAMBDA = 0.99
 
-# Simulation timing
-DECISION_WINDOW = 0.7
-SIM_DT = 0.1
+# Simulation timing (matches env’s decision interval)
+DECISION_WINDOW = 0.7   # seconds between macro-decisions
+SIM_DT = 0.1            # physics step size
 
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
+# Cooperation HUD / diagnostics
 COOP_HUD_EVERY = 50
 COOP_WINDOW = 50
+
 NUM_ACTIONS = len(MacroAction)
 ACTION_NAMES = [ma.name for ma in sorted(MacroAction, key=lambda m: m.value)]
 
-
+# =========================
+# CURRICULUM (OP1 → OP2 → OP3)
+# =========================
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
@@ -74,12 +81,14 @@ TARGET_PHASE_WINRATE = {
 
 PHASE_WINRATE_WINDOW = 50
 
+# Phase-specific entropy floors
 ENT_COEF_BY_PHASE = {
     "OP1": 0.03,
     "OP2": 0.025,
     "OP3": 0.02,
 }
 
+# Episode length / timing per phase
 PHASE_CONFIG = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
     "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=450),
@@ -88,6 +97,7 @@ PHASE_CONFIG = {
 
 
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
+    """Set the scripted red opponent (OP1/OP2/OP3) for the current phase."""
     if phase == "OP1":
         env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
@@ -99,9 +109,13 @@ def set_red_policy_for_phase(env: GameField, phase: str) -> None:
 
 
 def make_env() -> GameField:
+    """Create the 30x40 paper-style grid environment."""
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
+
+    # Use scripted OPx policies internally for RED
     env.use_internal_policies = True
+
     # BLUE is controlled externally by PPO (we call apply_macro_action)
     env.set_external_control("blue", True)
     # RED is controlled by scripted OPx policies
@@ -109,7 +123,14 @@ def make_env() -> GameField:
     return env
 
 
+# ROLLOUT BUFFER (CNN OBS)
 class RolloutBuffer:
+    """
+    Stores transitions with event-driven dt for GAE.
+
+    obs:  [C,H,W] = [7,20,20] per step, stacked to [T,7,20,20]
+    """
+
     def __init__(self):
         self.obs = []
         self.actions = []
@@ -120,6 +141,7 @@ class RolloutBuffer:
         self.dts = []
 
     def add(self, obs, action, log_prob, value, reward, done, dt):
+        # obs is 7x20x20 list; convert to np array and keep channels-first
         self.obs.append(np.array(obs, dtype=np.float32))
         self.actions.append(int(action))
         self.log_probs.append(float(log_prob))
@@ -135,6 +157,12 @@ class RolloutBuffer:
         self.__init__()
 
     def to_tensors(self, device):
+        """
+        Returns:
+            obs:      [T, 7, 20, 20]
+            actions:  [T]
+            log_probs, values, rewards, dones, dts: [T]
+        """
         obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)
         actions = torch.tensor(self.actions, dtype=torch.long, device=device)
         log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
@@ -144,7 +172,15 @@ class RolloutBuffer:
         dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
         return obs, actions, log_probs, values, rewards, dones, dts
 
+
+# EVENT-DRIVEN GAE
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
+    """
+    Time-aware GAE:
+        delta_t = dts[t]
+        gamma_dt = gamma ** delta_t
+        (gamma*lambda)^dt for the trace.
+    """
     T = rewards.size(0)
     advantages = torch.zeros(T, device=rewards.device)
     next_adv = 0.0
@@ -162,8 +198,11 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     returns = advantages + values
     return advantages, returns
 
+
+# PPO UPDATE
 def ppo_update(policy, optimizer, buffer, device, ent_coef):
     obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
+
     advantages, returns = compute_gae_event(rewards, values, dones, dts)
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
@@ -196,14 +235,25 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 
     buffer.clear()
 
-def collect_blue_rewards_for_step(gm: GameManager, blue_agents, mix_alpha: float = 0.0, cur_phase: str = "OP1", ):
+
+# REWARD COLLECTION (BLUE)
+def collect_blue_rewards_for_step(
+    gm: GameManager,
+    blue_agents,
+    mix_alpha: float = 0.0,
+    cur_phase: str = "OP1",
+):
+    """
+    Collect per-agent rewards for BLUE from GameManager.
+    mix_alpha kept for compatibility; we use pure per-agent + shared team reward.
+    """
     raw = gm.get_step_rewards()
 
     indiv_rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
     if not indiv_rewards_by_id:
         return indiv_rewards_by_id
 
-    # team reward under key None (if your GM uses that)
+    # team reward under key None (if GM uses that)
     team_r = raw.get(None, 0.0)
     if abs(team_r) > 0.0:
         share = team_r / len(indiv_rewards_by_id)
@@ -219,7 +269,11 @@ def collect_blue_rewards_for_step(gm: GameManager, blue_agents, mix_alpha: float
 
     return indiv_rewards_by_id
 
+
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
+    """
+    Slowly anneal entropy from a higher starting value down to the per-phase base.
+    """
     base = ENT_COEF_BY_PHASE[cur_phase]
 
     if cur_phase == "OP1":
@@ -232,22 +286,30 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) 
     frac = min(1.0, phase_episode_count / horizon)
     return float(start_ent - (start_ent - base) * frac)
 
+
+# MAIN TRAIN LOOP
 def train_ppo_event(total_steps=TOTAL_STEPS):
     set_seed(42)
 
     env = make_env()
     gm = env.getGameManager()
 
+    # Build a dummy observation to sanity-check CNN shape
     env.reset_default()
     if env.blue_agents:
-        dummy_obs = env.build_observation(env.blue_agents[0])
+        dummy_obs = env.build_observation(env.blue_agents[0])  # [7,20,20]
+        c = len(dummy_obs)
+        h = len(dummy_obs[0])
+        w = len(dummy_obs[0][0])
+        print(f"[train_ppo_event] Sample obs shape: C={c}, H={h}, W={w}")
     else:
-        dummy_obs = [0.0] * 42
+        dummy_obs = None
+        print("[train_ppo_event] WARNING: No blue agents in env.reset_default().")
 
-    obs_dim = len(dummy_obs)
     n_actions = len(MacroAction)
 
-    policy = ActorCriticNet(input_dim=obs_dim, n_actions=n_actions).to(DEVICE)
+    # ActorCriticNet now uses CNN encoder internally; input_dim is ignored.
+    policy = ActorCriticNet(n_actions=n_actions).to(DEVICE)
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
 
@@ -276,18 +338,20 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         max_steps = phase_cfg["max_macro_steps"]
         gm.set_phase(cur_phase)
 
+        # Scripted red opponent for this phase
         set_red_policy_for_phase(env, cur_phase)
         opponent_tag = cur_phase
 
+        # Reset environment & scores
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
-        # Reset OP3 per-episode state
+        # Reset OP3 per-episode state if present
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
             red_pol.reset()
 
-        # make sure per-episode stats are clean
+        # Clear per-episode mine stats
         gm.blue_mine_kills_this_episode = 0
         gm.red_mine_kills_this_episode = 0
         gm.mines_triggered_by_red_this_episode = 0
@@ -298,6 +362,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
         ENT_COEF = get_entropy_coef(cur_phase, phase_episode_count, phase_wr)
 
+        # Diagnostics per episode
         ep_macro_counts = {0: [0] * NUM_ACTIONS, 1: [0] * NUM_ACTIONS}
         ep_mine_attempts = {0: 0, 1: 0}
         ep_combat_events = 0
@@ -309,10 +374,11 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             decisions = []
 
-            # === Blue macro decisions ===
+            # === 1) BLUE macro decisions (PPO) ===
             for agent in blue_agents:
-                obs = env.build_observation(agent)
+                obs = env.build_observation(agent)  # 7x20x20 nested list
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
+
                 out = policy.act(
                     obs_tensor,
                     agent=agent,
@@ -343,13 +409,14 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                         ex, ey = gm.blue_flag_position
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
 
+                # Apply macro-action into the environment
                 env.apply_macro_action(agent, MacroAction(a))
 
                 decisions.append(
                     (agent, obs, a, logp, val, prev_flag_dist, ex, ey)
                 )
 
-            # simulate until next decision window
+            # === 2) Simulate until next decision window ===
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
@@ -358,17 +425,17 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             dt = sim_t
             done = gm.game_over
 
-            # collect rewards from environment
+            # === 3) Collect rewards from environment ===
             rewards = collect_blue_rewards_for_step(
                 gm, blue_agents, mix_alpha=0.0, cur_phase=cur_phase
             )
 
-            # === SMALL TIME PENALTY ===
+            # Small per-step time penalty for all blue agents
             for agent in env.blue_agents:
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
-            # No extra shaping
+            # Track mine placements per UID
             for agent, _, act, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
                 if MacroAction(act) == MacroAction.PLACE_MINE:
@@ -384,7 +451,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             if total_team_reward > 0.0 and blue_score_delta == 0:
                 ep_combat_events += 1
 
-            # add to buffer
+            # === 4) Add transitions to PPO buffer ===
             step_reward_sum = 0.0
             for agent, obs, act, logp, val, _, _, _ in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
@@ -395,7 +462,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             ep_return += step_reward_sum
             steps += 1
 
-            # PPO update
+            # === 5) PPO update if buffer is full ===
             if buffer.size() >= UPDATE_EVERY:
                 print(
                     f"[UPDATE] step={global_step} episode={episode_idx} "
@@ -403,7 +470,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 )
                 ppo_update(policy, optimizer, buffer, DEVICE, ENT_COEF)
 
-        # ------------- Episode end: result + stats -------------
+        # Episode end: result + stats
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
@@ -432,7 +499,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
-        # Cooperation HUD
+        # ==============================
+        # COOPERATION HUD (diagnostics)
+        # ==============================
         miner0_runner1 = ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
         miner1_runner0 = ep_score_events > 0 and ep_mine_attempts[1] > 0 and ep_mine_attempts[0] == 0
         both_mine_and_score = (
@@ -530,9 +599,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
             print("   =====================================================")
 
-        # ---------------------------
-        # Curriculum advance
-        # ---------------------------
+        # CURRICULUM ADVANCE
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
@@ -546,10 +613,11 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 phase_episode_count = 0
                 phase_recent.clear()
 
-    # BEST TRAINED BLUE AGENT
+    # SAVE FINAL MODEL
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"\nTraining complete. Final model saved to: {final_path}")
+
 
 if __name__ == "__main__":
     train_ppo_event()
