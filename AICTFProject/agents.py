@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Any
 from collections import deque
 
-# Radius used elsewhere (e.g., "team zone" checks)
+# Radius used elsewhere (e.g., "team zone" checks and flag drawing)
 TEAM_ZONE_RADIUS_CELLS = 3
 
 # Diagonal movement cost (for grid movement with 8 directions)
@@ -16,7 +16,7 @@ Cell = Tuple[int, int]
 
 @dataclass
 class Agent:
-    # --- Core spatial data ---
+    # --- Core spatial data (grid coordinates) ---
     x: int
     y: int
     side: str           # "blue" or "red"
@@ -29,7 +29,7 @@ class Agent:
     agent_id: int = 0   # 0 or 1 within team
 
     # --- Movement along a path ---
-    # "cells per second" – macro actions or GameField set the path; Agent just walks it.
+    # "cells per second" – GameField sets the path; Agent just walks it.
     move_rate_cps: float = 2.2
     path: deque[Cell] = field(default_factory=deque)
     move_accum: float = 0.0
@@ -51,7 +51,7 @@ class Agent:
     spawn_xy: Cell = (0, 0)
     waypoint: Optional[Cell] = None  # final target of current path
 
-    # One-step event flags – should be consumed by higher-level logic
+    # One-step event flags – can be consumed by higher-level logic
     _just_picked_up_flag: bool = False
     _just_scored: bool = False
     _just_tagged_enemy: bool = False
@@ -71,11 +71,13 @@ class Agent:
         # Unique identifier used by GameManager reward_events.
         self.unique_id = f"{self.side}_{self.agent_id}"
 
+        # Per-episode decision counter used by GameField.build_observation
+        self.decision_count: int = 0
+
         # Ensure event flags are clean
         self._just_picked_up_flag = False
         self._just_scored = False
         self._just_tagged_enemy = False
-        self.decision_count: int = 0
 
         # Track whether we were just disabled this episode
         self.was_just_disabled: bool = False
@@ -90,6 +92,9 @@ class Agent:
 
     @property
     def float_pos(self) -> Tuple[float, float]:
+        """
+        Continuous position used by GameManager and reward logic.
+        """
         return self._float_x, self._float_y
 
     def get_position(self) -> Cell:
@@ -114,11 +119,6 @@ class Agent:
 
     # Flag handling + event flags
     def setCarryingFlag(self, value: bool) -> None:
-        """
-        Update local flag-carrying state and set one-step event flags.
-        NOTE: GameManager owns the canonical flag carrier state; this
-        is just for the agent's local / RL observation layer.
-        """
         if not self.is_carrying_flag and value:
             # Just picked up the flag
             self._just_picked_up_flag = True
@@ -166,14 +166,14 @@ class Agent:
     def disable_for_seconds(self, seconds: float) -> None:
         """
         Disable/tag this agent for a given duration.
+
         IMPORTANT:
-        - Calls GameManager.handle_agent_death(self) so the flag is
-          dropped at the death position and does NOT follow on respawn.
-        - Clears movement and local carrying state.
+          - Calls GameManager.handle_agent_death(self) so the flag is
+            dropped at the death position and does NOT follow on respawn.
+          - Clears movement and local carrying state.
         """
         if self.enabled:
             self.was_just_disabled = True
-            self._just_tagged_enemy = True
             self.enabled = False
             self.tag_cooldown = max(self.tag_cooldown, seconds)
 
