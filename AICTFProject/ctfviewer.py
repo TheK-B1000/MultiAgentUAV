@@ -1,148 +1,181 @@
 import sys
 import pygame as pg
 import torch
-from typing import Optional, Tuple, Any, List
+import numpy as np
+from typing import Optional, Tuple, Any
 
 from game_field import GameField
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP3RedPolicy
 
+# Match the final checkpoint from train_ppo_event.py
+DEFAULT_MODEL_PATH = "checkpoints/ctf_fixed_blue_op3.pth"
+
 
 class LearnedPolicy:
-    def __init__(self, model_path: Optional[str] = None):
-        self.device = torch.device("cpu")
+    """
+    Wraps the trained CNN+extra dual-head ActorCriticNet so GameField can use it
+    like any other Policy: policy(agent, game_field) -> (macro_idx, target_idx).
+    """
 
-        # Architecture must match the trainer: ActorCriticNet() with default args
-        self.net = ActorCriticNet().to(self.device)
+    def __init__(self, model_path: Optional[str] = None):
+        self.device = torch.device("cpu")  # viewer is fine on CPU
+
+        # Must match training config: 7xHxW + extra_dim
+        self.net = ActorCriticNet(
+            n_macros=len(MacroAction),
+            n_targets=50,
+            height=30,    # matches GRID_ROWS used in training
+            width=40,     # matches GRID_COLS used in training
+            latent_dim=128,
+            extra_dim=7,  # whatever extra_dim you used in training
+        ).to(self.device)
 
         self.model_loaded = False
-
-        # Default to the final model from train_ppo_event.py
-        if model_path is None:
-            model_path = "checkpoints/ctf_fixed_blue_op3.pth"
+        path = model_path if model_path else DEFAULT_MODEL_PATH
 
         try:
-            state = torch.load(model_path, map_location=self.device)
+            state = torch.load(path, map_location=self.device)
             # Support {'model': state_dict} or plain state_dict
             if isinstance(state, dict) and "model" in state:
                 state_dict = state["model"]
             else:
                 state_dict = state
+
             self.net.load_state_dict(state_dict)
-            print(f"[CTFViewer] Loaded model from {model_path}")
+            print(f"[LearnedPolicy] Loaded model from {path}")
             self.model_loaded = True
         except Exception as e:
-            print(f"[CTFViewer] Failed to load model '{model_path}': {e}")
+            print(f"[LearnedPolicy] Failed to load model '{path}': {e}")
             self.model_loaded = False
 
         self.net.eval()
 
-    def __call__(self, agent, game_field) -> int:
-        obs = game_field.build_observation(agent)
-        action_id, _ = self.select_action(obs, agent, game_field)
-        return int(action_id)
+    # GameField calls policy(agent, game_field) -> (action_id, param)
+    def __call__(self, agent, game_field) -> Tuple[int, Any]:
+        # CNN-style observation: 7xHxW map + extra vector
+        cnn_obs, extra_vec = game_field.build_cnn_observation(agent)
+        return self.select_action(cnn_obs, extra_vec, agent, game_field)
 
     def select_action(
         self,
-        obs: List[float],
+        cnn_obs: np.ndarray,
+        extra_vec: np.ndarray,
         agent,
         game_field,
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
+    ) -> Tuple[int, Any]:
+
+        # Fallback if no model
         if not self.model_loaded:
             return int(MacroAction.GO_TO), None
 
         with torch.no_grad():
-            obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
-            if obs_tensor.dim() == 1:
-                obs_tensor = obs_tensor.unsqueeze(0)  # [1, input_dim]
+            # cnn_obs: [C, H, W] → [1, C, H, W]
+            obs_tensor = torch.tensor(
+                cnn_obs, dtype=torch.float32, device=self.device
+            )
+            if obs_tensor.dim() == 3:
+                obs_tensor = obs_tensor.unsqueeze(0)
+
+            # extra_vec: [extra_dim] → [1, extra_dim]
+            extra_tensor = torch.tensor(
+                extra_vec, dtype=torch.float32, device=self.device
+            )
+            if extra_tensor.dim() == 1:
+                extra_tensor = extra_tensor.unsqueeze(0)
 
             out = self.net.act(
                 obs_tensor,
+                extra=extra_tensor,
                 agent=agent,
                 game_field=game_field,
-                deterministic=True,
+                deterministic=True,  # deterministic for viewer/demo
             )
-            action = out["action"]
-            if isinstance(action, torch.Tensor):
-                action = int(action[0].item())
 
-            return action, None
+            macro_action = out["macro_action"]
+            if isinstance(macro_action, torch.Tensor):
+                macro_action = int(macro_action[0].item())
+
+            target_action = out["target_action"]
+            if isinstance(target_action, torch.Tensor):
+                target_action = int(target_action[0].item())
+
+            # macro is the MacroAction index, target is the macro_target index
+            return macro_action, target_action
 
 
 class CTFViewer:
     def __init__(self):
-        rows, cols = 30, 40
+        rows, cols = 20, 20
         grid = [[0] * cols for _ in range(rows)]
         self.game_field = GameField(grid)
         self.game_manager = self.game_field.getGameManager()
 
         # ------------- Pygame setup -------------
         pg.init()
-        self.size = (1024, 720)
+        self.size = (1024, 768)
         self.screen = pg.display.set_mode(self.size)
-        pg.display.set_caption("UAV CTF – Trained Agent vs OP3 Baseline")
+        pg.display.set_caption("UAV CTF – Learned CNN Agent vs OP3")
         self.clock = pg.time.Clock()
-        self.font = pg.font.SysFont(None, 26)
+        self.font = pg.font.SysFont("Consolas", 18)
         self.bigfont = pg.font.SysFont(None, 48)
 
         self.input_active = False
         self.input_text = ""
 
-        # ----- (Optional) print detected obs_dim just for sanity -----
+        # ---- Sanity Check Obs Dim (CNN) ----
         if self.game_field.blue_agents:
-            dummy_obs = self.game_field.build_observation(self.game_field.blue_agents[0])
-        else:
-            dummy_obs = [0.0] * 42
-        obs_dim = len(dummy_obs)
-        print(f"[CTFViewer] Detected obs_dim={obs_dim}")
+            cnn_obs, extra_vec = self.game_field.build_observation(
+                self.game_field.blue_agents[0]
+            )
+            print(
+                f"[CTFViewer] CNN obs shape: {cnn_obs.shape}, extra_dim={extra_vec.shape[0]}"
+            )
 
-        # ---- OP3 baseline for BOTH sides ----
-        if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-            # Red = OP3 baseline
+        # ---- Setup Policies ----
+        # 1. Red is always OP3 (Baseline)
+        if hasattr(self.game_field, "policies") and isinstance(
+            self.game_field.policies, dict
+        ):
             self.game_field.policies["red"] = OP3RedPolicy("red")
 
-        # Blue baseline: OP3-style policy with side="blue"
+        # 2. Blue can be OP3 or Learned
         self.blue_op3_baseline = OP3RedPolicy("blue")
-        if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-            self.game_field.policies["blue"] = self.blue_op3_baseline
-
-        # RL policy for BLUE
         self.blue_learned_policy: Optional[LearnedPolicy] = None
-        self.use_learned_blue: bool = False  # start with baseline OP3
+        self.use_learned_blue: bool = False
 
-        try:
-            self.blue_learned_policy = LearnedPolicy(
-                model_path="checkpoints/ctf_fixed_blue_op3.pth"
-            )
-            if self.blue_learned_policy.model_loaded:
-                # Initially let RL control Blue
-                if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-                    self.game_field.policies["blue"] = self.blue_learned_policy
-                self.use_learned_blue = True
-                print("[CTFViewer] Blue team using LEARNED policy (ctf_fixed_blue_op3.pth)")
-            else:
-                # No valid model: fall back to OP3 baseline for BLUE
-                if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-                    self.game_field.policies["blue"] = self.blue_op3_baseline
-                self.use_learned_blue = False
-                print("[CTFViewer] No valid model → Blue using OP3 baseline")
-        except Exception as e:
-            print(f"[CTFViewer] RL setup failed: {e}")
-            if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-                self.game_field.policies["blue"] = self.blue_op3_baseline
-            self.use_learned_blue = False
-            print("[CTFViewer] Blue using OP3 baseline")
+        # Try loading learned model
+        self.blue_learned_policy = LearnedPolicy(model_path=DEFAULT_MODEL_PATH)
 
-        # Ensure any OP3 policies start fresh
+        if self.blue_learned_policy.model_loaded:
+            self._set_blue_policy(use_learned=True)
+            print("[CTFViewer] Default: Blue using LEARNED CNN policy")
+        else:
+            self._set_blue_policy(use_learned=False)
+            print("[CTFViewer] Default: Blue using OP3 Baseline")
+
         self._reset_op3_policies()
 
-    # Utility: reset OP3 policy internal episode state
+    def _set_blue_policy(self, use_learned: bool):
+        self.use_learned_blue = use_learned
+        target_policy = (
+            self.blue_learned_policy if use_learned else self.blue_op3_baseline
+        )
+
+        if hasattr(self.game_field, "policies") and isinstance(
+            self.game_field.policies, dict
+        ):
+            self.game_field.policies["blue"] = target_policy
+
     def _reset_op3_policies(self):
-        if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
+        # Reset internal state of scripted policies
+        if hasattr(self.game_field, "policies") and isinstance(
+            self.game_field.policies, dict
+        ):
             for side in ("blue", "red"):
                 pol = self.game_field.policies.get(side)
-                if isinstance(pol, OP3RedPolicy) and hasattr(pol, "reset"):
+                if hasattr(pol, "reset"):
                     pol.reset()
 
     # Main loop
@@ -172,35 +205,42 @@ class CTFViewer:
     def handle_main_key(self, event):
         k = event.key
         if k == pg.K_F1:
+            # Reset
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.reset_default()
             self._reset_op3_policies()
+
         elif k == pg.K_F2:
+            # Change agent count
             self.input_active = True
             self.input_text = ""
+
         elif k == pg.K_F3:
+            # Swap zones
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.runTestCase3()
             self._reset_op3_policies()
+
         elif k == pg.K_r:
+            # Quick soft reset
             self.game_field.reset_default()
             self._reset_op3_policies()
+
         elif k == pg.K_F4:
-            # Toggle between OP3 baseline and learned policy for BLUE
+            # Toggle Blue Policy
             if not self.blue_learned_policy or not self.blue_learned_policy.model_loaded:
-                print("[CTFViewer] No learned model available! Staying on OP3 baseline.")
+                print("[CTFViewer] Cannot toggle: Model not loaded.")
                 return
 
-            self.use_learned_blue = not self.use_learned_blue
-            if self.use_learned_blue:
-                if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-                    self.game_field.policies["blue"] = self.blue_learned_policy
-                print("[CTFViewer] Blue → LEARNED policy")
-            else:
-                if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
-                    self.game_field.policies["blue"] = self.blue_op3_baseline
+            new_state = not self.use_learned_blue
+            self._set_blue_policy(new_state)
+            if not new_state:
                 self._reset_op3_policies()
-                print("[CTFViewer] Blue → OP3 baseline")
+            print(
+                f"[CTFViewer] Blue Policy switched to: "
+                f"{'LEARNED' if new_state else 'OP3'}"
+            )
+
         elif k == pg.K_F5:
             self.game_field.debug_draw_ranges = not self.game_field.debug_draw_ranges
         elif k == pg.K_F6:
@@ -211,7 +251,7 @@ class CTFViewer:
     def handle_input_key(self, event):
         if event.key == pg.K_RETURN:
             try:
-                n = int(self.input_text or "8")
+                n = int(self.input_text or "2")
                 n = max(1, min(100, n))
                 self.game_manager.reset_game(reset_scores=True)
                 self.game_field.runTestCase2(n, self.game_manager)
@@ -229,58 +269,65 @@ class CTFViewer:
 
     # Drawing / HUD
     def draw(self):
-        self.screen.fill((12, 12, 18))
+        self.screen.fill((20, 24, 32))
 
-        hud_h = 100  # Increased HUD height to fit two rows
-        field_rect = pg.Rect(20, hud_h + 10, self.size[0] - 40, self.size[1] - hud_h - 30)
+        hud_h = 100
+        field_rect = pg.Rect(
+            20, hud_h + 20, self.size[0] - 40, self.size[1] - hud_h - 40
+        )
         self.game_field.draw(self.screen, field_rect)
 
-        def txt(text, x, y, color=(230, 230, 240)):
-            img = self.font.render(text, True, color)
+        def txt(text, x, y, color=(200, 200, 200), size=None):
+            f = self.font if size is None else self.bigfont
+            img = f.render(text, True, color)
             self.screen.blit(img, (x, y))
 
         gm = self.game_manager
-        policy_name = "RL" if self.use_learned_blue else "OP3 BASELINE"
-        policy_color = (100, 255, 100) if self.use_learned_blue else (255, 255, 100)
 
-        # Top row: menu / help
-        menu_text = (
-            "F1: Reset | F2: Agent Count | F3: SwapZones | F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
+        # Policy Status
+        pol_name = "CNN PPO" if self.use_learned_blue else "OP3 SCRIPT"
+        pol_color = (
+            (80, 255, 80) if self.use_learned_blue else (255, 255, 100)
         )
-        txt(menu_text, 30, 15, (200, 200, 220))
 
-        status_text = f"Blue Policy: {policy_name}"
-        txt(status_text, 30, 45, policy_color)
+        # Header
+        txt(
+            "F1:Reset  F2:Agents  F3:SwapZones  F4:TogglePolicy  F5/F6:Debug",
+            20,
+            15,
+            (150, 160, 180),
+        )
 
-        # Second row: scores & time
-        score_time_y = 78
-        txt(f"BLUE: {gm.blue_score}", 30, score_time_y, (100, 180, 255))
-        txt(f"RED: {gm.red_score}", 200, score_time_y, (255, 100, 100))
-        txt(f"Time: {int(gm.current_time)}s", 380, score_time_y, (220, 220, 255))
+        # Stats Row
+        row_2_y = 50
+        txt(f"BLUE SCORE: {gm.blue_score}", 20, row_2_y, (100, 180, 255))
+        txt(f"RED SCORE:  {gm.red_score}", 200, row_2_y, (255, 100, 100))
+        txt(f"TIME: {int(gm.current_time)}s", 380, row_2_y)
 
-        # Model status
-        if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
-            txt("Model: ctf_fixed_blue_op3.pth",
-                self.size[0] - 360, score_time_y, (100, 220, 100))
+        # Policy Indicator
+        txt(f"Blue Agent: {pol_name}", self.size[0] - 300, row_2_y, pol_color)
 
-        # Input overlay
+        # Input Overlay
         if self.input_active:
             overlay = pg.Surface(self.size, pg.SRCALPHA)
-            overlay.fill((0, 0, 0, 180))
+            overlay.fill((0, 0, 0, 200))
             self.screen.blit(overlay, (0, 0))
 
-            box = pg.Rect(0, 0, 500, 200)
-            box.center = self.screen.get_rect().center
-            pg.draw.rect(self.screen, (40, 40, 80), box, border_radius=12)
-            pg.draw.rect(self.screen, (100, 180, 255), box, width=4, border_radius=12)
+            cx, cy = self.size[0] // 2, self.size[1] // 2
+            box = pg.Rect(0, 0, 400, 180)
+            box.center = (cx, cy)
 
-            title = self.bigfont.render("Enter Agent Count (1-100)", True, (255, 255, 255))
-            entry = self.bigfont.render(self.input_text or "_", True, (120, 220, 255))
-            hint = self.font.render("Press Enter to confirm • Esc to cancel", True, (200, 200, 200))
+            pg.draw.rect(self.screen, (40, 45, 60), box, border_radius=8)
+            pg.draw.rect(self.screen, (80, 90, 120), box, width=2, border_radius=8)
 
-            self.screen.blit(title, title.get_rect(center=(box.centerx, box.centery - 50)))
-            self.screen.blit(entry, entry.get_rect(center=box.center))
-            self.screen.blit(hint, hint.get_rect(center=(box.centerx, box.centery + 60)))
+            txt("Agent Count (1-100):", box.x + 20, box.y + 30, (255, 255, 255))
+            txt(
+                self.input_text + "_",
+                box.x + 20,
+                box.y + 80,
+                (100, 255, 255),
+                size="big",
+            )
 
 
 if __name__ == "__main__":
