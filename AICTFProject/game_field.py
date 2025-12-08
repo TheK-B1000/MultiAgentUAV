@@ -3,6 +3,7 @@ import math
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional, Any
 import pygame as pg
+import numpy as np
 
 from game_manager import GameManager
 from agents import Agent, TEAM_ZONE_RADIUS_CELLS
@@ -294,129 +295,157 @@ class GameField:
                 self.banner_queue.pop()
 
     # Observation builder for RL / policies
-    def build_observation(self, agent: Agent) -> List[float]:
-        side = agent.side
-        game_state = self.manager
-        ax, ay = agent._float_x, agent._float_y
-        cols = max(1, self.col_count)
-        rows = max(1, self.row_count)
+    def build_observation(self, agent: Agent):
+        """
+        Build a paper-style CNN observation:
 
-        # ---------- Flag geometry  ----------
-        enemy_flag_x, enemy_flag_y = game_state.get_enemy_flag_position(side)
-        own_flag_x, own_flag_y = self.manager.get_team_zone_center(side)
+            obs_map: [7, H, W]  float32 in {0,1}
+                ch 0: own UAV
+                ch 1: teammate UAVs
+                ch 2: enemy UAVs
+                ch 3: friendly mines
+                ch 4: enemy mines
+                ch 5: own flag
+                ch 6: enemy flag
 
-        dx_enemy_flag = (enemy_flag_x - ax) / cols
-        dy_enemy_flag = (enemy_flag_y - ay) / rows
-        dx_own_flag = (own_flag_x - ax) / cols
-        dy_own_flag = (own_flag_y - ay) / rows
+            extra_vec: [7] float32
+                [0] payload_none
+                [1] payload_mine
+                [2] payload_flag
+                [3] time_norm in [0,1]
+                [4] decision_norm in [0,1] (0..13 / 13)
+                [5] is_id_0 (one-hot)
+                [6] is_id_1 (one-hot)
 
-        is_carrying_flag = 1.0 if agent.isCarryingFlag() else 0.0
+        Positions are mirrored horizontally for RED so that each side
+        always sees "its" base on the left.
+        """
 
+        side = agent.side  # "blue" or "red"
+        rows, cols = self.row_count, self.col_count
+
+        # We’ll use CNN size == grid size: [7, rows, cols]
+        obs_map = np.zeros((7, rows, cols), dtype=np.float32)
+
+        # ---------- helper: mirror coords for RED ----------
+        def to_local_coords(x: int, y: int) -> Tuple[int, int]:
+            """
+            For BLUE: (x, y) stays as is.
+            For RED:  mirror horizontally so RED also sees its home on the left.
+            """
+            if side == "blue":
+                return x, y
+            else:
+                # mirror horizontally: col i -> cols-1-i
+                return cols - 1 - x, y
+
+        # =============== 0) OWN UAV =================
+        if agent.isEnabled():
+            ax, ay = int(agent.x), int(agent.y)
+            lx, ly = to_local_coords(ax, ay)
+            if 0 <= lx < cols and 0 <= ly < rows:
+                obs_map[0, ly, lx] = 1.0
+
+        # =============== 1) TEAMMATE UAVs ============
+        team_agents = self.blue_agents if side == "blue" else self.red_agents
+        for a in team_agents:
+            if a is agent:
+                continue
+            if not a.isEnabled():
+                continue
+            x, y = int(a.x), int(a.y)
+            lx, ly = to_local_coords(x, y)
+            if 0 <= lx < cols and 0 <= ly < rows:
+                obs_map[1, ly, lx] = 1.0
+
+        # =============== 2) ENEMY UAVs ===============
+        enemy_agents = self.red_agents if side == "blue" else self.blue_agents
+        for e in enemy_agents:
+            if not e.isEnabled():
+                continue
+            x, y = int(e.x), int(e.y)
+            lx, ly = to_local_coords(x, y)
+            if 0 <= lx < cols and 0 <= ly < rows:
+                obs_map[2, ly, lx] = 1.0
+
+        # =============== 3/4) MINES ==================
+        for mine in self.mines:
+            x, y = int(mine.x), int(mine.y)
+            lx, ly = to_local_coords(x, y)
+            if not (0 <= lx < cols and 0 <= ly < rows):
+                continue
+            if mine.owner_side == side:
+                obs_map[3, ly, lx] = 1.0  # friendly mines
+            else:
+                obs_map[4, ly, lx] = 1.0  # enemy mines
+
+        # =============== 5/6) FLAGS ==================
+        # own flag position
         if side == "blue":
-            own_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
-            enemy_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
-        else:  # side == "red"
-            own_flag_taken = 1.0 if game_state.red_flag_taken else 0.0
-            enemy_flag_taken = 1.0 if game_state.blue_flag_taken else 0.0
+            own_flag_pos = self.manager.blue_flag_position
+            enemy_flag_pos = self.manager.red_flag_position
+        else:
+            own_flag_pos = self.manager.red_flag_position
+            enemy_flag_pos = self.manager.blue_flag_position
 
-        side_blue = 1.0 if side == "blue" else 0.0
-        ammo_norm = agent.mine_charges / self.max_mine_charges_per_agent
-        is_miner = 1.0 if getattr(agent, "is_miner", False) else 0.0
+        ofx, ofy = own_flag_pos
+        ofx, ofy = int(ofx), int(ofy)
+        lofx, lofy = to_local_coords(ofx, ofy)
+        if 0 <= lofx < cols and 0 <= lofy < rows:
+            obs_map[5, lofy, lofx] = 1.0
 
-        # Paper: time/20 ∈ {0..10}, we use a [0,1] continuous version.
-        time_norm = self.manager.current_time / max(1e-6, self.manager.max_time)
+        efx, efy = enemy_flag_pos
+        efx, efy = int(efx), int(efy)
+        lefx, lefy = to_local_coords(efx, efy)
+        if 0 <= lefx < cols and 0 <= lefy < rows:
+            obs_map[6, lefy, lefx] = 1.0
 
-        # ---------- decision counter (0..13) normalized ----------
+        # Payload one-hot: none / mine / flag
+        payload_none = 0.0
+        payload_mine = 0.0
+        payload_flag = 0.0
+
+        if agent.isCarryingFlag():
+            payload_flag = 1.0
+        elif getattr(agent, "mine_charges", 0) > 0:
+            payload_mine = 1.0
+        else:
+            payload_none = 1.0
+
+        # Time normalized [0,1]
+        current_t = float(self.manager.current_time)
+        max_t = max(float(self.manager.max_time), 1e-6)
+        time_norm = current_t / max_t
+
+        # Decision counter normalized [0,1] over [0..13]
         if not hasattr(agent, "decision_count"):
             agent.decision_count = 0
-        decision_clamped = min(agent.decision_count, 13)
+        decision_clamped = min(int(agent.decision_count), 13)
         decision_norm = decision_clamped / 13.0
 
-        # ---------- Mine pickup direction ----------
-        my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
-        dx_mine = dy_mine = 0.0
-        if my_pickups:
-            nearest = min(
-                my_pickups,
-                key=lambda p: math.hypot(p.x - ax, p.y - ay),
-            )
-            dx_mine = (nearest.x - ax) / cols
-            dy_mine = (nearest.y - ay) / rows
-
-        # ---------- 5x5 occupancy (values 0..5, later normalized to [0,1]) ----------
-        occupancy = [0.0] * 25
-        radius = 2
-        for dy in range(-radius, radius + 1):
-            for dx in range(-radius, radius + 1):
-                wx = ax + dx
-                wy = ay + dy
-                idx = (dy + radius) * 5 + (dx + radius)
-
-                if not (0 <= wx < self.col_count and 0 <= wy < self.row_count):
-                    occupancy[idx] = 1.0  # wall / out-of-bounds
-                elif self.grid[int(wy)][int(wx)] != 0:
-                    occupancy[idx] = 1.0  # obstacle
-                else:
-                    # Entities
-                    for a in self.blue_agents + self.red_agents:
-                        if a.isEnabled() and math.hypot(a._float_x - wx, a._float_y - wy) < 0.7:
-                            occupancy[idx] = 2.0 if a.side == side else 3.0
-                            break
-                    else:
-                        for m in self.mines:
-                            if math.hypot(m.x - wx, m.y - wy) < 0.7:
-                                occupancy[idx] = 4.0
-                                break
-                        else:
-                            for p in self.mine_pickups:
-                                if (p.owner_side == side and
-                                        math.hypot(p.x - wx, p.y - wy) < 0.7):
-                                    occupancy[idx] = 5.0
-                                    break
-
-        # ---------- NORMALIZE occupancy to [0,1] ----------
-        occupancy = [v / 5.0 for v in occupancy]
-
-        # === Agent ID (0 or 1) one-hot encoding ===
-        agent_id_onehot = [0.0, 0.0]
+        # Agent ID one-hot in team (0 or 1)
+        id0 = 0.0
+        id1 = 0.0
         if hasattr(agent, "agent_id") and agent.agent_id in (0, 1):
-            agent_id_onehot[agent.agent_id] = 1.0
-        else:
-            if "0" in str(agent.unique_id):
-                agent_id_onehot[0] = 1.0
-            if "1" in str(agent.unique_id):
-                agent_id_onehot[1] = 1.0
+            if agent.agent_id == 0:
+                id0 = 1.0
+            else:
+                id1 = 1.0
 
-        # === Teammate info (mines carried, has_flag, distance) ===
-        teammate = None
-        for a in (self.blue_agents if side == "blue" else self.red_agents):
-            if a is not agent and a.isEnabled():
-                teammate = a
-                break
+        extra_vec = np.array(
+            [
+                payload_none,
+                payload_mine,
+                payload_flag,
+                time_norm,
+                decision_norm,
+                id0,
+                id1,
+            ],
+            dtype=np.float32,
+        )
 
-        teammate_mines_norm = (teammate.mine_charges / self.max_mine_charges_per_agent) if teammate else 0.0
-        teammate_has_flag = 1.0 if (teammate and teammate.isCarryingFlag()) else 0.0
-        teammate_dist = math.hypot(ax - teammate._float_x, ay - teammate._float_y) / cols if teammate else 0.0
-
-        # Final observation:
-        #   19 scalars + 25 occupancy = 44-D
-        obs = [
-            dx_enemy_flag, dy_enemy_flag,
-            dx_own_flag, dy_own_flag,
-            is_carrying_flag,
-            own_flag_taken, enemy_flag_taken,
-            side_blue,
-            ammo_norm, is_miner,
-            dx_mine, dy_mine,
-            agent_id_onehot[0], agent_id_onehot[1],
-            teammate_mines_norm,
-            teammate_has_flag,
-            teammate_dist,
-            time_norm,  # NEW
-            decision_norm,  # NEW
-        ]
-        obs.extend(occupancy)
-        return obs
+        return obs_map, extra_vec
 
     # Macro-action executor
     def random_point_in_enemy_half(self, side: str) -> Tuple[int, int]:
@@ -552,42 +581,6 @@ class GameField:
             home = gm.get_team_zone_center(side)
             safe_set_path(home, avoid_enemies=True, radius=2)
 
-        # OP3 extras: intercept / suppress / defend
-        elif action == MacroAction.INTERCEPT_CARRIER:
-            if (side == "red" and gm.blue_flag_taken) or (
-                side == "blue" and gm.red_flag_taken
-            ):
-                enemy_team = self.blue_agents if side == "red" else self.red_agents
-                carrier = next(
-                    (a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()),
-                    None,
-                )
-                if carrier:
-                    safe_set_path(
-                        (carrier.x, carrier.y), avoid_enemies=agent.isCarryingFlag()
-                    )
-                    return
-            ex, ey = gm.get_enemy_flag_position(side)
-            safe_set_path((ex, ey))
-
-        elif action == MacroAction.SUPPRESS_CARRIER:
-            if (side == "red" and gm.blue_flag_taken) or (
-                side == "blue" and gm.red_flag_taken
-            ):
-                enemy_team = self.blue_agents if side == "red" else self.red_agents
-                carrier = next(
-                    (a for a in enemy_team if a.isCarryingFlag() and a.isEnabled()),
-                    None,
-                )
-                if carrier:
-                    safe_set_path((carrier.x, carrier.y), avoid_enemies=False)
-                    return
-            ex, ey = gm.get_enemy_flag_position(side)
-            safe_set_path((ex, ey))
-
-        elif action == MacroAction.DEFEND_ZONE:
-            # Simple mid-line defense
-            safe_set_path((self.col_count // 2, agent.y))
 
     # Policy-driven decision
     def decide(self, agent: Agent) -> None:
