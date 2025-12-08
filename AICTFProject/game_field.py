@@ -3,6 +3,7 @@ import math
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional, Any
 import pygame as pg
+import torch
 
 from game_manager import GameManager
 from agents import Agent, TEAM_ZONE_RADIUS_CELLS
@@ -183,6 +184,11 @@ class GameField:
     def set_all_external_control(self, external: bool) -> None:
         for side in ("blue", "red"):
             self.external_control_for_side[side] = external
+
+        # --- Add this inside GameField class ---
+    def set_red_policy_neural(self, policy_net: Any) -> None:
+        self.policies["red"] = policy_net
+        self.opponent_mode = "NEURAL"
 
 
     # ------------ Coordinate mapping helpers ------------
@@ -576,7 +582,7 @@ class GameField:
         if not agent.isEnabled():
             return
 
-        # Increment decision counter for state feature
+            # Increment decision counter for state feature
         if not hasattr(agent, "decision_count"):
             agent.decision_count = 0
         agent.decision_count += 1
@@ -584,11 +590,32 @@ class GameField:
         obs = self.build_observation(agent)
         policy = self.policies.get(agent.side)
 
-        # Scripted policy (Policy subclass) or simple callable
-        if isinstance(policy, Policy):
+        # 1. Handle Neural Network Policy (Self-Play)
+        if hasattr(policy, "act"):
+            # Convert obs list to Tensor [1, C, H, W]
+            device = next(policy.parameters()).device
+            obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
+
+            with torch.no_grad():
+                # deterministic=False allows the 'Ghost' to have variety (human-like)
+                # deterministic=True makes it play its absolute best move (harder)
+                out = policy.act(
+                    obs_tensor,
+                    agent=agent,
+                    game_field=self,
+                    deterministic=True
+                )
+
+            # Extract integers from tensors
+            action_id = int(out["macro_action"][0].item())
+            param = int(out["target_action"][0].item())
+
+        # 2. Handle Scripted Policy (OP1, OP2, OP3)
+        elif isinstance(policy, Policy):
             action_id, param = policy.select_action(obs, agent, self)
+
+        # 3. Fallback (Simple Callable)
         else:
-            # Fallback: treat as a callable(agent, game_field) -> action_id
             action_id = policy(agent, self)
             param = None
 
