@@ -410,15 +410,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             decisions = []
 
-            original_policy_state = None
-            if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
-                # Store current policy state to revert later
-                original_policy_state = copy.deepcopy(policy.state_dict())
-
-                # Sample an old policy uniformly and load its parameters
-                sampled_policy_state = random.choice(old_policies_buffer)
-                policy.load_state_dict(sampled_policy_state)
-
             # === Blue macro decisions ===
             for agent in blue_agents:
                 obs = env.build_observation(agent)
@@ -457,9 +448,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
 
-            if original_policy_state is not None:
-                policy.load_state_dict(original_policy_state)
-
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
@@ -477,11 +465,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 decision_time_end,
                 cur_phase=cur_phase,
             )
-
-            # Small time penalty for all blue agents (shaping)
-            for agent in env.blue_agents:
-                uid = agent.unique_id
-                rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
             # Track mine placement stats
             for agent, _, macro_idx, target_idx, _, _, prev_flag_dist, ex, ey in decisions:
