@@ -16,10 +16,7 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
-
-# =========================
 # FULLY DETERMINISTIC SEEDING
-# =========================
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -29,9 +26,7 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
-# =========================
-# BASIC CONFIG (PAPER-STYLE)
-# =========================
+# BASIC CONFIG
 GRID_ROWS = 30          # simulation grid (larger 30x40 arena)
 GRID_COLS = 40
 
@@ -66,11 +61,7 @@ POLICY_SAMPLE_CHANCE = 0.20 # 20% chance to sample an old policy
 COOP_HUD_EVERY = 50
 COOP_WINDOW = 50
 
-# =========================
-# MACRO-ACTIONS (PAPER SET)
-# =========================
-# Only use the original five macro-actions from the paper:
-# GoTo, GrabMine, GetFlag, PlaceMine, GoHome
+# MACRO-ACTIONS
 USED_MACROS = [
     MacroAction.GO_TO,
     MacroAction.GRAB_MINE,
@@ -81,10 +72,7 @@ USED_MACROS = [
 NUM_ACTIONS = len(USED_MACROS)
 ACTION_NAMES = [ma.name for ma in USED_MACROS]
 
-
-# =========================
 # CURRICULUM (OP1 → OP2 → OP3)
-# =========================
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
@@ -143,9 +131,7 @@ def make_env() -> GameField:
     return env
 
 
-# =========================
 # ROLLOUT BUFFER (CNN OBS)
-# =========================
 class RolloutBuffer:
     def __init__(self):
         self.obs = []
@@ -185,9 +171,7 @@ class RolloutBuffer:
         return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
 
 
-# =========================
-# EVENT-DRIVEN GAE (PAPER)
-# =========================
+# EVENT-DRIVEN GAE
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     """
     Continuous-time GAE, matching the paper:
@@ -272,9 +256,7 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
     buffer.clear()
 
 
-# =========================
 # REWARD COLLECTION (BLUE)
-# =========================
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents: List[Any],
@@ -319,10 +301,24 @@ def collect_blue_rewards_for_step(
 
     return rewards_sum_by_id
 
+def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
+    base = ENT_COEF_BY_PHASE[cur_phase]
 
-# =========================
+    if cur_phase == "OP1":
+        # Force much higher exploration for the first 500 episodes
+        start_ent, horizon = 0.08, 500.0
+    elif cur_phase == "OP2":
+        start_ent, horizon = 0.05, 500.0
+    else:  # OP3
+        start_ent, horizon = 0.04, 800.0
+
+    # Calculate fraction of the horizon passed
+    frac = min(1.0, phase_episode_count / horizon)
+
+    # Linearly decay entropy coefficient
+    return float(start_ent - (start_ent - base) * frac)
+
 # MAIN TRAIN LOOP
-# =========================
 def train_ppo_event(total_steps=TOTAL_STEPS):
     set_seed(42)
 
@@ -362,9 +358,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Rolling window for cooperation HUD
     coop_window = deque(maxlen=COOP_WINDOW)
 
-    # --- NEW: Storage for old policies (List of state_dict) ---
     old_policies_buffer: Deque[Dict[str, Any]] = deque(maxlen=20)  # Max policies to store
-    # -----------------------------------------------------------
 
     while global_step < total_steps:
         episode_idx += 1
@@ -376,9 +370,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         gm.max_time = phase_cfg["max_time"]
         max_steps = phase_cfg["max_macro_steps"]
         gm.set_phase(cur_phase)
-
-        # Fixed entropy coefficient per phase (paper-style)
-        ENT_COEF = ENT_COEF_BY_PHASE[cur_phase]
 
         # Scripted red opponent for this phase
         set_red_policy_for_phase(env, cur_phase)
@@ -414,17 +405,13 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         decision_time_start = gm.get_sim_time()
 
         while not done and steps < max_steps and global_step < total_steps:
-
-            # --- NEW: SAVE CURRENT POLICY PARAMETERS ---
             if global_step > 0 and global_step % POLICY_SAVE_INTERVAL == 0:
                 # Use deepcopy to ensure we save parameters by value, not reference
                 old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
-            # -------------------------------------------
 
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             decisions = []
 
-            # --- NEW: SAMPLING OLD POLICY LOGIC ---
             original_policy_state = None
             if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
                 # Store current policy state to revert later
@@ -433,8 +420,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 # Sample an old policy uniformly and load its parameters
                 sampled_policy_state = random.choice(old_policies_buffer)
                 policy.load_state_dict(sampled_policy_state)
-                # Note: The agent will now act using the old, sampled policy
-            # ----------------------------------------
 
             # === Blue macro decisions ===
             for agent in blue_agents:
@@ -474,13 +459,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
 
-            # --- NEW: REVERT TO CURRENT POLICY ---
             if original_policy_state is not None:
                 policy.load_state_dict(original_policy_state)
-                # The policy is now back to its current, most-up-to-date state
-            # -------------------------------------
 
-            # --- Simulate until next decision window ---
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
@@ -537,11 +518,14 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
             # PPO update
             if buffer.size() >= UPDATE_EVERY:
+                current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count, phase_wr)
+
                 print(
                     f"[UPDATE] step={global_step} episode={episode_idx} "
-                    f"phase={cur_phase} ENT={ENT_COEF:.4f} Opp={opponent_tag}"
+                    f"phase={cur_phase} ENT={current_ent_coef:.4f} Opp={opponent_tag}"
                 )
-                ppo_update(policy, optimizer, buffer, DEVICE, ENT_COEF)
+
+                ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
 
         # ============ Episode end: result + stats ============
         if gm.blue_score > gm.red_score:
@@ -572,9 +556,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
-        # ==============================
         # COOPERATION HUD (diagnostics)
-        # ==============================
         miner0_runner1 = ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
         miner1_runner0 = ep_score_events > 0 and ep_mine_attempts[1] > 0 and ep_mine_attempts[0] == 0
         both_mine_and_score = (
@@ -668,9 +650,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
             print("   =====================================================")
 
-        # =========================
         # CURRICULUM ADVANCE
-        # =========================
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
