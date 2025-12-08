@@ -91,8 +91,8 @@ PHASE_WINRATE_WINDOW = 50
 
 # Phase-specific (fixed) entropy coefficients – paper-style baselines
 ENT_COEF_BY_PHASE = {
-    "OP1": 0.03,
-    "OP2": 0.025,
+    "OP1": 0.04,
+    "OP2": 0.035,
     "OP3": 0.02,
 }
 
@@ -306,11 +306,11 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) 
 
     # gentler schedule
     if cur_phase == "OP1":
-        start_ent, horizon = 0.04, 1000.0
+        start_ent, horizon = 0.05, 1000.0
     elif cur_phase == "OP2":
-        start_ent, horizon = 0.035, 1500.0
+        start_ent, horizon = 0.04, 1500.0
     else:
-        start_ent, horizon = 0.03, 2000.0
+        start_ent, horizon = 0.035, 2000.0
 
     frac = min(1.0, phase_episode_count / horizon)
     return float(start_ent - (start_ent - base) * frac)
