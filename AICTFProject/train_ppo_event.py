@@ -54,8 +54,8 @@ SIM_DT = 0.1            # physics step size
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
-POLICY_SAVE_INTERVAL = 50  # Save every 50 steps
-POLICY_SAMPLE_CHANCE = 0.20 # 20% chance to sample an old policy
+POLICY_SAVE_INTERVAL = 50   # Save a snapshot every N steps
+POLICY_SAMPLE_CHANCE = 0.20 # 20% chance to use a ghost policy for Red
 
 # Cooperation HUD / diagnostics
 COOP_HUD_EVERY = 50
@@ -121,12 +121,12 @@ def make_env() -> GameField:
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
 
-    # Use scripted OPx policies internally for RED
+    # Use internal policies (scripted or neural) for RED
     env.use_internal_policies = True
 
     # BLUE is controlled externally by PPO (we call apply_macro_action)
     env.set_external_control("blue", True)
-    # RED is controlled by scripted OPx policies
+    # RED is controlled by internal policies (scripted OPx or neural)
     env.set_external_control("red", False)
     return env
 
@@ -301,6 +301,7 @@ def collect_blue_rewards_for_step(
 
     return rewards_sum_by_id
 
+
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
     base = ENT_COEF_BY_PHASE[cur_phase]
 
@@ -356,7 +357,8 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Rolling window for cooperation HUD
     coop_window = deque(maxlen=COOP_WINDOW)
 
-    old_policies_buffer: Deque[Dict[str, Any]] = deque(maxlen=20)  # Max policies to store
+    # Buffer of old policies (for ghost self-play opponents)
+    old_policies_buffer: Deque[Dict[str, Any]] = deque(maxlen=20)
 
     while global_step < total_steps:
         episode_idx += 1
@@ -369,15 +371,32 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         max_steps = phase_cfg["max_macro_steps"]
         gm.set_phase(cur_phase)
 
-        # Scripted red opponent for this phase
-        set_red_policy_for_phase(env, cur_phase)
-        opponent_tag = cur_phase
+        # ------------------------------
+        # OPPONENT SELECTION (SCRIPTED vs SELF-PLAY)
+        # ------------------------------
+        use_selfplay = False
+        if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
+            # Use a neural "ghost" policy for Red
+            red_net = ActorCriticNet(
+                n_macros=len(USED_MACROS),
+                n_targets=env.num_macro_targets,
+            ).to(DEVICE)
+            state_dict = random.choice(old_policies_buffer)
+            red_net.load_state_dict(state_dict)
+            red_net.eval()
+            env.set_red_policy_neural(red_net)
+            opponent_tag = "SELFPLAY"
+            use_selfplay = True
+        else:
+            # Use scripted OPx opponent for this phase
+            set_red_policy_for_phase(env, cur_phase)
+            opponent_tag = cur_phase
 
         # Reset environment & scores
         env.reset_default()
         gm.reset_game(reset_scores=True)
 
-        # Reset OP3 per-episode state if present
+        # Reset OP3 per-episode state if present (for scripted opponents)
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
             red_pol.reset()
@@ -403,8 +422,8 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         decision_time_start = gm.get_sim_time()
 
         while not done and steps < max_steps and global_step < total_steps:
+            # Save current Blue policy snapshot periodically for ghost opponents
             if global_step > 0 and global_step % POLICY_SAVE_INTERVAL == 0:
-                # Use deepcopy to ensure we save parameters by value, not reference
                 old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
 
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
@@ -448,6 +467,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                     (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
 
+            # Simulate physics + internal decisions (including Red's neural/scripted policy)
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
@@ -466,7 +486,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 cur_phase=cur_phase,
             )
 
-            # Track mine placement stats
+            # HUD mine placement stats
             for agent, _, macro_idx, target_idx, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
                 macro_enum = USED_MACROS[macro_idx]
