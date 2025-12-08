@@ -16,6 +16,7 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
+
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -24,9 +25,10 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+
 # CONFIG
-GRID_ROWS = 30
-GRID_COLS = 40
+GRID_ROWS = 20
+GRID_COLS = 20
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -56,7 +58,6 @@ COOP_HUD_EVERY = 50
 COOP_WINDOW = 50
 NUM_ACTIONS = len(MacroAction)
 ACTION_NAMES = [ma.name for ma in sorted(MacroAction, key=lambda m: m.value)]
-
 
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
@@ -109,19 +110,25 @@ def make_env() -> GameField:
     return env
 
 
+# =======================
+# ROLLOUT BUFFER (CNN + JOINT ACTION)
+# =======================
 class RolloutBuffer:
     def __init__(self):
-        self.obs = []
-        self.actions = []
-        self.log_probs = []
-        self.values = []
-        self.rewards = []
-        self.dones = []
-        self.dts = []
+        self.obs = []             # [T, 7, H, W]
+        self.macro_actions = []   # [T]
+        self.target_actions = []  # [T]
+        self.log_probs = []       # [T]
+        self.values = []          # [T]
+        self.rewards = []         # [T]
+        self.dones = []           # [T]
+        self.dts = []             # [T]
 
-    def add(self, obs, action, log_prob, value, reward, done, dt):
+    def add(self, obs, macro_action, target_action, log_prob, value, reward, done, dt):
+        # obs is expected to be a 7xHxW numpy array or list-like
         self.obs.append(np.array(obs, dtype=np.float32))
-        self.actions.append(int(action))
+        self.macro_actions.append(int(macro_action))
+        self.target_actions.append(int(target_action))
         self.log_probs.append(float(log_prob))
         self.values.append(float(value))
         self.rewards.append(float(reward))
@@ -135,14 +142,16 @@ class RolloutBuffer:
         self.__init__()
 
     def to_tensors(self, device):
-        obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)
-        actions = torch.tensor(self.actions, dtype=torch.long, device=device)
-        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
-        values = torch.tensor(self.values, dtype=torch.float32, device=device)
-        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
-        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
-        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
-        return obs, actions, log_probs, values, rewards, dones, dts
+        obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)          # [T, 7, H, W]
+        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)   # [T]
+        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device) # [T]
+        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)        # [T]
+        values = torch.tensor(self.values, dtype=torch.float32, device=device)              # [T]
+        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)            # [T]
+        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)                # [T]
+        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)                    # [T]
+        return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
+
 
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     T = rewards.size(0)
@@ -162,8 +171,19 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     returns = advantages + values
     return advantages, returns
 
+
 def ppo_update(policy, optimizer, buffer, device, ent_coef):
-    obs, actions, old_log_probs, values, rewards, dones, dts = buffer.to_tensors(device)
+    (
+        obs,
+        macro_actions,
+        target_actions,
+        old_log_probs,
+        values,
+        rewards,
+        dones,
+        dts,
+    ) = buffer.to_tensors(device)
+
     advantages, returns = compute_gae_event(rewards, values, dones, dts)
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
@@ -172,13 +192,18 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
         np.random.shuffle(idxs)
         for start in range(0, obs.size(0), MINIBATCH_SIZE):
             mb_idx = idxs[start:start + MINIBATCH_SIZE]
-            mb_obs = obs[mb_idx]
-            mb_actions = actions[mb_idx]
-            mb_old_log_probs = old_log_probs[mb_idx]
-            mb_advantages = advantages[mb_idx]
-            mb_returns = returns[mb_idx]
+            mb_obs = obs[mb_idx]                     # [B, 7, H, W]
+            mb_macro_actions = macro_actions[mb_idx] # [B]
+            mb_target_actions = target_actions[mb_idx]  # [B]
+            mb_old_log_probs = old_log_probs[mb_idx]    # [B]
+            mb_advantages = advantages[mb_idx]          # [B]
+            mb_returns = returns[mb_idx]                # [B]
 
-            new_log_probs, entropy, new_values = policy.evaluate_actions(mb_obs, mb_actions)
+            new_log_probs, entropy, new_values = policy.evaluate_actions(
+                mb_obs,
+                mb_macro_actions,
+                mb_target_actions,
+            )
 
             ratio = torch.exp(new_log_probs - mb_old_log_probs)
             surr1 = ratio * mb_advantages
@@ -196,7 +221,13 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 
     buffer.clear()
 
-def collect_blue_rewards_for_step(gm: GameManager, blue_agents, mix_alpha: float = 0.0, cur_phase: str = "OP1", ):
+
+def collect_blue_rewards_for_step(
+    gm: GameManager,
+    blue_agents,
+    mix_alpha: float = 0.0,
+    cur_phase: str = "OP1",
+):
     raw = gm.get_step_rewards()
 
     indiv_rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
@@ -219,6 +250,7 @@ def collect_blue_rewards_for_step(gm: GameManager, blue_agents, mix_alpha: float
 
     return indiv_rewards_by_id
 
+
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
     base = ENT_COEF_BY_PHASE[cur_phase]
 
@@ -232,22 +264,16 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) 
     frac = min(1.0, phase_episode_count / horizon)
     return float(start_ent - (start_ent - base) * frac)
 
+
 def train_ppo_event(total_steps=TOTAL_STEPS):
     set_seed(42)
 
     env = make_env()
     gm = env.getGameManager()
 
-    env.reset_default()
-    if env.blue_agents:
-        dummy_obs = env.build_observation(env.blue_agents[0])
-    else:
-        dummy_obs = [0.0] * 42
-
-    obs_dim = len(dummy_obs)
-    n_actions = len(MacroAction)
-
-    policy = ActorCriticNet(input_dim=obs_dim, n_actions=n_actions).to(DEVICE)
+    # Instantiate CNN policy; defaults: 7x20x20 → latent_dim → macro/target heads.
+    # If you changed ObsEncoder height/width to 30x40, make sure that matches there.
+    policy = ActorCriticNet().to(DEVICE)
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
 
@@ -311,22 +337,26 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
             # === Blue macro decisions ===
             for agent in blue_agents:
-                obs = env.build_observation(agent)
-                obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
+                # CNN observation (7-channel map); we ignore extra_vec here for now
+                cnn_obs, extra_vec = env.build_observation(agent)
+                obs_tensor = torch.from_numpy(cnn_obs).unsqueeze(0).to(DEVICE)  # [1, 7, H, W]
+
                 out = policy.act(
                     obs_tensor,
                     agent=agent,
                     game_field=env,
                     deterministic=False,
                 )
-                a = int(out["action"][0].item())
+
+                macro_action = int(out["macro_action"][0].item())
+                target_action = int(out["target_action"][0].item())
                 logp = float(out["log_prob"][0].item())
                 val = float(out["value"][0].item())
 
                 local_id = getattr(agent, "agent_id", 0)
-                if local_id in ep_macro_counts and 0 <= a < NUM_ACTIONS:
-                    ep_macro_counts[local_id][a] += 1
-                    if MacroAction(a) == MacroAction.PLACE_MINE:
+                if local_id in ep_macro_counts and 0 <= macro_action < NUM_ACTIONS:
+                    ep_macro_counts[local_id][macro_action] += 1
+                    if MacroAction(macro_action) == MacroAction.PLACE_MINE:
                         ep_mine_attempts[local_id] += 1
 
                 if agent.unique_id not in ep_mines_placed_by_uid:
@@ -343,10 +373,21 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                         ex, ey = gm.blue_flag_position
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
 
-                env.apply_macro_action(agent, MacroAction(a))
+                # Apply joint macro + target (target = index into env.macro_targets)
+                env.apply_macro_action(agent, MacroAction(macro_action), param=target_action)
 
                 decisions.append(
-                    (agent, obs, a, logp, val, prev_flag_dist, ex, ey)
+                    (
+                        agent,
+                        cnn_obs,        # store CNN obs
+                        macro_action,
+                        target_action,
+                        logp,
+                        val,
+                        prev_flag_dist,
+                        ex,
+                        ey,
+                    )
                 )
 
             # simulate until next decision window
@@ -368,10 +409,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
-            # No extra shaping
-            for agent, _, act, _, _, prev_flag_dist, ex, ey in decisions:
+            # No extra shaping (but track mine use)
+            for agent, _, macro_action, _, _, _, _, _, _ in decisions:
                 uid = agent.unique_id
-                if MacroAction(act) == MacroAction.PLACE_MINE:
+                if MacroAction(macro_action) == MacroAction.PLACE_MINE:
                     ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
             # HUD stats (scores & combat)
@@ -386,10 +427,20 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
             # add to buffer
             step_reward_sum = 0.0
-            for agent, obs, act, logp, val, _, _, _ in decisions:
+            for (
+                agent,
+                cnn_obs,
+                macro_action,
+                target_action,
+                logp,
+                val,
+                _,
+                _,
+                _,
+            ) in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
                 step_reward_sum += r
-                buffer.add(obs, act, logp, val, r, done, dt)
+                buffer.add(cnn_obs, macro_action, target_action, logp, val, r, done, dt)
                 global_step += 1
 
             ep_return += step_reward_sum
@@ -550,6 +601,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"\nTraining complete. Final model saved to: {final_path}")
+
 
 if __name__ == "__main__":
     train_ppo_event()
