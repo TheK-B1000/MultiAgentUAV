@@ -304,19 +304,17 @@ def collect_blue_rewards_for_step(
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
     base = ENT_COEF_BY_PHASE[cur_phase]
 
+    # gentler schedule
     if cur_phase == "OP1":
-        # Force much higher exploration for the first 500 episodes
-        start_ent, horizon = 0.08, 500.0
+        start_ent, horizon = 0.04, 1000.0
     elif cur_phase == "OP2":
-        start_ent, horizon = 0.05, 500.0
-    else:  # OP3
-        start_ent, horizon = 0.04, 800.0
+        start_ent, horizon = 0.035, 1500.0
+    else:
+        start_ent, horizon = 0.03, 2000.0
 
-    # Calculate fraction of the horizon passed
     frac = min(1.0, phase_episode_count / horizon)
-
-    # Linearly decay entropy coefficient
     return float(start_ent - (start_ent - base) * frac)
+
 
 # MAIN TRAIN LOOP
 def train_ppo_event(total_steps=TOTAL_STEPS):
@@ -663,6 +661,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 phase_idx += 1
                 phase_episode_count = 0
                 phase_recent.clear()
+                old_policies_buffer.clear()
 
     # SAVE FINAL MODEL
     final_path = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
