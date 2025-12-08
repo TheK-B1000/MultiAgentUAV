@@ -311,13 +311,18 @@ class GameManager:
         agent_id: Optional[str] = None,
     ) -> None:
         t = self.sim_time if timestamp is None else float(timestamp)
+        # The reward_events list stores (timestamp, agent_id, reward_value)
         self.reward_events.append((t, agent_id, float(value)))
 
-    def get_step_rewards(self) -> Dict[Optional[str], float]:
-        rewards: Dict[Optional[str], float] = {}
-        for _, agent_id, r in self.reward_events:
-            rewards.setdefault(agent_id, 0.0)
-            rewards[agent_id] += r
+    def pop_reward_events(self) -> List[Tuple[float, Optional[str], float]]:
+        """
+        Returns all collected reward events (t, agent_id, reward) and clears
+        the internal buffer.
 
-        self.reward_events.clear()
-        return rewards
+        This is the preferred method for the continuous-time TD/GAE trainer.
+        """
+        # Save reference to the current list
+        events = self.reward_events
+        # Clear the internal buffer
+        self.reward_events = []
+        return events
