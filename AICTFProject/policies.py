@@ -1,6 +1,6 @@
 import math
 import random
-from typing import List
+from typing import List, Any
 
 from agents import Agent
 from game_manager import GameManager
@@ -8,64 +8,19 @@ from macro_actions import MacroAction
 
 
 class Policy:
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField"):
         raise NotImplementedError
-
-
-class HeuristicPolicy(Policy):
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
-        dx_enemy_flag = obs[0]
-        dy_enemy_flag = obs[1]
-        dx_own_flag   = obs[2]
-        dy_own_flag   = obs[3]
-        is_carrying   = bool(round(obs[4]))
-        own_flag_taken   = bool(round(obs[5]))
-        enemy_flag_taken = bool(round(obs[6]))
-        side_blue     = bool(round(obs[7]))
-        ammo_norm     = obs[8] if len(obs) > 8 else 0.0
-        is_miner      = bool(round(obs[9])) if len(obs) > 9 else False
-
-        norm_pos = -dx_own_flag if side_blue else dx_own_flag
-        norm_pos = max(0.0, min(1.0, norm_pos))
-        dist_to_base = math.hypot(dx_own_flag, dy_own_flag)
-
-        if is_carrying:
-            return int(MacroAction.GO_HOME), None
-
-        if is_miner:
-            if ammo_norm <= 0.1 and norm_pos < 0.5:
-                return int(MacroAction.GRAB_MINE), None
-            if ammo_norm > 0.0 and dist_to_base < 0.4 and not own_flag_taken:
-                if random.random() < 0.75:
-                    return int(MacroAction.PLACE_MINE), None
-
-        if own_flag_taken:
-            return int(MacroAction.GO_TO), None
-
-        if norm_pos >= 0.7:
-            return int(MacroAction.GET_FLAG), None
-        elif norm_pos <= 0.3:
-            if is_miner and ammo_norm < 0.8:
-                return int(MacroAction.GRAB_MINE), None
-            else:
-                return int(MacroAction.GO_TO), None
-        else:
-            r = random.random()
-            if r < 0.6:
-                return int(MacroAction.GET_FLAG), None
-            else:
-                return int(MacroAction.GO_TO), None
-
 
 class OP1RedPolicy(Policy):
     """
-    OP1 (paper): naive opponent that simply moves to the back of its own end zone.
+    OP1: naive opponent that simply moves to the back of its own end zone.
     No mines, no offense.
+
     """
     def __init__(self, side: str = "red"):
         self.side = side
 
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField"):
         gm: GameManager = game_field.manager
         home_x, home_y = gm.get_team_zone_center(self.side)
 
@@ -84,13 +39,18 @@ class OP1RedPolicy(Policy):
 
 class OP2RedPolicy(Policy):
     """
-    OP2 (paper): defensive-only opponent.
-    It places mines in front of its own end zone and does not attack.
+    OP2: defensive-only opponent.
+
+    Behavior:
+        - Places mines in front of its own end zone, along a horizontal band.
+        - If no mines left, grabs more from its own pickups.
+        - Never attacks the enemy flag.
+
     """
     def __init__(self, side: str = "red"):
         self.side = side
 
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField"):
         gm: GameManager = game_field.manager
         side = self.side
 
@@ -130,16 +90,15 @@ class OP2RedPolicy(Policy):
 
 class OP3RedPolicy(Policy):
     """
-    OP3 (paper-style, intentionally weak / scripted):
+    OP3:
 
     - Two agents (assume agent_id 0 and 1):
         * Agent 0: Defender
             - Tries to place ONE mine near its own flag.
-            - Then just defends near the flag.
+            - Then just hangs around the flag (repeated GO_TO to flag).
         * Agent 1: Attacker
-            - Always goes for the enemy flag.
-    - No clever intercepts, no long-term memory. Behavior is purely based
-      on current environment state, like in the paper.
+            - Always goes for the enemy flag and returns home when carrying.
+
     """
 
     def __init__(self, side: str = "red"):
@@ -154,7 +113,7 @@ class OP3RedPolicy(Policy):
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        # ---- STATLESS "has placed mine" check ----
+        # ---- STATELESS "has placed mine" check ----
         # Consider our key mine "placed" if there is ANY friendly mine
         # within ~1.5 cells of our flag.
         has_flag_mine = any(
@@ -172,8 +131,9 @@ class OP3RedPolicy(Policy):
             # Otherwise walk directly to flag area
             return int(MacroAction.GO_TO), (flag_x, flag_y)
 
-        # After we have a mine near the flag (or no charges), just defend.
-        return int(MacroAction.DEFEND_ZONE), (flag_x, flag_y)
+        # After we have a mine near the flag (or no charges), "defend"
+        # by repeatedly going to the flag position.
+        return int(MacroAction.GO_TO), (flag_x, flag_y)
 
     # --- Attacker logic -------------------------------------------------
     def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField"):
@@ -185,12 +145,9 @@ class OP3RedPolicy(Policy):
         return int(MacroAction.GET_FLAG), None
 
     # --- Main dispatch --------------------------------------------------
-    def select_action(self, obs: List[float], agent: Agent, game_field: "GameField"):
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField"):
         gm: GameManager = game_field.manager  # kept for symmetry / future tweaks
 
-        # Hard-assign roles by agent_id:
-        #   agent_id == 0 → defender
-        #   agent_id != 0 → attacker
         if getattr(agent, "agent_id", 0) == 0:
             return self._defender_action(agent, gm, game_field)
         else:
