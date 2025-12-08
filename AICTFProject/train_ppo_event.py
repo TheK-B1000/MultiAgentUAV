@@ -3,7 +3,7 @@ import time
 import math
 import random
 from collections import deque
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import numpy as np
 import torch
@@ -16,7 +16,6 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
-
 # FULLY DETERMINISTIC SEEDING
 def set_seed(seed: int = 42):
     random.seed(seed)
@@ -27,8 +26,8 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
-# BASIC CONFIG (PAPER-STYLE)
-GRID_ROWS = 30          # matches 30x40 grid we’ve been using
+# BASIC CONFIG
+GRID_ROWS = 30
 GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -62,9 +61,8 @@ COOP_WINDOW = 50
 NUM_ACTIONS = len(MacroAction)
 ACTION_NAMES = [ma.name for ma in sorted(MacroAction, key=lambda m: m.value)]
 
-# =========================
+
 # CURRICULUM (OP1 → OP2 → OP3)
-# =========================
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
@@ -123,7 +121,9 @@ def make_env() -> GameField:
     return env
 
 
+# =========================
 # ROLLOUT BUFFER (CNN OBS)
+# =========================
 class RolloutBuffer:
     def __init__(self):
         self.obs = []
@@ -162,6 +162,7 @@ class RolloutBuffer:
         dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
         return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
 
+
 # EVENT-DRIVEN GAE
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     """
@@ -179,8 +180,12 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
         gamma_dt = gamma ** dts[t]
         lam_gamma_dt = (gamma * lam) ** dts[t]
         mask = 1.0 - dones[t]
+
+        # TD(t_j) with aggregated discounted rewards:
+        # R_j already includes sum_i gamma^(t_i - t_j) r_i
         delta = rewards[t] + gamma_dt * next_value * mask - values[t]
         advantages[t] = delta + lam_gamma_dt * next_adv * mask
+
         next_adv = advantages[t]
         next_value = values[t]
 
@@ -240,35 +245,47 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 # REWARD COLLECTION (BLUE)
 def collect_blue_rewards_for_step(
     gm: GameManager,
-    blue_agents,
-    mix_alpha: float = 0.0,
+    blue_agents: List[Any],
+    decision_time_start: float,
+    decision_time_end: float,
     cur_phase: str = "OP1",
-):
+) -> Dict[str, float]:
     """
-    Collect per-agent rewards for BLUE from GameManager.
-    mix_alpha kept for compatibility; we use pure per-agent + shared team reward.
+    Collect per-agent rewards for BLUE from GameManager using timestamped events.
+
+    Returns: A dictionary mapping agent unique_id to the total DISCOUNTED reward
+             accumulated during the last decision window (t_j, t_{j+1}].
     """
-    raw = gm.get_step_rewards()
 
-    indiv_rewards_by_id = {a.unique_id: 0.0 for a in blue_agents}
-    if not indiv_rewards_by_id:
-        return indiv_rewards_by_id
+    # Get all buffered events and clear the buffer.
+    # Each event: (timestamp, agent_id, reward_value)
+    raw_events = list(gm.reward_events)
+    gm.reward_events.clear()
 
-    # team reward under key None (if GM uses that)
-    team_r = raw.get(None, 0.0)
-    if abs(team_r) > 0.0:
-        share = team_r / len(indiv_rewards_by_id)
-        for aid in indiv_rewards_by_id:
-            indiv_rewards_by_id[aid] += share
+    rewards_sum_by_id: Dict[str, float] = {a.unique_id: 0.0 for a in blue_agents}
+    team_r_total = 0.0  # events with agent_id=None
 
-    # agent-specific rewards
-    for aid, r in raw.items():
-        if aid is None:
-            continue
-        if aid in indiv_rewards_by_id:
-            indiv_rewards_by_id[aid] += r
+    for t_event, agent_id, r in raw_events:
+        # Discount reward back to the macro-decision time t_j
+        time_since_action = t_event - decision_time_start
+        if time_since_action < 0:
+            # Should rarely happen if events are popped right after a macro decision
+            time_since_action = 0.0
 
-    return indiv_rewards_by_id
+        discounted_r = r * (GAMMA ** time_since_action)
+
+        if agent_id is None:
+            team_r_total += discounted_r
+        elif agent_id in rewards_sum_by_id:
+            rewards_sum_by_id[agent_id] += discounted_r
+
+    # Share team reward equally among active blue agents
+    if abs(team_r_total) > 0.0 and len(rewards_sum_by_id) > 0:
+        share = team_r_total / len(rewards_sum_by_id)
+        for aid in rewards_sum_by_id:
+            rewards_sum_by_id[aid] += share
+
+    return rewards_sum_by_id
 
 
 def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
@@ -309,11 +326,12 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
     n_actions = len(MacroAction)
 
-    # ActorCriticNet now uses CNN encoder internally; input_dim is ignored.
+    # ActorCriticNet uses CNN encoder internally; spatial obs only
     policy = ActorCriticNet(
         n_macros=n_actions,
         n_targets=env.num_macro_targets,  # uses the 50 macro_targets from GameField
     ).to(DEVICE)
+
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
 
@@ -325,7 +343,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Curriculum tracking
     phase_idx = 0
     phase_episode_count = 0
-    phase_recent = []
+    phase_recent: List[int] = []
     phase_wr = 0.0
 
     # Rolling window for cooperation HUD
@@ -372,7 +390,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         ep_combat_events = 0
         ep_score_events = 0
         prev_blue_score = gm.blue_score
-        ep_mines_placed_by_uid = {}
+        ep_mines_placed_by_uid: Dict[str, int] = {}
+
+        # Starting time for the first macro decision window
+        decision_time_start = gm.get_sim_time()
 
         while not done and steps < max_steps and global_step < total_steps:
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
@@ -380,7 +401,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
             # === Blue macro decisions ===
             for agent in blue_agents:
-                obs = env.build_observation(agent)
+                obs = env.build_observation(agent)  # [C,H,W]
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
 
                 out = policy.act(
@@ -404,7 +425,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 if agent.unique_id not in ep_mines_placed_by_uid:
                     ep_mines_placed_by_uid[agent.unique_id] = 0
 
-                # Enemy flag distance before moving (for optional shaping / debug)
+                # Enemy flag distance before moving (optional diagnostics)
                 side = agent.getSide()
                 if hasattr(gm, "get_enemy_flag_position"):
                     ex, ey = gm.get_enemy_flag_position(side)
@@ -415,39 +436,44 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                         ex, ey = gm.blue_flag_position
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
 
-                # IMPORTANT: pass target_idx as param → GameField will map via get_macro_target
+                # Apply macro action (GameField will map target_idx via get_macro_target)
                 env.apply_macro_action(agent, MacroAction(macro_idx), target_idx)
 
                 decisions.append(
                     (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
 
-            # --- simulate until next decision window ---
+            # --- Simulate until next decision window ---
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
                 sim_t += SIM_DT
 
             dt = sim_t
+            decision_time_end = gm.get_sim_time()
             done = gm.game_over
 
-            # collect rewards
+            # --- Collect rewards for this macro step ---
             rewards = collect_blue_rewards_for_step(
-                gm, blue_agents, mix_alpha=0.0, cur_phase=cur_phase
+                gm,
+                blue_agents,
+                decision_time_start,
+                decision_time_end,
+                cur_phase=cur_phase,
             )
 
-            # small time penalty for all blue agents
+            # Small time penalty for all blue agents (shaping)
             for agent in env.blue_agents:
                 uid = agent.unique_id
                 rewards[uid] = rewards.get(uid, 0.0) - 0.001
 
-            # no extra shaping; just track mine placement
+            # Track mine placement stats
             for agent, _, macro_idx, target_idx, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
                 if MacroAction(macro_idx) == MacroAction.PLACE_MINE:
                     ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
-            # HUD stats logic unchanged...
+            # HUD score / combat stats
             blue_score_delta = gm.blue_score - prev_blue_score
             if blue_score_delta > 0:
                 ep_score_events += blue_score_delta
@@ -457,7 +483,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             if total_team_reward > 0.0 and blue_score_delta == 0:
                 ep_combat_events += 1
 
-            # --- add to PPO buffer ---
+            # --- Add to PPO buffer ---
             step_reward_sum = 0.0
             for agent, obs, macro_idx, target_idx, logp, val, _, _, _ in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
@@ -468,6 +494,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             ep_return += step_reward_sum
             steps += 1
 
+            # Prepare for next macro decision window
+            decision_time_start = decision_time_end
+
             # PPO update
             if buffer.size() >= UPDATE_EVERY:
                 print(
@@ -476,7 +505,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 )
                 ppo_update(policy, optimizer, buffer, DEVICE, ENT_COEF)
 
-        # Episode end: result + stats
+        # ============ Episode end: result + stats ============
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
