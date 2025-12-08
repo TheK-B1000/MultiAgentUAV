@@ -107,7 +107,7 @@ class LearnedPolicy:
 
 class CTFViewer:
     def __init__(self):
-        rows, cols = 20, 20
+        rows, cols = 30, 40
         grid = [[0] * cols for _ in range(rows)]
         self.game_field = GameField(grid)
         self.game_manager = self.game_field.getGameManager()
