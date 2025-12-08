@@ -85,7 +85,7 @@ class GameField:
         self.cell_height_m = ARENA_HEIGHT_M / max(1, self.row_count)
 
         # ------------------------------------------------------------------
-        # Paper-style: categorical 2D targets over 50 random grid positions.
+        # Categorical 2D targets over 50 random grid positions.
         # The policy outputs an index (0..49), which is mapped to a 30×40
         # grid cell via self.macro_targets.
         # ------------------------------------------------------------------
@@ -342,20 +342,9 @@ class GameField:
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
         """
         Builds a 7-channel 20x20 spatial observation for the given agent.
-
-        Channels (C, H, W) = (7, 20, 20):
-
-        0: Own UAV position
-        1: Teammate UAVs (same side, excluding self)
-        2: Enemy UAVs
-        3: Friendly mines
-        4: Enemy mines
-        5: Own flag
-        6: Enemy flag
-
-        Each channel is a 20x20 grid where cells are 1.0 if the entity is present
-        in that CNN cell, 0.0 otherwise. Multiple entities in the same cell simply
-        keep the value at 1.0.
+        The observation is point-mirrored to the agent's side, meaning Blue's
+        view is the canonical view, and Red's view is mirrored across the
+        center line.
         """
         side = agent.side  # "blue" or "red"
         game_state = self.manager
@@ -366,6 +355,27 @@ class GameField:
             for _ in range(NUM_CNN_CHANNELS)
         ]
 
+        # Helper to map grid (col, row) to CNN (col, row), applying mirroring for Red team
+        def get_cnn_cell(col: int, row: int) -> Tuple[int, int]:
+            x_m, y_m = self.grid_to_world(col, row)
+            # Normalize to [0, 1]
+            u = max(0.0, min(1.0, x_m / ARENA_WIDTH_M))
+            v = max(0.0, min(1.0, y_m / ARENA_HEIGHT_M))
+
+            # Apply point mirroring if agent is on the Red side
+            if side == "red":
+                u = 1.0 - u  # Mirror X
+                v = 1.0 - v  # Mirror Y
+
+            col_cnn = int(u * CNN_COLS)
+            row_cnn = int(v * CNN_ROWS)
+
+            # Clamp to CNN boundaries
+            col_cnn = max(0, min(CNN_COLS - 1, col_cnn))
+            row_cnn = max(0, min(CNN_ROWS - 1, row_cnn))
+
+            return col_cnn, row_cnn
+
         # Helper to set a cell in a given channel
         def set_chan(c: int, col: int, row: int) -> None:
             if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
@@ -373,7 +383,7 @@ class GameField:
 
         # --- 0: own UAV ---
         own_col, own_row = int(agent.x), int(agent.y)
-        own_cnn_col, own_cnn_row = self.grid_to_cnn_cell(own_col, own_row)
+        own_cnn_col, own_cnn_row = get_cnn_cell(own_col, own_row)
         set_chan(0, own_cnn_col, own_cnn_row)
 
         # Decide friendly/enemy sets
@@ -384,19 +394,20 @@ class GameField:
         for a in friendly_team:
             if a is agent or not a.isEnabled():
                 continue
-            c, r = self.grid_to_cnn_cell(int(a.x), int(a.y))
+            c, r = get_cnn_cell(int(a.x), int(a.y))
             set_chan(1, c, r)
 
         # --- 2: enemy UAVs ---
+        # Disabled UAVs are not visible (handled by a.isEnabled() check)
         for a in enemy_team:
             if not a.isEnabled():
                 continue
-            c, r = self.grid_to_cnn_cell(int(a.x), int(a.y))
+            c, r = get_cnn_cell(int(a.x), int(a.y))
             set_chan(2, c, r)
 
         # --- 3 & 4: mines (friendly vs enemy) ---
         for m in self.mines:
-            c, r = self.grid_to_cnn_cell(int(m.x), int(m.y))
+            c, r = get_cnn_cell(int(m.x), int(m.y))
             if m.owner_side == side:
                 set_chan(3, c, r)  # friendly mines
             else:
@@ -411,11 +422,11 @@ class GameField:
             enemy_flag_pos = game_state.blue_flag_position
 
         # own flag
-        c_own_flag, r_own_flag = self.grid_to_cnn_cell(int(own_flag_pos[0]), int(own_flag_pos[1]))
+        c_own_flag, r_own_flag = get_cnn_cell(int(own_flag_pos[0]), int(own_flag_pos[1]))
         set_chan(5, c_own_flag, r_own_flag)
 
         # enemy flag
-        c_enemy_flag, r_enemy_flag = self.grid_to_cnn_cell(int(enemy_flag_pos[0]), int(enemy_flag_pos[1]))
+        c_enemy_flag, r_enemy_flag = get_cnn_cell(int(enemy_flag_pos[0]), int(enemy_flag_pos[1]))
         set_chan(6, c_enemy_flag, r_enemy_flag)
 
         return channels
@@ -504,9 +515,7 @@ class GameField:
                 path = self.pathfinder.astar(start, fallback) or []
             agent.setPath(path)
 
-        # ------------------------------------------------------------------
-        # 5 paper-style macro actions
-        # ------------------------------------------------------------------
+        # 5 macro actions
         if action == MacroAction.GO_TO:
             # Default: random point in enemy half
             default_target = self.random_point_in_enemy_half(side)
@@ -677,9 +686,6 @@ class GameField:
                     cause="suppression",
                 )
 
-            # Just disable; Agent.disable_for_seconds will:
-            # - Drop the flag via GameManager.handle_agent_death
-            # - Clear local carrying state
             agent.disable_for_seconds(self.respawn_seconds)
 
     def apply_flag_rules(self, agent: Agent) -> None:
