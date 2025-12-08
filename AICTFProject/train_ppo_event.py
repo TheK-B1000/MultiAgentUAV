@@ -1,9 +1,9 @@
 import os
-import time
 import math
 import random
+import copy
 from collections import deque
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Deque
 
 import numpy as np
 import torch
@@ -16,7 +16,10 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
+
+# =========================
 # FULLY DETERMINISTIC SEEDING
+# =========================
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -26,8 +29,10 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
-# BASIC CONFIG
-GRID_ROWS = 30
+# =========================
+# BASIC CONFIG (PAPER-STYLE)
+# =========================
+GRID_ROWS = 30          # simulation grid (larger 30x40 arena)
 GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -47,22 +52,39 @@ MAX_GRAD_NORM = 0.5
 GAMMA = 0.995
 GAE_LAMBDA = 0.99
 
-# Simulation timing (matches env’s decision interval)
+# Simulation timing (macro-actions last multiple physics steps)
 DECISION_WINDOW = 0.7   # seconds between macro-decisions
 SIM_DT = 0.1            # physics step size
 
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
+POLICY_SAVE_INTERVAL = 50  # Save every 50 steps
+POLICY_SAMPLE_CHANCE = 0.20 # 20% chance to sample an old policy
+
 # Cooperation HUD / diagnostics
 COOP_HUD_EVERY = 50
 COOP_WINDOW = 50
 
-NUM_ACTIONS = len(MacroAction)
-ACTION_NAMES = [ma.name for ma in sorted(MacroAction, key=lambda m: m.value)]
+# =========================
+# MACRO-ACTIONS (PAPER SET)
+# =========================
+# Only use the original five macro-actions from the paper:
+# GoTo, GrabMine, GetFlag, PlaceMine, GoHome
+USED_MACROS = [
+    MacroAction.GO_TO,
+    MacroAction.GRAB_MINE,
+    MacroAction.GET_FLAG,
+    MacroAction.PLACE_MINE,
+    MacroAction.GO_HOME,
+]
+NUM_ACTIONS = len(USED_MACROS)
+ACTION_NAMES = [ma.name for ma in USED_MACROS]
 
 
+# =========================
 # CURRICULUM (OP1 → OP2 → OP3)
+# =========================
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 
 MIN_PHASE_EPISODES = {
@@ -79,7 +101,7 @@ TARGET_PHASE_WINRATE = {
 
 PHASE_WINRATE_WINDOW = 50
 
-# Phase-specific entropy floors
+# Phase-specific (fixed) entropy coefficients – paper-style baselines
 ENT_COEF_BY_PHASE = {
     "OP1": 0.03,
     "OP2": 0.025,
@@ -163,13 +185,21 @@ class RolloutBuffer:
         return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
 
 
-# EVENT-DRIVEN GAE
+# =========================
+# EVENT-DRIVEN GAE (PAPER)
+# =========================
 def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     """
-    Time-aware GAE:
-        delta_t = dts[t]
-        gamma_dt = gamma ** delta_t
-        (gamma*lambda)^dt for the trace.
+    Continuous-time GAE, matching the paper:
+
+      TD(t_j) = sum_{i in I_j} gamma^{t_i - t_j} r_i
+                + gamma^{Δt_j} v(t_{j+1}) - v(t_j)
+
+      A(t_j) = TD(t_j) + (lambda * gamma)^{Δt_j} A(t_{j+1})
+
+    Here:
+      - rewards[j] == sum_{i in I_j} gamma^{t_i - t_j} r_i  (pre-discounted per decision)
+      - dts[j] == Δt_j = t_{j+1} - t_j
     """
     T = rewards.size(0)
     advantages = torch.zeros(T, device=rewards.device)
@@ -181,8 +211,7 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
         lam_gamma_dt = (gamma * lam) ** dts[t]
         mask = 1.0 - dones[t]
 
-        # TD(t_j) with aggregated discounted rewards:
-        # R_j already includes sum_i gamma^(t_i - t_j) r_i
+        # TD(t_j) as in the paper, using aggregated discounted rewards:
         delta = rewards[t] + gamma_dt * next_value * mask - values[t]
         advantages[t] = delta + lam_gamma_dt * next_adv * mask
 
@@ -242,7 +271,10 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 
     buffer.clear()
 
+
+# =========================
 # REWARD COLLECTION (BLUE)
+# =========================
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents: List[Any],
@@ -253,11 +285,12 @@ def collect_blue_rewards_for_step(
     """
     Collect per-agent rewards for BLUE from GameManager using timestamped events.
 
-    Returns: A dictionary mapping agent unique_id to the total DISCOUNTED reward
-             accumulated during the last decision window (t_j, t_{j+1}].
+    For each decision j, we compute:
+      R_j = sum_{i in I_j} gamma^{t_i - t_j} r_i
+
+    and store R_j as rewards[j]. Those then go into TD(t_j) in compute_gae_event.
     """
 
-    # Get all buffered events and clear the buffer.
     # Each event: (timestamp, agent_id, reward_value)
     raw_events = list(gm.reward_events)
     gm.reward_events.clear()
@@ -269,7 +302,6 @@ def collect_blue_rewards_for_step(
         # Discount reward back to the macro-decision time t_j
         time_since_action = t_event - decision_time_start
         if time_since_action < 0:
-            # Should rarely happen if events are popped right after a macro decision
             time_since_action = 0.0
 
         discounted_r = r * (GAMMA ** time_since_action)
@@ -288,24 +320,9 @@ def collect_blue_rewards_for_step(
     return rewards_sum_by_id
 
 
-def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
-    """
-    Slowly anneal entropy from a higher starting value down to the per-phase base.
-    """
-    base = ENT_COEF_BY_PHASE[cur_phase]
-
-    if cur_phase == "OP1":
-        start_ent, horizon = 0.05, 300.0
-    elif cur_phase == "OP2":
-        start_ent, horizon = 0.03, 500.0
-    else:  # OP3
-        start_ent, horizon = 0.03, 800.0
-
-    frac = min(1.0, phase_episode_count / horizon)
-    return float(start_ent - (start_ent - base) * frac)
-
-
+# =========================
 # MAIN TRAIN LOOP
+# =========================
 def train_ppo_event(total_steps=TOTAL_STEPS):
     set_seed(42)
 
@@ -315,7 +332,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Build a dummy observation to sanity-check CNN shape
     env.reset_default()
     if env.blue_agents:
-        dummy_obs = env.build_observation(env.blue_agents[0])  # [7,20,20]
+        dummy_obs = env.build_observation(env.blue_agents[0])
         c = len(dummy_obs)
         h = len(dummy_obs[0])
         w = len(dummy_obs[0][0])
@@ -324,14 +341,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         dummy_obs = None
         print("[train_ppo_event] WARNING: No blue agents in env.reset_default().")
 
-    n_actions = len(MacroAction)
-
-    # ActorCriticNet uses CNN encoder internally; spatial obs only
     policy = ActorCriticNet(
-        n_macros=n_actions,
-        n_targets=env.num_macro_targets,  # uses the 50 macro_targets from GameField
+        n_macros=len(USED_MACROS),
+        n_targets=env.num_macro_targets,
     ).to(DEVICE)
-
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
 
@@ -349,6 +362,10 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Rolling window for cooperation HUD
     coop_window = deque(maxlen=COOP_WINDOW)
 
+    # --- NEW: Storage for old policies (List of state_dict) ---
+    old_policies_buffer: Deque[Dict[str, Any]] = deque(maxlen=20)  # Max policies to store
+    # -----------------------------------------------------------
+
     while global_step < total_steps:
         episode_idx += 1
         phase_episode_count += 1
@@ -359,6 +376,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         gm.max_time = phase_cfg["max_time"]
         max_steps = phase_cfg["max_macro_steps"]
         gm.set_phase(cur_phase)
+
+        # Fixed entropy coefficient per phase (paper-style)
+        ENT_COEF = ENT_COEF_BY_PHASE[cur_phase]
 
         # Scripted red opponent for this phase
         set_red_policy_for_phase(env, cur_phase)
@@ -382,8 +402,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         ep_return = 0.0
         steps = 0
 
-        ENT_COEF = get_entropy_coef(cur_phase, phase_episode_count, phase_wr)
-
         # Diagnostics per episode
         ep_macro_counts = {0: [0] * NUM_ACTIONS, 1: [0] * NUM_ACTIONS}
         ep_mine_attempts = {0: 0, 1: 0}
@@ -396,12 +414,31 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         decision_time_start = gm.get_sim_time()
 
         while not done and steps < max_steps and global_step < total_steps:
+
+            # --- NEW: SAVE CURRENT POLICY PARAMETERS ---
+            if global_step > 0 and global_step % POLICY_SAVE_INTERVAL == 0:
+                # Use deepcopy to ensure we save parameters by value, not reference
+                old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
+            # -------------------------------------------
+
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             decisions = []
 
+            # --- NEW: SAMPLING OLD POLICY LOGIC ---
+            original_policy_state = None
+            if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
+                # Store current policy state to revert later
+                original_policy_state = copy.deepcopy(policy.state_dict())
+
+                # Sample an old policy uniformly and load its parameters
+                sampled_policy_state = random.choice(old_policies_buffer)
+                policy.load_state_dict(sampled_policy_state)
+                # Note: The agent will now act using the old, sampled policy
+            # ----------------------------------------
+
             # === Blue macro decisions ===
             for agent in blue_agents:
-                obs = env.build_observation(agent)  # [C,H,W]
+                obs = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
 
                 out = policy.act(
@@ -416,32 +453,32 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 logp = float(out["log_prob"][0].item())
                 val = float(out["value"][0].item())
 
+                macro_enum = USED_MACROS[macro_idx]
+
                 local_id = getattr(agent, "agent_id", 0)
                 if local_id in ep_macro_counts and 0 <= macro_idx < NUM_ACTIONS:
                     ep_macro_counts[local_id][macro_idx] += 1
-                    if MacroAction(macro_idx) == MacroAction.PLACE_MINE:
+                    if macro_enum == MacroAction.PLACE_MINE:
                         ep_mine_attempts[local_id] += 1
 
                 if agent.unique_id not in ep_mines_placed_by_uid:
                     ep_mines_placed_by_uid[agent.unique_id] = 0
 
-                # Enemy flag distance before moving (optional diagnostics)
                 side = agent.getSide()
-                if hasattr(gm, "get_enemy_flag_position"):
-                    ex, ey = gm.get_enemy_flag_position(side)
-                else:
-                    if side == "blue":
-                        ex, ey = gm.red_flag_position
-                    else:
-                        ex, ey = gm.blue_flag_position
+                ex, ey = gm.get_enemy_flag_position(side)
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
 
-                # Apply macro action (GameField will map target_idx via get_macro_target)
-                env.apply_macro_action(agent, MacroAction(macro_idx), target_idx)
+                env.apply_macro_action(agent, macro_enum, target_idx)
 
                 decisions.append(
                     (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
+
+            # --- NEW: REVERT TO CURRENT POLICY ---
+            if original_policy_state is not None:
+                policy.load_state_dict(original_policy_state)
+                # The policy is now back to its current, most-up-to-date state
+            # -------------------------------------
 
             # --- Simulate until next decision window ---
             sim_t = 0.0
@@ -453,7 +490,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             decision_time_end = gm.get_sim_time()
             done = gm.game_over
 
-            # --- Collect rewards for this macro step ---
+            # --- Collect rewards for this macro step (continuous-time TD) ---
             rewards = collect_blue_rewards_for_step(
                 gm,
                 blue_agents,
@@ -470,7 +507,8 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             # Track mine placement stats
             for agent, _, macro_idx, target_idx, _, _, prev_flag_dist, ex, ey in decisions:
                 uid = agent.unique_id
-                if MacroAction(macro_idx) == MacroAction.PLACE_MINE:
+                macro_enum = USED_MACROS[macro_idx]
+                if macro_enum == MacroAction.PLACE_MINE:
                     ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
             # HUD score / combat stats
@@ -494,7 +532,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             ep_return += step_reward_sum
             steps += 1
 
-            # Prepare for next macro decision window
+            # Next macro-decision window starts here
             decision_time_start = decision_time_end
 
             # PPO update
@@ -591,10 +629,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             pct_0 = [100.0 * c / total_dec_0 for c in agg_macros[0]]
             pct_1 = [100.0 * c / total_dec_1 for c in agg_macros[1]]
 
-            p_m0_r1 = 100.0 * agg_miner0_runner1 / window_len
-            p_m1_r0 = 100.0 * agg_miner1_runner0 / window_len
-            p_both = 100.0 * agg_both_mine_score / window_len
-
             blue_kills = sum(ep["blue_mine_kills"] for ep in coop_window) / window_len
             red_kills = sum(ep["red_mine_kills"] for ep in coop_window) / window_len
             enemy_half = sum(ep["mines_placed_in_enemy_half"] for ep in coop_window) / window_len
@@ -634,7 +668,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
             print("   =====================================================")
 
+        # =========================
         # CURRICULUM ADVANCE
+        # =========================
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
