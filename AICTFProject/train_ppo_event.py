@@ -27,8 +27,8 @@ def set_seed(seed: int = 42):
 
 
 # CONFIG
-GRID_ROWS = 20
-GRID_COLS = 20
+GRID_ROWS = 30
+GRID_COLS = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -76,9 +76,9 @@ TARGET_PHASE_WINRATE = {
 PHASE_WINRATE_WINDOW = 50
 
 ENT_COEF_BY_PHASE = {
-    "OP1": 0.03,
-    "OP2": 0.025,
-    "OP3": 0.02,
+    "OP1": 0.04,
+    "OP2": 0.03,
+    "OP3": 0.026,
 }
 
 PHASE_CONFIG = {
