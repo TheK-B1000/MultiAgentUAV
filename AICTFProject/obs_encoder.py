@@ -4,28 +4,18 @@ import torch.nn as nn
 
 class ObsEncoder(nn.Module):
     """
-    CNN over a 7-channel 20x20 spatial observation.
+    CNN over a 7-channel 30x40 spatial observation.
 
-    Observation layout (from GameField.build_observation):
-
-        Shape: [C, H, W] = [7, 20, 20]
-
-        Channels:
-          0: Own UAV position
-          1: Teammate UAVs (same side, excluding self)
-          2: Enemy UAVs
-          3: Friendly mines
-          4: Enemy mines
-          5: Own flag
-          6: Enemy flag
+    Observation layout:
+        Shape: [C, H, W] = [7, 40, 30] (Rows=40, Cols=30)
     """
 
     def __init__(
-        self,
-        in_channels: int = 7,
-        height: int = 20,
-        width: int = 20,
-        latent_dim: int = 128,
+            self,
+            in_channels: int = 7,
+            height: int = 40,  # <-- UPDATED
+            width: int = 30,  # <-- UPDATED
+            latent_dim: int = 128,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -33,7 +23,7 @@ class ObsEncoder(nn.Module):
         self.width = width
         self.latent_dim = latent_dim
 
-        # Simple CNN stack: keep H,W = 20x20 via padding
+        # Simple CNN stack: H,W is preserved (e.g., 40x30 via padding=1, kernel=3)
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
@@ -41,7 +31,8 @@ class ObsEncoder(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-        # After conv: channels = 64, H=W=20 → flat_dim = 64 * 20 * 20
+        # After conv: channels = 64, H=40, W=30.
+        # CRITICAL UPDATE: Calculate the new flat dimension: 64 * 40 * 30 = 76800
         flat_dim = 64 * height * width
 
         self.fc = nn.Sequential(
@@ -73,11 +64,12 @@ class ObsEncoder(nn.Module):
 
         assert obs.dim() == 4, f"ObsEncoder expects 4D tensor [B,C,H,W], got {obs.shape}"
         b, c, h, w = obs.shape
+        # Check against the new expected dimensions: 40x30
         assert c == self.in_channels, f"Expected {self.in_channels} channels, got {c}"
         assert h == self.height and w == self.width, \
             f"Expected spatial size {self.height}x{self.width}, got {h}x{w}"
 
-        x = self.conv(obs)                 # [B, 64, 20, 20]
-        x = x.view(b, -1)                  # [B, 64*20*20]
-        latent = self.fc(x)                # [B, latent_dim]
+        x = self.conv(obs)  # [B, 64, 40, 30]
+        x = x.view(b, -1)  # [B, 64*40*30]
+        latent = self.fc(x)  # [B, latent_dim]
         return latent
