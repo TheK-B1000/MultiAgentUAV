@@ -30,8 +30,8 @@ class ActorCriticNet(nn.Module):
         n_targets: int = 50,
         latent_dim: int = 128,
         # CNN spatial size
-        height: int = 20,
-        width: int = 20,
+        height: int = 30,
+        width: int = 40,
         extra_dim: int = 7,
     ):
         super().__init__()
