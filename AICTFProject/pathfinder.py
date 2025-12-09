@@ -96,9 +96,7 @@ class Pathfinder:
 
         return neighbors
 
-    # ------------------------------------------------------------------
     # A* core
-    # ------------------------------------------------------------------
     def heuristic(self, a: Coord, b: Coord) -> float:
         """
         Octile distance (D = 1, D2 = sqrt(2)) heuristic for 8-directional grids.
