@@ -5,11 +5,11 @@ Multi-Agent PPO (MAPPO-style, CTDE) baseline for the 2-vs-2 UAV Capture-the-Flag
 
 Key differences from train_ppo_event.py (single-team PPO):
 
-  - Uses a centralized critic V(S) over the joint BLUE state S(t_j) = concat(s_0, s_1),
+  - [MAPPO] Uses a centralized critic V(S) over the joint BLUE state S(t_j) = concat(s_0, s_1),
     with decentralized actors π(a_i | s_i). (CTDE: Centralized Training, Decentralized Execution)
-  - Stores both per-agent observations (actor_obs) and joint observations (central_obs)
+  - [MAPPO] Stores both per-agent observations (actor_obs) and joint observations (central_obs)
     in a MAPPOBuffer.
-  - PPO updates call ActorCriticNet.evaluate_actions_central(central_obs, actor_obs, ...)
+  - [MAPPO] PPO updates call ActorCriticNet.evaluate_actions_central(central_obs, actor_obs, ...)
     instead of evaluate_actions(obs, ...), so the value baseline is V(S) instead of V(s_i).
 
 Everything else matches the event-driven PPO setup:
@@ -18,8 +18,6 @@ Everything else matches the event-driven PPO setup:
   - Curriculum over scripted RED opponents (OP1 → OP2 → OP3).
   - Optional self-play via “ghost” neural opponents.
   - Cooperation HUD for emergent role specialization and mine usage.
-
-Use this as your CTDE / MAPPO research baseline.
 """
 
 import os
@@ -37,8 +35,10 @@ import torch.optim as optim
 from game_field import GameField
 from game_manager import GameManager
 from macro_actions import MacroAction
-from rl_policy import ActorCriticNet
+# [MAPPO] Import ActorCriticNet + MAPPOBuffer from rl_policy.py
+from rl_policy import ActorCriticNet, MAPPOBuffer
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+
 
 # ======================================================================
 # GLOBAL CONFIG & HYPERPARAMETERS
@@ -175,84 +175,6 @@ def make_env() -> GameField:
 
 
 # ======================================================================
-# MAPPO ROLLOUT BUFFER (CENTRAL OBS + ACTOR OBS)
-# ======================================================================
-
-class MAPPOBuffer:
-    """
-    Rollout buffer for MAPPO with centralized critic.
-
-    Each entry corresponds to ONE agent at ONE macro-decision time j:
-
-      - actor_obs_j:   s_i(t_j)            [C, H, W]
-      - central_obs_j: S(t_j)             [N_agents, C, H, W]
-      - macro_action_j, target_action_j
-      - log_prob_j, value_j (V(S) at t_j)
-      - reward_j, done_j, dt_j
-
-    NOTE (MAPPO): This differs from the single-agent RolloutBuffer by storing
-    both per-agent and joint observations so the critic can see the full state.
-    """
-
-    def __init__(self) -> None:
-        self.actor_obs: List[np.ndarray] = []
-        self.central_obs: List[np.ndarray] = []
-        self.macro_actions: List[int] = []
-        self.target_actions: List[int] = []
-        self.log_probs: List[float] = []
-        self.values: List[float] = []
-        self.rewards: List[float] = []
-        self.dones: List[bool] = []
-        self.dts: List[float] = []
-
-    def add(
-        self,
-        actor_obs: np.ndarray,       # [C, H, W]
-        central_obs: np.ndarray,     # [N_agents, C, H, W]
-        macro_action: int,
-        target_action: int,
-        log_prob: float,
-        value: float,
-        reward: float,
-        done: bool,
-        dt: float,
-    ) -> None:
-        self.actor_obs.append(actor_obs.astype(np.float32))
-        self.central_obs.append(central_obs.astype(np.float32))
-        self.macro_actions.append(int(macro_action))
-        self.target_actions.append(int(target_action))
-        self.log_probs.append(float(log_prob))
-        self.values.append(float(value))
-        self.rewards.append(float(reward))
-        self.dones.append(bool(done))
-        self.dts.append(float(dt))
-
-    def size(self) -> int:
-        return len(self.actor_obs)
-
-    def clear(self) -> None:
-        self.__init__()
-
-    def to_tensors(
-        self, device: torch.device
-    ) -> Tuple[torch.Tensor, ...]:
-        actor_obs = torch.tensor(
-            np.stack(self.actor_obs), dtype=torch.float32, device=device
-        )  # [T, C, H, W]
-        central_obs = torch.tensor(
-            np.stack(self.central_obs), dtype=torch.float32, device=device
-        )  # [T, N_agents, C, H, W]
-        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)
-        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)
-        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
-        values = torch.tensor(self.values, dtype=torch.float32, device=device)
-        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
-        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
-        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
-        return actor_obs, central_obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
-
-
-# ======================================================================
 # EVENT-DRIVEN GAE (CONTINUOUS TIME)
 # ======================================================================
 
@@ -306,8 +228,8 @@ def mappo_update(
     """
     PPO update with centralized critic (MAPPO/CTDE variant).
 
-    NOTE (MAPPO): This is the same math as PPO, but values come from V(S)
-    via evaluate_actions_central, using both central_obs and actor_obs.
+    [MAPPO] Same PPO math, but values come from V(S)
+            via evaluate_actions_central using both central_obs and actor_obs.
     """
     (
         actor_obs,
@@ -338,7 +260,7 @@ def mappo_update(
             mb_advantages = advantages[mb_idx]
             mb_returns = returns[mb_idx]
 
-            # NOTE (MAPPO): centralized critic, decentralized actor
+            # [MAPPO] centralized critic (V(S)), decentralized actor (π(a_i | s_i))
             new_log_probs, entropy, new_values = policy.evaluate_actions_central(
                 mb_central_obs,
                 mb_actor_obs,
@@ -462,7 +384,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     else:
         print("[train_mappo_event] WARNING: No blue agents in env.reset_default().")
 
-    # Policy & optimizer (MAPPO: turn on central critic usage)
+    # [MAPPO] Policy & optimizer with centralized critic turned on
     policy = ActorCriticNet(
         n_macros=len(USED_MACROS),
         n_targets=env.num_macro_targets,
@@ -506,7 +428,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         # --------------------------------------------------
         use_selfplay = False
         if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
-            # Use a neural "ghost" policy for RED (self-play)
+            # [MAPPO] Use a neural "ghost" policy for RED (self-play)
             red_net = ActorCriticNet(
                 n_macros=len(USED_MACROS),
                 n_targets=env.num_macro_targets,
@@ -566,12 +488,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             n_agents = len(blue_agents)
 
             # ==================================================
-            # MAPPO: BUILD JOINT OBSERVATION S(t_j)
+            # [MAPPO] BUILD JOINT OBSERVATION S(t_j)
             # ==================================================
             obs_list = [env.build_observation(a) for a in blue_agents]  # list of [C,H,W]
             central_obs = np.stack(obs_list, axis=0)  # [N_agents, C, H, W]
 
-            # Central value V(S) for this macro-decision time.
+            # [MAPPO] Central value V(S) for this macro-decision time.
             with torch.no_grad():
                 central_obs_tensor = torch.tensor(
                     central_obs, dtype=torch.float32, device=DEVICE
@@ -613,6 +535,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 # Apply macro-action (steers lower-level motion controller)
                 env.apply_macro_action(agent, macro_enum, target_idx)
 
+                # [MAPPO] Store per-agent decision, but shared V(S)
                 decisions.append(
                     (agent, actor_obs, macro_idx, target_idx, logp, v_s)
                 )
@@ -651,7 +574,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 ep_combat_events += 1
 
             # --------------------------------------------------
-            # ADD TO MAPPO BUFFER
+            # [MAPPO] ADD TO MAPPO BUFFER
             # --------------------------------------------------
             step_reward_sum = 0.0
             for agent, actor_obs, macro_idx, target_idx, logp, v_s in decisions:
@@ -659,12 +582,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 step_reward_sum += r_i
 
                 buffer.add(
-                    actor_obs=np.array(actor_obs, dtype=np.float32),     # [C,H,W]
+                    actor_obs=np.array(actor_obs, dtype=np.float32),      # [C,H,W]
                     central_obs=np.array(central_obs, dtype=np.float32),  # [N_agents,C,H,W]
                     macro_action=macro_idx,
                     target_action=target_idx,
                     log_prob=logp,
-                    value=v_s,          # NOTE (MAPPO): shared V(S) baseline
+                    value=v_s,          # [MAPPO] shared V(S) baseline
                     reward=r_i,
                     done=done,
                     dt=dt,
