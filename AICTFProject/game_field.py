@@ -1,8 +1,32 @@
+"""
+game_field.py
+
+2D Capture-the-Flag (CTF) simulation environment for multi-agent RL.
+
+This environment models a simplified 2-vs-2 UAV CTF game:
+
+  - Physical arena: 10.0m (X) × 4.28m (Y), mapped to a discrete grid.
+  - Two teams (BLUE, RED) with a configurable number of agents per side.
+  - Flags, mines, suppression kills, respawns, and team zones.
+  - Macro-actions (GO_TO, GRAB_MINE, GET_FLAG, PLACE_MINE, GO_HOME) executed
+    via a pathfinder over the discrete grid.
+  - CNN observations: 7-channel 30×40 map with ego-centric mirroring so both
+    BLUE and RED see the game in a common canonical frame.
+  - Scripted opponents (OP1/OP2/OP3) and an optional neural RED policy for
+    self-play.
+
+The focus is to provide a stable, research-friendly interface for MARL training
+(PPO, MAPPO, QMIX, self-play, etc.) while preserving a clean mapping to a
+real-world UAV arena (sim-to-real).
+
+NOTE: This file has **no pygame dependency**. Rendering lives in viewer_game_field.py.
+"""
+
 import random
 import math
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional, Any
-import pygame as pg
+
 import torch
 
 from game_manager import GameManager
@@ -12,21 +36,28 @@ from pathfinder import Pathfinder
 from macro_actions import MacroAction
 from policies import Policy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
-# Physical arena dimensions
-ARENA_WIDTH_M = 10.0       # meters (X direction)
-ARENA_HEIGHT_M = 4.28      # meters (Y direction)
+# ----------------------------------------------------------------------
+# Physical arena dimensions (meters)
+# ----------------------------------------------------------------------
+ARENA_WIDTH_M = 10.0   # X direction
+ARENA_HEIGHT_M = 4.28  # Y direction
 
+# ----------------------------------------------------------------------
 # CNN map resolution for observations
-CNN_COLS = 20
-CNN_ROWS = 20
+# ----------------------------------------------------------------------
+CNN_COLS = 30
+CNN_ROWS = 40
 NUM_CNN_CHANNELS = 7
 
+
+# ----------------------------------------------------------------------
 # Mines & pickups
+# ----------------------------------------------------------------------
 @dataclass
 class Mine:
     x: int
     y: int
-    owner_side: str  # "blue" or "red"
+    owner_side: str           # "blue" or "red"
     owner_id: Optional[str] = None  # unique_id of placing agent (if known)
 
 
@@ -34,20 +65,29 @@ class Mine:
 class MinePickup:
     x: int
     y: int
-    owner_side: str  # "blue" or "red"
+    owner_side: str           # "blue" or "red"
     charges: int = 1
 
 
+# ----------------------------------------------------------------------
 # GameField — main 2D simulation environment
+# ----------------------------------------------------------------------
 class GameField:
     def __init__(self, grid: List[List[int]]):
+        """
+        Construct a CTF environment over a discrete grid.
+
+        Args:
+            grid: 2D list of ints representing walkable/blocked cells (0=free).
+        """
         self.grid = grid
         self.row_count = len(grid)
         self.col_count = len(grid[0]) if self.row_count else 0
 
+        # Core game state
         self.manager = GameManager(cols=self.col_count, rows=self.row_count)
 
-        # Mines / pickups
+        # Mines / pickups configuration
         self.mines: List[Mine] = []
         self.mine_pickups: List[MinePickup] = []
         self.mine_radius_cells = 1.5
@@ -55,11 +95,12 @@ class GameField:
         self.mines_per_team = 4
         self.max_mine_charges_per_agent = 2
 
-        # Policy wiring
-        self.use_internal_policies = True
-        self.external_control_for_side = {"blue": False, "red": False}
+        # Policy wiring (internal vs external control)
+        self.use_internal_policies: bool = True
+        self.external_control_for_side: Dict[str, bool] = {"blue": False, "red": False}
 
-        # By default, BOTH teams use the paper's OP3-style scripted policy
+        # By default, BOTH teams use the paper's OP3-style scripted policy.
+        # The MARL trainer typically sets BLUE to external control.
         self.policies: Dict[str, Any] = {
             "blue": OP3RedPolicy("blue"),  # baseline scripted OP3 on BLUE side
             "red": OP3RedPolicy("red"),    # default opponent: OP3
@@ -68,7 +109,7 @@ class GameField:
 
         # Zones & agents
         self._init_zones()
-        self.agents_per_team = 2
+        self.agents_per_team: int = 2
         self.blue_agents: List[Agent] = []
         self.red_agents: List[Agent] = []
 
@@ -86,28 +127,36 @@ class GameField:
         self.cell_height_m = ARENA_HEIGHT_M / max(1, self.row_count)
 
         # ------------------------------------------------------------------
-        # Categorical 2D targets over 50 random grid positions.
-        # The policy outputs an index (0..49), which is mapped to a 30×40
-        # grid cell via self.macro_targets.
+        # Categorical 2D macro-targets over random grid positions.
+        # The policy outputs an index (0..num_macro_targets-1), which is
+        # mapped to a grid cell via self.macro_targets.
         # ------------------------------------------------------------------
         self.num_macro_targets: int = 50
         self.macro_targets: List[Tuple[int, int]] = []  # list of (x, y) grid cells
 
         # Timers
-        self.respawn_seconds = 2.0
-        self.decision_interval_seconds = 0.7
+        self.respawn_seconds: float = 2.0
+        self.decision_interval_seconds: float = 0.7
         self.decision_cooldown_seconds_by_agent: Dict[int, float] = {}
 
-        # UI / rewards bookkeeping
+        # UI / rewards bookkeeping (for viewer / debugging only)
+        # Safe in headless training; no pygame required.
         self.banner_queue: List[Tuple[str, Tuple[int, int, int], float]] = []
 
-        self.debug_draw_ranges = True
-        self.debug_draw_mine_ranges = True
+        # Debug flags (used only by viewer; harmless here)
+        self.debug_draw_ranges: bool = True
+        self.debug_draw_mine_ranges: bool = True
 
+        # Initialize to default scenario
         self.reset_default()
 
+    # ------------------------------------------------------------------
     # Setup & configuration
+    # ------------------------------------------------------------------
     def _init_zones(self) -> None:
+        """
+        Initialize team zones (blue base, red base) as left/right thirds of the field.
+        """
         total_cols = max(1, self.col_count)
         third = max(1, total_cols // 3)
 
@@ -124,6 +173,12 @@ class GameField:
         self.red_zone_col_range = (red_min, red_max)
 
     def _init_macro_targets(self, seed: Optional[int] = None) -> None:
+        """
+        Initialize a fixed set of discrete macro-targets over the grid.
+
+        These targets let the policy output a categorical index and still
+        map to meaningful 2D waypoints in the arena.
+        """
         rng = random.Random(seed if seed is not None else 1337)
         self.macro_targets.clear()
 
@@ -146,27 +201,42 @@ class GameField:
             self.macro_targets.append(rng.choice(free_cells))
 
     def get_macro_target(self, index: int) -> Tuple[int, int]:
+        """
+        Map a categorical macro-target index into a grid cell (x, y).
+        """
         if not self.macro_targets:
             self._init_macro_targets()
         if self.num_macro_targets <= 0:
-            # Fallback: just pick center if something goes wrong
+            # Fallback: center of the arena
             return self.col_count // 2, self.row_count // 2
         idx = int(index) % self.num_macro_targets
         return self.macro_targets[idx]
 
     def get_all_macro_targets(self) -> List[Tuple[int, int]]:
+        """
+        Return a copy of all macro-target positions.
+        """
         if not self.macro_targets:
             self._init_macro_targets()
         return list(self.macro_targets)
 
     def getGameManager(self) -> GameManager:
+        """
+        Convenience accessor for the underlying GameManager.
+        """
         return self.manager
 
+    # ------------------------------------------------------------------
+    # Policy wiring (scripted / neural / external control)
+    # ------------------------------------------------------------------
     def set_policies(self, blue: Any, red: Any) -> None:
         self.policies["blue"] = blue
         self.policies["red"] = red
 
     def set_red_opponent(self, mode: str) -> None:
+        """
+        Select scripted RED opponent variant (OP1 / OP2 / OP3).
+        """
         mode = mode.upper()
         self.opponent_mode = mode
         if mode == "OP1":
@@ -177,26 +247,36 @@ class GameField:
             self.policies["red"] = OP3RedPolicy("red")
 
     def set_external_control(self, side: str, external: bool) -> None:
+        """
+        Set whether a side ("blue" or "red") is controlled externally (RL)
+        or internally via self.policies.
+        """
         if side not in ("blue", "red"):
             raise ValueError(f"Unknown side: {side}")
         self.external_control_for_side[side] = external
 
     def set_all_external_control(self, external: bool) -> None:
+        """
+        Convenience: set external-control flag for both sides.
+        """
         for side in ("blue", "red"):
             self.external_control_for_side[side] = external
 
-        # --- Add this inside GameField class ---
     def set_red_policy_neural(self, policy_net: Any) -> None:
+        """
+        Attach a neural policy network as the RED opponent (self-play).
+        The network must implement .act(obs, agent, game_field, deterministic=...).
+        """
         self.policies["red"] = policy_net
         self.opponent_mode = "NEURAL"
 
-
-    # ------------ Coordinate mapping helpers ------------
-
+    # ------------------------------------------------------------------
+    # Coordinate mapping (grid ↔ world ↔ CNN)
+    # ------------------------------------------------------------------
     def grid_to_world(self, col: int, row: int) -> Tuple[float, float]:
         """
-        Map a grid cell (col, row) to physical coordinates (x, y) in meters.
-        Centers the point in the cell.
+        Map a grid cell (col, row) to physical coordinates (x, y) in meters
+        at the center of the cell.
         """
         x = (col + 0.5) * self.cell_width_m
         y = (row + 0.5) * self.cell_height_m
@@ -204,7 +284,7 @@ class GameField:
 
     def world_to_cnn_cell(self, x_m: float, y_m: float) -> Tuple[int, int]:
         """
-        Map physical coordinates (x, y) in meters to a 20x20 CNN cell index.
+        Map physical coordinates (x, y) in meters to a 20×20 CNN cell index.
         """
         # Normalize to [0,1]
         u = max(0.0, min(1.0, x_m / ARENA_WIDTH_M))
@@ -227,13 +307,18 @@ class GameField:
         x_m, y_m = self.grid_to_world(col, row)
         return self.world_to_cnn_cell(x_m, y_m)
 
-
-
-    # Test cases / reset
+    # ------------------------------------------------------------------
+    # Reset / scenario configuration
+    # ------------------------------------------------------------------
     def reset_default(self) -> None:
+        """
+        Reset to the standard 2-vs-2 scenario used for training:
+          - Blue and Red zones left/right.
+          - Flags at fixed homes.
+          - Fresh macro-targets, agents, and mine pickups.
+        """
         self._init_zones()
         self.manager.reset_game()
-        self.agents_per_team = 2
         self.mines.clear()
         self.mine_pickups.clear()
         self._init_macro_targets(seed=self.agents_per_team)
@@ -241,57 +326,49 @@ class GameField:
         self.spawn_mine_pickups()
         self.decision_cooldown_seconds_by_agent.clear()
 
-    def runTestCase1(self) -> None:
-        self.reset_default()
+    def set_agent_count_and_reset(self, new_count: int) -> None:
+        """
+        Public method to dynamically change the number of agents per team
+        and reset the game environment accordingly, including scores.
 
-    def runTestCase2(self, agent_count: int, manager: GameManager) -> None:
-        self.agents_per_team = int(max(1, min(100, agent_count)))
-        self.manager.reset_game()
-        self.mines.clear()
-        self.mine_pickups.clear()
+        Args:
+            new_count: The new number of agents per team (must be >= 1).
+        """
+        # 1. Ensure count is valid
+        if new_count < 1:
+            new_count = 1
 
-        # New macro target set when agent count changes
-        self._init_macro_targets(seed=self.agents_per_team)
+        # 2. Update the stored agent count
+        self.agents_per_team = new_count
 
-        self.spawn_agents()
-        self.spawn_mine_pickups()
-
-    def runTestCase3(self) -> None:
+        # 3. Reset the scores explicitly (ensures a fresh game)
         self.manager.reset_game(reset_scores=True)
 
-        # Swap zone definitions
-        self.blue_zone_col_range, self.red_zone_col_range = (
-            self.red_zone_col_range,
-            self.blue_zone_col_range,
-        )
+        # 4. Reset the scenario with the new count (spawns agents, etc.)
+        self.reset_default()
 
-        middle_row = self.row_count // 2
-
-        self.manager.blue_flag_home = (self.col_count - 2, middle_row)
-        self.manager.red_flag_home = (1, middle_row)
-        self.manager.blue_flag_position = self.manager.blue_flag_home
-        self.manager.red_flag_position = self.manager.red_flag_home
-        self.manager.blue_flag_taken = False
-        self.manager.red_flag_taken = False
-        self.manager.blue_flag_carrier = None
-        self.manager.red_flag_carrier = None
-
-        self.mines.clear()
-        self.mine_pickups.clear()
-
-        # New macro targets for this swapped layout
-        self._init_macro_targets(seed=self.agents_per_team + 1234)
-
-        self.spawn_agents()
-        self.spawn_mine_pickups()
-
+    # ------------------------------------------------------------------
+    # Core simulation step
+    # ------------------------------------------------------------------
     def update(self, delta_time: float) -> None:
+        """
+        Advance the simulation by delta_time (seconds).
+
+        This:
+          - Advances game time and checks for win conditions.
+          - Updates all agents (motion / respawn timers).
+          - Updates pathfinder dynamic obstacles.
+          - Applies hazards (mines, suppression).
+          - Triggers internal policy decisions for scripted/neural agents.
+          - Handles pickups and flag rules.
+        """
         if self.manager.game_over:
             return
 
         # Advance global sim time / check for terminal condition
         winner_text = self.manager.tick_seconds(delta_time)
         if winner_text:
+            # In headless mode this just populates banner_queue; viewer decides what to do.
             color = (
                 (90, 170, 250) if "BLUE" in winner_text else
                 (250, 120, 70) if "RED" in winner_text else
@@ -310,18 +387,18 @@ class GameField:
 
         # 3) Process both teams
         for friendly_team, enemy_team in (
-                (self.blue_agents, self.red_agents),
-                (self.red_agents, self.blue_agents),
+            (self.blue_agents, self.red_agents),
+            (self.red_agents, self.blue_agents),
         ):
             for agent in friendly_team:
                 if not agent.isEnabled():
                     continue
 
-                # 1. Hazards — THIS IS WHERE MINE KILLS ARE TRACKED
-                self.apply_mine_damage(agent)  # ← now tracks kills!
+                # 1. Hazards — mine kills & suppression
+                self.apply_mine_damage(agent)
                 self.apply_suppression(agent, enemy_team)
 
-                # 2. Decision-making
+                # 2. Decision-making (only internal, external handled by RL)
                 agent_key = id(agent)
                 cooldown = self.decision_cooldown_seconds_by_agent.get(agent_key, 0.0)
                 cooldown -= delta_time
@@ -336,7 +413,7 @@ class GameField:
                 self.handle_mine_pickups(agent)
                 self.apply_flag_rules(agent)
 
-        # 4) Banner fade-out
+        # 4) Banner fade-out (visual feedback only; harmless headless)
         if self.banner_queue:
             text, color, t = self.banner_queue[-1]
             t = max(0.0, t - delta_time)
@@ -344,18 +421,30 @@ class GameField:
             if t <= 0.0:
                 self.banner_queue.pop()
 
-    # Observation builder for RL / policies (7-channel 20x20 CNN)
+    # ------------------------------------------------------------------
+    # Observation builder for RL / policies (7-channel 20×20 CNN)
+    # ------------------------------------------------------------------
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
         """
-        Builds a 7-channel 20x20 spatial observation for the given agent.
-        The observation is point-mirrored to the agent's side, meaning Blue's
-        view is the canonical view, and Red's view is mirrored across the
-        center line.
+        Builds a 7-channel 20×20 spatial observation for the given agent.
+
+        Channels:
+          0: Own UAV position
+          1: Teammate UAVs (same side, excluding self)
+          2: Enemy UAVs
+          3: Friendly mines
+          4: Enemy mines
+          5: Own flag
+          6: Enemy flag
+
+        The observation is point-mirrored to the agent's side, meaning BLUE's
+        view is the canonical frame, and RED's view is mirrored across the
+        arena so they see a symmetric layout. This helps with policy transfer.
         """
         side = agent.side  # "blue" or "red"
         game_state = self.manager
 
-        # Initialize C x H x W with zeros
+        # Initialize C×H×W with zeros
         channels: List[List[List[float]]] = [
             [[0.0 for _ in range(CNN_COLS)] for _ in range(CNN_ROWS)]
             for _ in range(NUM_CNN_CHANNELS)
@@ -404,7 +493,6 @@ class GameField:
             set_chan(1, c, r)
 
         # --- 2: enemy UAVs ---
-        # Disabled UAVs are not visible (handled by a.isEnabled() check)
         for a in enemy_team:
             if not a.isEnabled():
                 continue
@@ -437,7 +525,9 @@ class GameField:
 
         return channels
 
+    # ------------------------------------------------------------------
     # Macro-action executor
+    # ------------------------------------------------------------------
     def random_point_in_enemy_half(self, side: str) -> Tuple[int, int]:
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
@@ -467,11 +557,17 @@ class GameField:
         )
 
     def apply_macro_action(
-            self,
-            agent: Agent,
-            action: MacroAction,
-            param: Optional[Any] = None
+        self,
+        agent: Agent,
+        action: MacroAction,
+        param: Optional[Any] = None,
     ) -> None:
+        """
+        Execute a high-level macro-action by converting it into a path over the grid.
+
+        For RL, `param` is typically a categorical macro-target index that gets
+        resolved into a (x,y) grid coordinate.
+        """
         if not agent.isEnabled():
             return
 
@@ -484,7 +580,7 @@ class GameField:
             if param is None:
                 return default_target
 
-            # Coordinate param
+            # Coordinate param (x,y)
             if isinstance(param, (tuple, list)) and len(param) == 2:
                 return int(param[0]), int(param[1])
 
@@ -497,10 +593,10 @@ class GameField:
             return self.get_macro_target(idx)
 
         def safe_set_path(
-                target: Tuple[int, int],
-                avoid_enemies: bool = False,
-                radius: int = 1,
-        ):
+            target: Tuple[int, int],
+            avoid_enemies: bool = False,
+            radius: int = 1,
+        ) -> None:
             # Inflate dynamic obstacles near enemies if avoid_enemies=True
             original_blocked = set(self.pathfinder.blocked)
             blocked = set(original_blocked)
@@ -521,7 +617,7 @@ class GameField:
                 path = self.pathfinder.astar(start, fallback) or []
             agent.setPath(path)
 
-        # 5 macro actions
+        # ================= MACRO-ACTION HANDLERS =================
         if action == MacroAction.GO_TO:
             # Default: random point in enemy half
             default_target = self.random_point_in_enemy_half(side)
@@ -577,12 +673,20 @@ class GameField:
             home = gm.get_team_zone_center(side)
             safe_set_path(home, avoid_enemies=True, radius=2)
 
-    # Policy-driven decision
+    # ------------------------------------------------------------------
+    # Policy-driven decision for internal agents (scripted / neural RED)
+    # ------------------------------------------------------------------
     def decide(self, agent: Agent) -> None:
+        """
+        Let the current internal policy for agent.side choose a macro-action.
+
+        For RL training, BLUE is usually externally controlled; RED can be
+        scripted (OP1/OP2/OP3) or a neural ghost policy.
+        """
         if not agent.isEnabled():
             return
 
-            # Increment decision counter for state feature
+        # Increment decision counter for potential state features / diagnostics
         if not hasattr(agent, "decision_count"):
             agent.decision_count = 0
         agent.decision_count += 1
@@ -597,13 +701,12 @@ class GameField:
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
 
             with torch.no_grad():
-                # deterministic=False allows the 'Ghost' to have variety (human-like)
-                # deterministic=True makes it play its absolute best move (harder)
+                # deterministic=False → more variety; deterministic=True → "best" move
                 out = policy.act(
                     obs_tensor,
                     agent=agent,
                     game_field=self,
-                    deterministic=True
+                    deterministic=True,
                 )
 
             # Extract integers from tensors
@@ -614,7 +717,7 @@ class GameField:
         elif isinstance(policy, Policy):
             action_id, param = policy.select_action(obs, agent, self)
 
-        # 3. Fallback (Simple Callable)
+        # 3. Fallback (simple callable)
         else:
             action_id = policy(agent, self)
             param = None
@@ -622,7 +725,9 @@ class GameField:
         action = MacroAction(action_id)
         self.apply_macro_action(agent, action, param)
 
+    # ------------------------------------------------------------------
     # Mines / pickups / suppression / flags
+    # ------------------------------------------------------------------
     def handle_mine_pickups(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
@@ -694,7 +799,7 @@ class GameField:
             e
             for e in enemies
             if e.isEnabled()
-               and math.hypot(e.x - agent.x, e.y - agent.y) <= self.suppression_range_cells
+            and math.hypot(e.x - agent.x, e.y - agent.y) <= self.suppression_range_cells
         ]
 
         if len(close_enemies) >= 2:
@@ -725,259 +830,28 @@ class GameField:
                 agent.setCarryingFlag(False)
                 self.announce(
                     "BLUE SCORES!" if agent.side == "blue" else "RED SCORES!",
-                    (90, 170, 250)
-                    if agent.side == "blue"
-                    else (250, 120, 70),
+                    (90, 170, 250) if agent.side == "blue" else (250, 120, 70),
                     2.0,
                 )
 
-    # Rendering
-    def draw(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
-        rect_width, rect_height = board_rect.width, board_rect.height
-        cell_width = rect_width / max(1, self.col_count)
-        cell_height = rect_height / max(1, self.row_count)
-
-        surface.fill((20, 22, 30), board_rect)
-        self.draw_halves_and_center_line(surface, board_rect)
-
-        grid_color = (70, 70, 85)
-        for row in range(self.row_count + 1):
-            y = int(board_rect.top + row * cell_height)
-            pg.draw.line(surface, grid_color, (board_rect.left, y), (board_rect.right, y), 1)
-
-        for col in range(self.col_count + 1):
-            x = int(board_rect.left + col * cell_width)
-            pg.draw.line(surface, grid_color, (x, board_rect.top), (x, board_rect.bottom), 1)
-
-        # Debug ranges
-        if self.debug_draw_ranges or self.debug_draw_mine_ranges:
-            range_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
-
-            if self.debug_draw_ranges:
-                sup_radius_px = self.suppression_range_cells * min(cell_width, cell_height)
-
-                def draw_sup_range(agent: Agent, rgba: Tuple[int, int, int, int]) -> None:
-                    cx = (agent.x + 0.5) * cell_width
-                    cy = (agent.y + 0.5) * cell_height
-                    local_center = (int(cx), int(cy))
-                    pg.draw.circle(range_surface, rgba, local_center, int(sup_radius_px), width=2)
-
-                for a in self.blue_agents:
-                    if a.isEnabled():
-                        draw_sup_range(a, (50, 130, 255, 190))
-                for a in self.red_agents:
-                    if a.isEnabled():
-                        draw_sup_range(a, (255, 110, 70, 190))
-
-            if self.debug_draw_mine_ranges and self.mines:
-                mine_radius_px = self.mine_radius_cells * min(cell_width, cell_height)
-                for mine in self.mines:
-                    cx = (mine.x + 0.5) * cell_width
-                    cy = (mine.y + 0.5) * cell_height
-                    local_center = (int(cx), int(cy))
-                    rgba = (
-                        (40, 170, 230, 170)
-                        if mine.owner_side == "blue"
-                        else (230, 120, 80, 170)
-                    )
-                    pg.draw.circle(range_surface, rgba, local_center, int(mine_radius_px), width=1)
-
-            surface.blit(range_surface, board_rect.topleft)
-
-        # Flags
-        blue_base = getattr(self.manager, "blue_flag_home", self.manager.blue_flag_position)
-        red_base = getattr(self.manager, "red_flag_home", self.manager.red_flag_position)
-
-        self.draw_flag(
-            surface,
-            board_rect,
-            cell_width,
-            cell_height,
-            blue_base,  # <-- stays fixed
-            (90, 170, 250),
-            self.manager.blue_flag_taken,
-        )
-        self.draw_flag(
-            surface,
-            board_rect,
-            cell_width,
-            cell_height,
-            red_base,  # <-- stays fixed
-            (250, 120, 70),
-            self.manager.red_flag_taken,
-        )
-
-        # Mine pickups
-        def draw_mine_pickup(pickup: MinePickup) -> None:
-            cx = board_rect.left + (pickup.x + 0.5) * cell_width
-            cy = board_rect.top + (pickup.y + 0.5) * cell_height
-            r_outer = int(0.3 * min(cell_width, cell_height))
-            r_inner = int(0.16 * min(cell_width, cell_height))
-            color = (80, 210, 255) if pickup.owner_side == "blue" else (255, 160, 110)
-            pg.draw.circle(surface, (10, 10, 14), (int(cx), int(cy)), r_outer)
-            pg.draw.circle(surface, color, (int(cx), int(cy)), r_outer, width=2)
-            pg.draw.circle(surface, color, (int(cx), int(cy)), r_inner)
-
-        for pickup in self.mine_pickups:
-            draw_mine_pickup(pickup)
-
-        # Armed mines
-        def draw_mine(mine: Mine) -> None:
-            cx = board_rect.left + (mine.x + 0.5) * cell_width
-            cy = board_rect.top + (mine.y + 0.5) * cell_height
-            r = int(0.35 * min(cell_width, cell_height))
-            color = (40, 170, 230) if mine.owner_side == "blue" else (230, 120, 80)
-            pg.draw.circle(surface, color, (int(cx), int(cy)), r)
-            pg.draw.circle(surface, (5, 5, 8), (int(cx), int(cy)), r, width=1)
-
-        for mine in self.mines:
-            draw_mine(mine)
-
-        # Agents
-        def draw_agent(agent: Agent, body_rgb, enemy_flag_rgb):
-            center_x = board_rect.left + (agent.x + 0.5) * cell_width
-            center_y = board_rect.top + (agent.y + 0.5) * cell_height
-            tri_size = 0.45 * min(cell_width, cell_height)
-
-            target_x, target_y = self.manager.get_enemy_flag_position(agent.getSide())
-            if agent.path:
-                target_x, target_y = agent.path[0]
-
-            to_target_x = target_x - agent.x
-            to_target_y = target_y - agent.y
-            magnitude = max(
-                (to_target_x * to_target_x + to_target_y * to_target_y) ** 0.5, 1e-6
-            )
-            unit_x, unit_y = to_target_x / magnitude, to_target_y / magnitude
-            left_x, left_y = -unit_y, unit_x
-
-            tip = (
-                int(center_x + unit_x * tri_size),
-                int(center_y + unit_y * tri_size),
-            )
-            left = (
-                int(center_x - unit_x * tri_size * 0.6 + left_x * tri_size * 0.6),
-                int(center_y - unit_y * tri_size * 0.6 + left_y * tri_size * 0.6),
-            )
-            right = (
-                int(center_x - unit_x * tri_size * 0.6 - left_x * tri_size * 0.6),
-                int(center_y - unit_y * tri_size * 0.6 - left_y * tri_size * 0.6),
-            )
-
-            body_color = body_rgb if agent.isEnabled() else (50, 50, 55)
-            pg.draw.polygon(surface, body_color, (tip, left, right))
-
-            if agent.isCarryingFlag():
-                flag_size = int(tri_size * 0.5)
-                flag_rect = pg.Rect(
-                    tip[0] - flag_size // 2,
-                    tip[1] - flag_size // 2,
-                    flag_size,
-                    flag_size,
-                )
-                pg.draw.rect(surface, enemy_flag_rgb, flag_rect)
-
-            if agent.isTagged():
-                pg.draw.polygon(surface, (245, 245, 245), (tip, left, right), width=2)
-
-        for agent in self.blue_agents:
-            draw_agent(agent, (0, 180, 255), (250, 120, 70))
-        for agent in self.red_agents:
-            draw_agent(agent, (255, 120, 40), (90, 170, 250))
-
-        # Banner
-        if self.banner_queue:
-            text, color, time_left = self.banner_queue[-1]
-            fade_factor = max(0.3, min(1.0, time_left / 2.0))
-            font = pg.font.SysFont(None, 48)
-            faded_color = tuple(int(channel * fade_factor) for channel in color)
-            img = font.render(text, True, faded_color)
-            surface.blit(
-                img,
-                (
-                    board_rect.centerx - img.get_width() // 2,
-                    board_rect.top + 12,
-                ),
-            )
-
-    def draw_halves_and_center_line(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
-        rect_width, rect_height = board_rect.width, board_rect.height
-        cell_width = rect_width / max(1, self.col_count)
-
-        def fill_cols(col_start: int, col_end: int, rgba: Tuple[int, int, int, int]) -> None:
-            if col_start > col_end:
-                return
-            x0 = int(board_rect.left + col_start * cell_width)
-            x1 = int(board_rect.left + (col_end + 1) * cell_width)
-            band_width = max(1, x1 - x0)
-            band_surface = pg.Surface((band_width, rect_height), pg.SRCALPHA)
-            band_surface.fill(rgba)
-            surface.blit(band_surface, (x0, board_rect.top))
-
-        total_cols = max(1, self.col_count)
-        blue_min_col, blue_max_col = self.blue_zone_col_range
-        red_min_col, red_max_col = self.red_zone_col_range
-
-        mid_start = blue_max_col + 1
-        mid_end = red_min_col - 1
-
-        fill_cols(blue_min_col, blue_max_col, (15, 45, 120, 140))
-
-        if mid_start <= mid_end:
-            fill_cols(mid_start, mid_end, (40, 40, 55, 90))
-
-        fill_cols(red_min_col, red_max_col, (120, 45, 15, 140))
-
-        mid_col_index = total_cols // 2
-        mid_x = int(board_rect.left + mid_col_index * cell_width)
-        pg.draw.line(
-            surface,
-            (190, 190, 210),
-            (mid_x, board_rect.top),
-            (mid_x, board_rect.bottom),
-            2,
-        )
-
-    def draw_flag(
-        self,
-        surface: pg.Surface,
-        board_rect: pg.Rect,
-        cell_width: float,
-        cell_height: float,
-        grid_pos: Tuple[int, int],
-        color: Tuple[int, int, int],
-        is_taken: bool,
-    ) -> None:
-        grid_x, grid_y = grid_pos
-        center_x = board_rect.left + (grid_x + 0.5) * cell_width
-        center_y = board_rect.top + (grid_y + 0.5) * cell_height
-        radius_px = int(TEAM_ZONE_RADIUS_CELLS * min(cell_width, cell_height))
-
-        zone_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
-        local_center = (
-            int(center_x - board_rect.left),
-            int(center_y - board_rect.top),
-        )
-
-        pg.draw.circle(zone_surface, (*color, 40), local_center, radius_px, width=0)
-        pg.draw.circle(zone_surface, (*color, 110), local_center, radius_px, width=2)
-        surface.blit(zone_surface, board_rect.topleft)
-
-        if not is_taken:
-            flag_size = int(0.5 * min(cell_width, cell_height))
-            flag_rect = pg.Rect(
-                int(center_x - flag_size / 2),
-                int(center_y - flag_size / 2),
-                flag_size,
-                flag_size,
-            )
-            pg.draw.rect(surface, color, flag_rect)
-
+    # ------------------------------------------------------------------
+    # Utility / UI helpers (no pygame; viewer decides how to render)
+    # ------------------------------------------------------------------
     def announce(self, text: str, color=(255, 255, 255), seconds: float = 2.0) -> None:
+        """
+        Queue a banner message (for visual feedback only).
+
+        Headless training can ignore this; the viewer can consume banner_queue.
+        """
         self.banner_queue.append((text, color, seconds))
 
+    # ------------------------------------------------------------------
     # Spawning
+    # ------------------------------------------------------------------
     def spawn_agents(self) -> None:
+        """
+        Spawn agents for both teams into their respective zones.
+        """
         rng = random.Random(self.agents_per_team)
 
         # Clear everything
@@ -1020,7 +894,7 @@ class GameField:
                 move_rate_cps=rng.uniform(2.0, 2.4),
                 agent_id=i,
                 is_miner=(i == 0),
-                game_manager=self.manager,  # <-- IMPORTANT
+                game_manager=self.manager,
             )
             agent.spawn_xy = (col, row)
             agent.mine_charges = 0
@@ -1048,6 +922,9 @@ class GameField:
             self.red_agents.append(agent)
 
     def spawn_mine_pickups(self) -> None:
+        """
+        Spawn mine pickups for each team in their home zones, excluding the flag tile.
+        """
         self.mine_pickups.clear()
         rng = random.Random(self.agents_per_team + 9999)
         blue_min_col, blue_max_col = self.blue_zone_col_range
@@ -1083,4 +960,4 @@ class GameField:
         spawn_for_band("red", red_min_col, red_max_col)
 
 
-__all__ = ["GameField", "MacroAction"]
+__all__ = ["GameField", "MacroAction", "Mine", "MinePickup"]
