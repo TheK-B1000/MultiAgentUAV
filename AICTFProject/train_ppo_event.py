@@ -77,8 +77,8 @@ PHASE_WINRATE_WINDOW = 50
 
 ENT_COEF_BY_PHASE = {
     "OP1": 0.04,
-    "OP2": 0.03,
-    "OP3": 0.026,
+    "OP2": 0.035,
+    "OP3": 0.03,
 }
 
 PHASE_CONFIG = {
@@ -110,19 +110,17 @@ def make_env() -> GameField:
     return env
 
 
-# =======================
 # ROLLOUT BUFFER (CNN + JOINT ACTION)
-# =======================
 class RolloutBuffer:
     def __init__(self):
-        self.obs = []             # [T, 7, H, W]
-        self.macro_actions = []   # [T]
-        self.target_actions = []  # [T]
-        self.log_probs = []       # [T]
-        self.values = []          # [T]
-        self.rewards = []         # [T]
-        self.dones = []           # [T]
-        self.dts = []             # [T]
+        self.obs = []
+        self.macro_actions = []
+        self.target_actions = []
+        self.log_probs = []
+        self.values = []
+        self.rewards = []
+        self.dones = []
+        self.dts = []
 
     def add(self, obs, macro_action, target_action, log_prob, value, reward, done, dt):
         # obs is expected to be a 7xHxW numpy array or list-like
@@ -142,14 +140,14 @@ class RolloutBuffer:
         self.__init__()
 
     def to_tensors(self, device):
-        obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)          # [T, 7, H, W]
-        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)   # [T]
-        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device) # [T]
-        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)        # [T]
-        values = torch.tensor(self.values, dtype=torch.float32, device=device)              # [T]
-        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)            # [T]
-        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)                # [T]
-        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)                    # [T]
+        obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)
+        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)
+        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)
+        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
+        values = torch.tensor(self.values, dtype=torch.float32, device=device)
+        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
+        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
+        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
         return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
 
 
@@ -225,8 +223,6 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents,
-    mix_alpha: float = 0.0,
-    cur_phase: str = "OP1",
 ):
     raw = gm.get_step_rewards()
 
@@ -234,7 +230,6 @@ def collect_blue_rewards_for_step(
     if not indiv_rewards_by_id:
         return indiv_rewards_by_id
 
-    # team reward under key None (if your GM uses that)
     team_r = raw.get(None, 0.0)
     if abs(team_r) > 0.0:
         share = team_r / len(indiv_rewards_by_id)
@@ -272,7 +267,6 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     gm = env.getGameManager()
 
     # Instantiate CNN policy; defaults: 7x20x20 → latent_dim → macro/target heads.
-    # If you changed ObsEncoder height/width to 30x40, make sure that matches there.
     policy = ActorCriticNet().to(DEVICE)
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
@@ -581,9 +575,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
             print("   =====================================================")
 
-        # ---------------------------
         # Curriculum advance
-        # ---------------------------
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
