@@ -1,5 +1,5 @@
 import math
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 import torch
 import torch.nn as nn
@@ -11,17 +11,21 @@ from macro_actions import MacroAction
 
 class ActorCriticNet(nn.Module):
     """
-    CNN-based Actor-Critic network for macro-action PPO in the UAV CTF domain.
+    CNN-based Actor-Critic network for the UAV CTF domain.
 
-    Design:
-      - Observation: per-agent egocentric CNN map, shape [7, 40, 30].
-      - Actor: decentralized policy π(a_macro, a_target | s_i).
-      - Critic: value function V(s_i) over the same per-agent latent.
+    Modes:
+      • Single-team PPO (current setup):
+          - Actor: π(a_macro, a_target | s_i)
+          - Critic: V(s_i) (local value)
+          - Used by train_ppo_event.py via `evaluate_actions(obs, macro, target)`.
 
-    Notes:
-      • This implementation is single-team PPO (BLUE only), not full MAPPO yet.
-      • It is written to be easily extended to CTDE / MAPPO by swapping the
-        value head to consume a centralized state (e.g., concatenated latents).
+      • MAPPO / CTDE (optional):
+          - Actor: same decentralized policy π(a_i | s_i)
+          - Critic: centralized V(S), where S is the joint state of all N agents.
+          - Exposed via `evaluate_actions_central(central_obs, actor_obs, ...)`.
+
+    Obs layout:
+      s_i: per-agent CNN observation [7, 40, 30].
     """
 
     def __init__(
@@ -30,8 +34,10 @@ class ActorCriticNet(nn.Module):
         n_targets: int = 50,
         latent_dim: int = 128,
         in_channels: int = 7,
-        height: int = 40,   # CNN_ROWS
-        width: int = 30,    # CNN_COLS
+        height: int = 40,
+        width: int = 30,
+        n_agents: int = 2,
+        use_central_critic: bool = False,
     ):
         super().__init__()
 
@@ -41,9 +47,11 @@ class ActorCriticNet(nn.Module):
         self.in_channels = in_channels
         self.height = height
         self.width = width
+        self.n_agents = n_agents
+        self.use_central_critic = use_central_critic
 
         # ------------------------------------------------------------------
-        # 1. Shared encoder: [B, C, H, W] -> [B, latent_dim]
+        # Shared CNN encoder: [B, C, H, W] -> [B, latent_dim]
         # ------------------------------------------------------------------
         self.encoder = ObsEncoder(
             in_channels=in_channels,
@@ -53,18 +61,29 @@ class ActorCriticNet(nn.Module):
         )
 
         # ------------------------------------------------------------------
-        # 2. Actor heads over latent
+        # Actor heads
         # ------------------------------------------------------------------
         self.actor_macro = nn.Linear(latent_dim, n_macros)
         self.actor_target = nn.Linear(latent_dim, n_targets)
 
         # ------------------------------------------------------------------
-        # 3. Critic head over latent (per-agent V(s_i))
+        # Local critic: V(s_i)
         # ------------------------------------------------------------------
-        self.value_head = nn.Sequential(
+        self.local_value_head = nn.Sequential(
             nn.Linear(latent_dim, 128),
             nn.ReLU(inplace=True),
             nn.Linear(128, 1),
+        )
+
+        # ------------------------------------------------------------------
+        # Centralized critic: V(S), where S = concat(latent_i, ..., latent_N)
+        # Only used if use_central_critic=True
+        # ------------------------------------------------------------------
+        critic_input_dim = n_agents * latent_dim
+        self.central_value_head = nn.Sequential(
+            nn.Linear(critic_input_dim, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 1),
         )
 
         self._init_heads()
@@ -73,72 +92,88 @@ class ActorCriticNet(nn.Module):
     # Initialization
     # ----------------------------------------------------------------------
     def _init_heads(self) -> None:
-        # Orthogonal init for actor outputs (small gain for stable logits)
         nn.init.orthogonal_(self.actor_macro.weight, gain=0.01)
         nn.init.constant_(self.actor_macro.bias, 0.0)
 
         nn.init.orthogonal_(self.actor_target.weight, gain=0.01)
         nn.init.constant_(self.actor_target.bias, 0.0)
 
-        # Critic last layer: gain 1.0
-        last = self.value_head[-1]
-        if isinstance(last, nn.Linear):
-            nn.init.orthogonal_(last.weight, gain=1.0)
-            nn.init.constant_(last.bias, 0.0)
+        last_local = self.local_value_head[-1]
+        if isinstance(last_local, nn.Linear):
+            nn.init.orthogonal_(last_local.weight, gain=1.0)
+            nn.init.constant_(last_local.bias, 0.0)
+
+        last_central = self.central_value_head[-1]
+        if isinstance(last_central, nn.Linear):
+            nn.init.orthogonal_(last_central.weight, gain=1.0)
+            nn.init.constant_(last_central.bias, 0.0)
 
     # ----------------------------------------------------------------------
-    # Core forwards
+    # Encoders / forwards
     # ----------------------------------------------------------------------
     def _encode(self, obs: torch.Tensor) -> torch.Tensor:
         """
         obs: [C, H, W] or [B, C, H, W]
-        returns: latent [B, latent_dim]
+        returns latent: [B, latent_dim]
         """
         return self.encoder(obs)
 
     def forward_actor(self, obs: torch.Tensor):
         """
-        Actor forward pass for a single agent's observation s_i.
-
-        Args:
-            obs: [C, 40, 30] or [B, C, 40, 30]
-
-        Returns:
-            macro_logits:  [B, n_macros]
-            target_logits: [B, n_targets]
-            latent:        [B, latent_dim]
+        obs: [C, 40, 30] or [B, C, 40, 30]
+        returns:
+          macro_logits:  [B, n_macros]
+          target_logits: [B, n_targets]
+          latent:        [B, latent_dim]
         """
-        latent = self._encode(obs)  # [B, latent_dim]
+        latent = self._encode(obs)
         macro_logits = self.actor_macro(latent)
         target_logits = self.actor_target(latent)
         return macro_logits, target_logits, latent
 
-    def forward_critic(self, obs: torch.Tensor) -> torch.Tensor:
+    def forward_local_critic(self, obs: torch.Tensor) -> torch.Tensor:
         """
-        Critic forward pass: per-agent value V(s_i).
+        Local critic V(s_i).
+
+        obs: [B, C, 40, 30]
+        returns values: [B]
+        """
+        latent = self._encode(obs)
+        value = self.local_value_head(latent).squeeze(-1)
+        return value
+
+    def forward_central_critic(self, central_obs: torch.Tensor) -> torch.Tensor:
+        """
+        Centralized critic V(S) for MAPPO.
 
         Args:
-            obs: [B, C, 40, 30] per-agent observation batch.
+            central_obs: [B, N_agents, C, 40, 30]
+                         or [B * N_agents, C, 40, 30] if pre-flattened.
 
         Returns:
             values: [B]
         """
-        latent = self._encode(obs)
-        value = self.value_head(latent).squeeze(-1)
+        if central_obs.dim() == 5:
+            # [B, N, C, H, W] -> [B*N, C, H, W]
+            B, N, C, H, W = central_obs.shape
+            assert N == self.n_agents, f"Expected n_agents={self.n_agents}, got {N}"
+            flat = central_obs.view(B * N, C, H, W)
+        else:
+            # Assume already [B*N, C, H, W]
+            flat = central_obs
+            B = flat.size(0) // self.n_agents
+
+        # Encode all agents
+        latent_flat = self._encode(flat)                      # [B*N, latent_dim]
+        latent_joint = latent_flat.view(B, self.n_agents * self.latent_dim)
+        value = self.central_value_head(latent_joint).squeeze(-1)  # [B]
         return value
 
     # ----------------------------------------------------------------------
-    # Action masking (same semantics as before)
+    # Action masking
     # ----------------------------------------------------------------------
     @torch.no_grad()
     def get_action_mask(self, agent, game_field) -> torch.Tensor:
-        """
-        Returns a boolean mask over macro-actions indicating which actions
-        are currently valid for this agent in the given game state.
-
-        True  => action allowed
-        False => action masked out (logits -> -inf)
-        """
         n_macros = len(MacroAction)
         device = next(self.parameters()).device
         mask = torch.ones(n_macros, dtype=torch.bool, device=device)
@@ -159,7 +194,7 @@ class ActorCriticNet(nn.Module):
         return mask
 
     # ----------------------------------------------------------------------
-    # Act: used during rollouts / viewer
+    # act(): used in rollouts / viewer (unchanged semantics)
     # ----------------------------------------------------------------------
     @torch.no_grad()
     def act(
@@ -170,25 +205,12 @@ class ActorCriticNet(nn.Module):
         deterministic: bool = False,
     ) -> Dict[str, Any]:
         """
-        Decentralized actor inference for a single agent.
+        Decentralized actor inference for one agent.
 
-        Args:
-            obs: [C, 40, 30] or [B, C, 40, 30] (per-agent observation s_i).
-            agent: Agent instance (for action masking).
-            game_field: GameField instance (for action masking).
-            deterministic: If True, take argmax; otherwise sample.
-
-        Returns:
-            dict with:
-              - "macro_action": LongTensor [B]
-              - "target_action": LongTensor [B]
-              - "log_prob": FloatTensor [B]
-              - "value": FloatTensor [B]    (V(s_i))
-              - "macro_mask": optional BoolTensor [n_macros]
+        obs: [C, 40, 30] or [B, C, 40, 30]
         """
-        # Actor forward
         macro_logits, target_logits, latent = self.forward_actor(obs)
-        value = self.value_head(latent).squeeze(-1)
+        local_value = self.local_value_head(latent).squeeze(-1)
 
         macro_mask = None
         if agent is not None and game_field is not None:
@@ -213,12 +235,12 @@ class ActorCriticNet(nn.Module):
             "macro_action": macro_action,
             "target_action": target_action,
             "log_prob": joint_log_prob,
-            "value": value,
+            "value": local_value,      # V(s_i)
             "macro_mask": macro_mask,
         }
 
     # ----------------------------------------------------------------------
-    # evaluate_actions: used by PPO update
+    # BACKWARDS-COMPATIBLE evaluate_actions (local critic)
     # ----------------------------------------------------------------------
     def evaluate_actions(
         self,
@@ -227,24 +249,61 @@ class ActorCriticNet(nn.Module):
         target_actions: torch.Tensor,
     ):
         """
-        Recompute log π(a|s) and V(s) for PPO on a batch.
+        Backwards-compatible API for train_ppo_event.py.
 
         Args:
-            obs_batch:      [B, C, 40, 30]   (per-agent observations)
-            macro_actions:  [B]              (taken macro actions)
-            target_actions: [B]              (taken target indices)
+            obs_batch:     [B, C, 40, 30]  (local s_i)
+            macro_actions: [B]
+            target_actions:[B]
 
         Returns:
             log_probs: [B]
-            entropy:  [B]
-            values:   [B]
+            entropy:   [B]
+            values:    [B] = V(s_i)
         """
-        # Critic: V(s_i)
-        values = self.forward_critic(obs_batch)
+        values = self.forward_local_critic(obs_batch)
 
-        # Actor: π(a_macro, a_target | s_i)
         macro_logits, target_logits, _ = self.forward_actor(obs_batch)
+        macro_dist = Categorical(logits=macro_logits)
+        target_dist = Categorical(logits=target_logits)
 
+        log_probs_macro = macro_dist.log_prob(macro_actions)
+        log_probs_target = target_dist.log_prob(target_actions)
+        log_probs = log_probs_macro + log_probs_target
+
+        entropy = macro_dist.entropy() + target_dist.entropy()
+
+        return log_probs, entropy, values
+
+    # ----------------------------------------------------------------------
+    # NEW: MAPPO-style evaluate_actions with CENTRAL critic V(S)
+    # ----------------------------------------------------------------------
+    def evaluate_actions_central(
+        self,
+        central_obs_batch: torch.Tensor,
+        actor_obs_batch: torch.Tensor,
+        macro_actions: torch.Tensor,
+        target_actions: torch.Tensor,
+    ):
+        """
+        MAPPO / CTDE API.
+
+        Args:
+            central_obs_batch: [B, N_agents, C, 40, 30]
+            actor_obs_batch:   [B, C, 40, 30]  (this agent's s_i)
+            macro_actions:     [B]
+            target_actions:    [B]
+
+        Returns:
+            log_probs: [B]
+            entropy:   [B]
+            values:    [B] = V(S)
+        """
+        # 1. Centralized critic V(S)
+        values = self.forward_central_critic(central_obs_batch)
+
+        # 2. Decentralized actor π(a_i | s_i)
+        macro_logits, target_logits, _ = self.forward_actor(actor_obs_batch)
         macro_dist = Categorical(logits=macro_logits)
         target_dist = Categorical(logits=target_logits)
 
