@@ -77,8 +77,8 @@ CHECKPOINT_DIR: str = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # Self-play / policy snapshotting
-POLICY_SAVE_INTERVAL: int = 50      # Save a snapshot every N env steps
-POLICY_SAMPLE_CHANCE: float = 0.20  # 20% chance to use a "ghost" policy for Red
+POLICY_SAVE_INTERVAL: int = UPDATE_EVERY   # instead of 50
+POLICY_SAMPLE_CHANCE: float = 0.15        # slightly lower is fine
 
 # Cooperation HUD / diagnostics
 COOP_HUD_EVERY: int = 50
@@ -481,8 +481,20 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         # OPPONENT SELECTION (SCRIPTED vs SELF-PLAY)
         # --------------------------------------------------
         use_selfplay = False
-        if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
-            # Use a neural "ghost" policy for RED (self-play)
+
+        # Only allow self-play in the final phase (OP3) once it's "somewhat solved"
+        ENABLE_SELFPLAY_PHASE = "OP3"
+        MIN_EPISODES_FOR_SELFPLAY = 500  # in OP3
+        MIN_WR_FOR_SELFPLAY = 0.70
+
+        can_selfplay = (
+                cur_phase == ENABLE_SELFPLAY_PHASE
+                and phase_episode_count >= MIN_EPISODES_FOR_SELFPLAY
+                and phase_wr >= MIN_WR_FOR_SELFPLAY
+                and len(old_policies_buffer) > 0
+        )
+
+        if can_selfplay and random.random() < POLICY_SAMPLE_CHANCE:
             red_net = ActorCriticNet(
                 n_macros=len(USED_MACROS),
                 n_targets=env.num_macro_targets,
@@ -494,7 +506,6 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             opponent_tag = "SELFPLAY"
             use_selfplay = True
         else:
-            # Use scripted OPx opponent for this phase
             set_red_policy_for_phase(env, cur_phase)
             opponent_tag = cur_phase
 
@@ -589,6 +600,10 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             dt = sim_t
             decision_time_end = gm.get_sim_time()
             done = gm.game_over
+
+            for agent, _, _, _, _, _, prev_flag_dist, _, _ in decisions:
+                gm.reward_flag_proximity(agent, prev_flag_dist)
+
 
             # --------------------------------------------------
             # COLLECT EVENT-BASED REWARDS FOR THIS MACRO STEP
