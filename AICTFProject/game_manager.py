@@ -3,7 +3,6 @@ from typing import Tuple, Optional, List, Dict, Any
 import math
 
 # ================= BASE REWARDS =================
-
 WIN_TEAM_REWARD = 2.0
 FLAG_PICKUP_REWARD = 0.05
 FLAG_CARRY_HOME_REWARD = 1.5
@@ -57,7 +56,7 @@ class GameManager:
     mines_triggered_by_red_this_episode: int = 0
     mines_rewarded_by_agent: Dict[str, bool] = field(default_factory=dict)
 
-    # Track per-team mine rewards (if you cap them anywhere else)
+    # Track per-team mine rewards
     team_mines_rewarded: Dict[str, int] = field(
         default_factory=lambda: {"blue": 0, "red": 0}
     )
@@ -271,13 +270,11 @@ class GameManager:
         side = agent.getSide()
         uid = getattr(agent, "unique_id", None)
 
-        # ---------- enabledMineReward only once per UAV per episode ----------
         if uid is not None:
             already_rewarded = self.mines_rewarded_by_agent.get(uid, False)
             if not already_rewarded:
                 self.add_reward_event(ENABLED_MINE_REWARD, agent_id=uid)
                 self.mines_rewarded_by_agent[uid] = True
-        # ---------------------------------------------------------------------
 
         # Track HUD stats
         if mine_pos is not None and side == "blue":
