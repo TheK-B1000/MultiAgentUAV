@@ -3,20 +3,23 @@ import pygame as pg
 import torch
 from typing import Optional, Tuple, Any, List
 
-from game_field import GameField
+from viewer_game_field import ViewerGameField # <-- use the pygame-aware subclass
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP3RedPolicy
-
 
 DEFAULT_MODEL_PATH = "checkpoints/ctf_fixed_blue_op3.pth"
 
 
 class LearnedPolicy:
+    """
+    Wrapper around ActorCriticNet so it can be plugged into GameField.policies["blue"].
+    """
+
     def __init__(self, model_path: Optional[str] = None):
         self.device = torch.device("cpu")
 
-        # Architecture must match the trainer: ActorCriticNet() with default args
+        # Architecture must match the trainer: CNN-based ActorCriticNet
         self.net = ActorCriticNet().to(self.device)
 
         self.model_loaded = False
@@ -42,24 +45,41 @@ class LearnedPolicy:
         self.net.eval()
 
     def __call__(self, agent, game_field) -> int:
+        """
+        Called by GameField.decide(...) in the "callable policy" fallback.
+        Must return an integer macro-action id.
+        """
         obs = game_field.build_observation(agent)
         action_id, _ = self.select_action(obs, agent, game_field)
         return int(action_id)
 
     def select_action(
-        self,
-        obs: List[float],
-        agent,
-        game_field,
+            self,
+            obs: Any,
+            agent,
+            game_field,
     ) -> Tuple[int, Optional[Tuple[int, int]]]:
+        """
+        Convert observation → torch tensor → ActorCriticNet.act → macro-action id.
+        """
         if not self.model_loaded:
             # Safe default: GoTo (paper macro-action 0)
             return int(MacroAction.GO_TO), None
 
         with torch.no_grad():
+            # obs is 7×H×W list now (CNN); but we keep a fallback for flat obs.
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
-            if obs_tensor.dim() == 1:
-                obs_tensor = obs_tensor.unsqueeze(0)  # [1, obs_dim] or [1, C, H, W]
+
+            # Ensure batch dimension = 1
+            if obs_tensor.dim() == 3:
+                # [C, H, W] → [1, C, H, W]
+                obs_tensor = obs_tensor.unsqueeze(0)
+            elif obs_tensor.dim() == 1:
+                # [obs_dim] → [1, obs_dim]
+                obs_tensor = obs_tensor.unsqueeze(0)
+            elif obs_tensor.dim() == 2 and obs_tensor.size(0) != 1:
+                # Fallback: if it's [H, W] or something odd, still add batch dim
+                obs_tensor = obs_tensor.unsqueeze(0)
 
             out = self.net.act(
                 obs_tensor,
@@ -67,26 +87,37 @@ class LearnedPolicy:
                 game_field=game_field,
                 deterministic=True,
             )
-            action = out["action"]
-            if isinstance(action, torch.Tensor):
-                action = int(action[0].item())
 
+            # Support both the new ("macro_action") and old ("action") keys
+            if "macro_action" in out:
+                act_tensor = out["macro_action"]
+            else:
+                act_tensor = out["action"]
+
+            if isinstance(act_tensor, torch.Tensor):
+                action = int(act_tensor[0].item())
+            else:
+                action = int(act_tensor)
+
+            # We ignore "target_action" in the viewer (env will use default targets)
             return action, None
 
 
 class CTFViewer:
     def __init__(self):
-        # Grid dimensions (paper-style 2v2 CTF discretization)
-        rows, cols = 30, 40
+        # Grid dimensions (Note: H x W, which is 40 Rows x 30 Cols)
+        rows, cols = 40, 30
         grid = [[0] * cols for _ in range(rows)]
-        self.game_field = GameField(grid)
+
+        # Use the pygame-aware subclass so game_field has a draw() method
+        self.game_field = ViewerGameField(grid)
         self.game_manager = self.game_field.getGameManager()
 
         # ------------- Pygame setup -------------
         pg.init()
         self.size = (1024, 720)
         self.screen = pg.display.set_mode(self.size)
-        pg.display.set_caption("UAV CTF – RL Blue vs OP3 Red (Paper-style)")
+        pg.display.set_caption("UAV CTF – RL Blue vs OP3 Red (CNN 7×40×30)")
         self.clock = pg.time.Clock()
         self.font = pg.font.SysFont(None, 26)
         self.bigfont = pg.font.SysFont(None, 48)
@@ -94,15 +125,23 @@ class CTFViewer:
         self.input_active = False
         self.input_text = ""
 
-        # ----- Sanity: print detected observation dimension -----
+        # Sanity: print detected observation shape
         if self.game_field.blue_agents:
             dummy_obs = self.game_field.build_observation(self.game_field.blue_agents[0])
+            try:
+                C = len(dummy_obs)
+                H = len(dummy_obs[0])
+                W = len(dummy_obs[0][0])
+                print(f"[CTFViewer] Detected CNN obs shape: C={C}, H={H}, W={W}")
+            except Exception:
+                if hasattr(dummy_obs, "__len__"):
+                    print(f"[CTFViewer] Detected obs_dim={len(dummy_obs)} (non-CNN)")
+                else:
+                    print("[CTFViewer] Observation is not a simple list/array.")
         else:
-            dummy_obs = [0.0] * 44  # matches paper-style 44-D MLP obs
-        obs_dim = len(dummy_obs) if hasattr(dummy_obs, "__len__") else "tensor"
-        print(f"[CTFViewer] Detected obs_dim={obs_dim}")
+            print("[CTFViewer] No agents spawned; cannot infer obs shape.")
 
-        # ---- OP3 baseline for BOTH sides ----
+        # ---- Policy setup ----
         if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
             # Red = OP3 baseline (scripted opponent)
             self.game_field.policies["red"] = OP3RedPolicy("red")
@@ -119,7 +158,7 @@ class CTFViewer:
         try:
             self.blue_learned_policy = LearnedPolicy(model_path=DEFAULT_MODEL_PATH)
             if self.blue_learned_policy.model_loaded:
-                # Initially let RL control Blue
+                # Initially let RL control Blue via internal policy hook
                 if hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict):
                     self.game_field.policies["blue"] = self.blue_learned_policy
                 self.use_learned_blue = True
@@ -175,21 +214,17 @@ class CTFViewer:
     def handle_main_key(self, event):
         k = event.key
         if k == pg.K_F1:
+            # F1: Reset game and agent positions
+            self.game_field.agents_per_team = 2
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.reset_default()
             self._reset_op3_policies()
         elif k == pg.K_F2:
+            # F2: Toggle agent count input
             self.input_active = True
-            self.input_text = ""
+            self.input_text = str(self.game_field.agents_per_team)  # Show current value
         elif k == pg.K_F3:
-            self.game_manager.reset_game(reset_scores=True)
-            self.game_field.runTestCase3()
-            self._reset_op3_policies()
-        elif k == pg.K_r:
-            self.game_field.reset_default()
-            self._reset_op3_policies()
-        elif k == pg.K_F4:
-            # Toggle between OP3 baseline and learned policy for BLUE
+            # F3: Toggle RL vs OP3 policy for BLUE
             if not self.blue_learned_policy or not self.blue_learned_policy.model_loaded:
                 print("[CTFViewer] No learned model available! Staying on OP3 baseline.")
                 return
@@ -204,22 +239,40 @@ class CTFViewer:
                     self.game_field.policies["blue"] = self.blue_op3_baseline
                 self._reset_op3_policies()
                 print("[CTFViewer] Blue → OP3 baseline")
-        elif k == pg.K_F5:
+        elif k == pg.K_F4:
+            # F4: Toggle Suppression Range Debug Draw
             self.game_field.debug_draw_ranges = not self.game_field.debug_draw_ranges
-        elif k == pg.K_F6:
+        elif k == pg.K_F5:
+            # F5: Toggle Mine Range Debug Draw
             self.game_field.debug_draw_mine_ranges = not self.game_field.debug_draw_mine_ranges
+        elif k == pg.K_r:
+            # R: Quick reset agent positions (no score reset)
+            self.game_field.agents_per_team = 2
+            self.game_field.reset_default()
+            self._reset_op3_policies()
         elif k == pg.K_ESCAPE:
             pg.event.post(pg.event.Event(pg.QUIT))
 
     def handle_input_key(self, event):
         if event.key == pg.K_RETURN:
             try:
-                n = int(self.input_text or "8")
+                n = int(self.input_text or "2")  # Default to 2 if empty
                 n = max(1, min(100, n))
-                self.game_manager.reset_game(reset_scores=True)
-                self.game_field.runTestCase2(n, self.game_manager)
+
+                # --- FIX: Use the dedicated reset function and let it handle everything ---
+                if hasattr(self.game_field, "set_agent_count_and_reset"):
+                    self.game_field.set_agent_count_and_reset(n)
+                else:
+                    # Fallback if the specific function doesn't exist (less clean)
+                    self.game_field.agents_per_team = n
+                    self.game_field.reset_default()
+                # The dedicated function should handle score reset, agent spawning, etc.
+                # Remove the redundant call: self.game_manager.reset_game(reset_scores=True)
+                # -----------------------------------------------------------------------
+
                 self._reset_op3_policies()
-            except Exception:
+            except Exception as e:
+                print(f"[CTFViewer] Error processing agent count: {e}") # Add error logging for debugging
                 pass
             self.input_active = False
         elif event.key == pg.K_ESCAPE:
@@ -248,12 +301,12 @@ class CTFViewer:
 
         # Top row: menu / help
         menu_text = (
-            "F1: Reset | F2: Agent Count | F3: SwapZones | "
-            "F4: Toggle RL vs OP3 | F5/F6: DebugDraw"
+            "F1: Full Reset | F2: Set Agent Count | F3: Toggle RL/Scripted | "
+            "F4/F5: Toggle Debug Draw
         )
         txt(menu_text, 30, 15, (200, 200, 220))
 
-        status_text = f"Blue Policy: {policy_name}"
+        status_text = f"Blue Policy: {policy_name} | Agents: {self.game_field.agents_per_team} vs {self.game_field.agents_per_team}"
         txt(status_text, 30, 45, policy_color)
 
         # Second row: scores & time
@@ -262,7 +315,7 @@ class CTFViewer:
         txt(f"RED: {gm.red_score}", 200, score_time_y, (255, 100, 100))
         txt(f"Time: {int(gm.current_time)}s", 380, score_time_y, (220, 220, 255))
 
-        # Model status – moved down to score row so it does not block the menu
+        # Model status – on score row so it doesn’t block the menu
         if self.blue_learned_policy and self.blue_learned_policy.model_loaded:
             txt(f"Model: {DEFAULT_MODEL_PATH}",
                 self.size[0] - 360, score_time_y, (100, 220, 100))
