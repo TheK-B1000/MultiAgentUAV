@@ -426,8 +426,15 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         # --------------------------------------------------
         # OPPONENT SELECTION (SCRIPTED vs SELF-PLAY)
         # --------------------------------------------------
+        # Only allow self-play in OP3 (late curriculum)
+        allow_selfplay = (cur_phase == "OP3")
+
         use_selfplay = False
-        if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
+        if (
+                allow_selfplay
+                and old_policies_buffer
+                and random.random() < POLICY_SAMPLE_CHANCE
+        ):
             # [MAPPO] Use a neural "ghost" policy for RED (self-play)
             red_net = ActorCriticNet(
                 n_macros=len(USED_MACROS),
@@ -480,18 +487,20 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             if global_step > 0 and global_step % POLICY_SAVE_INTERVAL == 0:
                 old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
 
-            blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-            if not blue_agents:
+            # All BLUE agents as seen by the critic (fixed team size = n_agents)
+            all_blue_agents = list(env.blue_agents)
+
+            # Only enabled agents actually make decisions
+            active_blue_agents = [a for a in all_blue_agents if a.isEnabled()]
+            if not active_blue_agents:
                 # Degenerate edge case: no active BLUE agents
                 break
 
-            n_agents = len(blue_agents)
-
             # ==================================================
-            # [MAPPO] BUILD JOINT OBSERVATION S(t_j)
+            # [MAPPO] BUILD JOINT OBSERVATION S(t_j) FROM ALL AGENTS
             # ==================================================
-            obs_list = [env.build_observation(a) for a in blue_agents]  # list of [C,H,W]
-            central_obs = np.stack(obs_list, axis=0)  # [N_agents, C, H, W]
+            obs_list = [env.build_observation(a) for a in all_blue_agents]  # list of [C,H,W]
+            central_obs = np.stack(obs_list, axis=0)  # [N_agents, C, H, W], N_agents should stay 2
 
             # [MAPPO] Central value V(S) for this macro-decision time.
             with torch.no_grad():
@@ -503,9 +512,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             decisions: List[Tuple[Any, np.ndarray, int, int, float, float]] = []
 
             # ==================================================
-            # BLUE MACRO DECISIONS (DECOUPLED ACTORS)
+            # BLUE MACRO DECISIONS (DECOUPLED ACTORS, ONLY ENABLED)
             # ==================================================
-            for agent_idx, agent in enumerate(blue_agents):
+            for agent_idx, agent in enumerate(all_blue_agents):
+                if not agent.isEnabled():
+                    continue  # Skip dead/disabled agents for action selection
+
                 actor_obs = obs_list[agent_idx]  # [C,H,W]
                 obs_tensor = torch.tensor(actor_obs, dtype=torch.float32, device=DEVICE)
 
@@ -557,7 +569,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             # --------------------------------------------------
             rewards = collect_blue_rewards_for_step(
                 gm,
-                blue_agents,
+                active_blue_agents,
                 decision_time_start,
                 decision_time_end,
                 cur_phase=cur_phase,
