@@ -302,7 +302,7 @@ class CTFViewer:
         # Top row: menu / help
         menu_text = (
             "F1: Full Reset | F2: Set Agent Count | F3: Toggle RL/Scripted | "
-            "F4/F5: Toggle Debug Draw
+            "F4/F5: Toggle Debug Draw "
         )
         txt(menu_text, 30, 15, (200, 200, 220))
 
