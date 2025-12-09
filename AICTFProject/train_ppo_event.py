@@ -1,9 +1,25 @@
+"""
+train_ppo_event.py
+
+Single-team, centralized PPO baseline for the 2-vs-2 UAV Capture-the-Flag (CTF) environment.
+
+This script trains the BLUE team using an event-driven variant of PPO with:
+  - Event-based reward aggregation and continuous-time GAE (matching the IHMC UAV CTF paper).
+  - A macro-action interface (GO_TO, GET_FLAG, PLACE_MINE, etc.) over a CNN-based observation.
+  - Curriculum over scripted RED opponents (OP1 → OP2 → OP3).
+  - Occasional self-play via "ghost" neural opponents sampled from past BLUE policies.
+  - A cooperation HUD to monitor emergent role specialization and mine usage.
+
+This serves as the main PPO baseline for the MARL research thrust. MAPPO, QMIX, and
+other MARL variants can reuse the same environment interface and curriculum.
+"""
+
 import os
 import math
 import random
 import copy
 from collections import deque
-from typing import Dict, List, Tuple, Any, Deque
+from typing import Dict, List, Tuple, Any, Deque, Optional
 
 import numpy as np
 import torch
@@ -16,8 +32,14 @@ from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
-# FULLY DETERMINISTIC SEEDING
-def set_seed(seed: int = 42):
+# ======================================================================
+# GLOBAL CONFIG & HYPERPARAMETERS
+# ======================================================================
+
+def set_seed(seed: int = 42) -> None:
+    """
+    Set all relevant RNG seeds for full determinism (as far as PyTorch allows).
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -26,86 +48,95 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
-# BASIC CONFIG
-GRID_ROWS = 30          # simulation grid (larger 30x40 arena)
-GRID_COLS = 40
+# Environment grid dimensions (paper-style 30x40 arena)
+GRID_ROWS: int = 30
+GRID_COLS: int = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # PPO hyperparameters (paper-style)
-TOTAL_STEPS = 3_000_000
-UPDATE_EVERY = 2_048
-PPO_EPOCHS = 10
-MINIBATCH_SIZE = 256
+TOTAL_STEPS: int = 3_000_000
+UPDATE_EVERY: int = 2_048
+PPO_EPOCHS: int = 10
+MINIBATCH_SIZE: int = 256
 
-LR = 3e-4
-CLIP_EPS = 0.2
-VALUE_COEF = 1.0
-MAX_GRAD_NORM = 0.5
+LR: float = 3e-4
+CLIP_EPS: float = 0.2
+VALUE_COEF: float = 1.0
+MAX_GRAD_NORM: float = 0.5
 
-# Event-driven RL discounting (continuous in time)
-GAMMA = 0.995
-GAE_LAMBDA = 0.99
+# Event-driven RL discounting (continuous in time, see paper)
+GAMMA: float = 0.995
+GAE_LAMBDA: float = 0.99
 
 # Simulation timing (macro-actions last multiple physics steps)
-DECISION_WINDOW = 0.7   # seconds between macro-decisions
-SIM_DT = 0.1            # physics step size
+DECISION_WINDOW: float = 0.7    # seconds between macro-decisions
+SIM_DT: float = 0.1             # physics step size
 
-CHECKPOINT_DIR = "checkpoints"
+CHECKPOINT_DIR: str = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
-POLICY_SAVE_INTERVAL = 50   # Save a snapshot every N steps
-POLICY_SAMPLE_CHANCE = 0.20 # 20% chance to use a ghost policy for Red
+# Self-play / policy snapshotting
+POLICY_SAVE_INTERVAL: int = 50      # Save a snapshot every N env steps
+POLICY_SAMPLE_CHANCE: float = 0.20  # 20% chance to use a "ghost" policy for Red
 
 # Cooperation HUD / diagnostics
-COOP_HUD_EVERY = 50
-COOP_WINDOW = 50
+COOP_HUD_EVERY: int = 50
+COOP_WINDOW: int = 50
 
-# MACRO-ACTIONS
-USED_MACROS = [
+# Macro-action set for BLUE (and neural RED if used)
+USED_MACROS: List[MacroAction] = [
     MacroAction.GO_TO,
     MacroAction.GRAB_MINE,
     MacroAction.GET_FLAG,
     MacroAction.PLACE_MINE,
     MacroAction.GO_HOME,
 ]
-NUM_ACTIONS = len(USED_MACROS)
-ACTION_NAMES = [ma.name for ma in USED_MACROS]
+NUM_ACTIONS: int = len(USED_MACROS)
+ACTION_NAMES: List[str] = [ma.name for ma in USED_MACROS]
 
-# CURRICULUM (OP1 → OP2 → OP3)
-PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
+# Curriculum phases (scripted opponents OP1 → OP2 → OP3)
+PHASE_SEQUENCE: List[str] = ["OP1", "OP2", "OP3"]
 
-MIN_PHASE_EPISODES = {
+# Minimum episodes per phase before considering an advance
+MIN_PHASE_EPISODES: Dict[str, int] = {
     "OP1": 500,
     "OP2": 1000,
     "OP3": 2000,
 }
 
-TARGET_PHASE_WINRATE = {
+# Target phase win-rates for curriculum advancement
+TARGET_PHASE_WINRATE: Dict[str, float] = {
     "OP1": 0.99,
     "OP2": 0.90,
     "OP3": 0.80,
 }
 
-PHASE_WINRATE_WINDOW = 50
+PHASE_WINRATE_WINDOW: int = 50
 
-# Phase-specific (fixed) entropy coefficients – paper-style baselines
-ENT_COEF_BY_PHASE = {
+# Phase-specific (fixed) entropy coefficients (baseline values)
+ENT_COEF_BY_PHASE: Dict[str, float] = {
     "OP1": 0.04,
     "OP2": 0.035,
     "OP3": 0.02,
 }
 
-# Episode length / timing per phase
-PHASE_CONFIG = {
+# Episode timing / max macro-steps per phase
+PHASE_CONFIG: Dict[str, Dict[str, float]] = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
     "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=450),
     "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=550),
 }
 
 
+# ======================================================================
+# ENVIRONMENT SETUP & OPPONENT SELECTION
+# ======================================================================
+
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
-    """Set the scripted red opponent (OP1/OP2/OP3) for the current phase."""
+    """
+    Attach a scripted RED opponent corresponding to the current curriculum phase.
+    """
     if phase == "OP1":
         env.policies["red"] = OP1RedPolicy("red")
     elif phase == "OP2":
@@ -117,33 +148,64 @@ def set_red_policy_for_phase(env: GameField, phase: str) -> None:
 
 
 def make_env() -> GameField:
-    """Create the 30x40 paper-style grid environment."""
+    """
+    Create the 30x40 grid CTF environment.
+
+    BLUE is controlled externally by this script via PPO.
+    RED is controlled by internal policies (scripted OPx or a neural policy).
+    """
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
 
-    # Use internal policies (scripted or neural) for RED
+    # Use env-internal policy dispatch for RED (scripted or neural)
     env.use_internal_policies = True
 
-    # BLUE is controlled externally by PPO (we call apply_macro_action)
+    # BLUE controlled externally; RED controlled internally
     env.set_external_control("blue", True)
-    # RED is controlled by internal policies (scripted OPx or neural)
     env.set_external_control("red", False)
     return env
 
 
-# ROLLOUT BUFFER (CNN OBS)
-class RolloutBuffer:
-    def __init__(self):
-        self.obs = []
-        self.macro_actions = []
-        self.target_actions = []
-        self.log_probs = []
-        self.values = []
-        self.rewards = []
-        self.dones = []
-        self.dts = []
+# ======================================================================
+# ROLLOUT BUFFER (CNN OBSERVATIONS)
+# ======================================================================
 
-    def add(self, obs, macro_action, target_action, log_prob, value, reward, done, dt):
+class RolloutBuffer:
+    """
+    Simple on-policy rollout buffer for PPO with event-driven time steps.
+
+    Each time step corresponds to one macro-decision, with:
+      - obs: CNN observation [C,H,W]
+      - macro_action: macro-action index
+      - target_action: discrete target index (e.g., which macro-target)
+      - log_prob: log π(a|s)
+      - value: V(s)
+      - reward: event-aggregated reward for this macro step
+      - done: episode termination flag
+      - dt: time until the next macro-decision (Δt_j)
+    """
+
+    def __init__(self) -> None:
+        self.obs: List[np.ndarray] = []
+        self.macro_actions: List[int] = []
+        self.target_actions: List[int] = []
+        self.log_probs: List[float] = []
+        self.values: List[float] = []
+        self.rewards: List[float] = []
+        self.dones: List[bool] = []
+        self.dts: List[float] = []
+
+    def add(
+        self,
+        obs: np.ndarray,
+        macro_action: int,
+        target_action: int,
+        log_prob: float,
+        value: float,
+        reward: float,
+        done: bool,
+        dt: float,
+    ) -> None:
         self.obs.append(np.array(obs, dtype=np.float32))
         self.macro_actions.append(int(macro_action))
         self.target_actions.append(int(target_action))
@@ -153,13 +215,15 @@ class RolloutBuffer:
         self.dones.append(bool(done))
         self.dts.append(float(dt))
 
-    def size(self):
+    def size(self) -> int:
         return len(self.obs)
 
-    def clear(self):
+    def clear(self) -> None:
         self.__init__()
 
-    def to_tensors(self, device):
+    def to_tensors(
+        self, device: torch.device
+    ) -> Tuple[torch.Tensor, ...]:
         obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)
         macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)
         target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)
@@ -171,10 +235,20 @@ class RolloutBuffer:
         return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
 
 
-# EVENT-DRIVEN GAE
-def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
+# ======================================================================
+# EVENT-DRIVEN GAE (CONTINUOUS TIME)
+# ======================================================================
+
+def compute_gae_event(
+    rewards: torch.Tensor,
+    values: torch.Tensor,
+    dones: torch.Tensor,
+    dts: torch.Tensor,
+    gamma: float = GAMMA,
+    lam: float = GAE_LAMBDA,
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Continuous-time GAE, matching the paper:
+    Continuous-time GAE, matching the event-driven formulation:
 
       TD(t_j) = sum_{i in I_j} gamma^{t_i - t_j} r_i
                 + gamma^{Δt_j} v(t_{j+1}) - v(t_j)
@@ -195,7 +269,7 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
         lam_gamma_dt = (gamma * lam) ** dts[t]
         mask = 1.0 - dones[t]
 
-        # TD(t_j) as in the paper, using aggregated discounted rewards:
+        # TD(t_j) using aggregated (already back-discounted) rewards:
         delta = rewards[t] + gamma_dt * next_value * mask - values[t]
         advantages[t] = delta + lam_gamma_dt * next_adv * mask
 
@@ -206,7 +280,16 @@ def compute_gae_event(rewards, values, dones, dts, gamma=GAMMA, lam=GAE_LAMBDA):
     return advantages, returns
 
 
-def ppo_update(policy, optimizer, buffer, device, ent_coef):
+def ppo_update(
+    policy: ActorCriticNet,
+    optimizer: optim.Optimizer,
+    buffer: RolloutBuffer,
+    device: torch.device,
+    ent_coef: float,
+) -> None:
+    """
+    Run multiple PPO epochs over the collected rollout buffer.
+    """
     (
         obs,
         macro_actions,
@@ -256,21 +339,25 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
     buffer.clear()
 
 
+# ======================================================================
 # REWARD COLLECTION (BLUE)
+# ======================================================================
+
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents: List[Any],
     decision_time_start: float,
     decision_time_end: float,
-    cur_phase: str = "OP1",
+    cur_phase: str = "OP1",   # kept for future phase-specific shaping if needed
 ) -> Dict[str, float]:
     """
-    Collect per-agent rewards for BLUE from GameManager using timestamped events.
+    Collect per-agent BLUE rewards from GameManager using timestamped events.
 
-    For each decision j, we compute:
+    For each macro-decision j, we compute:
       R_j = sum_{i in I_j} gamma^{t_i - t_j} r_i
 
-    and store R_j as rewards[j]. Those then go into TD(t_j) in compute_gae_event.
+    where I_j is the set of events that occurred in [decision_time_start, decision_time_end].
+    These R_j are stored as rewards[j] and used in compute_gae_event.
     """
 
     # Each event: (timestamp, agent_id, reward_value)
@@ -302,10 +389,20 @@ def collect_blue_rewards_for_step(
     return rewards_sum_by_id
 
 
-def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) -> float:
+def get_entropy_coef(
+    cur_phase: str,
+    phase_episode_count: int,
+    phase_wr: float,
+) -> float:
+    """
+    Simple entropy annealing schedule per phase.
+
+    Starts above the baseline ENT_COEF_BY_PHASE value, then decays
+    toward it over a horizon (in episodes). This keeps exploration
+    higher early in each curriculum phase.
+    """
     base = ENT_COEF_BY_PHASE[cur_phase]
 
-    # gentler schedule
     if cur_phase == "OP1":
         start_ent, horizon = 0.05, 1000.0
     elif cur_phase == "OP2":
@@ -317,14 +414,23 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int, phase_wr: float) 
     return float(start_ent - (start_ent - base) * frac)
 
 
-# MAIN TRAIN LOOP
-def train_ppo_event(total_steps=TOTAL_STEPS):
+# ======================================================================
+# MAIN TRAINING LOOP
+# ======================================================================
+
+def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
+    """
+    Main training loop for the single-team PPO baseline.
+
+    BLUE is trained with PPO; RED is either scripted (OP1/OP2/OP3)
+    or a neural "ghost" opponent sampled from past BLUE policies.
+    """
     set_seed(42)
 
     env = make_env()
     gm = env.getGameManager()
 
-    # Build a dummy observation to sanity-check CNN shape
+    # Sanity-check CNN observation shape
     env.reset_default()
     if env.blue_agents:
         dummy_obs = env.build_observation(env.blue_agents[0])
@@ -333,12 +439,12 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         w = len(dummy_obs[0][0])
         print(f"[train_ppo_event] Sample obs shape: C={c}, H={h}, W={w}")
     else:
-        dummy_obs = None
         print("[train_ppo_event] WARNING: No blue agents in env.reset_default().")
 
+    # Policy & optimizer
     policy = ActorCriticNet(
         n_macros=len(USED_MACROS),
-        n_targets=env.num_macro_targets,
+        n_targets=env.num_macro_targets,  # discrete macro-targets defined by GameField
     ).to(DEVICE)
     optimizer = optim.Adam(policy.parameters(), lr=LR)
     buffer = RolloutBuffer()
@@ -351,11 +457,11 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
     # Curriculum tracking
     phase_idx = 0
     phase_episode_count = 0
-    phase_recent: List[int] = []
+    phase_recent: List[int] = []  # rolling [1,0,...] for phase win-rate
     phase_wr = 0.0
 
-    # Rolling window for cooperation HUD
-    coop_window = deque(maxlen=COOP_WINDOW)
+    # Rolling window for cooperation diagnostics
+    coop_window: Deque[Dict[str, Any]] = deque(maxlen=COOP_WINDOW)
 
     # Buffer of old policies (for ghost self-play opponents)
     old_policies_buffer: Deque[Dict[str, Any]] = deque(maxlen=20)
@@ -368,15 +474,15 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         phase_cfg = PHASE_CONFIG[cur_phase]
         gm.score_limit = phase_cfg["score_limit"]
         gm.max_time = phase_cfg["max_time"]
-        max_steps = phase_cfg["max_macro_steps"]
+        max_steps = int(phase_cfg["max_macro_steps"])
         gm.set_phase(cur_phase)
 
-        # ------------------------------
+        # --------------------------------------------------
         # OPPONENT SELECTION (SCRIPTED vs SELF-PLAY)
-        # ------------------------------
+        # --------------------------------------------------
         use_selfplay = False
         if old_policies_buffer and random.random() < POLICY_SAMPLE_CHANCE:
-            # Use a neural "ghost" policy for Red
+            # Use a neural "ghost" policy for RED (self-play)
             red_net = ActorCriticNet(
                 n_macros=len(USED_MACROS),
                 n_targets=env.num_macro_targets,
@@ -410,26 +516,28 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
         ep_return = 0.0
         steps = 0
 
-        # Diagnostics per episode
-        ep_macro_counts = {0: [0] * NUM_ACTIONS, 1: [0] * NUM_ACTIONS}
-        ep_mine_attempts = {0: 0, 1: 0}
+        # Episode diagnostics
+        ep_macro_counts: Dict[int, List[int]] = {0: [0] * NUM_ACTIONS, 1: [0] * NUM_ACTIONS}
+        ep_mine_attempts: Dict[int, int] = {0: 0, 1: 0}
         ep_combat_events = 0
         ep_score_events = 0
         prev_blue_score = gm.blue_score
         ep_mines_placed_by_uid: Dict[str, int] = {}
 
-        # Starting time for the first macro decision window
+        # Starting time for this macro-decision window
         decision_time_start = gm.get_sim_time()
 
         while not done and steps < max_steps and global_step < total_steps:
-            # Save current Blue policy snapshot periodically for ghost opponents
+            # Save current BLUE policy periodically for ghost self-play
             if global_step > 0 and global_step % POLICY_SAVE_INTERVAL == 0:
                 old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
 
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-            decisions = []
+            decisions: List[Tuple[Any, Any, int, int, float, float, float, float, float]] = []
 
-            # === Blue macro decisions ===
+            # ==================================================
+            # BLUE MACRO DECISIONS
+            # ==================================================
             for agent in blue_agents:
                 obs = env.build_observation(agent)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
@@ -448,6 +556,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
                 macro_enum = USED_MACROS[macro_idx]
 
+                # Track macro-usage statistics by local agent ID (0/1)
                 local_id = getattr(agent, "agent_id", 0)
                 if local_id in ep_macro_counts and 0 <= macro_idx < NUM_ACTIONS:
                     ep_macro_counts[local_id][macro_idx] += 1
@@ -457,17 +566,21 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 if agent.unique_id not in ep_mines_placed_by_uid:
                     ep_mines_placed_by_uid[agent.unique_id] = 0
 
+                # For potential diagnostics: distance to enemy flag before action
                 side = agent.getSide()
                 ex, ey = gm.get_enemy_flag_position(side)
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
 
+                # Apply macro-action (steers lower-level motion controller)
                 env.apply_macro_action(agent, macro_enum, target_idx)
 
                 decisions.append(
                     (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
                 )
 
-            # Simulate physics + internal decisions (including Red's neural/scripted policy)
+            # ==================================================
+            # SIMULATE PHYSICS + INTERNAL POLICIES (RED, ETC.)
+            # ==================================================
             sim_t = 0.0
             while sim_t < DECISION_WINDOW and not gm.game_over:
                 env.update(SIM_DT)
@@ -477,7 +590,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             decision_time_end = gm.get_sim_time()
             done = gm.game_over
 
-            # --- Collect rewards for this macro step (continuous-time TD) ---
+            # --------------------------------------------------
+            # COLLECT EVENT-BASED REWARDS FOR THIS MACRO STEP
+            # --------------------------------------------------
             rewards = collect_blue_rewards_for_step(
                 gm,
                 blue_agents,
@@ -486,14 +601,14 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 cur_phase=cur_phase,
             )
 
-            # HUD mine placement stats
-            for agent, _, macro_idx, target_idx, _, _, prev_flag_dist, ex, ey in decisions:
+            # HUD: track mine stats per agent
+            for agent, _, macro_idx, _, _, _, _, _, _ in decisions:
                 uid = agent.unique_id
                 macro_enum = USED_MACROS[macro_idx]
                 if macro_enum == MacroAction.PLACE_MINE:
                     ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
-            # HUD score / combat stats
+            # HUD: track scoring & combat events
             blue_score_delta = gm.blue_score - prev_blue_score
             if blue_score_delta > 0:
                 ep_score_events += blue_score_delta
@@ -503,7 +618,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             if total_team_reward > 0.0 and blue_score_delta == 0:
                 ep_combat_events += 1
 
-            # --- Add to PPO buffer ---
+            # --------------------------------------------------
+            # ADD TO PPO BUFFER
+            # --------------------------------------------------
             step_reward_sum = 0.0
             for agent, obs, macro_idx, target_idx, logp, val, _, _, _ in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
@@ -517,7 +634,7 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             # Next macro-decision window starts here
             decision_time_start = decision_time_end
 
-            # PPO update
+            # PPO update when buffer is full
             if buffer.size() >= UPDATE_EVERY:
                 current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count, phase_wr)
 
@@ -528,7 +645,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
 
                 ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
 
-        # ============ Episode end: result + stats ============
+        # ==================================================
+        # EPISODE END: RESULT + STATS
+        # ==================================================
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
@@ -557,9 +676,15 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
-        # COOPERATION HUD (diagnostics)
-        miner0_runner1 = ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
-        miner1_runner0 = ep_score_events > 0 and ep_mine_attempts[1] > 0 and ep_mine_attempts[0] == 0
+        # ==================================================
+        # COOPERATION HUD (ROLE SPECIALIZATION / MINES)
+        # ==================================================
+        miner0_runner1 = (
+            ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
+        )
+        miner1_runner0 = (
+            ep_score_events > 0 and ep_mine_attempts[1] > 0 and ep_mine_attempts[0] == 0
+        )
         both_mine_and_score = (
             ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] > 0
         )
@@ -651,7 +776,9 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 print(f"      {name:20s} | Blue0 {p0:5.1f}% | Blue1 {p1:5.1f}%")
             print("   =====================================================")
 
-        # CURRICULUM ADVANCE
+        # ==================================================
+        # CURRICULUM ADVANCEMENT
+        # ==================================================
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
@@ -666,8 +793,8 @@ def train_ppo_event(total_steps=TOTAL_STEPS):
                 phase_recent.clear()
                 old_policies_buffer.clear()
 
-    # SAVE FINAL MODEL
-    final_path = os.path.join(CHECKPOINT_DIR, "ctf_fixed_blue_op3.pth")
+    # Save final trained BLUE policy (used by ctfviewer, etc.)
+    final_path = os.path.join(CHECKPOINT_DIR, "research_model1.pth")
     torch.save(policy.state_dict(), final_path)
     print(f"\nTraining complete. Final model saved to: {final_path}")
 
