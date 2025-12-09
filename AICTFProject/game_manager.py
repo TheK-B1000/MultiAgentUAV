@@ -2,15 +2,18 @@ from dataclasses import dataclass, field
 from typing import Tuple, Optional, List, Dict, Any
 import math
 
-WIN_TEAM_REWARD = 1.0
-FLAG_PICKUP_REWARD = 0.1
-FLAG_CARRY_HOME_REWARD = 0.5
-ENABLED_MINE_REWARD = 0.2
-ENEMY_MAV_KILL_REWARD = 0.5
-ACTION_FAILED_PUNISHMENT = -0.2
-
-# Seconds a dropped flag stays on the field before auto-returning home
-FLAG_RETURN_DELAY = 5.0
+# ==============================
+# REWARD CONSTANTS (30x40 ARENA)
+# ==============================
+WIN_TEAM_REWARD = 2.0           # team reward when BLUE wins the game
+FLAG_PICKUP_REWARD = 0.5       # shaping: "you found the enemy flag"
+FLAG_CARRY_HOME_REWARD = 1.5    # shaping: "you actually scored"
+ENABLED_MINE_REWARD = 0.1       # reward once per UAV per episode for enabling mine use
+ENEMY_MAV_KILL_REWARD = 0.8     # reward for removing an enemy (mine or suppression)
+ACTION_FAILED_PUNISHMENT = -0.5 # e.g. dying while holding a flag, bad macro, etc.
+DRAW_TIMEOUT_PENALTY = -0.2     # applied when game times out at 0–0
+FLAG_RETURN_DELAY = 7.0
+FLAG_PROXIMITY_COEF = 0.01
 
 @dataclass
 class GameManager:
@@ -120,7 +123,11 @@ class GameManager:
             elif self.red_score > self.blue_score:
                 return "RED WINS ON TIME"
             else:
-                return "DRAW — NO TEAM REWARD"
+                # NEW: slightly punish 0–0 stall policies on timeout
+                # This is a *team-level* event (agent_id=None), so the trainer
+                # will share it equally across BLUE agents.
+                self.add_reward_event(DRAW_TIMEOUT_PENALTY)
+                return "DRAW — BLUE PENALIZED FOR STALL"
 
         # SCORE LIMIT CONDITION
         if self.blue_score >= self.score_limit:
@@ -193,6 +200,7 @@ class GameManager:
             self.blue_flag_position = (-10, -10)
             self.blue_flag_drop_time = None
 
+        # Shaping: picking up the flag is already a significant event
         self.add_reward_event(FLAG_PICKUP_REWARD, agent_id=agent.unique_id)
         return True
 
@@ -208,6 +216,8 @@ class GameManager:
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_carrier = None
                 self.red_flag_drop_time = None
+
+                # Big shaping reward for the scoring carrier.
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
                 return True
 
@@ -238,6 +248,7 @@ class GameManager:
             self.blue_flag_position = drop_pos
             self.blue_flag_carrier = None
             self.blue_flag_drop_time = self.sim_time
+            # Punish dropping the flag (usually due to death / bad play)
             self.add_reward_event(ACTION_FAILED_PUNISHMENT, agent_id=agent.unique_id)
 
         elif self.red_flag_carrier is agent:
@@ -263,6 +274,65 @@ class GameManager:
             self.red_flag_taken = False
             self.red_flag_position = self.red_flag_home
             self.red_flag_drop_time = None
+
+    def reward_flag_proximity(self, agent, prev_dist_to_goal: float) -> None:
+        """
+        Potential-Based Shaping (PBS) reward based on distance to the current "goal"
+        (enemy flag if not carrying, own home if carrying enemy flag).
+
+        Φ(s) = 1 - dist_to_goal / max_dist      (in [0, 1])
+        r_shaping = FLAG_PROXIMITY_COEF * (Φ(s') - Φ(s))
+
+        This preserves optimal policies while giving dense guidance in a 30x40 grid.
+        """
+
+        # Determine which side the agent is on
+        side = agent.getSide()
+        if side not in ("blue", "red"):
+            return
+
+        # Agent position (prefer float_pos if available)
+        if hasattr(agent, "float_pos"):
+            ax, ay = agent.float_pos
+        else:
+            ax, ay = getattr(agent, "x", 0.0), getattr(agent, "y", 0.0)
+
+        # Decide the current "goal" for shaping:
+        #   - If carrying enemy flag: distance to own flag home (to encourage scoring)
+        #   - Else: distance to enemy flag position (to encourage approaching the flag)
+        if side == "blue":
+            if self.red_flag_taken and self.red_flag_carrier is agent:
+                goal_x, goal_y = self.blue_flag_home
+            else:
+                goal_x, goal_y = self.red_flag_position
+        else:  # side == "red"
+            if self.blue_flag_taken and self.blue_flag_carrier is agent:
+                goal_x, goal_y = self.red_flag_home
+            else:
+                goal_x, goal_y = self.blue_flag_position
+
+        # Current distance to the goal
+        cur_dist = math.dist([ax, ay], [goal_x, goal_y])
+
+        # Normalize by maximum possible distance in this grid (diagonal)
+        max_dist = math.sqrt(self.cols ** 2 + self.rows ** 2)
+        if max_dist <= 0.0:
+            return
+
+        # Clamp distances to [0, max_dist] just in case
+        prev_d = max(0.0, min(prev_dist_to_goal, max_dist))
+        cur_d = max(0.0, min(cur_dist, max_dist))
+
+        # Potential function Φ(s) = 1 - d / max_d (closer = higher potential)
+        phi_before = 1.0 - (prev_d / max_dist)
+        phi_after = 1.0 - (cur_d / max_dist)
+
+        delta_phi = phi_after - phi_before
+        shaped_reward = FLAG_PROXIMITY_COEF * delta_phi
+
+        if abs(shaped_reward) > 0.0:
+            uid = getattr(agent, "unique_id", None)
+            self.add_reward_event(shaped_reward, agent_id=uid)
 
     # Reward helpers for mines / kills / failed actions
     def reward_mine_placed(self, agent, mine_pos: Optional[Tuple[int, int]] = None) -> None:
