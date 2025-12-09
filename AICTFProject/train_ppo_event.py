@@ -223,6 +223,8 @@ def ppo_update(policy, optimizer, buffer, device, ent_coef):
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents,
+    mix_alpha: float = 0.0,
+    cur_phase: str = "OP1",
 ):
     raw = gm.get_step_rewards()
 
