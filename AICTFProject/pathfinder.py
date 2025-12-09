@@ -12,8 +12,6 @@ class Pathfinder:
       - Static obstacles from `grid` (grid[row][col] != 0).
       - Dynamic obstacles in `self.blocked` (agents, mines, etc.).
       - Optional diagonal movement with corner-cutting protection.
-
-    TODO - Adjust for continuous
     """
 
     def __init__(
