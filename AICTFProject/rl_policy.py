@@ -22,7 +22,7 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.distributions import Categorical
+import torch.nn.functional as F
 
 from obs_encoder import ObsEncoder
 from macro_actions import MacroAction
@@ -139,7 +139,7 @@ class MAPPOBuffer:
 
 
 # ======================================================================
-# CNN ACTOR-CRITIC NETWORK (PPO + MAPPO)
+# CNN ACTOR-CRITIC NETWORK (PPO + MAPPO), DIRECTML-FRIENDLY
 # ======================================================================
 
 
@@ -151,16 +151,10 @@ class ActorCriticNet(nn.Module):
       - Single-agent PPO (local critic V(s_i)) via evaluate_actions().
       - MAPPO / CTDE (central critic V(S)) via evaluate_actions_central().
 
-    Args:
-        n_macros:  number of macro-actions (len(MacroAction) or subset).
-        n_targets: number of discrete macro-targets defined by GameField.
-        latent_dim: dimension of CNN latent embedding.
-        in_channels: 7 for current observation layout.
-        height: 40 (rows).
-        width: 30 (cols).
-        n_agents: number of controllable agents in the team (e.g., 2 for BLUE).
-        use_central_critic: if True, you can choose to use V(S) everywhere;
-                            current scripts use V(s_i) for PPO and V(S) for MAPPO.
+    Implementation details (DirectML-friendly):
+      - Avoids torch.distributions.Categorical in the training path.
+      - Computes log-probs and entropy manually from logits via log_softmax.
+      - Uses mask-based selection instead of gather/scatter in backward.
     """
 
     def __init__(
@@ -370,17 +364,22 @@ class ActorCriticNet(nn.Module):
                 "macro_action":  [B] LongTensor,
                 "target_action": [B] LongTensor,
                 "log_prob":      [B] float tensor of joint log-prob,
-                "value":         [B] local V(s_i) (for monitoring),
+                "value":         [B] local V(s_i),
                 "macro_mask":    [n_macros] bool tensor or None,
             }
         """
-        macro_logits, target_logits, latent = self.forward_actor(obs)
-        local_value = self.local_value_head(latent).squeeze(-1)
+        if obs.dim() == 3:
+            obs = obs.unsqueeze(0)  # [1,C,H,W]
 
+        macro_logits, target_logits, latent = self.forward_actor(obs)
+        local_value = self.local_value_head(latent).squeeze(-1)  # [B]
+        B = macro_logits.size(0)
+        device = macro_logits.device
+
+        # Optional action mask for macro-actions
         macro_mask = None
         if agent is not None and game_field is not None:
             macro_mask = self.get_action_mask(agent, game_field)
-            # Expand mask to batch dimension
             if macro_logits.dim() == 2:
                 macro_logits = macro_logits.masked_fill(
                     ~macro_mask.unsqueeze(0), -1e10
@@ -388,25 +387,51 @@ class ActorCriticNet(nn.Module):
             else:
                 macro_logits = macro_logits.masked_fill(~macro_mask, -1e10)
 
-        macro_dist = Categorical(logits=macro_logits)
-        target_dist = Categorical(logits=target_logits)
+        # Log-softmax for numeric stability
+        macro_log_probs_all = F.log_softmax(macro_logits, dim=-1)   # [B,n_macros]
+        target_log_probs_all = F.log_softmax(target_logits, dim=-1) # [B,n_targets]
+
+        macro_probs = macro_log_probs_all.exp()    # [B,n_macros]
+        target_probs = target_log_probs_all.exp()  # [B,n_targets]
 
         if deterministic:
-            macro_action = torch.argmax(macro_logits, dim=-1)
-            target_action = torch.argmax(target_logits, dim=-1)
+            macro_action = macro_logits.argmax(dim=-1)   # [B]
+            target_action = target_logits.argmax(dim=-1) # [B]
         else:
-            macro_action = macro_dist.sample()
-            target_action = target_dist.sample()
+            # Sample on CPU to avoid any exotic DML ops.
+            macro_action_cpu = torch.multinomial(macro_probs.cpu(), 1)   # [B,1]
+            target_action_cpu = torch.multinomial(target_probs.cpu(), 1) # [B,1]
 
-        log_prob_macro = macro_dist.log_prob(macro_action)
-        log_prob_target = target_dist.log_prob(target_action)
-        joint_log_prob = log_prob_macro + log_prob_target
+            macro_action = macro_action_cpu.to(device).view(B)   # [B]
+            target_action = target_action_cpu.to(device).view(B) # [B]
+
+        # Compute log_prob of the joint action via masks (no gather)
+        macro_actions_view = macro_action.view(B, 1)
+        target_actions_view = target_action.view(B, 1)
+
+        macro_mask_sel = (
+            torch.arange(self.n_macros, device=device)
+            .view(1, self.n_macros)
+            .expand(B, self.n_macros)
+            == macro_actions_view
+        ).to(macro_logits.dtype)
+
+        target_mask_sel = (
+            torch.arange(self.n_targets, device=device)
+            .view(1, self.n_targets)
+            .expand(B, self.n_targets)
+            == target_actions_view
+        ).to(target_logits.dtype)
+
+        macro_log_prob = (macro_log_probs_all * macro_mask_sel).sum(dim=-1)    # [B]
+        target_log_prob = (target_log_probs_all * target_mask_sel).sum(dim=-1) # [B]
+        log_prob = macro_log_prob + target_log_prob                            # [B]
 
         return {
             "macro_action": macro_action,
             "target_action": target_action,
-            "log_prob": joint_log_prob,
-            "value": local_value,   # PPO / viewer uses local V(s_i) here
+            "log_prob": log_prob,
+            "value": local_value,
             "macro_mask": macro_mask,
         }
 
@@ -432,19 +457,48 @@ class ActorCriticNet(nn.Module):
             entropy:  [B]
             values:   [B]  (local V(s_i))
         """
+        if obs_batch.dim() == 3:
+            obs_batch = obs_batch.unsqueeze(0)
+
+        B = obs_batch.size(0)
+        device = obs_batch.device
+
         # Critic
         values = self.forward_local_critic(obs_batch)  # [B]
 
         # Actor
         macro_logits, target_logits, _ = self.forward_actor(obs_batch)
-        macro_dist = Categorical(logits=macro_logits)
-        target_dist = Categorical(logits=target_logits)
+        macro_log_probs_all = F.log_softmax(macro_logits, dim=-1)   # [B,n_macros]
+        target_log_probs_all = F.log_softmax(target_logits, dim=-1) # [B,n_targets]
 
-        log_probs_macro = macro_dist.log_prob(macro_actions)
-        log_probs_target = target_dist.log_prob(target_actions)
-        log_probs = log_probs_macro + log_probs_target
+        macro_probs = macro_log_probs_all.exp()    # [B,n_macros]
+        target_probs = target_log_probs_all.exp()  # [B,n_targets]
 
-        entropy = macro_dist.entropy() + target_dist.entropy()
+        macro_actions = macro_actions.view(B, 1)
+        target_actions = target_actions.view(B, 1)
+
+        macro_mask_sel = (
+            torch.arange(self.n_macros, device=device)
+            .view(1, self.n_macros)
+            .expand(B, self.n_macros)
+            == macro_actions
+        ).to(macro_logits.dtype)
+
+        target_mask_sel = (
+            torch.arange(self.n_targets, device=device)
+            .view(1, self.n_targets)
+            .expand(B, self.n_targets)
+            == target_actions
+        ).to(target_logits.dtype)
+
+        macro_log_prob = (macro_log_probs_all * macro_mask_sel).sum(dim=-1)    # [B]
+        target_log_prob = (target_log_probs_all * target_mask_sel).sum(dim=-1) # [B]
+        log_probs = macro_log_prob + target_log_prob                           # [B]
+
+        # Entropy H(p) = -Σ p * log p
+        macro_entropy = -(macro_probs * macro_log_probs_all).sum(dim=-1)       # [B]
+        target_entropy = -(target_probs * target_log_probs_all).sum(dim=-1)    # [B]
+        entropy = macro_entropy + target_entropy                               # [B]
 
         return log_probs, entropy, values
 
@@ -475,18 +529,46 @@ class ActorCriticNet(nn.Module):
             entropy:  [B]
             values:   [B]  (central V(S))
         """
+        if actor_obs_batch.dim() == 3:
+            actor_obs_batch = actor_obs_batch.unsqueeze(0)
+
+        B = actor_obs_batch.size(0)
+        device = actor_obs_batch.device
+
         # 1. Central critic V(S)
         values = self.forward_central_critic(central_obs_batch)  # [B]
 
         # 2. Decentralized actor π(a_i | s_i)
         macro_logits, target_logits, _ = self.forward_actor(actor_obs_batch)
-        macro_dist = Categorical(logits=macro_logits)
-        target_dist = Categorical(logits=target_logits)
+        macro_log_probs_all = F.log_softmax(macro_logits, dim=-1)   # [B,n_macros]
+        target_log_probs_all = F.log_softmax(target_logits, dim=-1) # [B,n_targets]
 
-        log_probs_macro = macro_dist.log_prob(macro_actions)
-        log_probs_target = target_dist.log_prob(target_actions)
-        log_probs = log_probs_macro + log_probs_target
+        macro_probs = macro_log_probs_all.exp()
+        target_probs = target_log_probs_all.exp()
 
-        entropy = macro_dist.entropy() + target_dist.entropy()
+        macro_actions = macro_actions.view(B, 1)
+        target_actions = target_actions.view(B, 1)
+
+        macro_mask_sel = (
+            torch.arange(self.n_macros, device=device)
+            .view(1, self.n_macros)
+            .expand(B, self.n_macros)
+            == macro_actions
+        ).to(macro_logits.dtype)
+
+        target_mask_sel = (
+            torch.arange(self.n_targets, device=device)
+            .view(1, self.n_targets)
+            .expand(B, self.n_targets)
+            == target_actions
+        ).to(target_logits.dtype)
+
+        macro_log_prob = (macro_log_probs_all * macro_mask_sel).sum(dim=-1)    # [B]
+        target_log_prob = (target_log_probs_all * target_mask_sel).sum(dim=-1) # [B]
+        log_probs = macro_log_prob + target_log_prob                           # [B]
+
+        macro_entropy = -(macro_probs * macro_log_probs_all).sum(dim=-1)
+        target_entropy = -(target_probs * target_log_probs_all).sum(dim=-1)
+        entropy = macro_entropy + target_entropy
 
         return log_probs, entropy, values
