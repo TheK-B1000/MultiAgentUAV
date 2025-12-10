@@ -5,15 +5,17 @@ import math
 # ==============================
 # REWARD CONSTANTS (30x40 ARENA)
 # ==============================
-WIN_TEAM_REWARD = 2.0           # team reward when BLUE wins the game
-FLAG_PICKUP_REWARD = 0.5       # shaping: "you found the enemy flag"
-FLAG_CARRY_HOME_REWARD = 1.5    # shaping: "you actually scored"
-ENABLED_MINE_REWARD = 0.1       # reward once per UAV per episode for enabling mine use
-ENEMY_MAV_KILL_REWARD = 0.8     # reward for removing an enemy (mine or suppression)
-ACTION_FAILED_PUNISHMENT = -0.5 # e.g. dying while holding a flag, bad macro, etc.
-DRAW_TIMEOUT_PENALTY = -0.2     # applied when game times out at 0–0
-FLAG_RETURN_DELAY = 7.0
-FLAG_PROXIMITY_COEF = 0.01
+WIN_TEAM_REWARD = 2.0            # team reward when BLUE wins the game
+FLAG_PICKUP_REWARD = 0.5         # shaping: "you found the enemy flag"
+FLAG_CARRY_HOME_REWARD = 1.5     # shaping: "you actually scored"
+ENABLED_MINE_REWARD = 0.1        # reward once per UAV per episode for enabling mine use
+ENEMY_MAV_KILL_REWARD = 0.8      # reward for removing an enemy (mine or suppression)
+ACTION_FAILED_PUNISHMENT = -0.5  # e.g. dying while holding a flag, bad macro, etc.
+DRAW_TIMEOUT_PENALTY = -0.2      # applied when game times out at 0–0
+
+# Slightly stronger potential-based shaping than before (was 0.01)
+FLAG_PROXIMITY_COEF = 0.02
+
 
 @dataclass
 class GameManager:
@@ -123,9 +125,7 @@ class GameManager:
             elif self.red_score > self.blue_score:
                 return "RED WINS ON TIME"
             else:
-                # NEW: slightly punish 0–0 stall policies on timeout
-                # This is a *team-level* event (agent_id=None), so the trainer
-                # will share it equally across BLUE agents.
+                # slightly punish 0–0 stall policies on timeout (team-level)
                 self.add_reward_event(DRAW_TIMEOUT_PENALTY)
                 return "DRAW — BLUE PENALIZED FOR STALL"
 
@@ -219,9 +219,14 @@ class GameManager:
 
                 # Big shaping reward for the scoring carrier.
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
+
+                # NEW: small team-wide bonus so both BLUE agents are aligned on scoring.
+                # This is agent_id=None → trainer shares it equally across BLUE agents.
+                self.add_reward_event(FLAG_CARRY_HOME_REWARD * 0.5)
+
                 return True
 
-        # RED scoring with BLUE flag (no RL reward, scripted opponent)
+        # RED scoring with BLUE flag (no *positive* reward for blue; instead, penalty)
         elif side == "red" and self.blue_flag_taken and self.blue_flag_carrier is agent:
             if math.hypot(pos_x - self.red_flag_home[0], pos_y - self.red_flag_home[1]) <= 2.0:
                 self.red_score += 1
@@ -229,7 +234,10 @@ class GameManager:
                 self.blue_flag_position = self.blue_flag_home
                 self.blue_flag_carrier = None
                 self.blue_flag_drop_time = None
-                # no team reward for blue here; blue lost this point
+
+                # NEW: small team-level penalty for BLUE when RED scores.
+                self.add_reward_event(-FLAG_CARRY_HOME_REWARD * 0.5)
+
                 return True
 
         return False
@@ -334,6 +342,64 @@ class GameManager:
             uid = getattr(agent, "unique_id", None)
             self.add_reward_event(shaped_reward, agent_id=uid)
 
+    def reward_potential_shaping(
+        self,
+        agent,
+        start_pos: Tuple[int, int],
+        end_pos: Tuple[int, int],
+    ) -> None:
+        """
+        Potential-based shaping reward using the *planned* macro movement:
+
+            Φ(s) = 1 - dist_to_goal / max_dist
+            r_shaping = FLAG_PROXIMITY_COEF * (Φ(s') - Φ(s))
+
+        where:
+          - s  uses start_pos
+          - s' uses end_pos (planned macro target)
+        """
+
+        side = agent.getSide()
+        # If you only want BLUE to get shaping (recommended for now):
+        if side != "blue":
+            return
+
+        # Decide the current "goal" for shaping
+        if side == "blue":
+            if self.red_flag_taken and self.red_flag_carrier is agent:
+                goal_x, goal_y = self.blue_flag_home   # go home to score
+            else:
+                goal_x, goal_y = self.red_flag_position  # move toward enemy flag
+        else:
+            # (Unreachable if we early-return for non-blue, but left for future symmetry)
+            if self.blue_flag_taken and self.blue_flag_carrier is agent:
+                goal_x, goal_y = self.red_flag_home
+            else:
+                goal_x, goal_y = self.blue_flag_position
+
+        max_dist = math.sqrt(self.cols ** 2 + self.rows ** 2)
+        if max_dist <= 0.0:
+            return
+
+        sx, sy = start_pos
+        ex, ey = end_pos
+
+        prev_d = math.dist([sx, sy], [goal_x, goal_y])
+        cur_d  = math.dist([ex, ey], [goal_x, goal_y])
+
+        # Clamp
+        prev_d = max(0.0, min(prev_d, max_dist))
+        cur_d  = max(0.0, min(cur_d, max_dist))
+
+        phi_before = 1.0 - (prev_d / max_dist)
+        phi_after  = 1.0 - (cur_d / max_dist)
+        delta_phi  = phi_after - phi_before
+
+        shaped_reward = FLAG_PROXIMITY_COEF * delta_phi
+        if abs(shaped_reward) > 0.0:
+            uid = getattr(agent, "unique_id", None)
+            self.add_reward_event(shaped_reward, agent_id=uid)
+
     # Reward helpers for mines / kills / failed actions
     def reward_mine_placed(self, agent, mine_pos: Optional[Tuple[int, int]] = None) -> None:
         side = agent.getSide()
@@ -365,7 +431,12 @@ class GameManager:
             else:
                 self.red_mine_kills_this_episode += 1
 
+        # Individual reward for whoever got the kill
         self.add_reward_event(ENEMY_MAV_KILL_REWARD, agent_id=killer_agent.unique_id)
+
+        # NEW: if BLUE gets a mine kill, also give the whole team a small bonus
+        if killer_agent.getSide() == "blue" and cause == "mine":
+            self.add_reward_event(ENEMY_MAV_KILL_REWARD * 0.5)
 
     def record_mine_triggered_by_red(self) -> None:
         self.mines_triggered_by_red_this_episode += 1
@@ -391,8 +462,6 @@ class GameManager:
 
         This is the preferred method for the continuous-time TD/GAE trainer.
         """
-        # Save reference to the current list
         events = self.reward_events
-        # Clear the internal buffer
         self.reward_events = []
         return events
