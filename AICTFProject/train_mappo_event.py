@@ -1,23 +1,18 @@
 """
 train_mappo_event.py
 
-Multi-Agent PPO (MAPPO-style, CTDE) baseline for the 2-vs-2 UAV Capture-the-Flag (CTF) environment.
+Multi-agent PPO (MAPPO-style) baseline for the 2-vs-2 UAV Capture-the-Flag (CTF) environment.
 
-Key differences from train_ppo_event.py (single-team PPO):
-
-  - [MAPPO] Uses a centralized critic V(S) over the joint BLUE state S(t_j) = concat(s_0, s_1),
-    with decentralized actors π(a_i | s_i). (CTDE: Centralized Training, Decentralized Execution)
-  - [MAPPO] Stores both per-agent observations (actor_obs) and joint observations (central_obs)
-    in a MAPPOBuffer.
-  - [MAPPO] PPO updates call ActorCriticNet.evaluate_actions_central(central_obs, actor_obs, ...)
-    instead of evaluate_actions(obs, ...), so the value baseline is V(S) instead of V(s_i).
-
-Everything else matches the event-driven PPO setup:
-  - Event-based reward aggregation and continuous-time GAE.
-  - Macro-actions over a 7×40×30 CNN observation.
+This script trains the BLUE team using an event-driven variant of MAPPO with:
+  - Event-based reward aggregation and continuous-time GAE (matching the IHMC UAV CTF paper).
+  - A macro-action interface (GO_TO, GET_FLAG, PLACE_MINE, etc.) over a CNN-based observation.
   - Curriculum over scripted RED opponents (OP1 → OP2 → OP3).
-  - Optional self-play via “ghost” neural opponents.
-  - Cooperation HUD for emergent role specialization and mine usage.
+  - Optional self-play via "ghost" neural opponents sampled from past BLUE policies.
+  - A cooperation HUD to monitor emergent role specialization and mine usage.
+
+Dense potential-based proximity shaping is handled inside GameField.apply_macro_action /
+GameManager (e.g., reward_potential_shaping). This trainer only consumes event rewards
+from GameManager.reward_events.
 """
 
 import os
@@ -35,8 +30,7 @@ import torch.optim as optim
 from game_field import GameField
 from game_manager import GameManager
 from macro_actions import MacroAction
-# [MAPPO] Import ActorCriticNet + MAPPOBuffer from rl_policy.py
-from rl_policy import ActorCriticNet, MAPPOBuffer
+from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
 
@@ -62,7 +56,7 @@ GRID_COLS: int = 40
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# PPO hyperparameters (paper-style)
+# PPO / MAPPO hyperparameters (paper-style)
 TOTAL_STEPS: int = 3_000_000
 UPDATE_EVERY: int = 2_048
 PPO_EPOCHS: int = 10
@@ -85,8 +79,8 @@ CHECKPOINT_DIR: str = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # Self-play / policy snapshotting
-POLICY_SAVE_INTERVAL: int = 50      # Save a snapshot every N env steps
-POLICY_SAMPLE_CHANCE: float = 0.20  # 20% chance to use a "ghost" policy for Red
+POLICY_SAVE_INTERVAL: int = UPDATE_EVERY
+POLICY_SAMPLE_CHANCE: float = 0.15
 
 # Cooperation HUD / diagnostics
 COOP_HUD_EVERY: int = 50
@@ -175,6 +169,78 @@ def make_env() -> GameField:
 
 
 # ======================================================================
+# ROLLOUT BUFFER (CNN OBSERVATIONS, MULTI-AGENT)
+# ======================================================================
+
+class RolloutBuffer:
+    """
+    On-policy rollout buffer for MAPPO with event-driven time steps.
+
+    Each stored time step corresponds to one macro-decision per BLUE agent:
+      - obs: CNN observation [C,H,W] (local, ego-centric)
+      - macro_action: macro-action index
+      - target_action: discrete target index (e.g., which macro-target)
+      - log_prob: log π(a|s)
+      - value: V(s) (possibly centralized if the network uses more context)
+      - reward: event-aggregated reward for this macro step
+      - done: episode termination flag
+      - dt: time until the next macro-decision (Δt_j)
+
+    We simply treat all agent-time pairs as samples for PPO-style updates
+    with a shared policy, i.e. MAPPO via parameter sharing.
+    """
+
+    def __init__(self) -> None:
+        self.obs: List[np.ndarray] = []
+        self.macro_actions: List[int] = []
+        self.target_actions: List[int] = []
+        self.log_probs: List[float] = []
+        self.values: List[float] = []
+        self.rewards: List[float] = []
+        self.dones: List[bool] = []
+        self.dts: List[float] = []
+
+    def add(
+        self,
+        obs: np.ndarray,
+        macro_action: int,
+        target_action: int,
+        log_prob: float,
+        value: float,
+        reward: float,
+        done: bool,
+        dt: float,
+    ) -> None:
+        self.obs.append(np.array(obs, dtype=np.float32))
+        self.macro_actions.append(int(macro_action))
+        self.target_actions.append(int(target_action))
+        self.log_probs.append(float(log_prob))
+        self.values.append(float(value))
+        self.rewards.append(float(reward))
+        self.dones.append(bool(done))
+        self.dts.append(float(dt))
+
+    def size(self) -> int:
+        return len(self.obs)
+
+    def clear(self) -> None:
+        self.__init__()
+
+    def to_tensors(
+        self, device: torch.device
+    ) -> Tuple[torch.Tensor, ...]:
+        obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)
+        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)
+        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)
+        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
+        values = torch.tensor(self.values, dtype=torch.float32, device=device)
+        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
+        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
+        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
+        return obs, macro_actions, target_actions, log_probs, values, rewards, dones, dts
+
+
+# ======================================================================
 # EVENT-DRIVEN GAE (CONTINUOUS TIME)
 # ======================================================================
 
@@ -208,6 +274,7 @@ def compute_gae_event(
         lam_gamma_dt = (gamma * lam) ** dts[t]
         mask = 1.0 - dones[t]
 
+        # TD(t_j) using aggregated (already back-discounted) rewards:
         delta = rewards[t] + gamma_dt * next_value * mask - values[t]
         advantages[t] = delta + lam_gamma_dt * next_adv * mask
 
@@ -221,19 +288,15 @@ def compute_gae_event(
 def mappo_update(
     policy: ActorCriticNet,
     optimizer: optim.Optimizer,
-    buffer: MAPPOBuffer,
+    buffer: RolloutBuffer,
     device: torch.device,
     ent_coef: float,
 ) -> None:
     """
-    PPO update with centralized critic (MAPPO/CTDE variant).
-
-    [MAPPO] Same PPO math, but values come from V(S)
-            via evaluate_actions_central using both central_obs and actor_obs.
+    Run multiple MAPPO (shared-parameter PPO) epochs over the collected rollout buffer.
     """
     (
-        actor_obs,
-        central_obs,
+        obs,
         macro_actions,
         target_actions,
         old_log_probs,
@@ -246,24 +309,20 @@ def mappo_update(
     advantages, returns = compute_gae_event(rewards, values, dones, dts)
     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-    idxs = np.arange(actor_obs.size(0))
+    idxs = np.arange(obs.size(0))
     for _ in range(PPO_EPOCHS):
         np.random.shuffle(idxs)
-        for start in range(0, actor_obs.size(0), MINIBATCH_SIZE):
+        for start in range(0, obs.size(0), MINIBATCH_SIZE):
             mb_idx = idxs[start:start + MINIBATCH_SIZE]
-
-            mb_actor_obs = actor_obs[mb_idx]       # [B, C, H, W]
-            mb_central_obs = central_obs[mb_idx]   # [B, N_agents, C, H, W]
+            mb_obs = obs[mb_idx]
             mb_macro = macro_actions[mb_idx]
             mb_target = target_actions[mb_idx]
             mb_old_log_probs = old_log_probs[mb_idx]
             mb_advantages = advantages[mb_idx]
             mb_returns = returns[mb_idx]
 
-            # [MAPPO] centralized critic (V(S)), decentralized actor (π(a_i | s_i))
-            new_log_probs, entropy, new_values = policy.evaluate_actions_central(
-                mb_central_obs,
-                mb_actor_obs,
+            new_log_probs, entropy, new_values = policy.evaluate_actions(
+                mb_obs,
                 mb_macro,
                 mb_target,
             )
@@ -272,7 +331,6 @@ def mappo_update(
             surr1 = ratio * mb_advantages
             surr2 = torch.clamp(ratio, 1 - CLIP_EPS, 1 + CLIP_EPS) * mb_advantages
             policy_loss = -torch.min(surr1, surr2).mean()
-
             value_loss = (mb_returns - new_values).pow(2).mean()
             entropy_loss = entropy.mean()
 
@@ -287,7 +345,7 @@ def mappo_update(
 
 
 # ======================================================================
-# REWARD COLLECTION (BLUE) – unchanged from PPO
+# REWARD COLLECTION (BLUE, MULTI-AGENT)
 # ======================================================================
 
 def collect_blue_rewards_for_step(
@@ -295,7 +353,7 @@ def collect_blue_rewards_for_step(
     blue_agents: List[Any],
     decision_time_start: float,
     decision_time_end: float,
-    cur_phase: str = "OP1",
+    cur_phase: str = "OP1",   # kept for future phase-specific shaping if needed
 ) -> Dict[str, float]:
     """
     Collect per-agent BLUE rewards from GameManager using timestamped events.
@@ -303,9 +361,12 @@ def collect_blue_rewards_for_step(
     For each macro-decision j, we compute:
       R_j = sum_{i in I_j} gamma^{t_i - t_j} r_i
 
-    where I_j is the set of events that occurred in [decision_time_start, decision_time_end].
-    These R_j are stored as rewards[j] and used in compute_gae_event.
+    where I_j is the set of events that occurred since the last macro-decision.
+    Dense proximity shaping, flag pickups, kills, etc. are all injected into
+    GameManager.reward_events by the environment and GameManager.
     """
+
+    # Each event: (timestamp, agent_id, reward_value)
     raw_events = list(gm.reward_events)
     gm.reward_events.clear()
 
@@ -313,6 +374,7 @@ def collect_blue_rewards_for_step(
     team_r_total = 0.0  # events with agent_id=None
 
     for t_event, agent_id, r in raw_events:
+        # Discount reward back to the macro-decision time t_j
         time_since_action = t_event - decision_time_start
         if time_since_action < 0:
             time_since_action = 0.0
@@ -342,7 +404,8 @@ def get_entropy_coef(
     Simple entropy annealing schedule per phase.
 
     Starts above the baseline ENT_COEF_BY_PHASE value, then decays
-    toward it over a horizon (in episodes).
+    toward it over a horizon (in episodes). This keeps exploration
+    higher early in each curriculum phase.
     """
     base = ENT_COEF_BY_PHASE[cur_phase]
 
@@ -358,14 +421,14 @@ def get_entropy_coef(
 
 
 # ======================================================================
-# MAIN MAPPO TRAINING LOOP
+# MAIN TRAINING LOOP (MAPPO)
 # ======================================================================
 
 def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     """
-    MAPPO-style training loop with centralized critic for the BLUE team.
+    Main training loop for the MAPPO-style baseline.
 
-    BLUE is trained with PPO + centralized critic V(S);
+    BLUE is trained with shared-parameter PPO over both BLUE agents;
     RED is either scripted (OP1/OP2/OP3) or a neural "ghost" opponent.
     """
     set_seed(42)
@@ -384,16 +447,13 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     else:
         print("[train_mappo_event] WARNING: No blue agents in env.reset_default().")
 
-    # [MAPPO] Policy & optimizer with centralized critic turned on
+    # Shared policy & optimizer
     policy = ActorCriticNet(
         n_macros=len(USED_MACROS),
         n_targets=env.num_macro_targets,
-        n_agents=2,                 # 2 BLUE agents in this 2-vs-2 setup
-        use_central_critic=True,
     ).to(DEVICE)
-
     optimizer = optim.Adam(policy.parameters(), lr=LR)
-    buffer = MAPPOBuffer()
+    buffer = RolloutBuffer()
 
     global_step = 0
     episode_idx = 0
@@ -426,21 +486,23 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         # --------------------------------------------------
         # OPPONENT SELECTION (SCRIPTED vs SELF-PLAY)
         # --------------------------------------------------
-        # Only allow self-play in OP3 (late curriculum)
-        allow_selfplay = (cur_phase == "OP3")
-
         use_selfplay = False
-        if (
-                allow_selfplay
-                and old_policies_buffer
-                and random.random() < POLICY_SAMPLE_CHANCE
-        ):
-            # [MAPPO] Use a neural "ghost" policy for RED (self-play)
+
+        ENABLE_SELFPLAY_PHASE = "OP3"
+        MIN_EPISODES_FOR_SELFPLAY = 500
+        MIN_WR_FOR_SELFPLAY = 0.70
+
+        can_selfplay = (
+            cur_phase == ENABLE_SELFPLAY_PHASE
+            and phase_episode_count >= MIN_EPISODES_FOR_SELFPLAY
+            and phase_wr >= MIN_WR_FOR_SELFPLAY
+            and len(old_policies_buffer) > 0
+        )
+
+        if can_selfplay and random.random() < POLICY_SAMPLE_CHANCE:
             red_net = ActorCriticNet(
                 n_macros=len(USED_MACROS),
                 n_targets=env.num_macro_targets,
-                n_agents=2,
-                use_central_critic=True,
             ).to(DEVICE)
             state_dict = random.choice(old_policies_buffer)
             red_net.load_state_dict(state_dict)
@@ -449,7 +511,6 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             opponent_tag = "SELFPLAY"
             use_selfplay = True
         else:
-            # Use scripted OPx opponent for this phase
             set_red_policy_for_phase(env, cur_phase)
             opponent_tag = cur_phase
 
@@ -487,39 +548,15 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             if global_step > 0 and global_step % POLICY_SAVE_INTERVAL == 0:
                 old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
 
-            # All BLUE agents as seen by the critic (fixed team size = n_agents)
-            all_blue_agents = list(env.blue_agents)
-
-            # Only enabled agents actually make decisions
-            active_blue_agents = [a for a in all_blue_agents if a.isEnabled()]
-            if not active_blue_agents:
-                # Degenerate edge case: no active BLUE agents
-                break
+            blue_agents = [a for a in env.blue_agents if a.isEnabled()]
+            decisions: List[Tuple[Any, Any, int, int, float, float, float]] = []
 
             # ==================================================
-            # [MAPPO] BUILD JOINT OBSERVATION S(t_j) FROM ALL AGENTS
+            # BLUE MACRO DECISIONS (MULTI-AGENT)
             # ==================================================
-            obs_list = [env.build_observation(a) for a in all_blue_agents]  # list of [C,H,W]
-            central_obs = np.stack(obs_list, axis=0)  # [N_agents, C, H, W], N_agents should stay 2
-
-            # [MAPPO] Central value V(S) for this macro-decision time.
-            with torch.no_grad():
-                central_obs_tensor = torch.tensor(
-                    central_obs, dtype=torch.float32, device=DEVICE
-                ).unsqueeze(0)  # [1, N_agents, C, H, W]
-                v_s = policy.forward_central_critic(central_obs_tensor)[0].item()
-
-            decisions: List[Tuple[Any, np.ndarray, int, int, float, float]] = []
-
-            # ==================================================
-            # BLUE MACRO DECISIONS (DECOUPLED ACTORS, ONLY ENABLED)
-            # ==================================================
-            for agent_idx, agent in enumerate(all_blue_agents):
-                if not agent.isEnabled():
-                    continue  # Skip dead/disabled agents for action selection
-
-                actor_obs = obs_list[agent_idx]  # [C,H,W]
-                obs_tensor = torch.tensor(actor_obs, dtype=torch.float32, device=DEVICE)
+            for agent in blue_agents:
+                obs = env.build_observation(agent)
+                obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE)
 
                 out = policy.act(
                     obs_tensor,
@@ -531,11 +568,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 macro_idx = int(out["macro_action"][0].item())
                 target_idx = int(out["target_action"][0].item())
                 logp = float(out["log_prob"][0].item())
+                val = float(out["value"][0].item())
 
                 macro_enum = USED_MACROS[macro_idx]
 
-                # Track macro-usage statistics by local agent ID (0/1)
-                local_id = getattr(agent, "agent_id", agent_idx)
+                # Track macro-usage statistics
+                local_id = getattr(agent, "agent_id", 0)
                 if local_id in ep_macro_counts and 0 <= macro_idx < NUM_ACTIONS:
                     ep_macro_counts[local_id][macro_idx] += 1
                     if macro_enum == MacroAction.PLACE_MINE:
@@ -544,12 +582,16 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 if agent.unique_id not in ep_mines_placed_by_uid:
                     ep_mines_placed_by_uid[agent.unique_id] = 0
 
+                # === NEW: distance to enemy flag BEFORE the macro (for shaping) ===
+                side = agent.getSide()
+                ex, ey = gm.get_enemy_flag_position(side)
+                prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
+
                 # Apply macro-action (steers lower-level motion controller)
                 env.apply_macro_action(agent, macro_enum, target_idx)
 
-                # [MAPPO] Store per-agent decision, but shared V(S)
                 decisions.append(
-                    (agent, actor_obs, macro_idx, target_idx, logp, v_s)
+                    (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist)
                 )
 
             # ==================================================
@@ -564,16 +606,27 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             decision_time_end = gm.get_sim_time()
             done = gm.game_over
 
+            # === potential-based flag proximity shaping (same as PPO) ===
+            for agent, _, _, _, _, _, prev_flag_dist in decisions:
+                gm.reward_flag_proximity(agent, prev_flag_dist)
+
             # --------------------------------------------------
             # COLLECT EVENT-BASED REWARDS FOR THIS MACRO STEP
             # --------------------------------------------------
             rewards = collect_blue_rewards_for_step(
                 gm,
-                active_blue_agents,
+                blue_agents,
                 decision_time_start,
                 decision_time_end,
                 cur_phase=cur_phase,
             )
+
+            # HUD: track mine stats per agent
+            for agent, _, macro_idx, _, _, _, _ in decisions:
+                uid = agent.unique_id
+                macro_enum = USED_MACROS[macro_idx]
+                if macro_enum == MacroAction.PLACE_MINE:
+                    ep_mines_placed_by_uid[uid] = ep_mines_placed_by_uid.get(uid, 0) + 1
 
             # HUD: track scoring & combat events
             blue_score_delta = gm.blue_score - prev_blue_score
@@ -586,24 +639,13 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 ep_combat_events += 1
 
             # --------------------------------------------------
-            # [MAPPO] ADD TO MAPPO BUFFER
+            # ADD TO MAPPO BUFFER (ONE SAMPLE PER AGENT)
             # --------------------------------------------------
             step_reward_sum = 0.0
-            for agent, actor_obs, macro_idx, target_idx, logp, v_s in decisions:
-                r_i = rewards.get(agent.unique_id, 0.0)
-                step_reward_sum += r_i
-
-                buffer.add(
-                    actor_obs=np.array(actor_obs, dtype=np.float32),      # [C,H,W]
-                    central_obs=np.array(central_obs, dtype=np.float32),  # [N_agents,C,H,W]
-                    macro_action=macro_idx,
-                    target_action=target_idx,
-                    log_prob=logp,
-                    value=v_s,          # [MAPPO] shared V(S) baseline
-                    reward=r_i,
-                    done=done,
-                    dt=dt,
-                )
+            for agent, obs, macro_idx, target_idx, logp, val, _ in decisions:
+                r = rewards.get(agent.unique_id, 0.0)
+                step_reward_sum += r
+                buffer.add(obs, macro_idx, target_idx, logp, val, r, done, dt)
                 global_step += 1
 
             ep_return += step_reward_sum
@@ -612,12 +654,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             # Next macro-decision window starts here
             decision_time_start = decision_time_end
 
-            # PPO update when buffer is full
+            # MAPPO update when buffer is full
             if buffer.size() >= UPDATE_EVERY:
                 current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count, phase_wr)
 
                 print(
-                    f"[MAPPO-UPDATE] step={global_step} episode={episode_idx} "
+                    f"[MAPPO UPDATE] step={global_step} episode={episode_idx} "
                     f"phase={cur_phase} ENT={current_ent_coef:.4f} Opp={opponent_tag}"
                 )
 
@@ -655,7 +697,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         )
 
         # ==================================================
-        # COOPERATION HUD (same logic as PPO baseline)
+        # COOPERATION HUD (ROLE SPECIALIZATION / MINES)
         # ==================================================
         miner0_runner1 = (
             ep_score_events > 0 and ep_mine_attempts[0] > 0 and ep_mine_attempts[1] == 0
@@ -721,7 +763,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             triggered = sum(ep["mines_triggered_by_red"] for ep in coop_window) / window_len
             total_mines = avg_mines_0 + avg_mines_1
 
-            print("   ================== COOPERATION HUD (MAPPO) ==================")
+            print("   ================== COOP HUD (MAPPO) ==================")
             print(f"   Window: last {len(coop_window)} episodes")
             print(f"   Avg mines/ep          : Blue0={avg_mines_0:.2f}, Blue1={avg_mines_1:.2f}")
             print(f"   Avg scores/ep         : {avg_scores:.2f}")
@@ -755,7 +797,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             print("   =====================================================")
 
         # ==================================================
-        # CURRICULUM ADVANCEMENT (same thresholds as PPO)
+        # CURRICULUM ADVANCEMENT
         # ==================================================
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
@@ -771,10 +813,10 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 phase_recent.clear()
                 old_policies_buffer.clear()
 
-    # Save final trained BLUE policy (MAPPO version)
-    final_path = os.path.join(CHECKPOINT_DIR, "research_mappo_blue.pth")
+    # Save final trained BLUE MAPPO policy
+    final_path = os.path.join(CHECKPOINT_DIR, "research_mappo_model1.pth")
     torch.save(policy.state_dict(), final_path)
-    print(f"\nMAPPO training complete. Final model saved to: {final_path}")
+    print(f"\n[MAPPO] Training complete. Final model saved to: {final_path}")
 
 
 if __name__ == "__main__":
