@@ -429,7 +429,9 @@ class GameField:
         Builds a 7-channel 30×40 spatial observation for the given agent.
 
         Channels:
-          0: Own UAV position
+          0: Own UAV position + identity code
+             - value = 1.0 for agent_id == 0 (e.g., Attacker)
+             - value = 0.5 for agent_id == 1 (e.g., Defender)
           1: Teammate UAVs (same side, excluding self)
           2: Enemy UAVs
           3: Friendly mines
@@ -440,6 +442,9 @@ class GameField:
         The observation is point-mirrored to the agent's side, meaning BLUE's
         view is the canonical frame, and RED's view is mirrored across the
         arena so they see a symmetric layout. This helps with policy transfer.
+
+        Identity encoding on channel 0 breaks symmetry for the shared-parameter
+        policy, allowing it to learn distinct roles for agent_id 0 vs 1.
         """
         side = agent.side  # "blue" or "red"
         game_state = self.manager
@@ -467,19 +472,25 @@ class GameField:
 
             # Clamp to CNN boundaries
             col_cnn = max(0, min(CNN_COLS - 1, col_cnn))
-            row_cnn = max(0, min(CNN_ROWS - 1, row_cnn))
+            row_cnn = max(0, min(CNN_ROWS - 1, CNN_ROWS - 1))
 
             return col_cnn, row_cnn
 
-        # Helper to set a cell in a given channel
+        # Helper to set a cell in a given channel to 1.0
         def set_chan(c: int, col: int, row: int) -> None:
             if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
                 channels[c][row][col] = 1.0
 
-        # --- 0: own UAV ---
+        # --- 0: own UAV (+ identity encoding) ---
         own_col, own_row = int(agent.x), int(agent.y)
         own_cnn_col, own_cnn_row = get_cnn_cell(own_col, own_row)
-        set_chan(0, own_cnn_col, own_cnn_row)
+
+        # Agent identity code: 1.0 for id=0, 0.5 for id=1 (default to 0)
+        agent_id = getattr(agent, "agent_id", 0)
+        id_code = 1.0 if agent_id == 0 else 0.5
+
+        if 0 <= own_cnn_col < CNN_COLS and 0 <= own_cnn_row < CNN_ROWS:
+            channels[0][own_cnn_row][own_cnn_col] = id_code
 
         # Decide friendly/enemy sets
         friendly_team = self.blue_agents if side == "blue" else self.red_agents
