@@ -27,6 +27,31 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+# ==========================================================
+# DEVICE SELECTION (DirectML → CUDA → CPU)
+# ==========================================================
+#
+# With an AMD Radeon (e.g., 5700 XT) on Windows, we use torch-directml
+# to get GPU acceleration. On NVIDIA, we fall back to CUDA. Otherwise, CPU.
+try:
+    import torch_directml
+    HAS_TDML = True
+except ImportError:
+    torch_directml = None
+    HAS_TDML = False
+
+def get_device() -> torch.device:
+    """
+    Prefer DirectML (AMD / any DX12 GPU), then CUDA, then CPU.
+    """
+    if HAS_TDML:
+        # DirectML uses its own device type; this still behaves like a torch device.
+        return torch_directml.device()
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
 from game_field import GameField
 from game_manager import GameManager
 from macro_actions import MacroAction
@@ -54,7 +79,8 @@ def set_seed(seed: int = 42) -> None:
 GRID_ROWS: int = 30
 GRID_COLS: int = 40
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# *** UPDATED: Use DirectML / CUDA / CPU in that order ***
+DEVICE = get_device()
 
 # PPO / MAPPO hyperparameters (paper-style)
 TOTAL_STEPS: int = 3_000_000
@@ -432,6 +458,8 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     RED is either scripted (OP1/OP2/OP3) or a neural "ghost" opponent.
     """
     set_seed(42)
+
+    print(f"[train_mappo_event] Using device: {DEVICE}")
 
     env = make_env()
     gm = env.getGameManager()
