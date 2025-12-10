@@ -10,8 +10,9 @@ This script trains the BLUE team using an event-driven variant of PPO with:
   - Occasional self-play via "ghost" neural opponents sampled from past BLUE policies.
   - A cooperation HUD to monitor emergent role specialization and mine usage.
 
-This serves as the main PPO baseline for the MARL research thrust. MAPPO, QMIX, and
-other MARL variants can reuse the same environment interface and curriculum.
+Dense potential-based proximity shaping is now handled inside GameField.apply_macro_action
+via GameManager (e.g., reward_potential_shaping), so this trainer only consumes
+event rewards from GameManager.reward_events.
 """
 
 import os
@@ -356,8 +357,9 @@ def collect_blue_rewards_for_step(
     For each macro-decision j, we compute:
       R_j = sum_{i in I_j} gamma^{t_i - t_j} r_i
 
-    where I_j is the set of events that occurred in [decision_time_start, decision_time_end].
-    These R_j are stored as rewards[j] and used in compute_gae_event.
+    where I_j is the set of events that occurred since the last macro-decision.
+    Dense proximity shaping, flag pickups, kills, etc. are all injected into
+    GameManager.reward_events by the environment and GameManager.
     """
 
     # Each event: (timestamp, agent_id, reward_value)
@@ -488,10 +490,10 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         MIN_WR_FOR_SELFPLAY = 0.70
 
         can_selfplay = (
-                cur_phase == ENABLE_SELFPLAY_PHASE
-                and phase_episode_count >= MIN_EPISODES_FOR_SELFPLAY
-                and phase_wr >= MIN_WR_FOR_SELFPLAY
-                and len(old_policies_buffer) > 0
+            cur_phase == ENABLE_SELFPLAY_PHASE
+            and phase_episode_count >= MIN_EPISODES_FOR_SELFPLAY
+            and phase_wr >= MIN_WR_FOR_SELFPLAY
+            and len(old_policies_buffer) > 0
         )
 
         if can_selfplay and random.random() < POLICY_SAMPLE_CHANCE:
@@ -544,7 +546,8 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 old_policies_buffer.append(copy.deepcopy(policy.state_dict()))
 
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-            decisions: List[Tuple[Any, Any, int, int, float, float, float, float, float]] = []
+            # (agent, obs, macro_idx, target_idx, logp, val)
+            decisions: List[Tuple[Any, Any, int, int, float, float]] = []
 
             # ==================================================
             # BLUE MACRO DECISIONS
@@ -577,16 +580,12 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 if agent.unique_id not in ep_mines_placed_by_uid:
                     ep_mines_placed_by_uid[agent.unique_id] = 0
 
-                # For potential diagnostics: distance to enemy flag before action
-                side = agent.getSide()
-                ex, ey = gm.get_enemy_flag_position(side)
-                prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
-
-                # Apply macro-action (steers lower-level motion controller)
+                # Apply macro-action (steers lower-level motion controller).
+                # Dense potential shaping is injected here via GameField/GameManager.
                 env.apply_macro_action(agent, macro_enum, target_idx)
 
                 decisions.append(
-                    (agent, obs, macro_idx, target_idx, logp, val, prev_flag_dist, ex, ey)
+                    (agent, obs, macro_idx, target_idx, logp, val)
                 )
 
             # ==================================================
@@ -601,10 +600,6 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             decision_time_end = gm.get_sim_time()
             done = gm.game_over
 
-            for agent, _, _, _, _, _, prev_flag_dist, _, _ in decisions:
-                gm.reward_flag_proximity(agent, prev_flag_dist)
-
-
             # --------------------------------------------------
             # COLLECT EVENT-BASED REWARDS FOR THIS MACRO STEP
             # --------------------------------------------------
@@ -617,7 +612,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             )
 
             # HUD: track mine stats per agent
-            for agent, _, macro_idx, _, _, _, _, _, _ in decisions:
+            for agent, _, macro_idx, _, _, _ in decisions:
                 uid = agent.unique_id
                 macro_enum = USED_MACROS[macro_idx]
                 if macro_enum == MacroAction.PLACE_MINE:
@@ -637,7 +632,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             # ADD TO PPO BUFFER
             # --------------------------------------------------
             step_reward_sum = 0.0
-            for agent, obs, macro_idx, target_idx, logp, val, _, _, _ in decisions:
+            for agent, obs, macro_idx, target_idx, logp, val in decisions:
                 r = rewards.get(agent.unique_id, 0.0)
                 step_reward_sum += r
                 buffer.add(obs, macro_idx, target_idx, logp, val, r, done, dt)
