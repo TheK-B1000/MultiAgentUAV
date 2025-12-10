@@ -426,7 +426,7 @@ class GameField:
     # ------------------------------------------------------------------
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
         """
-        Builds a 7-channel 20×20 spatial observation for the given agent.
+        Builds a 7-channel 30×40 spatial observation for the given agent.
 
         Channels:
           0: Own UAV position
@@ -557,10 +557,10 @@ class GameField:
         )
 
     def apply_macro_action(
-        self,
-        agent: Agent,
-        action: MacroAction,
-        param: Optional[Any] = None,
+            self,
+            agent: Agent,
+            action: MacroAction,
+            param: Optional[Any] = None,
     ) -> None:
         """
         Execute a high-level macro-action by converting it into a path over the grid.
@@ -571,10 +571,18 @@ class GameField:
         if not agent.isEnabled():
             return
 
+        # Snapshot agent position *before* setting the new path.
+        if agent.getSide() == 'blue':
+            # Store the current position, which will be the 'prev_pos' in the next update() tick.
+            agent.shaping_prev_pos = agent.float_pos
+
         agent.last_macro_action = action
         side = agent.side
         gm = self.manager
-        start = (agent.x, agent.y)
+
+        # [DENSE SHAPING] Capture the agent's position *before* planning the macro.
+        start_pos = (int(agent.x), int(agent.y))
+        new_pos = start_pos  # will be updated by safe_set_path
 
         def resolve_target_from_param(default_target: Tuple[int, int]) -> Tuple[int, int]:
             if param is None:
@@ -593,10 +601,18 @@ class GameField:
             return self.get_macro_target(idx)
 
         def safe_set_path(
-            target: Tuple[int, int],
-            avoid_enemies: bool = False,
-            radius: int = 1,
-        ) -> None:
+                target: Tuple[int, int],
+                avoid_enemies: bool = False,
+                radius: int = 1,
+        ) -> Tuple[int, int]:
+            """
+            Plan a path and assign it to the agent.
+
+            Returns:
+                The final planned waypoint (end of the path) in grid coordinates.
+                If no path is found, falls back to own half and may return the
+                original start_pos if still no path.
+            """
             # Inflate dynamic obstacles near enemies if avoid_enemies=True
             original_blocked = set(self.pathfinder.blocked)
             blocked = set(original_blocked)
@@ -608,6 +624,9 @@ class GameField:
                             for dy in range(-radius, radius + 1):
                                 blocked.add((e.x + dx, e.y + dy))
             self.pathfinder.blocked = blocked
+
+            # Use the *current* start location for planning
+            start = (agent.x, agent.y)
             path = self.pathfinder.astar(start, target)
             self.pathfinder.blocked = original_blocked
 
@@ -615,14 +634,22 @@ class GameField:
             if not path:
                 fallback = self.random_point_in_own_half(side)
                 path = self.pathfinder.astar(start, fallback) or []
+
             agent.setPath(path)
+
+            # Return the final waypoint (for shaping); if no path, stay at start_pos
+            if path:
+                end_cell = path[-1]
+                return (int(end_cell[0]), int(end_cell[1]))
+            else:
+                return start_pos
 
         # ================= MACRO-ACTION HANDLERS =================
         if action == MacroAction.GO_TO:
             # Default: random point in enemy half
             default_target = self.random_point_in_enemy_half(side)
             target = resolve_target_from_param(default_target)
-            safe_set_path(target, avoid_enemies=agent.isCarryingFlag())
+            new_pos = safe_set_path(target, avoid_enemies=agent.isCarryingFlag())
 
         elif action == MacroAction.GRAB_MINE:
             my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
@@ -631,14 +658,14 @@ class GameField:
                     my_pickups,
                     key=lambda p: (p.x - agent.x) ** 2 + (p.y - agent.y) ** 2,
                 )
-                safe_set_path((nearest.x, nearest.y))
+                new_pos = safe_set_path((nearest.x, nearest.y))
             else:
                 # If no pickups, wander in own half
-                safe_set_path(self.random_point_in_own_half(side))
+                new_pos = safe_set_path(self.random_point_in_own_half(side))
 
         elif action == MacroAction.GET_FLAG:
             ex, ey = gm.get_enemy_flag_position(side)
-            safe_set_path((ex, ey), avoid_enemies=agent.isCarryingFlag())
+            new_pos = safe_set_path((ex, ey), avoid_enemies=agent.isCarryingFlag())
 
         elif action == MacroAction.PLACE_MINE:
             # Default target: current tile
@@ -667,11 +694,15 @@ class GameField:
                         self.manager.reward_mine_placed(agent, mine_pos=target)
 
             # Optionally move after placing (fallback path)
-            safe_set_path(target)
+            new_pos = safe_set_path(target)
 
         elif action == MacroAction.GO_HOME:
             home = gm.get_team_zone_center(side)
-            safe_set_path(home, avoid_enemies=True, radius=2)
+            new_pos = safe_set_path(home, avoid_enemies=True, radius=2)
+
+        # Inject potential-based shaping after the macro is set.
+        if hasattr(gm, "reward_potential_shaping"):
+            gm.reward_potential_shaping(agent, start_pos, new_pos)
 
     # ------------------------------------------------------------------
     # Policy-driven decision for internal agents (scripted / neural RED)
