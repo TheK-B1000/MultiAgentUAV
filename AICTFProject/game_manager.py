@@ -11,19 +11,19 @@ FLAG_CARRY_HOME_REWARD = 3.0     # shaping: "you actually scored"
 ENABLED_MINE_REWARD = 0.1        # reward once per UAV per episode for enabling mine use
 ENEMY_MAV_KILL_REWARD = 0.8      # reward for removing an enemy (mine or suppression)
 ACTION_FAILED_PUNISHMENT = -0.5  # e.g. dying while holding a flag, bad macro, etc.
-FLAG_RETURN_DELAY = 10.0
-DRAW_TIMEOUT_PENALTY = 0.0      # applied when game times out at 0–0
 SCORE_PROGRESS_BONUS = 0.2    # per Blue score (team-level)
 SCORE_MARGIN_BONUS   = 0.5    # extra bonus per goal of margin above 1
 FLAG_PROXIMITY_COEF = 0.02
-ATTACKER_FLAG_PROX_COEF = 0.04   # stronger shaping toward attack/scoring
-DEFENDER_FLAG_PROX_COEF = 0.02   # shaping toward defending own flag
+FLAG_RETURN_DELAY = 10.0
 
 PHASE_DRAW_TIMEOUT_PENALTY = {
     "OP1": -2.0,
     "OP2": -1.0,
-    "OP3": 0.0,   # no penalty for stalling vs hardest scripted opponent
+    "OP3":  0.0,
+    "SELF": 0.0,
 }
+
+
 
 @dataclass
 class GameManager:
@@ -126,29 +126,26 @@ class GameManager:
         # TIMEOUT CONDITION
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
-
             if self.blue_score > self.red_score:
                 # Margin-based bonus: 3–0 > 2–1 > 1–0
                 margin = self.blue_score - self.red_score
                 extra = SCORE_MARGIN_BONUS * max(0, margin - 1)
                 self.add_reward_event(WIN_TEAM_REWARD + extra)
                 return "BLUE WINS ON TIME"
-
             elif self.red_score > self.blue_score:
                 return "RED WINS ON TIME"
-
             else:
-                # Phase-dependent draw penalty for BLUE
+                # Phase-specific draw penalty
                 penalty = PHASE_DRAW_TIMEOUT_PENALTY.get(
-                    self.phase_name,
-                    DRAW_TIMEOUT_PENALTY,
+                    self.phase_name
                 )
                 if penalty != 0.0:
                     self.add_reward_event(penalty)
+                    return f"DRAW — BLUE PENALIZED FOR STALL ({self.phase_name})"
+                else:
+                    return f"DRAW — NO PENALTY ({self.phase_name})"
 
-                return "DRAW — BLUE PENALIZED FOR STALL"
-
-        # SCORE LIMIT CONDITION
+            # SCORE LIMIT CONDITION
         if self.blue_score >= self.score_limit:
             self.game_over = True
             margin = self.blue_score - self.red_score
@@ -232,10 +229,7 @@ class GameManager:
         # BLUE scoring with RED flag
         if side == "blue" and self.red_flag_taken and self.red_flag_carrier is agent:
             if math.hypot(pos_x - self.blue_flag_home[0], pos_y - self.blue_flag_home[1]) <= 2.0:
-                # increment score *first*
                 self.blue_score += 1
-
-                # reset flag state
                 self.red_flag_taken = False
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_carrier = None
@@ -244,15 +238,13 @@ class GameManager:
                 # Big shaping reward for the scoring carrier.
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
 
-                # Team-wide bonus so defenders/supports also feel the score.
+                # NEW: small team-wide bonus so both BLUE agents are aligned on scoring.
+                # This is agent_id=None → trainer shares it equally across BLUE agents.
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD * 0.5)
-
-                # This is team-level, so both MAPPO agents are pushed to keep attacking.
-                self.add_reward_event(SCORE_PROGRESS_BONUS * float(self.blue_score))
 
                 return True
 
-        # RED scoring with BLUE flag (no RL reward, scripted opponent)
+        # RED scoring with BLUE flag (no *positive* reward for blue; instead, penalty)
         elif side == "red" and self.blue_flag_taken and self.blue_flag_carrier is agent:
             if math.hypot(pos_x - self.red_flag_home[0], pos_y - self.red_flag_home[1]) <= 2.0:
                 self.red_score += 1
@@ -261,7 +253,7 @@ class GameManager:
                 self.blue_flag_carrier = None
                 self.blue_flag_drop_time = None
 
-                # Team-level penalty for BLUE when RED scores.
+                # NEW: small team-level penalty for BLUE when RED scores.
                 self.add_reward_event(-FLAG_CARRY_HOME_REWARD * 0.5)
 
                 return True
@@ -311,30 +303,19 @@ class GameManager:
 
     def reward_flag_proximity(self, agent, prev_dist_to_goal: float) -> None:
         """
-        Potential-Based Shaping (PBS) reward based on distance to a role-specific goal.
-
-        For BLUE:
-          - Agent 0 (attacker): goal = enemy flag (or home if carrying enemy flag)
-          - Agent 1 (defender): goal = own flag home (defensive anchor)
+        Potential-Based Shaping (PBS) reward based on distance to the current "goal"
+        (enemy flag if not carrying, own home if carrying enemy flag).
 
         Φ(s) = 1 - dist_to_goal / max_dist      (in [0, 1])
-        r_shaping = coef(role) * (Φ(s') - Φ(s))
+        r_shaping = FLAG_PROXIMITY_COEF * (Φ(s') - Φ(s))
 
-        This preserves optimal policies while giving dense, role-aware guidance.
+        This preserves optimal policies while giving dense guidance in a 30x40 grid.
         """
 
+        # Determine which side the agent is on
         side = agent.getSide()
         if side not in ("blue", "red"):
             return
-
-        # For now we only shape BLUE (learning) agents.
-        if side != "blue":
-            return
-
-        # Role: attacker = agent_id 0, defender = agent_id 1 (default to attacker if missing)
-        agent_id = getattr(agent, "agent_id", 0)
-        is_attacker = (agent_id == 0)
-        is_defender = (agent_id == 1)
 
         # Agent position (prefer float_pos if available)
         if hasattr(agent, "float_pos"):
@@ -342,25 +323,21 @@ class GameManager:
         else:
             ax, ay = getattr(agent, "x", 0.0), getattr(agent, "y", 0.0)
 
-        # ----- Choose role-specific goal and coef -----
-        if is_attacker:
-            # Attacker: move toward enemy flag; if carrying, move toward own home to score
+        # Decide the current "goal" for shaping:
+        #   - If carrying enemy flag: distance to own flag home (to encourage scoring)
+        #   - Else: distance to enemy flag position (to encourage approaching the flag)
+        if side == "blue":
             if self.red_flag_taken and self.red_flag_carrier is agent:
                 goal_x, goal_y = self.blue_flag_home
             else:
                 goal_x, goal_y = self.red_flag_position
-            coef = ATTACKER_FLAG_PROX_COEF
+        else:  # side == "red"
+            if self.blue_flag_taken and self.blue_flag_carrier is agent:
+                goal_x, goal_y = self.red_flag_home
+            else:
+                goal_x, goal_y = self.blue_flag_position
 
-        elif is_defender:
-            # Defender: always shape toward own flag home (hold defensive posture)
-            goal_x, goal_y = self.blue_flag_home
-            coef = DEFENDER_FLAG_PROX_COEF
-
-        else:
-            # Unknown role => no shaping (keeps things clean if you add more agents later)
-            return
-
-        # Current distance to the role-specific goal
+        # Current distance to the goal
         cur_dist = math.dist([ax, ay], [goal_x, goal_y])
 
         # Normalize by maximum possible distance in this grid (diagonal)
@@ -368,7 +345,7 @@ class GameManager:
         if max_dist <= 0.0:
             return
 
-        # Clamp distances
+        # Clamp distances to [0, max_dist] just in case
         prev_d = max(0.0, min(prev_dist_to_goal, max_dist))
         cur_d = max(0.0, min(cur_dist, max_dist))
 
@@ -377,56 +354,46 @@ class GameManager:
         phi_after = 1.0 - (cur_d / max_dist)
 
         delta_phi = phi_after - phi_before
-        shaped_reward = coef * delta_phi
+        shaped_reward = FLAG_PROXIMITY_COEF * delta_phi
 
         if abs(shaped_reward) > 0.0:
             uid = getattr(agent, "unique_id", None)
             self.add_reward_event(shaped_reward, agent_id=uid)
 
     def reward_potential_shaping(
-            self,
-            agent,
-            start_pos: Tuple[int, int],
-            end_pos: Tuple[int, int],
+        self,
+        agent,
+        start_pos: Tuple[int, int],
+        end_pos: Tuple[int, int],
     ) -> None:
         """
         Potential-based shaping reward using the *planned* macro movement:
 
             Φ(s) = 1 - dist_to_goal / max_dist
-            r_shaping = coef(role) * (Φ(s') - Φ(s))
+            r_shaping = FLAG_PROXIMITY_COEF * (Φ(s') - Φ(s))
 
-        Role-conditional for BLUE:
-          - Agent 0 (attacker): goal = enemy flag (or home if carrying enemy flag)
-          - Agent 1 (defender): goal = own flag home
+        where:
+          - s  uses start_pos
+          - s' uses end_pos (planned macro target)
         """
 
         side = agent.getSide()
-
-        # Only shape BLUE (learning) agents
+        # If you only want BLUE to get shaping (recommended for now):
         if side != "blue":
             return
 
-        agent_id = getattr(agent, "agent_id", 0)
-        is_attacker = (agent_id == 0)
-        is_defender = (agent_id == 1)
-
-        # ----- Choose role-specific goal and coef -----
-        if is_attacker:
-            # Attacker: toward enemy flag, or toward home if carrying
+        # Decide the current "goal" for shaping
+        if side == "blue":
             if self.red_flag_taken and self.red_flag_carrier is agent:
-                goal_x, goal_y = self.blue_flag_home
+                goal_x, goal_y = self.blue_flag_home   # go home to score
             else:
-                goal_x, goal_y = self.red_flag_position
-            coef = ATTACKER_FLAG_PROX_COEF
-
-        elif is_defender:
-            # Defender: guard own flag home
-            goal_x, goal_y = self.blue_flag_home
-            coef = DEFENDER_FLAG_PROX_COEF
-
+                goal_x, goal_y = self.red_flag_position  # move toward enemy flag
         else:
-            # Unknown role => no shaping
-            return
+            # (Unreachable if we early-return for non-blue, but left for future symmetry)
+            if self.blue_flag_taken and self.blue_flag_carrier is agent:
+                goal_x, goal_y = self.red_flag_home
+            else:
+                goal_x, goal_y = self.blue_flag_position
 
         max_dist = math.sqrt(self.cols ** 2 + self.rows ** 2)
         if max_dist <= 0.0:
@@ -436,17 +403,17 @@ class GameManager:
         ex, ey = end_pos
 
         prev_d = math.dist([sx, sy], [goal_x, goal_y])
-        cur_d = math.dist([ex, ey], [goal_x, goal_y])
+        cur_d  = math.dist([ex, ey], [goal_x, goal_y])
 
         # Clamp
         prev_d = max(0.0, min(prev_d, max_dist))
-        cur_d = max(0.0, min(cur_d, max_dist))
+        cur_d  = max(0.0, min(cur_d, max_dist))
 
         phi_before = 1.0 - (prev_d / max_dist)
-        phi_after = 1.0 - (cur_d / max_dist)
-        delta_phi = phi_after - phi_before
+        phi_after  = 1.0 - (cur_d / max_dist)
+        delta_phi  = phi_after - phi_before
 
-        shaped_reward = coef * delta_phi
+        shaped_reward = FLAG_PROXIMITY_COEF * delta_phi
         if abs(shaped_reward) > 0.0:
             uid = getattr(agent, "unique_id", None)
             self.add_reward_event(shaped_reward, agent_id=uid)
