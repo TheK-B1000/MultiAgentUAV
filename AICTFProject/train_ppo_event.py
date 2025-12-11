@@ -132,7 +132,7 @@ MIN_PHASE_EPISODES: Dict[str, int] = {
 
 # Target phase win-rates for curriculum advancement
 TARGET_PHASE_WINRATE: Dict[str, float] = {
-    "OP1": 0.99,
+    "OP1": 0.94,
     "OP2": 0.90,
     "OP3": 0.80,
 }
