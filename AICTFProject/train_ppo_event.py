@@ -434,7 +434,7 @@ def get_entropy_coef(
     elif cur_phase == "OP2":
         start_ent, horizon = 0.04, 1500.0
     else:
-        start_ent, horizon = 0.035, 2000.0
+        start_ent, horizon = 0.04, 2000.0
 
     frac = min(1.0, phase_episode_count / horizon)
     return float(start_ent - (start_ent - base) * frac)
