@@ -11,8 +11,6 @@ FLAG_CARRY_HOME_REWARD = 3.0     # shaping: "you actually scored"
 ENABLED_MINE_REWARD = 0.1        # reward once per UAV per episode for enabling mine use
 ENEMY_MAV_KILL_REWARD = 0.8      # reward for removing an enemy (mine or suppression)
 ACTION_FAILED_PUNISHMENT = -0.5  # e.g. dying while holding a flag, bad macro, etc.
-SCORE_PROGRESS_BONUS = 0.2    # per Blue score (team-level)
-SCORE_MARGIN_BONUS   = 0.5    # extra bonus per goal of margin above 1
 FLAG_PROXIMITY_COEF = 0.02
 FLAG_RETURN_DELAY = 10.0
 
@@ -22,7 +20,6 @@ PHASE_DRAW_TIMEOUT_PENALTY = {
     "OP3":  0.0,
     "SELF": 0.0,
 }
-
 
 
 @dataclass
@@ -127,30 +124,25 @@ class GameManager:
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
             if self.blue_score > self.red_score:
-                # Margin-based bonus: 3–0 > 2–1 > 1–0
-                margin = self.blue_score - self.red_score
-                extra = SCORE_MARGIN_BONUS * max(0, margin - 1)
-                self.add_reward_event(WIN_TEAM_REWARD + extra)
+                # Simple win reward, no margin bonus
+                self.add_reward_event(WIN_TEAM_REWARD)
                 return "BLUE WINS ON TIME"
             elif self.red_score > self.blue_score:
                 return "RED WINS ON TIME"
             else:
                 # Phase-specific draw penalty
-                penalty = PHASE_DRAW_TIMEOUT_PENALTY.get(
-                    self.phase_name
-                )
+                penalty = PHASE_DRAW_TIMEOUT_PENALTY.get(self.phase_name)
                 if penalty != 0.0:
                     self.add_reward_event(penalty)
                     return f"DRAW — BLUE PENALIZED FOR STALL ({self.phase_name})"
                 else:
                     return f"DRAW — NO PENALTY ({self.phase_name})"
 
-            # SCORE LIMIT CONDITION
+        # SCORE LIMIT CONDITION
         if self.blue_score >= self.score_limit:
             self.game_over = True
-            margin = self.blue_score - self.red_score
-            extra = SCORE_MARGIN_BONUS * max(0, margin - 1)
-            self.add_reward_event(WIN_TEAM_REWARD + extra)
+            # Simple win reward, no margin bonus
+            self.add_reward_event(WIN_TEAM_REWARD)
             return "BLUE WINS BY SCORE!"
 
         if self.red_score >= self.score_limit:
@@ -238,8 +230,7 @@ class GameManager:
                 # Big shaping reward for the scoring carrier.
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD, agent_id=agent.unique_id)
 
-                # NEW: small team-wide bonus so both BLUE agents are aligned on scoring.
-                # This is agent_id=None → trainer shares it equally across BLUE agents.
+                # Small team-wide bonus so both BLUE agents are aligned on scoring.
                 self.add_reward_event(FLAG_CARRY_HOME_REWARD * 0.5)
 
                 return True
@@ -253,7 +244,7 @@ class GameManager:
                 self.blue_flag_carrier = None
                 self.blue_flag_drop_time = None
 
-                # NEW: small team-level penalty for BLUE when RED scores.
+                # Small team-level penalty for BLUE when RED scores.
                 self.add_reward_event(-FLAG_CARRY_HOME_REWARD * 0.5)
 
                 return True
@@ -311,8 +302,6 @@ class GameManager:
 
         This preserves optimal policies while giving dense guidance in a 30x40 grid.
         """
-
-        # Determine which side the agent is on
         side = agent.getSide()
         if side not in ("blue", "red"):
             return
@@ -323,9 +312,7 @@ class GameManager:
         else:
             ax, ay = getattr(agent, "x", 0.0), getattr(agent, "y", 0.0)
 
-        # Decide the current "goal" for shaping:
-        #   - If carrying enemy flag: distance to own flag home (to encourage scoring)
-        #   - Else: distance to enemy flag position (to encourage approaching the flag)
+        # Decide the current "goal" for shaping
         if side == "blue":
             if self.red_flag_taken and self.red_flag_carrier is agent:
                 goal_x, goal_y = self.blue_flag_home
@@ -452,7 +439,7 @@ class GameManager:
         # Individual reward for whoever got the kill
         self.add_reward_event(ENEMY_MAV_KILL_REWARD, agent_id=killer_agent.unique_id)
 
-        # NEW: if BLUE gets a mine kill, also give the whole team a small bonus
+        # If BLUE gets a mine kill, also give the whole team a small bonus
         if killer_agent.getSide() == "blue" and cause == "mine":
             self.add_reward_event(ENEMY_MAV_KILL_REWARD * 0.5)
 
