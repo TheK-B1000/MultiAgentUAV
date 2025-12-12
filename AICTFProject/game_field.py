@@ -19,7 +19,6 @@ The focus is to provide a stable, research-friendly interface for MARL training
 (PPO, MAPPO, QMIX, self-play, etc.) while preserving a clean mapping to a
 real-world UAV arena (sim-to-real).
 
-NOTE: This file has **no pygame dependency**. Rendering lives in viewer_game_field.py.
 """
 
 import random
@@ -472,7 +471,7 @@ class GameField:
 
             # Clamp to CNN boundaries
             col_cnn = max(0, min(CNN_COLS - 1, col_cnn))
-            row_cnn = max(0, min(CNN_ROWS - 1, CNN_ROWS - 1))
+            row_cnn = max(0, min(CNN_ROWS - 1, row_cnn))
 
             return col_cnn, row_cnn
 
