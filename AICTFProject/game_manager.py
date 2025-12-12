@@ -16,7 +16,7 @@ FLAG_RETURN_DELAY = 10.0
 
 PHASE_DRAW_TIMEOUT_PENALTY = {
     "OP1": -2.0,
-    "OP2": -1.0,
+    "OP2": -2.0,
     "OP3":  0.0,
     "SELF": 0.0,
 }
