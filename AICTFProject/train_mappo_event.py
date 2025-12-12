@@ -40,6 +40,7 @@ except ImportError:
     torch_directml = None
     HAS_TDML = False
 
+
 def get_device() -> torch.device:
     """
     Prefer DirectML (AMD / any DX12 GPU), then CUDA, then CPU.
@@ -79,7 +80,7 @@ def set_seed(seed: int = 42) -> None:
 GRID_ROWS: int = 30
 GRID_COLS: int = 40
 
-# *** UPDATED: Use DirectML / CUDA / CPU in that order ***
+# Use DirectML / CUDA / CPU in that order
 DEVICE = get_device()
 
 # PPO / MAPPO hyperparameters (paper-style)
@@ -135,8 +136,8 @@ MIN_PHASE_EPISODES: Dict[str, int] = {
 
 # Target phase win-rates for curriculum advancement
 TARGET_PHASE_WINRATE: Dict[str, float] = {
-    "OP1": 0.94,
-    "OP2": 0.90,
+    "OP1": 0.90,
+    "OP2": 0.86,
     "OP3": 0.80,
 }
 
@@ -148,6 +149,11 @@ ENT_COEF_BY_PHASE: Dict[str, float] = {
     "OP2": 0.035,
     "OP3": 0.02,
 }
+
+# OP2-specific exploration / shaping tweaks
+OP2_ENTROPY_FLOOR: float = 0.003     # don't let ent_coef collapse below this in OP2
+OP2_DRAW_PENALTY: float = -0.4       # extra team penalty for 0–0 draws vs OP2
+OP2_SCORE_BONUS: float = 0.5         # extra team bonus per blue score vs OP2
 
 # Episode timing / max macro-steps per phase
 PHASE_CONFIG: Dict[str, Dict[str, float]] = {
@@ -284,7 +290,7 @@ def compute_gae_event(
       TD(t_j) = sum_{i in I_j} gamma^{t_i - t_j} r_i
                 + gamma^{Δt_j} v(t_{j+1}) - v(t_j)
 
-      A(t_j) = TD(t_j) + (lambda * gamma)^{Δt_j} A(t_{j+1})
+      A(t_j) = TD(t_j) + (lambda * gamma)^{Δt_j} A(t_{j+1}}
 
     Here:
       - rewards[j] == sum_{i in I_j} gamma^{t_i - t_j} r_i  (pre-discounted per decision)
@@ -418,6 +424,21 @@ def collect_blue_rewards_for_step(
         for aid in rewards_sum_by_id:
             rewards_sum_by_id[aid] += share
 
+    # ------------------------------------------------------
+    # Extra phase-specific shaping:
+    #   In OP2, punish "safe" 0–0 draws so the agents learn
+    #   that stalling forever is worse than taking risks.
+    # ------------------------------------------------------
+    if (
+        cur_phase == "OP2"
+        and gm.game_over
+        and gm.blue_score == gm.red_score
+        and len(rewards_sum_by_id) > 0
+    ):
+        per_agent_pen = OP2_DRAW_PENALTY / len(rewards_sum_by_id)
+        for aid in rewards_sum_by_id:
+            rewards_sum_by_id[aid] += per_agent_pen
+
     return rewards_sum_by_id
 
 
@@ -432,6 +453,9 @@ def get_entropy_coef(
     Starts above the baseline ENT_COEF_BY_PHASE value, then decays
     toward it over a horizon (in episodes). This keeps exploration
     higher early in each curriculum phase.
+
+    In OP2, we also apply a small floor so exploration never collapses
+    completely while the agents are learning to beat the defensive bot.
     """
     base = ENT_COEF_BY_PHASE[cur_phase]
 
@@ -443,7 +467,13 @@ def get_entropy_coef(
         start_ent, horizon = 0.035, 2000.0
 
     frac = min(1.0, phase_episode_count / horizon)
-    return float(start_ent - (start_ent - base) * frac)
+    coef = float(start_ent - (start_ent - base) * frac)
+
+    if cur_phase == "OP2":
+        # Don't let entropy become *too* small vs OP2.
+        coef = max(coef, OP2_ENTROPY_FLOOR)
+
+    return coef
 
 
 # ======================================================================
@@ -610,7 +640,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 if agent.unique_id not in ep_mines_placed_by_uid:
                     ep_mines_placed_by_uid[agent.unique_id] = 0
 
-                # === NEW: distance to enemy flag BEFORE the macro (for shaping) ===
+                # Distance to enemy flag BEFORE the macro (for shaping)
                 side = agent.getSide()
                 ex, ey = gm.get_enemy_flag_position(side)
                 prev_flag_dist = math.dist([agent.x, agent.y], [ex, ey])
@@ -634,7 +664,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             decision_time_end = gm.get_sim_time()
             done = gm.game_over
 
-            # === potential-based flag proximity shaping (same as PPO) ===
+            # Potential-based flag proximity shaping
             for agent, _, _, _, _, _, prev_flag_dist in decisions:
                 gm.reward_flag_proximity(agent, prev_flag_dist)
 
@@ -665,6 +695,17 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             total_team_reward = sum(rewards.values())
             if total_team_reward > 0.0 and blue_score_delta == 0:
                 ep_combat_events += 1
+
+            # --------------------------------------------------
+            # Extra OP2 shaping: reward actual scoring
+            # --------------------------------------------------
+            if cur_phase == "OP2" and blue_score_delta > 0:
+                # Small positive team bonus for scoring vs a defensive opponent
+                n_agents = len(rewards)
+                if n_agents > 0:
+                    per_agent_bonus = (OP2_SCORE_BONUS * blue_score_delta) / n_agents
+                    for aid in rewards:
+                        rewards[aid] = rewards.get(aid, 0.0) + per_agent_bonus
 
             # --------------------------------------------------
             # ADD TO MAPPO BUFFER (ONE SAMPLE PER AGENT)
