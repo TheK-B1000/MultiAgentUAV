@@ -1,3 +1,4 @@
+# obs_encoder.py
 import torch
 import torch.nn as nn
 
@@ -6,44 +7,58 @@ class ObsEncoder(nn.Module):
     """
     CNN encoder for the 7-channel spatial observation map.
 
-    Default observation layout (from GameField.build_observation):
-        Shape: [C, H, W] = [7, 40, 30]
-            - C = 7 semantic channels (own UAV, teammate, enemies, mines, flags, ...)
-            - H = 40 rows   (CNN_ROWS)
-            - W = 30 cols   (CNN_COLS)
+    Intended input from GameField.build_observation:
+        - Unbatched: [C,H,W]  = [7,40,30]
+        - Batched:   [B,C,H,W]
 
-    Output:
-        latent feature vector of size `latent_dim`, suitable for actor/critic heads.
+    Also supports accidental channels-last batches:
+        - [B,H,W,C]  -> will auto-permute to [B,C,H,W] if C matches in_channels.
+
+    Bulletproofing:
+      - flat_dim computed via dummy forward (no pooling math assumptions)
+      - AdaptiveAvgPool2d locks conv output to a fixed spatial size, so FC always matches
+      - handles non-contiguous tensors safely
     """
 
     def __init__(
         self,
         in_channels: int = 7,
-        height: int = 40,   # rows
-        width: int = 30,    # cols
+        height: int = 40,    # CNN_ROWS
+        width: int = 30,     # CNN_COLS
         latent_dim: int = 128,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.height = height
-        self.width = width
-        self.latent_dim = latent_dim
+        self.in_channels = int(in_channels)
+        self.height = int(height)
+        self.width = int(width)
+        self.latent_dim = int(latent_dim)
 
-        # --------------------------------------------------------------
-        # Simple CNN stack: keeps H,W the same (padding=1, kernel=3)
-        # --------------------------------------------------------------
+        # Feature extractor
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+            nn.Conv2d(self.in_channels, 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),  # H,W -> floor(H/2),floor(W/2)
+
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),  # -> floor(H/4),floor(W/4)
         )
 
-        # After conv: [B, 64, H, W]
-        flat_dim = 64 * height * width
+        # Determine conv output shape using a dummy forward pass (robust)
+        with torch.no_grad():
+            dummy = torch.zeros(1, self.in_channels, self.height, self.width)
+            y = self.conv(dummy)
+            out_h, out_w = int(y.shape[-2]), int(y.shape[-1])
+            flat_dim = int(y.numel())  # since batch=1
+
+        # Lock conv output size so FC stays valid even if H/W changes at runtime
+        self.pool = nn.AdaptiveAvgPool2d((out_h, out_w))
+        self._conv_out_hw = (out_h, out_w)
+        self._flat_dim = flat_dim
 
         self.fc = nn.Sequential(
-            nn.Linear(flat_dim, latent_dim),
+            nn.Flatten(),
+            nn.Linear(self._flat_dim, self.latent_dim),
             nn.ReLU(inplace=True),
         )
 
@@ -59,27 +74,40 @@ class ObsEncoder(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0.0)
 
+    def _ensure_bchw(self, obs: torch.Tensor) -> torch.Tensor:
+        """
+        Convert obs to [B,C,H,W] if possible.
+        """
+        if not torch.is_tensor(obs):
+            obs = torch.as_tensor(obs)
+
+        # [C,H,W] -> [1,C,H,W]
+        if obs.dim() == 3:
+            obs = obs.unsqueeze(0)
+
+        # If channels-last: [B,H,W,C] and C matches in_channels -> permute
+        if obs.dim() == 4 and obs.shape[1] != self.in_channels and obs.shape[-1] == self.in_channels:
+            obs = obs.permute(0, 3, 1, 2).contiguous()
+
+        if obs.dim() != 4:
+            raise ValueError(f"ObsEncoder expects [B,C,H,W] or [C,H,W], got {tuple(obs.shape)}")
+
+        if obs.shape[1] != self.in_channels:
+            raise ValueError(f"Expected C={self.in_channels}, got {obs.shape[1]} with shape {tuple(obs.shape)}")
+
+        return obs
+
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            obs: [C, H, W] or [B, C, H, W]
-
         Returns:
             latent: [B, latent_dim]
         """
-        if obs.dim() == 3:
-            # [C, H, W] -> [1, C, H, W]
-            obs = obs.unsqueeze(0)
+        obs = self._ensure_bchw(obs).float()
 
-        assert obs.dim() == 4, f"ObsEncoder expects 4D tensor [B,C,H,W], got {obs.shape}"
-        b, c, h, w = obs.shape
+        x = self.conv(obs)  # [B,64,h,w] (depends on input)
+        # Force stable spatial size for FC
+        if (int(x.shape[-2]), int(x.shape[-1])) != self._conv_out_hw:
+            x = self.pool(x)
 
-        # Shape sanity checks
-        assert c == self.in_channels, f"Expected {self.in_channels} channels, got {c}"
-        assert h == self.height and w == self.width, \
-            f"Expected spatial size {self.height}x{self.width}, got {h}x{w}"
-
-        x = self.conv(obs)       # [B, 64, H, W]
-        x = x.view(b, -1)        # [B, 64*H*W]
-        latent = self.fc(x)      # [B, latent_dim]
+        latent = self.fc(x)  # [B,latent_dim]
         return latent
