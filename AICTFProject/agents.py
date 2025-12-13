@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Deque, ClassVar
 from collections import deque
 
 # Radius used elsewhere (e.g., "team zone" checks and flag drawing)
@@ -31,7 +31,7 @@ class Agent:
     # --- Movement along a path ---
     # "cells per second" – GameField sets the path; Agent just walks it.
     move_rate_cps: float = 2.2
-    path: deque[Cell] = field(default_factory=deque)
+    path: Deque[Cell] = field(default_factory=deque)
     move_accum: float = 0.0
 
     # Smooth position for rendering / interpolation
@@ -59,17 +59,31 @@ class Agent:
     # Reference to GameManager (optional, injected by env or setup)
     game_manager: Optional[Any] = field(default=None, repr=False)
 
+    # --- Instance identity (unique per Agent object) ---
+    instance_id: int = field(init=False)
+
+    # Class-level counter for instance_id
+    _NEXT_INSTANCE_ID: ClassVar[int] = 0
+
     def __post_init__(self) -> None:
         # Clamp initial position and spawn to map bounds
         self.x, self.y = self._clamp(self.x, self.y)
         self.spawn_xy = self._clamp(*self.spawn_xy)
 
-        self.path = deque()
+        # Ensure path is a deque
+        if not isinstance(self.path, deque):
+            self.path = deque(self.path)
+
         self._float_x = float(self.x)
         self._float_y = float(self.y)
 
-        # Unique identifier used by GameManager reward_events.
-        self.unique_id = f"{self.side}_{self.agent_id}"
+        # Stable unique instance id (avoids collisions across episodes/runs)
+        self.instance_id = Agent._NEXT_INSTANCE_ID
+        Agent._NEXT_INSTANCE_ID += 1
+
+        # A stable "slot id" (human-readable) and a truly-unique id (for buffers/events)
+        self.slot_id = f"{self.side}_{self.agent_id}"
+        self.unique_id = f"{self.side}_{self.agent_id}_{self.instance_id}"
 
         # Per-episode decision counter used by GameField.build_observation
         self.decision_count: int = 0
@@ -79,22 +93,21 @@ class Agent:
         self._just_scored = False
         self._just_tagged_enemy = False
 
-        # Track whether we were just disabled this episode
+        # Track disable events
         self.was_just_disabled: bool = False
+        self.disabled_this_tick: bool = False
 
     # ------------------------------------------------------------------
     # Basic helpers
     # ------------------------------------------------------------------
     def _clamp(self, col: int, row: int) -> Cell:
-        c = max(0, min(self.cols - 1, col))
-        r = max(0, min(self.rows - 1, row))
+        c = max(0, min(self.cols - 1, int(col)))
+        r = max(0, min(self.rows - 1, int(row)))
         return (c, r)
 
     @property
     def float_pos(self) -> Tuple[float, float]:
-        """
-        Continuous position used by GameManager and reward logic.
-        """
+        """Continuous position used for rendering / continuous-distance logic."""
         return self._float_x, self._float_y
 
     def get_position(self) -> Cell:
@@ -117,17 +130,31 @@ class Agent:
     def attach_game_manager(self, gm: Any) -> None:
         self.game_manager = gm
 
+    # ------------------------------------------------------------------
     # Flag handling + event flags
-    def setCarryingFlag(self, value: bool) -> None:
-        if not self.is_carrying_flag and value:
-            # Just picked up the flag
+    # ------------------------------------------------------------------
+    def setCarryingFlag(self, value: bool, *, scored: Optional[bool] = None) -> None:
+        """
+        Set local flag-carry state.
+
+        scored:
+          - None  -> preserves legacy behavior: dropping flag after carrying sets _just_scored=True
+          - True  -> explicitly mark as scored when turning off
+          - False -> do NOT mark as scored (use on death/forced drop)
+        """
+        if value and not self.is_carrying_flag:
             self._just_picked_up_flag = True
-        elif self.is_carrying_flag and not value:
-            # Stopped carrying – higher-level logic can interpret
-            # this as 'scored' when appropriate.
-            self._just_scored = True
+
+        if self.is_carrying_flag and not value:
+            # Only mark "scored" if caller says so, OR preserve legacy behavior if None.
+            if scored is None or scored is True:
+                self._just_scored = True
 
         self.is_carrying_flag = value
+
+    def mark_scored(self) -> None:
+        """Explicit scoring event, if you prefer to drive scoring from GameManager/GameField."""
+        self._just_scored = True
 
     def consume_just_picked_up_flag(self) -> bool:
         v = self._just_picked_up_flag
@@ -144,16 +171,29 @@ class Agent:
         self._just_tagged_enemy = False
         return v
 
+    def consume_disabled_this_tick(self) -> bool:
+        v = self.disabled_this_tick
+        self.disabled_this_tick = False
+        return v
+
+    # ------------------------------------------------------------------
     # Path handling
-    def setPath(self, path: List[Cell]) -> None:
+    # ------------------------------------------------------------------
+    def setPath(self, path: Optional[List[Cell]]) -> None:
+        """
+        Assign a new path.
+
+        - path is None -> clear
+        - path == []   -> clear (valid "already at goal"; caller should treat as success)
+        """
         if not path:
             self.clearPath()
+            self.move_accum = 0.0
             return
 
         clamped = [self._clamp(*c) for c in path]
         self.path = deque(clamped)
         self.waypoint = clamped[-1] if clamped else None
-        # Reset movement accumulator for fresh path
         self.move_accum = 0.0
 
     def clearPath(self) -> None:
@@ -172,21 +212,25 @@ class Agent:
             dropped at the death position and does NOT follow on respawn.
           - Clears movement and local carrying state.
         """
-        if self.enabled:
-            self.was_just_disabled = True
-            self.enabled = False
-            self.tag_cooldown = max(self.tag_cooldown, seconds)
+        if not self.enabled:
+            return
 
-            # Let GameManager handle dropping the flag, rewards, etc.
-            if self.game_manager is not None:
-                self.game_manager.handle_agent_death(self)
+        self.was_just_disabled = True
+        self.disabled_this_tick = True
+        self.enabled = False
+        self.tag_cooldown = max(self.tag_cooldown, float(seconds))
 
-            # Local view: we are no longer carrying a flag
-            self.is_carrying_flag = False
+        # Let GameManager handle dropping the flag, rewards, etc.
+        if self.game_manager is not None:
+            self.game_manager.handle_agent_death(self)
 
-            # Stop moving
-            self.clearPath()
-            self.move_accum = 0.0
+        # Local view: we are no longer carrying a flag
+        # ✅ don't accidentally mark this as a "score"
+        self.setCarryingFlag(False, scored=False)
+
+        # Stop moving
+        self.clearPath()
+        self.move_accum = 0.0
 
     def respawn(self) -> None:
         # Extra safety: make absolutely sure GameManager does not
@@ -201,6 +245,7 @@ class Agent:
         self.enabled = True
         self.tag_cooldown = 0.0
         self.was_just_disabled = False
+        self.disabled_this_tick = False
 
         self.clearPath()
         self.move_accum = 0.0
@@ -213,7 +258,9 @@ class Agent:
         # On respawn we definitely are not carrying a flag
         self.is_carrying_flag = False
 
+    # ------------------------------------------------------------------
     # Per-timestep update
+    # ------------------------------------------------------------------
     def update(self, dt: float) -> None:
         if dt <= 0.0:
             return
@@ -228,7 +275,6 @@ class Agent:
 
         # If enabled but no path, nothing to do
         if not self.path:
-            # Keep float position aligned with discrete cell
             self._float_x = float(self.x)
             self._float_y = float(self.y)
             return
@@ -237,7 +283,7 @@ class Agent:
         self.move_accum += self.move_rate_cps * dt
 
         # Consume as many whole cells as we can
-        while self.move_accum >= 1.0 and self.path:
+        while self.path:
             next_cell = self.path[0]
             dx = next_cell[0] - self.x
             dy = next_cell[1] - self.y
@@ -266,6 +312,5 @@ class Agent:
             self._float_x = self.x + dx * progress
             self._float_y = self.y + dy * progress
         else:
-            # End of path; snap float position to cell
             self._float_x = float(self.x)
             self._float_y = float(self.y)
