@@ -1,26 +1,6 @@
-"""
-policies.py
-
-Scripted baseline policies for the 2-vs-2 UAV Capture-the-Flag (CTF) environment.
-
-These policies are used as fixed opponents (OP1, OP2, OP3) and as baselines
-for benchmarking multi-agent RL algorithms (e.g., PPO, MAPPO, QMIX, self-play).
-They expose a simple macro-action interface:
-
-    select_action(obs, agent, game_field) -> (macro_action_id: int,
-                                              param: Optional[(x, y)])
-
-Macro-actions (see macro_actions.MacroAction):
-    - GO_TO      : Move towards a target grid cell (x, y).
-    - GRAB_MINE  : Go to own mine pickups.
-    - GET_FLAG   : Go to enemy flag.
-    - PLACE_MINE : Place a mine at a target grid cell (x, y).
-    - GO_HOME    : Return to own flag/home zone.
-"""
-
 import math
 import random
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple, Optional, List
 
 from agents import Agent
 from game_manager import GameManager
@@ -30,15 +10,6 @@ from macro_actions import MacroAction
 class Policy:
     """
     Base class for scripted policies in the CTF environment.
-
-    This abstract class defines the interface for agent decision-making. Subclasses
-    implement `select_action` to return a macro-action ID and optional parameter
-    (e.g., a target cell).
-
-    Research context:
-        Scripted policies serve as baselines for benchmarking MARL algorithms
-        (PPO, MAPPO, QMIX, self-play). They enable controlled evaluation of
-        emergent behaviors, coordination, and robustness to fixed opponents.
     """
 
     def select_action(
@@ -47,230 +18,198 @@ class Policy:
         agent: Agent,
         game_field: "GameField",
     ) -> Tuple[int, Optional[Tuple[int, int]]]:
-        """
-        Select an action for the agent based on observation, state, and environment.
-
-        Args:
-            obs: Agent's observation (e.g., 7×30×40 CNN tensor).
-            agent: The acting agent instance.
-            game_field: The GameField environment.
-
-        Returns:
-            (macro_action_id: int, param: Optional[(x, y)] for target).
-        """
         raise NotImplementedError
 
     def reset(self) -> None:
-        """
-        Optional hook for per-episode state reset.
-
-        Scripted baselines are currently stateless, but this method allows the
-        environment to treat scripted and learned policies uniformly.
-        """
-        # Default: nothing to reset.
         return None
+
+    # ----------------- bulletproof helpers -----------------
+    def _clamp(self, x: int, y: int, game_field: "GameField") -> Tuple[int, int]:
+        x = max(0, min(game_field.col_count - 1, int(x)))
+        y = max(0, min(game_field.row_count - 1, int(y)))
+        return x, y
+
+    def _is_free(self, x: int, y: int, game_field: "GameField") -> bool:
+        # grid[row][col] == 0 is passable in your env
+        if not (0 <= x < game_field.col_count and 0 <= y < game_field.row_count):
+            return False
+        return game_field.grid[y][x] == 0
+
+    def _nearest_free(self, x: int, y: int, game_field: "GameField", radius: int = 6) -> Tuple[int, int]:
+        """
+        Find a nearby passable cell. If none found, fallback to current.
+        """
+        x, y = self._clamp(x, y, game_field)
+        if self._is_free(x, y, game_field):
+            return x, y
+
+        # Spiral-ish search
+        best = None
+        best_d2 = 10**9
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                nx, ny = x + dx, y + dy
+                if self._is_free(nx, ny, game_field):
+                    d2 = dx * dx + dy * dy
+                    if d2 < best_d2:
+                        best_d2 = d2
+                        best = (nx, ny)
+        return best if best is not None else (x, y)
+
+    def _random_free_in_cols(self, game_field: "GameField", col_min: int, col_max: int) -> Tuple[int, int]:
+        col_min = max(0, min(game_field.col_count - 1, col_min))
+        col_max = max(0, min(game_field.col_count - 1, col_max))
+        if col_min > col_max:
+            col_min, col_max = col_max, col_min
+
+        # Try a few random samples first
+        for _ in range(25):
+            x = random.randint(col_min, col_max)
+            y = random.randint(0, game_field.row_count - 1)
+            if self._is_free(x, y, game_field):
+                return (x, y)
+
+        # Fallback: scan
+        for y in range(game_field.row_count):
+            for x in range(col_min, col_max + 1):
+                if self._is_free(x, y, game_field):
+                    return (x, y)
+
+        # Last resort
+        return (game_field.col_count // 2, game_field.row_count // 2)
+
+    def _cell_has_mine(self, game_field: "GameField", x: int, y: int) -> bool:
+        return any(int(m.x) == int(x) and int(m.y) == int(y) for m in getattr(game_field, "mines", []))
 
 
 class OP1RedPolicy(Policy):
     """
-    OP1: Naive, purely defensive baseline.
-
-    Behavior (for the configured `side`):
-        - If not carrying a flag: move to the back of its own end zone and stay there.
-        - If somehow carrying the enemy flag: GO_HOME.
-
-    Research utility:
-        - Extremely weak opponent used as an early curriculum stage.
-        - RL policies should quickly learn to outperform OP1 and achieve near-perfect win rate.
+    OP1: Naive defensive policy.
     """
 
     def __init__(self, side: str = "red"):
         self.side = side
 
-    def select_action(
-        self,
-        obs: Any,
-        agent: Agent,
-        game_field: "GameField",
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
-        home_x, home_y = gm.get_team_zone_center(self.side)
+        side = getattr(agent, "side", self.side)
 
-        # "Back" of the end zone: one cell deeper in own zone along X.
-        if self.side == "red":
-            target = (min(game_field.col_count - 1, home_x + 1), home_y)
+        home_x, home_y = gm.get_team_zone_center(side)
+
+        # "Back" of end zone
+        if side == "red":
+            tx, ty = home_x + 1, home_y
         else:
-            target = (max(0, home_x - 1), home_y)
+            tx, ty = home_x - 1, home_y
 
-        # Edge case: if carrying enemy flag, go home.
+        tx, ty = self._nearest_free(tx, ty, game_field)
+
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        return int(MacroAction.GO_TO), target
+        return int(MacroAction.GO_TO), (tx, ty)
 
 
 class OP2RedPolicy(Policy):
     """
-    OP2: Defensive-only mine-layer.
-
-    Behavior (for the configured `side`):
-        - Places mines in front of its own end zone along a horizontal band.
-        - If out of mines, GRAB_MINE from own pickups.
-        - Never attacks the enemy flag.
-
-    Research utility:
-        - Evaluates RL agents' ability to attack into static defenses.
-        - Tests robustness to minefields and suppression without opponent offense.
+    OP2: Defensive mine-layer.
     """
 
     def __init__(self, side: str = "red", defense_band_width: int = 1):
         self.side = side
-        # Vertical thickness (in rows) of the defensive band around the flag row.
-        self.defense_band_width = max(1, defense_band_width)
+        self.defense_band_width = max(1, int(defense_band_width))
 
-    def select_action(
-        self,
-        obs: Any,
-        agent: Agent,
-        game_field: "GameField",
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
-        side = self.side
+        side = getattr(agent, "side", self.side)
 
-        # If somehow carrying a flag, go home.
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        # Own zone column range.
         if side == "red":
             own_min_col, own_max_col = game_field.red_zone_col_range
         else:
             own_min_col, own_max_col = game_field.blue_zone_col_range
 
-        # Center row of end zone (flag home).
         flag_x, flag_y = gm.get_team_zone_center(side)
 
-        # Horizontal defensive band around the flag row (clamped to grid).
-        defense_band = []
+        defense_band: List[Tuple[int, int]] = []
         half_w = self.defense_band_width // 2
         for dy in range(-half_w, half_w + 1):
             row = flag_y + dy
             if 0 <= row < game_field.row_count:
                 for c in range(own_min_col, own_max_col + 1):
-                    defense_band.append((c, row))
+                    if self._is_free(c, row, game_field):
+                        defense_band.append((c, row))
 
-        # If we have mines: build/extend a mine line along this band.
+        # Prefer unminded cells for placing mines
         if agent.mine_charges > 0:
-            # If already near a band cell, place a mine there.
-            for cell_x, cell_y in defense_band:
-                if math.hypot(agent.x - cell_x, agent.y - cell_y) <= 1.5:
-                    return int(MacroAction.PLACE_MINE), (cell_x, cell_y)
+            # If near an unminded band cell, place
+            near = []
+            for cx, cy in defense_band:
+                if self._cell_has_mine(game_field, cx, cy):
+                    continue
+                if math.hypot(agent.x - cx, agent.y - cy) <= 1.5:
+                    near.append((cx, cy))
 
-            # Otherwise, walk to a random defensive cell in our band.
-            if defense_band:
-                target = random.choice(defense_band)
-                return int(MacroAction.GO_TO), target
-            else:
-                # Rare fallback: no band constructed (e.g., tiny grid config).
-                return int(MacroAction.GO_TO), (flag_x, flag_y)
+            if near:
+                return int(MacroAction.PLACE_MINE), random.choice(near)
 
-        # No mines → grab more from own pickups.
+            # Otherwise walk to an unminded band cell
+            candidates = [(cx, cy) for (cx, cy) in defense_band if not self._cell_has_mine(game_field, cx, cy)]
+            if candidates:
+                tx, ty = random.choice(candidates)
+                return int(MacroAction.GO_TO), (tx, ty)
+
+            # If every cell already mined, just defend around flag
+            tx, ty = self._nearest_free(flag_x, flag_y, game_field)
+            return int(MacroAction.GO_TO), (tx, ty)
+
+        # No mines -> grab pickups
         return int(MacroAction.GRAB_MINE), None
 
 
 class OP3RedPolicy(Policy):
     """
-    OP3: Mixed defender–attacker opponent.
-
-    Assumes two agents on the configured `side` (agent_id 0 and 1):
-        - Agent 0: Defender
-            * Places one mine near own flag (if possible).
-            * Then repeatedly GO_TO own flag to defend.
-        - Agent 1: Attacker
-            * Always GET_FLAG when not carrying.
-            * GO_HOME when carrying the enemy flag.
-
-    Research utility:
-        - Provides a simple role-specialized baseline.
-        - Useful for evaluating RL agents' offensive/defensive coordination
-          and adaptation to mixed strategies (one defender, one attacker).
+    OP3: Mixed defender-attacker.
     """
 
     def __init__(self, side: str = "red", mine_radius_check: float = 1.5):
         self.side = side
-        # Distance (in grid cells) used to decide "mine near flag".
-        self.mine_radius_check = mine_radius_check
+        self.mine_radius_check = float(mine_radius_check)
 
     def reset(self) -> None:
-        """
-        Reset any internal state between episodes.
-
-        OP3 is currently stateless, but this method keeps the interface
-        symmetric with potential stateful scripted policies.
-        """
-        # Nothing to reset yet.
         return None
 
-    # --- Defender logic -------------------------------------------------
-    def _defender_action(
-        self,
-        agent: Agent,
-        gm: GameManager,
-        game_field: "GameField",
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
-        side = self.side
+    def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+        side = getattr(agent, "side", self.side)
         flag_x, flag_y = gm.get_team_zone_center(side)
+        fx, fy = self._nearest_free(flag_x, flag_y, game_field)
 
-        # If somehow carrying a flag, go home.
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
 
-        # Check if a friendly mine is near flag (stateless).
         has_flag_mine = any(
-            (m.owner_side == side)
-            and (math.hypot(m.x - flag_x, m.y - flag_y) <= self.mine_radius_check)
-            for m in game_field.mines
+            (m.owner_side == side) and (math.hypot(m.x - fx, m.y - fy) <= self.mine_radius_check)
+            for m in getattr(game_field, "mines", [])
         )
 
-        # If we still haven't placed that mine and we have charges:
         if (not has_flag_mine) and agent.mine_charges > 0:
-            # If close to flag, place mine.
-            if math.hypot(agent.x - flag_x, agent.y - flag_y) <= self.mine_radius_check:
-                return int(MacroAction.PLACE_MINE), (flag_x, flag_y)
+            # if close, place (but avoid stacking the same cell)
+            if math.hypot(agent.x - fx, agent.y - fy) <= self.mine_radius_check and not self._cell_has_mine(game_field, fx, fy):
+                return int(MacroAction.PLACE_MINE), (fx, fy)
+            return int(MacroAction.GO_TO), (fx, fy)
 
-            # Otherwise, walk directly to flag area.
-            return int(MacroAction.GO_TO), (flag_x, flag_y)
+        return int(MacroAction.GO_TO), (fx, fy)
 
-        # After we have a mine near the flag (or no charges), "defend"
-        # by repeatedly going to the flag position.
-        return int(MacroAction.GO_TO), (flag_x, flag_y)
-
-    # --- Attacker logic -------------------------------------------------
-    def _attacker_action(
-        self,
-        agent: Agent,
-        gm: GameManager,
-        game_field: "GameField",
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
-        # If already carrying the enemy flag, go home.
+    def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         if agent.isCarryingFlag():
             return int(MacroAction.GO_HOME), None
-
-        # Otherwise, always try to get the flag.
         return int(MacroAction.GET_FLAG), None
 
-    # --- Main dispatch --------------------------------------------------
-    def select_action(
-        self,
-        obs: Any,
-        agent: Agent,
-        game_field: "GameField",
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
-        gm: GameManager = game_field.manager  # kept for symmetry / future tweaks
-
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+        gm: GameManager = game_field.manager
         if getattr(agent, "agent_id", 0) == 0:
-            # Defender
             return self._defender_action(agent, gm, game_field)
         else:
-            # Attacker (any non-zero agent_id)
             return self._attacker_action(agent, gm, game_field)
