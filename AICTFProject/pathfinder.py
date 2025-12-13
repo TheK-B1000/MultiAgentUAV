@@ -83,11 +83,14 @@ class Pathfinder:
 
             # 3) Corner cutting protection for diagonal moves
             if self.block_corners and dx != 0 and dy != 0:
-                # Must be able to "slide" along both cardinal neighbors
-                if not (
-                    self.isStaticPassable(cell_x + dx, cell_y)
-                    and self.isStaticPassable(cell_x, cell_y + dy)
-                ):
+                ax, ay = cell_x + dx, cell_y
+                bx, by = cell_x, cell_y + dy
+
+                if not (self.isStaticPassable(ax, ay) and self.isStaticPassable(bx, by)):
+                    continue
+
+                # ✅ also prevent cutting corners through dynamic obstacles
+                if (ax, ay) in self.blocked or (bx, by) in self.blocked:
                     continue
 
             neighbors.append(new_cell)
@@ -98,11 +101,12 @@ class Pathfinder:
     # A* core
     # ------------------------------------------------------------------
     def heuristic(self, a: Coord, b: Coord) -> float:
-        """
-        Octile distance (D = 1, D2 = sqrt(2)) heuristic for 8-directional grids.
-        """
         dx = abs(a[0] - b[0])
         dy = abs(a[1] - b[1])
+        if not self.allow_diagonal:
+            # Manhattan distance for 4-neighborhood
+            return float(dx + dy)
+        # Octile for 8-neighborhood
         SQRT2 = 1.41421356237
         return (dx + dy) + (SQRT2 - 2.0) * min(dx, dy)
 
@@ -117,48 +121,71 @@ class Pathfinder:
 
     def astar(self, start: Coord, goal: Coord) -> Optional[List[Coord]]:
         if start == goal:
-            # Agent is already at goal – no steps needed.
             return []
 
         if not (self.inBounds(*start) and self.inBounds(*goal)):
             return None
 
-        # Goal must be statically passable (dynamic obstacles handled in getNeighbors)
         if not self.isStaticPassable(*goal):
             return None
 
-        open_queue: List[Tuple[float, float, Coord]] = []
-        # (f_score, g_score, coord)
-        heapq.heappush(open_queue, (self.heuristic(start, goal), 0.0, start))
+        # Bulletproof: treat start/goal as passable even if dynamic obstacles include them
+        blocked_saved = None
+        if start in self.blocked or goal in self.blocked:
+            blocked_saved = self.blocked
+            self.blocked = set(self.blocked)
+            self.blocked.discard(start)
+            self.blocked.discard(goal)
 
-        came_from: Dict[Coord, Coord] = {}
-        g_costs: Dict[Coord, float] = {start: 0.0}
-        SQRT2 = 1.41421356237
+        try:
+            open_queue: List[Tuple[float, float, Coord]] = []
+            heapq.heappush(open_queue, (self.heuristic(start, goal), 0.0, start))
 
-        while open_queue:
-            f_score, g_score, current = heapq.heappop(open_queue)
+            came_from: Dict[Coord, Coord] = {}
+            g_costs: Dict[Coord, float] = {start: 0.0}
+            closed: Set[Coord] = set()
 
-            # If we already found a better path to current, skip this outdated entry
-            if g_score > g_costs.get(current, float("inf")):
-                continue
+            SQRT2 = 1.41421356237
 
-            if current == goal:
-                path = self.rebuildPath(came_from, current)
-                # Path includes start; agent is already on `start`, so return steps[1:]
-                return path[1:]
+            while open_queue:
+                f_score, g_score, current = heapq.heappop(open_queue)
 
-            cx, cy = current
-            for nx, ny in self.getNeighbors(cx, cy, goal):
-                # Cost: 1.0 for cardinal, SQRT2 for diagonal
-                step_cost = 1.0 if (nx == cx or ny == cy) else SQRT2
-                g_new = g_score + step_cost
+                # Skip stale heap entries
+                if g_score > g_costs.get(current, float("inf")):
+                    continue
 
-                neighbor = (nx, ny)
-                if neighbor not in g_costs or g_new < g_costs[neighbor]:
-                    g_costs[neighbor] = g_new
-                    f_total = g_new + self.heuristic(neighbor, goal)
-                    came_from[neighbor] = current
-                    heapq.heappush(open_queue, (f_total, g_new, neighbor))
+                if current in closed:
+                    continue
+                closed.add(current)
 
-        # No path found
-        return None
+                if current == goal:
+                    path = self.rebuildPath(came_from, current)
+                    return path[1:]  # exclude start
+
+                cx, cy = current
+                for nx, ny in self.getNeighbors(cx, cy, goal):
+                    neighbor = (nx, ny)
+                    if neighbor in closed:
+                        continue
+
+                    # Cost: 1.0 for cardinal, SQRT2 for diagonal (only if diagonal allowed)
+                    if nx == cx or ny == cy:
+                        step_cost = 1.0
+                    else:
+                        if not self.allow_diagonal:
+                            continue
+                        step_cost = SQRT2
+
+                    g_new = g_score + step_cost
+                    if g_new < g_costs.get(neighbor, float("inf")):
+                        g_costs[neighbor] = g_new
+                        came_from[neighbor] = current
+                        f_total = g_new + self.heuristic(neighbor, goal)
+                        heapq.heappush(open_queue, (f_total, g_new, neighbor))
+
+            return None
+
+        finally:
+            if blocked_saved is not None:
+                self.blocked = blocked_saved
+
