@@ -575,37 +575,48 @@ class GameField:
             # Bounds clamp for safety
             tgt = (max(0, min(self.col_count - 1, tgt[0])), max(0, min(self.row_count - 1, tgt[1])))
 
-            # Avoid enemy "danger bubble"
+            danger_saved = dict(getattr(self.pathfinder, "danger_cost", {}))
+            danger: Dict[Tuple[int, int], float] = {}
+
             if avoid_enemies:
                 enemy_team = self.red_agents if side == "blue" else self.blue_agents
+
+                # Tune these
+                base_penalty = 3.0  # how “scary” enemies are
+                max_penalty = 8.0  # cap so A* doesn't go insane
+
                 for e in enemy_team:
-                    if e.isEnabled():
-                        ex, ey = int(e.x), int(e.y)
-                        for dx in range(-radius, radius + 1):
-                            for dy in range(-radius, radius + 1):
-                                cx, cy = ex + dx, ey + dy
-                                if 0 <= cx < self.col_count and 0 <= cy < self.row_count:
-                                    blocked.add((cx, cy))
+                    if not e.isEnabled():
+                        continue
+                    ex, ey = e.cell_pos if hasattr(e, "cell_pos") else self._agent_cell_pos(e)
 
-            # CRITICAL: never block your own start or your target
-            blocked.discard(start)
-            blocked.discard(tgt)
+                    for dx in range(-radius, radius + 1):
+                        for dy in range(-radius, radius + 1):
+                            cx, cy = ex + dx, ey + dy
+                            if 0 <= cx < self.col_count and 0 <= cy < self.row_count:
+                                # Chebyshev distance works well on grids with diagonals
+                                d = max(abs(dx), abs(dy))
+                                # closer = higher penalty
+                                pen = base_penalty * float(radius + 1 - d)
+                                if pen > 0:
+                                    danger[(cx, cy)] = min(max_penalty, max(danger.get((cx, cy), 0.0), pen))
 
+                # Never penalize the start or goal. We must be able to leave.
+                danger.pop(start, None)
+                danger.pop(tgt, None)
+
+            # Apply danger costs temporarily during planning
             try:
-                self.pathfinder.blocked = blocked
-                path = self.pathfinder.astar(start, tgt)
-            finally:
-                self.pathfinder.blocked = original_blocked
+                if avoid_enemies:
+                    self.pathfinder.setDangerCosts(danger)
+                else:
+                    self.pathfinder.clearDangerCosts()
 
-            # None means "no path", [] is valid ("already at goal")
-            if path is None:
-                fallback = self.random_point_in_own_half(side)
-                fallback = (int(fallback[0]), int(fallback[1]))
-                try:
-                    self.pathfinder.blocked = blocked
-                    path = self.pathfinder.astar(start, fallback)
-                finally:
-                    self.pathfinder.blocked = original_blocked
+                path = self.pathfinder.astar(start, tgt)
+
+            finally:
+                # restore
+                self.pathfinder.setDangerCosts(danger_saved)
 
                 if path is None:
                     path = []
@@ -662,6 +673,47 @@ class GameField:
 
         if hasattr(gm, "reward_potential_shaping"):
             gm.reward_potential_shaping(agent, start_pos, new_pos)
+
+    # ------------------------------------------------------------------
+    # Helper: discrete cell position for pathing / occupancy
+    # (Needed by safe_set_path / avoidance logic)
+    # ------------------------------------------------------------------
+    def _clamp_cell(self, x: int, y: int) -> tuple[int, int]:
+        x = int(max(0, min(self.col_count - 1, x)))
+        y = int(max(0, min(self.row_count - 1, y)))
+        return x, y
+
+    def _agent_cell_pos(self, agent) -> tuple[int, int]:
+        """
+        Return an agent's *discrete* (x,y) grid cell for pathing/collision.
+        Prefer explicit cell_pos, then x/y, then float_pos (rounded).
+        """
+        # 1) explicit cell_pos
+        cp = getattr(agent, "cell_pos", None)
+        if isinstance(cp, (tuple, list)) and len(cp) >= 2:
+            try:
+                return self._clamp_cell(int(cp[0]), int(cp[1]))
+            except Exception:
+                pass
+
+        # 2) common integer fields
+        for ax, ay in (("x", "y"), ("cell_x", "cell_y"), ("col", "row")):
+            if hasattr(agent, ax) and hasattr(agent, ay):
+                try:
+                    return self._clamp_cell(int(getattr(agent, ax)), int(getattr(agent, ay)))
+                except Exception:
+                    pass
+
+        # 3) float_pos fallback
+        fp = getattr(agent, "float_pos", None)
+        if isinstance(fp, (tuple, list)) and len(fp) >= 2:
+            try:
+                return self._clamp_cell(int(round(fp[0])), int(round(fp[1])))
+            except Exception:
+                pass
+
+        # 4) last resort
+        return (0, 0)
 
     # ------------------------------------------------------------------
     # Internal decision
