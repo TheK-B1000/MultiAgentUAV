@@ -19,14 +19,14 @@ class Agent:
     # --- Core spatial data (grid coordinates) ---
     x: int
     y: int
-    side: str           # "blue" or "red"
-    cols: int           # grid width
-    rows: int           # grid height
-    grid: Grid          # underlying grid (walls, free cells, etc.)
+    side: str  # "blue" or "red"
+    cols: int  # grid width
+    rows: int  # grid height
+    grid: Grid  # underlying grid (walls, free cells, etc.)
 
     # --- Identity / role ---
     is_miner: bool = False
-    agent_id: int = 0   # 0 or 1 within team
+    agent_id: int = 0  # 0 or 1 within team
 
     # --- Movement along a path ---
     # "cells per second" – GameField sets the path; Agent just walks it.
@@ -40,7 +40,7 @@ class Agent:
 
     # --- Status flags ---
     enabled: bool = True
-    tag_cooldown: float = 0.0      # remaining time until respawn if disabled
+    tag_cooldown: float = 0.0  # remaining time until respawn if disabled
     is_carrying_flag: bool = False
 
     # --- Mine capacity (if used by game logic) ---
@@ -64,6 +64,11 @@ class Agent:
 
     # Class-level counter for instance_id
     _NEXT_INSTANCE_ID: ClassVar[int] = 0
+
+    # ⚙️ SOFT SUPPRESSION STATE (FIX 2/3)
+    suppression_timer: float = 0.0
+    suppressed_last_tick: bool = False
+    suppressed_this_tick: bool = False
 
     def __post_init__(self) -> None:
         # Clamp initial position and spawn to map bounds
@@ -96,6 +101,11 @@ class Agent:
         # Track disable events
         self.was_just_disabled: bool = False
         self.disabled_this_tick: bool = False
+
+        # Init suppression state
+        self.suppression_timer = 0.0
+        self.suppressed_last_tick = False
+        self.suppressed_this_tick = False
 
     # ------------------------------------------------------------------
     # Basic helpers
@@ -131,16 +141,12 @@ class Agent:
         self.game_manager = gm
 
     # ------------------------------------------------------------------
-    # Flag handling + event flags
+    # Flag handling + event flags (No Changes)
     # ------------------------------------------------------------------
     def setCarryingFlag(self, value: bool, *, scored: Optional[bool] = None) -> None:
         """
         Set local flag-carry state.
-
-        scored:
-          - None  -> preserves legacy behavior: dropping flag after carrying sets _just_scored=True
-          - True  -> explicitly mark as scored when turning off
-          - False -> do NOT mark as scored (use on death/forced drop)
+        ...
         """
         if value and not self.is_carrying_flag:
             self._just_picked_up_flag = True
@@ -177,14 +183,12 @@ class Agent:
         return v
 
     # ------------------------------------------------------------------
-    # Path handling
+    # Path handling (No Changes)
     # ------------------------------------------------------------------
     def setPath(self, path: Optional[List[Cell]]) -> None:
         """
         Assign a new path.
-
-        - path is None -> clear
-        - path == []   -> clear (valid "already at goal"; caller should treat as success)
+        ...
         """
         if not path:
             self.clearPath()
@@ -201,16 +205,12 @@ class Agent:
         self.waypoint = None
 
     # ------------------------------------------------------------------
-    # Disable / respawn logic
+    # Disable / respawn logic (No Changes)
     # ------------------------------------------------------------------
     def disable_for_seconds(self, seconds: float) -> None:
         """
         Disable/tag this agent for a given duration.
-
-        IMPORTANT:
-          - Calls GameManager.handle_agent_death(self) so the flag is
-            dropped at the death position and does NOT follow on respawn.
-          - Clears movement and local carrying state.
+        ...
         """
         if not self.enabled:
             return
@@ -265,6 +265,9 @@ class Agent:
         if dt <= 0.0:
             return
 
+        # ⚙️ Capture position before movement for execution-based shaping (FIX 2/2)
+        prev_float_pos = self.float_pos
+
         # Handle disabled state / respawn timer
         if not self.enabled:
             if self.tag_cooldown > 0.0:
@@ -272,6 +275,10 @@ class Agent:
                 if self.tag_cooldown <= 0.0:
                     self.respawn()
             return
+
+        # Reset suppressed_this_tick flag for GameField to set next tick
+        self.suppressed_last_tick = self.suppressed_this_tick
+        self.suppressed_this_tick = False
 
         # If enabled but no path, nothing to do
         if not self.path:
@@ -314,3 +321,7 @@ class Agent:
         else:
             self._float_x = float(self.x)
             self._float_y = float(self.y)
+
+        # ⚙️ Call shaping with executed movement (FIX 2/2)
+        if self.game_manager is not None:
+            self.game_manager.reward_potential_shaping(self, prev_float_pos, self.float_pos)
