@@ -43,8 +43,6 @@ class MAPPOBuffer:
         self.dones: List[bool] = []
         self.dts: List[float] = []
         self.traj_ids: List[int] = []
-
-        # NEW: store mask per sample if you use action masking
         self.macro_masks: List[np.ndarray] = []
 
     def add(
@@ -84,35 +82,25 @@ class MAPPOBuffer:
         self.__init__()
 
     def to_tensors(self, device: torch.device) -> Tuple[torch.Tensor, ...]:
-        actor_obs = torch.tensor(np.stack(self.actor_obs), dtype=torch.float32, device=device)         # [T,C,H,W]
-        central_obs = torch.tensor(np.stack(self.central_obs), dtype=torch.float32, device=device)     # [T,N,C,H,W]
-        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)              # [T]
-        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)            # [T]
-        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)                   # [T]
-        values = torch.tensor(self.values, dtype=torch.float32, device=device)                          # [T]
-        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)                        # [T]
-        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)                             # [T]
-        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)                                 # [T]
-        traj_ids = torch.tensor(self.traj_ids, dtype=torch.long, device=device)                          # [T]
+        actor_obs = torch.tensor(np.stack(self.actor_obs), dtype=torch.float32, device=device)     # [T,C,H,W]
+        central_obs = torch.tensor(np.stack(self.central_obs), dtype=torch.float32, device=device) # [T,N,C,H,W]
+        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)          # [T]
+        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)        # [T]
+        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)               # [T]
+        values = torch.tensor(self.values, dtype=torch.float32, device=device)                     # [T]
+        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)                   # [T]
+        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)                       # [T]
+        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)                           # [T]
+        traj_ids = torch.tensor(self.traj_ids, dtype=torch.long, device=device)                    # [T]
 
-        # macro_masks can be [] if you didn’t store them; handle both cases cleanly
         if len(self.macro_masks) > 0 and self.macro_masks[0].size > 0:
-            macro_masks = torch.tensor(np.stack(self.macro_masks), dtype=torch.bool, device=device)     # [T,n_macros]
+            macro_masks = torch.tensor(np.stack(self.macro_masks), dtype=torch.bool, device=device) # [T,n_macros]
         else:
-            macro_masks = torch.empty((actor_obs.size(0), 0), dtype=torch.bool, device=device)          # [T,0]
+            macro_masks = torch.empty((actor_obs.size(0), 0), dtype=torch.bool, device=device)      # [T,0]
 
         return (
-            actor_obs,
-            central_obs,
-            macro_actions,
-            target_actions,
-            log_probs,
-            values,
-            rewards,
-            dones,
-            dts,
-            traj_ids,
-            macro_masks,
+            actor_obs, central_obs, macro_actions, target_actions,
+            log_probs, values, rewards, dones, dts, traj_ids, macro_masks
         )
 
 
@@ -125,19 +113,20 @@ class ActorCriticNet(nn.Module):
     Shared encoder. Decentralized actor heads.
     Local critic (PPO) + Central critic (MAPPO/CTDE).
 
-    Observations are expected to be:
-      [B, C, H, W] = [B, 7, 40, 30] (matching your GameField build_observation)
+    Observations:
+      [B, C, H, W] = [B, 7, 40, 30]
     """
 
     def __init__(
         self,
-        n_macros: int = len(MacroAction),
+        n_macros: int = 5,
         n_targets: int = 50,
         latent_dim: int = 128,
         in_channels: int = 7,
         height: int = 40,
         width: int = 30,
         n_agents: int = 2,
+        used_macros: Optional[List[MacroAction]] = None,
     ) -> None:
         super().__init__()
         self.n_macros = int(n_macros)
@@ -148,26 +137,40 @@ class ActorCriticNet(nn.Module):
         self.width = int(width)
         self.n_agents = int(n_agents)
 
+        # IMPORTANT: defines the meaning of macro index 0..n_macros-1
+        if used_macros is None:
+            # default: assume your training uses these 5 in this order
+            used_macros = [
+                MacroAction.GO_TO,
+                MacroAction.GRAB_MINE,
+                MacroAction.GET_FLAG,
+                MacroAction.PLACE_MINE,
+                MacroAction.GO_HOME,
+            ]
+        self.used_macros: List[MacroAction] = list(used_macros)
+        if len(self.used_macros) != self.n_macros:
+            raise ValueError(f"used_macros length {len(self.used_macros)} != n_macros {self.n_macros}")
+
+        # map MacroAction -> actor index
+        self._macro_to_index: Dict[MacroAction, int] = {m: i for i, m in enumerate(self.used_macros)}
+
         self.encoder = ObsEncoder(
-            in_channels=in_channels,
-            height=height,
-            width=width,
-            latent_dim=latent_dim,
+            in_channels=self.in_channels,
+            height=self.height,
+            width=self.width,
+            latent_dim=self.latent_dim,
         )
 
-        # Actor heads
-        self.actor_macro = nn.Linear(latent_dim, self.n_macros)
-        self.actor_target = nn.Linear(latent_dim, self.n_targets)
+        self.actor_macro = nn.Linear(self.latent_dim, self.n_macros)
+        self.actor_target = nn.Linear(self.latent_dim, self.n_targets)
 
-        # Local critic (PPO)
         self.local_value_head = nn.Sequential(
-            nn.Linear(latent_dim, 128),
+            nn.Linear(self.latent_dim, 128),
             nn.ReLU(inplace=True),
             nn.Linear(128, 1),
         )
 
-        # Central critic (MAPPO): concat N agent latents
-        critic_in = self.n_agents * latent_dim
+        critic_in = self.n_agents * self.latent_dim
         self.central_value_head = nn.Sequential(
             nn.Linear(critic_in, 256),
             nn.ReLU(inplace=True),
@@ -176,7 +179,6 @@ class ActorCriticNet(nn.Module):
 
         self._init_heads()
 
-    # ---------------- init ----------------
     def _init_heads(self) -> None:
         nn.init.orthogonal_(self.actor_macro.weight, gain=0.01)
         nn.init.constant_(self.actor_macro.bias, 0.0)
@@ -196,103 +198,106 @@ class ActorCriticNet(nn.Module):
     def _device(self) -> torch.device:
         return next(self.parameters()).device
 
-    # ---------------- forward helpers ----------------
     def _encode(self, obs: torch.Tensor) -> torch.Tensor:
         return self.encoder(obs)
 
     def forward_actor(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        latent = self._encode(obs)                       # [B,latent]
-        macro_logits = self.actor_macro(latent)          # [B,n_macros]
-        target_logits = self.actor_target(latent)        # [B,n_targets]
+        latent = self._encode(obs)
+        macro_logits = self.actor_macro(latent)
+        target_logits = self.actor_target(latent)
         return macro_logits, target_logits, latent
 
     def forward_local_critic(self, obs: torch.Tensor) -> torch.Tensor:
         latent = self._encode(obs)
-        return self.local_value_head(latent).squeeze(-1) # [B]
+        return self.local_value_head(latent).squeeze(-1)
 
     def forward_central_critic(self, central_obs: torch.Tensor) -> torch.Tensor:
-        """
-        central_obs: [B, N, C, H, W] -> value [B]
-        """
         if central_obs.dim() != 5:
             raise ValueError(f"Expected [B,N,C,H,W], got {tuple(central_obs.shape)}")
         B, N, C, H, W = central_obs.shape
         if N != self.n_agents:
             raise ValueError(f"Expected N={self.n_agents}, got {N}")
         flat = central_obs.reshape(B * N, C, H, W)
-        latent_flat = self._encode(flat)                 # [B*N,latent]
+        latent_flat = self._encode(flat)
         latent_joint = latent_flat.reshape(B, N * self.latent_dim)
         return self.central_value_head(latent_joint).squeeze(-1)
 
-    # ---------------- masking ----------------
+    def _idx(self, macro: MacroAction) -> Optional[int]:
+        return self._macro_to_index.get(macro, None)
+
     @torch.no_grad()
     def get_action_mask(self, agent, game_field) -> torch.Tensor:
         """
-        Macro feasibility mask (only masks macro-actions, not targets).
-        Returns: [n_macros] bool on the policy device.
+        Macro feasibility mask. Returns: [n_macros] bool on policy device.
+
+        Priority:
+          1) If env provides get_macro_mask(agent), use it (single source of truth).
+          2) Otherwise apply lightweight, safe gating here.
         """
         device = self._device()
+
+        # 1) env-defined mask (best)
+        if game_field is not None and hasattr(game_field, "get_macro_mask"):
+            try:
+                m = game_field.get_macro_mask(agent)
+                m = torch.as_tensor(m, dtype=torch.bool, device=device)
+                if m.numel() == self.n_macros:
+                    if not m.any():
+                        m[:] = True
+                    return m
+            except Exception:
+                pass
+
         mask = torch.ones(self.n_macros, dtype=torch.bool, device=device)
 
+        # Carry logic: if carrying, GET_FLAG is nonsense
+        carrying = bool(getattr(agent, "isCarryingFlag", lambda: False)())
+        if carrying:
+            idx = self._idx(MacroAction.GET_FLAG)
+            if idx is not None:
+                mask[idx] = False
+
         # PLACE_MINE requires charges
-        if getattr(agent, "mine_charges", 0) <= 0:
-            idx = int(getattr(MacroAction.PLACE_MINE, "value", MacroAction.PLACE_MINE))
-            if 0 <= idx < self.n_macros:
+        if int(getattr(agent, "mine_charges", 0)) <= 0:
+            idx = self._idx(MacroAction.PLACE_MINE)
+            if idx is not None:
                 mask[idx] = False
 
-        # GRAB_MINE requires a nearby friendly pickup (soft gating)
-        if hasattr(agent, "float_pos"):
-            ax, ay = agent.float_pos
+        # GRAB_MINE only useless if (a) no friendly pickups exist OR (b) already full
+        max_charges = int(getattr(game_field, "max_mine_charges_per_agent", 2)) if game_field is not None else 2
+        if int(getattr(agent, "mine_charges", 0)) >= max_charges:
+            idx = self._idx(MacroAction.GRAB_MINE)
+            if idx is not None:
+                mask[idx] = False
         else:
-            ax = float(getattr(agent, "_float_x", getattr(agent, "x", 0.0)))
-            ay = float(getattr(agent, "_float_y", getattr(agent, "y", 0.0)))
-
-        has_friendly_pickup = False
-        for p in getattr(game_field, "mine_pickups", []):
-            if getattr(p, "owner_side", None) == getattr(agent, "side", None):
-                dx = float(getattr(p, "x", 0.0)) - ax
-                dy = float(getattr(p, "y", 0.0)) - ay
-                if math.hypot(dx, dy) < 3.0:
-                    has_friendly_pickup = True
+            any_friendly_pickup = False
+            for p in getattr(game_field, "mine_pickups", []) if game_field is not None else []:
+                if getattr(p, "owner_side", None) == getattr(agent, "side", None):
+                    any_friendly_pickup = True
                     break
+            if not any_friendly_pickup:
+                idx = self._idx(MacroAction.GRAB_MINE)
+                if idx is not None:
+                    mask[idx] = False
 
-        if not has_friendly_pickup:
-            idx = int(getattr(MacroAction.GRAB_MINE, "value", MacroAction.GRAB_MINE))
-            if 0 <= idx < self.n_macros:
-                mask[idx] = False
-
-        # Guard: never allow "all False" (would create NaNs in Categorical)
         if not mask.any():
             mask[:] = True
-
         return mask
 
-    # ---------------- action selection ----------------
     @torch.no_grad()
-    def act(
-        self,
-        obs: torch.Tensor,
-        agent=None,
-        game_field=None,
-        deterministic: bool = False,
-    ) -> Dict[str, Any]:
-        """
-        Decentralized execution (PPO / viewer):
-          - samples macro + target
-          - returns LOCAL critic value
-        """
+    def act(self, obs: torch.Tensor, agent=None, game_field=None, deterministic: bool = False) -> Dict[str, Any]:
         if obs.dim() == 3:
             obs = obs.unsqueeze(0)
 
         device = self._device()
-        obs = obs.to(device, non_blocking=True)
+        obs = obs.to(device).float()
 
         macro_logits, target_logits, latent = self.forward_actor(obs)
         local_value = self.local_value_head(latent).squeeze(-1)
 
         macro_mask = None
         if agent is not None and game_field is not None:
-            macro_mask = self.get_action_mask(agent, game_field)                 # [n_macros]
+            macro_mask = self.get_action_mask(agent, game_field)  # [n_macros]
             macro_logits = macro_logits.masked_fill(~macro_mask.unsqueeze(0), -1e10)
 
         macro_dist = torch.distributions.Categorical(logits=macro_logits)
@@ -305,38 +310,33 @@ class ActorCriticNet(nn.Module):
             macro_action = macro_dist.sample()
             target_action = target_dist.sample()
 
-        macro_log_prob = macro_dist.log_prob(macro_action)
-        target_log_prob = target_dist.log_prob(target_action)
-        log_prob = macro_log_prob + target_log_prob
+        log_prob = macro_dist.log_prob(macro_action) + target_dist.log_prob(target_action)
 
         return {
             "macro_action": macro_action,
             "target_action": target_action,
             "log_prob": log_prob,
             "value": local_value,
-            "macro_mask": macro_mask,  # save this in rollout if you mask actions
+            "macro_mask": macro_mask,
         }
 
     @torch.no_grad()
     def act_mappo(
         self,
-        actor_obs: torch.Tensor,      # [1,C,H,W] or [B,C,H,W]
-        central_obs: torch.Tensor,    # [1,N,C,H,W] or [B,N,C,H,W]
+        actor_obs: torch.Tensor,
+        central_obs: torch.Tensor,
         agent=None,
         game_field=None,
         deterministic: bool = False,
     ) -> Dict[str, Any]:
-        """
-        Decentralized actor + CENTRAL value (MAPPO/CTDE).
-        """
         if actor_obs.dim() == 3:
             actor_obs = actor_obs.unsqueeze(0)
         if central_obs.dim() == 4:
             central_obs = central_obs.unsqueeze(0)
 
         device = self._device()
-        actor_obs = actor_obs.to(device, non_blocking=True)
-        central_obs = central_obs.to(device, non_blocking=True)
+        actor_obs = actor_obs.to(device).float()
+        central_obs = central_obs.to(device).float()
 
         macro_logits, target_logits, _ = self.forward_actor(actor_obs)
         central_value = self.forward_central_critic(central_obs)
@@ -356,9 +356,7 @@ class ActorCriticNet(nn.Module):
             macro_action = macro_dist.sample()
             target_action = target_dist.sample()
 
-        macro_log_prob = macro_dist.log_prob(macro_action)
-        target_log_prob = target_dist.log_prob(target_action)
-        log_prob = macro_log_prob + target_log_prob
+        log_prob = macro_dist.log_prob(macro_action) + target_dist.log_prob(target_action)
 
         return {
             "macro_action": macro_action,
@@ -368,28 +366,21 @@ class ActorCriticNet(nn.Module):
             "macro_mask": macro_mask,
         }
 
-    # ---------------- evaluation (DirectML-safe, mask-consistent) ----------------
     def evaluate_actions(
         self,
-        obs_batch: torch.Tensor,                         # [B,C,H,W]
-        macro_actions: torch.Tensor,                     # [B]
-        target_actions: torch.Tensor,                    # [B]
-        macro_mask_batch: Optional[torch.Tensor] = None, # [B,n_macros] bool
+        obs_batch: torch.Tensor,
+        macro_actions: torch.Tensor,
+        target_actions: torch.Tensor,
+        macro_mask_batch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        PPO evaluate using LOCAL critic.
-
-        IMPORTANT:
-          If you used macro masking during sampling, pass the SAME mask per sample
-          so training log_probs match rollout log_probs.
-        """
         if obs_batch.dim() == 3:
             obs_batch = obs_batch.unsqueeze(0)
 
         device = self._device()
-        obs_batch = obs_batch.to(device, non_blocking=True)
+        obs_batch = obs_batch.to(device).float()
         macro_actions = macro_actions.to(device)
         target_actions = target_actions.to(device)
+
         if macro_mask_batch is not None:
             macro_mask_batch = macro_mask_batch.to(device)
 
@@ -404,31 +395,25 @@ class ActorCriticNet(nn.Module):
 
         log_probs = macro_dist.log_prob(macro_actions) + target_dist.log_prob(target_actions)
         entropy = macro_dist.entropy() + target_dist.entropy()
-
         return log_probs, entropy, values
 
     def evaluate_actions_central(
         self,
-        central_obs_batch: torch.Tensor,                 # [B,N,C,H,W]
-        actor_obs_batch: torch.Tensor,                   # [B,C,H,W]
-        macro_actions: torch.Tensor,                     # [B]
-        target_actions: torch.Tensor,                    # [B]
-        macro_mask_batch: Optional[torch.Tensor] = None, # [B,n_macros] bool
+        central_obs_batch: torch.Tensor,
+        actor_obs_batch: torch.Tensor,
+        macro_actions: torch.Tensor,
+        target_actions: torch.Tensor,
+        macro_mask_batch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        MAPPO evaluate using CENTRAL critic.
-
-        DirectML-safe: uses Categorical(logits=...) which avoids the scatter-style
-        one-hot selection that can crash on DML.
-        """
         if actor_obs_batch.dim() == 3:
             actor_obs_batch = actor_obs_batch.unsqueeze(0)
 
         device = self._device()
-        central_obs_batch = central_obs_batch.to(device, non_blocking=True)
-        actor_obs_batch = actor_obs_batch.to(device, non_blocking=True)
+        central_obs_batch = central_obs_batch.to(device).float()
+        actor_obs_batch = actor_obs_batch.to(device).float()
         macro_actions = macro_actions.to(device)
         target_actions = target_actions.to(device)
+
         if macro_mask_batch is not None:
             macro_mask_batch = macro_mask_batch.to(device)
 
@@ -443,5 +428,4 @@ class ActorCriticNet(nn.Module):
 
         log_probs = macro_dist.log_prob(macro_actions) + target_dist.log_prob(target_actions)
         entropy = macro_dist.entropy() + target_dist.entropy()
-
         return log_probs, entropy, values
