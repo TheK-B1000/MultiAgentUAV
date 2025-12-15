@@ -7,11 +7,12 @@ Coord = Tuple[int, int]  # (col, row)
 
 class Pathfinder:
     """
-    Grid-based A* pathfinder with:
-
-      - Static obstacles from `grid` (grid[row][col] != 0).
-      - Dynamic obstacles in `self.blocked` (agents, mines, etc.).
-      - Optional diagonal movement with corner-cutting protection.
+    Grid-based A* with:
+      - Static obstacles from `grid` (grid[row][col] != 0)
+      - Dynamic obstacles in `blocked`
+      - Optional diagonals with corner-cut protection
+      - Goal exception: may step onto goal even if dynamically blocked
+      - NEW: Soft 'danger' costs (avoid but can pass through)
     """
 
     def __init__(
@@ -23,103 +24,108 @@ class Pathfinder:
         block_corners: bool = True,
     ):
         self.grid = grid
-        self.rows = rows
-        self.cols = cols
-        self.allow_diagonal = allow_diagonal
-        self.block_corners = block_corners
+        self.rows = int(rows)
+        self.cols = int(cols)
+        self.allow_diagonal = bool(allow_diagonal)
+        self.block_corners = bool(block_corners)
 
-        # Dynamic obstacles (agents + mines, set by GameField before path queries)
         self.blocked: Set[Coord] = set()
 
-        self.original_blocked: Set[Coord] = set()
+        # NEW: soft penalty field
+        self.danger_cost: Dict[Coord, float] = {}
 
-    # Grid state management
     def update_grid(self, grid: Grid, rows: int, cols: int) -> None:
         self.grid = grid
-        self.rows = rows
-        self.cols = cols
+        self.rows = int(rows)
+        self.cols = int(cols)
         self.blocked.clear()
+        self.danger_cost.clear()
 
     def setDynamicObstacles(self, blocked_cells: List[Coord]) -> None:
-        self.blocked = set(blocked_cells)
+        self.blocked = set((int(x), int(y)) for (x, y) in blocked_cells)
 
-    # Basic checks
+    # NEW
+    def setDangerCosts(self, danger_cost: Dict[Coord, float]) -> None:
+        # expects {(x,y): penalty, ...}
+        self.danger_cost = { (int(x), int(y)): float(c) for (x, y), c in danger_cost.items() }
+
+    # NEW
+    def clearDangerCosts(self) -> None:
+        self.danger_cost = {}
+
     def inBounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.cols and 0 <= y < self.rows
 
     def isStaticPassable(self, x: int, y: int) -> bool:
         if not self.inBounds(x, y):
             return False
-        return self.grid[y][x] == 0
+        try:
+            return self.grid[y][x] == 0
+        except Exception:
+            return False
 
-    # Neighbor generation
-    def getNeighbors(self, cell_x: int, cell_y: int, goal: Optional[Coord] = None, ) -> List[Coord]:
-        steps = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # cardinal
+    def getNeighbors(self, x: int, y: int, goal: Optional[Coord] = None) -> List[Coord]:
+        steps = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         if self.allow_diagonal:
-            steps += [(1, 1), (1, -1), (-1, 1), (-1, -1)]  # diagonals
+            steps += [(1, 1), (1, -1), (-1, 1), (-1, -1)]
 
-        neighbors: List[Coord] = []
+        out: List[Coord] = []
         for dx, dy in steps:
-            nx, ny = cell_x + dx, cell_y + dy
-            new_cell = (nx, ny)
+            nx, ny = x + dx, y + dy
+            nc = (nx, ny)
 
             if not self.inBounds(nx, ny):
                 continue
 
-            # Always allow stepping ONTO the goal if it's statically passable,
-            # even if dynamic obstacles temporarily mark it.
-            if goal is not None and new_cell == goal:
+            # allow stepping onto goal if statically passable, even if dynamically blocked
+            if goal is not None and nc == goal:
                 if self.isStaticPassable(nx, ny):
-                    neighbors.append(new_cell)
+                    out.append(nc)
                 continue
 
-            # 1) Blocked by dynamic obstacle (agent or mine)?
-            if new_cell in self.blocked:
+            if nc in self.blocked:
                 continue
 
-            # 2) Blocked by static wall?
             if not self.isStaticPassable(nx, ny):
                 continue
 
-            # 3) Corner cutting protection for diagonal moves
             if self.block_corners and dx != 0 and dy != 0:
-                ax, ay = cell_x + dx, cell_y
-                bx, by = cell_x, cell_y + dy
+                ax, ay = x + dx, y
+                bx, by = x, y + dy
 
                 if not (self.isStaticPassable(ax, ay) and self.isStaticPassable(bx, by)):
                     continue
 
-                # ✅ also prevent cutting corners through dynamic obstacles
                 if (ax, ay) in self.blocked or (bx, by) in self.blocked:
                     continue
 
-            neighbors.append(new_cell)
+            out.append(nc)
 
-        return neighbors
+        return out
 
-    # ------------------------------------------------------------------
-    # A* core
-    # ------------------------------------------------------------------
     def heuristic(self, a: Coord, b: Coord) -> float:
         dx = abs(a[0] - b[0])
         dy = abs(a[1] - b[1])
         if not self.allow_diagonal:
-            # Manhattan distance for 4-neighborhood
             return float(dx + dy)
-        # Octile for 8-neighborhood
         SQRT2 = 1.41421356237
         return (dx + dy) + (SQRT2 - 2.0) * min(dx, dy)
 
     def rebuildPath(self, came_from: Dict[Coord, Coord], goal: Coord) -> List[Coord]:
         path = [goal]
-        current = goal
-        while current in came_from:
-            current = came_from[current]
-            path.append(current)
+        cur = goal
+        while cur in came_from:
+            cur = came_from[cur]
+            path.append(cur)
         path.reverse()
         return path
 
     def astar(self, start: Coord, goal: Coord) -> Optional[List[Coord]]:
+        sx, sy = int(start[0]), int(start[1])
+        gx, gy = int(goal[0]), int(goal[1])
+        start = (sx, sy)
+        goal = (gx, gy)
+
         if start == goal:
             return []
 
@@ -129,7 +135,7 @@ class Pathfinder:
         if not self.isStaticPassable(*goal):
             return None
 
-        # Bulletproof: treat start/goal as passable even if dynamic obstacles include them
+        # Treat start/goal as passable even if present in dynamic blocked set
         blocked_saved = None
         if start in self.blocked or goal in self.blocked:
             blocked_saved = self.blocked
@@ -138,54 +144,51 @@ class Pathfinder:
             self.blocked.discard(goal)
 
         try:
-            open_queue: List[Tuple[float, float, Coord]] = []
-            heapq.heappush(open_queue, (self.heuristic(start, goal), 0.0, start))
+            open_heap: List[Tuple[float, float, Coord]] = []
+            heapq.heappush(open_heap, (self.heuristic(start, goal), 0.0, start))
 
             came_from: Dict[Coord, Coord] = {}
-            g_costs: Dict[Coord, float] = {start: 0.0}
+            g_cost: Dict[Coord, float] = {start: 0.0}
             closed: Set[Coord] = set()
 
             SQRT2 = 1.41421356237
 
-            while open_queue:
-                f_score, g_score, current = heapq.heappop(open_queue)
+            while open_heap:
+                f, g, cur = heapq.heappop(open_heap)
 
-                # Skip stale heap entries
-                if g_score > g_costs.get(current, float("inf")):
+                if g > g_cost.get(cur, float("inf")):
                     continue
-
-                if current in closed:
+                if cur in closed:
                     continue
-                closed.add(current)
+                closed.add(cur)
 
-                if current == goal:
-                    path = self.rebuildPath(came_from, current)
+                if cur == goal:
+                    path = self.rebuildPath(came_from, cur)
                     return path[1:]  # exclude start
 
-                cx, cy = current
-                for nx, ny in self.getNeighbors(cx, cy, goal):
-                    neighbor = (nx, ny)
-                    if neighbor in closed:
+                cx, cy = cur
+                for nx, ny in self.getNeighbors(cx, cy, goal=goal):
+                    nb = (nx, ny)
+                    if nb in closed:
                         continue
 
-                    # Cost: 1.0 for cardinal, SQRT2 for diagonal (only if diagonal allowed)
                     if nx == cx or ny == cy:
-                        step_cost = 1.0
+                        step = 1.0
                     else:
                         if not self.allow_diagonal:
                             continue
-                        step_cost = SQRT2
+                        step = SQRT2
 
-                    g_new = g_score + step_cost
-                    if g_new < g_costs.get(neighbor, float("inf")):
-                        g_costs[neighbor] = g_new
-                        came_from[neighbor] = current
-                        f_total = g_new + self.heuristic(neighbor, goal)
-                        heapq.heappush(open_queue, (f_total, g_new, neighbor))
+                    # NEW: add soft danger penalty
+                    step += float(self.danger_cost.get(nb, 0.0))
+
+                    g2 = g + step
+                    if g2 < g_cost.get(nb, float("inf")):
+                        g_cost[nb] = g2
+                        came_from[nb] = cur
+                        heapq.heappush(open_heap, (g2 + self.heuristic(nb, goal), g2, nb))
 
             return None
-
         finally:
             if blocked_saved is not None:
                 self.blocked = blocked_saved
-
