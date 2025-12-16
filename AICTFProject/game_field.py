@@ -20,8 +20,8 @@ from policies import Policy, OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 ARENA_WIDTH_M = 10.0
 ARENA_HEIGHT_M = 4.28
 
-CNN_COLS = 30
-CNN_ROWS = 40
+CNN_COLS = 20
+CNN_ROWS = 20
 NUM_CNN_CHANNELS = 7
 
 
