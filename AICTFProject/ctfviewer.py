@@ -39,8 +39,8 @@ class LearnedPolicy:
             n_macros=len(USED_MACROS),
             n_targets=DEFAULT_N_TARGETS,
             in_channels=7,
-            height=40,   # CNN_ROWS
-            width=30,    # CNN_COLS
+            height=20,   # CNN_ROWS
+            width=20,    # CNN_COLS
             n_agents=2,  # only matters for central critic; actor still works for any count
         ).to(self.device)
 
