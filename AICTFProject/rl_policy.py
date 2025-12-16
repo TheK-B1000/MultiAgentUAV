@@ -26,8 +26,8 @@ class ActorCriticNet(nn.Module):
         n_targets: int = 50,
         latent_dim: int = 128,
         in_channels: int = 7,
-        height: int = 40,
-        width: int = 30,
+        height: int = 20,
+        width: int = 20,
         n_agents: int = 2,
         used_macros: Optional[List[MacroAction]] = None,
     ) -> None:
