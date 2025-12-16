@@ -77,7 +77,7 @@ MINIBATCH_SIZE = 64
 
 LR = 3e-4
 CLIP_EPS = 0.2
-VALUE_COEF = 1.0
+VALUE_COEF = 2.0
 MAX_GRAD_NORM = 0.5
 
 GAMMA = 0.995
@@ -97,7 +97,7 @@ MIN_PHASE_EPISODES = {"OP1": 500, "OP2": 1000, "OP3": 2000}
 TARGET_PHASE_WINRATE = {"OP1": 0.90, "OP2": 0.86, "OP3": 0.80}
 PHASE_WINRATE_WINDOW = 50
 
-ENT_COEF_BY_PHASE = {"OP1": 0.04, "OP2": 0.035, "OP3": 0.02}
+ENT_COEF_BY_PHASE = {"OP1": 0.06, "OP2": 0.05, "OP3": 0.04}
 OP2_ENTROPY_FLOOR = 0.008
 
 OP2_DRAW_PENALTY = -0.8
@@ -109,8 +109,8 @@ TIME_PENALTY_PER_AGENT_PER_MACRO = 0.01
 
 PHASE_CONFIG = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-    "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=450),
-    "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=550),
+    "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
+    "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
 }
 
 USED_MACROS = [
@@ -330,11 +330,11 @@ def collect_blue_rewards_for_step(
 def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
     base = ENT_COEF_BY_PHASE[cur_phase]
     if cur_phase == "OP1":
-        start_ent, horizon = 0.05, 1000.0
+        start_ent, horizon = 0.07, 1000.0
     elif cur_phase == "OP2":
-        start_ent, horizon = 0.05, 1200.0
+        start_ent, horizon = 0.06, 1200.0
     else:
-        start_ent, horizon = 0.04, 2000.0
+        start_ent, horizon = 0.05, 2000.0
 
     frac = min(1.0, phase_episode_count / horizon)
     coef = float(start_ent - (start_ent - base) * frac)
@@ -399,48 +399,85 @@ def _get_macro_mask_np(policy_act: ActorCriticNet, agent: Any, env: GameField) -
 
 
 @torch.no_grad()
-def sample_mappo_action_mask_consistent(
+def sample_mappo_action_via_act(
     policy_act: ActorCriticNet,
     actor_obs_tensor: torch.Tensor,      # [1,C,H,W]
     central_obs_tensor: torch.Tensor,    # [1,N,C,H,W]
     agent: Any,
     env: GameField,
     deterministic: bool = False,
-):
+) -> Dict[str, Any]:
+    """
+    MAPPO sampling using policy_act.act() for (macro,target,logp,mask) so behavior and training can't drift.
+
+    CTDE value: we compute central critic value explicitly from central_obs_tensor to keep MAPPO correct,
+    because act() often returns local critic value (PPO-style) in many codebases.
+    """
     device = next(policy_act.parameters()).device
     actor_obs_tensor = actor_obs_tensor.to(device).float()
     central_obs_tensor = central_obs_tensor.to(device).float()
 
-    macro_logits, target_logits, _ = policy_act.forward_actor(actor_obs_tensor)
-    central_value = policy_act.forward_central_critic(central_obs_tensor).reshape(-1)
+    # --- Use the network's act() path (masking + logp consistency) ---
+    try:
+        out = policy_act.act(
+            actor_obs_tensor,
+            agent=agent,
+            game_field=env,
+            deterministic=deterministic,
+        )
+    except TypeError:
+        # Some implementations have extra kwargs
+        out = policy_act.act(
+            actor_obs_tensor,
+            agent=agent,
+            game_field=env,
+            deterministic=deterministic,
+            return_old_log_prob_key=False,
+        )
 
-    mm_np = _get_macro_mask_np(policy_act, agent, env)
-    mm_out = None
-    if mm_np is not None:
-        mm_np = _fix_all_false_rows_np(mm_np.reshape(1, -1))
-        mm_float = torch.tensor(mm_np.astype(np.float32), device=device)
-        macro_logits = macro_logits + (mm_float - 1.0) * 1e10
-        mm_out = torch.tensor(mm_np.reshape(-1), dtype=torch.bool, device=device)
+    # Robust extraction (handles [1] tensors and scalars)
+    def _grab(key: str, alt_keys: List[str] = None) -> torch.Tensor:
+        if alt_keys is None:
+            alt_keys = []
+        if key in out:
+            v = out[key]
+        else:
+            v = None
+            for k in alt_keys:
+                if k in out:
+                    v = out[k]
+                    break
+            if v is None:
+                raise KeyError(f"policy.act() output missing '{key}' (also tried {alt_keys})")
+        if not torch.is_tensor(v):
+            v = torch.tensor(v, device=device)
+        return v.reshape(-1)
 
-    if deterministic:
-        macro_action = macro_logits.argmax(dim=-1)
-        target_action = target_logits.argmax(dim=-1)
-    else:
-        macro_action = torch.multinomial(torch.softmax(macro_logits, dim=-1), 1).squeeze(1)
-        target_action = torch.multinomial(torch.softmax(target_logits, dim=-1), 1).squeeze(1)
+    macro_action = _grab("macro_action", ["macro"]).long()          # [1]
+    target_action = _grab("target_action", ["target"]).long()       # [1]
 
-    macro_logp, _ = masked_categorical_logp_entropy_no_scatter(macro_logits, macro_action, mask_float=None)
-    targ_logp, _ = masked_categorical_logp_entropy_no_scatter(target_logits, target_action, mask_float=None)
-    old_logp = macro_logp + targ_logp
+    # log prob key might be "log_prob" or "old_log_prob"
+    logp = _grab("log_prob", ["old_log_prob", "logp"]).float()      # [1]
+
+    # --- Central critic value for CTDE ---
+    central_value = policy_act.forward_central_critic(central_obs_tensor).reshape(-1).float()  # [1]
+
+    # --- Macro mask (optional) ---
+    mm = out.get("macro_mask", None)
+    mm_np = None
+    if mm is not None:
+        if torch.is_tensor(mm):
+            mm_np = mm.detach().cpu().numpy().astype(np.bool_).reshape(-1)
+        else:
+            mm_np = np.array(mm, dtype=np.bool_).reshape(-1)
 
     return {
-        "macro_action": macro_action,
-        "target_action": target_action,
-        "old_log_prob": old_logp,
-        "value": central_value,
-        "macro_mask": mm_out,
+        "macro_action": macro_action,          # [1]
+        "target_action": target_action,        # [1]
+        "old_log_prob": logp,                  # [1]
+        "value": central_value,                # [1] central critic value
+        "macro_mask": mm_np,                   # np.bool_ [A] or None
     }
-
 
 # ==========================================================
 # ROLLOUT BUFFER
@@ -580,6 +617,7 @@ def mappo_update(
         macro_masks_np
     ) = buffer.to_tensors(device)
 
+    # --- GAE on CPU (your existing grouped-by-traj setup) ---
     adv_np, ret_np = compute_gae_event_grouped_nextvalues_cpu(
         rewards.detach().cpu().numpy(),
         values.detach().cpu().numpy(),
@@ -594,21 +632,13 @@ def mappo_update(
     returns = torch.tensor(ret_np, dtype=torch.float32, device=device)
     advantages = normalize_advantages(advantages)
 
-    if PRINT_ROLLOUT_DIAG_EVERY_UPDATE:
-        with torch.no_grad():
-            adv_mean = advantages.mean()
-            adv_std = torch.sqrt(((advantages - adv_mean) ** 2).mean() + 1e-8).item()
-            print(
-                f"[ROLLOUT] T={actor_obs.size(0)} "
-                f"R(mean)={rewards.mean().item():+.4f} "
-                f"ADV(std)={adv_std:.4f} "
-                f"V(mean)={values.mean().item():+.4f} "
-                f"dt(mean)={dts.mean().item():.3f}"
-            )
-
     T = actor_obs.size(0)
+    if T == 0:
+        buffer.clear()
+        return
 
     policy_train.train()
+
     for _ in range(PPO_EPOCHS):
         perm_np = np.random.permutation(T).astype(np.int64)
 
@@ -617,32 +647,44 @@ def mappo_update(
             idx_np = perm_np[start:end]
             mb_idx = torch.tensor(idx_np, dtype=torch.long, device=device)
 
-            mb_actor = actor_obs.index_select(0, mb_idx)
-            mb_central = central_obs.index_select(0, mb_idx)
-            mb_macro = macro_actions.index_select(0, mb_idx)
-            mb_target = target_actions.index_select(0, mb_idx)
-            mb_old_logp = old_log_probs.index_select(0, mb_idx)
-            mb_adv = advantages.index_select(0, mb_idx)
-            mb_ret = returns.index_select(0, mb_idx)
+            mb_actor    = actor_obs.index_select(0, mb_idx)      # [B,C,H,W]
+            mb_central  = central_obs.index_select(0, mb_idx)    # [B,N,C,H,W]
+            mb_macro    = macro_actions.index_select(0, mb_idx)  # [B]
+            mb_target   = target_actions.index_select(0, mb_idx) # [B]
+            mb_old_logp = old_log_probs.index_select(0, mb_idx)  # [B]
+            mb_adv      = advantages.index_select(0, mb_idx)     # [B]
+            mb_ret      = returns.index_select(0, mb_idx)        # [B]
 
-            mask_float = None
-            if macro_masks_np.shape[1] > 0:
+            # macro mask batch (optional)
+            mb_mask = None
+            if macro_masks_np is not None and getattr(macro_masks_np, "shape", (0, 0))[1] > 0:
                 mb_mask_np = macro_masks_np[idx_np, :]
                 mb_mask_np = _fix_all_false_rows_np(mb_mask_np)
-                mask_float = torch.tensor(mb_mask_np.astype(np.float32), device=device)
+                mb_mask = torch.tensor(mb_mask_np, dtype=torch.bool, device=device)  # [B,A]
 
-            new_values = policy_train.forward_central_critic(mb_central).reshape(-1)
-            macro_logits, target_logits, _ = policy_train.forward_actor(mb_actor)
+            # --- IMPORTANT: CTDE critic path ---
+            new_values = policy_train.forward_central_critic(mb_central).reshape(-1)  # [B]
 
-            macro_logp, macro_ent = masked_categorical_logp_entropy_no_scatter(
-                macro_logits, mb_macro, mask_float=mask_float
-            )
-            targ_logp, targ_ent = masked_categorical_logp_entropy_no_scatter(
-                target_logits, mb_target, mask_float=None
-            )
+            # --- IMPORTANT: actor/logp path uses evaluate_actions() to avoid drift ---
+            # We only need (new_logp, entropy). Some implementations also return values; we ignore them.
+            try:
+                new_logp, entropy, _ = policy_train.evaluate_actions(
+                    mb_actor, mb_macro, mb_target, macro_mask_batch=mb_mask
+                )
+            except TypeError:
+                # Fallback param name variations
+                try:
+                    new_logp, entropy, _ = policy_train.evaluate_actions(
+                        mb_actor, mb_macro, mb_target, macro_mask=mb_mask
+                    )
+                except TypeError:
+                    # Last resort: no mask argument supported
+                    new_logp, entropy, _ = policy_train.evaluate_actions(
+                        mb_actor, mb_macro, mb_target
+                    )
 
-            new_logp = macro_logp + targ_logp
-            entropy = macro_ent + targ_ent
+            new_logp = new_logp.reshape(-1)
+            entropy = entropy.reshape(-1)
 
             ratio = torch.exp(new_logp - mb_old_logp)
             surr1 = ratio * mb_adv
@@ -658,7 +700,6 @@ def mappo_update(
             optimizer.step()
 
     buffer.clear()
-
 
 # ==========================================================
 # MACRO USAGE TRACKER
@@ -849,7 +890,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 actor_obs_np = np.array(env.build_observation(agent), dtype=np.float32)
                 actor_obs_tensor = torch.tensor(actor_obs_np, dtype=torch.float32, device=act_device).unsqueeze(0)
 
-                out = sample_mappo_action_mask_consistent(
+                out = sample_mappo_action_via_act(
                     policy_act,
                     actor_obs_tensor,
                     central_obs_tensor,
@@ -862,9 +903,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 target_idx = int(out["target_action"][0].item())
                 logp = float(out["old_log_prob"][0].item())
                 val = float(out["value"][0].item())
-
-                mm = out.get("macro_mask", None)
-                mm_np = mm.detach().cpu().numpy() if mm is not None else None
+                mm_np = out.get("macro_mask", None)  # already np.bool_ [A] or None
 
                 macro_enum = USED_MACROS[macro_idx]
                 macro_tracker.add(agent, macro_enum)
