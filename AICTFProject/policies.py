@@ -165,8 +165,12 @@ class OP2RedPolicy(Policy):
             tx, ty = self._nearest_free(flag_x, flag_y, game_field)
             return int(MacroAction.GO_TO), (tx, ty)
 
-        # No mines -> grab pickups
-        return int(MacroAction.GRAB_MINE), None
+        # No mines: stay home and patrol (defense-only)
+        if defense_band:
+            tx, ty = random.choice(defense_band)
+        else:
+            tx, ty = self._nearest_free(flag_x, flag_y, game_field)
+        return int(MacroAction.GO_TO), (tx, ty)
 
 
 class OP3RedPolicy(Policy):
