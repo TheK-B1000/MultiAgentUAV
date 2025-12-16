@@ -82,7 +82,7 @@ NUM_ACTIONS: int = len(USED_MACROS)
 
 PHASE_SEQUENCE: List[str] = ["OP1", "OP2", "OP3"]
 MIN_PHASE_EPISODES: Dict[str, int] = {"OP1": 300, "OP2": 700, "OP3": 1500}
-TARGET_PHASE_WINRATE: Dict[str, float] = {"OP1": 0.95, "OP2": 0.85, "OP3": 0.75}
+TARGET_PHASE_WINRATE: Dict[str, float] = {"OP1": 0.74, "OP2": 0.70, "OP3": 0.65}
 PHASE_WINRATE_WINDOW: int = 50
 
 ENT_COEF_BY_PHASE: Dict[str, float] = {"OP1": 0.07, "OP2": 0.04, "OP3": 0.025}
