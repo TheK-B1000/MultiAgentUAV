@@ -48,8 +48,8 @@ def set_seed(seed: int = 42) -> None:
 
 
 # ---------------- Hyperparams ----------------
-GRID_ROWS = CNN_ROWS  # 40
-GRID_COLS = CNN_COLS  # 30
+GRID_ROWS = CNN_ROWS  # 20
+GRID_COLS = CNN_COLS  # 15
 
 TOTAL_STEPS: int = 5_000_000
 UPDATE_EVERY: int = 4096
@@ -58,7 +58,7 @@ MINIBATCH_SIZE: int = 256
 
 LR: float = 3e-4
 CLIP_EPS: float = 0.2
-VALUE_COEF: float = 1.0
+VALUE_COEF: float = 2.0
 MAX_GRAD_NORM: float = 0.5
 
 GAMMA: float = 0.995
@@ -85,11 +85,11 @@ MIN_PHASE_EPISODES: Dict[str, int] = {"OP1": 300, "OP2": 700, "OP3": 1500}
 TARGET_PHASE_WINRATE: Dict[str, float] = {"OP1": 0.74, "OP2": 0.70, "OP3": 0.65}
 PHASE_WINRATE_WINDOW: int = 50
 
-ENT_COEF_BY_PHASE: Dict[str, float] = {"OP1": 0.07, "OP2": 0.04, "OP3": 0.025}
+ENT_COEF_BY_PHASE: Dict[str, float] = {"OP1": 0.06, "OP2": 0.05, "OP3": 0.04}
 PHASE_CONFIG: Dict[str, Dict[str, float]] = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-    "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=450),
-    "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=550),
+    "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
+    "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
 }
 
 TIME_PENALTY_PER_AGENT_PER_MACRO = 0.001
@@ -122,17 +122,68 @@ def make_env() -> GameField:
 
     return env
 
+def external_keys_for_agent(env: GameField, agent: Any) -> List[str]:
+    keys: List[str] = []
+    if hasattr(env, "_external_key_for_agent"):
+        try:
+            keys.append(str(env._external_key_for_agent(agent)))
+        except Exception:
+            pass
+    if hasattr(agent, "slot_id"):
+        keys.append(str(getattr(agent, "slot_id")))
+    if hasattr(agent, "unique_id"):
+        keys.append(str(getattr(agent, "unique_id")))
+    keys.append(f"{getattr(agent, 'side', 'blue')}_{getattr(agent, 'agent_id', 0)}")
+
+    out, seen = [], set()
+    for k in keys:
+        if k and k not in seen:
+            out.append(k)
+            seen.add(k)
+    return out
+
 
 def apply_blue_actions_compat(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
-    if hasattr(env, "submit_external_actions"):
-        if hasattr(env, "pending_external_actions"):
-            try:
-                env.pending_external_actions.clear()
-            except Exception:
-                pass
-        env.submit_external_actions(actions_by_agent)
-        return
+    # Clear any pending dict first
+    if hasattr(env, "pending_external_actions"):
+        try:
+            env.pending_external_actions.clear()
+        except Exception:
+            pass
 
+    # Preferred path
+    if hasattr(env, "submit_external_actions") and callable(getattr(env, "submit_external_actions")):
+        try:
+            env.submit_external_actions(actions_by_agent)
+            return
+        except Exception:
+            pass
+
+    # Fallbacks
+    if hasattr(env, "pending_external_actions"):
+        try:
+            for k, v in actions_by_agent.items():
+                env.pending_external_actions[k] = v
+            return
+        except Exception:
+            pass
+
+    if hasattr(env, "external_actions"):
+        try:
+            env.external_actions = actions_by_agent
+            return
+        except Exception:
+            pass
+
+def compute_dt_for_window(
+    decision_window: float = DECISION_WINDOW,
+) -> float:
+    """
+    Research fix:
+      dt should NOT depend on gm_get_time() fallbacks (which may be time-remaining).
+      Since you always advance exactly one decision window, dt is deterministic.
+    """
+    return float(decision_window)
 
 # ---------------- Rollout Buffer ----------------
 class RolloutBuffer:
@@ -254,23 +305,22 @@ def ppo_update(
         macro_masks,
     ) = buffer.to_tensors(device)
 
-    advantages, returns = compute_gae_event(rewards, values, next_values, dones, dts)
-    advantages = normalize_advantages(advantages)
-
     T = obs.size(0)
     if T == 0:
         buffer.clear()
         return
 
+    advantages, returns = compute_gae_event(rewards, values, next_values, dones, dts)
+    advantages = normalize_advantages(advantages)
+
+    policy.train()
     for _ in range(PPO_EPOCHS):
-        # Torch permutation (avoid numpy->advanced indexing on DML)
         perm = torch.randperm(T, device=device)
 
         for start in range(0, T, MINIBATCH_SIZE):
             end = min(start + MINIBATCH_SIZE, T)
-            mb_idx = perm[start:end]  # 1D torch tensor on device
+            mb_idx = perm[start:end]
 
-            # DML-safe: index_select (single-dimension gather)
             mb_obs      = obs.index_select(0, mb_idx)
             mb_macro    = macro_actions.index_select(0, mb_idx)
             mb_target   = target_actions.index_select(0, mb_idx)
@@ -282,20 +332,13 @@ def ppo_update(
             if macro_masks.numel() > 0 and macro_masks.size(1) > 0:
                 mb_mask = macro_masks.index_select(0, mb_idx)
 
-            # Forward
-            macro_logits, target_logits, _ = policy.forward_actor(mb_obs)
-            new_values = policy.forward_local_critic(mb_obs)
-
-            # DML-safe logp/entropy (NO gather/scatter backward)
-            macro_logp, macro_ent = masked_categorical_logp_entropy_no_scatter(
-                macro_logits, mb_macro, mask=mb_mask
+            # Single source of truth
+            new_logp, entropy, new_values = policy.evaluate_actions(
+                mb_obs,
+                mb_macro,
+                mb_target,
+                macro_mask_batch=mb_mask,
             )
-            target_logp, target_ent = masked_categorical_logp_entropy_no_scatter(
-                target_logits, mb_target, mask=None
-            )
-
-            new_logp = macro_logp + target_logp  # [B]
-            entropy = macro_ent + target_ent  # [B]
 
             ratio = torch.exp(new_logp - mb_old_logp)
             surr1 = ratio * mb_adv
@@ -303,7 +346,6 @@ def ppo_update(
             policy_loss = -torch.min(surr1, surr2).mean()
 
             value_loss = (mb_ret - new_values).pow(2).mean()
-
             loss = policy_loss + VALUE_COEF * value_loss - ent_coef * entropy.mean()
 
             optimizer.zero_grad(set_to_none=True)
@@ -312,6 +354,7 @@ def ppo_update(
             optimizer.step()
 
     buffer.clear()
+
 
 # ---------------- Reward collection (NO extra discount) ----------------
 def agent_uid(agent: Any) -> str:
@@ -337,34 +380,59 @@ def gm_pop_reward_events_safe(gm: GameManager):
         return []
 
 
+def _build_event_id_to_uid_map(blue_agents: List[Any]) -> Dict[Any, str]:
+    m: Dict[Any, str] = {}
+    for a in blue_agents:
+        uid = agent_uid(a)
+
+        aid = getattr(a, "agent_id", None)
+        side = getattr(a, "side", "blue")
+        uniq = getattr(a, "unique_id", None)
+        slot = getattr(a, "slot_id", None)
+
+        candidates = [
+            uid, str(uid),
+            f"{side}_{aid}" if aid is not None else None,
+            str(f"{side}_{aid}") if aid is not None else None,
+            aid, str(aid) if aid is not None else None,
+            uniq, str(uniq) if uniq is not None else None,
+            slot, str(slot) if slot is not None else None,
+        ]
+        for c in candidates:
+            if c is None:
+                continue
+            m[c] = uid
+            m[str(c)] = uid
+    return m
+
+
 def collect_blue_rewards_for_step(
     gm: GameManager,
     blue_agents: List[Any],
 ) -> Dict[str, float]:
-    """
-    Collect all reward events since last pop.
-    IMPORTANT: no discounting here. Discounting is handled in dt-aware GAE.
-    """
     raw_events = gm_pop_reward_events_safe(gm)
+
     uids = [agent_uid(a) for a in blue_agents]
-    rewards_sum_by_id: Dict[str, float] = {uid: 0.0 for uid in uids}
+    rewards_by_uid: Dict[str, float] = {uid: 0.0 for uid in uids}
+    event_map = _build_event_id_to_uid_map(blue_agents)
+
     team_r_total = 0.0
-
     for _t_event, agent_id, r in raw_events:
+        rr = float(r)
         if agent_id is None:
-            team_r_total += float(r)
-        else:
-            aid = str(agent_id)
-            if aid in rewards_sum_by_id:
-                rewards_sum_by_id[aid] += float(r)
+            team_r_total += rr
+            continue
 
-    if team_r_total != 0.0 and len(rewards_sum_by_id) > 0:
-        share = team_r_total / len(rewards_sum_by_id)
-        for aid in rewards_sum_by_id:
-            rewards_sum_by_id[aid] += share
+        uid = event_map.get(agent_id, event_map.get(str(agent_id), None))
+        if uid is not None and uid in rewards_by_uid:
+            rewards_by_uid[uid] += rr
 
-    return rewards_sum_by_id
+    if team_r_total != 0.0 and len(rewards_by_uid) > 0:
+        share = team_r_total / len(rewards_by_uid)
+        for uid in rewards_by_uid:
+            rewards_by_uid[uid] += share
 
+    return rewards_by_uid
 
 # ---------------- Time helpers ----------------
 def gm_get_time(gm: GameManager) -> float:
@@ -385,12 +453,11 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
     if cur_phase == "OP1":
         start_ent, horizon = 0.07, 300.0
     elif cur_phase == "OP2":
-        start_ent, horizon = 0.04, 500.0
+        start_ent, horizon = 0.06, 500.0
     else:
-        start_ent, horizon = 0.025, 800.0
+        start_ent, horizon = 0.05, 1500.0
     frac = min(1.0, phase_episode_count / horizon)
     return float(start_ent - (start_ent - base) * frac)
-
 
 # ---------------- Masking in USED_MACROS index-space ----------------
 def _get_agent_xy(agent: Any) -> Tuple[float, float]:
@@ -477,34 +544,36 @@ def sample_blue_action(
 ) -> Tuple[int, int, float, float, np.ndarray]:
     """
     Samples (macro_idx, target_idx) with mask aligned to USED_MACROS index-space.
-    Also returns logp, value, and mask (np.bool_).
+    Returns: macro_idx, target_idx, logp, value, mask_np
+
+    Research fix:
+      - Value MUST come from the same function you train in PPO:
+        value = policy.forward_local_critic(obs_tensor)
+      - Mask applied at logits before sampling.
     """
-    device = next(policy.parameters()).device
-    obs_tensor = obs_tensor.to(device, non_blocking=True)
+    out = policy.act(
+        obs_tensor,
+        agent=agent,
+        game_field=env,
+        deterministic=deterministic,
+        return_old_log_prob_key=False,
+    )
 
-    macro_logits, target_logits, latent = policy.forward_actor(obs_tensor)
-    value = policy.local_value_head(latent).squeeze(-1)  # [1]
+    macro_idx = int(out["macro_action"].reshape(-1)[0].item())
+    target_idx = int(out["target_action"].reshape(-1)[0].item())
+    logp = float(out["log_prob"].reshape(-1)[0].item())
+    val = float(out["value"].reshape(-1)[0].item())
 
-    mask_np = compute_used_macro_mask(env, agent)
-    mask_t = torch.tensor(mask_np, dtype=torch.bool, device=device).unsqueeze(0)  # [1,n_macros]
-    macro_logits = macro_logits.masked_fill(~mask_t, -1e10)
+    mm = out.get("macro_mask", None)
+    mask_np: Optional[np.ndarray] = None
+    if mm is not None:
+        # mm may already be on device; convert to numpy safely
+        if torch.is_tensor(mm):
+            mask_np = mm.detach().cpu().numpy().astype(np.bool_)
+        else:
+            mask_np = np.array(mm, dtype=np.bool_)
 
-    macro_dist = torch.distributions.Categorical(logits=macro_logits)
-    target_dist = torch.distributions.Categorical(logits=target_logits)
-
-    if deterministic:
-        macro_action = macro_logits.argmax(dim=-1)
-        target_action = target_logits.argmax(dim=-1)
-    else:
-        macro_action = macro_dist.sample()
-        target_action = target_dist.sample()
-
-    logp = macro_dist.log_prob(macro_action) + target_dist.log_prob(target_action)
-
-    macro_idx = int(macro_action.item())
-    target_idx = int(target_action.item())
-    return macro_idx, target_idx, float(logp.item()), float(value.item()), mask_np
-
+    return macro_idx, target_idx, logp, val, mask_np
 
 # ---------------- Sim stepping ----------------
 def sim_decision_window(env: GameField, gm: GameManager, window_s: float, sim_dt: float) -> None:
@@ -531,6 +600,13 @@ def sim_decision_window(env: GameField, gm: GameManager, window_s: float, sim_dt
 
 # ---------------- Training loop ----------------
 def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
+    """
+    Full train loop (paste-safe) with:
+      - deterministic dt = DECISION_WINDOW (no gm_get_time dependency)
+      - sampling via policy.act(...) to avoid drift
+      - PPO update via policy.evaluate_actions(...) to avoid drift
+      - removes decision_time_end bug entirely
+    """
     set_seed(42)
 
     env = make_env()
@@ -579,30 +655,34 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         gm.max_time = phase_cfg["max_time"]
         max_steps = int(phase_cfg["max_macro_steps"])
 
-        gm.set_phase(cur_phase)
+        if hasattr(gm, "set_phase"):
+            try:
+                gm.set_phase(cur_phase)
+            except Exception:
+                pass
+
         set_red_policy_for_phase(env, cur_phase)
         opponent_tag = cur_phase
 
-        # One reset is enough; do NOT double-reset gm.
         env.reset_default()
 
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
-            red_pol.reset()
+            try:
+                red_pol.reset()
+            except Exception:
+                pass
 
         done = False
         ep_return = 0.0
         steps = 0
 
-        decision_time_start = gm_get_time(gm)
-
         while (not done) and steps < max_steps and global_step < total_steps:
-            # agents that can act at the start of decision
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
-            decisions: List[Tuple[Any, np.ndarray, int, int, float, float, np.ndarray, str]] = []
+            decisions: List[Tuple[Any, np.ndarray, int, int, float, float, Optional[np.ndarray], str]] = []
             submit_actions: Dict[str, Tuple[int, int]] = {}
 
-            # Decide for each enabled agent
+            # --- Decide actions for enabled agents ---
             for agent in blue_agents:
                 obs = np.array(env.build_observation(agent), dtype=np.float32)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE).unsqueeze(0)
@@ -611,32 +691,30 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                     policy, obs_tensor, env, agent, deterministic=False
                 )
 
-                # Map macro index -> actual MacroAction enum -> macro_val for env
                 macro_enum = USED_MACROS[macro_idx]
                 macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
 
-                slot_id = getattr(agent, "slot_id", f"{agent.side}_{getattr(agent, 'agent_id', 0)}")
-                submit_actions[str(slot_id)] = (macro_val, int(target_idx))
+                for k in external_keys_for_agent(env, agent):
+                    submit_actions[k] = (macro_val, int(target_idx))
 
                 decisions.append((agent, obs, macro_idx, target_idx, logp, val, mask_np, agent_uid(agent)))
 
-            # Submit external actions for this boundary
+            # --- Submit actions ---
             apply_blue_actions_compat(env, submit_actions)
 
-            # Simulate exactly one decision window
+            # --- Simulate exactly one decision window ---
             sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
 
             done = bool(gm.game_over)
-            decision_time_end = gm_get_time(gm)
-            dt = max(0.0, float(decision_time_end) - float(decision_time_start))
+            dt = compute_dt_for_window(DECISION_WINDOW)
 
-            # Collect rewards for this window (no extra discount)
+            # --- Rewards (no extra discount) ---
             rewards_by_uid = collect_blue_rewards_for_step(gm, blue_agents)
             for agent in blue_agents:
                 uid = agent_uid(agent)
                 rewards_by_uid[uid] = rewards_by_uid.get(uid, 0.0) - TIME_PENALTY_PER_AGENT_PER_MACRO
 
-            # Compute per-agent next values ONLY for agents that are alive and not terminal
+            # --- Next values for bootstrap (only if not terminal for that agent) ---
             done_for_rollout_global = bool(done or ((steps + 1) >= max_steps))
             next_vals_by_uid: Dict[str, float] = {}
 
@@ -656,7 +734,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 for i, uid in enumerate(enabled_uids):
                     next_vals_by_uid[uid] = float(next_v[i])
 
-            # Store transitions (with per-agent done if agent died)
+            # --- Store transitions ---
             step_reward_sum = 0.0
             for (agent, obs, macro_idx, target_idx, logp, val, mask_np, uid) in decisions:
                 r = float(rewards_by_uid.get(uid, 0.0))
@@ -682,9 +760,8 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
 
             ep_return += step_reward_sum
             steps += 1
-            decision_time_start = decision_time_end
 
-            # Update
+            # --- Update ---
             if buffer.size() >= UPDATE_EVERY:
                 current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
                 print(
@@ -693,7 +770,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 )
                 ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
 
-        # Episode result
+        # --- Episode result ---
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
@@ -722,7 +799,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
-        # Curriculum advance
+        # --- Curriculum advance ---
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
