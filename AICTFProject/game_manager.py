@@ -1,16 +1,17 @@
 # =========================
-# game_manager.py (RESEARCH-GRADE ROUTING + GAMMA-PBRS)
+# game_manager.py (REFACTORED, MARL-READY, EVENT REWARD ROUTING + GAMMA-PBRS)
 # =========================
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Tuple, Optional, List, Any, Set, Dict
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-# ==========================================================
-# ⚙️ REWARD / GAME CONSTANTS
-# ==========================================================
+# -------------------------
+# Reward constants (baseline)
+# -------------------------
+
 WIN_TEAM_REWARD = 5.0
 FLAG_PICKUP_REWARD = 0.5
 FLAG_CARRY_HOME_REWARD = 3.0
@@ -19,84 +20,102 @@ ACTION_FAILED_PUNISHMENT = -0.5
 
 FLAG_RETURN_DELAY = 10.0
 
-# PBRS parameters
-FLAG_PROXIMITY_COEF = 0.2  # shaping coefficient (scale)
-DEFAULT_SHAPING_GAMMA = 0.99  # ✅ gamma-correct PBRS term
+# PBRS (potential based reward shaping): F = coef * (gamma * Phi(s') - Phi(s))
+FLAG_PROXIMITY_COEF = 0.2
+DEFAULT_SHAPING_GAMMA = 0.99
 
-# Optional extras (safe defaults)
+# Optional low-magnitude extras (safe defaults)
 EXPLORATION_REWARD = 0.01
 COORDINATION_BONUS = 0.3
 
-PHASE_DRAW_TIMEOUT_PENALTY = {
+# Optional draw penalty by phase (default 0, research-safe)
+PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
     "OP1": 0.0,
     "OP2": 0.0,
     "OP3": 0.0,
     "SELF": 0.0,
 }
 
+Cell = Tuple[int, int]
+FloatPos = Tuple[float, float]
+RewardEvent = Tuple[float, str, float]  # (t, agent_id, value)
+
 
 @dataclass
 class GameManager:
+    """
+    Game state + reward routing.
+
+    Key research invariants:
+      - Rewards are emitted ONLY as per-agent events (no global rewards).
+      - agent_id in reward events is ALWAYS a non-empty string.
+      - Flag state is always consistent after each tick (carrier & taken flags align).
+      - PBRS uses gamma-correct shaping: coef * (gamma * Phi(s') - Phi(s)).
+    """
+
     cols: int
     rows: int
 
-    # Scores / timers
+    # --- score/time ---
     blue_score: int = 0
     red_score: int = 0
-    max_time: float = 200.0
-    current_time: float = 200.0
-    game_over: bool = False
     score_limit: int = 3
 
-    # Flags
-    blue_flag_position: Tuple[int, int] = (0, 0)
-    red_flag_position: Tuple[int, int] = (0, 0)
+    max_time: float = 200.0
+    current_time: float = 200.0
+    sim_time: float = 0.0
+    game_over: bool = False
+    phase_name: str = "OP1"
+
+    # --- flags ---
+    blue_flag_home: Cell = (0, 0)
+    red_flag_home: Cell = (0, 0)
+
+    blue_flag_position: Cell = (0, 0)
+    red_flag_position: Cell = (0, 0)
+
     blue_flag_taken: bool = False
     red_flag_taken: bool = False
+
     blue_flag_carrier: Optional[Any] = None
     red_flag_carrier: Optional[Any] = None
-
-    blue_flag_home: Tuple[int, int] = (0, 0)
-    red_flag_home: Tuple[int, int] = (0, 0)
 
     blue_flag_drop_time: Optional[float] = None
     red_flag_drop_time: Optional[float] = None
 
-    # Time / reward events
-    sim_time: float = 0.0
-    reward_events: List[Tuple[float, str, float]] = field(default_factory=list)
-    #                (time, agent_id, reward_value)
+    # --- reward event buffer ---
+    reward_events: List[RewardEvent] = field(default_factory=list)
 
-    phase_name: str = "OP1"
-
-    # Minimal mine telemetry
+    # --- episode telemetry (minimal, optional) ---
     blue_mine_kills_this_episode: int = 0
     red_mine_kills_this_episode: int = 0
     mines_placed_in_enemy_half_this_episode: int = 0
     mines_triggered_by_red_this_episode: int = 0
 
-    # Exploration memory (team-level)
-    blue_visited_cells: Set[Tuple[int, int]] = field(default_factory=set)
+    # --- exploration memory (team-level) ---
+    blue_visited_cells: Set[Cell] = field(default_factory=set)
+    red_visited_cells: Set[Cell] = field(default_factory=set)
 
-    # ✅ ROUTING: remember agent ids seen this episode (so terminal rewards can route)
+    # --- routing memory (ids seen) ---
     blue_agent_ids_seen: Set[str] = field(default_factory=set)
     red_agent_ids_seen: Set[str] = field(default_factory=set)
 
-    # ✅ PBRS gamma (trainer can set this to match PPO/MAPPO gamma)
+    # --- shaping gamma (should match trainer gamma) ---
     shaping_gamma: float = DEFAULT_SHAPING_GAMMA
 
-    # Optional: bind back to env for teammate routing (not required if ids_seen filled)
+    # --- optional env binding for precise team membership ---
     game_field: Optional[Any] = field(default=None, repr=False, compare=False)
 
-    # ----------------------------------------------------------
-    # Binding / configuration
-    # ----------------------------------------------------------
+    # -------------------------
+    # Binding / config
+    # -------------------------
+
     def bind_game_field(self, game_field: Any) -> None:
-        """Call once from GameField.__init__ (recommended)."""
+        """Bind environment for exact team reward routing (recommended)."""
         self.game_field = game_field
 
     def set_phase(self, phase: str) -> None:
-        self.phase_name = str(phase)
+        self.phase_name = str(phase).upper()
 
     def set_shaping_gamma(self, gamma: float) -> None:
         g = float(gamma)
@@ -104,32 +123,37 @@ class GameManager:
             raise ValueError(f"gamma must be in [0,1], got {gamma}")
         self.shaping_gamma = g
 
-    # ----------------------------------------------------------
+    # -------------------------
     # Core helpers
-    # ----------------------------------------------------------
-    def _clamp_cell(self, x: int, y: int) -> Tuple[int, int]:
+    # -------------------------
+
+    def _clamp_cell(self, x: int, y: int) -> Cell:
         return (max(0, min(self.cols - 1, int(x))), max(0, min(self.rows - 1, int(y))))
 
-    def _agent_cell(self, agent: Any) -> Tuple[int, int]:
-        if hasattr(agent, "float_pos"):
-            fx, fy = agent.float_pos
-            return self._clamp_cell(int(round(fx)), int(round(fy)))
+    def _agent_cell(self, agent: Any) -> Cell:
+        fp = getattr(agent, "float_pos", None)
+        if isinstance(fp, (tuple, list)) and len(fp) >= 2:
+            return self._clamp_cell(int(round(fp[0])), int(round(fp[1])))
         if hasattr(agent, "get_position"):
             x, y = agent.get_position()
             return self._clamp_cell(int(x), int(y))
         return self._clamp_cell(getattr(agent, "x", 0), getattr(agent, "y", 0))
 
+    def _agent_float(self, agent: Any) -> FloatPos:
+        fp = getattr(agent, "float_pos", None)
+        if isinstance(fp, (tuple, list)) and len(fp) >= 2:
+            return float(fp[0]), float(fp[1])
+        return float(getattr(agent, "x", 0.0)), float(getattr(agent, "y", 0.0))
+
     def _agent_uid(self, agent: Any) -> str:
-        """
-        Always returns a non-empty string id.
-        Prefer agent.unique_id (stable across episode), else fall back to python id().
-        """
         uid = getattr(agent, "unique_id", None)
         if uid is None or str(uid).strip() == "":
             return str(id(agent))
         return str(uid)
 
     def _remember_agent(self, agent: Any) -> None:
+        if agent is None:
+            return
         side = getattr(agent, "side", None)
         uid = self._agent_uid(agent)
         if side == "blue":
@@ -137,22 +161,17 @@ class GameManager:
         elif side == "red":
             self.red_agent_ids_seen.add(uid)
 
-    # ----------------------------------------------------------
-    # ✅ Reward routing (NO agent_id=None EVER)
-    # ----------------------------------------------------------
+    # -------------------------
+    # Reward routing (events only)
+    # -------------------------
+
     def add_reward_event(self, value: float, agent_id: str, timestamp: Optional[float] = None) -> None:
-        """
-        Low-level event append. agent_id MUST be a string.
-        """
         if agent_id is None or str(agent_id).strip() == "":
-            raise ValueError("agent_id must be a non-empty string (no globals allowed).")
+            raise ValueError("agent_id must be a non-empty string.")
         t = self.sim_time if timestamp is None else float(timestamp)
-        self.reward_events.append((t, str(agent_id), float(value)))
+        self.reward_events.append((float(t), str(agent_id), float(value)))
 
     def add_agent_reward(self, agent: Any, value: float, timestamp: Optional[float] = None) -> None:
-        """
-        Route reward to exactly one agent.
-        """
         if agent is None:
             return
         self._remember_agent(agent)
@@ -167,13 +186,12 @@ class GameManager:
         include_disabled: bool = False,
     ) -> None:
         """
-        Route reward to all agents on a side by emitting per-agent events.
-        This keeps trainer logic simple and eliminates ambiguous "global" rewards.
+        Emit per-agent events for all agents on `side`.
+        Uses bound env membership if available; falls back to ids_seen.
         """
         side = str(side)
         ex_uid = self._agent_uid(exclude_agent) if exclude_agent is not None else None
 
-        # Best: use bound game_field for exact membership
         gf = self.game_field
         if gf is not None:
             team = gf.blue_agents if side == "blue" else gf.red_agents
@@ -189,36 +207,39 @@ class GameManager:
                 self.add_reward_event(value, agent_id=uid, timestamp=timestamp)
             return
 
-        # Fallback: route to ids we've seen this episode (still deterministic & trainer-safe)
         ids = self.blue_agent_ids_seen if side == "blue" else self.red_agent_ids_seen
         for uid in ids:
             if ex_uid is not None and uid == ex_uid:
                 continue
             self.add_reward_event(value, agent_id=uid, timestamp=timestamp)
 
-    # ----------------------------------------------------------
+    def pop_reward_events(self) -> List[RewardEvent]:
+        events = self.reward_events
+        self.reward_events = []
+        return events
+
+    # -------------------------
     # Reset
-    # ----------------------------------------------------------
+    # -------------------------
+
     def reset_game(self, reset_scores: bool = True) -> None:
         if reset_scores:
             self.blue_score = 0
             self.red_score = 0
 
         self.game_over = False
-        self.current_time = self.max_time
+        self.current_time = float(self.max_time)
         self.sim_time = 0.0
         self.reward_events.clear()
 
-        # Reset mine telemetry
         self.blue_mine_kills_this_episode = 0
         self.red_mine_kills_this_episode = 0
         self.mines_placed_in_enemy_half_this_episode = 0
         self.mines_triggered_by_red_this_episode = 0
 
-        # Exploration memory
         self.blue_visited_cells.clear()
+        self.red_visited_cells.clear()
 
-        # ✅ routing memory
         self.blue_agent_ids_seen.clear()
         self.red_agent_ids_seen.clear()
 
@@ -237,9 +258,10 @@ class GameManager:
         self.blue_flag_drop_time = None
         self.red_flag_drop_time = None
 
-    # ----------------------------------------------------------
-    # Tick / termination logic
-    # ----------------------------------------------------------
+    # -------------------------
+    # Tick / termination
+    # -------------------------
+
     def tick_seconds(self, dt: float) -> Optional[str]:
         if self.game_over or dt <= 0.0:
             return None
@@ -247,7 +269,6 @@ class GameManager:
         self.sim_time += float(dt)
         self.current_time -= float(dt)
 
-        # Keep flag state consistent every tick
         self.sanity_check_flags()
         self._update_flag_auto_return()
 
@@ -255,18 +276,19 @@ class GameManager:
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
             if self.blue_score > self.red_score:
-                # ✅ team-routed (no globals)
                 self.add_team_reward("blue", WIN_TEAM_REWARD)
                 return "BLUE WINS ON TIME"
-            elif self.red_score > self.blue_score:
+            if self.red_score > self.blue_score:
+                self.add_team_reward("red", WIN_TEAM_REWARD)
                 return "RED WINS ON TIME"
-            else:
-                penalty = PHASE_DRAW_TIMEOUT_PENALTY.get(self.phase_name, 0.0)
-                if penalty != 0.0:
-                    # If you ever use draw penalties, route them explicitly too
-                    self.add_team_reward("blue", penalty)
-                    return f"DRAW — BLUE PENALIZED FOR STALL ({self.phase_name})"
-                return f"DRAW — NO PENALTY ({self.phase_name})"
+
+            penalty = float(PHASE_DRAW_TIMEOUT_PENALTY.get(self.phase_name, 0.0))
+            if penalty != 0.0:
+                # If you ever use draw penalties, route them explicitly
+                self.add_team_reward("blue", penalty)
+                self.add_team_reward("red", penalty)
+                return f"DRAW — PENALTY ({self.phase_name})"
+            return f"DRAW — NO PENALTY ({self.phase_name})"
 
         # Score limit
         if self.blue_score >= self.score_limit:
@@ -276,6 +298,7 @@ class GameManager:
 
         if self.red_score >= self.score_limit:
             self.game_over = True
+            self.add_team_reward("red", WIN_TEAM_REWARD)
             return "RED WINS BY SCORE!"
 
         return None
@@ -295,10 +318,15 @@ class GameManager:
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_drop_time = None
 
-    # ----------------------------------------------------------
+    # -------------------------
     # Flag sanity / helpers
-    # ----------------------------------------------------------
+    # -------------------------
+
     def sanity_check_flags(self) -> None:
+        """
+        Ensures carrier/taken/position is consistent.
+        If a carrier is disabled, the flag drops at the carrier cell with a drop_time.
+        """
         # Blue flag
         if self.blue_flag_taken:
             if self.blue_flag_carrier is None:
@@ -306,7 +334,8 @@ class GameManager:
                 self.blue_flag_position = self.blue_flag_home
                 self.blue_flag_drop_time = None
             else:
-                if not getattr(self.blue_flag_carrier, "isEnabled", lambda: True)():
+                carrier_enabled = getattr(self.blue_flag_carrier, "isEnabled", lambda: True)()
+                if not carrier_enabled:
                     self.drop_flag_if_carrier_disabled(self.blue_flag_carrier)
                 else:
                     self.blue_flag_position = self._agent_cell(self.blue_flag_carrier)
@@ -319,32 +348,29 @@ class GameManager:
                 self.red_flag_position = self.red_flag_home
                 self.red_flag_drop_time = None
             else:
-                if not getattr(self.red_flag_carrier, "isEnabled", lambda: True)():
+                carrier_enabled = getattr(self.red_flag_carrier, "isEnabled", lambda: True)()
+                if not carrier_enabled:
                     self.drop_flag_if_carrier_disabled(self.red_flag_carrier)
                 else:
                     self.red_flag_position = self._agent_cell(self.red_flag_carrier)
                     self.red_flag_drop_time = None
 
-    def get_enemy_flag_position(self, side: str) -> Tuple[int, int]:
+    def get_enemy_flag_position(self, side: str) -> Cell:
         side = str(side)
         if side == "blue":
-            if self.red_flag_taken and self.red_flag_carrier is not None:
-                return self._agent_cell(self.red_flag_carrier)
-            return self.red_flag_position
-        else:
-            if self.blue_flag_taken and self.blue_flag_carrier is not None:
-                return self._agent_cell(self.blue_flag_carrier)
-            return self.blue_flag_position
+            return self._agent_cell(self.red_flag_carrier) if (self.red_flag_taken and self.red_flag_carrier is not None) else self.red_flag_position
+        return self._agent_cell(self.blue_flag_carrier) if (self.blue_flag_taken and self.blue_flag_carrier is not None) else self.blue_flag_position
 
-    def get_team_zone_center(self, side: str) -> Tuple[int, int]:
+    def get_team_zone_center(self, side: str) -> Cell:
         return self.blue_flag_home if str(side) == "blue" else self.red_flag_home
 
     def get_sim_time(self) -> float:
         return float(self.sim_time)
 
-    # ----------------------------------------------------------
+    # -------------------------
     # Flag interactions
-    # ----------------------------------------------------------
+    # -------------------------
+
     def try_pickup_enemy_flag(self, agent: Any) -> bool:
         side = getattr(agent, "side", None)
         if side not in ("blue", "red"):
@@ -352,8 +378,7 @@ class GameManager:
 
         self._remember_agent(agent)
 
-        pos_x, pos_y = getattr(agent, "float_pos", (float(getattr(agent, "x", 0)), float(getattr(agent, "y", 0))))
-
+        ax, ay = self._agent_float(agent)
         if side == "blue":
             enemy_taken = self.red_flag_taken
             enemy_pos = self.red_flag_position
@@ -364,7 +389,7 @@ class GameManager:
         if enemy_taken:
             return False
 
-        if math.hypot(float(pos_x) - float(enemy_pos[0]), float(pos_y) - float(enemy_pos[1])) > 1.0:
+        if math.hypot(ax - float(enemy_pos[0]), ay - float(enemy_pos[1])) > 1.0:
             return False
 
         # Take it
@@ -382,10 +407,8 @@ class GameManager:
         if hasattr(agent, "setCarryingFlag"):
             agent.setCarryingFlag(True)
 
-        # ✅ pickup reward is for the picker
         self.add_agent_reward(agent, FLAG_PICKUP_REWARD)
 
-        # Coordination bonus: keep it per-agent (picker), not ambiguous
         if self._teammate_near(agent):
             self.add_agent_reward(agent, COORDINATION_BONUS)
 
@@ -397,52 +420,65 @@ class GameManager:
             return False
 
         self._remember_agent(agent)
+        ax, ay = self._agent_float(agent)
 
-        pos_x, pos_y = getattr(agent, "float_pos", (float(getattr(agent, "x", 0)), float(getattr(agent, "y", 0))))
-
-        # Blue scores with red flag at blue home
+        # Blue scores carrying red flag at blue home
         if side == "blue" and self.red_flag_taken and (self.red_flag_carrier is agent):
-            if math.hypot(float(pos_x) - float(self.blue_flag_home[0]), float(pos_y) - float(self.blue_flag_home[1])) <= 2.0:
+            if math.hypot(ax - float(self.blue_flag_home[0]), ay - float(self.blue_flag_home[1])) <= 2.0:
                 self.blue_score += 1
-
-                self.red_flag_taken = False
-                self.red_flag_carrier = None
-                self.red_flag_position = self.red_flag_home
-                self.red_flag_drop_time = None
+                self._reset_red_flag_to_home()
 
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
 
-                # ✅ carrier gets main score reward
                 self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
-
-                # ✅ team share is explicit, and EXCLUDES the carrier (matches your old intent)
                 self.add_team_reward("blue", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
 
-                # Optional coordination: keep explicit
                 if self._teammate_near(agent):
                     self.add_agent_reward(agent, COORDINATION_BONUS)
 
                 return True
 
-        # Red scores with blue flag at red home
+        # Red scores carrying blue flag at red home
         if side == "red" and self.blue_flag_taken and (self.blue_flag_carrier is agent):
-            if math.hypot(float(pos_x) - float(self.red_flag_home[0]), float(pos_y) - float(self.red_flag_home[1])) <= 2.0:
+            if math.hypot(ax - float(self.red_flag_home[0]), ay - float(self.red_flag_home[1])) <= 2.0:
                 self.red_score += 1
-
-                self.blue_flag_taken = False
-                self.blue_flag_carrier = None
-                self.blue_flag_position = self.blue_flag_home
-                self.blue_flag_drop_time = None
+                self._reset_blue_flag_to_home()
 
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
+
+                self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
+                self.add_team_reward("red", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+
+                if self._teammate_near(agent):
+                    self.add_agent_reward(agent, COORDINATION_BONUS)
 
                 return True
 
         return False
 
-    def drop_flag_if_carrier_disabled(self, agent: Any) -> None:
+    def _reset_blue_flag_to_home(self) -> None:
+        self.blue_flag_taken = False
+        self.blue_flag_carrier = None
+        self.blue_flag_position = self.blue_flag_home
+        self.blue_flag_drop_time = None
+
+    def _reset_red_flag_to_home(self) -> None:
+        self.red_flag_taken = False
+        self.red_flag_carrier = None
+        self.red_flag_position = self.red_flag_home
+        self.red_flag_drop_time = None
+
+    # game_manager.py
+    def drop_flag_if_carrier_disabled(self, agent: Any, punish: bool = False) -> None:
+        """
+        Drop the carried flag at the carrier's current cell.
+
+        IMPORTANT:
+          - punish=False for normal "death/disabled" drops (called by sanity_check_flags)
+          - punish=True only when you explicitly decide a macro/action "failed" and want to penalize
+        """
         drop_pos = self._agent_cell(agent)
         self._remember_agent(agent)
 
@@ -451,7 +487,10 @@ class GameManager:
             self.blue_flag_carrier = None
             self.blue_flag_position = drop_pos
             self.blue_flag_drop_time = self.sim_time
-            self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
+
+            if punish:
+                self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
+
             if hasattr(agent, "setCarryingFlag"):
                 agent.setCarryingFlag(False, scored=False)
 
@@ -460,33 +499,32 @@ class GameManager:
             self.red_flag_carrier = None
             self.red_flag_position = drop_pos
             self.red_flag_drop_time = self.sim_time
-            self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
+
+            if punish:
+                self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
+
             if hasattr(agent, "setCarryingFlag"):
                 agent.setCarryingFlag(False, scored=False)
 
-    def handle_agent_death(self, agent: Any) -> None:
-        self.drop_flag_if_carrier_disabled(agent)
-
     def clear_flag_carrier_if_agent(self, agent: Any) -> None:
+        """
+        Hard reset carriers if an agent is removed from game unexpectedly.
+        Prefer drop_flag_if_carrier_disabled() in normal flow.
+        """
         if self.blue_flag_carrier is agent:
-            self.blue_flag_carrier = None
-            self.blue_flag_taken = False
-            self.blue_flag_position = self.blue_flag_home
-            self.blue_flag_drop_time = None
+            self._reset_blue_flag_to_home()
             if hasattr(agent, "setCarryingFlag"):
                 agent.setCarryingFlag(False, scored=False)
 
         if self.red_flag_carrier is agent:
-            self.red_flag_carrier = None
-            self.red_flag_taken = False
-            self.red_flag_position = self.red_flag_home
-            self.red_flag_drop_time = None
+            self._reset_red_flag_to_home()
             if hasattr(agent, "setCarryingFlag"):
                 agent.setCarryingFlag(False, scored=False)
 
-    # ----------------------------------------------------------
-    # teammate near
-    # ----------------------------------------------------------
+    # -------------------------
+    # teammate proximity
+    # -------------------------
+
     def _teammate_near(self, agent: Any, radius_cells: float = 5.0) -> bool:
         gf = getattr(agent, "game_field", None) or self.game_field
         if gf is None:
@@ -497,72 +535,100 @@ class GameManager:
             return False
 
         team = gf.blue_agents if side == "blue" else gf.red_agents
-        ax, ay = getattr(agent, "float_pos", (float(getattr(agent, "x", 0)), float(getattr(agent, "y", 0))))
+        ax, ay = self._agent_float(agent)
 
         for other in team:
             if other is agent or (not other.isEnabled()):
                 continue
-            ox, oy = getattr(other, "float_pos", (float(getattr(other, "x", 0)), float(getattr(other, "y", 0))))
-            if math.hypot(float(ox) - float(ax), float(oy) - float(ay)) <= float(radius_cells):
+            ox, oy = self._agent_float(other)
+            if math.hypot(ox - ax, oy - ay) <= float(radius_cells):
                 return True
-
         return False
 
-    # ----------------------------------------------------------
-    # ✅ GAMMA-CORRECT PBRS + exploration
-    # ----------------------------------------------------------
-    def reward_potential_shaping(self, agent: Any, start_pos: Tuple[float, float], end_pos: Tuple[float, float]) -> None:
+    # -------------------------
+    # Gamma-correct PBRS + exploration
+    # -------------------------
+
+    def reward_potential_shaping(self, agent: Any, start_pos: FloatPos, end_pos: FloatPos) -> None:
         """
         Potential-Based Reward Shaping:
             F(s,a,s') = coef * (gamma * Phi(s') - Phi(s))
 
-        Called using executed float positions from Agent.update().
+        Uses float positions provided by the env/agent.
+        By default, shaping is applied to BOTH teams symmetrically.
+        If you want blue-only shaping for curriculum, gate by agent.side externally.
         """
-        if getattr(agent, "side", None) != "blue":
+        side = getattr(agent, "side", None)
+        if side not in ("blue", "red"):
             return
 
         self._remember_agent(agent)
 
-        i_am_carrier = (self.red_flag_taken and (self.red_flag_carrier is agent))
-        teammate_is_carrier = (self.red_flag_taken and (self.red_flag_carrier is not None) and (self.red_flag_carrier is not agent))
-
-        if i_am_carrier:
-            goal_x, goal_y = self.blue_flag_home
-        elif teammate_is_carrier:
-            goal_x, goal_y = self.blue_flag_home
+        # Define goal for shaping:
+        # - if I am carrier: go home
+        # - if teammate is carrier: also go home (support)
+        # - else: go to enemy flag position
+        if side == "blue":
+            enemy_taken = self.red_flag_taken
+            enemy_carrier = self.red_flag_carrier
+            my_home = self.blue_flag_home
+            enemy_goal = self.get_enemy_flag_position("blue")
         else:
-            goal_x, goal_y = self.get_enemy_flag_position("blue")
+            enemy_taken = self.blue_flag_taken
+            enemy_carrier = self.blue_flag_carrier
+            my_home = self.red_flag_home
+            enemy_goal = self.get_enemy_flag_position("red")
 
-        max_dist = math.sqrt(self.cols ** 2 + self.rows ** 2)
-        if max_dist <= 0.0:
+        i_am_carrier = enemy_taken and (enemy_carrier is agent)
+        teammate_is_carrier = enemy_taken and (enemy_carrier is not None) and (enemy_carrier is not agent)
+
+        goal_x, goal_y = my_home if (i_am_carrier or teammate_is_carrier) else enemy_goal
+
+        max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
+        if max_dist <= 1e-6:
             return
 
         sx, sy = float(start_pos[0]), float(start_pos[1])
         ex, ey = float(end_pos[0]), float(end_pos[1])
 
-        prev_d = max(0.0, min(math.dist([sx, sy], [goal_x, goal_y]), max_dist))
-        cur_d  = max(0.0, min(math.dist([ex, ey], [goal_x, goal_y]), max_dist))
+        prev_d = min(max_dist, math.dist([sx, sy], [float(goal_x), float(goal_y)]))
+        cur_d = min(max_dist, math.dist([ex, ey], [float(goal_x), float(goal_y)]))
 
         phi_before = 1.0 - (prev_d / max_dist)
-        phi_after  = 1.0 - (cur_d  / max_dist)
+        phi_after = 1.0 - (cur_d / max_dist)
 
         shaped = float(FLAG_PROXIMITY_COEF) * (float(self.shaping_gamma) * phi_after - phi_before)
         if shaped != 0.0:
             self.add_agent_reward(agent, shaped)
 
-        # Exploration bonus (cell-quantized, team memory)
+        # Exploration: per-team visited set
         cell = self._clamp_cell(int(round(ex)), int(round(ey)))
-        if cell not in self.blue_visited_cells:
-            self.blue_visited_cells.add(cell)
+        if side == "blue":
+            visited = self.blue_visited_cells
+        else:
+            visited = self.red_visited_cells
+
+        if cell not in visited:
+            visited.add(cell)
             self.add_agent_reward(agent, EXPLORATION_REWARD)
 
-    # ----------------------------------------------------------
-    # Mine / combat rewards (minimal)
-    # ----------------------------------------------------------
-    def reward_mine_placed(self, agent: Any, mine_pos: Optional[Tuple[int, int]] = None) -> None:
-        if mine_pos is not None and getattr(agent, "side", None) == "blue":
-            x, _ = mine_pos
+    # -------------------------
+    # Mine/combat hooks (minimal)
+    # -------------------------
+
+    def reward_mine_placed(self, agent: Any, mine_pos: Optional[Cell] = None) -> None:
+        if mine_pos is None:
+            return
+        side = getattr(agent, "side", None)
+        if side not in ("blue", "red"):
+            return
+
+        x, _ = mine_pos
+        if side == "blue":
             if x > (self.cols * 0.5):
+                self.mines_placed_in_enemy_half_this_episode += 1
+        else:
+            if x < (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
 
     def reward_enemy_killed(self, killer_agent: Any, victim_agent: Optional[Any] = None, cause: Optional[str] = None) -> None:
@@ -575,13 +641,12 @@ class GameManager:
         if cause == "mine":
             if kside == "blue":
                 self.blue_mine_kills_this_episode += 1
-            else:
+            elif kside == "red":
                 self.red_mine_kills_this_episode += 1
 
-        # ✅ killer gets the kill reward
         self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
 
-        # ✅ optional team share for mine kills (explicit, excludes killer)
+        # Optional team share for mine kills (explicit, excludes killer)
         if kside in ("blue", "red") and cause == "mine":
             self.add_team_reward(kside, ENEMY_MAV_KILL_REWARD * 0.5, exclude_agent=killer_agent)
 
@@ -592,14 +657,3 @@ class GameManager:
         if agent is None:
             return
         self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
-
-    # ----------------------------------------------------------
-    # Reward events API
-    # ----------------------------------------------------------
-    def pop_reward_events(self) -> List[Tuple[float, str, float]]:
-        """
-        Returns list of (t, agent_id, value). NOTE: agent_id is ALWAYS a string.
-        """
-        events = self.reward_events
-        self.reward_events = []
-        return events
