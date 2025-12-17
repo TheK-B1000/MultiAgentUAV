@@ -109,6 +109,23 @@ class ActorCriticNet(nn.Module):
     def _idx(self, macro: MacroAction) -> Optional[int]:
         return self._macro_to_index.get(macro, None)
 
+    def _needs_target(self, macro_actions: torch.Tensor) -> torch.Tensor:
+        """
+        Returns [B] float tensor: 1.0 if macro uses target head, else 0.0.
+        We treat GO_TO and PLACE_MINE as target-parameterized.
+        """
+        idx_go_to = self._idx(MacroAction.GO_TO)
+        idx_place = self._idx(MacroAction.PLACE_MINE)
+
+        needs = torch.zeros_like(macro_actions, dtype=torch.float32, device=macro_actions.device)
+        if idx_go_to is not None:
+            needs = needs + (macro_actions == int(idx_go_to)).float()
+        if idx_place is not None:
+            needs = needs + (macro_actions == int(idx_place)).float()
+
+        # clamp in case both match (shouldn't happen)
+        return torch.clamp(needs, 0.0, 1.0)
+
     @staticmethod
     def _fix_all_false_rows(mask_bool: torch.Tensor) -> torch.Tensor:
         """
@@ -283,9 +300,16 @@ class ActorCriticNet(nn.Module):
             macro_action = torch.multinomial(torch.softmax(macro_logits, dim=-1), 1).squeeze(1)
             target_action = torch.multinomial(torch.softmax(target_logits, dim=-1), 1).squeeze(1)
 
-        macro_logp, _ = self._masked_logp_entropy_no_scatter(macro_logits, macro_action, mask_bool=None)
-        targ_logp, _ = self._masked_logp_entropy_no_scatter(target_logits, target_action, mask_bool=None)
-        log_prob = macro_logp + targ_logp  # [B]
+        # logp/entropy (only include target head when macro actually uses it)
+        macro_logp, macro_ent = self._masked_logp_entropy_no_scatter(
+            macro_logits, macro_action, mask_bool=(macro_mask.unsqueeze(0) if macro_mask is not None else None)
+        )
+        targ_logp, targ_ent = self._masked_logp_entropy_no_scatter(target_logits, target_action, mask_bool=None)
+
+        needs_t = self._needs_target(macro_action)  # [B] float 0/1
+        log_prob = macro_logp + needs_t * targ_logp
+        # (entropy not returned here, but if you ever want it)
+        # entropy = macro_ent + needs_t * targ_ent
 
         out = {
             "macro_action": macro_action,
@@ -387,8 +411,9 @@ class ActorCriticNet(nn.Module):
         macro_logp, macro_ent = self._masked_logp_entropy_no_scatter(macro_logits, macro_actions, mask_bool=mask_bool)
         targ_logp, targ_ent = self._masked_logp_entropy_no_scatter(target_logits, target_actions, mask_bool=None)
 
-        log_probs = macro_logp + targ_logp
-        entropy = macro_ent + targ_ent
+        needs_t = self._needs_target(macro_actions)  # [B] float 0/1
+        log_probs = macro_logp + needs_t * targ_logp
+        entropy = macro_ent + needs_t * targ_ent
         return log_probs, entropy, values
 
     def evaluate_actions_central(
@@ -425,6 +450,7 @@ class ActorCriticNet(nn.Module):
         macro_logp, macro_ent = self._masked_logp_entropy_no_scatter(macro_logits, macro_actions, mask_bool=mask_bool)
         targ_logp, targ_ent = self._masked_logp_entropy_no_scatter(target_logits, target_actions, mask_bool=None)
 
-        log_probs = macro_logp + targ_logp
-        entropy = macro_ent + targ_ent
+        needs_t = self._needs_target(macro_actions)  # [B] float 0/1
+        log_probs = macro_logp + needs_t * targ_logp
+        entropy = macro_ent + needs_t * targ_ent
         return log_probs, entropy, values
