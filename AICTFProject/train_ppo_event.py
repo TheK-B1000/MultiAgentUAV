@@ -1,3 +1,6 @@
+# ==========================================================
+# train_ppo_event.py (UPDATED: EPISODE-STRICT + PENDING ACCUMULATOR FIXED)
+# ==========================================================
 import os
 import random
 from typing import Dict, List, Tuple, Any, Optional
@@ -129,8 +132,8 @@ def make_env() -> GameField:
 
 def agent_uid(agent: Any) -> str:
     """
-    Research-grade assumption:
-      Agent.unique_id is stable and equals 'blue_0', 'blue_1', etc.
+    Stable agent id for reward routing/logging.
+    In your current Agent class, this is typically like 'blue_0_1344' (unique per spawn instance).
     """
     uid = getattr(agent, "unique_id", None) or getattr(agent, "slot_id", None)
     if uid is None:
@@ -142,7 +145,7 @@ def agent_uid(agent: Any) -> str:
 
 def external_key_for_agent(env: GameField, agent: Any) -> str:
     """
-    Minimal, deterministic external key.
+    Minimal, deterministic external key for submit_external_actions.
     Prefer env._external_key_for_agent if present, else agent_uid.
     """
     if hasattr(env, "_external_key_for_agent"):
@@ -154,9 +157,7 @@ def external_key_for_agent(env: GameField, agent: Any) -> str:
 
 def apply_blue_actions(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
     """
-    Clean path:
-      env.submit_external_actions(actions_dict) is expected.
-    If you don't have it, fail fast (don’t silently route into old fields).
+    Clean path: env.submit_external_actions(actions_dict) is expected.
     """
     fn = getattr(env, "submit_external_actions", None)
     if fn is None or (not callable(fn)):
@@ -199,14 +200,15 @@ def _get_agent_xy(agent: Any) -> Tuple[float, float]:
 def compute_used_macro_mask(env: GameField, agent: Any) -> np.ndarray:
     """
     Deterministic, research-safe masking aligned to USED_MACROS.
-    If your env exposes env.get_macro_mask(agent), we will use that instead.
+    If env.get_macro_mask(agent) exists, we use it (must match N_MACROS).
     """
     if hasattr(env, "get_macro_mask") and callable(getattr(env, "get_macro_mask")):
         mm = env.get_macro_mask(agent)
         mm = np.array(mm, dtype=np.bool_)
         if mm.shape == (N_MACROS,):
+            if not mm.any():
+                mm[:] = True
             return mm
-        # If env mask is in a different macro-space, that's a bug.
         raise RuntimeError(f"env.get_macro_mask returned shape {mm.shape}, expected {(N_MACROS,)}")
 
     mask = np.ones((N_MACROS,), dtype=np.bool_)
@@ -414,7 +416,7 @@ def ppo_update(
 
 
 # ==========================================================
-# Reward collection (STRICT, NO DILUTION, NO LEGACY)
+# Reward collection (EPISODE-STRICT + PENDING ACCUMULATOR)
 # ==========================================================
 def pop_reward_events_strict(gm: GameManager) -> List[Tuple[float, str, float]]:
     fn = getattr(gm, "pop_reward_events", None)
@@ -423,35 +425,91 @@ def pop_reward_events_strict(gm: GameManager) -> List[Tuple[float, str, float]]:
     return fn()
 
 
-def collect_rewards_for_decision_strict(
+def clear_reward_events_best_effort(gm: GameManager) -> None:
+    """
+    Defensive: clear any stale events on episode reset.
+    We do not validate ids here, we just drain.
+    """
+    try:
+        _ = pop_reward_events_strict(gm)
+    except Exception:
+        return
+
+
+def init_episode_reward_routing(env: GameField) -> Tuple[set, Dict[str, float], Dict[str, int]]:
+    """
+    Returns:
+      episode_uid_set: all blue agent uids that can legally receive reward this episode
+      pending:         per-uid reward accumulator
+      last_buf_idx:    per-uid last transition index stored in buffer (for flush)
+    """
+    uids: List[str] = []
+    for a in getattr(env, "blue_agents", []):
+        if a is None:
+            continue
+        uids.append(agent_uid(a))
+    episode_uid_set = set(uids)
+    pending = {uid: 0.0 for uid in episode_uid_set}
+    last_buf_idx: Dict[str, int] = {}
+    return episode_uid_set, pending, last_buf_idx
+
+
+# train_ppo_event.py (replace your strict accumulator with this filtered one)
+def accumulate_rewards_for_uid_set(
     gm: GameManager,
-    decision_uids: List[str],
-) -> Dict[str, float]:
+    allowed_uids: set,
+    pending: Dict[str, float],
+) -> None:
     """
-    Research-grade rule:
-      - every reward event MUST have agent_id as a non-empty string
-      - agent_id MUST be one of the agents that acted this decision
-      - no broadcasting, no mapping, no 'None' handling
+    Pop ALL reward events, but only accumulate those that belong to allowed_uids.
+    Everything else (red team, old episode ids, etc.) is ignored.
+
+    Still STRICT about invariants:
+      - agent_id must exist and be a non-empty string
     """
-    events = pop_reward_events_strict(gm)
-
-    uid_set = set(decision_uids)
-    rewards: Dict[str, float] = {uid: 0.0 for uid in decision_uids}
-
+    events = pop_reward_events_strict(gm)  # or gm.pop_reward_events() if you prefer
     for _t, agent_id, r in events:
         if agent_id is None:
-            raise RuntimeError("Found reward event with agent_id=None. Globals/team rewards are not allowed.")
-        key = str(agent_id)
-        if (not key.strip()):
+            raise RuntimeError("Found reward event with agent_id=None (must always be per-agent).")
+        key = str(agent_id).strip()
+        if not key:
             raise RuntimeError("Found reward event with empty agent_id.")
-        if key not in uid_set:
-            raise RuntimeError(
-                f"Reward routed to unknown agent_id='{key}'. "
-                f"Decision uids={sorted(uid_set)}"
-            )
-        rewards[key] += float(r)
+        if key in allowed_uids:
+            pending[key] = pending.get(key, 0.0) + float(r)
+        # else: ignore
 
-    return rewards
+
+def consume_pending_reward_for_uid(
+    uid: str,
+    pending: Dict[str, float],
+    time_penalty: float = 0.0,
+) -> float:
+    """
+    Consume and zero-out pending reward for this uid, then apply optional time penalty.
+    """
+    r = float(pending.get(uid, 0.0))
+    pending[uid] = 0.0
+    return r - float(time_penalty)
+
+
+def flush_pending_rewards_into_buffer(
+    pending: Dict[str, float],
+    last_buf_idx: Dict[str, int],
+    buffer: RolloutBuffer,
+) -> None:
+    """
+    Attach any leftover pending rewards to each agent’s LAST stored transition in the buffer.
+    This prevents terminal rewards from crashing when an agent did not act in the final window.
+    """
+    for uid, r in list(pending.items()):
+        if abs(r) <= 1e-12:
+            continue
+        idx = last_buf_idx.get(uid, None)
+        if idx is None:
+            pending[uid] = 0.0
+            continue
+        buffer.rewards[idx] = float(buffer.rewards[idx]) + float(r)
+        pending[uid] = 0.0
 
 
 # ==========================================================
@@ -521,6 +579,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
     if hasattr(gm, "set_shaping_gamma"):
         gm.set_shaping_gamma(GAMMA)
 
+    # Probe obs shape
     env.reset_default()
     if not env.blue_agents:
         raise RuntimeError("No blue agents after env.reset_default().")
@@ -570,7 +629,14 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         set_red_policy_for_phase(env, cur_phase)
         opponent_tag = cur_phase
 
+        # Reset env for this episode (uids can change here)
         env.reset_default()
+
+        # Drain any stale reward events after reset (defensive)
+        clear_reward_events_best_effort(gm)
+
+        # ✅ MUST be per-episode (prevents unknown-agent crashes after reset)
+        episode_uid_set, pending_reward, last_buf_idx = init_episode_reward_routing(env)
 
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
@@ -583,7 +649,6 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         while (not done) and steps < max_steps and global_step < total_steps:
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
             if not blue_agents:
-                # If your env can ever fully wipe the team, treat as terminal for rollout
                 done = True
                 break
 
@@ -611,26 +676,21 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             # --- Submit actions ---
             apply_blue_actions(env, submit_actions)
 
-            # --- Simulate exactly one decision window ---
+            # --- Simulate one decision window ---
             sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
 
             done = bool(gm.game_over)
             dt = compute_dt_for_window(DECISION_WINDOW)
 
-            # --- Rewards: strict routing to exactly the agents that acted ---
-            decision_uids = [uid for *_rest, uid in decisions]
-            rewards_by_uid = collect_rewards_for_decision_strict(gm, decision_uids)
-
-            # time penalty applies only to agents that acted
-            for uid in decision_uids:
-                rewards_by_uid[uid] = rewards_by_uid.get(uid, 0.0) - TIME_PENALTY_PER_AGENT_PER_MACRO
+            accumulate_rewards_for_uid_set(gm, episode_uid_set, pending_reward)
 
             # --- Next values for bootstrap ---
             done_for_rollout_global = bool(done or ((steps + 1) >= max_steps))
+            decision_uids = [uid for *_rest, uid in decisions]
             next_vals_by_uid: Dict[str, float] = {uid: 0.0 for uid in decision_uids}
 
-            live_obs = []
-            live_uids = []
+            live_obs: List[np.ndarray] = []
+            live_uids: List[str] = []
             for (agent, _obs, _mi, _ti, _lp, _v, _mm, uid) in decisions:
                 agent_dead = (not agent.isEnabled())
                 if (not done_for_rollout_global) and (not agent_dead):
@@ -644,10 +704,10 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 for i, uid in enumerate(live_uids):
                     next_vals_by_uid[uid] = float(next_v[i])
 
-            # --- Store transitions ---
+            # --- Store transitions (consume pending per acting uid) ---
             step_reward_sum = 0.0
             for (agent, obs, macro_idx, target_idx, logp, val, mask_np, uid) in decisions:
-                r = float(rewards_by_uid[uid])
+                r = consume_pending_reward_for_uid(uid, pending_reward, TIME_PENALTY_PER_AGENT_PER_MACRO)
                 step_reward_sum += r
 
                 agent_dead = (not agent.isEnabled())
@@ -667,18 +727,30 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                     macro_mask=mask_np,
                 )
                 global_step += 1
+                last_buf_idx[uid] = buffer.size() - 1
 
             ep_return += step_reward_sum
             steps += 1
 
             # --- Update ---
             if buffer.size() >= UPDATE_EVERY:
+                # ✅ flush pending into buffer BEFORE update clears the buffer
+                flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
+
                 current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
                 print(
                     f"[UPDATE] step={global_step} episode={episode_idx} "
                     f"phase={cur_phase} ENT={current_ent_coef:.4f} Opp={opponent_tag}"
                 )
+
                 ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
+
+                # buffer is cleared inside ppo_update, so indices are invalid now
+                last_buf_idx.clear()
+                # pending_reward should be near-zero after flush, but keep dict alive
+
+        # Episode end: attach any leftover pending rewards to last transitions in buffer
+        flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
 
         # --- Episode result ---
         if gm.blue_score > gm.red_score:
@@ -714,7 +786,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
             if phase_episode_count >= min_eps and len(phase_recent) >= PHASE_WINRATE_WINDOW and phase_wr >= target_wr:
-                print(f"[CURRICULUM] Advancing from {cur_phase} → next phase.")
+                print(f"[CURRICULUM] Advancing from {cur_phase} -> next phase.")
                 phase_idx += 1
                 phase_episode_count = 0
                 phase_recent.clear()
