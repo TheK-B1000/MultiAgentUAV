@@ -1,20 +1,26 @@
+# ==========================================================
+# train_mappo_event.py (MAPPO / CTDE, DirectML-safe)  FULL PASTE
+# ==========================================================
 """
-train_mappo_event.py (MAPPO / CTDE, DirectML-safe by design) — UPDATED TO FIX “unknown agent_id” CRASH
+MAPPO / CTDE training for 2v2 CTF, designed to be DirectML-safe.
 
 Key design:
   - policy_act runs on DirectML/CUDA for action sampling only (forward only).
   - policy_train runs on CPU (or CUDA) for MAPPO updates (backward only).
   - After each update, policy_train weights are synced to policy_act.
 
-Core fix vs your crash:
-  ✅ Rewards are now collected EPISODE-STRICT (must belong to this episode’s blue agents),
-     but NOT “acted-only strict”.
-     We use a per-uid PENDING accumulator and attach leftover rewards to the agent’s last
-     stored transition (flush at update boundaries + episode end).
+Stability:
+  - Rewards are collected EPISODE-STRICT (only uids belonging to THIS episode’s blue agents).
+  - Rewards are NOT “acted-only strict”.
+    We keep a per-uid PENDING accumulator and attach leftover pending rewards to the uid’s
+    last stored transition (flush at update boundaries + episode end).
 
-This prevents:
-  RuntimeError: Reward event for unknown agent_id='blue_1_925'. Expected one of: ['blue_0_924']
-which happens when GameManager emits reward for an agent that didn’t act that window.
+OP2 draw-breaker fixes (the part your logs are crying for):
+  - Phase-specific entropy schedule (OP2/OP3 settle faster).
+  - Phase-specific time penalty (OP2/OP3 less punishing).
+  - Phase-specific score-delta shaping (stronger in OP2/OP3).
+  - Phase-specific terminal shaping (OP2 draw penalty harsher).
+  - Optional no-score stalling pressure in OP2/OP3 (gentle ramp, off by default if you set 0).
 """
 
 import os
@@ -48,7 +54,7 @@ def prefer_device() -> torch.device:
 
 
 # ==========================================================
-# IMPORTS
+# IMPORTS (your project)
 # ==========================================================
 from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from game_manager import GameManager
@@ -76,8 +82,8 @@ def set_seed(seed: int = 42) -> None:
 GRID_ROWS = CNN_ROWS
 GRID_COLS = CNN_COLS
 
-TOTAL_STEPS = 5_000_000
-UPDATE_EVERY = 2_048          # samples (per-agent) in buffer
+TOTAL_STEPS = 1_000_000
+UPDATE_EVERY = 2_048          # transitions (per-agent) in buffer
 PPO_EPOCHS = 10
 MINIBATCH_SIZE = 64
 
@@ -100,11 +106,6 @@ MIN_PHASE_EPISODES = {"OP1": 500, "OP2": 1000, "OP3": 2000}
 TARGET_PHASE_WINRATE = {"OP1": 0.90, "OP2": 0.86, "OP3": 0.80}
 PHASE_WINRATE_WINDOW = 50
 
-ENT_COEF_BY_PHASE = {"OP1": 0.06, "OP2": 0.05, "OP3": 0.04}
-OP2_ENTROPY_FLOOR = 0.008
-
-TIME_PENALTY_PER_AGENT_PER_MACRO = 0.01
-
 PHASE_CONFIG = {
     "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
     "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
@@ -122,6 +123,86 @@ N_MACROS = len(USED_MACROS)
 
 MACRO_STATS_PRINT_EVERY = 10
 MACRO_STATS_PRINT_ON_WIN = True
+
+DEBUG_PRINT_UIDS_ONCE = True
+REWARD_DEBUG_FIRST_EPISODES = 3
+
+# ==========================================================
+# OP2 DRAW-BREAKER SHAPING (phase-specific)
+# ==========================================================
+# Entropy: OP2/OP3 should settle faster to avoid 0:0 safety loops.
+ENT_SCHEDULE = {
+    # (start, end, horizon_episodes)
+    "OP1": (0.07, 0.05, 800.0),
+    "OP2": (0.04, 0.018, 1200.0),
+    "OP3": (0.03, 0.012, 2000.0),
+}
+
+# Time penalty: OP2/OP3 need room to maneuver; too much penalty cancels sparse signals.
+TIME_PENALTY_BY_PHASE = {
+    "OP1": 0.0010,
+    "OP2": 0.0004,
+    "OP3": 0.0004,
+}
+
+# Score-delta shaping scale.
+SCORE_DELTA_REWARD_BY_PHASE = {
+    "OP1": 12.0,
+    "OP2": 18.0,
+    "OP3": 22.0,
+}
+
+# Terminal shaping. Key change: OP2 draw penalty is harsher to stop timeouts.
+TERMINAL_WIN_BONUS_BY_PHASE = {"OP1": 25.0, "OP2": 25.0, "OP3": 25.0}
+TERMINAL_LOSS_PENALTY_BY_PHASE = {"OP1": -25.0, "OP2": -25.0, "OP3": -25.0}
+TERMINAL_DRAW_PENALTY_BY_PHASE = {"OP1": -5.0, "OP2": -14.0, "OP3": -10.0}
+
+# Optional: “no score for too long” pressure (gentle ramp).
+# Set to 0.0 to disable entirely.
+NO_SCORE_PENALTY_PER_WINDOW_BY_PHASE = {
+    "OP1": 0.0,
+    "OP2": 0.015,   # per decision window, applied to each blue agent, after grace period
+    "OP3": 0.010,
+}
+NO_SCORE_GRACE_WINDOWS_BY_PHASE = {
+    "OP1": 999999,
+    "OP2": 12,      # ~8.4s if DECISION_WINDOW=0.7
+    "OP3": 16,      # ~11.2s
+}
+
+
+def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
+    start, end, horizon = ENT_SCHEDULE[cur_phase]
+    frac = min(1.0, float(phase_episode_count) / float(horizon))
+    return float(start + (end - start) * frac)
+
+
+def get_phase_time_penalty(cur_phase: str) -> float:
+    return float(TIME_PENALTY_BY_PHASE.get(cur_phase, 0.001))
+
+
+def get_phase_score_delta_reward(cur_phase: str) -> float:
+    return float(SCORE_DELTA_REWARD_BY_PHASE.get(cur_phase, 15.0))
+
+
+def get_terminal_team_reward(cur_phase: str, blue_score: int, red_score: int) -> float:
+    if blue_score > red_score:
+        return float(TERMINAL_WIN_BONUS_BY_PHASE[cur_phase])
+    if blue_score < red_score:
+        return float(TERMINAL_LOSS_PENALTY_BY_PHASE[cur_phase])
+    return float(TERMINAL_DRAW_PENALTY_BY_PHASE[cur_phase])
+
+
+def get_no_score_penalty(cur_phase: str, windows_since_score: int) -> float:
+    grace = int(NO_SCORE_GRACE_WINDOWS_BY_PHASE.get(cur_phase, 999999))
+    per = float(NO_SCORE_PENALTY_PER_WINDOW_BY_PHASE.get(cur_phase, 0.0))
+    if per <= 0.0:
+        return 0.0
+    if windows_since_score <= grace:
+        return 0.0
+    # Gentle ramp: +1x at grace+1, +2x at grace+2, capped at 6x.
+    ramp = min(6, max(1, windows_since_score - grace))
+    return float(per * ramp)
 
 
 # ==========================================================
@@ -175,6 +256,7 @@ def external_keys_for_agent(env: GameField, agent: Any) -> List[str]:
 
     out, seen = [], set()
     for k in keys:
+        k = str(k).strip()
         if k and k not in seen:
             out.append(k)
             seen.add(k)
@@ -182,11 +264,7 @@ def external_keys_for_agent(env: GameField, agent: Any) -> List[str]:
 
 
 def agent_uid(agent: Any) -> str:
-    """
-    Reward-routing uid.
-    MUST match GameManager reward event agent_id strings.
-    In your logs, rewards are emitted as 'blue_0_924', 'blue_1_925', etc => use unique_id first.
-    """
+    """Reward-routing uid. Must match GameManager reward event agent_id strings."""
     uid = getattr(agent, "unique_id", None)
     if uid is None or str(uid).strip() == "":
         uid = getattr(agent, "slot_id", None)
@@ -212,10 +290,7 @@ def gm_get_sim_time_safe(gm: GameManager) -> float:
 
 
 def sim_decision_window(env: GameField, gm: GameManager, window_s: float, sim_dt: float) -> None:
-    """
-    Steps env for ~window_s seconds using sim_dt, with remainder handling.
-    Stops early if gm.game_over becomes True.
-    """
+    """Steps env for ~window_s seconds using sim_dt, stops early if game over."""
     if window_s <= 0.0:
         return
     if sim_dt <= 0.0:
@@ -234,7 +309,6 @@ def sim_decision_window(env: GameField, gm: GameManager, window_s: float, sim_dt
 
 
 def submit_external_actions_robust(env: GameField, action_dict: Dict[str, Tuple[int, int]]) -> None:
-    # clear any stale “pending” dict if you keep one around
     if hasattr(env, "pending_external_actions"):
         try:
             env.pending_external_actions.clear()
@@ -286,20 +360,56 @@ def get_blue_team_obs_in_id_order(env: GameField) -> List[np.ndarray]:
             out.append(np.array(env.build_observation(a), dtype=np.float32))
     return out
 
+
 # ==========================================================
-# REWARDS (FILTERED BY ALLOWED UID SET + PENDING ACCUMULATOR) ✅ FIX
+# REWARDS (EPISODE-STRICT UID SET + PENDING ACCUMULATOR)
 # ==========================================================
 def gm_pop_reward_events_safe(gm: GameManager):
+    """
+    Supports these return formats:
+      - [(t, agent_id, r), ...]
+      - [(agent_id, r), ...]
+      - [{'agent_id':..., 'reward':...}, ...] (best effort)
+    """
+    events = []
     if hasattr(gm, "pop_reward_events") and callable(getattr(gm, "pop_reward_events")):
-        return gm.pop_reward_events()
-    ev = getattr(gm, "reward_events", [])
-    try:
-        out = list(ev)
-        if isinstance(ev, list):
-            ev.clear()
-        return out
-    except Exception:
-        return []
+        try:
+            events = gm.pop_reward_events()
+        except Exception:
+            events = []
+    else:
+        ev = getattr(gm, "reward_events", [])
+        try:
+            events = list(ev)
+            if isinstance(ev, list):
+                ev.clear()
+        except Exception:
+            events = []
+
+    parsed = []
+    for e in (events or []):
+        # dict format
+        if isinstance(e, dict):
+            aid = e.get("agent_id", None)
+            r = e.get("reward", e.get("r", None))
+            t = e.get("t", 0.0)
+            parsed.append((t, aid, r))
+            continue
+
+        # tuple/list format
+        if isinstance(e, (tuple, list)):
+            if len(e) == 3:
+                t, aid, r = e
+                parsed.append((t, aid, r))
+                continue
+            if len(e) == 2:
+                aid, r = e
+                parsed.append((0.0, aid, r))
+                continue
+
+        # unknown junk
+        parsed.append((0.0, None, None))
+    return parsed
 
 
 def clear_reward_events_best_effort(gm: GameManager) -> None:
@@ -310,11 +420,6 @@ def clear_reward_events_best_effort(gm: GameManager) -> None:
 
 
 def init_episode_reward_routing(env: GameField) -> Tuple[Set[str], Dict[str, float], Dict[str, int]]:
-    """
-    allowed_uids = the uids we train on for THIS episode (blue agents at reset).
-    pending = per-uid reward accumulator (rewards can arrive even when the uid didn't act this window).
-    last_buf_idx = uid -> last transition index in the buffer (for flushing pending at boundaries).
-    """
     uids: List[str] = []
     for a in getattr(env, "blue_agents", []):
         if a is None:
@@ -331,25 +436,35 @@ def accumulate_rewards_for_uid_set(
     gm: GameManager,
     allowed_uids: Set[str],
     pending: Dict[str, float],
+    debug_print: bool = False,
 ) -> None:
-    """
-    Pop ALL reward events, but only accumulate those whose agent_id is in allowed_uids.
-    Everything else is ignored (red team, old episode uids, etc.).
-
-    Still strict about invariants:
-      - agent_id must exist and be a non-empty string
-    """
     events = gm_pop_reward_events_safe(gm)
+
+    if debug_print:
+        # show first few (agent_id, reward) pairs
+        preview = []
+        for (t, aid, r) in events[:8]:
+            preview.append((str(aid), float(r) if r is not None else None))
+
     for _t, agent_id, r in events:
         if agent_id is None:
-            raise RuntimeError("Found reward event with agent_id=None (must always be per-agent).")
+            continue
         key = str(agent_id).strip()
         if not key:
-            raise RuntimeError("Found reward event with empty agent_id.")
+            continue
+        if r is None:
+            continue
 
         if key in allowed_uids:
             pending[key] = pending.get(key, 0.0) + float(r)
-        # else: ignore
+        # else ignore (red team, old episode uids, etc.)
+
+
+def add_team_reward_to_pending(allowed_uids: Set[str], pending: Dict[str, float], r_team: float) -> None:
+    if abs(r_team) <= 1e-12:
+        return
+    for uid in allowed_uids:
+        pending[uid] = pending.get(uid, 0.0) + float(r_team)
 
 
 def consume_pending_reward_for_uid(uid: str, pending: Dict[str, float], time_penalty: float = 0.0) -> float:
@@ -377,24 +492,6 @@ def flush_pending_rewards_into_buffer(
         buffer.rewards[idx] = float(buffer.rewards[idx]) + float(r)
         pending[uid] = 0.0
 
-# ==========================================================
-# ENTROPY SCHEDULE
-# ==========================================================
-def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
-    base = ENT_COEF_BY_PHASE[cur_phase]
-    if cur_phase == "OP1":
-        start_ent, horizon = 0.07, 1000.0
-    elif cur_phase == "OP2":
-        start_ent, horizon = 0.06, 1200.0
-    else:
-        start_ent, horizon = 0.05, 2000.0
-
-    frac = min(1.0, phase_episode_count / horizon)
-    coef = float(start_ent - (start_ent - base) * frac)
-    if cur_phase == "OP2":
-        coef = max(coef, OP2_ENTROPY_FLOOR)
-    return coef
-
 
 # ==========================================================
 # ACTION SAMPLING (policy_act forward only)
@@ -410,7 +507,8 @@ def sample_mappo_action_via_act(
 ) -> Dict[str, Any]:
     """
     Uses policy_act.act(...) for macro/target/logp.
-    Value is taken from CTDE central critic explicitly.
+    Value comes from CTDE central critic; if critic outputs per-agent values,
+    we pick the agent_id index when possible.
     """
     device = next(policy_act.parameters()).device
     actor_obs_tensor = actor_obs_tensor.to(device).float()
@@ -423,17 +521,17 @@ def sample_mappo_action_via_act(
         deterministic=deterministic,
     )
 
-    def _grab_1d(key: str, alt: Optional[List[str]] = None) -> torch.Tensor:
-        if alt is None:
-            alt = []
+    def _grab_1d(key: str, alts: Optional[List[str]] = None) -> torch.Tensor:
+        if alts is None:
+            alts = []
         v = out.get(key, None)
         if v is None:
-            for k in alt:
+            for k in alts:
                 v = out.get(k, None)
                 if v is not None:
                     break
         if v is None:
-            raise KeyError(f"policy.act() missing '{key}' (also tried {alt})")
+            raise KeyError(f"policy.act() missing '{key}' (also tried {alts})")
         if not torch.is_tensor(v):
             v = torch.tensor(v, device=device)
         return v.reshape(-1)
@@ -442,7 +540,15 @@ def sample_mappo_action_via_act(
     target_action = _grab_1d("target_action", ["target"]).long()
     logp = _grab_1d("log_prob", ["old_log_prob", "logp"]).float()
 
-    central_value = policy_act.forward_central_critic(central_obs_tensor).reshape(-1).float()
+    # Central critic value
+    v_all = policy_act.forward_central_critic(central_obs_tensor).detach().reshape(-1).float()
+    if v_all.numel() == 1:
+        v_pick = v_all
+    else:
+        # best-effort: choose by agent_id index
+        idx = int(getattr(agent, "agent_id", 0))
+        idx = max(0, min(idx, int(v_all.numel() - 1)))
+        v_pick = v_all[idx:idx + 1]
 
     mm = out.get("macro_mask", None)
     mm_np = None
@@ -462,7 +568,7 @@ def sample_mappo_action_via_act(
         "macro_action": macro_action,     # [1]
         "target_action": target_action,   # [1]
         "old_log_prob": logp,             # [1]
-        "value": central_value,           # [1] CTDE value
+        "value": v_pick,                  # [1]
         "macro_mask": mm_np,              # np.bool_ [A] or None
     }
 
@@ -513,8 +619,7 @@ class MAPPORolloutBuffer:
         self.traj_ids.append(int(traj_id))
 
         if macro_mask is None:
-            self.macro_masks.append(np.zeros((N_MACROS,), dtype=np.bool_))  # safe default (no mask)
-            self.macro_masks[-1][:] = True
+            self.macro_masks.append(np.ones((N_MACROS,), dtype=np.bool_))
         else:
             mm = np.array(macro_mask, dtype=np.bool_).reshape(-1)
             if mm.shape != (N_MACROS,):
@@ -551,7 +656,7 @@ class MAPPORolloutBuffer:
 
 
 # ==========================================================
-# CPU GAE (grouped by traj_id)
+# GAE (grouped by traj_id, event-driven dt)
 # ==========================================================
 def normalize_advantages(adv: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     mean = adv.mean()
@@ -593,7 +698,7 @@ def compute_gae_event_grouped_nextvalues_cpu(
 
 
 # ==========================================================
-# MAPPO UPDATE (runs on train_device, usually CPU)
+# MAPPO UPDATE (train_device, usually CPU)
 # ==========================================================
 def _fix_all_false_rows(mask: torch.Tensor) -> torch.Tensor:
     if mask.numel() == 0:
@@ -648,14 +753,14 @@ def mappo_update(
             idx_np = perm_np[start:end]
             mb_idx = torch.tensor(idx_np, dtype=torch.long, device=device)
 
-            mb_actor    = actor_obs.index_select(0, mb_idx)
-            mb_central  = central_obs.index_select(0, mb_idx)
-            mb_macro    = macro_actions.index_select(0, mb_idx)
-            mb_target   = target_actions.index_select(0, mb_idx)
+            mb_actor = actor_obs.index_select(0, mb_idx)
+            mb_central = central_obs.index_select(0, mb_idx)
+            mb_macro = macro_actions.index_select(0, mb_idx)
+            mb_target = target_actions.index_select(0, mb_idx)
             mb_old_logp = old_log_probs.index_select(0, mb_idx)
-            mb_adv      = advantages.index_select(0, mb_idx)
-            mb_ret      = returns.index_select(0, mb_idx)
-            mb_mask     = _fix_all_false_rows(macro_masks.index_select(0, mb_idx))
+            mb_adv = advantages.index_select(0, mb_idx)
+            mb_ret = returns.index_select(0, mb_idx)
+            mb_mask = _fix_all_false_rows(macro_masks.index_select(0, mb_idx))
 
             new_values = policy_train.forward_central_critic(mb_central).reshape(-1)
 
@@ -721,7 +826,7 @@ class MacroUsageTracker:
             n = sum(dist.values())
             it = sorted(dist.items(), key=lambda kv: kv[1], reverse=True)
             parts = [f"{k}:{v} ({100.0*v/n:.1f}%)" for k, v in it]
-            lines.append(f"  {sid}: " + " | ".join(parts))
+            lines.append(f"{sid}: " + " | ".join(parts))
         return lines
 
 
@@ -758,7 +863,6 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         )
 
     act_device = prefer_device()
-    # DirectML backward tends to be fragile; keep training on CPU when using privateuseone
     train_device = torch.device("cpu") if (HAS_TDML and "privateuseone" in str(act_device).lower()) else act_device
 
     print(f"[train_mappo_event] act_device:   {act_device}")
@@ -788,6 +892,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     traj_id_map: Dict[Tuple[int, str], int] = {}
 
     macro_tracker = MacroUsageTracker()
+    debug_uids = DEBUG_PRINT_UIDS_ONCE
 
     while global_step < total_steps:
         episode_idx += 1
@@ -823,8 +928,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         env.reset_default()
         clear_reward_events_best_effort(gm)
 
-        # ✅ NEW: per-episode reward routing (this is the critical fix)
+        # per-episode reward routing
         episode_uid_set, pending_reward, last_buf_idx = init_episode_reward_routing(env)
+
+        if debug_uids:
+            debug_uids = False
+            print(f"[UIDS] episode_uid_set={sorted(list(episode_uid_set))}")
 
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
@@ -835,12 +944,19 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
 
         done = False
         ep_return = 0.0
+        ep_terminal_only = 0.0
         steps = 0
 
         sim_time_prev = gm_get_sim_time_safe(gm)
         traj_id_map.clear()
 
+        # score tracking for score-delta reward
+        prev_blue_score = int(getattr(gm, "blue_score", 0))
+        prev_red_score = int(getattr(gm, "red_score", 0))
+        windows_since_score = 0
+
         while (not done) and steps < max_steps and global_step < total_steps:
+            # Central obs (fixed agent_id order)
             blue_joint_obs = get_blue_team_obs_in_id_order(env)
             central_obs_np = np.stack(blue_joint_obs, axis=0)
             central_obs_tensor = torch.tensor(central_obs_np, dtype=torch.float32, device=act_device).unsqueeze(0)
@@ -888,8 +1004,9 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
 
             submit_external_actions_robust(env, submit_actions)
 
+            # simulate
             sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
-            done = bool(gm.game_over)
+            done = bool(getattr(gm, "game_over", False))
 
             sim_time_now = gm_get_sim_time_safe(gm)
             dt = max(0.0, float(sim_time_now - sim_time_prev))
@@ -897,28 +1014,61 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
 
             rollout_done = bool(done or ((steps + 1) >= max_steps))
 
-            accumulate_rewards_for_uid_set(gm, episode_uid_set, pending_reward)
+            # 1) accumulate native events
+            dbg_rewards = (episode_idx <= REWARD_DEBUG_FIRST_EPISODES and steps <= 1)
+            accumulate_rewards_for_uid_set(gm, episode_uid_set, pending_reward, debug_print=dbg_rewards)
+
+            # 2) score-delta shaping (team-level, phase-specific)
+            blue_score_now = int(getattr(gm, "blue_score", 0))
+            red_score_now = int(getattr(gm, "red_score", 0))
+            d_blue = blue_score_now - prev_blue_score
+            d_red = red_score_now - prev_red_score
+            prev_blue_score, prev_red_score = blue_score_now, red_score_now
+
+            if d_blue != 0 or d_red != 0:
+                windows_since_score = 0
+                score_delta_scale = get_phase_score_delta_reward(cur_phase)
+                team_r = float(score_delta_scale * d_blue - score_delta_scale * d_red)
+                add_team_reward_to_pending(episode_uid_set, pending_reward, team_r)
+            else:
+                windows_since_score += 1
+                stall_pen = get_no_score_penalty(cur_phase, windows_since_score)
+                if stall_pen != 0.0:
+                    add_team_reward_to_pending(episode_uid_set, pending_reward, -stall_pen)
 
             # Bootstrap V(s_{t+1}) from central critic (forward only)
             with torch.no_grad():
                 next_joint_obs = get_blue_team_obs_in_id_order(env)
                 next_central_np = np.stack(next_joint_obs, axis=0)
                 next_central_tensor = torch.tensor(next_central_np, dtype=torch.float32, device=act_device).unsqueeze(0)
-                bootstrap_value = float(
-                    policy_act.forward_central_critic(next_central_tensor).detach().reshape(-1)[0].item()
-                )
+
+                v_all = policy_act.forward_central_critic(next_central_tensor).detach().reshape(-1).float()
+                # per-agent bootstrap map
+                bootstrap_map: Dict[str, float] = {}
+                for a in blue_agents_enabled:
+                    uid = agent_uid(a)
+                    if v_all.numel() == 1:
+                        bootstrap_map[uid] = float(v_all[0].item())
+                    else:
+                        idx = int(getattr(a, "agent_id", 0))
+                        idx = max(0, min(idx, int(v_all.numel() - 1)))
+                        bootstrap_map[uid] = float(v_all[idx].item())
+
             if rollout_done:
-                bootstrap_value = 0.0
+                for k in list(bootstrap_map.keys()):
+                    bootstrap_map[k] = 0.0
 
             # Store transitions (consume pending ONLY for uids that acted)
             step_reward_sum = 0.0
+            time_penalty = get_phase_time_penalty(cur_phase)
+
             for agent, uid, actor_obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, mm_np in decisions:
-                r = consume_pending_reward_for_uid(uid, pending_reward, TIME_PENALTY_PER_AGENT_PER_MACRO)
+                r = consume_pending_reward_for_uid(uid, pending_reward, time_penalty)
                 step_reward_sum += r
 
                 agent_dead = (not agent.isEnabled())
                 agent_done = bool(rollout_done or agent_dead)
-                nv = 0.0 if agent_done else bootstrap_value
+                nv = 0.0 if agent_done else float(bootstrap_map.get(uid, 0.0))
 
                 buffer.add(
                     actor_obs=actor_obs_np,
@@ -942,7 +1092,6 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
 
             # Update (train_device), then sync → act model
             if buffer.size() >= UPDATE_EVERY:
-                # ✅ NEW: flush pending into buffer BEFORE update clears buffer
                 flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
 
                 ent = get_entropy_coef(cur_phase, phase_episode_count)
@@ -956,10 +1105,17 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 if ENABLE_SELFPLAY:
                     old_policies_buffer.append(copy.deepcopy(policy_train.state_dict()))
 
-                # buffer cleared inside update => indices invalid now
                 last_buf_idx.clear()
 
-        # Episode end flush (if any rewards still pending, attach to last transitions)
+        # ---- Episode end: terminal outcome reward (team-level, phase-specific) ----
+        term_team = get_terminal_team_reward(
+            cur_phase,
+            int(getattr(gm, "blue_score", 0)),
+            int(getattr(gm, "red_score", 0)),
+        )
+        add_team_reward_to_pending(episode_uid_set, pending_reward, term_team)
+        ep_terminal_only += float(term_team) * float(max(1, len(episode_uid_set)))
+
         flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
 
         # Episode result
@@ -981,9 +1137,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
 
         avg_step_r = ep_return / max(1, steps)
+
         print(
-            f"[{episode_idx:5d}] {result:8} | StepR {avg_step_r:+.3f} TermR {ep_return:+.1f} | "
-            f"Score {gm.blue_score}:{gm.red_score} | BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
+            f"[{episode_idx:5d}] {result:8} | "
+            f"StepR {avg_step_r:+.3f} TermR {ep_terminal_only:+.1f} | "
+            f"Score {gm.blue_score}:{gm.red_score} | "
+            f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
             f"PhaseWin {phase_wr*100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
