@@ -1,22 +1,27 @@
 """
-train_mappo_event.py (MAPPO / CTDE, DirectML-safe by design)
+train_mappo_event.py (MAPPO / CTDE, DirectML-safe by design) — UPDATED TO FIX “unknown agent_id” CRASH
 
 Key design:
   - policy_act runs on DirectML/CUDA for action sampling only (forward only).
-  - policy_train runs on CPU for PPO/MAPPO updates (backward only).
+  - policy_train runs on CPU (or CUDA) for MAPPO updates (backward only).
   - After each update, policy_train weights are synced to policy_act.
 
-Strict research guarantees:
-  - Reward events MUST have concrete agent_id strings (NO agent_id=None ever).
-  - NO legacy id mapping, NO broadcasting, NO reward dilution.
-  - Disabled agents do not receive rewards unless GameManager explicitly emits them.
+Core fix vs your crash:
+  ✅ Rewards are now collected EPISODE-STRICT (must belong to this episode’s blue agents),
+     but NOT “acted-only strict”.
+     We use a per-uid PENDING accumulator and attach leftover rewards to the agent’s last
+     stored transition (flush at update boundaries + episode end).
+
+This prevents:
+  RuntimeError: Reward event for unknown agent_id='blue_1_925'. Expected one of: ['blue_0_924']
+which happens when GameManager emits reward for an agent that didn’t act that window.
 """
 
 import os
 import random
 import copy
 from collections import deque
-from typing import Dict, List, Tuple, Any, Deque, Optional
+from typing import Dict, List, Tuple, Any, Deque, Optional, Set
 
 import numpy as np
 import torch
@@ -113,6 +118,7 @@ USED_MACROS = [
     MacroAction.PLACE_MINE,
     MacroAction.GO_HOME,
 ]
+N_MACROS = len(USED_MACROS)
 
 MACRO_STATS_PRINT_EVERY = 10
 MACRO_STATS_PRINT_ON_WIN = True
@@ -177,8 +183,9 @@ def external_keys_for_agent(env: GameField, agent: Any) -> List[str]:
 
 def agent_uid(agent: Any) -> str:
     """
-    STRICT reward-routing uid.
-    Must match the strings emitted by your new GameManager.add_reward_event(..., agent_id=str_uid).
+    Reward-routing uid.
+    MUST match GameManager reward event agent_id strings.
+    In your logs, rewards are emitted as 'blue_0_924', 'blue_1_925', etc => use unique_id first.
     """
     uid = getattr(agent, "unique_id", None)
     if uid is None or str(uid).strip() == "":
@@ -227,6 +234,7 @@ def sim_decision_window(env: GameField, gm: GameManager, window_s: float, sim_dt
 
 
 def submit_external_actions_robust(env: GameField, action_dict: Dict[str, Tuple[int, int]]) -> None:
+    # clear any stale “pending” dict if you keep one around
     if hasattr(env, "pending_external_actions"):
         try:
             env.pending_external_actions.clear()
@@ -255,6 +263,8 @@ def submit_external_actions_robust(env: GameField, action_dict: Dict[str, Tuple[
         except Exception:
             pass
 
+    raise RuntimeError("No supported external action submission path found in GameField.")
+
 
 def zero_obs_like() -> np.ndarray:
     return np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
@@ -276,9 +286,8 @@ def get_blue_team_obs_in_id_order(env: GameField) -> List[np.ndarray]:
             out.append(np.array(env.build_observation(a), dtype=np.float32))
     return out
 
-
 # ==========================================================
-# REWARDS (STRICT, NO LEGACY, NO DILUTION)
+# REWARDS (FILTERED BY ALLOWED UID SET + PENDING ACCUMULATOR) ✅ FIX
 # ==========================================================
 def gm_pop_reward_events_safe(gm: GameManager):
     if hasattr(gm, "pop_reward_events") and callable(getattr(gm, "pop_reward_events")):
@@ -293,29 +302,80 @@ def gm_pop_reward_events_safe(gm: GameManager):
         return []
 
 
-def collect_rewards_for_uids_strict(gm: GameManager, uids: List[str]) -> Dict[str, float]:
-    """
-    Strict reward aggregation:
-      - agent_id must be a string (never None)
-      - agent_id must be in uids (no silent drops)
-      - no broadcasting, no mapping, no dilution
-    """
-    raw_events = gm_pop_reward_events_safe(gm)
+def clear_reward_events_best_effort(gm: GameManager) -> None:
+    try:
+        _ = gm_pop_reward_events_safe(gm)
+    except Exception:
+        pass
 
-    rewards = {str(uid): 0.0 for uid in uids}
-    for _t, agent_id, r in raw_events:
+
+def init_episode_reward_routing(env: GameField) -> Tuple[Set[str], Dict[str, float], Dict[str, int]]:
+    """
+    allowed_uids = the uids we train on for THIS episode (blue agents at reset).
+    pending = per-uid reward accumulator (rewards can arrive even when the uid didn't act this window).
+    last_buf_idx = uid -> last transition index in the buffer (for flushing pending at boundaries).
+    """
+    uids: List[str] = []
+    for a in getattr(env, "blue_agents", []):
+        if a is None:
+            continue
+        uids.append(agent_uid(a))
+
+    allowed_uids = set(uids)
+    pending = {uid: 0.0 for uid in allowed_uids}
+    last_buf_idx: Dict[str, int] = {}
+    return allowed_uids, pending, last_buf_idx
+
+
+def accumulate_rewards_for_uid_set(
+    gm: GameManager,
+    allowed_uids: Set[str],
+    pending: Dict[str, float],
+) -> None:
+    """
+    Pop ALL reward events, but only accumulate those whose agent_id is in allowed_uids.
+    Everything else is ignored (red team, old episode uids, etc.).
+
+    Still strict about invariants:
+      - agent_id must exist and be a non-empty string
+    """
+    events = gm_pop_reward_events_safe(gm)
+    for _t, agent_id, r in events:
         if agent_id is None:
-            raise RuntimeError("Reward event has agent_id=None. Globals are forbidden (strict routing).")
-        key = str(agent_id)
-        if key not in rewards:
-            raise RuntimeError(
-                f"Reward event for unknown agent_id='{key}'. "
-                f"Expected one of: {list(rewards.keys())}"
-            )
-        rewards[key] += float(r)
+            raise RuntimeError("Found reward event with agent_id=None (must always be per-agent).")
+        key = str(agent_id).strip()
+        if not key:
+            raise RuntimeError("Found reward event with empty agent_id.")
 
-    return rewards
+        if key in allowed_uids:
+            pending[key] = pending.get(key, 0.0) + float(r)
+        # else: ignore
 
+
+def consume_pending_reward_for_uid(uid: str, pending: Dict[str, float], time_penalty: float = 0.0) -> float:
+    r = float(pending.get(uid, 0.0))
+    pending[uid] = 0.0
+    return r - float(time_penalty)
+
+
+def flush_pending_rewards_into_buffer(
+    pending: Dict[str, float],
+    last_buf_idx: Dict[str, int],
+    buffer: "MAPPORolloutBuffer",
+) -> None:
+    """
+    At update boundaries + episode end, attach leftover pending rewards to each uid’s LAST transition.
+    Prevents reward loss when a uid didn’t act in the last window.
+    """
+    for uid, r in list(pending.items()):
+        if abs(r) <= 1e-12:
+            continue
+        idx = last_buf_idx.get(uid, None)
+        if idx is None:
+            pending[uid] = 0.0
+            continue
+        buffer.rewards[idx] = float(buffer.rewards[idx]) + float(r)
+        pending[uid] = 0.0
 
 # ==========================================================
 # ENTROPY SCHEDULE
@@ -349,28 +409,19 @@ def sample_mappo_action_via_act(
     deterministic: bool = False,
 ) -> Dict[str, Any]:
     """
-    Uses policy_act.act(...) for action + logp consistency.
+    Uses policy_act.act(...) for macro/target/logp.
     Value is taken from CTDE central critic explicitly.
     """
     device = next(policy_act.parameters()).device
     actor_obs_tensor = actor_obs_tensor.to(device).float()
     central_obs_tensor = central_obs_tensor.to(device).float()
 
-    try:
-        out = policy_act.act(
-            actor_obs_tensor,
-            agent=agent,
-            game_field=env,
-            deterministic=deterministic,
-        )
-    except TypeError:
-        out = policy_act.act(
-            actor_obs_tensor,
-            agent=agent,
-            game_field=env,
-            deterministic=deterministic,
-            return_old_log_prob_key=False,
-        )
+    out = policy_act.act(
+        actor_obs_tensor,
+        agent=agent,
+        game_field=env,
+        deterministic=deterministic,
+    )
 
     def _grab_1d(key: str, alt: Optional[List[str]] = None) -> torch.Tensor:
         if alt is None:
@@ -400,6 +451,12 @@ def sample_mappo_action_via_act(
             mm_np = mm.detach().cpu().numpy().astype(np.bool_).reshape(-1)
         else:
             mm_np = np.array(mm, dtype=np.bool_).reshape(-1)
+        if mm_np.shape != (N_MACROS,):
+            mm_np = mm_np.reshape(-1)
+            if mm_np.shape != (N_MACROS,):
+                raise RuntimeError(f"policy.act macro_mask shape {mm_np.shape}, expected {(N_MACROS,)}")
+        if not mm_np.any():
+            mm_np[:] = True
 
     return {
         "macro_action": macro_action,     # [1]
@@ -454,10 +511,17 @@ class MAPPORolloutBuffer:
         self.dones.append(bool(done))
         self.dts.append(float(dt))
         self.traj_ids.append(int(traj_id))
+
         if macro_mask is None:
-            self.macro_masks.append(np.array([], dtype=np.bool_))
+            self.macro_masks.append(np.zeros((N_MACROS,), dtype=np.bool_))  # safe default (no mask)
+            self.macro_masks[-1][:] = True
         else:
-            self.macro_masks.append(np.array(macro_mask, dtype=np.bool_).reshape(-1))
+            mm = np.array(macro_mask, dtype=np.bool_).reshape(-1)
+            if mm.shape != (N_MACROS,):
+                raise ValueError(f"macro_mask must be shape {(N_MACROS,)}, got {mm.shape}")
+            if not mm.any():
+                mm[:] = True
+            self.macro_masks.append(mm)
 
     def size(self) -> int:
         return len(self.actor_obs)
@@ -466,27 +530,23 @@ class MAPPORolloutBuffer:
         self.__init__()
 
     def to_tensors(self, device: torch.device):
-        actor_obs = torch.tensor(np.stack(self.actor_obs), dtype=torch.float32, device=device)
-        central_obs = torch.tensor(np.stack(self.central_obs), dtype=torch.float32, device=device)
-        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)
-        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)
-        old_log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)
-        values = torch.tensor(self.values, dtype=torch.float32, device=device)
-        next_values = torch.tensor(self.next_values, dtype=torch.float32, device=device)
-        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)
-        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
-        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
-        traj_ids = torch.tensor(self.traj_ids, dtype=torch.long, device=device)
-
-        if len(self.macro_masks) > 0 and self.macro_masks[0].size > 0:
-            macro_masks_np = np.stack(self.macro_masks).astype(np.bool_)
-        else:
-            macro_masks_np = np.zeros((len(self.actor_obs), 0), dtype=np.bool_)
+        actor_obs = torch.tensor(np.stack(self.actor_obs), dtype=torch.float32, device=device)          # [T,C,H,W]
+        central_obs = torch.tensor(np.stack(self.central_obs), dtype=torch.float32, device=device)     # [T,N,C,H,W]
+        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)              # [T]
+        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)            # [T]
+        old_log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)               # [T]
+        values = torch.tensor(self.values, dtype=torch.float32, device=device)                          # [T]
+        next_values = torch.tensor(self.next_values, dtype=torch.float32, device=device)               # [T]
+        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)                        # [T]
+        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)                            # [T]
+        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)                                # [T]
+        traj_ids = torch.tensor(self.traj_ids, dtype=torch.long, device=device)                         # [T]
+        macro_masks = torch.tensor(np.stack(self.macro_masks), dtype=torch.bool, device=device)         # [T,A]
 
         return (
             actor_obs, central_obs, macro_actions, target_actions,
             old_log_probs, values, next_values, rewards, dones, dts, traj_ids,
-            macro_masks_np
+            macro_masks
         )
 
 
@@ -535,15 +595,15 @@ def compute_gae_event_grouped_nextvalues_cpu(
 # ==========================================================
 # MAPPO UPDATE (runs on train_device, usually CPU)
 # ==========================================================
-def _fix_all_false_rows_np(mask_np: np.ndarray) -> np.ndarray:
-    if mask_np.size == 0:
-        return mask_np
-    row_sum = mask_np.sum(axis=1)
+def _fix_all_false_rows(mask: torch.Tensor) -> torch.Tensor:
+    if mask.numel() == 0:
+        return mask
+    row_sum = mask.sum(dim=1)
     bad = row_sum == 0
-    if np.any(bad):
-        mask_np = mask_np.copy()
-        mask_np[bad, :] = True
-    return mask_np
+    if bad.any():
+        mask = mask.clone()
+        mask[bad, :] = True
+    return mask
 
 
 def mappo_update(
@@ -556,7 +616,7 @@ def mappo_update(
     (
         actor_obs, central_obs, macro_actions, target_actions,
         old_log_probs, values, next_values, rewards, dones, dts, traj_ids,
-        macro_masks_np
+        macro_masks
     ) = buffer.to_tensors(device)
 
     T = actor_obs.size(0)
@@ -595,30 +655,13 @@ def mappo_update(
             mb_old_logp = old_log_probs.index_select(0, mb_idx)
             mb_adv      = advantages.index_select(0, mb_idx)
             mb_ret      = returns.index_select(0, mb_idx)
+            mb_mask     = _fix_all_false_rows(macro_masks.index_select(0, mb_idx))
 
-            mb_mask = None
-            if macro_masks_np is not None and getattr(macro_masks_np, "shape", (0, 0))[1] > 0:
-                mb_mask_np = _fix_all_false_rows_np(macro_masks_np[idx_np, :])
-                mb_mask = torch.tensor(mb_mask_np, dtype=torch.bool, device=device)
-
-            # CTDE critic value
             new_values = policy_train.forward_central_critic(mb_central).reshape(-1)
 
-            # Actor logp/entropy
-            try:
-                new_logp, entropy, _ = policy_train.evaluate_actions(
-                    mb_actor, mb_macro, mb_target, macro_mask_batch=mb_mask
-                )
-            except TypeError:
-                try:
-                    new_logp, entropy, _ = policy_train.evaluate_actions(
-                        mb_actor, mb_macro, mb_target, macro_mask=mb_mask
-                    )
-                except TypeError:
-                    new_logp, entropy, _ = policy_train.evaluate_actions(
-                        mb_actor, mb_macro, mb_target
-                    )
-
+            new_logp, entropy, _ = policy_train.evaluate_actions(
+                mb_actor, mb_macro, mb_target, macro_mask_batch=mb_mask
+            )
             new_logp = new_logp.reshape(-1)
             entropy = entropy.reshape(-1)
 
@@ -658,7 +701,7 @@ class MacroUsageTracker:
         self.by_agent.clear()
 
     def add(self, agent: Any, macro_enum: Any) -> None:
-        sid = agent_slot(agent)  # ✅ stable across episodes
+        sid = agent_slot(agent)
         mn = _macro_name(macro_enum)
         self.total[mn] = self.total.get(mn, 0) + 1
         self.by_agent.setdefault(sid, {})
@@ -691,7 +734,6 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     env = make_env()
     gm = env.getGameManager()
 
-    # Ensure PBRS gamma matches trainer
     if hasattr(gm, "set_shaping_gamma"):
         try:
             gm.set_shaping_gamma(GAMMA)
@@ -707,7 +749,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
 
     def _make_policy():
         return ActorCriticNet(
-            n_macros=len(USED_MACROS),
+            n_macros=N_MACROS,
             n_targets=env.num_macro_targets,
             n_agents=n_agents,
             in_channels=NUM_CNN_CHANNELS,
@@ -716,6 +758,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         )
 
     act_device = prefer_device()
+    # DirectML backward tends to be fragile; keep training on CPU when using privateuseone
     train_device = torch.device("cpu") if (HAS_TDML and "privateuseone" in str(act_device).lower()) else act_device
 
     print(f"[train_mappo_event] act_device:   {act_device}")
@@ -736,9 +779,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     phase_idx = 0
     phase_episode_count = 0
     phase_recent: List[int] = []
-    phase_wr = 0.0
 
-    # Optional self-play snapshot buffer (disabled by default; keep for later experiments)
     ENABLE_SELFPLAY = False
     POLICY_SAMPLE_CHANCE = 0.15
     old_policies_buffer: Deque[Dict[str, Any]] = deque(maxlen=20)
@@ -755,8 +796,8 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
 
         cur_phase = PHASE_SEQUENCE[phase_idx]
         phase_cfg = PHASE_CONFIG[cur_phase]
-        gm.score_limit = phase_cfg["score_limit"]
-        gm.max_time = phase_cfg["max_time"]
+        gm.score_limit = int(phase_cfg["score_limit"])
+        gm.max_time = float(phase_cfg["max_time"])
         max_steps = int(phase_cfg["max_macro_steps"])
 
         if hasattr(gm, "set_phase"):
@@ -778,13 +819,12 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         else:
             set_red_policy_for_phase(env, cur_phase)
 
-        # Reset episode
+        # ---- Episode reset ----
         env.reset_default()
-        if hasattr(gm, "reset_game"):
-            try:
-                gm.reset_game(reset_scores=True)
-            except Exception:
-                pass
+        clear_reward_events_best_effort(gm)
+
+        # ✅ NEW: per-episode reward routing (this is the critical fix)
+        episode_uid_set, pending_reward, last_buf_idx = init_episode_reward_routing(env)
 
         red_pol = env.policies.get("red")
         if hasattr(red_pol, "reset"):
@@ -801,7 +841,6 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         traj_id_map.clear()
 
         while (not done) and steps < max_steps and global_step < total_steps:
-            # Central obs at decision boundary
             blue_joint_obs = get_blue_team_obs_in_id_order(env)
             central_obs_np = np.stack(blue_joint_obs, axis=0)
             central_obs_tensor = torch.tensor(central_obs_np, dtype=torch.float32, device=act_device).unsqueeze(0)
@@ -810,7 +849,6 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             decisions = []
             submit_actions: Dict[str, Tuple[int, int]] = {}
 
-            # Decide actions for enabled agents only
             for agent in blue_agents_enabled:
                 actor_obs_np = np.array(env.build_observation(agent), dtype=np.float32)
                 actor_obs_tensor = torch.tensor(actor_obs_np, dtype=torch.float32, device=act_device).unsqueeze(0)
@@ -842,31 +880,24 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                     tid = traj_id_counter
                     traj_id_counter += 1
 
-                decisions.append((agent, actor_obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, mm_np))
+                uid = agent_uid(agent)
+                decisions.append((agent, uid, actor_obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, mm_np))
 
                 for k in external_keys_for_agent(env, agent):
                     submit_actions[k] = (macro_val, target_idx)
 
             submit_external_actions_robust(env, submit_actions)
 
-            # Simulate exactly one decision window (with remainder)
             sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
             done = bool(gm.game_over)
 
-            # Real dt advanced (handles early termination inside the window)
             sim_time_now = gm_get_sim_time_safe(gm)
             dt = max(0.0, float(sim_time_now - sim_time_prev))
             sim_time_prev = sim_time_now
 
             rollout_done = bool(done or ((steps + 1) >= max_steps))
 
-            # STRICT rewards: only for agents who acted this step
-            acted_uids = [agent_uid(a) for (a, *_rest) in decisions]
-            rewards = collect_rewards_for_uids_strict(gm, acted_uids)
-
-            # Time penalty only for acting agents
-            for uid in acted_uids:
-                rewards[uid] = float(rewards.get(uid, 0.0)) - TIME_PENALTY_PER_AGENT_PER_MACRO
+            accumulate_rewards_for_uid_set(gm, episode_uid_set, pending_reward)
 
             # Bootstrap V(s_{t+1}) from central critic (forward only)
             with torch.no_grad():
@@ -879,11 +910,10 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             if rollout_done:
                 bootstrap_value = 0.0
 
-            # Store transitions
+            # Store transitions (consume pending ONLY for uids that acted)
             step_reward_sum = 0.0
-            for agent, actor_obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, mm_np in decisions:
-                uid = agent_uid(agent)
-                r = float(rewards.get(uid, 0.0))
+            for agent, uid, actor_obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, mm_np in decisions:
+                r = consume_pending_reward_for_uid(uid, pending_reward, TIME_PENALTY_PER_AGENT_PER_MACRO)
                 step_reward_sum += r
 
                 agent_dead = (not agent.isEnabled())
@@ -905,12 +935,16 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                     macro_mask=mm_np,
                 )
                 global_step += 1
+                last_buf_idx[uid] = buffer.size() - 1
 
             ep_return += step_reward_sum
             steps += 1
 
-            # Update (train_device only), then sync -> act model
+            # Update (train_device), then sync → act model
             if buffer.size() >= UPDATE_EVERY:
+                # ✅ NEW: flush pending into buffer BEFORE update clears buffer
+                flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
+
                 ent = get_entropy_coef(cur_phase, phase_episode_count)
                 print(f"[MAPPO UPDATE] step={global_step} episode={episode_idx} phase={cur_phase} ENT={ent:.4f} Opp={opponent_tag}")
 
@@ -919,9 +953,14 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 policy_act.load_state_dict(policy_train.state_dict())
                 policy_act.eval()
 
-                # Optional: store snapshot for self-play experiments later
                 if ENABLE_SELFPLAY:
                     old_policies_buffer.append(copy.deepcopy(policy_train.state_dict()))
+
+                # buffer cleared inside update => indices invalid now
+                last_buf_idx.clear()
+
+        # Episode end flush (if any rewards still pending, attach to last transitions)
+        flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
 
         # Episode result
         if gm.blue_score > gm.red_score:
