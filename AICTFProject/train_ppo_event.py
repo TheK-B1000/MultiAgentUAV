@@ -1,5 +1,7 @@
 # ==========================================================
-# train_ppo_event.py (UPDATED: EPISODE-STRICT + PENDING ACCUMULATOR FIXED)
+# train_ppo_event.py (UPDATED: EPISODE-STRICT + PENDING ACCUMULATOR FIXED
+#                     + OP3 STABILIZATION: SCORE-DELTA + OUTCOME TERMINAL
+#                     + TERMINAL-SAFE UPDATES + OP3 ENTROPY RESET)
 # ==========================================================
 import os
 import random
@@ -58,7 +60,7 @@ def set_seed(seed: int = 42) -> None:
 GRID_ROWS = CNN_ROWS
 GRID_COLS = CNN_COLS
 
-TOTAL_STEPS: int = 5_000_000
+TOTAL_STEPS: int = 1_000_000
 UPDATE_EVERY: int = 4096          # transitions (not windows)
 PPO_EPOCHS: int = 10
 MINIBATCH_SIZE: int = 256
@@ -99,6 +101,20 @@ PHASE_CONFIG: Dict[str, Dict[str, float]] = {
 }
 
 TIME_PENALTY_PER_AGENT_PER_MACRO = 0.001
+
+# ==========================================================
+# OP3 Stabilization: Score-delta + Outcome terminal reward
+# ==========================================================
+WIN_BONUS: float = 25.0
+LOSS_PENALTY: float = -25.0
+DRAW_PENALTY: float = -5.0
+
+BLUE_SCORED_BONUS: float = 15.0     # per point blue gains
+RED_SCORED_PENALTY: float = -15.0   # per point red gains (penalty to blue)
+
+# Entropy bump on OP3 entry
+OP3_ENT_RESET_VALUE: float = 0.08
+OP3_ENT_RESET_EPISODES: int = 100   # first N OP3 episodes get higher entropy then decay
 
 
 # ==========================================================
@@ -454,7 +470,6 @@ def init_episode_reward_routing(env: GameField) -> Tuple[set, Dict[str, float], 
     return episode_uid_set, pending, last_buf_idx
 
 
-# train_ppo_event.py (replace your strict accumulator with this filtered one)
 def accumulate_rewards_for_uid_set(
     gm: GameManager,
     allowed_uids: set,
@@ -467,7 +482,7 @@ def accumulate_rewards_for_uid_set(
     Still STRICT about invariants:
       - agent_id must exist and be a non-empty string
     """
-    events = pop_reward_events_strict(gm)  # or gm.pop_reward_events() if you prefer
+    events = pop_reward_events_strict(gm)
     for _t, agent_id, r in events:
         if agent_id is None:
             raise RuntimeError("Found reward event with agent_id=None (must always be per-agent).")
@@ -499,7 +514,7 @@ def flush_pending_rewards_into_buffer(
 ) -> None:
     """
     Attach any leftover pending rewards to each agent’s LAST stored transition in the buffer.
-    This prevents terminal rewards from crashing when an agent did not act in the final window.
+    This prevents terminal rewards from being dropped when an agent did not act in the final window.
     """
     for uid, r in list(pending.items()):
         if abs(r) <= 1e-12:
@@ -513,18 +528,92 @@ def flush_pending_rewards_into_buffer(
 
 
 # ==========================================================
-# Entropy schedule
+# OP3 Stabilization helpers
+# ==========================================================
+def outcome_bonus_from_scores(blue_score: int, red_score: int) -> float:
+    if blue_score > red_score:
+        return float(WIN_BONUS)
+    if red_score > blue_score:
+        return float(LOSS_PENALTY)
+    return float(DRAW_PENALTY)
+
+
+def add_terminal_reward_to_all_uids(
+    pending_reward: Dict[str, float],
+    episode_uid_set: set,
+    terminal_r: float,
+) -> float:
+    """
+    Add terminal reward to each uid's pending bucket.
+    Returns the TEAM total injected (terminal_r * num_uids).
+    """
+    if abs(float(terminal_r)) <= 1e-12:
+        return 0.0
+    n = max(1, len(episode_uid_set))
+    for uid in episode_uid_set:
+        pending_reward[uid] = pending_reward.get(uid, 0.0) + float(terminal_r)
+    return float(terminal_r) * float(n)
+
+
+def apply_score_delta_shaping(
+    gm: GameManager,
+    episode_uid_set: set,
+    pending_reward: Dict[str, float],
+    prev_blue_score: int,
+    prev_red_score: int,
+) -> Tuple[int, int, float]:
+    """
+    Adds immediate rewards/penalties when the SCORE changes, so PPO cares about the objective.
+
+    Returns updated (prev_blue_score, prev_red_score, team_total_added)
+    """
+    cur_b = int(getattr(gm, "blue_score", 0))
+    cur_r = int(getattr(gm, "red_score", 0))
+
+    db = cur_b - int(prev_blue_score)
+    dr = cur_r - int(prev_red_score)
+
+    team_added = 0.0
+    n = max(1, len(episode_uid_set))
+
+    if db != 0:
+        per_uid = float(BLUE_SCORED_BONUS) * float(db)
+        for uid in episode_uid_set:
+            pending_reward[uid] = pending_reward.get(uid, 0.0) + per_uid
+        team_added += per_uid * float(n)
+
+    if dr != 0:
+        per_uid = float(RED_SCORED_PENALTY) * float(dr)
+        for uid in episode_uid_set:
+            pending_reward[uid] = pending_reward.get(uid, 0.0) + per_uid
+        team_added += per_uid * float(n)
+
+    return cur_b, cur_r, team_added
+
+
+# ==========================================================
+# Entropy schedule (with OP3 reset bump)
 # ==========================================================
 def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
-    base = ENT_COEF_BY_PHASE[cur_phase]
+    base = float(ENT_COEF_BY_PHASE[cur_phase])
+
     if cur_phase == "OP1":
         start_ent, horizon = 0.07, 300.0
-    elif cur_phase == "OP2":
+        frac = min(1.0, float(phase_episode_count) / horizon)
+        return float(start_ent - (start_ent - base) * frac)
+
+    if cur_phase == "OP2":
         start_ent, horizon = 0.06, 500.0
-    else:
-        start_ent, horizon = 0.05, 1500.0
-    frac = min(1.0, phase_episode_count / horizon)
-    return float(start_ent - (start_ent - base) * frac)
+        frac = min(1.0, float(phase_episode_count) / horizon)
+        return float(start_ent - (start_ent - base) * frac)
+
+    # OP3: temporary bump at entry, then decay to base
+    if phase_episode_count <= OP3_ENT_RESET_EPISODES:
+        start_ent = float(OP3_ENT_RESET_VALUE)
+        frac = min(1.0, float(phase_episode_count) / float(OP3_ENT_RESET_EPISODES))
+        return float(start_ent - (start_ent - base) * frac)
+
+    return base
 
 
 # ==========================================================
@@ -635,7 +724,7 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         # Drain any stale reward events after reset (defensive)
         clear_reward_events_best_effort(gm)
 
-        # ✅ MUST be per-episode (prevents unknown-agent crashes after reset)
+        # MUST be per-episode (prevents unknown-agent crashes after reset)
         episode_uid_set, pending_reward, last_buf_idx = init_episode_reward_routing(env)
 
         red_pol = env.policies.get("red")
@@ -643,8 +732,15 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             red_pol.reset()
 
         done = False
-        ep_return = 0.0
         steps = 0
+
+        # Logging totals
+        step_return_total = 0.0  # sum of consumed per-step rewards (team-total per window)
+        term_return_total = 0.0  # terminal injections + leftover flush totals (team-total)
+
+        # Score-delta shaping trackers
+        prev_blue_score = int(getattr(gm, "blue_score", 0))
+        prev_red_score  = int(getattr(gm, "red_score", 0))
 
         while (not done) and steps < max_steps and global_step < total_steps:
             blue_agents = [a for a in env.blue_agents if a.isEnabled()]
@@ -682,7 +778,17 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             done = bool(gm.game_over)
             dt = compute_dt_for_window(DECISION_WINDOW)
 
+            # 1) collect event-driven rewards into pending (episode-filtered)
             accumulate_rewards_for_uid_set(gm, episode_uid_set, pending_reward)
+
+            # 2) add objective-aligned score-delta shaping into pending
+            prev_blue_score, prev_red_score, _team_added = apply_score_delta_shaping(
+                gm=gm,
+                episode_uid_set=episode_uid_set,
+                pending_reward=pending_reward,
+                prev_blue_score=prev_blue_score,
+                prev_red_score=prev_red_score,
+            )
 
             # --- Next values for bootstrap ---
             done_for_rollout_global = bool(done or ((steps + 1) >= max_steps))
@@ -729,12 +835,11 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 global_step += 1
                 last_buf_idx[uid] = buffer.size() - 1
 
-            ep_return += step_reward_sum
+            step_return_total += float(step_reward_sum)
             steps += 1
 
-            # --- Update ---
-            if buffer.size() >= UPDATE_EVERY:
-                # ✅ flush pending into buffer BEFORE update clears the buffer
+            # --- Update (terminal-safe): do not update on a terminal step ---
+            if buffer.size() >= UPDATE_EVERY and (not done_for_rollout_global):
                 flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
 
                 current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
@@ -745,12 +850,32 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
 
                 ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
 
-                # buffer is cleared inside ppo_update, so indices are invalid now
+                # buffer cleared inside ppo_update
                 last_buf_idx.clear()
-                # pending_reward should be near-zero after flush, but keep dict alive
 
-        # Episode end: attach any leftover pending rewards to last transitions in buffer
+        # ==========================================================
+        # Episode end: outcome terminal + flush leftovers into buffer
+        # ==========================================================
+        outcome_r = outcome_bonus_from_scores(gm.blue_score, gm.red_score)
+        team_outcome_added = add_terminal_reward_to_all_uids(pending_reward, episode_uid_set, outcome_r)
+        term_return_total += float(team_outcome_added)
+
+        # leftover pending is per-uid; include it in TermR logs and learning
+        leftover_before = float(sum(pending_reward.values()))
+        term_return_total += float(leftover_before)
+
+        # attach leftovers to last transitions
         flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
+
+        # If we skipped an update because episode ended, catch up now
+        if buffer.size() >= UPDATE_EVERY:
+            current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
+            print(
+                f"[UPDATE@EP_END] step={global_step} episode={episode_idx} "
+                f"phase={cur_phase} ENT={current_ent_coef:.4f} Opp={opponent_tag}"
+            )
+            ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
+            last_buf_idx.clear()
 
         # --- Episode result ---
         if gm.blue_score > gm.red_score:
@@ -770,12 +895,12 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
 
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
-        avg_step_r = ep_return / max(1, steps)
+        avg_step_r = step_return_total / max(1, steps)
 
         print(
             f"[{episode_idx:5d}] {result:8} | "
             f"StepR {avg_step_r:+.3f} "
-            f"TermR {ep_return:+.1f} | "
+            f"TermR {term_return_total:+.1f} | "
             f"Score {gm.blue_score}:{gm.red_score} | "
             f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
