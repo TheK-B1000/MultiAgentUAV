@@ -10,6 +10,8 @@ Crash-proof goals:
   - Never assume GameField has helper methods like _enabled/_agent_float_pos.
   - Use float_pos when available for smooth rendering.
   - Fall back gracefully to cell position / x,y.
+  - Never trust stale row_count/col_count; derive from grid.
+  - Be resilient to missing manager fields (flag homes/taken, time, etc).
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from typing import Tuple, List, Any, Optional
 
 import pygame as pg
 
-from game_field import GameField, Mine, MinePickup
+from game_field import GameField
 from agents import Agent, TEAM_ZONE_RADIUS_CELLS
 
 
@@ -27,16 +29,57 @@ class ViewerGameField(GameField):
         super().__init__(grid)
 
     # ------------------------------------------------------------------
+    # Dimensions: derive from actual grid (20x20 in your new env)
+    # ------------------------------------------------------------------
+    @property
+    def _rows(self) -> int:
+        try:
+            return int(len(self.grid))
+        except Exception:
+            return int(getattr(self, "row_count", 0) or 0)
+
+    @property
+    def _cols(self) -> int:
+        try:
+            return int(len(self.grid[0])) if self.grid and len(self.grid) > 0 else 0
+        except Exception:
+            return int(getattr(self, "col_count", 0) or 0)
+
+    def _safe_row_count(self) -> int:
+        r = self._rows
+        return r if r > 0 else int(getattr(self, "row_count", 20) or 20)
+
+    def _safe_col_count(self) -> int:
+        c = self._cols
+        return c if c > 0 else int(getattr(self, "col_count", 20) or 20)
+
+    # ------------------------------------------------------------------
+    # Manager access (different env versions expose different hooks)
+    # ------------------------------------------------------------------
+    @property
+    def _gm(self):
+        if hasattr(self, "manager"):
+            return getattr(self, "manager")
+        fn = getattr(self, "getGameManager", None)
+        if callable(fn):
+            try:
+                return fn()
+            except Exception:
+                return None
+        return None
+
+    # ------------------------------------------------------------------
     # Safe wrappers (do NOT rely on GameField private helpers)
     # ------------------------------------------------------------------
     def _enabled(self, agent: Any) -> bool:
+        if agent is None:
+            return False
         fn = getattr(agent, "isEnabled", None)
         if callable(fn):
             try:
                 return bool(fn())
             except Exception:
                 return True
-        # common fallbacks
         for attr in ("enabled", "is_enabled", "alive"):
             if hasattr(agent, attr):
                 try:
@@ -46,7 +89,9 @@ class ViewerGameField(GameField):
         return True
 
     def _agent_cell_pos(self, agent: Any) -> Tuple[int, int]:
-        # Prefer explicit cell_pos
+        if agent is None:
+            return (0, 0)
+
         v = getattr(agent, "cell_pos", None)
         if isinstance(v, (tuple, list)) and len(v) >= 2:
             try:
@@ -54,7 +99,6 @@ class ViewerGameField(GameField):
             except Exception:
                 pass
 
-        # Common x/y style
         for ax, ay in (("x", "y"), ("cell_x", "cell_y"), ("col", "row")):
             if hasattr(agent, ax) and hasattr(agent, ay):
                 try:
@@ -62,7 +106,6 @@ class ViewerGameField(GameField):
                 except Exception:
                     pass
 
-        # Fall back to float_pos
         fp = getattr(agent, "float_pos", None)
         if isinstance(fp, (tuple, list)) and len(fp) >= 2:
             try:
@@ -73,6 +116,8 @@ class ViewerGameField(GameField):
         return (0, 0)
 
     def _agent_float_pos(self, agent: Any) -> Tuple[float, float]:
+        if agent is None:
+            return (0.0, 0.0)
         fp = getattr(agent, "float_pos", None)
         if isinstance(fp, (tuple, list)) and len(fp) >= 2:
             try:
@@ -83,6 +128,8 @@ class ViewerGameField(GameField):
         return float(cx), float(cy)
 
     def _agent_is_tagged(self, agent: Any) -> bool:
+        if agent is None:
+            return False
         fn = getattr(agent, "isTagged", None)
         if callable(fn):
             try:
@@ -92,6 +139,8 @@ class ViewerGameField(GameField):
         return bool(getattr(agent, "tagged", False))
 
     def _agent_is_carrying_flag(self, agent: Any) -> bool:
+        if agent is None:
+            return False
         fn = getattr(agent, "isCarryingFlag", None)
         if callable(fn):
             try:
@@ -100,112 +149,153 @@ class ViewerGameField(GameField):
                 return False
         return bool(getattr(agent, "is_carrying_flag", False) or getattr(agent, "carrying_flag", False))
 
+    def _agent_side(self, agent: Any) -> str:
+        if agent is None:
+            return "blue"
+        side = getattr(agent, "side", None)
+        if side is None and callable(getattr(agent, "getSide", None)):
+            try:
+                side = agent.getSide()
+            except Exception:
+                side = "blue"
+        side = str(side or "blue").lower()
+        return "red" if side == "red" else "blue"
+
+    # ------------------------------------------------------------------
+    # Zones (fallback if GameField doesn't expose ranges)
+    # ------------------------------------------------------------------
+    def _zone_ranges(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+        """
+        Returns (blue_min,max), (red_min,max).
+        If the env exposes *_zone_col_range, use those; else split grid in half.
+        """
+        cols = self._safe_col_count()
+        if hasattr(self, "blue_zone_col_range") and hasattr(self, "red_zone_col_range"):
+            try:
+                bmin, bmax = self.blue_zone_col_range
+                rmin, rmax = self.red_zone_col_range
+                return (int(bmin), int(bmax)), (int(rmin), int(rmax))
+            except Exception:
+                pass
+
+        mid = cols // 2
+        blue = (0, max(0, mid - 1))
+        red = (mid, max(mid, cols - 1))
+        return blue, red
+
     # ------------------------------------------------------------------
     # Rendering
     # ------------------------------------------------------------------
     def draw(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
-        rect_width, rect_height = board_rect.width, board_rect.height
-        cell_w = rect_width / max(1, self.col_count)
-        cell_h = rect_height / max(1, self.row_count)
+        rows = self._safe_row_count()
+        cols = self._safe_col_count()
 
+        rect_width, rect_height = board_rect.width, board_rect.height
+        cell_w = rect_width / max(1, cols)
+        cell_h = rect_height / max(1, rows)
+
+        # 1. Clean background (no grid lines)
         surface.fill((20, 22, 30), board_rect)
         self.draw_halves_and_center_line(surface, board_rect)
-
-        # grid
-        grid_color = (70, 70, 85)
-        for row in range(self.row_count + 1):
-            y = int(board_rect.top + row * cell_h)
-            pg.draw.line(surface, grid_color, (board_rect.left, y), (board_rect.right, y), 1)
-
-        for col in range(self.col_count + 1):
-            x = int(board_rect.left + col * cell_w)
-            pg.draw.line(surface, grid_color, (x, board_rect.top), (x, board_rect.bottom), 1)
 
         # ranges overlay
         if getattr(self, "debug_draw_ranges", False) or getattr(self, "debug_draw_mine_ranges", False):
             range_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
 
             if getattr(self, "debug_draw_ranges", False):
-                sup_radius_px = float(getattr(self, "suppression_range_cells", 0)) * float(min(cell_w, cell_h))
+                sup_cells = float(getattr(self, "suppression_range_cells", 0.0) or 0.0)
+                sup_radius_px = sup_cells * float(min(cell_w, cell_h))
 
-                def draw_sup(agent: Agent, rgba: Tuple[int, int, int, int]) -> None:
+                def draw_sup(agent: Any, rgba: Tuple[int, int, int, int]) -> None:
                     fx, fy = self._agent_float_pos(agent)
                     cx = (fx + 0.5) * cell_w
                     cy = (fy + 0.5) * cell_h
                     pg.draw.circle(range_surface, rgba, (int(cx), int(cy)), int(sup_radius_px), width=2)
 
-                for a in self.blue_agents:
+                for a in getattr(self, "blue_agents", []):
                     if self._enabled(a):
                         draw_sup(a, (50, 130, 255, 190))
-                for a in self.red_agents:
+                for a in getattr(self, "red_agents", []):
                     if self._enabled(a):
                         draw_sup(a, (255, 110, 70, 190))
 
             if getattr(self, "debug_draw_mine_ranges", False) and getattr(self, "mines", None):
-                mine_radius_px = float(getattr(self, "mine_radius_cells", 0)) * float(min(cell_w, cell_h))
-                for mine in self.mines:
-                    cx = (float(mine.x) + 0.5) * cell_w
-                    cy = (float(mine.y) + 0.5) * cell_h
-                    rgba = (40, 170, 230, 170) if str(mine.owner_side).lower() == "blue" else (230, 120, 80, 170)
+                mine_cells = float(getattr(self, "mine_radius_cells", 0.0) or 0.0)
+                mine_radius_px = mine_cells * float(min(cell_w, cell_h))
+                for mine in getattr(self, "mines", []):
+                    cx = (float(getattr(mine, "x", 0)) + 0.5) * cell_w
+                    cy = (float(getattr(mine, "y", 0)) + 0.5) * cell_h
+                    rgba = (40, 170, 230, 170) if str(getattr(mine, "owner_side", "blue")).lower() == "blue" else (230, 120, 80, 170)
                     pg.draw.circle(range_surface, rgba, (int(cx), int(cy)), int(mine_radius_px), width=1)
 
             surface.blit(range_surface, board_rect.topleft)
 
-        # flags
-        blue_base = getattr(self.manager, "blue_flag_home", self.manager.blue_flag_position)
-        red_base = getattr(self.manager, "red_flag_home", self.manager.red_flag_position)
+        gm = self._gm
 
-        self.draw_flag(surface, board_rect, cell_w, cell_h, (int(blue_base[0]), int(blue_base[1])),
-                       (90, 170, 250), bool(getattr(self.manager, "blue_flag_taken", False)))
-        self.draw_flag(surface, board_rect, cell_w, cell_h, (int(red_base[0]), int(red_base[1])),
-                       (250, 120, 70), bool(getattr(self.manager, "red_flag_taken", False)))
+        # flags (handle multiple manager layouts)
+        def _gm_attr(*names, default=None):
+            if gm is None:
+                return default
+            for n in names:
+                if hasattr(gm, n):
+                    return getattr(gm, n)
+            return default
+
+        blue_pos = _gm_attr("blue_flag_home", "blue_flag_position", default=(0, rows // 2))
+        red_pos = _gm_attr("red_flag_home", "red_flag_position", default=(cols - 1, rows // 2))
+        blue_taken = bool(_gm_attr("blue_flag_taken", default=False))
+        red_taken = bool(_gm_attr("red_flag_taken", default=False))
+
+        self.draw_flag(surface, board_rect, cell_w, cell_h, (int(blue_pos[0]), int(blue_pos[1])), (90, 170, 250), blue_taken)
+        self.draw_flag(surface, board_rect, cell_w, cell_h, (int(red_pos[0]), int(red_pos[1])), (250, 120, 70), red_taken)
 
         # mine pickups
         for pickup in getattr(self, "mine_pickups", []):
-            cx = board_rect.left + (float(pickup.x) + 0.5) * cell_w
-            cy = board_rect.top + (float(pickup.y) + 0.5) * cell_h
+            cx = board_rect.left + (float(getattr(pickup, "x", 0)) + 0.5) * cell_w
+            cy = board_rect.top + (float(getattr(pickup, "y", 0)) + 0.5) * cell_h
             r_outer = int(0.30 * min(cell_w, cell_h))
             r_inner = int(0.16 * min(cell_w, cell_h))
-            color = (80, 210, 255) if str(pickup.owner_side).lower() == "blue" else (255, 160, 110)
+            color = (80, 210, 255) if str(getattr(pickup, "owner_side", "blue")).lower() == "blue" else (255, 160, 110)
             pg.draw.circle(surface, (10, 10, 14), (int(cx), int(cy)), r_outer)
             pg.draw.circle(surface, color, (int(cx), int(cy)), r_outer, width=2)
             pg.draw.circle(surface, color, (int(cx), int(cy)), r_inner)
 
         # mines
         for mine in getattr(self, "mines", []):
-            cx = board_rect.left + (float(mine.x) + 0.5) * cell_w
-            cy = board_rect.top + (float(mine.y) + 0.5) * cell_h
+            cx = board_rect.left + (float(getattr(mine, "x", 0)) + 0.5) * cell_w
+            cy = board_rect.top + (float(getattr(mine, "y", 0)) + 0.5) * cell_h
             r = int(0.35 * min(cell_w, cell_h))
-            color = (40, 170, 230) if str(mine.owner_side).lower() == "blue" else (230, 120, 80)
+            color = (40, 170, 230) if str(getattr(mine, "owner_side", "blue")).lower() == "blue" else (230, 120, 80)
             pg.draw.circle(surface, color, (int(cx), int(cy)), r)
             pg.draw.circle(surface, (5, 5, 8), (int(cx), int(cy)), r, width=1)
 
         # agents
-        def draw_agent(agent: Agent, body_rgb: Tuple[int, int, int], enemy_flag_rgb: Tuple[int, int, int]) -> None:
+        def draw_agent(agent: Any, body_rgb: Tuple[int, int, int], enemy_flag_rgb: Tuple[int, int, int]) -> None:
+            if agent is None:
+                return
+
             fx, fy = self._agent_float_pos(agent)
             center_x = board_rect.left + (fx + 0.5) * cell_w
             center_y = board_rect.top + (fy + 0.5) * cell_h
             tri_size = 0.45 * min(cell_w, cell_h)
 
             # aim: first waypoint, else enemy flag
-            if getattr(agent, "path", None):
+            target_x, target_y = fx, fy
+            path = getattr(agent, "path", None)
+            if isinstance(path, list) and len(path) > 0:
                 try:
-                    tx, ty = agent.path[0]
+                    tx, ty = path[0]
                     target_x, target_y = float(tx), float(ty)
                 except Exception:
                     target_x, target_y = fx, fy
             else:
-                side = getattr(agent, "side", None)
-                if side is None and callable(getattr(agent, "getSide", None)):
+                side = self._agent_side(agent)
+                if gm is not None and callable(getattr(gm, "get_enemy_flag_position", None)):
                     try:
-                        side = agent.getSide()
+                        ex, ey = gm.get_enemy_flag_position(side)
+                        target_x, target_y = float(ex), float(ey)
                     except Exception:
-                        side = "blue"
-                try:
-                    ex, ey = self.manager.get_enemy_flag_position(str(side).lower())
-                    target_x, target_y = float(ex), float(ey)
-                except Exception:
-                    target_x, target_y = fx, fy
+                        target_x, target_y = fx, fy
 
             dx = target_x - fx
             dy = target_y - fy
@@ -214,10 +304,14 @@ class ViewerGameField(GameField):
             lx, ly = -uy, ux
 
             tip = (int(center_x + ux * tri_size), int(center_y + uy * tri_size))
-            left = (int(center_x - ux * tri_size * 0.6 + lx * tri_size * 0.6),
-                    int(center_y - uy * tri_size * 0.6 + ly * tri_size * 0.6))
-            right = (int(center_x - ux * tri_size * 0.6 - lx * tri_size * 0.6),
-                     int(center_y - uy * tri_size * 0.6 - ly * tri_size * 0.6))
+            left = (
+                int(center_x - ux * tri_size * 0.6 + lx * tri_size * 0.6),
+                int(center_y - uy * tri_size * 0.6 + ly * tri_size * 0.6),
+            )
+            right = (
+                int(center_x - ux * tri_size * 0.6 - lx * tri_size * 0.6),
+                int(center_y - uy * tri_size * 0.6 - ly * tri_size * 0.6),
+            )
 
             body_color = body_rgb if self._enabled(agent) else (50, 50, 55)
             pg.draw.polygon(surface, body_color, (tip, left, right))
@@ -230,23 +324,28 @@ class ViewerGameField(GameField):
             if self._agent_is_tagged(agent):
                 pg.draw.polygon(surface, (245, 245, 245), (tip, left, right), width=2)
 
-        for a in self.blue_agents:
+        for a in getattr(self, "blue_agents", []):
             draw_agent(a, (0, 180, 255), (250, 120, 70))
-        for a in self.red_agents:
+        for a in getattr(self, "red_agents", []):
             draw_agent(a, (255, 120, 40), (90, 170, 250))
 
         # banner
-        if getattr(self, "banner_queue", None):
-            text, color, time_left = self.banner_queue[-1]
-            fade = max(0.3, min(1.0, float(time_left) / 2.0))
-            font = pg.font.SysFont(None, 48)
-            faded_color = tuple(int(c * fade) for c in color)
-            img = font.render(text, True, faded_color)
-            surface.blit(img, (board_rect.centerx - img.get_width() // 2, board_rect.top + 12))
+        bq = getattr(self, "banner_queue", None)
+        if isinstance(bq, list) and len(bq) > 0:
+            try:
+                text, color, time_left = bq[-1]
+                fade = max(0.3, min(1.0, float(time_left) / 2.0))
+                font = pg.font.SysFont(None, 48)
+                faded_color = tuple(int(c * fade) for c in color)
+                img = font.render(str(text), True, faded_color)
+                surface.blit(img, (board_rect.centerx - img.get_width() // 2, board_rect.top + 12))
+            except Exception:
+                pass
 
     def draw_halves_and_center_line(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
+        cols = self._safe_col_count()
         rect_width, rect_height = board_rect.width, board_rect.height
-        cell_width = rect_width / max(1, self.col_count)
+        cell_width = rect_width / max(1, cols)
 
         def fill_cols(col_start: int, col_end: int, rgba: Tuple[int, int, int, int]) -> None:
             if col_start > col_end:
@@ -258,9 +357,7 @@ class ViewerGameField(GameField):
             band.fill(rgba)
             surface.blit(band, (x0, board_rect.top))
 
-        total_cols = max(1, self.col_count)
-        blue_min_col, blue_max_col = self.blue_zone_col_range
-        red_min_col, red_max_col = self.red_zone_col_range
+        (blue_min_col, blue_max_col), (red_min_col, red_max_col) = self._zone_ranges()
 
         mid_start = blue_max_col + 1
         mid_end = red_min_col - 1
@@ -270,7 +367,7 @@ class ViewerGameField(GameField):
             fill_cols(mid_start, mid_end, (40, 40, 55, 90))
         fill_cols(red_min_col, red_max_col, (120, 45, 15, 140))
 
-        mid_col = total_cols // 2
+        mid_col = cols // 2
         mid_x = int(board_rect.left + mid_col * cell_width)
         pg.draw.line(surface, (190, 190, 210), (mid_x, board_rect.top), (mid_x, board_rect.bottom), 2)
 
