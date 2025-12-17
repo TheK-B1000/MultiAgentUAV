@@ -7,6 +7,19 @@ from game_manager import GameManager
 from macro_actions import MacroAction
 
 
+def _macro_to_int(m: Any) -> int:
+    """Enum-safe conversion."""
+    return int(getattr(m, "value", m))
+
+
+def _agent_xy(agent: Any) -> Tuple[float, float]:
+    """Prefer float_pos if available; fall back to x/y."""
+    fp = getattr(agent, "float_pos", None)
+    if isinstance(fp, (tuple, list)) and len(fp) >= 2:
+        return float(fp[0]), float(fp[1])
+    return float(getattr(agent, "x", 0.0)), float(getattr(agent, "y", 0.0))
+
+
 class Policy:
     """
     Base class for scripted policies in the CTF environment.
@@ -30,20 +43,15 @@ class Policy:
         return x, y
 
     def _is_free(self, x: int, y: int, game_field: "GameField") -> bool:
-        # grid[row][col] == 0 is passable in your env
         if not (0 <= x < game_field.col_count and 0 <= y < game_field.row_count):
             return False
         return game_field.grid[y][x] == 0
 
     def _nearest_free(self, x: int, y: int, game_field: "GameField", radius: int = 6) -> Tuple[int, int]:
-        """
-        Find a nearby passable cell. If none found, fallback to current.
-        """
         x, y = self._clamp(x, y, game_field)
         if self._is_free(x, y, game_field):
             return x, y
 
-        # Spiral-ish search
         best = None
         best_d2 = 10**9
         for dy in range(-radius, radius + 1):
@@ -56,30 +64,13 @@ class Policy:
                         best = (nx, ny)
         return best if best is not None else (x, y)
 
-    def _random_free_in_cols(self, game_field: "GameField", col_min: int, col_max: int) -> Tuple[int, int]:
-        col_min = max(0, min(game_field.col_count - 1, col_min))
-        col_max = max(0, min(game_field.col_count - 1, col_max))
-        if col_min > col_max:
-            col_min, col_max = col_max, col_min
-
-        # Try a few random samples first
-        for _ in range(25):
-            x = random.randint(col_min, col_max)
-            y = random.randint(0, game_field.row_count - 1)
-            if self._is_free(x, y, game_field):
-                return (x, y)
-
-        # Fallback: scan
-        for y in range(game_field.row_count):
-            for x in range(col_min, col_max + 1):
-                if self._is_free(x, y, game_field):
-                    return (x, y)
-
-        # Last resort
-        return (game_field.col_count // 2, game_field.row_count // 2)
-
     def _cell_has_mine(self, game_field: "GameField", x: int, y: int) -> bool:
         return any(int(m.x) == int(x) and int(m.y) == int(y) for m in getattr(game_field, "mines", []))
+
+    def _safe_target(self, game_field: "GameField", x: int, y: int) -> Tuple[int, int]:
+        """Clamp then nearest-free to guarantee validity."""
+        x, y = self._clamp(x, y, game_field)
+        return self._nearest_free(x, y, game_field)
 
 
 class OP1RedPolicy(Policy):
@@ -102,12 +93,12 @@ class OP1RedPolicy(Policy):
         else:
             tx, ty = home_x - 1, home_y
 
-        tx, ty = self._nearest_free(tx, ty, game_field)
+        tx, ty = self._safe_target(game_field, tx, ty)
 
         if agent.isCarryingFlag():
-            return int(MacroAction.GO_HOME), None
+            return _macro_to_int(MacroAction.GO_HOME), None
 
-        return int(MacroAction.GO_TO), (tx, ty)
+        return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
 
 class OP2RedPolicy(Policy):
@@ -115,62 +106,72 @@ class OP2RedPolicy(Policy):
     OP2: Defensive mine-layer.
     """
 
-    def __init__(self, side: str = "red", defense_band_width: int = 1):
+    def __init__(self, side: str = "red", defense_band_radius: int = 1):
         self.side = side
-        self.defense_band_width = max(1, int(defense_band_width))
+        self.defense_band_radius = max(0, int(defense_band_radius))
+
+    def _zone_col_range(self, game_field: "GameField", side: str) -> Tuple[int, int]:
+        # Prefer explicit ranges if present
+        if side == "red" and hasattr(game_field, "red_zone_col_range"):
+            return tuple(game_field.red_zone_col_range)
+        if side != "red" and hasattr(game_field, "blue_zone_col_range"):
+            return tuple(game_field.blue_zone_col_range)
+
+        # Fallback: just use full width (still safe, just less “zoney”)
+        return (0, game_field.col_count - 1)
 
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
         side = getattr(agent, "side", self.side)
 
         if agent.isCarryingFlag():
-            return int(MacroAction.GO_HOME), None
+            return _macro_to_int(MacroAction.GO_HOME), None
 
-        if side == "red":
-            own_min_col, own_max_col = game_field.red_zone_col_range
-        else:
-            own_min_col, own_max_col = game_field.blue_zone_col_range
-
+        own_min_col, own_max_col = self._zone_col_range(game_field, side)
         flag_x, flag_y = gm.get_team_zone_center(side)
 
         defense_band: List[Tuple[int, int]] = []
-        half_w = self.defense_band_width // 2
-        for dy in range(-half_w, half_w + 1):
-            row = flag_y + dy
+        for dy in range(-self.defense_band_radius, self.defense_band_radius + 1):
+            row = int(flag_y + dy)
             if 0 <= row < game_field.row_count:
-                for c in range(own_min_col, own_max_col + 1):
+                for c in range(int(own_min_col), int(own_max_col) + 1):
                     if self._is_free(c, row, game_field):
                         defense_band.append((c, row))
 
-        # Prefer unminded cells for placing mines
-        if agent.mine_charges > 0:
-            # If near an unminded band cell, place
-            near = []
+        ax, ay = _agent_xy(agent)
+
+        if getattr(agent, "mine_charges", 0) > 0:
+            # If near an unmined band cell, place
+            near: List[Tuple[int, int]] = []
             for cx, cy in defense_band:
                 if self._cell_has_mine(game_field, cx, cy):
                     continue
-                if math.hypot(agent.x - cx, agent.y - cy) <= 1.5:
+                if math.hypot(ax - cx, ay - cy) <= 1.5:
                     near.append((cx, cy))
 
             if near:
-                return int(MacroAction.PLACE_MINE), random.choice(near)
+                tx, ty = random.choice(near)
+                tx, ty = self._safe_target(game_field, tx, ty)
+                return _macro_to_int(MacroAction.PLACE_MINE), (tx, ty)
 
-            # Otherwise walk to an unminded band cell
+            # Otherwise walk to an unmined band cell
             candidates = [(cx, cy) for (cx, cy) in defense_band if not self._cell_has_mine(game_field, cx, cy)]
             if candidates:
                 tx, ty = random.choice(candidates)
-                return int(MacroAction.GO_TO), (tx, ty)
+                tx, ty = self._safe_target(game_field, tx, ty)
+                return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
-            # If every cell already mined, just defend around flag
-            tx, ty = self._nearest_free(flag_x, flag_y, game_field)
-            return int(MacroAction.GO_TO), (tx, ty)
+            # Everything mined: sit near flag
+            tx, ty = self._safe_target(game_field, flag_x, flag_y)
+            return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
-        # No mines: stay home and patrol (defense-only)
+        # No mines: patrol in defense band
         if defense_band:
             tx, ty = random.choice(defense_band)
         else:
-            tx, ty = self._nearest_free(flag_x, flag_y, game_field)
-        return int(MacroAction.GO_TO), (tx, ty)
+            tx, ty = self._safe_target(game_field, flag_x, flag_y)
+        tx, ty = self._safe_target(game_field, tx, ty)
+        return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
 
 class OP3RedPolicy(Policy):
@@ -188,28 +189,30 @@ class OP3RedPolicy(Policy):
     def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         side = getattr(agent, "side", self.side)
         flag_x, flag_y = gm.get_team_zone_center(side)
-        fx, fy = self._nearest_free(flag_x, flag_y, game_field)
+        fx, fy = self._safe_target(game_field, flag_x, flag_y)
 
         if agent.isCarryingFlag():
-            return int(MacroAction.GO_HOME), None
+            return _macro_to_int(MacroAction.GO_HOME), None
+
+        ax, ay = _agent_xy(agent)
 
         has_flag_mine = any(
-            (m.owner_side == side) and (math.hypot(m.x - fx, m.y - fy) <= self.mine_radius_check)
+            (getattr(m, "owner_side", None) == side) and (math.hypot(float(m.x) - fx, float(m.y) - fy) <= self.mine_radius_check)
             for m in getattr(game_field, "mines", [])
         )
 
-        if (not has_flag_mine) and agent.mine_charges > 0:
-            # if close, place (but avoid stacking the same cell)
-            if math.hypot(agent.x - fx, agent.y - fy) <= self.mine_radius_check and not self._cell_has_mine(game_field, fx, fy):
-                return int(MacroAction.PLACE_MINE), (fx, fy)
-            return int(MacroAction.GO_TO), (fx, fy)
+        if (not has_flag_mine) and getattr(agent, "mine_charges", 0) > 0:
+            # if close, place (avoid stacking same cell)
+            if math.hypot(ax - fx, ay - fy) <= self.mine_radius_check and not self._cell_has_mine(game_field, fx, fy):
+                return _macro_to_int(MacroAction.PLACE_MINE), (fx, fy)
+            return _macro_to_int(MacroAction.GO_TO), (fx, fy)
 
-        return int(MacroAction.GO_TO), (fx, fy)
+        return _macro_to_int(MacroAction.GO_TO), (fx, fy)
 
     def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         if agent.isCarryingFlag():
-            return int(MacroAction.GO_HOME), None
-        return int(MacroAction.GET_FLAG), None
+            return _macro_to_int(MacroAction.GO_HOME), None
+        return _macro_to_int(MacroAction.GET_FLAG), None
 
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
