@@ -12,7 +12,7 @@ from policies import OP3RedPolicy
 # ----------------------------
 # MODEL PATHS (edit these)
 # ----------------------------
-DEFAULT_PPO_MODEL_PATH = "checkpoints/ctf_fixed_blue_op3.pth"
+DEFAULT_PPO_MODEL_PATH = "checkpoints/research_model1.pth"
 DEFAULT_MAPPO_MODEL_PATH = "checkpoints/research_mappo_model1.pth"
 
 # IMPORTANT: keep this order consistent with training
