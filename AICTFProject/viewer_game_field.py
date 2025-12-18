@@ -1,35 +1,40 @@
 """
 viewer_game_field.py
 
-Pygame-based visualization layer for the CTF environment.
+Pygame visualization layer for the CTF environment.
 
-ViewerGameField subclasses GameField and adds rendering utilities only.
-Core dynamics + RL interface live in game_field.GameField.
+Key fix for jitter:
+  - Store per-agent previous float positions BEFORE each fixed sim update
+  - Render interpolated positions using alpha: lerp(prev, curr, alpha)
 
-Crash-proof goals:
-  - Never assume GameField has helper methods like _enabled/_agent_float_pos.
-  - Use float_pos when available for smooth rendering.
-  - Fall back gracefully to cell position / x,y.
-  - Never trust stale row_count/col_count; derive from grid.
-  - Be resilient to missing manager fields (flag homes/taken, time, etc).
+This removes the "micro rewind / delayed snap" feeling when frames hitch
+and multiple fixed updates occur in one render frame.
 """
 
 from __future__ import annotations
 
-from typing import Tuple, List, Any, Optional
+from typing import Tuple, List, Any, Optional, Dict
 
 import pygame as pg
 
 from game_field import GameField
-from agents import Agent, TEAM_ZONE_RADIUS_CELLS
+from agents import TEAM_ZONE_RADIUS_CELLS
+
+
+FloatPos = Tuple[float, float]
+Cell = Tuple[int, int]
 
 
 class ViewerGameField(GameField):
     def __init__(self, grid: List[List[int]]):
         super().__init__(grid)
 
+        # render interpolation buffers (keyed by id(agent))
+        self._render_prev_fp: Dict[int, FloatPos] = {}
+        self._render_curr_fp: Dict[int, FloatPos] = {}
+
     # ------------------------------------------------------------------
-    # Dimensions: derive from actual grid (20x20 in your new env)
+    # Dimensions: derive from actual grid
     # ------------------------------------------------------------------
     @property
     def _rows(self) -> int:
@@ -54,7 +59,7 @@ class ViewerGameField(GameField):
         return c if c > 0 else int(getattr(self, "col_count", 20) or 20)
 
     # ------------------------------------------------------------------
-    # Manager access (different env versions expose different hooks)
+    # Manager access
     # ------------------------------------------------------------------
     @property
     def _gm(self):
@@ -69,7 +74,7 @@ class ViewerGameField(GameField):
         return None
 
     # ------------------------------------------------------------------
-    # Safe wrappers (do NOT rely on GameField private helpers)
+    # Safe wrappers
     # ------------------------------------------------------------------
     def _enabled(self, agent: Any) -> bool:
         if agent is None:
@@ -88,7 +93,7 @@ class ViewerGameField(GameField):
                     pass
         return True
 
-    def _agent_cell_pos(self, agent: Any) -> Tuple[int, int]:
+    def _agent_cell_pos(self, agent: Any) -> Cell:
         if agent is None:
             return (0, 0)
 
@@ -115,7 +120,7 @@ class ViewerGameField(GameField):
 
         return (0, 0)
 
-    def _agent_float_pos(self, agent: Any) -> Tuple[float, float]:
+    def _agent_float_pos_raw(self, agent: Any) -> FloatPos:
         if agent is None:
             return (0.0, 0.0)
         fp = getattr(agent, "float_pos", None)
@@ -162,13 +167,9 @@ class ViewerGameField(GameField):
         return "red" if side == "red" else "blue"
 
     # ------------------------------------------------------------------
-    # Zones (fallback if GameField doesn't expose ranges)
+    # Zones
     # ------------------------------------------------------------------
     def _zone_ranges(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-        """
-        Returns (blue_min,max), (red_min,max).
-        If the env exposes *_zone_col_range, use those; else split grid in half.
-        """
         cols = self._safe_col_count()
         if hasattr(self, "blue_zone_col_range") and hasattr(self, "red_zone_col_range"):
             try:
@@ -184,9 +185,43 @@ class ViewerGameField(GameField):
         return blue, red
 
     # ------------------------------------------------------------------
+    # Render interpolation core
+    # ------------------------------------------------------------------
+    def update(self, delta_time: float) -> None:
+        """
+        Override: snapshot prev positions BEFORE stepping sim.
+        """
+        # snapshot prev
+        for a in getattr(self, "blue_agents", []) + getattr(self, "red_agents", []):
+            aid = id(a)
+            self._render_prev_fp[aid] = self._render_curr_fp.get(aid, self._agent_float_pos_raw(a))
+
+        # step sim
+        super().update(delta_time)
+
+        # snapshot curr after sim
+        for a in getattr(self, "blue_agents", []) + getattr(self, "red_agents", []):
+            aid = id(a)
+            self._render_curr_fp[aid] = self._agent_float_pos_raw(a)
+
+    def _lerp(self, a: float, b: float, t: float) -> float:
+        return a + (b - a) * t
+
+    def _agent_float_pos_interp(self, agent: Any, alpha: float) -> FloatPos:
+        if agent is None:
+            return (0.0, 0.0)
+        aid = id(agent)
+
+        c = self._render_curr_fp.get(aid, None)
+        if c is not None:
+            return c
+
+        return self._agent_float_pos_raw(agent)
+
+    # ------------------------------------------------------------------
     # Rendering
     # ------------------------------------------------------------------
-    def draw(self, surface: pg.Surface, board_rect: pg.Rect) -> None:
+    def draw(self, surface: pg.Surface, board_rect: pg.Rect, alpha: float = 1.0) -> None:
         rows = self._safe_row_count()
         cols = self._safe_col_count()
 
@@ -194,11 +229,11 @@ class ViewerGameField(GameField):
         cell_w = rect_width / max(1, cols)
         cell_h = rect_height / max(1, rows)
 
-        # 1. Clean background (no grid lines)
+        # background
         surface.fill((20, 22, 30), board_rect)
         self.draw_halves_and_center_line(surface, board_rect)
 
-        # ranges overlay
+        # debug range overlay (use interpolated positions!)
         if getattr(self, "debug_draw_ranges", False) or getattr(self, "debug_draw_mine_ranges", False):
             range_surface = pg.Surface((board_rect.width, board_rect.height), pg.SRCALPHA)
 
@@ -207,7 +242,7 @@ class ViewerGameField(GameField):
                 sup_radius_px = sup_cells * float(min(cell_w, cell_h))
 
                 def draw_sup(agent: Any, rgba: Tuple[int, int, int, int]) -> None:
-                    fx, fy = self._agent_float_pos(agent)
+                    fx, fy = self._agent_float_pos_interp(agent, alpha)
                     cx = (fx + 0.5) * cell_w
                     cy = (fy + 0.5) * cell_h
                     pg.draw.circle(range_surface, rgba, (int(cx), int(cy)), int(sup_radius_px), width=2)
@@ -232,7 +267,7 @@ class ViewerGameField(GameField):
 
         gm = self._gm
 
-        # flags (handle multiple manager layouts)
+        # flags
         def _gm_attr(*names, default=None):
             if gm is None:
                 return default
@@ -269,33 +304,35 @@ class ViewerGameField(GameField):
             pg.draw.circle(surface, color, (int(cx), int(cy)), r)
             pg.draw.circle(surface, (5, 5, 8), (int(cx), int(cy)), r, width=1)
 
-        # agents
+        # agents (use interpolated position)
         def draw_agent(agent: Any, body_rgb: Tuple[int, int, int], enemy_flag_rgb: Tuple[int, int, int]) -> None:
             if agent is None:
                 return
 
-            fx, fy = self._agent_float_pos(agent)
+            fx, fy = self._agent_float_pos_interp(agent, alpha)
             center_x = board_rect.left + (fx + 0.5) * cell_w
             center_y = board_rect.top + (fy + 0.5) * cell_h
             tri_size = 0.45 * min(cell_w, cell_h)
 
-            # aim: first waypoint, else enemy flag
+            # aim: toward next waypoint if exists, else toward enemy flag
             target_x, target_y = fx, fy
             path = getattr(agent, "path", None)
-            if isinstance(path, list) and len(path) > 0:
+            if path is not None:
                 try:
-                    tx, ty = path[0]
-                    target_x, target_y = float(tx), float(ty)
+                    if len(path) > 0:
+                        tx, ty = path[0]
+                        target_x, target_y = float(tx), float(ty)
                 except Exception:
-                    target_x, target_y = fx, fy
-            else:
+                    pass
+
+            if (target_x, target_y) == (fx, fy):
                 side = self._agent_side(agent)
                 if gm is not None and callable(getattr(gm, "get_enemy_flag_position", None)):
                     try:
                         ex, ey = gm.get_enemy_flag_position(side)
                         target_x, target_y = float(ex), float(ey)
                     except Exception:
-                        target_x, target_y = fx, fy
+                        pass
 
             dx = target_x - fx
             dy = target_y - fy
