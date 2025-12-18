@@ -1,5 +1,9 @@
 # =========================
-# game_field.py (REFACTORED, MARL-READY, OBJECTIVE-FIRST, CRASH-PROOF)
+# game_field.py (FULL UPDATED, MARL-READY, OBJECTIVE-FIRST, CRASH-PROOF)
+#   - PPO/MAPPO: build_observation() -> 7ch
+#   - QMIX: get_global_state() -> flat 8*20*20 = 3200 (default)
+#   - Shared: macro_order + get_macro_mask() + submit_external_actions()
+#   - Shared: flat action helpers (encode/decode + avail_flat mask)
 # =========================
 
 from __future__ import annotations
@@ -32,6 +36,9 @@ Cell = Tuple[int, int]
 FloatPos = Tuple[float, float]
 ExternalAction = Tuple[int, Any]  # (macro_idx, target_param)
 
+# QMIX global state (God View)
+GLOBAL_STATE_CHANNELS = 8  # 8 * 20 * 20 = 3200
+
 
 # -------------------------
 # Simple entities
@@ -61,12 +68,16 @@ class GameField:
     """
     2D Capture-the-Flag (CTF) simulation environment for multi-agent RL.
 
-    Design principles:
-      - Macro-actions + safety constraints (crash-proof, no undefined behavior).
-      - Float positions for distance-based logic (mines, suppression).
-      - Cell positions for pathfinding and occupancy/dynamic obstacle logic.
-      - Trainer-facing action masking (logits-time masking recommended).
-      - External control supported via submit_external_actions().
+    Contract for trainers:
+      - obs: env.build_observation(agent) -> [7,20,20] (mirrored for red)
+      - macro mask: env.get_macro_mask(agent) -> [n_macros] bool
+      - macro targets: env.num_macro_targets and env.get_macro_target(i)
+      - external control:
+          env.set_external_control(side, True/False)
+          env.submit_external_actions({key: (macro_idx, target_param)})
+      - QMIX:
+          env.get_global_state() -> flat float32 [3200]
+          env.get_global_state_grid() -> float32 [8,20,20]
     """
 
     # -------- lifecycle --------
@@ -77,12 +88,12 @@ class GameField:
         self.col_count = len(grid[0]) if self.row_count else 0
 
         self.manager = GameManager(cols=self.col_count, rows=self.row_count)
-        self.manager.bind_game_field(self)  # enables exact reward routing
+        self.manager.bind_game_field(self)  # reward routing hook (if implemented)
 
         self._init_macro_indexing()
         self._init_zones()
 
-        # Core game mechanics
+        # Core mechanics
         self.mines: List[Mine] = []
         self.mine_pickups: List[MinePickup] = []
         self.mine_radius_cells = 1.5
@@ -99,9 +110,12 @@ class GameField:
         self.policies: Dict[str, Any] = {"blue": None, "red": None}
         self.opponent_mode: str = "OP3"
 
-        # External action routing (trainer-controlled)
+        # External action routing
         self.external_control_for_side: Dict[str, bool] = {"blue": False, "red": False}
         self.pending_external_actions: Dict[str, ExternalAction] = {}
+        # When external actions are missing:
+        #   "idle": apply an "idle" macro (GO_TO current cell) and advance cooldown
+        #   "internal": fall back to internal policy for that decision
         self.external_missing_action_mode: str = "idle"  # "idle" or "internal"
 
         # Agents
@@ -132,10 +146,10 @@ class GameField:
         self.decision_interval_seconds: float = 0.7
         self.decision_cooldown_seconds_by_agent: Dict[int, float] = {}
 
-        # Optional minimal UI hook (safe to ignore for training)
+        # Optional UI hook (safe to ignore in training)
         self.banner_queue: List[Tuple[str, Tuple[int, int, int], float]] = []
 
-        # Default opponent (safe, explicit)
+        # Default opponent
         self.set_red_opponent("OP3")
         self.reset_default()
 
@@ -144,7 +158,7 @@ class GameField:
     def _init_macro_indexing(self) -> None:
         """
         Canonical mapping between network macro indices and MacroAction enum.
-        Never assumes enum values are contiguous or 0..N-1.
+        IMPORTANT: Trainers must match this order.
         """
         self.macro_order = [
             MacroAction.GO_TO,       # idx 0
@@ -163,22 +177,41 @@ class GameField:
         return int(self.macro_to_index[action])
 
     def normalize_macro(self, action_any: Any) -> Tuple[int, MacroAction]:
-        """
-        Accepts:
-          - network index (0..n-1)
-          - MacroAction enum
-          - anything int-castable (treated as network index)
-        Returns:
-          (macro_idx, MacroAction)
-        """
         if isinstance(action_any, MacroAction):
             return self.macro_action_to_idx(action_any), action_any
-
         try:
             idx = int(action_any)
         except Exception:
             idx = 0
         return idx % self.n_macros, self.macro_idx_to_action(idx)
+
+    # -------- flat action codec (QMIX, optional PPO/MAPPO-flat) --------
+
+    def get_flat_action_dim(self) -> int:
+        n_targets = int(getattr(self, "num_macro_targets", 8) or 8)
+        return int(self.n_macros * n_targets)
+
+    def encode_flat_action(self, macro_idx: int, target_idx: int) -> int:
+        n_targets = int(getattr(self, "num_macro_targets", 8) or 8)
+        mi = int(macro_idx) % int(self.n_macros)
+        ti = int(target_idx) % int(n_targets)
+        return int(mi * n_targets + ti)
+
+    def decode_flat_action(self, flat_action: int) -> Tuple[int, int]:
+        n_targets = int(getattr(self, "num_macro_targets", 8) or 8)
+        a = int(flat_action)
+        macro_idx = int(a // n_targets) % int(self.n_macros)
+        target_idx = int(a % n_targets)
+        return macro_idx, target_idx
+
+    def get_avail_flat_actions(self, agent: Agent) -> np.ndarray:
+        n_targets = int(getattr(self, "num_macro_targets", 8) or 8)
+        mm = np.asarray(self.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
+        if mm.shape != (self.n_macros,):
+            mm = np.ones((self.n_macros,), dtype=np.bool_)
+        if not mm.any():
+            mm[:] = True
+        return np.repeat(mm, int(n_targets)).astype(np.bool_)
 
     # -------- small utilities --------
 
@@ -230,21 +263,48 @@ class GameField:
         except Exception:
             return 0.0, 0.0
 
+    # -------- GameManager safe wrappers --------
+
+    def _gm_team_zone_center(self, side: str) -> Cell:
+        gm = self.manager
+        if hasattr(gm, "get_team_zone_center"):
+            try:
+                return tuple(gm.get_team_zone_center(side))
+            except Exception:
+                pass
+        # fallback: zone center by columns + mid row
+        if str(side).lower() == "blue":
+            lo, hi = self.blue_zone_col_range
+        else:
+            lo, hi = self.red_zone_col_range
+        return (int((lo + hi) // 2), int(self.row_count // 2))
+
+    def _gm_enemy_flag_position(self, side: str) -> Cell:
+        gm = self.manager
+        if hasattr(gm, "get_enemy_flag_position"):
+            try:
+                ex, ey = gm.get_enemy_flag_position(side)
+                return int(ex), int(ey)
+            except Exception:
+                pass
+        # fallback via attributes
+        side = str(side).lower()
+        if side == "blue":
+            p = getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1))
+        else:
+            p = getattr(gm, "blue_flag_position", (0, 0))
+        return int(p[0]), int(p[1])
+
     # -------- external action routing --------
 
     def _external_key_candidates(self, agent: Agent) -> List[str]:
-        """
-        Generates multiple stable keys to match trainer submissions robustly.
-        """
         keys: List[str] = []
-        # Prefer explicit slots/unique ids if present
         for attr in ("slot_id", "unique_id"):
             if hasattr(agent, attr):
                 try:
                     keys.append(str(getattr(agent, attr)))
                 except Exception:
                     pass
-        # Always include side+agent_id canonical form
         keys.append(f"{agent.side}_{getattr(agent, 'agent_id', 0)}")
 
         out: List[str] = []
@@ -256,18 +316,8 @@ class GameField:
         return out
 
     def submit_external_actions(self, actions_by_agent: Dict[str, ExternalAction]) -> None:
-        """
-        Trainer-facing API: submit actions for the next decision boundary.
-
-        actions_by_agent:
-          key -> (macro_idx, target_param)
-        where target_param may be:
-          - int target index (semantic macro target list)
-          - (x,y) cell tuple/list
-        """
         if not isinstance(actions_by_agent, dict):
             return
-
         for k, v in actions_by_agent.items():
             try:
                 macro_val, target_param = v
@@ -301,9 +351,6 @@ class GameField:
         self.red_zone_col_range = (red_min, red_max)
 
     def _init_macro_targets(self) -> None:
-        """
-        Fixed semantic waypoints. Kept stable across episodes for reproducibility.
-        """
         self.macro_targets.clear()
 
         def nearest_free(x: int, y: int, radius: int = 8) -> Cell:
@@ -325,30 +372,31 @@ class GameField:
 
         gm = self.manager
 
-        own_home = gm.blue_flag_home
-        enemy_home = gm.red_flag_home
-        own_zone_center = gm.get_team_zone_center("blue")
-        enemy_zone_center = gm.get_team_zone_center("red")
+        own_home = tuple(getattr(gm, "blue_flag_home", (0, self.row_count // 2)))
+        enemy_home = tuple(getattr(gm, "red_flag_home", (self.col_count - 1, self.row_count // 2)))
+
+        own_zone_center = self._gm_team_zone_center("blue")
+        enemy_zone_center = self._gm_team_zone_center("red")
 
         mid_col = self.col_count // 2
         mid_row = self.row_count // 2
         top_row = max(0, min(self.row_count - 1, 5))
         bottom_row = max(0, min(self.row_count - 1, self.row_count - 5))
 
-        def_x = own_home[0] + 5
+        def_x = int(own_home[0]) + 5
         if def_x >= self.col_count:
-            def_x = max(0, own_home[0] - 5)
-        defensive_point = (def_x, own_home[1])
+            def_x = max(0, int(own_home[0]) - 5)
+        defensive_point = (def_x, int(own_home[1]))
 
         targets_raw: List[Cell] = [
-            own_home,                  # 0
-            enemy_home,                # 1
-            own_zone_center,           # 2
-            enemy_zone_center,         # 3
-            (mid_col, mid_row),        # 4
-            (mid_col, top_row),        # 5
-            (mid_col, bottom_row),     # 6
-            defensive_point,           # 7
+            (int(own_home[0]), int(own_home[1])),          # 0
+            (int(enemy_home[0]), int(enemy_home[1])),      # 1
+            (int(own_zone_center[0]), int(own_zone_center[1])),      # 2
+            (int(enemy_zone_center[0]), int(enemy_zone_center[1])),  # 3
+            (mid_col, mid_row),                             # 4
+            (mid_col, top_row),                             # 5
+            (mid_col, bottom_row),                          # 6
+            (int(defensive_point[0]), int(defensive_point[1])),      # 7
         ]
 
         self.macro_targets = [nearest_free(x, y) for (x, y) in targets_raw]
@@ -371,272 +419,100 @@ class GameField:
     def getGameManager(self) -> GameManager:
         return self.manager
 
-    # -------- QMIX / CTDE global state  --------
+    # -------- QMIX "God View" global state (8ch grid + flat) --------
 
-    def _norm_xy(self, x: float, y: float) -> Tuple[float, float]:
+    def get_global_state_dim(self) -> int:
+        return int(GLOBAL_STATE_CHANNELS * CNN_ROWS * CNN_COLS)
+
+    def build_global_state_grid(self) -> np.ndarray:
         """
-        Normalize grid-ish coordinates to [0,1] using arena grid size.
-        Works for float-grid coordinates too.
+        Returns [8,20,20] float32 (truth, no mirroring).
+        Channel map:
+          0 blue agents
+          1 red agents
+          2 blue mines
+          3 red mines
+          4 blue mine pickups
+          5 red mine pickups
+          6 blue flag position
+          7 red flag position
         """
-        xn = 0.0
-        yn = 0.0
-        try:
-            xn = float(x) / float(max(1, self.col_count - 1))
-            yn = float(y) / float(max(1, self.row_count - 1))
-        except Exception:
-            pass
-        # clamp
-        xn = max(0.0, min(1.0, xn))
-        yn = max(0.0, min(1.0, yn))
-        return xn, yn
+        grid = np.zeros((GLOBAL_STATE_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
-    @staticmethod
-    def _one_hot_side(side: str) -> Tuple[float, float]:
-        # (is_blue, is_red)
-        s = str(side).lower()
-        if s == "blue":
-            return 1.0, 0.0
-        if s == "red":
-            return 0.0, 1.0
-        return 0.0, 0.0
+        def set_chan(c: int, col: int, row: int) -> None:
+            if 0 <= c < GLOBAL_STATE_CHANNELS and 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
+                grid[c, row, col] = 1.0
 
-    def get_global_state_spec(
-            self,
-            *,
-            max_agents_per_team: Optional[int] = None,
-            max_mines_total: Optional[int] = None,
-            max_pickups_total: Optional[int] = None,
-    ) -> Dict[str, int]:
-        """
-        Returns counts used to build a fixed-length state vector.
-        """
-        n_team = int(max_agents_per_team) if max_agents_per_team is not None else int(self.agents_per_team)
-        n_team = max(1, n_team)
+        mirror_x = False  # canonical frame
 
-        # Mines can vary during play; pick a safe upper bound.
-        # If you ever allow more mines, bump this.
-        if max_mines_total is None:
-            max_mines_total = int(getattr(self, "mines_per_team", 4)) * 2
-        max_mines_total = max(0, int(max_mines_total))
+        # Agents
+        for a in getattr(self, "blue_agents", []):
+            if a is None or (hasattr(a, "isEnabled") and not a.isEnabled()):
+                continue
+            fx, fy = self._agent_float_pos(a)
+            c, r = self.float_grid_to_cnn_cell(fx, fy, mirror_x=mirror_x)
+            set_chan(0, c, r)
 
-        if max_pickups_total is None:
-            max_pickups_total = int(getattr(self, "mines_per_team", 4)) * 2
-        max_pickups_total = max(0, int(max_pickups_total))
+        for a in getattr(self, "red_agents", []):
+            if a is None or (hasattr(a, "isEnabled") and not a.isEnabled()):
+                continue
+            fx, fy = self._agent_float_pos(a)
+            c, r = self.float_grid_to_cnn_cell(fx, fy, mirror_x=mirror_x)
+            set_chan(1, c, r)
 
-        return {
-            "agents_per_team": n_team,
-            "max_mines_total": max_mines_total,
-            "max_pickups_total": max_pickups_total,
-        }
-
-    def get_global_state_dim(
-            self,
-            *,
-            max_agents_per_team: Optional[int] = None,
-            max_mines_total: Optional[int] = None,
-            max_pickups_total: Optional[int] = None,
-    ) -> int:
-        spec = self.get_global_state_spec(
-            max_agents_per_team=max_agents_per_team,
-            max_mines_total=max_mines_total,
-            max_pickups_total=max_pickups_total,
-        )
-        n = spec["agents_per_team"]
-
-        # Agent feature size (per agent)
-        # [x,y, enabled, carrying, mine_charges_norm, suppress_timer_norm, side_onehot(2)]
-        AG_F = 2 + 1 + 1 + 1 + 1 + 2  # = 8
-
-        # Mine feature size (per mine)
-        # [x,y, active, side_onehot(2)]
-        MI_F = 2 + 1 + 2  # = 5
-
-        # Pickup feature size (per pickup)
-        # [x,y, active, charges_norm, side_onehot(2)]
-        PU_F = 2 + 1 + 1 + 2  # = 6
-
-        # Global scalars:
-        # scores/time + flags:
-        # [blue_score_norm, red_score_norm, time_norm,
-        #  blue_flag(x,y), red_flag(x,y), blue_home(x,y), red_home(x,y)]
-        G_F = 3 + 2 + 2 + 2 + 2  # = 11
-
-        dim = (
-                G_F
-                + (2 * n) * AG_F
-                + spec["max_mines_total"] * MI_F
-                + spec["max_pickups_total"] * PU_F
-        )
-        return int(dim)
-
-    def get_global_state(
-            self,
-            *,
-            max_agents_per_team: Optional[int] = None,
-            max_mines_total: Optional[int] = None,
-            max_pickups_total: Optional[int] = None,
-    ) -> np.ndarray:
-        """
-        Fixed-length CTDE 'God View' vector for QMIX mixing network.
-
-        Contains:
-          - Scores + normalized time
-          - Flag positions + homes
-          - All agent states (blue then red), padded
-          - All mines (including "hidden"), padded
-          - All mine pickups, padded
-
-        Returns:
-          np.float32 vector with constant dimension across episodes.
-        """
-        spec = self.get_global_state_spec(
-            max_agents_per_team=max_agents_per_team,
-            max_mines_total=max_mines_total,
-            max_pickups_total=max_pickups_total,
-        )
-        n = spec["agents_per_team"]
-        max_mines_total = spec["max_mines_total"]
-        max_pickups_total = spec["max_pickups_total"]
-
-        gm = self.manager
-
-        # --- global scalars ---
-        score_limit = float(getattr(gm, "score_limit", 3) or 3)
-        blue_score = float(getattr(gm, "blue_score", 0))
-        red_score = float(getattr(gm, "red_score", 0))
-        blue_score_n = blue_score / score_limit
-        red_score_n = red_score / score_limit
-
-        # time normalized by max_time (if exists)
-        max_time = float(getattr(gm, "max_time", 200.0) or 200.0)
-        # try a few likely names
-        t = float(getattr(gm, "time_elapsed", getattr(gm, "elapsed_time", getattr(gm, "time", 0.0))))
-        time_n = max(0.0, min(1.0, t / max_time))
-
-        # Flags + homes
-        bfx, bfy = tuple(getattr(gm, "blue_flag_position", (0, 0)))
-        rfx, rfy = tuple(getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1)))
-        bhx, bhy = tuple(getattr(gm, "blue_flag_home", (0, 0)))
-        rhx, rhy = tuple(getattr(gm, "red_flag_home", (self.col_count - 1, self.row_count - 1)))
-
-        bfx, bfy = self._norm_xy(float(bfx), float(bfy))
-        rfx, rfy = self._norm_xy(float(rfx), float(rfy))
-        bhx, bhy = self._norm_xy(float(bhx), float(bhy))
-        rhx, rhy = self._norm_xy(float(rhx), float(rhy))
-
-        feats: List[float] = [
-            float(blue_score_n),
-            float(red_score_n),
-            float(time_n),
-            float(bfx), float(bfy),
-            float(rfx), float(rfy),
-            float(bhx), float(bhy),
-            float(rhx), float(rhy),
-        ]
-
-        # --- agents (blue then red), padded to n each ---
-        def add_agent_block(agent_list: List[Agent], side_name: str) -> None:
-            # enforce deterministic ordering by agent_id if present
-            lst = list(agent_list)
-            try:
-                lst.sort(key=lambda a: int(getattr(a, "agent_id", 0)))
-            except Exception:
-                pass
-
-            for i in range(n):
-                if i < len(lst) and lst[i] is not None:
-                    a = lst[i]
-                    ax, ay = self._agent_float_pos(a)
-                    axn, ayn = self._norm_xy(ax, ay)
-
-                    enabled = 1.0 if bool(getattr(a, "isEnabled", lambda: True)()) else 0.0
-                    carrying = 1.0 if bool(getattr(a, "isCarryingFlag", lambda: False)()) else 0.0
-
-                    charges = float(getattr(a, "mine_charges", 0))
-                    max_ch = float(getattr(self, "max_mine_charges_per_agent", 2) or 2)
-                    charges_n = max(0.0, min(1.0, charges / max_ch))
-
-                    sup_t = float(getattr(a, "suppression_timer", 0.0))
-                    # 1.0 is your kill threshold, so normalize to [0,1] around that
-                    sup_n = max(0.0, min(1.0, sup_t / 1.0))
-
-                    s0, s1 = self._one_hot_side(getattr(a, "side", side_name))
-
-                    feats.extend([
-                        float(axn), float(ayn),
-                        float(enabled),
-                        float(carrying),
-                        float(charges_n),
-                        float(sup_n),
-                        float(s0), float(s1),
-                    ])
-                else:
-                    # padding row
-                    s0, s1 = self._one_hot_side(side_name)
-                    feats.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, float(s0), float(s1)])
-
-        add_agent_block(self.blue_agents, "blue")
-        add_agent_block(self.red_agents, "red")
-
-        # --- mines (padded) ---
-        mines = list(getattr(self, "mines", []))
-        # deterministic ordering
-        try:
-            mines.sort(
-                key=lambda m: (str(getattr(m, "owner_side", "")), int(getattr(m, "x", 0)), int(getattr(m, "y", 0))))
-        except Exception:
-            pass
-
-        for i in range(max_mines_total):
-            if i < len(mines):
-                m = mines[i]
-                mx, my = self._norm_xy(float(getattr(m, "x", 0.0)), float(getattr(m, "y", 0.0)))
-                active = 1.0
-                s0, s1 = self._one_hot_side(getattr(m, "owner_side", ""))
-                feats.extend([float(mx), float(my), float(active), float(s0), float(s1)])
+        # Mines
+        for m in getattr(self, "mines", []):
+            if m is None:
+                continue
+            c, r = self.float_grid_to_cnn_cell(float(getattr(m, "x", 0.0)), float(getattr(m, "y", 0.0)),
+                                               mirror_x=mirror_x)
+            if str(getattr(m, "owner_side", "")).lower() == "blue":
+                set_chan(2, c, r)
             else:
-                feats.extend([0.0, 0.0, 0.0, 0.0, 0.0])
+                set_chan(3, c, r)
 
-        # --- mine pickups (padded) ---
-        pickups = list(getattr(self, "mine_pickups", []))
-        try:
-            pickups.sort(
-                key=lambda p: (str(getattr(p, "owner_side", "")), int(getattr(p, "x", 0)), int(getattr(p, "y", 0))))
-        except Exception:
-            pass
-
-        for i in range(max_pickups_total):
-            if i < len(pickups):
-                p = pickups[i]
-                px, py = self._norm_xy(float(getattr(p, "x", 0.0)), float(getattr(p, "y", 0.0)))
-                active = 1.0
-                charges = float(getattr(p, "charges", 0.0))
-                charges_n = max(0.0, min(1.0, charges / 1.0))  # most are 1
-                s0, s1 = self._one_hot_side(getattr(p, "owner_side", ""))
-                feats.extend([float(px), float(py), float(active), float(charges_n), float(s0), float(s1)])
+        # Mine pickups
+        for p in getattr(self, "mine_pickups", []):
+            if p is None:
+                continue
+            c, r = self.float_grid_to_cnn_cell(float(getattr(p, "x", 0.0)), float(getattr(p, "y", 0.0)),
+                                               mirror_x=mirror_x)
+            if str(getattr(p, "owner_side", "")).lower() == "blue":
+                set_chan(4, c, r)
             else:
-                feats.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                set_chan(5, c, r)
 
-        vec = np.asarray(feats, dtype=np.float32)
+        # Flags
+        gm = getattr(self, "manager", None)
+        if gm is not None:
+            bpos = getattr(gm, "blue_flag_position", (0, 0))
+            rpos = getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1))
 
-        # safety check: stable dim
-        expected = self.get_global_state_dim(
-            max_agents_per_team=max_agents_per_team,
-            max_mines_total=max_mines_total,
-            max_pickups_total=max_pickups_total,
-        )
-        if vec.shape[0] != expected:
-            raise RuntimeError(f"get_global_state dim mismatch: got {vec.shape[0]}, expected {expected}")
+            bc, br = self.float_grid_to_cnn_cell(float(bpos[0]), float(bpos[1]), mirror_x=mirror_x)
+            rc, rr = self.float_grid_to_cnn_cell(float(rpos[0]), float(rpos[1]), mirror_x=mirror_x)
 
-        return vec
+            set_chan(6, bc, br)
+            set_chan(7, rc, rr)
+
+        return grid
+
+    def get_global_state_grid(self) -> np.ndarray:
+        return self.build_global_state_grid()
+
+    def get_global_state(self) -> np.ndarray:
+        g = self.build_global_state_grid()  # [8,20,20]
+        flat = g.reshape(-1).astype(np.float32, copy=False)
+        expected = self.get_global_state_dim()
+        if flat.shape[0] != expected:
+            raise RuntimeError(f"get_global_state dim mismatch: got {flat.shape[0]}, expected {expected}")
+        return flat
 
     # -------- action masking --------
 
     def get_macro_mask(self, agent: Agent) -> np.ndarray:
         """
-        Boolean mask over network macro indices (0..n_macros-1) matching self.macro_order.
-
-        Trainer should apply this at logits-time (set invalid logits to -inf / very negative).
+        Boolean mask over macro indices (0..n_macros-1) matching self.macro_order.
+        Apply at logits-time in PPO/MAPPO and for avail_actions in QMIX.
         """
         n = self.n_macros
         mask = np.ones((n,), dtype=np.bool_)
@@ -647,19 +523,20 @@ class GameField:
 
         side = getattr(agent, "side", None)
         if side not in ("blue", "red"):
+            # Unknown side: disable mine-related macros
             mask[self.macro_action_to_idx(MacroAction.GRAB_MINE)] = False
             mask[self.macro_action_to_idx(MacroAction.PLACE_MINE)] = False
             return mask
 
         gm = self.manager
-        phase = str(getattr(gm, "phase_name", "OP1")).upper()
+        phase = str(getattr(gm, "phase_name", getattr(gm, "phase", "OP1"))).upper()
 
         idx_grab = self.macro_action_to_idx(MacroAction.GRAB_MINE)
         idx_get = self.macro_action_to_idx(MacroAction.GET_FLAG)
         idx_place = self.macro_action_to_idx(MacroAction.PLACE_MINE)
         idx_home = self.macro_action_to_idx(MacroAction.GO_HOME)
 
-        # Carrying flag: only GO_HOME / GO_TO allowed
+        # Carrying: only GO_HOME/GO_TO
         if agent.isCarryingFlag():
             mask[idx_get] = False
             mask[idx_grab] = False
@@ -667,20 +544,20 @@ class GameField:
             mask[idx_home] = True
             return mask
 
-        # OP1: hard-disable mines to lock onto objective
+        # OP1: hard-disable mines
         if phase == "OP1":
             mask[idx_grab] = False
             mask[idx_place] = False
 
         charges = int(getattr(agent, "mine_charges", 0))
 
-        # Never grab mine if already holding charges
+        # Never grab if already holding charges
         if charges > 0:
             mask[idx_grab] = False
 
         # Never detour for mines near enemy flag
         ax, ay = self._agent_float_pos(agent)
-        ex, ey = gm.get_enemy_flag_position(side)
+        ex, ey = self._gm_enemy_flag_position(side)
         if math.hypot(ax - float(ex), ay - float(ey)) <= float(self.mine_detour_disable_radius_cells):
             mask[idx_grab] = False
 
@@ -763,6 +640,18 @@ class GameField:
         self.manager.reset_game(reset_scores=True)
         self.reset_default()
 
+    def _ensure_agent_ids(self, a: Agent) -> None:
+        # Ensure stable keys for:
+        #  - external control
+        #  - reward event routing
+        #  - mine ownership
+        side = str(getattr(a, "side", "blue"))
+        aid = int(getattr(a, "agent_id", 0))
+        if getattr(a, "unique_id", None) is None:
+            a.unique_id = f"{side}_{aid}"
+        if getattr(a, "slot_id", None) is None:
+            a.slot_id = a.unique_id
+
     def spawn_agents(self) -> None:
         base = int(self.episode_seed or 0)
         rng = random.Random(base + 123)
@@ -810,6 +699,13 @@ class GameField:
             a.decision_count = 0
             a.suppression_timer = 0.0
             a.suppressed_this_tick = False
+            # consistent ids
+            self._ensure_agent_ids(a)
+            # safe float/cell defaults
+            if getattr(a, "float_pos", None) is None:
+                a.float_pos = (float(col), float(row))
+            if getattr(a, "cell_pos", None) is None:
+                a.cell_pos = (int(col), int(row))
             self.blue_agents.append(a)
 
         for i in range(min(n, len(red_cells))):
@@ -832,6 +728,11 @@ class GameField:
             a.decision_count = 0
             a.suppression_timer = 0.0
             a.suppressed_this_tick = False
+            self._ensure_agent_ids(a)
+            if getattr(a, "float_pos", None) is None:
+                a.float_pos = (float(col), float(row))
+            if getattr(a, "cell_pos", None) is None:
+                a.cell_pos = (int(col), int(row))
             self.red_agents.append(a)
 
     def spawn_mine_pickups(self) -> None:
@@ -890,9 +791,10 @@ class GameField:
         for agent in (self.blue_agents + self.red_agents):
             agent.update(delta_time)
 
-        # Dynamic obstacles from *cell* positions
+        # Dynamic obstacles from cell positions
         occupied = [self._agent_cell_pos(a) for a in (self.blue_agents + self.red_agents) if a.isEnabled()]
-        self.pathfinder.setDynamicObstacles(occupied)
+        if hasattr(self.pathfinder, "setDynamicObstacles"):
+            self.pathfinder.setDynamicObstacles(occupied)
 
         # Apply mechanics + decisions
         for friendly_team, enemy_team in (
@@ -926,6 +828,11 @@ class GameField:
                             if self.external_missing_action_mode == "internal" and self.use_internal_policies:
                                 self.decide(agent)
                                 made_decision = True
+                            elif self.external_missing_action_mode == "idle":
+                                # "idle" but still advance decision clock:
+                                # GO_TO current cell so agent effectively stands still
+                                self.apply_macro_action(agent, MacroAction.GO_TO, self._agent_cell_pos(agent))
+                                made_decision = True
                             else:
                                 break
                     else:
@@ -943,7 +850,7 @@ class GameField:
                 self.handle_mine_pickups(agent)
                 self.apply_flag_rules(agent)
 
-        # Minimal banner decay (safe to ignore)
+        # Minimal banner decay
         if self.banner_queue:
             text, color, t = self.banner_queue[-1]
             t = max(0.0, t - delta_time)
@@ -955,7 +862,7 @@ class GameField:
 
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
         """
-        Returns a [C][H][W] nested list for CNN-style policies.
+        Returns a [C][H][W] nested list for CNN-style policies (7ch).
         Mirrors X for red so both teams see "enemy direction" consistently.
         """
         side = agent.side
@@ -1000,11 +907,11 @@ class GameField:
                 set_chan(4, c, r)
 
         if side == "blue":
-            own_flag_pos = gm.blue_flag_position
-            enemy_flag_pos = gm.get_enemy_flag_position("blue")
+            own_flag_pos = getattr(gm, "blue_flag_position", (0, 0))
+            enemy_flag_pos = self._gm_enemy_flag_position("blue")
         else:
-            own_flag_pos = gm.red_flag_position
-            enemy_flag_pos = gm.get_enemy_flag_position("red")
+            own_flag_pos = getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1))
+            enemy_flag_pos = self._gm_enemy_flag_position("red")
 
         c1, r1 = self.float_grid_to_cnn_cell(float(own_flag_pos[0]), float(own_flag_pos[1]), mirror_x=mirror_x)
         set_chan(5, c1, r1)
@@ -1017,10 +924,6 @@ class GameField:
     # -------- macro actions --------
 
     def apply_macro_action(self, agent: Agent, action: Any, param: Optional[Any] = None) -> MacroAction:
-        """
-        Executes a macro action. Accepts network macro index or MacroAction enum.
-        Returns the MacroAction actually executed (post-safety overrides).
-        """
         if agent is None or (not agent.isEnabled()):
             return MacroAction.GO_TO
 
@@ -1081,17 +984,21 @@ class GameField:
 
             path: Optional[List[Cell]] = None
             try:
-                if avoid_enemies:
+                if avoid_enemies and hasattr(self.pathfinder, "setDangerCosts"):
                     self.pathfinder.setDangerCosts(danger)
-                else:
+                elif hasattr(self.pathfinder, "clearDangerCosts"):
                     self.pathfinder.clearDangerCosts()
                 path = self.pathfinder.astar(start, tgt)
             except Exception:
                 path = None
             finally:
-                self.pathfinder.setDangerCosts(danger_saved)
+                if hasattr(self.pathfinder, "setDangerCosts"):
+                    self.pathfinder.setDangerCosts(danger_saved)
 
-            agent.setPath(path or [])
+            if hasattr(agent, "setPath"):
+                agent.setPath(path or [])
+            else:
+                agent.path = path or []
 
         # ---- dispatch ----
 
@@ -1101,24 +1008,24 @@ class GameField:
             return record(MacroAction.GO_TO)
 
         if action == MacroAction.GET_FLAG:
-            ex, ey = gm.get_enemy_flag_position(side)
+            ex, ey = self._gm_enemy_flag_position(side)
             safe_set_path((int(ex), int(ey)), avoid_enemies=False)
             return record(MacroAction.GET_FLAG)
 
         if action == MacroAction.GO_HOME:
-            home = gm.get_team_zone_center(side)
+            home = self._gm_team_zone_center(side)
             safe_set_path(home, avoid_enemies=True, radius=2)
             return record(MacroAction.GO_HOME)
 
         if action == MacroAction.GRAB_MINE:
             # Objective-first guards
             if int(getattr(agent, "mine_charges", 0)) > 0:
-                ex, ey = gm.get_enemy_flag_position(side)
+                ex, ey = self._gm_enemy_flag_position(side)
                 safe_set_path((int(ex), int(ey)), avoid_enemies=False)
                 return record(MacroAction.GET_FLAG)
 
             ax, ay = self._agent_float_pos(agent)
-            ex, ey = gm.get_enemy_flag_position(side)
+            ex, ey = self._gm_enemy_flag_position(side)
             if math.hypot(ax - float(ex), ay - float(ey)) <= float(self.mine_detour_disable_radius_cells):
                 safe_set_path((int(ex), int(ey)), avoid_enemies=False)
                 return record(MacroAction.GET_FLAG)
@@ -1142,11 +1049,11 @@ class GameField:
                     own_min, own_max = self.blue_zone_col_range if side == "blue" else self.red_zone_col_range
                     ax_cell, _ = self._agent_cell_pos(agent)
                     if not (own_min - 1 <= float(ax_cell) <= own_max + 1):
-                        safe_set_path(gm.get_team_zone_center(side), avoid_enemies=False)
+                        safe_set_path(self._gm_team_zone_center(side), avoid_enemies=False)
                         return record(MacroAction.GO_TO)
 
                 tx, ty = self._clamp_cell(int(target[0]), int(target[1]))
-                own_flag_home = gm.blue_flag_home if side == "blue" else gm.red_flag_home
+                own_flag_home = getattr(gm, "blue_flag_home", (0, 0)) if side == "blue" else getattr(gm, "red_flag_home", (self.col_count - 1, self.row_count - 1))
 
                 if self._is_free_cell(tx, ty) and not any(m.x == tx and m.y == ty for m in self.mines):
                     if (tx, ty) != tuple(own_flag_home):
@@ -1161,7 +1068,7 @@ class GameField:
             safe_set_path(target, avoid_enemies=False)
             return record(MacroAction.PLACE_MINE)
 
-        # Fallback: treat unknown macro as GO_TO mid
+        # Fallback
         safe_set_path(self.get_macro_target(4), avoid_enemies=False)
         return record(MacroAction.GO_TO)
 
@@ -1177,8 +1084,7 @@ class GameField:
 
         # Neural-like policy interface: policy.act(obs_tensor, ...)
         if hasattr(policy, "act"):
-            # Local import so game_field stays light when not using torch-based policies
-            import torch  # noqa: PLC0415
+            import torch  # local import
 
             device = torch.device("cpu")
             if hasattr(policy, "parameters"):
@@ -1203,19 +1109,18 @@ class GameField:
             self.apply_macro_action(agent, action_id, param)
             return
 
-        # Scripted Policy type
+        # Scripted Policy
         if isinstance(policy, Policy):
             action_id, param = policy.select_action(obs, agent, self)
             self.apply_macro_action(agent, int(action_id), param)
             return
 
-        # Callable fallback (rare)
+        # Callable fallback
         if callable(policy):
             action_id = policy(agent, self)
             self.apply_macro_action(agent, int(action_id), None)
             return
 
-        # If no policy wired: do nothing (stable training behavior)
         return
 
     # -------- mechanics: mines / suppression / flags --------
@@ -1269,11 +1174,17 @@ class GameField:
 
                 if killer_agent is not None and getattr(killer_agent, "side", None) == "blue":
                     if hasattr(self.manager, "reward_enemy_killed"):
-                        self.manager.reward_enemy_killed(killer_agent=killer_agent, victim_agent=agent, cause="mine")
+                        try:
+                            self.manager.reward_enemy_killed(killer_agent=killer_agent, victim_agent=agent, cause="mine")
+                        except Exception:
+                            pass
 
                 if mine.owner_side == "blue" and agent.side == "red":
                     if hasattr(self.manager, "record_mine_triggered_by_red"):
-                        self.manager.record_mine_triggered_by_red()
+                        try:
+                            self.manager.record_mine_triggered_by_red()
+                        except Exception:
+                            pass
 
                 self._clear_pending_for_agent(agent)
                 agent.disable_for_seconds(self.respawn_seconds)
@@ -1281,7 +1192,6 @@ class GameField:
                 break
 
     def apply_suppression(self, agent: Agent, enemies: List[Agent], delta_time: float) -> None:
-        # Never operate on disabled agents
         if agent is None or (not agent.isEnabled()):
             return
 
@@ -1300,44 +1210,36 @@ class GameField:
             agent.suppressed_this_tick = True
             agent.suppression_timer = float(getattr(agent, "suppression_timer", 0.0)) + float(delta_time)
 
-            # Suppression "kill" threshold
             if agent.suppression_timer >= 1.0:
-                # Pick a deterministic killer (prefer blue if present, else first)
-                killer_agent = None
                 blue_suppressors = [e for e in close_enemies if getattr(e, "side", None) == "blue"]
                 killer_agent = blue_suppressors[0] if blue_suppressors else close_enemies[0]
 
-                # Reward only if the method exists (no missing-method crashes)
                 mgr = getattr(self, "manager", None)
                 if (
-                        killer_agent is not None
-                        and getattr(killer_agent, "side", None) == "blue"
-                        and mgr is not None
-                        and hasattr(mgr, "reward_enemy_killed")
+                    killer_agent is not None
+                    and getattr(killer_agent, "side", None) == "blue"
+                    and mgr is not None
+                    and hasattr(mgr, "reward_enemy_killed")
                 ):
-                    mgr.reward_enemy_killed(killer_agent=killer_agent, victim_agent=agent, cause="suppression")
+                    try:
+                        mgr.reward_enemy_killed(killer_agent=killer_agent, victim_agent=agent, cause="suppression")
+                    except Exception:
+                        pass
 
-                # Clear any pending action state safely
-                if hasattr(self, "_clear_pending_for_agent"):
-                    self._clear_pending_for_agent(agent)
+                self._clear_pending_for_agent(agent)
 
                 agent.suppression_timer = 0.0
                 agent.disable_for_seconds(float(getattr(self, "respawn_seconds", 0.0)))
         else:
-            # Not currently suppressed: reset cleanly to avoid "stutter kills"
             agent.suppressed_this_tick = False
             agent.suppression_timer = 0.0
 
     def apply_flag_rules(self, agent: Agent) -> None:
-        """
-        Flag pickup and scoring.
-        Uses manager as source of truth.
-        """
-        if self.manager.try_pickup_enemy_flag(agent):
+        if hasattr(self.manager, "try_pickup_enemy_flag") and self.manager.try_pickup_enemy_flag(agent):
             agent.setCarryingFlag(True)
 
         if agent.isCarryingFlag():
-            if self.manager.try_score_if_carrying_and_home(agent):
+            if hasattr(self.manager, "try_score_if_carrying_and_home") and self.manager.try_score_if_carrying_and_home(agent):
                 agent.setCarryingFlag(False, scored=True)
                 self.announce(
                     "BLUE SCORES!" if agent.side == "blue" else "RED SCORES!",
@@ -1351,4 +1253,4 @@ class GameField:
         self.banner_queue.append((str(text), color, float(seconds)))
 
 
-__all__ = ["GameField", "MacroAction", "Mine", "MinePickup"]
+__all__ = ["GameField", "MacroAction", "Mine", "MinePickup", "CNN_COLS", "CNN_ROWS", "NUM_CNN_CHANNELS"]
