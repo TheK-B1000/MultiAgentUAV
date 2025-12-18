@@ -47,7 +47,6 @@ def _extract_state_dict(loaded: Any) -> Dict[str, torch.Tensor]:
         # might already be a state_dict
         if any(isinstance(k, str) and "." in k for k in loaded.keys()):
             return loaded
-    if isinstance(loaded, dict):
         return loaded
     raise ValueError("Unrecognized checkpoint format (not a dict/state_dict).")
 
@@ -55,12 +54,10 @@ def _extract_state_dict(loaded: Any) -> Dict[str, torch.Tensor]:
 class LearnedPolicy:
     """
     Wrapper around ActorCriticNet so it can be plugged into GameField.policies["blue"].
-    Works for PPO-trained or MAPPO-trained checkpoints (uses .act() either way).
 
-    Viewer-grade requirements:
-      - height/width/n_targets are taken from the env (NOT hardcoded)
-      - robust checkpoint formats
-      - robust act() outputs / key names
+    IMPORTANT:
+      - returns (macro_idx, target_idx) NOT (macro_value, (x,y)).
+        GameField.apply_macro_action should resolve target_idx -> (x,y).
     """
 
     def __init__(self, model_path: str, env: ViewerGameField):
@@ -68,7 +65,7 @@ class LearnedPolicy:
         self.model_path = model_path
         self.model_loaded = False
 
-        if not env.blue_agents:
+        if not getattr(env, "blue_agents", None):
             raise RuntimeError("ViewerGameField has no blue agents; cannot infer obs shape.")
 
         dummy_obs = env.build_observation(env.blue_agents[0])
@@ -76,11 +73,8 @@ class LearnedPolicy:
         H = len(dummy_obs[0])
         W = len(dummy_obs[0][0])
 
-        # Use env's target count if available
         n_targets = _safe_int(getattr(env, "num_macro_targets", 0), 0)
         if n_targets <= 0:
-            # fallback: if viewer env exposes get_macro_target, we can binary-search-ish
-            # but simplest robust fallback is 50
             n_targets = 50
 
         n_agents = _safe_int(getattr(env, "agents_per_team", 2), 2)
@@ -113,31 +107,17 @@ class LearnedPolicy:
 
     def __call__(self, agent, game_field):
         obs = game_field.build_observation(agent)
-        macro_val, param = self.select_action(obs, agent, game_field)
-        return (int(macro_val), param)
+        macro_idx, target_idx = self.select_action(obs, agent, game_field)
+        return (int(macro_idx), target_idx)
 
-    def select_action(
-        self,
-        obs: Any,
-        agent,
-        game_field,
-    ) -> Tuple[int, Optional[Tuple[int, int]]]:
-        """
-        obs -> tensor -> ActorCriticNet.act -> return (MacroAction.value, (x,y) or None)
-        """
+    def select_action(self, obs, agent, game_field) -> Tuple[int, Optional[int]]:
         if not self.model_loaded:
-            return int(getattr(MacroAction.GO_TO, "value", int(MacroAction.GO_TO))), None
+            return 0, None  # default to GO_TO idx 0
 
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
-            # Expect [C,H,W] -> [1,C,H,W]
             if obs_tensor.dim() == 3:
                 obs_tensor = obs_tensor.unsqueeze(0)
-            elif obs_tensor.dim() == 4:
-                pass
-            else:
-                # last-resort reshape
-                obs_tensor = obs_tensor.reshape(1, *obs_tensor.shape)
 
             out = self.net.act(
                 obs_tensor,
@@ -146,39 +126,19 @@ class LearnedPolicy:
                 deterministic=True,
             )
 
-            # macro index in [0..n_macros-1]
             macro_t = out.get("macro_action", out.get("action", out.get("macro")))
             if macro_t is None:
-                # fail-safe: do something non-crashy
-                return int(getattr(MacroAction.GO_TO, "value", int(MacroAction.GO_TO))), None
+                return 0, None
 
-            if torch.is_tensor(macro_t):
-                macro_idx = int(macro_t.reshape(-1)[0].item())
-            else:
-                macro_idx = int(macro_t)
-
+            macro_idx = int(macro_t.reshape(-1)[0].item()) if torch.is_tensor(macro_t) else int(macro_t)
             macro_idx = max(0, min(len(USED_MACROS) - 1, macro_idx))
 
-            # Convert index -> MacroAction value (robust even if enum values aren't 0..4)
-            macro_enum = USED_MACROS[macro_idx]
-            macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
-
-            param: Optional[Tuple[int, int]] = None
-            if "target_action" in out and hasattr(game_field, "get_macro_target"):
+            target_idx = None
+            if "target_action" in out:
                 tgt_t = out["target_action"]
-                if torch.is_tensor(tgt_t):
-                    target_idx = int(tgt_t.reshape(-1)[0].item())
-                else:
-                    target_idx = int(tgt_t)
+                target_idx = int(tgt_t.reshape(-1)[0].item()) if torch.is_tensor(tgt_t) else int(tgt_t)
 
-                try:
-                    x, y = game_field.get_macro_target(target_idx)
-                    param = (int(x), int(y))
-                except Exception:
-                    # If target is invalid, fall back to None (macro may not require it)
-                    param = None
-
-            return macro_val, param
+            return macro_idx, target_idx
 
 
 class CTFViewer:
@@ -187,14 +147,13 @@ class CTFViewer:
         ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
         mappo_model_path: str = DEFAULT_MAPPO_MODEL_PATH,
     ):
-        # Grid dims MUST match your GameField grid dims
         rows, cols = 20, 20
         grid = [[0] * cols for _ in range(rows)]
 
         self.game_field = ViewerGameField(grid)
         self.game_manager = self.game_field.getGameManager()
 
-        # Ensure viewer uses internal policies (not external trainer control)
+        # Ensure viewer uses internal policies
         if hasattr(self.game_field, "use_internal_policies"):
             self.game_field.use_internal_policies = True
         if hasattr(self.game_field, "set_external_control"):
@@ -207,7 +166,10 @@ class CTFViewer:
         # ------------- Pygame setup -------------
         pg.init()
         self.size = (1024, 720)
-        self.screen = pg.display.set_mode(self.size)
+        try:
+            self.screen = pg.display.set_mode(self.size, pg.SCALED | pg.DOUBLEBUF, vsync=1)
+        except TypeError:
+            self.screen = pg.display.set_mode(self.size, pg.SCALED | pg.DOUBLEBUF)
         pg.display.set_caption("UAV CTF Viewer | Blue: OP3/PPO/MAPPO vs Red: OP3 | CNN 7×20×20")
         self.clock = pg.time.Clock()
         self.font = pg.font.SysFont(None, 26)
@@ -216,8 +178,8 @@ class CTFViewer:
         self.input_active = False
         self.input_text = ""
 
-        # Sanity: print detected observation shape
-        if self.game_field.blue_agents:
+        # Sanity
+        if getattr(self.game_field, "blue_agents", None):
             dummy_obs = self.game_field.build_observation(self.game_field.blue_agents[0])
             try:
                 C = len(dummy_obs)
@@ -236,14 +198,11 @@ class CTFViewer:
 
         self.blue_op3_baseline = OP3RedPolicy("blue")
 
-        # Load PPO + MAPPO models (optional)
         self.blue_ppo_policy: Optional[LearnedPolicy] = LearnedPolicy(ppo_model_path, self.game_field)
         self.blue_mappo_policy: Optional[LearnedPolicy] = LearnedPolicy(mappo_model_path, self.game_field)
 
-        # Mode: "OP3" | "PPO" | "MAPPO"
         self.blue_mode: str = "OP3"
         self._apply_blue_mode(self.blue_mode)
-
         self._reset_op3_policies()
 
     def _available_modes(self) -> List[str]:
@@ -290,13 +249,22 @@ class CTFViewer:
                         pass
 
     # ----------------------------
-    # Main loop
+    # Main loop (fixed-step sim + alpha render)
     # ----------------------------
     def run(self):
         running = True
+
+        fixed_dt = 1.0 / 60.0
+        acc = 0.0
+
+        max_frame_dt = 1.0 / 30.0  # cap big hitches
+        max_substeps = 5  # avoid spiral-of-death
+
         while running:
-            dt_ms = self.clock.tick(60)
-            dt_sec = dt_ms / 1000.0
+            frame_dt = self.clock.tick_busy_loop(120) / 1000.0  # steadier pacing
+            if frame_dt > max_frame_dt:
+                frame_dt = max_frame_dt
+            acc += frame_dt
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -307,8 +275,18 @@ class CTFViewer:
                     else:
                         self.handle_main_key(event)
 
-            self.game_field.update(dt_sec)
-            self.draw()
+            steps = 0
+            while acc >= fixed_dt and steps < max_substeps:
+                self.game_field.update(fixed_dt)  # ViewerGameField.update snapshots prev/curr
+                acc -= fixed_dt
+                steps += 1
+
+            # If we fell behind badly, drop the remainder so we don't stutter for seconds
+            if steps == max_substeps:
+                acc = 0.0
+
+            alpha = acc / fixed_dt  # 0..1
+            self.draw(alpha=alpha)
             pg.display.flip()
 
         pg.quit()
@@ -320,31 +298,25 @@ class CTFViewer:
     def handle_main_key(self, event):
         k = event.key
         if k == pg.K_F1:
-            # Full reset
             self.game_field.agents_per_team = 2
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.reset_default()
             self._reset_op3_policies()
 
         elif k == pg.K_F2:
-            # Set agent count
             self.input_active = True
             self.input_text = str(self.game_field.agents_per_team)
 
         elif k == pg.K_F3:
-            # Cycle: OP3 -> PPO -> MAPPO (only if loaded)
             self._cycle_blue_mode()
 
         elif k == pg.K_F4:
-            # Toggle suppression range debug draw
             self.game_field.debug_draw_ranges = not getattr(self.game_field, "debug_draw_ranges", False)
 
         elif k == pg.K_F5:
-            # Toggle mine range debug draw
             self.game_field.debug_draw_mine_ranges = not getattr(self.game_field, "debug_draw_mine_ranges", False)
 
         elif k == pg.K_r:
-            # Quick reset (no score reset)
             self.game_field.agents_per_team = 2
             self.game_field.reset_default()
             self._reset_op3_policies()
@@ -382,19 +354,20 @@ class CTFViewer:
     # ----------------------------
     # Drawing / HUD
     # ----------------------------
-    def draw(self):
+    def draw(self, alpha: float = 1.0):
         self.screen.fill((12, 12, 18))
 
         hud_h = 110
         field_rect = pg.Rect(20, hud_h + 10, self.size[0] - 20, self.size[1] - hud_h - 20)
-        self.game_field.draw(self.screen, field_rect)
+
+        # IMPORTANT: ViewerGameField.draw must accept alpha
+        self.game_field.draw(self.screen, field_rect, alpha=alpha)
 
         def txt(text, x, y, color=(230, 230, 240)):
             img = self.font.render(text, True, color)
             self.screen.blit(img, (x, y))
 
         gm = self.game_manager
-
         mode = self.blue_mode
         mode_color = (255, 255, 120) if mode == "OP3" else (120, 255, 120)
 
@@ -408,8 +381,8 @@ class CTFViewer:
             30, 45, mode_color
         )
 
-        txt(f"BLUE: {gm.blue_score}", 30, 80, (100, 180, 255))
-        txt(f"RED: {gm.red_score}", 200, 80, (255, 100, 100))
+        txt(f"BLUE: {getattr(gm, 'blue_score', 0)}", 30, 80, (100, 180, 255))
+        txt(f"RED: {getattr(gm, 'red_score', 0)}", 200, 80, (255, 100, 100))
         txt(f"Time: {int(getattr(gm, 'current_time', 0.0))}s", 380, 80, (220, 220, 255))
 
         right_x = self.size[0] - 460
