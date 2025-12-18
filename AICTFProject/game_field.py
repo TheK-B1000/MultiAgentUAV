@@ -916,47 +916,78 @@ class GameField:
         obs = self.build_observation(agent)
         policy = self.policies.get(agent.side)
 
-        # Neural-like policy interface: policy.act(obs_tensor, ...)
-        if hasattr(policy, "act"):
-            # Local import so game_field stays light when not using torch-based policies
-            import torch  # noqa: PLC0415
+        def _to_int(v: Any, default: int = 0) -> int:
+            try:
+                # torch tensor / numpy scalar
+                if hasattr(v, "item"):
+                    return int(v.item())
+                # list/tuple/np array (take first)
+                if isinstance(v, (list, tuple)) and len(v) > 0:
+                    return _to_int(v[0], default)
+                return int(v)
+            except Exception:
+                return int(default)
 
+        # 1) Neural-like interface: policy.act(obs_tensor, ...)
+        if hasattr(policy, "act"):
+            import torch  # local import for training-light module
+
+            # Choose device if possible
             device = torch.device("cpu")
-            if hasattr(policy, "parameters"):
-                try:
-                    p = next(policy.parameters())
-                    device = p.device
-                except StopIteration:
-                    pass
+            try:
+                if hasattr(policy, "parameters"):
+                    device = next(policy.parameters()).device
+                elif hasattr(policy, "net") and hasattr(policy.net, "parameters"):
+                    device = next(policy.net.parameters()).device
+            except Exception:
+                device = torch.device("cpu")
 
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
 
             with torch.no_grad():
                 out = policy.act(obs_tensor, agent=agent, game_field=self, deterministic=True)
 
-            if isinstance(out, dict):
-                action_id = int(out["macro_action"][0].item())
-                param = int(out["target_action"][0].item())
-            else:
-                action_id = int(out[0])
-                param = int(out[1]) if len(out) > 1 else None
+            macro_id = 0
+            param = None
 
+            if isinstance(out, dict):
+                # expected keys from your ActorCriticNet.act()
+                macro_id = _to_int(out.get("macro_action", out.get("action", 0)), 0)
+                if "target_action" in out:
+                    param = _to_int(out["target_action"], 0)  # keep as target index
+            elif isinstance(out, (tuple, list)):
+                macro_id = _to_int(out[0], 0)
+                if len(out) > 1:
+                    param = out[1]
+            else:
+                macro_id = _to_int(out, 0)
+
+            # NOTE: pass macro_id (network index) + param (target idx or (x,y)) directly.
+            self.apply_macro_action(agent, macro_id, param)
+            return
+
+        # 2) Scripted Policy type
+        if isinstance(policy, Policy):
+            action_id, param = policy.select_action(obs, agent, self)
+            # Don't force int() here; apply_macro_action can normalize MacroAction or idx safely.
             self.apply_macro_action(agent, action_id, param)
             return
 
-        # Scripted Policy type
-        if isinstance(policy, Policy):
-            action_id, param = policy.select_action(obs, agent, self)
-            self.apply_macro_action(agent, int(action_id), param)
-            return
-
-        # Callable fallback (rare)
+        # 3) Callable fallback (covers your LearnedPolicy wrapper)
         if callable(policy):
-            action_id = policy(agent, self)
-            self.apply_macro_action(agent, int(action_id), None)
+            out = policy(agent, self)
+
+            macro_id = out
+            param = None
+            if isinstance(out, (tuple, list)):
+                macro_id = out[0]
+                if len(out) > 1:
+                    param = out[1]
+
+            self.apply_macro_action(agent, macro_id, param)
             return
 
-        # If no policy wired: do nothing (stable training behavior)
+        # No policy wired: do nothing
         return
 
     # -------- mechanics: mines / suppression / flags --------
