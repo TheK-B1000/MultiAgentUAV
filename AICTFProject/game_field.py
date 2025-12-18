@@ -371,6 +371,265 @@ class GameField:
     def getGameManager(self) -> GameManager:
         return self.manager
 
+    # -------- QMIX / CTDE global state  --------
+
+    def _norm_xy(self, x: float, y: float) -> Tuple[float, float]:
+        """
+        Normalize grid-ish coordinates to [0,1] using arena grid size.
+        Works for float-grid coordinates too.
+        """
+        xn = 0.0
+        yn = 0.0
+        try:
+            xn = float(x) / float(max(1, self.col_count - 1))
+            yn = float(y) / float(max(1, self.row_count - 1))
+        except Exception:
+            pass
+        # clamp
+        xn = max(0.0, min(1.0, xn))
+        yn = max(0.0, min(1.0, yn))
+        return xn, yn
+
+    @staticmethod
+    def _one_hot_side(side: str) -> Tuple[float, float]:
+        # (is_blue, is_red)
+        s = str(side).lower()
+        if s == "blue":
+            return 1.0, 0.0
+        if s == "red":
+            return 0.0, 1.0
+        return 0.0, 0.0
+
+    def get_global_state_spec(
+            self,
+            *,
+            max_agents_per_team: Optional[int] = None,
+            max_mines_total: Optional[int] = None,
+            max_pickups_total: Optional[int] = None,
+    ) -> Dict[str, int]:
+        """
+        Returns counts used to build a fixed-length state vector.
+        """
+        n_team = int(max_agents_per_team) if max_agents_per_team is not None else int(self.agents_per_team)
+        n_team = max(1, n_team)
+
+        # Mines can vary during play; pick a safe upper bound.
+        # If you ever allow more mines, bump this.
+        if max_mines_total is None:
+            max_mines_total = int(getattr(self, "mines_per_team", 4)) * 2
+        max_mines_total = max(0, int(max_mines_total))
+
+        if max_pickups_total is None:
+            max_pickups_total = int(getattr(self, "mines_per_team", 4)) * 2
+        max_pickups_total = max(0, int(max_pickups_total))
+
+        return {
+            "agents_per_team": n_team,
+            "max_mines_total": max_mines_total,
+            "max_pickups_total": max_pickups_total,
+        }
+
+    def get_global_state_dim(
+            self,
+            *,
+            max_agents_per_team: Optional[int] = None,
+            max_mines_total: Optional[int] = None,
+            max_pickups_total: Optional[int] = None,
+    ) -> int:
+        spec = self.get_global_state_spec(
+            max_agents_per_team=max_agents_per_team,
+            max_mines_total=max_mines_total,
+            max_pickups_total=max_pickups_total,
+        )
+        n = spec["agents_per_team"]
+
+        # Agent feature size (per agent)
+        # [x,y, enabled, carrying, mine_charges_norm, suppress_timer_norm, side_onehot(2)]
+        AG_F = 2 + 1 + 1 + 1 + 1 + 2  # = 8
+
+        # Mine feature size (per mine)
+        # [x,y, active, side_onehot(2)]
+        MI_F = 2 + 1 + 2  # = 5
+
+        # Pickup feature size (per pickup)
+        # [x,y, active, charges_norm, side_onehot(2)]
+        PU_F = 2 + 1 + 1 + 2  # = 6
+
+        # Global scalars:
+        # scores/time + flags:
+        # [blue_score_norm, red_score_norm, time_norm,
+        #  blue_flag(x,y), red_flag(x,y), blue_home(x,y), red_home(x,y)]
+        G_F = 3 + 2 + 2 + 2 + 2  # = 11
+
+        dim = (
+                G_F
+                + (2 * n) * AG_F
+                + spec["max_mines_total"] * MI_F
+                + spec["max_pickups_total"] * PU_F
+        )
+        return int(dim)
+
+    def get_global_state(
+            self,
+            *,
+            max_agents_per_team: Optional[int] = None,
+            max_mines_total: Optional[int] = None,
+            max_pickups_total: Optional[int] = None,
+    ) -> np.ndarray:
+        """
+        Fixed-length CTDE 'God View' vector for QMIX mixing network.
+
+        Contains:
+          - Scores + normalized time
+          - Flag positions + homes
+          - All agent states (blue then red), padded
+          - All mines (including "hidden"), padded
+          - All mine pickups, padded
+
+        Returns:
+          np.float32 vector with constant dimension across episodes.
+        """
+        spec = self.get_global_state_spec(
+            max_agents_per_team=max_agents_per_team,
+            max_mines_total=max_mines_total,
+            max_pickups_total=max_pickups_total,
+        )
+        n = spec["agents_per_team"]
+        max_mines_total = spec["max_mines_total"]
+        max_pickups_total = spec["max_pickups_total"]
+
+        gm = self.manager
+
+        # --- global scalars ---
+        score_limit = float(getattr(gm, "score_limit", 3) or 3)
+        blue_score = float(getattr(gm, "blue_score", 0))
+        red_score = float(getattr(gm, "red_score", 0))
+        blue_score_n = blue_score / score_limit
+        red_score_n = red_score / score_limit
+
+        # time normalized by max_time (if exists)
+        max_time = float(getattr(gm, "max_time", 200.0) or 200.0)
+        # try a few likely names
+        t = float(getattr(gm, "time_elapsed", getattr(gm, "elapsed_time", getattr(gm, "time", 0.0))))
+        time_n = max(0.0, min(1.0, t / max_time))
+
+        # Flags + homes
+        bfx, bfy = tuple(getattr(gm, "blue_flag_position", (0, 0)))
+        rfx, rfy = tuple(getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1)))
+        bhx, bhy = tuple(getattr(gm, "blue_flag_home", (0, 0)))
+        rhx, rhy = tuple(getattr(gm, "red_flag_home", (self.col_count - 1, self.row_count - 1)))
+
+        bfx, bfy = self._norm_xy(float(bfx), float(bfy))
+        rfx, rfy = self._norm_xy(float(rfx), float(rfy))
+        bhx, bhy = self._norm_xy(float(bhx), float(bhy))
+        rhx, rhy = self._norm_xy(float(rhx), float(rhy))
+
+        feats: List[float] = [
+            float(blue_score_n),
+            float(red_score_n),
+            float(time_n),
+            float(bfx), float(bfy),
+            float(rfx), float(rfy),
+            float(bhx), float(bhy),
+            float(rhx), float(rhy),
+        ]
+
+        # --- agents (blue then red), padded to n each ---
+        def add_agent_block(agent_list: List[Agent], side_name: str) -> None:
+            # enforce deterministic ordering by agent_id if present
+            lst = list(agent_list)
+            try:
+                lst.sort(key=lambda a: int(getattr(a, "agent_id", 0)))
+            except Exception:
+                pass
+
+            for i in range(n):
+                if i < len(lst) and lst[i] is not None:
+                    a = lst[i]
+                    ax, ay = self._agent_float_pos(a)
+                    axn, ayn = self._norm_xy(ax, ay)
+
+                    enabled = 1.0 if bool(getattr(a, "isEnabled", lambda: True)()) else 0.0
+                    carrying = 1.0 if bool(getattr(a, "isCarryingFlag", lambda: False)()) else 0.0
+
+                    charges = float(getattr(a, "mine_charges", 0))
+                    max_ch = float(getattr(self, "max_mine_charges_per_agent", 2) or 2)
+                    charges_n = max(0.0, min(1.0, charges / max_ch))
+
+                    sup_t = float(getattr(a, "suppression_timer", 0.0))
+                    # 1.0 is your kill threshold, so normalize to [0,1] around that
+                    sup_n = max(0.0, min(1.0, sup_t / 1.0))
+
+                    s0, s1 = self._one_hot_side(getattr(a, "side", side_name))
+
+                    feats.extend([
+                        float(axn), float(ayn),
+                        float(enabled),
+                        float(carrying),
+                        float(charges_n),
+                        float(sup_n),
+                        float(s0), float(s1),
+                    ])
+                else:
+                    # padding row
+                    s0, s1 = self._one_hot_side(side_name)
+                    feats.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, float(s0), float(s1)])
+
+        add_agent_block(self.blue_agents, "blue")
+        add_agent_block(self.red_agents, "red")
+
+        # --- mines (padded) ---
+        mines = list(getattr(self, "mines", []))
+        # deterministic ordering
+        try:
+            mines.sort(
+                key=lambda m: (str(getattr(m, "owner_side", "")), int(getattr(m, "x", 0)), int(getattr(m, "y", 0))))
+        except Exception:
+            pass
+
+        for i in range(max_mines_total):
+            if i < len(mines):
+                m = mines[i]
+                mx, my = self._norm_xy(float(getattr(m, "x", 0.0)), float(getattr(m, "y", 0.0)))
+                active = 1.0
+                s0, s1 = self._one_hot_side(getattr(m, "owner_side", ""))
+                feats.extend([float(mx), float(my), float(active), float(s0), float(s1)])
+            else:
+                feats.extend([0.0, 0.0, 0.0, 0.0, 0.0])
+
+        # --- mine pickups (padded) ---
+        pickups = list(getattr(self, "mine_pickups", []))
+        try:
+            pickups.sort(
+                key=lambda p: (str(getattr(p, "owner_side", "")), int(getattr(p, "x", 0)), int(getattr(p, "y", 0))))
+        except Exception:
+            pass
+
+        for i in range(max_pickups_total):
+            if i < len(pickups):
+                p = pickups[i]
+                px, py = self._norm_xy(float(getattr(p, "x", 0.0)), float(getattr(p, "y", 0.0)))
+                active = 1.0
+                charges = float(getattr(p, "charges", 0.0))
+                charges_n = max(0.0, min(1.0, charges / 1.0))  # most are 1
+                s0, s1 = self._one_hot_side(getattr(p, "owner_side", ""))
+                feats.extend([float(px), float(py), float(active), float(charges_n), float(s0), float(s1)])
+            else:
+                feats.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+        vec = np.asarray(feats, dtype=np.float32)
+
+        # safety check: stable dim
+        expected = self.get_global_state_dim(
+            max_agents_per_team=max_agents_per_team,
+            max_mines_total=max_mines_total,
+            max_pickups_total=max_pickups_total,
+        )
+        if vec.shape[0] != expected:
+            raise RuntimeError(f"get_global_state dim mismatch: got {vec.shape[0]}, expected {expected}")
+
+        return vec
+
     # -------- action masking --------
 
     def get_macro_mask(self, agent: Agent) -> np.ndarray:
