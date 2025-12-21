@@ -1,7 +1,8 @@
 # ==========================================================
-# train_ppo_event.py (UPDATED: EPISODE-STRICT + PENDING ACCUMULATOR FIXED
+# train_ppo_event.py (FULL: EPISODE-STRICT + PENDING ACCUMULATOR FIXED
 #                     + OP3 STABILIZATION: SCORE-DELTA + OUTCOME TERMINAL
-#                     + TERMINAL-SAFE UPDATES + OP3 ENTROPY RESET)
+#                     + TERMINAL-SAFE UPDATES + OP3 ENTROPY RESET
+#                     + SELF-PLAY (PPO "LEAGUE" SNAPSHOT POOL, MARL-STANDARD))
 # ==========================================================
 import os
 import random
@@ -118,6 +119,27 @@ OP3_ENT_RESET_EPISODES: int = 100   # first N OP3 episodes get higher entropy th
 
 
 # ==========================================================
+# Self-Play (MARL-standard PPO snapshot pool)
+#   - Train BLUE vs frozen RED sampled from pool
+#   - Keep some scripted opponents forever to prevent degenerate collapse
+# ==========================================================
+USE_SELF_PLAY: bool = True
+
+SP_WARMUP_EPISODES: int = 300       # only scripted early
+SP_RAMP_EPISODES: int = 700         # linear ramp to SP_MAX_PROB
+SP_MAX_PROB: float = 0.85           # max chance of self-play once ramp complete
+
+SCRIPTED_MIX_PROB_FLOOR: float = 0.10  # always keep some chance of OP* opponents
+
+SP_SNAPSHOT_EVERY_EP: int = 50      # snapshot learner every N episodes
+SP_POOL_MAX: int = 16               # max opponent snapshots kept
+SP_MIN_POOL_TO_SAMPLE: int = 4      # before this, prefer "latest" or scripted
+
+SP_LATEST_PROB: float = 0.35        # within self-play, chance to face latest snapshot
+SP_OPP_DETERMINISTIC: bool = False  # False is common for robustness
+
+
+# ==========================================================
 # Env helpers
 # ==========================================================
 def set_red_policy_for_phase(env: GameField, phase: str) -> None:
@@ -131,19 +153,24 @@ def set_red_policy_for_phase(env: GameField, phase: str) -> None:
         raise ValueError(f"Unknown phase: {phase}")
 
 
-def make_env() -> GameField:
+def make_env(red_external: bool = False) -> GameField:
     grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
     env = GameField(grid)
     env.use_internal_policies = True
 
     if hasattr(env, "set_external_control"):
         env.set_external_control("blue", True)
-        env.set_external_control("red", False)
+        env.set_external_control("red", bool(red_external))
 
     if hasattr(env, "external_missing_action_mode"):
         env.external_missing_action_mode = "idle"
 
     return env
+
+
+def can_self_play(env: GameField) -> bool:
+    return bool(hasattr(env, "set_external_control") and callable(getattr(env, "set_external_control"))) and \
+           bool(hasattr(env, "submit_external_actions") and callable(getattr(env, "submit_external_actions")))
 
 
 def agent_uid(agent: Any) -> str:
@@ -165,13 +192,16 @@ def external_key_for_agent(env: GameField, agent: Any) -> str:
     Prefer env._external_key_for_agent if present, else agent_uid.
     """
     if hasattr(env, "_external_key_for_agent"):
-        k = str(env._external_key_for_agent(agent))
-        if k.strip():
-            return k
+        try:
+            k = str(env._external_key_for_agent(agent))
+            if k.strip():
+                return k
+        except Exception:
+            pass
     return agent_uid(agent)
 
 
-def apply_blue_actions(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
+def apply_external_actions(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
     """
     Clean path: env.submit_external_actions(actions_dict) is expected.
     """
@@ -442,10 +472,6 @@ def pop_reward_events_strict(gm: GameManager) -> List[Tuple[float, str, float]]:
 
 
 def clear_reward_events_best_effort(gm: GameManager) -> None:
-    """
-    Defensive: clear any stale events on episode reset.
-    We do not validate ids here, we just drain.
-    """
     try:
         _ = pop_reward_events_strict(gm)
     except Exception:
@@ -453,12 +479,6 @@ def clear_reward_events_best_effort(gm: GameManager) -> None:
 
 
 def init_episode_reward_routing(env: GameField) -> Tuple[set, Dict[str, float], Dict[str, int]]:
-    """
-    Returns:
-      episode_uid_set: all blue agent uids that can legally receive reward this episode
-      pending:         per-uid reward accumulator
-      last_buf_idx:    per-uid last transition index stored in buffer (for flush)
-    """
     uids: List[str] = []
     for a in getattr(env, "blue_agents", []):
         if a is None:
@@ -475,13 +495,6 @@ def accumulate_rewards_for_uid_set(
     allowed_uids: set,
     pending: Dict[str, float],
 ) -> None:
-    """
-    Pop ALL reward events, but only accumulate those that belong to allowed_uids.
-    Everything else (red team, old episode ids, etc.) is ignored.
-
-    Still STRICT about invariants:
-      - agent_id must exist and be a non-empty string
-    """
     events = pop_reward_events_strict(gm)
     for _t, agent_id, r in events:
         if agent_id is None:
@@ -491,7 +504,7 @@ def accumulate_rewards_for_uid_set(
             raise RuntimeError("Found reward event with empty agent_id.")
         if key in allowed_uids:
             pending[key] = pending.get(key, 0.0) + float(r)
-        # else: ignore
+        # else: ignore (red team, stale episode ids, etc.)
 
 
 def consume_pending_reward_for_uid(
@@ -499,9 +512,6 @@ def consume_pending_reward_for_uid(
     pending: Dict[str, float],
     time_penalty: float = 0.0,
 ) -> float:
-    """
-    Consume and zero-out pending reward for this uid, then apply optional time penalty.
-    """
     r = float(pending.get(uid, 0.0))
     pending[uid] = 0.0
     return r - float(time_penalty)
@@ -512,10 +522,6 @@ def flush_pending_rewards_into_buffer(
     last_buf_idx: Dict[str, int],
     buffer: RolloutBuffer,
 ) -> None:
-    """
-    Attach any leftover pending rewards to each agent’s LAST stored transition in the buffer.
-    This prevents terminal rewards from being dropped when an agent did not act in the final window.
-    """
     for uid, r in list(pending.items()):
         if abs(r) <= 1e-12:
             continue
@@ -543,10 +549,6 @@ def add_terminal_reward_to_all_uids(
     episode_uid_set: set,
     terminal_r: float,
 ) -> float:
-    """
-    Add terminal reward to each uid's pending bucket.
-    Returns the TEAM total injected (terminal_r * num_uids).
-    """
     if abs(float(terminal_r)) <= 1e-12:
         return 0.0
     n = max(1, len(episode_uid_set))
@@ -562,11 +564,6 @@ def apply_score_delta_shaping(
     prev_blue_score: int,
     prev_red_score: int,
 ) -> Tuple[int, int, float]:
-    """
-    Adds immediate rewards/penalties when the SCORE changes, so PPO cares about the objective.
-
-    Returns updated (prev_blue_score, prev_red_score, team_total_added)
-    """
     cur_b = int(getattr(gm, "blue_score", 0))
     cur_r = int(getattr(gm, "red_score", 0))
 
@@ -607,7 +604,6 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
         frac = min(1.0, float(phase_episode_count) / horizon)
         return float(start_ent - (start_ent - base) * frac)
 
-    # OP3: temporary bump at entry, then decay to base
     if phase_episode_count <= OP3_ENT_RESET_EPISODES:
         start_ent = float(OP3_ENT_RESET_VALUE)
         frac = min(1.0, float(phase_episode_count) / float(OP3_ENT_RESET_EPISODES))
@@ -617,10 +613,72 @@ def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
 
 
 # ==========================================================
+# Self-Play snapshot pool manager
+# ==========================================================
+class SelfPlayManager:
+    def __init__(self, pool_dir: str, max_pool: int) -> None:
+        self.pool_dir = pool_dir
+        os.makedirs(self.pool_dir, exist_ok=True)
+        self.max_pool = int(max_pool)
+        self.paths: List[str] = []
+        self.latest_path: Optional[str] = None
+
+    def _snapshot_path(self, episode_idx: int) -> str:
+        return os.path.join(self.pool_dir, f"sp_snapshot_ep{episode_idx:06d}.pth")
+
+    def add_snapshot(self, policy: nn.Module, episode_idx: int) -> str:
+        path = self._snapshot_path(episode_idx)
+        torch.save(policy.state_dict(), path)
+        self.latest_path = path
+        self.paths.append(path)
+
+        while len(self.paths) > self.max_pool:
+            old = self.paths.pop(0)
+            try:
+                os.remove(old)
+            except Exception:
+                pass
+        return path
+
+    def has_enough_pool(self, min_pool: int) -> bool:
+        return len(self.paths) >= int(min_pool)
+
+    def sample_opponent_path(self, latest_prob: float) -> Optional[str]:
+        if not self.paths:
+            return None
+        if self.latest_path is not None and random.random() < float(latest_prob):
+            return self.latest_path
+        return random.choice(self.paths)
+
+    def get_latest(self) -> Optional[str]:
+        return self.latest_path
+
+
+def self_play_prob(episode_idx: int) -> float:
+    if episode_idx <= SP_WARMUP_EPISODES:
+        return 0.0
+    t = min(1.0, (episode_idx - SP_WARMUP_EPISODES) / max(1.0, float(SP_RAMP_EPISODES)))
+    p = float(SP_MAX_PROB) * float(t)
+    p = min(p, 1.0 - float(SCRIPTED_MIX_PROB_FLOOR))
+    return float(max(0.0, p))
+
+
+def make_policy_net(env: GameField) -> ActorCriticNet:
+    return ActorCriticNet(
+        n_macros=N_MACROS,
+        n_targets=env.num_macro_targets,
+        n_agents=getattr(env, "agents_per_team", 2),
+        in_channels=NUM_CNN_CHANNELS,
+        height=CNN_ROWS,
+        width=CNN_COLS,
+    )
+
+
+# ==========================================================
 # Action sampling (mask always present)
 # ==========================================================
 @torch.no_grad()
-def sample_blue_action(
+def sample_action(
     policy: ActorCriticNet,
     obs_tensor: torch.Tensor,  # [1,C,H,W]
     env: GameField,
@@ -662,7 +720,8 @@ def sample_blue_action(
 def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
     set_seed(42)
 
-    env = make_env()
+    # Create an env once to probe shapes, then we may recreate per-episode
+    env = make_env(red_external=False)
     gm = env.getGameManager()
 
     if hasattr(gm, "set_shaping_gamma"):
@@ -679,19 +738,16 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
     w = len(dummy_obs[0][0])
     print(f"[train_ppo_event] Sample obs shape: C={c}, H={h}, W={w}")
 
-    policy = ActorCriticNet(
-        n_macros=N_MACROS,
-        n_targets=env.num_macro_targets,
-        n_agents=getattr(env, "agents_per_team", 2),
-        in_channels=NUM_CNN_CHANNELS,
-        height=CNN_ROWS,
-        width=CNN_COLS,
-    ).to(DEVICE)
+    policy = make_policy_net(env).to(DEVICE)
+    opp_policy = make_policy_net(env).to(DEVICE)
+    opp_policy.eval()
 
     print(f"[DEVICE] Using: {DEVICE}")
 
     optimizer = optim.Adam(policy.parameters(), lr=LR, foreach=False)
     buffer = RolloutBuffer(n_macros=N_MACROS)
+
+    sp_manager = SelfPlayManager(pool_dir=os.path.join(CHECKPOINT_DIR, "self_play_pool"), max_pool=SP_POOL_MAX)
 
     global_step = 0
     episode_idx = 0
@@ -708,6 +764,26 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         cur_phase = PHASE_SEQUENCE[phase_idx]
         phase_cfg = PHASE_CONFIG[cur_phase]
 
+        # ----------------------------------------------------------
+        # Choose opponent type (scripted vs self-play snapshot)
+        # ----------------------------------------------------------
+        want_sp = bool(USE_SELF_PLAY)
+        p_sp = self_play_prob(episode_idx)
+
+        # Always keep some scripted pressure
+        if random.random() < float(SCRIPTED_MIX_PROB_FLOOR):
+            do_self_play = False
+        else:
+            have_some_snapshot = (sp_manager.get_latest() is not None) or sp_manager.has_enough_pool(SP_MIN_POOL_TO_SAMPLE)
+            do_self_play = bool(want_sp and have_some_snapshot and (random.random() < p_sp))
+
+        # Recreate env per-episode so red_external is guaranteed correct before reset.
+        env = make_env(red_external=do_self_play)
+        gm = env.getGameManager()
+
+        if hasattr(gm, "set_shaping_gamma"):
+            gm.set_shaping_gamma(GAMMA)
+
         gm.score_limit = int(phase_cfg["score_limit"])
         gm.max_time = float(phase_cfg["max_time"])
         max_steps = int(phase_cfg["max_macro_steps"])
@@ -715,8 +791,23 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         if hasattr(gm, "set_phase"):
             gm.set_phase(cur_phase)
 
-        set_red_policy_for_phase(env, cur_phase)
         opponent_tag = cur_phase
+
+        # Configure opponent
+        if do_self_play and can_self_play(env):
+            opp_path = sp_manager.sample_opponent_path(latest_prob=SP_LATEST_PROB)
+            if opp_path is None:
+                do_self_play = False
+            else:
+                sd = torch.load(opp_path, map_location="cpu")
+                opp_policy.load_state_dict(sd)
+                opp_policy.eval()
+                opponent_tag = f"SP:{os.path.basename(opp_path)}"
+
+        if not do_self_play:
+            # scripted opponent
+            set_red_policy_for_phase(env, cur_phase)
+            opponent_tag = cur_phase
 
         # Reset env for this episode (uids can change here)
         env.reset_default()
@@ -727,36 +818,38 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         # MUST be per-episode (prevents unknown-agent crashes after reset)
         episode_uid_set, pending_reward, last_buf_idx = init_episode_reward_routing(env)
 
+        # If scripted opponent policy has reset hook
         red_pol = env.policies.get("red")
-        if hasattr(red_pol, "reset"):
-            red_pol.reset()
+        if (not do_self_play) and hasattr(red_pol, "reset"):
+            try:
+                red_pol.reset()
+            except Exception:
+                pass
 
         done = False
         steps = 0
 
-        # Logging totals
-        step_return_total = 0.0  # sum of consumed per-step rewards (team-total per window)
-        term_return_total = 0.0  # terminal injections + leftover flush totals (team-total)
+        step_return_total = 0.0
+        term_return_total = 0.0
 
-        # Score-delta shaping trackers
         prev_blue_score = int(getattr(gm, "blue_score", 0))
         prev_red_score  = int(getattr(gm, "red_score", 0))
 
         while (not done) and steps < max_steps and global_step < total_steps:
-            blue_agents = [a for a in env.blue_agents if a.isEnabled()]
+            blue_agents = [a for a in env.blue_agents if a is not None and a.isEnabled()]
             if not blue_agents:
                 done = True
                 break
 
             decisions: List[Tuple[Any, np.ndarray, int, int, float, float, np.ndarray, str]] = []
-            submit_actions: Dict[str, Tuple[int, int]] = {}
+            submit_actions_all: Dict[str, Tuple[int, int]] = {}
 
-            # --- Decide actions for enabled agents ---
+            # --- BLUE actions (learning) ---
             for agent in blue_agents:
                 obs = np.array(env.build_observation(agent), dtype=np.float32)
                 obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE).unsqueeze(0)
 
-                macro_idx, target_idx, logp, val, mask_np = sample_blue_action(
+                macro_idx, target_idx, logp, val, mask_np = sample_action(
                     policy, obs_tensor, env, agent, deterministic=False
                 )
 
@@ -764,13 +857,30 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
 
                 k = external_key_for_agent(env, agent)
-                submit_actions[k] = (macro_val, int(target_idx))
+                submit_actions_all[k] = (macro_val, int(target_idx))
 
                 uid = agent_uid(agent)
                 decisions.append((agent, obs, macro_idx, target_idx, logp, val, mask_np, uid))
 
-            # --- Submit actions ---
-            apply_blue_actions(env, submit_actions)
+            # --- RED actions (frozen opponent) ---
+            if do_self_play and can_self_play(env):
+                red_agents = [a for a in getattr(env, "red_agents", []) if a is not None and a.isEnabled()]
+                for agent in red_agents:
+                    obs = np.array(env.build_observation(agent), dtype=np.float32)
+                    obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE).unsqueeze(0)
+
+                    macro_idx, target_idx, _logp, _val, _mask_np = sample_action(
+                        opp_policy, obs_tensor, env, agent, deterministic=bool(SP_OPP_DETERMINISTIC)
+                    )
+
+                    macro_enum = USED_MACROS[macro_idx]
+                    macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
+
+                    k = external_key_for_agent(env, agent)
+                    submit_actions_all[k] = (macro_val, int(target_idx))
+
+            # --- Submit actions (both teams if self-play, else blue only) ---
+            apply_external_actions(env, submit_actions_all)
 
             # --- Simulate one decision window ---
             sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
@@ -849,8 +959,6 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
                 )
 
                 ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
-
-                # buffer cleared inside ppo_update
                 last_buf_idx.clear()
 
         # ==========================================================
@@ -860,14 +968,11 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
         team_outcome_added = add_terminal_reward_to_all_uids(pending_reward, episode_uid_set, outcome_r)
         term_return_total += float(team_outcome_added)
 
-        # leftover pending is per-uid; include it in TermR logs and learning
         leftover_before = float(sum(pending_reward.values()))
         term_return_total += float(leftover_before)
 
-        # attach leftovers to last transitions
         flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
 
-        # If we skipped an update because episode ended, catch up now
         if buffer.size() >= UPDATE_EVERY:
             current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
             print(
@@ -905,6 +1010,15 @@ def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
             f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
+
+        # ----------------------------------------------------------
+        # Self-play snapshotting
+        # ----------------------------------------------------------
+        if USE_SELF_PLAY and (episode_idx % SP_SNAPSHOT_EVERY_EP == 0):
+            sp_manager.add_snapshot(policy, episode_idx)
+            pool_sz = len(sp_manager.paths)
+            latest = os.path.basename(sp_manager.latest_path or "")
+            print(f"[SELF_PLAY] Snapshot saved. Pool={pool_sz} Latest={latest}")
 
         # --- Curriculum advance ---
         if cur_phase != PHASE_SEQUENCE[-1]:
