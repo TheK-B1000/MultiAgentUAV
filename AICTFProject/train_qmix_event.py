@@ -1,17 +1,30 @@
 # ==========================================================
-# train_qmix_event.py (UPDATED: GLOBAL "GOD VIEW" STATE)
+# train_qmix_event.py (UPDATED: GLOBAL "GOD VIEW" STATE + SELF-PLAY)
 #   - Uses env.get_global_state() for mixer state input (flat 3200)
 #   - state_dim = env.get_global_state_dim()
 #   - Event-driven dt-aware discounting (gamma ** dt)
 #   - Masked epsilon-greedy for valid macro/target combos
 #   - CTDE: decentralized agent obs, centralized mixer state
 #   - AUTO-SYNC macros from env.macro_order
+#
+# Self-play (modern-ish MARL defaults for QMIX in competitive games):
+#   ✅ Opponent pool of frozen snapshots (neural) + scripted baselines (OP1/2/3)
+#   ✅ PFSP sampling (prefer opponents with ~50% winrate vs you)
+#   ✅ Opponent hold for K episodes (reduces non-stationarity)
+#   ✅ Phase-based scripted-to-neural mix schedule
+#   ✅ Latest-bias (sometimes fight your newest self)
+#
+# Key note:
+#   - Blue is the learner and is the ONLY side written to replay.
+#   - Red is an opponent (scripted or neural snapshot) driven via external actions.
 # ==========================================================
 
 import os
 import random
+import copy
+from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional, Deque
 
 import numpy as np
 import torch
@@ -45,7 +58,7 @@ def get_act_device() -> torch.device:
 
 
 ACT_DEVICE = get_act_device()
-TRAIN_DEVICE = torch.device("cpu")
+TRAIN_DEVICE = torch.device("cpu")  # DirectML-safe
 
 
 # ==========================================================
@@ -57,8 +70,11 @@ def set_seed(seed: int = 42) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    try:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    except Exception:
+        pass
 
 
 # ==========================================================
@@ -110,25 +126,41 @@ TIME_PENALTY_PER_AGENT_PER_MACRO: float = 0.001
 
 
 # ==========================================================
+# Self-play config (QMIX)
+# ==========================================================
+ENABLE_SELFPLAY = True
+
+# scripted vs neural mix by phase
+SCRIPTED_MIX_PROB_BY_PHASE = {"OP1": 1.00, "OP2": 0.55, "OP3": 0.25}
+
+# PFSP (Prioritized Fictitious Self-Play)
+PFSP_WINDOW = 60
+PFSP_ALPHA = 2.0
+
+POOL_MAX = 40
+SNAPSHOT_EVERY_OPT_STEPS = 1   # snapshot every opt step by default
+WARMUP_OPT_STEPS_FOR_NEURAL = 2
+
+OPPONENT_HOLD_EPISODES = 4
+LATEST_BIAS_PROB = 0.25
+
+# opponent action noise (helps prevent overfitting)
+RED_DETERMINISTIC = False
+RED_EPS = 0.05  # small epsilon for opponent sampling when neural (only used if not deterministic)
+
+
+# ==========================================================
 # Env helpers
 # ==========================================================
-def set_red_policy_for_phase(env: GameField, phase: str) -> None:
-    if phase == "OP1":
-        env.policies["red"] = OP1RedPolicy("red")
-    elif phase == "OP2":
-        env.policies["red"] = OP2RedPolicy("red")
-    elif phase == "OP3":
-        env.policies["red"] = OP3RedPolicy("red")
-    else:
-        raise ValueError(f"Unknown phase: {phase}")
-
-
 def make_env() -> GameField:
     grid = [[0] * CNN_COLS for _ in range(CNN_ROWS)]
     env = GameField(grid)
     env.use_internal_policies = True
+
+    # Self-play needs both sides externally driven
     env.set_external_control("blue", True)
-    env.set_external_control("red", False)
+    env.set_external_control("red", True)
+
     env.external_missing_action_mode = "idle"
     return env
 
@@ -137,10 +169,18 @@ def external_key_for_agent(agent: Any) -> str:
     return f"{getattr(agent, 'side', 'blue')}_{int(getattr(agent, 'agent_id', 0))}"
 
 
-def apply_blue_actions(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
+def submit_external_actions_robust(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
+    # clear old if present
+    if hasattr(env, "pending_external_actions"):
+        try:
+            env.pending_external_actions.clear()
+        except Exception:
+            pass
+
     fn = getattr(env, "submit_external_actions", None)
     if fn is None or (not callable(fn)):
         raise RuntimeError("GameField must implement submit_external_actions(actions_by_agent).")
+
     fn(actions_by_agent)
 
 
@@ -166,6 +206,85 @@ def compute_dt_for_window(window_s: float = DECISION_WINDOW) -> float:
     return float(window_s)
 
 
+def nearest_target_idx(env: GameField, cell_xy: Tuple[int, int]) -> int:
+    cx, cy = int(cell_xy[0]), int(cell_xy[1])
+    try:
+        if hasattr(env, "get_all_macro_targets"):
+            targets = env.get_all_macro_targets()
+        else:
+            targets = [env.get_macro_target(i) for i in range(int(env.num_macro_targets))]
+    except Exception:
+        targets = [env.get_macro_target(i) for i in range(int(getattr(env, "num_macro_targets", 1)))]
+
+    best_i, best_d2 = 0, 10**9
+    for i, (tx, ty) in enumerate(targets):
+        dx, dy = int(tx) - cx, int(ty) - cy
+        d2 = dx * dx + dy * dy
+        if d2 < best_d2:
+            best_d2 = d2
+            best_i = i
+    return int(best_i)
+
+
+def macro_index_from_enum(used_macros: List[MacroAction], macro_any: Any) -> int:
+    # Convert MacroAction or int-like to index in env.macro_order list
+    m = None
+    if isinstance(macro_any, MacroAction):
+        m = macro_any
+    else:
+        try:
+            mi = int(getattr(macro_any, "value", macro_any))
+            m = MacroAction(mi)
+        except Exception:
+            m = None
+
+    if m is None:
+        return 0
+
+    for i, mm in enumerate(used_macros):
+        if mm == m:
+            return int(i)
+    return 0
+
+
+def scripted_red_action(
+    red_policy: Any,
+    agent: Any,
+    env: GameField,
+    used_macros: List[MacroAction],
+    n_targets: int,
+) -> Tuple[int, int]:
+    """
+    Returns (macro_idx, target_idx) aligned with env.macro_order + env.num_macro_targets.
+    """
+    obs = env.build_observation(agent)
+
+    if hasattr(red_policy, "select_action"):
+        macro_any, param_any = red_policy.select_action(obs, agent, env)
+    else:
+        out = red_policy(obs, agent, env)
+        if isinstance(out, (tuple, list)) and len(out) >= 2:
+            macro_any, param_any = out[0], out[1]
+        else:
+            macro_any, param_any = out, None
+
+    macro_idx = macro_index_from_enum(used_macros, macro_any)
+
+    if param_any is None:
+        targ_idx = 0
+    elif isinstance(param_any, (tuple, list)) and len(param_any) == 2:
+        targ_idx = nearest_target_idx(env, (int(param_any[0]), int(param_any[1])))
+    else:
+        try:
+            targ_idx = int(param_any)
+        except Exception:
+            targ_idx = 0
+
+    targ_idx = int(max(0, min(int(n_targets - 1), int(targ_idx))))
+    macro_idx = int(max(0, min(int(len(used_macros) - 1), int(macro_idx))))
+    return macro_idx, targ_idx
+
+
 # ==========================================================
 # Reward routing (episode-filtered, team reward)
 # ==========================================================
@@ -188,7 +307,6 @@ def init_episode_uid_set(env: GameField) -> set:
     for a in getattr(env, "blue_agents", []):
         if a is None:
             continue
-        # GameField ensures unique_id == side_agentid
         uids.append(str(getattr(a, "unique_id", f"{a.side}_{a.agent_id}")))
     return set(uids)
 
@@ -391,7 +509,7 @@ def epsilon_by_step(step: int) -> float:
 
 
 # ==========================================================
-# Action selection
+# Action selection (masked epsilon-greedy)
 # ==========================================================
 @torch.no_grad()
 def select_actions_qmix(
@@ -399,12 +517,13 @@ def select_actions_qmix(
     obs_agents: np.ndarray,
     avail_actions: np.ndarray,
     eps: float,
+    device: torch.device,
 ) -> np.ndarray:
     N = obs_agents.shape[0]
     A = avail_actions.shape[1]
     actions = np.zeros((N,), dtype=np.int64)
 
-    obs_t = torch.tensor(obs_agents, dtype=torch.float32, device=ACT_DEVICE)
+    obs_t = torch.tensor(obs_agents, dtype=torch.float32, device=device)
     q = agent_net_act(obs_t).detach().cpu().numpy()
 
     for i in range(N):
@@ -413,7 +532,7 @@ def select_actions_qmix(
             actions[i] = 0
             continue
 
-        if random.random() < eps:
+        if random.random() < float(eps):
             valid_idx = np.flatnonzero(mask)
             actions[i] = int(valid_idx[random.randrange(len(valid_idx))])
         else:
@@ -498,6 +617,107 @@ def qmix_update(
 
 
 # ==========================================================
+# Self-play opponent pool (PFSP)
+# ==========================================================
+@dataclass
+class OpponentEntry:
+    oid: str
+    kind: str  # "scripted" or "neural"
+    scripted_tag: Optional[str] = None
+    agent_state: Optional[Dict[str, Any]] = None
+    results: Deque[int] = None  # 1=blue win, 0=otherwise
+    created_opt_step: int = 0
+
+    def __post_init__(self):
+        if self.results is None:
+            self.results = deque(maxlen=int(PFSP_WINDOW))
+
+    def winrate(self) -> float:
+        if not self.results:
+            return 0.5
+        return float(sum(self.results)) / float(len(self.results))
+
+
+class OpponentPool:
+    def __init__(self, max_size: int = POOL_MAX) -> None:
+        self.max_size = int(max_size)
+        self.entries: Dict[str, OpponentEntry] = {}
+        self.neural_ids: List[str] = []
+        self.latest_neural_id: Optional[str] = None
+
+    def add_scripted_defaults(self) -> None:
+        for tag in ("OP1", "OP2", "OP3"):
+            oid = f"scripted:{tag}"
+            if oid not in self.entries:
+                self.entries[oid] = OpponentEntry(oid=oid, kind="scripted", scripted_tag=tag)
+
+    def add_snapshot(self, agent_state: Dict[str, Any], opt_step: int) -> str:
+        oid = f"neural:o{int(opt_step)}"
+        self.entries[oid] = OpponentEntry(
+            oid=oid,
+            kind="neural",
+            agent_state=copy.deepcopy(agent_state),
+            created_opt_step=int(opt_step),
+        )
+        self.neural_ids.append(oid)
+        self.latest_neural_id = oid
+        self._trim()
+        return oid
+
+    def _trim(self) -> None:
+        if len(self.neural_ids) <= self.max_size:
+            return
+        latest = self.latest_neural_id
+        keep: List[str] = []
+        dropped: List[str] = []
+        for oid in self.neural_ids:
+            if oid == latest:
+                keep.append(oid)
+                continue
+            if len(self.neural_ids) - len(dropped) > self.max_size:
+                dropped.append(oid)
+            else:
+                keep.append(oid)
+        for oid in dropped:
+            self.entries.pop(oid, None)
+        self.neural_ids = keep
+
+    def record_result(self, opponent_id: str, blue_win: bool) -> None:
+        ent = self.entries.get(opponent_id, None)
+        if ent is None:
+            return
+        ent.results.append(1 if blue_win else 0)
+
+    def can_use_neural(self, opt_steps: int) -> bool:
+        return (opt_steps >= int(WARMUP_OPT_STEPS_FOR_NEURAL)) and (len(self.neural_ids) > 0)
+
+    def sample(self, phase: str, opt_steps: int) -> OpponentEntry:
+        phase = str(phase).upper()
+        p_scripted = float(SCRIPTED_MIX_PROB_BY_PHASE.get(phase, 0.5))
+
+        if (not self.can_use_neural(opt_steps)) or (random.random() < p_scripted):
+            oid = f"scripted:{phase if phase in ('OP1','OP2','OP3') else 'OP3'}"
+            return self.entries[oid]
+
+        # neural
+        if self.latest_neural_id is not None and random.random() < float(LATEST_BIAS_PROB):
+            return self.entries[self.latest_neural_id]
+
+        ids = list(self.neural_ids)
+        if not ids:
+            return self.entries[f"scripted:{phase}"]
+
+        wrs = np.array([self.entries[oid].winrate() for oid in ids], dtype=np.float32)
+        scores = 1.0 - np.minimum(1.0, np.abs(wrs - 0.5) * 2.0)  # 1 at 0.5, 0 at {0,1}
+        scores = np.maximum(scores, 1e-3)
+        weights = scores ** float(PFSP_ALPHA)
+        weights = weights / np.sum(weights)
+
+        pick = int(np.random.choice(np.arange(len(ids)), p=weights))
+        return self.entries[ids[pick]]
+
+
+# ==========================================================
 # MAIN TRAIN LOOP
 # ==========================================================
 def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
@@ -529,20 +749,20 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
     n_actions = int(N_MACROS * n_targets)
     n_agents = int(getattr(env, "agents_per_team", 2))
 
-    # UPDATED: trust env.get_global_state_dim() + env.get_global_state()
     state_dim = int(env.get_global_state_dim())
     st0 = np.asarray(env.get_global_state(), dtype=np.float32).reshape(-1)
     if int(st0.size) != state_dim:
         raise RuntimeError(f"env.get_global_state() size={st0.size} but env.get_global_state_dim()={state_dim}")
 
     print(f"[train_qmix_event] n_agents={n_agents} n_targets={n_targets} n_actions={n_actions} state_dim={state_dim}")
+    print(f"[train_qmix_event] ACT_DEVICE={ACT_DEVICE} TRAIN_DEVICE={TRAIN_DEVICE}")
 
+    # Learner networks (blue)
     agent_net = AgentQNet(n_actions=n_actions, in_channels=NUM_CNN_CHANNELS, height=CNN_ROWS, width=CNN_COLS).to(TRAIN_DEVICE)
     mixer = QMixer(n_agents=n_agents, state_dim=state_dim, embed_dim=MIX_EMBED_DIM).to(TRAIN_DEVICE)
 
     agent_net_tgt = AgentQNet(n_actions=n_actions, in_channels=NUM_CNN_CHANNELS, height=CNN_ROWS, width=CNN_COLS).to(TRAIN_DEVICE)
     mixer_tgt = QMixer(n_agents=n_agents, state_dim=state_dim, embed_dim=MIX_EMBED_DIM).to(TRAIN_DEVICE)
-
     agent_net_tgt.load_state_dict(agent_net.state_dict())
     mixer_tgt.load_state_dict(mixer.state_dict())
 
@@ -550,8 +770,16 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
     agent_net_act.load_state_dict(agent_net.state_dict())
     agent_net_act.eval()
 
+    # Opponent neural net (red) for snapshot play
+    opp_agent_net_act = AgentQNet(n_actions=n_actions, in_channels=NUM_CNN_CHANNELS, height=CNN_ROWS, width=CNN_COLS).to(ACT_DEVICE)
+    opp_agent_net_act.eval()
+
     optimizer = optim.Adam(list(agent_net.parameters()) + list(mixer.parameters()), lr=LR, foreach=False)
     replay = ReplayBuffer(REPLAY_CAPACITY)
+
+    # self-play pool
+    pool = OpponentPool(max_size=POOL_MAX)
+    pool.add_scripted_defaults()
 
     global_step = 0
     episode_idx = 0
@@ -562,6 +790,51 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
     phase_idx = 0
     phase_episode_count = 0
     phase_recent: List[int] = []
+
+    # opponent hold state
+    hold_left = 0
+    held_opp: Optional[OpponentEntry] = None
+
+    def make_scripted_policy(tag: str):
+        if tag == "OP1":
+            return OP1RedPolicy("red")
+        if tag == "OP2":
+            return OP2RedPolicy("red")
+        return OP3RedPolicy("red")
+
+    def collect_team_obs_and_avail(side: str) -> Tuple[np.ndarray, np.ndarray, List[Any]]:
+        """
+        Returns:
+          obs_agents: [N,C,H,W] ordered by agent_id
+          avail_actions: [N, A] bool
+          agents_sorted: list of agent objects in that order (None/disabled may exist)
+        """
+        if side == "blue":
+            agents = list(env.blue_agents)
+        else:
+            agents = list(env.red_agents)
+
+        try:
+            agents.sort(key=lambda a: int(getattr(a, "agent_id", 0)))
+        except Exception:
+            pass
+
+        obs_list: List[np.ndarray] = []
+        avail_list: List[np.ndarray] = []
+
+        for i in range(n_agents):
+            if i < len(agents) and agents[i] is not None and agents[i].isEnabled():
+                a = agents[i]
+                obs = np.asarray(env.build_observation(a), dtype=np.float32)
+                mm = compute_used_macro_mask(env, a, n_macros=N_MACROS)
+                flat_mask = macro_mask_to_flat_action_mask(mm, n_targets)
+                obs_list.append(obs)
+                avail_list.append(flat_mask)
+            else:
+                obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
+                avail_list.append(np.zeros((n_actions,), dtype=np.bool_))
+
+        return np.stack(obs_list, axis=0), np.stack(avail_list, axis=0), agents
 
     while global_step < total_steps:
         episode_idx += 1
@@ -575,10 +848,32 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
         max_steps = int(phase_cfg["max_macro_steps"])
 
         if hasattr(gm, "set_phase"):
-            gm.set_phase(cur_phase)
+            try:
+                gm.set_phase(cur_phase)
+            except Exception:
+                pass
 
-        set_red_policy_for_phase(env, cur_phase)
-        opponent_tag = cur_phase
+        # pick opponent (with hold)
+        if (not ENABLE_SELFPLAY) or hold_left <= 0 or held_opp is None:
+            held_opp = pool.sample(cur_phase, opt_steps) if ENABLE_SELFPLAY else pool.entries[f"scripted:{cur_phase}"]
+            hold_left = int(OPPONENT_HOLD_EPISODES)
+        hold_left -= 1
+
+        opponent_tag = held_opp.oid
+
+        # configure opponent
+        red_scripted = None
+        if held_opp.kind == "scripted":
+            red_scripted = make_scripted_policy(str(held_opp.scripted_tag))
+            if hasattr(red_scripted, "reset"):
+                try:
+                    red_scripted.reset()
+                except Exception:
+                    pass
+        else:
+            assert held_opp.agent_state is not None
+            opp_agent_net_act.load_state_dict(held_opp.agent_state)
+            opp_agent_net_act.eval()
 
         env.reset_default()
         clear_reward_events_best_effort(gm)
@@ -595,99 +890,120 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
         step_return_total = 0.0
         losses: List[float] = []
 
-        def collect_obs_agents() -> Tuple[np.ndarray, np.ndarray]:
-            obs_list: List[np.ndarray] = []
-            avail_list: List[np.ndarray] = []
-
-            agents_sorted = list(env.blue_agents)
-            try:
-                agents_sorted.sort(key=lambda a: int(getattr(a, "agent_id", 0)))
-            except Exception:
-                pass
-
-            for i in range(n_agents):
-                if i < len(agents_sorted) and agents_sorted[i] is not None and agents_sorted[i].isEnabled():
-                    a = agents_sorted[i]
-                    obs = np.asarray(env.build_observation(a), dtype=np.float32)
-                    mm = compute_used_macro_mask(env, a, n_macros=N_MACROS)
-                    flat_mask = macro_mask_to_flat_action_mask(mm, n_targets)
-                    obs_list.append(obs)
-                    avail_list.append(flat_mask)
-                else:
-                    obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
-                    avail_list.append(np.zeros((n_actions,), dtype=np.bool_))
-
-            obs_agents = np.stack(obs_list, axis=0)
-            avail_actions = np.stack(avail_list, axis=0)
-            return obs_agents, avail_actions
-
-        obs_agents, avail_actions = collect_obs_agents()
+        # initial blue obs/state for replay
+        blue_obs_agents, blue_avail_actions, blue_agents_sorted = collect_team_obs_and_avail("blue")
         state = np.asarray(env.get_global_state(), dtype=np.float32).reshape(-1)
 
         while (not done) and steps < max_steps and global_step < total_steps:
-            if not any(a.isEnabled() for a in env.blue_agents):
+            if not any(a is not None and a.isEnabled() for a in env.blue_agents):
                 done = True
                 break
 
+            # --- BLUE selects actions (learner) ---
             eps = epsilon_by_step(global_step)
-            actions_flat = select_actions_qmix(agent_net_act, obs_agents, avail_actions, eps=eps)
+            blue_actions_flat = select_actions_qmix(
+                agent_net_act=agent_net_act,
+                obs_agents=blue_obs_agents,
+                avail_actions=blue_avail_actions,
+                eps=eps,
+                device=ACT_DEVICE,
+            )
 
+            # --- RED selects actions (opponent) ---
+            red_obs_agents, red_avail_actions, red_agents_sorted = collect_team_obs_and_avail("red")
+
+            if held_opp.kind == "scripted":
+                red_actions_flat = np.zeros((n_agents,), dtype=np.int64)
+                for i in range(n_agents):
+                    if i < len(red_agents_sorted) and red_agents_sorted[i] is not None and red_agents_sorted[i].isEnabled():
+                        ra = red_agents_sorted[i]
+                        macro_idx, targ_idx = scripted_red_action(
+                            red_policy=red_scripted,
+                            agent=ra,
+                            env=env,
+                            used_macros=USED_MACROS,
+                            n_targets=n_targets,
+                        )
+                        red_actions_flat[i] = int(macro_idx * n_targets + targ_idx)
+                    else:
+                        red_actions_flat[i] = 0
+            else:
+                red_eps = 0.0 if RED_DETERMINISTIC else float(RED_EPS)
+                red_actions_flat = select_actions_qmix(
+                    agent_net_act=opp_agent_net_act,
+                    obs_agents=red_obs_agents,
+                    avail_actions=red_avail_actions,
+                    eps=red_eps,
+                    device=ACT_DEVICE,
+                )
+
+            # Submit BOTH sides as external actions
             submit_actions: Dict[str, Tuple[int, int]] = {}
-            agents_sorted = list(env.blue_agents)
-            try:
-                agents_sorted.sort(key=lambda a: int(getattr(a, "agent_id", 0)))
-            except Exception:
-                pass
 
+            # blue
             for i in range(n_agents):
-                if i < len(agents_sorted) and agents_sorted[i] is not None and agents_sorted[i].isEnabled():
-                    a = agents_sorted[i]
-                    a_flat = int(actions_flat[i])
+                if i < len(blue_agents_sorted) and blue_agents_sorted[i] is not None and blue_agents_sorted[i].isEnabled():
+                    a = blue_agents_sorted[i]
+                    a_flat = int(blue_actions_flat[i])
                     macro_idx = int(a_flat // n_targets)
                     targ_idx = int(a_flat % n_targets)
                     submit_actions[external_key_for_agent(a)] = (macro_idx, targ_idx)
 
-            apply_blue_actions(env, submit_actions)
+            # red
+            for i in range(n_agents):
+                if i < len(red_agents_sorted) and red_agents_sorted[i] is not None and red_agents_sorted[i].isEnabled():
+                    a = red_agents_sorted[i]
+                    a_flat = int(red_actions_flat[i])
+                    macro_idx = int(a_flat // n_targets)
+                    targ_idx = int(a_flat % n_targets)
+                    submit_actions[external_key_for_agent(a)] = (macro_idx, targ_idx)
 
+            submit_external_actions_robust(env, submit_actions)
+
+            # Step env
             sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
             done = bool(gm.game_over)
             dt = compute_dt_for_window(DECISION_WINDOW)
 
+            # Reward (BLUE only)
             accumulate_team_reward(gm, allowed_uids, pending)
             prev_blue_score, prev_red_score = apply_score_delta_shaping(
                 gm, allowed_uids, pending, prev_blue_score, prev_red_score
             )
             reward = consume_team_reward(pending, allowed_uids, TIME_PENALTY_PER_AGENT_PER_MACRO)
 
-            next_obs_agents, next_avail_actions = collect_obs_agents()
+            # Next obs/state
+            next_blue_obs_agents, next_blue_avail_actions, _ = collect_team_obs_and_avail("blue")
             next_state = np.asarray(env.get_global_state(), dtype=np.float32).reshape(-1)
 
             if state.size != state_dim or next_state.size != state_dim:
                 raise RuntimeError(f"State dim mismatch: got {state.size}->{next_state.size}, expected {state_dim}")
 
+            # Store transition for BLUE only
             replay.add(
                 Transition(
-                    obs_agents=obs_agents,
+                    obs_agents=blue_obs_agents,
                     state=state,
-                    actions=np.asarray(actions_flat, dtype=np.int64),
-                    avail_actions=avail_actions.astype(np.uint8),
+                    actions=np.asarray(blue_actions_flat, dtype=np.int64),
+                    avail_actions=blue_avail_actions.astype(np.uint8),
                     reward=float(reward),
                     done=bool(done),
-                    next_obs_agents=next_obs_agents,
+                    next_obs_agents=next_blue_obs_agents,
                     next_state=next_state,
-                    next_avail_actions=next_avail_actions.astype(np.uint8),
+                    next_avail_actions=next_blue_avail_actions.astype(np.uint8),
                     dt=float(dt),
                 )
             )
 
-            obs_agents = next_obs_agents
-            avail_actions = next_avail_actions
+            blue_obs_agents = next_blue_obs_agents
+            blue_avail_actions = next_blue_avail_actions
             state = next_state
 
             global_step += 1
             steps += 1
             step_return_total += float(reward)
 
+            # Update
             if len(replay) >= WARMUP_STEPS and (global_step % UPDATE_EVERY == 0):
                 batch = replay.sample(BATCH_SIZE)
                 loss = qmix_update(
@@ -703,9 +1019,11 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                 opt_steps += 1
                 losses.append(loss)
 
+                # sync act net
                 agent_net_act.load_state_dict(agent_net.state_dict())
                 agent_net_act.eval()
 
+                # target update
                 if opt_steps % TARGET_UPDATE_EVERY == 0:
                     if TAU_SOFT >= 1.0:
                         agent_net_tgt.load_state_dict(agent_net.state_dict())
@@ -714,30 +1032,43 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                         soft_update_(agent_net_tgt, agent_net, TAU_SOFT)
                         soft_update_(mixer_tgt, mixer, TAU_SOFT)
 
+                # snapshot into pool (agent only, for decentralized opponent play)
+                if ENABLE_SELFPLAY and (opt_steps % int(SNAPSHOT_EVERY_OPT_STEPS) == 0):
+                    pool.add_snapshot(agent_net.state_dict(), opt_step=opt_steps)
+
                 avg_loss = float(np.mean(losses[-10:])) if losses else 0.0
                 print(
                     f"[UPDATE] step={global_step} ep={episode_idx} phase={cur_phase} "
-                    f"eps={epsilon_by_step(global_step):.3f} loss~{avg_loss:.4f} Opp={opponent_tag}"
+                    f"eps={epsilon_by_step(global_step):.3f} loss~{avg_loss:.4f} Opp={opponent_tag} opt={opt_steps}"
                 )
 
+        # Terminal bonus (BLUE)
         outcome_r = outcome_bonus_from_scores(gm.blue_score, gm.red_score)
         for uid in allowed_uids:
             pending[uid] = pending.get(uid, 0.0) + float(outcome_r)
         final_team_bonus = consume_team_reward(pending, allowed_uids, 0.0)
         step_return_total += float(final_team_bonus)
 
+        # Result
         if gm.blue_score > gm.red_score:
             result = "BLUE WIN"
             blue_wins += 1
             phase_recent.append(1)
+            blue_win_bool = True
         elif gm.red_score > gm.blue_score:
             result = "RED WIN"
             red_wins += 1
             phase_recent.append(0)
+            blue_win_bool = False
         else:
             result = "DRAW"
             draws += 1
             phase_recent.append(0)
+            blue_win_bool = False
+
+        # PFSP stats update
+        if ENABLE_SELFPLAY and held_opp is not None:
+            pool.record_result(held_opp.oid, blue_win_bool)
 
         if len(phase_recent) > PHASE_WINRATE_WINDOW:
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
@@ -753,6 +1084,7 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
             f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
         )
 
+        # Curriculum advance
         if cur_phase != PHASE_SEQUENCE[-1]:
             min_eps = MIN_PHASE_EPISODES[cur_phase]
             target_wr = TARGET_PHASE_WINRATE[cur_phase]
@@ -761,7 +1093,10 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                 phase_idx += 1
                 phase_episode_count = 0
                 phase_recent.clear()
+                hold_left = 0
+                held_opp = None
 
+        # Checkpoint
         if episode_idx % 200 == 0:
             ckpt = os.path.join(CHECKPOINT_DIR, f"qmix_step{global_step}.pth")
             torch.save(
@@ -772,10 +1107,16 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                     "mixer_tgt": mixer_tgt.state_dict(),
                     "global_step": global_step,
                     "episode_idx": episode_idx,
+                    "opt_steps": opt_steps,
+                    "selfplay_pool_neural": len(pool.neural_ids),
+                    "selfplay_latest": pool.latest_neural_id,
                 },
                 ckpt,
             )
             print(f"[CKPT] Saved: {ckpt}")
+            if ENABLE_SELFPLAY and pool.latest_neural_id is not None:
+                latest = pool.latest_neural_id
+                print(f"[POOL] neural={len(pool.neural_ids)} latest={latest} latest_wr={pool.entries[latest].winrate():.2f}")
 
     final_path = os.path.join(CHECKPOINT_DIR, "qmix_final.pth")
     torch.save(
@@ -786,6 +1127,7 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
             "mixer_tgt": mixer_tgt.state_dict(),
             "global_step": global_step,
             "episode_idx": episode_idx,
+            "opt_steps": opt_steps,
         },
         final_path,
     )
