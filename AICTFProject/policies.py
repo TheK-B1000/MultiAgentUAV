@@ -1,6 +1,14 @@
+# =========================
+# policies.py
+#   - Scripted Policies (OP1, OP2, OP3)
+#   - SelfPlayRedPolicy (Neural Wrapper)
+# =========================
+
 import math
 import random
-from typing import Any, Tuple, Optional, List
+from typing import Any, Tuple, Optional, List, Dict
+
+import torch  # Top-level import as requested
 
 from agents import Agent
 from game_manager import GameManager
@@ -26,10 +34,10 @@ class Policy:
     """
 
     def select_action(
-        self,
-        obs: Any,
-        agent: Agent,
-        game_field: "GameField",
+            self,
+            obs: Any,
+            agent: Agent,
+            game_field: "GameField",
     ) -> Tuple[int, Optional[Tuple[int, int]]]:
         raise NotImplementedError
 
@@ -53,7 +61,7 @@ class Policy:
             return x, y
 
         best = None
-        best_d2 = 10**9
+        best_d2 = 10 ** 9
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
                 nx, ny = x + dx, y + dy
@@ -111,13 +119,10 @@ class OP2RedPolicy(Policy):
         self.defense_band_radius = max(0, int(defense_band_radius))
 
     def _zone_col_range(self, game_field: "GameField", side: str) -> Tuple[int, int]:
-        # Prefer explicit ranges if present
         if side == "red" and hasattr(game_field, "red_zone_col_range"):
             return tuple(game_field.red_zone_col_range)
         if side != "red" and hasattr(game_field, "blue_zone_col_range"):
             return tuple(game_field.blue_zone_col_range)
-
-        # Fallback: just use full width (still safe, just less “zoney”)
         return (0, game_field.col_count - 1)
 
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
@@ -141,7 +146,6 @@ class OP2RedPolicy(Policy):
         ax, ay = _agent_xy(agent)
 
         if getattr(agent, "mine_charges", 0) > 0:
-            # If near an unmined band cell, place
             near: List[Tuple[int, int]] = []
             for cx, cy in defense_band:
                 if self._cell_has_mine(game_field, cx, cy):
@@ -154,18 +158,15 @@ class OP2RedPolicy(Policy):
                 tx, ty = self._safe_target(game_field, tx, ty)
                 return _macro_to_int(MacroAction.PLACE_MINE), (tx, ty)
 
-            # Otherwise walk to an unmined band cell
             candidates = [(cx, cy) for (cx, cy) in defense_band if not self._cell_has_mine(game_field, cx, cy)]
             if candidates:
                 tx, ty = random.choice(candidates)
                 tx, ty = self._safe_target(game_field, tx, ty)
                 return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
-            # Everything mined: sit near flag
             tx, ty = self._safe_target(game_field, flag_x, flag_y)
             return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
-        # No mines: patrol in defense band
         if defense_band:
             tx, ty = random.choice(defense_band)
         else:
@@ -186,7 +187,8 @@ class OP3RedPolicy(Policy):
     def reset(self) -> None:
         return None
 
-    def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+    def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[
+        int, Optional[Tuple[int, int]]]:
         side = getattr(agent, "side", self.side)
         flag_x, flag_y = gm.get_team_zone_center(side)
         fx, fy = self._safe_target(game_field, flag_x, flag_y)
@@ -197,19 +199,20 @@ class OP3RedPolicy(Policy):
         ax, ay = _agent_xy(agent)
 
         has_flag_mine = any(
-            (getattr(m, "owner_side", None) == side) and (math.hypot(float(m.x) - fx, float(m.y) - fy) <= self.mine_radius_check)
+            (getattr(m, "owner_side", None) == side) and (
+                        math.hypot(float(m.x) - fx, float(m.y) - fy) <= self.mine_radius_check)
             for m in getattr(game_field, "mines", [])
         )
 
         if (not has_flag_mine) and getattr(agent, "mine_charges", 0) > 0:
-            # if close, place (avoid stacking same cell)
             if math.hypot(ax - fx, ay - fy) <= self.mine_radius_check and not self._cell_has_mine(game_field, fx, fy):
                 return _macro_to_int(MacroAction.PLACE_MINE), (fx, fy)
             return _macro_to_int(MacroAction.GO_TO), (fx, fy)
 
         return _macro_to_int(MacroAction.GO_TO), (fx, fy)
 
-    def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+    def _attacker_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[
+        int, Optional[Tuple[int, int]]]:
         if agent.isCarryingFlag():
             return _macro_to_int(MacroAction.GO_HOME), None
         return _macro_to_int(MacroAction.GET_FLAG), None
@@ -220,3 +223,92 @@ class OP3RedPolicy(Policy):
             return self._defender_action(agent, gm, game_field)
         else:
             return self._attacker_action(agent, gm, game_field)
+
+
+class SelfPlayRedPolicy(Policy):
+    """
+    Neural self-play opponent wrapper for RED.
+    Calls opp_policy.act(...) internally. No external control required.
+    """
+
+    def __init__(self, opp_policy: Any, deterministic: bool = True):
+        self.opp_policy = opp_policy
+        self.deterministic = bool(deterministic)
+
+    def reset(self) -> None:
+        if hasattr(self.opp_policy, "reset") and callable(getattr(self.opp_policy, "reset")):
+            try:
+                self.opp_policy.reset()
+            except Exception:
+                pass
+
+    def select_action(
+            self,
+            obs: Any,
+            agent: Agent,
+            game_field: "GameField",
+    ) -> Tuple[int, Optional[Tuple[int, int]]]:
+
+        # Defensive fallback
+        if self.opp_policy is None or (not hasattr(self.opp_policy, "act")):
+            return _macro_to_int(MacroAction.GO_TO), None
+
+        # Determine device from policy
+        device = torch.device("cpu")
+        if hasattr(self.opp_policy, "parameters"):
+            try:
+                p = next(self.opp_policy.parameters())
+                device = p.device
+            except Exception:
+                pass
+
+        # Prepare Tensor [1, C, H, W]
+        # Note: obs is typically list-of-lists here. torch.tensor handles it, 
+        # but float32 cast is crucial.
+        obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
+
+        with torch.no_grad():
+            out = self.opp_policy.act(
+                obs_tensor,
+                agent=agent,
+                game_field=game_field,
+                deterministic=self.deterministic,
+            )
+
+        # Parse output (can be dict, tuple, or scalar)
+        if isinstance(out, dict):
+            ma = out.get("macro_action", 0)
+            ta = out.get("target_action", None)
+
+            if torch.is_tensor(ma):
+                macro_idx = int(ma.reshape(-1)[0].item())
+            else:
+                macro_idx = int(ma)
+
+            if ta is None:
+                return macro_idx, None
+
+            if torch.is_tensor(ta):
+                target_idx = int(ta.reshape(-1)[0].item())
+            else:
+                target_idx = int(ta)
+
+            return macro_idx, target_idx
+
+        if isinstance(out, (tuple, list)):
+            if len(out) == 0:
+                return 0, None
+            macro_idx = int(out[0])
+            target_idx = int(out[1]) if len(out) > 1 else None
+            return macro_idx, target_idx
+
+        return int(out), None
+
+
+__all__ = [
+    "Policy",
+    "OP1RedPolicy",
+    "OP2RedPolicy",
+    "OP3RedPolicy",
+    "SelfPlayRedPolicy",
+]
