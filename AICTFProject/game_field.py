@@ -4,6 +4,7 @@
 #   - QMIX: get_global_state() -> flat 8*20*20 = 3200 (default)
 #   - Shared: macro_order + get_macro_mask() + submit_external_actions()
 #   - Shared: flat action helpers (encode/decode + avail_flat mask)
+#   - NEW: internal policy wrapper support (esp. for self-play RED)
 # =========================
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import numpy as np  # action masks
 
@@ -78,6 +79,11 @@ class GameField:
       - QMIX:
           env.get_global_state() -> flat float32 [3200]
           env.get_global_state_grid() -> float32 [8,20,20]
+
+    NEW:
+      - internal policy wrappers:
+          env.set_policy_wrapper("red", wrapper_fn)
+        wrapper can override internal red decisions without external control.
     """
 
     # -------- lifecycle --------
@@ -109,6 +115,12 @@ class GameField:
         self.use_internal_policies: bool = True
         self.policies: Dict[str, Any] = {"blue": None, "red": None}
         self.opponent_mode: str = "OP3"
+
+        # NEW: optional policy wrappers that override internal decision-making
+        # Supported signatures:
+        #   wrapper(obs, agent, game_field) -> action or (action,param) or dict
+        #   wrapper(obs, agent, game_field, base_policy) -> action or (action,param) or dict
+        self.policy_wrappers: Dict[str, Optional[Callable[..., Any]]] = {"blue": None, "red": None}
 
         # External action routing
         self.external_control_for_side: Dict[str, bool] = {"blue": False, "red": False}
@@ -389,14 +401,14 @@ class GameField:
         defensive_point = (def_x, int(own_home[1]))
 
         targets_raw: List[Cell] = [
-            (int(own_home[0]), int(own_home[1])),          # 0
-            (int(enemy_home[0]), int(enemy_home[1])),      # 1
-            (int(own_zone_center[0]), int(own_zone_center[1])),      # 2
-            (int(enemy_zone_center[0]), int(enemy_zone_center[1])),  # 3
-            (mid_col, mid_row),                             # 4
-            (mid_col, top_row),                             # 5
-            (mid_col, bottom_row),                          # 6
-            (int(defensive_point[0]), int(defensive_point[1])),      # 7
+            (int(own_home[0]), int(own_home[1])),                 # 0
+            (int(enemy_home[0]), int(enemy_home[1])),             # 1
+            (int(own_zone_center[0]), int(own_zone_center[1])),   # 2
+            (int(enemy_zone_center[0]), int(enemy_zone_center[1])),# 3
+            (mid_col, mid_row),                                   # 4
+            (mid_col, top_row),                                   # 5
+            (mid_col, bottom_row),                                # 6
+            (int(defensive_point[0]), int(defensive_point[1])),   # 7
         ]
 
         self.macro_targets = [nearest_free(x, y) for (x, y) in targets_raw]
@@ -588,6 +600,21 @@ class GameField:
         else:
             self.policies["red"] = OP3RedPolicy("red")
 
+    # NEW: wrapper API
+    def set_policy_wrapper(self, side: str, wrapper: Optional[Callable[..., Any]]) -> None:
+        side = str(side).lower()
+        if side not in ("blue", "red"):
+            raise ValueError(f"Unknown side: {side}")
+        if wrapper is not None and (not callable(wrapper)):
+            raise TypeError("wrapper must be callable or None")
+        self.policy_wrappers[side] = wrapper
+
+    def clear_policy_wrapper(self, side: str) -> None:
+        self.set_policy_wrapper(side, None)
+
+    def set_red_policy_wrapper(self, wrapper: Optional[Callable[..., Any]]) -> None:
+        self.set_policy_wrapper("red", wrapper)
+
     def set_external_control(self, side: str, external: bool) -> None:
         if side not in ("blue", "red"):
             raise ValueError(f"Unknown side: {side}")
@@ -641,10 +668,6 @@ class GameField:
         self.reset_default()
 
     def _ensure_agent_ids(self, a: Agent) -> None:
-        # Ensure stable keys for:
-        #  - external control
-        #  - reward event routing
-        #  - mine ownership
         side = str(getattr(a, "side", "blue"))
         aid = int(getattr(a, "agent_id", 0))
         if getattr(a, "unique_id", None) is None:
@@ -699,9 +722,7 @@ class GameField:
             a.decision_count = 0
             a.suppression_timer = 0.0
             a.suppressed_this_tick = False
-            # consistent ids
             self._ensure_agent_ids(a)
-            # safe float/cell defaults
             if getattr(a, "float_pos", None) is None:
                 a.float_pos = (float(col), float(row))
             if getattr(a, "cell_pos", None) is None:
@@ -787,16 +808,13 @@ class GameField:
             self.announce(winner_text, color, 3.0)
             return
 
-        # Update continuous motion
         for agent in (self.blue_agents + self.red_agents):
             agent.update(delta_time)
 
-        # Dynamic obstacles from cell positions
         occupied = [self._agent_cell_pos(a) for a in (self.blue_agents + self.red_agents) if a.isEnabled()]
         if hasattr(self.pathfinder, "setDynamicObstacles"):
             self.pathfinder.setDynamicObstacles(occupied)
 
-        # Apply mechanics + decisions
         for friendly_team, enemy_team in (
             (self.blue_agents, self.red_agents),
             (self.red_agents, self.blue_agents),
@@ -829,8 +847,6 @@ class GameField:
                                 self.decide(agent)
                                 made_decision = True
                             elif self.external_missing_action_mode == "idle":
-                                # "idle" but still advance decision clock:
-                                # GO_TO current cell so agent effectively stands still
                                 self.apply_macro_action(agent, MacroAction.GO_TO, self._agent_cell_pos(agent))
                                 made_decision = True
                             else:
@@ -850,7 +866,6 @@ class GameField:
                 self.handle_mine_pickups(agent)
                 self.apply_flag_rules(agent)
 
-        # Minimal banner decay
         if self.banner_queue:
             text, color, t = self.banner_queue[-1]
             t = max(0.0, t - delta_time)
@@ -861,10 +876,6 @@ class GameField:
     # -------- observations --------
 
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
-        """
-        Returns a [C][H][W] nested list for CNN-style policies (7ch).
-        Mirrors X for red so both teams see "enemy direction" consistently.
-        """
         side = agent.side
         gm = self.manager
         mirror_x = (side == "red")
@@ -931,7 +942,6 @@ class GameField:
         gm = self.manager
         side = getattr(agent, "side", None)
 
-        # Safety override: GET_FLAG while carrying becomes GO_HOME
         if action == MacroAction.GET_FLAG and agent.isCarryingFlag():
             action = MacroAction.GO_HOME
 
@@ -1000,10 +1010,8 @@ class GameField:
             else:
                 agent.path = path or []
 
-        # ---- dispatch ----
-
         if action == MacroAction.GO_TO:
-            target = resolve_target(self.get_macro_target(4))  # mid
+            target = resolve_target(self.get_macro_target(4))
             safe_set_path(target, avoid_enemies=agent.isCarryingFlag())
             return record(MacroAction.GO_TO)
 
@@ -1018,7 +1026,6 @@ class GameField:
             return record(MacroAction.GO_HOME)
 
         if action == MacroAction.GRAB_MINE:
-            # Objective-first guards
             if int(getattr(agent, "mine_charges", 0)) > 0:
                 ex, ey = self._gm_enemy_flag_position(side)
                 safe_set_path((int(ex), int(ey)), avoid_enemies=False)
@@ -1036,7 +1043,7 @@ class GameField:
                 nearest = min(my_pickups, key=lambda p: (p.x - axc) ** 2 + (p.y - ayc) ** 2)
                 target = (nearest.x, nearest.y)
             else:
-                target = self.get_macro_target(2)  # own zone center fallback
+                target = self.get_macro_target(2)
 
             safe_set_path(target, avoid_enemies=False)
             return record(MacroAction.GRAB_MINE)
@@ -1068,28 +1075,74 @@ class GameField:
             safe_set_path(target, avoid_enemies=False)
             return record(MacroAction.PLACE_MINE)
 
-        # Fallback
         safe_set_path(self.get_macro_target(4), avoid_enemies=False)
         return record(MacroAction.GO_TO)
 
-    # -------- internal decision (scripted or neural policy) --------
+    # -------- internal decision (scripted or neural policy or wrapper) --------
 
     def decide(self, agent: Agent) -> None:
         if not agent.isEnabled():
             return
 
+        def _to_int(x: Any, default: int = 0) -> int:
+            try:
+                import torch
+                if torch.is_tensor(x):
+                    return int(x.reshape(-1)[0].item())
+            except Exception:
+                pass
+            try:
+                return int(x)
+            except Exception:
+                return int(default)
+
+        def _parse_out(out: Any) -> Tuple[int, Optional[Any]]:
+            if out is None:
+                return 0, None
+
+            if isinstance(out, dict):
+                ma = out.get("macro_action", 0)
+                ta = out.get("target_action", None)
+                macro_id = _to_int(ma, 0)
+                if ta is None:
+                    return macro_id, None
+                target_param = _to_int(ta, 0)
+                return macro_id, target_param
+
+            if isinstance(out, (tuple, list)):
+                if len(out) == 0:
+                    return 0, None
+                if len(out) == 1:
+                    return _to_int(out[0], 0), None
+                return _to_int(out[0], 0), out[1]
+
+            return _to_int(out, 0), None
+
         agent.decision_count = getattr(agent, "decision_count", 0) + 1
         obs = self.build_observation(agent)
-        policy = self.policies.get(agent.side)
 
-        # Neural-like policy interface: policy.act(obs_tensor, ...)
-        if hasattr(policy, "act"):
+        base_policy = self.policies.get(agent.side)
+        wrapper = self.policy_wrappers.get(agent.side)
+
+        # 1) Wrapper override (highest priority)
+        if wrapper is not None and callable(wrapper):
+            try:
+                out = wrapper(obs, agent, self, base_policy)
+            except TypeError:
+                out = wrapper(obs, agent, self)
+
+            action_id, param = _parse_out(out)
+            self.apply_macro_action(agent, int(action_id), param)
+            return
+
+        # 2) Neural-like policy interface: policy.act(obs_tensor, ...)
+        if hasattr(base_policy, "act"):
             import torch  # local import
 
             device = torch.device("cpu")
-            if hasattr(policy, "parameters"):
+            if hasattr(base_policy, "parameters"):
                 try:
-                    p = next(policy.parameters())
+                    p = next(base_policy.parameters())
                     device = p.device
                 except StopIteration:
                     pass
@@ -1097,28 +1150,27 @@ class GameField:
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
 
             with torch.no_grad():
-                out = policy.act(obs_tensor, agent=agent, game_field=self, deterministic=True)
+                out = base_policy.act(obs_tensor, agent=agent, game_field=self, deterministic=True)
 
-            if isinstance(out, dict):
-                action_id = int(out["macro_action"][0].item())
-                param = int(out["target_action"][0].item())
-            else:
-                action_id = int(out[0])
-                param = int(out[1]) if len(out) > 1 else None
-
-            self.apply_macro_action(agent, action_id, param)
-            return
-
-        # Scripted Policy
-        if isinstance(policy, Policy):
-            action_id, param = policy.select_action(obs, agent, self)
+            action_id, param = _parse_out(out)
             self.apply_macro_action(agent, int(action_id), param)
             return
 
-        # Callable fallback
-        if callable(policy):
-            action_id = policy(agent, self)
-            self.apply_macro_action(agent, int(action_id), None)
+        # 3) Scripted Policy
+        if isinstance(base_policy, Policy):
+            action_id, param = base_policy.select_action(obs, agent, self)
+            self.apply_macro_action(agent, int(action_id), param)
+            return
+
+        # 4) Callable fallback
+        if callable(base_policy):
+            try:
+                out = base_policy(obs, agent, self)
+            except TypeError:
+                out = base_policy(agent, self)
+
+            action_id, param = _parse_out(out)
+            self.apply_macro_action(agent, int(action_id), param)
             return
 
         return
