@@ -1,183 +1,88 @@
 # ==========================================================
-# train_ppo_event.py (FULL: EPISODE-STRICT + PENDING ACCUMULATOR FIXED
-#                     + OP3 STABILIZATION: SCORE-DELTA + OUTCOME TERMINAL
-#                     + TERMINAL-SAFE UPDATES + OP3 ENTROPY RESET
-#                     + SELF-PLAY (PPO "LEAGUE" SNAPSHOT POOL, MARL-STANDARD))
+# train_ppo_event.py  (SB3 PPO + PHASE 1 LEAGUE/ELO)
+#   - Replaces custom PPO with Stable-Baselines3 PPO
+#   - Phase 1: Elo league matchmaking + species injection
+#   - Self-play snapshot pool (SB3 .save()/.load())
+#   - Uses your GameField external control + reward events
 # ==========================================================
+
+from __future__ import annotations
+
 import os
+import math
 import random
-from typing import Dict, List, Tuple, Any, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
+
+# Gymnasium + SB3
+import gymnasium as gym
+from gymnasium import spaces
+
+from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
+
+# Torch for custom extractor
+import torch as th
 import torch.nn as nn
-import torch.optim as optim
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
-try:
-    import torch_directml
-    HAS_TDML = True
-except ImportError:
-    torch_directml = None
-    HAS_TDML = False
-
+# Your code
 from game_field import GameField, CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS
 from game_manager import GameManager
 from macro_actions import MacroAction
-from rl_policy import ActorCriticNet
-from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+from policies import OP3RedPolicy  # species base; keep others if you want
 
 
-# ==========================================================
-# Device
-# ==========================================================
-def get_device() -> torch.device:
-    if HAS_TDML:
-        return torch_directml.device()
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    return torch.device("cpu")
+# -------------------------
+# Config
+# -------------------------
+SEED = 42
 
+TOTAL_TIMESTEPS = 1_000_000
 
-DEVICE = get_device()
+# One env.step() == one "decision window" in your sim
+DECISION_WINDOW = 1.0
+SIM_DT = 0.1
 
+# Episode caps (safety)
+MAX_MACRO_STEPS = 500  # max env.steps per episode
+SCORE_LIMIT = 3
+MAX_TIME = 200.0
 
-# ==========================================================
-# Reproducibility
-# ==========================================================
-def set_seed(seed: int = 42) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+# Reward shaping (match your prior stabilizers)
+WIN_BONUS = 25.0
+LOSS_PENALTY = -25.0
+DRAW_PENALTY = -5.0
+BLUE_SCORED_BONUS = 15.0
+RED_SCORED_PENALTY = -15.0
+TIME_PENALTY_PER_AGENT_PER_STEP = 0.001
 
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+# Invalid action handling (because SB3 PPO (not MaskablePPO) can't hard-mask logits)
+INVALID_MACRO_PENALTY = 0.05  # small negative when agent selects an invalid macro
 
-
-# ==========================================================
-# Hyperparams
-# ==========================================================
-GRID_ROWS = CNN_ROWS
-GRID_COLS = CNN_COLS
-
-TOTAL_STEPS: int = 1_000_000
-UPDATE_EVERY: int = 4096          # transitions (not windows)
-PPO_EPOCHS: int = 10
-MINIBATCH_SIZE: int = 256
-
-LR: float = 3e-4
-CLIP_EPS: float = 0.2
-VALUE_COEF: float = 2.0
-MAX_GRAD_NORM: float = 0.5
-
-GAMMA: float = 0.995
-GAE_LAMBDA: float = 0.97
-
-DECISION_WINDOW: float = 1.0
-SIM_DT: float = 0.1
-
-CHECKPOINT_DIR: str = "checkpoints"
-os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-
-USED_MACROS: List[MacroAction] = [
-    MacroAction.GO_TO,
-    MacroAction.GRAB_MINE,
-    MacroAction.GET_FLAG,
-    MacroAction.PLACE_MINE,
-    MacroAction.GO_HOME,
+# Action space matches GameField.macro_order (you already set it)
+USED_MACROS = [
+    MacroAction.GO_TO,      # 0
+    MacroAction.GRAB_MINE,  # 1
+    MacroAction.GET_FLAG,   # 2
+    MacroAction.PLACE_MINE, # 3
+    MacroAction.GO_HOME,    # 4
 ]
-N_MACROS: int = len(USED_MACROS)
+N_MACROS = len(USED_MACROS)
 
-PHASE_SEQUENCE: List[str] = ["OP1", "OP2", "OP3"]
-MIN_PHASE_EPISODES: Dict[str, int] = {"OP1": 300, "OP2": 700, "OP3": 1500}
-TARGET_PHASE_WINRATE: Dict[str, float] = {"OP1": 0.74, "OP2": 0.70, "OP3": 0.65}
-PHASE_WINRATE_WINDOW: int = 50
-
-ENT_COEF_BY_PHASE: Dict[str, float] = {"OP1": 0.06, "OP2": 0.05, "OP3": 0.04}
-PHASE_CONFIG: Dict[str, Dict[str, float]] = {
-    "OP1": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-    "OP2": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-    "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
-}
-
-TIME_PENALTY_PER_AGENT_PER_MACRO = 0.001
-
-# ==========================================================
-# OP3 Stabilization: Score-delta + Outcome terminal reward
-# ==========================================================
-WIN_BONUS: float = 25.0
-LOSS_PENALTY: float = -25.0
-DRAW_PENALTY: float = -5.0
-
-BLUE_SCORED_BONUS: float = 15.0     # per point blue gains
-RED_SCORED_PENALTY: float = -15.0   # per point red gains (penalty to blue)
-
-# Entropy bump on OP3 entry
-OP3_ENT_RESET_VALUE: float = 0.08
-OP3_ENT_RESET_EPISODES: int = 100   # first N OP3 episodes get higher entropy then decay
+CHECKPOINT_DIR = "checkpoints_sb3"
+POOL_DIR = os.path.join(CHECKPOINT_DIR, "self_play_pool")
+os.makedirs(POOL_DIR, exist_ok=True)
 
 
-# ==========================================================
-# Self-Play (MARL-standard PPO snapshot pool)
-#   - Train BLUE vs frozen RED sampled from pool
-#   - Keep some scripted opponents forever to prevent degenerate collapse
-# ==========================================================
-USE_SELF_PLAY: bool = True
-
-SP_WARMUP_EPISODES: int = 300       # only scripted early
-SP_RAMP_EPISODES: int = 700         # linear ramp to SP_MAX_PROB
-SP_MAX_PROB: float = 0.85           # max chance of self-play once ramp complete
-
-SCRIPTED_MIX_PROB_FLOOR: float = 0.10  # always keep some chance of OP* opponents
-
-SP_SNAPSHOT_EVERY_EP: int = 50      # snapshot learner every N episodes
-SP_POOL_MAX: int = 16               # max opponent snapshots kept
-SP_MIN_POOL_TO_SAMPLE: int = 4      # before this, prefer "latest" or scripted
-
-SP_LATEST_PROB: float = 0.35        # within self-play, chance to face latest snapshot
-SP_OPP_DETERMINISTIC: bool = False  # False is common for robustness
-
-
-# ==========================================================
-# Env helpers
-# ==========================================================
-def set_red_policy_for_phase(env: GameField, phase: str) -> None:
-    if phase == "OP1":
-        env.policies["red"] = OP1RedPolicy("red")
-    elif phase == "OP2":
-        env.policies["red"] = OP2RedPolicy("red")
-    elif phase == "OP3":
-        env.policies["red"] = OP3RedPolicy("red")
-    else:
-        raise ValueError(f"Unknown phase: {phase}")
-
-
-def make_env(red_external: bool = False) -> GameField:
-    grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
-    env = GameField(grid)
-    env.use_internal_policies = True
-
-    if hasattr(env, "set_external_control"):
-        env.set_external_control("blue", True)
-        env.set_external_control("red", bool(red_external))
-
-    if hasattr(env, "external_missing_action_mode"):
-        env.external_missing_action_mode = "idle"
-
-    return env
-
-
-def can_self_play(env: GameField) -> bool:
-    return bool(hasattr(env, "set_external_control") and callable(getattr(env, "set_external_control"))) and \
-           bool(hasattr(env, "submit_external_actions") and callable(getattr(env, "submit_external_actions")))
-
-
+# -------------------------
+# Helpers: stable agent id and reward routing
+# -------------------------
 def agent_uid(agent: Any) -> str:
-    """
-    Stable agent id for reward routing/logging.
-    In your current Agent class, this is typically like 'blue_0_1344' (unique per spawn instance).
-    """
     uid = getattr(agent, "unique_id", None) or getattr(agent, "slot_id", None)
     if uid is None:
         side = getattr(agent, "side", "blue")
@@ -186,284 +91,6 @@ def agent_uid(agent: Any) -> str:
     return str(uid)
 
 
-def external_key_for_agent(env: GameField, agent: Any) -> str:
-    """
-    Minimal, deterministic external key for submit_external_actions.
-    Prefer env._external_key_for_agent if present, else agent_uid.
-    """
-    if hasattr(env, "_external_key_for_agent"):
-        try:
-            k = str(env._external_key_for_agent(agent))
-            if k.strip():
-                return k
-        except Exception:
-            pass
-    return agent_uid(agent)
-
-
-def apply_external_actions(env: GameField, actions_by_agent: Dict[str, Tuple[int, int]]) -> None:
-    """
-    Clean path: env.submit_external_actions(actions_dict) is expected.
-    """
-    fn = getattr(env, "submit_external_actions", None)
-    if fn is None or (not callable(fn)):
-        raise RuntimeError("GameField must implement submit_external_actions(actions_by_agent).")
-    fn(actions_by_agent)
-
-
-def compute_dt_for_window(window_s: float = DECISION_WINDOW) -> float:
-    return float(window_s)
-
-
-def sim_decision_window(env: GameField, gm: GameManager, window_s: float, sim_dt: float) -> None:
-    if window_s <= 0.0:
-        return
-    if sim_dt <= 0.0:
-        raise ValueError("SIM_DT must be > 0")
-
-    n_full = int(window_s // sim_dt)
-    rem = float(window_s - n_full * sim_dt)
-
-    for _ in range(n_full):
-        if gm.game_over:
-            return
-        env.update(sim_dt)
-
-    if rem > 1e-9 and (not gm.game_over):
-        env.update(rem)
-
-
-# ==========================================================
-# Macro mask (USED_MACROS index-space)
-# ==========================================================
-def _get_agent_xy(agent: Any) -> Tuple[float, float]:
-    fp = getattr(agent, "float_pos", None)
-    if isinstance(fp, (tuple, list)) and len(fp) >= 2:
-        return float(fp[0]), float(fp[1])
-    return float(getattr(agent, "x", 0.0)), float(getattr(agent, "y", 0.0))
-
-
-def compute_used_macro_mask(env: GameField, agent: Any) -> np.ndarray:
-    """
-    Deterministic, research-safe masking aligned to USED_MACROS.
-    If env.get_macro_mask(agent) exists, we use it (must match N_MACROS).
-    """
-    if hasattr(env, "get_macro_mask") and callable(getattr(env, "get_macro_mask")):
-        mm = env.get_macro_mask(agent)
-        mm = np.array(mm, dtype=np.bool_)
-        if mm.shape == (N_MACROS,):
-            if not mm.any():
-                mm[:] = True
-            return mm
-        raise RuntimeError(f"env.get_macro_mask returned shape {mm.shape}, expected {(N_MACROS,)}")
-
-    mask = np.ones((N_MACROS,), dtype=np.bool_)
-
-    carrying = False
-    if hasattr(agent, "isCarryingFlag") and callable(getattr(agent, "isCarryingFlag")):
-        carrying = bool(agent.isCarryingFlag())
-    else:
-        carrying = bool(getattr(agent, "is_carrying_flag", False))
-
-    # PLACE_MINE needs charges
-    if getattr(agent, "mine_charges", 0) <= 0 and MacroAction.PLACE_MINE in USED_MACROS:
-        mask[USED_MACROS.index(MacroAction.PLACE_MINE)] = False
-
-    # GRAB_MINE requires friendly pickup nearby (soft gate)
-    has_pickup_near = False
-    ax, ay = _get_agent_xy(agent)
-    for p in getattr(env, "mine_pickups", []):
-        if getattr(p, "owner_side", None) == getattr(agent, "side", None):
-            dx = float(getattr(p, "x", 0.0)) - ax
-            dy = float(getattr(p, "y", 0.0)) - ay
-            if (dx * dx + dy * dy) ** 0.5 < 3.0:
-                has_pickup_near = True
-                break
-    if (not has_pickup_near) and MacroAction.GRAB_MINE in USED_MACROS:
-        mask[USED_MACROS.index(MacroAction.GRAB_MINE)] = False
-
-    # GET_FLAG invalid while carrying
-    if carrying and MacroAction.GET_FLAG in USED_MACROS:
-        mask[USED_MACROS.index(MacroAction.GET_FLAG)] = False
-
-    if not mask.any():
-        mask[:] = True
-
-    return mask
-
-
-# ==========================================================
-# Rollout Buffer (fixed mask shape, no empty masks)
-# ==========================================================
-class RolloutBuffer:
-    def __init__(self, n_macros: int) -> None:
-        self.n_macros = int(n_macros)
-        self.obs: List[np.ndarray] = []
-        self.macro_actions: List[int] = []
-        self.target_actions: List[int] = []
-        self.log_probs: List[float] = []
-        self.values: List[float] = []
-        self.next_values: List[float] = []
-        self.rewards: List[float] = []
-        self.dones: List[bool] = []
-        self.dts: List[float] = []
-        self.macro_masks: List[np.ndarray] = []
-
-    def add(
-        self,
-        obs: np.ndarray,
-        macro_action: int,
-        target_action: int,
-        log_prob: float,
-        value: float,
-        next_value: float,
-        reward: float,
-        done: bool,
-        dt: float,
-        macro_mask: np.ndarray,
-    ) -> None:
-        mm = np.array(macro_mask, dtype=np.bool_)
-        if mm.shape != (self.n_macros,):
-            raise ValueError(f"macro_mask must be shape {(self.n_macros,)}, got {mm.shape}")
-
-        self.obs.append(np.array(obs, dtype=np.float32))
-        self.macro_actions.append(int(macro_action))
-        self.target_actions.append(int(target_action))
-        self.log_probs.append(float(log_prob))
-        self.values.append(float(value))
-        self.next_values.append(float(next_value))
-        self.rewards.append(float(reward))
-        self.dones.append(bool(done))
-        self.dts.append(float(dt))
-        self.macro_masks.append(mm)
-
-    def size(self) -> int:
-        return len(self.obs)
-
-    def clear(self) -> None:
-        self.__init__(self.n_macros)
-
-    def to_tensors(self, device: torch.device) -> Tuple[torch.Tensor, ...]:
-        obs = torch.tensor(np.stack(self.obs), dtype=torch.float32, device=device)                 # [T,C,H,W]
-        macro_actions = torch.tensor(self.macro_actions, dtype=torch.long, device=device)          # [T]
-        target_actions = torch.tensor(self.target_actions, dtype=torch.long, device=device)        # [T]
-        log_probs = torch.tensor(self.log_probs, dtype=torch.float32, device=device)               # [T]
-        values = torch.tensor(self.values, dtype=torch.float32, device=device)                      # [T]
-        next_values = torch.tensor(self.next_values, dtype=torch.float32, device=device)           # [T]
-        rewards = torch.tensor(self.rewards, dtype=torch.float32, device=device)                    # [T]
-        dones = torch.tensor(self.dones, dtype=torch.float32, device=device)                        # [T]
-        dts = torch.tensor(self.dts, dtype=torch.float32, device=device)                            # [T]
-        macro_masks = torch.tensor(np.stack(self.macro_masks), dtype=torch.bool, device=device)     # [T,A]
-        return obs, macro_actions, target_actions, log_probs, values, next_values, rewards, dones, dts, macro_masks
-
-
-# ==========================================================
-# Event-driven GAE
-# ==========================================================
-def compute_gae_event(
-    rewards: torch.Tensor,
-    values: torch.Tensor,
-    next_values: torch.Tensor,
-    dones: torch.Tensor,
-    dts: torch.Tensor,
-    gamma: float = GAMMA,
-    lam: float = GAE_LAMBDA,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    T = rewards.size(0)
-    advantages = torch.zeros(T, device=rewards.device)
-    next_adv = 0.0
-
-    for t in reversed(range(T)):
-        gamma_dt = gamma ** dts[t]
-        lam_gamma_dt = (gamma * lam) ** dts[t]
-        mask = 1.0 - dones[t]
-        delta = rewards[t] + gamma_dt * next_values[t] * mask - values[t]
-        advantages[t] = delta + lam_gamma_dt * next_adv * mask
-        next_adv = advantages[t]
-
-    returns = advantages + values
-    return advantages, returns
-
-
-def normalize_advantages(adv: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
-    mean = adv.mean()
-    var = (adv - mean).pow(2).mean()
-    return (adv - mean) / torch.sqrt(var + eps)
-
-
-# ==========================================================
-# PPO Update
-# ==========================================================
-def ppo_update(
-    policy: ActorCriticNet,
-    optimizer: optim.Optimizer,
-    buffer: RolloutBuffer,
-    device: torch.device,
-    ent_coef: float,
-) -> None:
-    (
-        obs,
-        macro_actions,
-        target_actions,
-        old_log_probs,
-        values,
-        next_values,
-        rewards,
-        dones,
-        dts,
-        macro_masks,
-    ) = buffer.to_tensors(device)
-
-    T = obs.size(0)
-    if T == 0:
-        buffer.clear()
-        return
-
-    advantages, returns = compute_gae_event(rewards, values, next_values, dones, dts)
-    advantages = normalize_advantages(advantages)
-
-    policy.train()
-    for _ in range(PPO_EPOCHS):
-        perm = torch.randperm(T, device=device)
-
-        for start in range(0, T, MINIBATCH_SIZE):
-            end = min(start + MINIBATCH_SIZE, T)
-            mb_idx = perm[start:end]
-
-            mb_obs      = obs.index_select(0, mb_idx)
-            mb_macro    = macro_actions.index_select(0, mb_idx)
-            mb_target   = target_actions.index_select(0, mb_idx)
-            mb_old_logp = old_log_probs.index_select(0, mb_idx)
-            mb_adv      = advantages.index_select(0, mb_idx)
-            mb_ret      = returns.index_select(0, mb_idx)
-            mb_mask     = macro_masks.index_select(0, mb_idx)
-
-            new_logp, entropy, new_values = policy.evaluate_actions(
-                mb_obs,
-                mb_macro,
-                mb_target,
-                macro_mask_batch=mb_mask,
-            )
-
-            ratio = torch.exp(new_logp - mb_old_logp)
-            surr1 = ratio * mb_adv
-            surr2 = torch.clamp(ratio, 1 - CLIP_EPS, 1 + CLIP_EPS) * mb_adv
-            policy_loss = -torch.min(surr1, surr2).mean()
-
-            value_loss = (mb_ret - new_values).pow(2).mean()
-            loss = policy_loss + VALUE_COEF * value_loss - ent_coef * entropy.mean()
-
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            nn.utils.clip_grad_norm_(policy.parameters(), MAX_GRAD_NORM)
-            optimizer.step()
-
-    buffer.clear()
-
-
-# ==========================================================
-# Reward collection (EPISODE-STRICT + PENDING ACCUMULATOR)
-# ==========================================================
 def pop_reward_events_strict(gm: GameManager) -> List[Tuple[float, str, float]]:
     fn = getattr(gm, "pop_reward_events", None)
     if fn is None or (not callable(fn)):
@@ -478,65 +105,7 @@ def clear_reward_events_best_effort(gm: GameManager) -> None:
         return
 
 
-def init_episode_reward_routing(env: GameField) -> Tuple[set, Dict[str, float], Dict[str, int]]:
-    uids: List[str] = []
-    for a in getattr(env, "blue_agents", []):
-        if a is None:
-            continue
-        uids.append(agent_uid(a))
-    episode_uid_set = set(uids)
-    pending = {uid: 0.0 for uid in episode_uid_set}
-    last_buf_idx: Dict[str, int] = {}
-    return episode_uid_set, pending, last_buf_idx
-
-
-def accumulate_rewards_for_uid_set(
-    gm: GameManager,
-    allowed_uids: set,
-    pending: Dict[str, float],
-) -> None:
-    events = pop_reward_events_strict(gm)
-    for _t, agent_id, r in events:
-        if agent_id is None:
-            raise RuntimeError("Found reward event with agent_id=None (must always be per-agent).")
-        key = str(agent_id).strip()
-        if not key:
-            raise RuntimeError("Found reward event with empty agent_id.")
-        if key in allowed_uids:
-            pending[key] = pending.get(key, 0.0) + float(r)
-        # else: ignore (red team, stale episode ids, etc.)
-
-
-def consume_pending_reward_for_uid(
-    uid: str,
-    pending: Dict[str, float],
-    time_penalty: float = 0.0,
-) -> float:
-    r = float(pending.get(uid, 0.0))
-    pending[uid] = 0.0
-    return r - float(time_penalty)
-
-
-def flush_pending_rewards_into_buffer(
-    pending: Dict[str, float],
-    last_buf_idx: Dict[str, int],
-    buffer: RolloutBuffer,
-) -> None:
-    for uid, r in list(pending.items()):
-        if abs(r) <= 1e-12:
-            continue
-        idx = last_buf_idx.get(uid, None)
-        if idx is None:
-            pending[uid] = 0.0
-            continue
-        buffer.rewards[idx] = float(buffer.rewards[idx]) + float(r)
-        pending[uid] = 0.0
-
-
-# ==========================================================
-# OP3 Stabilization helpers
-# ==========================================================
-def outcome_bonus_from_scores(blue_score: int, red_score: int) -> float:
+def outcome_bonus(blue_score: int, red_score: int) -> float:
     if blue_score > red_score:
         return float(WIN_BONUS)
     if red_score > blue_score:
@@ -544,496 +113,726 @@ def outcome_bonus_from_scores(blue_score: int, red_score: int) -> float:
     return float(DRAW_PENALTY)
 
 
-def add_terminal_reward_to_all_uids(
-    pending_reward: Dict[str, float],
-    episode_uid_set: set,
-    terminal_r: float,
-) -> float:
-    if abs(float(terminal_r)) <= 1e-12:
-        return 0.0
-    n = max(1, len(episode_uid_set))
-    for uid in episode_uid_set:
-        pending_reward[uid] = pending_reward.get(uid, 0.0) + float(terminal_r)
-    return float(terminal_r) * float(n)
+# -------------------------
+# Species injection
+# -------------------------
+def make_species_policy(species_type: str = "BALANCED") -> OP3RedPolicy:
+    """
+    Returns a scripted red policy (OP3 base) with hacked knobs to create a "species".
+    You can extend this with more tags (e.g., "MINER", "INTERCEPTOR", etc.)
+    """
+    species_type = str(species_type).upper().strip()
+    p = OP3RedPolicy("red")
+
+    # These attributes are based on your pseudocode idea.
+    # If your OP3RedPolicy uses different field names, adjust here.
+    if species_type == "RUSHER":
+        # ignore mines / defense, prioritize attack
+        if hasattr(p, "mine_radius_check"):
+            p.mine_radius_check = 0.1
+        if hasattr(p, "defense_weight"):
+            p.defense_weight = 0.0
+        if hasattr(p, "flag_weight"):
+            p.flag_weight = 5.0
+
+    elif species_type == "CAMPER":
+        # defender behavior: bigger mine detection / stick around base
+        if hasattr(p, "mine_radius_check"):
+            p.mine_radius_check = 5.0
+        if hasattr(p, "defense_weight"):
+            p.defense_weight = 3.0
+
+    elif species_type == "BALANCED":
+        # leave defaults
+        pass
+
+    else:
+        # unknown species => default OP3
+        pass
+
+    return p
 
 
-def apply_score_delta_shaping(
-    gm: GameManager,
-    episode_uid_set: set,
-    pending_reward: Dict[str, float],
-    prev_blue_score: int,
-    prev_red_score: int,
-) -> Tuple[int, int, float]:
-    cur_b = int(getattr(gm, "blue_score", 0))
-    cur_r = int(getattr(gm, "red_score", 0))
-
-    db = cur_b - int(prev_blue_score)
-    dr = cur_r - int(prev_red_score)
-
-    team_added = 0.0
-    n = max(1, len(episode_uid_set))
-
-    if db != 0:
-        per_uid = float(BLUE_SCORED_BONUS) * float(db)
-        for uid in episode_uid_set:
-            pending_reward[uid] = pending_reward.get(uid, 0.0) + per_uid
-        team_added += per_uid * float(n)
-
-    if dr != 0:
-        per_uid = float(RED_SCORED_PENALTY) * float(dr)
-        for uid in episode_uid_set:
-            pending_reward[uid] = pending_reward.get(uid, 0.0) + per_uid
-        team_added += per_uid * float(n)
-
-    return cur_b, cur_r, team_added
+# -------------------------
+# Elo league manager
+# -------------------------
+def elo_expected(r_a: float, r_b: float) -> float:
+    # Standard Elo expected score
+    return 1.0 / (1.0 + 10.0 ** (-(r_a - r_b) / 400.0))
 
 
-# ==========================================================
-# Entropy schedule (with OP3 reset bump)
-# ==========================================================
-def get_entropy_coef(cur_phase: str, phase_episode_count: int) -> float:
-    base = float(ENT_COEF_BY_PHASE[cur_phase])
-
-    if cur_phase == "OP1":
-        start_ent, horizon = 0.07, 300.0
-        frac = min(1.0, float(phase_episode_count) / horizon)
-        return float(start_ent - (start_ent - base) * frac)
-
-    if cur_phase == "OP2":
-        start_ent, horizon = 0.06, 500.0
-        frac = min(1.0, float(phase_episode_count) / horizon)
-        return float(start_ent - (start_ent - base) * frac)
-
-    if phase_episode_count <= OP3_ENT_RESET_EPISODES:
-        start_ent = float(OP3_ENT_RESET_VALUE)
-        frac = min(1.0, float(phase_episode_count) / float(OP3_ENT_RESET_EPISODES))
-        return float(start_ent - (start_ent - base) * frac)
-
-    return base
+@dataclass
+class OpponentSpec:
+    kind: str  # "SNAPSHOT" | "SPECIES" | "SCRIPTED"
+    key: str   # snapshot path OR species tag OR scripted name
+    rating: float
 
 
-# ==========================================================
-# Self-Play snapshot pool manager
-# ==========================================================
-class SelfPlayManager:
-    def __init__(self, pool_dir: str, max_pool: int) -> None:
+class LeagueManager:
+    """
+    Phase 1 League:
+      - Tracks Elo for learner + each opponent (snapshot/species/scripted)
+      - Samples opponents by Elo proximity (matchmaking)
+      - Species injection to prevent overfitting
+      - Maintains bounded snapshot pool on disk
+    """
+
+    def __init__(
+        self,
+        pool_dir: str,
+        pool_max: int = 16,
+        k_factor: float = 32.0,
+        species_prob: float = 0.20,
+        scripted_mix_floor: float = 0.10,
+        snapshot_every_episodes: int = 50,
+        min_pool_to_matchmake: int = 4,
+        matchmaking_tau: float = 250.0,  # lower => tighter Elo matchmaking
+        seed: int = 42,
+    ) -> None:
         self.pool_dir = pool_dir
         os.makedirs(self.pool_dir, exist_ok=True)
-        self.max_pool = int(max_pool)
-        self.paths: List[str] = []
-        self.latest_path: Optional[str] = None
+
+        self.pool_max = int(pool_max)
+        self.k = float(k_factor)
+
+        self.species_prob = float(species_prob)
+        self.scripted_mix_floor = float(scripted_mix_floor)
+
+        self.snapshot_every_episodes = int(snapshot_every_episodes)
+        self.min_pool_to_matchmake = int(min_pool_to_matchmake)
+        self.tau = float(matchmaking_tau)
+
+        self.rng = random.Random(int(seed))
+
+        # Ratings map: opponent_key -> rating
+        self.ratings: Dict[str, float] = {}
+        self.snapshots: List[str] = []  # list of snapshot paths (zip files)
+
+        self.learner_rating: float = 1200.0
+        self.learner_key: str = "__LEARNER__"
+
+        # Seed scripted/species entries so they exist from day 1
+        for key in ["SCRIPTED:OP3", "SPECIES:RUSHER", "SPECIES:CAMPER", "SPECIES:BALANCED"]:
+            self.ratings[key] = 1200.0
+        self.ratings[self.learner_key] = self.learner_rating
+
+    def get_rating(self, key: str) -> float:
+        return float(self.ratings.get(key, 1200.0))
+
+    def set_learner_rating(self, r: float) -> None:
+        self.learner_rating = float(r)
+        self.ratings[self.learner_key] = float(r)
 
     def _snapshot_path(self, episode_idx: int) -> str:
-        return os.path.join(self.pool_dir, f"sp_snapshot_ep{episode_idx:06d}.pth")
+        # SB3 saves to .zip
+        return os.path.join(self.pool_dir, f"sp_snapshot_ep{episode_idx:06d}")
 
-    def add_snapshot(self, policy: nn.Module, episode_idx: int) -> str:
+    def add_snapshot(self, model: PPO, episode_idx: int) -> str:
         path = self._snapshot_path(episode_idx)
-        torch.save(policy.state_dict(), path)
-        self.latest_path = path
-        self.paths.append(path)
+        model.save(path)  # creates path + ".zip"
 
-        while len(self.paths) > self.max_pool:
-            old = self.paths.pop(0)
+        zip_path = path + ".zip"
+        self.snapshots.append(zip_path)
+
+        # new snapshot inherits learner rating at creation time
+        self.ratings[zip_path] = float(self.learner_rating)
+
+        # cap pool
+        while len(self.snapshots) > self.pool_max:
+            old = self.snapshots.pop(0)
             try:
                 os.remove(old)
             except Exception:
                 pass
-        return path
-
-    def has_enough_pool(self, min_pool: int) -> bool:
-        return len(self.paths) >= int(min_pool)
-
-    def sample_opponent_path(self, latest_prob: float) -> Optional[str]:
-        if not self.paths:
-            return None
-        if self.latest_path is not None and random.random() < float(latest_prob):
-            return self.latest_path
-        return random.choice(self.paths)
-
-    def get_latest(self) -> Optional[str]:
-        return self.latest_path
-
-
-def self_play_prob(episode_idx: int) -> float:
-    if episode_idx <= SP_WARMUP_EPISODES:
-        return 0.0
-    t = min(1.0, (episode_idx - SP_WARMUP_EPISODES) / max(1.0, float(SP_RAMP_EPISODES)))
-    p = float(SP_MAX_PROB) * float(t)
-    p = min(p, 1.0 - float(SCRIPTED_MIX_PROB_FLOOR))
-    return float(max(0.0, p))
-
-
-def make_policy_net(env: GameField) -> ActorCriticNet:
-    return ActorCriticNet(
-        n_macros=N_MACROS,
-        n_targets=env.num_macro_targets,
-        n_agents=getattr(env, "agents_per_team", 2),
-        in_channels=NUM_CNN_CHANNELS,
-        height=CNN_ROWS,
-        width=CNN_COLS,
-    )
-
-
-# ==========================================================
-# Action sampling (mask always present)
-# ==========================================================
-@torch.no_grad()
-def sample_action(
-    policy: ActorCriticNet,
-    obs_tensor: torch.Tensor,  # [1,C,H,W]
-    env: GameField,
-    agent: Any,
-    deterministic: bool = False,
-) -> Tuple[int, int, float, float, np.ndarray]:
-    out = policy.act(
-        obs_tensor,
-        agent=agent,
-        game_field=env,
-        deterministic=deterministic,
-        return_old_log_prob_key=False,
-    )
-
-    macro_idx = int(out["macro_action"].reshape(-1)[0].item())
-    target_idx = int(out["target_action"].reshape(-1)[0].item())
-    logp = float(out["log_prob"].reshape(-1)[0].item())
-    val = float(out["value"].reshape(-1)[0].item())
-
-    mm = out.get("macro_mask", None)
-    if mm is None:
-        mask_np = compute_used_macro_mask(env, agent)
-    elif torch.is_tensor(mm):
-        mask_np = mm.detach().cpu().numpy().astype(np.bool_)
-        if mask_np.shape != (N_MACROS,):
-            mask_np = mask_np.reshape(-1).astype(np.bool_)
-    else:
-        mask_np = np.array(mm, dtype=np.bool_).reshape(-1)
-
-    if mask_np.shape != (N_MACROS,):
-        raise RuntimeError(f"policy.act returned macro_mask shape {mask_np.shape}, expected {(N_MACROS,)}")
-
-    return macro_idx, target_idx, logp, val, mask_np
-
-
-# ==========================================================
-# Training loop
-# ==========================================================
-def train_ppo_event(total_steps: int = TOTAL_STEPS) -> None:
-    set_seed(42)
-
-    # Create an env once to probe shapes, then we may recreate per-episode
-    env = make_env(red_external=False)
-    gm = env.getGameManager()
-
-    if hasattr(gm, "set_shaping_gamma"):
-        gm.set_shaping_gamma(GAMMA)
-
-    # Probe obs shape
-    env.reset_default()
-    if not env.blue_agents:
-        raise RuntimeError("No blue agents after env.reset_default().")
-
-    dummy_obs = env.build_observation(env.blue_agents[0])
-    c = len(dummy_obs)
-    h = len(dummy_obs[0])
-    w = len(dummy_obs[0][0])
-    print(f"[train_ppo_event] Sample obs shape: C={c}, H={h}, W={w}")
-
-    policy = make_policy_net(env).to(DEVICE)
-    opp_policy = make_policy_net(env).to(DEVICE)
-    opp_policy.eval()
-
-    print(f"[DEVICE] Using: {DEVICE}")
-
-    optimizer = optim.Adam(policy.parameters(), lr=LR, foreach=False)
-    buffer = RolloutBuffer(n_macros=N_MACROS)
-
-    sp_manager = SelfPlayManager(pool_dir=os.path.join(CHECKPOINT_DIR, "self_play_pool"), max_pool=SP_POOL_MAX)
-
-    global_step = 0
-    episode_idx = 0
-    blue_wins = red_wins = draws = 0
-
-    phase_idx = 0
-    phase_episode_count = 0
-    phase_recent: List[int] = []
-
-    while global_step < total_steps:
-        episode_idx += 1
-        phase_episode_count += 1
-
-        cur_phase = PHASE_SEQUENCE[phase_idx]
-        phase_cfg = PHASE_CONFIG[cur_phase]
-
-        # ----------------------------------------------------------
-        # Choose opponent type (scripted vs self-play snapshot)
-        # ----------------------------------------------------------
-        want_sp = bool(USE_SELF_PLAY)
-        p_sp = self_play_prob(episode_idx)
-
-        # Always keep some scripted pressure
-        if random.random() < float(SCRIPTED_MIX_PROB_FLOOR):
-            do_self_play = False
-        else:
-            have_some_snapshot = (sp_manager.get_latest() is not None) or sp_manager.has_enough_pool(SP_MIN_POOL_TO_SAMPLE)
-            do_self_play = bool(want_sp and have_some_snapshot and (random.random() < p_sp))
-
-        # Recreate env per-episode so red_external is guaranteed correct before reset.
-        env = make_env(red_external=do_self_play)
-        gm = env.getGameManager()
-
-        if hasattr(gm, "set_shaping_gamma"):
-            gm.set_shaping_gamma(GAMMA)
-
-        gm.score_limit = int(phase_cfg["score_limit"])
-        gm.max_time = float(phase_cfg["max_time"])
-        max_steps = int(phase_cfg["max_macro_steps"])
-
-        if hasattr(gm, "set_phase"):
-            gm.set_phase(cur_phase)
-
-        opponent_tag = cur_phase
-
-        # Configure opponent
-        if do_self_play and can_self_play(env):
-            opp_path = sp_manager.sample_opponent_path(latest_prob=SP_LATEST_PROB)
-            if opp_path is None:
-                do_self_play = False
-            else:
-                sd = torch.load(opp_path, map_location="cpu")
-                opp_policy.load_state_dict(sd)
-                opp_policy.eval()
-                opponent_tag = f"SP:{os.path.basename(opp_path)}"
-
-        if not do_self_play:
-            # scripted opponent
-            set_red_policy_for_phase(env, cur_phase)
-            opponent_tag = cur_phase
-
-        # Reset env for this episode (uids can change here)
-        env.reset_default()
-
-        # Drain any stale reward events after reset (defensive)
-        clear_reward_events_best_effort(gm)
-
-        # MUST be per-episode (prevents unknown-agent crashes after reset)
-        episode_uid_set, pending_reward, last_buf_idx = init_episode_reward_routing(env)
-
-        # If scripted opponent policy has reset hook
-        red_pol = env.policies.get("red")
-        if (not do_self_play) and hasattr(red_pol, "reset"):
-            try:
-                red_pol.reset()
-            except Exception:
-                pass
-
-        done = False
-        steps = 0
-
-        step_return_total = 0.0
-        term_return_total = 0.0
-
-        prev_blue_score = int(getattr(gm, "blue_score", 0))
-        prev_red_score  = int(getattr(gm, "red_score", 0))
-
-        while (not done) and steps < max_steps and global_step < total_steps:
-            blue_agents = [a for a in env.blue_agents if a is not None and a.isEnabled()]
-            if not blue_agents:
-                done = True
-                break
-
-            decisions: List[Tuple[Any, np.ndarray, int, int, float, float, np.ndarray, str]] = []
-            submit_actions_all: Dict[str, Tuple[int, int]] = {}
-
-            # --- BLUE actions (learning) ---
-            for agent in blue_agents:
-                obs = np.array(env.build_observation(agent), dtype=np.float32)
-                obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE).unsqueeze(0)
-
-                macro_idx, target_idx, logp, val, mask_np = sample_action(
-                    policy, obs_tensor, env, agent, deterministic=False
-                )
-
-                macro_enum = USED_MACROS[macro_idx]
-                macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
-
-                k = external_key_for_agent(env, agent)
-                submit_actions_all[k] = (macro_val, int(target_idx))
-
-                uid = agent_uid(agent)
-                decisions.append((agent, obs, macro_idx, target_idx, logp, val, mask_np, uid))
-
-            # --- RED actions (frozen opponent) ---
-            if do_self_play and can_self_play(env):
-                red_agents = [a for a in getattr(env, "red_agents", []) if a is not None and a.isEnabled()]
-                for agent in red_agents:
-                    obs = np.array(env.build_observation(agent), dtype=np.float32)
-                    obs_tensor = torch.tensor(obs, dtype=torch.float32, device=DEVICE).unsqueeze(0)
-
-                    macro_idx, target_idx, _logp, _val, _mask_np = sample_action(
-                        opp_policy, obs_tensor, env, agent, deterministic=bool(SP_OPP_DETERMINISTIC)
-                    )
-
-                    macro_enum = USED_MACROS[macro_idx]
-                    macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
-
-                    k = external_key_for_agent(env, agent)
-                    submit_actions_all[k] = (macro_val, int(target_idx))
-
-            # --- Submit actions (both teams if self-play, else blue only) ---
-            apply_external_actions(env, submit_actions_all)
-
-            # --- Simulate one decision window ---
-            sim_decision_window(env, gm, DECISION_WINDOW, SIM_DT)
-
-            done = bool(gm.game_over)
-            dt = compute_dt_for_window(DECISION_WINDOW)
-
-            # 1) collect event-driven rewards into pending (episode-filtered)
-            accumulate_rewards_for_uid_set(gm, episode_uid_set, pending_reward)
-
-            # 2) add objective-aligned score-delta shaping into pending
-            prev_blue_score, prev_red_score, _team_added = apply_score_delta_shaping(
-                gm=gm,
-                episode_uid_set=episode_uid_set,
-                pending_reward=pending_reward,
-                prev_blue_score=prev_blue_score,
-                prev_red_score=prev_red_score,
-            )
-
-            # --- Next values for bootstrap ---
-            done_for_rollout_global = bool(done or ((steps + 1) >= max_steps))
-            decision_uids = [uid for *_rest, uid in decisions]
-            next_vals_by_uid: Dict[str, float] = {uid: 0.0 for uid in decision_uids}
-
-            live_obs: List[np.ndarray] = []
-            live_uids: List[str] = []
-            for (agent, _obs, _mi, _ti, _lp, _v, _mm, uid) in decisions:
-                agent_dead = (not agent.isEnabled())
-                if (not done_for_rollout_global) and (not agent_dead):
-                    live_obs.append(np.array(env.build_observation(agent), dtype=np.float32))
-                    live_uids.append(uid)
-
-            if live_obs:
-                next_obs_tensor = torch.tensor(np.stack(live_obs), dtype=torch.float32, device=DEVICE)
-                with torch.no_grad():
-                    next_v = policy.forward_local_critic(next_obs_tensor).detach().cpu().numpy()
-                for i, uid in enumerate(live_uids):
-                    next_vals_by_uid[uid] = float(next_v[i])
-
-            # --- Store transitions (consume pending per acting uid) ---
-            step_reward_sum = 0.0
-            for (agent, obs, macro_idx, target_idx, logp, val, mask_np, uid) in decisions:
-                r = consume_pending_reward_for_uid(uid, pending_reward, TIME_PENALTY_PER_AGENT_PER_MACRO)
-                step_reward_sum += r
-
-                agent_dead = (not agent.isEnabled())
-                agent_done = bool(done_for_rollout_global or agent_dead)
-                nv = 0.0 if agent_done else float(next_vals_by_uid[uid])
-
-                buffer.add(
-                    obs=obs,
-                    macro_action=macro_idx,
-                    target_action=target_idx,
-                    log_prob=logp,
-                    value=val,
-                    next_value=nv,
-                    reward=r,
-                    done=agent_done,
-                    dt=dt,
-                    macro_mask=mask_np,
-                )
-                global_step += 1
-                last_buf_idx[uid] = buffer.size() - 1
-
-            step_return_total += float(step_reward_sum)
-            steps += 1
-
-            # --- Update (terminal-safe): do not update on a terminal step ---
-            if buffer.size() >= UPDATE_EVERY and (not done_for_rollout_global):
-                flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
-
-                current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
-                print(
-                    f"[UPDATE] step={global_step} episode={episode_idx} "
-                    f"phase={cur_phase} ENT={current_ent_coef:.4f} Opp={opponent_tag}"
-                )
-
-                ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
-                last_buf_idx.clear()
-
-        # ==========================================================
-        # Episode end: outcome terminal + flush leftovers into buffer
-        # ==========================================================
-        outcome_r = outcome_bonus_from_scores(gm.blue_score, gm.red_score)
-        team_outcome_added = add_terminal_reward_to_all_uids(pending_reward, episode_uid_set, outcome_r)
-        term_return_total += float(team_outcome_added)
-
-        leftover_before = float(sum(pending_reward.values()))
-        term_return_total += float(leftover_before)
-
-        flush_pending_rewards_into_buffer(pending_reward, last_buf_idx, buffer)
-
-        if buffer.size() >= UPDATE_EVERY:
-            current_ent_coef = get_entropy_coef(cur_phase, phase_episode_count)
-            print(
-                f"[UPDATE@EP_END] step={global_step} episode={episode_idx} "
-                f"phase={cur_phase} ENT={current_ent_coef:.4f} Opp={opponent_tag}"
-            )
-            ppo_update(policy, optimizer, buffer, DEVICE, current_ent_coef)
-            last_buf_idx.clear()
-
-        # --- Episode result ---
-        if gm.blue_score > gm.red_score:
-            result = "BLUE WIN"
-            blue_wins += 1
-            phase_recent.append(1)
-        elif gm.red_score > gm.blue_score:
-            result = "RED WIN"
-            red_wins += 1
-            phase_recent.append(0)
-        else:
-            result = "DRAW"
-            draws += 1
-            phase_recent.append(0)
-
-        if len(phase_recent) > PHASE_WINRATE_WINDOW:
-            phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
-
-        phase_wr = sum(phase_recent) / max(1, len(phase_recent))
-        avg_step_r = step_return_total / max(1, steps)
-
-        print(
-            f"[{episode_idx:5d}] {result:8} | "
-            f"StepR {avg_step_r:+.3f} "
-            f"TermR {term_return_total:+.1f} | "
-            f"Score {gm.blue_score}:{gm.red_score} | "
-            f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
-            f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
+            self.ratings.pop(old, None)
+
+        return zip_path
+
+    def _sample_snapshot_by_elo(self) -> Optional[str]:
+        if len(self.snapshots) < self.min_pool_to_matchmake:
+            return self.snapshots[-1] if self.snapshots else None
+
+        lr = float(self.learner_rating)
+        # Weight by Elo distance (closer rating => higher weight)
+        weights = []
+        for p in self.snapshots:
+            r = self.get_rating(p)
+            dist = abs(r - lr)
+            w = math.exp(-dist / max(1e-6, self.tau)) + 1e-3  # keep >0
+            weights.append(w)
+
+        total = sum(weights)
+        if total <= 0:
+            return self.rng.choice(self.snapshots)
+
+        pick = self.rng.random() * total
+        acc = 0.0
+        for p, w in zip(self.snapshots, weights):
+            acc += w
+            if acc >= pick:
+                return p
+        return self.snapshots[-1]
+
+    def sample_opponent(self) -> OpponentSpec:
+        """
+        Phase 1 sampling:
+          - With prob species_prob => return a species tag
+          - Else with prob scripted_mix_floor => scripted baseline
+          - Else: if pool available => snapshot matched by Elo
+                otherwise fallback scripted/species
+        """
+        # 1) Species injection
+        if self.rng.random() < self.species_prob:
+            tag = self.rng.choice(["RUSHER", "CAMPER", "BALANCED"])
+            key = f"SPECIES:{tag}"
+            return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+
+        # 2) Always keep some scripted
+        if self.rng.random() < self.scripted_mix_floor:
+            key = "SCRIPTED:OP3"
+            return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+
+        # 3) Snapshot if available
+        snap = self._sample_snapshot_by_elo()
+        if snap is not None:
+            return OpponentSpec(kind="SNAPSHOT", key=snap, rating=self.get_rating(snap))
+
+        # 4) Fallback
+        key = "SCRIPTED:OP3"
+        return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+
+    def update_elo(self, opponent_key: str, actual_score_for_learner: float) -> None:
+        """
+        actual_score_for_learner:
+          win=1.0, draw=0.5, loss=0.0
+        Opponent is updated inversely.
+        """
+        learner_r = float(self.learner_rating)
+        opp_r = float(self.get_rating(opponent_key))
+
+        exp = elo_expected(learner_r, opp_r)
+        a = float(actual_score_for_learner)
+
+        learner_new = learner_r + self.k * (a - exp)
+        opp_new = opp_r + self.k * ((1.0 - a) - (1.0 - exp))  # symmetric inverse
+
+        self.set_learner_rating(learner_new)
+        self.ratings[opponent_key] = float(opp_new)
+
+
+# -------------------------
+# Env: SB3 single-agent wrapper controlling 2 blue agents at once
+# -------------------------
+class CTFPPOEnv(gym.Env):
+    """
+    SB3-compatible env:
+      - Observation: Dict(grid, mask)
+          grid:  [14, 20, 20] float32 (blue0 obs 7ch + blue1 obs 7ch)
+          mask:  [10] float32 (2 agents * 5 macros) valid-macro indicators
+      - Action: MultiDiscrete([5, T, 5, T]) => (blue0 macro, blue0 target, blue1 macro, blue1 target)
+
+    Red opponent can be:
+      - SCRIPTED: internal OP3 policy
+      - SPECIES: internal OP3 policy with hacked knobs
+      - SNAPSHOT: external control using a frozen SB3 PPO model
+    """
+
+    metadata = {"render_modes": []}
+
+    def __init__(self, league: LeagueManager, seed: int = 42) -> None:
+        super().__init__()
+        self.league = league
+        self.rng = random.Random(int(seed))
+
+        # Build an env instance
+        self.grid = [[0] * CNN_COLS for _ in range(CNN_ROWS)]
+        self.env: GameField = GameField(self.grid)
+        self.gm: GameManager = self.env.getGameManager()
+
+        # external control: blue always controlled by PPO
+        self.env.set_external_control("blue", True)
+
+        # macro targets (from your GameField)
+        self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
+
+        # Spaces
+        self.action_space = spaces.MultiDiscrete([N_MACROS, self.n_targets, N_MACROS, self.n_targets])
+
+        self.observation_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(NUM_CNN_CHANNELS * 2, CNN_ROWS, CNN_COLS), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(N_MACROS * 2,), dtype=np.float32),
+            }
         )
 
-        # ----------------------------------------------------------
-        # Self-play snapshotting
-        # ----------------------------------------------------------
-        if USE_SELF_PLAY and (episode_idx % SP_SNAPSHOT_EVERY_EP == 0):
-            sp_manager.add_snapshot(policy, episode_idx)
-            pool_sz = len(sp_manager.paths)
-            latest = os.path.basename(sp_manager.latest_path or "")
-            print(f"[SELF_PLAY] Snapshot saved. Pool={pool_sz} Latest={latest}")
+        # Episode state
+        self.step_count = 0
+        self.prev_blue_score = 0
+        self.prev_red_score = 0
 
-        # --- Curriculum advance ---
-        if cur_phase != PHASE_SEQUENCE[-1]:
-            min_eps = MIN_PHASE_EPISODES[cur_phase]
-            target_wr = TARGET_PHASE_WINRATE[cur_phase]
-            if phase_episode_count >= min_eps and len(phase_recent) >= PHASE_WINRATE_WINDOW and phase_wr >= target_wr:
-                print(f"[CURRICULUM] Advancing from {cur_phase} -> next phase.")
-                phase_idx += 1
-                phase_episode_count = 0
-                phase_recent.clear()
+        self.blue_uids: List[str] = []
+        self.pending_reward: Dict[str, float] = {}
 
-    final_path = os.path.join(CHECKPOINT_DIR, "research_model1.pth")
-    torch.save(policy.state_dict(), final_path)
-    print(f"\nTraining complete. Final model saved to: {final_path}")
+        # Opponent state
+        self.opponent: OpponentSpec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=1200.0)
+        self.opponent_key_for_elo: str = "SCRIPTED:OP3"
+        self.opp_model: Optional[PPO] = None  # loaded only when snapshot opponent
+
+        # last episode result for callback
+        self.last_result: Optional[Dict[str, Any]] = None
+
+        # Apply match limits
+        self.gm.score_limit = int(SCORE_LIMIT)
+        self.gm.max_time = float(MAX_TIME)
+
+    # ---- sim step helper ----
+    def _sim_decision_window(self) -> None:
+        if DECISION_WINDOW <= 0.0:
+            return
+        n_full = int(DECISION_WINDOW // SIM_DT)
+        rem = float(DECISION_WINDOW - n_full * SIM_DT)
+
+        for _ in range(n_full):
+            if self.gm.game_over:
+                return
+            self.env.update(SIM_DT)
+
+        if rem > 1e-9 and (not self.gm.game_over):
+            self.env.update(rem)
+
+    # ---- obs helpers ----
+    def _build_team_obs_and_mask(self, side: str) -> Tuple[np.ndarray, np.ndarray]:
+        agents = self.env.blue_agents if side == "blue" else self.env.red_agents
+        live = [a for a in agents if a is not None]
+        if len(live) < 2:
+            # pad safely
+            while len(live) < 2:
+                live.append(live[0] if live else None)
+
+        obs_list: List[np.ndarray] = []
+        mask_list: List[np.ndarray] = []
+
+        for a in live[:2]:
+            if a is None:
+                obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
+                mask_list.append(np.ones((N_MACROS,), dtype=np.float32))
+                continue
+
+            o = np.asarray(self.env.build_observation(a), dtype=np.float32)  # [7,20,20]
+            obs_list.append(o)
+
+            mm = np.asarray(self.env.get_macro_mask(a), dtype=np.bool_).reshape(-1)
+            if mm.shape != (N_MACROS,):
+                mm = np.ones((N_MACROS,), dtype=np.bool_)
+            if not mm.any():
+                mm[:] = True
+            mask_list.append(mm.astype(np.float32))
+
+        grid = np.concatenate(obs_list, axis=0)  # [14,20,20]
+        mask = np.concatenate(mask_list, axis=0)  # [10]
+        return grid, mask
+
+    def _get_obs(self) -> Dict[str, np.ndarray]:
+        grid, mask = self._build_team_obs_and_mask("blue")
+        return {"grid": grid, "mask": mask}
+
+    # ---- reward routing ----
+    def _init_episode_routing(self) -> None:
+        self.blue_uids = [agent_uid(a) for a in self.env.blue_agents if a is not None]
+        self.pending_reward = {uid: 0.0 for uid in self.blue_uids}
+        clear_reward_events_best_effort(self.gm)
+
+    def _accumulate_rewards(self) -> None:
+        events = pop_reward_events_strict(self.gm)
+        for _t, aid, r in events:
+            if aid is None:
+                continue
+            k = str(aid)
+            if k in self.pending_reward:
+                self.pending_reward[k] += float(r)
+
+    def _apply_score_delta_shaping(self) -> float:
+        cur_b = int(getattr(self.gm, "blue_score", 0))
+        cur_r = int(getattr(self.gm, "red_score", 0))
+        db = cur_b - int(self.prev_blue_score)
+        dr = cur_r - int(self.prev_red_score)
+        self.prev_blue_score, self.prev_red_score = cur_b, cur_r
+
+        shaped = 0.0
+        if db != 0:
+            shaped += float(BLUE_SCORED_BONUS) * float(db) * float(len(self.blue_uids))
+        if dr != 0:
+            shaped += float(RED_SCORED_PENALTY) * float(dr) * float(len(self.blue_uids))
+
+        # add into pending per-agent
+        if shaped != 0.0 and self.blue_uids:
+            per = shaped / float(len(self.blue_uids))
+            for uid in self.blue_uids:
+                self.pending_reward[uid] += per
+        return shaped
+
+    def _consume_team_reward(self) -> float:
+        # sum blue rewards, reset pending
+        r = 0.0
+        for uid in self.blue_uids:
+            r += float(self.pending_reward.get(uid, 0.0))
+            self.pending_reward[uid] = 0.0
+
+        # time penalty (per agent)
+        r -= float(TIME_PENALTY_PER_AGENT_PER_STEP) * float(len(self.blue_uids))
+        return float(r)
+
+    # ---- opponent wiring ----
+    def _set_opponent(self, opp: OpponentSpec) -> None:
+        self.opponent = opp
+
+        # Decide which Elo key to use
+        if opp.kind == "SNAPSHOT":
+            self.opponent_key_for_elo = opp.key  # path
+        elif opp.kind == "SPECIES":
+            self.opponent_key_for_elo = f"SPECIES:{opp.key}"
+        else:
+            self.opponent_key_for_elo = "SCRIPTED:OP3"
+
+        # Configure red side
+        if opp.kind == "SNAPSHOT":
+            # external control red; load opponent PPO model
+            self.env.set_external_control("red", True)
+
+            # Load once per episode (cache)
+            # NOTE: custom extractor is defined in this file, so PPO.load can unpickle it.
+            self.opp_model = PPO.load(opp.key, device="cpu")
+            self.opp_model.policy.set_training_mode(False)
+
+        elif opp.kind == "SPECIES":
+            self.env.set_external_control("red", False)
+            self.opp_model = None
+            self.env.policies["red"] = make_species_policy(opp.key)
+
+        else:
+            # SCRIPTED baseline
+            self.env.set_external_control("red", False)
+            self.opp_model = None
+            self.env.policies["red"] = OP3RedPolicy("red")
+
+    def _build_red_external_actions_from_snapshot(self) -> Dict[str, Tuple[int, int]]:
+        assert self.opp_model is not None
+
+        # Build red obs in the SAME format (grid+mask), but from red perspective
+        grid, mask = self._build_team_obs_and_mask("red")
+        obs = {"grid": grid, "mask": mask}
+
+        # Predict MultiDiscrete action (4 ints)
+        act, _ = self.opp_model.predict(obs, deterministic=False)
+        act = np.asarray(act).reshape(-1).astype(int)
+
+        # Map action -> per red agent external actions
+        red_agents = [a for a in self.env.red_agents if a is not None]
+        while len(red_agents) < 2:
+            red_agents.append(red_agents[0] if red_agents else None)
+
+        actions: Dict[str, Tuple[int, int]] = {}
+        for i, agent in enumerate(red_agents[:2]):
+            if agent is None:
+                continue
+            macro_idx = int(act[i * 2 + 0]) % N_MACROS
+            target_idx = int(act[i * 2 + 1]) % self.n_targets
+            actions[agent_uid(agent)] = (macro_idx, target_idx)
+        return actions
+
+    # ---- Gym API ----
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
+        if seed is not None:
+            self.rng.seed(int(seed))
+            np.random.seed(int(seed))
+            th.manual_seed(int(seed))
+
+        self.last_result = None
+        self.step_count = 0
+
+        # Fresh episode reset
+        self.env.reset_default()
+        self.gm = self.env.getGameManager()
+        self.gm.score_limit = int(SCORE_LIMIT)
+        self.gm.max_time = float(MAX_TIME)
+
+        self.prev_blue_score = int(getattr(self.gm, "blue_score", 0))
+        self.prev_red_score = int(getattr(self.gm, "red_score", 0))
+
+        # Choose opponent from league
+        opp = self.league.sample_opponent()
+        self._set_opponent(opp)
+
+        # Routing
+        self._init_episode_routing()
+
+        obs = self._get_obs()
+        info = {"opponent_kind": opp.kind, "opponent_key": opp.key, "opponent_rating": opp.rating}
+        return obs, info
+
+    def step(self, action):
+        self.step_count += 1
+
+        # Parse multi-discrete action
+        a = np.asarray(action).reshape(-1).astype(int)
+        b0_macro, b0_tgt, b1_macro, b1_tgt = (int(a[0]), int(a[1]), int(a[2]), int(a[3]))
+
+        blue_agents = [x for x in self.env.blue_agents if x is not None]
+        while len(blue_agents) < 2:
+            blue_agents.append(blue_agents[0] if blue_agents else None)
+
+        # Validate macros with env.get_macro_mask() and correct if invalid
+        invalid_count = 0
+        submit: Dict[str, Tuple[int, int]] = {}
+
+        for i, (agent, macro_idx, tgt_idx) in enumerate(
+            [(blue_agents[0], b0_macro, b0_tgt), (blue_agents[1], b1_macro, b1_tgt)]
+        ):
+            if agent is None or (hasattr(agent, "isEnabled") and not agent.isEnabled()):
+                continue
+
+            mm = np.asarray(self.env.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
+            if mm.shape != (N_MACROS,) or (not mm.any()):
+                mm = np.ones((N_MACROS,), dtype=np.bool_)
+
+            macro_idx = int(macro_idx) % N_MACROS
+            tgt_idx = int(tgt_idx) % self.n_targets
+
+            if not bool(mm[macro_idx]):
+                # Correct to GO_TO (0) if invalid
+                macro_idx = 0
+                invalid_count += 1
+
+            submit[agent_uid(agent)] = (macro_idx, tgt_idx)
+
+        # If snapshot opponent, add red external actions too
+        if self.opponent.kind == "SNAPSHOT":
+            red_actions = self._build_red_external_actions_from_snapshot()
+            submit.update(red_actions)
+
+        # Submit external actions (blue always; red only for snapshots)
+        self.env.submit_external_actions(submit)
+
+        # Simulate one decision window
+        self._sim_decision_window()
+
+        terminated = bool(self.gm.game_over)
+        truncated = bool(self.step_count >= MAX_MACRO_STEPS)
+        done = bool(terminated or truncated)
+
+        # Collect + shape rewards for this window
+        self._accumulate_rewards()
+        self._apply_score_delta_shaping()
+        reward = self._consume_team_reward()
+
+        # Invalid macro penalty (team-level)
+        if invalid_count > 0:
+            reward -= float(INVALID_MACRO_PENALTY) * float(invalid_count)
+
+        # Terminal outcome bonus
+        if done:
+            reward += outcome_bonus(int(self.gm.blue_score), int(self.gm.red_score))
+
+            # build match result payload for callback
+            if self.gm.blue_score > self.gm.red_score:
+                actual = 1.0
+                result = "WIN"
+            elif self.gm.blue_score < self.gm.red_score:
+                actual = 0.0
+                result = "LOSS"
+            else:
+                actual = 0.5
+                result = "DRAW"
+
+            self.last_result = {
+                "result": result,
+                "actual_score": actual,
+                "opponent_key_for_elo": self.opponent_key_for_elo,
+                "blue_score": int(self.gm.blue_score),
+                "red_score": int(self.gm.red_score),
+                "opponent_kind": self.opponent.kind,
+                "opponent_key": self.opponent.key,
+            }
+
+        obs = self._get_obs()
+        info = {
+            "opponent_kind": self.opponent.kind,
+            "opponent_key": self.opponent.key,
+            "invalid_macros": invalid_count,
+            "blue_score": int(self.gm.blue_score),
+            "red_score": int(self.gm.red_score),
+        }
+        if done and self.last_result is not None:
+            info["match_result"] = dict(self.last_result)
+
+        return obs, float(reward), terminated, truncated, info
+
+
+# -------------------------
+# Custom SB3 feature extractor for Dict obs (grid+mask)
+# -------------------------
+class CTFCombinedExtractor(BaseFeaturesExtractor):
+    """
+    Dict observation:
+      grid: [14,20,20]
+      mask: [10]
+    We CNN the grid, MLP the mask, then concat.
+    """
+
+    def __init__(self, observation_space: spaces.Dict, features_dim: int = 256):
+        super().__init__(observation_space, features_dim)
+
+        grid_space: spaces.Box = observation_space["grid"]
+        mask_space: spaces.Box = observation_space["mask"]
+
+        c, h, w = grid_space.shape
+        mask_dim = int(np.prod(mask_space.shape))
+
+        # Small CNN (20x20 is tiny)
+        self.cnn = nn.Sequential(
+            nn.Conv2d(c, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+
+        with th.no_grad():
+            sample = th.zeros((1, c, h, w))
+            n_flat = self.cnn(sample).shape[1]
+
+        self.mask_mlp = nn.Sequential(
+            nn.Linear(mask_dim, 64),
+            nn.ReLU(),
+        )
+
+        self.fc = nn.Sequential(
+            nn.Linear(n_flat + 64, features_dim),
+            nn.ReLU(),
+        )
+
+    def forward(self, obs: Dict[str, th.Tensor]) -> th.Tensor:
+        grid = obs["grid"]
+        mask = obs["mask"]
+        x1 = self.cnn(grid)
+        x2 = self.mask_mlp(mask)
+        return self.fc(th.cat([x1, x2], dim=1))
+
+
+# -------------------------
+# Callback: Elo updates + snapshotting
+# -------------------------
+class LeagueSelfPlayCallback(BaseCallback):
+    def __init__(self, league: LeagueManager, save_dir: str, verbose: int = 1):
+        super().__init__(verbose=verbose)
+        self.league = league
+        self.save_dir = save_dir
+        os.makedirs(self.save_dir, exist_ok=True)
+        self.episode_idx = 0
+
+    def _on_step(self) -> bool:
+        # VecEnv step gives arrays
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+
+            self.episode_idx += 1
+            info = infos[i] if i < len(infos) else {}
+            mr = info.get("match_result", None)
+            if mr is None:
+                continue
+
+            # Update Elo
+            opp_key = str(mr["opponent_key_for_elo"])
+            actual = float(mr["actual_score"])
+            self.league.update_elo(opp_key, actual)
+
+            if self.verbose:
+                print(
+                    f"[LEAGUE] ep={self.episode_idx} result={mr['result']} "
+                    f"score={mr['blue_score']}:{mr['red_score']} "
+                    f"opp={mr['opponent_kind']} "
+                    f"learner_elo={self.league.learner_rating:.1f} opp_elo={self.league.get_rating(opp_key):.1f}"
+                )
+
+            # Snapshotting
+            if (self.episode_idx % self.league.snapshot_every_episodes) == 0:
+                snap = self.league.add_snapshot(self.model, self.episode_idx)
+                if self.verbose:
+                    print(f"[SNAPSHOT] saved={os.path.basename(snap)} pool={len(self.league.snapshots)}")
+
+        return True
+
+
+# -------------------------
+# Training entry
+# -------------------------
+def make_env_fn(league: LeagueManager):
+    def _fn():
+        env = CTFPPOEnv(league=league, seed=SEED)
+        env = Monitor(env)  # enables episode stats
+        return env
+    return _fn
+
+
+def train_phase1_sb3():
+    random.seed(SEED)
+    np.random.seed(SEED)
+    th.manual_seed(SEED)
+
+    league = LeagueManager(
+        pool_dir=POOL_DIR,
+        pool_max=16,
+        k_factor=32.0,
+        species_prob=0.20,
+        scripted_mix_floor=0.10,
+        snapshot_every_episodes=50,
+        min_pool_to_matchmake=4,
+        matchmaking_tau=250.0,
+        seed=SEED,
+    )
+
+    # VecEnv (single env is fine)
+    venv = DummyVecEnv([make_env_fn(league)])
+    venv = VecMonitor(venv)
+
+    policy_kwargs = dict(
+        features_extractor_class=CTFCombinedExtractor,
+        features_extractor_kwargs=dict(features_dim=256),
+        net_arch=dict(pi=[256, 256], vf=[256, 256]),
+    )
+
+    model = PPO(
+        policy="MultiInputPolicy",
+        env=venv,
+        learning_rate=3e-4,
+        n_steps=2048,
+        batch_size=256,
+        n_epochs=10,
+        gamma=0.995,
+        gae_lambda=0.97,
+        clip_range=0.2,
+        ent_coef=0.02,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+        tensorboard_log=os.path.join(CHECKPOINT_DIR, "tb"),
+        policy_kwargs=policy_kwargs,
+        verbose=1,
+        seed=SEED,
+        device="auto",
+    )
+
+    cb = LeagueSelfPlayCallback(league=league, save_dir=CHECKPOINT_DIR, verbose=1)
+
+    model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=cb)
+
+    final_path = os.path.join(CHECKPOINT_DIR, "research_model_phase1")
+    model.save(final_path)
+    print(f"\nTraining complete. Final model saved to: {final_path}.zip")
 
 
 if __name__ == "__main__":
-    train_ppo_event()
+    train_phase1_sb3()
