@@ -36,7 +36,7 @@ from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/research_model_phase1.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/research_model_league_elo_species.zip"
 
 # IMPORTANT: keep this order consistent with training
 USED_MACROS = [
