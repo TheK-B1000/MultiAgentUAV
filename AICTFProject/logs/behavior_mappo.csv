@@ -1,0 +1,181 @@
+agent_id,blue_mine_kills,blue_score,curriculum_mode,episode,flag_carries,macro_0,macro_2,macro_4,map_name,map_path,max_time,mine_attempts,mines_placed_enemy_half,mines_triggered_by_red,opponent_id,opponent_kind,phase,phase_name,red_mine_kills,red_score,result,score_limit,side
+0,0,1,scripted,1,1,103,93,87,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,1,22,101,93,89,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,1,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,1,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,2,0,88,89,106,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,2,1,84,96,104,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,2,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,2,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,3,1,109,85,89,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,3,1,84,90,109,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,3,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,3,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,4,3,94,99,84,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,4,2,88,97,95,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,4,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,4,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,5,1,88,108,78,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,5,4,97,108,72,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,5,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,5,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,6,1,99,99,86,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,6,14,94,98,88,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,6,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,6,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,7,12,105,89,83,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,7,2,97,105,75,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,7,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,7,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,8,2,85,103,92,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,8,2,97,100,83,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,8,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,8,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,9,0,94,99,93,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,9,4,86,102,86,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,9,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,9,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,10,2,91,93,93,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,10,12,83,112,88,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,10,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,10,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,11,0,99,92,95,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,11,2,85,112,80,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,11,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,11,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,12,1,89,103,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,12,2,98,102,81,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,12,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,12,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,13,1,76,116,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,13,2,81,114,79,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,13,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,13,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,14,1,83,112,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,14,1,78,102,103,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,14,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,14,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,15,2,100,104,76,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,15,4,82,108,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,15,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,15,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,16,1,88,105,84,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,16,1,87,116,71,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,16,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,16,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,3,scripted,17,102,113,68,77,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,3,scripted,17,2,83,103,66,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,3,scripted,17,0,258,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,3,scripted,17,0,258,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,3,scripted,18,35,84,79,53,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,3,scripted,18,13,73,81,62,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,3,scripted,18,0,222,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,3,scripted,18,0,222,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,2,scripted,19,5,92,110,68,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,2,scripted,19,37,99,99,82,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,2,scripted,19,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,2,scripted,19,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,20,1,92,109,76,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,20,5,91,120,62,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,20,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,20,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,21,32,107,89,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,21,2,98,109,70,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,21,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,21,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,22,3,86,113,78,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,22,12,81,113,83,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,22,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,22,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,23,17,105,103,69,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,23,4,87,114,73,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,23,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,23,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,24,3,89,107,82,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,24,27,95,109,73,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,24,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,24,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,25,15,96,110,69,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,25,2,79,116,79,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,25,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,25,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,26,26,96,106,72,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,26,4,86,116,75,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,26,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,26,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,27,51,100,104,68,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,27,4,83,123,70,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,27,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,27,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,28,2,95,118,67,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,28,23,87,114,73,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,28,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,28,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,29,5,83,121,66,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,29,4,102,104,69,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,29,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,29,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,1,1,103,93,87,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,1,22,101,93,89,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,1,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,1,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,2,0,88,89,106,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,2,1,84,96,104,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,2,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,2,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,3,1,109,85,89,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,3,1,84,90,109,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,3,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,3,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,4,3,94,99,84,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,4,2,88,97,95,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,4,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,4,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,5,1,88,108,78,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,5,4,97,108,72,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,5,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,5,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,6,1,99,99,86,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,6,14,94,98,88,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,6,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,6,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,7,12,105,89,83,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,7,2,97,105,75,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,7,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,7,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,8,2,85,103,92,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,8,2,97,100,83,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,8,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,8,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,9,0,94,99,93,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,9,4,86,102,86,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,9,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,9,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,10,2,91,93,93,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,10,12,83,112,88,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,10,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,10,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,11,0,99,92,95,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,11,2,85,112,80,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,11,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,11,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,12,1,89,103,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,12,2,98,102,81,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,12,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,12,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,13,1,76,116,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,13,2,81,114,79,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,13,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,13,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,14,1,83,112,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,14,1,78,102,103,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,14,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,14,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,15,2,100,104,76,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,15,4,82,108,85,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,15,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,15,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,16,1,88,105,84,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,16,1,87,116,71,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,16,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,16,0,286,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
