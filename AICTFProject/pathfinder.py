@@ -166,6 +166,26 @@ class Pathfinder:
         path.reverse()
         return path
 
+    def prune_path(self, path: List[Coord]) -> List[Coord]:
+        """
+        Removes collinear intermediate points so the agent doesn't stutter on long straight lines.
+        Safe and deterministic. Works for cardinal + diagonal.
+        """
+        if not path:
+            return path
+        out = [path[0]]
+        for p in path[1:]:
+            if len(out) < 2:
+                out.append(p)
+                continue
+            a = out[-2]
+            b = out[-1]
+            if (b[0] - a[0], b[1] - a[1]) == (p[0] - b[0], p[1] - b[1]):
+                out[-1] = p
+            else:
+                out.append(p)
+        return out
+
     def astar(self, start: Coord, goal: Coord, max_expansions: Optional[int] = None) -> Optional[List[Coord]]:
         sx, sy = int(start[0]), int(start[1])
         gx, gy = int(goal[0]), int(goal[1])
@@ -215,7 +235,8 @@ class Pathfinder:
 
             if cur == goal:
                 path = self.rebuildPath(came_from, cur)
-                return path[1:]  # exclude start
+                path = path[1:]  # exclude start
+                return self.prune_path(path)
 
             cx, cy = cur
             for nb in self.getNeighbors(cx, cy, goal=goal, blocked=blocked_local):
