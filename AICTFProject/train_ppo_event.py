@@ -1,13 +1,3 @@
-# ==========================================================
-# train_ppo_event.py  (SB3 PPO + PHASE 1 LEAGUE/ELO + 2 BASELINES)  [PATCHED]
-#   Recommended fixes applied:
-#     ✅ Re-assert blue external control after env.reset_default()
-#     ✅ Make snapshot opponents deterministic (more stable Elo + cleaner eval)
-#     ✅ Increase invalid macro penalty (SB3 can't hard-mask logits)
-#     ✅ Make time penalty time-consistent (scales with DECISION_WINDOW)
-#     ✅ Optional: faster control loop knobs (commented)
-# ==========================================================
-
 from __future__ import annotations
 
 import os
@@ -24,19 +14,29 @@ from gymnasium import spaces
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 
-# Torch for custom extractor
+# Torch
 import torch as th
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 # Your code
-from game_field import GameField, CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS
+from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS
 from game_manager import GameManager
 from macro_actions import MacroAction
-from policies import OP3RedPolicy
+from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+from map_registry import make_game_field
+from behavior_logging import BehaviorLogger, append_records_csv
+from config import (
+    MAP_NAME as DEFAULT_MAP_NAME,
+    MAP_PATH as DEFAULT_MAP_PATH,
+    LOG_DIR as DEFAULT_LOG_DIR,
+    PPO_PHASE_MIN_EPISODES,
+    PPO_PHASE_ELO_MARGIN,
+    PPO_CURRICULUM_SPECIES_PROB,
+    PPO_CURRICULUM_SNAPSHOT_PROB,
+)
 
 
 # -------------------------
@@ -49,30 +49,29 @@ TOTAL_TIMESTEPS = 1_000_000
 DECISION_WINDOW = 1.0
 SIM_DT = 0.1
 
-# (Optional recommended: snappier, more "control-loop like")
-# DECISION_WINDOW = 0.25
-# SIM_DT = 0.05
-
-# Episode caps (safety)
+# Episode caps
 MAX_MACRO_STEPS = 500
 SCORE_LIMIT = 3
 MAX_TIME = 200.0
 
-# Reward shaping
+# Outcome shaping
 WIN_BONUS = 25.0
 LOSS_PENALTY = -25.0
 DRAW_PENALTY = -5.0
 BLUE_SCORED_BONUS = 15.0
 RED_SCORED_PENALTY = -15.0
 
-# Time penalty is now interpreted as "per second per agent"
+# Map selection
+MAP_NAME = DEFAULT_MAP_NAME
+MAP_PATH = DEFAULT_MAP_PATH
+
+# Time penalty interpreted as "per second per agent"
 TIME_PENALTY_PER_AGENT_PER_SEC = 0.001
 
-# Invalid action handling (SB3 PPO can't hard-mask logits)
-# Recommended: higher than 0.05 so PPO learns to stay legal quickly.
+# Invalid macro penalty (SB3 can't hard-mask logits)
 INVALID_MACRO_PENALTY = 0.5
 
-# Action space matches GameField.macro_order (you already set it)
+# Action set
 USED_MACROS = [
     MacroAction.GO_TO,      # 0
     MacroAction.GRAB_MINE,  # 1
@@ -89,16 +88,16 @@ os.makedirs(POOL_DIR, exist_ok=True)
 # -------------------------
 # TRAIN MODE (choose before running)
 # -------------------------
-TRAIN_MODE_DEFAULT_LEAGUE = "league_elo_species"         # your current method
-TRAIN_MODE_BASELINE_FIXED = "baseline_fixed_opponent"    # vs OP3 scripted only
-TRAIN_MODE_BASELINE_SELFPLAY = "baseline_selfplay_uniform"  # vs uniform snapshots
+TRAIN_MODE_DEFAULT_LEAGUE = "league_elo_curriculum"
+TRAIN_MODE_BASELINE_FIXED = "baseline_fixed_opponent"
+TRAIN_MODE_BASELINE_SELFPLAY = "baseline_selfplay_uniform"
 
 TRAIN_MODE = TRAIN_MODE_DEFAULT_LEAGUE
-RUN_TAG = TRAIN_MODE  # used to name final model + tb log dir
+RUN_TAG = TRAIN_MODE
 
 
 # -------------------------
-# Helpers: stable agent id and reward routing
+# Helpers
 # -------------------------
 def agent_uid(agent: Any) -> str:
     uid = getattr(agent, "unique_id", None) or getattr(agent, "slot_id", None)
@@ -169,9 +168,6 @@ class OpponentSpec:
     rating: float
 
 
-# -------------------------
-# League Manager with mode switches (DEFAULT + 2 baselines)
-# -------------------------
 class LeagueManager:
     def __init__(
         self,
@@ -208,9 +204,26 @@ class LeagueManager:
         self.learner_rating: float = 1200.0
         self.learner_key: str = "__LEARNER__"
 
-        for key in ["SCRIPTED:OP3", "SPECIES:RUSHER", "SPECIES:CAMPER", "SPECIES:BALANCED"]:
+        for key in [
+            "SCRIPTED:OP1",
+            "SCRIPTED:OP2",
+            "SCRIPTED:OP3",
+            "SPECIES:RUSHER",
+            "SPECIES:CAMPER",
+            "SPECIES:BALANCED",
+        ]:
             self.ratings[key] = 1200.0
         self.ratings[self.learner_key] = self.learner_rating
+
+        # Curriculum: OP1 -> OP2 -> OP3 (Elo-gated)
+        self.phase_names = ["OP1", "OP2", "OP3"]
+        self.phase_idx = 0
+        self.phase_episode_count = 0
+        self.phase_min_episodes = dict(PPO_PHASE_MIN_EPISODES)
+        self.phase_advance_elo_margin = float(PPO_PHASE_ELO_MARGIN)
+        self.curriculum_species_prob = float(PPO_CURRICULUM_SPECIES_PROB)
+        self.curriculum_snapshot_prob = float(PPO_CURRICULUM_SNAPSHOT_PROB)
+        self.last_pick_source: str = "scripted"
 
     def get_rating(self, key: str) -> float:
         return float(self.ratings.get(key, 1200.0))
@@ -270,6 +283,24 @@ class LeagueManager:
         return self.rng.choice(self.snapshots)
 
     def sample_opponent(self) -> OpponentSpec:
+        # Curriculum mode: start OP1 -> OP2 -> OP3
+        if self.mode == TRAIN_MODE_DEFAULT_LEAGUE:
+            phase = self.phase_names[self.phase_idx]
+            roll = self.rng.random()
+            if roll < self.curriculum_species_prob:
+                tag = self.rng.choice(["RUSHER", "CAMPER", "BALANCED"])
+                key = f"SPECIES:{tag}"
+                self.last_pick_source = "species"
+                return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+            if roll < (self.curriculum_species_prob + self.curriculum_snapshot_prob):
+                snap = self._sample_snapshot_by_elo()
+                if snap is not None:
+                    self.last_pick_source = "snapshot"
+                    return OpponentSpec(kind="SNAPSHOT", key=snap, rating=self.get_rating(snap))
+            key = f"SCRIPTED:{phase}"
+            self.last_pick_source = "scripted"
+            return OpponentSpec(kind="SCRIPTED", key=phase, rating=self.get_rating(key))
+
         if self.mode == TRAIN_MODE_BASELINE_FIXED:
             key = "SCRIPTED:OP3"
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
@@ -281,7 +312,6 @@ class LeagueManager:
             key = "SCRIPTED:OP3"
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
-        # DEFAULT: Elo league + species injection
         if self.rng.random() < self.species_prob:
             tag = self.rng.choice(["RUSHER", "CAMPER", "BALANCED"])
             key = f"SPECIES:{tag}"
@@ -311,9 +341,58 @@ class LeagueManager:
         self.set_learner_rating(learner_new)
         self.ratings[opponent_key] = float(opp_new)
 
+        # Advance curriculum phase based on Elo margin + min episodes
+        if self.mode == TRAIN_MODE_DEFAULT_LEAGUE:
+            self.phase_episode_count += 1
+            phase = self.phase_names[self.phase_idx]
+            min_eps = int(self.phase_min_episodes.get(phase, 0))
+            target_key = f"SCRIPTED:{phase}"
+            opp_r = float(self.get_rating(target_key))
+            if (
+                self.phase_idx < (len(self.phase_names) - 1)
+                and self.phase_episode_count >= min_eps
+                and self.learner_rating >= (opp_r + float(self.phase_advance_elo_margin))
+            ):
+                self.phase_idx += 1
+                self.phase_episode_count = 0
+
+
+# ==========================================================
+# DirectML-safe action encoding (Discrete)
+# ==========================================================
+def encode_pair(macro_idx: int, tgt_idx: int, n_targets: int) -> int:
+    macro_idx = int(macro_idx) % N_MACROS
+    tgt_idx = int(tgt_idx) % max(1, int(n_targets))
+    return macro_idx * int(n_targets) + tgt_idx
+
+
+def decode_pair(a: int, n_targets: int) -> Tuple[int, int]:
+    n_targets = max(1, int(n_targets))
+    a = int(a) % (N_MACROS * n_targets)
+    macro_idx = a // n_targets
+    tgt_idx = a % n_targets
+    return int(macro_idx), int(tgt_idx)
+
+
+def encode_joint(b0: Tuple[int, int], b1: Tuple[int, int], n_targets: int) -> int:
+    joint = N_MACROS * max(1, int(n_targets))
+    a0 = encode_pair(b0[0], b0[1], n_targets)
+    a1 = encode_pair(b1[0], b1[1], n_targets)
+    return int(a0 + joint * a1)
+
+
+def decode_joint(action: int, n_targets: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    joint = N_MACROS * max(1, int(n_targets))
+    action = int(action)
+    a0 = action % joint
+    a1 = action // joint
+    b0 = decode_pair(a0, n_targets)
+    b1 = decode_pair(a1, n_targets)
+    return b0, b1
+
 
 # -------------------------
-# Env: SB3 single-agent wrapper controlling 2 blue agents at once
+# Env: SB3 wrapper controlling 2 blue agents
 # -------------------------
 class CTFPPOEnv(gym.Env):
     metadata = {"render_modes": []}
@@ -323,16 +402,22 @@ class CTFPPOEnv(gym.Env):
         self.league = league
         self.rng = random.Random(int(seed))
 
-        self.grid = [[0] * CNN_COLS for _ in range(CNN_ROWS)]
-        self.env: GameField = GameField(self.grid)
+        self.env = make_game_field(
+            map_name=MAP_NAME or None,
+            map_path=MAP_PATH or None,
+            rows=CNN_ROWS,
+            cols=CNN_COLS,
+        )
         self.gm: GameManager = self.env.getGameManager()
 
-        # Initial external control (also re-applied each reset)
         self.env.set_external_control("blue", True)
 
         self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
+        self._joint = N_MACROS * self.n_targets
+        self._n_actions = self._joint * self._joint
 
-        self.action_space = spaces.MultiDiscrete([N_MACROS, self.n_targets, N_MACROS, self.n_targets])
+        # ✅ DirectML-safe: Discrete joint-action
+        self.action_space = spaces.Discrete(self._n_actions)
 
         self.observation_space = spaces.Dict(
             {
@@ -358,8 +443,19 @@ class CTFPPOEnv(gym.Env):
 
         self.last_result: Optional[Dict[str, Any]] = None
 
+        # Behavior logging
+        self.behavior_logger = BehaviorLogger()
+        self.behavior_csv_path = os.path.join(DEFAULT_LOG_DIR, "behavior_ppo.csv")
+        self._last_written_idx = 0
+
         self.gm.score_limit = int(SCORE_LIMIT)
         self.gm.max_time = float(MAX_TIME)
+
+    def _rebuild_action_space(self) -> None:
+        self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
+        self._joint = N_MACROS * max(1, self.n_targets)
+        self._n_actions = self._joint * self._joint
+        self.action_space = spaces.Discrete(self._n_actions)
 
     def _sim_decision_window(self) -> None:
         if DECISION_WINDOW <= 0.0:
@@ -444,7 +540,6 @@ class CTFPPOEnv(gym.Env):
             r += float(self.pending_reward.get(uid, 0.0))
             self.pending_reward[uid] = 0.0
 
-        # ✅ time-consistent penalty
         r -= float(TIME_PENALTY_PER_AGENT_PER_SEC) * float(len(self.blue_uids)) * float(DECISION_WINDOW)
         return float(r)
 
@@ -455,6 +550,8 @@ class CTFPPOEnv(gym.Env):
             self.opponent_key_for_elo = opp.key
         elif opp.kind == "SPECIES":
             self.opponent_key_for_elo = f"SPECIES:{opp.key}"
+        elif opp.kind == "SCRIPTED":
+            self.opponent_key_for_elo = f"SCRIPTED:{opp.key}"
         else:
             self.opponent_key_for_elo = "SCRIPTED:OP3"
 
@@ -471,28 +568,33 @@ class CTFPPOEnv(gym.Env):
         else:
             self.env.set_external_control("red", False)
             self.opp_model = None
-            self.env.policies["red"] = OP3RedPolicy("red")
+            if opp.key == "OP1":
+                self.env.policies["red"] = OP1RedPolicy("red")
+            elif opp.key == "OP2":
+                self.env.policies["red"] = OP2RedPolicy("red")
+            else:
+                self.env.policies["red"] = OP3RedPolicy("red")
 
     def _build_red_external_actions_from_snapshot(self) -> Dict[str, Tuple[int, int]]:
         assert self.opp_model is not None
         grid, mask = self._build_team_obs_and_mask("red")
         obs = {"grid": grid, "mask": mask}
 
-        # ✅ recommended: deterministic snapshot opponents
+        # deterministic snapshots
         act, _ = self.opp_model.predict(obs, deterministic=True)
-        act = np.asarray(act).reshape(-1).astype(int)
+        act_int = int(np.asarray(act).reshape(-1)[0])
+
+        (r0_macro, r0_tgt), (r1_macro, r1_tgt) = decode_joint(act_int, self.n_targets)
 
         red_agents = [a for a in self.env.red_agents if a is not None]
         while len(red_agents) < 2:
             red_agents.append(red_agents[0] if red_agents else None)
 
         actions: Dict[str, Tuple[int, int]] = {}
-        for i, agent in enumerate(red_agents[:2]):
-            if agent is None:
-                continue
-            macro_idx = int(act[i * 2 + 0]) % N_MACROS
-            target_idx = int(act[i * 2 + 1]) % self.n_targets
-            actions[agent_uid(agent)] = (macro_idx, target_idx)
+        if red_agents[0] is not None:
+            actions[agent_uid(red_agents[0])] = (r0_macro, r0_tgt)
+        if red_agents[1] is not None:
+            actions[agent_uid(red_agents[1])] = (r1_macro, r1_tgt)
         return actions
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
@@ -507,7 +609,9 @@ class CTFPPOEnv(gym.Env):
         self.env.reset_default()
         self.gm = self.env.getGameManager()
 
-        # ✅ recommended fix: re-assert external control after reset_default()
+        self.behavior_logger.start_episode()
+
+        # re-assert external control (reset_default can wipe it)
         self.env.set_external_control("blue", True)
 
         self.gm.score_limit = int(SCORE_LIMIT)
@@ -516,8 +620,8 @@ class CTFPPOEnv(gym.Env):
         self.prev_blue_score = int(getattr(self.gm, "blue_score", 0))
         self.prev_red_score = int(getattr(self.gm, "red_score", 0))
 
-        # Ensure action space uses current macro target count (stable in your env, but safe)
-        self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
+        # refresh action space if targets changed
+        self._rebuild_action_space()
 
         opp = self.league.sample_opponent()
         self._set_opponent(opp)
@@ -531,8 +635,9 @@ class CTFPPOEnv(gym.Env):
     def step(self, action):
         self.step_count += 1
 
-        a = np.asarray(action).reshape(-1).astype(int)
-        b0_macro, b0_tgt, b1_macro, b1_tgt = (int(a[0]), int(a[1]), int(a[2]), int(a[3]))
+        # ✅ Discrete joint decode for blue0/blue1 (macro,target)
+        act_int = int(np.asarray(action).reshape(-1)[0])
+        (b0_macro, b0_tgt), (b1_macro, b1_tgt) = decode_joint(act_int, self.n_targets)
 
         blue_agents = [x for x in self.env.blue_agents if x is not None]
         while len(blue_agents) < 2:
@@ -541,7 +646,10 @@ class CTFPPOEnv(gym.Env):
         invalid_count = 0
         submit: Dict[str, Tuple[int, int]] = {}
 
-        for agent, macro_idx, tgt_idx in [(blue_agents[0], b0_macro, b0_tgt), (blue_agents[1], b1_macro, b1_tgt)]:
+        for agent, macro_idx, tgt_idx in [
+            (blue_agents[0], b0_macro, b0_tgt),
+            (blue_agents[1], b1_macro, b1_tgt),
+        ]:
             if agent is None or (hasattr(agent, "isEnabled") and not agent.isEnabled()):
                 continue
 
@@ -550,13 +658,14 @@ class CTFPPOEnv(gym.Env):
                 mm = np.ones((N_MACROS,), dtype=np.bool_)
 
             macro_idx = int(macro_idx) % N_MACROS
-            tgt_idx = int(tgt_idx) % self.n_targets
+            tgt_idx = int(tgt_idx) % max(1, self.n_targets)
 
             if not bool(mm[macro_idx]):
                 macro_idx = 0  # force legal fallback (GO_TO)
                 invalid_count += 1
 
             submit[agent_uid(agent)] = (macro_idx, tgt_idx)
+            self.behavior_logger.log_decision(agent, int(macro_idx))
 
         if self.opponent.kind == "SNAPSHOT":
             submit.update(self._build_red_external_actions_from_snapshot())
@@ -598,6 +707,25 @@ class CTFPPOEnv(gym.Env):
                 "opponent_key": self.opponent.key,
             }
 
+            self.behavior_logger.finalize_episode(
+                self.gm,
+                meta={
+                    "episode_steps": int(self.step_count),
+                    "opponent_kind": self.opponent.kind,
+                    "opponent_key": self.opponent.key,
+                    "map_name": MAP_NAME or "",
+                    "map_path": MAP_PATH or "",
+                    "result": result,
+                },
+            )
+            new_eps = self.behavior_logger.episodes[self._last_written_idx :]
+            if new_eps:
+                records: List[Dict[str, Any]] = []
+                for ep in new_eps:
+                    records.extend(ep.to_flat_records())
+                append_records_csv(self.behavior_csv_path, records)
+                self._last_written_idx = len(self.behavior_logger.episodes)
+
         obs = self._get_obs()
         info = {
             "opponent_kind": self.opponent.kind,
@@ -613,7 +741,7 @@ class CTFPPOEnv(gym.Env):
 
 
 # -------------------------
-# Custom SB3 feature extractor for Dict obs (grid+mask)
+# Custom extractor (grid + mask)
 # -------------------------
 class CTFCombinedExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Dict, features_dim: int = 256):
@@ -656,7 +784,7 @@ class CTFCombinedExtractor(BaseFeaturesExtractor):
 
 
 # -------------------------
-# Callback: Elo updates + snapshotting
+# Callback: Elo + snapshots
 # -------------------------
 class LeagueSelfPlayCallback(BaseCallback):
     def __init__(self, league: LeagueManager, save_dir: str, verbose: int = 1):
@@ -685,10 +813,12 @@ class LeagueSelfPlayCallback(BaseCallback):
             self.league.update_elo(opp_key, actual)
 
             if self.verbose:
+                phase = self.league.phase_names[self.league.phase_idx] if self.league.mode == TRAIN_MODE_DEFAULT_LEAGUE else "-"
+                pick = getattr(self.league, "last_pick_source", "scripted")
                 print(
                     f"[LEAGUE|{self.league.mode}] ep={self.episode_idx} result={mr['result']} "
                     f"score={mr['blue_score']}:{mr['red_score']} "
-                    f"opp={mr['opponent_kind']} "
+                    f"opp={mr['opponent_kind']} pick={pick} phase={phase} "
                     f"learner_elo={self.league.learner_rating:.1f} opp_elo={self.league.get_rating(opp_key):.1f}"
                 )
 
@@ -705,9 +835,7 @@ class LeagueSelfPlayCallback(BaseCallback):
 # -------------------------
 def make_env_fn(league: LeagueManager):
     def _fn():
-        env = CTFPPOEnv(league=league, seed=SEED)
-        env = Monitor(env)
-        return env
+        return CTFPPOEnv(league=league, seed=SEED)
     return _fn
 
 
@@ -730,7 +858,7 @@ def train_phase1_sb3():
     )
 
     venv = DummyVecEnv([make_env_fn(league)])
-    venv = VecMonitor(venv)
+    venv = VecMonitor(venv)  # ✅ no double-Monitor warning
 
     policy_kwargs = dict(
         features_extractor_class=CTFCombinedExtractor,
@@ -757,7 +885,7 @@ def train_phase1_sb3():
         policy_kwargs=policy_kwargs,
         verbose=1,
         seed=SEED,
-        device="auto",
+        device="auto",  # DirectML will be used if torch-directml is active
     )
 
     cb = LeagueSelfPlayCallback(league=league, save_dir=CHECKPOINT_DIR, verbose=1)
