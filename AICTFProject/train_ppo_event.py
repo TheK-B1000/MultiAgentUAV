@@ -1,17 +1,11 @@
 # ==========================================================
-# train_ppo_event.py  (SB3 PPO + PHASE 1 LEAGUE/ELO + 2 BASELINES)
-#   - Replaces custom PPO with Stable-Baselines3 PPO
-#   - DEFAULT (paper method): Elo league matchmaking + species injection + snapshots
-#
-#   Adds 2 baselines you can choose BEFORE training:
-#     (A) BASELINE_FIXED_OPPONENT:
-#         Train blue PPO vs a fixed scripted red OP3 only (no species, no snapshots)
-#
-#     (B) BASELINE_SELFPLAY_UNIFORM:
-#         Standard self-play: train blue PPO vs uniform random snapshot from pool
-#         (no Elo matchmaking, no species, no scripted floor once pool exists)
-#
-#   Selection is via TRAIN_MODE below.
+# train_ppo_event.py  (SB3 PPO + PHASE 1 LEAGUE/ELO + 2 BASELINES)  [PATCHED]
+#   Recommended fixes applied:
+#     ✅ Re-assert blue external control after env.reset_default()
+#     ✅ Make snapshot opponents deterministic (more stable Elo + cleaner eval)
+#     ✅ Increase invalid macro penalty (SB3 can't hard-mask logits)
+#     ✅ Make time penalty time-consistent (scales with DECISION_WINDOW)
+#     ✅ Optional: faster control loop knobs (commented)
 # ==========================================================
 
 from __future__ import annotations
@@ -55,6 +49,10 @@ TOTAL_TIMESTEPS = 1_000_000
 DECISION_WINDOW = 1.0
 SIM_DT = 0.1
 
+# (Optional recommended: snappier, more "control-loop like")
+# DECISION_WINDOW = 0.25
+# SIM_DT = 0.05
+
 # Episode caps (safety)
 MAX_MACRO_STEPS = 500
 SCORE_LIMIT = 3
@@ -66,10 +64,13 @@ LOSS_PENALTY = -25.0
 DRAW_PENALTY = -5.0
 BLUE_SCORED_BONUS = 15.0
 RED_SCORED_PENALTY = -15.0
-TIME_PENALTY_PER_AGENT_PER_STEP = 0.001
+
+# Time penalty is now interpreted as "per second per agent"
+TIME_PENALTY_PER_AGENT_PER_SEC = 0.001
 
 # Invalid action handling (SB3 PPO can't hard-mask logits)
-INVALID_MACRO_PENALTY = 0.05
+# Recommended: higher than 0.05 so PPO learns to stay legal quickly.
+INVALID_MACRO_PENALTY = 0.5
 
 # Action space matches GameField.macro_order (you already set it)
 USED_MACROS = [
@@ -88,14 +89,11 @@ os.makedirs(POOL_DIR, exist_ok=True)
 # -------------------------
 # TRAIN MODE (choose before running)
 # -------------------------
-TRAIN_MODE_DEFAULT_LEAGUE = "league_elo_species"     # your current method
-TRAIN_MODE_BASELINE_FIXED = "baseline_fixed_opponent"  # vs OP3 scripted only
+TRAIN_MODE_DEFAULT_LEAGUE = "league_elo_species"         # your current method
+TRAIN_MODE_BASELINE_FIXED = "baseline_fixed_opponent"    # vs OP3 scripted only
 TRAIN_MODE_BASELINE_SELFPLAY = "baseline_selfplay_uniform"  # vs uniform snapshots
 
-# Set this to pick the run:
 TRAIN_MODE = TRAIN_MODE_DEFAULT_LEAGUE
-
-# Optional: rename outputs per run so you don't overwrite checkpoints
 RUN_TAG = TRAIN_MODE  # used to name final model + tb log dir
 
 
@@ -175,24 +173,6 @@ class OpponentSpec:
 # League Manager with mode switches (DEFAULT + 2 baselines)
 # -------------------------
 class LeagueManager:
-    """
-    DEFAULT method (TRAIN_MODE_DEFAULT_LEAGUE):
-      - Elo ratings for learner + opponents
-      - Elo-proximity matchmaking for snapshots
-      - Species injection
-      - Scripted mix floor
-      - Snapshot pool
-
-    Baseline A (TRAIN_MODE_BASELINE_FIXED):
-      - Always scripted OP3 opponent
-      - No species, no snapshots
-
-    Baseline B (TRAIN_MODE_BASELINE_SELFPLAY):
-      - Uniform sampling from snapshot pool
-      - No Elo matchmaking, no species
-      - Scripted fallback only until a snapshot exists
-    """
-
     def __init__(
         self,
         pool_dir: str,
@@ -290,28 +270,18 @@ class LeagueManager:
         return self.rng.choice(self.snapshots)
 
     def sample_opponent(self) -> OpponentSpec:
-        # -------------------
-        # Baseline A: Fixed scripted opponent (OP3 only)
-        # -------------------
         if self.mode == TRAIN_MODE_BASELINE_FIXED:
             key = "SCRIPTED:OP3"
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
-        # -------------------
-        # Baseline B: Standard self-play (uniform snapshot sampling)
-        #   - scripted only until we have at least 1 snapshot
-        # -------------------
         if self.mode == TRAIN_MODE_BASELINE_SELFPLAY:
             snap = self._sample_snapshot_uniform()
             if snap is not None:
                 return OpponentSpec(kind="SNAPSHOT", key=snap, rating=self.get_rating(snap))
-            # warm start: must fight something before snapshots exist
             key = "SCRIPTED:OP3"
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
-        # -------------------
-        # DEFAULT method: Elo league + species injection (your current behavior)
-        # -------------------
+        # DEFAULT: Elo league + species injection
         if self.rng.random() < self.species_prob:
             tag = self.rng.choice(["RUSHER", "CAMPER", "BALANCED"])
             key = f"SPECIES:{tag}"
@@ -329,9 +299,6 @@ class LeagueManager:
         return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
     def update_elo(self, opponent_key: str, actual_score_for_learner: float) -> None:
-        # IMPORTANT:
-        # For baselines, Elo is optional. We keep it on because your logger uses it,
-        # but it does NOT affect opponent selection in baseline modes.
         learner_r = float(self.learner_rating)
         opp_r = float(self.get_rating(opponent_key))
 
@@ -360,6 +327,7 @@ class CTFPPOEnv(gym.Env):
         self.env: GameField = GameField(self.grid)
         self.gm: GameManager = self.env.getGameManager()
 
+        # Initial external control (also re-applied each reset)
         self.env.set_external_control("blue", True)
 
         self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
@@ -368,7 +336,11 @@ class CTFPPOEnv(gym.Env):
 
         self.observation_space = spaces.Dict(
             {
-                "grid": spaces.Box(low=0.0, high=1.0, shape=(NUM_CNN_CHANNELS * 2, CNN_ROWS, CNN_COLS), dtype=np.float32),
+                "grid": spaces.Box(
+                    low=0.0, high=1.0,
+                    shape=(NUM_CNN_CHANNELS * 2, CNN_ROWS, CNN_COLS),
+                    dtype=np.float32,
+                ),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(N_MACROS * 2,), dtype=np.float32),
             }
         )
@@ -471,7 +443,9 @@ class CTFPPOEnv(gym.Env):
         for uid in self.blue_uids:
             r += float(self.pending_reward.get(uid, 0.0))
             self.pending_reward[uid] = 0.0
-        r -= float(TIME_PENALTY_PER_AGENT_PER_STEP) * float(len(self.blue_uids))
+
+        # ✅ time-consistent penalty
+        r -= float(TIME_PENALTY_PER_AGENT_PER_SEC) * float(len(self.blue_uids)) * float(DECISION_WINDOW)
         return float(r)
 
     def _set_opponent(self, opp: OpponentSpec) -> None:
@@ -503,7 +477,9 @@ class CTFPPOEnv(gym.Env):
         assert self.opp_model is not None
         grid, mask = self._build_team_obs_and_mask("red")
         obs = {"grid": grid, "mask": mask}
-        act, _ = self.opp_model.predict(obs, deterministic=False)
+
+        # ✅ recommended: deterministic snapshot opponents
+        act, _ = self.opp_model.predict(obs, deterministic=True)
         act = np.asarray(act).reshape(-1).astype(int)
 
         red_agents = [a for a in self.env.red_agents if a is not None]
@@ -530,11 +506,18 @@ class CTFPPOEnv(gym.Env):
 
         self.env.reset_default()
         self.gm = self.env.getGameManager()
+
+        # ✅ recommended fix: re-assert external control after reset_default()
+        self.env.set_external_control("blue", True)
+
         self.gm.score_limit = int(SCORE_LIMIT)
         self.gm.max_time = float(MAX_TIME)
 
         self.prev_blue_score = int(getattr(self.gm, "blue_score", 0))
         self.prev_red_score = int(getattr(self.gm, "red_score", 0))
+
+        # Ensure action space uses current macro target count (stable in your env, but safe)
+        self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
 
         opp = self.league.sample_opponent()
         self._set_opponent(opp)
@@ -570,7 +553,7 @@ class CTFPPOEnv(gym.Env):
             tgt_idx = int(tgt_idx) % self.n_targets
 
             if not bool(mm[macro_idx]):
-                macro_idx = 0
+                macro_idx = 0  # force legal fallback (GO_TO)
                 invalid_count += 1
 
             submit[agent_uid(agent)] = (macro_idx, tgt_idx)
@@ -709,10 +692,6 @@ class LeagueSelfPlayCallback(BaseCallback):
                     f"learner_elo={self.league.learner_rating:.1f} opp_elo={self.league.get_rating(opp_key):.1f}"
                 )
 
-            # Snapshotting:
-            #  - DEFAULT: yes (as before)
-            #  - SELFPLAY baseline: yes (needed)
-            #  - FIXED baseline: optional, but we keep it for parity/analysis
             if (self.episode_idx % self.league.snapshot_every_episodes) == 0:
                 snap = self.league.add_snapshot(self.model, self.episode_idx)
                 if self.verbose:
@@ -737,7 +716,6 @@ def train_phase1_sb3():
     np.random.seed(SEED)
     th.manual_seed(SEED)
 
-    # --- League config (used by all modes; opponent selection differs by mode) ---
     league = LeagueManager(
         pool_dir=POOL_DIR,
         mode=TRAIN_MODE,
