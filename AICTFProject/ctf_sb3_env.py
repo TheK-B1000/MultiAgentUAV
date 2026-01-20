@@ -1,4 +1,12 @@
+# =========================
 # ctf_sb3_env.py
+#   UPDATED WITH RECOMMENDED FIXES:
+#     A) Set PBRS gamma to match PPO gamma (or your training gamma)
+#     B) Read rewards from event buffer (NOT a nonexistent "reward_total" attr)
+#        -> your current _read_reward_total() always returns 0, so reward is always 0
+#     C) Expose opponent metadata in info (kept)
+# =========================
+
 from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 
@@ -7,20 +15,10 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
-
 from red_opponents import make_species_wrapper, make_snapshot_wrapper
 
 
 class CTFGameFieldSB3Env(gym.Env):
-    """
-    SB3 wrapper around GameField.
-
-    Each env.step() == one decision tick for both blue agents.
-    Observation is team-based Dict:
-      - grid: [14, 20, 20]  (blue0 cnn + blue1 cnn)
-      - vec:  [8]          (blue0 vec4 + blue1 vec4)
-    """
-
     metadata = {"render_modes": []}
 
     def __init__(
@@ -30,7 +28,9 @@ class CTFGameFieldSB3Env(gym.Env):
         max_decision_steps: int = 400,
         enforce_masks: bool = True,
         seed: int = 0,
-        include_mask_in_obs: bool = False,  # only useful if you explicitly use it in custom extractor
+        include_mask_in_obs: bool = False,
+        # NEW: must match PPO gamma for PBRS to be invariant
+        ppo_gamma: float = 0.995,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
@@ -38,20 +38,16 @@ class CTFGameFieldSB3Env(gym.Env):
         self.enforce_masks = bool(enforce_masks)
         self.base_seed = int(seed)
         self.include_mask_in_obs = bool(include_mask_in_obs)
+        self.ppo_gamma = float(ppo_gamma)
 
         self.gf: Optional[GameField] = None
         self._decision_step_count = 0
 
-        # Default sizes (updated on reset)
         self._n_macros = 5
         self._n_targets = 8
 
-        # Two blue agents, each chooses (macro_idx, target_idx)
         self.action_space = spaces.MultiDiscrete([self._n_macros, self._n_targets, self._n_macros, self._n_targets])
 
-        # Team obs:
-        # grid = [2*C, H, W]
-        # vec  = [2*4]  (frac_x, frac_y, vel_x_norm, vel_y_norm) per agent
         grid_shape = (2 * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
         vec_shape = (8,)
 
@@ -59,13 +55,10 @@ class CTFGameFieldSB3Env(gym.Env):
             "grid": spaces.Box(low=0.0, high=1.0, shape=grid_shape, dtype=np.float32),
             "vec": spaces.Box(low=-2.0, high=2.0, shape=vec_shape, dtype=np.float32),
         }
-
         if self.include_mask_in_obs:
             obs_dict["mask"] = spaces.Box(low=0.0, high=1.0, shape=(2 * self._n_macros,), dtype=np.float32)
 
         self.observation_space = spaces.Dict(obs_dict)
-
-        self._last_reward_total = 0.0
 
         # Opponent identity (for Elo + logging)
         self._opponent_kind = "species"
@@ -99,7 +92,6 @@ class CTFGameFieldSB3Env(gym.Env):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
 
-        # Seed numpy for any wrapper-side randomness (opponent selection, etc.)
         final_seed = self.base_seed if seed is None else int(seed)
         np.random.seed(final_seed)
 
@@ -115,12 +107,10 @@ class CTFGameFieldSB3Env(gym.Env):
         if not self.gf.macro_targets:
             _ = self.gf.get_all_macro_targets()
 
-        # Update action dims
         self._n_macros = int(self.gf.n_macros)
         self._n_targets = int(self.gf.num_macro_targets or 8)
         self.action_space = spaces.MultiDiscrete([self._n_macros, self._n_targets, self._n_macros, self._n_targets])
 
-        # If you included mask, update obs space too (since n_macros might change)
         if self.include_mask_in_obs:
             self.observation_space = spaces.Dict({
                 "grid": spaces.Box(low=0.0, high=1.0, shape=(2 * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
@@ -129,7 +119,19 @@ class CTFGameFieldSB3Env(gym.Env):
             })
 
         self.gf.reset_default()
-        self._last_reward_total = self._read_reward_total()
+
+        # IMPORTANT FIXES:
+        # 1) bind env to manager so team routing is exact
+        if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "bind_game_field"):
+            self.gf.manager.bind_game_field(self.gf)
+
+        # 2) PBRS gamma must match PPO gamma (policy invariance)
+        if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "set_shaping_gamma"):
+            self.gf.manager.set_shaping_gamma(self.ppo_gamma)
+
+        # Clear any stale reward events
+        if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "pop_reward_events"):
+            _ = self.gf.manager.pop_reward_events()
 
         if self.gf.policy_wrappers.get("red") is None:
             self.set_opponent_species("BALANCED")
@@ -161,9 +163,10 @@ class CTFGameFieldSB3Env(gym.Env):
         dt = max(1e-3, 0.99 * interval)
         self.gf.update(dt)
 
-        reward_total = self._read_reward_total()
-        reward = float(reward_total - self._last_reward_total)
-        self._last_reward_total = reward_total
+        # CRITICAL FIX:
+        # Your GameManager emits rewards as events; _read_reward_total() was always 0,
+        # so PPO was learning from a near-zero signal.
+        reward = float(self._consume_blue_reward_events())
 
         gm = self.gf.manager
         terminated = bool(getattr(gm, "game_over", False))
@@ -190,7 +193,6 @@ class CTFGameFieldSB3Env(gym.Env):
     def _get_obs(self) -> Dict[str, np.ndarray]:
         assert self.gf is not None
 
-        # Ensure we always have 2 "slots"
         def _empty_cnn():
             return np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
@@ -213,11 +215,9 @@ class CTFGameFieldSB3Env(gym.Env):
                     mask_list.append(np.ones((self._n_macros,), dtype=np.float32))
                 continue
 
-            # Your GameField.build_observation should return the CNN tensor [7,20,20]
             cnn = np.asarray(self.gf.build_observation(a), dtype=np.float32)
             cnn_list.append(cnn)
 
-            # Sub-pixel continuous vec4
             if hasattr(self.gf, "build_continuous_features"):
                 vec = np.asarray(self.gf.build_continuous_features(a), dtype=np.float32)
             else:
@@ -230,12 +230,12 @@ class CTFGameFieldSB3Env(gym.Env):
                     mm = np.ones((self._n_macros,), dtype=np.bool_)
                 mask_list.append(mm.astype(np.float32))
 
-        grid = np.concatenate(cnn_list, axis=0).astype(np.float32)  # [14,20,20]
-        vec = np.concatenate(vec_list, axis=0).astype(np.float32)   # [8]
+        grid = np.concatenate(cnn_list, axis=0).astype(np.float32)
+        vec = np.concatenate(vec_list, axis=0).astype(np.float32)
 
         out = {"grid": grid, "vec": vec}
         if self.include_mask_in_obs:
-            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)  # [2*n_macros]
+            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
         return out
 
     def _sanitize_action_for_agent(self, blue_index: int, macro: int, tgt: int) -> Tuple[int, int]:
@@ -250,6 +250,9 @@ class CTFGameFieldSB3Env(gym.Env):
             return 0, 0
 
         agent = self.gf.blue_agents[blue_index]
+        if agent is None:
+            return 0, 0
+
         mask = np.asarray(self.gf.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
         if mask.shape != (self._n_macros,) or (not mask.any()):
             return macro, tgt
@@ -258,13 +261,34 @@ class CTFGameFieldSB3Env(gym.Env):
             macro = 0  # fallback to GO_TO
         return macro, tgt
 
-    def _read_reward_total(self) -> float:
+    def _consume_blue_reward_events(self) -> float:
+        """
+        Sum reward events for the two blue agents this decision step.
+
+        Assumptions:
+          - GameManager.add_reward_event uses agent_id == agent.unique_id (or stable fallback)
+          - Our action submission uses the same ids
+        """
         assert self.gf is not None
         gm = self.gf.manager
-        for attr in ("blue_reward_total", "reward_total_blue", "total_reward_blue", "blue_total_reward"):
-            if hasattr(gm, attr):
-                try:
-                    return float(getattr(gm, attr))
-                except Exception:
-                    pass
-        return 0.0
+
+        pop = getattr(gm, "pop_reward_events", None)
+        if pop is None or (not callable(pop)):
+            return 0.0
+
+        events = pop()
+
+        blue0 = self.gf.blue_agents[0] if len(self.gf.blue_agents) > 0 else None
+        blue1 = self.gf.blue_agents[1] if len(self.gf.blue_agents) > 1 else None
+
+        blue_ids = set()
+        if blue0 is not None:
+            blue_ids.add(str(getattr(blue0, "unique_id", getattr(blue0, "slot_id", "blue_0"))))
+        if blue1 is not None:
+            blue_ids.add(str(getattr(blue1, "unique_id", getattr(blue1, "slot_id", "blue_1"))))
+
+        r = 0.0
+        for _t, aid, val in events:
+            if str(aid) in blue_ids:
+                r += float(val)
+        return float(r)
