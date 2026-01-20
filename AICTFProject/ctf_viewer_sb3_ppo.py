@@ -72,18 +72,15 @@ def _resolve_zip_path(path: str) -> Optional[str]:
 
 class SB3TeamPPOPolicy:
     """
-    SB3 PPO wrapper for ViewerGameField that matches your training interface:
+    Viewer-side SB3 PPO wrapper.
 
-    Training obs:
-      Dict(grid=[14,20,20], mask=[10])  where:
-        - grid = concat(blue0_obs[7,20,20], blue1_obs[7,20,20]) => [14,20,20]
-        - mask = concat(blue0_macro_mask[5], blue1_macro_mask[5]) => [10]
-    Training action:
-      MultiDiscrete([5, T, 5, T]) => (b0_macro, b0_tgt, b1_macro, b1_tgt)
+    SB3 model outputs indices:
+      action = (b0_macro_idx, b0_target_idx, b1_macro_idx, b1_target_idx)
 
-    Viewer policy call:
-      needs to return (macro_idx, target_idx) per-agent.
-    We compute the joint action ONCE per sim tick and then slice per agent.
+    Viewer internal-policy expects:
+      (MacroAction, target_cell)
+
+    So we translate indices -> enums/cells here.
     """
 
     def __init__(self, model_path: str, env: ViewerGameField, deterministic: bool = True):
@@ -94,9 +91,10 @@ class SB3TeamPPOPolicy:
         self.model: Optional[SB3PPO] = None
         self.deterministic = bool(deterministic)
 
+        # Targets count (fallback)
         self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
 
-        # Cache for joint action so both agents share the same decision per sim tick
+        # Cache joint action once per sim tick
         self._cache_tick: int = -1
         self._cache_action: np.ndarray = np.array([0, 0, 0, 0], dtype=np.int64)
 
@@ -118,7 +116,7 @@ class SB3TeamPPOPolicy:
         self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
 
     def _build_team_obs(self, game_field: ViewerGameField, side: str) -> Dict[str, np.ndarray]:
-        # side is only used for selecting the team list; in viewer we mainly use blue.
+        # In viewer we mainly use blue, but keep side for completeness
         agents = game_field.blue_agents if side == "blue" else game_field.red_agents
         live = [a for a in agents if a is not None]
         while len(live) < 2:
@@ -158,7 +156,7 @@ class SB3TeamPPOPolicy:
         act, _ = self.model.predict(obs, deterministic=self.deterministic)
         a = np.asarray(act).reshape(-1).astype(np.int64)
 
-        # Safety: ensure shape [4]
+        # Ensure shape [4]
         if a.size < 4:
             padded = np.zeros((4,), dtype=np.int64)
             padded[: a.size] = a
@@ -166,27 +164,78 @@ class SB3TeamPPOPolicy:
         elif a.size > 4:
             a = a[:4]
 
-        # Normalize to valid ranges
+        # Normalize ranges
         a[0] = int(a[0]) % N_MACROS
         a[2] = int(a[2]) % N_MACROS
-        a[1] = int(a[1]) % max(1, self.n_targets)
-        a[3] = int(a[3]) % max(1, self.n_targets)
+
+        nt = max(1, int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets))
+        a[1] = int(a[1]) % nt
+        a[3] = int(a[3]) % nt
 
         self._cache_tick = tick
         self._cache_action = a
 
-    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[int, Optional[int]]:
-        # Only controlling blue in this viewer by design
-        side = getattr(agent, "side", "blue")
+    def _resolve_target_cell(self, game_field: ViewerGameField, target_idx: int) -> Tuple[int, int]:
+        """
+        Convert target index -> actual grid cell.
+        Falls back safely if your ViewerGameField/GameField differs.
+        """
+        # Preferred: your existing macro-target API
+        fn = getattr(game_field, "get_macro_target", None)
+        if callable(fn):
+            try:
+                t = fn(int(target_idx))
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+
+        # Alternate: maybe stored list
+        mt = getattr(game_field, "macro_targets", None)
+        if isinstance(mt, list) and len(mt) > 0:
+            i = int(target_idx) % len(mt)
+            try:
+                t = mt[i]
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+
+        # Absolute fallback: center-ish
+        cols = int(getattr(game_field, "col_count", 20) or 20)
+        rows = int(getattr(game_field, "row_count", 20) or 20)
+        return (max(0, cols // 2), max(0, rows // 2))
+
+    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
+        """
+        Returns what the VIEWER internal-policy pipeline expects:
+          (MacroAction enum, target_cell)
+        """
+        side = str(getattr(agent, "side", "blue")).lower()
         self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
 
+        # Map agent_id -> [0,1]
         aid = _safe_int(getattr(agent, "agent_id", 0), 0)
-        aid = 0 if aid <= 0 else 1  # clamp to [0,1] for 2-agent team policy
+        aid = 0 if aid <= 0 else 1
 
         macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
-        target_idx = int(self._cache_action[aid * 2 + 1]) % max(1, self.n_targets)
+        target_idx = int(self._cache_action[aid * 2 + 1])
 
-        return macro_idx, target_idx
+        macro = USED_MACROS[macro_idx]  # <-- THIS is the crucial translation
+
+        # Some macros can ignore target, but we still provide one
+        if macro == MacroAction.PLACE_MINE:
+            # place mine "here"
+            try:
+                ax = int(getattr(agent, "x", 0))
+                ay = int(getattr(agent, "y", 0))
+                return macro, (ax, ay)
+            except Exception:
+                return macro, self._resolve_target_cell(game_field, target_idx)
+
+        # Default: resolve from target index
+        tgt_cell = self._resolve_target_cell(game_field, target_idx)
+        return macro, tgt_cell
 
 
 class CTFViewerSB3PPO:
