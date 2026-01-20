@@ -1,5 +1,5 @@
 # =========================
-# agents.py (REFACTORED, MARL-READY, RL-SAFE, MATCHES GameField.spawn_agents)
+# agents.py (SUB-PIXEL FEATURES + GOAL CACHING)
 # =========================
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Deque, List, Optional, Tuple
 
-# Public constants used by env/viewer
 TEAM_ZONE_RADIUS_CELLS: int = 3
 DIAGONAL_COST: float = math.sqrt(2.0)
 
@@ -20,28 +19,13 @@ FloatPos = Tuple[float, float]
 
 @dataclass
 class Agent:
-    """
-    Grid-based agent with continuous float position for:
-      - distance-based game logic (mines/suppression/shaping)
-      - smooth rendering
-
-    Research invariants:
-      - deterministic state transitions given (dt, path)
-      - stable per-episode identity for reward routing/logging
-      - no hidden randomness inside the Agent
-
-    Design invariant (critical):
-      - Agent does NOT call GameManager rule methods (death, scoring, rewards).
-        Those are handled by GameField/GameManager during the env tick.
-    """
-
     # --- Required by GameField.spawn_agents() ---
     x: int
     y: int
-    side: str                  # "blue" or "red"
-    cols: int                  # grid width
-    rows: int                  # grid height
-    grid: Grid                 # environment grid reference
+    side: str
+    cols: int
+    rows: int
+    grid: Grid
 
     # Optional role metadata
     is_miner: bool = False
@@ -57,9 +41,16 @@ class Agent:
     move_accum: float = 0.0
     waypoint: Optional[Cell] = None
 
-    # Continuous position (derived from x,y and move_accum interpolation)
+    # Cache: avoids replan jitter when target unchanged
+    current_goal: Optional[Cell] = None
+
+    # Continuous position
     _float_x: float = field(init=False, repr=False)
     _float_y: float = field(init=False, repr=False)
+
+    # Sub-pixel awareness additions
+    _vel_x: float = field(init=False, repr=False)
+    _vel_y: float = field(init=False, repr=False)
 
     # Status
     enabled: bool = True
@@ -68,14 +59,14 @@ class Agent:
     # Objective payload
     is_carrying_flag: bool = False
 
-    # Mines (optional; env manages meaning)
+    # Mines
     mine_charges: int = 0
     max_mine_charges: int = 2
 
     # Spawn
     spawn_xy: Cell = (0, 0)
 
-    # One-step flags (consumed by trainer/UI if desired)
+    # One-step flags
     _just_picked_up_flag: bool = field(default=False, init=False, repr=False)
     _just_scored: bool = field(default=False, init=False, repr=False)
     _just_tagged_enemy: bool = field(default=False, init=False, repr=False)
@@ -83,17 +74,14 @@ class Agent:
     was_just_disabled: bool = field(default=False, init=False)
     disabled_this_tick: bool = field(default=False, init=False)
 
-    # Soft suppression flags (GameField controls)
     suppression_timer: float = 0.0
     suppressed_last_tick: bool = False
     suppressed_this_tick: bool = False
 
-    # RL/debug hooks set by env (optional, but used in your logs)
     decision_count: int = 0
     last_macro_action: Optional[Any] = field(default=None, repr=False, compare=False)
     last_macro_action_idx: int = 0
 
-    # Stable unique identity (for reward routing/logging)
     instance_id: int = field(init=False)
     _NEXT_INSTANCE_ID: ClassVar[int] = 0
 
@@ -107,15 +95,18 @@ class Agent:
         self._float_x = float(self.x)
         self._float_y = float(self.y)
 
+        # init velocity state
+        self._vel_x = 0.0
+        self._vel_y = 0.0
+
         self.instance_id = Agent._NEXT_INSTANCE_ID
         Agent._NEXT_INSTANCE_ID += 1
 
-        # Stable keys used by GameField external action routing and GameManager reward routing
         self.slot_id: str = f"{self.side}_{self.agent_id}"
         self.unique_id: str = f"{self.side}_{self.agent_id}_{self.instance_id}"
 
     # ----------------------------------------------------------
-    # Core helpers / properties
+    # Helpers / properties
     # ----------------------------------------------------------
     def _clamp_cell(self, col: int, row: int) -> Cell:
         c = max(0, min(self.cols - 1, int(col)))
@@ -124,17 +115,25 @@ class Agent:
 
     @property
     def cell_pos(self) -> Cell:
-        """Convenience alias used by some env utilities."""
         return (self.x, self.y)
 
     @property
     def float_pos(self) -> FloatPos:
         return (self._float_x, self._float_y)
 
+    @property
+    def vel(self) -> Tuple[float, float]:
+        return (float(self._vel_x), float(self._vel_y))
+
+    @property
+    def frac_in_cell(self) -> Tuple[float, float]:
+        # offset relative to integer cell anchor (x,y)
+        return (float(self._float_x - self.x), float(self._float_y - self.y))
+
     def get_position(self) -> Cell:
         return (self.x, self.y)
 
-    # Legacy-friendly aliases (kept intentionally because your env calls these)
+    # Legacy-friendly aliases
     def getSide(self) -> str:
         return self.side
 
@@ -148,11 +147,6 @@ class Agent:
         return bool(self.is_carrying_flag)
 
     def attach_game_manager(self, gm: Any) -> None:
-        """
-        Attach GameManager reference.
-        Agent will NOT call core rule methods on GM during disable/kill (RL-safe),
-        but may call optional PBRS if present.
-        """
         self.game_manager = gm
 
     # ----------------------------------------------------------
@@ -189,42 +183,30 @@ class Agent:
         return v
 
     # ----------------------------------------------------------
-    # Path handling
+    # Path handling (UPDATED: do NOT reset move_accum on new path)
     # ----------------------------------------------------------
     def setPath(self, path: Optional[List[Cell]]) -> None:
-        """
-        Path is a list of (x,y) cell waypoints. Agent executes it deterministically.
-        Empty/None clears path.
-        """
         if not path:
             self.clearPath()
             self.move_accum = 0.0
+            self.current_goal = None
             return
 
         clamped = [self._clamp_cell(c[0], c[1]) for c in path]
         self.path = deque(clamped)
         self.waypoint = clamped[-1] if clamped else None
-        self.move_accum = 0.0
+        # IMPORTANT: keep move_accum to avoid micro-hesitations
 
     def clearPath(self) -> None:
         self.path.clear()
         self.waypoint = None
 
     # ----------------------------------------------------------
-    # Disable / respawn (RL-safe: NO GameManager rule calls)
+    # Disable / respawn
     # ----------------------------------------------------------
     def disable_for_seconds(self, seconds: float) -> None:
-        """
-        Disables the agent and starts/extends respawn timer.
-
-        IMPORTANT:
-          - Does NOT call GameManager methods (no handle_agent_death, no rewards, no flag logic).
-          - Flag dropping/scoring consistency is handled by GameManager.sanity_check_flags()
-            inside the main env tick.
-        """
         s = max(0.0, float(seconds))
 
-        # If already disabled, just extend the cooldown and exit.
         if not self.enabled:
             self.tag_cooldown = max(self.tag_cooldown, s)
             return
@@ -235,23 +217,18 @@ class Agent:
         self.enabled = False
         self.tag_cooldown = max(self.tag_cooldown, s)
 
-        # Force local carry off (do NOT mark scored)
-        # NOTE: GM still owns authoritative flag state; it will reconcile on tick via sanity_check_flags.
         self.setCarryingFlag(False, scored=False)
 
-        # Clear movement state deterministically
         self.clearPath()
         self.move_accum = 0.0
+        self.current_goal = None
+
         self._float_x = float(self.x)
         self._float_y = float(self.y)
+        self._vel_x = 0.0
+        self._vel_y = 0.0
 
     def respawn(self) -> None:
-        """
-        Resets to spawn location and clears transient state.
-
-        If GameManager provides clear_flag_carrier_if_agent, we call it defensively
-        (it exists in your refactored GM). If not present, we skip to avoid crashes.
-        """
         gm = self.game_manager
         if gm is not None and hasattr(gm, "clear_flag_carrier_if_agent"):
             gm.clear_flag_carrier_if_agent(self)
@@ -267,6 +244,7 @@ class Agent:
 
         self.clearPath()
         self.move_accum = 0.0
+        self.current_goal = None
 
         self._just_picked_up_flag = False
         self._just_scored = False
@@ -277,14 +255,18 @@ class Agent:
         self.suppressed_last_tick = False
         self.suppressed_this_tick = False
 
+        self._vel_x = 0.0
+        self._vel_y = 0.0
+
     # ----------------------------------------------------------
-    # Per-timestep update (movement + optional PBRS hook)
+    # Per-timestep update (UPDATED: velocity estimation)
     # ----------------------------------------------------------
     def update(self, dt: float) -> None:
         if dt <= 0.0:
             return
 
         prev_float_pos = self.float_pos
+        prev_fx, prev_fy = self._float_x, self._float_y
 
         # Disabled: tick respawn timer only
         if not self.enabled:
@@ -294,50 +276,61 @@ class Agent:
                     self.respawn()
             return
 
-        # Suppression flags are controlled by GameField; we preserve last_tick for convenience
         self.suppressed_last_tick = self.suppressed_this_tick
         self.suppressed_this_tick = False
 
-        # No path: snap float to cell
         if not self.path:
             self._float_x = float(self.x)
             self._float_y = float(self.y)
+            self._vel_x = 0.0
+            self._vel_y = 0.0
             return
 
-        # Accumulate movement budget in "cell cost" units
-        self.move_accum += float(self.move_rate_cps) * float(dt)
+        # Continuous movement budget in "cells"
+        remaining = float(self.move_rate_cps) * float(dt)
 
-        # Consume whole-cell moves
-        while self.path:
+        # Move along path continuously, possibly consuming multiple segments
+        while remaining > 1e-8 and self.path:
             nx, ny = self.path[0]
-            dx = nx - self.x
-            dy = ny - self.y
-            step_cost = DIAGONAL_COST if (dx != 0 and dy != 0) else 1.0
 
-            if self.move_accum >= step_cost:
+            # Target is center of next cell (in cell coordinates)
+            tx = float(nx)
+            ty = float(ny)
+
+            dx = tx - self._float_x
+            dy = ty - self._float_y
+            dist = math.hypot(dx, dy)
+
+            # If we're basically at the next cell already, snap to it and pop
+            if dist < 1e-6:
+                self._float_x = tx
+                self._float_y = ty
                 self.x, self.y = nx, ny
-                self._float_x = float(self.x)
-                self._float_y = float(self.y)
                 self.path.popleft()
-                self.move_accum -= step_cost
                 self.waypoint = self.path[-1] if self.path else None
-            else:
-                break
+                continue
 
-        # Fractional interpolation toward next cell
-        if self.path:
-            nx, ny = self.path[0]
-            dx = nx - self.x
-            dy = ny - self.y
-            step_cost = DIAGONAL_COST if (dx != 0 and dy != 0) else 1.0
-            prog = min(max(self.move_accum / step_cost, 0.0), 1.0)
-            self._float_x = float(self.x) + float(dx) * prog
-            self._float_y = float(self.y) + float(dy) * prog
-        else:
-            self._float_x = float(self.x)
-            self._float_y = float(self.y)
+            # Move toward (tx,ty) by at most `remaining`
+            step = min(remaining, dist)
+            ux = dx / dist
+            uy = dy / dist
 
-        # Optional PBRS hook (exists in your refactored GM; guard keeps Agent crash-proof)
+            self._float_x += ux * step
+            self._float_y += uy * step
+            remaining -= step
+
+            # If we reached the next cell, commit integer cell + pop
+            if (dist - step) <= 1e-6:
+                self._float_x = tx
+                self._float_y = ty
+                self.x, self.y = nx, ny
+                self.path.popleft()
+                self.waypoint = self.path[-1] if self.path else None
+
+        # Velocity estimate (cells/sec)
+        self._vel_x = (self._float_x - prev_fx) / float(dt)
+        self._vel_y = (self._float_y - prev_fy) / float(dt)
+
         gm = self.game_manager
         if gm is not None and hasattr(gm, "reward_potential_shaping"):
             gm.reward_potential_shaping(self, prev_float_pos, self.float_pos)
