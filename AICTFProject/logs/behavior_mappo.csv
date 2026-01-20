@@ -183,3 +183,7 @@ agent_id,blue_mine_kills,blue_score,curriculum_mode,episode,flag_carries,macro_0
 1,0,3,scripted,17,2,83,103,66,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
 0,0,3,scripted,17,0,258,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
 1,0,3,scripted,17,0,258,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,3,scripted,18,35,84,79,53,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,3,scripted,18,13,73,81,62,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,3,scripted,18,0,222,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,3,scripted,18,0,222,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
