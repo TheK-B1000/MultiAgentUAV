@@ -876,8 +876,27 @@ class GameField:
     # -------- observations --------
 
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
-        side = agent.side
-        gm = self.manager
+        """
+        Version B: "continuous-friendly" CNN observation.
+
+        Still returns: [NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS] (e.g., [7,20,20])
+        but instead of hard one-hot binning, it bilinearly "splats" float positions
+        into up to 4 neighboring CNN cells. This reduces aliasing and makes motion
+        feel less teleporty in observation space.
+
+        Channel meanings (unchanged):
+          0: self
+          1: friendly teammates (excluding self)
+          2: enemies
+          3: friendly mines
+          4: enemy mines
+          5: own flag
+          6: enemy flag
+        """
+        import math
+
+        side = str(getattr(agent, "side", "blue")).lower()
+        gm = getattr(self, "manager", None)
         mirror_x = (side == "red")
 
         channels = [
@@ -885,50 +904,149 @@ class GameField:
             for _ in range(NUM_CNN_CHANNELS)
         ]
 
-        def set_chan(c: int, col: int, row: int) -> None:
+        def set_chan(c: int, col: int, row: int, v: float) -> None:
             if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
-                channels[c][row][col] = 1.0
+                # Use max to handle multiple entities overlapping
+                if v > channels[c][row][col]:
+                    channels[c][row][col] = float(v)
 
+        def _safe_xy(pos, fallback=(0.0, 0.0)) -> Tuple[float, float]:
+            if isinstance(pos, (tuple, list)) and len(pos) >= 2:
+                try:
+                    return float(pos[0]), float(pos[1])
+                except Exception:
+                    return float(fallback[0]), float(fallback[1])
+            return float(fallback[0]), float(fallback[1])
+
+        def _grid_to_cnn_continuous(fx: float, fy: float, *, mirror: bool) -> Tuple[float, float]:
+            """
+            Map grid float coords -> continuous CNN coords in [0..CNN_COLS-1], [0..CNN_ROWS-1].
+
+            We approximate the same scaling your float_grid_to_cnn_cell likely uses:
+              cx = fx / (col_count-1) * (CNN_COLS-1)
+              cy = fy / (row_count-1) * (CNN_ROWS-1)
+
+            Mirror is applied in grid space first for red-side symmetry.
+            """
+            gx = float(fx)
+            gy = float(fy)
+
+            # mirror in grid space (left-right flip)
+            if mirror and getattr(self, "col_count", 0) and self.col_count > 1:
+                gx = float((self.col_count - 1) - gx)
+
+            # Clamp to grid bounds to avoid NaNs/overshoots
+            if getattr(self, "col_count", 0) and self.col_count > 0:
+                gx = max(0.0, min(float(self.col_count - 1), gx))
+            if getattr(self, "row_count", 0) and self.row_count > 0:
+                gy = max(0.0, min(float(self.row_count - 1), gy))
+
+            # Scale into CNN space
+            if getattr(self, "col_count", 0) and self.col_count > 1:
+                cx = (gx / float(self.col_count - 1)) * float(CNN_COLS - 1)
+            else:
+                cx = 0.0
+
+            if getattr(self, "row_count", 0) and self.row_count > 1:
+                cy = (gy / float(self.row_count - 1)) * float(CNN_ROWS - 1)
+            else:
+                cy = 0.0
+
+            return (cx, cy)
+
+        def splat_float(c: int, fx: float, fy: float, strength: float = 1.0) -> None:
+            """
+            Bilinear splat into up to 4 neighboring CNN cells.
+            """
+            cx, cy = _grid_to_cnn_continuous(fx, fy, mirror=mirror_x)
+
+            x0 = int(math.floor(cx))
+            y0 = int(math.floor(cy))
+            x1 = min(x0 + 1, CNN_COLS - 1)
+            y1 = min(y0 + 1, CNN_ROWS - 1)
+
+            tx = cx - float(x0)
+            ty = cy - float(y0)
+
+            # Bilinear weights
+            w00 = (1.0 - tx) * (1.0 - ty)
+            w10 = tx * (1.0 - ty)
+            w01 = (1.0 - tx) * ty
+            w11 = tx * ty
+
+            # Apply
+            s = float(strength)
+            set_chan(c, x0, y0, s * w00)
+            set_chan(c, x1, y0, s * w10)
+            set_chan(c, x0, y1, s * w01)
+            set_chan(c, x1, y1, s * w11)
+
+        # Teams
         friendly_team = self.blue_agents if side == "blue" else self.red_agents
         enemy_team = self.red_agents if side == "blue" else self.blue_agents
 
+        # Self
         sx, sy = self._agent_float_pos(agent)
-        sc, sr = self.float_grid_to_cnn_cell(sx, sy, mirror_x=mirror_x)
-        set_chan(0, sc, sr)
+        splat_float(0, float(sx), float(sy), 1.0)
 
+        # Friendlies (excluding self)
         for a in friendly_team:
-            if a is agent or not a.isEnabled():
+            if a is None or a is agent:
                 continue
+            try:
+                if hasattr(a, "isEnabled") and (not a.isEnabled()):
+                    continue
+            except Exception:
+                pass
             fx, fy = self._agent_float_pos(a)
-            c, r = self.float_grid_to_cnn_cell(fx, fy, mirror_x=mirror_x)
-            set_chan(1, c, r)
+            splat_float(1, float(fx), float(fy), 1.0)
 
+        # Enemies
         for a in enemy_team:
-            if not a.isEnabled():
+            if a is None:
                 continue
+            try:
+                if hasattr(a, "isEnabled") and (not a.isEnabled()):
+                    continue
+            except Exception:
+                pass
             fx, fy = self._agent_float_pos(a)
-            c, r = self.float_grid_to_cnn_cell(fx, fy, mirror_x=mirror_x)
-            set_chan(2, c, r)
+            splat_float(2, float(fx), float(fy), 1.0)
 
-        for m in self.mines:
-            c, r = self.float_grid_to_cnn_cell(float(m.x), float(m.y), mirror_x=mirror_x)
-            if m.owner_side == side:
-                set_chan(3, c, r)
+        # Mines
+        for m in getattr(self, "mines", []):
+            mx, my = float(getattr(m, "x", 0)), float(getattr(m, "y", 0))
+            owner = str(getattr(m, "owner_side", "")).lower()
+            if owner == side:
+                splat_float(3, mx, my, 1.0)
             else:
-                set_chan(4, c, r)
+                splat_float(4, mx, my, 1.0)
+
+        # Flags (own + enemy)
+        def _gm_attr(*names, default=None):
+            if gm is None:
+                return default
+            for n in names:
+                if hasattr(gm, n):
+                    return getattr(gm, n)
+            return default
 
         if side == "blue":
-            own_flag_pos = getattr(gm, "blue_flag_position", (0, 0))
-            enemy_flag_pos = self._gm_enemy_flag_position("blue")
+            own_flag_pos = _safe_xy(_gm_attr("blue_flag_position", "blue_flag_home", default=(0, 0)), (0.0, 0.0))
+            enemy_flag_pos = _safe_xy(self._gm_enemy_flag_position("blue"),
+                                      (float(getattr(self, "col_count", CNN_COLS) - 1),
+                                       float(getattr(self, "row_count", CNN_ROWS) // 2)))
         else:
-            own_flag_pos = getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1))
-            enemy_flag_pos = self._gm_enemy_flag_position("red")
+            own_flag_pos = _safe_xy(_gm_attr("red_flag_position", "red_flag_home",
+                                             default=(getattr(self, "col_count", CNN_COLS) - 1,
+                                                      getattr(self, "row_count", CNN_ROWS) - 1)),
+                                    (float(getattr(self, "col_count", CNN_COLS) - 1),
+                                     float(getattr(self, "row_count", CNN_ROWS) - 1)))
+            enemy_flag_pos = _safe_xy(self._gm_enemy_flag_position("red"),
+                                      (0.0, float(getattr(self, "row_count", CNN_ROWS) // 2)))
 
-        c1, r1 = self.float_grid_to_cnn_cell(float(own_flag_pos[0]), float(own_flag_pos[1]), mirror_x=mirror_x)
-        set_chan(5, c1, r1)
-
-        c2, r2 = self.float_grid_to_cnn_cell(float(enemy_flag_pos[0]), float(enemy_flag_pos[1]), mirror_x=mirror_x)
-        set_chan(6, c2, r2)
+        splat_float(5, float(own_flag_pos[0]), float(own_flag_pos[1]), 1.0)
+        splat_float(6, float(enemy_flag_pos[0]), float(enemy_flag_pos[1]), 1.0)
 
         return channels
 
@@ -939,9 +1057,10 @@ class GameField:
             return MacroAction.GO_TO
 
         macro_idx, action = self.normalize_macro(action)
+        side = str(getattr(agent, "side", "blue")).lower()
         gm = self.manager
-        side = getattr(agent, "side", None)
 
+        # If carrying and asked to GET_FLAG, force GO_HOME
         if action == MacroAction.GET_FLAG and agent.isCarryingFlag():
             action = MacroAction.GO_HOME
 
@@ -965,59 +1084,130 @@ class GameField:
             return self.get_macro_target(idx)
 
         def safe_set_path(target: Cell, *, avoid_enemies: bool, radius: int = 1) -> None:
+            # --- Resolve start/target ---
             start = self._agent_cell_pos(agent)
             tgt = self._clamp_cell(int(target[0]), int(target[1]))
 
-            danger_saved = dict(getattr(self.pathfinder, "danger_cost", {}))
+            # Already there: clear path
+            if start == tgt:
+                if hasattr(agent, "clearPath"):
+                    agent.clearPath()
+                else:
+                    agent.path = []
+                setattr(agent, "current_goal", None)
+                return
+
+            # Goal caching: skip replan if same goal and path exists
+            try:
+                if getattr(agent, "current_goal", None) == tgt:
+                    p = getattr(agent, "path", None)
+                    if p is not None and hasattr(p, "__len__") and len(p) > 0:
+                        return
+            except Exception:
+                pass
+
+            setattr(agent, "current_goal", tgt)
+
+            # --- Build danger costs ---
+            danger_saved = dict(getattr(self.pathfinder, "danger_cost", {}) or {})
             danger: Dict[Cell, float] = {}
 
-            if avoid_enemies and side in ("blue", "red"):
+            do_avoid = bool(avoid_enemies) and side in ("blue", "red") and int(radius) > 0
+            if do_avoid:
                 enemy_team = self.red_agents if side == "blue" else self.blue_agents
                 base_penalty = 3.0
                 max_penalty = 8.0
+                rr = int(max(1, radius))
 
                 for e in enemy_team:
-                    if not e.isEnabled():
+                    if e is None:
                         continue
+                    try:
+                        if hasattr(e, "isEnabled") and (not e.isEnabled()):
+                            continue
+                    except Exception:
+                        pass
+
                     ex, ey = self._agent_cell_pos(e)
-                    for dx in range(-radius, radius + 1):
-                        for dy in range(-radius, radius + 1):
+
+                    for dx in range(-rr, rr + 1):
+                        for dy in range(-rr, rr + 1):
                             cx, cy = ex + dx, ey + dy
-                            if 0 <= cx < self.col_count and 0 <= cy < self.row_count:
-                                d = max(abs(dx), abs(dy))
-                                pen = base_penalty * float(radius + 1 - d)
-                                if pen > 0:
-                                    danger[(cx, cy)] = min(max_penalty, max(danger.get((cx, cy), 0.0), pen))
+                            if not (0 <= cx < self.col_count and 0 <= cy < self.row_count):
+                                continue
+                            d = max(abs(dx), abs(dy))
+                            pen = base_penalty * float(rr + 1 - d)
+                            if pen <= 0.0:
+                                continue
+                            prev = float(danger.get((cx, cy), 0.0))
+                            danger[(cx, cy)] = min(max_penalty, max(prev, float(pen)))
 
                 danger.pop(start, None)
                 danger.pop(tgt, None)
 
+            # --- Run A* with temporary danger costs ---
             path: Optional[List[Cell]] = None
             try:
-                if avoid_enemies and hasattr(self.pathfinder, "setDangerCosts"):
+                if do_avoid and hasattr(self.pathfinder, "setDangerCosts"):
                     self.pathfinder.setDangerCosts(danger)
                 elif hasattr(self.pathfinder, "clearDangerCosts"):
                     self.pathfinder.clearDangerCosts()
+                else:
+                    setattr(self.pathfinder, "danger_cost", danger if do_avoid else {})
+
                 path = self.pathfinder.astar(start, tgt)
             except Exception:
                 path = None
             finally:
+                # Restore danger costs exactly
                 if hasattr(self.pathfinder, "setDangerCosts"):
-                    self.pathfinder.setDangerCosts(danger_saved)
+                    try:
+                        self.pathfinder.setDangerCosts(danger_saved)
+                    except Exception:
+                        setattr(self.pathfinder, "danger_cost", danger_saved)
+                else:
+                    setattr(self.pathfinder, "danger_cost", danger_saved)
 
+            # Optional prune collinear
+            def prune_collinear(p: List[Cell]) -> List[Cell]:
+                if not p or len(p) < 3:
+                    return p
+                out: List[Cell] = [p[0], p[1]]
+                for cur in p[2:]:
+                    a = out[-2]
+                    b = out[-1]
+                    da = (b[0] - a[0], b[1] - a[1])
+                    db = (cur[0] - b[0], cur[1] - b[1])
+                    if da == db:
+                        out[-1] = cur
+                    else:
+                        out.append(cur)
+                return out
+
+            if path:
+                try:
+                    path = prune_collinear(path)
+                except Exception:
+                    pass
+
+            # Apply path (IMPORTANT: do not reset move_accum here)
             if hasattr(agent, "setPath"):
                 agent.setPath(path or [])
             else:
                 agent.path = path or []
 
+        # ------------------------------------------------------------
+        # Macro execution (THIS is what makes agents actually move)
+        # ------------------------------------------------------------
+
         if action == MacroAction.GO_TO:
             target = resolve_target(self.get_macro_target(4))
-            safe_set_path(target, avoid_enemies=agent.isCarryingFlag())
+            safe_set_path(target, avoid_enemies=agent.isCarryingFlag(), radius=1)
             return record(MacroAction.GO_TO)
 
         if action == MacroAction.GET_FLAG:
             ex, ey = self._gm_enemy_flag_position(side)
-            safe_set_path((int(ex), int(ey)), avoid_enemies=False)
+            safe_set_path((int(ex), int(ey)), avoid_enemies=False, radius=1)
             return record(MacroAction.GET_FLAG)
 
         if action == MacroAction.GO_HOME:
@@ -1026,15 +1216,17 @@ class GameField:
             return record(MacroAction.GO_HOME)
 
         if action == MacroAction.GRAB_MINE:
+            # If already have charges, behave like GET_FLAG
             if int(getattr(agent, "mine_charges", 0)) > 0:
                 ex, ey = self._gm_enemy_flag_position(side)
-                safe_set_path((int(ex), int(ey)), avoid_enemies=False)
+                safe_set_path((int(ex), int(ey)), avoid_enemies=False, radius=1)
                 return record(MacroAction.GET_FLAG)
 
+            # If near enemy flag, disable mine detour
             ax, ay = self._agent_float_pos(agent)
             ex, ey = self._gm_enemy_flag_position(side)
             if math.hypot(ax - float(ex), ay - float(ey)) <= float(self.mine_detour_disable_radius_cells):
-                safe_set_path((int(ex), int(ey)), avoid_enemies=False)
+                safe_set_path((int(ex), int(ey)), avoid_enemies=False, radius=1)
                 return record(MacroAction.GET_FLAG)
 
             my_pickups = [p for p in self.mine_pickups if p.owner_side == side]
@@ -1045,22 +1237,25 @@ class GameField:
             else:
                 target = self.get_macro_target(2)
 
-            safe_set_path(target, avoid_enemies=False)
+            safe_set_path(target, avoid_enemies=False, radius=1)
             return record(MacroAction.GRAB_MINE)
 
         if action == MacroAction.PLACE_MINE:
             target = resolve_target(self._agent_cell_pos(agent))
 
+            # Try to place if possible, then keep moving (or return home if illegal)
             if int(getattr(agent, "mine_charges", 0)) > 0:
-                if not self.allow_offensive_mine_placing and side in ("blue", "red"):
+                if (not self.allow_offensive_mine_placing) and side in ("blue", "red"):
                     own_min, own_max = self.blue_zone_col_range if side == "blue" else self.red_zone_col_range
                     ax_cell, _ = self._agent_cell_pos(agent)
                     if not (own_min - 1 <= float(ax_cell) <= own_max + 1):
-                        safe_set_path(self._gm_team_zone_center(side), avoid_enemies=False)
+                        safe_set_path(self._gm_team_zone_center(side), avoid_enemies=False, radius=1)
                         return record(MacroAction.GO_TO)
 
                 tx, ty = self._clamp_cell(int(target[0]), int(target[1]))
-                own_flag_home = getattr(gm, "blue_flag_home", (0, 0)) if side == "blue" else getattr(gm, "red_flag_home", (self.col_count - 1, self.row_count - 1))
+                own_flag_home = getattr(gm, "blue_flag_home", (0, 0)) if side == "blue" else getattr(
+                    gm, "red_flag_home", (self.col_count - 1, self.row_count - 1)
+                )
 
                 if self._is_free_cell(tx, ty) and not any(m.x == tx and m.y == ty for m in self.mines):
                     if (tx, ty) != tuple(own_flag_home):
@@ -1072,10 +1267,11 @@ class GameField:
                             except Exception:
                                 pass
 
-            safe_set_path(target, avoid_enemies=False)
+            safe_set_path(target, avoid_enemies=False, radius=1)
             return record(MacroAction.PLACE_MINE)
 
-        safe_set_path(self.get_macro_target(4), avoid_enemies=False)
+        # Fallback: go mid
+        safe_set_path(self.get_macro_target(4), avoid_enemies=False, radius=1)
         return record(MacroAction.GO_TO)
 
     # -------- internal decision (scripted or neural policy or wrapper) --------
