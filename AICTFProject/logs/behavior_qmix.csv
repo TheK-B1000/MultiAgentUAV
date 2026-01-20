@@ -2235,3 +2235,47 @@ agent_id,blue_mine_kills,blue_score,curriculum_mode,episode,flag_carries,macro_0
 1,0,0,scripted,191,1,54,85,62,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
 0,0,0,scripted,191,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
 1,0,0,scripted,191,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,192,0,66,68,67,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,192,38,69,69,63,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,192,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,192,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,1,scripted,193,40,62,68,71,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,193,0,61,90,50,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,193,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,193,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,194,0,47,87,67,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,194,1,60,89,52,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,194,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,194,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,195,1,66,81,54,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,195,32,63,82,56,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,195,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,195,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,196,1,58,77,66,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,196,2,65,86,50,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,196,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,196,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,197,2,64,85,52,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,197,1,51,94,56,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,197,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,197,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,198,1,64,77,60,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,198,1,61,88,52,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,198,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,198,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,199,1,67,84,50,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,199,1,52,98,51,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,199,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,199,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,0,scripted,200,1,63,80,58,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,200,0,61,75,65,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,200,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,200,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+0,0,1,scripted,201,1,67,76,58,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+1,0,1,scripted,201,18,64,83,54,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,blue
+0,0,1,scripted,201,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+1,0,1,scripted,201,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,BLUE WIN,3,red
+0,0,0,scripted,202,0,51,94,56,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+1,0,0,scripted,202,0,54,90,57,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,blue
+0,0,0,scripted,202,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
+1,0,0,scripted,202,0,201,,,empty_20x20,,200.0,0,0,0,scripted:OP1,scripted,OP1,OP1,0,0,DRAW,3,red
