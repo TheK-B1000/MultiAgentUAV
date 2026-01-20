@@ -14,8 +14,11 @@ call `log_decision(agent, macro_id)` whenever an agent chooses a macro-action,
 then `finalize_episode(...)` at the end.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
+
+import csv
+import os
 
 from macro_actions import MacroAction
 from game_manager import GameManager
@@ -204,3 +207,16 @@ class BehaviorLogger:
         for ep in self.episodes:
             rows.extend(ep.to_flat_records())
         return rows
+
+
+def append_records_csv(path: str, records: List[Dict[str, Any]]) -> None:
+    if not records:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    exists = os.path.exists(path)
+    fieldnames = sorted(records[0].keys())
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not exists:
+            writer.writeheader()
+        writer.writerows(records)
