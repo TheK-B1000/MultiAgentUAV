@@ -1,23 +1,6 @@
-# ==========================================================
-# train_qmix_event.py (UPDATED: GLOBAL "GOD VIEW" STATE + SELF-PLAY)
-#   - Uses env.get_global_state() for mixer state input (flat 3200)
-#   - state_dim = env.get_global_state_dim()
-#   - Event-driven dt-aware discounting (gamma ** dt)
-#   - Masked epsilon-greedy for valid macro/target combos
-#   - CTDE: decentralized agent obs, centralized mixer state
-#   - AUTO-SYNC macros from env.macro_order
-#
-# Self-play (modern-ish MARL defaults for QMIX in competitive games):
-#   ✅ Opponent pool of frozen snapshots (neural) + scripted baselines (OP1/2/3)
-#   ✅ PFSP sampling (prefer opponents with ~50% winrate vs you)
-#   ✅ Opponent hold for K episodes (reduces non-stationarity)
-#   ✅ Phase-based scripted-to-neural mix schedule
-#   ✅ Latest-bias (sometimes fight your newest self)
-#
-# Key note:
-#   - Blue is the learner and is the ONLY side written to replay.
-#   - Red is an opponent (scripted or neural snapshot) driven via external actions.
-# ==========================================================
+"""
+QMIX training with global state mixer, self-play opponent pool, and curriculum logging.
+"""
 
 import os
 import random
@@ -44,11 +27,12 @@ from macro_actions import MacroAction
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 
 from obs_encoder import ObsEncoder
+from map_registry import make_game_field
+from behavior_logging import BehaviorLogger, append_records_csv
+from config import MAP_NAME as DEFAULT_MAP_NAME, MAP_PATH as DEFAULT_MAP_PATH, LOG_DIR as DEFAULT_LOG_DIR
 
 
-# ==========================================================
 # Device
-# ==========================================================
 def get_act_device() -> torch.device:
     if HAS_TDML:
         return torch_directml.device()
@@ -59,11 +43,12 @@ def get_act_device() -> torch.device:
 
 ACT_DEVICE = get_act_device()
 TRAIN_DEVICE = torch.device("cpu")  # DirectML-safe
+# Map selection
+MAP_NAME = DEFAULT_MAP_NAME
+MAP_PATH = DEFAULT_MAP_PATH
 
 
-# ==========================================================
 # Reproducibility
-# ==========================================================
 def set_seed(seed: int = 42) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -77,9 +62,7 @@ def set_seed(seed: int = 42) -> None:
         pass
 
 
-# ==========================================================
 # Hyperparams
-# ==========================================================
 TOTAL_STEPS: int = 1_000_000
 UPDATE_EVERY: int = 2048
 BATCH_SIZE: int = 256
@@ -125,9 +108,7 @@ RED_SCORED_PENALTY: float = -15.0
 TIME_PENALTY_PER_AGENT_PER_MACRO: float = 0.001
 
 
-# ==========================================================
 # Self-play config (QMIX)
-# ==========================================================
 ENABLE_SELFPLAY = True
 
 # scripted vs neural mix by phase
@@ -149,12 +130,14 @@ RED_DETERMINISTIC = False
 RED_EPS = 0.05  # small epsilon for opponent sampling when neural (only used if not deterministic)
 
 
-# ==========================================================
 # Env helpers
-# ==========================================================
 def make_env() -> GameField:
-    grid = [[0] * CNN_COLS for _ in range(CNN_ROWS)]
-    env = GameField(grid)
+    env = make_game_field(
+        map_name=MAP_NAME or None,
+        map_path=MAP_PATH or None,
+        rows=CNN_ROWS,
+        cols=CNN_COLS,
+    )
     env.use_internal_policies = True
 
     # Self-play needs both sides externally driven
@@ -163,6 +146,22 @@ def make_env() -> GameField:
 
     env.external_missing_action_mode = "idle"
     return env
+
+
+@dataclass
+class RedCurriculumScheduler:
+    scripted_episodes: int = 300
+    pfsp_episodes: int = 900
+    mode: str = "scripted"
+
+    def update_mode(self, episode_idx: int) -> str:
+        if episode_idx <= self.scripted_episodes:
+            self.mode = "scripted"
+        elif episode_idx <= (self.scripted_episodes + self.pfsp_episodes):
+            self.mode = "pfsp"
+        else:
+            self.mode = "latest"
+        return self.mode
 
 
 def external_key_for_agent(agent: Any) -> str:
@@ -285,9 +284,7 @@ def scripted_red_action(
     return macro_idx, targ_idx
 
 
-# ==========================================================
 # Reward routing (episode-filtered, team reward)
-# ==========================================================
 def pop_reward_events_strict(gm: GameManager) -> List[Tuple[float, str, float]]:
     fn = getattr(gm, "pop_reward_events", None)
     if fn is None or (not callable(fn)):
@@ -364,9 +361,7 @@ def apply_score_delta_shaping(
     return cur_b, cur_r
 
 
-# ==========================================================
 # Masking: macro-mask -> flat action mask
-# ==========================================================
 def compute_used_macro_mask(env: GameField, agent: Any, n_macros: int) -> np.ndarray:
     mm = env.get_macro_mask(agent)
     mm = np.asarray(mm, dtype=np.bool_).reshape(-1)
@@ -381,9 +376,7 @@ def macro_mask_to_flat_action_mask(macro_mask: np.ndarray, n_targets: int) -> np
     return np.repeat(np.asarray(macro_mask, dtype=np.bool_), int(n_targets))
 
 
-# ==========================================================
 # Networks: AgentQNet + QMixer
-# ==========================================================
 class AgentQNet(nn.Module):
     def __init__(
         self,
@@ -461,9 +454,7 @@ class QMixer(nn.Module):
         return q_tot.view(B, 1)
 
 
-# ==========================================================
 # Replay Buffer
-# ==========================================================
 @dataclass
 class Transition:
     obs_agents: np.ndarray
@@ -498,9 +489,7 @@ class ReplayBuffer:
         return random.sample(self.data, k=int(batch_size))
 
 
-# ==========================================================
 # Epsilon schedule
-# ==========================================================
 def epsilon_by_step(step: int) -> float:
     if step <= 0:
         return float(EPS_START)
@@ -508,9 +497,7 @@ def epsilon_by_step(step: int) -> float:
     return float(EPS_START + frac * (EPS_END - EPS_START))
 
 
-# ==========================================================
 # Action selection (masked epsilon-greedy)
-# ==========================================================
 @torch.no_grad()
 def select_actions_qmix(
     agent_net_act: AgentQNet,
@@ -542,9 +529,7 @@ def select_actions_qmix(
     return actions
 
 
-# ==========================================================
 # Training update (Double-QMIX)
-# ==========================================================
 def soft_update_(tgt: nn.Module, src: nn.Module, tau: float) -> None:
     tau = float(tau)
     with torch.no_grad():
@@ -616,9 +601,7 @@ def qmix_update(
     return float(loss.item())
 
 
-# ==========================================================
 # Self-play opponent pool (PFSP)
-# ==========================================================
 @dataclass
 class OpponentEntry:
     oid: str
@@ -717,9 +700,7 @@ class OpponentPool:
         return self.entries[ids[pick]]
 
 
-# ==========================================================
 # MAIN TRAIN LOOP
-# ==========================================================
 def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
     set_seed(42)
 
@@ -780,6 +761,14 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
     # self-play pool
     pool = OpponentPool(max_size=POOL_MAX)
     pool.add_scripted_defaults()
+
+    # behavior logging
+    behavior_logger = BehaviorLogger()
+    behavior_csv_path = os.path.join(DEFAULT_LOG_DIR, "behavior_qmix.csv")
+    last_written_idx = 0
+
+    # adversarial curriculum
+    red_curriculum = RedCurriculumScheduler()
 
     global_step = 0
     episode_idx = 0
@@ -853,9 +842,18 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
             except Exception:
                 pass
 
-        # pick opponent (with hold)
+        # pick opponent (with hold + curriculum)
+        cur_mode = red_curriculum.update_mode(episode_idx)
         if (not ENABLE_SELFPLAY) or hold_left <= 0 or held_opp is None:
-            held_opp = pool.sample(cur_phase, opt_steps) if ENABLE_SELFPLAY else pool.entries[f"scripted:{cur_phase}"]
+            if cur_mode == "scripted":
+                held_opp = pool.entries[f"scripted:{cur_phase}"]
+            elif cur_mode == "latest":
+                if pool.latest_neural_id is not None:
+                    held_opp = pool.entries[pool.latest_neural_id]
+                else:
+                    held_opp = pool.sample(cur_phase, opt_steps)
+            else:
+                held_opp = pool.sample(cur_phase, opt_steps)
             hold_left = int(OPPONENT_HOLD_EPISODES)
         hold_left -= 1
 
@@ -875,6 +873,7 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
             opp_agent_net_act.load_state_dict(held_opp.agent_state)
             opp_agent_net_act.eval()
 
+        behavior_logger.start_episode()
         env.reset_default()
         clear_reward_events_best_effort(gm)
 
@@ -908,6 +907,10 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                 eps=eps,
                 device=ACT_DEVICE,
             )
+            for i, a in enumerate(blue_actions_flat):
+                if i < len(blue_agents_sorted) and blue_agents_sorted[i] is not None:
+                    macro_idx = int(a) // int(n_targets)
+                    behavior_logger.log_decision(blue_agents_sorted[i], macro_idx)
 
             # --- RED selects actions (opponent) ---
             red_obs_agents, red_avail_actions, red_agents_sorted = collect_team_obs_and_avail("red")
@@ -925,6 +928,7 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                             n_targets=n_targets,
                         )
                         red_actions_flat[i] = int(macro_idx * n_targets + targ_idx)
+                        behavior_logger.log_decision(ra, int(macro_idx))
                     else:
                         red_actions_flat[i] = 0
             else:
@@ -936,6 +940,10 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
                     eps=red_eps,
                     device=ACT_DEVICE,
                 )
+                for i, a in enumerate(red_actions_flat):
+                    if i < len(red_agents_sorted) and red_agents_sorted[i] is not None:
+                        macro_idx = int(a) // int(n_targets)
+                        behavior_logger.log_decision(red_agents_sorted[i], macro_idx)
 
             # Submit BOTH sides as external actions
             submit_actions: Dict[str, Tuple[int, int]] = {}
@@ -1076,12 +1084,34 @@ def train_qmix_event(total_steps: int = TOTAL_STEPS) -> None:
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
         avg_step_r = step_return_total / max(1, steps)
 
+        # behavior logging flush
+        behavior_logger.finalize_episode(
+            gm,
+            meta={
+                "episode": episode_idx,
+                "phase": cur_phase,
+                "opponent_id": opponent_tag,
+                "opponent_kind": held_opp.kind if held_opp is not None else "unknown",
+                "curriculum_mode": cur_mode,
+                "map_name": MAP_NAME or "",
+                "map_path": MAP_PATH or "",
+                "result": result,
+            },
+        )
+        new_eps = behavior_logger.episodes[last_written_idx:]
+        if new_eps:
+            records = []
+            for ep in new_eps:
+                records.extend(ep.to_flat_records())
+            append_records_csv(behavior_csv_path, records)
+            last_written_idx = len(behavior_logger.episodes)
+
         print(
             f"[{episode_idx:5d}] {result:8} | "
             f"StepR {avg_step_r:+.3f} | "
             f"Score {gm.blue_score}:{gm.red_score} | "
             f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
-            f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
+            f"PhaseWin {phase_wr * 100:.1f}% | Phase={cur_phase} Opp={opponent_tag} Curric={cur_mode}"
         )
 
         # Curriculum advance
