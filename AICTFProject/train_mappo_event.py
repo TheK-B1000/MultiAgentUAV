@@ -1,19 +1,6 @@
-# ==========================================================
-# train_mappo_event.py (MAPPO / CTDE, DirectML-safe)
-#   + "Current MARL standards" Self-Play for MAPPO (league-ish, PFSP sampling)
-#
-# What you get:
-#   ✅ DirectML-safe split: policy_act (forward-only on DML/CUDA), policy_train (updates on CPU/CUDA)
-#   ✅ Robust self-play: opponent pool of historical snapshots + PFSP sampling (targets ~50% win opponents)
-#   ✅ Opponent mixing: scripted OP1/OP2/OP3 + neural snapshots (configurable probabilities)
-#   ✅ Opponent hold: freeze opponent for K episodes to reduce non-stationarity
-#   ✅ Snapshot cadence: add snapshots on UPDATE, keep max pool size, always keep latest
-#
-# NOTE:
-#   - Blue is the learner (we store transitions ONLY for blue).
-#   - Red is an opponent (scripted OR neural snapshot), controlled via env external actions.
-#   - No dependency on env.set_red_policy_neural() or wrappers; we drive red externally.
-# ==========================================================
+"""
+MAPPO / CTDE training with self-play opponent pool (PFSP) and curriculum logging.
+"""
 
 import os
 import random
@@ -27,9 +14,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# ==========================================================
 # DEVICE SELECTION (DirectML → CUDA → CPU)
-# ==========================================================
 try:
     import torch_directml
     HAS_TDML = True
@@ -46,18 +31,17 @@ def prefer_device() -> torch.device:
     return torch.device("cpu")
 
 
-# ==========================================================
 # IMPORTS (your project)
-# ==========================================================
 from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from game_manager import GameManager
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
+from map_registry import make_game_field
+from behavior_logging import BehaviorLogger, append_records_csv
+from config import MAP_NAME as DEFAULT_MAP_NAME, MAP_PATH as DEFAULT_MAP_PATH, LOG_DIR as DEFAULT_LOG_DIR
 
-# ==========================================================
 # CONFIG
-# ==========================================================
 def set_seed(seed: int = 42) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -73,6 +57,10 @@ def set_seed(seed: int = 42) -> None:
 
 GRID_ROWS = CNN_ROWS
 GRID_COLS = CNN_COLS
+
+# Map selection
+MAP_NAME = DEFAULT_MAP_NAME
+MAP_PATH = DEFAULT_MAP_PATH
 
 TOTAL_STEPS = 1_000_000
 UPDATE_EVERY = 2_048  # transitions (per-agent) in buffer
@@ -104,23 +92,15 @@ PHASE_CONFIG = {
     "OP3": dict(score_limit=3, max_time=200.0, max_macro_steps=500),
 }
 
-USED_MACROS = [
-    MacroAction.GO_TO,
-    MacroAction.GRAB_MINE,
-    MacroAction.GET_FLAG,
-    MacroAction.PLACE_MINE,
-    MacroAction.GO_HOME,
-]
-N_MACROS = len(USED_MACROS)
+USED_MACROS = []  # synced from env.macro_order inside train_mappo_event()
+N_MACROS = 0
 
 MACRO_STATS_PRINT_EVERY = 10
 MACRO_STATS_PRINT_ON_WIN = True
 DEBUG_PRINT_UIDS_ONCE = True
 REWARD_DEBUG_FIRST_EPISODES = 3
 
-# ==========================================================
 # OP2/OP3 DRAW-BREAKER SHAPING (phase-specific)
-# ==========================================================
 ENT_SCHEDULE = {
     "OP1": (0.07, 0.05, 800.0),
     "OP2": (0.04, 0.018, 1200.0),
@@ -179,9 +159,7 @@ def get_no_score_penalty(cur_phase: str, windows_since_score: int) -> float:
     return float(per * ramp)
 
 
-# ==========================================================
 # SELF-PLAY CONFIG (Modern-ish MARL defaults)
-# ==========================================================
 ENABLE_SELFPLAY = True
 
 # Mix scripted vs neural opponents per phase (start more scripted, end more neural)
@@ -207,12 +185,14 @@ LATEST_BIAS_PROB = 0.25
 # Opponent stochasticity
 RED_DETERMINISTIC = False  # typical: stochastic opponents reduce overfitting
 
-# ==========================================================
 # ENV HELPERS
-# ==========================================================
 def make_env() -> GameField:
-    grid = [[0] * GRID_COLS for _ in range(GRID_ROWS)]
-    env = GameField(grid)
+    env = make_game_field(
+        map_name=MAP_NAME or None,
+        map_path=MAP_PATH or None,
+        rows=GRID_ROWS,
+        cols=GRID_COLS,
+    )
     env.use_internal_policies = True
 
     # We drive BOTH sides via external actions, so env won't internally decide.
@@ -229,6 +209,22 @@ def make_env() -> GameField:
         except Exception:
             pass
     return env
+
+
+@dataclass
+class RedCurriculumScheduler:
+    scripted_episodes: int = 300
+    pfsp_episodes: int = 900
+    mode: str = "scripted"  # scripted -> pfsp -> latest
+
+    def update_mode(self, episode_idx: int) -> str:
+        if episode_idx <= self.scripted_episodes:
+            self.mode = "scripted"
+        elif episode_idx <= (self.scripted_episodes + self.pfsp_episodes):
+            self.mode = "pfsp"
+        else:
+            self.mode = "latest"
+        return self.mode
 
 
 def external_keys_for_agent(env: GameField, agent: Any) -> List[str]:
@@ -383,9 +379,7 @@ def nearest_target_idx(env: GameField, cell: Tuple[int, int]) -> int:
     return int(best_i)
 
 
-# ==========================================================
 # REWARDS (EPISODE-STRICT UID SET + PENDING ACCUMULATOR)
-# ==========================================================
 def gm_pop_reward_events_safe(gm: GameManager):
     events = []
     if hasattr(gm, "pop_reward_events") and callable(getattr(gm, "pop_reward_events")):
@@ -489,9 +483,7 @@ def flush_pending_rewards_into_buffer(
         pending[uid] = 0.0
 
 
-# ==========================================================
 # ACTION SAMPLING (policy_act forward only)
-# ==========================================================
 @torch.no_grad()
 def sample_mappo_action_via_act(
     policy_act: ActorCriticNet,
@@ -638,9 +630,7 @@ def scripted_red_action(
     return macro_val, int(target_param)
 
 
-# ==========================================================
 # ROLLOUT BUFFER
-# ==========================================================
 class MAPPORolloutBuffer:
     def __init__(self) -> None:
         self.actor_obs: List[np.ndarray] = []
@@ -718,9 +708,7 @@ class MAPPORolloutBuffer:
         )
 
 
-# ==========================================================
 # GAE (grouped by traj_id, event-driven dt)
-# ==========================================================
 def normalize_advantages(adv: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     mean = adv.mean()
     var = (adv - mean).pow(2).mean()
@@ -760,9 +748,7 @@ def compute_gae_event_grouped_nextvalues_cpu(
     return advantages.astype(np.float32), returns.astype(np.float32)
 
 
-# ==========================================================
 # MAPPO UPDATE (train_device, usually CPU)
-# ==========================================================
 def _fix_all_false_rows(mask: torch.Tensor) -> torch.Tensor:
     if mask.numel() == 0:
         return mask
@@ -847,9 +833,7 @@ def mappo_update(
     buffer.clear()
 
 
-# ==========================================================
 # MACRO USAGE TRACKER (stable per-slot printing)
-# ==========================================================
 def _macro_name(m: Any) -> str:
     try:
         return m.name
@@ -891,9 +875,7 @@ class MacroUsageTracker:
         return lines
 
 
-# ==========================================================
 # SELF-PLAY OPPONENT POOL (PFSP)
-# ==========================================================
 @dataclass
 class OpponentEntry:
     oid: str
@@ -999,9 +981,7 @@ class OpponentPool:
         return self.entries[ids[int(pick)]]
 
 
-# ==========================================================
 # MAIN LOOP
-# ==========================================================
 def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     set_seed(42)
     env = make_env()
@@ -1018,6 +998,13 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     if env.blue_agents:
         sample = env.build_observation(env.blue_agents[0])
         print(f"[train_mappo_event] Sample obs shape: C={len(sample)}, H={len(sample[0])}, W={len(sample[0][0])}")
+
+    # Sync macros from env to avoid order mismatch
+    global USED_MACROS, N_MACROS
+    USED_MACROS = list(getattr(env, "macro_order", []))
+    if not USED_MACROS:
+        raise RuntimeError("env.macro_order missing or empty (cannot align MAPPO macros).")
+    N_MACROS = int(len(USED_MACROS))
 
     n_agents = len(getattr(env, "blue_agents", [])) or getattr(env, "agents_per_team", 2)
 
@@ -1052,6 +1039,14 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     # Self-play pool
     pool = OpponentPool(max_size=POOL_MAX)
     pool.add_scripted_defaults()
+
+    # Behavior logging
+    behavior_logger = BehaviorLogger()
+    behavior_csv_path = os.path.join(DEFAULT_LOG_DIR, "behavior_mappo.csv")
+    last_written_idx = 0
+
+    # Adversarial curriculum scheduler
+    red_curriculum = RedCurriculumScheduler()
 
     global_step = 0
     episode_idx = 0
@@ -1093,15 +1088,25 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             except Exception:
                 pass
 
-        # --- pick opponent (with hold) ---
+        # --- pick opponent (with hold + curriculum) ---
+        cur_mode = red_curriculum.update_mode(episode_idx)
         if (not ENABLE_SELFPLAY) or hold_left <= 0 or held_opp is None:
-            held_opp = pool.sample_opponent(cur_phase, updates_done) if ENABLE_SELFPLAY else pool.entries[f"scripted:{cur_phase}"]
+            if cur_mode == "scripted":
+                held_opp = pool.entries[f"scripted:{cur_phase}"]
+            elif cur_mode == "latest":
+                if pool.latest_neural_id is not None:
+                    held_opp = pool.entries[pool.latest_neural_id]
+                else:
+                    held_opp = pool.sample_opponent(cur_phase, updates_done)
+            else:
+                held_opp = pool.sample_opponent(cur_phase, updates_done)
             hold_left = int(OPPONENT_HOLD_EPISODES)
         hold_left -= 1
 
         opponent_tag = held_opp.oid
 
         # ---- Episode reset ----
+        behavior_logger.start_episode()
         env.reset_default()
         clear_reward_events_best_effort(gm)
 
@@ -1178,6 +1183,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 macro_enum = USED_MACROS[macro_idx]
                 macro_tracker.add(agent, macro_enum)
                 macro_val = int(getattr(macro_enum, "value", int(macro_enum)))
+                behavior_logger.log_decision(agent, macro_val)
 
                 key = (episode_idx, agent_slot(agent))
                 tid = traj_id_map.get(key)
@@ -1201,6 +1207,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                         # (optional) track macros for debugging
                         m = macro_enum_from_any(macro_val) or MacroAction.GO_TO
                         macro_tracker.add(agent, m)
+                        behavior_logger.log_decision(agent, int(getattr(m, "value", int(m))))
                         for k in external_keys_for_agent(env, agent):
                             submit_actions[k] = (macro_val, target_param)
                 else:
@@ -1219,6 +1226,7 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                         m = USED_MACROS[mi]
                         macro_val = int(getattr(m, "value", int(m)))
                         macro_tracker.add(agent, m)
+                        behavior_logger.log_decision(agent, macro_val)
                         for k in external_keys_for_agent(env, agent):
                             submit_actions[k] = (macro_val, ti)
 
@@ -1365,12 +1373,34 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
         phase_wr = sum(phase_recent) / max(1, len(phase_recent))
 
         avg_step_r = ep_return / max(1, steps)
+
+        # Behavior logging flush (publication-ready metrics)
+        behavior_logger.finalize_episode(
+            gm,
+            meta={
+                "episode": episode_idx,
+                "phase": cur_phase,
+                "opponent_id": opponent_tag,
+                "opponent_kind": held_opp.kind if held_opp is not None else "unknown",
+                "curriculum_mode": cur_mode,
+                "map_name": MAP_NAME or "",
+                "map_path": MAP_PATH or "",
+                "result": result,
+            },
+        )
+        new_eps = behavior_logger.episodes[last_written_idx:]
+        if new_eps:
+            records = []
+            for ep in new_eps:
+                records.extend(ep.to_flat_records())
+            append_records_csv(behavior_csv_path, records)
+            last_written_idx = len(behavior_logger.episodes)
         print(
             f"[{episode_idx:5d}] {result:8} | "
             f"StepR {avg_step_r:+.3f} TermR {ep_terminal_only:+.1f} | "
             f"Score {gm.blue_score}:{gm.red_score} | "
             f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
-            f"PhaseWin {phase_wr*100:.1f}% | Phase={cur_phase} Opp={opponent_tag}"
+            f"PhaseWin {phase_wr*100:.1f}% | Phase={cur_phase} Opp={opponent_tag} Curric={cur_mode}"
         )
 
         if (episode_idx % MACRO_STATS_PRINT_EVERY == 0) or (MACRO_STATS_PRINT_ON_WIN and result == "BLUE WIN"):
