@@ -1599,3 +1599,13 @@ agent_id,blue_mine_kills,blue_score,episode_steps,flag_carries,macro_0,macro_2,m
 1,0,0,201,0,119,47,33,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
 0,0,0,52,0,31,7,14,empty_20x20,,200.0,0,0,0,CAMPER,SPECIES,OP1,0,3,LOSS,3,blue
 1,0,0,52,0,37,9,6,empty_20x20,,200.0,0,0,0,CAMPER,SPECIES,OP1,0,3,LOSS,3,blue
+0,0,0,201,0,120,39,40,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
+1,0,0,201,0,116,47,38,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
+0,0,0,201,0,116,38,47,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
+1,0,0,201,0,127,29,45,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
+0,0,0,201,0,126,35,40,empty_20x20,,200.0,0,0,0,checkpoints_sb3\self_play_pool\sp_snapshot_ep000050.zip,SNAPSHOT,OP1,0,0,DRAW,3,blue
+1,0,0,201,0,121,42,38,empty_20x20,,200.0,0,0,0,checkpoints_sb3\self_play_pool\sp_snapshot_ep000050.zip,SNAPSHOT,OP1,0,0,DRAW,3,blue
+0,0,1,201,56,138,26,35,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,WIN,3,blue
+1,0,1,201,0,120,46,35,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,WIN,3,blue
+0,0,0,201,0,120,39,42,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
+1,0,0,201,0,110,52,37,empty_20x20,,200.0,0,0,0,OP2,SCRIPTED,OP1,0,0,DRAW,3,blue
