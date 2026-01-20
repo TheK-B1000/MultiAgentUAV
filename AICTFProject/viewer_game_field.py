@@ -7,8 +7,11 @@ Key fix for jitter:
   - Store per-agent previous float positions BEFORE each fixed sim update
   - Render interpolated positions using alpha: lerp(prev, curr, alpha)
 
-This removes the "micro rewind / delayed snap" feeling when frames hitch
-and multiple fixed updates occur in one render frame.
+Extra robustness (NEW):
+  - Handles multiple sim substeps per render frame correctly (no "prev = curr" drift)
+  - Handles respawns/teleports (snap instead of lerp across map)
+  - Clamps alpha and supports missing buffers safely
+  - Optional: clamp dt in viewer layer (prevents large dt spikes from exploding motion)
 """
 
 from __future__ import annotations
@@ -27,11 +30,14 @@ Cell = Tuple[int, int]
 
 class ViewerGameField(GameField):
     def __init__(self, grid: List[List[int]]):
-        super().__init__(grid)
-
-        # render interpolation buffers (keyed by id(agent))
+        # Render buffers keyed by python id(agent)
         self._render_prev_fp: Dict[int, FloatPos] = {}
         self._render_curr_fp: Dict[int, FloatPos] = {}
+
+        # Track whether we've ever stepped at least once (to avoid bad lerps on first frame)
+        self._has_stepped_once: bool = False
+
+        super().__init__(grid)
 
     # ------------------------------------------------------------------
     # Dimensions: derive from actual grid
@@ -121,6 +127,9 @@ class ViewerGameField(GameField):
         return (0, 0)
 
     def _agent_float_pos_raw(self, agent: Any) -> FloatPos:
+        """
+        Best-effort float position. If float_pos is missing, fall back to cell.
+        """
         if agent is None:
             return (0.0, 0.0)
         fp = getattr(agent, "float_pos", None)
@@ -189,20 +198,54 @@ class ViewerGameField(GameField):
     # ------------------------------------------------------------------
     def update(self, delta_time: float) -> None:
         """
-        Override: snapshot prev positions BEFORE stepping sim.
+        Override: capture prev/curr for interpolation.
+
+        IMPORTANT nuance for fixed-step viewers:
+        When the viewer does multiple substeps per render frame, `update()` is called
+        multiple times before a single `draw(alpha)`.
+
+        To make interpolation correct:
+          - On each sim step, set prev = curr (last known), then step, then curr = new.
+          - That means after N substeps, prev/curr represent the *last* two sim states.
         """
-        # snapshot prev
-        for a in getattr(self, "blue_agents", []) + getattr(self, "red_agents", []):
+        # Optional defensive clamp to avoid giant dt spikes causing huge motion jumps
+        try:
+            dt = float(delta_time)
+        except Exception:
+            dt = 0.0
+        dt = max(0.0, min(dt, 0.05))  # tweak if you want (0.033 for stricter)
+
+        agents = list(getattr(self, "blue_agents", [])) + list(getattr(self, "red_agents", []))
+
+        # Ensure curr exists even before the first step
+        if not self._has_stepped_once:
+            for a in agents:
+                aid = id(a)
+                fp = self._agent_float_pos_raw(a)
+                self._render_prev_fp[aid] = fp
+                self._render_curr_fp[aid] = fp
+
+        # prev becomes last curr (so interpolation is between last two sim states)
+        for a in agents:
             aid = id(a)
-            self._render_prev_fp[aid] = self._render_curr_fp.get(aid, self._agent_float_pos_raw(a))
+            curr = self._render_curr_fp.get(aid, self._agent_float_pos_raw(a))
+            self._render_prev_fp[aid] = curr
 
         # step sim
-        super().update(delta_time)
+        super().update(dt)
+        self._has_stepped_once = True
 
-        # snapshot curr after sim
-        for a in getattr(self, "blue_agents", []) + getattr(self, "red_agents", []):
+        # snapshot curr after sim step
+        for a in agents:
             aid = id(a)
             self._render_curr_fp[aid] = self._agent_float_pos_raw(a)
+
+        # Clean up stale ids (agents respawned/recreated)
+        live_ids = {id(a) for a in agents}
+        for stale in list(self._render_curr_fp.keys()):
+            if stale not in live_ids:
+                self._render_curr_fp.pop(stale, None)
+                self._render_prev_fp.pop(stale, None)
 
     def _lerp(self, a: float, b: float, t: float) -> float:
         return a + (b - a) * t
@@ -210,17 +253,40 @@ class ViewerGameField(GameField):
     def _agent_float_pos_interp(self, agent: Any, alpha: float) -> FloatPos:
         if agent is None:
             return (0.0, 0.0)
+
         aid = id(agent)
 
-        c = self._render_curr_fp.get(aid, None)
-        if c is not None:
-            return c
+        curr = self._render_curr_fp.get(aid, None)
+        prev = self._render_prev_fp.get(aid, None)
 
-        return self._agent_float_pos_raw(agent)
+        if curr is None and prev is None:
+            return self._agent_float_pos_raw(agent)
+        if curr is None:
+            return prev
+        if prev is None:
+            return curr
+
+        # Clamp alpha defensively
+        t = max(0.0, min(1.0, float(alpha)))
+
+        # Teleport/respawn snap: don't lerp across the map
+        dx = curr[0] - prev[0]
+        dy = curr[1] - prev[1]
+        if (dx * dx + dy * dy) > (2.0 * 2.0):  # threshold in cells
+            self._render_prev_fp[aid] = curr
+            return curr
+
+        return (self._lerp(prev[0], curr[0], t), self._lerp(prev[1], curr[1], t))
 
     # ------------------------------------------------------------------
     # Rendering
     # ------------------------------------------------------------------
+    def reset_default(self) -> None:
+        super().reset_default()
+        self._render_prev_fp.clear()
+        self._render_curr_fp.clear()
+        self._has_stepped_once = False
+
     def draw(self, surface: pg.Surface, board_rect: pg.Rect, alpha: float = 1.0) -> None:
         rows = self._safe_row_count()
         cols = self._safe_col_count()
@@ -336,8 +402,13 @@ class ViewerGameField(GameField):
 
             dx = target_x - fx
             dy = target_y - fy
-            mag = max((dx * dx + dy * dy) ** 0.5, 1e-6)
-            ux, uy = dx / mag, dy / mag
+            mag = (dx * dx + dy * dy) ** 0.5
+
+            if mag < 1e-4:
+                ux, uy = (1.0, 0.0) if self._agent_side(agent) == "blue" else (-1.0, 0.0)
+            else:
+                ux, uy = (dx / mag, dy / mag)
+
             lx, ly = -uy, ux
 
             tip = (int(center_x + ux * tri_size), int(center_y + uy * tri_size))
