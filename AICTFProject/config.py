@@ -25,10 +25,17 @@ LOG_DIR: str = "logs"
 # -------------------------
 # PPO Curriculum (Elo-gated)
 # -------------------------
-PPO_PHASE_MIN_EPISODES = {"OP1": 50, "OP2": 100, "OP3": 0}
+PPO_PHASE_MIN_EPISODES = {"OP1": 100, "OP2": 100, "OP3": 0}
 PPO_PHASE_ELO_MARGIN: float = 75.0
+PPO_PHASE_REQUIRED_WIN_BY = {"OP1": 3, "OP2": 0, "OP3": 0}
 PPO_CURRICULUM_SPECIES_PROB: float = 0.20
 PPO_CURRICULUM_SNAPSHOT_PROB: float = 0.10
+PPO_CURRICULUM_WINRATE_WINDOW: int = 50
+PPO_CURRICULUM_MIN_WINRATE: float = 0.25
+PPO_CURRICULUM_FALLBACK_PROB: float = 0.50
+PPO_CURRICULUM_OP3_SPECIES_SCALE: float = 0.50
+PPO_CURRICULUM_OP3_SNAPSHOT_SCALE: float = 0.50
+PPO_SWITCH_TO_ELO_AFTER_OP3: bool = True
 
 # Factory that creates a fresh GameField instance.
 def make_env() -> GameField:
