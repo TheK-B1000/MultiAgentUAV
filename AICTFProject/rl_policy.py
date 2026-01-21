@@ -208,6 +208,25 @@ class ActorCriticNet(nn.Module):
         entropy = -(p_all * logp_all).sum(dim=-1)         # [B]
         return logp, entropy
 
+    @staticmethod
+    def _masked_logp_entropy(
+        logits: torch.Tensor,                      # [B,A]
+        actions: torch.Tensor,                     # [B]
+        mask_bool: Optional[torch.Tensor] = None,  # [B,A] bool
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Fast path (gather) on standard backends; DML-safe path otherwise.
+        """
+        if logits.device.type in ("privateuseone",):
+            return ActorCriticNet._masked_logp_entropy_no_scatter(logits, actions, mask_bool=mask_bool)
+
+        logits = ActorCriticNet._apply_mask_float_penalty(logits, mask_bool)
+        logp_all = F.log_softmax(logits, dim=-1)          # [B,A]
+        p_all = torch.exp(logp_all)                       # [B,A]
+        logp = logp_all.gather(dim=-1, index=actions.long().unsqueeze(-1)).squeeze(-1)  # [B]
+        entropy = -(p_all * logp_all).sum(dim=-1)         # [B]
+        return logp, entropy
+
     # -----------------------------
     # Forward: actor / critics
     # -----------------------------
@@ -219,6 +238,9 @@ class ActorCriticNet(nn.Module):
 
     def forward_local_critic(self, obs: torch.Tensor) -> torch.Tensor:
         latent = self._encode(obs)
+        return self.local_value_head(latent).squeeze(-1)
+
+    def _local_value_from_latent(self, latent: torch.Tensor) -> torch.Tensor:
         return self.local_value_head(latent).squeeze(-1)
 
     def forward_central_critic(self, central_obs: torch.Tensor) -> torch.Tensor:
@@ -342,8 +364,8 @@ class ActorCriticNet(nn.Module):
             macro_action = torch.multinomial(torch.softmax(macro_logits, dim=-1), 1).squeeze(1)
             target_action = torch.multinomial(torch.softmax(target_logits, dim=-1), 1).squeeze(1)
 
-        macro_logp, _ = self._masked_logp_entropy_no_scatter(macro_logits, macro_action, mask_bool=mask_batch)
-        targ_logp, _ = self._masked_logp_entropy_no_scatter(target_logits, target_action, mask_bool=None)
+        macro_logp, _ = self._masked_logp_entropy(macro_logits, macro_action, mask_bool=mask_batch)
+        targ_logp, _ = self._masked_logp_entropy(target_logits, target_action, mask_bool=None)
 
         needs_t = self._needs_target(macro_action)
         log_prob = macro_logp + needs_t * targ_logp
@@ -394,8 +416,8 @@ class ActorCriticNet(nn.Module):
             macro_action = torch.multinomial(torch.softmax(macro_logits, dim=-1), 1).squeeze(1)
             target_action = torch.multinomial(torch.softmax(target_logits, dim=-1), 1).squeeze(1)
 
-        macro_logp, _ = self._masked_logp_entropy_no_scatter(macro_logits, macro_action, mask_bool=mask_batch)
-        targ_logp, _ = self._masked_logp_entropy_no_scatter(target_logits, target_action, mask_bool=None)
+        macro_logp, _ = self._masked_logp_entropy(macro_logits, macro_action, mask_bool=mask_batch)
+        targ_logp, _ = self._masked_logp_entropy(target_logits, target_action, mask_bool=None)
 
         needs_t = self._needs_target(macro_action)
         log_prob = macro_logp + needs_t * targ_logp
@@ -445,11 +467,11 @@ class ActorCriticNet(nn.Module):
 
         mask_bool = self._coerce_mask_batch(macro_mask_batch, device=device)
 
-        values = self.forward_local_critic(obs_batch)            # [B]
-        macro_logits, target_logits, _ = self.forward_actor(obs_batch)
+        macro_logits, target_logits, latent = self.forward_actor(obs_batch)
+        values = self._local_value_from_latent(latent)            # [B]
 
-        macro_logp, macro_ent = self._masked_logp_entropy_no_scatter(macro_logits, macro_actions, mask_bool=mask_bool)
-        targ_logp, targ_ent = self._masked_logp_entropy_no_scatter(target_logits, target_actions, mask_bool=None)
+        macro_logp, macro_ent = self._masked_logp_entropy(macro_logits, macro_actions, mask_bool=mask_bool)
+        targ_logp, targ_ent = self._masked_logp_entropy(target_logits, target_actions, mask_bool=None)
 
         needs_t = self._needs_target(macro_actions)
         log_probs = macro_logp + needs_t * targ_logp
@@ -480,8 +502,8 @@ class ActorCriticNet(nn.Module):
         values = self.forward_central_critic(central_obs_batch).reshape(-1)  # [B]
         macro_logits, target_logits, _ = self.forward_actor(actor_obs_batch)
 
-        macro_logp, macro_ent = self._masked_logp_entropy_no_scatter(macro_logits, macro_actions, mask_bool=mask_bool)
-        targ_logp, targ_ent = self._masked_logp_entropy_no_scatter(target_logits, target_actions, mask_bool=None)
+        macro_logp, macro_ent = self._masked_logp_entropy(macro_logits, macro_actions, mask_bool=mask_bool)
+        targ_logp, targ_ent = self._masked_logp_entropy(target_logits, target_actions, mask_bool=None)
 
         needs_t = self._needs_target(macro_actions)
         log_probs = macro_logp + needs_t * targ_logp
