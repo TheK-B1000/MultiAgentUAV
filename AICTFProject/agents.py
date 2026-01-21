@@ -86,6 +86,7 @@ class Agent:
     _NEXT_INSTANCE_ID: ClassVar[int] = 0
 
     def __post_init__(self) -> None:
+        self.side = str(self.side).lower().strip()
         self.x, self.y = self._clamp_cell(self.x, self.y)
         self.spawn_xy = self._clamp_cell(*self.spawn_xy)
 
