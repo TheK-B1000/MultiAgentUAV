@@ -157,6 +157,14 @@ class GameField:
         self.respawn_seconds: float = 2.0
         self.decision_interval_seconds: float = 0.7
         self.decision_cooldown_seconds_by_agent: Dict[int, float] = {}
+        self.max_decisions_per_tick: int = 4
+
+        # Deterministic seeding (optional)
+        self.base_seed: Optional[int] = None
+        self._rng = random.Random()
+
+        # Agent lookup for fast attribution
+        self._agent_by_id: Dict[str, Agent] = {}
 
         # Optional UI hook (safe to ignore in training)
         self.banner_queue: List[Tuple[str, Tuple[int, int, int], float]] = []
@@ -616,6 +624,7 @@ class GameField:
         self.set_policy_wrapper("red", wrapper)
 
     def set_external_control(self, side: str, external: bool) -> None:
+        side = str(side).lower().strip()
         if side not in ("blue", "red"):
             raise ValueError(f"Unknown side: {side}")
         self.external_control_for_side[side] = bool(external)
@@ -647,7 +656,11 @@ class GameField:
     # -------- reset / spawn --------
 
     def reset_default(self) -> None:
-        self.episode_seed = random.randint(0, 2**31 - 1)
+        if self.base_seed is not None:
+            self._rng.seed(int(self.base_seed))
+            self.episode_seed = self._rng.randint(0, 2**31 - 1)
+        else:
+            self.episode_seed = random.randint(0, 2**31 - 1)
 
         self._init_zones()
         self.manager.reset_game()
@@ -667,6 +680,11 @@ class GameField:
         self.manager.reset_game(reset_scores=True)
         self.reset_default()
 
+    def set_seed(self, seed: Optional[int]) -> None:
+        self.base_seed = int(seed) if seed is not None else None
+        if self.base_seed is not None:
+            self._rng.seed(self.base_seed)
+
     def _ensure_agent_ids(self, a: Agent) -> None:
         side = str(getattr(a, "side", "blue"))
         aid = int(getattr(a, "agent_id", 0))
@@ -674,6 +692,7 @@ class GameField:
             a.unique_id = f"{side}_{aid}"
         if getattr(a, "slot_id", None) is None:
             a.slot_id = a.unique_id
+        self._agent_by_id[str(a.unique_id)] = a
 
     def spawn_agents(self) -> None:
         base = int(self.episode_seed or 0)
@@ -681,6 +700,7 @@ class GameField:
 
         self.blue_agents.clear()
         self.red_agents.clear()
+        self._agent_by_id.clear()
 
         blue_min_col, blue_max_col = self.blue_zone_col_range
         red_min_col, red_max_col = self.red_zone_col_range
@@ -833,7 +853,8 @@ class GameField:
 
                 side_external = self.external_control_for_side.get(agent.side, False)
 
-                while cooldown <= 0.0:
+                decisions_done = 0
+                while cooldown <= 0.0 and decisions_done < int(self.max_decisions_per_tick):
                     made_decision = False
 
                     if side_external:
@@ -858,6 +879,7 @@ class GameField:
 
                     if made_decision:
                         cooldown += float(self.decision_interval_seconds)
+                        decisions_done += 1
                     else:
                         break
 
@@ -899,16 +921,13 @@ class GameField:
         gm = getattr(self, "manager", None)
         mirror_x = (side == "red")
 
-        channels = [
-            [[0.0 for _ in range(CNN_COLS)] for _ in range(CNN_ROWS)]
-            for _ in range(NUM_CNN_CHANNELS)
-        ]
+        channels = np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
         def set_chan(c: int, col: int, row: int, v: float) -> None:
             if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
                 # Use max to handle multiple entities overlapping
-                if v > channels[c][row][col]:
-                    channels[c][row][col] = float(v)
+                if v > channels[c, row, col]:
+                    channels[c, row, col] = float(v)
 
         def _safe_xy(pos, fallback=(0.0, 0.0)) -> Tuple[float, float]:
             if isinstance(pos, (tuple, list)) and len(pos) >= 2:
@@ -1048,7 +1067,7 @@ class GameField:
         splat_float(5, float(own_flag_pos[0]), float(own_flag_pos[1]), 1.0)
         splat_float(6, float(enemy_flag_pos[0]), float(enemy_flag_pos[1]), 1.0)
 
-        return channels
+        return channels.tolist()
 
     # -------- macro actions --------
 
@@ -1415,10 +1434,7 @@ class GameField:
                 killer_agent = None
 
                 if mine.owner_id is not None:
-                    for a in (self.blue_agents + self.red_agents):
-                        if getattr(a, "unique_id", None) == mine.owner_id:
-                            killer_agent = a
-                            break
+                    killer_agent = self._agent_by_id.get(str(mine.owner_id))
 
                 if killer_agent is not None and getattr(killer_agent, "side", None) == "blue":
                     if hasattr(self.manager, "reward_enemy_killed"):
