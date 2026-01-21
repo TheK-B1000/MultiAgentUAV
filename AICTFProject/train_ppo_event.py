@@ -100,6 +100,11 @@ RED_SCORED_PENALTY = -20.0
 NO_SCORE_PENALTY_PER_WINDOW = 0.03
 NO_SCORE_GRACE_WINDOWS = 4
 
+# Encourage mine usage (shaping bonuses)
+GRAB_MINE_BONUS = 0.5
+PLACE_MINE_BONUS = 0.5
+MINE_BONUS_SCALE_BY_PHASE = {"OP1": 0.5, "OP2": 1.0, "OP3": 2.0}
+
 # Map selection
 MAP_NAME = DEFAULT_MAP_NAME
 MAP_PATH = DEFAULT_MAP_PATH
@@ -125,6 +130,9 @@ N_MACROS = len(USED_MACROS)
 CHECKPOINT_DIR = "checkpoints_sb3"
 POOL_DIR = os.path.join(CHECKPOINT_DIR, "self_play_pool")
 os.makedirs(POOL_DIR, exist_ok=True)
+
+# Opponent policy cache (avoid repeated loads)
+SNAPSHOT_POLICY_CACHE_MAX = 8
 
 # -------------------------
 # TRAIN MODE (choose before running)
@@ -486,10 +494,11 @@ def decode_joint(action: int, n_targets: int) -> Tuple[Tuple[int, int], Tuple[in
 class CTFPPOEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, league: LeagueManager, seed: int = 42) -> None:
+    def __init__(self, league: LeagueManager, seed: int = 42, external_opponent_selection: bool = False) -> None:
         super().__init__()
         self.league = league
         self.rng = random.Random(int(seed))
+        self.external_opponent_selection = bool(external_opponent_selection)
 
         self.env = make_game_field(
             map_name=MAP_NAME or None,
@@ -535,6 +544,8 @@ class CTFPPOEnv(gym.Env):
         self.opponent: OpponentSpec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=1200.0)
         self.opponent_key_for_elo: str = "SCRIPTED:OP3"
         self.opp_model: Optional[PPO] = None
+        self._snapshot_policy_cache: Dict[str, PPO] = {}
+        self._pending_opponent_spec: Optional[Dict[str, Any]] = None
 
         self.last_result: Optional[Dict[str, Any]] = None
         self.current_pick_source: str = "scripted"
@@ -552,6 +563,7 @@ class CTFPPOEnv(gym.Env):
         self._stall_penalty_sum = 0.0
         self._time_penalty_sum = 0.0
         self._terminal_bonus = 0.0
+        self._mine_action_bonus_sum = 0.0
         self._macro_counts[:] = 0
         self._macro_total = 0
 
@@ -731,8 +743,14 @@ class CTFPPOEnv(gym.Env):
 
         if opp.kind == "SNAPSHOT":
             self.env.set_external_control("red", True)
-            self.opp_model = PPO.load(opp.key, device="cpu")
-            self.opp_model.policy.set_training_mode(False)
+            cached = self._snapshot_policy_cache.get(opp.key)
+            if cached is None:
+                cached = PPO.load(opp.key, device="cpu")
+                cached.policy.set_training_mode(False)
+                self._snapshot_policy_cache[opp.key] = cached
+                if len(self._snapshot_policy_cache) > int(SNAPSHOT_POLICY_CACHE_MAX):
+                    self._snapshot_policy_cache.pop(next(iter(self._snapshot_policy_cache)))
+            self.opp_model = cached
 
         elif opp.kind == "SPECIES":
             self.env.set_external_control("red", False)
@@ -748,6 +766,9 @@ class CTFPPOEnv(gym.Env):
                 self.env.policies["red"] = OP2RedPolicy("red")
             else:
                 self.env.policies["red"] = OP3RedPolicy("red")
+
+    def _mine_bonus_scale(self) -> float:
+        return float(MINE_BONUS_SCALE_BY_PHASE.get(self.current_pick_phase, 1.0))
 
     def _build_red_external_actions_from_snapshot(self) -> Dict[str, Tuple[int, int]]:
         assert self.opp_model is not None
@@ -770,6 +791,28 @@ class CTFPPOEnv(gym.Env):
         if red_agents[1] is not None:
             actions[agent_uid(red_agents[1])] = (r1_macro, r1_tgt)
         return actions
+
+    def set_opponent_spec(self, spec: Dict[str, Any]) -> None:
+        self._pending_opponent_spec = dict(spec)
+        if self.step_count == 0:
+            self._apply_pending_opponent()
+
+    def _apply_pending_opponent(self) -> None:
+        if not self._pending_opponent_spec:
+            return
+        spec = dict(self._pending_opponent_spec)
+        self._pending_opponent_spec = None
+        try:
+            opp = OpponentSpec(
+                kind=str(spec.get("kind", "SCRIPTED")),
+                key=str(spec.get("key", "OP1")),
+                rating=float(spec.get("rating", 1200.0)),
+            )
+        except Exception:
+            opp = OpponentSpec(kind="SCRIPTED", key="OP1", rating=1200.0)
+        self.current_pick_source = str(spec.get("pick_source", "scripted"))
+        self.current_pick_phase = str(spec.get("pick_phase", self.current_pick_phase))
+        self._set_opponent(opp)
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:
@@ -806,18 +849,26 @@ class CTFPPOEnv(gym.Env):
         self._stall_penalty_sum = 0.0
         self._time_penalty_sum = 0.0
         self._terminal_bonus = 0.0
+        self._mine_action_bonus_sum = 0.0
 
         # refresh action space if targets changed
         self._rebuild_action_space()
         self._build_macro_index_maps()
 
-        opp = self.league.sample_opponent()
-        self._set_opponent(opp)
+        if self.external_opponent_selection:
+            self._apply_pending_opponent()
+        else:
+            opp = self.league.sample_opponent()
+            self._set_opponent(opp)
 
         self._init_episode_routing()
 
         obs = self._get_obs()
-        info = {"opponent_kind": opp.kind, "opponent_key": opp.key, "opponent_rating": opp.rating}
+        info = {
+            "opponent_kind": self.opponent.kind,
+            "opponent_key": self.opponent.key,
+            "opponent_rating": self.opponent.rating,
+        }
         return obs, info
 
     def step(self, action):
@@ -858,6 +909,18 @@ class CTFPPOEnv(gym.Env):
             self.behavior_logger.log_decision(agent, int(macro_idx))
             self._macro_counts[int(macro_idx)] += 1
             self._macro_total += 1
+            try:
+                macro_action = USED_MACROS[int(macro_idx)]
+            except Exception:
+                macro_action = None
+            if macro_action == MacroAction.GRAB_MINE:
+                bonus = float(GRAB_MINE_BONUS) * self._mine_bonus_scale()
+                self.pending_reward[agent_uid(agent)] += bonus
+                self._mine_action_bonus_sum += bonus
+            elif macro_action == MacroAction.PLACE_MINE:
+                bonus = float(PLACE_MINE_BONUS) * self._mine_bonus_scale()
+                self.pending_reward[agent_uid(agent)] += bonus
+                self._mine_action_bonus_sum += bonus
 
         if self.opponent.kind == "SNAPSHOT":
             submit.update(self._build_red_external_actions_from_snapshot())
@@ -904,6 +967,7 @@ class CTFPPOEnv(gym.Env):
                 "stall_penalty_sum": float(self._stall_penalty_sum),
                 "time_penalty_sum": float(self._time_penalty_sum),
                 "terminal_bonus": float(self._terminal_bonus),
+                "mine_action_bonus_sum": float(self._mine_action_bonus_sum),
                 "macro_choice_avg": (
                     (self._macro_counts / float(self._macro_total)).tolist()
                     if self._macro_total > 0
@@ -1011,6 +1075,16 @@ class LeagueSelfPlayCallback(BaseCallback):
         self._macro_avg_accum = np.zeros((N_MACROS,), dtype=np.float64)
         self._macro_avg_count = 0
         self._checkpoint_disabled = False
+
+    def _make_opponent_spec_dict(self) -> Dict[str, Any]:
+        opp = self.league.sample_opponent()
+        return {
+            "kind": opp.kind,
+            "key": opp.key,
+            "rating": opp.rating,
+            "pick_source": getattr(self.league, "last_pick_source", "scripted"),
+            "pick_phase": getattr(self.league, "last_pick_phase", "OP1"),
+        }
 
     def _log_eval(self, eval_env: DummyVecEnv) -> None:
         wins = 0
@@ -1127,6 +1201,14 @@ class LeagueSelfPlayCallback(BaseCallback):
                     if self.verbose and snap:
                         print(f"[SNAPSHOT|{self.league.mode}] saved={os.path.basename(snap)} pool={len(self.league.snapshots)}")
 
+            # Set opponent for next episode (works with SubprocVecEnv via env_method)
+            try:
+                spec = self._make_opponent_spec_dict()
+                if self.training_env is not None:
+                    self.training_env.env_method("set_opponent_spec", spec, indices=i)
+            except Exception:
+                pass
+
         if (
             not self._checkpoint_disabled
             and SAVE_EVERY_STEPS > 0
@@ -1198,7 +1280,7 @@ class InvalidPenaltyScheduleCallback(BaseCallback):
 # -------------------------
 def make_env_fn(league: LeagueManager):
     def _fn():
-        return CTFPPOEnv(league=league, seed=SEED)
+        return CTFPPOEnv(league=league, seed=SEED, external_opponent_selection=True)
     return _fn
 
 
@@ -1230,8 +1312,7 @@ def train_phase1_sb3():
         seed=SEED,
     )
 
-    force_dummy = TRAIN_MODE in (TRAIN_MODE_DEFAULT_LEAGUE, TRAIN_MODE_ELO_LEAGUE)
-    n_envs = 1 if force_dummy else max(1, int(PPO_N_ENVS))
+    n_envs = max(1, int(PPO_N_ENVS))
     n_steps = max(128, int(PPO_N_STEPS))
     rollout_batch = n_envs * n_steps
     batch_size = max(32, int(PPO_BATCH_SIZE))
@@ -1243,16 +1324,29 @@ def train_phase1_sb3():
         print(f"[PPO] adjusted batch_size={batch_size} to divide rollout_batch={rollout_batch}")
 
     env_fns = [make_env_fn(league) for _ in range(n_envs)]
-    if force_dummy:
-        print("[PPO] League mode uses DummyVecEnv to keep curriculum state consistent.")
+    try:
+        venv = SubprocVecEnv(env_fns)
+    except Exception:
+        print("[PPO] SubprocVecEnv failed, falling back to DummyVecEnv.")
         venv = DummyVecEnv(env_fns)
-    else:
-        try:
-            venv = SubprocVecEnv(env_fns)
-        except Exception:
-            print("[PPO] SubprocVecEnv failed, falling back to DummyVecEnv.")
-            venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)  # ✅ no double-Monitor warning
+
+    # Pre-seed initial opponents for each env
+    initial_specs = [
+        {
+            "kind": opp.kind,
+            "key": opp.key,
+            "rating": opp.rating,
+            "pick_source": getattr(league, "last_pick_source", "scripted"),
+            "pick_phase": getattr(league, "last_pick_phase", "OP1"),
+        }
+        for opp in [league.sample_opponent() for _ in range(n_envs)]
+    ]
+    for idx, spec in enumerate(initial_specs):
+        try:
+            venv.env_method("set_opponent_spec", spec, indices=idx)
+        except Exception:
+            pass
 
     policy_kwargs = dict(
         features_extractor_class=CTFCombinedExtractor,
