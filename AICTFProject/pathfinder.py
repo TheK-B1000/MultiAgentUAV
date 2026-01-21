@@ -79,6 +79,16 @@ class Pathfinder:
     def clearDangerCosts(self) -> None:
         self.danger_cost = {}
 
+    # Snake_case aliases for standard style (keep legacy names)
+    def set_dynamic_obstacles(self, blocked_cells: List[Coord]) -> None:
+        self.setDynamicObstacles(blocked_cells)
+
+    def set_danger_costs(self, danger_cost: Dict[Coord, float]) -> None:
+        self.setDangerCosts(danger_cost)
+
+    def clear_danger_costs(self) -> None:
+        self.clearDangerCosts()
+
     def inBounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.cols and 0 <= y < self.rows
 
