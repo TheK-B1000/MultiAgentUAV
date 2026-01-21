@@ -1230,7 +1230,8 @@ def train_phase1_sb3():
         seed=SEED,
     )
 
-    n_envs = max(1, int(PPO_N_ENVS))
+    force_dummy = TRAIN_MODE in (TRAIN_MODE_DEFAULT_LEAGUE, TRAIN_MODE_ELO_LEAGUE)
+    n_envs = 1 if force_dummy else max(1, int(PPO_N_ENVS))
     n_steps = max(128, int(PPO_N_STEPS))
     rollout_batch = n_envs * n_steps
     batch_size = max(32, int(PPO_BATCH_SIZE))
@@ -1242,11 +1243,15 @@ def train_phase1_sb3():
         print(f"[PPO] adjusted batch_size={batch_size} to divide rollout_batch={rollout_batch}")
 
     env_fns = [make_env_fn(league) for _ in range(n_envs)]
-    try:
-        venv = SubprocVecEnv(env_fns)
-    except Exception:
-        print("[PPO] SubprocVecEnv failed, falling back to DummyVecEnv.")
+    if force_dummy:
+        print("[PPO] League mode uses DummyVecEnv to keep curriculum state consistent.")
         venv = DummyVecEnv(env_fns)
+    else:
+        try:
+            venv = SubprocVecEnv(env_fns)
+        except Exception:
+            print("[PPO] SubprocVecEnv failed, falling back to DummyVecEnv.")
+            venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)  # ✅ no double-Monitor warning
 
     policy_kwargs = dict(
