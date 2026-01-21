@@ -36,10 +36,10 @@ COORDINATION_BONUS = 0.3
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
-    "OP1": 0.0,
-    "OP2": 0.0,
-    "OP3": 0.0,
-    "SELF": 0.0,
+    "OP1": -0.5,
+    "OP2": -1.0,
+    "OP3": -1.5,
+    "SELF": -1.5,
 }
 
 Cell = Tuple[int, int]
