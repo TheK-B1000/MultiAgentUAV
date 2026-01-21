@@ -5,6 +5,7 @@ MAPPO / CTDE training with self-play opponent pool (PFSP) and curriculum logging
 import os
 import random
 import copy
+import math
 from collections import deque
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Any, Deque, Optional, Set
@@ -39,7 +40,15 @@ from rl_policy import ActorCriticNet
 from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy
 from map_registry import make_game_field
 from behavior_logging import BehaviorLogger, append_records_csv
-from config import MAP_NAME as DEFAULT_MAP_NAME, MAP_PATH as DEFAULT_MAP_PATH, LOG_DIR as DEFAULT_LOG_DIR
+from config import (
+    MAP_NAME as DEFAULT_MAP_NAME,
+    MAP_PATH as DEFAULT_MAP_PATH,
+    LOG_DIR as DEFAULT_LOG_DIR,
+    PPO_PHASE_MIN_EPISODES,
+    PPO_PHASE_ELO_MARGIN,
+    PPO_PHASE_REQUIRED_WIN_BY,
+    PPO_SWITCH_TO_ELO_AFTER_OP3,
+)
 
 # CONFIG
 def set_seed(seed: int = 42) -> None:
@@ -53,6 +62,10 @@ def set_seed(seed: int = 42) -> None:
         torch.backends.cudnn.benchmark = False
     except Exception:
         pass
+
+
+def elo_expected(r_a: float, r_b: float) -> float:
+    return 1.0 / (1.0 + 10.0 ** (-(r_a - r_b) / 400.0))
 
 
 GRID_ROWS = CNN_ROWS
@@ -81,6 +94,11 @@ SIM_DT = 0.1
 CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
+# Elo (match PPO league style)
+ELO_K_FACTOR = 32.0
+ELO_MATCH_TAU = 250.0
+LEAGUE_SCRIPTED_MIX_FLOOR = 0.10
+
 PHASE_SEQUENCE = ["OP1", "OP2", "OP3"]
 MIN_PHASE_EPISODES = {"OP1": 500, "OP2": 1000, "OP3": 2000}
 TARGET_PHASE_WINRATE = {"OP1": 0.90, "OP2": 0.86, "OP3": 0.80}
@@ -108,21 +126,27 @@ ENT_SCHEDULE = {
 }
 
 TIME_PENALTY_BY_PHASE = {"OP1": 0.0010, "OP2": 0.0004, "OP3": 0.0004}
-SCORE_DELTA_REWARD_BY_PHASE = {"OP1": 12.0, "OP2": 18.0, "OP3": 22.0}
+SCORE_DELTA_REWARD_BY_PHASE = {"OP1": 25.0, "OP2": 18.0, "OP3": 22.0}
 
 TERMINAL_WIN_BONUS_BY_PHASE = {"OP1": 25.0, "OP2": 25.0, "OP3": 25.0}
 TERMINAL_LOSS_PENALTY_BY_PHASE = {"OP1": -25.0, "OP2": -25.0, "OP3": -25.0}
-TERMINAL_DRAW_PENALTY_BY_PHASE = {"OP1": -5.0, "OP2": -14.0, "OP3": -10.0}
+TERMINAL_DRAW_PENALTY_BY_PHASE = {"OP1": -12.0, "OP2": -14.0, "OP3": -10.0}
 
 NO_SCORE_PENALTY_PER_WINDOW_BY_PHASE = {
-    "OP1": 0.0,
+    "OP1": 0.030,
     "OP2": 0.015,
     "OP3": 0.010,
 }
 NO_SCORE_GRACE_WINDOWS_BY_PHASE = {
-    "OP1": 999999,
+    "OP1": 6,
     "OP2": 12,
     "OP3": 16,
+}
+
+GET_FLAG_BONUS_BY_PHASE = {
+    "OP1": 1.0,
+    "OP2": 0.0,
+    "OP3": 0.0,
 }
 
 
@@ -159,6 +183,10 @@ def get_no_score_penalty(cur_phase: str, windows_since_score: int) -> float:
     return float(per * ramp)
 
 
+def get_get_flag_bonus(cur_phase: str) -> float:
+    return float(GET_FLAG_BONUS_BY_PHASE.get(cur_phase, 0.0))
+
+
 # SELF-PLAY CONFIG (Modern-ish MARL defaults)
 ENABLE_SELFPLAY = True
 
@@ -193,6 +221,11 @@ def make_env() -> GameField:
         rows=GRID_ROWS,
         cols=GRID_COLS,
     )
+    if hasattr(env, "set_seed"):
+        try:
+            env.set_seed(42)
+        except Exception:
+            pass
     env.use_internal_policies = True
 
     # We drive BOTH sides via external actions, so env won't internally decide.
@@ -884,6 +917,7 @@ class OpponentEntry:
     scripted_tag: Optional[str] = None           # "OP1"/"OP2"/"OP3"
     results: Deque[int] = None                   # 1=blue win, 0=otherwise
     created_update: int = 0
+    rating: float = 1200.0
 
     def __post_init__(self):
         if self.results is None:
@@ -901,13 +935,15 @@ class OpponentPool:
         self.entries: Dict[str, OpponentEntry] = {}
         self.neural_ids: List[str] = []
         self.latest_neural_id: Optional[str] = None
+        self.learner_rating: float = 1200.0
+        self.tau = float(ELO_MATCH_TAU)
 
     def add_scripted_defaults(self):
         # keep stable scripted ids
         for tag in ("OP1", "OP2", "OP3"):
             oid = f"scripted:{tag}"
             if oid not in self.entries:
-                self.entries[oid] = OpponentEntry(oid=oid, kind="scripted", scripted_tag=tag)
+                self.entries[oid] = OpponentEntry(oid=oid, kind="scripted", scripted_tag=tag, rating=1200.0)
 
     def add_snapshot(self, state_dict: Dict[str, Any], update_idx: int, suffix: str = "") -> str:
         oid = f"neural:u{update_idx}{suffix}"
@@ -916,6 +952,7 @@ class OpponentPool:
             kind="neural",
             state_dict=copy.deepcopy(state_dict),
             created_update=int(update_idx),
+            rating=float(self.learner_rating),
         )
         self.neural_ids.append(oid)
         self.latest_neural_id = oid
@@ -948,6 +985,48 @@ class OpponentPool:
         if ent is None:
             return
         ent.results.append(1 if blue_win else 0)
+
+    def get_rating(self, opponent_id: str) -> float:
+        ent = self.entries.get(opponent_id)
+        return float(ent.rating) if ent is not None else 1200.0
+
+    def update_elo(self, opponent_id: str, actual: float) -> None:
+        ent = self.entries.get(opponent_id)
+        if ent is None:
+            return
+        lr = float(self.learner_rating)
+        opp_r = float(ent.rating)
+        exp = elo_expected(lr, opp_r)
+        learner_new = lr + float(ELO_K_FACTOR) * (float(actual) - exp)
+        opp_new = opp_r + float(ELO_K_FACTOR) * ((1.0 - float(actual)) - (1.0 - exp))
+        self.learner_rating = float(learner_new)
+        ent.rating = float(opp_new)
+
+    def sample_by_elo(self) -> OpponentEntry:
+        if not self.neural_ids:
+            return self.entries["scripted:OP3"]
+        lr = float(self.learner_rating)
+        weights = []
+        for oid in self.neural_ids:
+            r = float(self.entries[oid].rating)
+            dist = abs(r - lr)
+            w =   math.exp(-dist / max(1e-6, self.tau)) + 1e-3
+            weights.append(w)
+        total = sum(weights)
+        if total <= 0:
+            return self.entries[self.neural_ids[-1]]
+        pick = random.random() * total
+        acc = 0.0
+        for oid, w in zip(self.neural_ids, weights):
+            acc += w
+            if acc >= pick:
+                return self.entries[oid]
+        return self.entries[self.neural_ids[-1]]
+
+    def sample_league(self, scripted_mix_floor: float = LEAGUE_SCRIPTED_MIX_FLOOR) -> OpponentEntry:
+        if random.random() < float(scripted_mix_floor):
+            return self.entries["scripted:OP3"]
+        return self.sample_by_elo()
 
     def can_use_neural(self, updates_done: int) -> bool:
         return (updates_done >= WARMUP_UPDATES) and (len(self.neural_ids) > 0)
@@ -1045,8 +1124,8 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
     behavior_csv_path = os.path.join(DEFAULT_LOG_DIR, "behavior_mappo.csv")
     last_written_idx = 0
 
-    # Adversarial curriculum scheduler
-    red_curriculum = RedCurriculumScheduler()
+    # Curriculum/league mode (PPO-style)
+    league_mode = False
 
     global_step = 0
     episode_idx = 0
@@ -1088,18 +1167,13 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             except Exception:
                 pass
 
-        # --- pick opponent (with hold + curriculum) ---
-        cur_mode = red_curriculum.update_mode(episode_idx)
+        # --- pick opponent (PPO-style curriculum then Elo league) ---
+        cur_mode = "league_elo" if league_mode else "curriculum_scripted"
         if (not ENABLE_SELFPLAY) or hold_left <= 0 or held_opp is None:
-            if cur_mode == "scripted":
+            if not league_mode:
                 held_opp = pool.entries[f"scripted:{cur_phase}"]
-            elif cur_mode == "latest":
-                if pool.latest_neural_id is not None:
-                    held_opp = pool.entries[pool.latest_neural_id]
-                else:
-                    held_opp = pool.sample_opponent(cur_phase, updates_done)
             else:
-                held_opp = pool.sample_opponent(cur_phase, updates_done)
+                held_opp = pool.sample_league()
             hold_left = int(OPPONENT_HOLD_EPISODES)
         hold_left -= 1
 
@@ -1193,6 +1267,10 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                     traj_id_counter += 1
 
                 uid = agent_uid(agent)
+                if macro_enum == MacroAction.GET_FLAG:
+                    bonus = get_get_flag_bonus(cur_phase)
+                    if bonus > 0.0 and uid in pending_reward:
+                        pending_reward[uid] = pending_reward.get(uid, 0.0) + float(bonus)
                 decisions.append((agent, uid, actor_obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, mm_np))
 
                 for k in external_keys_for_agent(env, agent):
@@ -1322,7 +1400,8 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 ent = get_entropy_coef(cur_phase, phase_episode_count)
 
                 updates_done += 1
-                print(f"[MAPPO UPDATE] step={global_step} episode={episode_idx} phase={cur_phase} ENT={ent:.4f} Opp={opponent_tag} updates={updates_done}")
+                phase_display = "ELO" if league_mode else cur_phase
+                print(f"[MAPPO UPDATE] step={global_step} episode={episode_idx} phase={phase_display} ENT={ent:.4f} Opp={opponent_tag} updates={updates_done}")
 
                 mappo_update(policy_train, optimizer, buffer, train_device, ent)
                 policy_act.load_state_dict(policy_train.state_dict())
@@ -1364,9 +1443,11 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
             phase_recent.append(0)
             blue_win_bool = False
 
-        # record result to PFSP stats
+        # record result to PFSP stats + Elo
         if ENABLE_SELFPLAY and held_opp is not None:
             pool.record_result(held_opp.oid, blue_win_bool)
+            actual_score = 1.0 if blue_win_bool else (0.5 if result == "DRAW" else 0.0)
+            pool.update_elo(held_opp.oid, actual_score)
 
         if len(phase_recent) > PHASE_WINRATE_WINDOW:
             phase_recent = phase_recent[-PHASE_WINRATE_WINDOW:]
@@ -1395,31 +1476,55 @@ def train_mappo_event(total_steps: int = TOTAL_STEPS) -> None:
                 records.extend(ep.to_flat_records())
             append_records_csv(behavior_csv_path, records)
             last_written_idx = len(behavior_logger.episodes)
+        phase_display = "ELO" if league_mode else cur_phase
+        pick_phase = "OP3" if league_mode else cur_phase
+        pick_source = "scripted" if (held_opp is not None and held_opp.kind == "scripted") else "snapshot"
+        elo_str = ""
+        if league_mode:
+            elo_str = f" | Elo L={pool.learner_rating:.1f} O={pool.get_rating(opponent_tag):.1f}"
         print(
             f"[{episode_idx:5d}] {result:8} | "
             f"StepR {avg_step_r:+.3f} TermR {ep_terminal_only:+.1f} | "
             f"Score {gm.blue_score}:{gm.red_score} | "
             f"BlueWins: {blue_wins} RedWins: {red_wins} Draws: {draws} | "
-            f"PhaseWin {phase_wr*100:.1f}% | Phase={cur_phase} Opp={opponent_tag} Curric={cur_mode}"
+            f"PhaseWin {phase_wr*100:.1f}% | Phase={phase_display} Opp={opponent_tag} "
+            f"pick={pick_source} pick_phase={pick_phase} Curric={cur_mode}{elo_str}"
         )
 
         if (episode_idx % MACRO_STATS_PRINT_EVERY == 0) or (MACRO_STATS_PRINT_ON_WIN and result == "BLUE WIN"):
-            print("[MACROS] " + f"episode={episode_idx} phase={cur_phase} result={result}")
+            print("[MACROS] " + f"episode={episode_idx} phase={phase_display} result={result}")
             for line in macro_tracker.summary_lines():
                 print(" " + line)
 
-        # Curriculum advance
-        if cur_phase != PHASE_SEQUENCE[-1]:
-            min_eps = MIN_PHASE_EPISODES[cur_phase]
-            target_wr = TARGET_PHASE_WINRATE[cur_phase]
-            if phase_episode_count >= min_eps and len(phase_recent) >= PHASE_WINRATE_WINDOW and phase_wr >= target_wr:
+        # Curriculum advance (PPO-style Elo gate + win-by score gate)
+        if (not league_mode) and cur_phase != PHASE_SEQUENCE[-1]:
+            min_eps = int(PPO_PHASE_MIN_EPISODES.get(cur_phase, 0))
+            target_key = f"scripted:{cur_phase}"
+            opp_r = float(pool.get_rating(target_key))
+            required_win_by = int(PPO_PHASE_REQUIRED_WIN_BY.get(cur_phase, 0))
+            meets_score_gate = True
+            if required_win_by > 0:
+                meets_score_gate = False
+                if (
+                    held_opp is not None
+                    and held_opp.oid == target_key
+                    and blue_win_bool
+                    and (int(gm.blue_score) - int(gm.red_score)) >= required_win_by
+                ):
+                    meets_score_gate = True
+            if (
+                phase_episode_count >= min_eps
+                and pool.learner_rating >= (opp_r + float(PPO_PHASE_ELO_MARGIN))
+                and meets_score_gate
+            ):
                 print(f"[CURRICULUM] Advancing from {cur_phase} -> next phase (MAPPO).")
                 phase_idx += 1
                 phase_episode_count = 0
                 phase_recent.clear()
-                # reset opponent hold on phase jump
                 hold_left = 0
                 held_opp = None
+                if PPO_SWITCH_TO_ELO_AFTER_OP3 and phase_idx == (len(PHASE_SEQUENCE) - 1):
+                    league_mode = True
 
         # Periodic checkpoint
         if episode_idx % 50 == 0:
