@@ -214,7 +214,30 @@ def append_records_csv(path: str, records: List[Dict[str, Any]]) -> None:
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     exists = os.path.exists(path)
-    fieldnames = sorted(records[0].keys())
+    new_keys = set()
+    for r in records:
+        new_keys.update(r.keys())
+    new_fieldnames = sorted(new_keys)
+
+    if exists:
+        with open(path, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            existing_fieldnames = reader.fieldnames or []
+            existing_rows = list(reader)
+
+        merged_fieldnames = sorted(set(existing_fieldnames) | set(new_fieldnames))
+        if merged_fieldnames != existing_fieldnames:
+            # Rewrite file with expanded header to handle new fields safely.
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=merged_fieldnames)
+                writer.writeheader()
+                for row in existing_rows:
+                    writer.writerow({k: row.get(k, "") for k in merged_fieldnames})
+                for row in records:
+                    writer.writerow({k: row.get(k, "") for k in merged_fieldnames})
+            return
+
+    fieldnames = new_fieldnames
     with open(path, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not exists:
