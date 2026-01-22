@@ -42,7 +42,7 @@ class PPOConfig:
     eval_episodes: int = 6
     snapshot_every_episodes: int = 50
 
-    max_decision_steps: int = 400
+    max_decision_steps: int = 600
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
@@ -135,7 +135,7 @@ class LeagueCallback(BaseCallback):
 
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
-            self.curriculum.record_result(phase, win)
+            self.curriculum.record_result(phase, actual)
 
             is_scripted = opp_key.startswith("SCRIPTED:")
             if is_scripted:
@@ -160,7 +160,7 @@ class LeagueCallback(BaseCallback):
                 base = (
                     f"[PPO|{mode}] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} phase={phase} opp={opp_key} "
-                    f"W/L/D={self.win_count}/{self.loss_count}/{self.draw_count}"
+                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
                 if self.league_mode:
                     base = f"{base} elo={self.league.learner_rating:.1f}"
