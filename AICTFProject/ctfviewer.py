@@ -1,17 +1,3 @@
-# ==========================================================
-# ctf_viewer.py
-#   - PPO-only viewer (NO MAPPO references)
-#   - Works with SB3 Phase-1 League/Elo training outputs (.zip)
-#   - Almost identical UX to your old viewer:
-#       F1 reset | F2 set agents | F3 cycle Blue (OP3/PPO)
-#       F4/F5 debug toggles | ESC quit
-#   - Blue modes:
-#       OP3 baseline (scripted)
-#       PPO (SB3 PPO .zip model)  <-- supports final + snapshots
-#   - Red:
-#       OP3 scripted (internal)
-# ==========================================================
-
 import os
 import sys
 from typing import Optional, Tuple, Any, List, Dict
