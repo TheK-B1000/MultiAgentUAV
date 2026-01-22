@@ -1,12 +1,10 @@
 # red_opponents.py
 from __future__ import annotations
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable
 import os
 import numpy as np
 
 from policies import OP3RedPolicy  # you already have this
-# If you want SB3 snapshot opponents:
-from stable_baselines3 import PPO
 
 
 def make_species_wrapper(species_tag: str) -> Callable[..., Any]:
@@ -56,12 +54,17 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
     with action space MultiDiscrete([n_macros, n_targets]).
     """
     path = str(snapshot_path)
-    if not os.path.exists(path):
-        raise FileNotFoundError(path)
-
-    # SB3 stores zip files; allow passing without .zip too
     if os.path.isdir(path):
         raise ValueError("Expected SB3 PPO .zip file path, got directory")
+    if not os.path.exists(path):
+        alt = path + ".zip"
+        if os.path.exists(alt):
+            path = alt
+        else:
+            raise FileNotFoundError(path)
+
+    # Lazy import so scripted-only training doesn't require SB3 installed.
+    from stable_baselines3 import PPO  # type: ignore
 
     model = PPO.load(path, device="cpu")
 
