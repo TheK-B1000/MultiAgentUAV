@@ -1,11 +1,3 @@
-# =========================
-# game_manager.py (REFACTORED, MARL-READY, EVENT REWARD ROUTING + GAMMA-PBRS)
-#   UPDATED WITH RECOMMENDED FIXES:
-#     1) side normalization: always .lower() for routing + queries
-#     2) optional symmetric lose penalty at terminal (helps learning)
-#     3) tiny quality-of-life: set_phase lower/upper consistency helpers
-# =========================
-
 from __future__ import annotations
 
 import math
@@ -34,6 +26,9 @@ DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env bindi
 # Optional low-magnitude extras (safe defaults)
 EXPLORATION_REWARD = 0.01
 COORDINATION_BONUS = 0.3
+DEFENSE_INTERCEPT_BONUS = 0.75
+DEFENSE_MINE_REWARD = 0.2
+TEAM_SUPPRESSION_BONUS = 0.2
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
@@ -482,6 +477,9 @@ class GameManager:
                 return True
 
         # Red scores carrying blue flag at red home
+        phase = str(getattr(self, "phase_name", "")).upper()
+        if phase in ("OP1", "OP2") and side == "red":
+            return False
         if side == "red" and self.blue_flag_taken and (self.blue_flag_carrier is agent):
             if math.hypot(ax - float(self.red_flag_home[0]), ay - float(self.red_flag_home[1])) <= 2.0:
                 self.red_score += 1
@@ -586,6 +584,24 @@ class GameManager:
                 return True
         return False
 
+    def _teammates_within(self, agent: Any, radius_cells: float) -> List[Any]:
+        gf = getattr(agent, "game_field", None) or self.game_field
+        if gf is None:
+            return []
+        side = str(getattr(agent, "side", "")).lower().strip()
+        if side not in ("blue", "red"):
+            return []
+        team = gf.blue_agents if side == "blue" else gf.red_agents
+        ax, ay = self._agent_float(agent)
+        close: List[Any] = []
+        for other in team:
+            if other is agent or (hasattr(other, "isEnabled") and not other.isEnabled()):
+                continue
+            ox, oy = self._agent_float(other)
+            if math.hypot(ox - ax, oy - ay) <= float(radius_cells):
+                close.append(other)
+        return close
+
     # -------------------------
     # Gamma-correct PBRS + exploration
     # -------------------------
@@ -612,6 +628,7 @@ class GameManager:
         # Define goal for shaping:
         # - if I am carrier: go home
         # - if teammate is carrier: also go home (support)
+        # - if enemy is carrying our flag: intercept carrier
         # - else: go to enemy flag position
         if side == "blue":
             enemy_taken = self.red_flag_taken
@@ -627,7 +644,18 @@ class GameManager:
         i_am_carrier = enemy_taken and (enemy_carrier is agent)
         teammate_is_carrier = enemy_taken and (enemy_carrier is not None) and (enemy_carrier is not agent)
 
-        goal_x, goal_y = my_home if (i_am_carrier or teammate_is_carrier) else enemy_goal
+        # Intercept if enemy has our flag
+        if side == "blue":
+            enemy_has_our_flag = self.blue_flag_taken and (self.blue_flag_carrier is not None)
+            carrier = self.blue_flag_carrier
+        else:
+            enemy_has_our_flag = self.red_flag_taken and (self.red_flag_carrier is not None)
+            carrier = self.red_flag_carrier
+
+        if enemy_has_our_flag and carrier is not None and (not i_am_carrier):
+            goal_x, goal_y = self._agent_float(carrier)
+        else:
+            goal_x, goal_y = my_home if (i_am_carrier or teammate_is_carrier) else enemy_goal
 
         max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
         if max_dist <= 1e-6:
@@ -665,13 +693,18 @@ class GameManager:
         if side not in ("blue", "red"):
             return
 
-        x, _ = mine_pos
+        x, y = mine_pos
         if side == "blue":
             if x > (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
+            # Reward defensive placement near our flag
+            if math.hypot(x - float(self.blue_flag_home[0]), y - float(self.blue_flag_home[1])) <= 4.0:
+                self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
         else:
             if x < (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
+            if math.hypot(x - float(self.red_flag_home[0]), y - float(self.red_flag_home[1])) <= 4.0:
+                self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
 
     def reward_enemy_killed(self, killer_agent: Any, victim_agent: Optional[Any] = None, cause: Optional[str] = None) -> None:
         if killer_agent is None:
@@ -691,6 +724,22 @@ class GameManager:
         # Optional team share for mine kills (explicit, excludes killer)
         if kside in ("blue", "red") and cause == "mine":
             self.add_team_reward(kside, ENEMY_MAV_KILL_REWARD * 0.5, exclude_agent=killer_agent)
+
+        # Coordination bonus for suppression kills (teammates near victim)
+        if cause == "suppression" and victim_agent is not None:
+            gf = self.game_field
+            if gf is not None:
+                sup = float(getattr(gf, "suppression_range_cells", 2.0))
+                close = self._teammates_within(killer_agent, radius_cells=sup * 1.25)
+                for t in close:
+                    self.add_agent_reward(t, TEAM_SUPPRESSION_BONUS)
+
+        # Extra reward for stopping enemy flag carrier
+        if victim_agent is not None:
+            if kside == "blue" and self.blue_flag_carrier is victim_agent:
+                self.add_agent_reward(killer_agent, DEFENSE_INTERCEPT_BONUS)
+            if kside == "red" and self.red_flag_carrier is victim_agent:
+                self.add_agent_reward(killer_agent, DEFENSE_INTERCEPT_BONUS)
 
     def record_mine_triggered_by_red(self) -> None:
         self.mines_triggered_by_red_this_episode += 1
