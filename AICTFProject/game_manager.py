@@ -12,8 +12,8 @@ WIN_TEAM_REWARD = 5.0
 LOSE_TEAM_PUNISH = -5.0  # <-- recommended: symmetric terminal signal for the losing team
 DRAW_TEAM_PENALTY = -1.0
 
-FLAG_PICKUP_REWARD = 0.5
-FLAG_CARRY_HOME_REWARD = 3.0
+FLAG_PICKUP_REWARD = 1.0
+FLAG_CARRY_HOME_REWARD = 5.0
 ENEMY_MAV_KILL_REWARD = 2.0
 ACTION_FAILED_PUNISHMENT = -0.5
 
@@ -26,7 +26,7 @@ DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env bindi
 # Optional low-magnitude extras (safe defaults)
 EXPLORATION_REWARD = 0.01
 COORDINATION_BONUS = 0.3
-DEFENSE_INTERCEPT_BONUS = 0.75
+DEFENSE_INTERCEPT_BONUS = 1.5
 DEFENSE_MINE_REWARD = 0.2
 TEAM_SUPPRESSION_BONUS = 0.2
 SUPPRESSION_SETUP_BONUS = 0.05
@@ -34,8 +34,11 @@ MINE_AVOID_PENALTY = -0.05
 MINE_AVOID_RADIUS_CELLS = 1.5
 OFFENSE_CROSS_MIDLINE_REWARD = 0.1
 CARRY_CROSS_MIDLINE_REWARD = 0.3
-STALL_PENALTY = -0.2
-STALL_INTERVAL_SECONDS = 45.0
+STALL_PENALTY = -0.4
+STALL_INTERVAL_SECONDS = 30.0
+TEAM_FLAG_TAKEN_PENALTY = -0.5
+TEAM_FLAG_SCORED_PENALTY = -3.0
+TEAM_FLAG_RECOVER_REWARD = 0.5
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
@@ -463,6 +466,10 @@ class GameManager:
 
         if self._teammate_near(agent):
             self.add_agent_reward(agent, COORDINATION_BONUS)
+        if side == "blue":
+            self.add_team_reward("red", TEAM_FLAG_TAKEN_PENALTY)
+        else:
+            self.add_team_reward("blue", TEAM_FLAG_TAKEN_PENALTY)
 
         return True
 
@@ -486,6 +493,7 @@ class GameManager:
 
                 self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
                 self.add_team_reward("blue", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                self.add_team_reward("red", TEAM_FLAG_SCORED_PENALTY)
 
                 if self._teammate_near(agent):
                     self.add_agent_reward(agent, COORDINATION_BONUS)
@@ -507,6 +515,7 @@ class GameManager:
 
                 self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
                 self.add_team_reward("red", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                self.add_team_reward("blue", TEAM_FLAG_SCORED_PENALTY)
 
                 if self._teammate_near(agent):
                     self.add_agent_reward(agent, COORDINATION_BONUS)
@@ -549,6 +558,7 @@ class GameManager:
 
             if hasattr(agent, "setCarryingFlag"):
                 agent.setCarryingFlag(False, scored=False)
+            self.add_team_reward("blue", TEAM_FLAG_RECOVER_REWARD)
 
         elif self.red_flag_carrier is agent:
             self.red_flag_taken = False
@@ -561,6 +571,7 @@ class GameManager:
 
             if hasattr(agent, "setCarryingFlag"):
                 agent.setCarryingFlag(False, scored=False)
+            self.add_team_reward("red", TEAM_FLAG_RECOVER_REWARD)
 
     def clear_flag_carrier_if_agent(self, agent: Any) -> None:
         """
