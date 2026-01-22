@@ -33,7 +33,7 @@ class MAPPOConfig:
     gae_lambda: float = 0.99
     decision_window: float = 0.7
     sim_dt: float = 0.1
-    max_macro_steps: int = 400
+    max_macro_steps: int = 600
     checkpoint_dir: str = "checkpoints"
 
 
@@ -424,8 +424,13 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
             )
             traj_id_counter += 1
 
-        win = int(gm.blue_score) > int(gm.red_score)
-        curriculum.record_result(phase, win)
+        if int(gm.blue_score) > int(gm.red_score):
+            actual = 1.0
+        elif int(gm.blue_score) < int(gm.red_score):
+            actual = 0.0
+        else:
+            actual = 0.5
+        curriculum.record_result(phase, actual)
 
         if curriculum.advance_if_ready(learner_rating=0.0, opponent_rating=0.0, win_by=int(gm.blue_score - gm.red_score)):
             print(f"[MAPPO] curriculum advance -> {curriculum.phase}")
