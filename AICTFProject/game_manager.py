@@ -20,7 +20,7 @@ ACTION_FAILED_PUNISHMENT = -0.5
 FLAG_RETURN_DELAY = 10.0
 
 # PBRS (potential based reward shaping): F = coef * (gamma * Phi(s') - Phi(s))
-FLAG_PROXIMITY_COEF = 0.2
+FLAG_PROXIMITY_COEF = 0.35
 DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env binding
 
 # Optional low-magnitude extras (safe defaults)
@@ -32,6 +32,10 @@ TEAM_SUPPRESSION_BONUS = 0.2
 SUPPRESSION_SETUP_BONUS = 0.05
 MINE_AVOID_PENALTY = -0.05
 MINE_AVOID_RADIUS_CELLS = 1.5
+OFFENSE_CROSS_MIDLINE_REWARD = 0.1
+CARRY_CROSS_MIDLINE_REWARD = 0.3
+STALL_PENALTY = -0.2
+STALL_INTERVAL_SECONDS = 45.0
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
@@ -87,6 +91,7 @@ class GameManager:
 
     blue_flag_drop_time: Optional[float] = None
     red_flag_drop_time: Optional[float] = None
+    last_score_time: float = 0.0
 
     # --- reward event buffer ---
     reward_events: List[RewardEvent] = field(default_factory=list)
@@ -280,6 +285,7 @@ class GameManager:
 
         self.blue_flag_drop_time = None
         self.red_flag_drop_time = None
+        self.last_score_time = 0.0
 
     # -------------------------
     # Tick / termination
@@ -294,6 +300,12 @@ class GameManager:
 
         self.sanity_check_flags()
         self._update_flag_auto_return()
+
+        # Anti-stall: if no score for a while, apply small team penalty
+        if (self.sim_time - float(self.last_score_time)) >= float(STALL_INTERVAL_SECONDS):
+            self.add_team_reward("blue", STALL_PENALTY)
+            self.add_team_reward("red", STALL_PENALTY)
+            self.last_score_time = float(self.sim_time)
 
         # Time over
         if self.current_time <= 0.0 and not self.game_over:
@@ -467,6 +479,7 @@ class GameManager:
             if math.hypot(ax - float(self.blue_flag_home[0]), ay - float(self.blue_flag_home[1])) <= 2.0:
                 self.blue_score += 1
                 self._reset_red_flag_to_home()
+                self.last_score_time = float(self.sim_time)
 
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
@@ -487,6 +500,7 @@ class GameManager:
             if math.hypot(ax - float(self.red_flag_home[0]), ay - float(self.red_flag_home[1])) <= 2.0:
                 self.red_score += 1
                 self._reset_blue_flag_to_home()
+                self.last_score_time = float(self.sim_time)
 
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
@@ -684,6 +698,41 @@ class GameManager:
         if cell not in visited:
             visited.add(cell)
             self.add_agent_reward(agent, EXPLORATION_REWARD)
+
+        # Offense: reward crossing midline (once per side transition)
+        mid_x = float(self.cols) * 0.5
+        sx, sy = float(start_pos[0]), float(start_pos[1])
+        ex, ey = float(end_pos[0]), float(end_pos[1])
+        in_enemy_half = (ex > mid_x) if side == "blue" else (ex < mid_x)
+        in_own_half = (ex <= mid_x) if side == "blue" else (ex >= mid_x)
+
+        crossed_key = "_crossed_midline_once"
+        crossed_flag_key = "_crossed_midline_with_flag"
+
+        if in_own_half:
+            try:
+                setattr(agent, crossed_key, False)
+                setattr(agent, crossed_flag_key, False)
+            except Exception:
+                pass
+
+        if in_enemy_half:
+            crossed = bool(getattr(agent, crossed_key, False))
+            if not crossed:
+                self.add_agent_reward(agent, OFFENSE_CROSS_MIDLINE_REWARD)
+                try:
+                    setattr(agent, crossed_key, True)
+                except Exception:
+                    pass
+
+            if i_am_carrier:
+                crossed_flag = bool(getattr(agent, crossed_flag_key, False))
+                if not crossed_flag:
+                    self.add_agent_reward(agent, CARRY_CROSS_MIDLINE_REWARD)
+                    try:
+                        setattr(agent, crossed_flag_key, True)
+                    except Exception:
+                        pass
 
         # Mine avoidance (small penalty when too close to enemy mines)
         gf = getattr(agent, "game_field", None) or self.game_field
