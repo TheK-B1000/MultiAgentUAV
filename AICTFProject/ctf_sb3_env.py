@@ -1,12 +1,3 @@
-# =========================
-# ctf_sb3_env.py
-#   UPDATED WITH RECOMMENDED FIXES:
-#     A) Set PBRS gamma to match PPO gamma (or your training gamma)
-#     B) Read rewards from event buffer (NOT a nonexistent "reward_total" attr)
-#        -> your current _read_reward_total() always returns 0, so reward is always 0
-#     C) Expose opponent metadata in info (kept)
-# =========================
-
 from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 
@@ -47,6 +38,7 @@ class CTFGameFieldSB3Env(gym.Env):
         self.gf: Optional[GameField] = None
         self._decision_step_count = 0
         self._next_opponent: Optional[Tuple[str, str]] = None
+        self._phase_name: str = "OP1"
 
         self._n_blue_agents = 2
         self._vec_per_agent = 4
@@ -72,6 +64,17 @@ class CTFGameFieldSB3Env(gym.Env):
         self._opponent_snapshot_path: Optional[str] = None
         self._opponent_species_tag: str = "BALANCED"
         self._opponent_scripted_tag: str = "OP1"
+
+    # -----------------------------
+    # Phase / curriculum helpers
+    # -----------------------------
+    def set_phase(self, phase: str) -> None:
+        self._phase_name = str(phase).upper().strip()
+        if self.gf is not None and hasattr(self.gf, "manager"):
+            try:
+                self.gf.manager.set_phase(self._phase_name)
+            except Exception:
+                pass
 
     # -----------------------------
     # Opponent hot-swap
@@ -162,6 +165,13 @@ class CTFGameFieldSB3Env(gym.Env):
         # 2) PBRS gamma must match PPO gamma (policy invariance)
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "set_shaping_gamma"):
             self.gf.manager.set_shaping_gamma(self.ppo_gamma)
+
+        # 3) Apply curriculum phase to manager
+        if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "set_phase"):
+            try:
+                self.gf.manager.set_phase(self._phase_name)
+            except Exception:
+                pass
 
         # Clear any stale reward events
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "pop_reward_events"):
