@@ -29,6 +29,9 @@ COORDINATION_BONUS = 0.3
 DEFENSE_INTERCEPT_BONUS = 0.75
 DEFENSE_MINE_REWARD = 0.2
 TEAM_SUPPRESSION_BONUS = 0.2
+SUPPRESSION_SETUP_BONUS = 0.05
+MINE_AVOID_PENALTY = -0.05
+MINE_AVOID_RADIUS_CELLS = 1.5
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
@@ -63,8 +66,8 @@ class GameManager:
     red_score: int = 0
     score_limit: int = 3
 
-    max_time: float = 200.0
-    current_time: float = 200.0
+    max_time: float = 300.0
+    current_time: float = 300.0
     sim_time: float = 0.0
     game_over: bool = False
     phase_name: str = "OP1"
@@ -681,6 +684,42 @@ class GameManager:
         if cell not in visited:
             visited.add(cell)
             self.add_agent_reward(agent, EXPLORATION_REWARD)
+
+        # Mine avoidance (small penalty when too close to enemy mines)
+        gf = getattr(agent, "game_field", None) or self.game_field
+        if gf is not None:
+            side = str(getattr(agent, "side", "")).lower().strip()
+            if side in ("blue", "red"):
+                enemies = gf.red_agents if side == "blue" else gf.blue_agents
+                _ = enemies  # for symmetry with suppress logic below
+                ax, ay = float(end_pos[0]), float(end_pos[1])
+                for m in getattr(gf, "mines", []):
+                    owner = str(getattr(m, "owner_side", "")).lower()
+                    if owner == side:
+                        continue
+                    dist = math.hypot(float(m.x) - ax, float(m.y) - ay)
+                    if dist <= float(MINE_AVOID_RADIUS_CELLS):
+                        self.add_agent_reward(agent, MINE_AVOID_PENALTY)
+                        break
+
+                # Suppression setup bonus: be near an enemy with teammate
+                sup = float(getattr(gf, "suppression_range_cells", 2.0))
+                if sup > 0.0:
+                    team = gf.blue_agents if side == "blue" else gf.red_agents
+                    enemies = gf.red_agents if side == "blue" else gf.blue_agents
+                    for e in enemies:
+                        if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
+                            continue
+                        ex, ey = self._agent_float(e)
+                        if math.hypot(ex - ax, ey - ay) <= sup:
+                            for t in team:
+                                if t is agent or t is None or (hasattr(t, "isEnabled") and not t.isEnabled()):
+                                    continue
+                                tx, ty = self._agent_float(t)
+                                if math.hypot(ex - tx, ey - ty) <= sup:
+                                    self.add_agent_reward(agent, SUPPRESSION_SETUP_BONUS)
+                                    break
+                            break
 
     # -------------------------
     # Mine/combat hooks (minimal)
