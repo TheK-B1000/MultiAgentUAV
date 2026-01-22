@@ -1,9 +1,3 @@
-# =========================
-# policies.py
-#   - Scripted Policies (OP1, OP2, OP3)
-#   - SelfPlayRedPolicy (Neural Wrapper)
-# =========================
-
 import math
 import random
 from typing import Any, Tuple, Optional, List, Dict
@@ -89,6 +83,18 @@ class OP1RedPolicy(Policy):
     def __init__(self, side: str = "red"):
         self.side = side
 
+    def _zone_col_range(self, game_field: "GameField", side: str) -> Tuple[int, int]:
+        if side == "red" and hasattr(game_field, "red_zone_col_range"):
+            return tuple(game_field.red_zone_col_range)
+        if side != "red" and hasattr(game_field, "blue_zone_col_range"):
+            return tuple(game_field.blue_zone_col_range)
+        return (0, game_field.col_count - 1)
+
+    def _clamp_to_zone(self, game_field: "GameField", side: str, x: int, y: int) -> Tuple[int, int]:
+        zmin, zmax = self._zone_col_range(game_field, side)
+        cx = max(int(zmin), min(int(zmax), int(x)))
+        return self._safe_target(game_field, cx, int(y))
+
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
         side = getattr(agent, "side", self.side)
@@ -106,6 +112,30 @@ class OP1RedPolicy(Policy):
         if agent.isCarryingFlag():
             return _macro_to_int(MacroAction.GO_HOME), None
 
+        # Intercept enemy carrier if our flag is taken
+        if side == "blue" and getattr(gm, "blue_flag_taken", False):
+            carrier = getattr(gm, "blue_flag_carrier", None)
+        elif side == "red" and getattr(gm, "red_flag_taken", False):
+            carrier = getattr(gm, "red_flag_carrier", None)
+        else:
+            carrier = None
+
+        if carrier is not None:
+            cx, cy = _agent_xy(carrier)
+            # Intercept but never cross into enemy half (prevent scoring)
+            tx, ty = self._clamp_to_zone(game_field, side, int(cx), int(cy))
+            return _macro_to_int(MacroAction.GO_TO), (tx, ty)
+
+        # Basic patrol around home and pick up mines if available
+        max_charges = int(getattr(game_field, "max_mine_charges_per_agent", 2))
+        charges = int(getattr(agent, "mine_charges", 0))
+        if charges < max_charges:
+            my_pickups = [p for p in getattr(game_field, "mine_pickups", []) if getattr(p, "owner_side", None) == side]
+            if my_pickups:
+                return _macro_to_int(MacroAction.GRAB_MINE), None
+
+        # Stay in own half to avoid capturing enemy flag
+        tx, ty = self._clamp_to_zone(game_field, side, int(tx), int(ty))
         return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
 
@@ -132,6 +162,20 @@ class OP2RedPolicy(Policy):
         if agent.isCarryingFlag():
             return _macro_to_int(MacroAction.GO_HOME), None
 
+        # Intercept enemy carrier if our flag is taken
+        if side == "blue" and getattr(gm, "blue_flag_taken", False):
+            carrier = getattr(gm, "blue_flag_carrier", None)
+        elif side == "red" and getattr(gm, "red_flag_taken", False):
+            carrier = getattr(gm, "red_flag_carrier", None)
+        else:
+            carrier = None
+        if carrier is not None:
+            cx, cy = _agent_xy(carrier)
+            # Intercept but never cross into enemy half (prevent scoring)
+            zmin, zmax = self._zone_col_range(game_field, side)
+            cx = max(int(zmin), min(int(zmax), int(cx)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(cx), int(cy))
+
         own_min_col, own_max_col = self._zone_col_range(game_field, side)
         flag_x, flag_y = gm.get_team_zone_center(side)
 
@@ -142,6 +186,16 @@ class OP2RedPolicy(Policy):
                 for c in range(int(own_min_col), int(own_max_col) + 1):
                     if self._is_free(c, row, game_field):
                         defense_band.append((c, row))
+
+        # Bias patrol/mine placement toward the edge of own zone (near midline)
+        edge_col = int(own_max_col) if side == "blue" else int(own_min_col)
+
+        def _near_edge(cells: List[Tuple[int, int]], band: int = 1) -> List[Tuple[int, int]]:
+            out = []
+            for x, y in cells:
+                if abs(int(x) - edge_col) <= band:
+                    out.append((x, y))
+            return out
 
         ax, ay = _agent_xy(agent)
 
@@ -160,7 +214,8 @@ class OP2RedPolicy(Policy):
 
             candidates = [(cx, cy) for (cx, cy) in defense_band if not self._cell_has_mine(game_field, cx, cy)]
             if candidates:
-                tx, ty = random.choice(candidates)
+                edge_candidates = _near_edge(candidates, band=1) or _near_edge(candidates, band=2)
+                tx, ty = random.choice(edge_candidates if edge_candidates else candidates)
                 tx, ty = self._safe_target(game_field, tx, ty)
                 return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
@@ -168,7 +223,8 @@ class OP2RedPolicy(Policy):
             return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
         if defense_band:
-            tx, ty = random.choice(defense_band)
+            edge_band = _near_edge(defense_band, band=1) or _near_edge(defense_band, band=2)
+            tx, ty = random.choice(edge_band if edge_band else defense_band)
         else:
             tx, ty = self._safe_target(game_field, flag_x, flag_y)
         tx, ty = self._safe_target(game_field, tx, ty)
