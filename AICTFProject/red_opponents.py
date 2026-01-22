@@ -40,7 +40,9 @@ def make_species_wrapper(species_tag: str) -> Callable[..., Any]:
         # Use the tuned scripted policy directly
         # Must return a format your GameField.decide() parser accepts.
         action_id, target = base.select_action(obs, agent, game_field)
-        return {"macro_action": int(action_id), "target_action": int(target) if target is not None else 0}
+        if isinstance(target, (tuple, list)) and len(target) >= 2:
+            return (int(action_id), (int(target[0]), int(target[1])))
+        return (int(action_id), None if target is None else int(target))
 
     return wrapper
 
