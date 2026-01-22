@@ -22,6 +22,8 @@ FLAG_RETURN_DELAY = 10.0
 # PBRS (potential based reward shaping): F = coef * (gamma * Phi(s') - Phi(s))
 FLAG_PROXIMITY_COEF = 0.35
 DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env binding
+DEFENSE_SHAPING_MULT = 2.0
+DEFENSE_CARRIER_PROGRESS_COEF = 0.15
 
 # Optional low-magnitude extras (safe defaults)
 EXPLORATION_REWARD = 0.01
@@ -699,8 +701,17 @@ class GameManager:
         phi_after = 1.0 - (cur_d / max_dist)
 
         shaped = float(FLAG_PROXIMITY_COEF) * (float(self.shaping_gamma) * phi_after - phi_before)
+        if enemy_has_our_flag and (not i_am_carrier):
+            shaped *= float(DEFENSE_SHAPING_MULT)
         if shaped != 0.0:
             self.add_agent_reward(agent, shaped)
+
+        if enemy_has_our_flag and carrier is not None and (not i_am_carrier):
+            prev_dc = min(max_dist, math.dist([sx, sy], [float(goal_x), float(goal_y)]))
+            cur_dc = min(max_dist, math.dist([ex, ey], [float(goal_x), float(goal_y)]))
+            progress = (prev_dc - cur_dc) / max_dist
+            if progress > 0.0:
+                self.add_agent_reward(agent, float(DEFENSE_CARRIER_PROGRESS_COEF) * float(progress))
 
         # Exploration: per-team visited set
         cell = self._clamp_cell(int(round(ex)), int(round(ey)))
