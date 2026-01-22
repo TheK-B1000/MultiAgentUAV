@@ -1,19 +1,3 @@
-"""
-viewer_game_field.py
-
-Pygame visualization layer for the CTF environment.
-
-Key fix for jitter:
-  - Store per-agent previous float positions BEFORE each fixed sim update
-  - Render interpolated positions using alpha: lerp(prev, curr, alpha)
-
-Extra robustness (NEW):
-  - Handles multiple sim substeps per render frame correctly (no "prev = curr" drift)
-  - Handles respawns/teleports (snap instead of lerp across map)
-  - Clamps alpha and supports missing buffers safely
-  - Optional: clamp dt in viewer layer (prevents large dt spikes from exploding motion)
-"""
-
 from __future__ import annotations
 
 from typing import Tuple, List, Any, Optional, Dict
