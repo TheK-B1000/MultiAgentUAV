@@ -34,11 +34,16 @@ class CurriculumState:
     def phase(self) -> str:
         return self.config.phases[self.phase_idx]
 
-    def record_result(self, phase: str, win: bool) -> None:
+    def record_result(self, phase: str, win: float) -> None:
         phase = str(phase).upper()
         if phase not in self.recent_results:
             return
-        self.recent_results[phase].append(1 if win else 0)
+        try:
+            val = float(win)
+        except Exception:
+            val = 1.0 if bool(win) else 0.0
+        val = max(0.0, min(1.0, val))
+        self.recent_results[phase].append(val)
 
     def phase_winrate(self, phase: str) -> float:
         phase = str(phase).upper()
