@@ -207,6 +207,8 @@ class Agent:
     # ----------------------------------------------------------
     def disable_for_seconds(self, seconds: float) -> None:
         s = max(0.0, float(seconds))
+        if s <= 0.0:
+            return
 
         if not self.enabled:
             self.tag_cooldown = max(self.tag_cooldown, s)
