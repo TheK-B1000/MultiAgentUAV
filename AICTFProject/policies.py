@@ -184,11 +184,17 @@ class OP3RedPolicy(Policy):
         self,
         side: str = "red",
         mine_radius_check: float = 1.5,
+        defense_radius_cells: float = 4.0,
+        patrol_radius_cells: int = 3,
+        assist_radius_mult: float = 1.5,
         defense_weight: Optional[float] = None,
         flag_weight: Optional[float] = None,
     ):
         self.side = side
         self.mine_radius_check = float(mine_radius_check)
+        self.defense_radius_cells = float(defense_radius_cells)
+        self.patrol_radius_cells = int(max(1, patrol_radius_cells))
+        self.assist_radius_mult = float(assist_radius_mult)
         self.defense_weight = None if defense_weight is None else float(defense_weight)
         self.flag_weight = None if flag_weight is None else float(flag_weight)
 
@@ -206,6 +212,62 @@ class OP3RedPolicy(Policy):
 
         ax, ay = _agent_xy(agent)
 
+        # If enemy is carrying our flag, intercept to prevent scoring
+        enemy_carrier = None
+        if side == "blue" and getattr(gm, "blue_flag_taken", False):
+            enemy_carrier = getattr(gm, "blue_flag_carrier", None)
+        if side == "red" and getattr(gm, "red_flag_taken", False):
+            enemy_carrier = getattr(gm, "red_flag_carrier", None)
+        if enemy_carrier is not None:
+            ex, ey = _agent_xy(enemy_carrier)
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(ex), int(ey))
+
+        # If low on charges and pickups exist, prioritize grabbing mines
+        max_charges = int(getattr(game_field, "max_mine_charges_per_agent", 2))
+        charges = int(getattr(agent, "mine_charges", 0))
+        if charges < max_charges:
+            my_pickups = [p for p in getattr(game_field, "mine_pickups", []) if getattr(p, "owner_side", None) == side]
+            if my_pickups:
+                return _macro_to_int(MacroAction.GRAB_MINE), None
+
+        # Support suppression: move toward enemy near teammate / flag
+        enemies = game_field.red_agents if side == "blue" else game_field.blue_agents
+        teammates = game_field.blue_agents if side == "blue" else game_field.red_agents
+        teammates = [t for t in teammates if t is not agent]
+        sup_range = float(getattr(game_field, "suppression_range_cells", 2.0))
+        assist_r = sup_range * self.assist_radius_mult
+
+        def _nearest_enemy(refx: float, refy: float) -> Optional[Any]:
+            best = None
+            best_d2 = 1e9
+            for e in enemies:
+                if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
+                    continue
+                ex, ey = _agent_xy(e)
+                d2 = (ex - refx) ** 2 + (ey - refy) ** 2
+                if d2 < best_d2:
+                    best_d2 = d2
+                    best = e
+            return best
+
+        # If enemy is near our flag, converge for defense
+        near_flag_enemy = _nearest_enemy(float(flag_x), float(flag_y))
+        if near_flag_enemy is not None:
+            ex, ey = _agent_xy(near_flag_enemy)
+            if math.hypot(ex - float(flag_x), ey - float(flag_y)) <= self.defense_radius_cells:
+                return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(ex), int(ey))
+
+        # If teammate is close to an enemy, move to support for suppression
+        for t in teammates:
+            tx, ty = _agent_xy(t)
+            e = _nearest_enemy(tx, ty)
+            if e is None:
+                continue
+            ex, ey = _agent_xy(e)
+            if math.hypot(ex - tx, ey - ty) <= assist_r:
+                return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(ex), int(ey))
+
+        # Strategic mine placement in our defensive zone
         has_flag_mine = any(
             (getattr(m, "owner_side", None) == side) and (
                         math.hypot(float(m.x) - fx, float(m.y) - fy) <= self.mine_radius_check)
@@ -216,6 +278,40 @@ class OP3RedPolicy(Policy):
             if math.hypot(ax - fx, ay - fy) <= self.mine_radius_check and not self._cell_has_mine(game_field, fx, fy):
                 return _macro_to_int(MacroAction.PLACE_MINE), (fx, fy)
             return _macro_to_int(MacroAction.GO_TO), (fx, fy)
+
+        # Patrol + mine placement around the flag within our zone
+        patrol: List[Tuple[int, int]] = []
+        blue_zone = getattr(game_field, "blue_zone_col_range", None)
+        red_zone = getattr(game_field, "red_zone_col_range", None)
+        for dy in range(-self.patrol_radius_cells, self.patrol_radius_cells + 1):
+            for dx in range(-self.patrol_radius_cells, self.patrol_radius_cells + 1):
+                if dx * dx + dy * dy > self.patrol_radius_cells * self.patrol_radius_cells:
+                    continue
+                px, py = int(flag_x + dx), int(flag_y + dy)
+                if blue_zone is not None and side == "blue":
+                    if not (int(blue_zone[0]) <= px <= int(blue_zone[1])):
+                        continue
+                if red_zone is not None and side == "red":
+                    if not (int(red_zone[0]) <= px <= int(red_zone[1])):
+                        continue
+                if self._is_free(px, py, game_field):
+                    patrol.append((px, py))
+
+        if patrol:
+            # If we have charges, place mines on a free patrol cell without a mine
+            if int(getattr(agent, "mine_charges", 0)) > 0:
+                mine_targets = [p for p in patrol if not self._cell_has_mine(game_field, p[0], p[1])]
+                if mine_targets:
+                    mine_targets.sort(key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
+                    tx, ty = mine_targets[0]
+                    if math.hypot(ax - tx, ay - ty) <= self.mine_radius_check:
+                        return _macro_to_int(MacroAction.PLACE_MINE), (tx, ty)
+                    return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, tx, ty)
+
+            # Prefer a patrol point that's not right under the agent
+            patrol.sort(key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2, reverse=True)
+            tx, ty = patrol[0]
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, tx, ty)
 
         return _macro_to_int(MacroAction.GO_TO), (fx, fy)
 
