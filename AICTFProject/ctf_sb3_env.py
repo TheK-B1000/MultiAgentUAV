@@ -29,6 +29,8 @@ class CTFGameFieldSB3Env(gym.Env):
         enforce_masks: bool = True,
         seed: int = 0,
         include_mask_in_obs: bool = False,
+        default_opponent_kind: str = "SCRIPTED",
+        default_opponent_key: str = "OP1",
         # NEW: must match PPO gamma for PBRS to be invariant
         ppo_gamma: float = 0.995,
     ):
@@ -39,17 +41,22 @@ class CTFGameFieldSB3Env(gym.Env):
         self.base_seed = int(seed)
         self.include_mask_in_obs = bool(include_mask_in_obs)
         self.ppo_gamma = float(ppo_gamma)
+        self.default_opponent_kind = str(default_opponent_kind).upper()
+        self.default_opponent_key = str(default_opponent_key).upper()
 
         self.gf: Optional[GameField] = None
         self._decision_step_count = 0
+        self._next_opponent: Optional[Tuple[str, str]] = None
 
+        self._n_blue_agents = 2
+        self._vec_per_agent = 4
         self._n_macros = 5
         self._n_targets = 8
 
         self.action_space = spaces.MultiDiscrete([self._n_macros, self._n_targets, self._n_macros, self._n_targets])
 
-        grid_shape = (2 * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
-        vec_shape = (8,)
+        grid_shape = (self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
+        vec_shape = (self._n_blue_agents * self._vec_per_agent,)
 
         obs_dict = {
             "grid": spaces.Box(low=0.0, high=1.0, shape=grid_shape, dtype=np.float32),
@@ -61,19 +68,35 @@ class CTFGameFieldSB3Env(gym.Env):
         self.observation_space = spaces.Dict(obs_dict)
 
         # Opponent identity (for Elo + logging)
-        self._opponent_kind = "species"
+        self._opponent_kind = "scripted"
         self._opponent_snapshot_path: Optional[str] = None
         self._opponent_species_tag: str = "BALANCED"
+        self._opponent_scripted_tag: str = "OP1"
 
     # -----------------------------
     # Opponent hot-swap
     # -----------------------------
+    def set_next_opponent(self, kind: str, key: str) -> None:
+        self._next_opponent = (str(kind).upper(), str(key).upper())
+
+    def set_opponent_scripted(self, scripted_tag: str) -> None:
+        if self.gf is None:
+            return
+        tag = str(scripted_tag).upper()
+        self._opponent_kind = "scripted"
+        self._opponent_scripted_tag = tag
+        self._opponent_species_tag = "BALANCED"
+        self._opponent_snapshot_path = None
+        self.gf.set_red_opponent(tag)
+        self.gf.set_red_policy_wrapper(None)
+
     def set_opponent_species(self, species_tag: str) -> None:
         if self.gf is None:
             return
         self._opponent_kind = "species"
         self._opponent_species_tag = str(species_tag).upper()
         self._opponent_snapshot_path = None
+        self._opponent_scripted_tag = "OP3"
         wrapper = make_species_wrapper(self._opponent_species_tag)
         self.gf.set_red_policy_wrapper(wrapper)
 
@@ -83,6 +106,7 @@ class CTFGameFieldSB3Env(gym.Env):
         self._opponent_kind = "snapshot"
         self._opponent_snapshot_path = str(snapshot_path)
         self._opponent_species_tag = "BALANCED"
+        self._opponent_scripted_tag = "OP3"
         wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
         self.gf.set_red_policy_wrapper(wrapper)
 
@@ -113,8 +137,18 @@ class CTFGameFieldSB3Env(gym.Env):
 
         if self.include_mask_in_obs:
             self.observation_space = spaces.Dict({
-                "grid": spaces.Box(low=0.0, high=1.0, shape=(2 * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-                "vec": spaces.Box(low=-2.0, high=2.0, shape=(8,), dtype=np.float32),
+                "grid": spaces.Box(
+                    low=0.0,
+                    high=1.0,
+                    shape=(self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
+                    dtype=np.float32,
+                ),
+                "vec": spaces.Box(
+                    low=-2.0,
+                    high=2.0,
+                    shape=(self._n_blue_agents * self._vec_per_agent,),
+                    dtype=np.float32,
+                ),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(2 * self._n_macros,), dtype=np.float32),
             })
 
@@ -133,8 +167,23 @@ class CTFGameFieldSB3Env(gym.Env):
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "pop_reward_events"):
             _ = self.gf.manager.pop_reward_events()
 
-        if self.gf.policy_wrappers.get("red") is None:
-            self.set_opponent_species("BALANCED")
+        # Apply next-opponent override if requested; otherwise use defaults.
+        if self._next_opponent is not None:
+            kind, key = self._next_opponent
+            if kind == "SCRIPTED":
+                self.set_opponent_scripted(key)
+            elif kind == "SPECIES":
+                self.set_opponent_species(key)
+            elif kind == "SNAPSHOT":
+                self.set_opponent_snapshot(key)
+            self._next_opponent = None
+        else:
+            if self.default_opponent_kind == "SCRIPTED":
+                self.set_opponent_scripted(self.default_opponent_key)
+            elif self.default_opponent_kind == "SPECIES":
+                self.set_opponent_species(self.default_opponent_key)
+            elif self.default_opponent_kind == "SNAPSHOT":
+                self.set_opponent_snapshot(self.default_opponent_key)
 
         obs = self._get_obs()
         return obs, {}
@@ -176,12 +225,18 @@ class CTFGameFieldSB3Env(gym.Env):
 
         info: Dict[str, Any] = {}
         if terminated or truncated:
+            if hasattr(gm, "terminal_outcome_bonus"):
+                reward += gm.terminal_outcome_bonus(
+                    int(getattr(gm, "blue_score", 0)),
+                    int(getattr(gm, "red_score", 0)),
+                )
             info["episode_result"] = {
                 "blue_score": int(getattr(gm, "blue_score", 0)),
                 "red_score": int(getattr(gm, "red_score", 0)),
                 "opponent_kind": self._opponent_kind,
                 "opponent_snapshot": self._opponent_snapshot_path,
                 "species_tag": self._opponent_species_tag if self._opponent_kind == "species" else None,
+                "scripted_tag": self._opponent_scripted_tag if self._opponent_kind == "scripted" else None,
                 "decision_steps": self._decision_step_count,
             }
 
@@ -197,7 +252,15 @@ class CTFGameFieldSB3Env(gym.Env):
             return np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
         def _empty_vec():
-            return np.zeros((4,), dtype=np.float32)
+            return np.zeros((self._vec_per_agent,), dtype=np.float32)
+
+        def _coerce_vec(vec: np.ndarray) -> np.ndarray:
+            v = np.asarray(vec, dtype=np.float32).reshape(-1)
+            if v.size == self._vec_per_agent:
+                return v
+            if v.size < self._vec_per_agent:
+                return np.pad(v, (0, self._vec_per_agent - v.size), mode="constant")
+            return v[: self._vec_per_agent]
 
         blue = list(self.gf.blue_agents) if getattr(self.gf, "blue_agents", None) else []
         while len(blue) < 2:
@@ -219,7 +282,7 @@ class CTFGameFieldSB3Env(gym.Env):
             cnn_list.append(cnn)
 
             if hasattr(self.gf, "build_continuous_features"):
-                vec = np.asarray(self.gf.build_continuous_features(a), dtype=np.float32)
+                vec = _coerce_vec(self.gf.build_continuous_features(a))
             else:
                 vec = _empty_vec()
             vec_list.append(vec)
