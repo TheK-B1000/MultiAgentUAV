@@ -180,9 +180,17 @@ class OP3RedPolicy(Policy):
     OP3: Mixed defender-attacker.
     """
 
-    def __init__(self, side: str = "red", mine_radius_check: float = 1.5):
+    def __init__(
+        self,
+        side: str = "red",
+        mine_radius_check: float = 1.5,
+        defense_weight: Optional[float] = None,
+        flag_weight: Optional[float] = None,
+    ):
         self.side = side
         self.mine_radius_check = float(mine_radius_check)
+        self.defense_weight = None if defense_weight is None else float(defense_weight)
+        self.flag_weight = None if flag_weight is None else float(flag_weight)
 
     def reset(self) -> None:
         return None
@@ -219,10 +227,16 @@ class OP3RedPolicy(Policy):
 
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
+        if self.defense_weight is not None and self.flag_weight is not None:
+            total = float(self.defense_weight + self.flag_weight)
+            if total > 0.0:
+                p_attack = float(self.flag_weight) / total
+                if random.random() < p_attack:
+                    return self._attacker_action(agent, gm, game_field)
+                return self._defender_action(agent, gm, game_field)
         if getattr(agent, "agent_id", 0) == 0:
             return self._defender_action(agent, gm, game_field)
-        else:
-            return self._attacker_action(agent, gm, game_field)
+        return self._attacker_action(agent, gm, game_field)
 
 
 class SelfPlayRedPolicy(Policy):
