@@ -45,6 +45,13 @@ class CTFGameFieldSB3Env(gym.Env):
         self._n_macros = 5
         self._n_targets = 8
 
+        # Anti-stall (blue-only, decision-level)
+        self._stall_threshold_cells = 0.15
+        self._stall_patience = 3
+        self._stall_penalty = -0.05
+        self._stall_counters = [0, 0]
+        self._last_blue_pos: list[Optional[Tuple[float, float]]] = [None, None]
+
         self.action_space = spaces.MultiDiscrete([self._n_macros, self._n_targets, self._n_macros, self._n_targets])
 
         grid_shape = (self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
@@ -157,6 +164,12 @@ class CTFGameFieldSB3Env(gym.Env):
 
         self.gf.reset_default()
 
+        self._stall_counters = [0, 0]
+        self._last_blue_pos = [None, None]
+        for i in range(2):
+            if i < len(self.gf.blue_agents) and self.gf.blue_agents[i] is not None:
+                self._last_blue_pos[i] = tuple(getattr(self.gf.blue_agents[i], "float_pos", (0.0, 0.0)))
+
         # IMPORTANT FIXES:
         # 1) bind env to manager so team routing is exact
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "bind_game_field"):
@@ -226,6 +239,7 @@ class CTFGameFieldSB3Env(gym.Env):
         # Your GameManager emits rewards as events; _read_reward_total() was always 0,
         # so PPO was learning from a near-zero signal.
         reward = float(self._consume_blue_reward_events())
+        reward += float(self._apply_blue_stall_penalty())
 
         gm = self.gf.manager
         terminated = bool(getattr(gm, "game_over", False))
@@ -251,6 +265,43 @@ class CTFGameFieldSB3Env(gym.Env):
             }
 
         return obs, reward, terminated, truncated, info
+
+    def _apply_blue_stall_penalty(self) -> float:
+        assert self.gf is not None
+        penalty = 0.0
+
+        for i in range(2):
+            if i >= len(self.gf.blue_agents):
+                self._stall_counters[i] = 0
+                self._last_blue_pos[i] = None
+                continue
+
+            agent = self.gf.blue_agents[i]
+            if agent is None:
+                self._stall_counters[i] = 0
+                self._last_blue_pos[i] = None
+                continue
+
+            pos = tuple(getattr(agent, "float_pos", (float(getattr(agent, "x", 0)), float(getattr(agent, "y", 0)))))
+            last = self._last_blue_pos[i]
+
+            if last is None:
+                moved = True
+            else:
+                dx = float(pos[0]) - float(last[0])
+                dy = float(pos[1]) - float(last[1])
+                moved = (dx * dx + dy * dy) >= (self._stall_threshold_cells ** 2)
+
+            if moved:
+                self._stall_counters[i] = 0
+            else:
+                self._stall_counters[i] += 1
+                if self._stall_counters[i] >= int(self._stall_patience):
+                    penalty += float(self._stall_penalty)
+
+            self._last_blue_pos[i] = pos
+
+        return float(penalty)
 
     # -----------------
     # Helpers
