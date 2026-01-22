@@ -1,12 +1,3 @@
-# =========================
-# game_field.py (FULL UPDATED, MARL-READY, OBJECTIVE-FIRST, CRASH-PROOF)
-#   - PPO/MAPPO: build_observation() -> 7ch
-#   - QMIX: get_global_state() -> flat 8*20*20 = 3200 (default)
-#   - Shared: macro_order + get_macro_mask() + submit_external_actions()
-#   - Shared: flat action helpers (encode/decode + avail_flat mask)
-#   - NEW: internal policy wrapper support (esp. for self-play RED)
-# =========================
-
 from __future__ import annotations
 
 import math
@@ -1117,6 +1108,10 @@ class GameField:
         # Teams
         friendly_team = self.blue_agents if side == "blue" else self.red_agents
         enemy_team = self.red_agents if side == "blue" else self.blue_agents
+
+        # Vision helpers (LOS + radius)
+        def _agent_cell(a: Any) -> Cell:
+            return self._agent_cell_pos(a)
 
         # Self
         sx, sy = self._agent_float_pos(agent)
