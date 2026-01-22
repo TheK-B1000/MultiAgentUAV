@@ -5,10 +5,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, TYPE_CHECKING
 
 import torch
 import torch.nn as nn
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 @dataclass(frozen=True)
@@ -122,7 +125,7 @@ class ObsEncoder(nn.Module):
     # -----------------------------
     # Shape handling
     # -----------------------------
-    def _ensure_bchw(self, obs: Union[torch.Tensor, "numpy.ndarray"]) -> torch.Tensor:
+    def _ensure_bchw(self, obs: Union[torch.Tensor, "np.ndarray"]) -> torch.Tensor:
         if not torch.is_tensor(obs):
             obs = torch.as_tensor(obs)
 
@@ -162,8 +165,8 @@ class ObsEncoder(nn.Module):
     # -----------------------------
     # Forward
     # -----------------------------
-    def forward(self, obs: Union[torch.Tensor, "numpy.ndarray"]) -> torch.Tensor:
-        x = self._ensure_bchw(obs).float()
+    def forward(self, obs: Union[torch.Tensor, "np.ndarray"]) -> torch.Tensor:
+        x = self._ensure_bchw(obs).float().contiguous()
         x = self.conv(x)
         x = self.pool(x)
         z = self.fc(x)
