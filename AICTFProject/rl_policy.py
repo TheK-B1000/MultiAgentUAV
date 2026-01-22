@@ -1,7 +1,3 @@
-# =========================
-# actor_critic_net.py (REFACTORED, MARL-READY, DML-SAFE)
-# =========================
-
 from __future__ import annotations
 
 from dataclasses import dataclass
