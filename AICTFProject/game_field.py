@@ -710,6 +710,26 @@ class GameField:
             self.policies["red"] = OP1RedPolicy("red")
         elif mode == "OP2":
             self.policies["red"] = OP2RedPolicy("red")
+        elif mode in ("OP3_EASY", "OP3EASY"):
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=0.4,
+                defense_radius_cells=2.0,
+                patrol_radius_cells=2,
+                assist_radius_mult=1.0,
+                defense_weight=0.75,
+                flag_weight=3.5,
+            )
+        elif mode in ("OP3_HARD", "OP3HARD"):
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=2.8,
+                defense_radius_cells=6.0,
+                patrol_radius_cells=4,
+                assist_radius_mult=2.0,
+                defense_weight=3.0,
+                flag_weight=1.0,
+            )
         else:
             self.policies["red"] = OP3RedPolicy("red")
 
