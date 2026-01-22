@@ -32,7 +32,7 @@ class QMIXConfig:
     gamma: float = 0.995
     decision_window: float = 0.7
     sim_dt: float = 0.1
-    max_macro_steps: int = 400
+    max_macro_steps: int = 600
     epsilon_start: float = 1.0
     epsilon_end: float = 0.05
     epsilon_decay_steps: int = 100_000
@@ -389,8 +389,13 @@ def train_qmix(cfg: Optional[QMIXConfig] = None) -> None:
                 if opt_steps % 50 == 0:
                     print(f"[QMIX] step={global_step} loss={loss:.4f} eps={eps:.3f} phase={phase}")
 
-        win = int(gm.blue_score) > int(gm.red_score)
-        curriculum.record_result(phase, win)
+        if int(gm.blue_score) > int(gm.red_score):
+            actual = 1.0
+        elif int(gm.blue_score) < int(gm.red_score):
+            actual = 0.0
+        else:
+            actual = 0.5
+        curriculum.record_result(phase, actual)
         if curriculum.advance_if_ready(learner_rating=0.0, opponent_rating=0.0, win_by=int(gm.blue_score - gm.red_score)):
             print(f"[QMIX] curriculum advance -> {curriculum.phase}")
 
