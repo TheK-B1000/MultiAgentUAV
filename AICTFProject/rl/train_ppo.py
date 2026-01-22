@@ -283,7 +283,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     if cfg.enable_tensorboard:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
     else:
-        model.set_logger(configure(None, ["stdout"]))
+        model.set_logger(configure(None, []))
 
     callbacks = [LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller)]
 
