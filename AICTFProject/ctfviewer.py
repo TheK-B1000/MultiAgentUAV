@@ -275,6 +275,7 @@ class CTFViewer:
 
         self.game_field = ViewerGameField(grid)
         self.game_manager = self.game_field.getGameManager()
+        self._set_phase_op3()
 
         # Ensure viewer uses internal policies
         if hasattr(self.game_field, "use_internal_policies"):
@@ -334,6 +335,18 @@ class CTFViewer:
         self.blue_mode: str = "OP3"
         self._apply_blue_mode(self.blue_mode)
         self._reset_op3_policies()
+
+    def _set_phase_op3(self) -> None:
+        if hasattr(self.game_manager, "set_phase"):
+            try:
+                self.game_manager.set_phase("OP3")
+            except Exception:
+                pass
+        if hasattr(self.game_field, "set_phase"):
+            try:
+                self.game_field.set_phase("OP3")
+            except Exception:
+                pass
 
     def _available_modes(self) -> List[str]:
         modes = ["OP3"]
@@ -434,6 +447,7 @@ class CTFViewer:
             self.game_field.agents_per_team = 2
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.reset_default()
+            self._set_phase_op3()
             self.sim_tick = 0
             if self.blue_ppo_team:
                 self.blue_ppo_team.reset_cache()
@@ -455,6 +469,7 @@ class CTFViewer:
         elif k == pg.K_r:
             self.game_field.agents_per_team = 2
             self.game_field.reset_default()
+            self._set_phase_op3()
             self.sim_tick = 0
             if self.blue_ppo_team:
                 self.blue_ppo_team.reset_cache()
@@ -475,6 +490,7 @@ class CTFViewer:
                     self.game_field.agents_per_team = n
                     self.game_field.reset_default()
 
+                self._set_phase_op3()
                 self.sim_tick = 0
                 if self.blue_ppo_team:
                     self.blue_ppo_team.reset_cache()
