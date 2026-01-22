@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 WIN_TEAM_REWARD = 5.0
 LOSE_TEAM_PUNISH = -5.0  # <-- recommended: symmetric terminal signal for the losing team
+DRAW_TEAM_PENALTY = -1.0
 
 FLAG_PICKUP_REWARD = 0.5
 FLAG_CARRY_HOME_REWARD = 3.0
@@ -175,8 +176,14 @@ class GameManager:
     def add_reward_event(self, value: float, agent_id: str, timestamp: Optional[float] = None) -> None:
         if agent_id is None or str(agent_id).strip() == "":
             raise ValueError("agent_id must be a non-empty string.")
+        try:
+            v = float(value)
+        except Exception:
+            return
+        if not math.isfinite(v):
+            return
         t = self.sim_time if timestamp is None else float(timestamp)
-        self.reward_events.append((float(t), str(agent_id), float(value)))
+        self.reward_events.append((float(t), str(agent_id), float(v)))
 
     def add_agent_reward(self, agent: Any, value: float, timestamp: Optional[float] = None) -> None:
         if agent is None:
@@ -199,6 +206,8 @@ class GameManager:
         FIX: side is normalized to lowercase to prevent "BLUE"/"Red" routing bugs.
         """
         side = str(side).lower().strip()
+        if side not in ("blue", "red"):
+            return
         ex_uid = self._agent_uid(exclude_agent) if exclude_agent is not None else None
 
         gf = self.game_field
@@ -226,6 +235,13 @@ class GameManager:
         events = self.reward_events
         self.reward_events = []
         return events
+
+    def terminal_outcome_bonus(self, blue_score: int, red_score: int) -> float:
+        if blue_score > red_score:
+            return float(WIN_TEAM_REWARD)
+        if red_score > blue_score:
+            return float(LOSE_TEAM_PUNISH)
+        return float(DRAW_TEAM_PENALTY)
 
     # -------------------------
     # Reset
