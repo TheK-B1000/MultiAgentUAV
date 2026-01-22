@@ -1,7 +1,3 @@
-# =========================
-# agents.py (SUB-PIXEL FEATURES + GOAL CACHING)
-# =========================
-
 from __future__ import annotations
 
 import math
