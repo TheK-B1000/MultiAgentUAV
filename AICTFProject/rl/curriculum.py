@@ -100,8 +100,8 @@ class CurriculumControllerConfig:
     demote_winrate: float = 0.45
 
     enable_species: bool = True
-    species_prob: float = 0.20
-    allow_species_after: int = 200
+    species_prob: float = 0.10
+    allow_species_after: int = 400
 
     enable_snapshots: bool = False
     snapshot_prob: float = 0.10
