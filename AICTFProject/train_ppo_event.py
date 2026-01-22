@@ -52,6 +52,18 @@ from config import (
     PPO_CURRICULUM_OP3_SPECIES_SCALE,
     PPO_CURRICULUM_OP3_SNAPSHOT_SCALE,
     PPO_SWITCH_TO_ELO_AFTER_OP3,
+    PPO_OP3_ELO_TARGET_MARGIN_EASY,
+    PPO_OP3_ELO_TARGET_MARGIN_HARD,
+    PPO_OP3_ELO_WINRATE_LOW,
+    PPO_OP3_ELO_WINRATE_HIGH,
+    PPO_OP3_ELO_SCRIPTED_FLOOR_BASE,
+    PPO_OP3_ELO_SCRIPTED_FLOOR_EASY,
+    PPO_OP3_ELO_SCRIPTED_FLOOR_LOSING,
+    PPO_OP3_ELO_MAX_GAP_WHEN_LOSING,
+    PPO_OP3_ELO_RESAMPLE_TRIES,
+    PPO_STABILITY_WINRATE_TARGET,
+    PPO_STABILITY_LR_MIN_SCALE,
+    PPO_STABILITY_ENT_MIN_SCALE,
 )
 
 _BEHAVIOR_LOGGING_DISABLED_NOTICE = False
@@ -89,21 +101,42 @@ MAX_MACRO_STEPS = 500
 SCORE_LIMIT = 3
 MAX_TIME = 200
 
-# Outcome shaping
-WIN_BONUS = 40.0
+# Outcome shaping (phase-scaled to make OP1 easy to beat)
+WIN_BONUS = 60.0
 LOSS_PENALTY = -30.0
-DRAW_PENALTY = -20.0
-BLUE_SCORED_BONUS = 20.0
-RED_SCORED_PENALTY = -20.0
+DRAW_PENALTY = -30.0
+BLUE_SCORED_BONUS = 30.0
+RED_SCORED_PENALTY = -30.0
+WIN_BONUS_BY_PHASE = {"OP1": 80.0, "OP2": 60.0, "OP3": 50.0}
+DRAW_PENALTY_BY_PHASE = {"OP1": -50.0, "OP2": -30.0, "OP3": -25.0}
+LOSS_PENALTY_BY_PHASE = {"OP1": -30.0, "OP2": -30.0, "OP3": -30.0}
+SCORE_BONUS_SCALE_BY_PHASE = {"OP1": 1.4, "OP2": 1.2, "OP3": 1.0}
 
 # Stall penalty (discourage 0:0 draws)
-NO_SCORE_PENALTY_PER_WINDOW = 0.03
-NO_SCORE_GRACE_WINDOWS = 4
+NO_SCORE_PENALTY_PER_WINDOW = 0.12
+NO_SCORE_GRACE_WINDOWS = 1
+NO_SCORE_PENALTY_PER_WINDOW_BY_PHASE = {"OP1": 0.20, "OP2": 0.12, "OP3": 0.10}
+NO_SCORE_GRACE_WINDOWS_BY_PHASE = {"OP1": 0, "OP2": 1, "OP3": 2}
 
-# Encourage mine usage (shaping bonuses)
-GRAB_MINE_BONUS = 0.5
-PLACE_MINE_BONUS = 0.5
-MINE_BONUS_SCALE_BY_PHASE = {"OP1": 0.5, "OP2": 1.0, "OP3": 2.0}
+# Encourage mine usage (small shaping bonuses)
+GRAB_MINE_BONUS = 0.15
+PLACE_MINE_BONUS = 0.15
+MINE_BONUS_SCALE_BY_PHASE = {"OP1": 0.5, "OP2": 0.75, "OP3": 1.5}
+MINE_FORCE_PROB_BY_PHASE = {"OP1": 0.10, "OP2": 0.15, "OP3": 0.25}
+ALLOW_MINES_IN_OP1 = True
+ALLOW_OFFENSIVE_MINE_PLACING = True
+MINE_DETOUR_DISABLE_RADIUS = 4.0
+
+# Encourage objective play (light shaping bonuses)
+GET_FLAG_BONUS = 0.50
+GO_HOME_BONUS = 0.30
+ACTION_BONUS_SCALE_BY_PHASE = {"OP1": 1.1, "OP2": 1.25, "OP3": 1.4}
+FLAG_PICKUP_BONUS = 1.0
+FLAG_RETURN_BONUS = 2.0
+# OP3 shaping decay (stronger when losing, decays as winrate improves)
+OP3_SHAPING_WINRATE_TARGET = 0.50
+OP3_SHAPING_SCALE_MAX = 1.6
+OP3_SHAPING_SCALE_MIN = 1.0
 
 # Map selection
 MAP_NAME = DEFAULT_MAP_NAME
@@ -130,9 +163,6 @@ N_MACROS = len(USED_MACROS)
 CHECKPOINT_DIR = "checkpoints_sb3"
 POOL_DIR = os.path.join(CHECKPOINT_DIR, "self_play_pool")
 os.makedirs(POOL_DIR, exist_ok=True)
-
-# Opponent policy cache (avoid repeated loads)
-SNAPSHOT_POLICY_CACHE_MAX = 8
 
 # -------------------------
 # TRAIN MODE (choose before running)
@@ -181,18 +211,19 @@ def clear_reward_events_best_effort(gm: GameManager) -> None:
         return
 
 
-def outcome_bonus(blue_score: int, red_score: int) -> float:
+def outcome_bonus(blue_score: int, red_score: int, phase: str) -> float:
+    phase = str(phase or "OP3")
     if blue_score > red_score:
-        return float(WIN_BONUS)
+        return float(WIN_BONUS_BY_PHASE.get(phase, WIN_BONUS))
     if red_score > blue_score:
-        return float(LOSS_PENALTY)
-    return float(DRAW_PENALTY)
+        return float(LOSS_PENALTY_BY_PHASE.get(phase, LOSS_PENALTY))
+    return float(DRAW_PENALTY_BY_PHASE.get(phase, DRAW_PENALTY))
 
 
 # -------------------------
 # Species injection
 # -------------------------
-def make_species_policy(species_type: str = "BALANCED") -> OP3RedPolicy:
+def make_species_policy(species_type: str = "BALANCED", easy_mode: bool = False) -> OP3RedPolicy:
     species_type = str(species_type).upper().strip()
     p = OP3RedPolicy("red")
 
@@ -200,15 +231,32 @@ def make_species_policy(species_type: str = "BALANCED") -> OP3RedPolicy:
         if hasattr(p, "mine_radius_check"):
             p.mine_radius_check = 0.1
         if hasattr(p, "defense_weight"):
-            p.defense_weight = 0.0
+            p.defense_weight = 0.1
         if hasattr(p, "flag_weight"):
-            p.flag_weight = 5.0
+            p.flag_weight = 0.9
 
     elif species_type == "CAMPER":
         if hasattr(p, "mine_radius_check"):
             p.mine_radius_check = 5.0
         if hasattr(p, "defense_weight"):
-            p.defense_weight = 3.0
+            p.defense_weight = 0.9
+        if hasattr(p, "flag_weight"):
+            p.flag_weight = 0.1
+    else:
+        if hasattr(p, "mine_radius_check"):
+            p.mine_radius_check = 1.5
+        if hasattr(p, "defense_weight"):
+            p.defense_weight = 0.5
+        if hasattr(p, "flag_weight"):
+            p.flag_weight = 0.5
+
+    if easy_mode:
+        if hasattr(p, "mine_radius_check"):
+            p.mine_radius_check = min(float(getattr(p, "mine_radius_check", 1.0)), 1.0)
+        if hasattr(p, "defense_weight"):
+            p.defense_weight = 0.85
+        if hasattr(p, "flag_weight"):
+            p.flag_weight = 0.15
 
     return p
 
@@ -272,6 +320,11 @@ class LeagueManager:
             "SPECIES:BALANCED",
         ]:
             self.ratings[key] = 1200.0
+        self.species_keys = [
+            "SPECIES:RUSHER",
+            "SPECIES:CAMPER",
+            "SPECIES:BALANCED",
+        ]
         self.ratings[self.learner_key] = self.learner_rating
 
         # Curriculum: OP1 -> OP2 -> OP3 (Elo-gated)
@@ -297,10 +350,14 @@ class LeagueManager:
         self.last_match_result: Optional[Dict[str, Any]] = None
         self.snapshot_disabled: bool = False
 
+    def _clamp_elo(self, r: float) -> float:
+        return max(0.0, float(r))
+
     def get_rating(self, key: str) -> float:
-        return float(self.ratings.get(key, 1200.0))
+        return self._clamp_elo(self.ratings.get(key, 1200.0))
 
     def set_learner_rating(self, r: float) -> None:
+        r = self._clamp_elo(r)
         self.learner_rating = float(r)
         self.ratings[self.learner_key] = float(r)
 
@@ -360,11 +417,95 @@ class LeagueManager:
             return None
         return self.rng.choice(self.snapshots)
 
+    def _weighted_pick(self, keys: List[str], target_rating: float) -> str:
+        weights = []
+        for key in keys:
+            r = self.get_rating(key)
+            dist = abs(r - float(target_rating))
+            w = math.exp(-dist / max(1e-6, self.tau)) + 1e-3
+            weights.append(w)
+        total = sum(weights)
+        if total <= 0:
+            return self.rng.choice(keys)
+        pick = self.rng.random() * total
+        acc = 0.0
+        for key, w in zip(keys, weights):
+            acc += w
+            if acc >= pick:
+                return key
+        return keys[-1]
+
+    def _sample_species_by_target(self, target_rating: float) -> str:
+        return self._weighted_pick(self.species_keys, target_rating)
+
+    def _sample_snapshot_by_target(self, target_rating: float) -> Optional[str]:
+        if not self.snapshots:
+            return None
+        return self._weighted_pick(self.snapshots, target_rating)
+
+    def _op3_winrate(self) -> float:
+        recent = self.phase_recent_results.get("OP3", deque())
+        if not recent:
+            return 0.0
+        return float(sum(recent)) / float(len(recent))
+
     def sample_opponent(self) -> OpponentSpec:
         # Curriculum mode: start OP1 -> OP2 -> OP3
         if self.mode == TRAIN_MODE_DEFAULT_LEAGUE:
             phase = self.phase_names[self.phase_idx]
             self.last_pick_phase = phase
+            # Once in OP3, switch to Elo-mixed curriculum (species + snapshots + scripted floor)
+            if phase == "OP3":
+                winrate = self._op3_winrate()
+                lr = float(self.learner_rating)
+                if winrate < float(PPO_OP3_ELO_WINRATE_LOW):
+                    target = lr - float(PPO_OP3_ELO_TARGET_MARGIN_EASY)
+                    scripted_p = float(PPO_OP3_ELO_SCRIPTED_FLOOR_LOSING)
+                elif winrate > float(PPO_OP3_ELO_WINRATE_HIGH):
+                    target = lr + float(PPO_OP3_ELO_TARGET_MARGIN_HARD)
+                    scripted_p = max(0.0, float(PPO_OP3_ELO_SCRIPTED_FLOOR_BASE) * 0.5)
+                else:
+                    target = lr
+                    scripted_p = float(PPO_OP3_ELO_SCRIPTED_FLOOR_BASE)
+
+                species_p = float(self.curriculum_species_prob) * float(self.curriculum_op3_species_scale)
+                snap_p = float(self.curriculum_snapshot_prob) * float(self.curriculum_op3_snapshot_scale)
+                total = max(0.0, scripted_p + species_p + snap_p)
+                if total <= 0.0:
+                    key = "SCRIPTED:OP3"
+                    self.last_pick_source = "scripted"
+                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+
+                def _sample_op3_candidate() -> OpponentSpec:
+                    r = self.rng.random() * total
+                    if r < scripted_p:
+                        key = "SCRIPTED:OP3"
+                        self.last_pick_source = "scripted"
+                        return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+                    if r < (scripted_p + species_p):
+                        key = self._sample_species_by_target(target)
+                        tag = key.split(":", 1)[1]
+                        self.last_pick_source = "species"
+                        return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+                    snap = self._sample_snapshot_by_target(target)
+                    if snap is not None:
+                        self.last_pick_source = "snapshot"
+                        return OpponentSpec(kind="SNAPSHOT", key=snap, rating=self.get_rating(snap))
+                    key = self._sample_species_by_target(target)
+                    tag = key.split(":", 1)[1]
+                    self.last_pick_source = "species"
+                    return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+
+                cand = _sample_op3_candidate()
+                if winrate < float(PPO_OP3_ELO_WINRATE_LOW):
+                    max_gap = float(PPO_OP3_ELO_MAX_GAP_WHEN_LOSING)
+                    tries = int(PPO_OP3_ELO_RESAMPLE_TRIES)
+                    for _ in range(max(0, tries)):
+                        if cand.rating <= (lr + max_gap):
+                            break
+                        cand = _sample_op3_candidate()
+                return cand
+
             key = f"SCRIPTED:{phase}"
             self.last_pick_source = "scripted"
             return OpponentSpec(kind="SCRIPTED", key=phase, rating=self.get_rating(key))
@@ -380,20 +521,58 @@ class LeagueManager:
             key = "SCRIPTED:OP3"
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
+        # Elo league: OP3 scripted floor, species primary, snapshots occasionally
+        if self.mode == TRAIN_MODE_ELO_LEAGUE:
+            self.last_pick_phase = "OP3"
+            winrate = self._op3_winrate()
+            lr = float(self.learner_rating)
+            if winrate < float(PPO_OP3_ELO_WINRATE_LOW):
+                target = lr - float(PPO_OP3_ELO_TARGET_MARGIN_EASY)
+                scripted_p = float(PPO_OP3_ELO_SCRIPTED_FLOOR_EASY)
+            elif winrate > float(PPO_OP3_ELO_WINRATE_HIGH):
+                target = lr + float(PPO_OP3_ELO_TARGET_MARGIN_HARD)
+                scripted_p = max(0.0, float(PPO_OP3_ELO_SCRIPTED_FLOOR_BASE) * 0.5)
+            else:
+                target = lr
+                scripted_p = float(PPO_OP3_ELO_SCRIPTED_FLOOR_BASE)
+
+            r = self.rng.random()
+            if r < scripted_p:
+                key = "SCRIPTED:OP3"
+                self.last_pick_source = "scripted"
+                return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+            if r < (scripted_p + self.species_prob):
+                key = self._sample_species_by_target(target)
+                tag = key.split(":", 1)[1]
+                self.last_pick_source = "species"
+                return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+            snap = self._sample_snapshot_by_target(target)
+            if snap is not None:
+                self.last_pick_source = "snapshot"
+                return OpponentSpec(kind="SNAPSHOT", key=snap, rating=self.get_rating(snap))
+            key = self._sample_species_by_target(target)
+            tag = key.split(":", 1)[1]
+            self.last_pick_source = "species"
+            return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+
         if self.rng.random() < self.species_prob:
-            tag = self.rng.choice(["RUSHER", "CAMPER", "BALANCED"])
-            key = f"SPECIES:{tag}"
+            key = self._sample_species_by_target(self.learner_rating)
+            tag = key.split(":", 1)[1]
+            self.last_pick_source = "species"
             return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
 
         if self.rng.random() < self.scripted_mix_floor:
             key = "SCRIPTED:OP3"
+            self.last_pick_source = "scripted"
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
-        snap = self._sample_snapshot_by_elo()
+        snap = self._sample_snapshot_by_target(self.learner_rating)
         if snap is not None:
+            self.last_pick_source = "snapshot"
             return OpponentSpec(kind="SNAPSHOT", key=snap, rating=self.get_rating(snap))
 
         key = "SCRIPTED:OP3"
+        self.last_pick_source = "scripted"
         return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
 
     def update_elo(self, opponent_key: str, actual_score_for_learner: float) -> None:
@@ -403,8 +582,8 @@ class LeagueManager:
         exp = elo_expected(learner_r, opp_r)
         a = float(actual_score_for_learner)
 
-        learner_new = learner_r + self.k * (a - exp)
-        opp_new = opp_r + self.k * ((1.0 - a) - (1.0 - exp))
+        learner_new = self._clamp_elo(learner_r + self.k * (a - exp))
+        opp_new = self._clamp_elo(opp_r + self.k * ((1.0 - a) - (1.0 - exp)))
 
         self.set_learner_rating(learner_new)
         self.ratings[opponent_key] = float(opp_new)
@@ -435,11 +614,22 @@ class LeagueManager:
                     red_score = int(self.last_match_result.get("red_score", 0))
                     if (blue_score - red_score) >= required_win_by:
                         meets_score_gate = True
+            # Require sustained winrate in this phase before advancing.
+            meets_winrate_gate = True
+            recent = self.phase_recent_results.get(phase, deque())
+            window = int(self.curriculum_winrate_window)
+            if window > 0:
+                if len(recent) < window:
+                    meets_winrate_gate = False
+                else:
+                    winrate = float(sum(recent)) / float(len(recent))
+                    meets_winrate_gate = winrate >= float(self.curriculum_min_winrate)
             if (
                 self.phase_idx < (len(self.phase_names) - 1)
                 and self.phase_episode_count >= min_eps
                 and self.learner_rating >= (opp_r + float(self.phase_advance_elo_margin))
                 and meets_score_gate
+                and meets_winrate_gate
             ):
                 self.phase_idx += 1
                 self.phase_episode_count = 0
@@ -456,36 +646,19 @@ class LeagueManager:
 
 # ==========================================================
 # DirectML-safe action encoding (Discrete)
+# Macro-only joint action: (macro_b0, macro_b1)
 # ==========================================================
-def encode_pair(macro_idx: int, tgt_idx: int, n_targets: int) -> int:
-    macro_idx = int(macro_idx) % N_MACROS
-    tgt_idx = int(tgt_idx) % max(1, int(n_targets))
-    return macro_idx * int(n_targets) + tgt_idx
+def encode_joint_macros(b0: int, b1: int) -> int:
+    b0 = int(b0) % N_MACROS
+    b1 = int(b1) % N_MACROS
+    return int(b0 + (N_MACROS * b1))
 
 
-def decode_pair(a: int, n_targets: int) -> Tuple[int, int]:
-    n_targets = max(1, int(n_targets))
-    a = int(a) % (N_MACROS * n_targets)
-    macro_idx = a // n_targets
-    tgt_idx = a % n_targets
-    return int(macro_idx), int(tgt_idx)
-
-
-def encode_joint(b0: Tuple[int, int], b1: Tuple[int, int], n_targets: int) -> int:
-    joint = N_MACROS * max(1, int(n_targets))
-    a0 = encode_pair(b0[0], b0[1], n_targets)
-    a1 = encode_pair(b1[0], b1[1], n_targets)
-    return int(a0 + joint * a1)
-
-
-def decode_joint(action: int, n_targets: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    joint = N_MACROS * max(1, int(n_targets))
+def decode_joint_macros(action: int) -> Tuple[int, int]:
     action = int(action)
-    a0 = action % joint
-    a1 = action // joint
-    b0 = decode_pair(a0, n_targets)
-    b1 = decode_pair(a1, n_targets)
-    return b0, b1
+    b0 = action % N_MACROS
+    b1 = action // N_MACROS
+    return int(b0), int(b1)
 
 
 # -------------------------
@@ -494,11 +667,10 @@ def decode_joint(action: int, n_targets: int) -> Tuple[Tuple[int, int], Tuple[in
 class CTFPPOEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, league: LeagueManager, seed: int = 42, external_opponent_selection: bool = False) -> None:
+    def __init__(self, league: LeagueManager, seed: int = 42) -> None:
         super().__init__()
         self.league = league
         self.rng = random.Random(int(seed))
-        self.external_opponent_selection = bool(external_opponent_selection)
 
         self.env = make_game_field(
             map_name=MAP_NAME or None,
@@ -507,6 +679,12 @@ class CTFPPOEnv(gym.Env):
             cols=CNN_COLS,
         )
         self.gm: GameManager = self.env.getGameManager()
+        if hasattr(self.env, "allow_mines_in_op1"):
+            self.env.allow_mines_in_op1 = bool(ALLOW_MINES_IN_OP1)
+        if hasattr(self.env, "allow_offensive_mine_placing"):
+            self.env.allow_offensive_mine_placing = bool(ALLOW_OFFENSIVE_MINE_PLACING)
+        if hasattr(self.env, "mine_detour_disable_radius_cells"):
+            self.env.mine_detour_disable_radius_cells = float(MINE_DETOUR_DISABLE_RADIUS)
         if hasattr(self.env, "set_seed"):
             try:
                 self.env.set_seed(int(seed))
@@ -516,10 +694,10 @@ class CTFPPOEnv(gym.Env):
         self.env.set_external_control("blue", True)
 
         self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
-        self._joint = N_MACROS * self.n_targets
+        self._joint = N_MACROS
         self._n_actions = self._joint * self._joint
 
-        # ✅ DirectML-safe: Discrete joint-action
+        # ✅ DirectML-safe: Discrete joint-action (macro only)
         self.action_space = spaces.Discrete(self._n_actions)
 
         self.observation_space = spaces.Dict(
@@ -544,8 +722,6 @@ class CTFPPOEnv(gym.Env):
         self.opponent: OpponentSpec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=1200.0)
         self.opponent_key_for_elo: str = "SCRIPTED:OP3"
         self.opp_model: Optional[PPO] = None
-        self._snapshot_policy_cache: Dict[str, PPO] = {}
-        self._pending_opponent_spec: Optional[Dict[str, Any]] = None
 
         self.last_result: Optional[Dict[str, Any]] = None
         self.current_pick_source: str = "scripted"
@@ -553,6 +729,7 @@ class CTFPPOEnv(gym.Env):
         self.invalid_macro_penalty = float(INVALID_MACRO_PENALTY)
         self.wrapper_to_env: List[int] = list(range(N_MACROS))
         self.env_to_wrapper: Dict[int, int] = {i: i for i in range(N_MACROS)}
+        self._macro_index_by_action = {m: i for i, m in enumerate(USED_MACROS)}
         self._macro_counts = np.zeros((N_MACROS,), dtype=np.int64)
         self._macro_total = 0
 
@@ -564,8 +741,13 @@ class CTFPPOEnv(gym.Env):
         self._time_penalty_sum = 0.0
         self._terminal_bonus = 0.0
         self._mine_action_bonus_sum = 0.0
+        self._action_bonus_sum = 0.0
+        self._mine_available_count = 0
+        self._mine_use_count = 0
+        self._mine_decision_count = 0
         self._macro_counts[:] = 0
         self._macro_total = 0
+        self._carrying_prev: Dict[str, bool] = {}
 
         # Behavior logging
         self.behavior_logger = BehaviorLogger()
@@ -583,7 +765,7 @@ class CTFPPOEnv(gym.Env):
 
     def _rebuild_action_space(self) -> None:
         self.n_targets = int(getattr(self.env, "num_macro_targets", 8) or 8)
-        self._joint = N_MACROS * max(1, self.n_targets)
+        self._joint = N_MACROS
         self._n_actions = self._joint * self._joint
         self.action_space = spaces.Discrete(self._n_actions)
 
@@ -676,6 +858,11 @@ class CTFPPOEnv(gym.Env):
     def _init_episode_routing(self) -> None:
         self.blue_uids = [agent_uid(a) for a in self.env.blue_agents if a is not None]
         self.pending_reward = {uid: 0.0 for uid in self.blue_uids}
+        self._carrying_prev = {
+            agent_uid(a): bool(a.isCarryingFlag())
+            for a in self.env.blue_agents
+            if a is not None
+        }
         clear_reward_events_best_effort(self.gm)
 
     def _accumulate_rewards(self) -> None:
@@ -696,15 +883,22 @@ class CTFPPOEnv(gym.Env):
         self.prev_blue_score, self.prev_red_score = cur_b, cur_r
 
         shaped = 0.0
+        score_scale = float(SCORE_BONUS_SCALE_BY_PHASE.get(self.current_pick_phase, 1.0)) * self._op3_shaping_scale()
         if db != 0:
-            shaped += float(BLUE_SCORED_BONUS) * float(db) * float(len(self.blue_uids))
+            shaped += float(BLUE_SCORED_BONUS) * score_scale * float(db) * float(len(self.blue_uids))
         if dr != 0:
-            shaped += float(RED_SCORED_PENALTY) * float(dr) * float(len(self.blue_uids))
+            shaped += float(RED_SCORED_PENALTY) * score_scale * float(dr) * float(len(self.blue_uids))
 
         if db == 0 and dr == 0:
             self.windows_since_score += 1
-            if self.windows_since_score > int(NO_SCORE_GRACE_WINDOWS):
-                penalty = float(NO_SCORE_PENALTY_PER_WINDOW) * float(len(self.blue_uids))
+            grace = int(NO_SCORE_GRACE_WINDOWS_BY_PHASE.get(self.current_pick_phase, NO_SCORE_GRACE_WINDOWS))
+            if self.windows_since_score > grace:
+                per_window = float(
+                    NO_SCORE_PENALTY_PER_WINDOW_BY_PHASE.get(
+                        self.current_pick_phase, NO_SCORE_PENALTY_PER_WINDOW
+                    )
+                )
+                penalty = per_window * float(len(self.blue_uids))
                 shaped -= penalty
                 self._stall_penalty_sum -= penalty
         else:
@@ -715,6 +909,24 @@ class CTFPPOEnv(gym.Env):
             for uid in self.blue_uids:
                 self.pending_reward[uid] += per
             self._score_shaping_sum += shaped
+
+    def _apply_flag_carry_shaping(self, blue_agents: List[Any]) -> None:
+        cur_b = int(getattr(self.gm, "blue_score", 0))
+        for agent in blue_agents:
+            if agent is None:
+                continue
+            uid = agent_uid(agent)
+            was = bool(self._carrying_prev.get(uid, False))
+            now = bool(agent.isCarryingFlag())
+            if (not was) and now:
+                bonus = float(FLAG_PICKUP_BONUS) * self._action_bonus_scale()
+                self.pending_reward[uid] += bonus
+                self._action_bonus_sum += bonus
+            if was and (not now) and (cur_b > int(self.prev_blue_score)):
+                bonus = float(FLAG_RETURN_BONUS) * self._action_bonus_scale()
+                self.pending_reward[uid] += bonus
+                self._action_bonus_sum += bonus
+            self._carrying_prev[uid] = now
 
     def _consume_team_reward(self) -> float:
         r = 0.0
@@ -743,19 +955,30 @@ class CTFPPOEnv(gym.Env):
 
         if opp.kind == "SNAPSHOT":
             self.env.set_external_control("red", True)
-            cached = self._snapshot_policy_cache.get(opp.key)
-            if cached is None:
-                cached = PPO.load(opp.key, device="cpu")
-                cached.policy.set_training_mode(False)
-                self._snapshot_policy_cache[opp.key] = cached
-                if len(self._snapshot_policy_cache) > int(SNAPSHOT_POLICY_CACHE_MAX):
-                    self._snapshot_policy_cache.pop(next(iter(self._snapshot_policy_cache)))
-            self.opp_model = cached
+            try:
+                self.opp_model = PPO.load(opp.key, device="cpu")
+                self.opp_model.policy.set_training_mode(False)
+            except Exception as exc:
+                print(f"[WARN] snapshot load failed ({opp.key}): {exc}. Using scripted OP3.")
+                self.opponent = OpponentSpec(
+                    kind="SCRIPTED",
+                    key="OP3",
+                    rating=self.league.get_rating("SCRIPTED:OP3"),
+                )
+                self.opponent_key_for_elo = "SCRIPTED:OP3"
+                self.current_pick_source = "scripted"
+                self.env.set_external_control("red", False)
+                self.opp_model = None
+                self.env.policies["red"] = OP3RedPolicy("red")
+                return
 
         elif opp.kind == "SPECIES":
             self.env.set_external_control("red", False)
             self.opp_model = None
-            self.env.policies["red"] = make_species_policy(opp.key)
+            easy_mode = False
+            if self.current_pick_phase == "OP3" and hasattr(self.league, "_op3_winrate"):
+                easy_mode = float(self.league._op3_winrate()) < 0.50
+            self.env.policies["red"] = make_species_policy(opp.key, easy_mode=easy_mode)
 
         else:
             self.env.set_external_control("red", False)
@@ -767,8 +990,50 @@ class CTFPPOEnv(gym.Env):
             else:
                 self.env.policies["red"] = OP3RedPolicy("red")
 
+    def _op3_shaping_scale(self) -> float:
+        if self.current_pick_phase != "OP3":
+            return 1.0
+        if hasattr(self.league, "_op3_winrate"):
+            winrate = float(self.league._op3_winrate())
+        else:
+            winrate = 0.0
+        target = float(OP3_SHAPING_WINRATE_TARGET)
+        if target <= 0.0:
+            return float(OP3_SHAPING_SCALE_MIN)
+        if winrate >= target:
+            return float(OP3_SHAPING_SCALE_MIN)
+        frac = (target - winrate) / target
+        scale = float(OP3_SHAPING_SCALE_MIN) + frac * (float(OP3_SHAPING_SCALE_MAX) - float(OP3_SHAPING_SCALE_MIN))
+        return max(float(OP3_SHAPING_SCALE_MIN), min(float(OP3_SHAPING_SCALE_MAX), scale))
+
     def _mine_bonus_scale(self) -> float:
-        return float(MINE_BONUS_SCALE_BY_PHASE.get(self.current_pick_phase, 1.0))
+        return float(MINE_BONUS_SCALE_BY_PHASE.get(self.current_pick_phase, 1.0)) * self._op3_shaping_scale()
+
+    def _macro_target_index(self, agent: Any, macro_action: Optional[MacroAction]) -> int:
+        n_targets = max(1, int(self.n_targets))
+        side = str(getattr(agent, "side", "blue")).lower()
+        if side == "red":
+            own_home, enemy_home, own_zone, enemy_zone = 1, 0, 3, 2
+        else:
+            own_home, enemy_home, own_zone, enemy_zone = 0, 1, 2, 3
+
+        if macro_action == MacroAction.GO_HOME:
+            idx = own_home
+        elif macro_action == MacroAction.GET_FLAG:
+            idx = enemy_home
+        elif macro_action == MacroAction.PLACE_MINE:
+            idx = 7 if side == "blue" else own_zone
+        elif macro_action == MacroAction.GRAB_MINE:
+            idx = own_zone
+        elif macro_action == MacroAction.GO_TO:
+            idx = enemy_zone
+        else:
+            idx = 4
+
+        return int(idx) % n_targets
+
+    def _action_bonus_scale(self) -> float:
+        return float(ACTION_BONUS_SCALE_BY_PHASE.get(self.current_pick_phase, 1.0)) * self._op3_shaping_scale()
 
     def _build_red_external_actions_from_snapshot(self) -> Dict[str, Tuple[int, int]]:
         assert self.opp_model is not None
@@ -779,7 +1044,7 @@ class CTFPPOEnv(gym.Env):
         act, _ = self.opp_model.predict(obs, deterministic=True)
         act_int = int(np.asarray(act).reshape(-1)[0])
 
-        (r0_macro, r0_tgt), (r1_macro, r1_tgt) = decode_joint(act_int, self.n_targets)
+        r0_macro, r1_macro = decode_joint_macros(act_int)
 
         red_agents = [a for a in self.env.red_agents if a is not None]
         while len(red_agents) < 2:
@@ -787,32 +1052,14 @@ class CTFPPOEnv(gym.Env):
 
         actions: Dict[str, Tuple[int, int]] = {}
         if red_agents[0] is not None:
-            actions[agent_uid(red_agents[0])] = (r0_macro, r0_tgt)
+            macro_action = USED_MACROS[int(r0_macro)]
+            target_idx = self._macro_target_index(red_agents[0], macro_action)
+            actions[agent_uid(red_agents[0])] = (int(r0_macro), int(target_idx))
         if red_agents[1] is not None:
-            actions[agent_uid(red_agents[1])] = (r1_macro, r1_tgt)
+            macro_action = USED_MACROS[int(r1_macro)]
+            target_idx = self._macro_target_index(red_agents[1], macro_action)
+            actions[agent_uid(red_agents[1])] = (int(r1_macro), int(target_idx))
         return actions
-
-    def set_opponent_spec(self, spec: Dict[str, Any]) -> None:
-        self._pending_opponent_spec = dict(spec)
-        if self.step_count == 0:
-            self._apply_pending_opponent()
-
-    def _apply_pending_opponent(self) -> None:
-        if not self._pending_opponent_spec:
-            return
-        spec = dict(self._pending_opponent_spec)
-        self._pending_opponent_spec = None
-        try:
-            opp = OpponentSpec(
-                kind=str(spec.get("kind", "SCRIPTED")),
-                key=str(spec.get("key", "OP1")),
-                rating=float(spec.get("rating", 1200.0)),
-            )
-        except Exception:
-            opp = OpponentSpec(kind="SCRIPTED", key="OP1", rating=1200.0)
-        self.current_pick_source = str(spec.get("pick_source", "scripted"))
-        self.current_pick_phase = str(spec.get("pick_phase", self.current_pick_phase))
-        self._set_opponent(opp)
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:
@@ -850,33 +1097,30 @@ class CTFPPOEnv(gym.Env):
         self._time_penalty_sum = 0.0
         self._terminal_bonus = 0.0
         self._mine_action_bonus_sum = 0.0
+        self._action_bonus_sum = 0.0
+        self._mine_available_count = 0
+        self._mine_use_count = 0
+        self._mine_decision_count = 0
 
         # refresh action space if targets changed
         self._rebuild_action_space()
         self._build_macro_index_maps()
 
-        if self.external_opponent_selection:
-            self._apply_pending_opponent()
-        else:
-            opp = self.league.sample_opponent()
-            self._set_opponent(opp)
+        opp = self.league.sample_opponent()
+        self._set_opponent(opp)
 
         self._init_episode_routing()
 
         obs = self._get_obs()
-        info = {
-            "opponent_kind": self.opponent.kind,
-            "opponent_key": self.opponent.key,
-            "opponent_rating": self.opponent.rating,
-        }
+        info = {"opponent_kind": opp.kind, "opponent_key": opp.key, "opponent_rating": opp.rating}
         return obs, info
 
     def step(self, action):
         self.step_count += 1
 
-        # ✅ Discrete joint decode for blue0/blue1 (macro,target)
+        # ✅ Discrete joint decode for blue0/blue1 (macro only)
         act_int = int(np.asarray(action).reshape(-1)[0])
-        (b0_macro, b0_tgt), (b1_macro, b1_tgt) = decode_joint(act_int, self.n_targets)
+        b0_macro, b1_macro = decode_joint_macros(act_int)
 
         blue_agents = [x for x in self.env.blue_agents if x is not None]
         while len(blue_agents) < 2:
@@ -885,9 +1129,9 @@ class CTFPPOEnv(gym.Env):
         invalid_count = 0
         submit: Dict[str, Tuple[int, int]] = {}
 
-        for agent, macro_idx, tgt_idx in [
-            (blue_agents[0], b0_macro, b0_tgt),
-            (blue_agents[1], b1_macro, b1_tgt),
+        for agent, macro_idx in [
+            (blue_agents[0], b0_macro),
+            (blue_agents[1], b1_macro),
         ]:
             if agent is None or (hasattr(agent, "isEnabled") and not agent.isEnabled()):
                 continue
@@ -897,30 +1141,87 @@ class CTFPPOEnv(gym.Env):
                 mm = np.ones((N_MACROS,), dtype=np.bool_)
 
             macro_idx = int(macro_idx) % N_MACROS
-            tgt_idx = int(tgt_idx) % max(1, self.n_targets)
+
+            # Build wrapper mask and resample if invalid (masked sampling)
+            wrapper_mm = np.zeros((N_MACROS,), dtype=np.bool_)
+            for wi, ei in enumerate(self.wrapper_to_env):
+                if 0 <= ei < len(mm):
+                    wrapper_mm[wi] = bool(mm[ei])
+                else:
+                    wrapper_mm[wi] = True
+            if not wrapper_mm.any():
+                wrapper_mm[:] = True
+
+            if not bool(wrapper_mm[int(macro_idx)]):
+                invalid_count += 1
+                valid = np.flatnonzero(wrapper_mm)
+                if valid.size > 0:
+                    macro_idx = int(self.rng.choice(valid))
+                else:
+                    macro_idx = 0
 
             env_macro_idx = int(self.wrapper_to_env[macro_idx]) if self.wrapper_to_env else int(macro_idx)
-            if not bool(mm[env_macro_idx]):
-                macro_idx = 0  # force legal fallback (GO_TO)
-                env_macro_idx = int(self.wrapper_to_env[macro_idx]) if self.wrapper_to_env else int(macro_idx)
-                invalid_count += 1
 
-            submit[agent_uid(agent)] = (env_macro_idx, tgt_idx)
-            self.behavior_logger.log_decision(agent, int(macro_idx))
-            self._macro_counts[int(macro_idx)] += 1
-            self._macro_total += 1
+            # Encourage mine exploration when available (phase-scaled)
+            force_prob = float(MINE_FORCE_PROB_BY_PHASE.get(self.current_pick_phase, 0.0))
+            if force_prob > 0.0:
+                candidate_idx = None
+                grab_idx = self._macro_index_by_action.get(MacroAction.GRAB_MINE)
+                place_idx = self._macro_index_by_action.get(MacroAction.PLACE_MINE)
+                if grab_idx is not None:
+                    grab_env_idx = int(self.wrapper_to_env[grab_idx])
+                    if 0 <= grab_env_idx < len(mm) and bool(mm[grab_env_idx]):
+                        candidate_idx = int(grab_idx)
+                if candidate_idx is None and place_idx is not None:
+                    place_env_idx = int(self.wrapper_to_env[place_idx])
+                    if 0 <= place_env_idx < len(mm) and bool(mm[place_env_idx]):
+                        candidate_idx = int(place_idx)
+                if candidate_idx is not None and self.rng.random() < force_prob:
+                    macro_idx = int(candidate_idx)
+                    env_macro_idx = int(self.wrapper_to_env[macro_idx])
+
             try:
                 macro_action = USED_MACROS[int(macro_idx)]
             except Exception:
                 macro_action = None
+            tgt_idx = self._macro_target_index(agent, macro_action)
+
+            submit[agent_uid(agent)] = (env_macro_idx, int(tgt_idx))
+            self.behavior_logger.log_decision(agent, int(macro_idx))
+            self._macro_counts[int(macro_idx)] += 1
+            self._macro_total += 1
+            self._mine_decision_count += 1
+            grab_idx = self._macro_index_by_action.get(MacroAction.GRAB_MINE)
+            place_idx = self._macro_index_by_action.get(MacroAction.PLACE_MINE)
+            mine_available = False
+            if grab_idx is not None:
+                grab_env_idx = int(self.wrapper_to_env[grab_idx])
+                if 0 <= grab_env_idx < len(mm) and bool(mm[grab_env_idx]):
+                    mine_available = True
+            if not mine_available and place_idx is not None:
+                place_env_idx = int(self.wrapper_to_env[place_idx])
+                if 0 <= place_env_idx < len(mm) and bool(mm[place_env_idx]):
+                    mine_available = True
+            if mine_available:
+                self._mine_available_count += 1
             if macro_action == MacroAction.GRAB_MINE:
                 bonus = float(GRAB_MINE_BONUS) * self._mine_bonus_scale()
                 self.pending_reward[agent_uid(agent)] += bonus
                 self._mine_action_bonus_sum += bonus
+                self._mine_use_count += 1
             elif macro_action == MacroAction.PLACE_MINE:
                 bonus = float(PLACE_MINE_BONUS) * self._mine_bonus_scale()
                 self.pending_reward[agent_uid(agent)] += bonus
                 self._mine_action_bonus_sum += bonus
+                self._mine_use_count += 1
+            elif macro_action == MacroAction.GET_FLAG:
+                bonus = float(GET_FLAG_BONUS) * self._action_bonus_scale()
+                self.pending_reward[agent_uid(agent)] += bonus
+                self._action_bonus_sum += bonus
+            elif macro_action == MacroAction.GO_HOME:
+                bonus = float(GO_HOME_BONUS) * self._action_bonus_scale()
+                self.pending_reward[agent_uid(agent)] += bonus
+                self._action_bonus_sum += bonus
 
         if self.opponent.kind == "SNAPSHOT":
             submit.update(self._build_red_external_actions_from_snapshot())
@@ -932,12 +1233,17 @@ class CTFPPOEnv(gym.Env):
         truncated = bool(self.step_count >= MAX_MACRO_STEPS)
         done = bool(terminated or truncated)
 
+        self._apply_flag_carry_shaping(blue_agents)
         self._accumulate_rewards()
         self._apply_score_delta_shaping()
         reward = self._consume_team_reward()
 
         if done:
-            terminal_bonus = outcome_bonus(int(self.gm.blue_score), int(self.gm.red_score))
+            terminal_bonus = outcome_bonus(
+                int(self.gm.blue_score),
+                int(self.gm.red_score),
+                self.current_pick_phase,
+            )
             reward += terminal_bonus
             self._terminal_bonus += float(terminal_bonus)
 
@@ -968,6 +1274,17 @@ class CTFPPOEnv(gym.Env):
                 "time_penalty_sum": float(self._time_penalty_sum),
                 "terminal_bonus": float(self._terminal_bonus),
                 "mine_action_bonus_sum": float(self._mine_action_bonus_sum),
+                "action_bonus_sum": float(self._action_bonus_sum),
+                "mine_available_ratio": (
+                    float(self._mine_available_count) / float(self._mine_decision_count)
+                    if self._mine_decision_count > 0
+                    else 0.0
+                ),
+                "mine_use_ratio": (
+                    float(self._mine_use_count) / float(self._mine_decision_count)
+                    if self._mine_decision_count > 0
+                    else 0.0
+                ),
                 "macro_choice_avg": (
                     (self._macro_counts / float(self._macro_total)).tolist()
                     if self._macro_total > 0
@@ -1075,16 +1392,8 @@ class LeagueSelfPlayCallback(BaseCallback):
         self._macro_avg_accum = np.zeros((N_MACROS,), dtype=np.float64)
         self._macro_avg_count = 0
         self._checkpoint_disabled = False
-
-    def _make_opponent_spec_dict(self) -> Dict[str, Any]:
-        opp = self.league.sample_opponent()
-        return {
-            "kind": opp.kind,
-            "key": opp.key,
-            "rating": opp.rating,
-            "pick_source": getattr(self.league, "last_pick_source", "scripted"),
-            "pick_phase": getattr(self.league, "last_pick_phase", "OP1"),
-        }
+        self._mine_avail_accum = 0.0
+        self._mine_use_accum = 0.0
 
     def _log_eval(self, eval_env: DummyVecEnv) -> None:
         wins = 0
@@ -1162,6 +1471,10 @@ class LeagueSelfPlayCallback(BaseCallback):
                 opp_label = str(mr["opponent_kind"])
                 if opp_label == "SPECIES":
                     opp_label = str(mr.get("opponent_key", opp_label))
+                elif opp_label == "SCRIPTED":
+                    opp_label = str(mr.get("opponent_key", opp_label))
+                if not show_elo and phase == "OP3":
+                    elo_str = f" learner_elo={self.league.learner_rating:.1f} opp_elo={self.league.get_rating(opp_key):.1f}"
                 print(
                     f"[LEAGUE|{self.league.mode}] ep={self.episode_idx} result={mr['result']} "
                     f"score={mr['blue_score']}:{mr['red_score']} "
@@ -1172,13 +1485,19 @@ class LeagueSelfPlayCallback(BaseCallback):
                 if isinstance(macro_avg, list) and len(macro_avg) == N_MACROS:
                     self._macro_avg_accum += np.asarray(macro_avg, dtype=np.float64)
                     self._macro_avg_count += 1
+                    self._mine_avail_accum += float(mr.get("mine_available_ratio", 0.0))
+                    self._mine_use_accum += float(mr.get("mine_use_ratio", 0.0))
                     if (self._macro_avg_count % 50) == 0:
                         avg = self._macro_avg_accum / float(self._macro_avg_count)
+                        mine_avail = self._mine_avail_accum / float(self._macro_avg_count)
+                        mine_use = self._mine_use_accum / float(self._macro_avg_count)
                         names = [getattr(m, "name", str(m)) for m in USED_MACROS]
                         parts = [f"{n}={v:.2f}" for n, v in zip(names, avg.tolist())]
-                        print(f"[MACRO_AVG|last50] " + ", ".join(parts))
+                        print(f"[MACRO_AVG|last50] " + ", ".join(parts) + f" mine_avail={mine_avail:.2f} mine_use={mine_use:.2f}")
                         self._macro_avg_accum[:] = 0.0
                         self._macro_avg_count = 0
+                        self._mine_avail_accum = 0.0
+                        self._mine_use_accum = 0.0
 
             self.logger.record("league/phase", phase, exclude=("tensorboard",))
             self.logger.record("league/pick_phase", pick_phase, exclude=("tensorboard",))
@@ -1200,14 +1519,6 @@ class LeagueSelfPlayCallback(BaseCallback):
                 else:
                     if self.verbose and snap:
                         print(f"[SNAPSHOT|{self.league.mode}] saved={os.path.basename(snap)} pool={len(self.league.snapshots)}")
-
-            # Set opponent for next episode (works with SubprocVecEnv via env_method)
-            try:
-                spec = self._make_opponent_spec_dict()
-                if self.training_env is not None:
-                    self.training_env.env_method("set_opponent_spec", spec, indices=i)
-            except Exception:
-                pass
 
         if (
             not self._checkpoint_disabled
@@ -1248,15 +1559,58 @@ class LeagueSelfPlayCallback(BaseCallback):
         return True
 
 
-class EntCoefScheduleCallback(BaseCallback):
-    def __init__(self, start: float, end: float):
+class Op3StabilityCallback(BaseCallback):
+    def __init__(
+        self,
+        league: LeagueManager,
+        ent_start: float,
+        ent_end: float,
+        lr_start: float,
+        lr_end: float,
+    ):
         super().__init__()
-        self._schedule = linear_schedule(start, end)
+        self.league = league
+        self._ent_schedule = linear_schedule(ent_start, ent_end)
+        self._lr_schedule = linear_schedule(lr_start, lr_end)
+
+    def _op3_winrate(self) -> float:
+        if hasattr(self.league, "_op3_winrate"):
+            try:
+                return float(self.league._op3_winrate())
+            except Exception:
+                return 0.0
+        return 0.0
+
+    def _scale_from_winrate(self, winrate: float, min_scale: float) -> float:
+        target = float(PPO_STABILITY_WINRATE_TARGET)
+        if target <= 0.0:
+            return 1.0
+        if winrate >= target:
+            return 1.0
+        frac = (target - winrate) / target
+        scale = 1.0 - frac * (1.0 - float(min_scale))
+        return max(float(min_scale), min(1.0, float(scale)))
 
     def _on_step(self) -> bool:
-        if hasattr(self.model, "_current_progress_remaining"):
-            progress = float(self.model._current_progress_remaining)
-            self.model.ent_coef = float(self._schedule(progress))
+        if not hasattr(self.model, "_current_progress_remaining"):
+            return True
+        progress = float(self.model._current_progress_remaining)
+        base_ent = float(self._ent_schedule(progress))
+        base_lr = float(self._lr_schedule(progress))
+
+        winrate = self._op3_winrate()
+        lr_scale = self._scale_from_winrate(winrate, PPO_STABILITY_LR_MIN_SCALE)
+        ent_scale = self._scale_from_winrate(winrate, PPO_STABILITY_ENT_MIN_SCALE)
+
+        # Apply scaled entropy coefficient
+        self.model.ent_coef = float(base_ent * ent_scale)
+
+        # Apply scaled learning rate
+        if hasattr(self.model, "policy") and hasattr(self.model.policy, "optimizer"):
+            opt = self.model.policy.optimizer
+            if opt is not None:
+                for group in opt.param_groups:
+                    group["lr"] = float(base_lr * lr_scale)
         return True
 
 
@@ -1280,7 +1634,7 @@ class InvalidPenaltyScheduleCallback(BaseCallback):
 # -------------------------
 def make_env_fn(league: LeagueManager):
     def _fn():
-        return CTFPPOEnv(league=league, seed=SEED, external_opponent_selection=True)
+        return CTFPPOEnv(league=league, seed=SEED)
     return _fn
 
 
@@ -1312,7 +1666,8 @@ def train_phase1_sb3():
         seed=SEED,
     )
 
-    n_envs = max(1, int(PPO_N_ENVS))
+    force_dummy = TRAIN_MODE in (TRAIN_MODE_DEFAULT_LEAGUE, TRAIN_MODE_ELO_LEAGUE)
+    n_envs = 1 if force_dummy else max(1, int(PPO_N_ENVS))
     n_steps = max(128, int(PPO_N_STEPS))
     rollout_batch = n_envs * n_steps
     batch_size = max(32, int(PPO_BATCH_SIZE))
@@ -1324,29 +1679,16 @@ def train_phase1_sb3():
         print(f"[PPO] adjusted batch_size={batch_size} to divide rollout_batch={rollout_batch}")
 
     env_fns = [make_env_fn(league) for _ in range(n_envs)]
-    try:
-        venv = SubprocVecEnv(env_fns)
-    except Exception:
-        print("[PPO] SubprocVecEnv failed, falling back to DummyVecEnv.")
+    if force_dummy:
+        print("[PPO] League mode uses DummyVecEnv to keep curriculum state consistent.")
         venv = DummyVecEnv(env_fns)
-    venv = VecMonitor(venv)  # ✅ no double-Monitor warning
-
-    # Pre-seed initial opponents for each env
-    initial_specs = [
-        {
-            "kind": opp.kind,
-            "key": opp.key,
-            "rating": opp.rating,
-            "pick_source": getattr(league, "last_pick_source", "scripted"),
-            "pick_phase": getattr(league, "last_pick_phase", "OP1"),
-        }
-        for opp in [league.sample_opponent() for _ in range(n_envs)]
-    ]
-    for idx, spec in enumerate(initial_specs):
+    else:
         try:
-            venv.env_method("set_opponent_spec", spec, indices=idx)
+            venv = SubprocVecEnv(env_fns)
         except Exception:
-            pass
+            print("[PPO] SubprocVecEnv failed, falling back to DummyVecEnv.")
+            venv = DummyVecEnv(env_fns)
+    venv = VecMonitor(venv)  # ✅ no double-Monitor warning
 
     policy_kwargs = dict(
         features_extractor_class=CTFCombinedExtractor,
@@ -1383,7 +1725,13 @@ def train_phase1_sb3():
     cb = CallbackList(
         [
             LeagueSelfPlayCallback(league=league, save_dir=CHECKPOINT_DIR, verbose=1),
-            EntCoefScheduleCallback(ENT_COEF_START, ENT_COEF_END),
+            Op3StabilityCallback(
+                league=league,
+                ent_start=ENT_COEF_START,
+                ent_end=ENT_COEF_END,
+                lr_start=LR_START,
+                lr_end=LR_END,
+            ),
         ]
     )
     try:
