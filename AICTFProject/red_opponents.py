@@ -1,6 +1,6 @@
 # red_opponents.py
 from __future__ import annotations
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 import os
 import numpy as np
 
@@ -68,21 +68,87 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
 
     model = PPO.load(path, device="cpu")
 
-    def wrapper(obs, agent, game_field, base_policy=None):
-        # obs from GameField is python list [7][20][20]
-        x = np.asarray(obs, dtype=np.float32)
+    def _model_expects_mask() -> bool:
+        space = getattr(model.policy, "observation_space", None)
+        if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+            return "mask" in space.spaces
+        return False
 
-        # SB3 expects observation with batch dim removed; predict handles it
+    def _model_expects_vec() -> bool:
+        space = getattr(model.policy, "observation_space", None)
+        if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+            return "vec" in space.spaces
+        return True
+
+    def _coerce_vec(vec: np.ndarray, *, size: int = 4) -> np.ndarray:
+        v = np.asarray(vec, dtype=np.float32).reshape(-1)
+        if v.size == size:
+            return v
+        if v.size < size:
+            return np.pad(v, (0, size - v.size), mode="constant")
+        return v[:size]
+
+    def _build_team_obs(game_field, side: str, obs_template: np.ndarray) -> Dict[str, np.ndarray]:
+        agents = game_field.red_agents if side == "red" else game_field.blue_agents
+        live = [a for a in agents if a is not None]
+        while len(live) < 2:
+            live.append(live[0] if live else None)
+
+        obs_list = []
+        vec_list = []
+        mask_list = []
+
+        for a in live[:2]:
+            if a is None:
+                obs_list.append(np.zeros_like(obs_template))
+                if _model_expects_vec():
+                    vec_list.append(np.zeros((4,), dtype=np.float32))
+                if _model_expects_mask():
+                    mask_list.append(np.ones((5,), dtype=np.float32))
+                continue
+
+            o = np.asarray(game_field.build_observation(a), dtype=np.float32)
+            obs_list.append(o)
+
+            if _model_expects_vec():
+                if hasattr(game_field, "build_continuous_features"):
+                    vec_list.append(_coerce_vec(game_field.build_continuous_features(a)))
+                else:
+                    vec_list.append(np.zeros((4,), dtype=np.float32))
+
+            if _model_expects_mask():
+                mm = np.asarray(game_field.get_macro_mask(a), dtype=np.bool_).reshape(-1)
+                if mm.shape != (5,) or (not mm.any()):
+                    mm = np.ones((5,), dtype=np.bool_)
+                mask_list.append(mm.astype(np.float32))
+
+        out = {"grid": np.concatenate(obs_list, axis=0).astype(np.float32)}
+        if _model_expects_vec():
+            out["vec"] = np.concatenate(vec_list, axis=0).astype(np.float32)
+        if _model_expects_mask():
+            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
+        return out
+
+    def wrapper(obs, agent, game_field, base_policy=None):
+        # Build a team-style dict obs matching SB3 training
+        side = str(getattr(agent, "side", "red")).lower()
+        obs_template = np.asarray(obs, dtype=np.float32)
+        x = _build_team_obs(game_field, side=side, obs_template=obs_template)
+
         action, _ = model.predict(x, deterministic=True)
 
-        # action can be array([macro, tgt]) for MultiDiscrete
-        try:
-            macro = int(action[0])
-            tgt = int(action[1]) if len(action) > 1 else 0
-        except Exception:
-            macro = int(action)
-            tgt = 0
+        # action can be array([b0_macro, b0_tgt, b1_macro, b1_tgt])
+        a = np.asarray(action).reshape(-1)
+        if a.size < 4:
+            padded = np.zeros((4,), dtype=np.int64)
+            padded[: a.size] = a
+            a = padded
+        elif a.size > 4:
+            a = a[:4]
 
+        idx = 0 if getattr(agent, "agent_id", 0) <= 0 else 1
+        macro = int(a[idx * 2 + 0])
+        tgt = int(a[idx * 2 + 1])
         return {"macro_action": macro, "target_action": tgt}
 
     return wrapper
