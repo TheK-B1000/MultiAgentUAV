@@ -39,7 +39,13 @@ class EloLeague:
         self.ratings: Dict[str, float] = {self.learner_key: 1200.0}
         self.snapshots: List[str] = []
         self.species_keys = ["SPECIES:RUSHER", "SPECIES:CAMPER", "SPECIES:BALANCED"]
-        for key in ["SCRIPTED:OP1", "SCRIPTED:OP2", "SCRIPTED:OP3"] + self.species_keys:
+        for key in [
+            "SCRIPTED:OP1",
+            "SCRIPTED:OP2",
+            "SCRIPTED:OP3",
+            "SCRIPTED:OP3_EASY",
+            "SCRIPTED:OP3_HARD",
+        ] + self.species_keys:
             self.ratings.setdefault(key, 1200.0)
 
     @property
@@ -94,8 +100,9 @@ class EloLeague:
         target = self.learner_rating if target_rating is None else float(target_rating)
         r = self.rng.random()
         if r < self.scripted_floor or (not self.snapshots):
-            key = "SCRIPTED:OP3"
-            return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+            key = "SCRIPTED:OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "SCRIPTED:OP3"
+            tag = key.split(":", 1)[1]
+            return OpponentSpec(kind="SCRIPTED", key=tag, rating=self.get_rating(key))
 
         r -= self.scripted_floor
         if r < self.species_prob:
@@ -109,3 +116,16 @@ class EloLeague:
 
         key = "SCRIPTED:OP3"
         return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+
+    def sample_species(self, target_rating: Optional[float] = None) -> OpponentSpec:
+        target = self.learner_rating if target_rating is None else float(target_rating)
+        key = self._weighted_pick(self.species_keys, target)
+        tag = key.split(":", 1)[1]
+        return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+
+    def sample_snapshot(self, target_rating: Optional[float] = None) -> OpponentSpec:
+        if not self.snapshots:
+            return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3"))
+        target = self.learner_rating if target_rating is None else float(target_rating)
+        key = self._weighted_pick(self.snapshots, target)
+        return OpponentSpec(kind="SNAPSHOT", key=key, rating=self.get_rating(key))
