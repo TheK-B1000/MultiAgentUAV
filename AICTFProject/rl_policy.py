@@ -364,7 +364,7 @@ class ActorCriticNet(nn.Module):
             macro_action = torch.multinomial(torch.softmax(macro_logits, dim=-1), 1).squeeze(1)
             target_action = torch.multinomial(torch.softmax(target_logits, dim=-1), 1).squeeze(1)
 
-        macro_logp, _ = self._masked_logp_entropy(macro_logits, macro_action, mask_bool=mask_batch)
+        macro_logp, _ = self._masked_logp_entropy(macro_logits, macro_action, mask_bool=None)
         targ_logp, _ = self._masked_logp_entropy(target_logits, target_action, mask_bool=None)
 
         needs_t = self._needs_target(macro_action)
@@ -416,7 +416,7 @@ class ActorCriticNet(nn.Module):
             macro_action = torch.multinomial(torch.softmax(macro_logits, dim=-1), 1).squeeze(1)
             target_action = torch.multinomial(torch.softmax(target_logits, dim=-1), 1).squeeze(1)
 
-        macro_logp, _ = self._masked_logp_entropy(macro_logits, macro_action, mask_bool=mask_batch)
+        macro_logp, _ = self._masked_logp_entropy(macro_logits, macro_action, mask_bool=None)
         targ_logp, _ = self._masked_logp_entropy(target_logits, target_action, mask_bool=None)
 
         needs_t = self._needs_target(macro_action)
