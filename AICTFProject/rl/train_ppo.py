@@ -78,6 +78,9 @@ class LeagueCallback(BaseCallback):
         self.curriculum = curriculum
         self.episode_idx = 0
         self.league_mode = False
+        self.win_count = 0
+        self.loss_count = 0
+        self.draw_count = 0
 
     def _opponent_key(self, info: Dict[str, Any]) -> str:
         kind = str(info.get("opponent_kind", "scripted")).upper()
@@ -115,14 +118,17 @@ class LeagueCallback(BaseCallback):
                 result = "WIN"
                 actual = 1.0
                 win = True
+                self.win_count += 1
             elif blue_score < red_score:
                 result = "LOSS"
                 actual = 0.0
                 win = False
+                self.loss_count += 1
             else:
                 result = "DRAW"
                 actual = 0.5
                 win = False
+                self.draw_count += 1
 
             opp_key = self._opponent_key(ep)
             self.league.update_elo(opp_key, actual)
@@ -149,20 +155,16 @@ class LeagueCallback(BaseCallback):
             ):
                 self.league_mode = True
 
-            bonus = 0.0
-            env = self.model.get_env()
-            if env is not None and getattr(env, "envs", None):
-                gm = getattr(env.envs[0], "gf", None)
-                gm = getattr(gm, "manager", None) if gm is not None else None
-                if gm is not None and hasattr(gm, "terminal_outcome_bonus"):
-                    bonus = float(gm.terminal_outcome_bonus(blue_score, red_score))
             if self.verbose:
                 mode = "LEAGUE" if self.league_mode else "CURR"
-                print(
+                base = (
                     f"[PPO|{mode}] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} phase={phase} opp={opp_key} "
-                    f"elo={self.league.learner_rating:.1f} bonus={bonus:+.1f}"
+                    f"W/L/D={self.win_count}/{self.loss_count}/{self.draw_count}"
                 )
+                if self.league_mode:
+                    base = f"{base} elo={self.league.learner_rating:.1f}"
+                print(base)
 
             if (self.episode_idx % int(self.cfg.snapshot_every_episodes)) == 0:
                 path = os.path.join(self.cfg.checkpoint_dir, f"sp_snapshot_ep{self.episode_idx:06d}")
@@ -177,6 +179,7 @@ class LeagueCallback(BaseCallback):
             env = self.model.get_env()
             if env is not None:
                 env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
+                env.env_method("set_phase", self.curriculum.phase)
 
         return True
 
@@ -217,6 +220,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     except Exception:
         venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
+
+    # Apply initial curriculum phase to all envs
+    try:
+        venv.env_method("set_phase", curriculum.phase)
+    except Exception:
+        pass
 
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
 
