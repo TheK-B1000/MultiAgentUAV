@@ -110,6 +110,7 @@ class GameField:
         # Objective-first knobs
         self.mine_detour_disable_radius_cells: float = 8.0
         self.allow_offensive_mine_placing: bool = False
+        self.allow_mines_in_op1: bool = False
 
         # Policy wiring
         self.use_internal_policies: bool = True
@@ -564,8 +565,8 @@ class GameField:
             mask[idx_home] = True
             return mask
 
-        # OP1: hard-disable mines
-        if phase == "OP1":
+        # OP1: optionally disable mines
+        if phase == "OP1" and (not getattr(self, "allow_mines_in_op1", False)):
             mask[idx_grab] = False
             mask[idx_place] = False
 
