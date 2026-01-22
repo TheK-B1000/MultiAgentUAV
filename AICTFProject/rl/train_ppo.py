@@ -14,7 +14,12 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMoni
 from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
 from rl.common import set_global_seed
-from rl.curriculum import CurriculumConfig, CurriculumState
+from rl.curriculum import (
+    CurriculumConfig,
+    CurriculumController,
+    CurriculumControllerConfig,
+    CurriculumState,
+)
 from rl.league import EloLeague, OpponentSpec
 from config import MAP_NAME, MAP_PATH
 
@@ -24,8 +29,8 @@ class PPOConfig:
     seed: int = 42
     total_timesteps: int = 1_000_000
     n_envs: int = 4
-    n_steps: int = 1024
-    batch_size: int = 256
+    n_steps: int = 2048
+    batch_size: int = 512
     n_epochs: int = 10
     gamma: float = 0.995
     gae_lambda: float = 0.95
@@ -40,9 +45,13 @@ class PPOConfig:
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
-    snapshot_every_episodes: int = 50
+    snapshot_every_episodes: int = 100
+    enable_tensorboard: bool = False
+    enable_checkpoints: bool = False
+    enable_eval: bool = False
 
-    max_decision_steps: int = 600
+    max_decision_steps: int = 900
+    op3_gate_tag: str = "OP3_HARD"
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
@@ -71,11 +80,13 @@ class LeagueCallback(BaseCallback):
         cfg: PPOConfig,
         league: EloLeague,
         curriculum: CurriculumState,
+        controller: CurriculumController,
     ) -> None:
         super().__init__(verbose=1)
         self.cfg = cfg
         self.league = league
         self.curriculum = curriculum
+        self.controller = controller
         self.episode_idx = 0
         self.league_mode = False
         self.win_count = 0
@@ -93,9 +104,7 @@ class LeagueCallback(BaseCallback):
         return f"SCRIPTED:{tag}"
 
     def _select_next_opponent(self) -> OpponentSpec:
-        if self.league_mode:
-            return self.league.sample_league()
-        return self.league.sample_curriculum(self.curriculum.phase)
+        return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -132,6 +141,7 @@ class LeagueCallback(BaseCallback):
 
             opp_key = self._opponent_key(ep)
             self.league.update_elo(opp_key, actual)
+            self.controller.record_result(opp_key, actual)
 
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
@@ -154,17 +164,25 @@ class LeagueCallback(BaseCallback):
                 meets_eps = self.curriculum.phase_episode_count >= min_eps
                 meets_wr = self.curriculum.phase_winrate("OP3") >= min_wr
                 meets_score = True if req_win_by <= 0 else (win_by >= req_win_by)
-                if self.curriculum.config.switch_to_league_after_op3_win and win:
+                gate_tag = str(self.cfg.op3_gate_tag).upper()
+                gate_ok = opp_key.endswith(f":{gate_tag}")
+                if self.curriculum.config.switch_to_league_after_op3_win and win and gate_ok:
                     self.league_mode = True
-                elif meets_eps and meets_wr and meets_score:
+                elif meets_eps and meets_wr and meets_score and gate_ok:
                     self.league_mode = True
 
             if self.verbose:
                 mode = "LEAGUE" if self.league_mode else "CURR"
+                metrics = self.controller.summary()
                 base = (
                     f"[PPO|{mode}] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} phase={phase} opp={opp_key} "
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
+                )
+                base = (
+                    f"{base} tier={int(metrics.get('tier', 0))} "
+                    f"robust={metrics.get('robust_min', 0.0):.2f} "
+                    f"gen={metrics.get('generalization_std', 0.0):.2f}"
                 )
                 if self.league_mode:
                     base = f"{base} elo={self.league.learner_rating:.1f}"
@@ -215,6 +233,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         snapshot_prob=0.30,
     )
 
+    controller = CurriculumController(
+        CurriculumControllerConfig(seed=cfg.seed),
+        league=league,
+    )
+
     env_fns = [
         _make_env_fn(cfg, default_opponent=("SCRIPTED", "OP1"))
         for _ in range(max(1, int(cfg.n_envs)))
@@ -246,37 +269,47 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         ent_coef=float(cfg.ent_coef),
         vf_coef=0.5,
         max_grad_norm=float(cfg.max_grad_norm),
-        tensorboard_log=os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag),
+        tensorboard_log=(
+            os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
+            if cfg.enable_tensorboard
+            else None
+        ),
         policy_kwargs=policy_kwargs,
         verbose=0,
         seed=cfg.seed,
         device=cfg.device,
     )
 
-    model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
+    if cfg.enable_tensorboard:
+        model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
+    else:
+        model.set_logger(configure(None, ["stdout"]))
 
-    eval_env = DummyVecEnv(
-        [_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"))]
-    )
-    eval_env = VecMonitor(eval_env)
+    callbacks = [LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller)]
 
-    callbacks = CallbackList(
-        [
-            LeagueCallback(cfg=cfg, league=league, curriculum=curriculum),
+    if cfg.enable_checkpoints:
+        callbacks.append(
             CheckpointCallback(
                 save_freq=int(cfg.save_every_steps),
                 save_path=cfg.checkpoint_dir,
                 name_prefix=f"ckpt_{cfg.run_tag}",
-            ),
+            )
+        )
+
+    if cfg.enable_eval:
+        eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"))])
+        eval_env = VecMonitor(eval_env)
+        callbacks.append(
             EvalCallback(
                 eval_env,
                 n_eval_episodes=int(cfg.eval_episodes),
                 eval_freq=int(cfg.eval_every_steps),
                 deterministic=True,
                 best_model_save_path=cfg.checkpoint_dir,
-            ),
-        ]
-    )
+            )
+        )
+
+    callbacks = CallbackList(callbacks)
 
     model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
 
