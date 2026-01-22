@@ -144,9 +144,15 @@ class OP2RedPolicy(Policy):
     OP2: Defensive mine-layer.
     """
 
-    def __init__(self, side: str = "red", defense_band_radius: int = 1):
+    def __init__(
+        self,
+        side: str = "red",
+        defense_band_radius: int = 1,
+        edge_bias: float = 0.5,
+    ):
         self.side = side
         self.defense_band_radius = max(0, int(defense_band_radius))
+        self.edge_bias = max(0.0, min(1.0, float(edge_bias)))
 
     def _zone_col_range(self, game_field: "GameField", side: str) -> Tuple[int, int]:
         if side == "red" and hasattr(game_field, "red_zone_col_range"):
@@ -197,6 +203,13 @@ class OP2RedPolicy(Policy):
                     out.append((x, y))
             return out
 
+        def _pick_defense_cell(cells: List[Tuple[int, int]]) -> Tuple[int, int]:
+            if not cells:
+                return int(flag_x), int(flag_y)
+            edge_candidates = _near_edge(cells, band=1) or _near_edge(cells, band=2)
+            use_edge = edge_candidates and (random.random() < self.edge_bias)
+            return random.choice(edge_candidates if use_edge else cells)
+
         ax, ay = _agent_xy(agent)
 
         if getattr(agent, "mine_charges", 0) > 0:
@@ -214,8 +227,7 @@ class OP2RedPolicy(Policy):
 
             candidates = [(cx, cy) for (cx, cy) in defense_band if not self._cell_has_mine(game_field, cx, cy)]
             if candidates:
-                edge_candidates = _near_edge(candidates, band=1) or _near_edge(candidates, band=2)
-                tx, ty = random.choice(edge_candidates if edge_candidates else candidates)
+                tx, ty = _pick_defense_cell(candidates)
                 tx, ty = self._safe_target(game_field, tx, ty)
                 return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
@@ -223,8 +235,7 @@ class OP2RedPolicy(Policy):
             return _macro_to_int(MacroAction.GO_TO), (tx, ty)
 
         if defense_band:
-            edge_band = _near_edge(defense_band, band=1) or _near_edge(defense_band, band=2)
-            tx, ty = random.choice(edge_band if edge_band else defense_band)
+            tx, ty = _pick_defense_cell(defense_band)
         else:
             tx, ty = self._safe_target(game_field, flag_x, flag_y)
         tx, ty = self._safe_target(game_field, tx, ty)
