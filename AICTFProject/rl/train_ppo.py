@@ -173,16 +173,10 @@ class LeagueCallback(BaseCallback):
 
             if self.verbose:
                 mode = "LEAGUE" if self.league_mode else "CURR"
-                metrics = self.controller.summary()
                 base = (
                     f"[PPO|{mode}] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} phase={phase} opp={opp_key} "
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
-                )
-                base = (
-                    f"{base} tier={int(metrics.get('tier', 0))} "
-                    f"robust={metrics.get('robust_min', 0.0):.2f} "
-                    f"gen={metrics.get('generalization_std', 0.0):.2f}"
                 )
                 if self.league_mode:
                     base = f"{base} elo={self.league.learner_rating:.1f}"
