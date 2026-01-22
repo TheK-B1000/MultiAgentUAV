@@ -1,7 +1,3 @@
-# =========================
-# obs_encoder.py (REFACTORED, MARL-READY, RL-SAFE) — FIXED DEFAULT POOL=(2,2)
-# =========================
-
 from __future__ import annotations
 
 from dataclasses import dataclass
