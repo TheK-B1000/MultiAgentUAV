@@ -147,13 +147,17 @@ class LeagueCallback(BaseCallback):
                 ):
                     phase = self.curriculum.phase
 
-            if (
-                self.curriculum.config.switch_to_league_after_op3_win
-                and phase == "OP3"
-                and is_scripted
-                and win
-            ):
-                self.league_mode = True
+            if phase == "OP3" and is_scripted:
+                min_eps = int(self.curriculum.config.min_episodes.get("OP3", 0))
+                min_wr = float(self.curriculum.config.min_winrate.get("OP3", 0.0))
+                req_win_by = int(self.curriculum.config.required_win_by.get("OP3", 0))
+                meets_eps = self.curriculum.phase_episode_count >= min_eps
+                meets_wr = self.curriculum.phase_winrate("OP3") >= min_wr
+                meets_score = True if req_win_by <= 0 else (win_by >= req_win_by)
+                if self.curriculum.config.switch_to_league_after_op3_win and win:
+                    self.league_mode = True
+                elif meets_eps and meets_wr and meets_score:
+                    self.league_mode = True
 
             if self.verbose:
                 mode = "LEAGUE" if self.league_mode else "CURR"
@@ -193,22 +197,22 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     curriculum = CurriculumState(
         CurriculumConfig(
             phases=["OP1", "OP2", "OP3"],
-            min_episodes={"OP1": 150, "OP2": 150, "OP3": 0},
-            min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.50},
+            min_episodes={"OP1": 150, "OP2": 150, "OP3": 200},
+            min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.60},
             winrate_window=50,
-            required_win_by={"OP1": 1, "OP2": 1, "OP3": 0},
+            required_win_by={"OP1": 1, "OP2": 1, "OP3": 1},
             elo_margin=100.0,
-            switch_to_league_after_op3_win=True,
+            switch_to_league_after_op3_win=False,
         )
     )
 
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
-        matchmaking_tau=250.0,
-        scripted_floor=0.25,
-        species_prob=0.25,
-        snapshot_prob=0.50,
+        matchmaking_tau=200.0,
+        scripted_floor=0.50,
+        species_prob=0.20,
+        snapshot_prob=0.30,
     )
 
     env_fns = [
