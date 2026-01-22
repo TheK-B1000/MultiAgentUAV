@@ -711,14 +711,14 @@ class GameField:
         elif mode == "OP2":
             self.policies["red"] = OP2RedPolicy("red")
         elif mode in ("OP3_EASY", "OP3EASY"):
+            # Easier OP3: weaker defense radius, fewer patrol points, lower assist.
+            # Use default role split (agent0 defender, agent1 attacker) for predictability.
             self.policies["red"] = OP3RedPolicy(
                 "red",
-                mine_radius_check=0.4,
-                defense_radius_cells=2.0,
-                patrol_radius_cells=2,
-                assist_radius_mult=1.0,
-                defense_weight=0.75,
-                flag_weight=3.5,
+                mine_radius_check=0.25,
+                defense_radius_cells=1.5,
+                patrol_radius_cells=1,
+                assist_radius_mult=0.6,
             )
         elif mode in ("OP3_HARD", "OP3HARD"):
             self.policies["red"] = OP3RedPolicy(
