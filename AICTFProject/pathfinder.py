@@ -47,12 +47,21 @@ class Pathfinder:
         self.grid = grid
         self.rows = int(rows)
         self.cols = int(cols)
+        if self.rows < 0:
+            self.rows = 0
+        if self.cols < 0:
+            self.cols = 0
         self.blocked.clear()
         self.danger_cost.clear()
         self._push_id = 0
 
     def setDynamicObstacles(self, blocked_cells: List[Coord]) -> None:
-        self.blocked = set((int(x), int(y)) for (x, y) in blocked_cells)
+        out: Set[Coord] = set()
+        for x, y in blocked_cells:
+            ix, iy = int(x), int(y)
+            if self.inBounds(ix, iy):
+                out.add((ix, iy))
+        self.blocked = out
 
     def setDangerCosts(self, danger_cost: Dict[Coord, float]) -> None:
         """
