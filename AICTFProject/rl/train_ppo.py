@@ -6,7 +6,9 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
+import torch
 from stable_baselines3 import PPO
+from stable_baselines3.common.policies import MultiInputActorCriticPolicy
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
@@ -64,13 +66,88 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
             max_decision_steps=cfg.max_decision_steps,
             enforce_masks=True,
             seed=cfg.seed,
-            include_mask_in_obs=False,
+            include_mask_in_obs=True,
             default_opponent_kind=default_opponent[0],
             default_opponent_key=default_opponent[1],
             ppo_gamma=cfg.gamma,
         )
         return env
     return _fn
+
+
+class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
+    """
+    Apply action masks to discrete macro logits (MultiDiscrete).
+    Mask is expected in obs["mask"] as shape [2 * n_macros] (per-agent).
+    """
+
+    def _apply_action_mask(self, logits: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        if mask is None:
+            return logits
+        if mask.dim() == 1:
+            mask = mask.unsqueeze(0)
+        mask = mask.float()
+
+        # Determine action dimensions
+        if hasattr(self.action_dist, "action_dims"):
+            dims = list(self.action_dist.action_dims)
+        else:
+            dims = list(getattr(self.action_space, "nvec", []))
+        if not dims:
+            return logits
+
+        n_macros = int(dims[0]) if len(dims) > 0 else 0
+        n_targets = int(dims[1]) if len(dims) > 1 else 0
+        if n_macros <= 0:
+            return logits
+
+        # Expect mask layout: [macro0, targets0, macro1, targets1]
+        expected = 2 * (n_macros + n_targets)
+        if mask.shape[1] < expected:
+            pad = torch.ones((mask.shape[0], expected - mask.shape[1]), device=mask.device)
+            mask = torch.cat([mask, pad], dim=1)
+
+        # Build full mask for all action components (macro + target)
+        full_mask = []
+        offset = 0
+        for i, dim in enumerate(dims):
+            if i in (0, 2):  # macro for agent0 and agent1
+                m = mask[:, offset: offset + n_macros]
+                offset += n_macros
+                full_mask.append(m)
+            elif i in (1, 3):  # target for agent0 and agent1
+                if n_targets > 0:
+                    m = mask[:, offset: offset + n_targets]
+                    offset += n_targets
+                    full_mask.append(m)
+                else:
+                    full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
+            else:
+                full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
+
+        mask_cat = torch.cat(full_mask, dim=1)
+        invalid = (mask_cat <= 0.0)
+        return logits.masked_fill(invalid, -1e8)
+
+    def get_distribution(self, obs: Dict[str, torch.Tensor]):
+        features = self.extract_features(obs)
+        latent_pi, _ = self.mlp_extractor(features)
+        logits = self.action_net(latent_pi)
+        if isinstance(obs, dict) and "mask" in obs:
+            logits = self._apply_action_mask(logits, obs["mask"])
+        return self.action_dist.proba_distribution(action_logits=logits)
+
+    def forward(self, obs: Dict[str, torch.Tensor], deterministic: bool = False):
+        features = self.extract_features(obs)
+        latent_pi, latent_vf = self.mlp_extractor(features)
+        logits = self.action_net(latent_pi)
+        if isinstance(obs, dict) and "mask" in obs:
+            logits = self._apply_action_mask(logits, obs["mask"])
+        distribution = self.action_dist.proba_distribution(action_logits=logits)
+        actions = distribution.get_actions(deterministic=deterministic)
+        log_prob = distribution.log_prob(actions)
+        values = self.value_net(latent_vf)
+        return actions, values, log_prob
 
 
 class LeagueCallback(BaseCallback):
@@ -251,7 +328,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
 
     model = PPO(
-        policy="MultiInputPolicy",
+        policy=MaskedMultiInputPolicy,
         env=venv,
         learning_rate=float(cfg.learning_rate),
         n_steps=int(cfg.n_steps),
