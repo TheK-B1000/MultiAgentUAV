@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -24,6 +25,12 @@ from rl.curriculum import (
 )
 from rl.league import EloLeague, OpponentSpec
 from config import MAP_NAME, MAP_PATH
+
+
+class TrainMode(str, Enum):
+    CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"
+    FIXED_OPPONENT = "FIXED_OPPONENT"
+    SELF_PLAY = "SELF_PLAY"
 
 
 @dataclass
@@ -54,6 +61,11 @@ class PPOConfig:
 
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
+
+    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    fixed_opponent_tag: str = "OP3"
+    self_play_use_latest_snapshot: bool = True
+    self_play_snapshot_every_episodes: int = 25
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
@@ -277,23 +289,120 @@ class LeagueCallback(BaseCallback):
         return True
 
 
+class SelfPlayCallback(BaseCallback):
+    def __init__(self, *, cfg: PPOConfig, league: EloLeague) -> None:
+        super().__init__(verbose=1)
+        self.cfg = cfg
+        self.league = league
+        self.episode_idx = 0
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+            info = infos[i] if i < len(infos) else {}
+            ep = info.get("episode_result", None)
+            if not isinstance(ep, dict):
+                continue
+
+            self.episode_idx += 1
+            blue_score = int(ep.get("blue_score", 0))
+            red_score = int(ep.get("red_score", 0))
+            if blue_score > red_score:
+                result = "WIN"
+            elif blue_score < red_score:
+                result = "LOSS"
+            else:
+                result = "DRAW"
+
+            if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
+                path = os.path.join(self.cfg.checkpoint_dir, f"sp_snapshot_ep{self.episode_idx:06d}")
+                try:
+                    self.model.save(path)
+                except Exception as exc:
+                    print(f"[WARN] snapshot save failed: {exc}")
+                else:
+                    self.league.add_snapshot(path + ".zip")
+
+            if self.verbose:
+                print(
+                    f"[PPO|SELF] ep={self.episode_idx} result={result} "
+                    f"score={blue_score}:{red_score} "
+                    f"snapshots={len(self.league.snapshots)}"
+                )
+
+            next_snapshot = None
+            if bool(self.cfg.self_play_use_latest_snapshot):
+                next_snapshot = self.league.latest_snapshot_key()
+            else:
+                spec = self.league.sample_snapshot()
+                if spec.kind == "SNAPSHOT":
+                    next_snapshot = spec.key
+
+            if next_snapshot:
+                env = self.model.get_env()
+                if env is not None:
+                    env.env_method("set_next_opponent", "SNAPSHOT", next_snapshot)
+
+        return True
+
+
+class FixedOpponentCallback(BaseCallback):
+    def __init__(self, *, cfg: PPOConfig) -> None:
+        super().__init__(verbose=1)
+        self.cfg = cfg
+        self.episode_idx = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.draw_count = 0
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+            info = infos[i] if i < len(infos) else {}
+            ep = info.get("episode_result", None)
+            if not isinstance(ep, dict):
+                continue
+
+            self.episode_idx += 1
+            blue_score = int(ep.get("blue_score", 0))
+            red_score = int(ep.get("red_score", 0))
+
+            if blue_score > red_score:
+                result = "WIN"
+                self.win_count += 1
+            elif blue_score < red_score:
+                result = "LOSS"
+                self.loss_count += 1
+            else:
+                result = "DRAW"
+                self.draw_count += 1
+
+            if self.verbose:
+                opp = str(ep.get("scripted_tag", self.cfg.fixed_opponent_tag)).upper()
+                print(
+                    f"[PPO|FIXED] ep={self.episode_idx} result={result} "
+                    f"score={blue_score}:{red_score} opp=SCRIPTED:{opp} "
+                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
+                )
+
+        return True
+
+
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg = cfg or PPOConfig()
     set_global_seed(cfg.seed)
 
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
 
-    curriculum = CurriculumState(
-        CurriculumConfig(
-            phases=["OP1", "OP2", "OP3"],
-            min_episodes={"OP1": 150, "OP2": 150, "OP3": 200},
-            min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.60},
-            winrate_window=50,
-            required_win_by={"OP1": 1, "OP2": 1, "OP3": 1},
-            elo_margin=100.0,
-            switch_to_league_after_op3_win=False,
-        )
-    )
+    mode = str(cfg.mode).upper().strip()
 
     league = EloLeague(
         seed=cfg.seed,
@@ -304,13 +413,37 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         snapshot_prob=0.30,
     )
 
-    controller = CurriculumController(
-        CurriculumControllerConfig(seed=cfg.seed),
-        league=league,
-    )
+    curriculum: Optional[CurriculumState] = None
+    controller: Optional[CurriculumController] = None
+    if mode == TrainMode.CURRICULUM_LEAGUE.value:
+        curriculum = CurriculumState(
+            CurriculumConfig(
+                phases=["OP1", "OP2", "OP3"],
+                min_episodes={"OP1": 150, "OP2": 150, "OP3": 200},
+                min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.60},
+                winrate_window=50,
+                required_win_by={"OP1": 1, "OP2": 1, "OP3": 1},
+                elo_margin=100.0,
+                switch_to_league_after_op3_win=False,
+            )
+        )
+        controller = CurriculumController(
+            CurriculumControllerConfig(seed=cfg.seed),
+            league=league,
+        )
+
+    if mode == TrainMode.FIXED_OPPONENT.value:
+        default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
+        phase_name = str(cfg.fixed_opponent_tag).upper()
+    elif mode == TrainMode.SELF_PLAY.value:
+        default_opponent = ("SCRIPTED", "OP1")
+        phase_name = "OP3"
+    else:
+        default_opponent = ("SCRIPTED", "OP1")
+        phase_name = curriculum.phase if curriculum is not None else "OP1"
 
     env_fns = [
-        _make_env_fn(cfg, default_opponent=("SCRIPTED", "OP1"))
+        _make_env_fn(cfg, default_opponent=default_opponent)
         for _ in range(max(1, int(cfg.n_envs)))
     ]
     try:
@@ -319,9 +452,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
 
-    # Apply initial curriculum phase to all envs
+    # Apply initial phase to all envs
     try:
-        venv.env_method("set_phase", curriculum.phase)
+        venv.env_method("set_phase", phase_name)
     except Exception:
         pass
 
@@ -356,7 +489,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     else:
         model.set_logger(configure(None, []))
 
-    callbacks = [LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller)]
+    callbacks = []
+    if mode == TrainMode.CURRICULUM_LEAGUE.value:
+        callbacks.append(LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller))
+    elif mode == TrainMode.SELF_PLAY.value:
+        callbacks.append(SelfPlayCallback(cfg=cfg, league=league))
+    elif mode == TrainMode.FIXED_OPPONENT.value:
+        callbacks.append(FixedOpponentCallback(cfg=cfg))
 
     if cfg.enable_checkpoints:
         callbacks.append(
