@@ -97,7 +97,9 @@ class CurriculumControllerConfig:
     window: int = 50
     min_episodes_per_tier: int = 60
     promote_winrate: float = 0.70
-    demote_winrate: float = 0.40
+    demote_winrate: float = 0.30
+    easy_op3_trigger_winrate: float = 0.70
+    easy_op3_prob: float = 0.60
 
     enable_species: bool = True
     species_prob: float = 0.05
@@ -182,6 +184,16 @@ class CurriculumController:
             return self.league.sample_curriculum(phase)
 
         # OP3 adversarial curriculum
+        if self.current_tier == "OP3_EASY":
+            if len(self._tier_recent) >= int(self.cfg.window):
+                wr = sum(self._tier_recent) / float(len(self._tier_recent))
+                if wr >= float(self.cfg.easy_op3_trigger_winrate):
+                    if self.rng.random() < float(self.cfg.easy_op3_prob):
+                        return OpponentSpec(
+                            kind="SCRIPTED",
+                            key="OP3",
+                            rating=self.league.get_rating("SCRIPTED:OP3"),
+                        )
         if (
             self.cfg.enable_species
             and self._episode_count >= int(self.cfg.allow_species_after)
