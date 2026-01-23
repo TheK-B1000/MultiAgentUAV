@@ -30,9 +30,13 @@ EXPLORATION_REWARD = 0.01
 COORDINATION_BONUS = 0.3
 DEFENSE_INTERCEPT_BONUS = 1.5
 DEFENSE_MINE_REWARD = 0.2
-OFFENSE_MINE_REWARD = 0.15
-MINE_PICKUP_REWARD = 0.1
+OFFENSE_MINE_REWARD = 0.25
+MIDLINE_MINE_REWARD = 0.15
+ENEMY_FLAG_MINE_REWARD = 0.2
+MINE_PICKUP_REWARD = 0.15
 MINE_KILL_BONUS = 0.5
+MINE_HOLD_GRACE_SECONDS = 10.0
+MINE_HOLD_PENALTY = -0.02
 TEAM_SUPPRESSION_BONUS = 0.2
 SUPPRESSION_SETUP_BONUS = 0.05
 MINE_AVOID_PENALTY = -0.05
@@ -109,6 +113,8 @@ class GameManager:
     red_mine_kills_this_episode: int = 0
     mines_placed_in_enemy_half_this_episode: int = 0
     mines_triggered_by_red_this_episode: int = 0
+    mine_pickup_time_by_agent: Dict[str, float] = field(default_factory=dict)
+    mine_place_time_by_agent: Dict[str, float] = field(default_factory=dict)
 
     # --- exploration memory (team-level) ---
     blue_visited_cells: Set[Cell] = field(default_factory=set)
@@ -272,6 +278,8 @@ class GameManager:
         self.red_mine_kills_this_episode = 0
         self.mines_placed_in_enemy_half_this_episode = 0
         self.mines_triggered_by_red_this_episode = 0
+        self.mine_pickup_time_by_agent.clear()
+        self.mine_place_time_by_agent.clear()
 
         self.blue_visited_cells.clear()
         self.red_visited_cells.clear()
@@ -795,6 +803,16 @@ class GameManager:
                                     break
                             break
 
+        # Mine usage shaping: discourage holding mines too long without placing
+        charges = int(getattr(agent, "mine_charges", 0))
+        if charges > 0:
+            uid = self._agent_uid(agent)
+            picked_t = float(self.mine_pickup_time_by_agent.get(uid, self.sim_time))
+            placed_t = float(self.mine_place_time_by_agent.get(uid, 0.0))
+            if picked_t > 0.0 and placed_t < picked_t:
+                if (self.sim_time - picked_t) >= float(MINE_HOLD_GRACE_SECONDS):
+                    self.add_agent_reward(agent, MINE_HOLD_PENALTY)
+
     # -------------------------
     # Mine/combat hooks (minimal)
     # -------------------------
@@ -807,10 +825,18 @@ class GameManager:
             return
 
         x, y = mine_pos
+        uid = self._agent_uid(agent)
+        self.mine_place_time_by_agent[uid] = float(self.sim_time)
+        mid_x = float(self.cols) * 0.5
+        enemy_flag_home = self.red_flag_home if side == "blue" else self.blue_flag_home
         if side == "blue":
             if x > (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
                 self.add_agent_reward(agent, OFFENSE_MINE_REWARD)
+                if abs(float(x) - mid_x) <= 2.0:
+                    self.add_agent_reward(agent, MIDLINE_MINE_REWARD)
+                if math.hypot(float(x) - float(enemy_flag_home[0]), float(y) - float(enemy_flag_home[1])) <= 4.0:
+                    self.add_agent_reward(agent, ENEMY_FLAG_MINE_REWARD)
             # Reward defensive placement near our flag
             if math.hypot(x - float(self.blue_flag_home[0]), y - float(self.blue_flag_home[1])) <= 4.0:
                 self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
@@ -818,6 +844,10 @@ class GameManager:
             if x < (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
                 self.add_agent_reward(agent, OFFENSE_MINE_REWARD)
+                if abs(float(x) - mid_x) <= 2.0:
+                    self.add_agent_reward(agent, MIDLINE_MINE_REWARD)
+                if math.hypot(float(x) - float(enemy_flag_home[0]), float(y) - float(enemy_flag_home[1])) <= 4.0:
+                    self.add_agent_reward(agent, ENEMY_FLAG_MINE_REWARD)
             if math.hypot(x - float(self.red_flag_home[0]), y - float(self.red_flag_home[1])) <= 4.0:
                 self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
 
@@ -826,6 +856,8 @@ class GameManager:
             return
         # Small positive reward to encourage picking up mines when useful.
         self.add_agent_reward(agent, MINE_PICKUP_REWARD)
+        uid = self._agent_uid(agent)
+        self.mine_pickup_time_by_agent[uid] = float(self.sim_time)
 
     def reward_enemy_killed(self, killer_agent: Any, victim_agent: Optional[Any] = None, cause: Optional[str] = None) -> None:
         if killer_agent is None:
