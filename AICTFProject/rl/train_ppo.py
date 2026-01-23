@@ -50,7 +50,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_curriculum"
+    run_tag: str = "ppo_curriculum_v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -68,8 +68,10 @@ class PPOConfig:
     self_play_snapshot_every_episodes: int = 25
 
 
-def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
+def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
     def _fn():
+        np.random.seed(int(cfg.seed) + int(rank))
+        torch.manual_seed(int(cfg.seed) + int(rank))
         env = CTFGameFieldSB3Env(
             make_game_field_fn=lambda: make_game_field(
                 map_name=MAP_NAME or None,
@@ -77,7 +79,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
             ),
             max_decision_steps=cfg.max_decision_steps,
             enforce_masks=True,
-            seed=cfg.seed,
+            seed=int(cfg.seed) + int(rank),
             include_mask_in_obs=True,
             default_opponent_kind=default_opponent[0],
             default_opponent_key=default_opponent[1],
@@ -89,8 +91,8 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str]) -> Any:
 
 class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
     """
-    Apply action masks to discrete macro logits (MultiDiscrete).
-    Mask is expected in obs["mask"] as shape [2 * n_macros] (per-agent).
+    Apply action masks to discrete macro + target logits (MultiDiscrete).
+    Mask is expected in obs["mask"] as shape [2 * (n_macros + n_targets)].
     """
 
     def _apply_action_mask(self, logits: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -271,8 +273,17 @@ class LeagueCallback(BaseCallback):
                     base = f"{base} elo={self.league.learner_rating:.1f}"
                 print(base)
 
+            self.logger.record("curr/episode", self.episode_idx)
+            self.logger.record("curr/win_rate", self.win_count / max(1, self.episode_idx))
+            self.logger.record("curr/draw_rate", self.draw_count / max(1, self.episode_idx))
+            self.logger.record("curr/phase_idx", float(self.curriculum.phase_idx))
+            self.logger.record("curr/league_mode", float(self.league_mode))
+            if self.league_mode:
+                self.logger.record("league/elo", float(self.league.learner_rating))
+
             if (self.episode_idx % int(self.cfg.snapshot_every_episodes)) == 0:
-                path = os.path.join(self.cfg.checkpoint_dir, f"sp_snapshot_ep{self.episode_idx:06d}")
+                prefix = f"{self.cfg.run_tag}_league_snapshot"
+                path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_ep{self.episode_idx:06d}")
                 try:
                     self.model.save(path)
                 except Exception as exc:
@@ -285,6 +296,7 @@ class LeagueCallback(BaseCallback):
             if env is not None:
                 env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
                 env.env_method("set_phase", self.curriculum.phase)
+                env.env_method("set_league_mode", self.league_mode)
 
         return True
 
@@ -319,7 +331,8 @@ class SelfPlayCallback(BaseCallback):
                 result = "DRAW"
 
             if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
-                path = os.path.join(self.cfg.checkpoint_dir, f"sp_snapshot_ep{self.episode_idx:06d}")
+                prefix = f"{self.cfg.run_tag}_selfplay_snapshot"
+                path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_ep{self.episode_idx:06d}")
                 try:
                     self.model.save(path)
                 except Exception as exc:
@@ -333,6 +346,11 @@ class SelfPlayCallback(BaseCallback):
                     f"score={blue_score}:{red_score} "
                     f"snapshots={len(self.league.snapshots)}"
                 )
+
+            self.logger.record("self/episode", self.episode_idx)
+            self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
+            self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
+            self.logger.record("self/snapshots", float(len(self.league.snapshots)))
 
             next_snapshot = None
             if bool(self.cfg.self_play_use_latest_snapshot):
@@ -393,6 +411,10 @@ class FixedOpponentCallback(BaseCallback):
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
 
+            self.logger.record("fixed/episode", self.episode_idx)
+            self.logger.record("fixed/win_rate", self.win_count / max(1, self.episode_idx))
+            self.logger.record("fixed/draw_rate", self.draw_count / max(1, self.episode_idx))
+
         return True
 
 
@@ -436,15 +458,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
         phase_name = str(cfg.fixed_opponent_tag).upper()
     elif mode == TrainMode.SELF_PLAY.value:
-        default_opponent = ("SCRIPTED", "OP1")
+        default_opponent = ("SCRIPTED", "OP3")
         phase_name = "OP3"
     else:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
     env_fns = [
-        _make_env_fn(cfg, default_opponent=default_opponent)
-        for _ in range(max(1, int(cfg.n_envs)))
+        _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
+        for i in range(max(1, int(cfg.n_envs)))
     ]
     try:
         venv = SubprocVecEnv(env_fns)
@@ -507,7 +529,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
 
     if cfg.enable_eval:
-        eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"))])
+        eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
         eval_env = VecMonitor(eval_env)
         callbacks.append(
             EvalCallback(
