@@ -118,7 +118,26 @@ class SB3TeamPPOPolicy:
             return "vec" in space.spaces
         return True
 
-    def _coerce_vec(self, vec: np.ndarray, *, size: int = 4) -> np.ndarray:
+    def _model_vec_size(self) -> int:
+        if self.model is None:
+            return 0
+        space = getattr(self.model.policy, "observation_space", None)
+        if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+            vec_space = space.spaces.get("vec", None)
+            if hasattr(vec_space, "shape") and vec_space.shape:
+                try:
+                    return int(vec_space.shape[0])
+                except Exception:
+                    return 0
+        return 0
+
+    def _vec_size_per_agent(self) -> int:
+        total = self._model_vec_size()
+        if total <= 0:
+            return 12
+        return max(1, int(total // 2))
+
+    def _coerce_vec(self, vec: np.ndarray, *, size: int = 12) -> np.ndarray:
         v = np.asarray(vec, dtype=np.float32).reshape(-1)
         if v.size == size:
             return v
@@ -141,9 +160,11 @@ class SB3TeamPPOPolicy:
             if a is None:
                 obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
                 if self._model_expects_vec():
-                    vec_list.append(np.zeros((4,), dtype=np.float32))
+                    vec_list.append(np.zeros((self._vec_size_per_agent(),), dtype=np.float32))
                 if self._model_expects_mask():
-                    mask_list.append(np.ones((N_MACROS,), dtype=np.float32))
+                    mm = np.ones((N_MACROS,), dtype=np.float32)
+                    tm = np.ones((int(getattr(game_field, "num_macro_targets", 8) or 8),), dtype=np.float32)
+                    mask_list.append(np.concatenate([mm, tm], axis=0))
                 continue
 
             o = np.asarray(game_field.build_observation(a), dtype=np.float32)  # [7,20,20]
@@ -151,15 +172,19 @@ class SB3TeamPPOPolicy:
 
             if self._model_expects_vec():
                 if hasattr(game_field, "build_continuous_features"):
-                    vec_list.append(self._coerce_vec(game_field.build_continuous_features(a)))
+                    vec_list.append(self._coerce_vec(game_field.build_continuous_features(a), size=self._vec_size_per_agent()))
                 else:
-                    vec_list.append(np.zeros((4,), dtype=np.float32))
+                    vec_list.append(np.zeros((self._vec_size_per_agent(),), dtype=np.float32))
 
             if self._model_expects_mask():
                 mm = np.asarray(game_field.get_macro_mask(a), dtype=np.bool_).reshape(-1)
                 if mm.shape != (N_MACROS,) or (not mm.any()):
                     mm = np.ones((N_MACROS,), dtype=np.bool_)
-                mask_list.append(mm.astype(np.float32))
+                tm = np.asarray(game_field.get_target_mask(a), dtype=np.bool_).reshape(-1)
+                nt = int(getattr(game_field, "num_macro_targets", 8) or 8)
+                if tm.shape != (nt,) or (not tm.any()):
+                    tm = np.ones((nt,), dtype=np.bool_)
+                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
 
         grid = np.concatenate(obs_list, axis=0).astype(np.float32)   # [14,20,20]
         out: Dict[str, np.ndarray] = {"grid": grid}
@@ -360,7 +385,7 @@ class CTFViewer:
 
         if mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             # install a callable that slices the cached joint action
-            def blue_policy(agent, game_field):
+            def blue_policy(obs, agent, game_field):
                 return self.blue_ppo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
 
             self._blue_policy_callable = blue_policy
