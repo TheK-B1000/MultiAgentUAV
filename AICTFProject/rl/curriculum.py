@@ -95,13 +95,13 @@ class CurriculumControllerConfig:
     seed: int = 42
     op3_tiers: List[str] = field(default_factory=lambda: ["OP3_EASY", "OP3", "OP3_HARD"])
     window: int = 50
-    min_episodes_per_tier: int = 30
-    promote_winrate: float = 0.60
-    demote_winrate: float = 0.45
+    min_episodes_per_tier: int = 60
+    promote_winrate: float = 0.70
+    demote_winrate: float = 0.40
 
     enable_species: bool = True
-    species_prob: float = 0.10
-    allow_species_after: int = 400
+    species_prob: float = 0.05
+    allow_species_after: int = 800
 
     enable_snapshots: bool = False
     snapshot_prob: float = 0.10
