@@ -41,7 +41,7 @@ class CTFGameFieldSB3Env(gym.Env):
         self._phase_name: str = "OP1"
 
         self._n_blue_agents = 2
-        self._vec_per_agent = 4
+        self._vec_per_agent = 12
         self._n_macros = 5
         self._n_targets = 8
 
@@ -62,7 +62,12 @@ class CTFGameFieldSB3Env(gym.Env):
             "vec": spaces.Box(low=-2.0, high=2.0, shape=vec_shape, dtype=np.float32),
         }
         if self.include_mask_in_obs:
-            obs_dict["mask"] = spaces.Box(low=0.0, high=1.0, shape=(2 * self._n_macros,), dtype=np.float32)
+            obs_dict["mask"] = spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(2 * (self._n_macros + self._n_targets),),
+                dtype=np.float32,
+            )
 
         self.observation_space = spaces.Dict(obs_dict)
 
@@ -159,7 +164,12 @@ class CTFGameFieldSB3Env(gym.Env):
                     shape=(self._n_blue_agents * self._vec_per_agent,),
                     dtype=np.float32,
                 ),
-                "mask": spaces.Box(low=0.0, high=1.0, shape=(2 * self._n_macros,), dtype=np.float32),
+                "mask": spaces.Box(
+                    low=0.0,
+                    high=1.0,
+                    shape=(2 * (self._n_macros + self._n_targets),),
+                    dtype=np.float32,
+                ),
             })
 
         self.gf.reset_default()
@@ -336,7 +346,9 @@ class CTFGameFieldSB3Env(gym.Env):
                 cnn_list.append(_empty_cnn())
                 vec_list.append(_empty_vec())
                 if self.include_mask_in_obs:
-                    mask_list.append(np.ones((self._n_macros,), dtype=np.float32))
+                    mm = np.ones((self._n_macros,), dtype=np.float32)
+                    tm = np.ones((self._n_targets,), dtype=np.float32)
+                    mask_list.append(np.concatenate([mm, tm], axis=0))
                 continue
 
             cnn = np.asarray(self.gf.build_observation(a), dtype=np.float32)
@@ -352,7 +364,10 @@ class CTFGameFieldSB3Env(gym.Env):
                 mm = np.asarray(self.gf.get_macro_mask(a), dtype=np.bool_).reshape(-1)
                 if mm.shape != (self._n_macros,) or (not mm.any()):
                     mm = np.ones((self._n_macros,), dtype=np.bool_)
-                mask_list.append(mm.astype(np.float32))
+                tm = np.asarray(self.gf.get_target_mask(a), dtype=np.bool_).reshape(-1)
+                if tm.shape != (self._n_targets,) or (not tm.any()):
+                    tm = np.ones((self._n_targets,), dtype=np.bool_)
+                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
 
         grid = np.concatenate(cnn_list, axis=0).astype(np.float32)
         vec = np.concatenate(vec_list, axis=0).astype(np.float32)
