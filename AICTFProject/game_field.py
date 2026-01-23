@@ -210,6 +210,9 @@ class GameField:
         self.suppression_range_cells = 2.0
         self.mines_per_team = 4
         self.max_mine_charges_per_agent = 2
+        self._default_suppression_range_cells = float(self.suppression_range_cells)
+        self._default_mines_per_team = int(self.mines_per_team)
+        self._default_max_mine_charges_per_agent = int(self.max_mine_charges_per_agent)
 
         # Objective-first knobs
         self.mine_detour_disable_radius_cells: float = 8.0
@@ -389,6 +392,128 @@ class GameField:
             return float(getattr(agent, "x", 0.0)), float(getattr(agent, "y", 0.0))
         except Exception:
             return 0.0, 0.0
+
+    def build_continuous_features(self, agent: Any) -> "np.ndarray":
+        """
+        Compact 12D vector used by SB3 PPO (vec branch).
+        Features are normalized to roughly [-1, 1] or [0, 1].
+          0: dx to enemy flag (normalized)
+          1: dy to enemy flag (normalized)
+          2: dx to own flag/home (normalized)
+          3: dy to own flag/home (normalized)
+          4: carrying enemy flag (0/1)
+          5: enemy has our flag (0/1)
+          6: mine charge ratio (0..1)
+          7: nearest teammate distance (normalized)
+          8: dx to enemy carrier (normalized, 0 if none)
+          9: dy to enemy carrier (normalized, 0 if none)
+          10: in enemy half (0/1)
+          11: suppression danger (0..1)
+        """
+        if agent is None:
+            return np.zeros((12,), dtype=np.float32)
+
+        side = str(getattr(agent, "side", "blue")).lower().strip()
+        ax, ay = self._agent_float_pos(agent)
+        ex, ey = self._gm_enemy_flag_position(side)
+
+        own_x, own_y = self._gm_team_zone_center(side)
+
+        # Normalize by grid size
+        denom_x = max(1.0, float(self.col_count))
+        denom_y = max(1.0, float(self.row_count))
+        dx_enemy = (float(ex) - float(ax)) / denom_x
+        dy_enemy = (float(ey) - float(ay)) / denom_y
+        dx_home = (float(own_x) - float(ax)) / denom_x
+        dy_home = (float(own_y) - float(ay)) / denom_y
+
+        carrying = 1.0 if bool(getattr(agent, "is_carrying_flag", False) or agent.isCarryingFlag()) else 0.0
+        if side == "blue":
+            enemy_has_our = 1.0 if bool(getattr(self.manager, "blue_flag_taken", False)) else 0.0
+        else:
+            enemy_has_our = 1.0 if bool(getattr(self.manager, "red_flag_taken", False)) else 0.0
+
+        max_charges = float(getattr(self, "max_mine_charges_per_agent", 2) or 1)
+        charges = float(getattr(agent, "mine_charges", 0))
+        charge_ratio = max(0.0, min(1.0, charges / max_charges))
+
+        # Nearest teammate distance (normalized)
+        team = self.blue_agents if side == "blue" else self.red_agents
+        nearest = 0.0
+        best = None
+        for t in team:
+            if t is None or t is agent:
+                continue
+            try:
+                if hasattr(t, "isEnabled") and (not t.isEnabled()):
+                    continue
+            except Exception:
+                pass
+            tx, ty = self._agent_float_pos(t)
+            d = (float(tx) - float(ax)) ** 2 + (float(ty) - float(ay)) ** 2
+            if best is None or d < best:
+                best = d
+        if best is not None:
+            max_d = max(1.0, (float(self.col_count) ** 2 + float(self.row_count) ** 2) ** 0.5)
+            nearest = min(1.0, (best ** 0.5) / max_d)
+
+        # Enemy carrier position (if our flag is taken)
+        if side == "blue":
+            enemy_has_our_flag = bool(getattr(self.manager, "blue_flag_taken", False))
+            carrier = getattr(self.manager, "blue_flag_carrier", None)
+        else:
+            enemy_has_our_flag = bool(getattr(self.manager, "red_flag_taken", False))
+            carrier = getattr(self.manager, "red_flag_carrier", None)
+
+        dx_carrier = 0.0
+        dy_carrier = 0.0
+        if enemy_has_our_flag and carrier is not None:
+            cx, cy = self._agent_float_pos(carrier)
+            dx_carrier = (float(cx) - float(ax)) / denom_x
+            dy_carrier = (float(cy) - float(ay)) / denom_y
+
+        # In enemy half flag
+        mid_x = float(self.col_count) * 0.5
+        in_enemy_half = 1.0 if ((float(ax) > mid_x) if side == "blue" else (float(ax) < mid_x)) else 0.0
+
+        # Suppression danger scalar (0..1)
+        danger = 0.0
+        sup = float(getattr(self, "suppression_range_cells", 0.0) or 0.0)
+        if sup > 0.0:
+            enemies = self.red_agents if side == "blue" else self.blue_agents
+            min_d = None
+            for e in enemies:
+                if e is None:
+                    continue
+                try:
+                    if hasattr(e, "isEnabled") and (not e.isEnabled()):
+                        continue
+                except Exception:
+                    pass
+                ex2, ey2 = self._agent_float_pos(e)
+                d = ((float(ex2) - float(ax)) ** 2 + (float(ey2) - float(ay)) ** 2) ** 0.5
+                if min_d is None or d < min_d:
+                    min_d = d
+            if min_d is not None:
+                danger = max(0.0, min(1.0, (sup - float(min_d)) / sup))
+
+        return np.asarray(
+            [
+                dx_enemy,
+                dy_enemy,
+                dx_home,
+                dy_home,
+                carrying,
+                enemy_has_our,
+                charge_ratio,
+                nearest,
+                dx_carrier,
+                dy_carrier,
+                in_enemy_half,
+                danger,
+            ],
+            dtype=np.float32,
+        )
 
     # -------- GameManager safe wrappers --------
 
@@ -704,6 +829,37 @@ class GameField:
 
         return mask
 
+    def get_target_mask(self, agent: Agent) -> np.ndarray:
+        """
+        Boolean mask over macro target indices (0..num_macro_targets-1).
+        This is unconditional (not macro-specific). We only mask clearly
+        bad targets to reduce stalling (e.g., current cell).
+        """
+        n = int(self.num_macro_targets or 0)
+        if n <= 0:
+            return np.ones((0,), dtype=np.bool_)
+        mask = np.ones((n,), dtype=np.bool_)
+
+        if agent is None or (not agent.isEnabled()):
+            mask[:] = False
+            return mask
+
+        # Avoid choosing the current cell as a target (reduces oscillation).
+        ax, ay = self._agent_cell_pos(agent)
+        try:
+            idx_here = None
+            for i in range(n):
+                tx, ty = self.get_macro_target(i)
+                if int(tx) == int(ax) and int(ty) == int(ay):
+                    idx_here = i
+                    break
+            if idx_here is not None:
+                mask[int(idx_here)] = False
+        except Exception:
+            pass
+
+        return mask
+
     # -------- policy wiring --------
 
     def set_policies(self, blue: Any, red: Any) -> None:
@@ -716,27 +872,40 @@ class GameField:
         if mode == "OP1":
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP1RedPolicy("red")
         elif mode == "OP2":
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP2RedPolicy("red")
         elif mode in ("OP3_EASY", "OP3EASY"):
-            # Make OP3_EASY materially easier: fewer red agents and slower red movement.
-            self.red_agents_per_team_override = 1
-            self.red_speed_scale = 0.8
-            # Easier OP3: weaker defense radius, fewer patrol points, lower assist.
-            # Use default role split (agent0 defender, agent1 attacker) for predictability.
+            # OP3_EASY: still OP3-like, but tuned down.
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 0.9
+            self.suppression_range_cells = 1.5
+            # Keep a little mine pressure, but far less than OP3.
+            self.mines_per_team = 1
+            self.max_mine_charges_per_agent = 1
             self.policies["red"] = OP3RedPolicy(
                 "red",
-                mine_radius_check=0.25,
-                defense_radius_cells=1.5,
-                patrol_radius_cells=1,
-                assist_radius_mult=0.6,
+                mine_radius_check=1.0,
+                defense_radius_cells=3.0,
+                patrol_radius_cells=2,
+                assist_radius_mult=1.0,
+                defense_weight=1.25,
+                flag_weight=2.0,
             )
         elif mode in ("OP3_HARD", "OP3HARD"):
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP3RedPolicy(
                 "red",
                 mine_radius_check=2.8,
@@ -749,6 +918,9 @@ class GameField:
         else:
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP3RedPolicy("red")
 
     # NEW: wrapper API
