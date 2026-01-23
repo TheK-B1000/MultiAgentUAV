@@ -60,6 +60,11 @@ class EloLeague:
             self.snapshots.append(key)
         self.ratings.setdefault(key, self.learner_rating)
 
+    def latest_snapshot_key(self) -> Optional[str]:
+        if not self.snapshots:
+            return None
+        return str(self.snapshots[-1])
+
     def get_rating(self, key: str) -> float:
         return float(self.ratings.get(key, 1200.0))
 
