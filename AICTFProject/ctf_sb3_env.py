@@ -225,9 +225,9 @@ class CTFGameFieldSB3Env(gym.Env):
 
         actions_by_agent: Dict[str, Tuple[int, Any]] = {}
         if blue0 is not None:
-            actions_by_agent[str(getattr(blue0, "unique_id", getattr(blue0, "slot_id", "blue_0")))] = (b0_macro, b0_tgt)
+            actions_by_agent[str(getattr(blue0, "slot_id", getattr(blue0, "unique_id", "blue_0")))] = (b0_macro, b0_tgt)
         if blue1 is not None:
-            actions_by_agent[str(getattr(blue1, "unique_id", getattr(blue1, "slot_id", "blue_1")))] = (b1_macro, b1_tgt)
+            actions_by_agent[str(getattr(blue1, "slot_id", getattr(blue1, "unique_id", "blue_1")))] = (b1_macro, b1_tgt)
 
         self.gf.submit_external_actions(actions_by_agent)
 
