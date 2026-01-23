@@ -7,6 +7,7 @@ from gymnasium import spaces
 
 from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from red_opponents import make_species_wrapper, make_snapshot_wrapper
+from macro_actions import MacroAction
 
 
 class CTFGameFieldSB3Env(gym.Env):
@@ -44,6 +45,8 @@ class CTFGameFieldSB3Env(gym.Env):
         self._vec_per_agent = 12
         self._n_macros = 5
         self._n_targets = 8
+        self._league_mode = False
+        self._episode_reward_total = 0.0
 
         # Anti-stall (blue-only, decision-level)
         self._stall_threshold_cells = 0.15
@@ -87,6 +90,9 @@ class CTFGameFieldSB3Env(gym.Env):
                 self.gf.manager.set_phase(self._phase_name)
             except Exception:
                 pass
+
+    def set_league_mode(self, league_mode: bool) -> None:
+        self._league_mode = bool(league_mode)
 
     # -----------------------------
     # Opponent hot-swap
@@ -136,6 +142,7 @@ class CTFGameFieldSB3Env(gym.Env):
 
         self.gf = self.make_game_field_fn()
         self._decision_step_count = 0
+        self._episode_reward_total = 0.0
 
         # Blue externally controlled by SB3; red internal + wrapper override
         self.gf.set_external_control("blue", True)
@@ -264,15 +271,22 @@ class CTFGameFieldSB3Env(gym.Env):
                     int(getattr(gm, "blue_score", 0)),
                     int(getattr(gm, "red_score", 0)),
                 )
+            self._episode_reward_total += float(reward)
             info["episode_result"] = {
                 "blue_score": int(getattr(gm, "blue_score", 0)),
                 "red_score": int(getattr(gm, "red_score", 0)),
+                "win_by": int(getattr(gm, "blue_score", 0)) - int(getattr(gm, "red_score", 0)),
+                "phase_name": str(getattr(gm, "phase_name", self._phase_name)),
+                "league_mode": bool(self._league_mode),
+                "blue_rewards_total": float(self._episode_reward_total),
                 "opponent_kind": self._opponent_kind,
                 "opponent_snapshot": self._opponent_snapshot_path,
                 "species_tag": self._opponent_species_tag if self._opponent_kind == "species" else None,
                 "scripted_tag": self._opponent_scripted_tag if self._opponent_kind == "scripted" else None,
                 "decision_steps": self._decision_step_count,
             }
+        else:
+            self._episode_reward_total += float(reward)
 
         return obs, reward, terminated, truncated, info
 
@@ -398,7 +412,42 @@ class CTFGameFieldSB3Env(gym.Env):
 
         if not bool(mask[macro]):
             macro = 0  # fallback to GO_TO
+
+        # Enforce target mask for macros that consume targets.
+        if self._macro_uses_target(macro):
+            tgt_mask = np.asarray(self.gf.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+            if tgt_mask.shape == (self._n_targets,) and tgt_mask.any():
+                if not bool(tgt_mask[tgt]):
+                    tgt = self._nearest_valid_target(agent, tgt_mask)
         return macro, tgt
+
+    def _macro_uses_target(self, macro_idx: int) -> bool:
+        if self.gf is None:
+            return True
+        try:
+            action = self.gf.macro_order[int(macro_idx)]
+        except Exception:
+            return True
+        return action in (MacroAction.GO_TO, MacroAction.PLACE_MINE)
+
+    def _nearest_valid_target(self, agent: Any, tgt_mask: np.ndarray) -> int:
+        valid = np.flatnonzero(tgt_mask)
+        if valid.size == 0:
+            return 0
+        try:
+            ax = float(getattr(agent, "x", 0.0))
+            ay = float(getattr(agent, "y", 0.0))
+            best_idx = int(valid[0])
+            best_d2 = None
+            for i in valid:
+                tx, ty = self.gf.get_macro_target(int(i))
+                d2 = (float(tx) - ax) ** 2 + (float(ty) - ay) ** 2
+                if best_d2 is None or d2 < best_d2:
+                    best_d2 = d2
+                    best_idx = int(i)
+            return best_idx
+        except Exception:
+            return int(valid[0])
 
     def _consume_blue_reward_events(self) -> float:
         """
