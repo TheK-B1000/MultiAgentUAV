@@ -239,6 +239,8 @@ class GameField:
         self.agents_per_team: int = 2
         self.blue_agents: List[Agent] = []
         self.red_agents: List[Agent] = []
+        self.red_agents_per_team_override: Optional[int] = None
+        self.red_speed_scale: float = 1.0
 
         # Pathfinding
         self.pathfinder = Pathfinder(
@@ -451,10 +453,15 @@ class GameField:
                 continue
 
     def _consume_external_action_for_agent(self, agent: Agent) -> Optional[ExternalAction]:
+        found = None
         for k in self._external_key_candidates(agent):
             if k in self.pending_external_actions:
-                return self.pending_external_actions.pop(k, None)
-        return None
+                found = self.pending_external_actions.pop(k, None)
+                break
+        if found is not None:
+            # Clear any duplicate keys for this agent to avoid stale actions.
+            self._clear_pending_for_agent(agent)
+        return found
 
     def _clear_pending_for_agent(self, agent: Agent) -> None:
         for k in self._external_key_candidates(agent):
@@ -707,10 +714,17 @@ class GameField:
         mode = str(mode).upper()
         self.opponent_mode = mode
         if mode == "OP1":
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
             self.policies["red"] = OP1RedPolicy("red")
         elif mode == "OP2":
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
             self.policies["red"] = OP2RedPolicy("red")
         elif mode in ("OP3_EASY", "OP3EASY"):
+            # Make OP3_EASY materially easier: fewer red agents and slower red movement.
+            self.red_agents_per_team_override = 1
+            self.red_speed_scale = 0.8
             # Easier OP3: weaker defense radius, fewer patrol points, lower assist.
             # Use default role split (agent0 defender, agent1 attacker) for predictability.
             self.policies["red"] = OP3RedPolicy(
@@ -721,6 +735,8 @@ class GameField:
                 assist_radius_mult=0.6,
             )
         elif mode in ("OP3_HARD", "OP3HARD"):
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
             self.policies["red"] = OP3RedPolicy(
                 "red",
                 mine_radius_check=2.8,
@@ -731,6 +747,8 @@ class GameField:
                 flag_weight=1.0,
             )
         else:
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
             self.policies["red"] = OP3RedPolicy("red")
 
     # NEW: wrapper API
@@ -846,6 +864,12 @@ class GameField:
         rng.shuffle(red_cells)
 
         n = self.agents_per_team
+        red_n = n
+        if self.red_agents_per_team_override is not None:
+            try:
+                red_n = max(1, int(self.red_agents_per_team_override))
+            except Exception:
+                red_n = n
 
         for i in range(min(n, len(blue_cells))):
             row, col = blue_cells[i]
@@ -874,7 +898,7 @@ class GameField:
                 a.cell_pos = (int(col), int(row))
             self.blue_agents.append(a)
 
-        for i in range(min(n, len(red_cells))):
+        for i in range(min(red_n, len(red_cells))):
             row, col = red_cells[i]
             a = Agent(
                 x=col,
@@ -883,7 +907,7 @@ class GameField:
                 cols=self.col_count,
                 rows=self.row_count,
                 grid=self.grid,
-                move_rate_cps=rng.uniform(2.0, 2.4),
+                move_rate_cps=rng.uniform(2.0, 2.4) * float(self.red_speed_scale),
                 agent_id=i,
                 is_miner=(i == 0),
                 game_manager=self.manager,
