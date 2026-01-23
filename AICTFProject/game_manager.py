@@ -30,6 +30,9 @@ EXPLORATION_REWARD = 0.01
 COORDINATION_BONUS = 0.3
 DEFENSE_INTERCEPT_BONUS = 1.5
 DEFENSE_MINE_REWARD = 0.2
+OFFENSE_MINE_REWARD = 0.15
+MINE_PICKUP_REWARD = 0.1
+MINE_KILL_BONUS = 0.5
 TEAM_SUPPRESSION_BONUS = 0.2
 SUPPRESSION_SETUP_BONUS = 0.05
 MINE_AVOID_PENALTY = -0.05
@@ -807,14 +810,22 @@ class GameManager:
         if side == "blue":
             if x > (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
+                self.add_agent_reward(agent, OFFENSE_MINE_REWARD)
             # Reward defensive placement near our flag
             if math.hypot(x - float(self.blue_flag_home[0]), y - float(self.blue_flag_home[1])) <= 4.0:
                 self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
         else:
             if x < (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
+                self.add_agent_reward(agent, OFFENSE_MINE_REWARD)
             if math.hypot(x - float(self.red_flag_home[0]), y - float(self.red_flag_home[1])) <= 4.0:
                 self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
+
+    def reward_mine_picked_up(self, agent: Any, prev_charges: int = 0) -> None:
+        if agent is None:
+            return
+        # Small positive reward to encourage picking up mines when useful.
+        self.add_agent_reward(agent, MINE_PICKUP_REWARD)
 
     def reward_enemy_killed(self, killer_agent: Any, victim_agent: Optional[Any] = None, cause: Optional[str] = None) -> None:
         if killer_agent is None:
@@ -828,6 +839,7 @@ class GameManager:
                 self.blue_mine_kills_this_episode += 1
             elif kside == "red":
                 self.red_mine_kills_this_episode += 1
+            self.add_agent_reward(killer_agent, MINE_KILL_BONUS)
 
         self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
 
