@@ -82,7 +82,7 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
             return "vec" in space.spaces
         return True
 
-    def _coerce_vec(vec: np.ndarray, *, size: int = 4) -> np.ndarray:
+    def _coerce_vec(vec: np.ndarray, *, size: int = 12) -> np.ndarray:
         v = np.asarray(vec, dtype=np.float32).reshape(-1)
         if v.size == size:
             return v
@@ -104,9 +104,12 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
             if a is None:
                 obs_list.append(np.zeros_like(obs_template))
                 if _model_expects_vec():
-                    vec_list.append(np.zeros((4,), dtype=np.float32))
+                    vec_list.append(np.zeros((12,), dtype=np.float32))
                 if _model_expects_mask():
-                    mask_list.append(np.ones((5,), dtype=np.float32))
+                    mm = np.ones((5,), dtype=np.float32)
+                    nt = int(getattr(game_field, "num_macro_targets", 8) or 8)
+                    tm = np.ones((nt,), dtype=np.float32)
+                    mask_list.append(np.concatenate([mm, tm], axis=0))
                 continue
 
             o = np.asarray(game_field.build_observation(a), dtype=np.float32)
@@ -116,13 +119,17 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
                 if hasattr(game_field, "build_continuous_features"):
                     vec_list.append(_coerce_vec(game_field.build_continuous_features(a)))
                 else:
-                    vec_list.append(np.zeros((4,), dtype=np.float32))
+                    vec_list.append(np.zeros((12,), dtype=np.float32))
 
             if _model_expects_mask():
                 mm = np.asarray(game_field.get_macro_mask(a), dtype=np.bool_).reshape(-1)
                 if mm.shape != (5,) or (not mm.any()):
                     mm = np.ones((5,), dtype=np.bool_)
-                mask_list.append(mm.astype(np.float32))
+                tm = np.asarray(game_field.get_target_mask(a), dtype=np.bool_).reshape(-1)
+                nt = int(getattr(game_field, "num_macro_targets", 8) or 8)
+                if tm.shape != (nt,) or (not tm.any()):
+                    tm = np.ones((nt,), dtype=np.bool_)
+                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
 
         out = {"grid": np.concatenate(obs_list, axis=0).astype(np.float32)}
         if _model_expects_vec():
