@@ -60,6 +60,8 @@ class CTFGameFieldSB3Env(gym.Env):
         self._league_mode = False
         self._episode_reward_total = 0.0
         self._blue_role_macros = blue_role_macros
+        self._episode_macro_counts: list[list[int]] = []
+        self._episode_mine_counts: list[dict[str, int]] = []
 
         # Anti-stall (blue-only, decision-level)
         self._stall_threshold_cells = 0.15
@@ -172,6 +174,8 @@ class CTFGameFieldSB3Env(gym.Env):
         self._n_macros = int(self.gf.n_macros)
         self._n_targets = int(self.gf.num_macro_targets or 8)
         self.action_space = spaces.MultiDiscrete([self._n_macros, self._n_targets, self._n_macros, self._n_targets])
+        self._episode_macro_counts = [[0 for _ in range(self._n_macros)] for _ in range(self._n_blue_agents)]
+        self._episode_mine_counts = [{"grab": 0, "place": 0} for _ in range(self._n_blue_agents)]
 
         if self.include_mask_in_obs:
             self.observation_space = spaces.Dict({
@@ -252,6 +256,8 @@ class CTFGameFieldSB3Env(gym.Env):
 
         b0_macro, b0_tgt = self._sanitize_action_for_agent(0, b0_macro, b0_tgt)
         b1_macro, b1_tgt = self._sanitize_action_for_agent(1, b1_macro, b1_tgt)
+        self._record_macro_usage(0, b0_macro)
+        self._record_macro_usage(1, b1_macro)
 
         blue0 = self.gf.blue_agents[0] if len(self.gf.blue_agents) > 0 else None
         blue1 = self.gf.blue_agents[1] if len(self.gf.blue_agents) > 1 else None
@@ -300,6 +306,12 @@ class CTFGameFieldSB3Env(gym.Env):
                 "species_tag": self._opponent_species_tag if self._opponent_kind == "species" else None,
                 "scripted_tag": self._opponent_scripted_tag if self._opponent_kind == "scripted" else None,
                 "decision_steps": self._decision_step_count,
+                "macro_order": self._macro_order_names(),
+                "macro_counts": self._episode_macro_counts,
+                "mine_counts": self._episode_mine_counts,
+                "blue_mine_kills": int(getattr(gm, "blue_mine_kills_this_episode", 0)),
+                "mines_placed_enemy_half": int(getattr(gm, "mines_placed_in_enemy_half_this_episode", 0)),
+                "mines_triggered_by_red": int(getattr(gm, "mines_triggered_by_red_this_episode", 0)),
             }
         else:
             self._episode_reward_total += float(reward)
@@ -483,6 +495,43 @@ class CTFGameFieldSB3Env(gym.Env):
         except Exception:
             return True
         return action in (MacroAction.GO_TO, MacroAction.PLACE_MINE)
+
+    def _macro_order_names(self) -> list[str]:
+        if self.gf is None:
+            return []
+        names = []
+        try:
+            for m in self.gf.macro_order:
+                n = getattr(m, "name", None)
+                names.append(str(n) if n is not None else str(m))
+        except Exception:
+            pass
+        return names
+
+    def _record_macro_usage(self, blue_index: int, macro_idx: int) -> None:
+        if blue_index >= self._n_blue_agents:
+            return
+        if not self._episode_macro_counts:
+            return
+        if 0 <= macro_idx < len(self._episode_macro_counts[blue_index]):
+            self._episode_macro_counts[blue_index][macro_idx] += 1
+        if not self._episode_mine_counts or blue_index >= len(self._episode_mine_counts):
+            return
+        action = None
+        if self.gf is not None:
+            try:
+                action = self.gf.macro_order[int(macro_idx)]
+            except Exception:
+                action = None
+        if action is None:
+            try:
+                action = MacroAction(int(macro_idx))
+            except Exception:
+                action = None
+        if action == MacroAction.GRAB_MINE:
+            self._episode_mine_counts[blue_index]["grab"] += 1
+        elif action == MacroAction.PLACE_MINE:
+            self._episode_mine_counts[blue_index]["place"] += 1
 
     def _nearest_valid_target(self, agent: Any, tgt_mask: np.ndarray) -> int:
         valid = np.flatnonzero(tgt_mask)
