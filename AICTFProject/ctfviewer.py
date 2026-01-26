@@ -196,6 +196,101 @@ class SB3TeamPPOPolicy:
             out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)  # [10]
         return out
 
+    def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
+        if not self.model_loaded or self.model is None:
+            self._cache_tick = tick
+            self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+            return
+
+        if self._cache_tick == tick:
+            return
+
+        obs = self._build_team_obs(game_field, side)
+        act, _ = self.model.predict(obs, deterministic=self.deterministic)
+        a = np.asarray(act).reshape(-1).astype(np.int64)
+
+        # Ensure shape [4]
+        if a.size < 4:
+            padded = np.zeros((4,), dtype=np.int64)
+            padded[: a.size] = a
+            a = padded
+        elif a.size > 4:
+            a = a[:4]
+
+        # Normalize ranges
+        a[0] = int(a[0]) % N_MACROS
+        a[2] = int(a[2]) % N_MACROS
+
+        nt = max(1, int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets))
+        a[1] = int(a[1]) % nt
+        a[3] = int(a[3]) % nt
+
+        self._cache_tick = tick
+        self._cache_action = a
+
+    def _resolve_target_cell(self, game_field: ViewerGameField, target_idx: int) -> Tuple[int, int]:
+        """
+        Convert target index -> actual grid cell.
+        Falls back safely if your ViewerGameField/GameField differs.
+        """
+        # Preferred: your existing macro-target API
+        fn = getattr(game_field, "get_macro_target", None)
+        if callable(fn):
+            try:
+                t = fn(int(target_idx))
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+
+        # Alternate: maybe stored list
+        mt = getattr(game_field, "macro_targets", None)
+        if isinstance(mt, list) and len(mt) > 0:
+            i = int(target_idx) % len(mt)
+            try:
+                t = mt[i]
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+
+        # Absolute fallback: center-ish
+        cols = int(getattr(game_field, "col_count", 20) or 20)
+        rows = int(getattr(game_field, "row_count", 20) or 20)
+        return (max(0, cols // 2), max(0, rows // 2))
+
+    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
+        """
+        Returns what the VIEWER internal-policy pipeline expects:
+          (MacroAction enum, target_cell)
+        """
+        side = str(getattr(agent, "side", "blue")).lower()
+        self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
+
+        # Map agent_id -> [0,1]
+        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
+        aid = 0 if aid <= 0 else 1
+
+        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
+        target_idx = int(self._cache_action[aid * 2 + 1])
+
+        macro = USED_MACROS[macro_idx]  # <-- THIS is the crucial translation
+
+        # Some macros can ignore target, but we still provide one
+        if macro == MacroAction.PLACE_MINE:
+            # place mine "here"
+            try:
+                ax = int(getattr(agent, "x", 0))
+                ay = int(getattr(agent, "y", 0))
+                return macro, (ax, ay)
+            except Exception:
+                return macro, self._resolve_target_cell(game_field, target_idx)
+
+        # Default: resolve from target index
+        tgt_cell = self._resolve_target_cell(game_field, target_idx)
+        return macro, tgt_cell
+
+
 
 class SB3TeamHPPOPolicy:
     """
@@ -467,101 +562,6 @@ class SB3TeamHPPOPolicy:
         macro = USED_MACROS[macro_idx]
         target = game_field.get_macro_target(tgt_idx)
         return macro, target
-
-    def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
-        if not self.model_loaded or self.model is None:
-            self._cache_tick = tick
-            self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
-            return
-
-        if self._cache_tick == tick:
-            return
-
-        obs = self._build_team_obs(game_field, side)
-        act, _ = self.model.predict(obs, deterministic=self.deterministic)
-        a = np.asarray(act).reshape(-1).astype(np.int64)
-
-        # Ensure shape [4]
-        if a.size < 4:
-            padded = np.zeros((4,), dtype=np.int64)
-            padded[: a.size] = a
-            a = padded
-        elif a.size > 4:
-            a = a[:4]
-
-        # Normalize ranges
-        a[0] = int(a[0]) % N_MACROS
-        a[2] = int(a[2]) % N_MACROS
-
-        nt = max(1, int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets))
-        a[1] = int(a[1]) % nt
-        a[3] = int(a[3]) % nt
-
-        self._cache_tick = tick
-        self._cache_action = a
-
-    def _resolve_target_cell(self, game_field: ViewerGameField, target_idx: int) -> Tuple[int, int]:
-        """
-        Convert target index -> actual grid cell.
-        Falls back safely if your ViewerGameField/GameField differs.
-        """
-        # Preferred: your existing macro-target API
-        fn = getattr(game_field, "get_macro_target", None)
-        if callable(fn):
-            try:
-                t = fn(int(target_idx))
-                if isinstance(t, (tuple, list)) and len(t) >= 2:
-                    return (int(t[0]), int(t[1]))
-            except Exception:
-                pass
-
-        # Alternate: maybe stored list
-        mt = getattr(game_field, "macro_targets", None)
-        if isinstance(mt, list) and len(mt) > 0:
-            i = int(target_idx) % len(mt)
-            try:
-                t = mt[i]
-                if isinstance(t, (tuple, list)) and len(t) >= 2:
-                    return (int(t[0]), int(t[1]))
-            except Exception:
-                pass
-
-        # Absolute fallback: center-ish
-        cols = int(getattr(game_field, "col_count", 20) or 20)
-        rows = int(getattr(game_field, "row_count", 20) or 20)
-        return (max(0, cols // 2), max(0, rows // 2))
-
-    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
-        """
-        Returns what the VIEWER internal-policy pipeline expects:
-          (MacroAction enum, target_cell)
-        """
-        side = str(getattr(agent, "side", "blue")).lower()
-        self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
-
-        # Map agent_id -> [0,1]
-        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
-        aid = 0 if aid <= 0 else 1
-
-        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
-        target_idx = int(self._cache_action[aid * 2 + 1])
-
-        macro = USED_MACROS[macro_idx]  # <-- THIS is the crucial translation
-
-        # Some macros can ignore target, but we still provide one
-        if macro == MacroAction.PLACE_MINE:
-            # place mine "here"
-            try:
-                ax = int(getattr(agent, "x", 0))
-                ay = int(getattr(agent, "y", 0))
-                return macro, (ax, ay)
-            except Exception:
-                return macro, self._resolve_target_cell(game_field, target_idx)
-
-        # Default: resolve from target index
-        tgt_cell = self._resolve_target_cell(game_field, target_idx)
-        return macro, tgt_cell
-
 
 class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH):
