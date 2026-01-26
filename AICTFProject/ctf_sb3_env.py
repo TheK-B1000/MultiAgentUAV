@@ -21,6 +21,9 @@ class CTFGameFieldSB3Env(gym.Env):
         enforce_masks: bool = True,
         seed: int = 0,
         include_mask_in_obs: bool = False,
+        include_high_level_mode: bool = False,
+        high_level_mode: int = 0,
+        high_level_mode_onehot: bool = True,
         default_opponent_kind: str = "SCRIPTED",
         default_opponent_key: str = "OP1",
         # NEW: must match PPO gamma for PBRS to be invariant
@@ -32,6 +35,9 @@ class CTFGameFieldSB3Env(gym.Env):
         self.enforce_masks = bool(enforce_masks)
         self.base_seed = int(seed)
         self.include_mask_in_obs = bool(include_mask_in_obs)
+        self.include_high_level_mode = bool(include_high_level_mode)
+        self._high_level_mode = int(high_level_mode)
+        self._high_level_mode_onehot = bool(high_level_mode_onehot)
         self.ppo_gamma = float(ppo_gamma)
         self.default_opponent_kind = str(default_opponent_kind).upper()
         self.default_opponent_key = str(default_opponent_key).upper()
@@ -42,7 +48,12 @@ class CTFGameFieldSB3Env(gym.Env):
         self._phase_name: str = "OP1"
 
         self._n_blue_agents = 2
-        self._vec_per_agent = 12
+        self._base_vec_per_agent = 12
+        if self.include_high_level_mode:
+            extra = 2 if self._high_level_mode_onehot else 1
+        else:
+            extra = 0
+        self._vec_per_agent = int(self._base_vec_per_agent + extra)
         self._n_macros = 5
         self._n_targets = 8
         self._league_mode = False
@@ -93,6 +104,9 @@ class CTFGameFieldSB3Env(gym.Env):
 
     def set_league_mode(self, league_mode: bool) -> None:
         self._league_mode = bool(league_mode)
+
+    def set_high_level_mode(self, mode: int) -> None:
+        self._high_level_mode = int(mode)
 
     # -----------------------------
     # Opponent hot-swap
@@ -337,15 +351,15 @@ class CTFGameFieldSB3Env(gym.Env):
             return np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
         def _empty_vec():
-            return np.zeros((self._vec_per_agent,), dtype=np.float32)
+            return np.zeros((self._base_vec_per_agent,), dtype=np.float32)
 
         def _coerce_vec(vec: np.ndarray) -> np.ndarray:
             v = np.asarray(vec, dtype=np.float32).reshape(-1)
-            if v.size == self._vec_per_agent:
+            if v.size == self._base_vec_per_agent:
                 return v
-            if v.size < self._vec_per_agent:
-                return np.pad(v, (0, self._vec_per_agent - v.size), mode="constant")
-            return v[: self._vec_per_agent]
+            if v.size < self._base_vec_per_agent:
+                return np.pad(v, (0, self._base_vec_per_agent - v.size), mode="constant")
+            return v[: self._base_vec_per_agent]
 
         blue = list(self.gf.blue_agents) if getattr(self.gf, "blue_agents", None) else []
         while len(blue) < 2:
@@ -358,7 +372,16 @@ class CTFGameFieldSB3Env(gym.Env):
         for a in blue[:2]:
             if a is None:
                 cnn_list.append(_empty_cnn())
-                vec_list.append(_empty_vec())
+                vec = _empty_vec()
+                if self.include_high_level_mode:
+                    if self._high_level_mode_onehot:
+                        mode = max(0, min(1, int(self._high_level_mode)))
+                        mode_vec = np.zeros((2,), dtype=np.float32)
+                        mode_vec[mode] = 1.0
+                    else:
+                        mode_vec = np.asarray([float(self._high_level_mode)], dtype=np.float32)
+                    vec = np.concatenate([vec, mode_vec], axis=0)
+                vec_list.append(vec)
                 if self.include_mask_in_obs:
                     mm = np.ones((self._n_macros,), dtype=np.float32)
                     tm = np.ones((self._n_targets,), dtype=np.float32)
@@ -372,6 +395,14 @@ class CTFGameFieldSB3Env(gym.Env):
                 vec = _coerce_vec(self.gf.build_continuous_features(a))
             else:
                 vec = _empty_vec()
+            if self.include_high_level_mode:
+                if self._high_level_mode_onehot:
+                    mode = max(0, min(1, int(self._high_level_mode)))
+                    mode_vec = np.zeros((2,), dtype=np.float32)
+                    mode_vec[mode] = 1.0
+                else:
+                    mode_vec = np.asarray([float(self._high_level_mode)], dtype=np.float32)
+                vec = np.concatenate([vec, mode_vec], axis=0)
             vec_list.append(vec)
 
             if self.include_mask_in_obs:
