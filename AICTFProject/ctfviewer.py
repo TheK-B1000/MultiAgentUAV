@@ -24,6 +24,8 @@ from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS, make_game_field
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
 DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_curriculum.zip"
+DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
+DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
 
 # IMPORTANT: keep this order consistent with training
 USED_MACROS = [
@@ -194,6 +196,278 @@ class SB3TeamPPOPolicy:
             out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)  # [10]
         return out
 
+
+class SB3TeamHPPOPolicy:
+    """
+    Viewer-side HPPO wrapper.
+
+    Uses a high-level PPO policy to choose ATTACK/DEFEND,
+    then conditions the low-level PPO on that mode.
+    """
+
+    def __init__(
+        self,
+        low_model_path: str,
+        high_model_path: str,
+        env: ViewerGameField,
+        *,
+        deterministic: bool = True,
+        mode_interval_ticks: int = 8,
+    ):
+        self.low_model_path_raw = low_model_path
+        self.high_model_path_raw = high_model_path
+        self.low_model_path = _resolve_zip_path(low_model_path)
+        self.high_model_path = _resolve_zip_path(high_model_path)
+        self.model_loaded = False
+
+        self.low_model: Optional[SB3PPO] = None
+        self.high_model: Optional[SB3PPO] = None
+        self.deterministic = bool(deterministic)
+        self.mode_interval_ticks = max(1, int(mode_interval_ticks))
+
+        # Targets count (fallback)
+        self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
+
+        # Cache joint action + mode once per sim tick
+        self._cache_tick: int = -1
+        self._cache_action: np.ndarray = np.array([0, 0, 0, 0], dtype=np.int64)
+        self._cache_mode: int = 0
+        self._last_mode_tick: int = -1
+
+        if self.low_model_path is None or self.high_model_path is None:
+            print("[CTFViewer] HPPO models not found (low/high .zip).")
+            return
+
+        try:
+            self.low_model = SB3PPO.load(self.low_model_path, device="cpu")
+            self.low_model.policy.set_training_mode(False)
+            self.high_model = SB3PPO.load(self.high_model_path, device="cpu")
+            self.high_model.policy.set_training_mode(False)
+            self.model_loaded = True
+            print(f"[CTFViewer] Loaded HPPO low from: {self.low_model_path}")
+            print(f"[CTFViewer] Loaded HPPO high from: {self.high_model_path}")
+        except Exception as e:
+            print(f"[CTFViewer] Failed to load HPPO models: {e}")
+            self.model_loaded = False
+
+    def reset_cache(self) -> None:
+        self._cache_tick = -1
+        self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+        self._cache_mode = 0
+        self._last_mode_tick = -1
+
+    def _model_expects_mask(self) -> bool:
+        if self.low_model is None:
+            return False
+        space = getattr(self.low_model.policy, "observation_space", None)
+        if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+            return "mask" in space.spaces
+        return False
+
+    def _model_expects_vec(self) -> bool:
+        if self.low_model is None:
+            return True
+        space = getattr(self.low_model.policy, "observation_space", None)
+        if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+            return "vec" in space.spaces
+        return True
+
+    def _model_vec_size(self) -> int:
+        if self.low_model is None:
+            return 0
+        space = getattr(self.low_model.policy, "observation_space", None)
+        if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+            vec_space = space.spaces.get("vec", None)
+            if hasattr(vec_space, "shape") and vec_space.shape:
+                try:
+                    return int(vec_space.shape[0])
+                except Exception:
+                    return 0
+        return 0
+
+    def _vec_size_per_agent(self) -> int:
+        total = self._model_vec_size()
+        if total <= 0:
+            return 12
+        return max(1, int(total // 2))
+
+    def _coerce_vec(self, vec: np.ndarray, *, size: int) -> np.ndarray:
+        v = np.asarray(vec, dtype=np.float32).reshape(-1)
+        if v.size == size:
+            return v
+        if v.size < size:
+            return np.pad(v, (0, size - v.size), mode="constant")
+        return v[:size]
+
+    def _build_high_level_obs(self, game_field: ViewerGameField) -> np.ndarray:
+        gm = getattr(game_field, "manager", None)
+        phase_name = str(getattr(gm, "phase_name", "OP1")).upper() if gm is not None else "OP1"
+        opp_tag = str(getattr(game_field, "opponent_mode", "OP3")).upper()
+        vecs = []
+        for agent in getattr(game_field, "blue_agents", [])[:2]:
+            if agent is None:
+                continue
+            try:
+                if hasattr(agent, "isEnabled") and (not agent.isEnabled()):
+                    continue
+            except Exception:
+                pass
+            if hasattr(game_field, "build_continuous_features"):
+                vecs.append(np.asarray(game_field.build_continuous_features(agent), dtype=np.float32))
+
+        if vecs:
+            avg_vec = np.mean(np.stack(vecs, axis=0), axis=0)
+        else:
+            avg_vec = np.zeros((12,), dtype=np.float32)
+
+        extras = []
+        if gm is not None:
+            score_limit = max(1.0, float(getattr(gm, "score_limit", 3)))
+            blue_score = float(getattr(gm, "blue_score", 0)) / score_limit
+            red_score = float(getattr(gm, "red_score", 0)) / score_limit
+            score_diff = (float(getattr(gm, "blue_score", 0)) - float(getattr(gm, "red_score", 0))) / score_limit
+            extras.extend([blue_score, red_score, score_diff])
+            extras.extend([
+                1.0 if bool(getattr(gm, "blue_flag_taken", False)) else 0.0,
+                1.0 if bool(getattr(gm, "red_flag_taken", False)) else 0.0,
+            ])
+            max_time = max(1.0, float(getattr(gm, "max_time", 300.0)))
+            current_time = float(getattr(gm, "current_time", max_time))
+            extras.append(max(0.0, min(1.0, current_time / max_time)))
+
+        phase_vec = np.zeros((3,), dtype=np.float32)
+        phase_map = {"OP1": 0, "OP2": 1, "OP3": 2}
+        if phase_name in phase_map:
+            phase_vec[phase_map[phase_name]] = 1.0
+        extras.extend(phase_vec.tolist())
+
+        opp_vec = np.zeros((5,), dtype=np.float32)
+        opp_map = {"OP1": 0, "OP2": 1, "OP3_EASY": 2, "OP3": 3, "OP3_HARD": 4}
+        if opp_tag in opp_map:
+            opp_vec[opp_map[opp_tag]] = 1.0
+        extras.extend(opp_vec.tolist())
+
+        if extras:
+            out = np.concatenate([avg_vec, np.asarray(extras, dtype=np.float32)], axis=0)
+        else:
+            out = avg_vec
+
+        if self.high_model is not None:
+            space = getattr(self.high_model.policy, "observation_space", None)
+            if hasattr(space, "shape") and space.shape:
+                target = int(space.shape[0])
+                if out.size < target:
+                    out = np.pad(out, (0, target - out.size), mode="constant")
+                elif out.size > target:
+                    out = out[:target]
+        return out.astype(np.float32)
+
+    def _build_team_obs(self, game_field: ViewerGameField, side: str, mode: int) -> Dict[str, np.ndarray]:
+        agents = game_field.blue_agents if side == "blue" else game_field.red_agents
+        live = [a for a in agents if a is not None]
+        while len(live) < 2:
+            live.append(live[0] if live else None)
+
+        obs_list: List[np.ndarray] = []
+        vec_list: List[np.ndarray] = []
+        mask_list: List[np.ndarray] = []
+
+        per_agent_size = self._vec_size_per_agent()
+        base_size = 12
+        extra = max(0, per_agent_size - base_size)
+
+        for a in live[:2]:
+            if a is None:
+                obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
+                if self._model_expects_vec():
+                    vec = np.zeros((base_size,), dtype=np.float32)
+                    if extra == 2:
+                        mode_vec = np.zeros((2,), dtype=np.float32)
+                        mode_vec[max(0, min(1, int(mode)))] = 1.0
+                        vec = np.concatenate([vec, mode_vec], axis=0)
+                    elif extra == 1:
+                        vec = np.concatenate([vec, np.asarray([float(mode)], dtype=np.float32)], axis=0)
+                    vec_list.append(self._coerce_vec(vec, size=per_agent_size))
+                if self._model_expects_mask():
+                    mm = np.ones((N_MACROS,), dtype=np.float32)
+                    tm = np.ones((int(getattr(game_field, "num_macro_targets", 8) or 8),), dtype=np.float32)
+                    mask_list.append(np.concatenate([mm, tm], axis=0))
+                continue
+
+            o = np.asarray(game_field.build_observation(a), dtype=np.float32)
+            obs_list.append(o)
+
+            if self._model_expects_vec():
+                if hasattr(game_field, "build_continuous_features"):
+                    vec = np.asarray(game_field.build_continuous_features(a), dtype=np.float32)
+                else:
+                    vec = np.zeros((base_size,), dtype=np.float32)
+                vec = self._coerce_vec(vec, size=base_size)
+                if extra == 2:
+                    mode_vec = np.zeros((2,), dtype=np.float32)
+                    mode_vec[max(0, min(1, int(mode)))] = 1.0
+                    vec = np.concatenate([vec, mode_vec], axis=0)
+                elif extra == 1:
+                    vec = np.concatenate([vec, np.asarray([float(mode)], dtype=np.float32)], axis=0)
+                vec_list.append(self._coerce_vec(vec, size=per_agent_size))
+
+            if self._model_expects_mask():
+                mm = np.asarray(game_field.get_macro_mask(a), dtype=np.bool_).reshape(-1)
+                if mm.shape != (N_MACROS,) or (not mm.any()):
+                    mm = np.ones((N_MACROS,), dtype=np.bool_)
+                tm = np.asarray(game_field.get_target_mask(a), dtype=np.bool_).reshape(-1)
+                nt = int(getattr(game_field, "num_macro_targets", 8) or 8)
+                if tm.shape != (nt,) or (not tm.any()):
+                    tm = np.ones((nt,), dtype=np.bool_)
+                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
+
+        grid = np.concatenate(obs_list, axis=0).astype(np.float32)
+        out: Dict[str, np.ndarray] = {"grid": grid}
+        if self._model_expects_vec():
+            out["vec"] = np.concatenate(vec_list, axis=0).astype(np.float32)
+        if self._model_expects_mask():
+            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
+        return out
+
+    def _compute_mode_if_needed(self, game_field: ViewerGameField, tick: int) -> int:
+        if (tick - self._last_mode_tick) < self.mode_interval_ticks:
+            return int(self._cache_mode)
+        if self.high_model is None:
+            self._cache_mode = 0
+            self._last_mode_tick = tick
+            return 0
+        obs = self._build_high_level_obs(game_field)
+        mode, _ = self.high_model.predict(obs, deterministic=self.deterministic)
+        mode = int(np.asarray(mode).reshape(-1)[0])
+        self._cache_mode = max(0, min(1, mode))
+        self._last_mode_tick = tick
+        return int(self._cache_mode)
+
+    def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
+        if not self.model_loaded or self.low_model is None:
+            self._cache_tick = tick
+            self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+            return
+        if tick == self._cache_tick:
+            return
+        self._cache_tick = tick
+
+        mode = self._compute_mode_if_needed(game_field, tick)
+        obs = self._build_team_obs(game_field, side=side, mode=mode)
+        action, _ = self.low_model.predict(obs, deterministic=self.deterministic)
+        self._cache_action = np.asarray(action).reshape(-1)
+
+    def act_for_agent(self, agent, game_field: ViewerGameField, *, tick: int) -> Tuple[MacroAction, Tuple[int, int]]:
+        self._compute_joint_action_if_needed(game_field, tick, side="blue")
+        idx = 0 if agent == game_field.blue_agents[0] else 2
+
+        macro_idx = int(self._cache_action[idx]) % N_MACROS
+        tgt_idx = int(self._cache_action[idx + 1]) % int(getattr(game_field, "num_macro_targets", 8) or 8)
+
+        macro = USED_MACROS[macro_idx]
+        target = game_field.get_macro_target(tgt_idx)
+        return macro, target
+
     def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
         if not self.model_loaded or self.model is None:
             self._cache_tick = tick
@@ -352,12 +626,18 @@ class CTFViewer:
         self.blue_op3_baseline = OP3RedPolicy("blue")
 
         self.blue_ppo_team = SB3TeamPPOPolicy(ppo_model_path, self.game_field, deterministic=True)
+        self.blue_hppo_team = SB3TeamHPPOPolicy(
+            DEFAULT_HPPO_LOW_MODEL_PATH,
+            DEFAULT_HPPO_HIGH_MODEL_PATH,
+            self.game_field,
+            deterministic=True,
+        )
 
         # Blue policy callable (installed into game_field.policies["blue"])
         self._blue_policy_callable = None
 
         # Mode
-        self.blue_mode: str = "OP3"
+        self.blue_mode: str = "DEFAULT"
         self._apply_blue_mode(self.blue_mode)
         self._reset_op3_policies()
 
@@ -374,9 +654,11 @@ class CTFViewer:
                 pass
 
     def _available_modes(self) -> List[str]:
-        modes = ["OP3"]
+        modes = ["DEFAULT"]
         if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             modes.append("PPO")
+        if self.blue_hppo_team and self.blue_hppo_team.model_loaded:
+            modes.append("HPPO")
         return modes
 
     def _apply_blue_mode(self, mode: str) -> None:
@@ -394,18 +676,28 @@ class CTFViewer:
             self.blue_ppo_team.reset_cache()
             print("[CTFViewer] Blue → PPO (SB3 .zip)")
 
+        elif mode == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
+            def blue_policy(obs, agent, game_field):
+                return self.blue_hppo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
+
+            self._blue_policy_callable = blue_policy
+            self.game_field.policies["blue"] = self._blue_policy_callable
+            self.blue_mode = "HPPO"
+            self.blue_hppo_team.reset_cache()
+            print("[CTFViewer] Blue → HPPO (high/low)")
+
         else:
             self._blue_policy_callable = None
             self.game_field.policies["blue"] = self.blue_op3_baseline
-            self.blue_mode = "OP3"
-            print("[CTFViewer] Blue → OP3 baseline")
+            self.blue_mode = "DEFAULT"
+            print("[CTFViewer] Blue → Default baseline")
 
     def _cycle_blue_mode(self) -> None:
         modes = self._available_modes()
         i = modes.index(self.blue_mode) if self.blue_mode in modes else 0
         nxt = modes[(i + 1) % len(modes)]
         self._apply_blue_mode(nxt)
-        if self.blue_mode == "OP3":
+        if self.blue_mode == "DEFAULT":
             self._reset_op3_policies()
 
     def _reset_op3_policies(self):
@@ -476,6 +768,8 @@ class CTFViewer:
             self.sim_tick = 0
             if self.blue_ppo_team:
                 self.blue_ppo_team.reset_cache()
+            if self.blue_hppo_team:
+                self.blue_hppo_team.reset_cache()
             self._reset_op3_policies()
 
         elif k == pg.K_F2:
@@ -498,6 +792,8 @@ class CTFViewer:
             self.sim_tick = 0
             if self.blue_ppo_team:
                 self.blue_ppo_team.reset_cache()
+            if self.blue_hppo_team:
+                self.blue_hppo_team.reset_cache()
             self._reset_op3_policies()
 
         elif k == pg.K_ESCAPE:
@@ -519,6 +815,8 @@ class CTFViewer:
                 self.sim_tick = 0
                 if self.blue_ppo_team:
                     self.blue_ppo_team.reset_cache()
+                if self.blue_hppo_team:
+                    self.blue_hppo_team.reset_cache()
                 self._reset_op3_policies()
             except Exception as e:
                 print(f"[CTFViewer] Error processing agent count: {e}")
@@ -552,10 +850,10 @@ class CTFViewer:
 
         gm = self.game_manager
         mode = self.blue_mode
-        mode_color = (255, 255, 120) if mode == "OP3" else (120, 255, 120)
+        mode_color = (255, 255, 120) if mode == "DEFAULT" else (120, 255, 120)
 
         txt(
-            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (OP3/PPO) | F4/F5: Debug | R: Reset",
+            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/PPO/HPPO) | F4/F5: Debug | R: Reset",
             30, 15, (200, 200, 220)
         )
 
@@ -569,10 +867,15 @@ class CTFViewer:
         txt(f"Time: {int(getattr(gm, 'current_time', 0.0))}s", 380, 80, (220, 220, 255))
 
         right_x = self.size[0] - 460
-        if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
-            txt(f"PPO(.zip): {self.blue_ppo_team.model_path}", right_x, 45, (140, 240, 140))
+        if self.blue_mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+            ppo_name = os.path.basename(self.blue_ppo_team.model_path or "")
+            txt(f"PPO(.zip): {ppo_name}", right_x, 45, (140, 240, 140))
+        elif self.blue_mode == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
+            low_name = os.path.basename(self.blue_hppo_team.low_model_path or "")
+            high_name = os.path.basename(self.blue_hppo_team.high_model_path or "")
+            txt(f"HPPO(.zip): {low_name} | {high_name}", right_x, 45, (140, 240, 140))
         else:
-            txt("PPO(.zip): (not loaded)", right_x, 45, (180, 180, 180))
+            txt("PPO/HPPO(.zip): (not loaded)", right_x, 45, (180, 180, 180))
 
         if self.input_active:
             overlay = pg.Surface(self.size, pg.SRCALPHA)
