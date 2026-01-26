@@ -24,6 +24,7 @@ class CTFGameFieldSB3Env(gym.Env):
         include_high_level_mode: bool = False,
         high_level_mode: int = 0,
         high_level_mode_onehot: bool = True,
+        blue_role_macros: Optional[Tuple[list[int], list[int]]] = None,
         default_opponent_kind: str = "SCRIPTED",
         default_opponent_key: str = "OP1",
         # NEW: must match PPO gamma for PBRS to be invariant
@@ -58,6 +59,7 @@ class CTFGameFieldSB3Env(gym.Env):
         self._n_targets = 8
         self._league_mode = False
         self._episode_reward_total = 0.0
+        self._blue_role_macros = blue_role_macros
 
         # Anti-stall (blue-only, decision-level)
         self._stall_threshold_cells = 0.15
@@ -369,7 +371,7 @@ class CTFGameFieldSB3Env(gym.Env):
         vec_list = []
         mask_list = []
 
-        for a in blue[:2]:
+        for idx, a in enumerate(blue[:2]):
             if a is None:
                 cnn_list.append(_empty_cnn())
                 vec = _empty_vec()
@@ -407,6 +409,7 @@ class CTFGameFieldSB3Env(gym.Env):
 
             if self.include_mask_in_obs:
                 mm = np.asarray(self.gf.get_macro_mask(a), dtype=np.bool_).reshape(-1)
+                mm = self._apply_role_macro_mask(idx, mm)
                 if mm.shape != (self._n_macros,) or (not mm.any()):
                     mm = np.ones((self._n_macros,), dtype=np.bool_)
                 tm = np.asarray(self.gf.get_target_mask(a), dtype=np.bool_).reshape(-1)
@@ -438,6 +441,7 @@ class CTFGameFieldSB3Env(gym.Env):
             return 0, 0
 
         mask = np.asarray(self.gf.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
+        mask = self._apply_role_macro_mask(blue_index, mask)
         if mask.shape != (self._n_macros,) or (not mask.any()):
             return macro, tgt
 
@@ -451,6 +455,25 @@ class CTFGameFieldSB3Env(gym.Env):
                 if not bool(tgt_mask[tgt]):
                     tgt = self._nearest_valid_target(agent, tgt_mask)
         return macro, tgt
+
+    def _apply_role_macro_mask(self, blue_index: int, mm: np.ndarray) -> np.ndarray:
+        if self._blue_role_macros is None:
+            return mm
+        if not isinstance(self._blue_role_macros, (tuple, list)) or blue_index >= len(self._blue_role_macros):
+            return mm
+        allowed = self._blue_role_macros[blue_index]
+        if not allowed:
+            return mm
+        mask = np.zeros_like(mm, dtype=np.bool_)
+        for idx in allowed:
+            try:
+                i = int(idx)
+            except Exception:
+                continue
+            if 0 <= i < mask.size:
+                mask[i] = True
+        out = mm & mask
+        return out if out.any() else mm
 
     def _macro_uses_target(self, macro_idx: int) -> bool:
         if self.gf is None:
