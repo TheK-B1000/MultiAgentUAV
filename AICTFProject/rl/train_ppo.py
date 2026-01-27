@@ -62,7 +62,7 @@ class PPOConfig:
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
 
-    mode: str = TrainMode.FIXED_OPPONENT.value
+    mode: str = TrainMode.SELF_PLAY.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -307,6 +307,9 @@ class SelfPlayCallback(BaseCallback):
         self.cfg = cfg
         self.league = league
         self.episode_idx = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.draw_count = 0
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -325,10 +328,13 @@ class SelfPlayCallback(BaseCallback):
             red_score = int(ep.get("red_score", 0))
             if blue_score > red_score:
                 result = "WIN"
+                self.win_count += 1
             elif blue_score < red_score:
                 result = "LOSS"
+                self.loss_count += 1
             else:
                 result = "DRAW"
+                self.draw_count += 1
 
             if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
                 prefix = f"{self.cfg.run_tag}_selfplay_snapshot"
