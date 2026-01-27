@@ -62,7 +62,7 @@ class PPOConfig:
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
 
-    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -360,6 +360,18 @@ class SelfPlayCallback(BaseCallback):
                 if spec.kind == "SNAPSHOT":
                     next_snapshot = spec.key
 
+        if len(self.league.snapshots) == 0:
+            fallback_path = os.path.join(
+                self.cfg.checkpoint_dir, f"{self.cfg.run_tag}_selfplay_init_fallback"
+            )
+            try:
+                self.model.save(fallback_path)
+            except Exception as exc:
+                print(f"[WARN] self-play fallback save failed: {exc}")
+            else:
+                self.league.add_snapshot(fallback_path + ".zip")
+                next_snapshot = self.league.latest_snapshot_key()
+
             if next_snapshot:
                 env = self.model.get_env()
                 if env is not None:
@@ -459,7 +471,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         phase_name = str(cfg.fixed_opponent_tag).upper()
     elif mode == TrainMode.SELF_PLAY.value:
         default_opponent = ("SCRIPTED", "OP3")
-        phase_name = "OP3"
+        phase_name = "SELF_PLAY"
     else:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
@@ -510,6 +522,19 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
     else:
         model.set_logger(configure(None, []))
+
+    if mode == TrainMode.SELF_PLAY.value:
+        init_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_init")
+        try:
+            model.save(init_path)
+        except Exception as exc:
+            print(f"[WARN] self-play init snapshot save failed: {exc}")
+        else:
+            league.add_snapshot(init_path + ".zip")
+            init_key = league.latest_snapshot_key()
+            if init_key:
+                venv.env_method("set_next_opponent", "SNAPSHOT", init_key)
+                venv.reset()
 
     callbacks = []
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
