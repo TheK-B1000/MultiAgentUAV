@@ -350,7 +350,8 @@ class SelfPlayCallback(BaseCallback):
                 print(
                     f"[PPO|SELF] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} "
-                    f"snapshots={len(self.league.snapshots)}"
+                    f"snapshots={len(self.league.snapshots)} "
+                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
 
             self.logger.record("self/episode", self.episode_idx)
