@@ -66,6 +66,7 @@ class PPOConfig:
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
+    self_play_max_snapshots: int = 50
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -310,6 +311,18 @@ class SelfPlayCallback(BaseCallback):
         self.win_count = 0
         self.loss_count = 0
         self.draw_count = 0
+        self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
+
+    def _enforce_snapshot_limit(self) -> None:
+        if self._max_snapshots <= 0:
+            return
+        while len(self.league.snapshots) > self._max_snapshots:
+            oldest = self.league.snapshots.pop(0)
+            try:
+                if oldest and os.path.exists(oldest):
+                    os.remove(oldest)
+            except Exception as exc:
+                print(f"[WARN] snapshot cleanup failed: {exc}")
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -345,6 +358,7 @@ class SelfPlayCallback(BaseCallback):
                     print(f"[WARN] snapshot save failed: {exc}")
                 else:
                     self.league.add_snapshot(path + ".zip")
+                    self._enforce_snapshot_limit()
 
             if self.verbose:
                 print(
@@ -377,6 +391,7 @@ class SelfPlayCallback(BaseCallback):
                 print(f"[WARN] self-play fallback save failed: {exc}")
             else:
                 self.league.add_snapshot(fallback_path + ".zip")
+                    self._enforce_snapshot_limit()
                 next_snapshot = self.league.latest_snapshot_key()
 
             if next_snapshot:
@@ -539,6 +554,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         else:
             league.add_snapshot(init_path + ".zip")
             init_key = league.latest_snapshot_key()
+            max_snaps = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
+            if max_snaps > 0:
+                while len(league.snapshots) > max_snaps:
+                    oldest = league.snapshots.pop(0)
+                    try:
+                        if oldest and os.path.exists(oldest):
+                            os.remove(oldest)
+                    except Exception as exc:
+                        print(f"[WARN] snapshot cleanup failed: {exc}")
             if init_key:
                 venv.env_method("set_next_opponent", "SNAPSHOT", init_key)
                 venv.reset()
