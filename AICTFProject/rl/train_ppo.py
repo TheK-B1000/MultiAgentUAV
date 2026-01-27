@@ -381,18 +381,18 @@ class SelfPlayCallback(BaseCallback):
                 if spec.kind == "SNAPSHOT":
                     next_snapshot = spec.key
 
-        if len(self.league.snapshots) == 0:
-            fallback_path = os.path.join(
-                self.cfg.checkpoint_dir, f"{self.cfg.run_tag}_selfplay_init_fallback"
-            )
-            try:
-                self.model.save(fallback_path)
-            except Exception as exc:
-                print(f"[WARN] self-play fallback save failed: {exc}")
-            else:
-                self.league.add_snapshot(fallback_path + ".zip")
+            if len(self.league.snapshots) == 0:
+                fallback_path = os.path.join(
+                    self.cfg.checkpoint_dir, f"{self.cfg.run_tag}_selfplay_init_fallback"
+                )
+                try:
+                    self.model.save(fallback_path)
+                except Exception as exc:
+                    print(f"[WARN] self-play fallback save failed: {exc}")
+                else:
+                    self.league.add_snapshot(fallback_path + ".zip")
                     self._enforce_snapshot_limit()
-                next_snapshot = self.league.latest_snapshot_key()
+                    next_snapshot = self.league.latest_snapshot_key()
 
             if next_snapshot:
                 env = self.model.get_env()
