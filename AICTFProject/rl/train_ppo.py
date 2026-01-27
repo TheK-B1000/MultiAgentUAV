@@ -66,7 +66,7 @@ class PPOConfig:
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
-    self_play_max_snapshots: int = 50
+    self_play_max_snapshots: int = 25
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
