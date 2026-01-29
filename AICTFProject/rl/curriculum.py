@@ -2,11 +2,30 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Deque, Dict, List
+from typing import Any, Deque, Dict, List
 
 from collections import deque
 
 from rl.league import EloLeague, OpponentSpec
+
+# Curriculum Axis 2: environment stress by phase (optional). Pass to env_method("set_stress_schedule", STRESS_BY_PHASE).
+# When set_phase(phase) is called, env applies these knobs for that phase (current, action delay, sensor noise).
+STRESS_BY_PHASE: Dict[str, Dict[str, Any]] = {
+    "OP1": {},
+    "OP2": {
+        "current_strength_cps": 0.05,
+        "action_delay_steps": 1,
+        "sensor_noise_sigma_cells": 0.1,
+        "sensor_dropout_prob": 0.0,
+    },
+    "OP3": {
+        "current_strength_cps": 0.12,
+        "drift_sigma_cells": 0.03,
+        "action_delay_steps": 2,
+        "sensor_noise_sigma_cells": 0.2,
+        "sensor_dropout_prob": 0.05,
+    },
+}
 
 
 @dataclass
