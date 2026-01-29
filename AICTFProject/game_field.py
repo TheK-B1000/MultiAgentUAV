@@ -283,6 +283,14 @@ class GameField:
         self.red_agents: List[Agent] = []
         self.red_agents_per_team_override: Optional[int] = None
         self.red_speed_scale: float = 1.0
+        # Adaptive adversaries: speed variation, deception, coordinated attack, evasion
+        self.red_speed_min: Optional[float] = None  # None => use red_speed_scale for both
+        self.red_speed_max: Optional[float] = None
+        self.red_deception_prob: float = 0.0
+        self.red_evasion_prob: float = 0.0
+        self.red_sync_attack: bool = False
+        self.red_sync_attack_now: bool = False
+        self._red_sync_step: int = 0
 
         # Pathfinding
         self.pathfinder = Pathfinder(
@@ -1024,6 +1032,11 @@ class GameField:
         if mode == "OP1":
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
@@ -1031,6 +1044,11 @@ class GameField:
         elif mode == "OP2":
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
@@ -1038,6 +1056,11 @@ class GameField:
         elif mode in ("OP3_EASY", "OP3EASY"):
             self.red_agents_per_team_override = None
             self.red_speed_scale = 0.9
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
             self.suppression_range_cells = 1.5
             self.mines_per_team = 1
             self.max_mine_charges_per_agent = 1
@@ -1053,6 +1076,11 @@ class GameField:
         elif mode in ("OP3_HARD", "OP3HARD"):
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
@@ -1064,6 +1092,71 @@ class GameField:
                 assist_radius_mult=2.0,
                 defense_weight=3.0,
                 flag_weight=1.0,
+            )
+        elif mode in ("OP3_ADAPTIVE", "OP3ADAPTIVE"):
+            # Speed variation + deceptive approaches (curriculum: adaptive adversaries)
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
+            self.red_speed_min = 0.85
+            self.red_speed_max = 1.15
+            self.red_deception_prob = 0.3
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=2.0,
+                defense_radius_cells=5.0,
+                patrol_radius_cells=3,
+                assist_radius_mult=1.5,
+                defense_weight=2.0,
+                flag_weight=2.0,
+                deception_prob=0.3,
+            )
+        elif mode in ("OP3_SYNC", "OP3SYNC"):
+            # Coordinated multi-agent attack (synchronized rush)
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = True
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=2.0,
+                defense_radius_cells=5.0,
+                patrol_radius_cells=3,
+                assist_radius_mult=1.5,
+                defense_weight=2.0,
+                flag_weight=2.0,
+            )
+        elif mode in ("OP3_EVASIVE", "OP3EVASIVE"):
+            # Evasion strategies (dodge, retreat when pressured)
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.05
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.15
+            self.red_evasion_prob = 0.4
+            self.red_sync_attack = False
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=2.2,
+                defense_radius_cells=5.0,
+                patrol_radius_cells=3,
+                assist_radius_mult=1.8,
+                defense_weight=2.5,
+                flag_weight=1.5,
+                deception_prob=0.15,
             )
         else:
             self.red_agents_per_team_override = None
