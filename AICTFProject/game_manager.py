@@ -85,6 +85,8 @@ class GameManager:
     sim_time: float = 0.0
     game_over: bool = False
     phase_name: str = "OP1"
+    # Naval framing: if True, on timeout Blue wins (defense held) regardless of score
+    timeout_blue_wins_defense_held: bool = False
 
     # --- flags ---
     blue_flag_home: Cell = (0, 0)
@@ -467,6 +469,11 @@ class GameManager:
         # Time over
         if self.current_time <= 0.0 and not self.game_over:
             self.game_over = True
+            if bool(getattr(self, "timeout_blue_wins_defense_held", False)):
+                # Naval framing: defense held = Blue wins on timeout
+                self.add_team_reward("blue", WIN_TEAM_REWARD)
+                self.add_team_reward("red", LOSE_TEAM_PUNISH)
+                return "BLUE WINS (DEFENSE HELD)"
             if self.blue_score > self.red_score:
                 self.add_team_reward("blue", WIN_TEAM_REWARD)
                 self.add_team_reward("red", LOSE_TEAM_PUNISH)
