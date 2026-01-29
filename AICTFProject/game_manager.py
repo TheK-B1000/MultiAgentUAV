@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 # -------------------------
 
 WIN_TEAM_REWARD = 5.0
-LOSE_TEAM_PUNISH = -5.0  # <-- recommended: symmetric terminal signal for the losing team
+LOSE_TEAM_PUNISH = -5.0  # symmetric terminal signal for the losing team
 DRAW_TEAM_PENALTY = -1.0
 
 FLAG_PICKUP_REWARD = 1.0
@@ -63,11 +63,13 @@ class GameManager:
     """
     Game state + reward routing.
 
-    Key research invariants:
-      - Rewards are emitted ONLY as per-agent events (no global rewards).
+    Research invariants:
+      - Rewards are emitted ONLY as per-agent events (no global reward returned).
       - agent_id in reward events is ALWAYS a non-empty string.
-      - Flag state is always consistent after each tick (carrier & taken flags align).
+      - Flag state is always consistent after each tick (carrier/taken/pos align).
       - PBRS uses gamma-correct shaping: coef * (gamma * Phi(s') - Phi(s)).
+      - Supports optional episode-sticky dynamics configuration (speed, drift, etc.)
+        via set_dynamics_config() for SubprocVecEnv env_method compatibility.
     """
 
     cols: int
@@ -124,6 +126,9 @@ class GameManager:
     # --- optional env binding for precise team membership ---
     game_field: Optional[Any] = field(default=None, repr=False, compare=False)
 
+    # --- dynamics configuration (episode-sticky knobs: speed, drift, sensors) ---
+    dynamics_config: Optional[Dict[str, Any]] = field(default=None, repr=False, compare=False)
+
     # -------------------------
     # Binding / config
     # -------------------------
@@ -133,14 +138,154 @@ class GameManager:
         self.game_field = game_field
 
     def set_phase(self, phase: str) -> None:
-        # Keep stored phase names canonical
+        """Set curriculum phase name (canonical uppercase)."""
         self.phase_name = str(phase).upper().strip()
 
     def set_shaping_gamma(self, gamma: float) -> None:
+        """Set shaping gamma; must match PPO gamma for PBRS policy invariance."""
         g = float(gamma)
         if not (0.0 <= g <= 1.0):
             raise ValueError(f"gamma must be in [0,1], got {gamma}")
         self.shaping_gamma = g
+
+    # ---- dynamics config (SB3 SubprocVecEnv env_method compatibility) ----
+
+    def set_dynamics_config(self, cfg: Optional[Dict[str, Any]]) -> None:
+        """
+        Store episode-sticky dynamics configuration.
+
+        This exists primarily to avoid SubprocVecEnv crashes when training calls:
+            venv.env_method("set_dynamics_config", cfg)
+
+        Config is not applied automatically here; it is a central, consistent
+        place to read dynamics knobs in GameField/Manager logic.
+
+        Common keys:
+          - "blue_speed_mult": float
+          - "red_speed_mult": float
+          - "opponent_kind": "scripted"|"species"|"snapshot"
+          - "opponent_key": e.g. "OP1"/"BALANCED"/snapshot path label
+          - "scripted_speed_mult": {"OP1": 0.9, "OP2": 1.0, "OP3": 1.1}
+          - "species_speed_mult": {"BALANCED": 1.0, "FAST": 1.15, ...}
+          - "snapshot_speed_mult": float
+          - "opponent_speed_mult": float (global red multiplier)
+          - (future) "current_drift": (dx,dy), "sensor_noise": {...}, etc.
+        """
+        if cfg is None:
+            self.dynamics_config = None
+            return
+        if not isinstance(cfg, dict):
+            raise TypeError(f"dynamics config must be dict or None, got {type(cfg)}")
+        # Shallow copy to avoid external mutation surprises.
+        self.dynamics_config = dict(cfg)
+
+    def get_dynamics_config(self) -> Optional[Dict[str, Any]]:
+        """Get a safe copy of the current dynamics config (or None)."""
+        return None if self.dynamics_config is None else dict(self.dynamics_config)
+
+    def _cfg_get(self, key: str, default: Any) -> Any:
+        cfg = self.dynamics_config
+        if not cfg:
+            return default
+        return cfg.get(key, default)
+
+    def get_team_speed_multiplier(self, side: str) -> float:
+        """
+        Team-wide speed multiplier. Defaults to 1.0.
+        Supported keys: "blue_speed_mult", "red_speed_mult"
+        """
+        side = str(side).lower().strip()
+        raw = self._cfg_get("blue_speed_mult", 1.0) if side == "blue" else self._cfg_get("red_speed_mult", 1.0)
+        try:
+            v = float(raw)
+        except Exception:
+            return 1.0
+        if not math.isfinite(v) or v <= 0.0:
+            return 1.0
+        return float(v)
+
+    def get_agent_speed_multiplier(self, agent: Any) -> float:
+        """
+        Per-agent speed multiplier. Defaults to team multiplier.
+        Applies opponent-specific tables to RED by default (common use-case).
+
+        See set_dynamics_config docstring for supported keys.
+        """
+        if agent is None:
+            return 1.0
+
+        side = str(getattr(agent, "side", "")).lower().strip()
+        if side not in ("blue", "red"):
+            return 1.0
+
+        base = self.get_team_speed_multiplier(side)
+
+        # Most experiments: only vary opponent (red). Blue remains consistent.
+        if side != "red":
+            return base
+
+        cfg = self.dynamics_config or {}
+
+        # Global red multiplier
+        try:
+            opp_mult = float(cfg.get("opponent_speed_mult", 1.0))
+            if math.isfinite(opp_mult) and opp_mult > 0.0:
+                base *= opp_mult
+        except Exception:
+            pass
+
+        # Opponent identity
+        kind = str(cfg.get("opponent_kind", "")).lower().strip()
+        key = str(cfg.get("opponent_key", "")).upper().strip()
+
+        # Fallback inference if you ever tag agents (optional)
+        if not kind:
+            kind = str(getattr(agent, "opponent_kind", "")).lower().strip()
+        if not key:
+            key = str(getattr(agent, "opponent_tag", "")).upper().strip()
+
+        if kind == "scripted":
+            table = cfg.get("scripted_speed_mult")
+            if isinstance(table, dict):
+                try:
+                    v = float(table.get(key, 1.0))
+                    if math.isfinite(v) and v > 0.0:
+                        base *= v
+                except Exception:
+                    pass
+
+        elif kind == "species":
+            species_tag = key or str(cfg.get("species_tag", "BALANCED")).upper().strip()
+            table = cfg.get("species_speed_mult")
+            if isinstance(table, dict):
+                try:
+                    v = float(table.get(species_tag, 1.0))
+                    if math.isfinite(v) and v > 0.0:
+                        base *= v
+                except Exception:
+                    pass
+
+        elif kind == "snapshot":
+            try:
+                v = float(cfg.get("snapshot_speed_mult", 1.0))
+                if math.isfinite(v) and v > 0.0:
+                    base *= v
+            except Exception:
+                pass
+
+        if not math.isfinite(base) or base <= 0.0:
+            return 1.0
+        return float(base)
+
+    def get_episode_dynamics_summary(self) -> Dict[str, Any]:
+        """Small, paper-friendly summary for logging."""
+        cfg = self.get_dynamics_config() or {}
+        return {
+            "blue_speed_mult": cfg.get("blue_speed_mult", 1.0),
+            "red_speed_mult": cfg.get("red_speed_mult", 1.0),
+            "opponent_kind": cfg.get("opponent_kind", None),
+            "opponent_key": cfg.get("opponent_key", None),
+        }
 
     # -------------------------
     # Core helpers
@@ -295,6 +440,10 @@ class GameManager:
         self.red_flag_drop_time = None
         self.last_score_time = 0.0
 
+        # NOTE: dynamics_config is intentionally NOT cleared here by default.
+        # If you want it episode-scoped, uncomment:
+        # self.dynamics_config = None
+
     # -------------------------
     # Tick / termination
     # -------------------------
@@ -406,7 +555,7 @@ class GameManager:
                     self.red_flag_drop_time = None
 
     def get_enemy_flag_position(self, side: str) -> Cell:
-        # FIX: normalize side
+        # normalize side
         side = str(side).lower().strip()
         if side == "blue":
             return (
@@ -421,7 +570,6 @@ class GameManager:
         )
 
     def get_team_zone_center(self, side: str) -> Cell:
-        # FIX: normalize side
         return self.blue_flag_home if str(side).lower().strip() == "blue" else self.red_flag_home
 
     def get_sim_time(self) -> float:
@@ -610,7 +758,9 @@ class GameManager:
         ax, ay = self._agent_float(agent)
 
         for other in team:
-            if other is agent or (not other.isEnabled()):
+            if other is agent:
+                continue
+            if hasattr(other, "isEnabled") and not other.isEnabled():
                 continue
             ox, oy = self._agent_float(other)
             if math.hypot(ox - ax, oy - ay) <= float(radius_cells):
@@ -628,7 +778,11 @@ class GameManager:
         ax, ay = self._agent_float(agent)
         close: List[Any] = []
         for other in team:
-            if other is agent or (hasattr(other, "isEnabled") and not other.isEnabled()):
+            if other is agent:
+                continue
+            if other is None:
+                continue
+            if hasattr(other, "isEnabled") and not other.isEnabled():
                 continue
             ox, oy = self._agent_float(other)
             if math.hypot(ox - ax, oy - ay) <= float(radius_cells):
@@ -645,8 +799,6 @@ class GameManager:
             F(s,a,s') = coef * (gamma * Phi(s') - Phi(s))
 
         Uses float positions provided by the env/agent.
-        By default, shaping is applied to BOTH teams symmetrically.
-        If you want blue-only shaping for curriculum, gate by agent.side externally.
 
         IMPORTANT:
           Ensure set_shaping_gamma() is called from the SB3 wrapper / trainer
@@ -726,8 +878,6 @@ class GameManager:
 
         # Offense: reward crossing midline (once per side transition)
         mid_x = float(self.cols) * 0.5
-        sx, sy = float(start_pos[0]), float(start_pos[1])
-        ex, ey = float(end_pos[0]), float(end_pos[1])
         in_enemy_half = (ex > mid_x) if side == "blue" else (ex < mid_x)
         in_own_half = (ex <= mid_x) if side == "blue" else (ex >= mid_x)
 
@@ -762,38 +912,34 @@ class GameManager:
         # Mine avoidance (small penalty when too close to enemy mines)
         gf = getattr(agent, "game_field", None) or self.game_field
         if gf is not None:
-            side = str(getattr(agent, "side", "")).lower().strip()
-            if side in ("blue", "red"):
-                enemies = gf.red_agents if side == "blue" else gf.blue_agents
-                _ = enemies  # for symmetry with suppress logic below
-                ax, ay = float(end_pos[0]), float(end_pos[1])
-                for m in getattr(gf, "mines", []):
-                    owner = str(getattr(m, "owner_side", "")).lower()
-                    if owner == side:
-                        continue
-                    dist = math.hypot(float(m.x) - ax, float(m.y) - ay)
-                    if dist <= float(MINE_AVOID_RADIUS_CELLS):
-                        self.add_agent_reward(agent, MINE_AVOID_PENALTY)
-                        break
+            ax2, ay2 = float(end_pos[0]), float(end_pos[1])
+            for m in getattr(gf, "mines", []):
+                owner = str(getattr(m, "owner_side", "")).lower()
+                if owner == side:
+                    continue
+                dist = math.hypot(float(m.x) - ax2, float(m.y) - ay2)
+                if dist <= float(MINE_AVOID_RADIUS_CELLS):
+                    self.add_agent_reward(agent, MINE_AVOID_PENALTY)
+                    break
 
-                # Suppression setup bonus: be near an enemy with teammate
-                sup = float(getattr(gf, "suppression_range_cells", 2.0))
-                if sup > 0.0:
-                    team = gf.blue_agents if side == "blue" else gf.red_agents
-                    enemies = gf.red_agents if side == "blue" else gf.blue_agents
-                    for e in enemies:
-                        if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
-                            continue
-                        ex, ey = self._agent_float(e)
-                        if math.hypot(ex - ax, ey - ay) <= sup:
-                            for t in team:
-                                if t is agent or t is None or (hasattr(t, "isEnabled") and not t.isEnabled()):
-                                    continue
-                                tx, ty = self._agent_float(t)
-                                if math.hypot(ex - tx, ey - ty) <= sup:
-                                    self.add_agent_reward(agent, SUPPRESSION_SETUP_BONUS)
-                                    break
-                            break
+            # Suppression setup bonus: be near an enemy with teammate
+            sup = float(getattr(gf, "suppression_range_cells", 2.0))
+            if sup > 0.0:
+                team = gf.blue_agents if side == "blue" else gf.red_agents
+                enemies = gf.red_agents if side == "blue" else gf.blue_agents
+                for e in enemies:
+                    if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
+                        continue
+                    ex2, ey2 = self._agent_float(e)
+                    if math.hypot(ex2 - ax2, ey2 - ay2) <= sup:
+                        for t in team:
+                            if t is agent or t is None or (hasattr(t, "isEnabled") and not t.isEnabled()):
+                                continue
+                            tx, ty = self._agent_float(t)
+                            if math.hypot(ex2 - tx, ey2 - ty) <= sup:
+                                self.add_agent_reward(agent, SUPPRESSION_SETUP_BONUS)
+                                break
+                        break
 
     # -------------------------
     # Mine/combat hooks (minimal)
@@ -824,10 +970,14 @@ class GameManager:
     def reward_mine_picked_up(self, agent: Any, prev_charges: int = 0) -> None:
         if agent is None:
             return
-        # Small positive reward to encourage picking up mines when useful.
         self.add_agent_reward(agent, MINE_PICKUP_REWARD)
 
-    def reward_enemy_killed(self, killer_agent: Any, victim_agent: Optional[Any] = None, cause: Optional[str] = None) -> None:
+    def reward_enemy_killed(
+        self,
+        killer_agent: Any,
+        victim_agent: Optional[Any] = None,
+        cause: Optional[str] = None,
+    ) -> None:
         if killer_agent is None:
             return
 
