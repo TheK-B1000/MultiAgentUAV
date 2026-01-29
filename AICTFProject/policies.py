@@ -386,10 +386,34 @@ class OP3RedPolicy(Policy):
         int, Optional[Tuple[int, int]]]:
         if agent.isCarryingFlag():
             return _macro_to_int(MacroAction.GO_HOME), None
+        side = getattr(agent, "side", self.side)
+        aid = int(getattr(agent, "agent_id", 0))
+        # Deceptive feint: with prob deception_prob, go to decoy (near enemy flag) for k steps then switch
+        feint_list = getattr(game_field, "red_agent_feint_remaining", None)
+        deception_prob = float(getattr(game_field, "red_deception_prob", 0.0))
+        k_steps = int(getattr(game_field, "red_attack_sync_window", 5)) or 5
+        if (
+            side == "red"
+            and isinstance(feint_list, list)
+            and len(feint_list) > aid
+            and deception_prob > 0
+        ):
+            if feint_list[aid] == 0 and random.random() < deception_prob:
+                feint_list[aid] = k_steps
+            if feint_list[aid] > 0:
+                # Decoy: cell offset from enemy (blue) flag so we move toward lane A then cut to flag
+                efx, efy = gm.get_team_zone_center("blue") if side == "red" else gm.get_team_zone_center("red")
+                decoy_x = int(efx) + (1 if aid == 0 else -1)
+                decoy_y = int(efy)
+                tx, ty = self._safe_target(game_field, decoy_x, decoy_y)
+                return _macro_to_int(MacroAction.GO_TO), (tx, ty)
         return _macro_to_int(MacroAction.GET_FLAG), None
 
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
+        # Coordinated attack: when sync signal is on, both reds do attacker action
+        if getattr(game_field, "red_sync_attack_now", False):
+            return self._attacker_action(agent, gm, game_field)
         if self.defense_weight is not None and self.flag_weight is not None:
             total = float(self.defense_weight + self.flag_weight)
             if total > 0.0:
