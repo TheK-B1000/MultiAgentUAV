@@ -291,6 +291,8 @@ class GameField:
         self.red_sync_attack: bool = False
         self.red_sync_attack_now: bool = False
         self._red_sync_step: int = 0
+        self.red_attack_sync_window: int = 0  # steps to hold sync; 0 = no sync
+        self.red_agent_feint_remaining: List[int] = []  # per red agent: steps left in feint (decoy)
 
         # Pathfinding
         self.pathfinder = Pathfinder(
@@ -1026,6 +1028,15 @@ class GameField:
         self.policies["blue"] = blue
         self.policies["red"] = red
 
+    def set_opponent_params(self, params: Any) -> None:
+        """Apply OpponentParams (speed_mult, deception_prob, coordinated_attack, attack_sync_window, noise_sigma)."""
+        if params is None:
+            return
+        self.red_speed_scale = float(getattr(params, "speed_mult", 1.0))
+        self.red_deception_prob = float(getattr(params, "deception_prob", 0.0))
+        self.red_sync_attack = bool(getattr(params, "coordinated_attack", False))
+        self.red_attack_sync_window = max(0, int(getattr(params, "attack_sync_window", 0)))
+
     def set_red_opponent(self, mode: str) -> None:
         mode = str(mode).upper()
         self.opponent_mode = mode
@@ -1359,6 +1370,8 @@ class GameField:
 
             self.red_agents.append(a)
 
+        self.red_agent_feint_remaining = [0] * max(2, len(self.red_agents))
+
     def spawn_mine_pickups(self) -> None:
         self.mine_pickups.clear()
 
@@ -1479,6 +1492,17 @@ class GameField:
 
         # IROS-style metrics: collision/near-miss, inter-robot distance, zone coverage
         self._record_tick_metrics(delta_time)
+
+        # Coordinated attack: every attack_sync_window steps, both reds sync (attack)
+        if self.red_sync_attack and self.red_attack_sync_window > 0:
+            self._red_sync_step += 1
+            self.red_sync_attack_now = (self._red_sync_step % self.red_attack_sync_window == 0)
+        else:
+            self.red_sync_attack_now = False
+        # Decrement feint remaining per red agent
+        for i in range(len(self.red_agent_feint_remaining)):
+            if self.red_agent_feint_remaining[i] > 0:
+                self.red_agent_feint_remaining[i] -= 1
 
         for friendly_team, enemy_team in (
             (self.blue_agents, self.red_agents),
