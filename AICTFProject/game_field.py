@@ -1395,6 +1395,55 @@ class GameField:
         spawn_for_band("blue", blue_min_col, blue_max_col)
         spawn_for_band("red", red_min_col, red_max_col)
 
+        # IROS metric: total cells in blue zone (defended corridor) for coverage denominator
+        self.manager.total_blue_zone_cells = max(
+            1,
+            (blue_max_col - blue_min_col + 1) * max(1, self.row_count),
+        )
+
+    def _record_tick_metrics(self, delta_time: float) -> None:
+        """IROS-style metrics: collision/near-miss (r=0.5 cells), inter-robot distance, zone coverage."""
+        AGENT_RADIUS = 0.5  # grid cells; 2r=1.0 collision, 2.5r=1.25 near-miss
+        agents = [a for a in (self.blue_agents + self.red_agents) if a.isEnabled()]
+        positions = []
+        for a in agents:
+            fx, fy = self._agent_float_pos(a)
+            positions.append((a, fx, fy))
+
+        collision_delta = 0
+        near_miss_delta = 0
+        for i in range(len(positions)):
+            _, xi, yi = positions[i]
+            for j in range(i + 1, len(positions)):
+                xj, yj = positions[j][1], positions[j][2]
+                d = math.hypot(xj - xi, yj - yi)
+                if d < 2.0 * AGENT_RADIUS:
+                    collision_delta += 1
+                elif d < 2.5 * AGENT_RADIUS:
+                    near_miss_delta += 1
+
+        blue_inter_dist = None
+        if len(self.blue_agents) >= 2 and self.blue_agents[0].isEnabled() and self.blue_agents[1].isEnabled():
+            x0, y0 = self._agent_float_pos(self.blue_agents[0])
+            x1, y1 = self._agent_float_pos(self.blue_agents[1])
+            blue_inter_dist = math.hypot(x1 - x0, y1 - y0)
+
+        blue_zone_cells = set()
+        bmin, bmax = self.blue_zone_col_range
+        for a in self.blue_agents:
+            if not a.isEnabled():
+                continue
+            c, r = self._agent_cell_pos(a)
+            if bmin <= c <= bmax:
+                blue_zone_cells.add((c, r))
+
+        self.manager.record_tick_metrics(
+            collision_delta=collision_delta,
+            near_miss_delta=near_miss_delta,
+            blue_inter_robot_dist=blue_inter_dist,
+            blue_zone_cells_this_tick=blue_zone_cells,
+        )
+
     # -------- main simulation step --------
 
     def update(self, delta_time: float) -> None:
@@ -1427,6 +1476,9 @@ class GameField:
         occupied = [self._agent_cell_pos(a) for a in (self.blue_agents + self.red_agents) if a.isEnabled()]
         if hasattr(self.pathfinder, "setDynamicObstacles"):
             self.pathfinder.setDynamicObstacles(occupied)
+
+        # IROS-style metrics: collision/near-miss, inter-robot distance, zone coverage
+        self._record_tick_metrics(delta_time)
 
         for friendly_team, enemy_team in (
             (self.blue_agents, self.red_agents),
