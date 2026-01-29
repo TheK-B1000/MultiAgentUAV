@@ -537,6 +537,91 @@ class FixedOpponentCallback(BaseCallback):
         return True
 
 
+class MetricsCSVCallback(BaseCallback):
+    """Collect Top 5 IROS-style metrics per episode and write one CSV at end of training (publish-friendly)."""
+
+    CSV_COLUMNS = [
+        "episode_id",
+        "success",
+        "time_to_first_score",
+        "time_to_game_over",
+        "collisions_per_episode",
+        "near_misses_per_episode",
+        "collision_free_episode",
+        "mean_inter_robot_dist",
+        "std_inter_robot_dist",
+        "zone_coverage",
+        "phase_name",
+        "opponent_kind",
+        "scripted_tag",
+        "blue_score",
+        "red_score",
+    ]
+
+    def __init__(self, *, save_path: str) -> None:
+        super().__init__(verbose=0)
+        self.save_path = str(save_path)
+        self._rows: List[Dict[str, Any]] = []
+        self._episode_id = 0
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+            info = infos[i] if i < len(infos) else {}
+            ep = info.get("episode_result")
+            if not isinstance(ep, dict):
+                continue
+            self._episode_id += 1
+            row = {
+                "episode_id": self._episode_id,
+                "success": ep.get("success", 1 if ep.get("blue_score", 0) > ep.get("red_score", 0) else 0),
+                "time_to_first_score": ep.get("time_to_first_score"),
+                "time_to_game_over": ep.get("time_to_game_over"),
+                "collisions_per_episode": ep.get("collisions_per_episode", 0),
+                "near_misses_per_episode": ep.get("near_misses_per_episode", 0),
+                "collision_free_episode": ep.get("collision_free_episode", 1),
+                "mean_inter_robot_dist": ep.get("mean_inter_robot_dist"),
+                "std_inter_robot_dist": ep.get("std_inter_robot_dist"),
+                "zone_coverage": ep.get("zone_coverage"),
+                "phase_name": ep.get("phase_name", ""),
+                "opponent_kind": ep.get("opponent_kind", ""),
+                "scripted_tag": ep.get("scripted_tag") or "",
+                "blue_score": ep.get("blue_score", 0),
+                "red_score": ep.get("red_score", 0),
+            }
+            self._rows.append(row)
+        return True
+
+    def _fmt(self, v: Any) -> str:
+        if v is None:
+            return ""
+        if isinstance(v, float):
+            return f"{v:.6g}"
+        return str(v)
+
+    def _on_training_end(self) -> None:
+        if not self._rows:
+            return
+        path = self.save_path
+        if not path.lower().endswith(".csv"):
+            path = path + ".csv"
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=self.CSV_COLUMNS, extrasaction="ignore")
+                w.writeheader()
+                for row in self._rows:
+                    out = {k: self._fmt(row.get(k)) for k in self.CSV_COLUMNS}
+                    w.writerow(out)
+            if self.verbose:
+                print(f"[Metrics] Saved {len(self._rows)} rows to {path}")
+        except Exception as exc:
+            print(f"[WARN] Metrics CSV save failed: {exc}")
+
+
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg = cfg or PPOConfig()
     set_global_seed(cfg.seed)
