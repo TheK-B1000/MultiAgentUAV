@@ -4,7 +4,7 @@ import math
 import os
 import random
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np  # action masks
 
@@ -29,8 +29,46 @@ Cell = Tuple[int, int]
 FloatPos = Tuple[float, float]
 ExternalAction = Tuple[int, Any]  # (macro_idx, target_param)
 
+Grid = List[List[int]]
+
 # QMIX global state (God View)
 GLOBAL_STATE_CHANNELS = 8  # 8 * 20 * 20 = 3200
+
+
+# ============================================================
+# Phase 2 (boat package realism): "physics shift" config
+# NOTE: Trainers pass these into the env via env_method (if supported).
+# If your env doesn't implement them yet, nothing breaks.
+# This file IMPLEMENTS them inside GameField so they DO something.
+# ============================================================
+
+@dataclass
+class BoatSimConfig:
+    # Toggle
+    enabled: bool = False
+    physics_tag: str = "BASE"
+
+    # Dynamics constraints (grid-cells units per second)
+    max_speed_cps: float = 2.2
+    max_accel_cps2: float = 2.0
+    max_yaw_rate_rps: float = 4.0
+
+    # Disturbances (cells per second)
+    current_strength_cps: float = 0.0  # constant +x current
+    drift_sigma_cells: float = 0.0     # gaussian drift on position per step
+
+    # Robotics constraints
+    action_delay_steps: int = 0
+    actuation_noise_sigma: float = 0.0  # gaussian noise on (accel, yawrate)
+
+    # Sensing
+    sensor_range_cells: float = 9999.0
+    sensor_noise_sigma_cells: float = 0.0   # gaussian noise on observed positions (cells)
+    sensor_dropout_prob: float = 0.0        # randomly drop enemy detections
+
+    # Simple collision handling
+    bounce_on_wall: bool = False            # if False: stop at wall & clear path
+    wall_stop_speed: float = 0.0            # speed after wall collision
 
 
 # -------------------------
@@ -187,7 +225,14 @@ class GameField:
     NEW:
       - internal policy wrappers:
           env.set_policy_wrapper("red", wrapper_fn)
-        wrapper can override internal red decisions without external control.
+
+    NEW (Phase 2 boat realism):
+      - physics shift config & hooks:
+          env.set_physics_enabled(True/False)
+          env.set_dynamics_config(...)
+          env.set_disturbance_config(...)
+          env.set_robotics_constraints(...)
+          env.set_sensor_config(...)
     """
 
     # -------- lifecycle --------
@@ -224,18 +269,12 @@ class GameField:
         self.policies: Dict[str, Any] = {"blue": None, "red": None}
         self.opponent_mode: str = "OP3"
 
-        # NEW: optional policy wrappers that override internal decision-making
-        # Supported signatures:
-        #   wrapper(obs, agent, game_field) -> action or (action,param) or dict
-        #   wrapper(obs, agent, game_field, base_policy) -> action or (action,param) or dict
+        # Optional policy wrappers that override internal decision-making
         self.policy_wrappers: Dict[str, Optional[Callable[..., Any]]] = {"blue": None, "red": None}
 
         # External action routing
         self.external_control_for_side: Dict[str, bool] = {"blue": False, "red": False}
         self.pending_external_actions: Dict[str, ExternalAction] = {}
-        # When external actions are missing:
-        #   "idle": apply an "idle" macro (GO_TO current cell) and advance cooldown
-        #   "internal": fall back to internal policy for that decision
         self.external_missing_action_mode: str = "idle"  # "idle" or "internal"
 
         # Agents
@@ -276,8 +315,24 @@ class GameField:
         # Agent lookup for fast attribution
         self._agent_by_id: Dict[str, Agent] = {}
 
-        # Optional UI hook (safe to ignore in training)
+        # Optional UI hook
         self.banner_queue: List[Tuple[str, Tuple[int, int, int], float]] = []
+
+        # ==========================
+        # Phase 2 boat realism state
+        # ==========================
+        self.boat_cfg = BoatSimConfig()
+        self._phys_rng = np.random.RandomState(0)
+
+        # Per-agent boat state
+        # We store:
+        #  - heading_rad: float
+        #  - speed_cps: float
+        # on the agent object (setattr) to avoid changing Agent class.
+        #
+        # Action delay buffers: unique_id -> ring buffer of actions
+        self._action_delay_buffers: Dict[str, List[ExternalAction]] = {}
+        self._action_delay_idx: Dict[str, int] = {}
 
         # Default opponent
         self.set_red_opponent("OP3")
@@ -393,127 +448,16 @@ class GameField:
         except Exception:
             return 0.0, 0.0
 
-    def build_continuous_features(self, agent: Any) -> "np.ndarray":
-        """
-        Compact 12D vector used by SB3 PPO (vec branch).
-        Features are normalized to roughly [-1, 1] or [0, 1].
-          0: dx to enemy flag (normalized)
-          1: dy to enemy flag (normalized)
-          2: dx to own flag/home (normalized)
-          3: dy to own flag/home (normalized)
-          4: carrying enemy flag (0/1)
-          5: enemy has our flag (0/1)
-          6: mine charge ratio (0..1)
-          7: nearest teammate distance (normalized)
-          8: dx to enemy carrier (normalized, 0 if none)
-          9: dy to enemy carrier (normalized, 0 if none)
-          10: in enemy half (0/1)
-          11: suppression danger (0..1)
-        """
-        if agent is None:
-            return np.zeros((12,), dtype=np.float32)
+    def _wrap_pi(self, ang: float) -> float:
+        a = float(ang)
+        while a > math.pi:
+            a -= 2.0 * math.pi
+        while a < -math.pi:
+            a += 2.0 * math.pi
+        return a
 
-        side = str(getattr(agent, "side", "blue")).lower().strip()
-        ax, ay = self._agent_float_pos(agent)
-        ex, ey = self._gm_enemy_flag_position(side)
-
-        own_x, own_y = self._gm_team_zone_center(side)
-
-        # Normalize by grid size
-        denom_x = max(1.0, float(self.col_count))
-        denom_y = max(1.0, float(self.row_count))
-        dx_enemy = (float(ex) - float(ax)) / denom_x
-        dy_enemy = (float(ey) - float(ay)) / denom_y
-        dx_home = (float(own_x) - float(ax)) / denom_x
-        dy_home = (float(own_y) - float(ay)) / denom_y
-
-        carrying = 1.0 if bool(getattr(agent, "is_carrying_flag", False) or agent.isCarryingFlag()) else 0.0
-        if side == "blue":
-            enemy_has_our = 1.0 if bool(getattr(self.manager, "blue_flag_taken", False)) else 0.0
-        else:
-            enemy_has_our = 1.0 if bool(getattr(self.manager, "red_flag_taken", False)) else 0.0
-
-        max_charges = float(getattr(self, "max_mine_charges_per_agent", 2) or 1)
-        charges = float(getattr(agent, "mine_charges", 0))
-        charge_ratio = max(0.0, min(1.0, charges / max_charges))
-
-        # Nearest teammate distance (normalized)
-        team = self.blue_agents if side == "blue" else self.red_agents
-        nearest = 0.0
-        best = None
-        for t in team:
-            if t is None or t is agent:
-                continue
-            try:
-                if hasattr(t, "isEnabled") and (not t.isEnabled()):
-                    continue
-            except Exception:
-                pass
-            tx, ty = self._agent_float_pos(t)
-            d = (float(tx) - float(ax)) ** 2 + (float(ty) - float(ay)) ** 2
-            if best is None or d < best:
-                best = d
-        if best is not None:
-            max_d = max(1.0, (float(self.col_count) ** 2 + float(self.row_count) ** 2) ** 0.5)
-            nearest = min(1.0, (best ** 0.5) / max_d)
-
-        # Enemy carrier position (if our flag is taken)
-        if side == "blue":
-            enemy_has_our_flag = bool(getattr(self.manager, "blue_flag_taken", False))
-            carrier = getattr(self.manager, "blue_flag_carrier", None)
-        else:
-            enemy_has_our_flag = bool(getattr(self.manager, "red_flag_taken", False))
-            carrier = getattr(self.manager, "red_flag_carrier", None)
-
-        dx_carrier = 0.0
-        dy_carrier = 0.0
-        if enemy_has_our_flag and carrier is not None:
-            cx, cy = self._agent_float_pos(carrier)
-            dx_carrier = (float(cx) - float(ax)) / denom_x
-            dy_carrier = (float(cy) - float(ay)) / denom_y
-
-        # In enemy half flag
-        mid_x = float(self.col_count) * 0.5
-        in_enemy_half = 1.0 if ((float(ax) > mid_x) if side == "blue" else (float(ax) < mid_x)) else 0.0
-
-        # Suppression danger scalar (0..1)
-        danger = 0.0
-        sup = float(getattr(self, "suppression_range_cells", 0.0) or 0.0)
-        if sup > 0.0:
-            enemies = self.red_agents if side == "blue" else self.blue_agents
-            min_d = None
-            for e in enemies:
-                if e is None:
-                    continue
-                try:
-                    if hasattr(e, "isEnabled") and (not e.isEnabled()):
-                        continue
-                except Exception:
-                    pass
-                ex2, ey2 = self._agent_float_pos(e)
-                d = ((float(ex2) - float(ax)) ** 2 + (float(ey2) - float(ay)) ** 2) ** 0.5
-                if min_d is None or d < min_d:
-                    min_d = d
-            if min_d is not None:
-                danger = max(0.0, min(1.0, (sup - float(min_d)) / sup))
-
-        return np.asarray(
-            [
-                dx_enemy,
-                dy_enemy,
-                dx_home,
-                dy_home,
-                carrying,
-                enemy_has_our,
-                charge_ratio,
-                nearest,
-                dx_carrier,
-                dy_carrier,
-                in_enemy_half,
-                danger,
-            ],
-            dtype=np.float32,
-        )
+    def _clip(self, x: float, lo: float, hi: float) -> float:
+        return float(min(max(float(x), float(lo)), float(hi)))
 
     # -------- GameManager safe wrappers --------
 
@@ -524,7 +468,6 @@ class GameField:
                 return tuple(gm.get_team_zone_center(side))
             except Exception:
                 pass
-        # fallback: zone center by columns + mid row
         if str(side).lower() == "blue":
             lo, hi = self.blue_zone_col_range
         else:
@@ -539,13 +482,261 @@ class GameField:
                 return int(ex), int(ey)
             except Exception:
                 pass
-        # fallback via attributes
         side = str(side).lower()
         if side == "blue":
             p = getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1))
         else:
             p = getattr(gm, "blue_flag_position", (0, 0))
         return int(p[0]), int(p[1])
+
+    # ============================================================
+    # Phase 2 boat realism: public API (safe no-op if unused)
+    # ============================================================
+
+    def set_physics_enabled(self, enabled: bool) -> None:
+        self.boat_cfg.enabled = bool(enabled)
+
+    def set_physics_tag(self, tag: str) -> None:
+        self.boat_cfg.physics_tag = str(tag)
+
+    def set_dynamics_config(self, max_speed_cps: float, max_accel_cps2: float, max_yaw_rate_rps: float) -> None:
+        self.boat_cfg.max_speed_cps = float(max_speed_cps)
+        self.boat_cfg.max_accel_cps2 = float(max_accel_cps2)
+        self.boat_cfg.max_yaw_rate_rps = float(max_yaw_rate_rps)
+
+    def set_disturbance_config(self, current_strength_cps: float, drift_sigma_cells: float = 0.0) -> None:
+        self.boat_cfg.current_strength_cps = float(current_strength_cps)
+        self.boat_cfg.drift_sigma_cells = float(drift_sigma_cells)
+
+    def set_robotics_constraints(self, action_delay_steps: int, actuation_noise_sigma: float = 0.0) -> None:
+        self.boat_cfg.action_delay_steps = int(max(0, action_delay_steps))
+        self.boat_cfg.actuation_noise_sigma = float(max(0.0, actuation_noise_sigma))
+        self._action_delay_buffers.clear()
+        self._action_delay_idx.clear()
+
+    def set_sensor_config(self, sensor_range_cells: float, sensor_noise_sigma_cells: float = 0.0, sensor_dropout_prob: float = 0.0) -> None:
+        self.boat_cfg.sensor_range_cells = float(sensor_range_cells)
+        self.boat_cfg.sensor_noise_sigma_cells = float(max(0.0, sensor_noise_sigma_cells))
+        self.boat_cfg.sensor_dropout_prob = float(np.clip(sensor_dropout_prob, 0.0, 1.0))
+
+    # Dict-style setters (handy for env_method payloads)
+    def set_dynamics_config_dict(self, cfg: Dict[str, Any]) -> None:
+        self.set_dynamics_config(
+            cfg.get("max_speed_cps", self.boat_cfg.max_speed_cps),
+            cfg.get("max_accel_cps2", self.boat_cfg.max_accel_cps2),
+            cfg.get("max_yaw_rate_rps", self.boat_cfg.max_yaw_rate_rps),
+        )
+
+    def set_disturbance_config_dict(self, cfg: Dict[str, Any]) -> None:
+        self.set_disturbance_config(
+            cfg.get("current_strength_cps", self.boat_cfg.current_strength_cps),
+            cfg.get("drift_sigma_cells", self.boat_cfg.drift_sigma_cells),
+        )
+
+    def set_robotics_constraints_dict(self, cfg: Dict[str, Any]) -> None:
+        self.set_robotics_constraints(
+            cfg.get("action_delay_steps", self.boat_cfg.action_delay_steps),
+            cfg.get("actuation_noise_sigma", self.boat_cfg.actuation_noise_sigma),
+        )
+
+    def set_sensor_config_dict(self, cfg: Dict[str, Any]) -> None:
+        self.set_sensor_config(
+            cfg.get("sensor_range_cells", self.boat_cfg.sensor_range_cells),
+            cfg.get("sensor_noise_sigma_cells", self.boat_cfg.sensor_noise_sigma_cells),
+            cfg.get("sensor_dropout_prob", self.boat_cfg.sensor_dropout_prob),
+        )
+
+    # ============================================================
+    # Phase 2 boat realism: internal helpers
+    # ============================================================
+
+    def _current_field(self, fx: float, fy: float) -> Tuple[float, float]:
+        # Minimal: constant current pushing +x.
+        return (float(self.boat_cfg.current_strength_cps), 0.0)
+
+    def _apply_actuation_noise(self, accel: float, yaw_rate: float) -> Tuple[float, float]:
+        sig = float(self.boat_cfg.actuation_noise_sigma)
+        if sig <= 0.0:
+            return float(accel), float(yaw_rate)
+        a = float(accel) + float(self._phys_rng.normal(0.0, sig))
+        w = float(yaw_rate) + float(self._phys_rng.normal(0.0, sig))
+        return a, w
+
+    def _init_agent_boat_state(self, a: Agent) -> None:
+        if getattr(a, "heading_rad", None) is None:
+            setattr(a, "heading_rad", 0.0)
+        if getattr(a, "speed_cps", None) is None:
+            setattr(a, "speed_cps", 0.0)
+
+    def _wall_hit(self, x: float, y: float) -> bool:
+        cx, cy = self._clamp_cell(int(round(x)), int(round(y)))
+        return not self._is_free_cell(cx, cy)
+
+    def _integrate_boat_follow_path(self, agent: Agent, dt: float) -> None:
+        """
+        Boat kinematics:
+          - follow current waypoint (agent.path) using heading + speed
+          - constraints: max_speed, accel, yaw_rate
+          - disturbances: current + drift
+        Writes back:
+          agent.float_pos, agent.cell_pos, agent.x, agent.y, agent.heading_rad, agent.speed_cps
+        """
+        if agent is None or (not agent.isEnabled()) or dt <= 0.0:
+            return
+
+        self._init_agent_boat_state(agent)
+
+        fx, fy = self._agent_float_pos(agent)
+        heading = float(getattr(agent, "heading_rad", 0.0))
+        speed = float(getattr(agent, "speed_cps", 0.0))
+
+        # Choose desired waypoint: first element of path if present
+        path = getattr(agent, "path", None)
+        desired_fx, desired_fy = fx, fy
+        if path and hasattr(path, "__len__") and len(path) > 0:
+            # Path cells are (col,row). Move toward the next waypoint.
+            try:
+                wx, wy = path[0]
+                desired_fx = float(wx)
+                desired_fy = float(wy)
+            except Exception:
+                desired_fx, desired_fy = fx, fy
+
+        dx = float(desired_fx) - float(fx)
+        dy = float(desired_fy) - float(fy)
+        dist = math.hypot(dx, dy)
+
+        # If close to waypoint, pop it (and stop oscillation)
+        if path and dist <= 0.25:
+            try:
+                # remove current waypoint
+                path.pop(0)
+                setattr(agent, "path", path)
+            except Exception:
+                pass
+
+        # Recompute after pop
+        path = getattr(agent, "path", None)
+        desired_fx, desired_fy = fx, fy
+        if path and hasattr(path, "__len__") and len(path) > 0:
+            try:
+                wx, wy = path[0]
+                desired_fx = float(wx)
+                desired_fy = float(wy)
+            except Exception:
+                desired_fx, desired_fy = fx, fy
+
+        dx = float(desired_fx) - float(fx)
+        dy = float(desired_fy) - float(fy)
+        dist = math.hypot(dx, dy)
+
+        # Desired heading
+        desired_heading = heading
+        if dist > 1e-6:
+            desired_heading = math.atan2(dy, dx)
+
+        # Heading control -> yaw rate command
+        err = self._wrap_pi(desired_heading - heading)
+        # proportional turn, clipped
+        yaw_rate_cmd = self._clip(err / max(1e-6, dt), -self.boat_cfg.max_yaw_rate_rps, self.boat_cfg.max_yaw_rate_rps)
+
+        # Speed control -> accel command
+        # go faster when far, slow when close
+        desired_speed = float(self.boat_cfg.max_speed_cps)
+        if dist < 0.75:
+            desired_speed = float(self.boat_cfg.max_speed_cps) * (dist / 0.75)
+        desired_speed = self._clip(desired_speed, 0.0, self.boat_cfg.max_speed_cps)
+        accel_cmd = self._clip((desired_speed - speed) / max(1e-6, dt), -self.boat_cfg.max_accel_cps2, self.boat_cfg.max_accel_cps2)
+
+        accel_cmd, yaw_rate_cmd = self._apply_actuation_noise(accel_cmd, yaw_rate_cmd)
+
+        # Integrate
+        speed = self._clip(speed + accel_cmd * dt, 0.0, self.boat_cfg.max_speed_cps)
+        heading = self._wrap_pi(heading + yaw_rate_cmd * dt)
+
+        vx = speed * math.cos(heading)
+        vy = speed * math.sin(heading)
+
+        cx, cy = self._current_field(fx, fy)
+        vx += float(cx)
+        vy += float(cy)
+
+        nfx = float(fx) + vx * dt
+        nfy = float(fy) + vy * dt
+
+        # Drift (position)
+        if float(self.boat_cfg.drift_sigma_cells) > 0.0:
+            nfx += float(self._phys_rng.normal(0.0, float(self.boat_cfg.drift_sigma_cells)))
+            nfy += float(self._phys_rng.normal(0.0, float(self.boat_cfg.drift_sigma_cells)))
+
+        # Clamp to bounds
+        nfx = self._clip(nfx, 0.0, float(max(0, self.col_count - 1)))
+        nfy = self._clip(nfy, 0.0, float(max(0, self.row_count - 1)))
+
+        # Wall collision handling
+        if self._wall_hit(nfx, nfy):
+            if bool(self.boat_cfg.bounce_on_wall):
+                # reflect velocity crudely by flipping heading
+                heading = self._wrap_pi(heading + math.pi)
+                speed = float(self.boat_cfg.wall_stop_speed)
+                # keep position (don’t enter wall)
+                nfx, nfy = fx, fy
+            else:
+                # stop and clear path so it replans next decision
+                speed = float(self.boat_cfg.wall_stop_speed)
+                nfx, nfy = fx, fy
+                try:
+                    if hasattr(agent, "clearPath"):
+                        agent.clearPath()
+                    else:
+                        agent.path = []
+                except Exception:
+                    pass
+
+        # Write back
+        setattr(agent, "heading_rad", float(heading))
+        setattr(agent, "speed_cps", float(speed))
+
+        agent.float_pos = (float(nfx), float(nfy))
+        agent.cell_pos = self._clamp_cell(int(round(nfx)), int(round(nfy)))
+        # keep legacy fields consistent for other code paths
+        agent.x = int(agent.cell_pos[0])
+        agent.y = int(agent.cell_pos[1])
+
+    # ============================================================
+    # Phase 2 robotics constraints: action delay on decisions
+    # ============================================================
+
+    def _delay_key(self, agent: Agent) -> str:
+        uid = getattr(agent, "unique_id", None)
+        if uid is None:
+            uid = f"{getattr(agent, 'side', 'x')}_{getattr(agent, 'agent_id', 0)}"
+        return str(uid)
+
+    def _apply_action_delay(self, agent: Agent, act: ExternalAction) -> ExternalAction:
+        """
+        Delay macro decisions by N steps (per agent).
+        If N=0 => passthrough.
+        If buffer not yet full, returns an idle action.
+        """
+        d = int(getattr(self.boat_cfg, "action_delay_steps", 0) or 0)
+        if d <= 0:
+            return act
+
+        key = self._delay_key(agent)
+        buf = self._action_delay_buffers.get(key)
+        if buf is None or len(buf) != (d + 1):
+            buf = [(self.macro_action_to_idx(MacroAction.GO_TO), self._agent_cell_pos(agent)) for _ in range(d + 1)]
+            self._action_delay_buffers[key] = buf
+            self._action_delay_idx[key] = 0
+
+        idx = int(self._action_delay_idx.get(key, 0)) % (d + 1)
+        # write newest
+        buf[idx] = (int(act[0]), act[1])
+        # read next
+        read_idx = (idx + 1) % (d + 1)
+        self._action_delay_idx[key] = read_idx
+        return buf[read_idx]
 
     # -------- external action routing --------
 
@@ -584,7 +775,6 @@ class GameField:
                 found = self.pending_external_actions.pop(k, None)
                 break
         if found is not None:
-            # Clear any duplicate keys for this agent to avoid stale actions.
             self._clear_pending_for_agent(agent)
         return found
 
@@ -628,7 +818,6 @@ class GameField:
             return best if best is not None else (x, y)
 
         gm = self.manager
-
         own_home = tuple(getattr(gm, "blue_flag_home", (0, self.row_count // 2)))
         enemy_home = tuple(getattr(gm, "red_flag_home", (self.col_count - 1, self.row_count // 2)))
 
@@ -646,14 +835,14 @@ class GameField:
         defensive_point = (def_x, int(own_home[1]))
 
         targets_raw: List[Cell] = [
-            (int(own_home[0]), int(own_home[1])),                 # 0
-            (int(enemy_home[0]), int(enemy_home[1])),             # 1
-            (int(own_zone_center[0]), int(own_zone_center[1])),   # 2
+            (int(own_home[0]), int(own_home[1])),                  # 0
+            (int(enemy_home[0]), int(enemy_home[1])),              # 1
+            (int(own_zone_center[0]), int(own_zone_center[1])),    # 2
             (int(enemy_zone_center[0]), int(enemy_zone_center[1])),# 3
-            (mid_col, mid_row),                                   # 4
-            (mid_col, top_row),                                   # 5
-            (mid_col, bottom_row),                                # 6
-            (int(defensive_point[0]), int(defensive_point[1])),   # 7
+            (mid_col, mid_row),                                    # 4
+            (mid_col, top_row),                                    # 5
+            (mid_col, bottom_row),                                 # 6
+            (int(defensive_point[0]), int(defensive_point[1])),    # 7
         ]
 
         self.macro_targets = [nearest_free(x, y) for (x, y) in targets_raw]
@@ -682,27 +871,14 @@ class GameField:
         return int(GLOBAL_STATE_CHANNELS * CNN_ROWS * CNN_COLS)
 
     def build_global_state_grid(self) -> np.ndarray:
-        """
-        Returns [8,20,20] float32 (truth, no mirroring).
-        Channel map:
-          0 blue agents
-          1 red agents
-          2 blue mines
-          3 red mines
-          4 blue mine pickups
-          5 red mine pickups
-          6 blue flag position
-          7 red flag position
-        """
         grid = np.zeros((GLOBAL_STATE_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
         def set_chan(c: int, col: int, row: int) -> None:
             if 0 <= c < GLOBAL_STATE_CHANNELS and 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
                 grid[c, row, col] = 1.0
 
-        mirror_x = False  # canonical frame
+        mirror_x = False
 
-        # Agents
         for a in getattr(self, "blue_agents", []):
             if a is None or (hasattr(a, "isEnabled") and not a.isEnabled()):
                 continue
@@ -717,37 +893,30 @@ class GameField:
             c, r = self.float_grid_to_cnn_cell(fx, fy, mirror_x=mirror_x)
             set_chan(1, c, r)
 
-        # Mines
         for m in getattr(self, "mines", []):
             if m is None:
                 continue
-            c, r = self.float_grid_to_cnn_cell(float(getattr(m, "x", 0.0)), float(getattr(m, "y", 0.0)),
-                                               mirror_x=mirror_x)
+            c, r = self.float_grid_to_cnn_cell(float(getattr(m, "x", 0.0)), float(getattr(m, "y", 0.0)), mirror_x=mirror_x)
             if str(getattr(m, "owner_side", "")).lower() == "blue":
                 set_chan(2, c, r)
             else:
                 set_chan(3, c, r)
 
-        # Mine pickups
         for p in getattr(self, "mine_pickups", []):
             if p is None:
                 continue
-            c, r = self.float_grid_to_cnn_cell(float(getattr(p, "x", 0.0)), float(getattr(p, "y", 0.0)),
-                                               mirror_x=mirror_x)
+            c, r = self.float_grid_to_cnn_cell(float(getattr(p, "x", 0.0)), float(getattr(p, "y", 0.0)), mirror_x=mirror_x)
             if str(getattr(p, "owner_side", "")).lower() == "blue":
                 set_chan(4, c, r)
             else:
                 set_chan(5, c, r)
 
-        # Flags
         gm = getattr(self, "manager", None)
         if gm is not None:
             bpos = getattr(gm, "blue_flag_position", (0, 0))
             rpos = getattr(gm, "red_flag_position", (self.col_count - 1, self.row_count - 1))
-
             bc, br = self.float_grid_to_cnn_cell(float(bpos[0]), float(bpos[1]), mirror_x=mirror_x)
             rc, rr = self.float_grid_to_cnn_cell(float(rpos[0]), float(rpos[1]), mirror_x=mirror_x)
-
             set_chan(6, bc, br)
             set_chan(7, rc, rr)
 
@@ -757,7 +926,7 @@ class GameField:
         return self.build_global_state_grid()
 
     def get_global_state(self) -> np.ndarray:
-        g = self.build_global_state_grid()  # [8,20,20]
+        g = self.build_global_state_grid()
         flat = g.reshape(-1).astype(np.float32, copy=False)
         expected = self.get_global_state_dim()
         if flat.shape[0] != expected:
@@ -767,10 +936,6 @@ class GameField:
     # -------- action masking --------
 
     def get_macro_mask(self, agent: Agent) -> np.ndarray:
-        """
-        Boolean mask over macro indices (0..n_macros-1) matching self.macro_order.
-        Apply at logits-time in PPO/MAPPO and for avail_actions in QMIX.
-        """
         n = self.n_macros
         mask = np.ones((n,), dtype=np.bool_)
 
@@ -780,7 +945,6 @@ class GameField:
 
         side = getattr(agent, "side", None)
         if side not in ("blue", "red"):
-            # Unknown side: disable mine-related macros
             mask[self.macro_action_to_idx(MacroAction.GRAB_MINE)] = False
             mask[self.macro_action_to_idx(MacroAction.PLACE_MINE)] = False
             return mask
@@ -793,7 +957,6 @@ class GameField:
         idx_place = self.macro_action_to_idx(MacroAction.PLACE_MINE)
         idx_home = self.macro_action_to_idx(MacroAction.GO_HOME)
 
-        # Carrying: only GO_HOME/GO_TO
         if agent.isCarryingFlag():
             mask[idx_get] = False
             mask[idx_grab] = False
@@ -801,24 +964,19 @@ class GameField:
             mask[idx_home] = True
             return mask
 
-        # OP1: optionally disable mines
         if phase == "OP1" and (not getattr(self, "allow_mines_in_op1", False)):
             mask[idx_grab] = False
             mask[idx_place] = False
 
         charges = int(getattr(agent, "mine_charges", 0))
-
-        # Never grab if already holding charges
         if charges > 0:
             mask[idx_grab] = False
 
-        # Never detour for mines near enemy flag
         ax, ay = self._agent_float_pos(agent)
         ex, ey = self._gm_enemy_flag_position(side)
         if math.hypot(ax - float(ex), ay - float(ey)) <= float(self.mine_detour_disable_radius_cells):
             mask[idx_grab] = False
 
-        # Place mine only if have charges, and optionally only in own zone
         if charges <= 0:
             mask[idx_place] = False
         else:
@@ -830,11 +988,6 @@ class GameField:
         return mask
 
     def get_target_mask(self, agent: Agent) -> np.ndarray:
-        """
-        Boolean mask over macro target indices (0..num_macro_targets-1).
-        This is unconditional (not macro-specific). We only mask clearly
-        bad targets to reduce stalling (e.g., current cell).
-        """
         n = int(self.num_macro_targets or 0)
         if n <= 0:
             return np.ones((0,), dtype=np.bool_)
@@ -844,7 +997,6 @@ class GameField:
             mask[:] = False
             return mask
 
-        # Avoid choosing the current cell as a target (reduces oscillation).
         ax, ay = self._agent_cell_pos(agent)
         try:
             idx_here = None
@@ -884,11 +1036,9 @@ class GameField:
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP2RedPolicy("red")
         elif mode in ("OP3_EASY", "OP3EASY"):
-            # OP3_EASY: still OP3-like, but tuned down.
             self.red_agents_per_team_override = None
             self.red_speed_scale = 0.9
             self.suppression_range_cells = 1.5
-            # Keep a little mine pressure, but far less than OP3.
             self.mines_per_team = 1
             self.max_mine_charges_per_agent = 1
             self.policies["red"] = OP3RedPolicy(
@@ -923,7 +1073,6 @@ class GameField:
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP3RedPolicy("red")
 
-    # NEW: wrapper API
     def set_policy_wrapper(self, side: str, wrapper: Optional[Callable[..., Any]]) -> None:
         side = str(side).lower()
         if side not in ("blue", "red"):
@@ -958,7 +1107,6 @@ class GameField:
         v = max(0.0, min(1.0, y_m / ARENA_HEIGHT_M))
         if mirror_x:
             u = 1.0 - u
-
         col = max(0, min(CNN_COLS - 1, int(u * CNN_COLS)))
         row = max(0, min(CNN_ROWS - 1, int(v * CNN_ROWS)))
         return col, row
@@ -977,6 +1125,10 @@ class GameField:
         else:
             self.episode_seed = random.randint(0, 2**31 - 1)
 
+        # Seed physics RNG too (deterministic per episode if base_seed is set)
+        seed_val = int(self.episode_seed or 0)
+        self._phys_rng = np.random.RandomState(seed_val ^ 0xA53A1F)
+
         self._init_zones()
         self.manager.reset_game()
 
@@ -984,6 +1136,9 @@ class GameField:
         self.mine_pickups.clear()
         self.pending_external_actions.clear()
         self.decision_cooldown_seconds_by_agent.clear()
+
+        self._action_delay_buffers.clear()
+        self._action_delay_idx.clear()
 
         self._init_macro_targets()
 
@@ -1064,10 +1219,17 @@ class GameField:
             a.suppression_timer = 0.0
             a.suppressed_this_tick = False
             self._ensure_agent_ids(a)
+
             if getattr(a, "float_pos", None) is None:
                 a.float_pos = (float(col), float(row))
             if getattr(a, "cell_pos", None) is None:
                 a.cell_pos = (int(col), int(row))
+
+            # Boat state
+            self._init_agent_boat_state(a)
+            setattr(a, "heading_rad", 0.0)
+            setattr(a, "speed_cps", 0.0)
+
             self.blue_agents.append(a)
 
         for i in range(min(red_n, len(red_cells))):
@@ -1091,10 +1253,17 @@ class GameField:
             a.suppression_timer = 0.0
             a.suppressed_this_tick = False
             self._ensure_agent_ids(a)
+
             if getattr(a, "float_pos", None) is None:
                 a.float_pos = (float(col), float(row))
             if getattr(a, "cell_pos", None) is None:
                 a.cell_pos = (int(col), int(row))
+
+            # Boat state
+            self._init_agent_boat_state(a)
+            setattr(a, "heading_rad", math.pi)  # face left-ish by default
+            setattr(a, "speed_cps", 0.0)
+
             self.red_agents.append(a)
 
     def spawn_mine_pickups(self) -> None:
@@ -1149,8 +1318,18 @@ class GameField:
             self.announce(winner_text, color, 3.0)
             return
 
-        for agent in (self.blue_agents + self.red_agents):
-            agent.update(delta_time)
+        # Movement update
+        if bool(self.boat_cfg.enabled):
+            for agent in (self.blue_agents + self.red_agents):
+                # boat physics drives motion; Agent.update may still handle internal timers/respawn
+                try:
+                    agent.update(delta_time)
+                except Exception:
+                    pass
+                self._integrate_boat_follow_path(agent, float(delta_time))
+        else:
+            for agent in (self.blue_agents + self.red_agents):
+                agent.update(delta_time)
 
         occupied = [self._agent_cell_pos(a) for a in (self.blue_agents + self.red_agents) if a.isEnabled()]
         if hasattr(self.pathfinder, "setDynamicObstacles"):
@@ -1181,6 +1360,7 @@ class GameField:
                     if side_external:
                         act = self._consume_external_action_for_agent(agent)
                         if act is not None:
+                            act = self._apply_action_delay(agent, act)
                             macro_val, target_param = act
                             self.apply_macro_action(agent, macro_val, target_param)
                             made_decision = True
@@ -1189,7 +1369,9 @@ class GameField:
                                 self.decide(agent)
                                 made_decision = True
                             elif self.external_missing_action_mode == "idle":
-                                self.apply_macro_action(agent, MacroAction.GO_TO, self._agent_cell_pos(agent))
+                                idle = (self.macro_action_to_idx(MacroAction.GO_TO), self._agent_cell_pos(agent))
+                                idle = self._apply_action_delay(agent, idle)
+                                self.apply_macro_action(agent, idle[0], idle[1])
                                 made_decision = True
                             else:
                                 break
@@ -1218,26 +1400,50 @@ class GameField:
 
     # -------- observations --------
 
+    def _enemy_detected(self, agent: Agent, enemy_fx: float, enemy_fy: float) -> Optional[Tuple[float, float]]:
+        """
+        Phase 2 sensing:
+          - range gate
+          - dropout
+          - gaussian noise on observed position
+        Returns noisy (fx,fy) or None (not detected).
+        """
+        cfg = self.boat_cfg
+        if not bool(cfg.enabled):
+            return (float(enemy_fx), float(enemy_fy))
+
+        ax, ay = self._agent_float_pos(agent)
+        d = math.hypot(float(enemy_fx) - float(ax), float(enemy_fy) - float(ay))
+        if d > float(cfg.sensor_range_cells):
+            return None
+
+        if float(cfg.sensor_dropout_prob) > 0.0:
+            if float(self._phys_rng.rand()) < float(cfg.sensor_dropout_prob):
+                return None
+
+        ox, oy = float(enemy_fx), float(enemy_fy)
+        sig = float(cfg.sensor_noise_sigma_cells)
+        if sig > 0.0:
+            ox += float(self._phys_rng.normal(0.0, sig))
+            oy += float(self._phys_rng.normal(0.0, sig))
+
+        ox = self._clip(ox, 0.0, float(max(0, self.col_count - 1)))
+        oy = self._clip(oy, 0.0, float(max(0, self.row_count - 1)))
+        return (ox, oy)
+
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
         """
-        Version B: "continuous-friendly" CNN observation.
-
-        Still returns: [NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS] (e.g., [7,20,20])
-        but instead of hard one-hot binning, it bilinearly "splats" float positions
-        into up to 4 neighboring CNN cells. This reduces aliasing and makes motion
-        feel less teleporty in observation space.
-
-        Channel meanings (unchanged):
+        Version B: "continuous-friendly" CNN observation with optional Phase 2 sensing.
+        Returns: [NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS]
+        Channel meanings:
           0: self
-          1: friendly teammates (excluding self)
-          2: enemies
+          1: friendly teammates
+          2: enemies (sensor-limited if physics enabled)
           3: friendly mines
-          4: enemy mines
+          4: enemy mines (sensor-limited if physics enabled)
           5: own flag
           6: enemy flag
         """
-        import math
-
         side = str(getattr(agent, "side", "blue")).lower()
         gm = getattr(self, "manager", None)
         mirror_x = (side == "red")
@@ -1246,7 +1452,6 @@ class GameField:
 
         def set_chan(c: int, col: int, row: int, v: float) -> None:
             if 0 <= col < CNN_COLS and 0 <= row < CNN_ROWS:
-                # Use max to handle multiple entities overlapping
                 if v > channels[c, row, col]:
                     channels[c, row, col] = float(v)
 
@@ -1259,29 +1464,16 @@ class GameField:
             return float(fallback[0]), float(fallback[1])
 
         def _grid_to_cnn_continuous(fx: float, fy: float, *, mirror: bool) -> Tuple[float, float]:
-            """
-            Map grid float coords -> continuous CNN coords in [0..CNN_COLS-1], [0..CNN_ROWS-1].
-
-            We approximate the same scaling your float_grid_to_cnn_cell likely uses:
-              cx = fx / (col_count-1) * (CNN_COLS-1)
-              cy = fy / (row_count-1) * (CNN_ROWS-1)
-
-            Mirror is applied in grid space first for red-side symmetry.
-            """
             gx = float(fx)
             gy = float(fy)
-
-            # mirror in grid space (left-right flip)
             if mirror and getattr(self, "col_count", 0) and self.col_count > 1:
                 gx = float((self.col_count - 1) - gx)
 
-            # Clamp to grid bounds to avoid NaNs/overshoots
             if getattr(self, "col_count", 0) and self.col_count > 0:
                 gx = max(0.0, min(float(self.col_count - 1), gx))
             if getattr(self, "row_count", 0) and self.row_count > 0:
                 gy = max(0.0, min(float(self.row_count - 1), gy))
 
-            # Scale into CNN space
             if getattr(self, "col_count", 0) and self.col_count > 1:
                 cx = (gx / float(self.col_count - 1)) * float(CNN_COLS - 1)
             else:
@@ -1295,9 +1487,6 @@ class GameField:
             return (cx, cy)
 
         def splat_float(c: int, fx: float, fy: float, strength: float = 1.0) -> None:
-            """
-            Bilinear splat into up to 4 neighboring CNN cells.
-            """
             cx, cy = _grid_to_cnn_continuous(fx, fy, mirror=mirror_x)
 
             x0 = int(math.floor(cx))
@@ -1308,32 +1497,25 @@ class GameField:
             tx = cx - float(x0)
             ty = cy - float(y0)
 
-            # Bilinear weights
             w00 = (1.0 - tx) * (1.0 - ty)
             w10 = tx * (1.0 - ty)
             w01 = (1.0 - tx) * ty
             w11 = tx * ty
 
-            # Apply
             s = float(strength)
             set_chan(c, x0, y0, s * w00)
             set_chan(c, x1, y0, s * w10)
             set_chan(c, x0, y1, s * w01)
             set_chan(c, x1, y1, s * w11)
 
-        # Teams
         friendly_team = self.blue_agents if side == "blue" else self.red_agents
         enemy_team = self.red_agents if side == "blue" else self.blue_agents
 
-        # Vision helpers (LOS + radius)
-        def _agent_cell(a: Any) -> Cell:
-            return self._agent_cell_pos(a)
-
-        # Self
+        # Self (always known)
         sx, sy = self._agent_float_pos(agent)
         splat_float(0, float(sx), float(sy), 1.0)
 
-        # Friendlies (excluding self)
+        # Friendlies (always known)
         for a in friendly_team:
             if a is None or a is agent:
                 continue
@@ -1345,7 +1527,7 @@ class GameField:
             fx, fy = self._agent_float_pos(a)
             splat_float(1, float(fx), float(fy), 1.0)
 
-        # Enemies
+        # Enemies (sensor-limited if physics enabled)
         for a in enemy_team:
             if a is None:
                 continue
@@ -1355,18 +1537,24 @@ class GameField:
             except Exception:
                 pass
             fx, fy = self._agent_float_pos(a)
-            splat_float(2, float(fx), float(fy), 1.0)
+            det = self._enemy_detected(agent, fx, fy)
+            if det is None:
+                continue
+            splat_float(2, float(det[0]), float(det[1]), 1.0)
 
-        # Mines
+        # Mines: friendly always visible; enemy mines sensor-limited if physics enabled
         for m in getattr(self, "mines", []):
             mx, my = float(getattr(m, "x", 0)), float(getattr(m, "y", 0))
             owner = str(getattr(m, "owner_side", "")).lower()
             if owner == side:
                 splat_float(3, mx, my, 1.0)
             else:
-                splat_float(4, mx, my, 1.0)
+                det = self._enemy_detected(agent, mx, my)  # reuse same sensing model
+                if det is None:
+                    continue
+                splat_float(4, float(det[0]), float(det[1]), 1.0)
 
-        # Flags (own + enemy)
+        # Flags (kept always known for objective stability)
         def _gm_attr(*names, default=None):
             if gm is None:
                 return default
@@ -1395,6 +1583,7 @@ class GameField:
         return channels.tolist()
 
     # -------- macro actions --------
+    # (UNCHANGED logic, but now path-following can be physics-driven when enabled)
 
     def apply_macro_action(self, agent: Agent, action: Any, param: Optional[Any] = None) -> MacroAction:
         if agent is None or (not agent.isEnabled()):
@@ -1404,7 +1593,6 @@ class GameField:
         side = str(getattr(agent, "side", "blue")).lower()
         gm = self.manager
 
-        # If carrying and asked to GET_FLAG, force GO_HOME
         if action == MacroAction.GET_FLAG and agent.isCarryingFlag():
             action = MacroAction.GO_HOME
 
@@ -1428,11 +1616,9 @@ class GameField:
             return self.get_macro_target(idx)
 
         def safe_set_path(target: Cell, *, avoid_enemies: bool, radius: int = 1) -> None:
-            # --- Resolve start/target ---
             start = self._agent_cell_pos(agent)
             tgt = self._clamp_cell(int(target[0]), int(target[1]))
 
-            # Already there: clear path
             if start == tgt:
                 if hasattr(agent, "clearPath"):
                     agent.clearPath()
@@ -1441,7 +1627,6 @@ class GameField:
                 setattr(agent, "current_goal", None)
                 return
 
-            # Goal caching: skip replan if same goal and path exists
             try:
                 if getattr(agent, "current_goal", None) == tgt:
                     p = getattr(agent, "path", None)
@@ -1452,7 +1637,6 @@ class GameField:
 
             setattr(agent, "current_goal", tgt)
 
-            # --- Build danger costs ---
             danger_saved = dict(getattr(self.pathfinder, "danger_cost", {}) or {})
             danger: Dict[Cell, float] = {}
 
@@ -1489,7 +1673,6 @@ class GameField:
                 danger.pop(start, None)
                 danger.pop(tgt, None)
 
-            # --- Run A* with temporary danger costs ---
             path: Optional[List[Cell]] = None
             try:
                 if do_avoid and hasattr(self.pathfinder, "setDangerCosts"):
@@ -1503,7 +1686,6 @@ class GameField:
             except Exception:
                 path = None
             finally:
-                # Restore danger costs exactly
                 if hasattr(self.pathfinder, "setDangerCosts"):
                     try:
                         self.pathfinder.setDangerCosts(danger_saved)
@@ -1512,7 +1694,6 @@ class GameField:
                 else:
                     setattr(self.pathfinder, "danger_cost", danger_saved)
 
-            # Optional prune collinear
             def prune_collinear(p: List[Cell]) -> List[Cell]:
                 if not p or len(p) < 3:
                     return p
@@ -1534,15 +1715,10 @@ class GameField:
                 except Exception:
                     pass
 
-            # Apply path (IMPORTANT: do not reset move_accum here)
             if hasattr(agent, "setPath"):
                 agent.setPath(path or [])
             else:
                 agent.path = path or []
-
-        # ------------------------------------------------------------
-        # Macro execution (THIS is what makes agents actually move)
-        # ------------------------------------------------------------
 
         if action == MacroAction.GO_TO:
             target = resolve_target(self.get_macro_target(4))
@@ -1560,13 +1736,11 @@ class GameField:
             return record(MacroAction.GO_HOME)
 
         if action == MacroAction.GRAB_MINE:
-            # If already have charges, behave like GET_FLAG
             if int(getattr(agent, "mine_charges", 0)) > 0:
                 ex, ey = self._gm_enemy_flag_position(side)
                 safe_set_path((int(ex), int(ey)), avoid_enemies=False, radius=1)
                 return record(MacroAction.GET_FLAG)
 
-            # If near enemy flag, disable mine detour
             ax, ay = self._agent_float_pos(agent)
             ex, ey = self._gm_enemy_flag_position(side)
             if math.hypot(ax - float(ex), ay - float(ey)) <= float(self.mine_detour_disable_radius_cells):
@@ -1587,7 +1761,6 @@ class GameField:
         if action == MacroAction.PLACE_MINE:
             target = resolve_target(self._agent_cell_pos(agent))
 
-            # Try to place if possible, then keep moving (or return home if illegal)
             if int(getattr(agent, "mine_charges", 0)) > 0:
                 if (not self.allow_offensive_mine_placing) and side in ("blue", "red"):
                     own_min, own_max = self.blue_zone_col_range if side == "blue" else self.red_zone_col_range
@@ -1614,7 +1787,6 @@ class GameField:
             safe_set_path(target, avoid_enemies=False, radius=1)
             return record(MacroAction.PLACE_MINE)
 
-        # Fallback: go mid
         safe_set_path(self.get_macro_target(4), avoid_enemies=False, radius=1)
         return record(MacroAction.GO_TO)
 
@@ -1664,7 +1836,7 @@ class GameField:
         base_policy = self.policies.get(agent.side)
         wrapper = self.policy_wrappers.get(agent.side)
 
-        # 1) Wrapper override (highest priority)
+        # 1) Wrapper override
         if wrapper is not None and callable(wrapper):
             try:
                 out = wrapper(obs, agent, self, base_policy)
@@ -1672,13 +1844,14 @@ class GameField:
                 out = wrapper(obs, agent, self)
 
             action_id, param = _parse_out(out)
-            self.apply_macro_action(agent, int(action_id), param)
+            act = (int(action_id), param)
+            act = self._apply_action_delay(agent, act)
+            self.apply_macro_action(agent, int(act[0]), act[1])
             return
 
-        # 2) Neural-like policy interface: policy.act(obs_tensor, ...)
+        # 2) Neural-like policy interface
         if hasattr(base_policy, "act"):
-            import torch  # local import
-
+            import torch
             device = torch.device("cpu")
             if hasattr(base_policy, "parameters"):
                 try:
@@ -1693,13 +1866,17 @@ class GameField:
                 out = base_policy.act(obs_tensor, agent=agent, game_field=self, deterministic=True)
 
             action_id, param = _parse_out(out)
-            self.apply_macro_action(agent, int(action_id), param)
+            act = (int(action_id), param)
+            act = self._apply_action_delay(agent, act)
+            self.apply_macro_action(agent, int(act[0]), act[1])
             return
 
         # 3) Scripted Policy
         if isinstance(base_policy, Policy):
             action_id, param = base_policy.select_action(obs, agent, self)
-            self.apply_macro_action(agent, int(action_id), param)
+            act = (int(action_id), param)
+            act = self._apply_action_delay(agent, act)
+            self.apply_macro_action(agent, int(act[0]), act[1])
             return
 
         # 4) Callable fallback
@@ -1710,7 +1887,9 @@ class GameField:
                 out = base_policy(agent, self)
 
             action_id, param = _parse_out(out)
-            self.apply_macro_action(agent, int(action_id), param)
+            act = (int(action_id), param)
+            act = self._apply_action_delay(agent, act)
+            self.apply_macro_action(agent, int(act[0]), act[1])
             return
 
         return
@@ -1778,6 +1957,12 @@ class GameField:
                 self._clear_pending_for_agent(agent)
                 agent.disable_for_seconds(self.respawn_seconds)
                 self.mines.remove(mine)
+
+                # Reset boat state on death so it doesn't "slide" after respawn
+                try:
+                    setattr(agent, "speed_cps", 0.0)
+                except Exception:
+                    pass
                 break
 
     def apply_suppression(self, agent: Agent, enemies: List[Agent], delta_time: float) -> None:
@@ -1819,6 +2004,11 @@ class GameField:
 
                 agent.suppression_timer = 0.0
                 agent.disable_for_seconds(float(getattr(self, "respawn_seconds", 0.0)))
+
+                try:
+                    setattr(agent, "speed_cps", 0.0)
+                except Exception:
+                    pass
         else:
             agent.suppressed_this_tick = False
             agent.suppression_timer = 0.0
@@ -1842,4 +2032,4 @@ class GameField:
         self.banner_queue.append((str(text), color, float(seconds)))
 
 
-__all__ = ["GameField", "MacroAction", "Mine", "MinePickup", "CNN_COLS", "CNN_ROWS", "NUM_CNN_CHANNELS"]
+__all__ = ["GameField", "MacroAction", "Mine", "MinePickup", "CNN_COLS", "CNN_ROWS", "NUM_CNN_CHANNELS", "BoatSimConfig"]
