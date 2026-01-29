@@ -612,10 +612,30 @@ class CTFGameFieldSB3Env(gym.Env):
 
             self._episode_reward_total += float(reward)
 
+            blue_score = int(getattr(gm, "blue_score", 0))
+            red_score = int(getattr(gm, "red_score", 0))
+            # IROS-style Top 5 metrics (publish-friendly)
+            success = 1 if blue_score > red_score else 0
+            time_to_first = getattr(gm, "time_to_first_score", None)
+            time_to_first_score = float(time_to_first) if time_to_first is not None else None
+            time_to_game_over = getattr(gm, "time_to_game_over", None)
+            time_to_game_over_sec = float(time_to_game_over) if time_to_game_over is not None else None
+            if time_to_game_over_sec is None:
+                time_to_game_over_sec = float(getattr(gm, "sim_time", 0.0))
+            collisions = int(getattr(gm, "collision_count_this_episode", 0))
+            near_misses = int(getattr(gm, "near_miss_count_this_episode", 0))
+            collision_free = 1 if collisions == 0 else 0
+            dists = getattr(gm, "blue_inter_robot_distances", []) or []
+            mean_inter_robot_dist = float(np.mean(dists)) if dists else None
+            std_inter_robot_dist = float(np.std(dists)) if len(dists) > 1 else (0.0 if dists else None)
+            visited = getattr(gm, "blue_zone_visited_cells", set()) or set()
+            total_zone = int(getattr(gm, "total_blue_zone_cells", 1)) or 1
+            zone_coverage = float(len(visited)) / float(total_zone) if total_zone else 0.0
+
             info["episode_result"] = {
-                "blue_score": int(getattr(gm, "blue_score", 0)),
-                "red_score": int(getattr(gm, "red_score", 0)),
-                "win_by": int(getattr(gm, "blue_score", 0)) - int(getattr(gm, "red_score", 0)),
+                "blue_score": blue_score,
+                "red_score": red_score,
+                "win_by": blue_score - red_score,
                 "phase_name": str(getattr(gm, "phase_name", self._phase_name)),
                 "league_mode": bool(self._league_mode),
                 "blue_rewards_total": float(self._episode_reward_total),
@@ -631,6 +651,16 @@ class CTFGameFieldSB3Env(gym.Env):
                 "mines_placed_enemy_half": int(getattr(gm, "mines_placed_in_enemy_half_this_episode", 0)),
                 "mines_triggered_by_red": int(getattr(gm, "mines_triggered_by_red_this_episode", 0)),
                 "dynamics_config": self.get_dynamics_config(),
+                # Top 5 IROS-style metrics (CSV / Excel)
+                "success": success,
+                "time_to_first_score": time_to_first_score,
+                "time_to_game_over": time_to_game_over_sec,
+                "collisions_per_episode": collisions,
+                "near_misses_per_episode": near_misses,
+                "collision_free_episode": collision_free,
+                "mean_inter_robot_dist": mean_inter_robot_dist,
+                "std_inter_robot_dist": std_inter_robot_dist,
+                "zone_coverage": zone_coverage,
             }
         else:
             self._episode_reward_total += float(reward)
