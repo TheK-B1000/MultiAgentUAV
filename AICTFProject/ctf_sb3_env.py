@@ -71,6 +71,9 @@ class CTFGameFieldSB3Env(gym.Env):
         self._next_opponent: Optional[Tuple[str, str]] = None
         self._phase_name: str = "OP1"
 
+        # Store dynamics config even before reset() (SubprocVecEnv calls env_method early sometimes)
+        self._dynamics_config: Optional[dict] = None
+
         # We train 2 blue agents (fixed interface for SB3 policies)
         self._n_blue_agents = 2
 
@@ -112,7 +115,6 @@ class CTFGameFieldSB3Env(gym.Env):
             "vec": spaces.Box(low=-2.0, high=2.0, shape=vec_shape, dtype=np.float32),
         }
         if self.include_mask_in_obs:
-            # For each blue agent: macro_mask[n_macros] + target_mask[n_targets]
             obs_dict["mask"] = spaces.Box(
                 low=0.0,
                 high=1.0,
@@ -127,6 +129,41 @@ class CTFGameFieldSB3Env(gym.Env):
         self._opponent_snapshot_path: Optional[str] = None
         self._opponent_species_tag: str = "BALANCED"
         self._opponent_scripted_tag: str = "OP1"
+
+    # -----------------------------
+    # Dynamics config hook (SB3 SubprocVecEnv expects this if you env_method it)
+    # -----------------------------
+    def set_dynamics_config(self, cfg: Optional[dict]) -> None:
+        """
+        Called from training via VecEnv.env_method("set_dynamics_config", cfg).
+
+        We store cfg and forward it to GameField/Manager hooks if present.
+        This prevents SubprocVecEnv workers from crashing when training code calls this.
+        """
+        self._dynamics_config = None if cfg is None else dict(cfg)
+
+        if self.gf is None:
+            return
+
+        # Prefer GF-level hook
+        if hasattr(self.gf, "set_dynamics_config"):
+            try:
+                self.gf.set_dynamics_config(self._dynamics_config)
+                return
+            except Exception:
+                pass
+
+        # Fall back to Manager hook
+        gm = getattr(self.gf, "manager", None)
+        if gm is not None and hasattr(gm, "set_dynamics_config"):
+            try:
+                gm.set_dynamics_config(self._dynamics_config)
+            except Exception:
+                pass
+
+    def get_dynamics_config(self) -> Optional[dict]:
+        """Convenience accessor for logging/debug."""
+        return None if self._dynamics_config is None else dict(self._dynamics_config)
 
     # -----------------------------
     # Phase / curriculum helpers
@@ -196,7 +233,7 @@ class CTFGameFieldSB3Env(gym.Env):
 
         self.gf = self.make_game_field_fn()
 
-        # Ensure we actually have 2v2 for this env interface
+        # Ensure 2v2 for this env interface
         try:
             self.gf.agents_per_team = 2
         except Exception:
@@ -211,10 +248,21 @@ class CTFGameFieldSB3Env(gym.Env):
         self.gf.external_missing_action_mode = "idle"
         self.gf.use_internal_policies = True
 
-        # Reset the underlying sim (spawns, mines, flags, etc.)
+        # IMPORTANT: Initialize macro targets before reading masks/targets if needed
+        if not getattr(self.gf, "macro_targets", None):
+            try:
+                _ = self.gf.get_all_macro_targets()
+            except Exception:
+                pass
+
+        # Reset the underlying sim
         self.gf.reset_default()
 
-        # Sync macro/target dims from GameField (after reset_default initializes targets)
+        # Re-apply sticky dynamics after GF is created/reset
+        if self._dynamics_config is not None:
+            self.set_dynamics_config(self._dynamics_config)
+
+        # Sync macro/target dims from GameField
         self._n_macros = int(getattr(self.gf, "n_macros", 5))
         self._n_targets = int(getattr(self.gf, "num_macro_targets", 8) or 8)
 
@@ -222,47 +270,29 @@ class CTFGameFieldSB3Env(gym.Env):
             [self._n_macros, self._n_targets, self._n_macros, self._n_targets]
         )
 
-        # Rebuild observation_space if masks are included (shape depends on n_macros/n_targets)
+        # Rebuild observation_space (mask size depends on n_macros/n_targets)
+        base_obs = {
+            "grid": spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
+                dtype=np.float32,
+            ),
+            "vec": spaces.Box(
+                low=-2.0,
+                high=2.0,
+                shape=(self._n_blue_agents * self._vec_per_agent,),
+                dtype=np.float32,
+            ),
+        }
         if self.include_mask_in_obs:
-            self.observation_space = spaces.Dict(
-                {
-                    "grid": spaces.Box(
-                        low=0.0,
-                        high=1.0,
-                        shape=(self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
-                        dtype=np.float32,
-                    ),
-                    "vec": spaces.Box(
-                        low=-2.0,
-                        high=2.0,
-                        shape=(self._n_blue_agents * self._vec_per_agent,),
-                        dtype=np.float32,
-                    ),
-                    "mask": spaces.Box(
-                        low=0.0,
-                        high=1.0,
-                        shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
-                        dtype=np.float32,
-                    ),
-                }
+            base_obs["mask"] = spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
+                dtype=np.float32,
             )
-        else:
-            self.observation_space = spaces.Dict(
-                {
-                    "grid": spaces.Box(
-                        low=0.0,
-                        high=1.0,
-                        shape=(self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
-                        dtype=np.float32,
-                    ),
-                    "vec": spaces.Box(
-                        low=-2.0,
-                        high=2.0,
-                        shape=(self._n_blue_agents * self._vec_per_agent,),
-                        dtype=np.float32,
-                    ),
-                }
-            )
+        self.observation_space = spaces.Dict(base_obs)
 
         # Episode-level counters
         self._episode_macro_counts = [[0 for _ in range(self._n_macros)] for _ in range(self._n_blue_agents)]
@@ -282,14 +312,14 @@ class CTFGameFieldSB3Env(gym.Env):
             except Exception:
                 pass
 
-        # PBRS gamma must match PPO gamma (policy invariance)
+        # PBRS gamma must match PPO gamma
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "set_shaping_gamma"):
             try:
                 self.gf.manager.set_shaping_gamma(self.ppo_gamma)
             except Exception:
                 pass
 
-        # Apply curriculum phase to manager
+        # Apply curriculum phase
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "set_phase"):
             try:
                 self.gf.manager.set_phase(self._phase_name)
@@ -303,7 +333,7 @@ class CTFGameFieldSB3Env(gym.Env):
             except Exception:
                 pass
 
-        # Apply next-opponent override if requested; otherwise use defaults.
+        # Apply opponent override/defaults
         if self._next_opponent is not None:
             kind, key = self._next_opponent
             if kind == "SCRIPTED":
@@ -340,6 +370,7 @@ class CTFGameFieldSB3Env(gym.Env):
 
         actions_by_agent: Dict[str, Tuple[int, Any]] = {}
         if blue0 is not None:
+            # Use slot_id if present, else unique_id; include both patterns in reward filter anyway
             k0 = str(getattr(blue0, "slot_id", getattr(blue0, "unique_id", "blue_0")))
             actions_by_agent[k0] = (b0_macro, b0_tgt)
         if blue1 is not None:
@@ -394,10 +425,10 @@ class CTFGameFieldSB3Env(gym.Env):
                 "macro_order": self._macro_order_names(),
                 "macro_counts": self._episode_macro_counts,
                 "mine_counts": self._episode_mine_counts,
-                # Optional mine metrics if your GM tracks them
                 "blue_mine_kills": int(getattr(gm, "blue_mine_kills_this_episode", 0)),
                 "mines_placed_enemy_half": int(getattr(gm, "mines_placed_in_enemy_half_this_episode", 0)),
                 "mines_triggered_by_red": int(getattr(gm, "mines_triggered_by_red_this_episode", 0)),
+                "dynamics_config": self.get_dynamics_config(),
             }
         else:
             self._episode_reward_total += float(reward)
@@ -435,9 +466,7 @@ class CTFGameFieldSB3Env(gym.Env):
         for idx, a in enumerate(blue[: self._n_blue_agents]):
             if a is None:
                 cnn_list.append(_empty_cnn())
-
-                vec = _empty_vec_base()
-                vec = self._append_high_level_mode(vec)
+                vec = self._append_high_level_mode(_empty_vec_base())
                 vec_list.append(vec)
 
                 if self.include_mask_in_obs:
@@ -482,7 +511,6 @@ class CTFGameFieldSB3Env(gym.Env):
             return v
 
         if self._high_level_mode_onehot:
-            # Keep it tiny: 2-way mode (0/1). Clamp to {0,1}.
             mode = max(0, min(1, int(self._high_level_mode)))
             mode_vec = np.zeros((2,), dtype=np.float32)
             mode_vec[mode] = 1.0
@@ -515,9 +543,8 @@ class CTFGameFieldSB3Env(gym.Env):
             return macro, tgt
 
         if not bool(mm[macro]):
-            macro = 0  # GO_TO fallback in your GameField macro_order
+            macro = 0  # GO_TO fallback
 
-        # Only enforce target mask for macros that actually consume targets
         if self._macro_uses_target(macro):
             tm = np.asarray(self.gf.get_target_mask(agent), dtype=np.bool_).reshape(-1)
             if tm.shape == (self._n_targets,) and tm.any():
@@ -527,10 +554,6 @@ class CTFGameFieldSB3Env(gym.Env):
         return macro, tgt
 
     def _apply_role_macro_mask(self, blue_index: int, mm: np.ndarray) -> np.ndarray:
-        """
-        Optional: restrict each blue agent to a subset of macros (role specialization).
-        blue_role_macros = ([allowed_macro_idxs_for_blue0], [allowed_macro_idxs_for_blue1])
-        """
         if self._blue_role_macros is None:
             return mm
         if not isinstance(self._blue_role_macros, (tuple, list)):
@@ -555,10 +578,6 @@ class CTFGameFieldSB3Env(gym.Env):
         return out if out.any() else mm
 
     def _macro_uses_target(self, macro_idx: int) -> bool:
-        """
-        Your GameField treats GO_TO and PLACE_MINE as target-consuming.
-        GET_FLAG/GO_HOME/GRAB_MINE compute their own targets.
-        """
         if self.gf is None:
             return True
         try:
@@ -614,7 +633,6 @@ class CTFGameFieldSB3Env(gym.Env):
             return 0
         assert self.gf is not None
 
-        # choose closest target to the agent's current position
         try:
             ax = float(getattr(agent, "x", 0.0))
             ay = float(getattr(agent, "y", 0.0))
@@ -634,12 +652,6 @@ class CTFGameFieldSB3Env(gym.Env):
     # Reward + anti-stall
     # -----------------
     def _consume_blue_reward_events(self) -> float:
-        """
-        Sum reward events for the two blue agents this decision step.
-
-        Expected event format from GameManager.pop_reward_events():
-          [(t, agent_id, reward_value), ...]
-        """
         assert self.gf is not None
         gm = self.gf.manager
 
@@ -673,10 +685,6 @@ class CTFGameFieldSB3Env(gym.Env):
         return float(r)
 
     def _apply_blue_stall_penalty(self) -> float:
-        """
-        Penalize repeated "no movement" decisions to reduce dithering.
-        Blue-only. Uses agent.float_pos if available.
-        """
         assert self.gf is not None
         penalty = 0.0
 
