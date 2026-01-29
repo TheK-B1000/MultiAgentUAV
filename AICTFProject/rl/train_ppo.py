@@ -29,6 +29,7 @@ from config import MAP_NAME, MAP_PATH
 
 class TrainMode(str, Enum):
     CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"
+    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"  # OLD baseline: OP1 -> OP2 -> OP3, no league
     FIXED_OPPONENT = "FIXED_OPPONENT"
     SELF_PLAY = "SELF_PLAY"
 
@@ -50,7 +51,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_curriculum_v2"
+    run_tag: str = "ppo_curriculum_old_v1"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -62,7 +63,7 @@ class PPOConfig:
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
 
-    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    mode: str = TrainMode.CURRICULUM_NO_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -302,6 +303,95 @@ class LeagueCallback(BaseCallback):
         return True
 
 
+class SequentialCurriculumCallback(BaseCallback):
+    """
+    OLD BASELINE (no league):
+      OP1 -> OP2 -> OP3 progression using curriculum gates,
+      but WITHOUT Elo league, matchmaking, species, or snapshots.
+    """
+
+    def __init__(self, *, cfg: PPOConfig, curriculum: CurriculumState) -> None:
+        super().__init__(verbose=1)
+        self.cfg = cfg
+        self.curriculum = curriculum
+        self.episode_idx = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.draw_count = 0
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+            info = infos[i] if i < len(infos) else {}
+            ep = info.get("episode_result", None)
+            if not isinstance(ep, dict):
+                continue
+
+            self.episode_idx += 1
+            blue_score = int(ep.get("blue_score", 0))
+            red_score = int(ep.get("red_score", 0))
+            win_by = int(blue_score - red_score)
+
+            if blue_score > red_score:
+                result = "WIN"
+                actual = 1.0
+                self.win_count += 1
+            elif blue_score < red_score:
+                result = "LOSS"
+                actual = 0.0
+                self.loss_count += 1
+            else:
+                result = "DRAW"
+                actual = 0.5
+                self.draw_count += 1
+
+            phase = self.curriculum.phase
+            self.curriculum.phase_episode_count += 1
+            self.curriculum.record_result(phase, actual)
+
+            # Advance using existing gates but force Elo condition to never block
+            # (so it's truly the old "OP1->OP2->OP3" gate progression).
+            try:
+                advanced = self.curriculum.advance_if_ready(
+                    learner_rating=1e9,  # huge so elo_margin check always passes
+                    opponent_rating=0.0,
+                    win_by=win_by,
+                )
+            except Exception:
+                advanced = False
+
+            if advanced:
+                phase = self.curriculum.phase  # updated phase after advancing
+
+            if self.verbose:
+                print(
+                    f"[PPO|OLD_SEQ] ep={self.episode_idx} result={result} "
+                    f"score={blue_score}:{red_score} phase={phase} "
+                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
+                )
+
+            self.logger.record("oldseq/episode", self.episode_idx)
+            self.logger.record("oldseq/win_rate", self.win_count / max(1, self.episode_idx))
+            self.logger.record("oldseq/draw_rate", self.draw_count / max(1, self.episode_idx))
+            self.logger.record("oldseq/phase_idx", float(self.curriculum.phase_idx))
+
+            # Next opponent is exactly the current phase opponent
+            env = self.model.get_env()
+            if env is not None:
+                env.env_method("set_next_opponent", "SCRIPTED", str(self.curriculum.phase).upper())
+                env.env_method("set_phase", str(self.curriculum.phase).upper())
+                try:
+                    env.env_method("set_league_mode", False)
+                except Exception:
+                    pass
+
+        return True
+
+
 class SelfPlayCallback(BaseCallback):
     def __init__(self, *, cfg: PPOConfig, league: EloLeague) -> None:
         super().__init__(verbose=1)
@@ -460,6 +550,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
+    # League exists for league/self-play; harmless for others (but not used in old baseline)
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
@@ -471,7 +562,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     curriculum: Optional[CurriculumState] = None
     controller: Optional[CurriculumController] = None
-    if mode == TrainMode.CURRICULUM_LEAGUE.value:
+
+    # Build curriculum for BOTH curriculum modes
+    if mode in (TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value):
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
@@ -483,17 +576,24 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 switch_to_league_after_op3_win=False,
             )
         )
+
+    # Only league mode needs the controller
+    if mode == TrainMode.CURRICULUM_LEAGUE.value:
         controller = CurriculumController(
             CurriculumControllerConfig(seed=cfg.seed),
             league=league,
         )
 
+    # Choose initial opponent + initial phase label
     if mode == TrainMode.FIXED_OPPONENT.value:
         default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
         phase_name = str(cfg.fixed_opponent_tag).upper()
     elif mode == TrainMode.SELF_PLAY.value:
         default_opponent = ("SCRIPTED", "OP3")
         phase_name = "SELF_PLAY"
+    elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        default_opponent = ("SCRIPTED", "OP1")
+        phase_name = "OP1"
     else:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
@@ -569,7 +669,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     callbacks = []
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
+        assert curriculum is not None
+        assert controller is not None
         callbacks.append(LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller))
+    elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        assert curriculum is not None
+        callbacks.append(SequentialCurriculumCallback(cfg=cfg, curriculum=curriculum))
     elif mode == TrainMode.SELF_PLAY.value:
         callbacks.append(SelfPlayCallback(cfg=cfg, league=league))
     elif mode == TrainMode.FIXED_OPPONENT.value:
