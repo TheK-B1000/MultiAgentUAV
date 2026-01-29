@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import csv
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -63,7 +64,7 @@ class PPOConfig:
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
 
-    mode: str = TrainMode.SELF_PLAY.value
+    mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -675,6 +676,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         callbacks.append(SelfPlayCallback(cfg=cfg, league=league))
     elif mode == TrainMode.FIXED_OPPONENT.value:
         callbacks.append(FixedOpponentCallback(cfg=cfg))
+
+    # Top 5 IROS-style metrics: CSV at end of training (simple, publish-friendly)
+    metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
+    callbacks.append(MetricsCSVCallback(save_path=metrics_csv_path))
 
     if cfg.enable_checkpoints:
         callbacks.append(
