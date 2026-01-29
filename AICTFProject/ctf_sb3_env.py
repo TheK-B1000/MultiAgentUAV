@@ -449,7 +449,32 @@ class CTFGameFieldSB3Env(gym.Env):
             except Exception:
                 pass
 
-        # Reset the underlying sim
+        # Apply opponent and OpponentParams BEFORE reset_default so red spawn uses speed_mult etc.
+        if self._next_opponent is not None:
+            kind, key = self._next_opponent
+            kind = str(kind).upper()
+            key = str(key).upper()
+            self._next_opponent = None
+        else:
+            kind = str(self.default_opponent_kind).upper()
+            key = str(self.default_opponent_key).upper()
+        if kind == "SCRIPTED":
+            self.set_opponent_scripted(key)
+        elif kind == "SPECIES":
+            self.set_opponent_species(key)
+        elif kind == "SNAPSHOT":
+            self.set_opponent_snapshot(key)
+        try:
+            from opponent_params import sample_opponent_params
+            phase = str(getattr(self.gf.manager, "phase_name", self._phase_name)).upper()
+            rng = __import__("random").Random(int(final_seed) + 1)
+            params = sample_opponent_params(kind=kind, key=key, phase=phase, rng=rng)
+            if hasattr(self.gf, "set_opponent_params"):
+                self.gf.set_opponent_params(params)
+        except Exception:
+            pass
+
+        # Reset the underlying sim (spawn uses red_speed_scale etc. from OpponentParams)
         self.gf.reset_default()
 
         # Re-apply sticky dynamics after GF is created/reset
@@ -534,24 +559,6 @@ class CTFGameFieldSB3Env(gym.Env):
                 _ = self.gf.manager.pop_reward_events()
             except Exception:
                 pass
-
-        # Apply opponent override/defaults
-        if self._next_opponent is not None:
-            kind, key = self._next_opponent
-            if kind == "SCRIPTED":
-                self.set_opponent_scripted(key)
-            elif kind == "SPECIES":
-                self.set_opponent_species(key)
-            elif kind == "SNAPSHOT":
-                self.set_opponent_snapshot(key)
-            self._next_opponent = None
-        else:
-            if self.default_opponent_kind == "SCRIPTED":
-                self.set_opponent_scripted(self.default_opponent_key)
-            elif self.default_opponent_kind == "SPECIES":
-                self.set_opponent_species(self.default_opponent_key)
-            elif self.default_opponent_kind == "SNAPSHOT":
-                self.set_opponent_snapshot(self.default_opponent_key)
 
         obs = self._get_obs()
         return obs, {}
