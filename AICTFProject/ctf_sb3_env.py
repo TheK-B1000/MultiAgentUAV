@@ -95,6 +95,8 @@ class CTFGameFieldSB3Env(gym.Env):
         self._league_mode = False
         self._episode_reward_total = 0.0
         self._blue_role_macros = blue_role_macros
+        # Curriculum Axis 2: environment stress by phase (optional)
+        self._stress_schedule: Optional[dict] = None  # phase -> {current_strength_cps, action_delay_steps, sensor_noise_sigma_cells, sensor_dropout_prob}
         self._episode_macro_counts: list[list[int]] = []
         self._episode_mine_counts: list[dict[str, int]] = []
 
@@ -335,6 +337,38 @@ class CTFGameFieldSB3Env(gym.Env):
                 self.gf.manager.set_phase(self._phase_name)
             except Exception:
                 pass
+        self._apply_stress_for_phase(self._phase_name)
+
+    def set_stress_schedule(self, schedule: Optional[dict]) -> None:
+        """Curriculum Axis 2: phase -> {current_strength_cps, drift_sigma_cells, action_delay_steps, sensor_noise_sigma_cells, sensor_dropout_prob}. None = disable."""
+        self._stress_schedule = None if schedule is None else dict(schedule)
+
+    def _apply_stress_for_phase(self, phase: str) -> None:
+        """Apply environment stress for this phase if stress schedule is set."""
+        if self.gf is None or not self._stress_schedule:
+            return
+        cfg = self._stress_schedule.get(str(phase).upper())
+        if not cfg or not isinstance(cfg, dict):
+            return
+        try:
+            if "current_strength_cps" in cfg or "drift_sigma_cells" in cfg:
+                self.gf.set_disturbance_config(
+                    float(cfg.get("current_strength_cps", 0.0)),
+                    float(cfg.get("drift_sigma_cells", 0.0)),
+                )
+            if "action_delay_steps" in cfg:
+                self.gf.set_robotics_constraints(
+                    int(cfg.get("action_delay_steps", 0)),
+                    float(cfg.get("actuation_noise_sigma", 0.0)),
+                )
+            if "sensor_noise_sigma_cells" in cfg or "sensor_dropout_prob" in cfg:
+                self.gf.set_sensor_config(
+                    float(cfg.get("sensor_range_cells", getattr(self.gf.boat_cfg, "sensor_range_cells", 9999.0))),
+                    float(cfg.get("sensor_noise_sigma_cells", 0.0)),
+                    float(cfg.get("sensor_dropout_prob", 0.0)),
+                )
+        except Exception:
+            pass
 
     def set_league_mode(self, league_mode: bool) -> None:
         self._league_mode = bool(league_mode)
