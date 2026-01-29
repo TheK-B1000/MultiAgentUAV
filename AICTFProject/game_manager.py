@@ -114,6 +114,15 @@ class GameManager:
     mines_placed_in_enemy_half_this_episode: int = 0
     mines_triggered_by_red_this_episode: int = 0
 
+    # --- IROS-style metrics (Top 5) ---
+    time_to_first_score: Optional[float] = None  # sim_time when first score occurred
+    time_to_game_over: Optional[float] = None   # sim_time when game ended
+    collision_count_this_episode: int = 0
+    near_miss_count_this_episode: int = 0
+    blue_inter_robot_distances: List[float] = field(default_factory=list)
+    blue_zone_visited_cells: Set[Cell] = field(default_factory=set)
+    total_blue_zone_cells: int = 0  # set by game_field for coverage denominator
+
     # --- exploration memory (team-level) ---
     blue_visited_cells: Set[Cell] = field(default_factory=set)
     red_visited_cells: Set[Cell] = field(default_factory=set)
@@ -138,6 +147,21 @@ class GameManager:
     def bind_game_field(self, game_field: Any) -> None:
         """Bind environment for exact team reward routing (recommended)."""
         self.game_field = game_field
+
+    def record_tick_metrics(
+        self,
+        collision_delta: int = 0,
+        near_miss_delta: int = 0,
+        blue_inter_robot_dist: Optional[float] = None,
+        blue_zone_cells_this_tick: Optional[Set[Cell]] = None,
+    ) -> None:
+        """IROS-style metrics: called by game_field each tick."""
+        self.collision_count_this_episode += int(collision_delta)
+        self.near_miss_count_this_episode += int(near_miss_delta)
+        if blue_inter_robot_dist is not None and math.isfinite(blue_inter_robot_dist):
+            self.blue_inter_robot_distances.append(float(blue_inter_robot_dist))
+        if blue_zone_cells_this_tick:
+            self.blue_zone_visited_cells.update(blue_zone_cells_this_tick)
 
     def set_phase(self, phase: str) -> None:
         """Set curriculum phase name (canonical uppercase)."""
@@ -493,12 +517,14 @@ class GameManager:
         # Score limit
         if self.blue_score >= self.score_limit:
             self.game_over = True
+            self.time_to_game_over = float(self.sim_time)
             self.add_team_reward("blue", WIN_TEAM_REWARD)
             self.add_team_reward("red", LOSE_TEAM_PUNISH)
             return "BLUE WINS BY SCORE!"
 
         if self.red_score >= self.score_limit:
             self.game_over = True
+            self.time_to_game_over = float(self.sim_time)
             self.add_team_reward("red", WIN_TEAM_REWARD)
             self.add_team_reward("blue", LOSE_TEAM_PUNISH)
             return "RED WINS BY SCORE!"
@@ -645,6 +671,8 @@ class GameManager:
         if side == "blue" and self.red_flag_taken and (self.red_flag_carrier is agent):
             if math.hypot(ax - float(self.blue_flag_home[0]), ay - float(self.blue_flag_home[1])) <= 2.0:
                 self.blue_score += 1
+                if self.time_to_first_score is None:
+                    self.time_to_first_score = float(self.sim_time)
                 self._reset_red_flag_to_home()
                 self.last_score_time = float(self.sim_time)
 
@@ -667,6 +695,8 @@ class GameManager:
         if side == "red" and self.blue_flag_taken and (self.blue_flag_carrier is agent):
             if math.hypot(ax - float(self.red_flag_home[0]), ay - float(self.red_flag_home[1])) <= 2.0:
                 self.red_score += 1
+                if self.time_to_first_score is None:
+                    self.time_to_first_score = float(self.sim_time)
                 self._reset_blue_flag_to_home()
                 self.last_score_time = float(self.sim_time)
 
