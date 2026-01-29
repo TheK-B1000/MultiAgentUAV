@@ -73,6 +73,10 @@ class CTFGameFieldSB3Env(gym.Env):
 
         # Store dynamics config even before reset() (SubprocVecEnv calls env_method early sometimes)
         self._dynamics_config: Optional[dict] = None
+        self._disturbance_config: Optional[dict] = None
+        self._robotics_config: Optional[dict] = None
+        self._sensor_config: Optional[dict] = None
+        self._physics_tag: Optional[str] = None
 
         # We train 2 blue agents (fixed interface for SB3 policies)
         self._n_blue_agents = 2
@@ -164,6 +168,162 @@ class CTFGameFieldSB3Env(gym.Env):
     def get_dynamics_config(self) -> Optional[dict]:
         """Convenience accessor for logging/debug."""
         return None if self._dynamics_config is None else dict(self._dynamics_config)
+
+    # -----------------------------
+    # Disturbances / robotics / sensing hooks
+    # -----------------------------
+    def set_disturbance_config(self, *args, **kwargs) -> None:
+        """
+        Called from training via VecEnv.env_method("set_disturbance_config", cfg)
+        or via kwargs: current_strength / drift_sigma.
+        """
+        cfg = None
+        if args and isinstance(args[0], dict):
+            cfg = dict(args[0])
+        elif "cfg" in kwargs and isinstance(kwargs["cfg"], dict):
+            cfg = dict(kwargs["cfg"])
+
+        if cfg is None:
+            cfg = dict(kwargs)
+
+        # Support both training names and GameField names
+        current_strength = cfg.pop("current_strength", None)
+        drift_sigma = cfg.pop("drift_sigma", None)
+        current_strength_cps = cfg.pop("current_strength_cps", None)
+        drift_sigma_cells = cfg.pop("drift_sigma_cells", None)
+
+        if current_strength_cps is None:
+            current_strength_cps = current_strength
+        if drift_sigma_cells is None:
+            drift_sigma_cells = drift_sigma
+
+        self._disturbance_config = {
+            "current_strength_cps": 0.0 if current_strength_cps is None else float(current_strength_cps),
+            "drift_sigma_cells": 0.0 if drift_sigma_cells is None else float(drift_sigma_cells),
+        }
+
+        if self.gf is None:
+            return
+
+        if hasattr(self.gf, "set_disturbance_config"):
+            try:
+                self.gf.set_disturbance_config(
+                    self._disturbance_config["current_strength_cps"],
+                    self._disturbance_config["drift_sigma_cells"],
+                )
+                return
+            except Exception:
+                pass
+
+        if hasattr(self.gf, "set_disturbance_config_dict"):
+            try:
+                self.gf.set_disturbance_config_dict(self._disturbance_config)
+            except Exception:
+                pass
+
+    def get_disturbance_config(self) -> Optional[dict]:
+        return None if self._disturbance_config is None else dict(self._disturbance_config)
+
+    def set_robotics_constraints(self, *args, **kwargs) -> None:
+        """
+        Called from training via VecEnv.env_method("set_robotics_constraints", cfg)
+        or via kwargs: action_delay_steps / actuation_noise_sigma.
+        """
+        cfg = None
+        if args and isinstance(args[0], dict):
+            cfg = dict(args[0])
+        elif "cfg" in kwargs and isinstance(kwargs["cfg"], dict):
+            cfg = dict(kwargs["cfg"])
+
+        if cfg is None:
+            cfg = dict(kwargs)
+
+        action_delay_steps = cfg.get("action_delay_steps", 0)
+        actuation_noise_sigma = cfg.get("actuation_noise_sigma", 0.0)
+
+        self._robotics_config = {
+            "action_delay_steps": int(action_delay_steps),
+            "actuation_noise_sigma": float(actuation_noise_sigma),
+        }
+
+        if self.gf is None:
+            return
+
+        if hasattr(self.gf, "set_robotics_constraints"):
+            try:
+                self.gf.set_robotics_constraints(
+                    self._robotics_config["action_delay_steps"],
+                    self._robotics_config["actuation_noise_sigma"],
+                )
+                return
+            except Exception:
+                pass
+
+        if hasattr(self.gf, "set_robotics_constraints_dict"):
+            try:
+                self.gf.set_robotics_constraints_dict(self._robotics_config)
+            except Exception:
+                pass
+
+    def get_robotics_constraints(self) -> Optional[dict]:
+        return None if self._robotics_config is None else dict(self._robotics_config)
+
+    def set_sensor_config(self, *args, **kwargs) -> None:
+        """
+        Called from training via VecEnv.env_method("set_sensor_config", cfg)
+        or via kwargs: sensor_range / sensor_noise_sigma / sensor_dropout_prob.
+        """
+        cfg = None
+        if args and isinstance(args[0], dict):
+            cfg = dict(args[0])
+        elif "cfg" in kwargs and isinstance(kwargs["cfg"], dict):
+            cfg = dict(kwargs["cfg"])
+
+        if cfg is None:
+            cfg = dict(kwargs)
+
+        sensor_range = cfg.get("sensor_range", cfg.get("sensor_range_cells", 9999.0))
+        sensor_noise_sigma = cfg.get("sensor_noise_sigma", cfg.get("sensor_noise_sigma_cells", 0.0))
+        sensor_dropout_prob = cfg.get("sensor_dropout_prob", 0.0)
+
+        self._sensor_config = {
+            "sensor_range_cells": float(sensor_range),
+            "sensor_noise_sigma_cells": float(sensor_noise_sigma),
+            "sensor_dropout_prob": float(sensor_dropout_prob),
+        }
+
+        if self.gf is None:
+            return
+
+        if hasattr(self.gf, "set_sensor_config"):
+            try:
+                self.gf.set_sensor_config(
+                    self._sensor_config["sensor_range_cells"],
+                    self._sensor_config["sensor_noise_sigma_cells"],
+                    self._sensor_config["sensor_dropout_prob"],
+                )
+                return
+            except Exception:
+                pass
+
+        if hasattr(self.gf, "set_sensor_config_dict"):
+            try:
+                self.gf.set_sensor_config_dict(self._sensor_config)
+            except Exception:
+                pass
+
+    def get_sensor_config(self) -> Optional[dict]:
+        return None if self._sensor_config is None else dict(self._sensor_config)
+
+    def set_physics_tag(self, tag: str) -> None:
+        self._physics_tag = str(tag)
+        if self.gf is None:
+            return
+        if hasattr(self.gf, "set_physics_tag"):
+            try:
+                self.gf.set_physics_tag(self._physics_tag)
+            except Exception:
+                pass
 
     # -----------------------------
     # Phase / curriculum helpers
@@ -261,6 +421,14 @@ class CTFGameFieldSB3Env(gym.Env):
         # Re-apply sticky dynamics after GF is created/reset
         if self._dynamics_config is not None:
             self.set_dynamics_config(self._dynamics_config)
+        if self._disturbance_config is not None:
+            self.set_disturbance_config(self._disturbance_config)
+        if self._robotics_config is not None:
+            self.set_robotics_constraints(self._robotics_config)
+        if self._sensor_config is not None:
+            self.set_sensor_config(self._sensor_config)
+        if self._physics_tag is not None:
+            self.set_physics_tag(self._physics_tag)
 
         # Sync macro/target dims from GameField
         self._n_macros = int(getattr(self.gf, "n_macros", 5))
