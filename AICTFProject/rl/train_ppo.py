@@ -57,6 +57,7 @@ class PPOConfig:
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
     snapshot_every_episodes: int = 100
+    league_max_snapshots: int = 25  # cap league snapshots; delete oldest to save space
     enable_tensorboard: bool = False
     enable_checkpoints: bool = False
     enable_eval: bool = False
@@ -186,6 +187,21 @@ class LeagueCallback(BaseCallback):
         self.win_count = 0
         self.loss_count = 0
         self.draw_count = 0
+        self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 25)))
+
+    def _enforce_league_snapshot_limit(self) -> None:
+        """Delete oldest league snapshots when over cap to save disk space."""
+        if self._league_max_snapshots <= 0:
+            return
+        while len(self.league.snapshots) > self._league_max_snapshots:
+            oldest = self.league.snapshots.pop(0)
+            try:
+                if oldest and os.path.exists(oldest):
+                    os.remove(oldest)
+                    if self.verbose:
+                        print(f"[League] deleted old snapshot: {oldest}")
+            except Exception as exc:
+                print(f"[WARN] league snapshot cleanup failed: {exc}")
 
     def _opponent_key(self, info: Dict[str, Any]) -> str:
         kind = str(info.get("opponent_kind", "scripted")).upper()
@@ -285,6 +301,7 @@ class LeagueCallback(BaseCallback):
                 self.logger.record("league/elo", float(self.league.learner_rating))
 
             if (self.episode_idx % int(self.cfg.snapshot_every_episodes)) == 0:
+                self._enforce_league_snapshot_limit()
                 prefix = f"{self.cfg.run_tag}_league_snapshot"
                 path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_ep{self.episode_idx:06d}")
                 try:
@@ -293,6 +310,7 @@ class LeagueCallback(BaseCallback):
                     print(f"[WARN] snapshot save failed: {exc}")
                 else:
                     self.league.add_snapshot(path + ".zip")
+                    self._enforce_league_snapshot_limit()
 
             next_opp = self._select_next_opponent()
             env = self.model.get_env()
