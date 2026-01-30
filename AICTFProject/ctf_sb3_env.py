@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -380,7 +381,10 @@ class CTFGameFieldSB3Env(gym.Env):
     # Opponent hot-swap
     # -----------------------------
     def set_next_opponent(self, kind: str, key: str) -> None:
-        self._next_opponent = (str(kind).upper(), str(key).upper())
+        k = str(kind).upper()
+        # Snapshot key is a file path: do not uppercase (breaks paths on case-sensitive / Windows)
+        v = str(key).upper() if k != "SNAPSHOT" else str(key)
+        self._next_opponent = (k, v)
 
     def set_opponent_scripted(self, scripted_tag: str) -> None:
         if self.gf is None:
@@ -408,8 +412,31 @@ class CTFGameFieldSB3Env(gym.Env):
     def set_opponent_snapshot(self, snapshot_path: str) -> None:
         if self.gf is None:
             return
+        path = str(snapshot_path).strip()
+        # Resolve path: try as-is, with .zip, lowercase (Windows), normpath
+        candidates = [path]
+        if not path.lower().endswith(".zip"):
+            candidates.append(path + ".zip")
+        candidates.append(os.path.normpath(path))
+        candidates.append(os.path.normpath(path + ("" if path.lower().endswith(".zip") else ".zip")))
+        if path != path.lower():
+            candidates.append(path.lower())
+            candidates.append(os.path.normpath(path.lower()))
+        found = None
+        for p in candidates:
+            if p and os.path.isfile(p):
+                found = p
+                break
+        if found is None:
+            # Snapshot file missing (deleted, wrong cwd, or bad path): fall back to scripted OP3
+            try:
+                print(f"[WARN] Snapshot not found: {path!r}; falling back to SCRIPTED:OP3")
+            except Exception:
+                pass
+            self.set_opponent_scripted("OP3")
+            return
         self._opponent_kind = "snapshot"
-        self._opponent_snapshot_path = str(snapshot_path)
+        self._opponent_snapshot_path = found
         self._opponent_species_tag = "BALANCED"
         self._opponent_scripted_tag = "OP3"
 
@@ -453,7 +480,7 @@ class CTFGameFieldSB3Env(gym.Env):
         if self._next_opponent is not None:
             kind, key = self._next_opponent
             kind = str(kind).upper()
-            key = str(key).upper()
+            key = str(key) if kind == "SNAPSHOT" else str(key).upper()
             self._next_opponent = None
         else:
             kind = str(self.default_opponent_kind).upper()
