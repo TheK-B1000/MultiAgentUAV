@@ -5,8 +5,7 @@ from typing import Optional, Tuple, Any, List, Dict
 import numpy as np
 import pygame as pg
 
-# SB3 PPO
-from stable_baselines3 import PPO as SB3PPO
+# SB3/torch imported lazily when loading a PPO/HPPO model (avoids DLL errors if viewer runs scripted-only)
 
 from viewer_game_field import ViewerGameField
 from macro_actions import MacroAction
@@ -23,7 +22,7 @@ from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS, make_game_field
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
-DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_curriculum.zip"
+DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_curriculum_v2.zip"
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
 
@@ -77,7 +76,7 @@ class SB3TeamPPOPolicy:
         self.model_path: Optional[str] = _resolve_zip_path(model_path)
         self.model_loaded: bool = False
 
-        self.model: Optional[SB3PPO] = None
+        self.model: Optional[Any] = None
         self.deterministic = bool(deterministic)
 
         # Targets count (fallback)
@@ -92,10 +91,14 @@ class SB3TeamPPOPolicy:
             return
 
         try:
+            from stable_baselines3 import PPO as SB3PPO
             self.model = SB3PPO.load(self.model_path, device="cpu")
             self.model.policy.set_training_mode(False)
             self.model_loaded = True
             print(f"[CTFViewer] Loaded SB3 PPO model from: {self.model_path}")
+        except OSError as e:
+            print(f"[CTFViewer] Torch/SB3 DLL error (try: reinstall torch, or run viewer in Default mode): {e}")
+            self.model_loaded = False
         except Exception as e:
             print(f"[CTFViewer] Failed to load SB3 PPO model '{self.model_path}': {e}")
             self.model_loaded = False
@@ -315,8 +318,8 @@ class SB3TeamHPPOPolicy:
         self.high_model_path = _resolve_zip_path(high_model_path)
         self.model_loaded = False
 
-        self.low_model: Optional[SB3PPO] = None
-        self.high_model: Optional[SB3PPO] = None
+        self.low_model: Optional[Any] = None
+        self.high_model: Optional[Any] = None
         self.deterministic = bool(deterministic)
         self.mode_interval_ticks = max(1, int(mode_interval_ticks))
 
@@ -334,6 +337,7 @@ class SB3TeamHPPOPolicy:
             return
 
         try:
+            from stable_baselines3 import PPO as SB3PPO
             self.low_model = SB3PPO.load(self.low_model_path, device="cpu")
             self.low_model.policy.set_training_mode(False)
             self.high_model = SB3PPO.load(self.high_model_path, device="cpu")
@@ -341,6 +345,9 @@ class SB3TeamHPPOPolicy:
             self.model_loaded = True
             print(f"[CTFViewer] Loaded HPPO low from: {self.low_model_path}")
             print(f"[CTFViewer] Loaded HPPO high from: {self.high_model_path}")
+        except OSError as e:
+            print(f"[CTFViewer] Torch/SB3 DLL error (try: reinstall torch, or run viewer in Default mode): {e}")
+            self.model_loaded = False
         except Exception as e:
             print(f"[CTFViewer] Failed to load HPPO models: {e}")
             self.model_loaded = False
