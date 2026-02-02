@@ -551,14 +551,23 @@ class FixedOpponentCallback(BaseCallback):
 
 
 class NoiseMetricsCSVCallback(BaseCallback):
-    """Track action execution noise (flip rates, streaks) and log to CSV per episode."""
+    """Track action execution noise (flip rates, streaks) and log to CSV per episode.
+    Uses per-env state so metrics are correct with vectorized envs (no mixing).
+    episode_idx is a global monotonic counter (never reset).
+    """
 
     def __init__(self, csv_path: str, eps: float, run_id: str, verbose: int = 0):
         super().__init__(verbose)
         self.csv_path = str(csv_path)
         self.eps = float(eps)
         self.run_id = str(run_id)
-        self._reset_ep()
+        self.episode_idx = 0
+        self.curr_streak = None
+        self.ep_steps = None
+        self.flip_count = None
+        self.macro_flip_count = None
+        self.target_flip_count = None
+        self.max_streak = None
 
         os.makedirs(os.path.dirname(os.path.abspath(self.csv_path)) or ".", exist_ok=True)
         self._ensure_header()
@@ -579,58 +588,69 @@ class NoiseMetricsCSVCallback(BaseCallback):
         with open(self.csv_path, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(headers)
 
-    def _reset_ep(self):
-        self.ep_steps = 0
-        self.flip_count = 0
-        self.macro_flip_count = 0
-        self.target_flip_count = 0
-        self.curr_streak = None
-        self.max_streak = 0
-        self.episode_idx = 0
-
     def _on_training_start(self):
         n_envs = getattr(self.training_env, "num_envs", 1)
+        n_envs = max(1, int(n_envs))
         self.curr_streak = np.zeros(n_envs, dtype=np.int32)
+        self.ep_steps = np.zeros(n_envs, dtype=np.int64)
+        self.flip_count = np.zeros(n_envs, dtype=np.int64)
+        self.macro_flip_count = np.zeros(n_envs, dtype=np.int64)
+        self.target_flip_count = np.zeros(n_envs, dtype=np.int64)
+        self.max_streak = np.zeros(n_envs, dtype=np.int32)
+
+    def _reset_env_ep(self, env_i: int) -> None:
+        """Reset per-episode counters for a single env (after writing its row)."""
+        if self.ep_steps is None or env_i < 0 or env_i >= len(self.ep_steps):
+            return
+        self.ep_steps[env_i] = 0
+        self.flip_count[env_i] = 0
+        self.macro_flip_count[env_i] = 0
+        self.target_flip_count[env_i] = 0
+        self.curr_streak[env_i] = 0
+        self.max_streak[env_i] = 0
 
     def _on_step(self) -> bool:
+        if self.ep_steps is None:
+            return True
         infos = self.locals.get("infos", [])
         dones = self.locals.get("dones", [])
+        n_envs = len(self.ep_steps)
 
         for env_i, info in enumerate(infos):
-            self.ep_steps += 1
+            if env_i >= n_envs:
+                break
+            self.ep_steps[env_i] += 1
 
             flips = int(info.get("flip_count_step", 0))
             macro_flips = int(info.get("macro_flip_count_step", 0))
             target_flips = int(info.get("target_flip_count_step", 0))
 
-            self.flip_count += flips
-            self.macro_flip_count += macro_flips
-            self.target_flip_count += target_flips
+            self.flip_count[env_i] += flips
+            self.macro_flip_count[env_i] += macro_flips
+            self.target_flip_count[env_i] += target_flips
 
-            # Streak tracking
             if flips > 0:
-                if env_i < len(self.curr_streak):
-                    self.curr_streak[env_i] += 1
-                    if self.curr_streak[env_i] > self.max_streak:
-                        self.max_streak = int(self.curr_streak[env_i])
+                self.curr_streak[env_i] += 1
+                if self.curr_streak[env_i] > self.max_streak[env_i]:
+                    self.max_streak[env_i] = int(self.curr_streak[env_i])
             else:
-                if env_i < len(self.curr_streak):
-                    self.curr_streak[env_i] = 0
+                self.curr_streak[env_i] = 0
 
-            # Episode end
             if env_i < len(dones) and bool(dones[env_i]):
                 summary = parse_episode_result(info)
                 if summary is None:
+                    self._reset_env_ep(env_i)
                     continue
 
                 phase = summary.phase_name
                 agents = int(info.get("num_agents", 2))
                 action_components = int(info.get("action_components", 2))
-                total_actions = int(self.ep_steps * agents * action_components)
+                steps_i = int(self.ep_steps[env_i])
+                total_actions = steps_i * agents * action_components
 
-                flip_rate = (self.flip_count / total_actions) if total_actions > 0 else 0.0
-                macro_rate = (self.macro_flip_count / total_actions) if total_actions > 0 else 0.0
-                target_rate = (self.target_flip_count / total_actions) if total_actions > 0 else 0.0
+                flip_rate = (self.flip_count[env_i] / total_actions) if total_actions > 0 else 0.0
+                macro_rate = (self.macro_flip_count[env_i] / total_actions) if total_actions > 0 else 0.0
+                target_rate = (self.target_flip_count[env_i] / total_actions) if total_actions > 0 else 0.0
 
                 win = summary.success
                 score_for = summary.blue_score
@@ -641,11 +661,11 @@ class NoiseMetricsCSVCallback(BaseCallback):
                 std_dist = summary.std_inter_robot_dist if summary.std_inter_robot_dist is not None else float("nan")
 
                 row = [
-                    self.run_id, phase, self.episode_idx, self.ep_steps, agents, self.eps,
-                    total_actions, self.flip_count, flip_rate,
-                    self.macro_flip_count, macro_rate,
-                    self.target_flip_count, target_rate,
-                    self.max_streak,
+                    self.run_id, phase, self.episode_idx, steps_i, agents, self.eps,
+                    total_actions, int(self.flip_count[env_i]), flip_rate,
+                    int(self.macro_flip_count[env_i]), macro_rate,
+                    int(self.target_flip_count[env_i]), target_rate,
+                    int(self.max_streak[env_i]),
                     win, score_for, score_against,
                     collisions, coverage,
                     mean_dist, std_dist,
@@ -659,7 +679,7 @@ class NoiseMetricsCSVCallback(BaseCallback):
                         print(f"[NoiseMetrics] CSV write failed: {exc}")
 
                 self.episode_idx += 1
-                self._reset_ep()
+                self._reset_env_ep(env_i)
 
         return True
 
