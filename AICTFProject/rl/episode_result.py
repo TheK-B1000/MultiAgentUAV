@@ -5,8 +5,21 @@ Use parse_episode_result(info) in all callbacks to avoid duplicate parsing.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+
+
+def path_to_snapshot_key(path: str) -> str:
+    """
+    Convert a full snapshot path to a stable, machine-independent ID for Elo/logs.
+    Example: "checkpoints_sb3/snap_ep100.zip" -> "SNAPSHOT:snap_ep100"
+    """
+    if not (path or path.strip()):
+        return "SNAPSHOT:unknown"
+    base = os.path.basename(path.strip())
+    name, _ = os.path.splitext(base)
+    return f"SNAPSHOT:{name}" if name else "SNAPSHOT:unknown"
 
 
 @dataclass
@@ -33,10 +46,10 @@ class EpisodeSummary:
     zone_coverage: float
 
     def opponent_key(self) -> str:
-        """Stable opponent key for league/Elo (SCRIPTED:OP3, SPECIES:BALANCED, SNAPSHOT:path)."""
+        """Stable opponent key for league/Elo (SCRIPTED:OP3, SPECIES:BALANCED, SNAPSHOT:snap_ep100)."""
         kind = str(self.opponent_kind or "scripted").upper()
         if kind == "SNAPSHOT":
-            return str(self.opponent_snapshot or "")
+            return path_to_snapshot_key(self.opponent_snapshot or "")
         if kind == "SPECIES":
             return f"SPECIES:{str(self.species_tag or 'BALANCED').upper()}"
         return f"SCRIPTED:{str(self.scripted_tag or 'OP3').upper()}"
