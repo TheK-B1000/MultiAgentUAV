@@ -6,6 +6,11 @@ import numpy as np
 
 from policies import OP3RedPolicy  # you already have this
 
+try:
+    from rl.obs_builder import build_team_obs as _obs_builder_build_team_obs
+except Exception:
+    _obs_builder_build_team_obs = None
+
 
 def make_species_wrapper(species_tag: str) -> Callable[..., Any]:
     """
@@ -96,6 +101,20 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
         while len(live) < 2:
             live.append(live[0] if live else None)
 
+        if _obs_builder_build_team_obs is not None:
+            out = _obs_builder_build_team_obs(
+                game_field,
+                live[:2],
+                max_agents=2,
+                include_mask=_model_expects_mask(),
+                tokenized=False,
+                vec_size_base=12,
+                n_macros=5,
+                n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+            )
+            return out
+
+        # Fallback when rl.obs_builder not available
         obs_list = []
         vec_list = []
         mask_list = []

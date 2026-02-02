@@ -17,6 +17,11 @@ from config import MAP_NAME, MAP_PATH
 # Match training constants (use same shapes)
 from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS, make_game_field
 
+try:
+    from rl.obs_builder import build_team_obs as _viewer_obs_builder
+except Exception:
+    _viewer_obs_builder = None
+
 # ----------------------------
 # MODEL PATHS (edit these)
 # ----------------------------
@@ -73,13 +78,20 @@ class SB3TeamPPOPolicy:
     So we translate indices -> enums/cells here.
     """
 
-    def __init__(self, model_path: str, env: ViewerGameField, deterministic: bool = True):
+    def __init__(
+        self,
+        model_path: str,
+        env: ViewerGameField,
+        deterministic: bool = True,
+        viewer_use_obs_builder: bool = True,
+    ):
         self.model_path_raw = model_path
         self.model_path: Optional[str] = _resolve_zip_path(model_path)
         self.model_loaded: bool = False
 
         self.model: Optional[Any] = None
         self.deterministic = bool(deterministic)
+        self._viewer_use_obs_builder = bool(viewer_use_obs_builder)
 
         # Targets count (fallback)
         self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
@@ -158,6 +170,18 @@ class SB3TeamPPOPolicy:
         live = [a for a in agents if a is not None]
         while len(live) < 2:
             live.append(live[0] if live else None)
+
+        if self._viewer_use_obs_builder and _viewer_obs_builder is not None:
+            return _viewer_obs_builder(
+                game_field,
+                live[:2],
+                max_agents=2,
+                include_mask=self._model_expects_mask(),
+                tokenized=False,
+                vec_size_base=12,
+                n_macros=N_MACROS,
+                n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+            )
 
         obs_list: List[np.ndarray] = []
         vec_list: List[np.ndarray] = []
@@ -313,6 +337,7 @@ class SB3TeamHPPOPolicy:
         *,
         deterministic: bool = True,
         mode_interval_ticks: int = 8,
+        viewer_use_obs_builder: bool = True,
     ):
         self.low_model_path_raw = low_model_path
         self.high_model_path_raw = high_model_path
@@ -324,6 +349,7 @@ class SB3TeamHPPOPolicy:
         self.high_model: Optional[Any] = None
         self.deterministic = bool(deterministic)
         self.mode_interval_ticks = max(1, int(mode_interval_ticks))
+        self._viewer_use_obs_builder = bool(viewer_use_obs_builder)
 
         # Targets count (fallback)
         self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
@@ -472,6 +498,33 @@ class SB3TeamHPPOPolicy:
         while len(live) < 2:
             live.append(live[0] if live else None)
 
+        if self._viewer_use_obs_builder and _viewer_obs_builder is not None:
+            per_agent_size = self._vec_size_per_agent()
+            base_size = 12
+            extra = max(0, per_agent_size - base_size)
+
+            def vec_append_mode(base_vec: np.ndarray) -> np.ndarray:
+                v = np.asarray(base_vec, dtype=np.float32).reshape(-1)[:base_size]
+                if extra == 2:
+                    mode_vec = np.zeros((2,), dtype=np.float32)
+                    mode_vec[max(0, min(1, int(mode)))] = 1.0
+                    return np.concatenate([v, mode_vec], axis=0)
+                if extra == 1:
+                    return np.concatenate([v, np.asarray([float(mode)], dtype=np.float32)], axis=0)
+                return v
+
+            return _viewer_obs_builder(
+                game_field,
+                live[:2],
+                max_agents=2,
+                include_mask=self._model_expects_mask(),
+                tokenized=False,
+                vec_size_base=12,
+                n_macros=N_MACROS,
+                n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+                vec_append_fn=vec_append_mode,
+            )
+
         obs_list: List[np.ndarray] = []
         vec_list: List[np.ndarray] = []
         mask_list: List[np.ndarray] = []
@@ -578,6 +631,7 @@ class CTFViewer:
         ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
         hppo_low_path: str = DEFAULT_HPPO_LOW_MODEL_PATH,
         hppo_high_path: str = DEFAULT_HPPO_HIGH_MODEL_PATH,
+        viewer_use_obs_builder: bool = True,
     ):
         if MAP_NAME or MAP_PATH:
             base = make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None)
@@ -639,12 +693,16 @@ class CTFViewer:
 
         self.blue_op3_baseline = OP3RedPolicy("blue")
 
-        self.blue_ppo_team = SB3TeamPPOPolicy(ppo_model_path, self.game_field, deterministic=True)
+        use_obs_builder = bool(viewer_use_obs_builder)
+        self.blue_ppo_team = SB3TeamPPOPolicy(
+            ppo_model_path, self.game_field, deterministic=True, viewer_use_obs_builder=use_obs_builder
+        )
         self.blue_hppo_team = SB3TeamHPPOPolicy(
             hppo_low_path,
             hppo_high_path,
             self.game_field,
             deterministic=True,
+            viewer_use_obs_builder=use_obs_builder,
         )
 
         # Blue policy callable (installed into game_field.policies["blue"])

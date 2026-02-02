@@ -91,7 +91,16 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
 
         cnn_out = cnn_out.view(B, M * D)
         vec_flat = vec.view(B, M * self._V)
-        return torch.cat([cnn_out, vec_flat], dim=1)
+        out = torch.cat([cnn_out, vec_flat], dim=1)
+        if self._context_dim > 0 and "context" in observations:
+            ctx = observations["context"]
+            if ctx.dim() == 1:
+                ctx = ctx.unsqueeze(0)
+            ctx = ctx.float()
+            if ctx.shape[-1] != self._context_dim:
+                ctx = ctx.reshape(ctx.shape[0], -1)[:, : self._context_dim]
+            out = torch.cat([out, ctx], dim=1)
+        return out
 
 
 class TrainMode(str, Enum):
@@ -118,7 +127,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_curriculum_old_v2"
+    run_tag: str = "ppo_league_curriculum_v1"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -131,7 +140,7 @@ class PPOConfig:
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
 
-    mode: str = TrainMode.CURRICULUM_NO_LEAGUE.value
+    mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -148,6 +157,15 @@ class PPOConfig:
     max_blue_agents: int = 2
     # Sprint A verification: print obs/action shapes once per reset
     print_reset_shapes: bool = False
+
+    # Reward contract: TEAM_SUM (default), PER_AGENT, SHAPLEY_APPROX (future). Logged in info["reward_mode"].
+    reward_mode: str = "TEAM_SUM"
+    # Step 3.1: use canonical ObsBuilder (rollback: set False to keep legacy _get_obs path)
+    use_obs_builder: bool = True
+    # Step 4.1: add obs["context"] = opponent embedding id (stable int). Default off until ready.
+    include_opponent_context: bool = False
+    # Step 5.1: when True, GameField.build_continuous_features asserts no global state in vec (debug only).
+    obs_debug_validate_locality: bool = False
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -171,6 +189,11 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             action_flip_prob=getattr(cfg, "action_flip_prob", 0.0),
             max_blue_agents=getattr(cfg, "max_blue_agents", 2),
             print_reset_shapes=getattr(cfg, "print_reset_shapes", False),
+            allow_missing_vec_features=getattr(cfg, "allow_missing_vec_features", False),
+            reward_mode=getattr(cfg, "reward_mode", "TEAM_SUM"),
+            use_obs_builder=getattr(cfg, "use_obs_builder", True),
+            include_opponent_context=getattr(cfg, "include_opponent_context", False),
+            obs_debug_validate_locality=getattr(cfg, "obs_debug_validate_locality", False),
         )
         return env
     return _fn
@@ -781,6 +804,7 @@ class MetricsCSVCallback(BaseCallback):
         "scripted_tag",
         "blue_score",
         "red_score",
+        "opponent_switch_count",  # Step 4.2: cumulative opponent switches so far
     ]
 
     def __init__(self, *, save_path: str) -> None:
@@ -788,6 +812,8 @@ class MetricsCSVCallback(BaseCallback):
         self.save_path = str(save_path)
         self._rows: List[Dict[str, Any]] = []
         self._episode_id = 0
+        self._opponent_switch_count = 0
+        self._last_opponent_key: Optional[str] = None
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -800,6 +826,11 @@ class MetricsCSVCallback(BaseCallback):
             if summary is None:
                 continue
             self._episode_id += 1
+            opp_key = summary.opponent_key()
+            if self._last_opponent_key is not None and opp_key != self._last_opponent_key:
+                self._opponent_switch_count += 1
+            self._last_opponent_key = opp_key
+
             row = {
                 "episode_id": self._episode_id,
                 "success": summary.success,
@@ -816,6 +847,8 @@ class MetricsCSVCallback(BaseCallback):
                 "scripted_tag": summary.scripted_tag or "",
                 "blue_score": summary.blue_score,
                 "red_score": summary.red_score,
+                "opponent_switch_count": self._opponent_switch_count,
+                "vec_schema_version": summary.vec_schema_version,
             }
             self._rows.append(row)
         return True
@@ -1078,9 +1111,30 @@ def run_verify_4v4(num_episodes: int = 10) -> None:
     print(f"[Verify-4v4] Done. {num_episodes} random-action 4v4 episodes completed.")
 
 
+def run_test_vec_schema() -> None:
+    """Step 2.2 verification: GameField.build_continuous_features returns float32 shape (12,), finite."""
+    from game_field import GameField
+    from config import MAP_NAME, MAP_PATH
+    gf = make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None)
+    gf.reset_default()
+    V = 12
+    assert hasattr(GameField, "VEC_SCHEMA_VERSION"), "GameField missing VEC_SCHEMA_VERSION"
+    assert getattr(GameField, "VEC_SCHEMA_VERSION", 0) >= 1, "VEC_SCHEMA_VERSION must be >= 1"
+    for agent in getattr(gf, "blue_agents", []) or []:
+        if agent is None:
+            continue
+        vec = gf.build_continuous_features(agent)
+        assert vec.dtype == np.float32, f"build_continuous_features dtype {vec.dtype}, expected float32"
+        assert vec.shape == (V,), f"build_continuous_features shape {vec.shape}, expected ({V},)"
+        assert np.all(np.isfinite(vec)), f"build_continuous_features had non-finite values: {vec}"
+    print("[test-vec-schema] GameField.build_continuous_features: dtype=float32, shape=(12,), all finite. OK.")
+
+
 if __name__ == "__main__":
     import sys
     if "--verify-4v4" in sys.argv:
         run_verify_4v4(num_episodes=10)
+    elif "--test-vec-schema" in sys.argv:
+        run_test_vec_schema()
     else:
         train_ppo()

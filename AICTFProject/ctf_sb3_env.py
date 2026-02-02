@@ -11,6 +11,23 @@ from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from red_opponents import make_species_wrapper, make_snapshot_wrapper
 from macro_actions import MacroAction
 
+try:
+    from rl.obs_builder import build_team_obs
+except Exception:
+    build_team_obs = None
+try:
+    from rl.episode_result import path_to_snapshot_key
+except Exception:
+    def path_to_snapshot_key(path: str) -> str:
+        if not (path or str(path).strip()):
+            return "SNAPSHOT:unknown"
+        base = os.path.basename(str(path).strip())
+        name, _ = os.path.splitext(base)
+        return f"SNAPSHOT:{name}" if name else "SNAPSHOT:unknown"
+
+# Step 4.1: max opponent context id (stable int in [0, MAX_OPPONENT_CONTEXT_IDS-1])
+MAX_OPPONENT_CONTEXT_IDS = 256
+
 
 class CTFGameFieldSB3Env(gym.Env):
     """
@@ -58,10 +75,23 @@ class CTFGameFieldSB3Env(gym.Env):
         max_blue_agents: int = 2,
         # Verification: print obs/action shapes once per reset (Sprint A)
         print_reset_shapes: bool = False,
+        # Step 2.1: if False, assert GameField has build_continuous_features(); if True, fallback to zeros with warning
+        allow_missing_vec_features: bool = False,
+        # Reward contract: TEAM_SUM (default), PER_AGENT, SHAPLEY_APPROX (future). Logged in info.
+        reward_mode: str = "TEAM_SUM",
+        # Step 3.1: use canonical ObsBuilder (rollback: set False to keep legacy _get_obs path)
+        use_obs_builder: bool = True,
+        # Step 4.1: add obs["context"] = opponent embedding id (stable int, not full path). Default off.
+        include_opponent_context: bool = False,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
         self._print_reset_shapes = bool(print_reset_shapes)
+        self._allow_missing_vec_features = bool(allow_missing_vec_features)
+        self._reward_mode = str(reward_mode).strip().upper() or "TEAM_SUM"
+        self._use_obs_builder = bool(use_obs_builder)
+        self._include_opponent_context = bool(include_opponent_context)
+        self._obs_debug_validate_locality = bool(obs_debug_validate_locality)
 
         self.max_decision_steps = int(max_decision_steps)
         self.enforce_masks = bool(enforce_masks)
@@ -156,6 +186,11 @@ class CTFGameFieldSB3Env(gym.Env):
                     shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
                     dtype=np.float32,
                 )
+        if self._include_opponent_context:
+            obs_dict["context"] = spaces.Box(
+                low=0.0, high=float(MAX_OPPONENT_CONTEXT_IDS - 1),
+                shape=(1,), dtype=np.float32,
+            )
         self.observation_space = spaces.Dict(obs_dict)
 
         # Opponent identity (for Elo + logging)
@@ -504,6 +539,23 @@ class CTFGameFieldSB3Env(gym.Env):
         wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
         self.gf.set_red_policy_wrapper(wrapper)
 
+    def _opponent_context_id(self) -> int:
+        """Stable opponent embedding id in [0, MAX_OPPONENT_CONTEXT_IDS-1] (no full path)."""
+        kind = str(self._opponent_kind or "scripted").upper()
+        if kind == "SCRIPTED":
+            tag = str(self._opponent_scripted_tag or "OP3").upper()
+            scripted_map = {"OP1": 0, "OP2": 1, "OP3": 2}
+            return scripted_map.get(tag, 2)
+        if kind == "SPECIES":
+            tag = str(self._opponent_species_tag or "BALANCED").upper()
+            species_map = {"BALANCED": 3, "RUSHER": 4, "CAMPER": 5}
+            return species_map.get(tag, 3)
+        if kind == "SNAPSHOT":
+            key = path_to_snapshot_key(self._opponent_snapshot_path or "")
+            h = hash(key) % (MAX_OPPONENT_CONTEXT_IDS - 6)
+            return 6 + (h if h >= 0 else h + (MAX_OPPONENT_CONTEXT_IDS - 6))
+        return 0
+
     # -------------
     # Gym API
     # -------------
@@ -514,6 +566,7 @@ class CTFGameFieldSB3Env(gym.Env):
         np.random.seed(final_seed)
 
         self.gf = self.make_game_field_fn()
+        self.gf.obs_debug_validate_locality = self._obs_debug_validate_locality
 
         # n_agents: 2 = legacy 2v2; 4/8 for zero-shot (train 2v2, test 4v4/8v8)
         n_agents_option = 2
@@ -617,6 +670,11 @@ class CTFGameFieldSB3Env(gym.Env):
                     shape=(self._max_blue_agents * (self._n_macros + self._n_targets),),
                     dtype=np.float32,
                 )
+            if self._include_opponent_context:
+                base_obs["context"] = spaces.Box(
+                    low=0.0, high=float(MAX_OPPONENT_CONTEXT_IDS - 1),
+                    shape=(1,), dtype=np.float32,
+                )
         else:
             base_obs = {
                 "grid": spaces.Box(
@@ -635,6 +693,11 @@ class CTFGameFieldSB3Env(gym.Env):
                     low=0.0, high=1.0,
                     shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
                     dtype=np.float32,
+                )
+            if self._include_opponent_context:
+                base_obs["context"] = spaces.Box(
+                    low=0.0, high=float(MAX_OPPONENT_CONTEXT_IDS - 1),
+                    shape=(1,), dtype=np.float32,
                 )
         self.observation_space = spaces.Dict(base_obs)
 
@@ -745,9 +808,15 @@ class CTFGameFieldSB3Env(gym.Env):
         dt = max(1e-3, 0.99 * interval)
         self.gf.update(dt)
 
-        # Rewards via GameManager events (filtered to blue IDs)
-        reward = float(self._consume_blue_reward_events())
-        reward += float(self._apply_blue_stall_penalty())
+        # Rewards via GameManager events (filtered to blue IDs) + per-agent bookkeeping
+        reward_events_total, reward_per_agent_events = self._consume_blue_reward_events()
+        stall_total, stall_per_agent = self._apply_blue_stall_penalty()
+        reward = float(reward_events_total) + float(stall_total)
+        n_blue = int(self._n_blue_agents)
+        reward_blue_per_agent = [
+            float(reward_per_agent_events[i]) + float(stall_per_agent[i])
+            for i in range(n_blue)
+        ]
 
         gm = self.gf.manager
         terminated = bool(getattr(gm, "game_over", False))
@@ -756,6 +825,12 @@ class CTFGameFieldSB3Env(gym.Env):
         obs = self._get_obs()
 
         info: Dict[str, Any] = {}
+        # Reward mode contract: TEAM_SUM (default), PER_AGENT, SHAPLEY_APPROX (future).
+        # Scalar step reward remains team sum; per-agent breakdown in reward_blue_per_agent when available.
+        info["reward_mode"] = str(self._reward_mode)
+        info["reward_blue_per_agent"] = list(reward_blue_per_agent)
+        info["reward_blue_team"] = float(sum(reward_blue_per_agent))
+
         # Add noise metrics to info every step (for callback tracking)
         info["flip_count_step"] = int(flip_count_step)
         info["macro_flip_count_step"] = int(macro_flip_count_step)
@@ -828,6 +903,7 @@ class CTFGameFieldSB3Env(gym.Env):
                 "mean_inter_robot_dist": mean_inter_robot_dist,
                 "std_inter_robot_dist": std_inter_robot_dist,
                 "zone_coverage": zone_coverage,
+                "vec_schema_version": int(getattr(self.gf, "VEC_SCHEMA_VERSION", 1)),
             }
         else:
             self._episode_reward_total += float(reward)
@@ -840,6 +916,28 @@ class CTFGameFieldSB3Env(gym.Env):
     def _get_obs(self) -> Dict[str, np.ndarray]:
         assert self.gf is not None
 
+        if self._use_obs_builder and build_team_obs is not None:
+            blue = list(getattr(self.gf, "blue_agents", []) or [])
+            n_slots = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
+            while len(blue) < n_slots:
+                blue.append(None)
+            out = build_team_obs(
+                self.gf,
+                blue[:n_slots],
+                max_agents=n_slots,
+                include_mask=self.include_mask_in_obs,
+                tokenized=(self._max_blue_agents > 2),
+                vec_size_base=self._base_vec_per_agent,
+                n_macros=self._n_macros,
+                n_targets=self._n_targets,
+                role_macro_mask_fn=self._apply_role_macro_mask,
+                vec_append_fn=self._append_high_level_mode,
+            )
+            if self._include_opponent_context:
+                out["context"] = np.array([float(self._opponent_context_id())], dtype=np.float32)
+            return out
+
+        # Legacy path (rollback when use_obs_builder=False)
         def _empty_cnn() -> np.ndarray:
             return np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
 
@@ -908,6 +1006,8 @@ class CTFGameFieldSB3Env(gym.Env):
             out = {"grid": grid, "vec": vec}
             if self.include_mask_in_obs:
                 out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
+        if self._include_opponent_context:
+            out["context"] = np.array([float(self._opponent_context_id())], dtype=np.float32)
         return out
 
     def _append_high_level_mode(self, base_vec: np.ndarray) -> np.ndarray:
@@ -1056,26 +1156,32 @@ class CTFGameFieldSB3Env(gym.Env):
     # -----------------
     # Reward + anti-stall
     # -----------------
-    def _consume_blue_reward_events(self) -> float:
+    def _consume_blue_reward_events(self) -> Tuple[float, list]:
+        """Consume blue reward events from GameManager. Returns (team_total, per_agent_list)."""
         assert self.gf is not None
         gm = self.gf.manager
+        n_blue = int(self._n_blue_agents)
+        per_agent = [0.0] * n_blue
 
         pop = getattr(gm, "pop_reward_events", None)
         if pop is None or (not callable(pop)):
-            return 0.0
+            return 0.0, per_agent
 
         try:
             events = pop()
         except Exception:
-            return 0.0
+            return 0.0, per_agent
 
-        blue_ids = set()
-        for i in range(min(self._n_blue_agents, len(self.gf.blue_agents))):
+        # Map agent_id (slot_id / unique_id) -> blue index for per-agent attribution
+        id_to_idx: Dict[str, int] = {}
+        for i in range(min(n_blue, len(self.gf.blue_agents))):
             agent = self.gf.blue_agents[i]
             if agent is None:
                 continue
-            blue_ids.add(str(getattr(agent, "unique_id", getattr(agent, "slot_id", f"blue_{i}"))))
-            blue_ids.add(str(getattr(agent, "slot_id", getattr(agent, "unique_id", f"blue_{i}"))))
+            uid = str(getattr(agent, "unique_id", getattr(agent, "slot_id", f"blue_{i}")))
+            sid = str(getattr(agent, "slot_id", getattr(agent, "unique_id", f"blue_{i}")))
+            id_to_idx[uid] = i
+            id_to_idx[sid] = i
 
         r = 0.0
         for ev in events:
@@ -1083,12 +1189,19 @@ class CTFGameFieldSB3Env(gym.Env):
                 _t, aid, val = ev
             except Exception:
                 continue
-            if str(aid) in blue_ids:
-                r += float(val)
-        return float(r)
+            aid_str = str(aid)
+            if aid_str in id_to_idx:
+                idx = id_to_idx[aid_str]
+                v = float(val)
+                per_agent[idx] += v
+                r += v
+        return float(r), per_agent
 
-    def _apply_blue_stall_penalty(self) -> float:
+    def _apply_blue_stall_penalty(self) -> Tuple[float, list]:
+        """Apply per-agent stall penalty. Returns (team_total, per_agent_penalties)."""
         assert self.gf is not None
+        n_blue = int(self._n_blue_agents)
+        per_agent = [0.0] * n_blue
         penalty = 0.0
 
         for i in range(self._n_blue_agents):
@@ -1124,11 +1237,13 @@ class CTFGameFieldSB3Env(gym.Env):
             else:
                 self._stall_counters[i] += 1
                 if self._stall_counters[i] >= int(self._stall_patience):
-                    penalty += float(self._stall_penalty)
+                    p = float(self._stall_penalty)
+                    penalty += p
+                    per_agent[i] += p
 
             self._last_blue_pos[i] = pos
 
-        return float(penalty)
+        return float(penalty), per_agent
 
     # -------------
     # Optional Gym hooks

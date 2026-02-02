@@ -44,6 +44,7 @@ class EpisodeSummary:
     mean_inter_robot_dist: Optional[float]
     std_inter_robot_dist: Optional[float]
     zone_coverage: float
+    vec_schema_version: int = 1  # GameField.VEC_SCHEMA_VERSION; bump when vec schema changes
 
     def opponent_key(self) -> str:
         """Stable opponent key for league/Elo (SCRIPTED:OP3, SPECIES:BALANCED, SNAPSHOT:snap_ep100)."""
@@ -93,4 +94,5 @@ def parse_episode_result(info: Dict[str, Any]) -> Optional[EpisodeSummary]:
         mean_inter_robot_dist=ep.get("mean_inter_robot_dist"),
         std_inter_robot_dist=ep.get("std_inter_robot_dist"),
         zone_coverage=float(ep.get("zone_coverage", 0.0)) if ep.get("zone_coverage") is not None else 0.0,
+        vec_schema_version=int(ep.get("vec_schema_version", 1)),
     )

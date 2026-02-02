@@ -235,6 +235,9 @@ class GameField:
           env.set_sensor_config(...)
     """
 
+    # Vec observation schema version; bump when build_continuous_features() schema changes (Step 2.3)
+    VEC_SCHEMA_VERSION: int = 1
+
     # -------- lifecycle --------
 
     def __init__(self, grid: List[List[int]]):
@@ -271,6 +274,9 @@ class GameField:
 
         # Optional policy wrappers that override internal decision-making
         self.policy_wrappers: Dict[str, Optional[Callable[..., Any]]] = {"blue": None, "red": None}
+
+        # Step 5.1: when True, build_continuous_features asserts no global state leak (debug only)
+        self.obs_debug_validate_locality: bool = False
 
         # External action routing
         self.external_control_for_side: Dict[str, bool] = {"blue": False, "red": False}
@@ -498,6 +504,99 @@ class GameField:
         else:
             p = getattr(gm, "blue_flag_position", (0, 0))
         return int(p[0]), int(p[1])
+
+    def build_continuous_features(self, agent: Agent) -> np.ndarray:
+        """
+        Fixed-size continuous feature vector for one agent (local view only; no global state).
+        Schema version: GameField.VEC_SCHEMA_VERSION.
+
+        Allowed (no leakage):
+          - Local self state: position, heading, speed, carrying_flag.
+          - Relative goal bearing: enemy/own flag positions (flag base or last known), normalized deltas.
+          - Distance to midline, time fraction (current_time / max_time).
+          - Local sensed entities within range (if added later) — not full enemy positions.
+
+        Forbidden (do not read; would leak global state):
+          - Score: manager.blue_score, manager.red_score.
+          - Full enemy positions: red_agents[].x/y, blue_agents (for red) positions.
+          - Hidden flags / oracle state not observable by this agent.
+
+        When adding new features, ensure they are in the allowed list. If obs_debug_validate_locality
+        is True, output is asserted finite and in [-2, 2] (no raw score-like values).
+
+        Returns: float32 array of shape (12,) — V must match CTFGameFieldSB3Env._base_vec_per_agent.
+
+        Schema (VEC_SCHEMA_VERSION == 1):
+          [0]  self_x_norm       : agent x position in [0,1] by col_count
+          [1]  self_y_norm       : agent y position in [0,1] by row_count
+          [2]  heading_norm     : heading_rad / pi in [-1, 1]
+          [3]  speed_norm       : speed_cps / max_speed in [0, 1]
+          [4]  enemy_flag_dx    : (enemy_flag_x - self_x) / col_count
+          [5]  enemy_flag_dy    : (enemy_flag_y - self_y) / row_count
+          [6]  own_flag_dx      : (own_flag_x - self_x) / col_count (for go-home)
+          [7]  own_flag_dy      : (own_flag_y - self_y) / row_count
+          [8]  carrying_flag    : 1.0 if carrying flag else 0.0
+          [9]  midline_dist_norm: distance to midline in [0,1]
+          [10] time_frac        : current_time / max_time in [0, 1]
+          [11] spare            : 0.0 (reserved)
+        """
+        V = 12
+        out = np.zeros((V,), dtype=np.float32)
+        if agent is None:
+            return out
+
+        side = str(getattr(agent, "side", "blue")).lower()
+        gm = getattr(self, "manager", None)
+        fx, fy = self._agent_float_pos(agent)
+        cols = max(1, getattr(self, "col_count", 1))
+        rows = max(1, getattr(self, "row_count", 1))
+
+        out[0] = float(fx) / float(cols - 1) if cols > 1 else 0.0
+        out[1] = float(fy) / float(rows - 1) if rows > 1 else 0.0
+        out[0] = max(0.0, min(1.0, out[0]))
+        out[1] = max(0.0, min(1.0, out[1]))
+
+        heading = float(getattr(agent, "heading_rad", 0.0))
+        out[2] = max(-1.0, min(1.0, heading / math.pi))
+
+        max_speed = float(getattr(self.boat_cfg, "max_speed_cps", 2.2) or 2.2)
+        speed = float(getattr(agent, "speed_cps", 0.0))
+        out[3] = max(0.0, min(1.0, speed / max_speed)) if max_speed > 0 else 0.0
+
+        if gm is not None:
+            if side == "blue":
+                own_flag = (float(getattr(gm, "blue_flag_position", (0, 0))[0]), float(getattr(gm, "blue_flag_position", (0, 0))[1]))
+                ex, ey = self._gm_enemy_flag_position("blue")
+                enemy_flag = (float(ex), float(ey))
+            else:
+                own_flag = (float(getattr(gm, "red_flag_position", (cols - 1, rows - 1))[0]), float(getattr(gm, "red_flag_position", (cols - 1, rows - 1))[1]))
+                ex, ey = self._gm_enemy_flag_position("red")
+                enemy_flag = (float(ex), float(ey))
+            out[4] = (enemy_flag[0] - fx) / cols if cols else 0.0
+            out[5] = (enemy_flag[1] - fy) / rows if rows else 0.0
+            out[6] = (own_flag[0] - fx) / cols if cols else 0.0
+            out[7] = (own_flag[1] - fy) / rows if rows else 0.0
+            out[4:8] = np.clip(out[4:8], -1.0, 1.0)
+
+        out[8] = 1.0 if getattr(agent, "is_carrying_flag", False) else 0.0
+
+        mid_x = (cols - 1) / 2.0
+        out[9] = abs(float(fx) - mid_x) / max(mid_x, 1.0)
+        out[9] = max(0.0, min(1.0, out[9]))
+
+        if gm is not None:
+            max_t = max(1.0, float(getattr(gm, "max_time", 300.0)))
+            cur_t = float(getattr(gm, "current_time", max_t))
+            out[10] = max(0.0, min(1.0, cur_t / max_t))
+        # [11] spare
+
+        # Step 5.1: debug-only locality check — no score or raw global state in vec
+        if getattr(self, "obs_debug_validate_locality", False):
+            assert np.all(np.isfinite(out)), "build_continuous_features: non-finite values (possible global leak)"
+            assert np.all(out >= -2.0) and np.all(out <= 2.0), (
+                "build_continuous_features: values outside [-2,2] (e.g. raw score would leak)"
+            )
+        return out
 
     # ============================================================
     # Phase 2 boat realism: public API (safe no-op if unused)
