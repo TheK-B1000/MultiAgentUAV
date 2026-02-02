@@ -23,6 +23,7 @@ from rl.curriculum import (
     CurriculumController,
     CurriculumControllerConfig,
     CurriculumState,
+    STRESS_BY_PHASE,
 )
 from rl.league import EloLeague, OpponentSpec
 from config import MAP_NAME, MAP_PATH
@@ -38,7 +39,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 1_000_000
+    total_timesteps: int = 2_500_000
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -52,7 +53,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_curriculum_v2"
+    run_tag: str = "ppo_curriculum_v4 "
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -663,11 +664,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 150, "OP2": 150, "OP3": 200},
-                min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.60},
+                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
+                min_winrate={"OP1": 0.50, "OP2": 0.50, "OP3": 0.55},
                 winrate_window=50,
-                required_win_by={"OP1": 1, "OP2": 1, "OP3": 1},
-                elo_margin=100.0,
+                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
+                elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
             )
         )
@@ -679,11 +680,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 150, "OP2": 150, "OP3": 200},
-                min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.60},
+                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
+                min_winrate={"OP1": 0.50, "OP2": 0.50, "OP3": 0.55},
                 winrate_window=50,
-                required_win_by={"OP1": 1, "OP2": 1, "OP3": 1},
-                elo_margin=100.0,
+                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
+                elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
             )
         )
@@ -711,7 +712,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
 
-    # Apply initial phase to all envs
+    # Naval realism: stress + physics-by-phase (OP1 no physics, OP2 relaxed, OP3 full)
+    try:
+        venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
+    except Exception:
+        pass
     try:
         venv.env_method("set_phase", phase_name)
     except Exception:
