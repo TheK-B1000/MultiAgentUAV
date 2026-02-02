@@ -26,6 +26,7 @@ from rl.curriculum import (
     STRESS_BY_PHASE,
 )
 from rl.league import EloLeague, OpponentSpec
+from rl.episode_result import parse_episode_result, EpisodeSummary
 from config import MAP_NAME, MAP_PATH
 
 
@@ -208,16 +209,6 @@ class LeagueCallback(BaseCallback):
             except Exception as exc:
                 print(f"[WARN] league snapshot cleanup failed: {exc}")
 
-    def _opponent_key(self, info: Dict[str, Any]) -> str:
-        kind = str(info.get("opponent_kind", "scripted")).upper()
-        if kind == "SNAPSHOT":
-            return str(info.get("opponent_snapshot", ""))
-        if kind == "SPECIES":
-            tag = str(info.get("species_tag", "BALANCED")).upper()
-            return f"SPECIES:{tag}"
-        tag = str(info.get("scripted_tag", "OP3")).upper()
-        return f"SCRIPTED:{tag}"
-
     def _select_next_opponent(self) -> OpponentSpec:
         return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
 
@@ -229,14 +220,14 @@ class LeagueCallback(BaseCallback):
             if not done:
                 continue
             info = infos[i] if i < len(infos) else {}
-            ep = info.get("episode_result", None)
-            if not isinstance(ep, dict):
+            summary = parse_episode_result(info)
+            if summary is None:
                 continue
 
             self.episode_idx += 1
-            blue_score = int(ep.get("blue_score", 0))
-            red_score = int(ep.get("red_score", 0))
-            win_by = int(blue_score - red_score)
+            blue_score = summary.blue_score
+            red_score = summary.red_score
+            win_by = summary.win_by
 
             if blue_score > red_score:
                 result = "WIN"
@@ -254,7 +245,7 @@ class LeagueCallback(BaseCallback):
                 win = False
                 self.draw_count += 1
 
-            opp_key = self._opponent_key(ep)
+            opp_key = summary.opponent_key()
             self.league.update_elo(opp_key, actual)
             self.controller.record_result(opp_key, actual)
 
@@ -347,14 +338,14 @@ class CurriculumNoLeagueCallback(BaseCallback):
             if not done:
                 continue
             info = infos[i] if i < len(infos) else {}
-            ep = info.get("episode_result", None)
-            if not isinstance(ep, dict):
+            summary = parse_episode_result(info)
+            if summary is None:
                 continue
 
             self.episode_idx += 1
-            blue_score = int(ep.get("blue_score", 0))
-            red_score = int(ep.get("red_score", 0))
-            win_by = int(blue_score - red_score)
+            blue_score = summary.blue_score
+            red_score = summary.red_score
+            win_by = summary.win_by
 
             if blue_score > red_score:
                 result = "WIN"
@@ -373,7 +364,6 @@ class CurriculumNoLeagueCallback(BaseCallback):
             self.curriculum.phase_episode_count += 1
             self.curriculum.record_result(phase, actual)
 
-            # Advance phase when criteria met (no ELO; pass ratings so ELO check passes and min_episodes/min_winrate/win_by matter)
             self.curriculum.advance_if_ready(
                 learner_rating=1300.0,
                 opponent_rating=1200.0,
@@ -435,13 +425,13 @@ class SelfPlayCallback(BaseCallback):
             if not done:
                 continue
             info = infos[i] if i < len(infos) else {}
-            ep = info.get("episode_result", None)
-            if not isinstance(ep, dict):
+            summary = parse_episode_result(info)
+            if summary is None:
                 continue
 
             self.episode_idx += 1
-            blue_score = int(ep.get("blue_score", 0))
-            red_score = int(ep.get("red_score", 0))
+            blue_score = summary.blue_score
+            red_score = summary.red_score
             if blue_score > red_score:
                 result = "WIN"
                 self.win_count += 1
@@ -527,13 +517,13 @@ class FixedOpponentCallback(BaseCallback):
             if not done:
                 continue
             info = infos[i] if i < len(infos) else {}
-            ep = info.get("episode_result", None)
-            if not isinstance(ep, dict):
+            summary = parse_episode_result(info)
+            if summary is None:
                 continue
 
             self.episode_idx += 1
-            blue_score = int(ep.get("blue_score", 0))
-            red_score = int(ep.get("red_score", 0))
+            blue_score = summary.blue_score
+            red_score = summary.red_score
 
             if blue_score > red_score:
                 result = "WIN"
@@ -546,7 +536,7 @@ class FixedOpponentCallback(BaseCallback):
                 self.draw_count += 1
 
             if self.verbose:
-                opp = str(ep.get("scripted_tag", self.cfg.fixed_opponent_tag)).upper()
+                opp = str(summary.scripted_tag or self.cfg.fixed_opponent_tag).upper()
                 print(
                     f"[PPO|FIXED] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} opp=SCRIPTED:{opp} "
@@ -629,10 +619,11 @@ class NoiseMetricsCSVCallback(BaseCallback):
 
             # Episode end
             if env_i < len(dones) and bool(dones[env_i]):
-                epinfo = info.get("episode", {})
-                ep_result = info.get("episode_result", {})
-                phase = str(info.get("phase", ep_result.get("phase_name", "")) or "")
+                summary = parse_episode_result(info)
+                if summary is None:
+                    continue
 
+                phase = summary.phase_name
                 agents = int(info.get("num_agents", 2))
                 action_components = int(info.get("action_components", 2))
                 total_actions = int(self.ep_steps * agents * action_components)
@@ -641,14 +632,13 @@ class NoiseMetricsCSVCallback(BaseCallback):
                 macro_rate = (self.macro_flip_count / total_actions) if total_actions > 0 else 0.0
                 target_rate = (self.target_flip_count / total_actions) if total_actions > 0 else 0.0
 
-                # Pull existing episode metrics
-                win = int(ep_result.get("success", 0) or 0)
-                score_for = int(ep_result.get("blue_score", 0))
-                score_against = int(ep_result.get("red_score", 0))
-                collisions = int(ep_result.get("collisions_per_episode", 0))
-                coverage = float(ep_result.get("zone_coverage", np.nan))
-                mean_dist = float(ep_result.get("mean_inter_robot_dist", np.nan))
-                std_dist = float(ep_result.get("std_inter_robot_dist", np.nan))
+                win = summary.success
+                score_for = summary.blue_score
+                score_against = summary.red_score
+                collisions = summary.collisions_per_episode
+                coverage = summary.zone_coverage if summary.zone_coverage is not None else float("nan")
+                mean_dist = summary.mean_inter_robot_dist if summary.mean_inter_robot_dist is not None else float("nan")
+                std_dist = summary.std_inter_robot_dist if summary.std_inter_robot_dist is not None else float("nan")
 
                 row = [
                     self.run_id, phase, self.episode_idx, self.ep_steps, agents, self.eps,
@@ -708,26 +698,26 @@ class MetricsCSVCallback(BaseCallback):
             if not done:
                 continue
             info = infos[i] if i < len(infos) else {}
-            ep = info.get("episode_result")
-            if not isinstance(ep, dict):
+            summary = parse_episode_result(info)
+            if summary is None:
                 continue
             self._episode_id += 1
             row = {
                 "episode_id": self._episode_id,
-                "success": ep.get("success", 1 if ep.get("blue_score", 0) > ep.get("red_score", 0) else 0),
-                "time_to_first_score": ep.get("time_to_first_score"),
-                "time_to_game_over": ep.get("time_to_game_over"),
-                "collisions_per_episode": ep.get("collisions_per_episode", 0),
-                "near_misses_per_episode": ep.get("near_misses_per_episode", 0),
-                "collision_free_episode": ep.get("collision_free_episode", 1),
-                "mean_inter_robot_dist": ep.get("mean_inter_robot_dist"),
-                "std_inter_robot_dist": ep.get("std_inter_robot_dist"),
-                "zone_coverage": ep.get("zone_coverage"),
-                "phase_name": ep.get("phase_name", ""),
-                "opponent_kind": ep.get("opponent_kind", ""),
-                "scripted_tag": ep.get("scripted_tag") or "",
-                "blue_score": ep.get("blue_score", 0),
-                "red_score": ep.get("red_score", 0),
+                "success": summary.success,
+                "time_to_first_score": summary.time_to_first_score,
+                "time_to_game_over": summary.time_to_game_over,
+                "collisions_per_episode": summary.collisions_per_episode,
+                "near_misses_per_episode": summary.near_misses_per_episode,
+                "collision_free_episode": summary.collision_free_episode,
+                "mean_inter_robot_dist": summary.mean_inter_robot_dist,
+                "std_inter_robot_dist": summary.std_inter_robot_dist,
+                "zone_coverage": summary.zone_coverage,
+                "phase_name": summary.phase_name,
+                "opponent_kind": summary.opponent_kind,
+                "scripted_tag": summary.scripted_tag or "",
+                "blue_score": summary.blue_score,
+                "red_score": summary.red_score,
             }
             self._rows.append(row)
         return True
