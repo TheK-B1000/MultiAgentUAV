@@ -53,7 +53,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_curriculum_v3 "
+    run_tag: str = "ppo_curriculum_old_v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -66,7 +66,7 @@ class PPOConfig:
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
 
-    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    mode: str = TrainMode.CURRICULUM_NO_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
