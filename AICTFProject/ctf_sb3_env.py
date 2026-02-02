@@ -56,9 +56,12 @@ class CTFGameFieldSB3Env(gym.Env):
         action_flip_prob: float = 0.0,
         # Zero-shot scalability: max blue agents; tokenized obs/action when > 2
         max_blue_agents: int = 2,
+        # Verification: print obs/action shapes once per reset (Sprint A)
+        print_reset_shapes: bool = False,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
+        self._print_reset_shapes = bool(print_reset_shapes)
 
         self.max_decision_steps = int(max_decision_steps)
         self.enforce_masks = bool(enforce_masks)
@@ -580,7 +583,7 @@ class CTFGameFieldSB3Env(gym.Env):
         # Apply stress/realism for current phase (OP1 no physics, OP2 relaxed, OP3 full)
         self._apply_stress_for_phase(self._phase_name)
 
-        # Sync macro/target dims from GameField
+        # Sync macro/target dims from GameField (Sprint C: n_targets fixed for all team sizes)
         self._n_macros = int(getattr(self.gf, "n_macros", 5))
         self._n_targets = int(getattr(self.gf, "num_macro_targets", 8) or 8)
 
@@ -674,6 +677,17 @@ class CTFGameFieldSB3Env(gym.Env):
                 pass
 
         obs = self._get_obs()
+        if self._print_reset_shapes:
+            try:
+                mask_shape = obs["mask"].shape if "mask" in obs else None
+                am_shape = obs["agent_mask"].shape if "agent_mask" in obs else None
+                nvec = getattr(self.action_space, "nvec", None)
+                print(
+                    "[CTFEnv] reset shapes: grid=%s vec=%s mask=%s agent_mask=%s action_space.nvec=%s"
+                    % (obs["grid"].shape, obs["vec"].shape, mask_shape, am_shape, nvec)
+                )
+            except Exception:
+                pass
         return obs, {}
 
     def step(self, action: np.ndarray):
