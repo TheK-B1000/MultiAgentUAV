@@ -48,6 +48,8 @@ class CTFGameFieldSB3Env(gym.Env):
         default_opponent_key: str = "OP1",
         # Must match PPO gamma for PBRS invariance (if manager uses shaping)
         ppo_gamma: float = 0.995,
+        # Action execution noise (reliability metric)
+        action_flip_prob: float = 0.0,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
@@ -136,6 +138,10 @@ class CTFGameFieldSB3Env(gym.Env):
         self._opponent_snapshot_path: Optional[str] = None
         self._opponent_species_tag: str = "BALANCED"
         self._opponent_scripted_tag: str = "OP1"
+
+        # Action execution noise (reliability tracking)
+        self.action_flip_prob = float(max(0.0, min(1.0, action_flip_prob)))
+        self._action_rng = np.random.RandomState(int(seed) + 1000)  # Separate RNG for action noise
 
     # -----------------------------
     # Dynamics config hook (SB3 SubprocVecEnv expects this if you env_method it)
@@ -622,10 +628,43 @@ class CTFGameFieldSB3Env(gym.Env):
         assert self.gf is not None, "Call reset() first"
         self._decision_step_count += 1
 
-        b0_macro, b0_tgt, b1_macro, b1_tgt = map(int, np.asarray(action).reshape(-1).tolist())
+        # Parse intended actions
+        b0_macro_intended, b0_tgt_intended, b1_macro_intended, b1_tgt_intended = map(int, np.asarray(action).reshape(-1).tolist())
 
-        b0_macro, b0_tgt = self._sanitize_action_for_agent(0, b0_macro, b0_tgt)
-        b1_macro, b1_tgt = self._sanitize_action_for_agent(1, b1_macro, b1_tgt)
+        # Apply action execution noise (independent flips for macro and target per agent)
+        b0_macro_exec = b0_macro_intended
+        b0_tgt_exec = b0_tgt_intended
+        b1_macro_exec = b1_macro_intended
+        b1_tgt_exec = b1_tgt_intended
+
+        flip_count_step = 0
+        macro_flip_count_step = 0
+        target_flip_count_step = 0
+
+        if self.action_flip_prob > 0.0:
+            # Agent 0 macro flip
+            if self._action_rng.rand() < self.action_flip_prob:
+                b0_macro_exec = int(self._action_rng.randint(0, self._n_macros))
+                flip_count_step += 1
+                macro_flip_count_step += 1
+            # Agent 0 target flip
+            if self._action_rng.rand() < self.action_flip_prob:
+                b0_tgt_exec = int(self._action_rng.randint(0, self._n_targets))
+                flip_count_step += 1
+                target_flip_count_step += 1
+            # Agent 1 macro flip
+            if self._action_rng.rand() < self.action_flip_prob:
+                b1_macro_exec = int(self._action_rng.randint(0, self._n_macros))
+                flip_count_step += 1
+                macro_flip_count_step += 1
+            # Agent 1 target flip
+            if self._action_rng.rand() < self.action_flip_prob:
+                b1_tgt_exec = int(self._action_rng.randint(0, self._n_targets))
+                flip_count_step += 1
+                target_flip_count_step += 1
+
+        b0_macro, b0_tgt = self._sanitize_action_for_agent(0, b0_macro_exec, b0_tgt_exec)
+        b1_macro, b1_tgt = self._sanitize_action_for_agent(1, b1_macro_exec, b1_tgt_exec)
         self._record_macro_usage(0, b0_macro)
         self._record_macro_usage(1, b1_macro)
 
@@ -659,6 +698,14 @@ class CTFGameFieldSB3Env(gym.Env):
         obs = self._get_obs()
 
         info: Dict[str, Any] = {}
+        # Add noise metrics to info every step (for callback tracking)
+        info["flip_count_step"] = int(flip_count_step)
+        info["macro_flip_count_step"] = int(macro_flip_count_step)
+        info["target_flip_count_step"] = int(target_flip_count_step)
+        info["num_agents"] = int(self._n_blue_agents)
+        info["action_components"] = 2  # macro + target per agent
+        info["phase"] = str(self._phase_name)
+
         if terminated or truncated:
             # Optional terminal shaping/bonus
             if hasattr(gm, "terminal_outcome_bonus"):
