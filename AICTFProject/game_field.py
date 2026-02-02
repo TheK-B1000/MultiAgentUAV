@@ -1059,9 +1059,6 @@ class GameField:
 
     def set_red_opponent(self, mode: str) -> None:
         mode = str(mode).upper()
-        # Only OP3_EASY, OP3, OP3_HARD (+ OP1/OP2); redirect deprecated variants to OP3
-        if mode in ("OP3_ADAPTIVE", "OP3ADAPTIVE", "OP3_SYNC", "OP3SYNC", "OP3_EVASIVE", "OP3EVASIVE"):
-            mode = "OP3"
         self.opponent_mode = mode
         if mode == "OP1":
             self.red_agents_per_team_override = None
