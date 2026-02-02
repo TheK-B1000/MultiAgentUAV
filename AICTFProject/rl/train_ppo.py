@@ -66,6 +66,12 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         self.cnn = NatureCNN(single_grid, features_dim=cnn_output_dim, normalized_image=normalized_image)
         self.vec_dim = V
         features_dim = M * cnn_output_dim + M * V
+        # Optional opponent context: shape (1,) when include_opponent_context=True
+        context_space = spaces_dict.get("context")
+        self._context_dim = 0
+        if context_space is not None and hasattr(context_space, "shape"):
+            self._context_dim = int(np.prod(context_space.shape))
+            features_dim += self._context_dim
         super().__init__(observation_space, features_dim)
 
     def forward(self, observations):
@@ -805,6 +811,7 @@ class MetricsCSVCallback(BaseCallback):
         "blue_score",
         "red_score",
         "opponent_switch_count",  # Step 4.2: cumulative opponent switches so far
+        "vec_schema_version",
     ]
 
     def __init__(self, *, save_path: str) -> None:
@@ -1112,22 +1119,35 @@ def run_verify_4v4(num_episodes: int = 10) -> None:
 
 
 def run_test_vec_schema() -> None:
-    """Step 2.2 verification: GameField.build_continuous_features returns float32 shape (12,), finite."""
+    """
+    Step 2.2 verification: GameField.build_continuous_features(agent) takes an Agent instance
+    (not agent_id) and returns float32 shape (12,), finite, in schema bounds.
+    """
     from game_field import GameField
     from config import MAP_NAME, MAP_PATH
-    gf = make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None)
-    gf.reset_default()
     V = 12
     assert hasattr(GameField, "VEC_SCHEMA_VERSION"), "GameField missing VEC_SCHEMA_VERSION"
     assert getattr(GameField, "VEC_SCHEMA_VERSION", 0) >= 1, "VEC_SCHEMA_VERSION must be >= 1"
-    for agent in getattr(gf, "blue_agents", []) or []:
+
+    gf = make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None)
+    gf.reset_default()
+    blue_agents = getattr(gf, "blue_agents", []) or []
+    assert blue_agents, "No blue agents after reset_default"
+
+    for agent in blue_agents:
         if agent is None:
             continue
+        # Signature: build_continuous_features(self, agent: Agent) — agent is an object, not an id
         vec = gf.build_continuous_features(agent)
-        assert vec.dtype == np.float32, f"build_continuous_features dtype {vec.dtype}, expected float32"
-        assert vec.shape == (V,), f"build_continuous_features shape {vec.shape}, expected ({V},)"
-        assert np.all(np.isfinite(vec)), f"build_continuous_features had non-finite values: {vec}"
-    print("[test-vec-schema] GameField.build_continuous_features: dtype=float32, shape=(12,), all finite. OK.")
+        vec = np.asarray(vec, dtype=np.float32)
+        assert vec.dtype == np.float32, f"dtype {vec.dtype}, expected float32"
+        assert vec.shape == (V,), f"shape {vec.shape}, expected ({V},)"
+        assert np.all(np.isfinite(vec)), f"non-finite values: {vec}"
+        # Schema VEC_SCHEMA_VERSION==1: norm coords [0,1], heading [-1,1], speed [0,1], deltas clipped [-1,1], etc.
+        assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
+            f"vec values outside expected schema bounds [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
+        )
+    print("[test-vec-schema] GameField.build_continuous_features(agent): dtype=float32, shape=(12,), finite, in bounds. OK.")
 
 
 if __name__ == "__main__":
