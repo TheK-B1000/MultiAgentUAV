@@ -285,8 +285,19 @@ class Agent:
             self._vel_y = 0.0
             return
 
+        # Speed multiplier from GameManager (red_speed_mult / blue_speed_mult from dynamics_config)
+        speed_mult = 1.0
+        gm = getattr(self, "game_manager", None)
+        if gm is not None and hasattr(gm, "get_agent_speed_multiplier"):
+            try:
+                speed_mult = float(gm.get_agent_speed_multiplier(self))
+            except Exception:
+                speed_mult = 1.0
+        if not math.isfinite(speed_mult) or speed_mult <= 0.0:
+            speed_mult = 1.0
+
         # Continuous movement budget in "cells"
-        remaining = float(self.move_rate_cps) * float(dt)
+        remaining = float(self.move_rate_cps) * speed_mult * float(dt)
 
         # Move along path continuously, possibly consuming multiple segments
         while remaining > 1e-8 and self.path:
