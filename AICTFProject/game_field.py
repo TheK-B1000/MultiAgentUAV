@@ -1028,16 +1028,40 @@ class GameField:
         self.policies["red"] = red
 
     def set_opponent_params(self, params: Any) -> None:
-        """Apply OpponentParams (speed_mult, deception_prob, coordinated_attack, attack_sync_window, noise_sigma)."""
+        """Apply OpponentParams into game_field.red_* and manager dynamics_config (one consistent place)."""
         if params is None:
             return
+        # Store for debugging
+        self.opponent_params = params
+
+        # ------------- OP3 behavior knobs -------------
         self.red_speed_scale = float(getattr(params, "speed_mult", 1.0))
         self.red_deception_prob = float(getattr(params, "deception_prob", 0.0))
         self.red_sync_attack = bool(getattr(params, "coordinated_attack", False))
         self.red_attack_sync_window = max(0, int(getattr(params, "attack_sync_window", 0)))
+        # Sync "sync attack now" so policies see it immediately
+        self.red_sync_attack_now = bool(getattr(params, "coordinated_attack", False))
+
+        # Feint countdowns per red agent (OP3 reads this list by agent_id)
+        n_red = len(getattr(self, "red_agents", []) or [])
+        if not isinstance(getattr(self, "red_agent_feint_remaining", None), list) or len(self.red_agent_feint_remaining) != n_red:
+            self.red_agent_feint_remaining = [0 for _ in range(max(2, n_red))]
+
+        # ------------- Speed knob (movement layer via GameManager) -------------
+        gm = getattr(self, "manager", None)
+        if gm is not None and hasattr(gm, "set_dynamics_config"):
+            cfg = dict(getattr(gm, "dynamics_config", None) or {})
+            cfg["red_speed_mult"] = float(getattr(params, "speed_mult", 1.0))
+            gm.set_dynamics_config(cfg)
+
+        # ------------- Noise knob (optional) -------------
+        self.red_noise_sigma = float(getattr(params, "noise_sigma", 0.0))
 
     def set_red_opponent(self, mode: str) -> None:
         mode = str(mode).upper()
+        # Only OP3_EASY, OP3, OP3_HARD (+ OP1/OP2); redirect deprecated variants to OP3
+        if mode in ("OP3_ADAPTIVE", "OP3ADAPTIVE", "OP3_SYNC", "OP3SYNC", "OP3_EVASIVE", "OP3EVASIVE"):
+            mode = "OP3"
         self.opponent_mode = mode
         if mode == "OP1":
             self.red_agents_per_team_override = None
@@ -1102,71 +1126,6 @@ class GameField:
                 assist_radius_mult=2.0,
                 defense_weight=3.0,
                 flag_weight=1.0,
-            )
-        elif mode in ("OP3_ADAPTIVE", "OP3ADAPTIVE"):
-            # Speed variation + deceptive approaches (curriculum: adaptive adversaries)
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.0
-            self.red_speed_min = 0.85
-            self.red_speed_max = 1.15
-            self.red_deception_prob = 0.3
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=2.0,
-                defense_radius_cells=5.0,
-                patrol_radius_cells=3,
-                assist_radius_mult=1.5,
-                defense_weight=2.0,
-                flag_weight=2.0,
-                deception_prob=0.3,
-            )
-        elif mode in ("OP3_SYNC", "OP3SYNC"):
-            # Coordinated multi-agent attack (synchronized rush)
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.0
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.0
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = True
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=2.0,
-                defense_radius_cells=5.0,
-                patrol_radius_cells=3,
-                assist_radius_mult=1.5,
-                defense_weight=2.0,
-                flag_weight=2.0,
-            )
-        elif mode in ("OP3_EVASIVE", "OP3EVASIVE"):
-            # Evasion strategies (dodge, retreat when pressured)
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.05
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.15
-            self.red_evasion_prob = 0.4
-            self.red_sync_attack = False
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=2.2,
-                defense_radius_cells=5.0,
-                patrol_radius_cells=3,
-                assist_radius_mult=1.8,
-                defense_weight=2.5,
-                flag_weight=1.5,
-                deception_prob=0.15,
             )
         else:
             self.red_agents_per_team_override = None
