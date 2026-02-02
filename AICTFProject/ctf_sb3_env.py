@@ -841,11 +841,14 @@ class CTFGameFieldSB3Env(gym.Env):
         info["action_components"] = 2  # macro + target per agent
         info["phase"] = str(self._phase_name)
 
+        reward_team = float(reward)
+
         if terminated or truncated:
-            # Optional terminal shaping/bonus
+            # Optional terminal shaping/bonus (added to team reward only)
+            terminal_bonus = 0.0
             if hasattr(gm, "terminal_outcome_bonus"):
                 try:
-                    reward += float(
+                    terminal_bonus = float(
                         gm.terminal_outcome_bonus(
                             int(getattr(gm, "blue_score", 0)),
                             int(getattr(gm, "red_score", 0)),
@@ -853,8 +856,11 @@ class CTFGameFieldSB3Env(gym.Env):
                     )
                 except Exception:
                     pass
+            reward_team = reward_team + terminal_bonus
+            info["reward_team"] = reward_team
+            info["reward_blue_team"] = reward_team
 
-            self._episode_reward_total += float(reward)
+            self._episode_reward_total += float(reward_team)
 
             blue_score = int(getattr(gm, "blue_score", 0))
             red_score = int(getattr(gm, "red_score", 0))
@@ -908,9 +914,11 @@ class CTFGameFieldSB3Env(gym.Env):
                 "vec_schema_version": int(getattr(self.gf, "VEC_SCHEMA_VERSION", 1)),
             }
         else:
-            self._episode_reward_total += float(reward)
+            self._episode_reward_total += float(reward_team)
 
-        return obs, float(reward), terminated, truncated, info
+        # TEAM_SUM: return team scalar; PER_AGENT: still return team scalar for SB3 (per-agent in info).
+        step_reward = float(reward_team)
+        return obs, step_reward, terminated, truncated, info
 
     # -----------------
     # Observation helpers
@@ -928,6 +936,9 @@ class CTFGameFieldSB3Env(gym.Env):
                 blue[:n_slots],
                 max_agents=n_slots,
                 include_mask=self.include_mask_in_obs,
+                include_context=self._include_opponent_context,
+                context_value=float(self._opponent_context_id()) if self._include_opponent_context else None,
+                debug_locality=self._obs_debug_validate_locality,
                 tokenized=(self._max_blue_agents > 2),
                 vec_size_base=self._base_vec_per_agent,
                 n_macros=self._n_macros,
@@ -935,8 +946,6 @@ class CTFGameFieldSB3Env(gym.Env):
                 role_macro_mask_fn=self._apply_role_macro_mask,
                 vec_append_fn=self._append_high_level_mode,
             )
-            if self._include_opponent_context:
-                out["context"] = np.array([float(self._opponent_context_id())], dtype=np.float32)
             return out
 
         # Legacy path (rollback when use_obs_builder=False)

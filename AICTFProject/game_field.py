@@ -540,6 +540,10 @@ class GameField:
           [10] time_frac        : current_time / max_time in [0, 1]
           [11] spare            : 0.0 (reserved)
         """
+        # Locality contract: uses ONLY agent local state, local sensory (flag positions as
+        # base/last-known), and time fraction. Does NOT use: score, ground-truth enemy
+        # positions, or any oracle state. Optionally last-seen enemy info (memory) is
+        # allowed; raw red_agents[].x/y are forbidden.
         V = 12
         out = np.zeros((V,), dtype=np.float32)
         if agent is None:
