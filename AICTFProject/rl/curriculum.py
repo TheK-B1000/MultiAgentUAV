@@ -8,17 +8,25 @@ from collections import deque
 
 from rl.league import EloLeague, OpponentSpec
 
-# Curriculum Axis 2: environment stress by phase (optional). Pass to env_method("set_stress_schedule", STRESS_BY_PHASE).
-# When set_phase(phase) is called, env applies these knobs for that phase (current, action delay, sensor noise).
+# Curriculum Axis 2: environment stress + naval realism by phase.
+# Pass to env_method("set_stress_schedule", STRESS_BY_PHASE). When set_phase(phase) is called,
+# env applies: physics_enabled (ASV kinematics + maritime sensors), stress knobs, and relaxed_dynamics for OP2.
+# OP1 = no physics so blue learns CTF first; OP2 = physics on with relaxed stress; OP3 = full realism.
 STRESS_BY_PHASE: Dict[str, Dict[str, Any]] = {
-    "OP1": {},
+    "OP1": {
+        "physics_enabled": False,
+    },
     "OP2": {
-        "current_strength_cps": 0.05,
-        "action_delay_steps": 1,
-        "sensor_noise_sigma_cells": 0.1,
+        "physics_enabled": True,
+        "relaxed_dynamics": True,
+        "current_strength_cps": 0.02,
+        "action_delay_steps": 0,
+        "sensor_noise_sigma_cells": 0.05,
         "sensor_dropout_prob": 0.0,
     },
     "OP3": {
+        "physics_enabled": True,
+        "relaxed_dynamics": False,
         "current_strength_cps": 0.12,
         "drift_sigma_cells": 0.03,
         "action_delay_steps": 2,
@@ -114,10 +122,10 @@ class CurriculumControllerConfig:
     seed: int = 42
     op3_tiers: List[str] = field(default_factory=lambda: ["OP3_EASY", "OP3", "OP3_HARD"])
     window: int = 50
-    min_episodes_per_tier: int = 60
-    promote_winrate: float = 0.70
-    demote_winrate: float = 0.30
-    easy_op3_trigger_winrate: float = 0.70
+    min_episodes_per_tier: int = 80
+    promote_winrate: float = 0.65
+    demote_winrate: float = 0.25
+    easy_op3_trigger_winrate: float = 0.65
     easy_op3_prob: float = 0.60
 
     enable_species: bool = True
