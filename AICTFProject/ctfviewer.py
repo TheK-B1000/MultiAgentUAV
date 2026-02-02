@@ -1,5 +1,7 @@
 import os
 import sys
+import csv
+import math
 from typing import Optional, Tuple, Any, List, Dict
 
 import numpy as np
@@ -571,7 +573,12 @@ class SB3TeamHPPOPolicy:
         return macro, target
 
 class CTFViewer:
-    def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH):
+    def __init__(
+        self,
+        ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
+        hppo_low_path: str = DEFAULT_HPPO_LOW_MODEL_PATH,
+        hppo_high_path: str = DEFAULT_HPPO_HIGH_MODEL_PATH,
+    ):
         if MAP_NAME or MAP_PATH:
             base = make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None)
             grid = [list(row) for row in getattr(base, "grid", [[0] * 20 for _ in range(20)])]
@@ -634,8 +641,8 @@ class CTFViewer:
 
         self.blue_ppo_team = SB3TeamPPOPolicy(ppo_model_path, self.game_field, deterministic=True)
         self.blue_hppo_team = SB3TeamHPPOPolicy(
-            DEFAULT_HPPO_LOW_MODEL_PATH,
-            DEFAULT_HPPO_HIGH_MODEL_PATH,
+            hppo_low_path,
+            hppo_high_path,
             self.game_field,
             deterministic=True,
         )
@@ -761,6 +768,243 @@ class CTFViewer:
 
         pg.quit()
         sys.exit()
+
+    # ----------------------------
+    # Evaluation mode: run N episodes and collect metrics
+    # ----------------------------
+    def evaluate_model(
+        self,
+        num_episodes: int = 100,
+        save_csv: Optional[str] = None,
+        headless: bool = False,
+        opponent: str = "OP3",
+    ) -> Dict[str, Any]:
+        """
+        Evaluate trained model performance by running N episodes and collecting IROS-style metrics.
+
+        Args:
+            num_episodes: Number of episodes to run
+            save_csv: Path to save CSV (e.g., "eval_results.csv"). If None, auto-generates name.
+            headless: If True, run without display (faster). If False, show viewer.
+            opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD")
+
+        Returns:
+            Dict with summary statistics and per-episode metrics
+        """
+        if not headless:
+            print("[Eval] Running with display (headless=False). Press ESC to stop early.")
+        else:
+            print(f"[Eval] Running {num_episodes} episodes headless...")
+
+        # Ensure we're using a trained model
+        if self.blue_mode == "DEFAULT":
+            if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+                self._apply_blue_mode("PPO")
+                print("[Eval] Switched to PPO mode for evaluation")
+            elif self.blue_hppo_team and self.blue_hppo_team.model_loaded:
+                self._apply_blue_mode("HPPO")
+                print("[Eval] Switched to HPPO mode for evaluation")
+            else:
+                print("[WARN] No trained model loaded! Using DEFAULT baseline.")
+
+        # Set opponent
+        if hasattr(self.game_field, "set_red_opponent"):
+            try:
+                self.game_field.set_red_opponent(str(opponent).upper())
+            except Exception:
+                pass
+        self._set_phase_op3()
+
+        fixed_dt = 1.0 / 60.0
+        max_steps_per_episode = 900 * 60  # ~900 seconds at 60 Hz
+
+        episodes = []
+        episode_id = 0
+
+        if not headless:
+            if not pg.get_init():
+                pg.init()
+            if not hasattr(self, "screen") or self.screen is None:
+                try:
+                    self.screen = pg.display.set_mode(self.size, pg.SCALED | pg.DOUBLEBUF, vsync=1)
+                except TypeError:
+                    self.screen = pg.display.set_mode(self.size, pg.SCALED | pg.DOUBLEBUF)
+            if not hasattr(self, "clock") or self.clock is None:
+                self.clock = pg.time.Clock()
+
+        try:
+            for ep_idx in range(num_episodes):
+                episode_id += 1
+                self.game_field.reset_default()
+                self._set_phase_op3()
+                self.sim_tick = 0
+                if self.blue_ppo_team:
+                    self.blue_ppo_team.reset_cache()
+                if self.blue_hppo_team:
+                    self.blue_hppo_team.reset_cache()
+                self._reset_op3_policies()
+
+                step_count = 0
+                running_episode = True
+                while step_count < max_steps_per_episode and running_episode:
+                    if not headless:
+                        for event in pg.event.get():
+                            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+                                print(f"[Eval] Stopped early at episode {ep_idx + 1}/{num_episodes}")
+                                running_episode = False
+                                break
+
+                    self.sim_tick += 1
+                    self.game_field.update(fixed_dt)
+                    step_count += 1
+
+                    gm = self.game_manager
+                    if getattr(gm, "game_over", False):
+                        break
+
+                    if not headless:
+                        self.draw(alpha=1.0)
+                        pg.display.flip()
+                        self.clock.tick(60)
+
+                # Collect metrics from game_manager (same structure as training)
+                gm = self.game_manager
+                blue_score = int(getattr(gm, "blue_score", 0))
+                red_score = int(getattr(gm, "red_score", 0))
+                success = 1 if blue_score > red_score else 0
+
+                time_to_first = getattr(gm, "time_to_first_score", None)
+                time_to_first_score = float(time_to_first) if time_to_first is not None else None
+                time_to_game_over = getattr(gm, "time_to_game_over", None)
+                time_to_game_over_sec = float(time_to_game_over) if time_to_game_over is not None else None
+                if time_to_game_over_sec is None:
+                    time_to_game_over_sec = float(getattr(gm, "sim_time", 0.0))
+
+                collisions = int(getattr(gm, "collision_count_this_episode", 0))
+                near_misses = int(getattr(gm, "near_miss_count_this_episode", 0))
+                collision_free = 1 if collisions == 0 else 0
+
+                dists = getattr(gm, "blue_inter_robot_distances", []) or []
+                mean_inter_robot_dist = float(np.mean(dists)) if dists else None
+                std_inter_robot_dist = float(np.std(dists)) if len(dists) > 1 else (0.0 if dists else None)
+
+                visited = getattr(gm, "blue_zone_visited_cells", set()) or set()
+                total_zone = int(getattr(gm, "total_blue_zone_cells", 1)) or 1
+                zone_coverage = float(len(visited)) / float(total_zone) if total_zone > 0 else 0.0
+
+                row = {
+                    "episode_id": episode_id,
+                    "success": success,
+                    "time_to_first_score": time_to_first_score,
+                    "time_to_game_over": time_to_game_over_sec,
+                    "collisions_per_episode": collisions,
+                    "near_misses_per_episode": near_misses,
+                    "collision_free_episode": collision_free,
+                    "mean_inter_robot_dist": mean_inter_robot_dist,
+                    "std_inter_robot_dist": std_inter_robot_dist,
+                    "zone_coverage": zone_coverage,
+                    "phase_name": str(getattr(gm, "phase_name", "OP3")),
+                    "opponent_kind": "SCRIPTED",
+                    "scripted_tag": str(opponent).upper(),
+                    "blue_score": blue_score,
+                    "red_score": red_score,
+                }
+                episodes.append(row)
+
+                if (ep_idx + 1) % 10 == 0:
+                    wins = sum(1 for e in episodes if e["success"] == 1)
+                    wr = wins / len(episodes)
+                    print(f"[Eval] Episode {ep_idx + 1}/{num_episodes} | Win rate: {wr:.2%} ({wins}/{len(episodes)})")
+
+        except KeyboardInterrupt:
+            print(f"[Eval] Interrupted at episode {ep_idx + 1}/{num_episodes}")
+
+        # Compute summary statistics
+        if not episodes:
+            print("[Eval] No episodes completed!")
+            return {}
+
+        wins = sum(1 for e in episodes if e["success"] == 1)
+        losses = sum(1 for e in episodes if e["success"] == 0)
+        win_rate = wins / len(episodes)
+
+        time_to_first_scores = [e["time_to_first_score"] for e in episodes if e["time_to_first_score"] is not None]
+        time_to_game_overs = [e["time_to_game_over"] for e in episodes if e["time_to_game_over"] is not None]
+        collisions_list = [e["collisions_per_episode"] for e in episodes]
+        near_misses_list = [e["near_misses_per_episode"] for e in episodes]
+        collision_free_count = sum(1 for e in episodes if e["collision_free_episode"] == 1)
+        mean_dists = [e["mean_inter_robot_dist"] for e in episodes if e["mean_inter_robot_dist"] is not None]
+        std_dists = [e["std_inter_robot_dist"] for e in episodes if e["std_inter_robot_dist"] is not None]
+        zone_coverages = [e["zone_coverage"] for e in episodes]
+
+        summary = {
+            "num_episodes": len(episodes),
+            "win_rate": win_rate,
+            "wins": wins,
+            "losses": losses,
+            "draws": len(episodes) - wins - losses,
+            "mean_time_to_first_score": float(np.mean(time_to_first_scores)) if time_to_first_scores else None,
+            "mean_time_to_game_over": float(np.mean(time_to_game_overs)) if time_to_game_overs else None,
+            "mean_collisions_per_episode": float(np.mean(collisions_list)),
+            "mean_near_misses_per_episode": float(np.mean(near_misses_list)),
+            "collision_free_rate": collision_free_count / len(episodes),
+            "mean_inter_robot_dist": float(np.mean(mean_dists)) if mean_dists else None,
+            "mean_std_inter_robot_dist": float(np.mean(std_dists)) if std_dists else None,
+            "mean_zone_coverage": float(np.mean(zone_coverages)),
+        }
+
+        # Save CSV
+        if save_csv is None:
+            model_name = "ppo" if self.blue_mode == "PPO" else ("hppo" if self.blue_mode == "HPPO" else "default")
+            save_csv = f"eval_{model_name}_{opponent}_{len(episodes)}ep.csv"
+
+        csv_columns = [
+            "episode_id", "success", "time_to_first_score", "time_to_game_over",
+            "collisions_per_episode", "near_misses_per_episode", "collision_free_episode",
+            "mean_inter_robot_dist", "std_inter_robot_dist", "zone_coverage",
+            "phase_name", "opponent_kind", "scripted_tag", "blue_score", "red_score",
+        ]
+
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(save_csv)) or ".", exist_ok=True)
+            with open(save_csv, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=csv_columns, extrasaction="ignore")
+                w.writeheader()
+                for row in episodes:
+                    fmt_row = {}
+                    for k in csv_columns:
+                        v = row.get(k)
+                        if v is None:
+                            fmt_row[k] = ""
+                        elif isinstance(v, float):
+                            fmt_row[k] = f"{v:.6g}"
+                        else:
+                            fmt_row[k] = str(v)
+                    w.writerow(fmt_row)
+            print(f"[Eval] Saved {len(episodes)} episodes to: {save_csv}")
+        except Exception as exc:
+            print(f"[WARN] Failed to save CSV: {exc}")
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("EVALUATION SUMMARY")
+        print("=" * 60)
+        print(f"Episodes: {summary['num_episodes']}")
+        print(f"Win Rate: {summary['win_rate']:.2%} ({summary['wins']}W / {summary['losses']}L / {summary['draws']}D)")
+        if summary["mean_time_to_first_score"] is not None:
+            print(f"Mean Time to First Score: {summary['mean_time_to_first_score']:.2f}s")
+        if summary["mean_time_to_game_over"] is not None:
+            print(f"Mean Time to Game Over: {summary['mean_time_to_game_over']:.2f}s")
+        print(f"Mean Collisions/Episode: {summary['mean_collisions_per_episode']:.2f}")
+        print(f"Mean Near-Misses/Episode: {summary['mean_near_misses_per_episode']:.2f}")
+        print(f"Collision-Free Rate: {summary['collision_free_rate']:.2%}")
+        if summary["mean_inter_robot_dist"] is not None:
+            print(f"Mean Inter-Robot Distance: {summary['mean_inter_robot_dist']:.2f} cells")
+        print(f"Mean Zone Coverage: {summary['mean_zone_coverage']:.2%}")
+        print("=" * 60)
+
+        summary["episodes"] = episodes
+        return summary
 
     # ----------------------------
     # Input handling
@@ -904,4 +1148,36 @@ class CTFViewer:
 
 
 if __name__ == "__main__":
-    CTFViewer().run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="CTF Viewer - Interactive or Evaluation Mode")
+    parser.add_argument("--eval", type=int, metavar="N", help="Run evaluation mode: run N episodes and save metrics CSV")
+    parser.add_argument("--eval-csv", type=str, metavar="PATH", help="CSV output path for evaluation (default: auto-generated)")
+    parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
+    parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD)")
+    parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
+    parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
+    parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
+
+    args = parser.parse_args()
+
+    viewer = CTFViewer(
+        ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
+        hppo_low_path=args.hppo_low or DEFAULT_HPPO_LOW_MODEL_PATH,
+        hppo_high_path=args.hppo_high or DEFAULT_HPPO_HIGH_MODEL_PATH,
+    )
+
+    if args.eval is not None:
+        # Evaluation mode
+        summary = viewer.evaluate_model(
+            num_episodes=args.eval,
+            save_csv=args.eval_csv,
+            headless=args.headless,
+            opponent=args.opponent,
+        )
+        if not args.headless:
+            print("\n[Eval] Evaluation complete. Viewer window will close.")
+            viewer.run()  # Show final state
+    else:
+        # Interactive mode
+        viewer.run()
