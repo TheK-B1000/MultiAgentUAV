@@ -39,7 +39,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 2_500_000
+    total_timesteps: int = 2_000_000
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -53,7 +53,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_curriculum_v4 "
+    run_tag: str = "ppo_curriculum_v3 "
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -72,6 +72,9 @@ class PPOConfig:
     self_play_snapshot_every_episodes: int = 25
     self_play_max_snapshots: int = 25
 
+    # Action execution noise (reliability metrics)
+    action_flip_prob: float = 0.0
+
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
     def _fn():
@@ -89,6 +92,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             default_opponent_kind=default_opponent[0],
             default_opponent_key=default_opponent[1],
             ppo_gamma=cfg.gamma,
+            action_flip_prob=getattr(cfg, "action_flip_prob", 0.0),
         )
         return env
     return _fn
@@ -556,6 +560,120 @@ class FixedOpponentCallback(BaseCallback):
         return True
 
 
+class NoiseMetricsCSVCallback(BaseCallback):
+    """Track action execution noise (flip rates, streaks) and log to CSV per episode."""
+
+    def __init__(self, csv_path: str, eps: float, run_id: str, verbose: int = 0):
+        super().__init__(verbose)
+        self.csv_path = str(csv_path)
+        self.eps = float(eps)
+        self.run_id = str(run_id)
+        self._reset_ep()
+
+        os.makedirs(os.path.dirname(os.path.abspath(self.csv_path)) or ".", exist_ok=True)
+        self._ensure_header()
+
+    def _ensure_header(self):
+        if os.path.exists(self.csv_path) and os.path.getsize(self.csv_path) > 0:
+            return
+        headers = [
+            "run_id", "phase", "episode_idx", "steps", "agents", "eps",
+            "total_actions", "flip_count", "flip_rate",
+            "macro_flip_count", "macro_flip_rate",
+            "target_flip_count", "target_flip_rate",
+            "max_flip_streak",
+            "win", "score_for", "score_against",
+            "collisions", "coverage",
+            "mean_inter_robot_dist", "std_inter_robot_dist",
+        ]
+        with open(self.csv_path, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(headers)
+
+    def _reset_ep(self):
+        self.ep_steps = 0
+        self.flip_count = 0
+        self.macro_flip_count = 0
+        self.target_flip_count = 0
+        self.curr_streak = None
+        self.max_streak = 0
+        self.episode_idx = 0
+
+    def _on_training_start(self):
+        n_envs = getattr(self.training_env, "num_envs", 1)
+        self.curr_streak = np.zeros(n_envs, dtype=np.int32)
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+
+        for env_i, info in enumerate(infos):
+            self.ep_steps += 1
+
+            flips = int(info.get("flip_count_step", 0))
+            macro_flips = int(info.get("macro_flip_count_step", 0))
+            target_flips = int(info.get("target_flip_count_step", 0))
+
+            self.flip_count += flips
+            self.macro_flip_count += macro_flips
+            self.target_flip_count += target_flips
+
+            # Streak tracking
+            if flips > 0:
+                if env_i < len(self.curr_streak):
+                    self.curr_streak[env_i] += 1
+                    if self.curr_streak[env_i] > self.max_streak:
+                        self.max_streak = int(self.curr_streak[env_i])
+            else:
+                if env_i < len(self.curr_streak):
+                    self.curr_streak[env_i] = 0
+
+            # Episode end
+            if env_i < len(dones) and bool(dones[env_i]):
+                epinfo = info.get("episode", {})
+                ep_result = info.get("episode_result", {})
+                phase = str(info.get("phase", ep_result.get("phase_name", "")) or "")
+
+                agents = int(info.get("num_agents", 2))
+                action_components = int(info.get("action_components", 2))
+                total_actions = int(self.ep_steps * agents * action_components)
+
+                flip_rate = (self.flip_count / total_actions) if total_actions > 0 else 0.0
+                macro_rate = (self.macro_flip_count / total_actions) if total_actions > 0 else 0.0
+                target_rate = (self.target_flip_count / total_actions) if total_actions > 0 else 0.0
+
+                # Pull existing episode metrics
+                win = int(ep_result.get("success", 0) or 0)
+                score_for = int(ep_result.get("blue_score", 0))
+                score_against = int(ep_result.get("red_score", 0))
+                collisions = int(ep_result.get("collisions_per_episode", 0))
+                coverage = float(ep_result.get("zone_coverage", np.nan))
+                mean_dist = float(ep_result.get("mean_inter_robot_dist", np.nan))
+                std_dist = float(ep_result.get("std_inter_robot_dist", np.nan))
+
+                row = [
+                    self.run_id, phase, self.episode_idx, self.ep_steps, agents, self.eps,
+                    total_actions, self.flip_count, flip_rate,
+                    self.macro_flip_count, macro_rate,
+                    self.target_flip_count, target_rate,
+                    self.max_streak,
+                    win, score_for, score_against,
+                    collisions, coverage,
+                    mean_dist, std_dist,
+                ]
+
+                try:
+                    with open(self.csv_path, "a", newline="", encoding="utf-8") as f:
+                        csv.writer(f).writerow(row)
+                except Exception as exc:
+                    if self.verbose:
+                        print(f"[NoiseMetrics] CSV write failed: {exc}")
+
+                self.episode_idx += 1
+                self._reset_ep()
+
+        return True
+
+
 class MetricsCSVCallback(BaseCallback):
     """Collect Top 5 IROS-style metrics per episode and write one CSV at end of training (publish-friendly)."""
 
@@ -788,6 +906,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     # Top 5 IROS-style metrics: CSV at end of training (simple, publish-friendly)
     metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
     callbacks.append(MetricsCSVCallback(save_path=metrics_csv_path))
+
+    # Action execution noise metrics (if enabled)
+    if getattr(cfg, "action_flip_prob", 0.0) > 0.0:
+        noise_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_noise_metrics")
+        callbacks.append(
+            NoiseMetricsCSVCallback(
+                csv_path=noise_csv_path,
+                eps=float(cfg.action_flip_prob),
+                run_id=str(cfg.run_tag),
+                verbose=0,
+            )
+        )
 
     if cfg.enable_checkpoints:
         callbacks.append(
