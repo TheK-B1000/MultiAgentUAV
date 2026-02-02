@@ -328,6 +328,16 @@ class CTFGameFieldSB3Env(gym.Env):
             except Exception:
                 pass
 
+    def set_physics_enabled(self, enabled: bool) -> None:
+        """Turn ASV kinematics + maritime sensors on/off. Used by realism-by-phase curriculum."""
+        if self.gf is None:
+            return
+        if hasattr(self.gf, "set_physics_enabled"):
+            try:
+                self.gf.set_physics_enabled(bool(enabled))
+            except Exception:
+                pass
+
     # -----------------------------
     # Phase / curriculum helpers
     # -----------------------------
@@ -345,13 +355,28 @@ class CTFGameFieldSB3Env(gym.Env):
         self._stress_schedule = None if schedule is None else dict(schedule)
 
     def _apply_stress_for_phase(self, phase: str) -> None:
-        """Apply environment stress for this phase if stress schedule is set."""
+        """Apply environment stress and naval realism for this phase if stress schedule is set."""
         if self.gf is None or not self._stress_schedule:
             return
         cfg = self._stress_schedule.get(str(phase).upper())
         if not cfg or not isinstance(cfg, dict):
             return
         try:
+            if "physics_enabled" in cfg:
+                self.set_physics_enabled(bool(cfg.get("physics_enabled", False)))
+            if cfg.get("relaxed_dynamics"):
+                # Gentler ASV params when first enabling physics (OP2)
+                self.gf.set_dynamics_config(
+                    max_speed_cps=float(cfg.get("max_speed_cps", 2.8)),
+                    max_accel_cps2=float(cfg.get("max_accel_cps2", 2.5)),
+                    max_yaw_rate_rps=float(cfg.get("max_yaw_rate_rps", 5.0)),
+                )
+            elif "max_speed_cps" in cfg or "max_accel_cps2" in cfg or "max_yaw_rate_rps" in cfg:
+                self.gf.set_dynamics_config(
+                    max_speed_cps=float(cfg.get("max_speed_cps", getattr(self.gf.boat_cfg, "max_speed_cps", 2.2))),
+                    max_accel_cps2=float(cfg.get("max_accel_cps2", getattr(self.gf.boat_cfg, "max_accel_cps2", 2.0))),
+                    max_yaw_rate_rps=float(cfg.get("max_yaw_rate_rps", getattr(self.gf.boat_cfg, "max_yaw_rate_rps", 4.0))),
+                )
             if "current_strength_cps" in cfg or "drift_sigma_cells" in cfg:
                 self.gf.set_disturbance_config(
                     float(cfg.get("current_strength_cps", 0.0)),
@@ -515,6 +540,9 @@ class CTFGameFieldSB3Env(gym.Env):
             self.set_sensor_config(self._sensor_config)
         if self._physics_tag is not None:
             self.set_physics_tag(self._physics_tag)
+
+        # Apply stress/realism for current phase (OP1 no physics, OP2 relaxed, OP3 full)
+        self._apply_stress_for_phase(self._phase_name)
 
         # Sync macro/target dims from GameField
         self._n_macros = int(getattr(self.gf, "n_macros", 5))
