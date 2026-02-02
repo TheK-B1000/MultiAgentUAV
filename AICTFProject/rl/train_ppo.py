@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.policies import MultiInputActorCriticPolicy
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, NatureCNN
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
@@ -28,6 +29,56 @@ from rl.curriculum import (
 from rl.league import EloLeague, OpponentSpec
 from rl.episode_result import parse_episode_result, EpisodeSummary
 from config import MAP_NAME, MAP_PATH
+
+
+class TokenizedCombinedExtractor(BaseFeaturesExtractor):
+    """
+    Feature extractor for tokenized/set-based obs: agents as sequence of tokens.
+    grid (B, M, C, H, W), vec (B, M, V) -> run same CNN/MLP per token, flatten to (B, M*latent).
+    Enables zero-shot: train 2v2 (mask 2), test 4v4 or 8v8 (mask 4 or 8).
+    """
+
+    def __init__(self, observation_space, cnn_output_dim: int = 256, normalized_image: bool = True):
+        import gymnasium as gym
+        from gymnasium import spaces
+        from stable_baselines3.common.preprocessing import get_flattened_obs_dim
+
+        assert isinstance(observation_space, gym.Space) and hasattr(observation_space, "spaces")
+        spaces_dict = observation_space.spaces
+        grid_space = spaces_dict.get("grid")
+        vec_space = spaces_dict.get("vec")
+        assert grid_space is not None and vec_space is not None
+        grid_shape = getattr(grid_space, "shape", None)
+        vec_shape = getattr(vec_space, "shape", None)
+        assert len(grid_shape) == 4, f"tokenized grid must be (M, C, H, W), got {grid_shape}"
+        assert len(vec_shape) == 2, f"tokenized vec must be (M, V), got {vec_shape}"
+        M, C, H, W = grid_shape
+        V = vec_shape[1]
+        # Single-agent grid space for NatureCNN
+        single_grid = spaces.Box(
+            low=float(grid_space.low.min()) if hasattr(grid_space, "low") else 0.0,
+            high=float(grid_space.high.max()) if hasattr(grid_space, "high") else 1.0,
+            shape=(C, H, W),
+            dtype=grid_space.dtype,
+        )
+        self._M = M
+        self._V = V
+        self.cnn = NatureCNN(single_grid, features_dim=cnn_output_dim, normalized_image=normalized_image)
+        self.vec_dim = V
+        features_dim = M * cnn_output_dim + M * V
+        super().__init__(observation_space, features_dim)
+
+    def forward(self, observations):
+        grid = observations["grid"]
+        vec = observations["vec"]
+        B = grid.shape[0]
+        M = self._M
+        # (B, M, C, H, W) -> (B*M, C, H, W)
+        grid_flat = grid.view(B * M, *grid.shape[2:])
+        cnn_out = self.cnn(grid_flat)
+        cnn_out = cnn_out.view(B, M * cnn_out.shape[1])
+        vec_flat = vec.view(B, M * self._V)
+        return torch.cat([cnn_out, vec_flat], dim=1)
 
 
 class TrainMode(str, Enum):
@@ -79,6 +130,9 @@ class PPOConfig:
     # Reproducibility: deterministic PyTorch (slower, full reproducibility)
     use_deterministic: bool = False
 
+    # Zero-shot scalability: max_blue_agents > 2 uses tokenized obs/action (train 2v2, test 4v4/8v8)
+    max_blue_agents: int = 2
+
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
     """Env factory; per-env seed via env_seed so DummyVecEnv/SubprocVecEnv behave the same."""
@@ -99,6 +153,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             default_opponent_key=default_opponent[1],
             ppo_gamma=cfg.gamma,
             action_flip_prob=getattr(cfg, "action_flip_prob", 0.0),
+            max_blue_agents=getattr(cfg, "max_blue_agents", 2),
         )
         return env
     return _fn
@@ -107,7 +162,8 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
 class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
     """
     Apply action masks to discrete macro + target logits (MultiDiscrete).
-    Mask is expected in obs["mask"] as shape [2 * (n_macros + n_targets)].
+    Mask layout: [macro0, targets0, macro1, targets1, ...] for 2 or max_blue_agents agents.
+    Supports tokenized (zero-shot) when action dims length is 2*max_blue_agents.
     """
 
     def _apply_action_mask(self, logits: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -117,7 +173,6 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
             mask = mask.unsqueeze(0)
         mask = mask.float()
 
-        # Determine action dimensions
         if hasattr(self.action_dist, "action_dims"):
             dims = list(self.action_dist.action_dims)
         else:
@@ -130,29 +185,30 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
         if n_macros <= 0:
             return logits
 
-        # Expect mask layout: [macro0, targets0, macro1, targets1]
-        expected = 2 * (n_macros + n_targets)
+        # Layout: (macro, target) per agent; dims = [n_macros, n_targets, n_macros, n_targets, ...]
+        num_agents = len(dims) // 2
+        expected = num_agents * (n_macros + n_targets) if num_agents > 0 else 2 * (n_macros + n_targets)
         if mask.shape[1] < expected:
             pad = torch.ones((mask.shape[0], expected - mask.shape[1]), device=mask.device)
             mask = torch.cat([mask, pad], dim=1)
 
-        # Build full mask for all action components (macro + target)
         full_mask = []
         offset = 0
         for i, dim in enumerate(dims):
-            if i in (0, 2):  # macro for agent0 and agent1
-                m = mask[:, offset: offset + n_macros]
-                offset += n_macros
-                full_mask.append(m)
-            elif i in (1, 3):  # target for agent0 and agent1
-                if n_targets > 0:
-                    m = mask[:, offset: offset + n_targets]
-                    offset += n_targets
-                    full_mask.append(m)
+            if i % 2 == 0:  # macro
+                sz = min(n_macros, mask.shape[1] - offset)
+                if sz > 0:
+                    full_mask.append(mask[:, offset: offset + sz])
+                    offset += n_macros
                 else:
                     full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
-            else:
-                full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
+            else:  # target
+                sz = min(n_targets, mask.shape[1] - offset)
+                if sz > 0 and n_targets > 0:
+                    full_mask.append(mask[:, offset: offset + sz])
+                    offset += n_targets
+                else:
+                    full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
 
         mask_cat = torch.cat(full_mask, dim=1)
         invalid = (mask_cat <= 0.0)
@@ -857,6 +913,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         pass
 
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
+    obs_spaces = getattr(venv.observation_space, "spaces", None) or {}
+    if "agent_mask" in obs_spaces:
+        policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
+        policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
 
     model = PPO(
         policy=MaskedMultiInputPolicy,
