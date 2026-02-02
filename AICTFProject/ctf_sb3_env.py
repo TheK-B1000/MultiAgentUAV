@@ -83,6 +83,8 @@ class CTFGameFieldSB3Env(gym.Env):
         use_obs_builder: bool = True,
         # Step 4.1: add obs["context"] = opponent embedding id (stable int, not full path). Default off.
         include_opponent_context: bool = False,
+        # Step 5.1: when True, GameField.build_continuous_features asserts no global state in vec (debug only).
+        obs_debug_validate_locality: bool = False,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
