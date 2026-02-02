@@ -14,15 +14,19 @@ from macro_actions import MacroAction
 
 class CTFGameFieldSB3Env(gym.Env):
     """
-    SB3-compatible wrapper around GameField for 2v2 blue-controlled PPO (MultiDiscrete).
+    SB3-compatible wrapper around GameField for blue-controlled PPO (MultiDiscrete).
 
-    Action (MultiDiscrete of length 4):
-      [blue0_macro, blue0_target, blue1_macro, blue1_target]
+    Supports two modes (zero-shot scalability):
+    - max_blue_agents=2 (default): legacy 2v2. Action length 4, obs stacked [2*C, H, W].
+    - max_blue_agents>2: tokenized/set-based. Agents as sequence of tokens; train 2v2 (mask 2),
+      test 4v4 or 8v8 (mask 4 or 8). Action length 2*max_blue_agents; obs grid [max_blue_agents, C, H, W],
+      vec [max_blue_agents, vec_per_agent], agent_mask [max_blue_agents].
 
     Observation (Dict):
-      - "grid": stacked CNN grids for the two blue agents: [2*NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS]
-      - "vec":  stacked continuous feature vectors:         [2*vec_per_agent]
-      - optional "mask": [2*(n_macros + n_targets)] (macro+target masks for each blue agent)
+      - "grid": [max_blue_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS] (tokenized) or [2*C, H, W] (legacy)
+      - "vec":  [max_blue_agents, vec_per_agent] (tokenized) or [2*vec_per_agent] (legacy)
+      - "agent_mask": [max_blue_agents] 1/0 (tokenized only)
+      - optional "mask": action mask (macro+target per agent)
 
     Notes:
       - Blue is externally controlled (SB3 provides actions)
@@ -50,6 +54,8 @@ class CTFGameFieldSB3Env(gym.Env):
         ppo_gamma: float = 0.995,
         # Action execution noise (reliability metric)
         action_flip_prob: float = 0.0,
+        # Zero-shot scalability: max blue agents; tokenized obs/action when > 2
+        max_blue_agents: int = 2,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
@@ -81,8 +87,9 @@ class CTFGameFieldSB3Env(gym.Env):
         self._sensor_config: Optional[dict] = None
         self._physics_tag: Optional[str] = None
 
-        # We train 2 blue agents (fixed interface for SB3 policies)
-        self._n_blue_agents = 2
+        # max_blue_agents: 2 = legacy 2v2; >2 = tokenized for zero-shot (train 2v2, test 4v4/8v8)
+        self._max_blue_agents = max(2, int(max_blue_agents))
+        self._n_blue_agents = min(2, self._max_blue_agents)  # actual count set at reset from options
 
         # Must match GameField.build_continuous_features() default
         self._base_vec_per_agent = 12
@@ -110,27 +117,42 @@ class CTFGameFieldSB3Env(gym.Env):
         self._stall_counters = [0, 0]
         self._last_blue_pos: list[Optional[Tuple[float, float]]] = [None, None]
 
-        # Action space: (macro, target) per blue agent
+        # Action space: (macro, target) per blue agent; tokenized uses max_blue_agents
+        n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
         self.action_space = spaces.MultiDiscrete(
-            [self._n_macros, self._n_targets, self._n_macros, self._n_targets]
+            [self._n_macros, self._n_targets] * n_act
         )
 
-        # Observation space
-        grid_shape = (self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
-        vec_shape = (self._n_blue_agents * self._vec_per_agent,)
-
-        obs_dict: Dict[str, spaces.Space] = {
-            "grid": spaces.Box(low=0.0, high=1.0, shape=grid_shape, dtype=np.float32),
-            "vec": spaces.Box(low=-2.0, high=2.0, shape=vec_shape, dtype=np.float32),
-        }
-        if self.include_mask_in_obs:
-            obs_dict["mask"] = spaces.Box(
-                low=0.0,
-                high=1.0,
-                shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
-                dtype=np.float32,
-            )
-
+        # Observation space: tokenized (max_blue_agents, ...) when > 2, else legacy stacked
+        if self._max_blue_agents > 2:
+            grid_shape = (self._max_blue_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
+            vec_shape = (self._max_blue_agents, self._vec_per_agent)
+            obs_dict = {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=grid_shape, dtype=np.float32),
+                "vec": spaces.Box(low=-2.0, high=2.0, shape=vec_shape, dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(self._max_blue_agents,), dtype=np.float32),
+            }
+            if self.include_mask_in_obs:
+                obs_dict["mask"] = spaces.Box(
+                    low=0.0,
+                    high=1.0,
+                    shape=(self._max_blue_agents * (self._n_macros + self._n_targets),),
+                    dtype=np.float32,
+                )
+        else:
+            grid_shape = (self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS)
+            vec_shape = (self._n_blue_agents * self._vec_per_agent,)
+            obs_dict = {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=grid_shape, dtype=np.float32),
+                "vec": spaces.Box(low=-2.0, high=2.0, shape=vec_shape, dtype=np.float32),
+            }
+            if self.include_mask_in_obs:
+                obs_dict["mask"] = spaces.Box(
+                    low=0.0,
+                    high=1.0,
+                    shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
+                    dtype=np.float32,
+                )
         self.observation_space = spaces.Dict(obs_dict)
 
         # Opponent identity (for Elo + logging)
@@ -490,9 +512,12 @@ class CTFGameFieldSB3Env(gym.Env):
 
         self.gf = self.make_game_field_fn()
 
-        # Ensure 2v2 for this env interface
+        # n_agents: 2 = legacy 2v2; 4/8 for zero-shot (train 2v2, test 4v4/8v8)
+        n_agents_option = 2
+        if options and isinstance(options.get("n_agents"), (int, float)):
+            n_agents_option = min(self._max_blue_agents, max(1, int(options["n_agents"])))
         try:
-            self.gf.agents_per_team = 2
+            self.gf.agents_per_team = n_agents_option
         except Exception:
             pass
 
@@ -559,42 +584,64 @@ class CTFGameFieldSB3Env(gym.Env):
         self._n_macros = int(getattr(self.gf, "n_macros", 5))
         self._n_targets = int(getattr(self.gf, "num_macro_targets", 8) or 8)
 
+        # Actual blue count this episode (for tokenized: mask padding)
+        self._n_blue_agents = min(len(getattr(self.gf, "blue_agents", []) or []), self._max_blue_agents)
+        if self._n_blue_agents <= 0:
+            self._n_blue_agents = min(2, self._max_blue_agents)
+
+        n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
         self.action_space = spaces.MultiDiscrete(
-            [self._n_macros, self._n_targets, self._n_macros, self._n_targets]
+            [self._n_macros, self._n_targets] * n_act
         )
 
-        # Rebuild observation_space (mask size depends on n_macros/n_targets)
-        base_obs = {
-            "grid": spaces.Box(
-                low=0.0,
-                high=1.0,
-                shape=(self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
-                dtype=np.float32,
-            ),
-            "vec": spaces.Box(
-                low=-2.0,
-                high=2.0,
-                shape=(self._n_blue_agents * self._vec_per_agent,),
-                dtype=np.float32,
-            ),
-        }
-        if self.include_mask_in_obs:
-            base_obs["mask"] = spaces.Box(
-                low=0.0,
-                high=1.0,
-                shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
-                dtype=np.float32,
-            )
+        if self._max_blue_agents > 2:
+            base_obs = {
+                "grid": spaces.Box(
+                    low=0.0, high=1.0,
+                    shape=(self._max_blue_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
+                    dtype=np.float32,
+                ),
+                "vec": spaces.Box(
+                    low=-2.0, high=2.0,
+                    shape=(self._max_blue_agents, self._vec_per_agent),
+                    dtype=np.float32,
+                ),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(self._max_blue_agents,), dtype=np.float32),
+            }
+            if self.include_mask_in_obs:
+                base_obs["mask"] = spaces.Box(
+                    low=0.0, high=1.0,
+                    shape=(self._max_blue_agents * (self._n_macros + self._n_targets),),
+                    dtype=np.float32,
+                )
+        else:
+            base_obs = {
+                "grid": spaces.Box(
+                    low=0.0, high=1.0,
+                    shape=(self._n_blue_agents * NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
+                    dtype=np.float32,
+                ),
+                "vec": spaces.Box(
+                    low=-2.0, high=2.0,
+                    shape=(self._n_blue_agents * self._vec_per_agent,),
+                    dtype=np.float32,
+                ),
+            }
+            if self.include_mask_in_obs:
+                base_obs["mask"] = spaces.Box(
+                    low=0.0, high=1.0,
+                    shape=(self._n_blue_agents * (self._n_macros + self._n_targets),),
+                    dtype=np.float32,
+                )
         self.observation_space = spaces.Dict(base_obs)
 
-        # Episode-level counters
-        self._episode_macro_counts = [[0 for _ in range(self._n_macros)] for _ in range(self._n_blue_agents)]
-        self._episode_mine_counts = [{"grab": 0, "place": 0} for _ in range(self._n_blue_agents)]
+        n_count = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
+        self._episode_macro_counts = [[0 for _ in range(self._n_macros)] for _ in range(n_count)]
+        self._episode_mine_counts = [{"grab": 0, "place": 0} for _ in range(n_count)]
 
-        # Stall tracking
-        self._stall_counters = [0, 0]
-        self._last_blue_pos = [None, None]
-        for i in range(self._n_blue_agents):
+        self._stall_counters = [0] * n_count
+        self._last_blue_pos = [None] * n_count
+        for i in range(n_count):
             if i < len(self.gf.blue_agents) and self.gf.blue_agents[i] is not None:
                 self._last_blue_pos[i] = tuple(getattr(self.gf.blue_agents[i], "float_pos", (0.0, 0.0)))
 
@@ -633,57 +680,49 @@ class CTFGameFieldSB3Env(gym.Env):
         assert self.gf is not None, "Call reset() first"
         self._decision_step_count += 1
 
-        # Parse intended actions
-        b0_macro_intended, b0_tgt_intended, b1_macro_intended, b1_tgt_intended = map(int, np.asarray(action).reshape(-1).tolist())
+        act_flat = np.asarray(action).reshape(-1)
+        n_slots = self._max_blue_agents if self._max_blue_agents > 2 else 2
+        # Parse (macro, target) per slot; only use first _n_blue_agents
+        intended: list[Tuple[int, int]] = []
+        for i in range(n_slots):
+            off = i * 2
+            if off + 1 < len(act_flat):
+                intended.append((int(act_flat[off]) % max(1, self._n_macros), int(act_flat[off + 1]) % max(1, self._n_targets)))
+            else:
+                intended.append((0, 0))
+        while len(intended) < n_slots:
+            intended.append((0, 0))
 
-        # Apply action execution noise (independent flips for macro and target per agent)
-        b0_macro_exec = b0_macro_intended
-        b0_tgt_exec = b0_tgt_intended
-        b1_macro_exec = b1_macro_intended
-        b1_tgt_exec = b1_tgt_intended
-
+        # Apply action execution noise per agent
+        executed: list[Tuple[int, int]] = []
         flip_count_step = 0
         macro_flip_count_step = 0
         target_flip_count_step = 0
-
-        if self.action_flip_prob > 0.0:
-            # Agent 0 macro flip
-            if self._action_rng.rand() < self.action_flip_prob:
-                b0_macro_exec = int(self._action_rng.randint(0, self._n_macros))
-                flip_count_step += 1
-                macro_flip_count_step += 1
-            # Agent 0 target flip
-            if self._action_rng.rand() < self.action_flip_prob:
-                b0_tgt_exec = int(self._action_rng.randint(0, self._n_targets))
-                flip_count_step += 1
-                target_flip_count_step += 1
-            # Agent 1 macro flip
-            if self._action_rng.rand() < self.action_flip_prob:
-                b1_macro_exec = int(self._action_rng.randint(0, self._n_macros))
-                flip_count_step += 1
-                macro_flip_count_step += 1
-            # Agent 1 target flip
-            if self._action_rng.rand() < self.action_flip_prob:
-                b1_tgt_exec = int(self._action_rng.randint(0, self._n_targets))
-                flip_count_step += 1
-                target_flip_count_step += 1
-
-        b0_macro, b0_tgt = self._sanitize_action_for_agent(0, b0_macro_exec, b0_tgt_exec)
-        b1_macro, b1_tgt = self._sanitize_action_for_agent(1, b1_macro_exec, b1_tgt_exec)
-        self._record_macro_usage(0, b0_macro)
-        self._record_macro_usage(1, b1_macro)
-
-        blue0 = self.gf.blue_agents[0] if len(self.gf.blue_agents) > 0 else None
-        blue1 = self.gf.blue_agents[1] if len(self.gf.blue_agents) > 1 else None
+        for i in range(min(self._n_blue_agents, n_slots)):
+            m, t = intended[i]
+            if self.action_flip_prob > 0.0:
+                if self._action_rng.rand() < self.action_flip_prob:
+                    m = int(self._action_rng.randint(0, self._n_macros))
+                    flip_count_step += 1
+                    macro_flip_count_step += 1
+                if self._action_rng.rand() < self.action_flip_prob:
+                    t = int(self._action_rng.randint(0, self._n_targets))
+                    flip_count_step += 1
+                    target_flip_count_step += 1
+            m, t = self._sanitize_action_for_agent(i, m, t)
+            executed.append((m, t))
+            self._record_macro_usage(i, m)
+        while len(executed) < n_slots:
+            executed.append((0, 0))
 
         actions_by_agent: Dict[str, Tuple[int, Any]] = {}
-        if blue0 is not None:
-            # Use slot_id if present, else unique_id; include both patterns in reward filter anyway
-            k0 = str(getattr(blue0, "slot_id", getattr(blue0, "unique_id", "blue_0")))
-            actions_by_agent[k0] = (b0_macro, b0_tgt)
-        if blue1 is not None:
-            k1 = str(getattr(blue1, "slot_id", getattr(blue1, "unique_id", "blue_1")))
-            actions_by_agent[k1] = (b1_macro, b1_tgt)
+        blue_list = getattr(self.gf, "blue_agents", []) or []
+        for i in range(min(self._n_blue_agents, len(blue_list))):
+            agent = blue_list[i] if i < len(blue_list) else None
+            if agent is None:
+                continue
+            key = str(getattr(agent, "slot_id", getattr(agent, "unique_id", f"blue_{i}")))
+            actions_by_agent[key] = executed[i]
 
         self.gf.submit_external_actions(actions_by_agent)
 
@@ -802,53 +841,59 @@ class CTFGameFieldSB3Env(gym.Env):
             return v[: self._base_vec_per_agent]
 
         blue = list(getattr(self.gf, "blue_agents", []) or [])
-        while len(blue) < self._n_blue_agents:
+        n_slots = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
+        while len(blue) < n_slots:
             blue.append(None)
 
         cnn_list: list[np.ndarray] = []
         vec_list: list[np.ndarray] = []
         mask_list: list[np.ndarray] = []
 
-        for idx, a in enumerate(blue[: self._n_blue_agents]):
+        for idx, a in enumerate(blue[:n_slots]):
             if a is None:
                 cnn_list.append(_empty_cnn())
                 vec = self._append_high_level_mode(_empty_vec_base())
                 vec_list.append(vec)
-
                 if self.include_mask_in_obs:
-                    mm = np.ones((self._n_macros,), dtype=np.float32)
-                    tm = np.ones((self._n_targets,), dtype=np.float32)
+                    # Mask out all actions for padding slots (invalid agent)
+                    mm = np.zeros((self._n_macros,), dtype=np.float32)
+                    tm = np.zeros((self._n_targets,), dtype=np.float32)
                     mask_list.append(np.concatenate([mm, tm], axis=0))
                 continue
 
             cnn = np.asarray(self.gf.build_observation(a), dtype=np.float32)
             cnn_list.append(cnn)
-
             if hasattr(self.gf, "build_continuous_features"):
                 vec = _coerce_vec_base(self.gf.build_continuous_features(a))
             else:
                 vec = _empty_vec_base()
             vec = self._append_high_level_mode(vec)
             vec_list.append(vec)
-
             if self.include_mask_in_obs:
                 mm = np.asarray(self.gf.get_macro_mask(a), dtype=np.bool_).reshape(-1)
                 mm = self._apply_role_macro_mask(idx, mm)
                 if mm.shape != (self._n_macros,) or (not mm.any()):
                     mm = np.ones((self._n_macros,), dtype=np.bool_)
-
                 tm = np.asarray(self.gf.get_target_mask(a), dtype=np.bool_).reshape(-1)
                 if tm.shape != (self._n_targets,) or (not tm.any()):
                     tm = np.ones((self._n_targets,), dtype=np.bool_)
-
                 mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
 
-        grid = np.concatenate(cnn_list, axis=0).astype(np.float32)
-        vec = np.concatenate(vec_list, axis=0).astype(np.float32)
-
-        out: Dict[str, np.ndarray] = {"grid": grid, "vec": vec}
-        if self.include_mask_in_obs:
-            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
+        if self._max_blue_agents > 2:
+            # Tokenized: (max_blue_agents, C, H, W), (max_blue_agents, vec_dim), agent_mask
+            grid = np.stack(cnn_list, axis=0).astype(np.float32)
+            vec = np.stack(vec_list, axis=0).astype(np.float32)
+            agent_mask = np.zeros((n_slots,), dtype=np.float32)
+            agent_mask[: self._n_blue_agents] = 1.0
+            out = {"grid": grid, "vec": vec, "agent_mask": agent_mask}
+            if self.include_mask_in_obs:
+                out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
+        else:
+            grid = np.concatenate(cnn_list, axis=0).astype(np.float32)
+            vec = np.concatenate(vec_list, axis=0).astype(np.float32)
+            out = {"grid": grid, "vec": vec}
+            if self.include_mask_in_obs:
+                out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
         return out
 
     def _append_high_level_mode(self, base_vec: np.ndarray) -> np.ndarray:
@@ -1011,14 +1056,12 @@ class CTFGameFieldSB3Env(gym.Env):
             return 0.0
 
         blue_ids = set()
-        if len(self.gf.blue_agents) > 0 and self.gf.blue_agents[0] is not None:
-            blue0 = self.gf.blue_agents[0]
-            blue_ids.add(str(getattr(blue0, "unique_id", getattr(blue0, "slot_id", "blue_0"))))
-            blue_ids.add(str(getattr(blue0, "slot_id", getattr(blue0, "unique_id", "blue_0"))))
-        if len(self.gf.blue_agents) > 1 and self.gf.blue_agents[1] is not None:
-            blue1 = self.gf.blue_agents[1]
-            blue_ids.add(str(getattr(blue1, "unique_id", getattr(blue1, "slot_id", "blue_1"))))
-            blue_ids.add(str(getattr(blue1, "slot_id", getattr(blue1, "unique_id", "blue_1"))))
+        for i in range(min(self._n_blue_agents, len(self.gf.blue_agents))):
+            agent = self.gf.blue_agents[i]
+            if agent is None:
+                continue
+            blue_ids.add(str(getattr(agent, "unique_id", getattr(agent, "slot_id", f"blue_{i}"))))
+            blue_ids.add(str(getattr(agent, "slot_id", getattr(agent, "unique_id", f"blue_{i}"))))
 
         r = 0.0
         for ev in events:
