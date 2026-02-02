@@ -13,7 +13,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMoni
 
 from ctf_sb3_env import CTFGameFieldSB3Env
 from game_field import make_game_field
-from rl.common import set_global_seed
+from rl.common import env_seed, set_global_seed
 from rl.curriculum import CurriculumConfig, CurriculumController, CurriculumControllerConfig, CurriculumState
 from rl.league import EloLeague
 from rl.hppo_env import CTFHighLevelEnv, HighLevelModeScheduler
@@ -194,8 +194,10 @@ def _make_base_env(
     rank: int,
     initial_phase: str,
 ) -> CTFGameFieldSB3Env:
-    np.random.seed(int(cfg.seed) + int(rank))
-    torch.manual_seed(int(cfg.seed) + int(rank))
+    """Per-env seed via env_seed so DummyVecEnv/SubprocVecEnv behave the same."""
+    s = env_seed(cfg.seed, rank)
+    np.random.seed(s)
+    torch.manual_seed(s)
     env = CTFGameFieldSB3Env(
         make_game_field_fn=lambda: make_game_field(
             map_name=MAP_NAME or None,
@@ -203,7 +205,7 @@ def _make_base_env(
         ),
         max_decision_steps=cfg.max_decision_steps,
         enforce_masks=True,
-        seed=int(cfg.seed) + int(rank),
+        seed=s,
         include_mask_in_obs=True,
         include_high_level_mode=True,
         high_level_mode=0,

@@ -14,7 +14,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMoni
 from ctf_sb3_env import CTFGameFieldSB3Env
 from game_field import make_game_field
 from macro_actions import MacroAction
-from rl.common import set_global_seed
+from rl.common import env_seed, set_global_seed
 from rl.curriculum import CurriculumConfig, CurriculumController, CurriculumControllerConfig, CurriculumState
 from rl.league import EloLeague
 from rl.train_ppo import MaskedMultiInputPolicy
@@ -222,9 +222,11 @@ def _role_macro_indices() -> Tuple[list[int], list[int]]:
 
 
 def _make_env_fn(cfg: RolePPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
+    """Env factory; per-env seed via env_seed so DummyVecEnv/SubprocVecEnv behave the same."""
     def _fn():
-        np.random.seed(int(cfg.seed) + int(rank))
-        torch.manual_seed(int(cfg.seed) + int(rank))
+        s = env_seed(cfg.seed, rank)
+        np.random.seed(s)
+        torch.manual_seed(s)
         env = CTFGameFieldSB3Env(
             make_game_field_fn=lambda: make_game_field(
                 map_name=MAP_NAME or None,
@@ -232,7 +234,7 @@ def _make_env_fn(cfg: RolePPOConfig, *, default_opponent: Tuple[str, str], rank:
             ),
             max_decision_steps=cfg.max_decision_steps,
             enforce_masks=True,
-            seed=int(cfg.seed) + int(rank),
+            seed=s,
             include_mask_in_obs=True,
             blue_role_macros=_role_macro_indices(),
             default_opponent_kind=default_opponent[0],
@@ -277,6 +279,7 @@ def train_role_ppo(cfg: Optional[RolePPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
         phase_name = str(cfg.fixed_opponent_tag).upper()
 
+    # Same env_fns work with either vec env: both call env_fns[i]() with same rank i.
     env_fns = [_make_env_fn(cfg, default_opponent=default_opponent, rank=i) for i in range(max(1, int(cfg.n_envs)))]
     if cfg.n_envs > 1:
         venv = SubprocVecEnv(env_fns)

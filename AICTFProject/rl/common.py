@@ -6,10 +6,50 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 
 
-def set_global_seed(seed: int) -> None:
+def set_global_seed(
+    seed: int,
+    *,
+    torch_seed: bool = True,
+    deterministic: bool = False,
+) -> None:
+    """
+    Set global RNG seeds for reproducibility.
+    - random + numpy always seeded.
+    - torch_seed: if True, set torch.manual_seed (and cuda if available).
+    - deterministic: if True, enable PyTorch deterministic mode (cudnn + algorithms).
+    """
     seed = int(seed)
     random.seed(seed)
     np.random.seed(seed)
+
+    if not torch_seed and not deterministic:
+        return
+
+    try:
+        import torch
+        if torch_seed:
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+        if deterministic:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            try:
+                torch.use_deterministic_algorithms(True, warn_only=True)
+            except AttributeError:
+                pass
+    except ImportError:
+        pass
+
+
+def env_seed(base_seed: int, rank: int) -> int:
+    """
+    Per-env seed for vectorized envs. Use this inside env factory callables
+    so that the same (base_seed, rank) always yields the same env RNG state.
+    DummyVecEnv and SubprocVecEnv both call the same env_fns[i] with the same
+    rank i, so per-env seeding is consistent regardless of vec env type.
+    """
+    return int(base_seed) + int(rank)
 
 
 def agent_uid(agent: Any) -> str:

@@ -17,7 +17,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMoni
 
 from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
-from rl.common import set_global_seed
+from rl.common import env_seed, set_global_seed
 from rl.curriculum import (
     CurriculumConfig,
     CurriculumController,
@@ -76,11 +76,16 @@ class PPOConfig:
     # Action execution noise (reliability metrics)
     action_flip_prob: float = 0.0
 
+    # Reproducibility: deterministic PyTorch (slower, full reproducibility)
+    use_deterministic: bool = False
+
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
+    """Env factory; per-env seed via env_seed so DummyVecEnv/SubprocVecEnv behave the same."""
     def _fn():
-        np.random.seed(int(cfg.seed) + int(rank))
-        torch.manual_seed(int(cfg.seed) + int(rank))
+        s = env_seed(cfg.seed, rank)
+        np.random.seed(s)
+        torch.manual_seed(s)
         env = CTFGameFieldSB3Env(
             make_game_field_fn=lambda: make_game_field(
                 map_name=MAP_NAME or None,
@@ -88,7 +93,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             ),
             max_decision_steps=cfg.max_decision_steps,
             enforce_masks=True,
-            seed=int(cfg.seed) + int(rank),
+            seed=s,
             include_mask_in_obs=True,
             default_opponent_kind=default_opponent[0],
             default_opponent_key=default_opponent[1],
@@ -771,7 +776,7 @@ class MetricsCSVCallback(BaseCallback):
 
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg = cfg or PPOConfig()
-    set_global_seed(cfg.seed)
+    set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
 
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
 
@@ -830,6 +835,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
+    # Same env_fns work with either vec env: both call env_fns[i]() with same rank i.
     env_fns = [
         _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
         for i in range(max(1, int(cfg.n_envs)))
