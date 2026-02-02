@@ -27,6 +27,7 @@ from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
 from rl.common import env_seed, set_global_seed
 from rl.marl_env import MARLEnvWrapper, _agent_keys, _actions_dict_to_flat
+from rl.episode_result import parse_episode_result
 from config import MAP_NAME, MAP_PATH
 
 
@@ -458,11 +459,17 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
     optimizer = torch.optim.Adam(policy.parameters(), lr=cfg.learning_rate)
 
     global_step = 0
-    episode_count = 0
+    episode_idx = 0
+    win_count = 0
+    loss_count = 0
+    draw_count = 0
     per_agent_ep_rewards: Dict[str, List[float]] = {k: [] for k in agent_keys}
+    ep_rew_accum: Dict[str, float] = {k: 0.0 for k in agent_keys}
 
     while global_step < cfg.total_timesteps:
         obs_dict, _ = env.reset()
+        for k in agent_keys:
+            ep_rew_accum[k] = 0.0
         buffers: Dict[str, List] = { "actions": [], "rewards": [], "dones": [], "log_probs": [], "values": [] }
         for key in list(obs_dict[agent_keys[0]].keys()):
             buffers[f"obs_{key}"] = []
@@ -473,7 +480,7 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
                 actions_t, log_prob, _, values_t = policy.get_action_and_value(obs_torch, deterministic=False)
             actions_np = actions_t.cpu().numpy()
             actions_list = [actions_np[i] for i in range(n_agents)]
-            action_flat = _actions_dict_to_flat(
+            _actions_dict_to_flat(
                 {k: (int(actions_list[i][0]), int(actions_list[i][1])) for i, k in enumerate(agent_keys)},
                 agent_keys,
             )
@@ -482,15 +489,38 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
             )
             done = dones_dict[agent_keys[0]]
             rews_list = [rews_dict[k] for k in agent_keys]
+            for k in agent_keys:
+                ep_rew_accum[k] += rews_dict[k]
             append_rollout(buffers, obs_dict, actions_list, rews_list, done, log_prob, values_t, agent_keys)
             obs_dict = next_obs_dict
             global_step += n_agents
 
             if done:
-                episode_count += 1
+                episode_idx += 1
                 for k in agent_keys:
-                    per_agent_ep_rewards[k].append(infos_dict[k].get("reward", 0.0))
+                    per_agent_ep_rewards[k].append(ep_rew_accum[k])
+                summary = parse_episode_result(info)
+                if summary is not None:
+                    blue_score = summary.blue_score
+                    red_score = summary.red_score
+                    opp_key = summary.opponent_key()
+                    phase = summary.phase_name or "OP3"
+                    if blue_score > red_score:
+                        result = "WIN"
+                        win_count += 1
+                    elif blue_score < red_score:
+                        result = "LOSS"
+                        loss_count += 1
+                    else:
+                        result = "DRAW"
+                        draw_count += 1
+                    print(
+                        f"[IPPO|CURR] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                        f"phase={phase} opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
+                    )
                 obs_dict, _ = env.reset()
+                for k in agent_keys:
+                    ep_rew_accum[k] = 0.0
 
         obs_batch, actions, rewards, dones, log_probs_old, values_old = rollout_buffers_to_tensors(
             buffers, agent_keys, device
@@ -506,23 +536,22 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
 
         if global_step % cfg.log_every_steps < cfg.n_steps * n_agents or global_step >= cfg.total_timesteps:
             mean_rew = rewards.cpu().numpy().mean()
-            log_str = (
-                f"step={global_step} ep={episode_count} "
-                f"pi_loss={update_stats['pi_loss']:.4f} vf_loss={update_stats['vf_loss']:.4f} ent={update_stats['entropy']:.4f} "
-                f"mean_rew={mean_rew:.4f}"
-            )
+            log_parts = [
+                f"ent={update_stats['entropy']:.4f}",
+                f"mean_rew={mean_rew:.4f}",
+            ]
             for k in agent_keys:
                 if per_agent_ep_rewards[k]:
                     r_mean = np.mean(per_agent_ep_rewards[k][-100:])
-                    log_str += f" {k}_rew={r_mean:.3f}"
-            print(log_str)
+                    log_parts.append(f"{k}_rew={r_mean:.3f}")
+            print("  " + " ".join(log_parts))
 
         if cfg.save_every_steps and global_step > 0 and global_step % cfg.save_every_steps < cfg.n_steps * n_agents:
             path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_step{global_step}.pt")
             torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, path)
 
     env.close()
-    print(f"[IPPO] Done. total_steps={global_step} episodes={episode_count}")
+    print(f"[IPPO] Done. total_steps={global_step} episodes={episode_idx}")
 
 
 if __name__ == "__main__":
