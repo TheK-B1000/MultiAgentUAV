@@ -69,14 +69,27 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
 
     def forward(self, observations):
-        grid = observations["grid"]
-        vec = observations["vec"]
+        grid = observations["grid"]  # (B, M, C, H, W)
+        vec = observations["vec"]    # (B, M, V)
         B = grid.shape[0]
         M = self._M
+
         # (B, M, C, H, W) -> (B*M, C, H, W)
         grid_flat = grid.view(B * M, *grid.shape[2:])
-        cnn_out = self.cnn(grid_flat)
-        cnn_out = cnn_out.view(B, M * cnn_out.shape[1])
+        cnn_out = self.cnn(grid_flat)  # (B*M, D)
+        D = cnn_out.shape[1]
+        cnn_out = cnn_out.view(B, M, D)  # (B, M, D)
+
+        # Optional agent mask to zero padded slots (B, M)
+        agent_mask = observations.get("agent_mask", None)
+        if agent_mask is not None:
+            if agent_mask.dim() == 1:
+                agent_mask = agent_mask.unsqueeze(0)
+            agent_mask = agent_mask.float().unsqueeze(-1)  # (B, M, 1)
+            cnn_out = cnn_out * agent_mask
+            vec = vec * agent_mask
+
+        cnn_out = cnn_out.view(B, M * D)
         vec_flat = vec.view(B, M * self._V)
         return torch.cat([cnn_out, vec_flat], dim=1)
 
@@ -131,7 +144,10 @@ class PPOConfig:
     use_deterministic: bool = False
 
     # Zero-shot scalability: max_blue_agents > 2 uses tokenized obs/action (train 2v2, test 4v4/8v8)
+    # Sprint B 4v4 smoke test: set max_blue_agents=4, mode=FIXED_OPPONENT, fixed_opponent_tag=OP1 or OP2
     max_blue_agents: int = 2
+    # Sprint A verification: print obs/action shapes once per reset
+    print_reset_shapes: bool = False
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -154,6 +170,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             ppo_gamma=cfg.gamma,
             action_flip_prob=getattr(cfg, "action_flip_prob", 0.0),
             max_blue_agents=getattr(cfg, "max_blue_agents", 2),
+            print_reset_shapes=getattr(cfg, "print_reset_shapes", False),
         )
         return env
     return _fn
@@ -1026,5 +1043,44 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Training complete. Final model saved to: {final_path}.zip")
 
 
+def run_verify_4v4(num_episodes: int = 10) -> None:
+    """Sprint A verification: run N random-action episodes at 4v4, print shapes on reset."""
+    cfg = PPOConfig(
+        max_blue_agents=4,
+        mode=TrainMode.FIXED_OPPONENT.value,
+        fixed_opponent_tag="OP1",
+        print_reset_shapes=True,
+    )
+    set_global_seed(cfg.seed)
+    env = CTFGameFieldSB3Env(
+        make_game_field_fn=lambda: make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None),
+        max_decision_steps=cfg.max_decision_steps,
+        enforce_masks=True,
+        seed=cfg.seed,
+        include_mask_in_obs=True,
+        default_opponent_kind="SCRIPTED",
+        default_opponent_key="OP1",
+        ppo_gamma=cfg.gamma,
+        max_blue_agents=4,
+        print_reset_shapes=True,
+    )
+    for ep in range(num_episodes):
+        obs, _ = env.reset(options={"n_agents": 4})
+        done = False
+        steps = 0
+        while not done and steps < env.max_decision_steps * 2:
+            action = env.action_space.sample()
+            obs, reward, term, trunc, info = env.step(action)
+            done = term or trunc
+            steps += 1
+        print(f"[Verify-4v4] episode {ep + 1}/{num_episodes} steps={steps} done={done}")
+    env.close()
+    print(f"[Verify-4v4] Done. {num_episodes} random-action 4v4 episodes completed.")
+
+
 if __name__ == "__main__":
-    train_ppo()
+    import sys
+    if "--verify-4v4" in sys.argv:
+        run_verify_4v4(num_episodes=10)
+    else:
+        train_ppo()
