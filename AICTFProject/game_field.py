@@ -703,15 +703,14 @@ class GameField:
                 except Exception:
                     pass
 
-        # Write back
+        # Write back (Agent uses _float_x/_float_y and x/y; float_pos and cell_pos are read-only properties)
         setattr(agent, "heading_rad", float(heading))
         setattr(agent, "speed_cps", float(speed))
-
-        agent.float_pos = (float(nfx), float(nfy))
-        agent.cell_pos = self._clamp_cell(int(round(nfx)), int(round(nfy)))
-        # keep legacy fields consistent for other code paths
-        agent.x = int(agent.cell_pos[0])
-        agent.y = int(agent.cell_pos[1])
+        agent._float_x = float(nfx)
+        agent._float_y = float(nfy)
+        cx, cy = self._clamp_cell(int(round(nfx)), int(round(nfy)))
+        agent.x = cx
+        agent.y = cy
 
     # ============================================================
     # Phase 2 robotics constraints: action delay on decisions
