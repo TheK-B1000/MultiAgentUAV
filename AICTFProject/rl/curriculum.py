@@ -8,6 +8,30 @@ from collections import deque
 
 from rl.league import EloLeague, OpponentSpec
 
+# Phase contract: stress schedule and set_phase() use only these.
+VALID_PHASES = ("OP1", "OP2", "OP3")
+
+
+def phase_from_tag(tag: str) -> str:
+    """
+    Map opponent/tier tags to canonical phase for stress schedule.
+    Stress keys are OP1 | OP2 | OP3 only; OP3_EASY/OP3_HARD/etc. map to OP3.
+    """
+    t = str(tag).upper().strip()
+    if t in ("OP1", "OP2"):
+        return t
+    if t in ("OP3", "OP3_EASY", "OP3_HARD", "OP3EASY", "OP3HARD", "SELF_PLAY") or t == "":
+        return "OP3"
+    # Unknown tag: use OP3 so stress still applies; caller can fix tag
+    import warnings
+    warnings.warn(
+        f"Unknown phase tag {tag!r}; using OP3 for stress schedule.",
+        UserWarning,
+        stacklevel=2,
+    )
+    return "OP3"
+
+
 # Curriculum Axis 2: environment stress + naval realism by phase.
 # Pass to env_method("set_stress_schedule", STRESS_BY_PHASE). When set_phase(phase) is called,
 # env applies: physics_enabled (ASV kinematics + maritime sensors), stress knobs, and relaxed_dynamics for OP2.
