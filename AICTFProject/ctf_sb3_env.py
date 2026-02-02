@@ -348,7 +348,12 @@ class CTFGameFieldSB3Env(gym.Env):
     # Phase / curriculum helpers
     # -----------------------------
     def set_phase(self, phase: str) -> None:
-        self._phase_name = str(phase).upper().strip()
+        # Contract: stress schedule keys are OP1|OP2|OP3 only; normalize tags (e.g. OP3_HARD -> OP3)
+        from rl.curriculum import phase_from_tag, VALID_PHASES
+        raw = str(phase).upper().strip()
+        canonical = phase_from_tag(raw)
+        assert canonical in VALID_PHASES, f"phase_from_tag({phase!r}) returned {canonical!r}"
+        self._phase_name = canonical
         if self.gf is not None and hasattr(self.gf, "manager"):
             try:
                 self.gf.manager.set_phase(self._phase_name)
