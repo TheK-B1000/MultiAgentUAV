@@ -3,7 +3,9 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
+
+from .episode_result import path_to_snapshot_key
 
 
 def elo_expected(r_a: float, r_b: float) -> float:
@@ -55,10 +57,11 @@ class EloLeague:
     def set_learner_rating(self, rating: float) -> None:
         self.ratings[self.learner_key] = max(0.0, float(rating))
 
-    def add_snapshot(self, key: str) -> None:
-        if key not in self.snapshots:
-            self.snapshots.append(key)
-        self.ratings.setdefault(key, self.learner_rating)
+    def add_snapshot(self, path: str) -> None:
+        """Register a snapshot by full path; ratings are keyed by stable ID for portability."""
+        if path not in self.snapshots:
+            self.snapshots.append(path)
+        self.ratings.setdefault(path_to_snapshot_key(path), self.learner_rating)
 
     def latest_snapshot_key(self) -> Optional[str]:
         if not self.snapshots:
@@ -79,10 +82,17 @@ class EloLeague:
         self.set_learner_rating(learner_new)
         self.ratings[opponent_key] = float(opp_new)
 
-    def _weighted_pick(self, keys: List[str], target_rating: float) -> str:
+    def _weighted_pick(
+        self,
+        keys: List[str],
+        target_rating: float,
+        key_to_rating: Optional[Callable[[str], float]] = None,
+    ) -> str:
+        if key_to_rating is None:
+            key_to_rating = self.get_rating
         weights = []
         for key in keys:
-            r = self.get_rating(key)
+            r = key_to_rating(key)
             dist = abs(r - float(target_rating))
             weights.append(math.exp(-dist / max(1e-6, self.tau)) + 1e-3)
         total = sum(weights)
@@ -116,8 +126,10 @@ class EloLeague:
             return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
 
         if self.snapshots:
-            key = self._weighted_pick(self.snapshots, target)
-            return OpponentSpec(kind="SNAPSHOT", key=key, rating=self.get_rating(key))
+            path = self._weighted_pick(
+                self.snapshots, target, key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p))
+            )
+            return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
 
         key = "SCRIPTED:OP3"
         return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
@@ -132,5 +144,7 @@ class EloLeague:
         if not self.snapshots:
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3"))
         target = self.learner_rating if target_rating is None else float(target_rating)
-        key = self._weighted_pick(self.snapshots, target)
-        return OpponentSpec(kind="SNAPSHOT", key=key, rating=self.get_rating(key))
+        path = self._weighted_pick(
+            self.snapshots, target, key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p))
+        )
+        return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
