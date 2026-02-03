@@ -1,7 +1,17 @@
+"""
+MAPPO (Multi-Agent PPO) with central critic: curriculum, league, fixed opponent, self-play.
+
+Same training modes as IPPO: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE, FIXED_OPPONENT, SELF_PLAY.
+Uses GameField + decision windows and rl_policy.ActorCriticNet. Saves .pth state_dict.
+
+Usage:
+  python -m rl.train_mappo [--mode CURRICULUM_LEAGUE] [--total_steps 500000] ...
+"""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -14,8 +24,16 @@ from game_field import make_game_field
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from rl.common import batch_by_agent_id, collect_team_uids, pop_reward_events_best_effort, set_global_seed, simulate_decision_window
-from rl.curriculum import CurriculumConfig, CurriculumState
+from rl.curriculum import CurriculumConfig, CurriculumController, CurriculumControllerConfig, CurriculumState, phase_from_tag
+from rl.league import EloLeague, OpponentSpec
 from config import MAP_NAME, MAP_PATH
+
+
+class TrainMode(str, Enum):
+    CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"
+    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"
+    FIXED_OPPONENT = "FIXED_OPPONENT"
+    SELF_PLAY = "SELF_PLAY"
 
 
 @dataclass
@@ -34,7 +52,34 @@ class MAPPOConfig:
     decision_window: float = 0.7
     sim_dt: float = 0.1
     max_macro_steps: int = 600
-    checkpoint_dir: str = "checkpoints"
+
+    checkpoint_dir: str = "checkpoints_mappo"
+    run_tag: str = "mappo_league_curriculum"
+    save_every_steps: int = 50_000
+    log_every_steps: int = 2_000
+
+    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    fixed_opponent_tag: str = "OP3"
+    op3_gate_tag: str = "OP3_HARD"
+    snapshot_every_episodes: int = 100
+    league_max_snapshots: int = 25
+    league_scripted_fallback_tag: str = "OP3"
+    league_easy_scripted_elo_threshold: float = 1200.0
+    self_play_snapshot_every_episodes: int = 25
+    self_play_max_snapshots: int = 25
+
+    curriculum_min_episodes: Dict[str, int] = None
+    curriculum_min_winrate: Dict[str, float] = None
+    curriculum_winrate_window: int = 50
+    curriculum_required_win_by: Dict[str, int] = None
+
+    def __post_init__(self) -> None:
+        if self.curriculum_min_episodes is None:
+            self.curriculum_min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
+        if self.curriculum_min_winrate is None:
+            self.curriculum_min_winrate = {"OP1": 0.50, "OP2": 0.50, "OP3": 0.55}
+        if self.curriculum_required_win_by is None:
+            self.curriculum_required_win_by = {"OP1": 0, "OP2": 0, "OP3": 0}
 
 
 class MAPPORolloutBuffer:
@@ -238,9 +283,29 @@ def mappo_update(
     buffer.clear()
 
 
+def _enforce_league_snapshot_limit(league: EloLeague, max_snapshots: int) -> None:
+    while len(league.snapshots) > max(1, int(max_snapshots)):
+        league.snapshots.pop(0)
+    try:
+        league.snapshots = league.snapshots[-int(max_snapshots):]
+    except Exception:
+        pass
+
+
 def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
     cfg = cfg or MAPPOConfig()
     set_global_seed(cfg.seed)
+    mode = str(cfg.mode or TrainMode.CURRICULUM_LEAGUE.value).strip().upper()
+
+    if mode == TrainMode.FIXED_OPPONENT.value:
+        red_tag = str(cfg.fixed_opponent_tag).upper()
+        phase_name = red_tag
+    elif mode == TrainMode.SELF_PLAY.value:
+        red_tag = "OP3"
+        phase_name = "SELF_PLAY"
+    else:
+        red_tag = "OP1"
+        phase_name = "OP1"
 
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
     env = make_game_field(
@@ -281,22 +346,79 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
     optimizer = optim.Adam(policy_train.parameters(), lr=cfg.lr, foreach=False)
     buffer = MAPPORolloutBuffer(n_macros=n_macros)
 
-    curriculum = CurriculumState(
-        CurriculumConfig(
-            phases=["OP1", "OP2", "OP3"],
-            min_episodes={"OP1": 150, "OP2": 150, "OP3": 0},
-            min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.50},
-            winrate_window=50,
-            required_win_by={"OP1": 1, "OP2": 1, "OP3": 0},
-            elo_margin=0.0,
-            switch_to_league_after_op3_win=False,
+    league: Optional[EloLeague] = None
+    curriculum: Optional[CurriculumState] = None
+    controller: Optional[CurriculumController] = None
+    league_mode = False
+    current_phase = phase_name
+
+    if mode == TrainMode.CURRICULUM_LEAGUE.value:
+        league = EloLeague(
+            seed=cfg.seed,
+            k_factor=32.0,
+            matchmaking_tau=250.0,
+            scripted_floor=0.50,
+            species_prob=0.20,
+            snapshot_prob=0.30,
         )
-    )
+        curriculum = CurriculumState(
+            CurriculumConfig(
+                phases=["OP1", "OP2", "OP3"],
+                min_episodes=cfg.curriculum_min_episodes,
+                min_winrate=cfg.curriculum_min_winrate,
+                winrate_window=cfg.curriculum_winrate_window,
+                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
+                elo_margin=80.0,
+                switch_to_league_after_op3_win=False,
+            )
+        )
+        controller = CurriculumController(
+            CurriculumControllerConfig(
+                seed=cfg.seed,
+                enable_snapshots=False,
+                enable_species=True,
+            ),
+            league=league,
+        )
+        current_phase = curriculum.phase
+        red_tag = current_phase
+    elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        curriculum = CurriculumState(
+            CurriculumConfig(
+                phases=["OP1", "OP2", "OP3"],
+                min_episodes=cfg.curriculum_min_episodes,
+                min_winrate=cfg.curriculum_min_winrate,
+                winrate_window=cfg.curriculum_winrate_window,
+                required_win_by=cfg.curriculum_required_win_by,
+                elo_margin=-1000.0,
+                switch_to_league_after_op3_win=False,
+            )
+        )
+        current_phase = curriculum.phase
+        red_tag = current_phase
+    elif mode == TrainMode.SELF_PLAY.value:
+        league = EloLeague(
+            seed=cfg.seed,
+            k_factor=32.0,
+            matchmaking_tau=250.0,
+            scripted_floor=0.50,
+            species_prob=0.20,
+            snapshot_prob=0.30,
+        )
+        init_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_init.pth")
+        try:
+            torch.save(policy_train.state_dict(), init_path)
+            league.add_snapshot(init_path)
+        except Exception as exc:
+            print(f"[WARN] MAPPO self-play init save failed: {exc}")
 
     global_step = 0
     episode_idx = 0
     traj_id_counter = 0
     traj_id_map: Dict[Tuple[int, str], int] = {}
+    win_count = 0
+    loss_count = 0
+    draw_count = 0
 
     def build_central_obs(agents_sorted: List[Any]) -> np.ndarray:
         obs_list = []
@@ -307,14 +429,19 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                 obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
         return np.stack(obs_list, axis=0)
 
+    def set_red_for_episode(tag: str) -> None:
+        gm.set_phase(phase_from_tag(tag))
+        env.set_red_opponent(tag)
+
+    # Set initial red opponent
+    set_red_for_episode(red_tag)
+
     while global_step < int(cfg.total_steps):
         episode_idx += 1
-        curriculum.phase_episode_count += 1
-        phase = curriculum.phase
+        if curriculum is not None:
+            curriculum.phase_episode_count += 1
 
-        gm.set_phase(phase)
-        env.set_red_opponent(phase)
-
+        set_red_for_episode(red_tag)
         env.reset_default()
         done = False
         steps = 0
@@ -424,26 +551,146 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
             )
             traj_id_counter += 1
 
-        if int(gm.blue_score) > int(gm.red_score):
-            actual = 1.0
-        elif int(gm.blue_score) < int(gm.red_score):
-            actual = 0.0
+        blue_score = int(gm.blue_score)
+        red_score = int(gm.red_score)
+        win_by = blue_score - red_score
+        if blue_score > red_score:
+            result = "WIN"
+            win_count += 1
+            win_val = 1.0
+        elif blue_score < red_score:
+            result = "LOSS"
+            loss_count += 1
+            win_val = 0.0
         else:
-            actual = 0.5
-        curriculum.record_result(phase, actual)
+            result = "DRAW"
+            draw_count += 1
+            win_val = 0.5
+        opp_key = f"SCRIPTED:{red_tag}"
 
-        if curriculum.advance_if_ready(learner_rating=0.0, opponent_rating=0.0, win_by=int(gm.blue_score - gm.red_score)):
-            print(f"[MAPPO] curriculum advance -> {curriculum.phase}")
+        if mode == TrainMode.FIXED_OPPONENT.value:
+            print(
+                f"[MAPPO|FIXED] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                f"opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
+            )
+        elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
+            curriculum.record_result(current_phase, win_val)
+            curriculum.advance_if_ready(1200.0, 1200.0, win_by)
+            current_phase = curriculum.phase
+            red_tag = current_phase
+            print(
+                f"[MAPPO|CURR] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                f"phase={current_phase} opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
+            )
+        elif mode == TrainMode.CURRICULUM_LEAGUE.value and curriculum is not None and controller is not None and league is not None:
+            league.update_elo(opp_key, win_val)
+            controller.record_result(opp_key, win_val)
+            curriculum.record_result(curriculum.phase, win_val)
+            phase = curriculum.phase
+            is_scripted = opp_key.startswith("SCRIPTED:")
+            if is_scripted:
+                opp_rating = league.get_rating(opp_key)
+                if curriculum.advance_if_ready(
+                    learner_rating=league.learner_rating,
+                    opponent_rating=opp_rating,
+                    win_by=win_by,
+                ):
+                    phase = curriculum.phase
+            if phase == "OP3" and is_scripted:
+                min_eps = int(curriculum.config.min_episodes.get("OP3", 0))
+                min_wr = float(curriculum.config.min_winrate.get("OP3", 0.0))
+                req_win_by = int(curriculum.config.required_win_by.get("OP3", 0))
+                meets_eps = curriculum.phase_episode_count >= min_eps
+                meets_wr = curriculum.phase_winrate("OP3") >= min_wr
+                meets_score = (req_win_by <= 0) or (win_by >= req_win_by)
+                gate_tag = str(cfg.op3_gate_tag).upper()
+                gate_ok = opp_key.endswith(f":{gate_tag}")
+                if meets_eps and meets_wr and meets_score and gate_ok:
+                    league_mode = True
+            if (episode_idx % int(cfg.snapshot_every_episodes)) == 0:
+                _enforce_league_snapshot_limit(league, cfg.league_max_snapshots)
+                path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_league_snapshot_ep{episode_idx:06d}.pth")
+                try:
+                    torch.save(policy_train.state_dict(), path)
+                    league.add_snapshot(path)
+                except Exception as exc:
+                    print(f"[WARN] MAPPO league snapshot save failed: {exc}")
+                _enforce_league_snapshot_limit(league, cfg.league_max_snapshots)
+            next_spec = controller.select_opponent(curriculum.phase, league_mode=league_mode)
+            if next_spec.kind == "SNAPSHOT":
+                tag = str(getattr(cfg, "league_scripted_fallback_tag", "OP3")).upper()
+                next_spec = OpponentSpec(kind="SCRIPTED", key=tag, rating=league.get_rating(f"SCRIPTED:{tag}"))
+            elif (next_spec.kind == "SCRIPTED" and next_spec.key == "OP3_HARD" and
+                  league.learner_rating < float(getattr(cfg, "league_easy_scripted_elo_threshold", 1200.0))):
+                next_spec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=league.get_rating("SCRIPTED:OP3"))
+            red_tag = next_spec.key
+            mode_str = "LEAGUE" if league_mode else "CURR"
+            base = (
+                f"[MAPPO|{mode_str}] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                f"phase={phase} opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
+            )
+            if league_mode:
+                base = f"{base} elo={league.learner_rating:.1f}"
+            print(base)
+        elif mode == TrainMode.SELF_PLAY.value and league is not None:
+            if (episode_idx % int(cfg.self_play_snapshot_every_episodes)) == 0:
+                _enforce_league_snapshot_limit(league, cfg.self_play_max_snapshots)
+                max_s = max(1, cfg.self_play_max_snapshots)
+                slot = (episode_idx // int(cfg.self_play_snapshot_every_episodes)) % max_s + 1
+                path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_snapshot_slot{slot:03d}.pth")
+                try:
+                    torch.save(policy_train.state_dict(), path)
+                    league.add_snapshot(path)
+                except Exception as exc:
+                    print(f"[WARN] MAPPO self-play snapshot save failed: {exc}")
+                _enforce_league_snapshot_limit(league, cfg.self_play_max_snapshots)
+            print(
+                f"[MAPPO|SELF] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                f"snapshots={len(league.snapshots)} W={win_count} | L={loss_count} | D={draw_count}"
+            )
 
-        if episode_idx % 50 == 0:
-            ckpt = os.path.join(cfg.checkpoint_dir, f"mappo_ckpt_ep{episode_idx}.pth")
-            torch.save(policy_train.state_dict(), ckpt)
-            print(f"[MAPPO] saved {ckpt}")
+        if global_step % int(cfg.log_every_steps) < int(cfg.update_every) * 2:
+            print(f"  [MAPPO] total_steps={global_step} episodes={episode_idx}")
 
-    final_path = os.path.join(cfg.checkpoint_dir, "mappo_final.pth")
-    torch.save(policy_train.state_dict(), final_path)
-    print(f"[MAPPO] Training complete. Final model saved to: {final_path}")
+        if cfg.save_every_steps and global_step > 0 and global_step % int(cfg.save_every_steps) < int(cfg.update_every) * 2:
+            path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_step{global_step}.pth")
+            try:
+                torch.save(policy_train.state_dict(), path)
+            except Exception as exc:
+                print(f"[WARN] MAPPO step save failed: {exc}")
+
+    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.pth")
+    try:
+        torch.save(policy_train.state_dict(), final_path)
+        print(f"[MAPPO] Training complete. Final model saved to: {final_path}")
+    except Exception as exc:
+        print(f"[WARN] MAPPO final save failed: {exc}")
+    print(f"[MAPPO] Done. total_steps={global_step} episodes={episode_idx}")
 
 
 if __name__ == "__main__":
-    train_mappo()
+    import argparse
+    p = argparse.ArgumentParser(description="MAPPO training: curriculum, league, fixed, self-play")
+    p.add_argument("--mode", type=str, default=TrainMode.CURRICULUM_LEAGUE.value,
+                   choices=[TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value,
+                            TrainMode.FIXED_OPPONENT.value, TrainMode.SELF_PLAY.value],
+                   help="CURRICULUM_LEAGUE | CURRICULUM_NO_LEAGUE | FIXED_OPPONENT | SELF_PLAY")
+    p.add_argument("--total_steps", type=int, default=1_000_000)
+    p.add_argument("--update_every", type=int, default=2048)
+    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--run_tag", type=str, default="mappo_league_curriculum")
+    p.add_argument("--log_every_steps", type=int, default=2000)
+    p.add_argument("--fixed_opponent_tag", type=str, default="OP3", help="For FIXED_OPPONENT mode")
+    args = p.parse_args()
+    cfg = MAPPOConfig(
+        mode=args.mode,
+        total_steps=args.total_steps,
+        update_every=args.update_every,
+        lr=args.lr,
+        seed=args.seed,
+        run_tag=args.run_tag,
+        log_every_steps=args.log_every_steps,
+        fixed_opponent_tag=args.fixed_opponent_tag,
+    )
+    train_mappo(cfg)
