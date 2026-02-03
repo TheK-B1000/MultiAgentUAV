@@ -145,6 +145,8 @@ class PPOConfig:
 
     max_decision_steps: int = 900
     op3_gate_tag: str = "OP3_HARD"
+    # When learner Elo drops below this, substitute OP3_HARD with OP3 for more winnable games.
+    league_easy_scripted_elo_threshold: float = 1200.0
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
@@ -416,6 +418,11 @@ class LeagueCallback(BaseCallback):
                     self._enforce_league_snapshot_limit()
 
             next_opp = self._select_next_opponent()
+            # When learner is struggling (Elo below threshold), substitute OP3_HARD with OP3.
+            threshold = float(getattr(self.cfg, "league_easy_scripted_elo_threshold", 1200.0))
+            if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD" and
+                    self.league.learner_rating < threshold):
+                next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
             env = self.model.get_env()
             if env is not None:
                 env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
