@@ -80,6 +80,10 @@ class IPPOConfig:
     op3_gate_tag: str = "OP3_HARD"
     snapshot_every_episodes: int = 100
     league_max_snapshots: int = 25
+    # When league picks SNAPSHOT we substitute scripted (IPPO saves .pt). Use OP3 for easier games.
+    league_scripted_fallback_tag: str = "OP3"
+    # When learner Elo drops below this, substitute OP3_HARD with OP3 in league for more winnable games.
+    league_easy_scripted_elo_threshold: float = 1200.0
     # SELF_PLAY
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -731,7 +735,12 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
                         next_spec = controller.select_opponent(curriculum.phase, league_mode=league_mode)
                         # IPPO saves .pt; red loads SB3 .zip only. Never pass SNAPSHOT to env.
                         if next_spec.kind == "SNAPSHOT":
-                            next_spec = OpponentSpec(kind="SCRIPTED", key="OP3_HARD", rating=league.get_rating("SCRIPTED:OP3_HARD"))
+                            tag = str(getattr(cfg, "league_scripted_fallback_tag", "OP3")).upper()
+                            next_spec = OpponentSpec(kind="SCRIPTED", key=tag, rating=league.get_rating(f"SCRIPTED:{tag}"))
+                        # When learner is struggling (Elo below threshold), substitute OP3_HARD with OP3 for more winnable games.
+                        elif (next_spec.kind == "SCRIPTED" and next_spec.key == "OP3_HARD" and
+                              league.learner_rating < float(getattr(cfg, "league_easy_scripted_elo_threshold", 1200.0))):
+                            next_spec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=league.get_rating("SCRIPTED:OP3"))
                         if inner is not None and hasattr(inner, "set_next_opponent"):
                             inner.set_next_opponent(next_spec.kind, next_spec.key)
                         if hasattr(inner, "set_phase"):
