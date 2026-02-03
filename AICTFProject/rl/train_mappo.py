@@ -649,9 +649,6 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                 f"snapshots={len(league.snapshots)} W={win_count} | L={loss_count} | D={draw_count}"
             )
 
-        if global_step % int(cfg.log_every_steps) < int(cfg.update_every) * 2:
-            print(f"  [MAPPO] total_steps={global_step} episodes={episode_idx}")
-
         if cfg.save_every_steps and global_step > 0 and global_step % int(cfg.save_every_steps) < int(cfg.update_every) * 2:
             path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_step{global_step}.pth")
             try:
