@@ -66,7 +66,8 @@ class IPPOConfig:
     add_agent_id_to_vec: bool = True
 
     checkpoint_dir: str = "checkpoints_ippo"
-    run_tag: str = "ippo_league_curriculum_v1"
+    run_tag: str = ("ippo_league_curriculum_v1"
+                    "")
     save_every_steps: int = 50_000
     log_every_steps: int = 2_000
 
@@ -803,7 +804,7 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
             path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_step{global_step}.pt")
             torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, path)
 
-    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.pt")
+    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}_v2.pt")
     try:
         torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, final_path)
         print(f"[IPPO] Training complete. Final model saved to: {final_path}")
