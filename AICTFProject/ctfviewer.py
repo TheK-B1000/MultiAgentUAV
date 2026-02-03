@@ -25,6 +25,9 @@ except Exception:
 # ----------------------------
 # MODEL PATHS (edit these)
 # ----------------------------
+# Resolve relative paths from this script's directory so they work regardless of cwd
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Point this to your Phase 1 SB3 output:
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
@@ -55,44 +58,42 @@ def _safe_int(x: Any, default: int = 0) -> int:
         return int(default)
 
 
+def _try_paths(*candidates: str) -> Optional[str]:
+    """Return first candidate that exists, or None."""
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
 def _resolve_zip_path(path: str) -> Optional[str]:
     if not path:
         return None
-    if os.path.exists(path) and path.endswith(".zip"):
-        return path
-    if os.path.exists(path + ".zip"):
-        return path + ".zip"
-    if os.path.exists(path):
-        # Some people pass a directory-like SB3 save prefix; SB3 expects the .zip file.
-        # If it's not .zip but exists, we still try it.
-        return path
-    return None
+    candidates = [path]
+    if not path.endswith(".zip"):
+        candidates.append(path + ".zip")
+    if not os.path.isabs(path):
+        script_rel = os.path.join(_SCRIPT_DIR, path)
+        candidates.append(script_rel)
+        if not script_rel.endswith(".zip"):
+            candidates.append(script_rel + ".zip")
+    return _try_paths(*candidates)
 
 
 def _resolve_pt_path(path: str) -> Optional[str]:
     """Resolve path to an IPPO .pt checkpoint."""
     if not path:
         return None
-    if os.path.exists(path) and path.endswith(".pt"):
-        return path
-    if os.path.exists(path + ".pt"):
-        return path + ".pt"
-    if os.path.exists(path):
-        return path
-    return None
+    script_rel = os.path.join(_SCRIPT_DIR, path) if not os.path.isabs(path) else None
+    return _try_paths(path, path + ".pt", script_rel, os.path.join(_SCRIPT_DIR, path + ".pt") if script_rel else None)
 
 
 def _resolve_pth_path(path: str) -> Optional[str]:
     """Resolve path to a MAPPO .pth checkpoint."""
     if not path:
         return None
-    if os.path.exists(path) and path.endswith(".pth"):
-        return path
-    if os.path.exists(path + ".pth"):
-        return path + ".pth"
-    if os.path.exists(path):
-        return path
-    return None
+    script_rel = os.path.join(_SCRIPT_DIR, path) if not os.path.isabs(path) else None
+    return _try_paths(path, path + ".pth", script_rel, os.path.join(_SCRIPT_DIR, path + ".pth") if script_rel else None)
 
 
 class MAPPOTeamPolicy:
@@ -1122,7 +1123,7 @@ class CTFViewer:
                 pass
 
     def _available_modes(self) -> List[str]:
-        """Cycle order: Default → PPO → IPPO → MAPPO → HPPO."""
+        """Cycle order: Default -> PPO -> IPPO -> MAPPO -> HPPO."""
         modes = ["DEFAULT"]
         if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             modes.append("PPO")
@@ -1146,7 +1147,7 @@ class CTFViewer:
             self.game_field.policies["blue"] = self._blue_policy_callable
             self.blue_mode = "IPPO"
             self.blue_ippo_team.reset_cache()
-            print("[CTFViewer] Blue → IPPO (.pt)")
+            print("[CTFViewer] Blue -> IPPO (.pt)")
 
         elif mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             # install a callable that slices the cached joint action
@@ -1167,7 +1168,7 @@ class CTFViewer:
             self.game_field.policies["blue"] = self._blue_policy_callable
             self.blue_mode = "MAPPO"
             self.blue_mappo_team.reset_cache()
-            print("[CTFViewer] Blue → MAPPO (.pth)")
+            print("[CTFViewer] Blue -> MAPPO (.pth)")
 
         elif mode == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
             def blue_policy(obs, agent, game_field):
@@ -1177,13 +1178,13 @@ class CTFViewer:
             self.game_field.policies["blue"] = self._blue_policy_callable
             self.blue_mode = "HPPO"
             self.blue_hppo_team.reset_cache()
-            print("[CTFViewer] Blue → HPPO (high/low)")
+            print("[CTFViewer] Blue -> HPPO (high/low)")
 
         else:
             self._blue_policy_callable = None
             self.game_field.policies["blue"] = self.blue_op3_baseline
             self.blue_mode = "DEFAULT"
-            print("[CTFViewer] Blue → Default baseline")
+            print("[CTFViewer] Blue -> Default baseline")
 
     def _cycle_blue_mode(self) -> None:
         modes = self._available_modes()
@@ -1257,6 +1258,7 @@ class CTFViewer:
         save_csv: Optional[str] = None,
         headless: bool = False,
         opponent: str = "OP3",
+        eval_model: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate trained model performance by running N episodes and collecting IROS-style metrics.
@@ -1266,28 +1268,47 @@ class CTFViewer:
             save_csv: Path to save CSV (e.g., "eval_results.csv"). If None, auto-generates name.
             headless: If True, run without display (faster). If False, show viewer.
             opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD")
+            eval_model: Force model for eval: "ippo", "ppo", "mappo", "hppo". If None, auto-pick first loaded.
 
         Returns:
             Dict with summary statistics and per-episode metrics
         """
         if not headless:
-            print("[Eval] Running with display (headless=False). Press ESC to stop early.")
+            print(f"[Eval] Running {num_episodes} episodes with display. Press ESC to stop early.")
         else:
             print(f"[Eval] Running {num_episodes} episodes headless...")
 
-        # Ensure we're using a trained model
-        if self.blue_mode == "DEFAULT":
+        # Use requested model or first loaded
+        want = (eval_model or "").strip().upper()
+        if want == "IPPO" and self.blue_ippo_team and self.blue_ippo_team.model_loaded:
+            self._apply_blue_mode("IPPO")
+            print("[Eval] Using IPPO for evaluation")
+        elif want == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+            self._apply_blue_mode("PPO")
+            print("[Eval] Using PPO for evaluation")
+        elif want == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
+            self._apply_blue_mode("MAPPO")
+            print("[Eval] Using MAPPO for evaluation")
+        elif want == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
+            self._apply_blue_mode("HPPO")
+            print("[Eval] Using HPPO for evaluation")
+        elif self.blue_mode == "DEFAULT":
             if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
                 self._apply_blue_mode("IPPO")
                 print("[Eval] Switched to IPPO mode for evaluation")
             elif self.blue_ppo_team and self.blue_ppo_team.model_loaded:
                 self._apply_blue_mode("PPO")
                 print("[Eval] Switched to PPO mode for evaluation")
+            elif self.blue_mappo_team and self.blue_mappo_team.model_loaded:
+                self._apply_blue_mode("MAPPO")
+                print("[Eval] Switched to MAPPO mode for evaluation")
             elif self.blue_hppo_team and self.blue_hppo_team.model_loaded:
                 self._apply_blue_mode("HPPO")
                 print("[Eval] Switched to HPPO mode for evaluation")
             else:
                 print("[WARN] No trained model loaded! Using DEFAULT baseline.")
+        if eval_model and self.blue_mode == "DEFAULT":
+            print(f"[WARN] Requested model '{eval_model}' not loaded; using DEFAULT baseline.")
 
         # Set opponent
         if hasattr(self.game_field, "set_red_opponent"):
@@ -1448,7 +1469,7 @@ class CTFViewer:
                 else "hppo" if self.blue_mode == "HPPO"
                 else "default"
             )
-            save_csv = f"eval_{model_name}_{opponent}_{len(episodes)}ep.csv"
+            save_csv = os.path.join(_SCRIPT_DIR, f"eval_{model_name}_{opponent}_{len(episodes)}ep.csv")
 
         csv_columns = [
             "episode_id", "success", "time_to_first_score", "time_to_game_over",
@@ -1661,8 +1682,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="CTF Viewer - Interactive or Evaluation Mode")
-    parser.add_argument("--eval", type=int, metavar="N", help="Run evaluation mode: run N episodes and save metrics CSV")
+    parser.add_argument("--eval", type=int, metavar="N", help="Run evaluation: N episodes, save metrics CSV (default: with display)")
     parser.add_argument("--eval-csv", type=str, metavar="PATH", help="CSV output path for evaluation (default: auto-generated)")
+    parser.add_argument("--eval-model", type=str, choices=["ippo", "ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
     parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
     parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
@@ -1682,16 +1704,17 @@ if __name__ == "__main__":
     )
 
     if args.eval is not None:
-        # Evaluation mode
+        # Evaluation mode: N episodes with metrics, optionally with display
         summary = viewer.evaluate_model(
             num_episodes=args.eval,
             save_csv=args.eval_csv,
             headless=args.headless,
             opponent=args.opponent,
+            eval_model=args.eval_model,
         )
         if not args.headless:
-            print("\n[Eval] Evaluation complete. Viewer window will close.")
-            viewer.run()  # Show final state
+            print("\n[Eval] Evaluation complete. Closing viewer or keep open.")
+            viewer.run()  # Keep window open to see final state
     else:
         # Interactive mode
         viewer.run()
