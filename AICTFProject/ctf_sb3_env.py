@@ -872,9 +872,10 @@ class CTFGameFieldSB3Env(gym.Env):
             time_to_game_over_sec = float(time_to_game_over) if time_to_game_over is not None else None
             if time_to_game_over_sec is None:
                 time_to_game_over_sec = float(getattr(gm, "sim_time", 0.0))
-            collisions = int(getattr(gm, "collision_count_this_episode", 0))
+            collisions_per_tick = int(getattr(gm, "collision_count_this_episode", 0))
+            collision_events = int(getattr(gm, "collision_events_this_episode", collisions_per_tick))
             near_misses = int(getattr(gm, "near_miss_count_this_episode", 0))
-            collision_free = 1 if collisions == 0 else 0
+            collision_free = 1 if collision_events == 0 else 0
             dists = getattr(gm, "blue_inter_robot_distances", []) or []
             mean_inter_robot_dist = float(np.mean(dists)) if dists else None
             std_inter_robot_dist = float(np.std(dists)) if len(dists) > 1 else (0.0 if dists else None)
@@ -905,7 +906,8 @@ class CTFGameFieldSB3Env(gym.Env):
                 "success": success,
                 "time_to_first_score": time_to_first_score,
                 "time_to_game_over": time_to_game_over_sec,
-                "collisions_per_episode": collisions,
+                "collisions_per_episode": collisions_per_tick,
+                "collision_events_per_episode": collision_events,
                 "near_misses_per_episode": near_misses,
                 "collision_free_episode": collision_free,
                 "mean_inter_robot_dist": mean_inter_robot_dist,
