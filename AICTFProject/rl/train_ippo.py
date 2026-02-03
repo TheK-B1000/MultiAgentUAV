@@ -729,6 +729,9 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
                                 print(f"[WARN] IPPO league snapshot save failed: {exc}")
                             _enforce_league_snapshot_limit(league, cfg.league_max_snapshots)
                         next_spec = controller.select_opponent(curriculum.phase, league_mode=league_mode)
+                        # IPPO saves .pt; red loads SB3 .zip only. Never pass SNAPSHOT to env.
+                        if next_spec.kind == "SNAPSHOT":
+                            next_spec = OpponentSpec(kind="SCRIPTED", key="OP3_HARD", rating=league.get_rating("SCRIPTED:OP3_HARD"))
                         if inner is not None and hasattr(inner, "set_next_opponent"):
                             inner.set_next_opponent(next_spec.kind, next_spec.key)
                         if hasattr(inner, "set_phase"):
