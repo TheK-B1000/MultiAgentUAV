@@ -117,7 +117,8 @@ class GameManager:
     # --- IROS-style metrics (Top 5) ---
     time_to_first_score: Optional[float] = None  # sim_time when first score occurred
     time_to_game_over: Optional[float] = None   # sim_time when game ended
-    collision_count_this_episode: int = 0
+    collision_count_this_episode: int = 0   # per-tick contact count (inflates when stuck)
+    collision_events_this_episode: int = 0  # unique collision events (enter-collision only)
     near_miss_count_this_episode: int = 0
     blue_inter_robot_distances: List[float] = field(default_factory=list)
     blue_zone_visited_cells: Set[Cell] = field(default_factory=set)
@@ -152,12 +153,17 @@ class GameManager:
         self,
         collision_delta: int = 0,
         near_miss_delta: int = 0,
+        collision_events_delta: int = 0,  # only when pair enters collision (recommended for collision_free)
         blue_inter_robot_dist: Optional[float] = None,
         blue_zone_cells_this_tick: Optional[Set[Cell]] = None,
     ) -> None:
-        """IROS-style metrics: called by game_field each tick."""
+        """IROS-style metrics: called by game_field each tick.
+        collision_delta: per-tick contact count (legacy, can inflate).
+        collision_events_delta: count only when a pair *enters* collision (recommended for collision_free_rate).
+        """
         self.collision_count_this_episode += int(collision_delta)
         self.near_miss_count_this_episode += int(near_miss_delta)
+        self.collision_events_this_episode += int(collision_events_delta)
         if blue_inter_robot_dist is not None and math.isfinite(blue_inter_robot_dist):
             self.blue_inter_robot_distances.append(float(blue_inter_robot_dist))
         if blue_zone_cells_this_tick:
@@ -443,6 +449,15 @@ class GameManager:
         self.red_mine_kills_this_episode = 0
         self.mines_placed_in_enemy_half_this_episode = 0
         self.mines_triggered_by_red_this_episode = 0
+
+        self.collision_count_this_episode = 0
+        self.collision_events_this_episode = 0
+        self.near_miss_count_this_episode = 0
+        self.time_to_first_score = None
+        self.time_to_game_over = None
+        self.blue_inter_robot_distances.clear()
+        self.blue_zone_visited_cells.clear()
+        self.total_blue_zone_cells = 0
 
         self.blue_visited_cells.clear()
         self.red_visited_cells.clear()
