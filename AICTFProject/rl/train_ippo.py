@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -28,7 +29,16 @@ from ctf_sb3_env import CTFGameFieldSB3Env
 from rl.common import env_seed, set_global_seed
 from rl.marl_env import MARLEnvWrapper, _agent_keys, _actions_dict_to_flat
 from rl.episode_result import parse_episode_result
+from rl.curriculum import CurriculumConfig, CurriculumController, CurriculumControllerConfig, CurriculumState, STRESS_BY_PHASE
+from rl.league import EloLeague, OpponentSpec
 from config import MAP_NAME, MAP_PATH
+
+
+class TrainMode(str, Enum):
+    CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"
+    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"  # OP1 -> OP2 -> OP3, no league
+    FIXED_OPPONENT = "FIXED_OPPONENT"
+    SELF_PLAY = "SELF_PLAY"
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +48,7 @@ from config import MAP_NAME, MAP_PATH
 @dataclass
 class IPPOConfig:
     seed: int = 42
-    total_timesteps: int = 500_000
+    total_timesteps: int = 2_000_000
     n_steps: int = 2048
     batch_size: int = 512
     n_epochs: int = 10
@@ -62,6 +72,32 @@ class IPPOConfig:
 
     default_opponent_kind: str = "SCRIPTED"
     default_opponent_key: str = "OP1"
+    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+
+    # FIXED_OPPONENT
+    fixed_opponent_tag: str = "OP3"
+    # CURRICULUM_LEAGUE / curriculum
+    op3_gate_tag: str = "OP3_HARD"
+    snapshot_every_episodes: int = 100
+    league_max_snapshots: int = 25
+    # SELF_PLAY
+    self_play_use_latest_snapshot: bool = True
+    self_play_snapshot_every_episodes: int = 25
+    self_play_max_snapshots: int = 25
+
+    # Curriculum: advance OP1 -> OP2 -> OP3
+    curriculum_min_episodes: Dict[str, int] = None  # default below
+    curriculum_min_winrate: Dict[str, float] = None
+    curriculum_winrate_window: int = 50
+    curriculum_required_win_by: Dict[str, int] = None
+
+    def __post_init__(self) -> None:
+        if self.curriculum_min_episodes is None:
+            self.curriculum_min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
+        if self.curriculum_min_winrate is None:
+            self.curriculum_min_winrate = {"OP1": 0.50, "OP2": 0.50, "OP3": 0.55}
+        if self.curriculum_required_win_by is None:
+            self.curriculum_required_win_by = {"OP1": 0, "OP2": 0, "OP3": 0}
 
 
 def make_marl_env(cfg: IPPOConfig, rank: int = 0) -> MARLEnvWrapper:
@@ -86,6 +122,12 @@ def make_marl_env(cfg: IPPOConfig, rank: int = 0) -> MARLEnvWrapper:
     )
     env = MARLEnvWrapper(inner, add_agent_id_to_vec=cfg.add_agent_id_to_vec)
     env.reset(seed=s)
+    # Stress schedule so set_phase(OP2/OP3) applies physics/stress
+    if hasattr(inner, "set_stress_schedule"):
+        try:
+            inner.set_stress_schedule(STRESS_BY_PHASE)
+        except Exception:
+            pass
     return env
 
 
@@ -437,6 +479,23 @@ def ppo_update(
 
 
 # ---------------------------------------------------------------------------
+# Helpers for league / self-play
+# ---------------------------------------------------------------------------
+
+def _enforce_league_snapshot_limit(league: EloLeague, max_snapshots: int) -> None:
+    """Delete oldest league snapshots when over cap."""
+    if max_snapshots <= 0:
+        return
+    while len(league.snapshots) > max_snapshots:
+        oldest = league.snapshots.pop(0)
+        try:
+            if oldest and os.path.exists(oldest):
+                os.remove(oldest)
+        except Exception as exc:
+            print(f"[WARN] league snapshot cleanup failed: {exc}")
+
+
+# ---------------------------------------------------------------------------
 # Main training loop
 # ---------------------------------------------------------------------------
 
@@ -445,6 +504,22 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
     set_global_seed(cfg.seed)
     device = torch.device(cfg.device)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
+    mode = str(cfg.mode or TrainMode.CURRICULUM_LEAGUE.value).strip().upper()
+
+    # Default opponent and phase per mode
+    if mode == TrainMode.FIXED_OPPONENT.value:
+        default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
+        phase_name = str(cfg.fixed_opponent_tag).upper()
+    elif mode == TrainMode.SELF_PLAY.value:
+        default_opponent = ("SCRIPTED", "OP3")
+        phase_name = "SELF_PLAY"
+    else:
+        default_opponent = ("SCRIPTED", "OP1")
+        phase_name = "OP1"
+
+    # Override config so make_marl_env uses the right opponent
+    cfg.default_opponent_kind = default_opponent[0]
+    cfg.default_opponent_key = default_opponent[1]
 
     env = make_marl_env(cfg)
     agent_keys = env.agent_keys
@@ -465,6 +540,85 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
     draw_count = 0
     per_agent_ep_rewards: Dict[str, List[float]] = {k: [] for k in agent_keys}
     ep_rew_accum: Dict[str, float] = {k: 0.0 for k in agent_keys}
+
+    # League (for CURRICULUM_LEAGUE and SELF_PLAY)
+    league: Optional[EloLeague] = None
+    curriculum: Optional[CurriculumState] = None
+    controller: Optional[CurriculumController] = None
+    league_mode = False
+    current_phase = phase_name
+    inner = getattr(env, "_env", None)
+
+    if mode == TrainMode.CURRICULUM_LEAGUE.value:
+        league = EloLeague(
+            seed=cfg.seed,
+            k_factor=32.0,
+            matchmaking_tau=250.0,
+            scripted_floor=0.50,
+            species_prob=0.20,
+            snapshot_prob=0.30,
+        )
+        curriculum = CurriculumState(
+            CurriculumConfig(
+                phases=["OP1", "OP2", "OP3"],
+                min_episodes=cfg.curriculum_min_episodes,
+                min_winrate=cfg.curriculum_min_winrate,
+                winrate_window=cfg.curriculum_winrate_window,
+                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
+                elo_margin=80.0,
+                switch_to_league_after_op3_win=False,
+            )
+        )
+        controller = CurriculumController(
+            CurriculumControllerConfig(
+                seed=cfg.seed,
+                enable_snapshots=False,  # IPPO saves .pt; red loads SB3 .zip
+                enable_species=True,
+            ),
+            league=league,
+        )
+        current_phase = curriculum.phase
+    elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        curriculum = CurriculumState(
+            CurriculumConfig(
+                phases=["OP1", "OP2", "OP3"],
+                min_episodes=cfg.curriculum_min_episodes,
+                min_winrate=cfg.curriculum_min_winrate,
+                winrate_window=cfg.curriculum_winrate_window,
+                required_win_by=cfg.curriculum_required_win_by,
+                elo_margin=-1000.0,
+                switch_to_league_after_op3_win=False,
+            )
+        )
+        current_phase = curriculum.phase
+    elif mode == TrainMode.SELF_PLAY.value:
+        league = EloLeague(
+            seed=cfg.seed,
+            k_factor=32.0,
+            matchmaking_tau=250.0,
+            scripted_floor=0.50,
+            species_prob=0.20,
+            snapshot_prob=0.30,
+        )
+        # Save initial policy as first snapshot (red stays OP3; snapshots are .pt for checkpointing)
+        init_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_init.pt")
+        try:
+            torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, init_path)
+            league.add_snapshot(init_path)
+        except Exception as exc:
+            print(f"[WARN] IPPO self-play init save failed: {exc}")
+
+    if inner is not None and current_phase:
+        if hasattr(inner, "set_phase"):
+            inner.set_phase(current_phase)
+        if hasattr(inner, "set_next_opponent"):
+            kind, key = default_opponent[0], default_opponent[1]
+            if mode == TrainMode.CURRICULUM_LEAGUE.value and controller is not None:
+                spec = controller.select_opponent(current_phase, league_mode=league_mode)
+                kind, key = spec.kind, spec.key
+            elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
+                key = curriculum.phase
+            inner.set_next_opponent(kind, key)
 
     while global_step < cfg.total_timesteps:
         obs_dict, _ = env.reset()
@@ -503,27 +657,108 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
                 if summary is not None:
                     blue_score = summary.blue_score
                     red_score = summary.red_score
-                    phase = (summary.phase_name or "OP1").strip().upper() or "OP1"
-                    # Sync opponent to phase so we only face OP1 in phase OP1, etc.
-                    inner = getattr(env, "_env", None)
-                    if inner is not None and hasattr(inner, "set_next_opponent"):
-                        inner.set_next_opponent("SCRIPTED", phase)
-                    if inner is not None and hasattr(inner, "set_phase"):
-                        inner.set_phase(phase)
-                    opp_key = summary.opponent_key()
+                    win_by = blue_score - red_score
                     if blue_score > red_score:
                         result = "WIN"
                         win_count += 1
+                        win_val = 1.0
                     elif blue_score < red_score:
                         result = "LOSS"
                         loss_count += 1
+                        win_val = 0.0
                     else:
                         result = "DRAW"
                         draw_count += 1
-                    print(
-                        f"[IPPO|CURR] ep={episode_idx} result={result} score={blue_score}:{red_score} "
-                        f"phase={phase} opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
-                    )
+                        win_val = 0.5
+                    opp_key = summary.opponent_key()
+
+                    if mode == TrainMode.FIXED_OPPONENT.value:
+                        opp_tag = str(cfg.fixed_opponent_tag or summary.scripted_tag or "OP3").upper()
+                        print(
+                            f"[IPPO|FIXED] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                            f"opp=SCRIPTED:{opp_tag} W={win_count} | L={loss_count} | D={draw_count}"
+                        )
+                    elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
+                        curriculum.record_result(current_phase, win_val)
+                        curriculum.phase_episode_count += 1
+                        curriculum.advance_if_ready(1200.0, 1200.0, win_by)
+                        current_phase = curriculum.phase
+                        if inner is not None:
+                            if hasattr(inner, "set_next_opponent"):
+                                inner.set_next_opponent("SCRIPTED", current_phase)
+                            if hasattr(inner, "set_phase"):
+                                inner.set_phase(current_phase)
+                        print(
+                            f"[IPPO|CURR] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                            f"phase={current_phase} opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
+                        )
+                    elif mode == TrainMode.CURRICULUM_LEAGUE.value and curriculum is not None and controller is not None and league is not None:
+                        league.update_elo(opp_key, win_val)
+                        controller.record_result(opp_key, win_val)
+                        # Record to the phase we're actually in (curriculum.phase), not current_phase
+                        curriculum.record_result(curriculum.phase, win_val)
+                        curriculum.phase_episode_count += 1
+                        phase = curriculum.phase
+                        is_scripted = opp_key.startswith("SCRIPTED:")
+                        if is_scripted:
+                            opp_rating = league.get_rating(opp_key)
+                            if curriculum.advance_if_ready(
+                                learner_rating=league.learner_rating,
+                                opponent_rating=opp_rating,
+                                win_by=win_by,
+                            ):
+                                phase = curriculum.phase
+                        if phase == "OP3" and is_scripted:
+                            min_eps = int(curriculum.config.min_episodes.get("OP3", 0))
+                            min_wr = float(curriculum.config.min_winrate.get("OP3", 0.0))
+                            req_win_by = int(curriculum.config.required_win_by.get("OP3", 0))
+                            meets_eps = curriculum.phase_episode_count >= min_eps
+                            meets_wr = curriculum.phase_winrate("OP3") >= min_wr
+                            meets_score = (req_win_by <= 0) or (win_by >= req_win_by)
+                            gate_tag = str(cfg.op3_gate_tag).upper()
+                            gate_ok = opp_key.endswith(f":{gate_tag}")
+                            if meets_eps and meets_wr and meets_score and gate_ok:
+                                league_mode = True
+                        if (episode_idx % int(cfg.snapshot_every_episodes)) == 0 and league is not None:
+                            _enforce_league_snapshot_limit(league, cfg.league_max_snapshots)
+                            path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_league_snapshot_ep{episode_idx:06d}.pt")
+                            try:
+                                torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, path)
+                                league.add_snapshot(path)
+                            except Exception as exc:
+                                print(f"[WARN] IPPO league snapshot save failed: {exc}")
+                            _enforce_league_snapshot_limit(league, cfg.league_max_snapshots)
+                        next_spec = controller.select_opponent(curriculum.phase, league_mode=league_mode)
+                        if inner is not None and hasattr(inner, "set_next_opponent"):
+                            inner.set_next_opponent(next_spec.kind, next_spec.key)
+                        if hasattr(inner, "set_phase"):
+                            inner.set_phase(curriculum.phase)
+                        if hasattr(inner, "set_league_mode"):
+                            inner.set_league_mode(league_mode)
+                        mode_str = "LEAGUE" if league_mode else "CURR"
+                        base = (
+                            f"[IPPO|{mode_str}] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                            f"phase={phase} opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
+                        )
+                        if league_mode:
+                            base = f"{base} elo={league.learner_rating:.1f}"
+                        print(base)
+                    elif mode == TrainMode.SELF_PLAY.value and league is not None:
+                        if (episode_idx % int(cfg.self_play_snapshot_every_episodes)) == 0:
+                            _enforce_league_snapshot_limit(league, cfg.self_play_max_snapshots)
+                            max_s = max(1, cfg.self_play_max_snapshots)
+                            slot = (episode_idx // int(cfg.self_play_snapshot_every_episodes)) % max_s + 1
+                            path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_snapshot_slot{slot:03d}.pt")
+                            try:
+                                torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, path)
+                                league.add_snapshot(path)
+                            except Exception as exc:
+                                print(f"[WARN] IPPO self-play snapshot save failed: {exc}")
+                            _enforce_league_snapshot_limit(league, cfg.self_play_max_snapshots)
+                        print(
+                            f"[IPPO|SELF] ep={episode_idx} result={result} score={blue_score}:{red_score} "
+                            f"snapshots={len(league.snapshots)} W={win_count} | L={loss_count} | D={draw_count}"
+                        )
                 obs_dict, _ = env.reset()
                 for k in agent_keys:
                     ep_rew_accum[k] = 0.0
@@ -563,6 +798,10 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser()
+    p.add_argument("--mode", type=str, default=TrainMode.CURRICULUM_LEAGUE.value,
+                   choices=[TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value,
+                            TrainMode.FIXED_OPPONENT.value, TrainMode.SELF_PLAY.value],
+                   help="CURRICULUM_LEAGUE | CURRICULUM_NO_LEAGUE | FIXED_OPPONENT | SELF_PLAY")
     p.add_argument("--total_timesteps", type=int, default=500_000)
     p.add_argument("--n_steps", type=int, default=2048)
     p.add_argument("--batch_size", type=int, default=512)
@@ -571,8 +810,10 @@ if __name__ == "__main__":
     p.add_argument("--device", type=str, default="cpu")
     p.add_argument("--run_tag", type=str, default="ippo_baseline")
     p.add_argument("--log_every_steps", type=int, default=2000)
+    p.add_argument("--fixed_opponent_tag", type=str, default="OP3", help="For FIXED_OPPONENT mode")
     args = p.parse_args()
     cfg = IPPOConfig(
+        mode=args.mode,
         total_timesteps=args.total_timesteps,
         n_steps=args.n_steps,
         batch_size=args.batch_size,
@@ -581,5 +822,6 @@ if __name__ == "__main__":
         device=args.device,
         run_tag=args.run_tag,
         log_every_steps=args.log_every_steps,
+        fixed_opponent_tag=args.fixed_opponent_tag,
     )
     run_ippo(cfg)
