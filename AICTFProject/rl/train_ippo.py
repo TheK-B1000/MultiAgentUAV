@@ -61,7 +61,7 @@ class IPPOConfig:
     log_every_steps: int = 2_000
 
     default_opponent_kind: str = "SCRIPTED"
-    default_opponent_key: str = "OP3"
+    default_opponent_key: str = "OP1"
 
 
 def make_marl_env(cfg: IPPOConfig, rank: int = 0) -> MARLEnvWrapper:
@@ -503,8 +503,14 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
                 if summary is not None:
                     blue_score = summary.blue_score
                     red_score = summary.red_score
+                    phase = (summary.phase_name or "OP1").strip().upper() or "OP1"
+                    # Sync opponent to phase so we only face OP1 in phase OP1, etc.
+                    inner = getattr(env, "_env", None)
+                    if inner is not None and hasattr(inner, "set_next_opponent"):
+                        inner.set_next_opponent("SCRIPTED", phase)
+                    if inner is not None and hasattr(inner, "set_phase"):
+                        inner.set_phase(phase)
                     opp_key = summary.opponent_key()
-                    phase = summary.phase_name or "OP3"
                     if blue_score > red_score:
                         result = "WIN"
                         win_count += 1
