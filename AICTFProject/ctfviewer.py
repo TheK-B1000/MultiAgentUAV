@@ -32,6 +32,10 @@ except Exception:
 DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_curriculum_v2.zip"
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
+# IPPO (Independent PPO) .pt checkpoint from train_ippo.py
+DEFAULT_IPPO_MODEL_PATH = "rl/checkpoints_ippo/final_ippo_league_curriculum.pt"
+# MAPPO (Multi-Agent PPO) .pth checkpoint from train_mappo.py
+DEFAULT_MAPPO_MODEL_PATH = "rl/checkpoints_mappo/final_mappo_league_curriculum.pth"
 
 # IMPORTANT: keep this order consistent with training
 USED_MACROS = [
@@ -63,6 +67,390 @@ def _resolve_zip_path(path: str) -> Optional[str]:
         # If it's not .zip but exists, we still try it.
         return path
     return None
+
+
+def _resolve_pt_path(path: str) -> Optional[str]:
+    """Resolve path to an IPPO .pt checkpoint."""
+    if not path:
+        return None
+    if os.path.exists(path) and path.endswith(".pt"):
+        return path
+    if os.path.exists(path + ".pt"):
+        return path + ".pt"
+    if os.path.exists(path):
+        return path
+    return None
+
+
+def _resolve_pth_path(path: str) -> Optional[str]:
+    """Resolve path to a MAPPO .pth checkpoint."""
+    if not path:
+        return None
+    if os.path.exists(path) and path.endswith(".pth"):
+        return path
+    if os.path.exists(path + ".pth"):
+        return path + ".pth"
+    if os.path.exists(path):
+        return path
+    return None
+
+
+class MAPPOTeamPolicy:
+    """
+    Viewer-side wrapper for MAPPO .pth checkpoints (rl_policy.ActorCriticNet).
+
+    Loads state_dict from train_mappo.py; runs per-agent act() with grid obs and
+    central critic not used for inference. Returns (MacroAction, target_cell) per agent.
+    """
+
+    def __init__(
+        self,
+        model_path: str,
+        env: ViewerGameField,
+        deterministic: bool = True,
+    ):
+        self.model_path_raw = model_path
+        self.model_path: Optional[str] = _resolve_pth_path(model_path)
+        self.model_loaded: bool = False
+        self.policy: Optional[Any] = None
+        self.deterministic = bool(deterministic)
+        self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
+        self._cache_tick: int = -1
+        self._cache_action: np.ndarray = np.array([0, 0, 0, 0], dtype=np.int64)
+
+        if self.model_path is None:
+            print(f"[CTFViewer] MAPPO model not found: {model_path} (or .pth)")
+            return
+
+        try:
+            import torch as _torch
+            from rl_policy import ActorCriticNet
+
+            n_macros = N_MACROS
+            n_targets = self.n_targets
+            n_agents = 2
+            self.policy = ActorCriticNet(
+                n_macros=n_macros,
+                n_targets=n_targets,
+                n_agents=n_agents,
+                in_channels=NUM_CNN_CHANNELS,
+                height=CNN_ROWS,
+                width=CNN_COLS,
+            )
+            state = _torch.load(self.model_path, map_location="cpu", weights_only=True)
+            self.policy.load_state_dict(state)
+            self.policy.eval()
+            self.model_loaded = True
+            print(f"[CTFViewer] Loaded MAPPO model from: {self.model_path}")
+        except Exception:
+            try:
+                import torch as _torch
+                from rl_policy import ActorCriticNet
+
+                n_macros = N_MACROS
+                n_targets = self.n_targets
+                n_agents = 2
+                self.policy = ActorCriticNet(
+                    n_macros=n_macros,
+                    n_targets=n_targets,
+                    n_agents=n_agents,
+                    in_channels=NUM_CNN_CHANNELS,
+                    height=CNN_ROWS,
+                    width=CNN_COLS,
+                )
+                state = _torch.load(self.model_path, map_location="cpu")
+                self.policy.load_state_dict(state)
+                self.policy.eval()
+                self.model_loaded = True
+                print(f"[CTFViewer] Loaded MAPPO model from: {self.model_path}")
+            except Exception as e2:
+                print(f"[CTFViewer] Failed to load MAPPO model '{self.model_path}': {e2}")
+                self.model_loaded = False
+
+    def reset_cache(self) -> None:
+        self._cache_tick = -1
+        self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+
+    def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
+        if not self.model_loaded or self.policy is None:
+            self._cache_tick = tick
+            self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+            return
+        if self._cache_tick == tick:
+            return
+        agents = getattr(game_field, "blue_agents", []) if side == "blue" else getattr(game_field, "red_agents", [])
+        live = [a for a in agents if a is not None]
+        while len(live) < 2:
+            live.append(live[0] if live else None)
+        import torch as _torch
+        actions = []
+        for a in live[:2]:
+            if a is None:
+                actions.append((0, 0))
+                continue
+            obs = np.asarray(game_field.build_observation(a), dtype=np.float32)
+            obs_t = _torch.tensor(obs, dtype=_torch.float32).unsqueeze(0)
+            with _torch.no_grad():
+                out = self.policy.act(obs_t, agent=a, game_field=game_field, deterministic=self.deterministic)
+            macro_idx = int(out["macro_action"][0].item()) % N_MACROS
+            target_idx = int(out["target_action"][0].item()) % self.n_targets
+            actions.append((macro_idx, target_idx))
+        self._cache_action = np.array([
+            actions[0][0], actions[0][1], actions[1][0], actions[1][1],
+        ], dtype=np.int64)
+        self._cache_tick = tick
+
+    def _resolve_target_cell(self, game_field: ViewerGameField, target_idx: int) -> Tuple[int, int]:
+        fn = getattr(game_field, "get_macro_target", None)
+        if callable(fn):
+            try:
+                t = fn(int(target_idx))
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+        mt = getattr(game_field, "macro_targets", None)
+        if isinstance(mt, list) and len(mt) > 0:
+            i = int(target_idx) % len(mt)
+            try:
+                t = mt[i]
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+        cols = int(getattr(game_field, "col_count", 20) or 20)
+        rows = int(getattr(game_field, "row_count", 20) or 20)
+        return (max(0, cols // 2), max(0, rows // 2))
+
+    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
+        side = str(getattr(agent, "side", "blue")).lower()
+        self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
+        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
+        aid = 0 if aid <= 0 else 1
+        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
+        target_idx = int(self._cache_action[aid * 2 + 1])
+        macro = USED_MACROS[macro_idx]
+        if macro == MacroAction.PLACE_MINE:
+            try:
+                ax = int(getattr(agent, "x", 0))
+                ay = int(getattr(agent, "y", 0))
+                return macro, (ax, ay)
+            except Exception:
+                return macro, self._resolve_target_cell(game_field, target_idx)
+        tgt_cell = self._resolve_target_cell(game_field, target_idx)
+        return macro, tgt_cell
+
+
+class IPPOTeamPolicy:
+    """
+    Viewer-side wrapper for IPPO .pt checkpoints.
+
+    Loads policy state from train_ippo.py checkpoints and runs per-agent inference
+    with the same obs format (grid 1,C,H,W; vec with agent_id; mask). Outputs
+    (MacroAction, target_cell) per agent like SB3TeamPPOPolicy.
+    """
+
+    def __init__(
+        self,
+        model_path: str,
+        env: ViewerGameField,
+        deterministic: bool = True,
+        viewer_use_obs_builder: bool = True,
+    ):
+        self.model_path_raw = model_path
+        self.model_path: Optional[str] = _resolve_pt_path(model_path)
+        self.model_loaded: bool = False
+        self.policy: Optional[Any] = None
+        self.deterministic = bool(deterministic)
+        self._viewer_use_obs_builder = bool(viewer_use_obs_builder)
+        self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
+        self._cache_tick: int = -1
+        self._cache_action: np.ndarray = np.array([0, 0, 0, 0], dtype=np.int64)
+
+        if self.model_path is None:
+            print(f"[CTFViewer] IPPO model not found: {model_path} (or .pt)")
+            return
+
+        try:
+            import torch
+            from rl.train_ippo import get_single_agent_obs_space, IPPOPolicy
+
+            n_macros = N_MACROS
+            n_targets = self.n_targets
+            vec_dim = 12 + 1  # base 12 + agent_id for parameter sharing
+            obs_space = get_single_agent_obs_space(vec_dim, n_macros=n_macros, n_targets=n_targets)
+            action_nvec = [n_macros, n_targets]
+            self.policy = IPPOPolicy(obs_space, action_nvec).to("cpu")
+            ckpt = torch.load(self.model_path, map_location="cpu", weights_only=True)
+            self.policy.load_state_dict(ckpt["policy"])
+            self.policy.eval()
+            self.model_loaded = True
+            print(f"[CTFViewer] Loaded IPPO model from: {self.model_path}")
+        except Exception:
+            try:
+                import torch
+                from rl.train_ippo import get_single_agent_obs_space, IPPOPolicy
+
+                n_macros = N_MACROS
+                n_targets = self.n_targets
+                vec_dim = 12 + 1
+                obs_space = get_single_agent_obs_space(vec_dim, n_macros=n_macros, n_targets=n_targets)
+                action_nvec = [n_macros, n_targets]
+                self.policy = IPPOPolicy(obs_space, action_nvec).to("cpu")
+                ckpt = torch.load(self.model_path, map_location="cpu")
+                self.policy.load_state_dict(ckpt["policy"])
+                self.policy.eval()
+                self.model_loaded = True
+                print(f"[CTFViewer] Loaded IPPO model from: {self.model_path}")
+            except Exception as e2:
+                print(f"[CTFViewer] Failed to load IPPO model '{self.model_path}': {e2}")
+                self.model_loaded = False
+
+    def reset_cache(self) -> None:
+        self._cache_tick = -1
+        self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+
+    def _build_per_agent_obs(self, game_field: ViewerGameField, side: str) -> List[Dict[str, np.ndarray]]:
+        """Build list of per-agent obs dicts (grid 1,C,H,W; vec 1,13; mask) for blue agents."""
+        agents = getattr(game_field, "blue_agents", []) if side == "blue" else getattr(game_field, "red_agents", [])
+        live = [a for a in agents if a is not None]
+        while len(live) < 2:
+            live.append(live[0] if live else None)
+        n_agents = 2
+        agent_id_scale = 1.0 / max(1, n_agents - 1)
+        out: List[Dict[str, np.ndarray]] = []
+        for i, a in enumerate(live[:2]):
+            if self._viewer_use_obs_builder and _viewer_obs_builder is not None:
+                from rl.obs_builder import build_agent_obs
+
+                def make_append(idx: int):
+                    def fn(v: np.ndarray) -> np.ndarray:
+                        v = np.asarray(v, dtype=np.float32).reshape(-1)
+                        aid = np.array([float(idx) * agent_id_scale], dtype=np.float32)
+                        return np.concatenate([v, aid], axis=0)
+                    return fn
+
+                o = build_agent_obs(
+                    game_field,
+                    a,
+                    include_mask=True,
+                    vec_size_base=12,
+                    n_macros=N_MACROS,
+                    n_targets=self.n_targets,
+                    vec_append_fn=make_append(i),
+                )
+            else:
+                o = self._build_per_agent_obs_fallback(game_field, a, i, agent_id_scale)
+            # Add batch dim for policy: grid (1,C,H,W), vec (1,13)
+            grid = np.asarray(o["grid"], dtype=np.float32)
+            if grid.ndim == 3:
+                grid = np.expand_dims(grid, axis=0)
+            vec = np.asarray(o["vec"], dtype=np.float32).reshape(-1)
+            if vec.size < 13:
+                vec = np.pad(vec, (0, 13 - vec.size), mode="constant")
+            vec = vec[:13]
+            vec = np.expand_dims(vec, axis=0).astype(np.float32)
+            mask = o.get("mask")
+            if mask is not None:
+                mask = np.asarray(mask, dtype=np.float32).reshape(-1)
+            else:
+                mask = np.ones((N_MACROS + self.n_targets,), dtype=np.float32)
+            out.append({"grid": grid, "vec": vec, "mask": mask})
+        return out
+
+    def _build_per_agent_obs_fallback(
+        self, game_field: ViewerGameField, agent: Any, agent_idx: int, agent_id_scale: float
+    ) -> Dict[str, np.ndarray]:
+        """Fallback when obs_builder not used: build grid, vec, mask for one agent."""
+        from game_field import NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS
+
+        if agent is None:
+            grid = np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
+            vec = np.zeros((13,), dtype=np.float32)
+            vec[12] = float(agent_idx) * agent_id_scale
+            mask = np.ones((N_MACROS + self.n_targets,), dtype=np.float32)
+            return {"grid": grid, "vec": vec, "mask": mask}
+        grid = np.asarray(game_field.build_observation(agent), dtype=np.float32)
+        if hasattr(game_field, "build_continuous_features"):
+            v = np.asarray(game_field.build_continuous_features(agent), dtype=np.float32).reshape(-1)[:12]
+        else:
+            v = np.zeros((12,), dtype=np.float32)
+        v = np.pad(v, (0, max(0, 12 - v.size)), mode="constant")[:12]
+        v = np.concatenate([v, np.array([float(agent_idx) * agent_id_scale], dtype=np.float32)], axis=0)
+        mm = np.asarray(game_field.get_macro_mask(agent), dtype=np.float32).reshape(-1)
+        if mm.size != N_MACROS or (not np.any(mm)):
+            mm = np.ones((N_MACROS,), dtype=np.float32)
+        tm = np.asarray(game_field.get_target_mask(agent), dtype=np.float32).reshape(-1)
+        if tm.size != self.n_targets or (not np.any(tm)):
+            tm = np.ones((self.n_targets,), dtype=np.float32)
+        mask = np.concatenate([mm, tm], axis=0)
+        return {"grid": grid, "vec": v, "mask": mask}
+
+    def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
+        if not self.model_loaded or self.policy is None:
+            self._cache_tick = tick
+            self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
+            return
+        if self._cache_tick == tick:
+            return
+        per_agent = self._build_per_agent_obs(game_field, side)
+        import torch
+
+        grids = np.stack([p["grid"] for p in per_agent], axis=0)
+        vecs = np.stack([p["vec"] for p in per_agent], axis=0)
+        masks = np.stack([p["mask"] for p in per_agent], axis=0)
+        obs = {
+            "grid": torch.tensor(grids, dtype=torch.float32, device="cpu"),
+            "vec": torch.tensor(vecs, dtype=torch.float32, device="cpu"),
+            "mask": torch.tensor(masks, dtype=torch.float32, device="cpu"),
+        }
+        with torch.no_grad():
+            action, _, _, _ = self.policy.get_action_and_value(obs, deterministic=self.deterministic)
+        action = action.cpu().numpy()
+        a0 = (int(action[0, 0]) % N_MACROS, int(action[0, 1]) % self.n_targets)
+        a1 = (int(action[1, 0]) % N_MACROS, int(action[1, 1]) % self.n_targets)
+        self._cache_action = np.array([a0[0], a0[1], a1[0], a1[1]], dtype=np.int64)
+        self._cache_tick = tick
+
+    def _resolve_target_cell(self, game_field: ViewerGameField, target_idx: int) -> Tuple[int, int]:
+        fn = getattr(game_field, "get_macro_target", None)
+        if callable(fn):
+            try:
+                t = fn(int(target_idx))
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+        mt = getattr(game_field, "macro_targets", None)
+        if isinstance(mt, list) and len(mt) > 0:
+            i = int(target_idx) % len(mt)
+            try:
+                t = mt[i]
+                if isinstance(t, (tuple, list)) and len(t) >= 2:
+                    return (int(t[0]), int(t[1]))
+            except Exception:
+                pass
+        cols = int(getattr(game_field, "col_count", 20) or 20)
+        rows = int(getattr(game_field, "row_count", 20) or 20)
+        return (max(0, cols // 2), max(0, rows // 2))
+
+    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
+        side = str(getattr(agent, "side", "blue")).lower()
+        self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
+        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
+        aid = 0 if aid <= 0 else 1
+        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
+        target_idx = int(self._cache_action[aid * 2 + 1])
+        macro = USED_MACROS[macro_idx]
+        if macro == MacroAction.PLACE_MINE:
+            try:
+                ax = int(getattr(agent, "x", 0))
+                ay = int(getattr(agent, "y", 0))
+                return macro, (ax, ay)
+            except Exception:
+                return macro, self._resolve_target_cell(game_field, target_idx)
+        tgt_cell = self._resolve_target_cell(game_field, target_idx)
+        return macro, tgt_cell
 
 
 class SB3TeamPPOPolicy:
@@ -631,6 +1019,8 @@ class CTFViewer:
         ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
         hppo_low_path: str = DEFAULT_HPPO_LOW_MODEL_PATH,
         hppo_high_path: str = DEFAULT_HPPO_HIGH_MODEL_PATH,
+        ippo_model_path: str = DEFAULT_IPPO_MODEL_PATH,
+        mappo_model_path: str = DEFAULT_MAPPO_MODEL_PATH,
         viewer_use_obs_builder: bool = True,
     ):
         if MAP_NAME or MAP_PATH:
@@ -704,6 +1094,12 @@ class CTFViewer:
             deterministic=True,
             viewer_use_obs_builder=use_obs_builder,
         )
+        self.blue_ippo_team = IPPOTeamPolicy(
+            ippo_model_path, self.game_field, deterministic=True, viewer_use_obs_builder=use_obs_builder
+        )
+        self.blue_mappo_team = MAPPOTeamPolicy(
+            mappo_model_path, self.game_field, deterministic=True
+        )
 
         # Blue policy callable (installed into game_field.policies["blue"])
         self._blue_policy_callable = None
@@ -727,6 +1123,8 @@ class CTFViewer:
 
     def _available_modes(self) -> List[str]:
         modes = ["DEFAULT"]
+        if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
+            modes.append("IPPO")
         if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             modes.append("PPO")
         if self.blue_hppo_team and self.blue_hppo_team.model_loaded:
@@ -737,7 +1135,17 @@ class CTFViewer:
         if not (hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict)):
             return
 
-        if mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+        if mode == "IPPO" and self.blue_ippo_team and self.blue_ippo_team.model_loaded:
+            def blue_policy(obs, agent, game_field):
+                return self.blue_ippo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
+
+            self._blue_policy_callable = blue_policy
+            self.game_field.policies["blue"] = self._blue_policy_callable
+            self.blue_mode = "IPPO"
+            self.blue_ippo_team.reset_cache()
+            print("[CTFViewer] Blue → IPPO (.pt)")
+
+        elif mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             # install a callable that slices the cached joint action
             def blue_policy(obs, agent, game_field):
                 return self.blue_ppo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
@@ -747,6 +1155,16 @@ class CTFViewer:
             self.blue_mode = "PPO"
             self.blue_ppo_team.reset_cache()
             print("[CTFViewer] Blue → PPO (SB3 .zip)")
+
+        elif mode == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
+            def blue_policy(obs, agent, game_field):
+                return self.blue_mappo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
+
+            self._blue_policy_callable = blue_policy
+            self.game_field.policies["blue"] = self._blue_policy_callable
+            self.blue_mode = "MAPPO"
+            self.blue_mappo_team.reset_cache()
+            print("[CTFViewer] Blue → MAPPO (.pth)")
 
         elif mode == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
             def blue_policy(obs, agent, game_field):
@@ -856,7 +1274,10 @@ class CTFViewer:
 
         # Ensure we're using a trained model
         if self.blue_mode == "DEFAULT":
-            if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+            if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
+                self._apply_blue_mode("IPPO")
+                print("[Eval] Switched to IPPO mode for evaluation")
+            elif self.blue_ppo_team and self.blue_ppo_team.model_loaded:
                 self._apply_blue_mode("PPO")
                 print("[Eval] Switched to PPO mode for evaluation")
             elif self.blue_hppo_team and self.blue_hppo_team.model_loaded:
@@ -896,6 +1317,10 @@ class CTFViewer:
                 self.game_field.reset_default()
                 self._set_phase_op3()
                 self.sim_tick = 0
+                if self.blue_ippo_team:
+                    self.blue_ippo_team.reset_cache()
+                if self.blue_mappo_team:
+                    self.blue_mappo_team.reset_cache()
                 if self.blue_ppo_team:
                     self.blue_ppo_team.reset_cache()
                 if self.blue_hppo_team:
@@ -1013,7 +1438,13 @@ class CTFViewer:
 
         # Save CSV
         if save_csv is None:
-            model_name = "ppo" if self.blue_mode == "PPO" else ("hppo" if self.blue_mode == "HPPO" else "default")
+            model_name = (
+                "ippo" if self.blue_mode == "IPPO"
+                else "mappo" if self.blue_mode == "MAPPO"
+                else "ppo" if self.blue_mode == "PPO"
+                else "hppo" if self.blue_mode == "HPPO"
+                else "default"
+            )
             save_csv = f"eval_{model_name}_{opponent}_{len(episodes)}ep.csv"
 
         csv_columns = [
@@ -1075,6 +1506,10 @@ class CTFViewer:
             self.game_field.reset_default()
             self._set_phase_op3()
             self.sim_tick = 0
+            if self.blue_ippo_team:
+                self.blue_ippo_team.reset_cache()
+            if self.blue_mappo_team:
+                self.blue_mappo_team.reset_cache()
             if self.blue_ppo_team:
                 self.blue_ppo_team.reset_cache()
             if self.blue_hppo_team:
@@ -1099,6 +1534,10 @@ class CTFViewer:
             self.game_field.reset_default()
             self._set_phase_op3()
             self.sim_tick = 0
+            if self.blue_ippo_team:
+                self.blue_ippo_team.reset_cache()
+            if self.blue_mappo_team:
+                self.blue_mappo_team.reset_cache()
             if self.blue_ppo_team:
                 self.blue_ppo_team.reset_cache()
             if self.blue_hppo_team:
@@ -1122,6 +1561,10 @@ class CTFViewer:
 
                 self._set_phase_op3()
                 self.sim_tick = 0
+                if self.blue_ippo_team:
+                    self.blue_ippo_team.reset_cache()
+                if self.blue_mappo_team:
+                    self.blue_mappo_team.reset_cache()
                 if self.blue_ppo_team:
                     self.blue_ppo_team.reset_cache()
                 if self.blue_hppo_team:
@@ -1162,7 +1605,7 @@ class CTFViewer:
         mode_color = (255, 255, 120) if mode == "DEFAULT" else (120, 255, 120)
 
         txt(
-            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/PPO/HPPO) | F4/F5: Debug | R: Reset",
+            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/IPPO/PPO/HPPO) | F4/F5: Debug | R: Reset",
             30, 15, (200, 200, 220)
         )
 
@@ -1176,7 +1619,13 @@ class CTFViewer:
         txt(f"Time: {int(getattr(gm, 'current_time', 0.0))}s", 380, 80, (220, 220, 255))
 
         right_x = self.size[0] - 460
-        if self.blue_mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+        if self.blue_mode == "IPPO" and self.blue_ippo_team and self.blue_ippo_team.model_loaded:
+            ippo_name = os.path.basename(self.blue_ippo_team.model_path or "")
+            txt(f"IPPO(.pt): {ippo_name}", right_x, 45, (140, 240, 140))
+        elif self.blue_mode == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
+            mappo_name = os.path.basename(self.blue_mappo_team.model_path or "")
+            txt(f"MAPPO(.pth): {mappo_name}", right_x, 45, (140, 240, 140))
+        elif self.blue_mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             ppo_name = os.path.basename(self.blue_ppo_team.model_path or "")
             txt(f"PPO(.zip): {ppo_name}", right_x, 45, (140, 240, 140))
         elif self.blue_mode == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
@@ -1184,7 +1633,7 @@ class CTFViewer:
             high_name = os.path.basename(self.blue_hppo_team.high_model_path or "")
             txt(f"HPPO(.zip): {low_name} | {high_name}", right_x, 45, (140, 240, 140))
         else:
-            txt("PPO/HPPO(.zip): (not loaded)", right_x, 45, (180, 180, 180))
+            txt("IPPO/MAPPO/PPO/HPPO: (not loaded)", right_x, 45, (180, 180, 180))
 
         if self.input_active:
             overlay = pg.Surface(self.size, pg.SRCALPHA)
@@ -1216,6 +1665,8 @@ if __name__ == "__main__":
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
+    parser.add_argument("--ippo-model", type=str, help="Path to IPPO model .pt file (from train_ippo.py)")
+    parser.add_argument("--mappo-model", type=str, help="Path to MAPPO model .pth file (from train_mappo.py)")
 
     args = parser.parse_args()
 
@@ -1223,6 +1674,8 @@ if __name__ == "__main__":
         ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
         hppo_low_path=args.hppo_low or DEFAULT_HPPO_LOW_MODEL_PATH,
         hppo_high_path=args.hppo_high or DEFAULT_HPPO_HIGH_MODEL_PATH,
+        ippo_model_path=args.ippo_model or DEFAULT_IPPO_MODEL_PATH,
+        mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
 
     if args.eval is not None:
