@@ -66,7 +66,7 @@ class IPPOConfig:
     add_agent_id_to_vec: bool = True
 
     checkpoint_dir: str = "checkpoints_ippo"
-    run_tag: str = "ippo_baseline"
+    run_tag: str = "ippo_league_curriculum_v1"
     save_every_steps: int = 50_000
     log_every_steps: int = 2_000
 
@@ -803,6 +803,12 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
             path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_step{global_step}.pt")
             torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, path)
 
+    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.pt")
+    try:
+        torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, final_path)
+        print(f"[IPPO] Training complete. Final model saved to: {final_path}")
+    except Exception as exc:
+        print(f"[WARN] IPPO final save failed: {exc}")
     env.close()
     print(f"[IPPO] Done. total_steps={global_step} episodes={episode_idx}")
 
@@ -820,7 +826,7 @@ if __name__ == "__main__":
     p.add_argument("--learning_rate", type=float, default=3e-4)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str, default="cpu")
-    p.add_argument("--run_tag", type=str, default="ippo_baseline")
+    p.add_argument("--run_tag", type=str, default="ippo_league_curriculum")
     p.add_argument("--log_every_steps", type=int, default=2000)
     p.add_argument("--fixed_opponent_tag", type=str, default="OP3", help="For FIXED_OPPONENT mode")
     args = p.parse_args()
