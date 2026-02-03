@@ -52,6 +52,9 @@ class MAPPOConfig:
     decision_window: float = 0.7
     sim_dt: float = 0.1
     max_macro_steps: int = 600
+    terminal_bonus_scale: float = 2.0  # scale win/draw/loss so policy strongly prefers winning over draws
+    draw_penalty_scale: float = 1.5   # extra scale on draw penalty (makes draw worse than current baseline)
+    entropy_coef: float = 0.03  # encourage exploration, reduce collapse to passive (draw) behavior
 
     checkpoint_dir: str = "checkpoints_mappo"
     run_tag: str = "mappo_league_curriculum"
@@ -273,7 +276,7 @@ def mappo_update(
             surr2 = torch.clamp(ratio, 1 - cfg.clip_eps, 1 + cfg.clip_eps) * mb_adv
             policy_loss = -torch.min(surr1, surr2).mean()
             value_loss = (mb_ret - new_values).pow(2).mean()
-            loss = policy_loss + cfg.value_coef * value_loss - 0.01 * entropy.mean()
+            loss = policy_loss + cfg.value_coef * value_loss - float(cfg.entropy_coef) * entropy.mean()
 
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -493,6 +496,15 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                 key = str(aid)
                 if key in per_agent_reward:
                     per_agent_reward[key] += float(r)
+            # Credit terminal outcome to last step (scale so win >> draw, avoid passive collapse)
+            if done:
+                bonus = gm.terminal_outcome_bonus(int(gm.blue_score), int(gm.red_score))
+                bonus *= float(getattr(cfg, "terminal_bonus_scale", 2.0))
+                if int(gm.blue_score) == int(gm.red_score) and bonus < 0:
+                    bonus *= float(getattr(cfg, "draw_penalty_scale", 1.5))
+                n_blue = max(1, len(per_agent_reward))
+                for uid in per_agent_reward:
+                    per_agent_reward[uid] += float(bonus) / n_blue
 
             next_central = build_central_obs(blue_agents)
             with torch.no_grad():
@@ -527,29 +539,6 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                 mappo_update(policy_train, optimizer, buffer, torch.device("cpu"), cfg)
                 policy_act.load_state_dict(policy_train.state_dict())
                 policy_act.eval()
-
-        # terminal outcome bonus (team)
-        bonus = gm.terminal_outcome_bonus(int(gm.blue_score), int(gm.red_score))
-        blue_agents = batch_by_agent_id(env.blue_agents)
-        for agent in blue_agents:
-            if agent is None:
-                continue
-            uid = str(getattr(agent, "unique_id", f"{agent.side}_{agent.agent_id}"))
-            buffer.add(
-                actor_obs=np.asarray(env.build_observation(agent), dtype=np.float32),
-                central_obs=build_central_obs(blue_agents),
-                macro_action=0,
-                target_action=0,
-                log_prob=0.0,
-                value=0.0,
-                next_value=0.0,
-                reward=float(bonus),
-                done=True,
-                dt=float(cfg.decision_window),
-                traj_id=traj_id_counter,
-                macro_mask=None,
-            )
-            traj_id_counter += 1
 
         blue_score = int(gm.blue_score)
         red_score = int(gm.red_score)
