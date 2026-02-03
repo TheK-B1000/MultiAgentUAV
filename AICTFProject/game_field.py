@@ -352,6 +352,8 @@ class GameField:
 
         # Default opponent
         self.set_red_opponent("OP3")
+        # Event-based collision counting: only count when a pair *enters* collision (not per-tick)
+        self._colliding_pairs_last_tick: set = set()
         self.reset_default()
 
     # -------- macro indexing --------
@@ -1293,6 +1295,7 @@ class GameField:
 
         self._init_zones()
         self.manager.reset_game()
+        self._colliding_pairs_last_tick.clear()
 
         self.mines.clear()
         self.mine_pickups.clear()
@@ -1473,7 +1476,10 @@ class GameField:
         )
 
     def _record_tick_metrics(self, delta_time: float) -> None:
-        """IROS-style metrics: collision/near-miss (r=0.5 cells), inter-robot distance, zone coverage."""
+        """IROS-style metrics: collision/near-miss (r=0.5 cells), inter-robot distance, zone coverage.
+        collision_delta: per-tick contact count (legacy).
+        collision_events_delta: count only when a pair *enters* collision (False->True), so stuck contact = 1 event.
+        """
         AGENT_RADIUS = 0.5  # grid cells; 2r=1.0 collision, 2.5r=1.25 near-miss
         agents = [a for a in (self.blue_agents + self.red_agents) if a.isEnabled()]
         positions = []
@@ -1482,16 +1488,24 @@ class GameField:
             positions.append((a, fx, fy))
 
         collision_delta = 0
+        collision_events_delta = 0
         near_miss_delta = 0
+        colliding_pairs_this_tick: set = set()
         for i in range(len(positions)):
-            _, xi, yi = positions[i]
+            ai, xi, yi = positions[i][0], positions[i][1], positions[i][2]
             for j in range(i + 1, len(positions)):
-                xj, yj = positions[j][1], positions[j][2]
+                aj, xj, yj = positions[j][0], positions[j][1], positions[j][2]
                 d = math.hypot(xj - xi, yj - yi)
                 if d < 2.0 * AGENT_RADIUS:
                     collision_delta += 1
+                    pair = (id(ai), id(aj)) if id(ai) < id(aj) else (id(aj), id(ai))
+                    colliding_pairs_this_tick.add(pair)
                 elif d < 2.5 * AGENT_RADIUS:
                     near_miss_delta += 1
+        for pair in colliding_pairs_this_tick:
+            if pair not in self._colliding_pairs_last_tick:
+                collision_events_delta += 1
+        self._colliding_pairs_last_tick = colliding_pairs_this_tick
 
         blue_inter_dist = None
         if len(self.blue_agents) >= 2 and self.blue_agents[0].isEnabled() and self.blue_agents[1].isEnabled():
@@ -1511,6 +1525,7 @@ class GameField:
         self.manager.record_tick_metrics(
             collision_delta=collision_delta,
             near_miss_delta=near_miss_delta,
+            collision_events_delta=collision_events_delta,
             blue_inter_robot_dist=blue_inter_dist,
             blue_zone_cells_this_tick=blue_zone_cells,
         )
