@@ -45,6 +45,7 @@ class MAPPOConfig:
     minibatch_size: int = 128
     lr: float = 3e-4
     clip_eps: float = 0.2
+    clip_range_vf: Optional[float] = 0.2  # value function clipping (SB3-style); prevents value collapse from draw-heavy data
     value_coef: float = 1.0
     max_grad_norm: float = 0.5
     gamma: float = 0.995
@@ -262,6 +263,7 @@ def mappo_update(
             mb_old_logp = old_log_probs.index_select(0, idx)
             mb_adv = advantages.index_select(0, idx)
             mb_ret = returns.index_select(0, idx)
+            mb_old_v = values.index_select(0, idx)
             mb_mask = macro_masks.index_select(0, idx)
 
             new_values = policy_train.forward_central_critic(mb_central).reshape(-1)
@@ -275,7 +277,17 @@ def mappo_update(
             surr1 = ratio * mb_adv
             surr2 = torch.clamp(ratio, 1 - cfg.clip_eps, 1 + cfg.clip_eps) * mb_adv
             policy_loss = -torch.min(surr1, surr2).mean()
-            value_loss = (mb_ret - new_values).pow(2).mean()
+
+            # Value function clipping (SB3 / OpenAI-style): clip delta from old value to prevent value collapse.
+            # Without this, a run of draws (negative returns) lets the value head chase down and the policy
+            # shifts toward "safe" (draw) behavior. clip_range_vf limits change per update (e.g. 0.2).
+            clip_vf = getattr(cfg, "clip_range_vf", None)
+            if clip_vf is not None and float(clip_vf) > 0:
+                values_pred = mb_old_v + (new_values - mb_old_v).clamp(-float(clip_vf), float(clip_vf))
+            else:
+                values_pred = new_values
+            value_loss = (mb_ret - values_pred).pow(2).mean()
+
             loss = policy_loss + cfg.value_coef * value_loss - float(cfg.entropy_coef) * entropy.mean()
 
             optimizer.zero_grad(set_to_none=True)
