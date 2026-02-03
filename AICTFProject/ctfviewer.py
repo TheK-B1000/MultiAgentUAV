@@ -1387,9 +1387,10 @@ class CTFViewer:
                 if time_to_game_over_sec is None:
                     time_to_game_over_sec = float(getattr(gm, "sim_time", 0.0))
 
-                collisions = int(getattr(gm, "collision_count_this_episode", 0))
+                collisions_per_tick = int(getattr(gm, "collision_count_this_episode", 0))
+                collision_events = int(getattr(gm, "collision_events_this_episode", collisions_per_tick))
                 near_misses = int(getattr(gm, "near_miss_count_this_episode", 0))
-                collision_free = 1 if collisions == 0 else 0
+                collision_free = 1 if collision_events == 0 else 0
 
                 dists = getattr(gm, "blue_inter_robot_distances", []) or []
                 mean_inter_robot_dist = float(np.mean(dists)) if dists else None
@@ -1404,7 +1405,8 @@ class CTFViewer:
                     "success": success,
                     "time_to_first_score": time_to_first_score,
                     "time_to_game_over": time_to_game_over_sec,
-                    "collisions_per_episode": collisions,
+                    "collisions_per_episode": collisions_per_tick,
+                    "collision_events_per_episode": collision_events,
                     "near_misses_per_episode": near_misses,
                     "collision_free_episode": collision_free,
                     "mean_inter_robot_dist": mean_inter_robot_dist,
@@ -1438,6 +1440,7 @@ class CTFViewer:
         time_to_first_scores = [e["time_to_first_score"] for e in episodes if e["time_to_first_score"] is not None]
         time_to_game_overs = [e["time_to_game_over"] for e in episodes if e["time_to_game_over"] is not None]
         collisions_list = [e["collisions_per_episode"] for e in episodes]
+        collision_events_list = [e.get("collision_events_per_episode", e["collisions_per_episode"]) for e in episodes]
         near_misses_list = [e["near_misses_per_episode"] for e in episodes]
         collision_free_count = sum(1 for e in episodes if e["collision_free_episode"] == 1)
         mean_dists = [e["mean_inter_robot_dist"] for e in episodes if e["mean_inter_robot_dist"] is not None]
@@ -1453,6 +1456,7 @@ class CTFViewer:
             "mean_time_to_first_score": float(np.mean(time_to_first_scores)) if time_to_first_scores else None,
             "mean_time_to_game_over": float(np.mean(time_to_game_overs)) if time_to_game_overs else None,
             "mean_collisions_per_episode": float(np.mean(collisions_list)),
+            "mean_collision_events_per_episode": float(np.mean(collision_events_list)),
             "mean_near_misses_per_episode": float(np.mean(near_misses_list)),
             "collision_free_rate": collision_free_count / len(episodes),
             "mean_inter_robot_dist": float(np.mean(mean_dists)) if mean_dists else None,
@@ -1473,7 +1477,7 @@ class CTFViewer:
 
         csv_columns = [
             "episode_id", "success", "time_to_first_score", "time_to_game_over",
-            "collisions_per_episode", "near_misses_per_episode", "collision_free_episode",
+            "collisions_per_episode", "collision_events_per_episode", "near_misses_per_episode", "collision_free_episode",
             "mean_inter_robot_dist", "std_inter_robot_dist", "zone_coverage",
             "phase_name", "opponent_kind", "scripted_tag", "blue_score", "red_score",
         ]
@@ -1508,9 +1512,11 @@ class CTFViewer:
             print(f"Mean Time to First Score: {summary['mean_time_to_first_score']:.2f}s")
         if summary["mean_time_to_game_over"] is not None:
             print(f"Mean Time to Game Over: {summary['mean_time_to_game_over']:.2f}s")
-        print(f"Mean Collisions/Episode: {summary['mean_collisions_per_episode']:.2f}")
+        print(f"Mean Collisions/Episode (per-tick): {summary['mean_collisions_per_episode']:.2f}")
+        if "mean_collision_events_per_episode" in summary:
+            print(f"Mean Collision Events/Episode (enter-only): {summary['mean_collision_events_per_episode']:.2f}")
         print(f"Mean Near-Misses/Episode: {summary['mean_near_misses_per_episode']:.2f}")
-        print(f"Collision-Free Rate: {summary['collision_free_rate']:.2%}")
+        print(f"Collision-Free Rate (events=0): {summary['collision_free_rate']:.2%}")
         if summary["mean_inter_robot_dist"] is not None:
             print(f"Mean Inter-Robot Distance: {summary['mean_inter_robot_dist']:.2f} cells")
         print(f"Mean Zone Coverage: {summary['mean_zone_coverage']:.2%}")
