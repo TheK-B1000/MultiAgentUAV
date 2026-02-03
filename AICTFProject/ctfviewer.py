@@ -1122,11 +1122,14 @@ class CTFViewer:
                 pass
 
     def _available_modes(self) -> List[str]:
+        """Cycle order: Default → PPO → IPPO → MAPPO → HPPO."""
         modes = ["DEFAULT"]
-        if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
-            modes.append("IPPO")
         if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             modes.append("PPO")
+        if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
+            modes.append("IPPO")
+        if self.blue_mappo_team and self.blue_mappo_team.model_loaded:
+            modes.append("MAPPO")
         if self.blue_hppo_team and self.blue_hppo_team.model_loaded:
             modes.append("HPPO")
         return modes
@@ -1605,7 +1608,7 @@ class CTFViewer:
         mode_color = (255, 255, 120) if mode == "DEFAULT" else (120, 255, 120)
 
         txt(
-            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/IPPO/PPO/HPPO) | F4/F5: Debug | R: Reset",
+            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/PPO/IPPO/MAPPO/HPPO) | F4/F5: Debug | R: Reset",
             30, 15, (200, 200, 220)
         )
 
