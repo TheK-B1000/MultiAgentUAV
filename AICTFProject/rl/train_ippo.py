@@ -66,8 +66,7 @@ class IPPOConfig:
     add_agent_id_to_vec: bool = True
 
     checkpoint_dir: str = "checkpoints_ippo"
-    run_tag: str = ("ippo_league_curriculum_v1"
-                    "")
+    run_tag: str = "ippo_league_curriculum"
     save_every_steps: int = 50_000
     log_every_steps: int = 2_000
 
@@ -804,7 +803,7 @@ def run_ippo(cfg: Optional[IPPOConfig] = None) -> None:
             path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_step{global_step}.pt")
             torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, path)
 
-    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}_v2.pt")
+    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.pt")
     try:
         torch.save({"policy": policy.state_dict(), "optimizer": optimizer.state_dict()}, final_path)
         print(f"[IPPO] Training complete. Final model saved to: {final_path}")
@@ -821,13 +820,13 @@ if __name__ == "__main__":
                    choices=[TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value,
                             TrainMode.FIXED_OPPONENT.value, TrainMode.SELF_PLAY.value],
                    help="CURRICULUM_LEAGUE | CURRICULUM_NO_LEAGUE | FIXED_OPPONENT | SELF_PLAY")
-    p.add_argument("--total_timesteps", type=int, default=500_000)
+    p.add_argument("--total_timesteps", type=int, default=2_000_000)
     p.add_argument("--n_steps", type=int, default=2048)
     p.add_argument("--batch_size", type=int, default=512)
     p.add_argument("--learning_rate", type=float, default=3e-4)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str, default="cpu")
-    p.add_argument("--run_tag", type=str, default="ippo_league_curriculum")
+    p.add_argument("--run_tag", type=str, default="ippo_league_curriculum_v3")
     p.add_argument("--log_every_steps", type=int, default=2000)
     p.add_argument("--fixed_opponent_tag", type=str, default="OP3", help="For FIXED_OPPONENT mode")
     args = p.parse_args()
