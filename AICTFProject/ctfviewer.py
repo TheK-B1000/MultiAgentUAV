@@ -32,7 +32,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
-DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_curriculum_v2.zip"
+DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum.zip"
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
 # MAPPO (Multi-Agent PPO) .pth checkpoint from train_mappo.py
