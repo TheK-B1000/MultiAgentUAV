@@ -83,37 +83,6 @@ def collect_team_uids(agents: Sequence[Any]) -> List[str]:
     return [agent_uid(a) for a in agents if a is not None]
 
 
-def pop_reward_events_best_effort(gm: Any) -> List[Tuple[float, str, float]]:
-    """
-    DEPRECATED: Use rl.agent_identity.route_reward_events() with canonical identity map instead.
-    
-    This function does not use canonical blue_i keys and may route rewards incorrectly.
-    """
-    fn = getattr(gm, "pop_reward_events", None)
-    if fn is None or (not callable(fn)):
-        return []
-    try:
-        return list(fn())
-    except Exception:
-        return []
-
-
-def team_reward_from_events(gm: Any, allowed_uids: Iterable[str]) -> float:
-    """
-    DEPRECATED: Use rl.agent_identity.route_reward_events() with canonical identity map instead.
-    
-    This function does not use canonical blue_i keys and may route rewards incorrectly.
-    """
-    allowed = set(str(x) for x in allowed_uids)
-    total = 0.0
-    for _t, aid, r in pop_reward_events_best_effort(gm):
-        if aid is None:
-            continue
-        if str(aid) in allowed:
-            total += float(r)
-    return float(total)
-
-
 def batch_by_agent_id(agents: Sequence[Any]) -> List[Any]:
     out = list(agents)
     try:
