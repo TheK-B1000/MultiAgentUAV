@@ -1,7 +1,7 @@
 """
 MAPPO (Multi-Agent PPO) with central critic: curriculum, league, fixed opponent, self-play.
 
-Same training modes as IPPO: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE, FIXED_OPPONENT, SELF_PLAY.
+Training modes: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE, FIXED_OPPONENT, SELF_PLAY.
 Uses GameField + decision windows and rl_policy.ActorCriticNet. Saves .pth state_dict.
 
 Usage:
@@ -23,7 +23,8 @@ from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from game_field import make_game_field
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
-from rl.common import batch_by_agent_id, collect_team_uids, pop_reward_events_best_effort, set_global_seed, simulate_decision_window
+from rl.common import batch_by_agent_id, set_global_seed, simulate_decision_window
+from rl.agent_identity import build_blue_identities, build_reward_id_map, route_reward_events
 from rl.curriculum import CurriculumConfig, CurriculumController, CurriculumControllerConfig, CurriculumState, phase_from_tag
 from rl.league import EloLeague, OpponentSpec
 from config import MAP_NAME, MAP_PATH
@@ -470,6 +471,17 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
         steps = 0
         traj_id_map.clear()
 
+        # Build canonical agent identities for reward routing
+        blue_agents_list = getattr(env, "blue_agents", []) or []
+        blue_identities = build_blue_identities(blue_agents_list)
+        reward_id_map = build_reward_id_map(blue_identities)
+        # Map canonical slot -> agent UID for buffer lookups
+        slot_to_uid: Dict[int, str] = {}
+        for ident in blue_identities:
+            if ident.agent is not None and ident.is_enabled:
+                uid = str(getattr(ident.agent, "unique_id", f"{ident.agent.side}_{ident.agent.agent_id}"))
+                slot_to_uid[ident.slot_index] = uid
+
         while (not done) and steps < int(cfg.max_macro_steps) and global_step < int(cfg.total_steps):
             blue_agents = batch_by_agent_id(env.blue_agents)
             blue_agents_enabled = [a for a in blue_agents if a is not None and a.isEnabled()]
@@ -508,14 +520,29 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
             done = bool(getattr(gm, "game_over", False))
             dt = float(cfg.decision_window)
 
-            reward_events = pop_reward_events_best_effort(gm)
-            per_agent_reward: Dict[str, float] = {uid: 0.0 for uid in collect_team_uids(blue_agents_enabled)}
-            for _t, aid, r in reward_events:
-                if aid is None:
-                    continue
-                key = str(aid)
-                if key in per_agent_reward:
-                    per_agent_reward[key] += float(r)
+            # Use canonical reward routing
+            pop = getattr(gm, "pop_reward_events", None)
+            reward_events = []
+            if pop is not None and callable(pop):
+                try:
+                    reward_events = list(pop())
+                except Exception:
+                    pass
+            
+            n_slots = len(blue_identities)
+            team_total, per_agent_reward_list, dropped_count = route_reward_events(
+                reward_events=reward_events,
+                reward_id_map=reward_id_map,
+                n_slots=n_slots,
+            )
+            
+            # Map canonical slot rewards back to agent UIDs for buffer
+            per_agent_reward: Dict[str, float] = {}
+            for slot_idx, reward_val in enumerate(per_agent_reward_list):
+                uid = slot_to_uid.get(slot_idx)
+                if uid is not None:
+                    per_agent_reward[uid] = float(reward_val)
+            
             # Credit terminal outcome to last step; explicit negative for draws so they are punished
             if done:
                 bs, rs = int(gm.blue_score), int(gm.red_score)
