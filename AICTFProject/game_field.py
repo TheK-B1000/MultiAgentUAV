@@ -883,6 +883,21 @@ class GameField:
                 continue
 
     def _consume_external_action_for_agent(self, agent: Agent) -> Optional[ExternalAction]:
+        """
+        Consume external action for agent. Prioritizes canonical blue_i keys, then falls back to internal IDs.
+        """
+        # First try canonical blue_i key (deterministic slot-based routing)
+        if agent.side == "blue":
+            agent_id = int(getattr(agent, "agent_id", -1))
+            if agent_id >= 0:
+                canonical_key = f"blue_{agent_id}"
+                if canonical_key in self.pending_external_actions:
+                    found = self.pending_external_actions.pop(canonical_key, None)
+                    if found is not None:
+                        self._clear_pending_for_agent(agent)
+                        return found
+        
+        # Fallback to legacy key matching (for backward compatibility)
         found = None
         for k in self._external_key_candidates(agent):
             if k in self.pending_external_actions:
