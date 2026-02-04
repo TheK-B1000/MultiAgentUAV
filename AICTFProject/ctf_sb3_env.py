@@ -10,6 +10,7 @@ from gymnasium import spaces
 from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from red_opponents import make_species_wrapper, make_snapshot_wrapper
 from macro_actions import MacroAction
+from rl.agent_identity import build_blue_identities, build_reward_id_map, route_reward_events
 
 try:
     from rl.obs_builder import build_team_obs
@@ -151,6 +152,11 @@ class CTFGameFieldSB3Env(gym.Env):
         self._stall_penalty = -0.05
         self._stall_counters = [0, 0]
         self._last_blue_pos: list[Optional[Tuple[float, float]]] = [None, None]
+
+        # Canonical agent identity tracking
+        self._blue_identities: list = []  # List[AgentIdentity] - built at reset
+        self._reward_id_map: Dict[str, int] = {}  # internal_id -> slot_index
+        self._dropped_reward_events_this_step = 0  # track dropped events per step
 
         # Action space: (macro, target) per blue agent; tokenized uses max_blue_agents
         n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
@@ -647,6 +653,14 @@ class CTFGameFieldSB3Env(gym.Env):
         if self._n_blue_agents <= 0:
             self._n_blue_agents = min(2, self._max_blue_agents)
 
+        # Build canonical agent identities (blue_0, blue_1, ...)
+        blue_agents_list = getattr(self.gf, "blue_agents", []) or []
+        max_for_identity = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
+        self._blue_identities = build_blue_identities(blue_agents_list, max_agents=max_for_identity)
+        self._reward_id_map = build_reward_id_map(self._blue_identities)
+        self._dropped_reward_events_this_step = 0
+        self._dropped_reward_events_this_episode = 0
+
         n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
         self.action_space = spaces.MultiDiscrete(
             [self._n_macros, self._n_targets] * n_act
@@ -810,15 +824,16 @@ class CTFGameFieldSB3Env(gym.Env):
         dt = max(1e-3, 0.99 * interval)
         self.gf.update(dt)
 
-        # Rewards via GameManager events (filtered to blue IDs) + per-agent bookkeeping
-        reward_events_total, reward_per_agent_events = self._consume_blue_reward_events()
+        # Rewards via GameManager events (routed using identity map) + per-agent bookkeeping
+        reward_events_total, reward_per_agent_events, dropped_count = self._consume_blue_reward_events()
         stall_total, stall_per_agent = self._apply_blue_stall_penalty()
         reward = float(reward_events_total) + float(stall_total)
-        n_blue = int(self._n_blue_agents)
+        n_slots = len(self._blue_identities)
         reward_blue_per_agent = [
-            float(reward_per_agent_events[i]) + float(stall_per_agent[i])
-            for i in range(n_blue)
+            float(reward_per_agent_events[i]) + float(stall_per_agent[i] if i < len(stall_per_agent) else 0.0)
+            for i in range(n_slots)
         ]
+        self._dropped_reward_events_this_step = dropped_count
 
         gm = self.gf.manager
         terminated = bool(getattr(gm, "game_over", False))
@@ -913,8 +928,11 @@ class CTFGameFieldSB3Env(gym.Env):
                 "mean_inter_robot_dist": mean_inter_robot_dist,
                 "std_inter_robot_dist": std_inter_robot_dist,
                 "zone_coverage": zone_coverage,
+                "dropped_reward_events": int(self._dropped_reward_events_this_episode),
                 "vec_schema_version": int(getattr(self.gf, "VEC_SCHEMA_VERSION", 1)),
             }
+            # Reset episode counter for next episode
+            self._dropped_reward_events_this_episode = 0
         else:
             self._episode_reward_total += float(reward_team)
 
@@ -929,13 +947,12 @@ class CTFGameFieldSB3Env(gym.Env):
         assert self.gf is not None
 
         if self._use_obs_builder and build_team_obs is not None:
-            blue = list(getattr(self.gf, "blue_agents", []) or [])
-            n_slots = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
-            while len(blue) < n_slots:
-                blue.append(None)
+            # Use canonical identities to ensure consistent ordering (blue_0, blue_1, ...)
+            n_slots = len(self._blue_identities)
+            blue_ordered = [ident.agent for ident in self._blue_identities[:n_slots]]
             out = build_team_obs(
                 self.gf,
-                blue[:n_slots],
+                blue_ordered,
                 max_agents=n_slots,
                 include_mask=self.include_mask_in_obs,
                 include_context=self._include_opponent_context,
@@ -965,16 +982,15 @@ class CTFGameFieldSB3Env(gym.Env):
                 return np.pad(v, (0, self._base_vec_per_agent - v.size), mode="constant")
             return v[: self._base_vec_per_agent]
 
-        blue = list(getattr(self.gf, "blue_agents", []) or [])
-        n_slots = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
-        while len(blue) < n_slots:
-            blue.append(None)
+        # Use canonical identities to ensure consistent ordering (blue_0, blue_1, ...)
+        n_slots = len(self._blue_identities)
+        blue_ordered = [ident.agent for ident in self._blue_identities[:n_slots]]
 
         cnn_list: list[np.ndarray] = []
         vec_list: list[np.ndarray] = []
         mask_list: list[np.ndarray] = []
 
-        for idx, a in enumerate(blue[:n_slots]):
+        for idx, a in enumerate(blue_ordered):
             if a is None:
                 cnn_list.append(_empty_cnn())
                 vec = self._append_high_level_mode(_empty_vec_base())
@@ -1169,46 +1185,32 @@ class CTFGameFieldSB3Env(gym.Env):
     # -----------------
     # Reward + anti-stall
     # -----------------
-    def _consume_blue_reward_events(self) -> Tuple[float, list]:
-        """Consume blue reward events from GameManager. Returns (team_total, per_agent_list)."""
+    def _consume_blue_reward_events(self) -> Tuple[float, list, int]:
+        """
+        Consume blue reward events from GameManager using canonical identity map.
+        Returns (team_total, per_agent_list, dropped_event_count).
+        """
         assert self.gf is not None
         gm = self.gf.manager
-        n_blue = int(self._n_blue_agents)
-        per_agent = [0.0] * n_blue
+        n_slots = len(self._blue_identities)
 
         pop = getattr(gm, "pop_reward_events", None)
         if pop is None or (not callable(pop)):
-            return 0.0, per_agent
+            return 0.0, [0.0] * n_slots, 0
 
         try:
             events = pop()
         except Exception:
-            return 0.0, per_agent
+            return 0.0, [0.0] * n_slots, 0
 
-        # Map agent_id (slot_id / unique_id) -> blue index for per-agent attribution
-        id_to_idx: Dict[str, int] = {}
-        for i in range(min(n_blue, len(self.gf.blue_agents))):
-            agent = self.gf.blue_agents[i]
-            if agent is None:
-                continue
-            uid = str(getattr(agent, "unique_id", getattr(agent, "slot_id", f"blue_{i}")))
-            sid = str(getattr(agent, "slot_id", getattr(agent, "unique_id", f"blue_{i}")))
-            id_to_idx[uid] = i
-            id_to_idx[sid] = i
+        # Route events using canonical identity map
+        team_total, per_agent_list, dropped_count = route_reward_events(
+            reward_events=events,
+            reward_id_map=self._reward_id_map,
+            n_slots=n_slots,
+        )
 
-        r = 0.0
-        for ev in events:
-            try:
-                _t, aid, val = ev
-            except Exception:
-                continue
-            aid_str = str(aid)
-            if aid_str in id_to_idx:
-                idx = id_to_idx[aid_str]
-                v = float(val)
-                per_agent[idx] += v
-                r += v
-        return float(r), per_agent
+        return float(team_total), per_agent_list, dropped_count
 
     def _apply_blue_stall_penalty(self) -> Tuple[float, list]:
         """Apply per-agent stall penalty. Returns (team_total, per_agent_penalties)."""
