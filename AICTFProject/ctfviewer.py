@@ -35,8 +35,6 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_curriculum_v2.zip"
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
-# IPPO (Independent PPO) .pt checkpoint from train_ippo.py
-DEFAULT_IPPO_MODEL_PATH = "rl/checkpoints_ippo/final_ippo_league_curriculum.pt"
 # MAPPO (Multi-Agent PPO) .pth checkpoint from train_mappo.py
 DEFAULT_MAPPO_MODEL_PATH = "rl/checkpoints_mappo/final_mappo_league_curriculum.pth"
 
@@ -80,12 +78,6 @@ def _resolve_zip_path(path: str) -> Optional[str]:
     return _try_paths(*candidates)
 
 
-def _resolve_pt_path(path: str) -> Optional[str]:
-    """Resolve path to an IPPO .pt checkpoint."""
-    if not path:
-        return None
-    script_rel = os.path.join(_SCRIPT_DIR, path) if not os.path.isabs(path) else None
-    return _try_paths(path, path + ".pt", script_rel, os.path.join(_SCRIPT_DIR, path + ".pt") if script_rel else None)
 
 
 def _resolve_pth_path(path: str) -> Optional[str]:
@@ -240,220 +232,6 @@ class MAPPOTeamPolicy:
                 return macro, self._resolve_target_cell(game_field, target_idx)
         tgt_cell = self._resolve_target_cell(game_field, target_idx)
         return macro, tgt_cell
-
-
-class IPPOTeamPolicy:
-    """
-    Viewer-side wrapper for IPPO .pt checkpoints.
-
-    Loads policy state from train_ippo.py checkpoints and runs per-agent inference
-    with the same obs format (grid 1,C,H,W; vec with agent_id; mask). Outputs
-    (MacroAction, target_cell) per agent like SB3TeamPPOPolicy.
-    """
-
-    def __init__(
-        self,
-        model_path: str,
-        env: ViewerGameField,
-        deterministic: bool = True,
-        viewer_use_obs_builder: bool = True,
-    ):
-        self.model_path_raw = model_path
-        self.model_path: Optional[str] = _resolve_pt_path(model_path)
-        self.model_loaded: bool = False
-        self.policy: Optional[Any] = None
-        self.deterministic = bool(deterministic)
-        self._viewer_use_obs_builder = bool(viewer_use_obs_builder)
-        self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
-        self._cache_tick: int = -1
-        self._cache_action: np.ndarray = np.array([0, 0, 0, 0], dtype=np.int64)
-
-        if self.model_path is None:
-            print(f"[CTFViewer] IPPO model not found: {model_path} (or .pt)")
-            return
-
-        try:
-            import torch
-            from rl.train_ippo import get_single_agent_obs_space, IPPOPolicy
-
-            n_macros = N_MACROS
-            n_targets = self.n_targets
-            vec_dim = 12 + 1  # base 12 + agent_id for parameter sharing
-            obs_space = get_single_agent_obs_space(vec_dim, n_macros=n_macros, n_targets=n_targets)
-            action_nvec = [n_macros, n_targets]
-            self.policy = IPPOPolicy(obs_space, action_nvec).to("cpu")
-            ckpt = torch.load(self.model_path, map_location="cpu", weights_only=True)
-            self.policy.load_state_dict(ckpt["policy"])
-            self.policy.eval()
-            self.model_loaded = True
-            print(f"[CTFViewer] Loaded IPPO model from: {self.model_path}")
-        except Exception:
-            try:
-                import torch
-                from rl.train_ippo import get_single_agent_obs_space, IPPOPolicy
-
-                n_macros = N_MACROS
-                n_targets = self.n_targets
-                vec_dim = 12 + 1
-                obs_space = get_single_agent_obs_space(vec_dim, n_macros=n_macros, n_targets=n_targets)
-                action_nvec = [n_macros, n_targets]
-                self.policy = IPPOPolicy(obs_space, action_nvec).to("cpu")
-                ckpt = torch.load(self.model_path, map_location="cpu")
-                self.policy.load_state_dict(ckpt["policy"])
-                self.policy.eval()
-                self.model_loaded = True
-                print(f"[CTFViewer] Loaded IPPO model from: {self.model_path}")
-            except Exception as e2:
-                print(f"[CTFViewer] Failed to load IPPO model '{self.model_path}': {e2}")
-                self.model_loaded = False
-
-    def reset_cache(self) -> None:
-        self._cache_tick = -1
-        self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
-
-    def _build_per_agent_obs(self, game_field: ViewerGameField, side: str) -> List[Dict[str, np.ndarray]]:
-        """Build list of per-agent obs dicts (grid 1,C,H,W; vec 1,13; mask) for blue agents."""
-        agents = getattr(game_field, "blue_agents", []) if side == "blue" else getattr(game_field, "red_agents", [])
-        live = [a for a in agents if a is not None]
-        while len(live) < 2:
-            live.append(live[0] if live else None)
-        n_agents = 2
-        agent_id_scale = 1.0 / max(1, n_agents - 1)
-        out: List[Dict[str, np.ndarray]] = []
-        for i, a in enumerate(live[:2]):
-            if self._viewer_use_obs_builder and _viewer_obs_builder is not None:
-                from rl.obs_builder import build_agent_obs
-
-                def make_append(idx: int):
-                    def fn(v: np.ndarray) -> np.ndarray:
-                        v = np.asarray(v, dtype=np.float32).reshape(-1)
-                        aid = np.array([float(idx) * agent_id_scale], dtype=np.float32)
-                        return np.concatenate([v, aid], axis=0)
-                    return fn
-
-                o = build_agent_obs(
-                    game_field,
-                    a,
-                    include_mask=True,
-                    vec_size_base=12,
-                    n_macros=N_MACROS,
-                    n_targets=self.n_targets,
-                    vec_append_fn=make_append(i),
-                )
-            else:
-                o = self._build_per_agent_obs_fallback(game_field, a, i, agent_id_scale)
-            # Add batch dim for policy: grid (1,C,H,W), vec (1,13)
-            grid = np.asarray(o["grid"], dtype=np.float32)
-            if grid.ndim == 3:
-                grid = np.expand_dims(grid, axis=0)
-            vec = np.asarray(o["vec"], dtype=np.float32).reshape(-1)
-            if vec.size < 13:
-                vec = np.pad(vec, (0, 13 - vec.size), mode="constant")
-            vec = vec[:13]
-            vec = np.expand_dims(vec, axis=0).astype(np.float32)
-            mask = o.get("mask")
-            if mask is not None:
-                mask = np.asarray(mask, dtype=np.float32).reshape(-1)
-            else:
-                mask = np.ones((N_MACROS + self.n_targets,), dtype=np.float32)
-            out.append({"grid": grid, "vec": vec, "mask": mask})
-        return out
-
-    def _build_per_agent_obs_fallback(
-        self, game_field: ViewerGameField, agent: Any, agent_idx: int, agent_id_scale: float
-    ) -> Dict[str, np.ndarray]:
-        """Fallback when obs_builder not used: build grid, vec, mask for one agent."""
-        from game_field import NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS
-
-        if agent is None:
-            grid = np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
-            vec = np.zeros((13,), dtype=np.float32)
-            vec[12] = float(agent_idx) * agent_id_scale
-            mask = np.ones((N_MACROS + self.n_targets,), dtype=np.float32)
-            return {"grid": grid, "vec": vec, "mask": mask}
-        grid = np.asarray(game_field.build_observation(agent), dtype=np.float32)
-        if hasattr(game_field, "build_continuous_features"):
-            v = np.asarray(game_field.build_continuous_features(agent), dtype=np.float32).reshape(-1)[:12]
-        else:
-            v = np.zeros((12,), dtype=np.float32)
-        v = np.pad(v, (0, max(0, 12 - v.size)), mode="constant")[:12]
-        v = np.concatenate([v, np.array([float(agent_idx) * agent_id_scale], dtype=np.float32)], axis=0)
-        mm = np.asarray(game_field.get_macro_mask(agent), dtype=np.float32).reshape(-1)
-        if mm.size != N_MACROS or (not np.any(mm)):
-            mm = np.ones((N_MACROS,), dtype=np.float32)
-        tm = np.asarray(game_field.get_target_mask(agent), dtype=np.float32).reshape(-1)
-        if tm.size != self.n_targets or (not np.any(tm)):
-            tm = np.ones((self.n_targets,), dtype=np.float32)
-        mask = np.concatenate([mm, tm], axis=0)
-        return {"grid": grid, "vec": v, "mask": mask}
-
-    def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
-        if not self.model_loaded or self.policy is None:
-            self._cache_tick = tick
-            self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
-            return
-        if self._cache_tick == tick:
-            return
-        per_agent = self._build_per_agent_obs(game_field, side)
-        import torch
-
-        grids = np.stack([p["grid"] for p in per_agent], axis=0)
-        vecs = np.stack([p["vec"] for p in per_agent], axis=0)
-        masks = np.stack([p["mask"] for p in per_agent], axis=0)
-        obs = {
-            "grid": torch.tensor(grids, dtype=torch.float32, device="cpu"),
-            "vec": torch.tensor(vecs, dtype=torch.float32, device="cpu"),
-            "mask": torch.tensor(masks, dtype=torch.float32, device="cpu"),
-        }
-        with torch.no_grad():
-            action, _, _, _ = self.policy.get_action_and_value(obs, deterministic=self.deterministic)
-        action = action.cpu().numpy()
-        a0 = (int(action[0, 0]) % N_MACROS, int(action[0, 1]) % self.n_targets)
-        a1 = (int(action[1, 0]) % N_MACROS, int(action[1, 1]) % self.n_targets)
-        self._cache_action = np.array([a0[0], a0[1], a1[0], a1[1]], dtype=np.int64)
-        self._cache_tick = tick
-
-    def _resolve_target_cell(self, game_field: ViewerGameField, target_idx: int) -> Tuple[int, int]:
-        fn = getattr(game_field, "get_macro_target", None)
-        if callable(fn):
-            try:
-                t = fn(int(target_idx))
-                if isinstance(t, (tuple, list)) and len(t) >= 2:
-                    return (int(t[0]), int(t[1]))
-            except Exception:
-                pass
-        mt = getattr(game_field, "macro_targets", None)
-        if isinstance(mt, list) and len(mt) > 0:
-            i = int(target_idx) % len(mt)
-            try:
-                t = mt[i]
-                if isinstance(t, (tuple, list)) and len(t) >= 2:
-                    return (int(t[0]), int(t[1]))
-            except Exception:
-                pass
-        cols = int(getattr(game_field, "col_count", 20) or 20)
-        rows = int(getattr(game_field, "row_count", 20) or 20)
-        return (max(0, cols // 2), max(0, rows // 2))
-
-    def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
-        side = str(getattr(agent, "side", "blue")).lower()
-        self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
-        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
-        aid = 0 if aid <= 0 else 1
-        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
-        target_idx = int(self._cache_action[aid * 2 + 1])
-        macro = USED_MACROS[macro_idx]
-        if macro == MacroAction.PLACE_MINE:
-            try:
-                ax = int(getattr(agent, "x", 0))
-                ay = int(getattr(agent, "y", 0))
-                return macro, (ax, ay)
-            except Exception:
-                return macro, self._resolve_target_cell(game_field, target_idx)
-        tgt_cell = self._resolve_target_cell(game_field, target_idx)
-        return macro, tgt_cell
-
-
 class SB3TeamPPOPolicy:
     """
     Viewer-side SB3 PPO wrapper.
@@ -480,7 +258,8 @@ class SB3TeamPPOPolicy:
 
         self.model: Optional[Any] = None
         self.deterministic = bool(deterministic)
-        self._viewer_use_obs_builder = bool(viewer_use_obs_builder)
+        # Deprecated: always use build_team_obs() per module ownership
+        # self._viewer_use_obs_builder removed - always use canonical builder
 
         # Targets count (fallback)
         self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
@@ -554,65 +333,33 @@ class SB3TeamPPOPolicy:
         return v[:size]
 
     def _build_team_obs(self, game_field: ViewerGameField, side: str) -> Dict[str, np.ndarray]:
-        # In viewer we mainly use blue, but keep side for completeness
+        """
+        Build team observation using canonical build_team_obs().
+        
+        Per module ownership: observation building must use rl/obs_builder.py::build_team_obs().
+        Manual fallback removed - if builder is unavailable, raise error.
+        """
         agents = game_field.blue_agents if side == "blue" else game_field.red_agents
         live = [a for a in agents if a is not None]
         while len(live) < 2:
             live.append(live[0] if live else None)
 
-        if self._viewer_use_obs_builder and _viewer_obs_builder is not None:
-            return _viewer_obs_builder(
-                game_field,
-                live[:2],
-                max_agents=2,
-                include_mask=self._model_expects_mask(),
-                tokenized=False,
-                vec_size_base=12,
-                n_macros=N_MACROS,
-                n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+        if _viewer_obs_builder is None:
+            raise RuntimeError(
+                "build_team_obs() not available. Ensure rl/obs_builder.py is importable. "
+                "Manual observation building is forbidden per module ownership."
             )
 
-        obs_list: List[np.ndarray] = []
-        vec_list: List[np.ndarray] = []
-        mask_list: List[np.ndarray] = []
-
-        for a in live[:2]:
-            if a is None:
-                obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
-                if self._model_expects_vec():
-                    vec_list.append(np.zeros((self._vec_size_per_agent(),), dtype=np.float32))
-                if self._model_expects_mask():
-                    mm = np.ones((N_MACROS,), dtype=np.float32)
-                    tm = np.ones((int(getattr(game_field, "num_macro_targets", 8) or 8),), dtype=np.float32)
-                    mask_list.append(np.concatenate([mm, tm], axis=0))
-                continue
-
-            o = np.asarray(game_field.build_observation(a), dtype=np.float32)  # [7,20,20]
-            obs_list.append(o)
-
-            if self._model_expects_vec():
-                if hasattr(game_field, "build_continuous_features"):
-                    vec_list.append(self._coerce_vec(game_field.build_continuous_features(a), size=self._vec_size_per_agent()))
-                else:
-                    vec_list.append(np.zeros((self._vec_size_per_agent(),), dtype=np.float32))
-
-            if self._model_expects_mask():
-                mm = np.asarray(game_field.get_macro_mask(a), dtype=np.bool_).reshape(-1)
-                if mm.shape != (N_MACROS,) or (not mm.any()):
-                    mm = np.ones((N_MACROS,), dtype=np.bool_)
-                tm = np.asarray(game_field.get_target_mask(a), dtype=np.bool_).reshape(-1)
-                nt = int(getattr(game_field, "num_macro_targets", 8) or 8)
-                if tm.shape != (nt,) or (not tm.any()):
-                    tm = np.ones((nt,), dtype=np.bool_)
-                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
-
-        grid = np.concatenate(obs_list, axis=0).astype(np.float32)   # [14,20,20]
-        out: Dict[str, np.ndarray] = {"grid": grid}
-        if self._model_expects_vec():
-            out["vec"] = np.concatenate(vec_list, axis=0).astype(np.float32)
-        if self._model_expects_mask():
-            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)  # [10]
-        return out
+        return _viewer_obs_builder(
+            game_field,
+            live[:2],
+            max_agents=2,
+            include_mask=self._model_expects_mask(),
+            tokenized=False,
+            vec_size_base=12,
+            n_macros=N_MACROS,
+            n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+        )
 
     def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
         if not self.model_loaded or self.model is None:
@@ -738,7 +485,8 @@ class SB3TeamHPPOPolicy:
         self.high_model: Optional[Any] = None
         self.deterministic = bool(deterministic)
         self.mode_interval_ticks = max(1, int(mode_interval_ticks))
-        self._viewer_use_obs_builder = bool(viewer_use_obs_builder)
+        # Deprecated: always use build_team_obs() per module ownership
+        # self._viewer_use_obs_builder removed - always use canonical builder
 
         # Targets count (fallback)
         self.n_targets = int(getattr(env, "num_macro_targets", 8) or 8)
@@ -882,98 +630,48 @@ class SB3TeamHPPOPolicy:
         return out.astype(np.float32)
 
     def _build_team_obs(self, game_field: ViewerGameField, side: str, mode: int) -> Dict[str, np.ndarray]:
+        """
+        Build team observation with high-level mode using canonical build_team_obs().
+        
+        Per module ownership: observation building must use rl/obs_builder.py::build_team_obs().
+        Manual fallback removed - if builder is unavailable, raise error.
+        """
         agents = game_field.blue_agents if side == "blue" else game_field.red_agents
         live = [a for a in agents if a is not None]
         while len(live) < 2:
             live.append(live[0] if live else None)
 
-        if self._viewer_use_obs_builder and _viewer_obs_builder is not None:
-            per_agent_size = self._vec_size_per_agent()
-            base_size = 12
-            extra = max(0, per_agent_size - base_size)
-
-            def vec_append_mode(base_vec: np.ndarray) -> np.ndarray:
-                v = np.asarray(base_vec, dtype=np.float32).reshape(-1)[:base_size]
-                if extra == 2:
-                    mode_vec = np.zeros((2,), dtype=np.float32)
-                    mode_vec[max(0, min(1, int(mode)))] = 1.0
-                    return np.concatenate([v, mode_vec], axis=0)
-                if extra == 1:
-                    return np.concatenate([v, np.asarray([float(mode)], dtype=np.float32)], axis=0)
-                return v
-
-            return _viewer_obs_builder(
-                game_field,
-                live[:2],
-                max_agents=2,
-                include_mask=self._model_expects_mask(),
-                tokenized=False,
-                vec_size_base=12,
-                n_macros=N_MACROS,
-                n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
-                vec_append_fn=vec_append_mode,
+        if _viewer_obs_builder is None:
+            raise RuntimeError(
+                "build_team_obs() not available. Ensure rl/obs_builder.py is importable. "
+                "Manual observation building is forbidden per module ownership."
             )
-
-        obs_list: List[np.ndarray] = []
-        vec_list: List[np.ndarray] = []
-        mask_list: List[np.ndarray] = []
 
         per_agent_size = self._vec_size_per_agent()
         base_size = 12
         extra = max(0, per_agent_size - base_size)
 
-        for a in live[:2]:
-            if a is None:
-                obs_list.append(np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32))
-                if self._model_expects_vec():
-                    vec = np.zeros((base_size,), dtype=np.float32)
-                    if extra == 2:
-                        mode_vec = np.zeros((2,), dtype=np.float32)
-                        mode_vec[max(0, min(1, int(mode)))] = 1.0
-                        vec = np.concatenate([vec, mode_vec], axis=0)
-                    elif extra == 1:
-                        vec = np.concatenate([vec, np.asarray([float(mode)], dtype=np.float32)], axis=0)
-                    vec_list.append(self._coerce_vec(vec, size=per_agent_size))
-                if self._model_expects_mask():
-                    mm = np.ones((N_MACROS,), dtype=np.float32)
-                    tm = np.ones((int(getattr(game_field, "num_macro_targets", 8) or 8),), dtype=np.float32)
-                    mask_list.append(np.concatenate([mm, tm], axis=0))
-                continue
+        def vec_append_mode(base_vec: np.ndarray) -> np.ndarray:
+            v = np.asarray(base_vec, dtype=np.float32).reshape(-1)[:base_size]
+            if extra == 2:
+                mode_vec = np.zeros((2,), dtype=np.float32)
+                mode_vec[max(0, min(1, int(mode)))] = 1.0
+                return np.concatenate([v, mode_vec], axis=0)
+            if extra == 1:
+                return np.concatenate([v, np.asarray([float(mode)], dtype=np.float32)], axis=0)
+            return v
 
-            o = np.asarray(game_field.build_observation(a), dtype=np.float32)
-            obs_list.append(o)
-
-            if self._model_expects_vec():
-                if hasattr(game_field, "build_continuous_features"):
-                    vec = np.asarray(game_field.build_continuous_features(a), dtype=np.float32)
-                else:
-                    vec = np.zeros((base_size,), dtype=np.float32)
-                vec = self._coerce_vec(vec, size=base_size)
-                if extra == 2:
-                    mode_vec = np.zeros((2,), dtype=np.float32)
-                    mode_vec[max(0, min(1, int(mode)))] = 1.0
-                    vec = np.concatenate([vec, mode_vec], axis=0)
-                elif extra == 1:
-                    vec = np.concatenate([vec, np.asarray([float(mode)], dtype=np.float32)], axis=0)
-                vec_list.append(self._coerce_vec(vec, size=per_agent_size))
-
-            if self._model_expects_mask():
-                mm = np.asarray(game_field.get_macro_mask(a), dtype=np.bool_).reshape(-1)
-                if mm.shape != (N_MACROS,) or (not mm.any()):
-                    mm = np.ones((N_MACROS,), dtype=np.bool_)
-                tm = np.asarray(game_field.get_target_mask(a), dtype=np.bool_).reshape(-1)
-                nt = int(getattr(game_field, "num_macro_targets", 8) or 8)
-                if tm.shape != (nt,) or (not tm.any()):
-                    tm = np.ones((nt,), dtype=np.bool_)
-                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
-
-        grid = np.concatenate(obs_list, axis=0).astype(np.float32)
-        out: Dict[str, np.ndarray] = {"grid": grid}
-        if self._model_expects_vec():
-            out["vec"] = np.concatenate(vec_list, axis=0).astype(np.float32)
-        if self._model_expects_mask():
-            out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
-        return out
+        return _viewer_obs_builder(
+            game_field,
+            live[:2],
+            max_agents=2,
+            include_mask=self._model_expects_mask(),
+            tokenized=False,
+            vec_size_base=12,
+            n_macros=N_MACROS,
+            n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+            vec_append_fn=vec_append_mode,
+        )
 
     def _compute_mode_if_needed(self, game_field: ViewerGameField, tick: int) -> int:
         if (tick - self._last_mode_tick) < self.mode_interval_ticks:
@@ -1020,7 +718,6 @@ class CTFViewer:
         ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
         hppo_low_path: str = DEFAULT_HPPO_LOW_MODEL_PATH,
         hppo_high_path: str = DEFAULT_HPPO_HIGH_MODEL_PATH,
-        ippo_model_path: str = DEFAULT_IPPO_MODEL_PATH,
         mappo_model_path: str = DEFAULT_MAPPO_MODEL_PATH,
         viewer_use_obs_builder: bool = True,
     ):
@@ -1095,9 +792,6 @@ class CTFViewer:
             deterministic=True,
             viewer_use_obs_builder=use_obs_builder,
         )
-        self.blue_ippo_team = IPPOTeamPolicy(
-            ippo_model_path, self.game_field, deterministic=True, viewer_use_obs_builder=use_obs_builder
-        )
         self.blue_mappo_team = MAPPOTeamPolicy(
             mappo_model_path, self.game_field, deterministic=True
         )
@@ -1123,12 +817,10 @@ class CTFViewer:
                 pass
 
     def _available_modes(self) -> List[str]:
-        """Cycle order: Default -> PPO -> IPPO -> MAPPO -> HPPO."""
+        """Cycle order: Default -> PPO -> MAPPO -> HPPO."""
         modes = ["DEFAULT"]
         if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             modes.append("PPO")
-        if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
-            modes.append("IPPO")
         if self.blue_mappo_team and self.blue_mappo_team.model_loaded:
             modes.append("MAPPO")
         if self.blue_hppo_team and self.blue_hppo_team.model_loaded:
@@ -1139,17 +831,7 @@ class CTFViewer:
         if not (hasattr(self.game_field, "policies") and isinstance(self.game_field.policies, dict)):
             return
 
-        if mode == "IPPO" and self.blue_ippo_team and self.blue_ippo_team.model_loaded:
-            def blue_policy(obs, agent, game_field):
-                return self.blue_ippo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
-
-            self._blue_policy_callable = blue_policy
-            self.game_field.policies["blue"] = self._blue_policy_callable
-            self.blue_mode = "IPPO"
-            self.blue_ippo_team.reset_cache()
-            print("[CTFViewer] Blue -> IPPO (.pt)")
-
-        elif mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+        if mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             # install a callable that slices the cached joint action
             def blue_policy(obs, agent, game_field):
                 return self.blue_ppo_team.act_for_agent(agent, game_field, tick=self.sim_tick)
@@ -1268,7 +950,7 @@ class CTFViewer:
             save_csv: Path to save CSV (e.g., "eval_results.csv"). If None, auto-generates name.
             headless: If True, run without display (faster). If False, show viewer.
             opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD")
-            eval_model: Force model for eval: "ippo", "ppo", "mappo", "hppo". If None, auto-pick first loaded.
+            eval_model: Force model for eval: "ppo", "mappo", "hppo". If None, auto-pick first loaded.
 
         Returns:
             Dict with summary statistics and per-episode metrics
@@ -1280,10 +962,7 @@ class CTFViewer:
 
         # Use requested model or first loaded
         want = (eval_model or "").strip().upper()
-        if want == "IPPO" and self.blue_ippo_team and self.blue_ippo_team.model_loaded:
-            self._apply_blue_mode("IPPO")
-            print("[Eval] Using IPPO for evaluation")
-        elif want == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+        if want == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             self._apply_blue_mode("PPO")
             print("[Eval] Using PPO for evaluation")
         elif want == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
@@ -1293,10 +972,7 @@ class CTFViewer:
             self._apply_blue_mode("HPPO")
             print("[Eval] Using HPPO for evaluation")
         elif self.blue_mode == "DEFAULT":
-            if self.blue_ippo_team and self.blue_ippo_team.model_loaded:
-                self._apply_blue_mode("IPPO")
-                print("[Eval] Switched to IPPO mode for evaluation")
-            elif self.blue_ppo_team and self.blue_ppo_team.model_loaded:
+            if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
                 self._apply_blue_mode("PPO")
                 print("[Eval] Switched to PPO mode for evaluation")
             elif self.blue_mappo_team and self.blue_mappo_team.model_loaded:
@@ -1338,17 +1014,15 @@ class CTFViewer:
         try:
             for ep_idx in range(num_episodes):
                 episode_id += 1
-                self.game_field.reset_default()
-                self._set_phase_op3()
-                self.sim_tick = 0
-                if self.blue_ippo_team:
-                    self.blue_ippo_team.reset_cache()
-                if self.blue_mappo_team:
-                    self.blue_mappo_team.reset_cache()
-                if self.blue_ppo_team:
-                    self.blue_ppo_team.reset_cache()
-                if self.blue_hppo_team:
-                    self.blue_hppo_team.reset_cache()
+            self.game_field.reset_default()
+            self._set_phase_op3()
+            self.sim_tick = 0
+            if self.blue_mappo_team:
+                self.blue_mappo_team.reset_cache()
+            if self.blue_ppo_team:
+                self.blue_ppo_team.reset_cache()
+            if self.blue_hppo_team:
+                self.blue_hppo_team.reset_cache()
                 self._reset_op3_policies()
 
                 step_count = 0
@@ -1467,8 +1141,7 @@ class CTFViewer:
         # Save CSV
         if save_csv is None:
             model_name = (
-                "ippo" if self.blue_mode == "IPPO"
-                else "mappo" if self.blue_mode == "MAPPO"
+                "mappo" if self.blue_mode == "MAPPO"
                 else "ppo" if self.blue_mode == "PPO"
                 else "hppo" if self.blue_mode == "HPPO"
                 else "default"
@@ -1536,8 +1209,6 @@ class CTFViewer:
             self.game_field.reset_default()
             self._set_phase_op3()
             self.sim_tick = 0
-            if self.blue_ippo_team:
-                self.blue_ippo_team.reset_cache()
             if self.blue_mappo_team:
                 self.blue_mappo_team.reset_cache()
             if self.blue_ppo_team:
@@ -1564,8 +1235,6 @@ class CTFViewer:
             self.game_field.reset_default()
             self._set_phase_op3()
             self.sim_tick = 0
-            if self.blue_ippo_team:
-                self.blue_ippo_team.reset_cache()
             if self.blue_mappo_team:
                 self.blue_mappo_team.reset_cache()
             if self.blue_ppo_team:
@@ -1591,8 +1260,6 @@ class CTFViewer:
 
                 self._set_phase_op3()
                 self.sim_tick = 0
-                if self.blue_ippo_team:
-                    self.blue_ippo_team.reset_cache()
                 if self.blue_mappo_team:
                     self.blue_mappo_team.reset_cache()
                 if self.blue_ppo_team:
@@ -1635,7 +1302,7 @@ class CTFViewer:
         mode_color = (255, 255, 120) if mode == "DEFAULT" else (120, 255, 120)
 
         txt(
-            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/PPO/IPPO/MAPPO/HPPO) | F4/F5: Debug | R: Reset",
+            "F1: Full Reset | F2: Set Agents | F3: Cycle Blue (Default/PPO/MAPPO/HPPO) | F4/F5: Debug | R: Reset",
             30, 15, (200, 200, 220)
         )
 
@@ -1649,10 +1316,7 @@ class CTFViewer:
         txt(f"Time: {int(getattr(gm, 'current_time', 0.0))}s", 380, 80, (220, 220, 255))
 
         right_x = self.size[0] - 460
-        if self.blue_mode == "IPPO" and self.blue_ippo_team and self.blue_ippo_team.model_loaded:
-            ippo_name = os.path.basename(self.blue_ippo_team.model_path or "")
-            txt(f"IPPO(.pt): {ippo_name}", right_x, 45, (140, 240, 140))
-        elif self.blue_mode == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
+        if self.blue_mode == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
             mappo_name = os.path.basename(self.blue_mappo_team.model_path or "")
             txt(f"MAPPO(.pth): {mappo_name}", right_x, 45, (140, 240, 140))
         elif self.blue_mode == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
@@ -1663,7 +1327,7 @@ class CTFViewer:
             high_name = os.path.basename(self.blue_hppo_team.high_model_path or "")
             txt(f"HPPO(.zip): {low_name} | {high_name}", right_x, 45, (140, 240, 140))
         else:
-            txt("IPPO/MAPPO/PPO/HPPO: (not loaded)", right_x, 45, (180, 180, 180))
+            txt("MAPPO/PPO/HPPO: (not loaded)", right_x, 45, (180, 180, 180))
 
         if self.input_active:
             overlay = pg.Surface(self.size, pg.SRCALPHA)
@@ -1690,13 +1354,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CTF Viewer - Interactive or Evaluation Mode")
     parser.add_argument("--eval", type=int, metavar="N", help="Run evaluation: N episodes, save metrics CSV (default: with display)")
     parser.add_argument("--eval-csv", type=str, metavar="PATH", help="CSV output path for evaluation (default: auto-generated)")
-    parser.add_argument("--eval-model", type=str, choices=["ippo", "ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
+    parser.add_argument("--eval-model", type=str, choices=["ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
     parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
     parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
-    parser.add_argument("--ippo-model", type=str, help="Path to IPPO model .pt file (from train_ippo.py)")
     parser.add_argument("--mappo-model", type=str, help="Path to MAPPO model .pth file (from train_mappo.py)")
 
     args = parser.parse_args()
@@ -1705,7 +1368,6 @@ if __name__ == "__main__":
         ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
         hppo_low_path=args.hppo_low or DEFAULT_HPPO_LOW_MODEL_PATH,
         hppo_high_path=args.hppo_high or DEFAULT_HPPO_HIGH_MODEL_PATH,
-        ippo_model_path=args.ippo_model or DEFAULT_IPPO_MODEL_PATH,
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
 
