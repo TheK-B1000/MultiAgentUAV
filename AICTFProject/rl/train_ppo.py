@@ -519,6 +519,8 @@ class SelfPlayCallback(BaseCallback):
         self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
         # Rolling slot index 1..max_snapshots for snapshot filenames (resets when at max)
         self._snapshot_roll_index = 0
+        # Total snapshots created over time (never resets, tracks cumulative count)
+        self._total_snapshots_created = 0
 
     def _enforce_snapshot_limit(self) -> None:
         if self._max_snapshots <= 0:
@@ -571,12 +573,13 @@ class SelfPlayCallback(BaseCallback):
                 else:
                     self.league.add_snapshot(path + ".zip")
                     self._enforce_snapshot_limit()
+                    self._total_snapshots_created += 1  # Track cumulative total
 
             if self.verbose:
                 print(
                     f"[PPO|SELF] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} "
-                    f"snapshots={len(self.league.snapshots)} "
+                    f"snapshots={len(self.league.snapshots)} total_created={self._total_snapshots_created} "
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
 
@@ -584,6 +587,7 @@ class SelfPlayCallback(BaseCallback):
             self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
             self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
             self.logger.record("self/snapshots", float(len(self.league.snapshots)))
+            self.logger.record("self/total_snapshots_created", float(self._total_snapshots_created))
 
             next_snapshot = None
             if bool(self.cfg.self_play_use_latest_snapshot):
