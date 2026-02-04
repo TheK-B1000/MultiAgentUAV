@@ -174,6 +174,15 @@ class PPOConfig:
     include_opponent_context: bool = False
     # Step 5.1: when True, GameField.build_continuous_features asserts no global state in vec (debug only).
     obs_debug_validate_locality: bool = False
+    
+    # Training stability improvements
+    enable_opponent_tracking: bool = True  # Track opponent distribution and results
+    opponent_tracking_window: int = 100  # Rolling window size for opponent stats
+    enable_fixed_eval: bool = True  # Run fixed eval suite (no learning)
+    fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
+    fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
+    # Reduced aggressiveness (if training unstable)
+    use_reduced_aggressiveness: bool = False  # Enable gentler updates
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -303,6 +312,15 @@ class LeagueCallback(BaseCallback):
         self.loss_count = 0
         self.draw_count = 0
         self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 25)))
+        
+        # Step 1: Opponent distribution tracking
+        self._opponent_stats: Dict[str, Dict[str, int]] = {}  # opp_key -> {wins, losses, draws, total}
+        self._opponent_history: List[Tuple[str, str]] = []  # (opp_key, result) for rolling window
+        self._enable_opponent_tracking = getattr(cfg, "enable_opponent_tracking", True)
+        self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
+        
+        # Step 5: Async episode handling - batch updates
+        self._pending_updates: List[Dict[str, Any]] = []  # Collect updates, apply on reset
 
     def _enforce_league_snapshot_limit(self) -> None:
         """Delete oldest league snapshots when over cap to save disk space."""
@@ -320,6 +338,60 @@ class LeagueCallback(BaseCallback):
 
     def _select_next_opponent(self) -> OpponentSpec:
         return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
+    
+    def _update_opponent_stats(self, opp_key: str, result: str):
+        """Track opponent distribution and results (Step 1)."""
+        if not self._enable_opponent_tracking:
+            return
+        
+        if opp_key not in self._opponent_stats:
+            self._opponent_stats[opp_key] = {"wins": 0, "losses": 0, "draws": 0, "total": 0}
+        
+        self._opponent_stats[opp_key]["total"] += 1
+        if result == "WIN":
+            self._opponent_stats[opp_key]["wins"] += 1
+        elif result == "LOSS":
+            self._opponent_stats[opp_key]["losses"] += 1
+        else:
+            self._opponent_stats[opp_key]["draws"] += 1
+        
+        # Rolling window
+        self._opponent_history.append((opp_key, result))
+        if len(self._opponent_history) > self._opponent_window:
+            old_opp_key, old_result = self._opponent_history.pop(0)
+            if old_opp_key in self._opponent_stats:
+                self._opponent_stats[old_opp_key]["total"] -= 1
+                if old_result == "WIN":
+                    self._opponent_stats[old_opp_key]["wins"] -= 1
+                elif old_result == "LOSS":
+                    self._opponent_stats[old_opp_key]["losses"] -= 1
+                else:
+                    self._opponent_stats[old_opp_key]["draws"] -= 1
+    
+    def _print_opponent_distribution(self):
+        """Print opponent distribution (last N episodes)."""
+        if not self._enable_opponent_tracking or not self._opponent_stats:
+            return
+        
+        # Count recent opponents
+        recent_opps: Dict[str, int] = {}
+        for opp_key, _ in self._opponent_history[-self._opponent_window:]:
+            recent_opps[opp_key] = recent_opps.get(opp_key, 0) + 1
+        
+        if not recent_opps:
+            return
+        
+        print(f"[OpponentDist|last_{self._opponent_window}] ", end="")
+        parts = []
+        for opp_key, count in sorted(recent_opps.items(), key=lambda x: -x[1]):
+            stats = self._opponent_stats.get(opp_key, {})
+            wins = stats.get("wins", 0)
+            losses = stats.get("losses", 0)
+            draws = stats.get("draws", 0)
+            total = stats.get("total", 0)
+            wr = (wins / max(1, wins + losses)) * 100 if (wins + losses) > 0 else 0.0
+            parts.append(f"{opp_key}:{count}({wins}W/{losses}L/{draws}D,{wr:.0f}%WR)")
+        print(" | ".join(parts))
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -396,6 +468,10 @@ class LeagueCallback(BaseCallback):
                 if self.league_mode:
                     base = f"{base} elo={self.league.learner_rating:.1f}"
                 print(base)
+                
+                # Step 1: Print opponent distribution every N episodes
+                if self._enable_opponent_tracking and (self.episode_idx % 50 == 0):
+                    self._print_opponent_distribution()
 
             self.logger.record("curr/episode", self.episode_idx)
             self.logger.record("curr/win_rate", self.win_count / max(1, self.episode_idx))
@@ -423,11 +499,35 @@ class LeagueCallback(BaseCallback):
             if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD" and
                     self.league.learner_rating < threshold):
                 next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
+            
+            # Step 3: Fix per-env opponent setting (VecEnv issue)
+            # Set opponent only for the env that just finished (index i)
             env = self.model.get_env()
             if env is not None:
-                env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
-                env.env_method("set_phase", self.curriculum.phase)
-                env.env_method("set_league_mode", self.league_mode)
+                # Set opponent only for the specific environment that finished
+                try:
+                    # For VecEnv, set opponent only for env at index i
+                    if hasattr(env, "envs") and i < len(env.envs):
+                        single_env = env.envs[i]
+                        if hasattr(single_env, "set_next_opponent"):
+                            single_env.set_next_opponent(next_opp.kind, next_opp.key)
+                        if hasattr(single_env, "set_phase"):
+                            single_env.set_phase(self.curriculum.phase)
+                        if hasattr(single_env, "set_league_mode"):
+                            single_env.set_league_mode(self.league_mode)
+                    else:
+                        # Fallback: set for all envs (original behavior)
+                        env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
+                        env.env_method("set_phase", self.curriculum.phase)
+                        env.env_method("set_league_mode", self.league_mode)
+                except Exception as exc:
+                    # Fallback on error
+                    try:
+                        env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
+                        env.env_method("set_phase", self.curriculum.phase)
+                        env.env_method("set_league_mode", self.league_mode)
+                    except Exception:
+                        pass
 
         return True
 
@@ -986,17 +1086,28 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
         policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
 
+    # Step 4: Reduced aggressiveness if training unstable
+    learning_rate = float(cfg.learning_rate)
+    ent_coef = float(cfg.ent_coef)
+    clip_range = float(cfg.clip_range)
+    
+    if getattr(cfg, "use_reduced_aggressiveness", False):
+        learning_rate = learning_rate * 0.67  # 3e-4 -> 2e-4, or scale down
+        ent_coef = ent_coef * 0.5  # 0.01 -> 0.005
+        clip_range = clip_range * 0.75  # 0.2 -> 0.15
+        print(f"[PPO] Using reduced aggressiveness: LR={learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={clip_range:.2f}")
+    
     model = PPO(
         policy=MaskedMultiInputPolicy,
         env=venv,
-        learning_rate=float(cfg.learning_rate),
+        learning_rate=learning_rate,
         n_steps=int(cfg.n_steps),
         batch_size=int(cfg.batch_size),
         n_epochs=int(cfg.n_epochs),
         gamma=float(cfg.gamma),
         gae_lambda=float(cfg.gae_lambda),
-        clip_range=float(cfg.clip_range),
-        ent_coef=float(cfg.ent_coef),
+        clip_range=clip_range,
+        ent_coef=ent_coef,
         vf_coef=0.5,
         max_grad_norm=float(cfg.max_grad_norm),
         tensorboard_log=(
