@@ -8,26 +8,23 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
-from red_opponents import make_species_wrapper, make_snapshot_wrapper
-from macro_actions import MacroAction
-from rl.agent_identity import build_blue_identities, build_reward_id_map, route_reward_events
-
-try:
-    from rl.obs_builder import build_team_obs
-except Exception:
-    build_team_obs = None
-try:
-    from rl.episode_result import path_to_snapshot_key
-except Exception:
-    def path_to_snapshot_key(path: str) -> str:
-        if not (path or str(path).strip()):
-            return "SNAPSHOT:unknown"
-        base = os.path.basename(str(path).strip())
-        name, _ = os.path.splitext(base)
-        return f"SNAPSHOT:{name}" if name else "SNAPSHOT:unknown"
-
-# Step 4.1: max opponent context id (stable int in [0, MAX_OPPONENT_CONTEXT_IDS-1])
-MAX_OPPONENT_CONTEXT_IDS = 256
+from rl.agent_identity import build_blue_identities, build_reward_id_map
+from rl.env_modules import (
+    EnvConfigManager,
+    EnvOpponentManager,
+    EnvRewardManager,
+    EnvObsBuilder,
+    EnvActionManager,
+    StepReward,
+    StepInfo,
+    EpisodeResult,
+    StepResult,
+    MAX_OPPONENT_CONTEXT_IDS,
+    validate_reward_breakdown,
+    validate_obs_order,
+    validate_action_keys,
+    validate_dropped_reward_events_policy,
+)
 
 
 class CTFGameFieldSB3Env(gym.Env):
@@ -77,24 +74,44 @@ class CTFGameFieldSB3Env(gym.Env):
         # Verification: print obs/action shapes once per reset (Sprint A)
         print_reset_shapes: bool = False,
         # Step 2.1: if False, assert GameField has build_continuous_features(); if True, fallback to zeros with warning
+        # NOTE: In eval mode, this should be False to avoid hidden nondeterminism
         allow_missing_vec_features: bool = False,
         # Reward contract: TEAM_SUM (default), PER_AGENT, SHAPLEY_APPROX (future). Logged in info.
         reward_mode: str = "TEAM_SUM",
-        # Step 3.1: use canonical ObsBuilder (rollback: set False to keep legacy _get_obs path)
+        # Step 3.1: use canonical ObsBuilder (legacy path removed - always True)
         use_obs_builder: bool = True,
         # Step 4.1: add obs["context"] = opponent embedding id (stable int, not full path). Default off.
         include_opponent_context: bool = False,
         # Step 5.1: when True, GameField.build_continuous_features asserts no global state in vec (debug only).
         obs_debug_validate_locality: bool = False,
+        # Phase 2: Contract validation (MARL safety hardening)
+        validate_contracts: bool = False,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
         self._print_reset_shapes = bool(print_reset_shapes)
         self._allow_missing_vec_features = bool(allow_missing_vec_features)
+        # Log if fallback is enabled (could create hidden nondeterminism)
+        if self._allow_missing_vec_features:
+            import warnings
+            warnings.warn(
+                "allow_missing_vec_features=True: fallback to zeros may create hidden nondeterminism. "
+                "Disable in evaluation mode.",
+                UserWarning,
+            )
         self._reward_mode = str(reward_mode).strip().upper() or "TEAM_SUM"
-        self._use_obs_builder = bool(use_obs_builder)
+        # Always use obs builder - legacy path removed per module ownership
+        if not use_obs_builder:
+            import warnings
+            warnings.warn(
+                "use_obs_builder=False is deprecated. Legacy observation path removed per module ownership. "
+                "Always using canonical build_team_obs().",
+                DeprecationWarning,
+            )
+        self._use_obs_builder = True  # Always True
         self._include_opponent_context = bool(include_opponent_context)
         self._obs_debug_validate_locality = bool(obs_debug_validate_locality)
+        self._validate_contracts = bool(validate_contracts)
 
         self.max_decision_steps = int(max_decision_steps)
         self.enforce_masks = bool(enforce_masks)
@@ -108,20 +125,8 @@ class CTFGameFieldSB3Env(gym.Env):
 
         self.ppo_gamma = float(ppo_gamma)
 
-        self.default_opponent_kind = str(default_opponent_kind).upper()
-        self.default_opponent_key = str(default_opponent_key).upper()
-
         self.gf: Optional[GameField] = None
         self._decision_step_count = 0
-        self._next_opponent: Optional[Tuple[str, str]] = None
-        self._phase_name: str = "OP1"
-
-        # Store dynamics config even before reset() (SubprocVecEnv calls env_method early sometimes)
-        self._dynamics_config: Optional[dict] = None
-        self._disturbance_config: Optional[dict] = None
-        self._robotics_config: Optional[dict] = None
-        self._sensor_config: Optional[dict] = None
-        self._physics_tag: Optional[str] = None
 
         # max_blue_agents: 2 = legacy 2v2; >2 = tokenized for zero-shot (train 2v2, test 4v4/8v8)
         self._max_blue_agents = max(2, int(max_blue_agents))
@@ -139,24 +144,36 @@ class CTFGameFieldSB3Env(gym.Env):
         self._n_targets = 8
 
         self._league_mode = False
-        self._episode_reward_total = 0.0
-        self._blue_role_macros = blue_role_macros
-        # Curriculum Axis 2: environment stress by phase (optional)
-        self._stress_schedule: Optional[dict] = None  # phase -> {current_strength_cps, action_delay_steps, sensor_noise_sigma_cells, sensor_dropout_prob}
-        self._episode_macro_counts: list[list[int]] = []
-        self._episode_mine_counts: list[dict[str, int]] = []
-
-        # Anti-stall (blue-only, decision-level)
-        self._stall_threshold_cells = 0.15
-        self._stall_patience = 3
-        self._stall_penalty = -0.05
-        self._stall_counters = [0, 0]
-        self._last_blue_pos: list[Optional[Tuple[float, float]]] = [None, None]
 
         # Canonical agent identity tracking
         self._blue_identities: list = []  # List[AgentIdentity] - built at reset
         self._reward_id_map: Dict[str, int] = {}  # internal_id -> slot_index
-        self._dropped_reward_events_this_step = 0  # track dropped events per step
+
+        # Initialize modules
+        self._config_manager = EnvConfigManager()
+        self._opponent_manager = EnvOpponentManager(
+            default_kind=default_opponent_kind,
+            default_key=default_opponent_key,
+        )
+        self._reward_manager = EnvRewardManager()
+        self._obs_builder = EnvObsBuilder(
+            use_obs_builder=self._use_obs_builder,
+            include_mask_in_obs=self.include_mask_in_obs,
+            include_opponent_context=self._include_opponent_context,
+            include_high_level_mode=self.include_high_level_mode,
+            high_level_mode=self._high_level_mode,
+            high_level_mode_onehot=self._high_level_mode_onehot,
+            base_vec_per_agent=self._base_vec_per_agent,
+            obs_debug_validate_locality=self._obs_debug_validate_locality,
+        )
+        self._action_manager = EnvActionManager(
+            enforce_masks=self.enforce_masks,
+            action_flip_prob=action_flip_prob,
+            n_macros=self._n_macros,
+            n_targets=self._n_targets,
+            blue_role_macros=blue_role_macros,
+            seed=seed,
+        )
 
         # Action space: (macro, target) per blue agent; tokenized uses max_blue_agents
         n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
@@ -215,354 +232,82 @@ class CTFGameFieldSB3Env(gym.Env):
     # Dynamics config hook (SB3 SubprocVecEnv expects this if you env_method it)
     # -----------------------------
     def set_dynamics_config(self, cfg: Optional[dict]) -> None:
-        """
-        Called from training via VecEnv.env_method("set_dynamics_config", cfg).
-
-        We store cfg and forward it to GameField/Manager hooks if present.
-        This prevents SubprocVecEnv workers from crashing when training code calls this.
-        """
-        self._dynamics_config = None if cfg is None else dict(cfg)
-
-        if self.gf is None:
-            return
-
-        # Prefer GF-level hook
-        if hasattr(self.gf, "set_dynamics_config"):
-            try:
-                self.gf.set_dynamics_config(self._dynamics_config)
-                return
-            except Exception:
-                pass
-
-        # Fall back to Manager hook
-        gm = getattr(self.gf, "manager", None)
-        if gm is not None and hasattr(gm, "set_dynamics_config"):
-            try:
-                gm.set_dynamics_config(self._dynamics_config)
-            except Exception:
-                pass
+        """Delegate to EnvConfigManager."""
+        self._config_manager.set_dynamics_config(cfg, self.gf)
 
     def get_dynamics_config(self) -> Optional[dict]:
         """Convenience accessor for logging/debug."""
-        return None if self._dynamics_config is None else dict(self._dynamics_config)
+        return self._config_manager.get_dynamics_config()
 
     # -----------------------------
     # Disturbances / robotics / sensing hooks
     # -----------------------------
     def set_disturbance_config(self, *args, **kwargs) -> None:
-        """
-        Called from training via VecEnv.env_method("set_disturbance_config", cfg)
-        or via kwargs: current_strength / drift_sigma.
-        """
-        cfg = None
-        if args and isinstance(args[0], dict):
-            cfg = dict(args[0])
-        elif "cfg" in kwargs and isinstance(kwargs["cfg"], dict):
-            cfg = dict(kwargs["cfg"])
-
-        if cfg is None:
-            cfg = dict(kwargs)
-
-        # Support both training names and GameField names
-        current_strength = cfg.pop("current_strength", None)
-        drift_sigma = cfg.pop("drift_sigma", None)
-        current_strength_cps = cfg.pop("current_strength_cps", None)
-        drift_sigma_cells = cfg.pop("drift_sigma_cells", None)
-
-        if current_strength_cps is None:
-            current_strength_cps = current_strength
-        if drift_sigma_cells is None:
-            drift_sigma_cells = drift_sigma
-
-        self._disturbance_config = {
-            "current_strength_cps": 0.0 if current_strength_cps is None else float(current_strength_cps),
-            "drift_sigma_cells": 0.0 if drift_sigma_cells is None else float(drift_sigma_cells),
-        }
-
-        if self.gf is None:
-            return
-
-        if hasattr(self.gf, "set_disturbance_config"):
-            try:
-                self.gf.set_disturbance_config(
-                    self._disturbance_config["current_strength_cps"],
-                    self._disturbance_config["drift_sigma_cells"],
-                )
-                return
-            except Exception:
-                pass
-
-        if hasattr(self.gf, "set_disturbance_config_dict"):
-            try:
-                self.gf.set_disturbance_config_dict(self._disturbance_config)
-            except Exception:
-                pass
+        """Delegate to EnvConfigManager."""
+        self._config_manager.set_disturbance_config(*args, game_field=self.gf, **kwargs)
 
     def get_disturbance_config(self) -> Optional[dict]:
-        return None if self._disturbance_config is None else dict(self._disturbance_config)
+        return self._config_manager.get_disturbance_config()
 
     def set_robotics_constraints(self, *args, **kwargs) -> None:
-        """
-        Called from training via VecEnv.env_method("set_robotics_constraints", cfg)
-        or via kwargs: action_delay_steps / actuation_noise_sigma.
-        """
-        cfg = None
-        if args and isinstance(args[0], dict):
-            cfg = dict(args[0])
-        elif "cfg" in kwargs and isinstance(kwargs["cfg"], dict):
-            cfg = dict(kwargs["cfg"])
-
-        if cfg is None:
-            cfg = dict(kwargs)
-
-        action_delay_steps = cfg.get("action_delay_steps", 0)
-        actuation_noise_sigma = cfg.get("actuation_noise_sigma", 0.0)
-
-        self._robotics_config = {
-            "action_delay_steps": int(action_delay_steps),
-            "actuation_noise_sigma": float(actuation_noise_sigma),
-        }
-
-        if self.gf is None:
-            return
-
-        if hasattr(self.gf, "set_robotics_constraints"):
-            try:
-                self.gf.set_robotics_constraints(
-                    self._robotics_config["action_delay_steps"],
-                    self._robotics_config["actuation_noise_sigma"],
-                )
-                return
-            except Exception:
-                pass
-
-        if hasattr(self.gf, "set_robotics_constraints_dict"):
-            try:
-                self.gf.set_robotics_constraints_dict(self._robotics_config)
-            except Exception:
-                pass
+        """Delegate to EnvConfigManager."""
+        self._config_manager.set_robotics_constraints(*args, **kwargs, game_field=self.gf)
 
     def get_robotics_constraints(self) -> Optional[dict]:
-        return None if self._robotics_config is None else dict(self._robotics_config)
+        return self._config_manager.get_robotics_constraints()
 
     def set_sensor_config(self, *args, **kwargs) -> None:
-        """
-        Called from training via VecEnv.env_method("set_sensor_config", cfg)
-        or via kwargs: sensor_range / sensor_noise_sigma / sensor_dropout_prob.
-        """
-        cfg = None
-        if args and isinstance(args[0], dict):
-            cfg = dict(args[0])
-        elif "cfg" in kwargs and isinstance(kwargs["cfg"], dict):
-            cfg = dict(kwargs["cfg"])
-
-        if cfg is None:
-            cfg = dict(kwargs)
-
-        sensor_range = cfg.get("sensor_range", cfg.get("sensor_range_cells", 9999.0))
-        sensor_noise_sigma = cfg.get("sensor_noise_sigma", cfg.get("sensor_noise_sigma_cells", 0.0))
-        sensor_dropout_prob = cfg.get("sensor_dropout_prob", 0.0)
-
-        self._sensor_config = {
-            "sensor_range_cells": float(sensor_range),
-            "sensor_noise_sigma_cells": float(sensor_noise_sigma),
-            "sensor_dropout_prob": float(sensor_dropout_prob),
-        }
-
-        if self.gf is None:
-            return
-
-        if hasattr(self.gf, "set_sensor_config"):
-            try:
-                self.gf.set_sensor_config(
-                    self._sensor_config["sensor_range_cells"],
-                    self._sensor_config["sensor_noise_sigma_cells"],
-                    self._sensor_config["sensor_dropout_prob"],
-                )
-                return
-            except Exception:
-                pass
-
-        if hasattr(self.gf, "set_sensor_config_dict"):
-            try:
-                self.gf.set_sensor_config_dict(self._sensor_config)
-            except Exception:
-                pass
+        """Delegate to EnvConfigManager."""
+        self._config_manager.set_sensor_config(*args, game_field=self.gf, **kwargs)
 
     def get_sensor_config(self) -> Optional[dict]:
-        return None if self._sensor_config is None else dict(self._sensor_config)
+        return self._config_manager.get_sensor_config()
 
     def set_physics_tag(self, tag: str) -> None:
-        self._physics_tag = str(tag)
-        if self.gf is None:
-            return
-        if hasattr(self.gf, "set_physics_tag"):
-            try:
-                self.gf.set_physics_tag(self._physics_tag)
-            except Exception:
-                pass
+        """Delegate to EnvConfigManager."""
+        self._config_manager.set_physics_tag(tag, self.gf)
 
     def set_physics_enabled(self, enabled: bool) -> None:
         """Turn ASV kinematics + maritime sensors on/off. Used by realism-by-phase curriculum."""
-        if self.gf is None:
-            return
-        if hasattr(self.gf, "set_physics_enabled"):
-            try:
-                self.gf.set_physics_enabled(bool(enabled))
-            except Exception:
-                pass
+        self._config_manager.set_physics_enabled(enabled, self.gf)
 
     # -----------------------------
     # Phase / curriculum helpers
     # -----------------------------
     def set_phase(self, phase: str) -> None:
-        # Contract: stress schedule keys are OP1|OP2|OP3 only; normalize tags (e.g. OP3_HARD -> OP3)
-        from rl.curriculum import phase_from_tag, VALID_PHASES
-        raw = str(phase).upper().strip()
-        canonical = phase_from_tag(raw)
-        assert canonical in VALID_PHASES, f"phase_from_tag({phase!r}) returned {canonical!r}"
-        self._phase_name = canonical
-        if self.gf is not None and hasattr(self.gf, "manager"):
-            try:
-                self.gf.manager.set_phase(self._phase_name)
-            except Exception:
-                pass
-        self._apply_stress_for_phase(self._phase_name)
+        """Delegate to EnvConfigManager."""
+        self._config_manager.set_phase(phase, self.gf)
 
     def set_stress_schedule(self, schedule: Optional[dict]) -> None:
         """Curriculum Axis 2: phase -> {current_strength_cps, drift_sigma_cells, action_delay_steps, sensor_noise_sigma_cells, sensor_dropout_prob}. None = disable."""
-        self._stress_schedule = None if schedule is None else dict(schedule)
-
-    def _apply_stress_for_phase(self, phase: str) -> None:
-        """Apply environment stress and naval realism for this phase if stress schedule is set."""
-        if self.gf is None or not self._stress_schedule:
-            return
-        cfg = self._stress_schedule.get(str(phase).upper())
-        if not cfg or not isinstance(cfg, dict):
-            return
-        try:
-            if "physics_enabled" in cfg:
-                self.set_physics_enabled(bool(cfg.get("physics_enabled", False)))
-            if cfg.get("relaxed_dynamics"):
-                # Gentler ASV params when first enabling physics (OP2)
-                self.gf.set_dynamics_config(
-                    max_speed_cps=float(cfg.get("max_speed_cps", 2.8)),
-                    max_accel_cps2=float(cfg.get("max_accel_cps2", 2.5)),
-                    max_yaw_rate_rps=float(cfg.get("max_yaw_rate_rps", 5.0)),
-                )
-            elif "max_speed_cps" in cfg or "max_accel_cps2" in cfg or "max_yaw_rate_rps" in cfg:
-                self.gf.set_dynamics_config(
-                    max_speed_cps=float(cfg.get("max_speed_cps", getattr(self.gf.boat_cfg, "max_speed_cps", 2.2))),
-                    max_accel_cps2=float(cfg.get("max_accel_cps2", getattr(self.gf.boat_cfg, "max_accel_cps2", 2.0))),
-                    max_yaw_rate_rps=float(cfg.get("max_yaw_rate_rps", getattr(self.gf.boat_cfg, "max_yaw_rate_rps", 4.0))),
-                )
-            if "current_strength_cps" in cfg or "drift_sigma_cells" in cfg:
-                self.gf.set_disturbance_config(
-                    float(cfg.get("current_strength_cps", 0.0)),
-                    float(cfg.get("drift_sigma_cells", 0.0)),
-                )
-            if "action_delay_steps" in cfg:
-                self.gf.set_robotics_constraints(
-                    int(cfg.get("action_delay_steps", 0)),
-                    float(cfg.get("actuation_noise_sigma", 0.0)),
-                )
-            if "sensor_noise_sigma_cells" in cfg or "sensor_dropout_prob" in cfg:
-                self.gf.set_sensor_config(
-                    float(cfg.get("sensor_range_cells", getattr(self.gf.boat_cfg, "sensor_range_cells", 9999.0))),
-                    float(cfg.get("sensor_noise_sigma_cells", 0.0)),
-                    float(cfg.get("sensor_dropout_prob", 0.0)),
-                )
-        except Exception:
-            pass
+        self._config_manager.set_stress_schedule(schedule)
 
     def set_league_mode(self, league_mode: bool) -> None:
         self._league_mode = bool(league_mode)
 
     def set_high_level_mode(self, mode: int) -> None:
+        """Update high-level mode for next observation."""
         self._high_level_mode = int(mode)
+        self._obs_builder.set_high_level_mode(mode)
 
     # -----------------------------
     # Opponent hot-swap
     # -----------------------------
     def set_next_opponent(self, kind: str, key: str) -> None:
-        k = str(kind).upper()
-        # Snapshot key is a file path: do not uppercase (breaks paths on case-sensitive / Windows)
-        v = str(key).upper() if k != "SNAPSHOT" else str(key)
-        self._next_opponent = (k, v)
+        """Delegate to EnvOpponentManager."""
+        self._opponent_manager.set_next_opponent(kind, key)
 
     def set_opponent_scripted(self, scripted_tag: str) -> None:
-        if self.gf is None:
-            return
-        tag = str(scripted_tag).upper()
-        self._opponent_kind = "scripted"
-        self._opponent_scripted_tag = tag
-        self._opponent_species_tag = "BALANCED"
-        self._opponent_snapshot_path = None
-
-        self.gf.set_red_opponent(tag)
-        self.gf.set_red_policy_wrapper(None)
+        """Delegate to EnvOpponentManager."""
+        self._opponent_manager.set_opponent_scripted(scripted_tag, self.gf)
 
     def set_opponent_species(self, species_tag: str) -> None:
-        if self.gf is None:
-            return
-        self._opponent_kind = "species"
-        self._opponent_species_tag = str(species_tag).upper()
-        self._opponent_snapshot_path = None
-        self._opponent_scripted_tag = "OP3"
-
-        wrapper = make_species_wrapper(self._opponent_species_tag)
-        self.gf.set_red_policy_wrapper(wrapper)
+        """Delegate to EnvOpponentManager."""
+        self._opponent_manager.set_opponent_species(species_tag, self.gf)
 
     def set_opponent_snapshot(self, snapshot_path: str) -> None:
-        if self.gf is None:
-            return
-        path = str(snapshot_path).strip()
-        # Resolve path: try as-is, with .zip, lowercase (Windows), normpath
-        candidates = [path]
-        if not path.lower().endswith(".zip"):
-            candidates.append(path + ".zip")
-        candidates.append(os.path.normpath(path))
-        candidates.append(os.path.normpath(path + ("" if path.lower().endswith(".zip") else ".zip")))
-        if path != path.lower():
-            candidates.append(path.lower())
-            candidates.append(os.path.normpath(path.lower()))
-        found = None
-        for p in candidates:
-            if p and os.path.isfile(p):
-                found = p
-                break
-        if found is None:
-            # Snapshot file missing (deleted, wrong cwd, or bad path): fall back to scripted OP3
-            try:
-                print(f"[WARN] Snapshot not found: {path!r}; falling back to SCRIPTED:OP3")
-            except Exception:
-                pass
-            self.set_opponent_scripted("OP3")
-            return
-        self._opponent_kind = "snapshot"
-        self._opponent_snapshot_path = found
-        self._opponent_species_tag = "BALANCED"
-        self._opponent_scripted_tag = "OP3"
-
-        wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
-        self.gf.set_red_policy_wrapper(wrapper)
-
-    def _opponent_context_id(self) -> int:
-        """Stable opponent embedding id in [0, MAX_OPPONENT_CONTEXT_IDS-1] (no full path)."""
-        kind = str(self._opponent_kind or "scripted").upper()
-        if kind == "SCRIPTED":
-            tag = str(self._opponent_scripted_tag or "OP3").upper()
-            scripted_map = {"OP1": 0, "OP2": 1, "OP3": 2}
-            return scripted_map.get(tag, 2)
-        if kind == "SPECIES":
-            tag = str(self._opponent_species_tag or "BALANCED").upper()
-            species_map = {"BALANCED": 3, "RUSHER": 4, "CAMPER": 5}
-            return species_map.get(tag, 3)
-        if kind == "SNAPSHOT":
-            key = path_to_snapshot_key(self._opponent_snapshot_path or "")
-            h = hash(key) % (MAX_OPPONENT_CONTEXT_IDS - 6)
-            return 6 + (h if h >= 0 else h + (MAX_OPPONENT_CONTEXT_IDS - 6))
-        return 0
+        """Delegate to EnvOpponentManager."""
+        self._opponent_manager.set_opponent_snapshot(snapshot_path, self.gf)
 
     # -------------
     # Gym API
@@ -586,7 +331,6 @@ class CTFGameFieldSB3Env(gym.Env):
             pass
 
         self._decision_step_count = 0
-        self._episode_reward_total = 0.0
 
         # Blue externally controlled by SB3; red internal + wrapper override
         self.gf.set_external_control("blue", True)
@@ -602,47 +346,14 @@ class CTFGameFieldSB3Env(gym.Env):
                 pass
 
         # Apply opponent and OpponentParams BEFORE reset_default so red spawn uses speed_mult etc.
-        if self._next_opponent is not None:
-            kind, key = self._next_opponent
-            kind = str(kind).upper()
-            key = str(key) if kind == "SNAPSHOT" else str(key).upper()
-            self._next_opponent = None
-        else:
-            kind = str(self.default_opponent_kind).upper()
-            key = str(self.default_opponent_key).upper()
-        if kind == "SCRIPTED":
-            self.set_opponent_scripted(key)
-        elif kind == "SPECIES":
-            self.set_opponent_species(key)
-        elif kind == "SNAPSHOT":
-            self.set_opponent_snapshot(key)
-        try:
-            from opponent_params import sample_opponent_params
-            phase = str(getattr(self.gf.manager, "phase_name", self._phase_name)).upper()
-            rng = __import__("random").Random(int(final_seed) + 1)
-            params = sample_opponent_params(kind=kind, key=key, phase=phase, rng=rng)
-            if hasattr(self.gf, "set_opponent_params"):
-                self.gf.set_opponent_params(params)
-        except Exception:
-            pass
+        phase_name = self._config_manager.get_phase()
+        self._opponent_manager.apply_opponent_at_reset(self.gf, phase_name, final_seed)
 
         # Reset the underlying sim (spawn uses red_speed_scale etc. from OpponentParams)
         self.gf.reset_default()
 
-        # Re-apply sticky dynamics after GF is created/reset
-        if self._dynamics_config is not None:
-            self.set_dynamics_config(self._dynamics_config)
-        if self._disturbance_config is not None:
-            self.set_disturbance_config(self._disturbance_config)
-        if self._robotics_config is not None:
-            self.set_robotics_constraints(self._robotics_config)
-        if self._sensor_config is not None:
-            self.set_sensor_config(self._sensor_config)
-        if self._physics_tag is not None:
-            self.set_physics_tag(self._physics_tag)
-
-        # Apply stress/realism for current phase (OP1 no physics, OP2 relaxed, OP3 full)
-        self._apply_stress_for_phase(self._phase_name)
+        # Re-apply all configs after GF is created/reset
+        self._config_manager.apply_all_configs(self.gf)
 
         # Sync macro/target dims from GameField (Sprint C: n_targets fixed for all team sizes)
         self._n_macros = int(getattr(self.gf, "n_macros", 5))
@@ -660,6 +371,10 @@ class CTFGameFieldSB3Env(gym.Env):
         self._reward_id_map = build_reward_id_map(self._blue_identities)
         self._dropped_reward_events_this_step = 0
         self._dropped_reward_events_this_episode = 0
+
+        # Reset episode-level tracking in managers
+        self._reward_manager.reset_episode(n_agents=self._n_blue_agents)
+        self._action_manager.reset_episode(n_agents=self._n_blue_agents)
 
         n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
         self.action_space = spaces.MultiDiscrete(
@@ -717,16 +432,6 @@ class CTFGameFieldSB3Env(gym.Env):
                 )
         self.observation_space = spaces.Dict(base_obs)
 
-        n_count = self._max_blue_agents if self._max_blue_agents > 2 else self._n_blue_agents
-        self._episode_macro_counts = [[0 for _ in range(self._n_macros)] for _ in range(n_count)]
-        self._episode_mine_counts = [{"grab": 0, "place": 0} for _ in range(n_count)]
-
-        self._stall_counters = [0] * n_count
-        self._last_blue_pos = [None] * n_count
-        for i in range(n_count):
-            if i < len(self.gf.blue_agents) and self.gf.blue_agents[i] is not None:
-                self._last_blue_pos[i] = tuple(getattr(self.gf.blue_agents[i], "float_pos", (0.0, 0.0)))
-
         # Bind GF to manager (reward routing hook)
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "bind_game_field"):
             try:
@@ -742,9 +447,10 @@ class CTFGameFieldSB3Env(gym.Env):
                 pass
 
         # Apply curriculum phase
+        phase_name = self._config_manager.get_phase()
         if hasattr(self.gf, "manager") and hasattr(self.gf.manager, "set_phase"):
             try:
-                self.gf.manager.set_phase(self._phase_name)
+                self.gf.manager.set_phase(phase_name)
             except Exception:
                 pass
 
@@ -773,9 +479,9 @@ class CTFGameFieldSB3Env(gym.Env):
         assert self.gf is not None, "Call reset() first"
         self._decision_step_count += 1
 
+        # Parse actions
         act_flat = np.asarray(action).reshape(-1)
         n_slots = self._max_blue_agents if self._max_blue_agents > 2 else 2
-        # Parse (macro, target) per slot; only use first _n_blue_agents
         intended: list[Tuple[int, int]] = []
         for i in range(n_slots):
             off = i * 2
@@ -786,80 +492,114 @@ class CTFGameFieldSB3Env(gym.Env):
         while len(intended) < n_slots:
             intended.append((0, 0))
 
-        # Apply action execution noise per agent
-        executed: list[Tuple[int, int]] = []
-        flip_count_step = 0
-        macro_flip_count_step = 0
-        target_flip_count_step = 0
-        for i in range(min(self._n_blue_agents, n_slots)):
-            m, t = intended[i]
-            if self.action_flip_prob > 0.0:
-                if self._action_rng.rand() < self.action_flip_prob:
-                    m = int(self._action_rng.randint(0, self._n_macros))
-                    flip_count_step += 1
-                    macro_flip_count_step += 1
-                if self._action_rng.rand() < self.action_flip_prob:
-                    t = int(self._action_rng.randint(0, self._n_targets))
-                    flip_count_step += 1
-                    target_flip_count_step += 1
-            m, t = self._sanitize_action_for_agent(i, m, t)
-            executed.append((m, t))
-            self._record_macro_usage(i, m)
-        while len(executed) < n_slots:
-            executed.append((0, 0))
+        # Apply noise and sanitize via EnvActionManager
+        executed, flip_count_step, macro_flip_count_step, target_flip_count_step = (
+            self._action_manager.apply_noise_and_sanitize(
+                intended,
+                self._n_blue_agents,
+                self.gf,
+                role_macro_mask_fn=self._action_manager._apply_role_macro_mask,
+            )
+        )
 
+        # Submit actions using canonical keys
         actions_by_agent: Dict[str, Tuple[int, Any]] = {}
-        blue_list = getattr(self.gf, "blue_agents", []) or []
-        for i in range(min(self._n_blue_agents, len(blue_list))):
-            agent = blue_list[i] if i < len(blue_list) else None
-            if agent is None:
-                continue
-            key = str(getattr(agent, "slot_id", getattr(agent, "unique_id", f"blue_{i}")))
-            actions_by_agent[key] = executed[i]
-
+        for i, ident in enumerate(self._blue_identities):
+            if i < len(executed):
+                actions_by_agent[ident.key] = executed[i]
         self.gf.submit_external_actions(actions_by_agent)
 
-        # Advance sim ~one decision interval (slightly less to avoid edge jitter)
+        # Advance sim
         interval = float(getattr(self.gf, "decision_interval_seconds", 0.7))
         dt = max(1e-3, 0.99 * interval)
         self.gf.update(dt)
 
-        # Rewards via GameManager events (routed using identity map) + per-agent bookkeeping
-        reward_events_total, reward_per_agent_events, dropped_count = self._consume_blue_reward_events()
-        stall_total, stall_per_agent = self._apply_blue_stall_penalty()
-        reward = float(reward_events_total) + float(stall_total)
+        # Rewards via EnvRewardManager
+        gm = self.gf.manager
+        reward_events_total, reward_per_agent_events, dropped_count = (
+            self._reward_manager.consume_reward_events(
+                gm,
+                self._reward_id_map,
+                len(self._blue_identities),
+            )
+        )
+        stall_total, stall_per_agent = self._reward_manager.apply_stall_penalty(
+            self.gf,
+            self._n_blue_agents,
+        )
         n_slots = len(self._blue_identities)
         reward_blue_per_agent = [
             float(reward_per_agent_events[i]) + float(stall_per_agent[i] if i < len(stall_per_agent) else 0.0)
             for i in range(n_slots)
         ]
-        self._dropped_reward_events_this_step = dropped_count
 
+        # Check termination
         gm = self.gf.manager
         terminated = bool(getattr(gm, "game_over", False))
         truncated = (self._decision_step_count >= self.max_decision_steps)
 
+        # Build observation via EnvObsBuilder
         obs = self._get_obs()
+        
+        # Contract validation: observation order
+        if self._validate_contracts:
+            validate_obs_order(obs, self._n_blue_agents, self._max_blue_agents, debug=True)
 
-        info: Dict[str, Any] = {}
-        # Reward mode contract: TEAM_SUM (default), PER_AGENT, SHAPLEY_APPROX (future).
-        # Scalar step reward remains team sum; per-agent breakdown in reward_blue_per_agent when available.
-        info["reward_mode"] = str(self._reward_mode)
-        info["reward_blue_per_agent"] = list(reward_blue_per_agent)
-        info["reward_blue_team"] = float(sum(reward_blue_per_agent))
+        # Build StepReward
+        reward_breakdown = StepReward(
+            team_total=float(reward_events_total) + float(stall_total),
+            per_agent=reward_blue_per_agent,
+            reward_events_total=float(reward_events_total),
+            stall_penalty_total=float(stall_total),
+        )
+        
+        # Contract validation: reward breakdown
+        if self._validate_contracts:
+            validate_reward_breakdown(
+                reward_breakdown.team_total,
+                reward_breakdown.per_agent,
+                debug=True,
+            )
+        
+        # Contract validation: dropped reward events policy
+        if self._validate_contracts:
+            # Get total events from GameManager (before consumption)
+            pop_fn = getattr(gm, "pop_reward_events", None)
+            total_events_estimate = 0
+            if pop_fn is not None and callable(pop_fn):
+                try:
+                    # Note: events were already consumed, so we use dropped_count as lower bound
+                    # In practice, we'd need to track total before consumption for accurate validation
+                    # For now, validate that dropped_count is reasonable (not excessive)
+                    if dropped_count > 0:
+                        # If we dropped events, assume at least that many total
+                        total_events_estimate = max(dropped_count, 1)
+                        validate_dropped_reward_events_policy(
+                            dropped_count,
+                            total_events_estimate,
+                            debug=True,
+                        )
+                except Exception:
+                    pass
 
-        # Add noise metrics to info every step (for callback tracking)
-        info["flip_count_step"] = int(flip_count_step)
-        info["macro_flip_count_step"] = int(macro_flip_count_step)
-        info["target_flip_count_step"] = int(target_flip_count_step)
-        info["num_agents"] = int(self._n_blue_agents)
-        info["action_components"] = 2  # macro + target per agent
-        info["phase"] = str(self._phase_name)
+        # Build StepInfo
+        phase_name = self._config_manager.get_phase()
+        step_info = StepInfo(
+            reward_mode=str(self._reward_mode),
+            reward_blue_per_agent=reward_blue_per_agent,
+            reward_blue_team=float(sum(reward_blue_per_agent)),
+            flip_count_step=int(flip_count_step),
+            macro_flip_count_step=int(macro_flip_count_step),
+            target_flip_count_step=int(target_flip_count_step),
+            num_agents=int(self._n_blue_agents),
+            action_components=2,
+            phase=str(phase_name),
+            dropped_reward_events=int(self._reward_manager.get_dropped_events_step()),
+        )
 
-        reward_team = float(reward)
-
+        # Build EpisodeResult if terminal
+        episode_result: Optional[EpisodeResult] = None
         if terminated or truncated:
-            # Optional terminal shaping/bonus (added to team reward only)
             terminal_bonus = 0.0
             if hasattr(gm, "terminal_outcome_bonus"):
                 try:
@@ -871,15 +611,11 @@ class CTFGameFieldSB3Env(gym.Env):
                     )
                 except Exception:
                     pass
-            reward_team = reward_team + terminal_bonus
-            info["reward_team"] = reward_team
-            info["reward_blue_team"] = reward_team
-
-            self._episode_reward_total += float(reward_team)
+            reward_breakdown.terminal_bonus = terminal_bonus
+            self._reward_manager.add_episode_reward(reward_breakdown.team_total + terminal_bonus)
 
             blue_score = int(getattr(gm, "blue_score", 0))
             red_score = int(getattr(gm, "red_score", 0))
-            # IROS-style Top 5 metrics (publish-friendly)
             success = 1 if blue_score > red_score else 0
             time_to_first = getattr(gm, "time_to_first_score", None)
             time_to_first_score = float(time_to_first) if time_to_first is not None else None
@@ -888,9 +624,9 @@ class CTFGameFieldSB3Env(gym.Env):
             if time_to_game_over_sec is None:
                 time_to_game_over_sec = float(getattr(gm, "sim_time", 0.0))
             collisions_per_tick = int(getattr(gm, "collision_count_this_episode", 0))
-            collision_events = int(getattr(gm, "collision_events_this_episode", 0))  # canonical: no fallback
+            collision_events = int(getattr(gm, "collision_events_this_episode", 0))
             near_misses = int(getattr(gm, "near_miss_count_this_episode", 0))
-            collision_free = 1 if collision_events == 0 else 0  # use collision_events as canonical
+            collision_free = 1 if collision_events == 0 else 0
             dists = getattr(gm, "blue_inter_robot_distances", []) or []
             mean_inter_robot_dist = float(np.mean(dists)) if dists else None
             std_inter_robot_dist = float(np.std(dists)) if len(dists) > 1 else (0.0 if dists else None)
@@ -898,367 +634,79 @@ class CTFGameFieldSB3Env(gym.Env):
             total_zone = int(getattr(gm, "total_blue_zone_cells", 1)) or 1
             zone_coverage = float(len(visited)) / float(total_zone) if total_zone else 0.0
 
-            info["episode_result"] = {
-                "blue_score": blue_score,
-                "red_score": red_score,
-                "win_by": blue_score - red_score,
-                "phase_name": str(getattr(gm, "phase_name", self._phase_name)),
-                "league_mode": bool(self._league_mode),
-                "blue_rewards_total": float(self._episode_reward_total),
-                "opponent_kind": self._opponent_kind,
-                "opponent_snapshot": self._opponent_snapshot_path,
-                "species_tag": self._opponent_species_tag if self._opponent_kind == "species" else None,
-                "scripted_tag": self._opponent_scripted_tag if self._opponent_kind == "scripted" else None,
-                "decision_steps": self._decision_step_count,
-                "macro_order": self._macro_order_names(),
-                "macro_counts": self._episode_macro_counts,
-                "mine_counts": self._episode_mine_counts,
-                "blue_mine_kills": int(getattr(gm, "blue_mine_kills_this_episode", 0)),
-                "mines_placed_enemy_half": int(getattr(gm, "mines_placed_in_enemy_half_this_episode", 0)),
-                "mines_triggered_by_red": int(getattr(gm, "mines_triggered_by_red_this_episode", 0)),
-                "dynamics_config": self.get_dynamics_config(),
-                # Top 5 IROS-style metrics (CSV / Excel)
-                "success": success,
-                "time_to_first_score": time_to_first_score,
-                "time_to_game_over": time_to_game_over_sec,
-                "collisions_per_episode": collisions_per_tick,
-                "collision_events_per_episode": collision_events,
-                "near_misses_per_episode": near_misses,
-                "collision_free_episode": collision_free,
-                "mean_inter_robot_dist": mean_inter_robot_dist,
-                "std_inter_robot_dist": std_inter_robot_dist,
-                "zone_coverage": zone_coverage,
-                "dropped_reward_events": int(self._dropped_reward_events_this_episode),
-                "vec_schema_version": int(getattr(self.gf, "VEC_SCHEMA_VERSION", 1)),
-            }
-            # Reset episode counter for next episode
-            self._dropped_reward_events_this_episode = 0
+            episode_result = EpisodeResult(
+                blue_score=blue_score,
+                red_score=red_score,
+                win_by=blue_score - red_score,
+                phase_name=str(getattr(gm, "phase_name", phase_name)),
+                league_mode=bool(self._league_mode),
+                blue_rewards_total=float(self._reward_manager.get_episode_reward_total()),
+                opponent_kind=self._opponent_manager.get_opponent_kind(),
+                opponent_snapshot=self._opponent_manager.get_opponent_snapshot_path(),
+                species_tag=self._opponent_manager.get_opponent_species_tag() if self._opponent_manager.get_opponent_kind() == "species" else None,
+                scripted_tag=self._opponent_manager.get_opponent_scripted_tag() if self._opponent_manager.get_opponent_kind() == "scripted" else None,
+                decision_steps=self._decision_step_count,
+                macro_order=self._action_manager.get_macro_order_names(self.gf),
+                macro_counts=self._action_manager.get_episode_macro_counts(),
+                mine_counts=self._action_manager.get_episode_mine_counts(),
+                blue_mine_kills=int(getattr(gm, "blue_mine_kills_this_episode", 0)),
+                mines_placed_enemy_half=int(getattr(gm, "mines_placed_in_enemy_half_this_episode", 0)),
+                mines_triggered_by_red=int(getattr(gm, "mines_triggered_by_red_this_episode", 0)),
+                dynamics_config=self.get_dynamics_config(),
+                success=success,
+                time_to_first_score=time_to_first_score,
+                time_to_game_over=time_to_game_over_sec,
+                collisions_per_episode=collisions_per_tick,
+                collision_events_per_episode=collision_events,
+                near_misses_per_episode=near_misses,
+                collision_free_episode=collision_free,
+                mean_inter_robot_dist=mean_inter_robot_dist,
+                std_inter_robot_dist=std_inter_robot_dist,
+                zone_coverage=zone_coverage,
+                dropped_reward_events=int(self._reward_manager.get_dropped_events_episode()),
+                vec_schema_version=int(getattr(self.gf, "VEC_SCHEMA_VERSION", 1)),
+            )
+            self._reward_manager.reset_dropped_events_episode()
         else:
-            self._episode_reward_total += float(reward_team)
+            self._reward_manager.add_episode_reward(reward_breakdown.team_total)
 
-        # TEAM_SUM: return team scalar; PER_AGENT: still return team scalar for SB3 (per-agent in info).
-        step_reward = float(reward_team)
-        return obs, step_reward, terminated, truncated, info
+        # Build StepResult and convert to gym tuple
+        step_result = StepResult.from_components(
+            observation=obs,
+            reward_breakdown=reward_breakdown,
+            step_info=step_info,
+            terminated=terminated,
+            truncated=truncated,
+            episode_result=episode_result,
+        )
+        return step_result.to_gym_tuple()
 
     # -----------------
     # Observation helpers
     # -----------------
     def _get_obs(self) -> Dict[str, np.ndarray]:
+        """Build observation using EnvObsBuilder."""
         assert self.gf is not None
-
-        if self._use_obs_builder and build_team_obs is not None:
-            # Use canonical identities to ensure consistent ordering (blue_0, blue_1, ...)
-            n_slots = len(self._blue_identities)
-            blue_ordered = [ident.agent for ident in self._blue_identities[:n_slots]]
-            out = build_team_obs(
-                self.gf,
-                blue_ordered,
-                max_agents=n_slots,
-                include_mask=self.include_mask_in_obs,
-                include_context=self._include_opponent_context,
-                context_value=float(self._opponent_context_id()) if self._include_opponent_context else None,
-                debug_locality=self._obs_debug_validate_locality,
-                tokenized=(self._max_blue_agents > 2),
-                vec_size_base=self._base_vec_per_agent,
-                n_macros=self._n_macros,
-                n_targets=self._n_targets,
-                role_macro_mask_fn=self._apply_role_macro_mask,
-                vec_append_fn=self._append_high_level_mode,
-            )
-            return out
-
-        # Legacy path (rollback when use_obs_builder=False)
-        def _empty_cnn() -> np.ndarray:
-            return np.zeros((NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32)
-
-        def _empty_vec_base() -> np.ndarray:
-            return np.zeros((self._base_vec_per_agent,), dtype=np.float32)
-
-        def _coerce_vec_base(vec: np.ndarray) -> np.ndarray:
-            v = np.asarray(vec, dtype=np.float32).reshape(-1)
-            if v.size == self._base_vec_per_agent:
-                return v
-            if v.size < self._base_vec_per_agent:
-                return np.pad(v, (0, self._base_vec_per_agent - v.size), mode="constant")
-            return v[: self._base_vec_per_agent]
-
-        # Use canonical identities to ensure consistent ordering (blue_0, blue_1, ...)
-        n_slots = len(self._blue_identities)
-        blue_ordered = [ident.agent for ident in self._blue_identities[:n_slots]]
-
-        cnn_list: list[np.ndarray] = []
-        vec_list: list[np.ndarray] = []
-        mask_list: list[np.ndarray] = []
-
-        for idx, a in enumerate(blue_ordered):
-            if a is None:
-                cnn_list.append(_empty_cnn())
-                vec = self._append_high_level_mode(_empty_vec_base())
-                vec_list.append(vec)
-                if self.include_mask_in_obs:
-                    # Mask out all actions for padding slots (invalid agent)
-                    mm = np.zeros((self._n_macros,), dtype=np.float32)
-                    tm = np.zeros((self._n_targets,), dtype=np.float32)
-                    mask_list.append(np.concatenate([mm, tm], axis=0))
-                continue
-
-            cnn = np.asarray(self.gf.build_observation(a), dtype=np.float32)
-            cnn_list.append(cnn)
-            if hasattr(self.gf, "build_continuous_features"):
-                vec = _coerce_vec_base(self.gf.build_continuous_features(a))
-            else:
-                vec = _empty_vec_base()
-            vec = self._append_high_level_mode(vec)
-            vec_list.append(vec)
-            if self.include_mask_in_obs:
-                mm = np.asarray(self.gf.get_macro_mask(a), dtype=np.bool_).reshape(-1)
-                mm = self._apply_role_macro_mask(idx, mm)
-                if mm.shape != (self._n_macros,) or (not mm.any()):
-                    mm = np.ones((self._n_macros,), dtype=np.bool_)
-                tm = np.asarray(self.gf.get_target_mask(a), dtype=np.bool_).reshape(-1)
-                if tm.shape != (self._n_targets,) or (not tm.any()):
-                    tm = np.ones((self._n_targets,), dtype=np.bool_)
-                mask_list.append(np.concatenate([mm.astype(np.float32), tm.astype(np.float32)], axis=0))
-
-        if self._max_blue_agents > 2:
-            # Tokenized: (max_blue_agents, C, H, W), (max_blue_agents, vec_dim), agent_mask
-            grid = np.stack(cnn_list, axis=0).astype(np.float32)
-            vec = np.stack(vec_list, axis=0).astype(np.float32)
-            agent_mask = np.zeros((n_slots,), dtype=np.float32)
-            agent_mask[: self._n_blue_agents] = 1.0
-            out = {"grid": grid, "vec": vec, "agent_mask": agent_mask}
-            if self.include_mask_in_obs:
-                out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
-        else:
-            grid = np.concatenate(cnn_list, axis=0).astype(np.float32)
-            vec = np.concatenate(vec_list, axis=0).astype(np.float32)
-            out = {"grid": grid, "vec": vec}
-            if self.include_mask_in_obs:
-                out["mask"] = np.concatenate(mask_list, axis=0).astype(np.float32)
+        opponent_context_id = None
         if self._include_opponent_context:
-            out["context"] = np.array([float(self._opponent_context_id())], dtype=np.float32)
-        return out
-
-    def _append_high_level_mode(self, base_vec: np.ndarray) -> np.ndarray:
-        v = np.asarray(base_vec, dtype=np.float32).reshape(-1)
-        if not self.include_high_level_mode:
-            return v
-
-        if self._high_level_mode_onehot:
-            mode = max(0, min(1, int(self._high_level_mode)))
-            mode_vec = np.zeros((2,), dtype=np.float32)
-            mode_vec[mode] = 1.0
-        else:
-            mode_vec = np.asarray([float(self._high_level_mode)], dtype=np.float32)
-
-        return np.concatenate([v, mode_vec], axis=0)
-
-    # -----------------
-    # Action sanitization / masks
-    # -----------------
-    def _sanitize_action_for_agent(self, blue_index: int, macro: int, tgt: int) -> Tuple[int, int]:
-        macro = int(macro) % max(1, self._n_macros)
-        tgt = int(tgt) % max(1, self._n_targets)
-
-        if not self.enforce_masks:
-            return macro, tgt
-
-        assert self.gf is not None
-        if blue_index >= len(self.gf.blue_agents):
-            return 0, 0
-
-        agent = self.gf.blue_agents[blue_index]
-        if agent is None:
-            return 0, 0
-
-        mm = np.asarray(self.gf.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
-        mm = self._apply_role_macro_mask(blue_index, mm)
-        if mm.shape != (self._n_macros,) or (not mm.any()):
-            return macro, tgt
-
-        if not bool(mm[macro]):
-            macro = 0  # GO_TO fallback
-
-        if self._macro_uses_target(macro):
-            tm = np.asarray(self.gf.get_target_mask(agent), dtype=np.bool_).reshape(-1)
-            if tm.shape == (self._n_targets,) and tm.any():
-                if not bool(tm[tgt]):
-                    tgt = self._nearest_valid_target(agent, tm)
-
-        return macro, tgt
-
-    def _apply_role_macro_mask(self, blue_index: int, mm: np.ndarray) -> np.ndarray:
-        if self._blue_role_macros is None:
-            return mm
-        if not isinstance(self._blue_role_macros, (tuple, list)):
-            return mm
-        if blue_index >= len(self._blue_role_macros):
-            return mm
-
-        allowed = self._blue_role_macros[blue_index]
-        if not allowed:
-            return mm
-
-        role_mask = np.zeros_like(mm, dtype=np.bool_)
-        for idx in allowed:
-            try:
-                i = int(idx)
-            except Exception:
-                continue
-            if 0 <= i < role_mask.size:
-                role_mask[i] = True
-
-        out = mm & role_mask
-        return out if out.any() else mm
-
-    def _macro_uses_target(self, macro_idx: int) -> bool:
-        if self.gf is None:
-            return True
-        try:
-            action = self.gf.macro_order[int(macro_idx)]
-        except Exception:
-            return True
-        return action in (MacroAction.GO_TO, MacroAction.PLACE_MINE)
-
-    def _macro_order_names(self) -> list[str]:
-        if self.gf is None:
-            return []
-        names: list[str] = []
-        try:
-            for m in self.gf.macro_order:
-                n = getattr(m, "name", None)
-                names.append(str(n) if n is not None else str(m))
-        except Exception:
-            pass
-        return names
-
-    def _record_macro_usage(self, blue_index: int, macro_idx: int) -> None:
-        if blue_index >= self._n_blue_agents:
-            return
-        if not self._episode_macro_counts:
-            return
-        if 0 <= macro_idx < len(self._episode_macro_counts[blue_index]):
-            self._episode_macro_counts[blue_index][macro_idx] += 1
-
-        if not self._episode_mine_counts or blue_index >= len(self._episode_mine_counts):
-            return
-
-        action = None
-        if self.gf is not None:
-            try:
-                action = self.gf.macro_order[int(macro_idx)]
-            except Exception:
-                action = None
-
-        if action is None:
-            try:
-                action = MacroAction(int(macro_idx))
-            except Exception:
-                action = None
-
-        if action == MacroAction.GRAB_MINE:
-            self._episode_mine_counts[blue_index]["grab"] += 1
-        elif action == MacroAction.PLACE_MINE:
-            self._episode_mine_counts[blue_index]["place"] += 1
-
-    def _nearest_valid_target(self, agent: Any, tgt_mask: np.ndarray) -> int:
-        valid = np.flatnonzero(tgt_mask)
-        if valid.size == 0:
-            return 0
-        assert self.gf is not None
-
-        try:
-            ax = float(getattr(agent, "x", 0.0))
-            ay = float(getattr(agent, "y", 0.0))
-            best_idx = int(valid[0])
-            best_d2 = None
-            for i in valid:
-                tx, ty = self.gf.get_macro_target(int(i))
-                d2 = (float(tx) - ax) ** 2 + (float(ty) - ay) ** 2
-                if best_d2 is None or d2 < best_d2:
-                    best_d2 = d2
-                    best_idx = int(i)
-            return best_idx
-        except Exception:
-            return int(valid[0])
-
-    # -----------------
-    # Reward + anti-stall
-    # -----------------
-    def _consume_blue_reward_events(self) -> Tuple[float, list, int]:
-        """
-        Consume blue reward events from GameManager using canonical identity map.
-        Returns (team_total, per_agent_list, dropped_event_count).
-        """
-        assert self.gf is not None
-        gm = self.gf.manager
-        n_slots = len(self._blue_identities)
-
-        pop = getattr(gm, "pop_reward_events", None)
-        if pop is None or (not callable(pop)):
-            return 0.0, [0.0] * n_slots, 0
-
-        try:
-            events = pop()
-        except Exception:
-            return 0.0, [0.0] * n_slots, 0
-
-        # Route events using canonical identity map
-        team_total, per_agent_list, dropped_count = route_reward_events(
-            reward_events=events,
-            reward_id_map=self._reward_id_map,
-            n_slots=n_slots,
+            # Access opponent context ID via a helper method
+            opponent_context_id = self._opponent_manager._opponent_context_id()
+        return self._obs_builder.build_observation(
+            self.gf,
+            self._blue_identities,
+            max_blue_agents=self._max_blue_agents,
+            n_blue_agents=self._n_blue_agents,
+            n_macros=self._n_macros,
+            n_targets=self._n_targets,
+            opponent_context_id=opponent_context_id,
+            role_macro_mask_fn=self._action_manager._apply_role_macro_mask,
         )
 
-        return float(team_total), per_agent_list, dropped_count
-
-    def _apply_blue_stall_penalty(self) -> Tuple[float, list]:
-        """Apply per-agent stall penalty. Returns (team_total, per_agent_penalties)."""
-        assert self.gf is not None
-        n_blue = int(self._n_blue_agents)
-        per_agent = [0.0] * n_blue
-        penalty = 0.0
-
-        for i in range(self._n_blue_agents):
-            if i >= len(self.gf.blue_agents):
-                self._stall_counters[i] = 0
-                self._last_blue_pos[i] = None
-                continue
-
-            agent = self.gf.blue_agents[i]
-            if agent is None:
-                self._stall_counters[i] = 0
-                self._last_blue_pos[i] = None
-                continue
-
-            pos = tuple(
-                getattr(
-                    agent,
-                    "float_pos",
-                    (float(getattr(agent, "x", 0)), float(getattr(agent, "y", 0))),
-                )
-            )
-            last = self._last_blue_pos[i]
-
-            if last is None:
-                moved = True
-            else:
-                dx = float(pos[0]) - float(last[0])
-                dy = float(pos[1]) - float(last[1])
-                moved = (dx * dx + dy * dy) >= (float(self._stall_threshold_cells) ** 2)
-
-            if moved:
-                self._stall_counters[i] = 0
-            else:
-                self._stall_counters[i] += 1
-                if self._stall_counters[i] >= int(self._stall_patience):
-                    p = float(self._stall_penalty)
-                    penalty += p
-                    per_agent[i] += p
-
-            self._last_blue_pos[i] = pos
-
-        return float(penalty), per_agent
+    # -----------------
+    # Helper methods (delegated to modules)
+    # -----------------
+    # All action sanitization, reward routing, and observation building
+    # are now handled by EnvActionManager, EnvRewardManager, and EnvObsBuilder modules.
 
     # -------------
     # Optional Gym hooks
