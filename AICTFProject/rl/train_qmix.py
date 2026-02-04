@@ -14,7 +14,8 @@ from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from game_field import make_game_field
 from macro_actions import MacroAction
 from obs_encoder import ObsEncoder
-from rl.common import batch_by_agent_id, collect_team_uids, pop_reward_events_best_effort, set_global_seed, simulate_decision_window
+from rl.common import batch_by_agent_id, set_global_seed, simulate_decision_window
+from rl.agent_identity import build_blue_identities, build_reward_id_map, route_reward_events
 from rl.curriculum import CurriculumConfig, CurriculumState
 from config import MAP_NAME, MAP_PATH
 
@@ -318,6 +319,12 @@ def train_qmix(cfg: Optional[QMIXConfig] = None) -> None:
         prev_state = np.asarray(env.get_global_state(), dtype=np.float32).reshape(-1)
         blue_obs, blue_avail, blue_agents_sorted = collect_team_obs_and_avail("blue")
 
+        # Build canonical agent identities for reward routing
+        blue_agents_list = getattr(env, "blue_agents", []) or []
+        blue_identities = build_blue_identities(blue_agents_list)
+        reward_id_map = build_reward_id_map(blue_identities)
+        n_slots = len(blue_identities)
+
         while (not done) and steps < int(cfg.max_macro_steps) and global_step < int(cfg.total_steps):
             eps = epsilon_by_step(cfg, global_step)
             blue_actions_flat = select_actions_qmix(agent_net, blue_obs, blue_avail, eps, device=torch.device("cpu"))
@@ -335,13 +342,22 @@ def train_qmix(cfg: Optional[QMIXConfig] = None) -> None:
             simulate_decision_window(env, gm, cfg.decision_window, cfg.sim_dt)
             done = bool(getattr(gm, "game_over", False))
 
-            reward = 0.0
-            allowed = collect_team_uids([a for a in blue_agents_sorted if a is not None])
-            for _t, aid, r in pop_reward_events_best_effort(gm):
-                if aid is None:
-                    continue
-                if str(aid) in allowed:
-                    reward += float(r)
+            # Use canonical reward routing (QMIX uses team rewards)
+            pop = getattr(gm, "pop_reward_events", None)
+            reward_events = []
+            if pop is not None and callable(pop):
+                try:
+                    reward_events = list(pop())
+                except Exception:
+                    pass
+            
+            team_total, _per_agent_list, _dropped_count = route_reward_events(
+                reward_events=reward_events,
+                reward_id_map=reward_id_map,
+                n_slots=n_slots,
+            )
+            reward = float(team_total)
+            
             if done:
                 reward += float(gm.terminal_outcome_bonus(int(gm.blue_score), int(gm.red_score)))
 
