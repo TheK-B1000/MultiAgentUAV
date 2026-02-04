@@ -1,7 +1,7 @@
 """
 MARL env wrapper: parallel multi-agent API.
 
-Returns per-agent dicts so IPPO/MAPPO can use per-agent obs, rewards, dones, infos.
+Returns per-agent dicts so MAPPO can use per-agent obs, rewards, dones, infos.
 Internally steps the same underlying CTF env and splits obs/reward via ObsBuilder contract.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ def _split_team_obs_into_per_agent(
     """
     Split team observation (from CTF env) into per-agent dicts.
     team_obs: from env._get_obs() — grid, vec, optional mask, optional context.
-    add_agent_id_to_vec: if True, append agent_id (normalized) to vec for parameter-shared IPPO.
+        add_agent_id_to_vec: if True, append agent_id (normalized) to vec for parameter-shared policies.
     """
     grid = team_obs["grid"]
     vec = team_obs["vec"]
@@ -94,7 +94,7 @@ class MARLEnvWrapper:
     def __init__(self, env: Any, *, add_agent_id_to_vec: bool = True):
         """
         env: CTFGameFieldSB3Env (or any with .reset(), .step(action), .observation_space, .gf, ._n_blue_agents, etc.)
-        add_agent_id_to_vec: if True, append normalized agent_id to each agent's vec for parameter-shared IPPO.
+        add_agent_id_to_vec: if True, append normalized agent_id to each agent's vec for parameter-shared policies.
         """
         self._env = env
         self._add_agent_id_to_vec = bool(add_agent_id_to_vec)
@@ -171,6 +171,31 @@ class MARLEnvWrapper:
     @property
     def n_agents(self) -> int:
         return len(self._agent_keys)
+
+    @property
+    def action_space(self) -> Dict[str, Any]:
+        """Return dict of action spaces per agent."""
+        from gymnasium import spaces
+        base_action_space = getattr(self._env, "action_space", None)
+        if base_action_space is None:
+            # Fallback: create MultiDiscrete spaces
+            return {
+                key: spaces.MultiDiscrete([self._n_macros, self._n_targets])
+                for key in self._agent_keys
+            }
+        
+        # Extract per-agent action space from base env's MultiDiscrete
+        if hasattr(base_action_space, "nvec") and len(base_action_space.nvec) >= 2 * len(self._agent_keys):
+            return {
+                key: spaces.MultiDiscrete([self._n_macros, self._n_targets])
+                for key in self._agent_keys
+            }
+        
+        # Fallback: use same space for all agents
+        return {
+            key: spaces.MultiDiscrete([self._n_macros, self._n_targets])
+            for key in self._agent_keys
+        }
 
     def close(self) -> None:
         if hasattr(self._env, "close"):
