@@ -873,9 +873,9 @@ class CTFGameFieldSB3Env(gym.Env):
             if time_to_game_over_sec is None:
                 time_to_game_over_sec = float(getattr(gm, "sim_time", 0.0))
             collisions_per_tick = int(getattr(gm, "collision_count_this_episode", 0))
-            collision_events = int(getattr(gm, "collision_events_this_episode", collisions_per_tick))
+            collision_events = int(getattr(gm, "collision_events_this_episode", 0))  # canonical: no fallback
             near_misses = int(getattr(gm, "near_miss_count_this_episode", 0))
-            collision_free = 1 if collision_events == 0 else 0
+            collision_free = 1 if collision_events == 0 else 0  # use collision_events as canonical
             dists = getattr(gm, "blue_inter_robot_distances", []) or []
             mean_inter_robot_dist = float(np.mean(dists)) if dists else None
             std_inter_robot_dist = float(np.std(dists)) if len(dists) > 1 else (0.0 if dists else None)
