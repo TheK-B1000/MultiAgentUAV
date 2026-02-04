@@ -101,6 +101,7 @@ class MAPPORolloutBuffer:
         self.dts: List[float] = []
         self.traj_ids: List[int] = []
         self.macro_masks: List[np.ndarray] = []
+        self.agent_idxs: List[int] = []
 
     def add(
         self,
@@ -116,6 +117,7 @@ class MAPPORolloutBuffer:
         done: bool,
         dt: float,
         traj_id: int,
+        agent_idx: int,
         macro_mask: Optional[np.ndarray] = None,
     ) -> None:
         self.actor_obs.append(np.array(actor_obs, dtype=np.float32))
@@ -125,6 +127,7 @@ class MAPPORolloutBuffer:
         self.log_probs.append(float(log_prob))
         self.values.append(float(value))
         self.next_values.append(float(next_value))
+        self.agent_idxs.append(int(agent_idx))
         self.rewards.append(float(reward))
         self.dones.append(bool(done))
         self.dts.append(float(dt))
@@ -157,6 +160,7 @@ class MAPPORolloutBuffer:
         dones = torch.tensor(self.dones, dtype=torch.float32, device=device)
         dts = torch.tensor(self.dts, dtype=torch.float32, device=device)
         traj_ids = torch.tensor(self.traj_ids, dtype=torch.long, device=device)
+        agent_idxs = torch.tensor(self.agent_idxs, dtype=torch.long, device=device)
         macro_masks = torch.tensor(np.stack(self.macro_masks), dtype=torch.bool, device=device)
         return (
             actor_obs,
@@ -170,6 +174,7 @@ class MAPPORolloutBuffer:
             dones,
             dts,
             traj_ids,
+            agent_idxs,
             macro_masks,
         )
 
@@ -228,6 +233,7 @@ def mappo_update(
         dones,
         dts,
         traj_ids,
+        agent_idxs,
         macro_masks,
     ) = buffer.to_tensors(device)
 
@@ -264,9 +270,11 @@ def mappo_update(
             mb_adv = advantages.index_select(0, idx)
             mb_ret = returns.index_select(0, idx)
             mb_old_v = values.index_select(0, idx)
+            mb_agent_idx = agent_idxs.index_select(0, idx)
             mb_mask = macro_masks.index_select(0, idx)
 
-            new_values = policy_train.forward_central_critic(mb_central).reshape(-1)
+            new_values_all = policy_train.forward_central_critic(mb_central)
+            new_values = new_values_all.gather(1, mb_agent_idx[:, None]).squeeze(1)
             new_logp, entropy, _ = policy_train.evaluate_actions(
                 mb_actor, mb_macro, mb_target, macro_mask_batch=mb_mask
             )
@@ -508,26 +516,35 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                 key = str(aid)
                 if key in per_agent_reward:
                     per_agent_reward[key] += float(r)
-            # Credit terminal outcome to last step (scale so win >> draw, avoid passive collapse)
+            # Credit terminal outcome to last step; explicit negative for draws so they are punished
             if done:
-                bonus = gm.terminal_outcome_bonus(int(gm.blue_score), int(gm.red_score))
-                bonus *= float(getattr(cfg, "terminal_bonus_scale", 2.0))
-                if int(gm.blue_score) == int(gm.red_score) and bonus < 0:
-                    bonus *= float(getattr(cfg, "draw_penalty_scale", 1.5))
+                bs, rs = int(gm.blue_score), int(gm.red_score)
+                scale = float(getattr(cfg, "terminal_bonus_scale", 2.0))
+                draw_scale = float(getattr(cfg, "draw_penalty_scale", 1.5))
+                if bs > rs:
+                    bonus = 1.0 * scale
+                elif bs < rs:
+                    bonus = -1.0 * scale
+                else:
+                    bonus = -1.0 * scale * draw_scale
                 n_blue = max(1, len(per_agent_reward))
                 for uid in per_agent_reward:
                     per_agent_reward[uid] += float(bonus) / n_blue
 
+            with torch.no_grad():
+                central_tensor_cur = torch.tensor(central_obs_np, dtype=torch.float32).unsqueeze(0)
+                v_all_cur = policy_act.forward_central_critic(central_tensor_cur).squeeze(0).cpu().numpy()
             next_central = build_central_obs(blue_agents)
             with torch.no_grad():
                 next_central_tensor = torch.tensor(next_central, dtype=torch.float32).unsqueeze(0)
-                v_all = policy_act.forward_central_critic(next_central_tensor).reshape(-1).cpu().numpy()
+                v_all_next = policy_act.forward_central_critic(next_central_tensor).squeeze(0).cpu().numpy()
 
-            for i, (agent, uid, obs_np, central_obs_np, macro_idx, target_idx, logp, val, tid, macro_mask) in enumerate(decisions):
+            for i, (agent, uid, obs_np, central_obs_np, macro_idx, target_idx, logp, _val, tid, macro_mask) in enumerate(decisions):
                 agent_done = done or (not agent.isEnabled())
                 idx = int(getattr(agent, "agent_id", i))
-                idx = max(0, min(idx, len(v_all) - 1))
-                nv = 0.0 if agent_done else float(v_all[idx])
+                idx = max(0, min(idx, len(v_all_cur) - 1, len(v_all_next) - 1))
+                old_v = float(v_all_cur[idx])
+                nv = 0.0 if agent_done else float(v_all_next[idx])
                 reward = float(per_agent_reward.get(uid, 0.0))
                 buffer.add(
                     actor_obs=obs_np,
@@ -535,12 +552,13 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                     macro_action=macro_idx,
                     target_action=target_idx,
                     log_prob=logp,
-                    value=val,
+                    value=old_v,
                     next_value=nv,
                     reward=reward,
                     done=agent_done,
                     dt=dt,
                     traj_id=tid,
+                    agent_idx=idx,
                     macro_mask=macro_mask.detach().cpu().numpy() if torch.is_tensor(macro_mask) else macro_mask,
                 )
                 global_step += 1
@@ -575,7 +593,7 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
                 f"opp={opp_key} W={win_count} | L={loss_count} | D={draw_count}"
             )
         elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
-            curriculum.record_result(current_phase, win_val)
+            curriculum.record_result(red_tag, win_val)
             curriculum.advance_if_ready(1200.0, 1200.0, win_by)
             current_phase = curriculum.phase
             red_tag = current_phase
@@ -586,9 +604,12 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
         elif mode == TrainMode.CURRICULUM_LEAGUE.value and curriculum is not None and controller is not None and league is not None:
             league.update_elo(opp_key, win_val)
             controller.record_result(opp_key, win_val)
-            curriculum.record_result(curriculum.phase, win_val)
-            phase = curriculum.phase
             is_scripted = opp_key.startswith("SCRIPTED:")
+            if is_scripted:
+                curriculum.record_result(red_tag, win_val)
+            else:
+                curriculum.record_result(curriculum.phase, win_val)
+            phase = curriculum.phase
             if is_scripted:
                 opp_rating = league.get_rating(opp_key)
                 if curriculum.advance_if_ready(
