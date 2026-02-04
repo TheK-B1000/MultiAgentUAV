@@ -62,7 +62,7 @@ def build_agent_obs(
     vec_append_fn: Optional[Callable[[np.ndarray], np.ndarray]] = None,
 ) -> Dict[str, np.ndarray]:
     """
-    Single-agent observation dict for IPPO/MAPPO: grid, vec, optional mask, optional context.
+    Single-agent observation dict for MAPPO: grid, vec, optional mask, optional context.
 
     Args:
         gf: GameField (or ViewerGameField).
