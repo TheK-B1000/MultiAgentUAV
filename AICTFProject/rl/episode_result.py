@@ -76,6 +76,10 @@ def parse_episode_result(info: Dict[str, Any]) -> Optional[EpisodeSummary]:
         ep.get("phase_name", "")
     ).strip()
 
+    # Canonical: use collision_events_per_episode (no fallback to collisions_per_episode)
+    collision_events = int(ep.get("collision_events_per_episode", 0))
+    collision_free_episode = int(ep.get("collision_free_episode", 1 if collision_events == 0 else 0))
+
     return EpisodeSummary(
         blue_score=blue_score,
         red_score=red_score,
@@ -90,9 +94,7 @@ def parse_episode_result(info: Dict[str, Any]) -> Optional[EpisodeSummary]:
         time_to_game_over=ep.get("time_to_game_over"),
         collisions_per_episode=int(ep.get("collisions_per_episode", 0)),
         near_misses_per_episode=int(ep.get("near_misses_per_episode", 0)),
-        # Canonical: use collision_events_per_episode (no fallback to collisions_per_episode)
-        collision_events = int(ep.get("collision_events_per_episode", 0))
-        collision_free_episode = int(ep.get("collision_free_episode", 1 if collision_events == 0 else 0))
+        collision_free_episode=collision_free_episode,
         mean_inter_robot_dist=ep.get("mean_inter_robot_dist"),
         std_inter_robot_dist=ep.get("std_inter_robot_dist"),
         zone_coverage=float(ep.get("zone_coverage", 0.0)) if ep.get("zone_coverage") is not None else 0.0,
