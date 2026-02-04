@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import os
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -589,8 +590,8 @@ def train_ippo(cfg: Optional[IPPOConfig] = None) -> None:
         
         models[agent_key] = model
     
-    # Training loop: train each agent independently
-    print(f"[IPPO] Starting training for {n_agents} agents...")
+    # Training loop: train all agents in parallel (true IPPO)
+    print(f"[IPPO] Starting parallel training for {n_agents} agents...")
     
     total_steps_per_agent = int(cfg.total_timesteps) // n_agents
     
@@ -607,12 +608,28 @@ def train_ippo(cfg: Optional[IPPOConfig] = None) -> None:
             )
         callbacks_per_agent[agent_key] = CallbackList(callbacks)
     
-    # Train all agents independently
-    for agent_key in agent_keys:
-        print(f"[IPPO] Training {agent_key}...")
+    # Train all agents in parallel using threading
+    threads = []
+    
+    def train_agent(agent_key: str):
+        """Train a single agent's model."""
+        print(f"[IPPO] Starting training for {agent_key}...")
         model = models[agent_key]
         callbacks = callbacks_per_agent[agent_key]
         model.learn(total_timesteps=total_steps_per_agent, callback=callbacks)
+        print(f"[IPPO] Finished training {agent_key}")
+    
+    # Start all training threads
+    for agent_key in agent_keys:
+        thread = threading.Thread(target=train_agent, args=(agent_key,))
+        thread.start()
+        threads.append(thread)
+    
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+    
+    print(f"[IPPO] All agents finished training")
     
     # Save final models
     for agent_key in agent_keys:
