@@ -1507,11 +1507,28 @@ class GameField:
                 collision_events_delta += 1
         self._colliding_pairs_last_tick = colliding_pairs_this_tick
 
+        # Multi-agent-safe spacing: pairwise distances for N>2, single distance for N=2
         blue_inter_dist = None
-        if len(self.blue_agents) >= 2 and self.blue_agents[0].isEnabled() and self.blue_agents[1].isEnabled():
-            x0, y0 = self._agent_float_pos(self.blue_agents[0])
-            x1, y1 = self._agent_float_pos(self.blue_agents[1])
-            blue_inter_dist = math.hypot(x1 - x0, y1 - y0)
+        blue_enabled = [a for a in self.blue_agents if a is not None and a.isEnabled()]
+        if len(blue_enabled) >= 2:
+            positions = [self._agent_float_pos(a) for a in blue_enabled]
+            if len(blue_enabled) == 2:
+                # N=2: single distance
+                x0, y0 = positions[0]
+                x1, y1 = positions[1]
+                blue_inter_dist = math.hypot(x1 - x0, y1 - y0)
+            else:
+                # N>2: nearest-neighbor distance (minimum pairwise)
+                min_dist = float("inf")
+                for i in range(len(positions)):
+                    xi, yi = positions[i]
+                    for j in range(i + 1, len(positions)):
+                        xj, yj = positions[j]
+                        d = math.hypot(xj - xi, yj - yi)
+                        if d < min_dist:
+                            min_dist = d
+                if math.isfinite(min_dist):
+                    blue_inter_dist = min_dist
 
         blue_zone_cells = set()
         bmin, bmax = self.blue_zone_col_range
