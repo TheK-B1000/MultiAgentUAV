@@ -84,6 +84,11 @@ def collect_team_uids(agents: Sequence[Any]) -> List[str]:
 
 
 def pop_reward_events_best_effort(gm: Any) -> List[Tuple[float, str, float]]:
+    """
+    DEPRECATED: Use rl.agent_identity.route_reward_events() with canonical identity map instead.
+    
+    This function does not use canonical blue_i keys and may route rewards incorrectly.
+    """
     fn = getattr(gm, "pop_reward_events", None)
     if fn is None or (not callable(fn)):
         return []
@@ -94,6 +99,11 @@ def pop_reward_events_best_effort(gm: Any) -> List[Tuple[float, str, float]]:
 
 
 def team_reward_from_events(gm: Any, allowed_uids: Iterable[str]) -> float:
+    """
+    DEPRECATED: Use rl.agent_identity.route_reward_events() with canonical identity map instead.
+    
+    This function does not use canonical blue_i keys and may route rewards incorrectly.
+    """
     allowed = set(str(x) for x in allowed_uids)
     total = 0.0
     for _t, aid, r in pop_reward_events_best_effort(gm):
