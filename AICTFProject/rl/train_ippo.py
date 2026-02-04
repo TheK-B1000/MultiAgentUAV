@@ -48,7 +48,7 @@ class TrainMode(str, Enum):
 @dataclass
 class IPPOConfig:
     seed: int = 42
-    total_timesteps: int = 2_000_000
+    total_timesteps: int = 2_500_000
     n_steps: int = 2048
     batch_size: int = 512
     n_epochs: int = 10
@@ -820,13 +820,13 @@ if __name__ == "__main__":
                    choices=[TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value,
                             TrainMode.FIXED_OPPONENT.value, TrainMode.SELF_PLAY.value],
                    help="CURRICULUM_LEAGUE | CURRICULUM_NO_LEAGUE | FIXED_OPPONENT | SELF_PLAY")
-    p.add_argument("--total_timesteps", type=int, default=2_000_000)
+    p.add_argument("--total_timesteps", type=int, default=2_500_000)
     p.add_argument("--n_steps", type=int, default=2048)
     p.add_argument("--batch_size", type=int, default=512)
     p.add_argument("--learning_rate", type=float, default=3e-4)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str, default="cpu")
-    p.add_argument("--run_tag", type=str, default="ippo_league_curriculum_v3")
+    p.add_argument("--run_tag", type=str, default="ippo_league_curriculum_v4")
     p.add_argument("--log_every_steps", type=int, default=2000)
     p.add_argument("--fixed_opponent_tag", type=str, default="OP3", help="For FIXED_OPPONENT mode")
     args = p.parse_args()
