@@ -100,7 +100,7 @@ class ActorCriticNet(nn.Module):
         self.central_value_head = nn.Sequential(
             nn.Linear(critic_in, 256),
             nn.ReLU(inplace=False),
-            nn.Linear(256, 1),
+            nn.Linear(256, self.spec.n_agents),
         )
 
         self._init_heads()
@@ -250,7 +250,7 @@ class ActorCriticNet(nn.Module):
         flat = central_obs.contiguous().view(B * N, C, H, W).contiguous()
         latent_flat = self._encode(flat).contiguous()                   # [B*N, latent]
         latent_joint = latent_flat.view(B, N * self.spec.latent_dim)    # [B, N*latent]
-        return self.central_value_head(latent_joint).squeeze(-1)
+        return self.central_value_head(latent_joint)  # [B, n_agents]
 
     # -----------------------------
     # Masks (env-first)
