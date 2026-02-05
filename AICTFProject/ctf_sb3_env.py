@@ -166,6 +166,8 @@ class CTFGameFieldSB3Env(gym.Env):
             base_vec_per_agent=self._base_vec_per_agent,
             obs_debug_validate_locality=self._obs_debug_validate_locality,
         )
+        # Sprint A: Enable ExecutionController by default (can be disabled via reset(..., options=...) if needed)
+        enable_execution_controller = True
         self._action_manager = EnvActionManager(
             enforce_masks=self.enforce_masks,
             action_flip_prob=action_flip_prob,
@@ -173,6 +175,7 @@ class CTFGameFieldSB3Env(gym.Env):
             n_targets=self._n_targets,
             blue_role_macros=blue_role_macros,
             seed=seed,
+            enable_execution_controller=enable_execution_controller,
         )
 
         # Action space: (macro, target) per blue agent; tokenized uses max_blue_agents
