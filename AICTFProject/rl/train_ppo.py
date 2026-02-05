@@ -1296,65 +1296,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         device=cfg.device,
     )
 
-    # PyTorch compile (big performance win if supported, skip if errors or no compiler)
-    # Note: torch.compile requires a C++ compiler on Windows (cl.exe) which may not be available
-    # Also, action masking code may cause graph breaks, so compile may not work well
-    # On Windows, check if compiler is available before attempting compile
-    try:
-        if hasattr(torch, "compile") and torch.__version__ >= "2.0":
-            import sys
-            import shutil
-            should_skip_compile = False
-            
-            if sys.platform == "win32":
-                # Check if C++ compiler (cl.exe) is available
-                compiler_found = shutil.which("cl.exe") is not None
-                if not compiler_found:
-                    print("[PPO] torch.compile() skipped on Windows: C++ compiler (cl.exe) not found")
-                    should_skip_compile = True
-                else:
-                    print("[PPO] C++ compiler found, attempting torch.compile() (may still fail due to action masking graph breaks)")
-            
-            if not should_skip_compile:
-                # Try to compile (Windows with compiler, or non-Windows systems)
-                try:
-                    model.policy = torch.compile(model.policy, mode="reduce-overhead")
-                    # Test compilation with a dummy forward pass to catch errors early
-                    # torch.compile is lazy, so errors only show up on first use
-                    try:
-                        # Create dummy observation matching the observation space
-                        dummy_obs = {}
-                        for k, v in venv.observation_space.spaces.items():
-                            if hasattr(v, "shape"):
-                                shape = v.shape
-                                if len(shape) > 0:
-                                    dummy_obs[k] = torch.zeros((1, *shape), dtype=torch.float32)
-                                else:
-                                    dummy_obs[k] = torch.zeros((1,), dtype=torch.float32)
-                        if dummy_obs:
-                            with torch.no_grad():
-                                _ = model.policy(dummy_obs)
-                            print("[PPO] Policy network compiled with torch.compile() (tested successfully)")
-                        else:
-                            print("[PPO] Policy network compiled with torch.compile() (test skipped - no observation space)")
-                    except Exception as test_err:
-                        # Compilation failed during test - warn but continue (can't easily revert)
-                        error_msg = str(test_err).lower()
-                        if "compiler" in error_msg or "inductor" in error_msg:
-                            print(f"[PPO] torch.compile() test failed (compiler/inductor issue): {test_err}")
-                            print("[PPO] Warning: Training may fail - consider disabling compile or installing C++ compiler")
-                        else:
-                            print(f"[PPO] torch.compile() test failed: {test_err}")
-                            print("[PPO] Continuing anyway - errors may occur during training")
-                except Exception as compile_err:
-                    error_msg = str(compile_err).lower()
-                    if "compiler" in error_msg or "cl" in error_msg or "not found" in error_msg:
-                        print(f"[PPO] torch.compile() skipped: C++ compiler not available")
-                    else:
-                        print(f"[PPO] torch.compile() failed (skipping): {compile_err}")
-    except Exception as e:
-        # Catch any other errors
-        print(f"[PPO] torch.compile() check failed (skipping): {e}")
+    # Skip torch.compile() when action masking is enabled (causes graph breaks)
+    # Action masking converts tensors to Python ints in _apply_action_mask, which breaks torch.compile()
 
     if cfg.enable_tensorboard:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
