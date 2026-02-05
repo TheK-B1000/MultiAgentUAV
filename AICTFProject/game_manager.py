@@ -111,6 +111,10 @@ class GameManager:
     # --- episode telemetry (minimal, optional) ---
     blue_mine_kills_this_episode: int = 0
     red_mine_kills_this_episode: int = 0
+    # Per-agent flag captures this episode (for eval: coordination / variance)
+    blue_captures_this_episode: List[int] = field(default_factory=list)
+    # Blue team reward sum this episode (for eval: reward per timestep)
+    blue_episode_reward: float = 0.0
     mines_placed_in_enemy_half_this_episode: int = 0
     mines_triggered_by_red_this_episode: int = 0
 
@@ -378,6 +382,8 @@ class GameManager:
             return
         self._remember_agent(agent)
         self.add_reward_event(value, agent_id=self._agent_uid(agent), timestamp=timestamp)
+        if str(getattr(agent, "side", "")).lower() == "blue":
+            self.blue_episode_reward += float(value)
 
     def add_team_reward(
         self,
@@ -464,6 +470,13 @@ class GameManager:
 
         self.blue_agent_ids_seen.clear()
         self.red_agent_ids_seen.clear()
+
+        self.blue_captures_this_episode.clear()
+        self.blue_episode_reward = 0.0
+        if self.game_field is not None:
+            blue_agents = getattr(self.game_field, "blue_agents", []) or []
+            while len(self.blue_captures_this_episode) < len(blue_agents):
+                self.blue_captures_this_episode.append(0)
 
         mid_row = self.rows // 2
         self.blue_flag_home = self._clamp_cell(2, mid_row)
@@ -700,6 +713,17 @@ class GameManager:
 
                 if self._teammate_near(agent):
                     self.add_agent_reward(agent, COORDINATION_BONUS)
+
+                # Per-agent capture count for eval (coordination / variance)
+                if self.game_field is not None:
+                    blue_agents = getattr(self.game_field, "blue_agents", []) or []
+                    try:
+                        idx = blue_agents.index(agent)
+                        while len(self.blue_captures_this_episode) <= idx:
+                            self.blue_captures_this_episode.append(0)
+                        self.blue_captures_this_episode[idx] += 1
+                    except (ValueError, AttributeError):
+                        pass
 
                 return True
 
