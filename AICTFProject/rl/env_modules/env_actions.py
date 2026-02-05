@@ -10,7 +10,7 @@ Handles:
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Set
 
 import numpy as np
 
@@ -84,6 +84,9 @@ class EnvActionManager:
             executed.append((m, t))
             self._record_macro_usage(i, m, game_field)
 
+        # Target deconfliction: if two agents choose same target cell, perturb one to nearest free cell
+        executed = self._deconflict_targets(executed, n_blue_agents, game_field)
+
         # Pad to n_slots
         n_slots = len(intended_actions)
         while len(executed) < n_slots:
@@ -130,6 +133,142 @@ class EnvActionManager:
                     tgt = self._nearest_valid_target(agent, tm, game_field)
 
         return macro, tgt
+
+    def _deconflict_targets(
+        self,
+        actions: List[Tuple[int, int]],
+        n_blue_agents: int,
+        game_field: Any,
+    ) -> List[Tuple[int, int]]:
+        """
+        Target deconfliction: if two agents choose same target cell, perturb one to nearest free cell.
+        Only applies to macros that should NOT allow duplicates: GO_TO, GET_FLAG, PLACE_MINE.
+        Allows duplicates for swarm-allowed macros: GO_HOME (DEFEND_HOME), GRAB_MINE, etc.
+        """
+        if n_blue_agents < 2 or len(actions) < 2:
+            return actions
+        
+        # Macros that should be deconflicted (no duplicates allowed)
+        deconflict_macros = {MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.PLACE_MINE}
+        
+        # Get target cells for each agent (only for deconflict-eligible macros)
+        target_cells: Dict[int, Tuple[int, int]] = {}  # agent_idx -> (x, y) cell
+        macro_types: Dict[int, MacroAction] = {}  # agent_idx -> MacroAction
+        
+        for i in range(min(n_blue_agents, len(actions))):
+            m, t = actions[i]
+            
+            # Get macro action enum
+            macro_action = None
+            if game_field is not None:
+                try:
+                    macro_action = game_field.macro_order[int(m)]
+                except Exception:
+                    try:
+                        macro_action = MacroAction(int(m))
+                    except Exception:
+                        pass
+            
+            # Only deconflict if macro is in the deconflict set
+            if macro_action is not None and macro_action in deconflict_macros:
+                macro_types[i] = macro_action
+                if self._macro_uses_target(m, game_field):
+                    try:
+                        cell = game_field.get_macro_target(int(t))
+                        if cell is not None:
+                            target_cells[i] = tuple(cell) if isinstance(cell, (tuple, list)) else (int(cell[0]), int(cell[1]))
+                    except Exception:
+                        pass
+        
+        # Find duplicates (only among deconflict-eligible macros)
+        cell_to_agents: Dict[Tuple[int, int], List[int]] = {}
+        for agent_idx, cell in target_cells.items():
+            # Only consider duplicates if both agents have the same macro type
+            macro = macro_types.get(agent_idx)
+            if macro is None:
+                continue
+            
+            # Group by (cell, macro) to avoid deconflicting different macro types at same cell
+            key = (cell, macro)
+            if key not in cell_to_agents:
+                cell_to_agents[key] = []
+            cell_to_agents[key].append(agent_idx)
+        
+        # For each duplicate, perturb one agent to nearest free cell
+        new_actions = list(actions)
+        for (cell, macro), agent_indices in cell_to_agents.items():
+            if len(agent_indices) <= 1:
+                continue
+            
+            # Keep first agent's target, perturb others
+            for agent_idx in agent_indices[1:]:
+                m, t = new_actions[agent_idx]
+                if not self._macro_uses_target(m, game_field):
+                    continue
+                
+                # Find nearest free target cell
+                try:
+                    free_tgt = self._nearest_free_target(agent_idx, cell, game_field, list(target_cells.values()))
+                    if free_tgt is not None:
+                        new_actions[agent_idx] = (m, free_tgt)
+                        # Update target_cells for this agent to avoid double-deconfliction
+                        try:
+                            new_cell = game_field.get_macro_target(int(free_tgt))
+                            if new_cell is not None:
+                                target_cells[agent_idx] = tuple(new_cell) if isinstance(new_cell, (tuple, list)) else (int(new_cell[0]), int(new_cell[1]))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass  # Keep original target if deconfliction fails
+        
+        return new_actions
+
+    def _nearest_free_target(
+        self,
+        agent_idx: int,
+        avoid_cell: Tuple[int, int],
+        game_field: Any,
+        used_cells: List[Tuple[int, int]],
+    ) -> Optional[int]:
+        """Find nearest target cell that's not in used_cells."""
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if agent_idx >= len(blue_agents) or blue_agents[agent_idx] is None:
+            return None
+        
+        agent = blue_agents[agent_idx]
+        try:
+            tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+            if tm.shape != (self._n_targets,) or not tm.any():
+                return None
+            
+            used_set = set(used_cells)
+            best_tgt = None
+            best_dist = float('inf')
+            
+            for tgt_idx in range(self._n_targets):
+                if not bool(tm[tgt_idx]):
+                    continue
+                try:
+                    tgt_cell = game_field.get_macro_target(int(tgt_idx))
+                    if tgt_cell is None:
+                        continue
+                    tgt_tuple = tuple(tgt_cell) if isinstance(tgt_cell, (tuple, list)) else (int(tgt_cell[0]), int(tgt_cell[1]))
+                    
+                    # Skip if already used
+                    if tgt_tuple in used_set:
+                        continue
+                    
+                    # Compute distance from avoid_cell
+                    dist = abs(tgt_tuple[0] - avoid_cell[0]) + abs(tgt_tuple[1] - avoid_cell[1])
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_tgt = tgt_idx
+                except Exception:
+                    continue
+            
+            return best_tgt
+        except Exception:
+            return None
 
     def _apply_role_macro_mask(self, blue_index: int, mm: np.ndarray) -> np.ndarray:
         """Apply role-based macro mask if configured."""
