@@ -78,6 +78,17 @@ class EnvObsBuilder:
                 "Legacy observation building removed per module ownership."
             )
         
+        # Create per-agent vec_append_fn that includes role for that specific agent
+        def vec_append_with_role(agent_idx: int):
+            def fn(base_vec: np.ndarray) -> np.ndarray:
+                return self._append_high_level_mode_per_agent(base_vec, agent_idx)
+            return fn
+        
+        # Build vec_append_fn that knows agent index (for role lookup)
+        # We need to pass agent index to vec_append_fn, but build_team_obs calls it per-agent
+        # So we create a closure that captures the agent index
+        vec_append_fns = [vec_append_with_role(i) for i in range(n_slots)]
+        
         out = build_team_obs(
             game_field,
             blue_ordered,
@@ -91,9 +102,25 @@ class EnvObsBuilder:
             n_macros=n_macros,
             n_targets=n_targets,
             role_macro_mask_fn=role_macro_mask_fn,
-            vec_append_fn=self._append_high_level_mode,
+            vec_append_fn=self._make_vec_append_with_idx(),  # Tracks agent index for role tokens (resets on each call)
         )
         return out
+    
+    def _make_vec_append_with_idx(self):
+        """Create a vec_append_fn that tracks agent index for role token lookup.
+        Returns a function that increments agent_idx on each call.
+        """
+        agent_idx_ref = [0]  # Use list to allow modification in closure
+        
+        def vec_append_with_idx(base_vec: np.ndarray) -> np.ndarray:
+            idx = agent_idx_ref[0]
+            result = self._append_high_level_mode(base_vec, agent_idx=idx)
+            agent_idx_ref[0] += 1
+            return result
+        
+        # Reset counter before returning (will be reset again before each build_team_obs call)
+        agent_idx_ref[0] = 0
+        return vec_append_with_idx
 
     def _build_legacy_obs(
         self,
@@ -118,9 +145,32 @@ class EnvObsBuilder:
             "Always use rl/obs_builder.py::build_team_obs()."
         )
 
-    def _append_high_level_mode(self, base_vec: np.ndarray) -> np.ndarray:
-        """Append high-level mode to vec observation."""
+    def _append_high_level_mode(self, base_vec: np.ndarray, agent_idx: Optional[int] = None) -> np.ndarray:
+        """Append high-level mode and role tokens to vec observation.
+        Note: Role tokens are now included in observation space, so we append them here.
+        The observation space accounts for role_dims=3 per agent.
+        
+        Args:
+            base_vec: Base vector for one agent (vec_size_base dims)
+            agent_idx: Optional agent index for role lookup. If None, tries to infer from context.
+        """
         v = np.asarray(base_vec, dtype=np.float32).reshape(-1)
+        
+        # Append role one-hot (3 roles: attacker, defender, escort) for THIS agent only
+        # Role tokens are always included (observation space accounts for them)
+        if self._agent_roles is not None and agent_idx is not None and 0 <= agent_idx < len(self._agent_roles):
+            role_idx = self._agent_roles[agent_idx]
+            role_onehot = np.zeros((3,), dtype=np.float32)
+            if 0 <= role_idx < 3:
+                role_onehot[role_idx] = 1.0
+            v = np.concatenate([v, role_onehot], axis=0)
+        elif self._agent_roles is not None:
+            # Fallback: if agent_idx not provided, append zeros (shouldn't happen)
+            v = np.concatenate([v, np.zeros((3,), dtype=np.float32)], axis=0)
+        else:
+            # Roles not set yet (shouldn't happen after reset)
+            v = np.concatenate([v, np.zeros((3,), dtype=np.float32)], axis=0)
+        
         if not self._include_high_level_mode:
             return v
 
