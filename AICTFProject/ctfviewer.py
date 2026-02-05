@@ -1120,10 +1120,18 @@ class CTFViewer:
                 total_zone = int(getattr(gm, "total_blue_zone_cells", 1)) or 1
                 zone_coverage = float(len(visited)) / float(total_zone) if total_zone > 0 else 0.0
 
-                # Per-agent role % and flag captures
+                # Per-agent role % and flag captures (use agent's active steps so attack+defend = 100%)
                 total_steps_ep = max(1, step_count)
-                pct_attacking_list = [100.0 * attack_steps[i] / total_steps_ep for i in range(len(attack_steps))]
-                pct_defending_list = [100.0 * defend_steps[i] / total_steps_ep for i in range(len(defend_steps))]
+                pct_attacking_list = []
+                pct_defending_list = []
+                for i in range(len(attack_steps)):
+                    active = attack_steps[i] + defend_steps[i]
+                    if active > 0:
+                        pct_attacking_list.append(100.0 * attack_steps[i] / active)
+                        pct_defending_list.append(100.0 * defend_steps[i] / active)
+                    else:
+                        pct_attacking_list.append(0.0)
+                        pct_defending_list.append(0.0)
                 mean_pct_attacking = float(np.mean(pct_attacking_list)) if pct_attacking_list else 0.0
                 mean_pct_defending = float(np.mean(pct_defending_list)) if pct_defending_list else 0.0
                 blue_captures = list(getattr(gm, "blue_captures_this_episode", []) or [])
@@ -1141,10 +1149,11 @@ class CTFViewer:
                 near_misses_per_100_steps = 100.0 * (near_misses / total_steps_ep) if total_steps_ep > 0 else 0.0
                 coverage_efficiency = zone_coverage / total_steps_ep if total_steps_ep > 0 else 0.0
 
-                # Sanity: % attacking + % defending ≈ 100% per agent
+                # Sanity: % attacking + % defending = 100% per agent when agent had active steps
                 for i in range(len(pct_attacking_list)):
-                    _sum = pct_attacking_list[i] + pct_defending_list[i]
-                    assert abs(_sum - 100.0) < 1e-6, f"attack+defend should sum to 100%, got {_sum}"
+                    if attack_steps[i] + defend_steps[i] > 0:
+                        _sum = pct_attacking_list[i] + pct_defending_list[i]
+                        assert abs(_sum - 100.0) < 1e-6, f"attack+defend should sum to 100%, got {_sum}"
 
                 row = {
                     "episode_id": episode_id,
@@ -1587,6 +1596,8 @@ if __name__ == "__main__":
     parser.add_argument("--eval-model", type=str, choices=["ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
     parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
     parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD)")
+    parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
+    parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
@@ -1601,10 +1612,10 @@ if __name__ == "__main__":
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
 
-    if args.eval_fixed_opponents:
+    if getattr(args, "eval_fixed_opponents", False):
         # Fixed-opponent evaluation: OP1, OP2, OP3; generalization drop
         viewer.evaluate_fixed_opponents(
-            num_episodes_per_opp=args.eval_fixed_n,
+            num_episodes_per_opp=getattr(args, "eval_fixed_n", 50),
             eval_model=args.eval_model,
             headless=args.headless,
             save_dir=_SCRIPT_DIR,
