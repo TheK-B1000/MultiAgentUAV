@@ -1554,12 +1554,19 @@ class GameField:
             if bmin <= c <= bmax:
                 blue_zone_cells.add((c, r))
 
+        # Collect blue agent positions for anti-clump penalty
+        blue_positions = []
+        for a in blue_enabled:
+            fx, fy = self._agent_float_pos(a)
+            blue_positions.append((a, (fx, fy)))
+        
         self.manager.record_tick_metrics(
             collision_delta=collision_delta,
             near_miss_delta=near_miss_delta,
             collision_events_delta=collision_events_delta,
             blue_inter_robot_dist=blue_inter_dist,
             blue_zone_cells_this_tick=blue_zone_cells,
+            blue_agent_positions=blue_positions if blue_positions else None,
         )
 
     # -------- main simulation step --------
