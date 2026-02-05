@@ -48,7 +48,13 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
-DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum.zip"
+DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v2.zip"
+# Baseline-specific model paths (auto-selected when testing baselines)
+BASELINE_MODEL_PATHS = {
+    "fixed_op3": "rl/checkpoints_sb3/final_ppo_role_fixed.zip",
+    "self_play": "rl/checkpoints_sb3/final_ppo_curriculum_selfplay_v2.zip",
+    "curriculum_no_league": "rl/checkpoints_sb3/final_ppo_curriculum_old_v2.zip",
+}
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
 # MAPPO (Multi-Agent PPO) .pth checkpoint from train_mappo.py
@@ -1625,12 +1631,22 @@ if __name__ == "__main__":
     parser.add_argument("--baseline", type=str, choices=["fixed_op3", "self_play", "curriculum_no_league"], 
                         help="Test baseline mode: fixed_op3 (FIXED_OPPONENT OP3), self_play (SELF_PLAY), curriculum_no_league (CURRICULUM_NO_LEAGUE)")
     parser.add_argument("--test-baseline", action="store_true", 
-                        help="Test baseline with display: run 10 episodes with opponent matching baseline config")
+                        help="Test baseline with display: run episodes with opponent matching baseline config")
+    parser.add_argument("--test-baseline-n", type=int, default=10, metavar="N",
+                        help="Number of episodes per opponent for baseline testing (default: 10, use 50 for more thorough testing)")
 
     args = parser.parse_args()
 
+    # Auto-select model path based on baseline if not explicitly provided
+    ppo_model_path = args.ppo_model
+    if not ppo_model_path and getattr(args, "test_baseline", False) and args.baseline:
+        baseline_key = args.baseline.lower()
+        if baseline_key in BASELINE_MODEL_PATHS:
+            ppo_model_path = BASELINE_MODEL_PATHS[baseline_key]
+            print(f"[Baseline] Auto-selected model: {ppo_model_path} for {baseline_key.upper()} baseline")
+    
     viewer = CTFViewer(
-        ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
+        ppo_model_path=ppo_model_path or DEFAULT_PPO_MODEL_PATH,
         hppo_low_path=args.hppo_low or DEFAULT_HPPO_LOW_MODEL_PATH,
         hppo_high_path=args.hppo_high or DEFAULT_HPPO_HIGH_MODEL_PATH,
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
@@ -1639,13 +1655,14 @@ if __name__ == "__main__":
     # Handle baseline testing mode
     if getattr(args, "test_baseline", False) and args.baseline:
         baseline = args.baseline.lower()
-        print(f"\n[Baseline Test] Testing {baseline.upper()} baseline with display...")
+        num_episodes = max(1, int(getattr(args, "test_baseline_n", 10)))
+        print(f"\n[Baseline Test] Testing {baseline.upper()} baseline with display ({num_episodes} episodes)...")
         
         if baseline == "fixed_op3":
             # FIXED_OPPONENT(OP3): Always use OP3 opponent
             print("[Baseline] Configuration: FIXED_OPPONENT mode with OP3 opponent")
             summary = viewer.evaluate_model(
-                num_episodes=10,
+                num_episodes=num_episodes,
                 save_csv=None,
                 headless=False,  # Always show display for baseline testing
                 opponent="OP3",
@@ -1658,7 +1675,7 @@ if __name__ == "__main__":
             # SELF_PLAY: Use OP3 as base opponent (self-play uses snapshots, but for viewer we use OP3)
             print("[Baseline] Configuration: SELF_PLAY mode (using OP3 opponent for viewer)")
             summary = viewer.evaluate_model(
-                num_episodes=10,
+                num_episodes=num_episodes,
                 save_csv=None,
                 headless=False,
                 opponent="OP3",
@@ -1670,13 +1687,13 @@ if __name__ == "__main__":
         elif baseline == "curriculum_no_league":
             # CURRICULUM_NO_LEAGUE: Test progression OP1 -> OP2 -> OP3
             print("[Baseline] Configuration: CURRICULUM_NO_LEAGUE mode (testing OP1, OP2, OP3)")
-            print("[Baseline] Running episodes vs OP1, OP2, OP3 sequentially...")
+            print(f"[Baseline] Running {num_episodes} episodes vs OP1, OP2, OP3 sequentially...")
             
             results_by_phase = {}
             for phase_opponent in ["OP1", "OP2", "OP3"]:
                 print(f"\n[Baseline] Testing vs {phase_opponent} (phase={phase_opponent})...")
                 summary = viewer.evaluate_model(
-                    num_episodes=5,  # Fewer episodes per phase for quick testing
+                    num_episodes=num_episodes,
                     save_csv=None,
                     headless=False,
                     opponent=phase_opponent,
