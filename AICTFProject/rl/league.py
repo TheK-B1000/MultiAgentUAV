@@ -29,6 +29,13 @@ class EloLeague:
         scripted_floor: float = 0.20,
         species_prob: float = 0.20,
         snapshot_prob: float = 0.60,
+        # Sprint A: Stability mix (70% scripted, 20% snapshot, 10% species)
+        stability_scripted_prob: float = 0.70,
+        stability_snapshot_prob: float = 0.20,
+        stability_species_prob: float = 0.10,
+        use_stability_mix: bool = True,
+        # Opponent switching frequency cap
+        min_episodes_per_opponent: int = 3,  # Don't switch opponents more than once per N episodes
     ) -> None:
         self.rng = random.Random(int(seed))
         self.k = float(k_factor)
@@ -36,6 +43,17 @@ class EloLeague:
         self.scripted_floor = float(scripted_floor)
         self.species_prob = float(species_prob)
         self.snapshot_prob = float(snapshot_prob)
+        
+        # Sprint A: Stability mix configuration
+        self.use_stability_mix = bool(use_stability_mix)
+        self.stability_scripted_prob = float(stability_scripted_prob)
+        self.stability_snapshot_prob = float(stability_snapshot_prob)
+        self.stability_species_prob = float(stability_species_prob)
+        self.min_episodes_per_opponent = max(1, int(min_episodes_per_opponent))
+        
+        # Track last opponent and episode count for switching cap
+        self._last_opponent_key: Optional[str] = None
+        self._episodes_with_current_opponent: int = 0
 
         self.learner_key = "__LEARNER__"
         self.ratings: Dict[str, float] = {self.learner_key: 1200.0}
@@ -111,28 +129,120 @@ class EloLeague:
         key = f"SCRIPTED:{phase}"
         return OpponentSpec(kind="SCRIPTED", key=phase, rating=self.get_rating(key))
 
-    def sample_league(self, target_rating: Optional[float] = None) -> OpponentSpec:
+    def sample_league(self, target_rating: Optional[float] = None, phase: Optional[str] = None) -> OpponentSpec:
+        """
+        Sample opponent from league with stability mix (Sprint A).
+        
+        Stability mix:
+        - 70% scripted opponents (OP1/OP2/OP3 depending on phase)
+        - 20% snapshot opponents (uniform from last N snapshots)
+        - 10% species variants
+        
+        Also caps opponent switching frequency to avoid chaos.
+        """
         target = self.learner_rating if target_rating is None else float(target_rating)
+        phase = str(phase).upper() if phase else "OP3"
+        
+        # Sprint A: Cap opponent switching frequency
+        if (self._last_opponent_key is not None and 
+            self._episodes_with_current_opponent < self.min_episodes_per_opponent):
+            # Reuse last opponent if we haven't met minimum episodes
+            self._episodes_with_current_opponent += 1
+            return self._reconstruct_last_opponent()
+        
+        # Reset counter when switching
+        self._episodes_with_current_opponent = 1
+        
+        # Sprint A: Use stability mix if enabled
+        if self.use_stability_mix:
+            opp_spec = self._sample_stability_mix(target, phase)
+        else:
+            # Original sampling logic
+            r = self.rng.random()
+            if r < self.scripted_floor or (not self.snapshots):
+                key = "SCRIPTED:OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "SCRIPTED:OP3"
+                tag = key.split(":", 1)[1]
+                opp_spec = OpponentSpec(kind="SCRIPTED", key=tag, rating=self.get_rating(key))
+            else:
+                r -= self.scripted_floor
+                if r < self.species_prob:
+                    key = self._weighted_pick(self.species_keys, target)
+                    tag = key.split(":", 1)[1]
+                    opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+                elif self.snapshots:
+                    path = self._weighted_pick(
+                        self.snapshots, target, key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p))
+                    )
+                    opp_spec = OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
+                else:
+                    key = "SCRIPTED:OP3"
+                    opp_spec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+        
+        # Track for switching cap
+        self._last_opponent_key = f"{opp_spec.kind}:{opp_spec.key}"
+        return opp_spec
+    
+    def _sample_stability_mix(self, target_rating: float, phase: str) -> OpponentSpec:
+        """
+        Sprint A: Sample with stability mix (70% scripted, 20% snapshot, 10% species).
+        """
         r = self.rng.random()
-        if r < self.scripted_floor or (not self.snapshots):
-            key = "SCRIPTED:OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "SCRIPTED:OP3"
-            tag = key.split(":", 1)[1]
-            return OpponentSpec(kind="SCRIPTED", key=tag, rating=self.get_rating(key))
-
-        r -= self.scripted_floor
-        if r < self.species_prob:
-            key = self._weighted_pick(self.species_keys, target)
+        
+        # 70% scripted opponents (OP1/OP2/OP3 depending on phase)
+        if r < self.stability_scripted_prob:
+            # Select scripted opponent based on phase
+            if phase == "OP1":
+                scripted_tag = "OP1"
+            elif phase == "OP2":
+                scripted_tag = "OP2"
+            else:  # OP3 or default
+                # Prefer OP3_HARD if available, else OP3
+                scripted_tag = "OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "OP3"
+            
+            key = f"SCRIPTED:{scripted_tag}"
+            return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.get_rating(key))
+        
+        r -= self.stability_scripted_prob
+        
+        # 20% snapshot opponents (uniform from last N snapshots)
+        if r < self.stability_snapshot_prob and self.snapshots:
+            # Use uniform sampling from last N snapshots (not weighted by rating for stability)
+            # Take last N snapshots (e.g., last 10)
+            recent_snapshots = self.snapshots[-min(10, len(self.snapshots)):]
+            if recent_snapshots:
+                path = self.rng.choice(recent_snapshots)
+                return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
+        
+        r -= self.stability_snapshot_prob
+        
+        # 10% species variants
+        if r < self.stability_species_prob:
+            key = self._weighted_pick(self.species_keys, target_rating)
             tag = key.split(":", 1)[1]
             return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
-
-        if self.snapshots:
-            path = self._weighted_pick(
-                self.snapshots, target, key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p))
-            )
-            return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
-
-        key = "SCRIPTED:OP3"
-        return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
+        
+        # Fallback: scripted (shouldn't reach here, but safety)
+        scripted_tag = "OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "OP3"
+        key = f"SCRIPTED:{scripted_tag}"
+        return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.get_rating(key))
+    
+    def _reconstruct_last_opponent(self) -> OpponentSpec:
+        """Reconstruct last opponent spec from tracked key."""
+        if self._last_opponent_key is None:
+            return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3"))
+        
+        parts = self._last_opponent_key.split(":", 1)
+        if len(parts) != 2:
+            return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3"))
+        
+        kind, key = parts
+        rating = self.get_rating(self._last_opponent_key)
+        return OpponentSpec(kind=kind, key=key, rating=rating)
+    
+    def reset_opponent_tracking(self) -> None:
+        """Reset opponent tracking (e.g., on episode reset)."""
+        self._last_opponent_key = None
+        self._episodes_with_current_opponent = 0
 
     def sample_species(self, target_rating: Optional[float] = None) -> OpponentSpec:
         target = self.learner_rating if target_rating is None else float(target_rating)
