@@ -1311,13 +1311,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 compiler_found = shutil.which("cl.exe") is not None
                 if not compiler_found:
                     print("[PPO] torch.compile() skipped on Windows: C++ compiler (cl.exe) not found")
-                    print("[PPO]   To enable torch.compile() for better performance:")
-                    print("[PPO]   1. Download 'Build Tools for Visual Studio 2022' (free)")
-                    print("[PPO]      https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022")
-                    print("[PPO]   2. Run installer, select 'Desktop development with C++' workload")
-                    print("[PPO]   3. After installation, restart your terminal/Python environment")
-                    print("[PPO]   4. Training will automatically detect and use the compiler")
-                    print("[PPO]   Note: Compilation may still fail due to action masking graph breaks")
                     should_skip_compile = True
                 else:
                     print("[PPO] C++ compiler found, attempting torch.compile() (may still fail due to action masking graph breaks)")
