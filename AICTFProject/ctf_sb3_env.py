@@ -137,7 +137,10 @@ class CTFGameFieldSB3Env(gym.Env):
         extra = 0
         if self.include_high_level_mode:
             extra = 2 if self._high_level_mode_onehot else 1
-        self._vec_per_agent = int(self._base_vec_per_agent + extra)
+        # Role tokens: always add 3 dims per agent (attacker/defender/escort one-hot)
+        # Roles are assigned at reset, so observation space must account for them
+        role_dims = 3  # One-hot for 3 roles
+        self._vec_per_agent = int(self._base_vec_per_agent + extra + role_dims)
 
         # Will be synced from GameField on reset()
         self._n_macros = 5
