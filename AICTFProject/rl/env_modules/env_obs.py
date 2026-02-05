@@ -43,6 +43,7 @@ class EnvObsBuilder:
         self._high_level_mode_onehot = bool(high_level_mode_onehot)
         self._base_vec_per_agent = int(base_vec_per_agent)
         self._obs_debug_validate_locality = bool(obs_debug_validate_locality)
+        self._agent_roles: Optional[List[int]] = None  # Role indices per agent (0=attacker, 1=defender, 2=escort)
 
     def build_observation(
         self,
@@ -135,6 +136,10 @@ class EnvObsBuilder:
     def set_high_level_mode(self, mode: int) -> None:
         """Update high-level mode for next observation."""
         self._high_level_mode = int(mode)
+    
+    def set_agent_roles(self, roles: List[int]) -> None:
+        """Set agent roles for role token appending (0=attacker, 1=defender, 2=escort)."""
+        self._agent_roles = list(roles) if roles else None
 
 
 __all__ = ["EnvObsBuilder"]
