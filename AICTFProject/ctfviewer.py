@@ -1043,6 +1043,12 @@ class CTFViewer:
 
                 step_count = 0
                 running_episode = True
+                gf = self.game_field
+                blue_agents_list = getattr(gf, "blue_agents", []) or []
+                n_blue = len(blue_agents_list)
+                attack_steps = [0] * max(1, n_blue)
+                defend_steps = [0] * max(1, n_blue)
+
                 while step_count < max_steps_per_episode and running_episode:
                     if not headless:
                         for event in pg.event.get():
@@ -1055,6 +1061,30 @@ class CTFViewer:
                     self.game_field.update(fixed_dt)
                     step_count += 1
 
+                    # Per-step: role timers (attacking vs defending)
+                    if n_blue > 0 and hasattr(gf, "_zone_ranges") and hasattr(gf, "_agent_cell_pos") and hasattr(gf, "_agent_is_carrying_flag"):
+                        try:
+                            (blue_min_col, blue_max_col), (red_min_col, red_max_col) = gf._zone_ranges()
+                            for i, agent in enumerate(blue_agents_list):
+                                if i >= len(attack_steps):
+                                    break
+                                _en = getattr(agent, "isEnabled", True)
+                                if callable(_en):
+                                    _en = _en()
+                                if not _en:
+                                    continue
+                                cell = gf._agent_cell_pos(agent)
+                                col = cell[0] if isinstance(cell, (tuple, list)) and len(cell) >= 1 else 0
+                                carrying = gf._agent_is_carrying_flag(agent)
+                                in_opponent_half = red_min_col <= col <= red_max_col
+                                attacking = in_opponent_half or carrying
+                                if attacking:
+                                    attack_steps[i] += 1
+                                else:
+                                    defend_steps[i] += 1
+                        except Exception:
+                            pass
+
                     gm = self.game_manager
                     if getattr(gm, "game_over", False):
                         break
@@ -1064,7 +1094,7 @@ class CTFViewer:
                         pg.display.flip()
                         self.clock.tick(60)
 
-                # Collect metrics from game_manager (same structure as training)
+                # Collect metrics from game_manager (once per episode)
                 gm = self.game_manager
                 blue_score = int(getattr(gm, "blue_score", 0))
                 red_score = int(getattr(gm, "red_score", 0))
@@ -1090,6 +1120,32 @@ class CTFViewer:
                 total_zone = int(getattr(gm, "total_blue_zone_cells", 1)) or 1
                 zone_coverage = float(len(visited)) / float(total_zone) if total_zone > 0 else 0.0
 
+                # Per-agent role % and flag captures
+                total_steps_ep = max(1, step_count)
+                pct_attacking_list = [100.0 * attack_steps[i] / total_steps_ep for i in range(len(attack_steps))]
+                pct_defending_list = [100.0 * defend_steps[i] / total_steps_ep for i in range(len(defend_steps))]
+                mean_pct_attacking = float(np.mean(pct_attacking_list)) if pct_attacking_list else 0.0
+                mean_pct_defending = float(np.mean(pct_defending_list)) if pct_defending_list else 0.0
+                blue_captures = list(getattr(gm, "blue_captures_this_episode", []) or [])
+                if len(blue_captures) < n_blue:
+                    blue_captures = blue_captures + [0] * (n_blue - len(blue_captures))
+                flag_capture_variance = float(np.var(blue_captures)) if len(blue_captures) > 1 else 0.0
+                mean_flag_captures = float(np.mean(blue_captures)) if blue_captures else 0.0
+
+                # Reward per timestep (efficiency)
+                blue_episode_reward = float(getattr(gm, "blue_episode_reward", 0.0) or 0.0)
+                reward_per_timestep = blue_episode_reward / total_steps_ep if total_steps_ep > 0 else 0.0
+
+                # Normalized collision / coverage (interpretable across episode lengths)
+                collisions_per_100_steps = 100.0 * (collisions_per_tick / total_steps_ep) if total_steps_ep > 0 else 0.0
+                near_misses_per_100_steps = 100.0 * (near_misses / total_steps_ep) if total_steps_ep > 0 else 0.0
+                coverage_efficiency = zone_coverage / total_steps_ep if total_steps_ep > 0 else 0.0
+
+                # Sanity: % attacking + % defending ≈ 100% per agent
+                for i in range(len(pct_attacking_list)):
+                    _sum = pct_attacking_list[i] + pct_defending_list[i]
+                    assert abs(_sum - 100.0) < 1e-6, f"attack+defend should sum to 100%, got {_sum}"
+
                 row = {
                     "episode_id": episode_id,
                     "success": success,
@@ -1107,6 +1163,15 @@ class CTFViewer:
                     "scripted_tag": str(opponent).upper(),
                     "blue_score": blue_score,
                     "red_score": red_score,
+                    "mean_pct_attacking": mean_pct_attacking,
+                    "mean_pct_defending": mean_pct_defending,
+                    "flag_capture_variance": flag_capture_variance,
+                    "mean_flag_captures": mean_flag_captures,
+                    "blue_episode_reward": blue_episode_reward,
+                    "reward_per_timestep": reward_per_timestep,
+                    "collisions_per_100_steps": collisions_per_100_steps,
+                    "near_misses_per_100_steps": near_misses_per_100_steps,
+                    "coverage_efficiency": coverage_efficiency,
                 }
                 episodes.append(row)
 
@@ -1136,6 +1201,13 @@ class CTFViewer:
         mean_dists = [e["mean_inter_robot_dist"] for e in episodes if e["mean_inter_robot_dist"] is not None]
         std_dists = [e["std_inter_robot_dist"] for e in episodes if e["std_inter_robot_dist"] is not None]
         zone_coverages = [e["zone_coverage"] for e in episodes]
+        mean_pct_attacking_list = [e["mean_pct_attacking"] for e in episodes if "mean_pct_attacking" in e]
+        mean_pct_defending_list = [e["mean_pct_defending"] for e in episodes if "mean_pct_defending" in e]
+        flag_capture_var_list = [e["flag_capture_variance"] for e in episodes if "flag_capture_variance" in e]
+        reward_per_step_list = [e["reward_per_timestep"] for e in episodes if "reward_per_timestep" in e]
+        collisions_100_list = [e["collisions_per_100_steps"] for e in episodes if "collisions_per_100_steps" in e]
+        near_misses_100_list = [e["near_misses_per_100_steps"] for e in episodes if "near_misses_per_100_steps" in e]
+        coverage_eff_list = [e["coverage_efficiency"] for e in episodes if "coverage_efficiency" in e]
 
         summary = {
             "num_episodes": len(episodes),
@@ -1152,6 +1224,13 @@ class CTFViewer:
             "mean_inter_robot_dist": float(np.mean(mean_dists)) if mean_dists else None,
             "mean_std_inter_robot_dist": float(np.mean(std_dists)) if std_dists else None,
             "mean_zone_coverage": float(np.mean(zone_coverages)),
+            "mean_pct_attacking": float(np.mean(mean_pct_attacking_list)) if mean_pct_attacking_list else None,
+            "mean_pct_defending": float(np.mean(mean_pct_defending_list)) if mean_pct_defending_list else None,
+            "mean_flag_capture_variance": float(np.mean(flag_capture_var_list)) if flag_capture_var_list else None,
+            "mean_reward_per_timestep": float(np.mean(reward_per_step_list)) if reward_per_step_list else None,
+            "mean_collisions_per_100_steps": float(np.mean(collisions_100_list)) if collisions_100_list else None,
+            "mean_near_misses_per_100_steps": float(np.mean(near_misses_100_list)) if near_misses_100_list else None,
+            "mean_coverage_efficiency": float(np.mean(coverage_eff_list)) if coverage_eff_list else None,
         }
 
         # Save CSV
@@ -1168,6 +1247,9 @@ class CTFViewer:
             "episode_id", "success", "time_to_first_score", "time_to_game_over",
             "collisions_per_episode", "collision_events_per_episode", "near_misses_per_episode", "collision_free_episode",
             "mean_inter_robot_dist", "std_inter_robot_dist", "zone_coverage",
+            "mean_pct_attacking", "mean_pct_defending", "flag_capture_variance", "mean_flag_captures",
+            "blue_episode_reward", "reward_per_timestep",
+            "collisions_per_100_steps", "near_misses_per_100_steps", "coverage_efficiency",
             "phase_name", "opponent_kind", "scripted_tag", "blue_score", "red_score",
         ]
 
@@ -1191,7 +1273,12 @@ class CTFViewer:
         except Exception as exc:
             print(f"[WARN] Failed to save CSV: {exc}")
 
-        # Print summary
+        # Validation: coordination percentages sum to 100%
+        if summary.get("mean_pct_attacking") is not None and summary.get("mean_pct_defending") is not None:
+            _coord_sum = summary["mean_pct_attacking"] + summary["mean_pct_defending"]
+            assert abs(_coord_sum - 100.0) < 1e-4, f"mean_pct_attacking + mean_pct_defending should ~100%, got {_coord_sum}"
+
+        # Print summary (paper-ready sections)
         print("\n" + "=" * 60)
         print("EVALUATION SUMMARY")
         print("=" * 60)
@@ -1201,18 +1288,145 @@ class CTFViewer:
             print(f"Mean Time to First Score: {summary['mean_time_to_first_score']:.2f}s")
         if summary["mean_time_to_game_over"] is not None:
             print(f"Mean Time to Game Over: {summary['mean_time_to_game_over']:.2f}s")
-        print(f"Mean Collisions/Episode (per-tick): {summary['mean_collisions_per_episode']:.2f}")
+        print()
+        print("Coordination Metrics")
+        print("-" * 40)
+        if summary.get("mean_pct_attacking") is not None:
+            print(f"  Mean % Attacking: {summary['mean_pct_attacking']:.1f}%")
+        if summary.get("mean_pct_defending") is not None:
+            print(f"  Mean % Defending: {summary['mean_pct_defending']:.1f}%")
+        if summary.get("mean_flag_capture_variance") is not None:
+            print(f"  Flag Capture Variance: {summary['mean_flag_capture_variance']:.2f}")
+        print()
+        print("Efficiency Metrics")
+        print("-" * 40)
+        if summary.get("mean_reward_per_timestep") is not None:
+            print(f"  Reward per Timestep: {summary['mean_reward_per_timestep']:.4f}")
+        if summary.get("mean_collisions_per_100_steps") is not None:
+            print(f"  Collisions per 100 steps: {summary['mean_collisions_per_100_steps']:.2f}")
+        if summary.get("mean_near_misses_per_100_steps") is not None:
+            print(f"  Near-Misses per 100 steps: {summary['mean_near_misses_per_100_steps']:.2f}")
+        if summary.get("mean_coverage_efficiency") is not None:
+            print(f"  Coverage efficiency (coverage/steps): {summary['mean_coverage_efficiency']:.6g}")
+        print()
+        print("Robustness (this run)")
+        print("-" * 40)
+        print(f"  Win Rate vs {opponent}: {summary['win_rate']:.0%}")
+        print()
+        print("Collision / Coverage (raw)")
+        print("-" * 40)
+        print(f"  Mean Collisions/Episode (per-tick): {summary['mean_collisions_per_episode']:.2f}")
         if "mean_collision_events_per_episode" in summary:
-            print(f"Mean Collision Events/Episode (enter-only): {summary['mean_collision_events_per_episode']:.2f}")
-        print(f"Mean Near-Misses/Episode: {summary['mean_near_misses_per_episode']:.2f}")
-        print(f"Collision-Free Rate (events=0): {summary['collision_free_rate']:.2%}")
+            print(f"  Mean Collision Events/Episode: {summary['mean_collision_events_per_episode']:.2f}")
+        print(f"  Mean Near-Misses/Episode: {summary['mean_near_misses_per_episode']:.2f}")
+        print(f"  Collision-Free Rate: {summary['collision_free_rate']:.2%}")
         if summary["mean_inter_robot_dist"] is not None:
-            print(f"Mean Inter-Robot Distance: {summary['mean_inter_robot_dist']:.2f} cells")
-        print(f"Mean Zone Coverage: {summary['mean_zone_coverage']:.2%}")
+            print(f"  Mean Inter-Robot Distance: {summary['mean_inter_robot_dist']:.2f} cells")
+        print(f"  Mean Zone Coverage: {summary['mean_zone_coverage']:.2%}")
         print("=" * 60)
 
         summary["episodes"] = episodes
         return summary
+
+    # ----------------------------
+    # Fixed-opponent evaluation (Phase 3: robustness + generalization)
+    # ----------------------------
+    FIXED_OPPONENTS = ("OP1", "OP2", "OP3")
+    TRAINING_OPPONENTS = frozenset({"OP1", "OP2"})  # held-out: OP3
+
+    def evaluate_fixed_opponents(
+        self,
+        num_episodes_per_opp: int = 50,
+        eval_model: Optional[str] = None,
+        headless: bool = True,
+        save_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run deterministic evaluation vs each fixed opponent (OP1, OP2, OP3).
+        Log win rate, reward per timestep, time to first score per opponent.
+        Compute generalization drop: train win rate − held-out win rate.
+        """
+        results_per_opp = {}
+        for opp in self.FIXED_OPPONENTS:
+            summary = self.evaluate_model(
+                num_episodes=num_episodes_per_opp,
+                save_csv=None,
+                headless=headless,
+                opponent=opp,
+                eval_model=eval_model,
+            )
+            if not summary:
+                results_per_opp[opp] = {"win_rate": 0.0, "mean_reward_per_timestep": None, "mean_time_to_first_score": None}
+                continue
+            results_per_opp[opp] = {
+                "win_rate": summary["win_rate"],
+                "mean_reward_per_timestep": summary.get("mean_reward_per_timestep"),
+                "mean_time_to_first_score": summary.get("mean_time_to_first_score"),
+                "wins": summary["wins"],
+                "losses": summary["losses"],
+                "draws": summary["draws"],
+            }
+
+        train_opps = [o for o in self.FIXED_OPPONENTS if o in self.TRAINING_OPPONENTS]
+        held_out_opps = [o for o in self.FIXED_OPPONENTS if o not in self.TRAINING_OPPONENTS]
+        train_win_rate = float(np.mean([results_per_opp[o]["win_rate"] for o in train_opps])) if train_opps else 0.0
+        held_out_win_rate = float(np.mean([results_per_opp[o]["win_rate"] for o in held_out_opps])) if held_out_opps else 0.0
+        generalization_drop = train_win_rate - held_out_win_rate
+
+        print("\n" + "=" * 60)
+        print("FIXED OPPONENT EVALUATION (Robustness)")
+        print("=" * 60)
+        for opp in self.FIXED_OPPONENTS:
+            r = results_per_opp.get(opp, {})
+            wr = r.get("win_rate", 0.0)
+            rps = r.get("mean_reward_per_timestep")
+            tfs = r.get("mean_time_to_first_score")
+            w, l, d = r.get("wins", 0), r.get("losses", 0), r.get("draws", 0)
+            print(f"  Opponent: {opp}  Win Rate: {wr:.0%}  (W/L/D: {w}/{l}/{d})")
+            if rps is not None:
+                print(f"    Mean Reward/Step: {rps:.4f}")
+            if tfs is not None:
+                print(f"    Mean Time to Score: {tfs:.2f}s")
+        print()
+        print("Generalization (training vs held-out opponents)")
+        print("-" * 40)
+        print(f"  Train opponents: {train_opps}  Win Rate: {train_win_rate:.0%}")
+        print(f"  Held-out opponents: {held_out_opps}  Win Rate: {held_out_win_rate:.0%}")
+        print(f"  Generalization Drop: {generalization_drop:.0%}")
+        print("=" * 60)
+
+        out = {
+            "results_per_opponent": results_per_opp,
+            "train_win_rate": train_win_rate,
+            "held_out_win_rate": held_out_win_rate,
+            "generalization_drop": generalization_drop,
+        }
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            csv_path = os.path.join(save_dir, "fixed_opponent_summary.csv")
+            try:
+                with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    w.writerow(["opponent", "win_rate", "mean_reward_per_timestep", "mean_time_to_first_score", "wins", "losses", "draws"])
+                    for opp in self.FIXED_OPPONENTS:
+                        r = results_per_opp.get(opp, {})
+                        w.writerow([
+                            opp,
+                            r.get("win_rate", ""),
+                            r.get("mean_reward_per_timestep", ""),
+                            r.get("mean_time_to_first_score", ""),
+                            r.get("wins", ""),
+                            r.get("losses", ""),
+                            r.get("draws", ""),
+                        ])
+                    w.writerow([])
+                    w.writerow(["train_win_rate", train_win_rate, "", "", "", "", ""])
+                    w.writerow(["held_out_win_rate", held_out_win_rate, "", "", "", "", ""])
+                    w.writerow(["generalization_drop", generalization_drop, "", "", "", "", ""])
+                print(f"[Eval] Saved fixed-opponent summary to: {csv_path}")
+            except Exception as exc:
+                print(f"[WARN] Failed to save fixed-opponent CSV: {exc}")
+        return out
 
     # ----------------------------
     # Input handling
@@ -1387,7 +1601,15 @@ if __name__ == "__main__":
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
 
-    if args.eval is not None:
+    if args.eval_fixed_opponents:
+        # Fixed-opponent evaluation: OP1, OP2, OP3; generalization drop
+        viewer.evaluate_fixed_opponents(
+            num_episodes_per_opp=args.eval_fixed_n,
+            eval_model=args.eval_model,
+            headless=args.headless,
+            save_dir=_SCRIPT_DIR,
+        )
+    elif args.eval is not None:
         # Evaluation mode: N episodes with metrics, optionally with display
         summary = viewer.evaluate_model(
             num_episodes=args.eval,
