@@ -7,6 +7,7 @@ Handles:
 - Role-based macro masking
 - Target mask validation and fallback
 - Macro usage tracking
+- Deterministic conflict resolution (Sprint A)
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from macro_actions import MacroAction
+from rl.env_modules.env_execution_controller import ExecutionController
 
 
 class EnvActionManager:
@@ -29,6 +31,7 @@ class EnvActionManager:
         n_targets: int = 8,
         blue_role_macros: Optional[Tuple[List[int], List[int]]] = None,
         seed: int = 0,
+        enable_execution_controller: bool = True,
     ) -> None:
         self._enforce_masks = bool(enforce_masks)
         self._action_flip_prob = float(max(0.0, min(1.0, action_flip_prob)))
@@ -38,11 +41,16 @@ class EnvActionManager:
         self._action_rng = np.random.RandomState(int(seed) + 1000)
         self._episode_macro_counts: List[List[int]] = []
         self._episode_mine_counts: List[Dict[str, int]] = []
+        self._execution_controller: Optional[ExecutionController] = (
+            ExecutionController(seed=seed) if enable_execution_controller else None
+        )
 
     def reset_episode(self, n_agents: int) -> None:
         """Reset episode-level action tracking."""
         self._episode_macro_counts = [[0 for _ in range(self._n_macros)] for _ in range(n_agents)]
         self._episode_mine_counts = [{"grab": 0, "place": 0} for _ in range(n_agents)]
+        if self._execution_controller is not None:
+            self._execution_controller.reset_episode()
 
     def apply_noise_and_sanitize(
         self,
@@ -237,6 +245,58 @@ class EnvActionManager:
         except Exception:
             pass
         return names
+    
+    def _idx_to_macro_action(self, idx: int, game_field: Any) -> MacroAction:
+        """Convert macro index to MacroAction enum."""
+        try:
+            if hasattr(game_field, "macro_order") and game_field.macro_order:
+                if 0 <= idx < len(game_field.macro_order):
+                    return game_field.macro_order[idx]
+        except Exception:
+            pass
+        # Fallback: direct enum conversion
+        try:
+            return MacroAction(idx)
+        except Exception:
+            return MacroAction.GO_TO
+    
+    def _macro_action_to_idx(self, action: MacroAction, game_field: Any) -> int:
+        """Convert MacroAction enum to index."""
+        try:
+            if hasattr(game_field, "macro_order") and game_field.macro_order:
+                for i, m in enumerate(game_field.macro_order):
+                    if m == action:
+                        return i
+        except Exception:
+            pass
+        # Fallback: direct enum value
+        try:
+            return int(action.value) if hasattr(action, "value") else int(action)
+        except Exception:
+            return 0
+    
+    def _find_target_index(self, target: Tuple[int, int], game_field: Any) -> int:
+        """Find target index closest to given cell position."""
+        if game_field is None:
+            return 0
+        try:
+            best_idx = 0
+            best_dist = float('inf')
+            for i in range(self._n_targets):
+                tgt = game_field.get_macro_target(i)
+                dx = target[0] - tgt[0]
+                dy = target[1] - tgt[1]
+                dist = dx * dx + dy * dy
+                if dist < best_dist:
+                    best_dist = dist
+                    best_idx = i
+            return best_idx
+        except Exception:
+            return 0
+    
+    def get_execution_controller(self) -> Optional[ExecutionController]:
+        """Get execution controller instance."""
+        return self._execution_controller
 
 
 __all__ = ["EnvActionManager"]
