@@ -831,6 +831,20 @@ class CTFViewer:
                 self.game_field.set_phase("OP3")
             except Exception:
                 pass
+    
+    def _set_phase(self, phase: str) -> None:
+        """Set phase (OP1, OP2, OP3) for both game_manager and game_field."""
+        phase_upper = str(phase).upper()
+        if hasattr(self.game_manager, "set_phase"):
+            try:
+                self.game_manager.set_phase(phase_upper)
+            except Exception:
+                pass
+        if hasattr(self.game_field, "set_phase"):
+            try:
+                self.game_field.set_phase(phase_upper)
+            except Exception:
+                pass
 
     def _available_modes(self) -> List[str]:
         """Cycle order: Default -> PPO -> MAPPO -> HPPO."""
@@ -1003,12 +1017,18 @@ class CTFViewer:
             print(f"[WARN] Requested model '{eval_model}' not loaded; using DEFAULT baseline.")
 
         # Set opponent
+        opponent_upper = str(opponent).upper()
         if hasattr(self.game_field, "set_red_opponent"):
             try:
-                self.game_field.set_red_opponent(str(opponent).upper())
+                self.game_field.set_red_opponent(opponent_upper)
             except Exception:
                 pass
-        self._set_phase_op3()
+        # Set phase to match opponent (OP1 -> OP1 phase, OP2 -> OP2 phase, OP3 -> OP3 phase)
+        if opponent_upper in ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD"):
+            phase = opponent_upper.replace("_EASY", "").replace("_HARD", "")
+            self._set_phase(phase)
+        else:
+            self._set_phase_op3()  # Default to OP3
 
         fixed_dt = 1.0 / 60.0
         max_steps_per_episode = 900 * 60  # ~900 seconds at 60 Hz
@@ -1602,6 +1622,10 @@ if __name__ == "__main__":
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
     parser.add_argument("--mappo-model", type=str, help="Path to MAPPO model .pth file (from train_mappo.py)")
+    parser.add_argument("--baseline", type=str, choices=["fixed_op3", "self_play", "curriculum_no_league"], 
+                        help="Test baseline mode: fixed_op3 (FIXED_OPPONENT OP3), self_play (SELF_PLAY), curriculum_no_league (CURRICULUM_NO_LEAGUE)")
+    parser.add_argument("--test-baseline", action="store_true", 
+                        help="Test baseline with display: run 10 episodes with opponent matching baseline config")
 
     args = parser.parse_args()
 
@@ -1612,7 +1636,77 @@ if __name__ == "__main__":
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
 
-    if getattr(args, "eval_fixed_opponents", False):
+    # Handle baseline testing mode
+    if getattr(args, "test_baseline", False) and args.baseline:
+        baseline = args.baseline.lower()
+        print(f"\n[Baseline Test] Testing {baseline.upper()} baseline with display...")
+        
+        if baseline == "fixed_op3":
+            # FIXED_OPPONENT(OP3): Always use OP3 opponent
+            print("[Baseline] Configuration: FIXED_OPPONENT mode with OP3 opponent")
+            summary = viewer.evaluate_model(
+                num_episodes=10,
+                save_csv=None,
+                headless=False,  # Always show display for baseline testing
+                opponent="OP3",
+                eval_model=args.eval_model,
+            )
+            print("\n[Baseline Test] Complete. Viewer will remain open.")
+            viewer.run()  # Keep viewer open after test
+            
+        elif baseline == "self_play":
+            # SELF_PLAY: Use OP3 as base opponent (self-play uses snapshots, but for viewer we use OP3)
+            print("[Baseline] Configuration: SELF_PLAY mode (using OP3 opponent for viewer)")
+            summary = viewer.evaluate_model(
+                num_episodes=10,
+                save_csv=None,
+                headless=False,
+                opponent="OP3",
+                eval_model=args.eval_model,
+            )
+            print("\n[Baseline Test] Complete. Viewer will remain open.")
+            viewer.run()
+            
+        elif baseline == "curriculum_no_league":
+            # CURRICULUM_NO_LEAGUE: Test progression OP1 -> OP2 -> OP3
+            print("[Baseline] Configuration: CURRICULUM_NO_LEAGUE mode (testing OP1, OP2, OP3)")
+            print("[Baseline] Running episodes vs OP1, OP2, OP3 sequentially...")
+            
+            results_by_phase = {}
+            for phase_opponent in ["OP1", "OP2", "OP3"]:
+                print(f"\n[Baseline] Testing vs {phase_opponent} (phase={phase_opponent})...")
+                summary = viewer.evaluate_model(
+                    num_episodes=5,  # Fewer episodes per phase for quick testing
+                    save_csv=None,
+                    headless=False,
+                    opponent=phase_opponent,
+                    eval_model=args.eval_model,
+                )
+                if summary:
+                    wr = summary.get("win_rate", 0.0)
+                    wins = summary.get("wins", 0)
+                    losses = summary.get("losses", 0)
+                    draws = summary.get("draws", 0)
+                    results_by_phase[phase_opponent] = {
+                        "win_rate": wr,
+                        "wins": wins,
+                        "losses": losses,
+                        "draws": draws,
+                    }
+                    print(f"[Baseline] {phase_opponent} Results: Win Rate={wr:.2%} (W/L/D: {wins}/{losses}/{draws})")
+            
+            # Print summary
+            print("\n" + "=" * 60)
+            print("CURRICULUM_NO_LEAGUE Baseline Test Summary")
+            print("=" * 60)
+            for phase, results in results_by_phase.items():
+                print(f"  {phase}: {results['win_rate']:.2%} WR ({results['wins']}W/{results['losses']}L/{results['draws']}D)")
+            print("=" * 60)
+            
+            print("\n[Baseline Test] Complete. Viewer will remain open.")
+            viewer.run()
+    
+    elif getattr(args, "eval_fixed_opponents", False):
         # Fixed-opponent evaluation: OP1, OP2, OP3; generalization drop
         viewer.evaluate_fixed_opponents(
             num_episodes_per_opp=getattr(args, "eval_fixed_n", 50),
