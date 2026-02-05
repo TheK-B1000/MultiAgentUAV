@@ -134,6 +134,7 @@ class GameManager:
     blue_inter_robot_distances: List[float] = field(default_factory=list)
     blue_zone_visited_cells: Set[Cell] = field(default_factory=set)
     total_blue_zone_cells: int = 0  # set by game_field for coverage denominator
+    blue_too_close_steps: Dict[Tuple[int, int], int] = field(default_factory=dict)  # (agent_id_pair) -> consecutive steps too close
 
     # --- exploration memory (team-level) ---
     blue_visited_cells: Set[Cell] = field(default_factory=set)
@@ -167,16 +168,37 @@ class GameManager:
         collision_events_delta: int = 0,  # only when pair enters collision (recommended for collision_free)
         blue_inter_robot_dist: Optional[float] = None,
         blue_zone_cells_this_tick: Optional[Set[Cell]] = None,
+        blue_agent_positions: Optional[List[Tuple[Any, FloatPos]]] = None,  # List[(agent, (x, y))]
     ) -> None:
         """IROS-style metrics: called by game_field each tick.
         collision_delta: per-tick contact count (legacy, can inflate).
         collision_events_delta: count only when a pair *enters* collision (recommended for collision_free_rate).
+        blue_agent_positions: List of (agent, (x, y)) for anti-clump penalty.
         """
         self.collision_count_this_episode += int(collision_delta)
         self.near_miss_count_this_episode += int(near_miss_delta)
         self.collision_events_this_episode += int(collision_events_delta)
         if blue_inter_robot_dist is not None and math.isfinite(blue_inter_robot_dist):
             self.blue_inter_robot_distances.append(float(blue_inter_robot_dist))
+        
+        # Anti-clump penalty: penalize agents that are too close for k consecutive steps
+        if blue_agent_positions is not None and len(blue_agent_positions) >= 2:
+            min_dist = float(ANTI_CLUMP_MIN_DIST_CELLS)
+            for i, (ai, pos_i) in enumerate(blue_agent_positions):
+                if ai is None or not getattr(ai, "isEnabled", lambda: True)():
+                    continue
+                for j, (aj, pos_j) in enumerate(blue_agent_positions[i+1:], start=i+1):
+                    if aj is None or not getattr(aj, "isEnabled", lambda: True)():
+                        continue
+                    dist = math.hypot(pos_i[0] - pos_j[0], pos_i[1] - pos_j[1])
+                    pair_key = (id(ai), id(aj)) if id(ai) < id(aj) else (id(aj), id(ai))
+                    if dist < min_dist:
+                        self.blue_too_close_steps[pair_key] = self.blue_too_close_steps.get(pair_key, 0) + 1
+                        if self.blue_too_close_steps[pair_key] >= ANTI_CLUMP_STEPS_THRESHOLD:
+                            self.add_agent_reward(ai, ANTI_CLUMP_PENALTY)
+                            self.add_agent_reward(aj, ANTI_CLUMP_PENALTY)
+                    else:
+                        self.blue_too_close_steps.pop(pair_key, None)
         if blue_zone_cells_this_tick:
             self.blue_zone_visited_cells.update(blue_zone_cells_this_tick)
 
@@ -733,6 +755,11 @@ class GameManager:
                         self.blue_captures_this_episode[idx] += 1
                     except (ValueError, AttributeError):
                         pass
+                
+                # First capture bonus: reward first flag capture in episode
+                if not self.first_capture_rewarded:
+                    self.add_agent_reward(agent, FIRST_CAPTURE_BONUS)
+                    self.first_capture_rewarded = True
 
                 return True
 
