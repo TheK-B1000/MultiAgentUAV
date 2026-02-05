@@ -371,6 +371,17 @@ class CTFGameFieldSB3Env(gym.Env):
         self._reward_id_map = build_reward_id_map(self._blue_identities)
         self._dropped_reward_events_this_step = 0
         self._dropped_reward_events_this_episode = 0
+        
+        # Break symmetry with role tokens: assign each agent a role (attacker/defender/escort)
+        # Roles are randomized each episode to prevent specialization collapse
+        n_roles = 3  # attacker, defender, escort
+        self._agent_roles = []
+        for i in range(max_for_identity):
+            role_idx = np.random.randint(0, n_roles) if i < len(blue_agents_list) else 0
+            self._agent_roles.append(role_idx)
+        # Store in obs builder for vec_append_fn
+        if hasattr(self._obs_builder, "set_agent_roles"):
+            self._obs_builder.set_agent_roles(self._agent_roles)
 
         # Reset episode-level tracking in managers
         self._reward_manager.reset_episode(n_agents=self._n_blue_agents)
