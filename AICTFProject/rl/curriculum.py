@@ -312,8 +312,10 @@ class CurriculumController:
             import numpy as np
             weights_np = np.array(weights, dtype=np.float64)
             weights_np = weights_np / weights_np.sum()  # Normalize
-            idx = self.rng.choice(len(candidates), p=weights_np)
-            return candidates[idx]
+            # Use numpy random for weighted sampling (self.rng is random.Random which doesn't support p parameter)
+            np_rng = np.random.RandomState(self.rng.randint(0, 2**31))
+            idx = np_rng.choice(len(candidates), p=weights_np)
+            return candidates[int(idx)]
         
         return default_spec
 
