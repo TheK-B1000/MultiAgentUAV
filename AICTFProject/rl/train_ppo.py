@@ -179,6 +179,9 @@ class PPOConfig:
     enable_opponent_tracking: bool = True  # Track opponent distribution and results
     opponent_tracking_window: int = 100  # Rolling window size for opponent stats
     enable_fixed_eval: bool = True  # Run fixed eval suite (no learning)
+    # League species / RUSHER: increase species exposure and bias toward RUSHER to fix RUSHER weakness
+    stability_species_prob: float = 0.15  # Fraction of league episodes vs species (BALANCED/RUSHER/CAMPER)
+    species_rusher_bias: float = 0.5  # When species is picked, probability of forcing RUSHER (0=uniform)
     fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
     fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
     # Reduced aggressiveness (if training unstable)
@@ -1000,7 +1003,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    # Sprint A: League with stability mix (70% scripted, 20% snapshot, 10% species)
+    # Sprint A: League with stability mix; higher species + RUSHER bias to remediate RUSHER weakness
+    _species_prob = getattr(cfg, "stability_species_prob", 0.15)
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
@@ -1008,12 +1012,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         scripted_floor=0.50,
         species_prob=0.20,
         snapshot_prob=0.30,
-        # Stability mix configuration
-        stability_scripted_prob=0.70,
+        stability_scripted_prob=1.0 - 0.20 - _species_prob,  # 65% scripted when species=15%
         stability_snapshot_prob=0.20,
-        stability_species_prob=0.10,
+        stability_species_prob=_species_prob,
         use_stability_mix=True,
         min_episodes_per_opponent=3,  # Cap opponent switching frequency
+        species_rusher_bias=getattr(cfg, "species_rusher_bias", 0.5),
     )
 
     curriculum: Optional[CurriculumState] = None
