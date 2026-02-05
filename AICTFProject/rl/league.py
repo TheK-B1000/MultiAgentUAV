@@ -36,6 +36,8 @@ class EloLeague:
         use_stability_mix: bool = True,
         # Opponent switching frequency cap
         min_episodes_per_opponent: int = 3,  # Don't switch opponents more than once per N episodes
+        # Remediate RUSHER weakness: when sampling species, with this probability force RUSHER (0 = uniform)
+        species_rusher_bias: float = 0.0,
     ) -> None:
         self.rng = random.Random(int(seed))
         self.k = float(k_factor)
@@ -50,6 +52,7 @@ class EloLeague:
         self.stability_snapshot_prob = float(stability_snapshot_prob)
         self.stability_species_prob = float(stability_species_prob)
         self.min_episodes_per_opponent = max(1, int(min_episodes_per_opponent))
+        self.species_rusher_bias = max(0.0, min(1.0, float(species_rusher_bias)))
         
         # Track last opponent and episode count for switching cap
         self._last_opponent_key: Optional[str] = None
@@ -166,7 +169,10 @@ class EloLeague:
             else:
                 r -= self.scripted_floor
                 if r < self.species_prob:
-                    key = self._weighted_pick(self.species_keys, target)
+                    if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
+                        key = "SPECIES:RUSHER"
+                    else:
+                        key = self._weighted_pick(self.species_keys, target)
                     tag = key.split(":", 1)[1]
                     opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
                 elif self.snapshots:
@@ -215,9 +221,12 @@ class EloLeague:
         
         r -= self.stability_snapshot_prob
         
-        # 10% species variants
+        # Species variants (RUSHER bias to remediate weakness)
         if r < self.stability_species_prob:
-            key = self._weighted_pick(self.species_keys, target_rating)
+            if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
+                key = "SPECIES:RUSHER"
+            else:
+                key = self._weighted_pick(self.species_keys, target_rating)
             tag = key.split(":", 1)[1]
             return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
         
