@@ -133,7 +133,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_league_curriculum_v5"
+    run_tag: str = "ppo_league_curriculum_v3"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -337,6 +337,9 @@ class LeagueCallback(BaseCallback):
                 print(f"[WARN] league snapshot cleanup failed: {exc}")
 
     def _select_next_opponent(self) -> OpponentSpec:
+        if self.league_mode:
+            # Sprint A: Pass phase to league for stability mix
+            return self.league.sample_league(phase=self.curriculum.phase)
         return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
     
     def _update_opponent_stats(self, opp_key: str, result: str):
@@ -997,6 +1000,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
+    # Sprint A: League with stability mix (70% scripted, 20% snapshot, 10% species)
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
@@ -1004,6 +1008,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         scripted_floor=0.50,
         species_prob=0.20,
         snapshot_prob=0.30,
+        # Stability mix configuration
+        stability_scripted_prob=0.70,
+        stability_snapshot_prob=0.20,
+        stability_species_prob=0.10,
+        use_stability_mix=True,
+        min_episodes_per_opponent=3,  # Cap opponent switching frequency
     )
 
     curriculum: Optional[CurriculumState] = None
