@@ -1663,7 +1663,7 @@ if __name__ == "__main__":
             print("[Baseline] Configuration: FIXED_OPPONENT mode with OP3 opponent")
             summary = viewer.evaluate_model(
                 num_episodes=num_episodes,
-                save_csv=None,
+                save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_fixed_op3_OP3_{num_episodes}ep.csv"),
                 headless=False,  # Always show display for baseline testing
                 opponent="OP3",
                 eval_model=args.eval_model,
@@ -1676,7 +1676,7 @@ if __name__ == "__main__":
             print("[Baseline] Configuration: SELF_PLAY mode (using OP3 opponent for viewer)")
             summary = viewer.evaluate_model(
                 num_episodes=num_episodes,
-                save_csv=None,
+                save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_self_play_OP3_{num_episodes}ep.csv"),
                 headless=False,
                 opponent="OP3",
                 eval_model=args.eval_model,
@@ -1694,7 +1694,7 @@ if __name__ == "__main__":
                 print(f"\n[Baseline] Testing vs {phase_opponent} (phase={phase_opponent})...")
                 summary = viewer.evaluate_model(
                     num_episodes=num_episodes,
-                    save_csv=None,
+                    save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_curriculum_no_league_{phase_opponent}_{num_episodes}ep.csv"),
                     headless=False,
                     opponent=phase_opponent,
                     eval_model=args.eval_model,
