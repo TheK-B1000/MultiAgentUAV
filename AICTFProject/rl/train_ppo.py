@@ -119,7 +119,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 2_000_000
+    total_timesteps: int = 4_000_000
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -256,14 +256,14 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
                 sz = min(n_macros, mask.shape[1] - offset)
                 if sz > 0:
                     full_mask.append(mask[:, offset: offset + sz])
-                    offset += n_macros
+                    offset += sz  # ✅ Fix: Increment by sz (actual size used), not n_macros
                 else:
                     full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
             else:  # target
                 sz = min(n_targets, mask.shape[1] - offset)
                 if sz > 0 and n_targets > 0:
                     full_mask.append(mask[:, offset: offset + sz])
-                    offset += n_targets
+                    offset += sz  # ✅ Fix: Increment by sz (actual size used), not n_targets
                 else:
                     full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
 
@@ -389,7 +389,8 @@ class LeagueCallback(BaseCallback):
             losses = stats.get("losses", 0)
             draws = stats.get("draws", 0)
             total = stats.get("total", 0)
-            wr = (wins / max(1, wins + losses)) * 100 if (wins + losses) > 0 else 0.0
+            # ✅ Fix: Include draws in win-rate calculation (wins / total, not wins / (wins + losses))
+            wr = (wins / max(1, total)) * 100 if total > 0 else 0.0
             parts.append(f"{opp_key}:{count}({wins}W/{losses}L/{draws}D,{wr:.0f}%WR)")
         print(" | ".join(parts))
 
@@ -429,6 +430,8 @@ class LeagueCallback(BaseCallback):
             opp_key = summary.opponent_key()
             self.league.update_elo(opp_key, actual)
             self.controller.record_result(opp_key, actual)
+            # ✅ Fix: Actually call _update_opponent_stats to track opponent distribution
+            self._update_opponent_stats(opp_key, result)
 
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
@@ -500,28 +503,16 @@ class LeagueCallback(BaseCallback):
                     self.league.learner_rating < threshold):
                 next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
             
-            # Step 3: Fix per-env opponent setting (VecEnv issue)
-            # Set opponent only for the env that just finished (index i)
+            # ✅ Fix: Use indices=[i] with env_method for opponent/phase/league_mode setting
+            # This works for both DummyVecEnv and SubprocVecEnv (SB3 handles indices correctly)
             env = self.model.get_env()
             if env is not None:
-                # Set opponent only for the specific environment that finished
                 try:
-                    # For VecEnv, set opponent only for env at index i
-                    if hasattr(env, "envs") and i < len(env.envs):
-                        single_env = env.envs[i]
-                        if hasattr(single_env, "set_next_opponent"):
-                            single_env.set_next_opponent(next_opp.kind, next_opp.key)
-                        if hasattr(single_env, "set_phase"):
-                            single_env.set_phase(self.curriculum.phase)
-                        if hasattr(single_env, "set_league_mode"):
-                            single_env.set_league_mode(self.league_mode)
-                    else:
-                        # Fallback: set for all envs (original behavior)
-                        env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
-                        env.env_method("set_phase", self.curriculum.phase)
-                        env.env_method("set_league_mode", self.league_mode)
-                except Exception as exc:
-                    # Fallback on error
+                    env.env_method("set_next_opponent", next_opp.kind, next_opp.key, indices=[i])
+                    env.env_method("set_phase", self.curriculum.phase, indices=[i])
+                    env.env_method("set_league_mode", self.league_mode, indices=[i])
+                except Exception:
+                    # Fallback: if indices fails, try without (for compatibility)
                     try:
                         env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
                         env.env_method("set_phase", self.curriculum.phase)
