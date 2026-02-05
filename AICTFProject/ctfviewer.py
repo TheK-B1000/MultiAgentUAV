@@ -5,6 +5,22 @@ import math
 from typing import Optional, Tuple, Any, List, Dict
 
 import numpy as np
+
+# NumPy 1.x compatibility: models saved with NumPy 2.x reference numpy._core.*.
+# On NumPy 1.x those live under numpy.core. Shim so loading works without upgrading.
+if not hasattr(np, "_core"):
+    import types
+    _core = types.ModuleType("numpy._core")
+    _core.__path__ = []  # make it a package so "import numpy._core.multiarray" works
+    sys.modules["numpy._core"] = _core
+    for _name in ("numeric", "multiarray", "umath"):
+        try:
+            _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
+            setattr(_core, _name, _sub)
+            sys.modules[f"numpy._core.{_name}"] = _sub
+        except Exception:
+            pass
+
 import pygame as pg
 
 # SB3/torch imported lazily when loading a PPO/HPPO model (avoids DLL errors if viewer runs scripted-only)
@@ -1014,16 +1030,16 @@ class CTFViewer:
         try:
             for ep_idx in range(num_episodes):
                 episode_id += 1
-            self.game_field.reset_default()
-            self._set_phase_op3()
-            self.sim_tick = 0
-            if self.blue_mappo_team:
-                self.blue_mappo_team.reset_cache()
-            if self.blue_ppo_team:
-                self.blue_ppo_team.reset_cache()
-            if self.blue_hppo_team:
-                self.blue_hppo_team.reset_cache()
-                self._reset_op3_policies()
+                self.game_field.reset_default()
+                self._set_phase_op3()
+                self.sim_tick = 0
+                if self.blue_mappo_team:
+                    self.blue_mappo_team.reset_cache()
+                if self.blue_ppo_team:
+                    self.blue_ppo_team.reset_cache()
+                if self.blue_hppo_team:
+                    self.blue_hppo_team.reset_cache()
+                    self._reset_op3_policies()
 
                 step_count = 0
                 running_episode = True
