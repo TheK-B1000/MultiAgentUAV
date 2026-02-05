@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, List
+from typing import Any, Deque, Dict, List, Optional
 
 from collections import deque
 
