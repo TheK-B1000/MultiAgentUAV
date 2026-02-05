@@ -14,7 +14,7 @@ from stable_baselines3.common.policies import MultiInputActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, NatureCNN
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor, VecNormalize
 
 from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
@@ -31,6 +31,144 @@ from rl.episode_result import parse_episode_result, EpisodeSummary
 from config import MAP_NAME, MAP_PATH
 
 
+def run_fixed_eval_suite(
+    model: Any,
+    cfg: PPOConfig,
+    logger: Optional[Any] = None,
+) -> Dict[str, Dict[str, float]]:
+    """
+    Run deterministic evaluation on fixed opponents (no learning).
+    
+    Args:
+        model: PPO model to evaluate
+        cfg: PPOConfig with fixed_eval settings
+        logger: Optional logger for recording metrics
+    
+    Returns:
+        Dict mapping opponent_key -> {win_rate, mean_score, mean_time_to_first_score, wins, losses, draws}
+    """
+    if model is None:
+        return {}
+    
+    results = {}
+    
+    # Fixed opponents for eval suite
+    fixed_opponents: List[Tuple[str, str]] = [
+        ("SCRIPTED", "OP1"),
+        ("SCRIPTED", "OP2"),
+        ("SCRIPTED", "OP3"),
+        ("SCRIPTED", "OP3_HARD"),
+        # Optional: add species if desired
+        # ("SPECIES", "BALANCED"),
+    ]
+    
+    print(f"[FixedEval] Running evaluation suite ({cfg.fixed_eval_episodes} episodes per opponent)...")
+    
+    for opp_kind, opp_key in fixed_opponents:
+        opp_full_key = f"{opp_kind}:{opp_key}"
+        
+        # Create eval environment
+        eval_env_fn = _make_env_fn(
+            cfg,
+            default_opponent=(opp_kind, opp_key),
+            rank=9999,  # Different seed for eval
+        )
+        eval_env = DummyVecEnv([eval_env_fn])
+        
+        # Set opponent explicitly
+        try:
+            eval_env.env_method("set_next_opponent", opp_kind, opp_key)
+        except Exception:
+            pass
+        
+        wins = 0
+        losses = 0
+        draws = 0
+        blue_scores = []
+        red_scores = []
+        times_to_first_score = []
+        
+        # Run deterministic episodes
+        for ep in range(cfg.fixed_eval_episodes):
+            obs, _ = eval_env.reset()
+            done = False
+            step_count = 0
+            max_steps = cfg.max_decision_steps * 2  # Safety limit
+            
+            while not done and step_count < max_steps:
+                action, _ = model.predict(obs, deterministic=True)
+                obs, _, done, infos = eval_env.step(action)
+                step_count += 1
+                
+                if done[0]:
+                    info = infos[0] if isinstance(infos, list) else infos
+                    summary = parse_episode_result(info)
+                    if summary:
+                        blue_score = summary.blue_score
+                        red_score = summary.red_score
+                        blue_scores.append(blue_score)
+                        red_scores.append(red_score)
+                        
+                        time_to_first = getattr(summary, "time_to_first_score", None)
+                        if time_to_first is not None:
+                            times_to_first_score.append(float(time_to_first))
+                        
+                        if blue_score > red_score:
+                            wins += 1
+                        elif blue_score < red_score:
+                            losses += 1
+                        else:
+                            draws += 1
+                    break
+        
+        eval_env.close()
+        
+        total = wins + losses + draws
+        win_rate = (wins / max(1, total)) * 100.0 if total > 0 else 0.0
+        mean_score = float(np.mean(blue_scores)) if blue_scores else 0.0
+        mean_time_to_first = float(np.mean(times_to_first_score)) if times_to_first_score else None
+        
+        results[opp_full_key] = {
+            "win_rate": win_rate,
+            "mean_score": mean_score,
+            "mean_time_to_first_score": mean_time_to_first if mean_time_to_first is not None else 0.0,
+            "wins": wins,
+            "losses": losses,
+            "draws": draws,
+        }
+        
+        # Log to logger if provided
+        if logger is not None:
+            logger.record(f"fixed_eval/{opp_key.lower()}_winrate", win_rate / 100.0)  # Normalize to [0,1]
+            logger.record(f"fixed_eval/{opp_key.lower()}_mean_score", mean_score)
+            if mean_time_to_first is not None:
+                logger.record(f"fixed_eval/{opp_key.lower()}_mean_time_to_first", mean_time_to_first)
+            logger.record(f"fixed_eval/{opp_key.lower()}_wins", float(wins))
+            logger.record(f"fixed_eval/{opp_key.lower()}_losses", float(losses))
+            logger.record(f"fixed_eval/{opp_key.lower()}_draws", float(draws))
+        
+        print(
+            f"[FixedEval] {opp_full_key}: "
+            f"{wins}W/{losses}L/{draws}D "
+            f"(WR={win_rate:.1f}%, mean_score={mean_score:.2f}"
+            + (f", mean_time_to_first={mean_time_to_first:.2f}s" if mean_time_to_first is not None else "")
+            + ")"
+        )
+    
+    print("[FixedEval] Evaluation suite complete")
+    return results
+
+
+def linear_schedule(initial_value: float):
+    """
+    Linear learning rate or clip_range schedule.
+    Returns a callable that takes progress_remaining (1.0 at start, 0.0 at end).
+    """
+    def func(progress_remaining: float) -> float:
+        return progress_remaining * initial_value
+    return func
+
+
 class TokenizedCombinedExtractor(BaseFeaturesExtractor):
     """
     Feature extractor for tokenized/set-based obs: agents as sequence of tokens.
@@ -38,7 +176,7 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
     Enables zero-shot: train 2v2 (mask 2), test 4v4 or 8v8 (mask 4 or 8).
     """
 
-    def __init__(self, observation_space, cnn_output_dim: int = 256, normalized_image: bool = True):
+    def __init__(self, observation_space, cnn_output_dim: int = 128, normalized_image: bool = True):
         import gymnasium as gym
         from gymnasium import spaces
         from stable_baselines3.common.preprocessing import get_flattened_obs_dim
@@ -120,7 +258,7 @@ class TrainMode(str, Enum):
 class PPOConfig:
     seed: int = 42
     total_timesteps: int = 2_000_000
-    n_envs: int = 4
+    n_envs: int = 8  # CPU-friendly: increased for parallel experience collection
     n_steps: int = 2048
     batch_size: int = 512
     n_epochs: int = 10
@@ -180,9 +318,9 @@ class PPOConfig:
     opponent_tracking_window: int = 100  # Rolling window size for opponent stats
     enable_fixed_eval: bool = True  # Run fixed eval suite (no learning)
     fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
-    fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
-    # Reduced aggressiveness (if training unstable)
-    use_reduced_aggressiveness: bool = False  # Enable gentler updates
+    fixed_eval_episodes: int = 50  # Episodes per opponent in fixed eval (minimum for reliable metrics)
+    # Reduced aggressiveness (CPU-friendly: enabled by default for stability)
+    use_reduced_aggressiveness: bool = True  # Enable gentler updates (better for CPU training)
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -337,7 +475,12 @@ class LeagueCallback(BaseCallback):
                 print(f"[WARN] league snapshot cleanup failed: {exc}")
 
     def _select_next_opponent(self) -> OpponentSpec:
-        return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
+        # Pass opponent_stats for biased matchmaking
+        return self.controller.select_opponent(
+            self.curriculum.phase,
+            league_mode=self.league_mode,
+            opponent_stats=self._opponent_stats if self._enable_opponent_tracking else None,
+        )
     
     def _update_opponent_stats(self, opp_key: str, result: str):
         """Track opponent distribution and results (Step 1)."""
@@ -427,6 +570,8 @@ class LeagueCallback(BaseCallback):
                 self.draw_count += 1
 
             opp_key = summary.opponent_key()
+            # Fix missing call: update opponent stats for matchmaking bias
+            self._update_opponent_stats(opp_key, result)
             self.league.update_elo(opp_key, actual)
             self.controller.record_result(opp_key, actual)
 
@@ -472,6 +617,23 @@ class LeagueCallback(BaseCallback):
                 # Step 1: Print opponent distribution every N episodes
                 if self._enable_opponent_tracking and (self.episode_idx % 50 == 0):
                     self._print_opponent_distribution()
+            
+            # Fixed eval suite: run deterministic evaluation on fixed opponents
+            if (getattr(self.cfg, "enable_fixed_eval", False) and 
+                self.episode_idx > 0 and 
+                self.episode_idx % getattr(self.cfg, "fixed_eval_every_episodes", 500) == 0):
+                try:
+                    # BaseCallback provides self.model
+                    if hasattr(self, "model") and self.model is not None:
+                        run_fixed_eval_suite(
+                            model=self.model,
+                            cfg=self.cfg,
+                            logger=self.logger,
+                        )
+                    else:
+                        print("[WARN] Fixed eval suite: model not accessible, skipping")
+                except Exception as exc:
+                    print(f"[WARN] Fixed eval suite failed: {exc}")
 
             self.logger.record("curr/episode", self.episode_idx)
             self.logger.record("curr/win_rate", self.win_count / max(1, self.episode_idx))
@@ -1064,11 +1226,19 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
         for i in range(max(1, int(cfg.n_envs)))
     ]
+    # CPU threading optimization: set before creating model
+    torch.set_num_threads(max(1, os.cpu_count() - 1))
+    torch.set_num_interop_threads(1)
+    print(f"[PPO] CPU threading: {torch.get_num_threads()} threads, interop: {torch.get_num_interop_threads()}")
+
     try:
         venv = SubprocVecEnv(env_fns)
     except Exception:
         venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
+    # VecNormalize: normalize observations and rewards for stability
+    # Note: For tokenized obs with role tokens, vec shape may change - VecNormalize handles Dict spaces per-key
+    venv = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=10.0)
 
     # Naval realism: stress + physics-by-phase (OP1 no physics, OP2 relaxed, OP3 full)
     try:
@@ -1080,22 +1250,27 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     except Exception:
         pass
 
-    policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
+    # CPU-friendly: reduced network size for faster updates
+    policy_kwargs = dict(net_arch=dict(pi=[128, 128], vf=[128, 128]))
     obs_spaces = getattr(venv.observation_space, "spaces", None) or {}
     if "agent_mask" in obs_spaces:
         policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
-        policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
+        policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=128, normalized_image=True)
 
     # Step 4: Reduced aggressiveness if training unstable
-    learning_rate = float(cfg.learning_rate)
+    base_learning_rate = float(cfg.learning_rate)
+    base_clip_range = float(cfg.clip_range)
     ent_coef = float(cfg.ent_coef)
-    clip_range = float(cfg.clip_range)
     
     if getattr(cfg, "use_reduced_aggressiveness", False):
-        learning_rate = learning_rate * 0.67  # 3e-4 -> 2e-4, or scale down
+        base_learning_rate = base_learning_rate * 0.67  # 3e-4 -> 2e-4, or scale down
         ent_coef = ent_coef * 0.5  # 0.01 -> 0.005
-        clip_range = clip_range * 0.75  # 0.2 -> 0.15
-        print(f"[PPO] Using reduced aggressiveness: LR={learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={clip_range:.2f}")
+        base_clip_range = base_clip_range * 0.75  # 0.2 -> 0.15
+        print(f"[PPO] Using reduced aggressiveness: LR={base_learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={base_clip_range:.2f}")
+    
+    # Use schedules for LR and clip_range (linear decay)
+    learning_rate = linear_schedule(base_learning_rate)
+    clip_range = linear_schedule(base_clip_range)
     
     model = PPO(
         policy=MaskedMultiInputPolicy,
@@ -1120,6 +1295,73 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         seed=cfg.seed,
         device=cfg.device,
     )
+
+    # PyTorch compile (big performance win if supported, skip if errors or no compiler)
+    # Note: torch.compile requires a C++ compiler on Windows (cl.exe) which may not be available
+    # Also, action masking code may cause graph breaks, so compile may not work well
+    # On Windows, check if compiler is available before attempting compile
+    try:
+        if hasattr(torch, "compile") and torch.__version__ >= "2.0":
+            import sys
+            import shutil
+            should_skip_compile = False
+            
+            if sys.platform == "win32":
+                # Check if C++ compiler (cl.exe) is available
+                compiler_found = shutil.which("cl.exe") is not None
+                if not compiler_found:
+                    print("[PPO] torch.compile() skipped on Windows: C++ compiler (cl.exe) not found")
+                    print("[PPO]   To enable torch.compile() for better performance:")
+                    print("[PPO]   1. Download 'Build Tools for Visual Studio 2022' (free)")
+                    print("[PPO]      https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022")
+                    print("[PPO]   2. Run installer, select 'Desktop development with C++' workload")
+                    print("[PPO]   3. After installation, restart your terminal/Python environment")
+                    print("[PPO]   4. Training will automatically detect and use the compiler")
+                    print("[PPO]   Note: Compilation may still fail due to action masking graph breaks")
+                    should_skip_compile = True
+                else:
+                    print("[PPO] C++ compiler found, attempting torch.compile() (may still fail due to action masking graph breaks)")
+            
+            if not should_skip_compile:
+                # Try to compile (Windows with compiler, or non-Windows systems)
+                try:
+                    model.policy = torch.compile(model.policy, mode="reduce-overhead")
+                    # Test compilation with a dummy forward pass to catch errors early
+                    # torch.compile is lazy, so errors only show up on first use
+                    try:
+                        # Create dummy observation matching the observation space
+                        dummy_obs = {}
+                        for k, v in venv.observation_space.spaces.items():
+                            if hasattr(v, "shape"):
+                                shape = v.shape
+                                if len(shape) > 0:
+                                    dummy_obs[k] = torch.zeros((1, *shape), dtype=torch.float32)
+                                else:
+                                    dummy_obs[k] = torch.zeros((1,), dtype=torch.float32)
+                        if dummy_obs:
+                            with torch.no_grad():
+                                _ = model.policy(dummy_obs)
+                            print("[PPO] Policy network compiled with torch.compile() (tested successfully)")
+                        else:
+                            print("[PPO] Policy network compiled with torch.compile() (test skipped - no observation space)")
+                    except Exception as test_err:
+                        # Compilation failed during test - warn but continue (can't easily revert)
+                        error_msg = str(test_err).lower()
+                        if "compiler" in error_msg or "inductor" in error_msg:
+                            print(f"[PPO] torch.compile() test failed (compiler/inductor issue): {test_err}")
+                            print("[PPO] Warning: Training may fail - consider disabling compile or installing C++ compiler")
+                        else:
+                            print(f"[PPO] torch.compile() test failed: {test_err}")
+                            print("[PPO] Continuing anyway - errors may occur during training")
+                except Exception as compile_err:
+                    error_msg = str(compile_err).lower()
+                    if "compiler" in error_msg or "cl" in error_msg or "not found" in error_msg:
+                        print(f"[PPO] torch.compile() skipped: C++ compiler not available")
+                    else:
+                        print(f"[PPO] torch.compile() failed (skipping): {compile_err}")
+    except Exception as e:
+        # Catch any other errors
+        print(f"[PPO] torch.compile() check failed (skipping): {e}")
 
     if cfg.enable_tensorboard:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
@@ -1273,6 +1515,13 @@ def run_test_vec_schema() -> None:
 
 
 if __name__ == "__main__":
+    # Windows stability: set multiprocessing start method before creating VecEnv
+    import multiprocessing as mp
+    try:
+        mp.set_start_method("spawn", force=True)
+    except RuntimeError:
+        pass  # Already set or not on Windows
+    
     import sys
     if "--verify-4v4" in sys.argv:
         run_verify_4v4(num_episodes=10)
