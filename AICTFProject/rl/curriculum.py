@@ -230,41 +230,92 @@ class CurriculumController:
             self._tier_recent.clear()
             self._episodes_in_tier = 0
 
-    def select_opponent(self, phase: str, *, league_mode: bool) -> OpponentSpec:
+    def select_opponent(self, phase: str, *, league_mode: bool, opponent_stats: Optional[Dict[str, Dict[str, int]]] = None) -> OpponentSpec:
+        """
+        Select opponent with optional bias toward opponents where win rate is low.
+        opponent_stats: Dict[opp_key, {wins, losses, draws, total}] for rolling window.
+        """
         if league_mode:
             return self.league.sample_league()
 
         phase = str(phase).upper()
         if phase != "OP3":
             return self.league.sample_curriculum(phase)
+        
+        # Use opponent_stats to bias matchmaking: over-sample opponents with low win rate
+        opp_winrates: Dict[str, float] = {}
+        if opponent_stats is not None and len(opponent_stats) > 0:
+            # Compute win rates
+            for opp_key, stats in opponent_stats.items():
+                wins = stats.get("wins", 0)
+                losses = stats.get("losses", 0)
+                total = wins + losses
+                if total > 0:
+                    opp_winrates[opp_key] = wins / float(total)
+                else:
+                    opp_winrates[opp_key] = 0.5  # Unknown: neutral
+        
+        # Keep minimum diversity: sample from scripted + species + snapshots with bias
+        candidates: List[OpponentSpec] = []
+        weights: List[float] = []
 
-        # OP3 adversarial curriculum
+        # OP3 adversarial curriculum: add to candidates with bias
         if self.current_tier == "OP3_EASY":
             if len(self._tier_recent) >= int(self.cfg.window):
                 wr = sum(self._tier_recent) / float(len(self._tier_recent))
                 if wr >= float(self.cfg.easy_op3_trigger_winrate):
-                    if self.rng.random() < float(self.cfg.easy_op3_prob):
-                        return OpponentSpec(
-                            kind="SCRIPTED",
-                            key="OP3",
-                            rating=self.league.get_rating("SCRIPTED:OP3"),
-                        )
+                    spec = OpponentSpec(
+                        kind="SCRIPTED",
+                        key="OP3",
+                        rating=self.league.get_rating("SCRIPTED:OP3"),
+                    )
+                    candidates.append(spec)
+                    # Bias: lower win rate = higher weight
+                    wr_bias = 1.0 - opp_winrates.get("SCRIPTED:OP3", 0.5) if opponent_stats and len(opp_winrates) > 0 else 1.0
+                    weights.append(max(0.1, wr_bias))
+        
+        # Species opponents
         if (
             self.cfg.enable_species
             and self._episode_count >= int(self.cfg.allow_species_after)
-            and self.rng.random() < float(self.cfg.species_prob)
         ):
-            return self.league.sample_species()
-
+            try:
+                spec = self.league.sample_species()
+                candidates.append(spec)
+                wr_bias = 1.0 - opp_winrates.get(spec.key, 0.5) if opponent_stats and len(opp_winrates) > 0 else 1.0
+                weights.append(max(0.1, wr_bias))
+            except Exception:
+                pass
+        
+        # Snapshots
         if (
             self.cfg.enable_snapshots
             and self._episode_count >= int(self.cfg.allow_snapshots_after)
-            and self.rng.random() < float(self.cfg.snapshot_prob)
         ):
-            return self.league.sample_snapshot()
-
+            try:
+                spec = self.league.sample_snapshot()
+                candidates.append(spec)
+                wr_bias = 1.0 - opp_winrates.get(spec.key, 0.5) if opponent_stats and len(opp_winrates) > 0 else 1.0
+                weights.append(max(0.1, wr_bias))
+            except Exception:
+                pass
+        
+        # Default scripted opponent
         tag = self.current_tier
-        return OpponentSpec(kind="SCRIPTED", key=tag, rating=self.league.get_rating(f"SCRIPTED:{tag}"))
+        default_spec = OpponentSpec(kind="SCRIPTED", key=tag, rating=self.league.get_rating(f"SCRIPTED:{tag}"))
+        candidates.append(default_spec)
+        wr_bias = 1.0 - opp_winrates.get(f"SCRIPTED:{tag}", 0.5) if opponent_stats and len(opp_winrates) > 0 else 1.0
+        weights.append(max(0.1, wr_bias))
+        
+        # Sample with bias if we have candidates, otherwise fallback
+        if candidates and len(weights) == len(candidates):
+            import numpy as np
+            weights_np = np.array(weights, dtype=np.float64)
+            weights_np = weights_np / weights_np.sum()  # Normalize
+            idx = self.rng.choice(len(candidates), p=weights_np)
+            return candidates[idx]
+        
+        return default_spec
 
     def robustness_metrics(self) -> Dict[str, float]:
         winrates = []
