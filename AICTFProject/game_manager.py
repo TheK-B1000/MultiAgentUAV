@@ -25,6 +25,11 @@ DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env bindi
 DEFENSE_SHAPING_MULT = 2.0
 DEFENSE_CARRIER_PROGRESS_COEF = 0.15
 
+# Sprint A: Minimal shaping rewards (progress-to-flag/home)
+PROGRESS_TO_FLAG_COEF = 0.05  # Small reward for moving toward enemy flag
+PROGRESS_TO_HOME_COEF = 0.05  # Small reward for moving toward home (when carrying flag)
+PROGRESS_REWARD_THRESHOLD = 0.1  # Minimum distance change to trigger reward
+
 # Optional low-magnitude extras (safe defaults)
 EXPLORATION_REWARD = 0.01
 COORDINATION_BONUS = 0.3
@@ -952,6 +957,9 @@ class GameManager:
             visited.add(cell)
             self.add_agent_reward(agent, EXPLORATION_REWARD)
 
+        # Sprint A: Minimal shaping rewards for progress-to-flag/home
+        self._apply_progress_rewards(agent, start_pos, end_pos, side, i_am_carrier, enemy_has_our_flag, carrier)
+        
         # Offense: reward crossing midline (once per side transition)
         mid_x = float(self.cols) * 0.5
         in_enemy_half = (ex > mid_x) if side == "blue" else (ex < mid_x)
@@ -1091,6 +1099,60 @@ class GameManager:
 
     def record_mine_triggered_by_red(self) -> None:
         self.mines_triggered_by_red_this_episode += 1
+    
+    def _apply_progress_rewards(
+        self,
+        agent: Any,
+        start_pos: FloatPos,
+        end_pos: FloatPos,
+        side: str,
+        i_am_carrier: bool,
+        enemy_has_our_flag: bool,
+        carrier: Optional[Any],
+    ) -> None:
+        """
+        Sprint A: Apply minimal shaping rewards for progress toward flag/home.
+        
+        Provides small, dense rewards for:
+        - Moving toward enemy flag (when not carrying)
+        - Moving toward home (when carrying flag)
+        """
+        if agent is None:
+            return
+        
+        max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
+        if max_dist <= 1e-6:
+            return
+        
+        sx, sy = float(start_pos[0]), float(start_pos[1])
+        ex, ey = float(end_pos[0]), float(end_pos[1])
+        
+        # Determine goal based on state
+        if i_am_carrier:
+            # When carrying flag, reward progress toward home
+            goal_x, goal_y = self.get_team_zone_center(side)
+            goal = (float(goal_x), float(goal_y))
+            coef = float(PROGRESS_TO_HOME_COEF)
+        else:
+            # When not carrying, reward progress toward enemy flag
+            if side == "blue":
+                goal = (float(self.red_flag_position[0]), float(self.red_flag_position[1]))
+            else:
+                goal = (float(self.blue_flag_position[0]), float(self.blue_flag_position[1]))
+            coef = float(PROGRESS_TO_FLAG_COEF)
+        
+        # Compute distance change
+        prev_dist = math.dist([sx, sy], goal)
+        curr_dist = math.dist([ex, ey], goal)
+        dist_change = prev_dist - curr_dist  # Positive = getting closer
+        
+        # Only reward if meaningful progress (above threshold)
+        if dist_change > float(PROGRESS_REWARD_THRESHOLD):
+            # Normalize by max distance and scale by coefficient
+            normalized_progress = dist_change / max_dist
+            reward = coef * normalized_progress
+            if reward > 0.0:
+                self.add_agent_reward(agent, reward)
 
     def punish_failed_action(self, agent: Any) -> None:
         if agent is None:
