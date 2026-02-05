@@ -236,7 +236,8 @@ class GameField:
     """
 
     # Vec observation schema version; bump when build_continuous_features() schema changes (Step 2.3)
-    VEC_SCHEMA_VERSION: int = 1
+    # Sprint A: Simplified minimal observations (VEC_SCHEMA_VERSION 2)
+    VEC_SCHEMA_VERSION: int = 2
 
     # -------- lifecycle --------
 
@@ -584,17 +585,28 @@ class GameField:
             out[7] = (own_flag[1] - fy) / rows if rows else 0.0
             out[4:8] = np.clip(out[4:8], -1.0, 1.0)
 
-        out[8] = 1.0 if getattr(agent, "is_carrying_flag", False) else 0.0
+        out[8] = 1.0 if getattr(agent, "is_carrying_flag", False) else 0.0  # Payload state
 
         mid_x = (cols - 1) / 2.0
         out[9] = abs(float(fx) - mid_x) / max(mid_x, 1.0)
         out[9] = max(0.0, min(1.0, out[9]))
 
+        # Sprint A: Time bucket (discrete 0-3) instead of continuous fraction
         if gm is not None:
             max_t = max(1.0, float(getattr(gm, "max_time", 300.0)))
             cur_t = float(getattr(gm, "current_time", max_t))
-            out[10] = max(0.0, min(1.0, cur_t / max_t))
-        # [11] spare
+            time_frac = cur_t / max_t if max_t > 0 else 0.0
+            # Bucket into 4 discrete bins: [0, 0.25), [0.25, 0.5), [0.5, 0.75), [0.75, 1.0]
+            time_bucket = min(3, int(time_frac * 4))
+            out[10] = float(time_bucket) / 3.0  # Normalize to [0, 1] for consistency
+        else:
+            out[10] = 0.0
+        
+        # Sprint A: Agent ID (normalized)
+        agent_id = int(getattr(agent, "agent_id", 0))
+        max_agents = max(1, getattr(self, "agents_per_team", 2))
+        out[11] = float(agent_id) / float(max_agents - 1) if max_agents > 1 else 0.0
+        out[11] = max(0.0, min(1.0, out[11]))
 
         # Step 5.1: debug-only locality check — no score or raw global state in vec
         if getattr(self, "obs_debug_validate_locality", False):
@@ -1707,16 +1719,22 @@ class GameField:
 
     def build_observation(self, agent: Agent) -> List[List[List[float]]]:
         """
+        Sprint A: Structured CNN grid observation for nearby entities (paper-ready).
+        
         Version B: "continuous-friendly" CNN observation with optional Phase 2 sensing.
         Returns: [NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS]
-        Channel meanings:
-          0: self
-          1: friendly teammates
-          2: enemies (sensor-limited if physics enabled)
-          3: friendly mines
-          4: enemy mines (sensor-limited if physics enabled)
-          5: own flag
-          6: enemy flag
+        
+        Channel meanings (structured, local view only - no global state leakage):
+          0: self (agent's own position)
+          1: friendly teammates (nearby teammates in local view)
+          2: enemies (sensor-limited if physics enabled, local view only)
+          3: friendly mines (nearby friendly mines)
+          4: enemy mines (sensor-limited if physics enabled, local view only)
+          5: own flag (flag position in local view)
+          6: enemy flag (enemy flag position in local view)
+        
+        Design: Nearby entities in structured channels (not in vec) to avoid global state leakage.
+        This provides local spatial awareness without revealing full game state.
         """
         side = str(getattr(agent, "side", "blue")).lower()
         gm = getattr(self, "manager", None)
