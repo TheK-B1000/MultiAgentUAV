@@ -1637,9 +1637,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Auto-select model path based on baseline if not explicitly provided
+    # Auto-select model path based on baseline if not explicitly provided (works for --test-baseline and --eval)
     ppo_model_path = args.ppo_model
-    if not ppo_model_path and getattr(args, "test_baseline", False) and args.baseline:
+    if not ppo_model_path and args.baseline:
         baseline_key = args.baseline.lower()
         if baseline_key in BASELINE_MODEL_PATHS:
             ppo_model_path = BASELINE_MODEL_PATHS[baseline_key]
@@ -1651,6 +1651,10 @@ if __name__ == "__main__":
         hppo_high_path=args.hppo_high or DEFAULT_HPPO_HIGH_MODEL_PATH,
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
+
+    # When running a baseline, use the loaded PPO model for Blue (not default scripted baseline)
+    if args.baseline and getattr(viewer.blue_ppo_team, "model_loaded", False):
+        viewer._apply_blue_mode("PPO")
 
     # Handle baseline testing mode
     if getattr(args, "test_baseline", False) and args.baseline:
@@ -1685,41 +1689,15 @@ if __name__ == "__main__":
             viewer.run()
             
         elif baseline == "curriculum_no_league":
-            # CURRICULUM_NO_LEAGUE: Test progression OP1 -> OP2 -> OP3
-            print("[Baseline] Configuration: CURRICULUM_NO_LEAGUE mode (testing OP1, OP2, OP3)")
-            print(f"[Baseline] Running {num_episodes} episodes vs OP1, OP2, OP3 sequentially...")
-            
-            results_by_phase = {}
-            for phase_opponent in ["OP1", "OP2", "OP3"]:
-                print(f"\n[Baseline] Testing vs {phase_opponent} (phase={phase_opponent})...")
-                summary = viewer.evaluate_model(
-                    num_episodes=num_episodes,
-                    save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_curriculum_no_league_{phase_opponent}_{num_episodes}ep.csv"),
-                    headless=False,
-                    opponent=phase_opponent,
-                    eval_model=args.eval_model,
-                )
-                if summary:
-                    wr = summary.get("win_rate", 0.0)
-                    wins = summary.get("wins", 0)
-                    losses = summary.get("losses", 0)
-                    draws = summary.get("draws", 0)
-                    results_by_phase[phase_opponent] = {
-                        "win_rate": wr,
-                        "wins": wins,
-                        "losses": losses,
-                        "draws": draws,
-                    }
-                    print(f"[Baseline] {phase_opponent} Results: Win Rate={wr:.2%} (W/L/D: {wins}/{losses}/{draws})")
-            
-            # Print summary
-            print("\n" + "=" * 60)
-            print("CURRICULUM_NO_LEAGUE Baseline Test Summary")
-            print("=" * 60)
-            for phase, results in results_by_phase.items():
-                print(f"  {phase}: {results['win_rate']:.2%} WR ({results['wins']}W/{results['losses']}L/{results['draws']}D)")
-            print("=" * 60)
-            
+            # CURRICULUM_NO_LEAGUE: single eval vs red (default OP3); model was trained, just test vs OP3
+            print("[Baseline] Configuration: CURRICULUM_NO_LEAGUE mode (eval vs OP3)")
+            summary = viewer.evaluate_model(
+                num_episodes=num_episodes,
+                save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_curriculum_no_league_OP3_{num_episodes}ep.csv"),
+                headless=False,
+                opponent="OP3",
+                eval_model=args.eval_model,
+            )
             print("\n[Baseline Test] Complete. Viewer will remain open.")
             viewer.run()
     
