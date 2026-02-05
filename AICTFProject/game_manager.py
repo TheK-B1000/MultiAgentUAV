@@ -45,6 +45,13 @@ TEAM_FLAG_TAKEN_PENALTY = -0.5
 TEAM_FLAG_SCORED_PENALTY = -3.0
 TEAM_FLAG_RECOVER_REWARD = 0.5
 
+# Coordination and efficiency rewards (Phase 2)
+ANTI_CLUMP_MIN_DIST_CELLS = 2.0  # Minimum distance before penalty applies
+ANTI_CLUMP_PENALTY = -0.02  # Per step penalty when too close
+ANTI_CLUMP_STEPS_THRESHOLD = 5  # Penalty only after k consecutive steps too close
+FIRST_CAPTURE_BONUS = 1.0  # Bonus for first flag capture in episode
+DENSE_PROGRESS_REWARD_COEF = 0.05  # Reward for distance-to-flag/home decreasing
+
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
     "OP1": -0.5,
@@ -462,6 +469,8 @@ class GameManager:
         self.time_to_first_score = None
         self.time_to_game_over = None
         self.blue_inter_robot_distances.clear()
+        self.first_capture_rewarded = False
+        self.blue_too_close_steps.clear()
         self.blue_zone_visited_cells.clear()
         self.total_blue_zone_cells = 0
 
@@ -936,6 +945,12 @@ class GameManager:
             shaped *= float(DEFENSE_SHAPING_MULT)
         if shaped != 0.0:
             self.add_agent_reward(agent, shaped)
+        
+        # Dense objective progress reward: reward distance decreasing (convert defense into scoring)
+        progress_delta = prev_d - cur_d
+        if progress_delta > 0.0:  # Moving closer to goal
+            dense_reward = float(DENSE_PROGRESS_REWARD_COEF) * (progress_delta / max_dist)
+            self.add_agent_reward(agent, dense_reward)
 
         if enemy_has_our_flag and carrier is not None and (not i_am_carrier):
             prev_dc = min(max_dist, math.dist([sx, sy], [float(goal_x), float(goal_y)]))
@@ -943,6 +958,14 @@ class GameManager:
             progress = (prev_dc - cur_dc) / max_dist
             if progress > 0.0:
                 self.add_agent_reward(agent, float(DEFENSE_CARRIER_PROGRESS_COEF) * float(progress))
+
+        # Dense progress: reward distance-to-home decreasing while carrying flag
+        if i_am_carrier:
+            home_dist_prev = min(max_dist, math.dist([sx, sy], [float(my_home[0]), float(my_home[1])]))
+            home_dist_curr = min(max_dist, math.dist([ex, ey], [float(my_home[0]), float(my_home[1])]))
+            home_progress = home_dist_prev - home_dist_curr
+            if home_progress > 0.0:
+                self.add_agent_reward(agent, float(DENSE_PROGRESS_REWARD_COEF) * (home_progress / max_dist))
 
         # Exploration: per-team visited set
         cell = self._clamp_cell(int(round(ex)), int(round(ey)))
