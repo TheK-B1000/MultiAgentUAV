@@ -119,7 +119,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 4_000_000
+    total_timesteps: int = 3_100_000
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -148,7 +148,7 @@ class PPOConfig:
     # When learner Elo drops below this, substitute OP3_HARD with OP3 for more winnable games.
     league_easy_scripted_elo_threshold: float = 1200.0
 
-    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    mode: str = TrainMode.CURRICULUM_NO_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -181,11 +181,25 @@ class PPOConfig:
     enable_fixed_eval: bool = True  # Run fixed eval suite (no learning)
     # League species / RUSHER: increase species exposure and bias toward RUSHER to fix RUSHER weakness
     stability_species_prob: float = 0.15  # Fraction of league episodes vs species (BALANCED/RUSHER/CAMPER)
+    stability_snapshot_prob: float = 0.20  # Fraction of league episodes vs snapshot opponents
     species_rusher_bias: float = 0.5  # When species is picked, probability of forcing RUSHER (0=uniform)
     fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
     fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
+    # Phase 2 fixed-eval gating: advance only if fixed-eval WR meets threshold (None = disabled)
+    fixed_eval_gate_OP1_wr: Optional[float] = 0.90  # advance to OP2 only if fixed eval vs OP1 >= this
+    fixed_eval_gate_OP2_wr: Optional[float] = 0.75  # advance to OP3 only if fixed eval vs OP2 >= this
+    # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (avoid spicy too early)
+    op3_hard_max_fraction_until_stable: float = 0.05  # max 5% OP3_HARD until OP3 fixed-eval stable
+    op3_stable_fixed_eval_wr: float = 0.55  # OP3 fixed-eval WR >= this to allow full OP3_HARD
     # Reduced aggressiveness (if training unstable)
     use_reduced_aggressiveness: bool = False  # Enable gentler updates
+    # Stable MARL PPO: gentler defaults for multi-agent nonstationarity (Fix 4.1)
+    use_stable_marl_ppo: bool = False  # lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024
+    # KL guardrail: auto-reduce aggressiveness if approx_kl exceeds threshold repeatedly (Fix 4.2)
+    approx_kl_threshold: float = 0.03  # target approx_kl ~0.01–0.03; spike above = over-updating
+    kl_guardrail_consecutive: int = 3  # trigger after this many consecutive spikes
+    # Explicit tokenized obs gate (Fix 5.1): use tokenized extractor when max_blue_agents>2 OR use_tokenized_obs
+    use_tokenized_obs: bool = False
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -214,6 +228,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             use_obs_builder=getattr(cfg, "use_obs_builder", True),
             include_opponent_context=getattr(cfg, "include_opponent_context", False),
             obs_debug_validate_locality=getattr(cfg, "obs_debug_validate_locality", False),
+            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.1),
         )
         return env
     return _fn
@@ -508,6 +523,13 @@ class LeagueCallback(BaseCallback):
             if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD" and
                     self.league.learner_rating < threshold):
                 next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
+            # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (Phase 2: avoid spicy too early)
+            if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD"):
+                op3_wr = self.curriculum._fixed_eval_wr.get("SCRIPTED:OP3", 0.0)
+                stable_wr = float(getattr(self.cfg, "op3_stable_fixed_eval_wr", 0.55))
+                max_frac = float(getattr(self.cfg, "op3_hard_max_fraction_until_stable", 0.05))
+                if op3_wr < stable_wr and np.random.random() >= max_frac:
+                    next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
             
             # ✅ Fix: Use indices=[i] with env_method for opponent/phase/league_mode setting
             # This works for both DummyVecEnv and SubprocVecEnv (SB3 handles indices correctly)
@@ -765,6 +787,53 @@ class FixedOpponentCallback(BaseCallback):
         return True
 
 
+class KLGuardrailCallback(BaseCallback):
+    """Fix 4.2: Log approx_kl and auto-flag when it exceeds threshold repeatedly (over-updating)."""
+
+    def __init__(
+        self,
+        *,
+        threshold: float = 0.03,
+        consecutive: int = 3,
+        verbose: int = 1,
+    ):
+        super().__init__(verbose=verbose)
+        self.threshold = float(threshold)
+        self.consecutive = int(consecutive)
+        self._spike_count = 0
+        self._last_checked_update = -1
+
+    def _on_step(self) -> bool:
+        n_steps = getattr(self.model, "n_steps", 2048)
+        if n_steps <= 0 or self.n_calls <= 1:
+            return True
+        # Sample approx_kl once per PPO update (first step of each new rollout, after previous learn)
+        if (self.n_calls - 1) % n_steps != 0:
+            return True
+        update_id = (self.n_calls - 1) // n_steps
+        if update_id <= self._last_checked_update:
+            return True
+        self._last_checked_update = update_id
+
+        name_to_value = getattr(self.logger, "name_to_value", None) or {}
+        approx_kl = float(name_to_value.get("train/approx_kl", 0.0))
+
+        if approx_kl > self.threshold:
+            self._spike_count += 1
+            if self.verbose:
+                self.logger.record("train/kl_guardrail_spike_count", self._spike_count)
+            if self._spike_count >= self.consecutive:
+                setattr(self.model, "_kl_guardrail_triggered", True)
+                if self.verbose:
+                    print(
+                        f"[KLGuardrail] approx_kl exceeded {self.threshold} for {self._spike_count} consecutive updates "
+                        f"(last approx_kl={approx_kl:.4f}). Set model._kl_guardrail_triggered=True; consider enabling use_stable_marl_ppo."
+                    )
+        else:
+            self._spike_count = 0
+        return True
+
+
 class NoiseMetricsCSVCallback(BaseCallback):
     """Track action execution noise (flip rates, streaks) and log to CSV per episode.
     Uses per-env state so metrics are correct with vectorized envs (no mixing).
@@ -1003,21 +1072,23 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    # Sprint A: League with stability mix; higher species + RUSHER bias to remediate RUSHER weakness
-    _species_prob = getattr(cfg, "stability_species_prob", 0.15)
+    # Sprint A: League with stability mix; use cfg consistently (Fix 3)
+    _species_prob = float(getattr(cfg, "stability_species_prob", 0.15))
+    _snapshot_prob = float(getattr(cfg, "stability_snapshot_prob", 0.20))
+    _scripted_prob = max(0.0, 1.0 - _snapshot_prob - _species_prob)
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
         matchmaking_tau=200.0,
         scripted_floor=0.50,
-        species_prob=0.20,
-        snapshot_prob=0.30,
-        stability_scripted_prob=1.0 - 0.20 - _species_prob,  # 65% scripted when species=15%
-        stability_snapshot_prob=0.20,
+        species_prob=_species_prob,
+        snapshot_prob=_snapshot_prob,
+        stability_scripted_prob=_scripted_prob,
+        stability_snapshot_prob=_snapshot_prob,
         stability_species_prob=_species_prob,
         use_stability_mix=True,
         min_episodes_per_opponent=3,  # Cap opponent switching frequency
-        species_rusher_bias=getattr(cfg, "species_rusher_bias", 0.5),
+        species_rusher_bias=float(getattr(cfg, "species_rusher_bias", 0.5)),
     )
 
     curriculum: Optional[CurriculumState] = None
@@ -1032,6 +1103,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
+                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.90),
+                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.75),
             )
         )
         controller = CurriculumController(
@@ -1086,20 +1159,30 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         pass
 
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
-    obs_spaces = getattr(venv.observation_space, "spaces", None) or {}
-    if "agent_mask" in obs_spaces:
+    # Fix 0: Explicit tokenized extractor only from config (not from agent_mask in obs — env always has it)
+    use_tokenized = bool(getattr(cfg, "use_tokenized_obs", False)) or (int(getattr(cfg, "max_blue_agents", 2)) > 2)
+    if use_tokenized:
         policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
         policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
 
-    # Step 4: Reduced aggressiveness if training unstable
+    # Step 4: Stable MARL PPO (Fix 4.1) or reduced aggressiveness
     learning_rate = float(cfg.learning_rate)
     ent_coef = float(cfg.ent_coef)
     clip_range = float(cfg.clip_range)
-    
-    if getattr(cfg, "use_reduced_aggressiveness", False):
-        learning_rate = learning_rate * 0.67  # 3e-4 -> 2e-4, or scale down
-        ent_coef = ent_coef * 0.5  # 0.01 -> 0.005
-        clip_range = clip_range * 0.75  # 0.2 -> 0.15
+    n_epochs = int(cfg.n_epochs)
+    batch_size = int(cfg.batch_size)
+
+    if getattr(cfg, "use_stable_marl_ppo", False):
+        learning_rate = 1.5e-4
+        ent_coef = 0.005
+        clip_range = 0.12
+        n_epochs = 4
+        batch_size = 1024
+        print("[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024")
+    elif getattr(cfg, "use_reduced_aggressiveness", False):
+        learning_rate = learning_rate * 0.67
+        ent_coef = ent_coef * 0.5
+        clip_range = clip_range * 0.75
         print(f"[PPO] Using reduced aggressiveness: LR={learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={clip_range:.2f}")
     
     model = PPO(
@@ -1107,8 +1190,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         env=venv,
         learning_rate=learning_rate,
         n_steps=int(cfg.n_steps),
-        batch_size=int(cfg.batch_size),
-        n_epochs=int(cfg.n_epochs),
+        batch_size=batch_size,
+        n_epochs=n_epochs,
         gamma=float(cfg.gamma),
         gae_lambda=float(cfg.gae_lambda),
         clip_range=clip_range,
@@ -1163,9 +1246,31 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     elif mode == TrainMode.FIXED_OPPONENT.value:
         callbacks.append(FixedOpponentCallback(cfg=cfg))
 
+    # Phase 2: fixed-eval suite (updates curriculum._fixed_eval_wr for gating when curriculum is set)
+    if cfg.enable_fixed_eval:
+        from rl.fixed_eval import FixedEvalCallback
+        callbacks.append(
+            FixedEvalCallback(
+                cfg=cfg,
+                eval_every_episodes=int(cfg.fixed_eval_every_episodes),
+                episodes_per_opponent=int(cfg.fixed_eval_episodes),
+                curriculum=curriculum if curriculum is not None else None,
+            )
+        )
+
     # Top 5 IROS-style metrics: CSV at end of training (simple, publish-friendly)
     metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
     callbacks.append(MetricsCSVCallback(save_path=metrics_csv_path))
+
+    # Fix 4.2: KL guardrail – log approx_kl and set model._kl_guardrail_triggered if spikes repeatedly
+    if getattr(cfg, "approx_kl_threshold", 0) > 0 and getattr(cfg, "kl_guardrail_consecutive", 0) > 0:
+        callbacks.append(
+            KLGuardrailCallback(
+                threshold=float(cfg.approx_kl_threshold),
+                consecutive=int(cfg.kl_guardrail_consecutive),
+                verbose=1,
+            )
+        )
 
     # Action execution noise metrics (if enabled)
     if getattr(cfg, "action_flip_prob", 0.0) > 0.0:
