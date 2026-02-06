@@ -12,6 +12,67 @@ except Exception:
     _obs_builder_build_team_obs = None
 
 
+def _load_snapshot_policy_only(path: str):
+    """
+    Load only the policy from an SB3 .zip (no PPO rollout buffer).
+    Avoids allocating ~175 MiB per worker when using snapshot opponents in SubprocVecEnv.
+    Returns an object with .policy and .predict(obs, deterministic=True) like PPO.
+    """
+    import torch as th
+    from stable_baselines3.common.save_util import load_from_zip_file
+
+    # Ensure custom policy class is importable for cloudpickle when loading in worker processes
+    try:
+        from rl.train_ppo import MaskedMultiInputPolicy  # noqa: F401
+    except Exception:
+        pass
+
+    data, params, _ = load_from_zip_file(path, device="cpu", load_data=True)
+    if not data or "policy" not in params:
+        raise ValueError(f"Invalid snapshot zip: missing data or policy params in {path!r}")
+
+    obs_space = data["observation_space"]
+    action_space = data["action_space"]
+    policy_kwargs = dict(data.get("policy_kwargs", {}))
+    policy_kwargs.pop("device", None)
+
+    policy_class = data.get("policy_class")
+    if policy_class is None:
+        try:
+            from rl.train_ppo import MaskedMultiInputPolicy
+            policy_class = MaskedMultiInputPolicy
+        except Exception:
+            from stable_baselines3 import PPO
+            policy_class = getattr(PPO, "policy_aliases", {}).get("MlpPolicy")
+            if policy_class is None:
+                raise RuntimeError("Could not resolve policy_class from zip or MaskedMultiInputPolicy")
+    elif isinstance(policy_class, str):
+        from stable_baselines3 import PPO
+        policy_class = getattr(PPO, "policy_aliases", {}).get(policy_class)
+        if policy_class is None:
+            try:
+                from rl.train_ppo import MaskedMultiInputPolicy
+                policy_class = MaskedMultiInputPolicy
+            except Exception:
+                raise RuntimeError(f"Unknown policy_class name in zip: {policy_class!r}")
+
+    policy = policy_class(obs_space, action_space, **policy_kwargs)
+    policy.load_state_dict(params["policy"], strict=True)
+    policy.eval()
+
+    class _Predictor:
+        def __init__(self, pol):
+            self.policy = pol
+
+        def predict(self, obs, deterministic=True):
+            obs_t, _ = self.policy.obs_to_tensor(obs)
+            with th.no_grad():
+                actions, _, _ = self.policy(obs_t, deterministic=bool(deterministic))
+            return actions.cpu().numpy(), None
+
+    return _Predictor(policy)
+
+
 def make_species_wrapper(species_tag: str) -> Callable[..., Any]:
     """
     Returns a GameField wrapper for red that forces a playstyle.
@@ -70,10 +131,8 @@ def make_snapshot_wrapper(snapshot_path: str) -> Callable[..., Any]:
         else:
             raise FileNotFoundError(path)
 
-    # Lazy import so scripted-only training doesn't require SB3 installed.
-    from stable_baselines3 import PPO  # type: ignore
-
-    model = PPO.load(path, device="cpu")
+    # Load policy only (no PPO rollout buffer) to avoid OOM in SubprocVecEnv workers.
+    model = _load_snapshot_policy_only(path)
 
     def _model_expects_mask() -> bool:
         space = getattr(model.policy, "observation_space", None)
