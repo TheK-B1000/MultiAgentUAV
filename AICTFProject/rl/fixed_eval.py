@@ -53,6 +53,9 @@ class FixedEvalCallback(BaseCallback):
         # Golden snapshots (picked once, never replaced)
         self.golden_snapshots: List[str] = []
         
+        # Episode tracking
+        self.episode_idx = 0
+        
     def _run_fixed_eval(self, model: Any) -> None:
         """Run deterministic evaluation on all fixed opponents."""
         if model is None:
@@ -85,7 +88,7 @@ class FixedEvalCallback(BaseCallback):
             
             # Run deterministic episodes
             for ep in range(self.episodes_per_opponent):
-                obs, _ = eval_env.reset()
+                obs = eval_env.reset()  # VecEnv.reset() returns obs only, not (obs, info)
                 done = False
                 while not done:
                     action, _ = model.predict(obs, deterministic=True)
@@ -137,6 +140,15 @@ class FixedEvalCallback(BaseCallback):
     
     def _on_step(self) -> bool:
         """Run fixed eval periodically."""
+        # Track episode completions
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+        
+        for i, done in enumerate(dones):
+            if done:
+                self.episode_idx += 1
+        
+        # Run fixed eval periodically
         if (self.episode_idx > 0 and 
             self.episode_idx % self.eval_every_episodes == 0):
             self._run_fixed_eval(self.model)
