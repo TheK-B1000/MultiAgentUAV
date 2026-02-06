@@ -1430,6 +1430,7 @@ class CTFViewer:
                 pass
 
     def _set_phase_op3(self) -> None:
+        """Set phase to OP3 and apply OP3 stress settings (physics enabled, etc.) to match training."""
         if hasattr(self.game_manager, "set_phase"):
             try:
                 self.game_manager.set_phase("OP3")
@@ -1440,6 +1441,47 @@ class CTFViewer:
                 self.game_field.set_phase("OP3")
             except Exception:
                 pass
+        
+        # CRITICAL: Apply OP3 stress settings to match training environment
+        # Training uses STRESS_BY_PHASE["OP3"] which has physics_enabled=True
+        # This ensures viewer matches training so agents perform well in viewer
+        try:
+            # Apply OP3 physics and stress settings directly (ViewerGameField doesn't use stress schedule system)
+            if hasattr(self.game_field, "set_physics_enabled"):
+                self.game_field.set_physics_enabled(True)  # OP3: physics enabled
+            
+            # Apply OP3 stress settings: current, drift, action delay, sensor noise
+            if hasattr(self.game_field, "set_disturbance_config"):
+                self.game_field.set_disturbance_config(
+                    current_strength_cps=0.12,      # Strong ocean current (OP3)
+                    drift_sigma_cells=0.03,         # Random drift (OP3)
+                )
+            if hasattr(self.game_field, "set_robotics_constraints"):
+                self.game_field.set_robotics_constraints(
+                    action_delay_steps=2,           # 2-step action delay (OP3)
+                    actuation_noise_sigma=0.0,      # No actuation noise
+                )
+            if hasattr(self.game_field, "set_sensor_config"):
+                # Get current sensor range or use default (9999.0 = unlimited range)
+                sensor_range = getattr(getattr(self.game_field, "boat_cfg", None), "sensor_range_cells", 9999.0) or 9999.0
+                self.game_field.set_sensor_config(
+                    sensor_range_cells=float(sensor_range),  # Required positional arg: keep current range
+                    sensor_noise_sigma_cells=0.2,            # High sensor noise (OP3)
+                    sensor_dropout_prob=0.05,                # 5% sensor dropout (OP3)
+                )
+            if hasattr(self.game_field, "set_dynamics_config"):
+                # OP3: full realism (not relaxed)
+                self.game_field.set_dynamics_config(
+                    max_speed_cps=2.2,              # Standard speed
+                    max_accel_cps2=2.0,             # Standard acceleration
+                    max_yaw_rate_rps=4.0,           # Standard yaw rate
+                )
+            # Only print once on first call (avoid spam on resets)
+            if not hasattr(self, "_op3_stress_applied"):
+                print("[CTFViewer] Applied OP3 stress settings (physics enabled) to match training environment")
+                self._op3_stress_applied = True
+        except Exception as e:
+            print(f"[CTFViewer] Warning: Could not apply OP3 stress settings: {e}")
     
     def _set_phase(self, phase: str) -> None:
         """Set phase (OP1, OP2, OP3) for both game_manager and game_field."""
