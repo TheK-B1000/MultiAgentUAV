@@ -304,22 +304,22 @@ class SingleAgentEnvWrapper(gym.Env):
 def _make_marl_env_fn(cfg: IPPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
     """Create MARL environment factory."""
     def _fn():
-    s = env_seed(cfg.seed, rank)
-    np.random.seed(s)
-    torch.manual_seed(s)
+        s = env_seed(cfg.seed, rank)
+        np.random.seed(s)
+        torch.manual_seed(s)
         
         base_env = CTFGameFieldSB3Env(
-        make_game_field_fn=lambda: make_game_field(
-            map_name=MAP_NAME or None,
-            map_path=MAP_PATH or None,
-        ),
-        max_decision_steps=cfg.max_decision_steps,
-        enforce_masks=True,
-        seed=s,
-        include_mask_in_obs=True,
+            make_game_field_fn=lambda: make_game_field(
+                map_name=MAP_NAME or None,
+                map_path=MAP_PATH or None,
+            ),
+            max_decision_steps=cfg.max_decision_steps,
+            enforce_masks=True,
+            seed=s,
+            include_mask_in_obs=True,
             default_opponent_kind=default_opponent[0],
             default_opponent_key=default_opponent[1],
-        ppo_gamma=cfg.gamma,
+            ppo_gamma=cfg.gamma,
             action_flip_prob=getattr(cfg, "action_flip_prob", 0.0),
             max_blue_agents=getattr(cfg, "max_blue_agents", 2),
             print_reset_shapes=getattr(cfg, "print_reset_shapes", False),
@@ -415,7 +415,7 @@ class IPPOLoggerCallback(BaseCallback):
             info = infos[i] if i < len(infos) else {}
             summary = parse_episode_result(info)
             if summary is None:
-            continue
+                continue
             
             self.episode_idx += 1
             blue_score = summary.blue_score
@@ -427,7 +427,7 @@ class IPPOLoggerCallback(BaseCallback):
             elif blue_score < red_score:
                 result = "LOSS"
                 self.loss_count += 1
-        else:
+            else:
                 result = "DRAW"
                 self.draw_count += 1
             
