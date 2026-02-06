@@ -148,7 +148,7 @@ class PPOConfig:
     # When learner Elo drops below this, substitute OP3_HARD with OP3 for more winnable games.
     league_easy_scripted_elo_threshold: float = 1200.0
 
-    mode: str = TrainMode.CURRICULUM_LEAGUE.value
+    mode: str = TrainMode.CURRICULUM_NO_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -1300,6 +1300,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         # Use OP3 for evaluation/testing (OP3_HARD is training-only to improve OP3 performance)
         eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
         eval_env = VecMonitor(eval_env)
+        
+        # CRITICAL: Match training environment setup (stress schedule + phase)
+        # This ensures eval environment matches training and viewer environments
+        try:
+            eval_env.env_method("set_stress_schedule", STRESS_BY_PHASE)
+        except Exception:
+            pass
+        try:
+            eval_env.env_method("set_phase", "OP3")  # EvalCallback always uses OP3
+        except Exception:
+            pass
+        
         callbacks.append(
             EvalCallback(
                 eval_env,
