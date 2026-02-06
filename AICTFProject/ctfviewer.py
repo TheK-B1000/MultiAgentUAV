@@ -2302,7 +2302,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval-csv", type=str, metavar="PATH", help="CSV output path for evaluation (default: auto-generated)")
     parser.add_argument("--eval-model", type=str, choices=["ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
     parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
-    parser.add_argument("--opponent", type=str, default="OP3_HARD", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD). Default: OP3_HARD to match training.")
+    parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD). Default: OP3 for testing (OP3_HARD is training-only to improve OP3 performance).")
     parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
