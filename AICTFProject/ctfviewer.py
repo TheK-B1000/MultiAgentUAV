@@ -186,6 +186,138 @@ class MAPPOTeamPolicy:
         self._cache_tick = -1
         self._cache_action = np.array([0, 0, 0, 0], dtype=np.int64)
 
+    def _macro_uses_target(self, macro: int, game_field: ViewerGameField) -> bool:
+        """Check if macro action uses a target parameter."""
+        from macro_actions import MacroAction
+        return macro in (MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.GRAB_MINE, MacroAction.PLACE_MINE)
+
+    def _resolve_target_conflicts(self, actions: np.ndarray, game_field: ViewerGameField) -> np.ndarray:
+        """
+        Fix 6.1: Resolve target conflicts - if both agents pick same target, nearest keeps it,
+        other gets next-best valid target (or GO_HOME).
+        """
+        a = actions.copy()
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if len(blue_agents) < 2:
+            return a
+        
+        from collections import defaultdict
+        groups: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+        for i in range(2):
+            m, t = int(a[i * 2]), int(a[i * 2 + 1])
+            if self._macro_uses_target(m, game_field):
+                groups[(m, t)].append(i)
+        
+        for (m, t), agents in groups.items():
+            if len(agents) <= 1:
+                continue
+            try:
+                tgt_cell = game_field.get_macro_target(t)
+                if tgt_cell is None or len(tgt_cell) < 2:
+                    tx, ty = 0, 0
+                else:
+                    tx, ty = int(tgt_cell[0]), int(tgt_cell[1])
+            except Exception:
+                continue
+            
+            def dist_to_target(agent_idx: int) -> float:
+                if agent_idx >= len(blue_agents):
+                    return float("inf")
+                agent = blue_agents[agent_idx]
+                if agent is None:
+                    return float("inf")
+                pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                dx = float(pos[0]) - tx
+                dy = float(pos[1]) - ty
+                return dx * dx + dy * dy
+            
+            agents_sorted = sorted(agents, key=dist_to_target)
+            for idx, agent_idx in enumerate(agents_sorted):
+                if idx == 0:
+                    continue
+                if agent_idx >= len(blue_agents):
+                    a[agent_idx * 2] = 4  # GO_HOME
+                    a[agent_idx * 2 + 1] = 0
+                    continue
+                agent = blue_agents[agent_idx]
+                if agent is None:
+                    a[agent_idx * 2] = 4
+                    a[agent_idx * 2 + 1] = 0
+                    continue
+                try:
+                    tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                    if tm.shape != (self.n_targets,) or not tm.any():
+                        a[agent_idx * 2] = 4
+                        a[agent_idx * 2 + 1] = 0
+                        continue
+                    best_alt = 0
+                    best_dist = float("inf")
+                    for ti in range(self.n_targets):
+                        if not bool(tm[ti]) or ti == t:
+                            continue
+                        try:
+                            tc = game_field.get_macro_target(ti)
+                            tcx = int(tc[0])
+                            tcy = int(tc[1]) if len(tc) >= 2 else 0
+                        except Exception:
+                            continue
+                        pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                        d = (float(pos[0]) - tcx) ** 2 + (float(pos[1]) - tcy) ** 2
+                        if d < best_dist:
+                            best_dist = d
+                            best_alt = ti
+                    a[agent_idx * 2] = m
+                    a[agent_idx * 2 + 1] = best_alt
+                except Exception:
+                    a[agent_idx * 2] = 4
+                    a[agent_idx * 2 + 1] = 0
+        
+        return a
+
+    def _sanitize_action_with_mask(
+        self, 
+        macro: int, 
+        target: int, 
+        game_field: ViewerGameField, 
+        agent_idx: int
+    ) -> Tuple[int, int]:
+        """Enforce action masks: ensure macro and target are valid for this agent."""
+        macro = int(macro) % N_MACROS
+        target = int(target) % max(1, self.n_targets)
+        
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if agent_idx >= len(blue_agents):
+            return macro, target
+        
+        agent = blue_agents[agent_idx]
+        if agent is None:
+            return macro, target
+        
+        # Enforce macro mask
+        try:
+            mm = np.asarray(game_field.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
+            if mm.shape == (N_MACROS,) and mm.any():
+                if not bool(mm[macro]):
+                    valid_macros = np.flatnonzero(mm)
+                    macro = int(valid_macros[0]) if valid_macros.size > 0 else 0
+        except Exception:
+            pass
+        
+        # Enforce target mask if macro uses target
+        try:
+            from macro_actions import MacroAction
+            uses_target = macro in (MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.GRAB_MINE, MacroAction.PLACE_MINE)
+            if uses_target:
+                tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                if tm.shape == (self.n_targets,) and tm.any():
+                    if not bool(tm[target]):
+                        valid_targets = np.flatnonzero(tm)
+                        target = int(valid_targets[0]) if valid_targets.size > 0 else 0
+        except Exception:
+            pass
+        
+        return macro, target
+
     def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
         if not self.model_loaded or self.policy is None:
             self._cache_tick = tick
@@ -199,7 +331,7 @@ class MAPPOTeamPolicy:
             live.append(live[0] if live else None)
         import torch as _torch
         actions = []
-        for a in live[:2]:
+        for idx, a in enumerate(live[:2]):
             if a is None:
                 actions.append((0, 0))
                 continue
@@ -209,7 +341,15 @@ class MAPPOTeamPolicy:
                 out = self.policy.act(obs_t, agent=a, game_field=game_field, deterministic=self.deterministic)
             macro_idx = int(out["macro_action"][0].item()) % N_MACROS
             target_idx = int(out["target_action"][0].item()) % self.n_targets
+            # Enforce masks
+            macro_idx, target_idx = self._sanitize_action_with_mask(macro_idx, target_idx, game_field, idx)
             actions.append((macro_idx, target_idx))
+        
+        # Fix 6.1: Resolve target conflicts (training does this, viewer must too!)
+        actions_array = np.array([actions[0][0], actions[0][1], actions[1][0], actions[1][1]], dtype=np.int64)
+        actions_array = self._resolve_target_conflicts(actions_array, game_field)
+        actions = [(actions_array[0], actions_array[1]), (actions_array[2], actions_array[3])]
+        
         self._cache_action = np.array([
             actions[0][0], actions[0][1], actions[1][0], actions[1][1],
         ], dtype=np.int64)
@@ -383,6 +523,151 @@ class SB3TeamPPOPolicy:
             n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
         )
 
+    def _macro_uses_target(self, macro: int, game_field: ViewerGameField) -> bool:
+        """Check if macro action uses a target parameter."""
+        from macro_actions import MacroAction
+        return macro in (MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.GRAB_MINE, MacroAction.PLACE_MINE)
+
+    def _resolve_target_conflicts(self, actions: np.ndarray, game_field: ViewerGameField) -> np.ndarray:
+        """
+        Fix 6.1: Resolve target conflicts - if both agents pick same target, nearest keeps it,
+        other gets next-best valid target (or GO_HOME).
+        This matches training's EnvActionManager._resolve_target_conflicts().
+        """
+        a = actions.copy()
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if len(blue_agents) < 2:
+            return a
+        
+        # Group actions by (macro, target) for target-using macros
+        from collections import defaultdict
+        groups: Dict[Tuple[int, int], List[int]] = defaultdict(list)  # (macro, target) -> [agent_idx, ...]
+        for i in range(2):  # 2 agents
+            m, t = int(a[i * 2]), int(a[i * 2 + 1])
+            if self._macro_uses_target(m, game_field):
+                groups[(m, t)].append(i)
+        
+        # Resolve conflicts
+        for (m, t), agents in groups.items():
+            if len(agents) <= 1:
+                continue
+            # Sort by distance to target (nearest first)
+            try:
+                tgt_cell = game_field.get_macro_target(t)
+                if tgt_cell is None or len(tgt_cell) < 2:
+                    tx, ty = 0, 0
+                else:
+                    tx, ty = int(tgt_cell[0]), int(tgt_cell[1])
+            except Exception:
+                continue
+            
+            def dist_to_target(agent_idx: int) -> float:
+                if agent_idx >= len(blue_agents):
+                    return float("inf")
+                agent = blue_agents[agent_idx]
+                if agent is None:
+                    return float("inf")
+                pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                dx = float(pos[0]) - tx
+                dy = float(pos[1]) - ty
+                return dx * dx + dy * dy
+            
+            agents_sorted = sorted(agents, key=dist_to_target)
+            # Keep first; reassign rest to next-best or GO_HOME (4)
+            for idx, agent_idx in enumerate(agents_sorted):
+                if idx == 0:
+                    continue
+                if agent_idx >= len(blue_agents):
+                    a[agent_idx * 2] = 4  # GO_HOME
+                    a[agent_idx * 2 + 1] = 0
+                    continue
+                agent = blue_agents[agent_idx]
+                if agent is None:
+                    a[agent_idx * 2] = 4  # GO_HOME
+                    a[agent_idx * 2 + 1] = 0
+                    continue
+                try:
+                    tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                    n_targets = int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets)
+                    if tm.shape != (n_targets,) or not tm.any():
+                        a[agent_idx * 2] = 4  # GO_HOME
+                        a[agent_idx * 2 + 1] = 0
+                        continue
+                    # Exclude current contested target; pick next-best valid
+                    best_alt = 0
+                    best_dist = float("inf")
+                    for ti in range(n_targets):
+                        if not bool(tm[ti]) or ti == t:
+                            continue
+                        try:
+                            tc = game_field.get_macro_target(ti)
+                            tcx = int(tc[0])
+                            tcy = int(tc[1]) if len(tc) >= 2 else 0
+                        except Exception:
+                            continue
+                        pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                        d = (float(pos[0]) - tcx) ** 2 + (float(pos[1]) - tcy) ** 2
+                        if d < best_dist:
+                            best_dist = d
+                            best_alt = ti
+                    a[agent_idx * 2] = m  # Keep same macro
+                    a[agent_idx * 2 + 1] = best_alt  # Reassign target
+                except Exception:
+                    a[agent_idx * 2] = 4  # GO_HOME fallback
+                    a[agent_idx * 2 + 1] = 0
+        
+        return a
+
+    def _sanitize_action_with_mask(
+        self, 
+        action: np.ndarray, 
+        game_field: ViewerGameField, 
+        agent_idx: int
+    ) -> Tuple[int, int]:
+        """Enforce action masks: ensure macro and target are valid for this agent."""
+        macro = int(action[0]) % N_MACROS
+        target = int(action[1]) % max(1, int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets))
+        
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if agent_idx >= len(blue_agents):
+            return macro, target
+        
+        agent = blue_agents[agent_idx]
+        if agent is None:
+            return macro, target
+        
+        # Enforce macro mask
+        try:
+            mm = np.asarray(game_field.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
+            if mm.shape == (N_MACROS,) and mm.any():
+                if not bool(mm[macro]):
+                    # Fallback to first valid macro (usually GO_TO=0)
+                    valid_macros = np.flatnonzero(mm)
+                    macro = int(valid_macros[0]) if valid_macros.size > 0 else 0
+        except Exception:
+            pass
+        
+        # Enforce target mask if macro uses target
+        try:
+            from macro_actions import MacroAction
+            uses_target = macro in (MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.GRAB_MINE, MacroAction.PLACE_MINE)
+            if uses_target:
+                tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                n_targets = int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets)
+                if tm.shape == (n_targets,) and tm.any():
+                    if not bool(tm[target]):
+                        # Fallback to nearest valid target
+                        valid_targets = np.flatnonzero(tm)
+                        if valid_targets.size > 0:
+                            # Simple fallback: use first valid target
+                            target = int(valid_targets[0])
+                        else:
+                            target = 0
+        except Exception:
+            pass
+        
+        return macro, target
+
     def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
         if not self.model_loaded or self.model is None:
             self._cache_tick = tick
@@ -404,13 +689,21 @@ class SB3TeamPPOPolicy:
         elif a.size > 4:
             a = a[:4]
 
-        # Normalize ranges
+        # Normalize ranges (before mask enforcement)
         a[0] = int(a[0]) % N_MACROS
         a[2] = int(a[2]) % N_MACROS
-
         nt = max(1, int(getattr(game_field, "num_macro_targets", self.n_targets) or self.n_targets))
         a[1] = int(a[1]) % nt
         a[3] = int(a[3]) % nt
+
+        # Enforce masks: sanitize actions for each agent
+        macro0, tgt0 = self._sanitize_action_with_mask(np.array([a[0], a[1]]), game_field, 0)
+        macro1, tgt1 = self._sanitize_action_with_mask(np.array([a[2], a[3]]), game_field, 1)
+        a[0], a[1] = macro0, tgt0
+        a[2], a[3] = macro1, tgt1
+
+        # Fix 6.1: Resolve target conflicts (training does this, viewer must too!)
+        a = self._resolve_target_conflicts(a, game_field)
 
         self._cache_tick = tick
         self._cache_action = a
@@ -709,6 +1002,140 @@ class SB3TeamHPPOPolicy:
         self._last_mode_tick = tick
         return int(self._cache_mode)
 
+    def _macro_uses_target(self, macro: int, game_field: ViewerGameField) -> bool:
+        """Check if macro action uses a target parameter."""
+        from macro_actions import MacroAction
+        return macro in (MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.GRAB_MINE, MacroAction.PLACE_MINE)
+
+    def _resolve_target_conflicts(self, actions: np.ndarray, game_field: ViewerGameField) -> np.ndarray:
+        """
+        Fix 6.1: Resolve target conflicts - if both agents pick same target, nearest keeps it,
+        other gets next-best valid target (or GO_HOME).
+        """
+        a = actions.copy()
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if len(blue_agents) < 2:
+            return a
+        
+        from collections import defaultdict
+        groups: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+        for i in range(2):
+            m, t = int(a[i * 2]), int(a[i * 2 + 1])
+            if self._macro_uses_target(m, game_field):
+                groups[(m, t)].append(i)
+        
+        for (m, t), agents in groups.items():
+            if len(agents) <= 1:
+                continue
+            try:
+                tgt_cell = game_field.get_macro_target(t)
+                if tgt_cell is None or len(tgt_cell) < 2:
+                    tx, ty = 0, 0
+                else:
+                    tx, ty = int(tgt_cell[0]), int(tgt_cell[1])
+            except Exception:
+                continue
+            
+            def dist_to_target(agent_idx: int) -> float:
+                if agent_idx >= len(blue_agents):
+                    return float("inf")
+                agent = blue_agents[agent_idx]
+                if agent is None:
+                    return float("inf")
+                pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                dx = float(pos[0]) - tx
+                dy = float(pos[1]) - ty
+                return dx * dx + dy * dy
+            
+            agents_sorted = sorted(agents, key=dist_to_target)
+            for idx, agent_idx in enumerate(agents_sorted):
+                if idx == 0:
+                    continue
+                if agent_idx >= len(blue_agents):
+                    a[agent_idx * 2] = 4  # GO_HOME
+                    a[agent_idx * 2 + 1] = 0
+                    continue
+                agent = blue_agents[agent_idx]
+                if agent is None:
+                    a[agent_idx * 2] = 4
+                    a[agent_idx * 2 + 1] = 0
+                    continue
+                try:
+                    tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                    n_targets = int(getattr(game_field, "num_macro_targets", 8) or 8)
+                    if tm.shape != (n_targets,) or not tm.any():
+                        a[agent_idx * 2] = 4
+                        a[agent_idx * 2 + 1] = 0
+                        continue
+                    best_alt = 0
+                    best_dist = float("inf")
+                    for ti in range(n_targets):
+                        if not bool(tm[ti]) or ti == t:
+                            continue
+                        try:
+                            tc = game_field.get_macro_target(ti)
+                            tcx = int(tc[0])
+                            tcy = int(tc[1]) if len(tc) >= 2 else 0
+                        except Exception:
+                            continue
+                        pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                        d = (float(pos[0]) - tcx) ** 2 + (float(pos[1]) - tcy) ** 2
+                        if d < best_dist:
+                            best_dist = d
+                            best_alt = ti
+                    a[agent_idx * 2] = m
+                    a[agent_idx * 2 + 1] = best_alt
+                except Exception:
+                    a[agent_idx * 2] = 4
+                    a[agent_idx * 2 + 1] = 0
+        
+        return a
+
+    def _sanitize_action_with_mask(
+        self, 
+        macro: int, 
+        target: int, 
+        game_field: ViewerGameField, 
+        agent_idx: int
+    ) -> Tuple[int, int]:
+        """Enforce action masks: ensure macro and target are valid for this agent."""
+        macro = int(macro) % N_MACROS
+        n_targets = int(getattr(game_field, "num_macro_targets", 8) or 8)
+        target = int(target) % max(1, n_targets)
+        
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if agent_idx >= len(blue_agents):
+            return macro, target
+        
+        agent = blue_agents[agent_idx]
+        if agent is None:
+            return macro, target
+        
+        # Enforce macro mask
+        try:
+            mm = np.asarray(game_field.get_macro_mask(agent), dtype=np.bool_).reshape(-1)
+            if mm.shape == (N_MACROS,) and mm.any():
+                if not bool(mm[macro]):
+                    valid_macros = np.flatnonzero(mm)
+                    macro = int(valid_macros[0]) if valid_macros.size > 0 else 0
+        except Exception:
+            pass
+        
+        # Enforce target mask if macro uses target
+        try:
+            from macro_actions import MacroAction
+            uses_target = macro in (MacroAction.GO_TO, MacroAction.GET_FLAG, MacroAction.GRAB_MINE, MacroAction.PLACE_MINE)
+            if uses_target:
+                tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                if tm.shape == (n_targets,) and tm.any():
+                    if not bool(tm[target]):
+                        valid_targets = np.flatnonzero(tm)
+                        target = int(valid_targets[0]) if valid_targets.size > 0 else 0
+        except Exception:
+            pass
+        
+        return macro, target
+
     def _compute_joint_action_if_needed(self, game_field: ViewerGameField, tick: int, side: str) -> None:
         if not self.model_loaded or self.low_model is None:
             self._cache_tick = tick
@@ -721,7 +1148,33 @@ class SB3TeamHPPOPolicy:
         mode = self._compute_mode_if_needed(game_field, tick)
         obs = self._build_team_obs(game_field, side=side, mode=mode)
         action, _ = self.low_model.predict(obs, deterministic=self.deterministic)
-        self._cache_action = np.asarray(action).reshape(-1)
+        a = np.asarray(action).reshape(-1)
+        
+        # Ensure shape [4]
+        if a.size < 4:
+            padded = np.zeros((4,), dtype=np.int64)
+            padded[:a.size] = a[:a.size]
+            a = padded
+        elif a.size > 4:
+            a = a[:4]
+        
+        # Normalize ranges (before mask enforcement)
+        a[0] = int(a[0]) % N_MACROS
+        a[2] = int(a[2]) % N_MACROS
+        n_targets = int(getattr(game_field, "num_macro_targets", 8) or 8)
+        a[1] = int(a[1]) % n_targets
+        a[3] = int(a[3]) % n_targets
+        
+        # Enforce masks: sanitize actions for each agent
+        macro0, tgt0 = self._sanitize_action_with_mask(a[0], a[1], game_field, 0)
+        macro1, tgt1 = self._sanitize_action_with_mask(a[2], a[3], game_field, 1)
+        a[0], a[1] = macro0, tgt0
+        a[2], a[3] = macro1, tgt1
+        
+        # Fix 6.1: Resolve target conflicts (training does this, viewer must too!)
+        a = self._resolve_target_conflicts(a, game_field)
+        
+        self._cache_action = a
 
     def act_for_agent(self, agent, game_field: ViewerGameField, *, tick: int) -> Tuple[MacroAction, Tuple[int, int]]:
         self._compute_joint_action_if_needed(game_field, tick, side="blue")
@@ -975,7 +1428,7 @@ class CTFViewer:
         num_episodes: int = 100,
         save_csv: Optional[str] = None,
         headless: bool = False,
-        opponent: str = "OP3",
+        opponent: str = "OP3_HARD",  # Default to OP3_HARD to match training (if trained vs OP3_HARD)
         eval_model: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -1037,7 +1490,9 @@ class CTFViewer:
             self._set_phase_op3()  # Default to OP3
 
         fixed_dt = 1.0 / 60.0
-        max_steps_per_episode = 900 * 60  # ~900 seconds at 60 Hz
+        # Match training: max_decision_steps (default 400 in CTFGameFieldSB3Env)
+        # Training uses decision steps, not sim ticks; approximate: 1 decision step ≈ 1 sim tick
+        max_steps_per_episode = 400  # Match training default max_decision_steps
 
         episodes = []
         episode_id = 0
@@ -1621,7 +2076,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval-csv", type=str, metavar="PATH", help="CSV output path for evaluation (default: auto-generated)")
     parser.add_argument("--eval-model", type=str, choices=["ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
     parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
-    parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD)")
+    parser.add_argument("--opponent", type=str, default="OP3_HARD", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD). Default: OP3_HARD to match training.")
     parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
