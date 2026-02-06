@@ -133,22 +133,22 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_league_curriculum_old_v3"
+    run_tag: str = "ppo_league_curriculum_v4"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
     snapshot_every_episodes: int = 100
     league_max_snapshots: int = 25  # cap league snapshots; delete oldest to save space
-    enable_tensorboard: bool = False
+    enable_tensorboard: bool = True  # RECOMMENDED: Enable to monitor training progress
     enable_checkpoints: bool = False
     enable_eval: bool = False
 
-    max_decision_steps: int = 900
+    max_decision_steps: int = 400  # Match viewer/episode length (was 900, too long)
     op3_gate_tag: str = "OP3_HARD"
     # When learner Elo drops below this, substitute OP3_HARD with OP3 for more winnable games.
     league_easy_scripted_elo_threshold: float = 1200.0
 
-    mode: str = TrainMode.CURRICULUM_NO_LEAGUE.value
+    mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
@@ -186,17 +186,20 @@ class PPOConfig:
     fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
     fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
     # Phase 2 fixed-eval gating: advance only if fixed-eval WR meets threshold (None = disabled)
-    fixed_eval_gate_OP1_wr: Optional[float] = 0.90  # advance to OP2 only if fixed eval vs OP1 >= this
-    fixed_eval_gate_OP2_wr: Optional[float] = 0.75  # advance to OP3 only if fixed eval vs OP2 >= this
+    # RECOMMENDED: Lower thresholds for faster curriculum progression (was 0.90/0.75)
+    fixed_eval_gate_OP1_wr: Optional[float] = 0.75  # advance to OP2 only if fixed eval vs OP1 >= this
+    fixed_eval_gate_OP2_wr: Optional[float] = 0.60  # advance to OP3 only if fixed eval vs OP2 >= this
     # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (avoid spicy too early)
     op3_hard_max_fraction_until_stable: float = 0.05  # max 5% OP3_HARD until OP3 fixed-eval stable
     op3_stable_fixed_eval_wr: float = 0.55  # OP3 fixed-eval WR >= this to allow full OP3_HARD
     # Reduced aggressiveness (if training unstable)
     use_reduced_aggressiveness: bool = False  # Enable gentler updates
     # Stable MARL PPO: gentler defaults for multi-agent nonstationarity (Fix 4.1)
-    use_stable_marl_ppo: bool = False  # lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024
+    # RECOMMENDED: Enable for better MARL convergence and higher win rates
+    use_stable_marl_ppo: bool = True  # lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024
     # KL guardrail: auto-reduce aggressiveness if approx_kl exceeds threshold repeatedly (Fix 4.2)
-    approx_kl_threshold: float = 0.03  # target approx_kl ~0.01–0.03; spike above = over-updating
+    # RECOMMENDED: Enable KL guardrail to prevent policy thrashing
+    approx_kl_threshold: float = 0.05  # target approx_kl ~0.01–0.03; spike above = over-updating (raised to 0.05 for more tolerance)
     kl_guardrail_consecutive: int = 3  # trigger after this many consecutive spikes
     # Explicit tokenized obs gate (Fix 5.1): use tokenized extractor when max_blue_agents>2 OR use_tokenized_obs
     use_tokenized_obs: bool = False
@@ -228,7 +231,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             use_obs_builder=getattr(cfg, "use_obs_builder", True),
             include_opponent_context=getattr(cfg, "include_opponent_context", False),
             obs_debug_validate_locality=getattr(cfg, "obs_debug_validate_locality", False),
-            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.1),
+            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.15),  # Increased default for better dense rewards
         )
         return env
     return _fn
@@ -1098,13 +1101,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
                 min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.50, "OP2": 0.50, "OP3": 0.55},
+                min_winrate={"OP1": 0.40, "OP2": 0.40, "OP3": 0.45},  # Lower thresholds for faster progression (was 0.50/0.50/0.55)
                 winrate_window=50,
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
-                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.90),
-                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.75),
+                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),  # Use config default (0.75), not hardcoded 0.90
+                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),  # Use config default (0.60), not hardcoded 0.75
             )
         )
         controller = CurriculumController(
@@ -1116,7 +1119,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
                 min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.50, "OP2": 0.50, "OP3": 0.55},
+                min_winrate={"OP1": 0.40, "OP2": 0.40, "OP3": 0.45},  # Lower thresholds for faster progression (was 0.50/0.50/0.55)
                 winrate_window=50,
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
@@ -1294,6 +1297,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
 
     if cfg.enable_eval:
+        # Use OP3 for evaluation/testing (OP3_HARD is training-only to improve OP3 performance)
         eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
         eval_env = VecMonitor(eval_env)
         callbacks.append(
