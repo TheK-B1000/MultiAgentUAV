@@ -73,6 +73,9 @@ class CurriculumConfig:
     required_win_by: Dict[str, int]
     elo_margin: float
     switch_to_league_after_op3_win: bool = True
+    # Fixed-eval gating: phase advance only if fixed-eval WR vs previous phase meets threshold (None = disabled)
+    fixed_eval_gate_OP1_wr: Optional[float] = 0.90  # advance to OP2 only if fixed eval vs OP1 >= this
+    fixed_eval_gate_OP2_wr: Optional[float] = 0.75  # advance to OP3 only if fixed eval vs OP2 >= this
 
 
 @dataclass
@@ -81,6 +84,8 @@ class CurriculumState:
     phase_idx: int = 0
     phase_episode_count: int = 0
     recent_results: Dict[str, Deque[int]] = field(default_factory=dict)
+    # Latest fixed-eval win rate per opponent (SCRIPTED:OP1, SCRIPTED:OP2, ...); updated by FixedEvalCallback
+    _fixed_eval_wr: Dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.recent_results = {
@@ -91,6 +96,10 @@ class CurriculumState:
     @property
     def phase(self) -> str:
         return self.config.phases[self.phase_idx]
+
+    def set_fixed_eval_wr(self, opponent_key: str, wr: float) -> None:
+        """Update fixed-eval win rate for an opponent (called by FixedEvalCallback)."""
+        self._fixed_eval_wr[str(opponent_key)] = float(max(0.0, min(1.0, wr)))
 
     def record_result(self, phase: str, win: float) -> None:
         phase = str(phase).upper()
@@ -138,11 +147,20 @@ class CurriculumState:
         if self.phase_idx >= (len(self.config.phases) - 1):
             return False
         phase = self.phase
-        if self.should_advance(phase, learner_rating, opponent_rating, win_by):
-            self.phase_idx += 1
-            self.phase_episode_count = 0
-            return True
-        return False
+        if not self.should_advance(phase, learner_rating, opponent_rating, win_by):
+            return False
+        # Fixed-eval gating: require fixed-eval WR vs previous phase before advancing
+        gate_op1 = getattr(self.config, "fixed_eval_gate_OP1_wr", None)
+        gate_op2 = getattr(self.config, "fixed_eval_gate_OP2_wr", None)
+        if self.phase_idx == 0 and gate_op1 is not None:
+            if self._fixed_eval_wr.get("SCRIPTED:OP1", 0.0) < float(gate_op1):
+                return False
+        if self.phase_idx == 1 and gate_op2 is not None:
+            if self._fixed_eval_wr.get("SCRIPTED:OP2", 0.0) < float(gate_op2):
+                return False
+        self.phase_idx += 1
+        self.phase_episode_count = 0
+        return True
 
 
 @dataclass
