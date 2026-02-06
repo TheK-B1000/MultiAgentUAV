@@ -93,14 +93,22 @@ class EloLeague:
         return float(self.ratings.get(key, 1200.0))
 
     def update_elo(self, opponent_key: str, actual_score: float) -> None:
+        """
+        Update learner Elo from match result. Opponent rating is updated only for
+        SNAPSHOT opponents; SCRIPTED and SPECIES ratings are anchored (fixed) so
+        Elo stays comparable over time and does not inflate.
+        """
         lr = self.learner_rating
         opp_r = self.get_rating(opponent_key)
         exp = elo_expected(lr, opp_r)
 
         learner_new = max(0.0, lr + self.k * (float(actual_score) - exp))
-        opp_new = max(0.0, opp_r + self.k * ((1.0 - float(actual_score)) - (1.0 - exp)))
-
         self.set_learner_rating(learner_new)
+
+        # Rating anchors: do not update SCRIPTED or SPECIES ratings; only update SNAPSHOT
+        if opponent_key.startswith("SCRIPTED:") or opponent_key.startswith("SPECIES:"):
+            return
+        opp_new = max(0.0, opp_r + self.k * ((1.0 - float(actual_score)) - (1.0 - exp)))
         self.ratings[opponent_key] = float(opp_new)
 
     def _weighted_pick(
@@ -210,14 +218,15 @@ class EloLeague:
         
         r -= self.stability_scripted_prob
         
-        # 20% snapshot opponents (uniform from last N snapshots)
+        # 20% snapshot opponents: sample by rating closeness to learner (not uniform)
+        # So snapshots aren't "free wins" from weak recent checkpoints.
         if r < self.stability_snapshot_prob and self.snapshots:
-            # Use uniform sampling from last N snapshots (not weighted by rating for stability)
-            # Take last N snapshots (e.g., last 10)
-            recent_snapshots = self.snapshots[-min(10, len(self.snapshots)):]
-            if recent_snapshots:
-                path = self.rng.choice(recent_snapshots)
-                return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
+            path = self._weighted_pick(
+                self.snapshots,
+                target_rating,
+                key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
+            )
+            return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
         
         r -= self.stability_snapshot_prob
         
