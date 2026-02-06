@@ -92,12 +92,91 @@ class EnvActionManager:
             executed.append((m, t))
             self._record_macro_usage(i, m, game_field)
 
+        # Fix 6.1: Target reservation — nearest agent keeps shared target, others get next-best
+        executed = self._resolve_target_conflicts(executed, n_blue_agents, game_field)
+
         # Pad to n_slots
         n_slots = len(intended_actions)
         while len(executed) < n_slots:
             executed.append((0, 0))
 
         return executed, flip_count_step, macro_flip_count_step, target_flip_count_step
+
+    def _resolve_target_conflicts(
+        self,
+        executed: List[Tuple[int, int]],
+        n_blue_agents: int,
+        game_field: Any,
+    ) -> List[Tuple[int, int]]:
+        """
+        Fix 6.1: When multiple agents choose the same target for GO_TO/GET_FLAG/GRAB_MINE,
+        nearest agent keeps it; others are reassigned to next-best valid target (or GO_HOME).
+        """
+        if game_field is None or n_blue_agents < 2:
+            return executed
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        if len(blue_agents) < 2:
+            return executed
+        executed = list(executed)
+        # Group (agent_idx, target_idx) by (macro, target_idx) for target-using macros
+        from collections import defaultdict
+        groups: Dict[Tuple[int, int], List[int]] = defaultdict(list)  # (macro, target) -> [agent_idx, ...]
+        for i in range(min(n_blue_agents, len(executed))):
+            m, t = executed[i]
+            if self._macro_uses_target(m, game_field):
+                groups[(m, t)].append(i)
+        for (m, t), agents in groups.items():
+            if len(agents) <= 1:
+                continue
+            # Sort by distance to target (nearest first)
+            try:
+                tgt_cell = game_field.get_macro_target(t)
+                if tgt_cell is None or len(tgt_cell) < 2:
+                    tx, ty = 0, 0
+                else:
+                    tx, ty = int(tgt_cell[0]), int(tgt_cell[1])
+            except Exception:
+                continue
+            def dist_to_target(agent_idx: int) -> float:
+                a = blue_agents[agent_idx] if agent_idx < len(blue_agents) else None
+                if a is None:
+                    return float("inf")
+                pos = getattr(a, "float_pos", (getattr(a, "x", 0), getattr(a, "y", 0)))
+                dx = float(pos[0]) - tx
+                dy = float(pos[1]) - ty
+                return dx * dx + dy * dy
+            agents_sorted = sorted(agents, key=dist_to_target)
+            # Keep first; reassign rest to next-best or GO_HOME (4)
+            for idx, agent_idx in enumerate(agents_sorted):
+                if idx == 0:
+                    continue
+                agent = blue_agents[agent_idx] if agent_idx < len(blue_agents) else None
+                if agent is None:
+                    executed[agent_idx] = (4, 0)  # GO_HOME
+                    continue
+                tm = np.asarray(game_field.get_target_mask(agent), dtype=np.bool_).reshape(-1)
+                if tm.shape != (self._n_targets,) or not tm.any():
+                    executed[agent_idx] = (4, 0)
+                    continue
+                # Exclude current contested target; pick next-best valid
+                best_alt = 0
+                best_dist = float("inf")
+                for ti in range(self._n_targets):
+                    if not bool(tm[ti]) or ti == t:
+                        continue
+                    try:
+                        tc = game_field.get_macro_target(ti)
+                        tcx = int(tc[0])
+                        tcy = int(tc[1]) if len(tc) >= 2 else 0
+                    except Exception:
+                        continue
+                    pos = getattr(agent, "float_pos", (getattr(agent, "x", 0), getattr(agent, "y", 0)))
+                    d = (float(pos[0]) - tcx) ** 2 + (float(pos[1]) - tcy) ** 2
+                    if d < best_dist:
+                        best_dist = d
+                        best_alt = ti
+                executed[agent_idx] = (m, best_alt)
+        return executed
 
     def _sanitize_action_for_agent(
         self,
@@ -165,14 +244,14 @@ class EnvActionManager:
         return out if out.any() else mm
 
     def _macro_uses_target(self, macro_idx: int, game_field: Any) -> bool:
-        """Check if macro action requires a target."""
+        """Check if macro action requires a spatial target (for masking and target reservation)."""
         if game_field is None:
             return True
         try:
             action = game_field.macro_order[int(macro_idx)]
         except Exception:
             return True
-        return action in (MacroAction.GO_TO, MacroAction.PLACE_MINE)
+        return action in (MacroAction.GO_TO, MacroAction.GRAB_MINE, MacroAction.GET_FLAG, MacroAction.PLACE_MINE)
 
     def _nearest_valid_target(
         self, agent: Any, tgt_mask: np.ndarray, game_field: Any
