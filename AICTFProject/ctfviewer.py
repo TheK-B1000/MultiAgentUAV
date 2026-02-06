@@ -327,6 +327,13 @@ class MAPPOTeamPolicy:
             return
         agents = getattr(game_field, "blue_agents", []) if side == "blue" else getattr(game_field, "red_agents", [])
         live = [a for a in agents if a is not None]
+        # CRITICAL: Sort by agent_id to match training's canonical ordering (blue_0, blue_1)
+        def _get_agent_id(agent):
+            try:
+                return int(getattr(agent, "agent_id", -1))
+            except Exception:
+                return -1
+        live.sort(key=_get_agent_id)  # Sort by agent_id ascending (0, 1, 2, ...)
         while len(live) < 2:
             live.append(live[0] if live else None)
         import torch as _torch
@@ -378,12 +385,36 @@ class MAPPOTeamPolicy:
         return (max(0, cols // 2), max(0, rows // 2))
 
     def act_for_agent(self, agent: Any, game_field: ViewerGameField, tick: int) -> Tuple[Any, Tuple[int, int]]:
+        """
+        CRITICAL: Maps agent to correct slot index based on sorted order (matches training's canonical ordering).
+        """
         side = str(getattr(agent, "side", "blue")).lower()
         self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
-        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
-        aid = 0 if aid <= 0 else 1
-        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
-        target_idx = int(self._cache_action[aid * 2 + 1])
+        
+        # CRITICAL: Map agent to slot index based on sorted order (not agent_id directly)
+        # Training: build_blue_identities() uses list index as slot index
+        # Viewer: We sort by agent_id, so find agent's position in sorted list
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        live = [a for a in blue_agents if a is not None]
+        def _get_agent_id(agent):
+            try:
+                return int(getattr(agent, "agent_id", -1))
+            except Exception:
+                return -1
+        live.sort(key=_get_agent_id)  # Sort by agent_id ascending
+        
+        # Find this agent's index in sorted list (0 or 1)
+        slot_index = 0
+        for i, a in enumerate(live[:2]):
+            if a is agent or (hasattr(a, "agent_id") and hasattr(agent, "agent_id") and getattr(a, "agent_id", -1) == getattr(agent, "agent_id", -2)):
+                slot_index = i
+                break
+        
+        # Ensure slot_index is 0 or 1
+        slot_index = max(0, min(1, slot_index))
+        
+        macro_idx = int(self._cache_action[slot_index * 2 + 0]) % N_MACROS
+        target_idx = int(self._cache_action[slot_index * 2 + 1])
         macro = USED_MACROS[macro_idx]
         if macro == MacroAction.PLACE_MINE:
             try:
@@ -439,7 +470,11 @@ class SB3TeamPPOPolicy:
             self.model = SB3PPO.load(self.model_path, device="cpu")
             self.model.policy.set_training_mode(False)
             self.model_loaded = True
+            # Detect observation mode and warn if mismatch
+            use_tokenized = self._model_expects_tokenized()
+            obs_mode = "tokenized" if use_tokenized else "legacy"
             print(f"[CTFViewer] Loaded SB3 PPO model from: {self.model_path}")
+            print(f"[CTFViewer] Model observation mode: {obs_mode} (tokenized={use_tokenized})")
         except OSError as e:
             print(f"[CTFViewer] Torch/SB3 DLL error (try: reinstall torch, or run viewer in Default mode): {e}")
             self.model_loaded = False
@@ -457,6 +492,27 @@ class SB3TeamPPOPolicy:
         space = getattr(self.model.policy, "observation_space", None)
         if hasattr(space, "spaces") and isinstance(space.spaces, dict):
             return "mask" in space.spaces
+        return False
+
+    def _model_expects_tokenized(self) -> bool:
+        """Detect if model expects tokenized observations (max_blue_agents > 2 or use_tokenized_obs=True)."""
+        if self.model is None:
+            return False
+        space = getattr(self.model.policy, "observation_space", None)
+        if not hasattr(space, "spaces") or not isinstance(space.spaces, dict):
+            return False
+        grid_space = space.spaces.get("grid", None)
+        if grid_space is None or not hasattr(grid_space, "shape"):
+            return False
+        grid_shape = grid_space.shape
+        # Tokenized: (M, C, H, W) where M > 1
+        # Legacy: (2*C, H, W) - first dim is 2*C (even number, typically 14, 16, etc.)
+        if len(grid_shape) == 4:
+            # 4D shape = tokenized mode
+            return True
+        elif len(grid_shape) == 3:
+            # 3D shape = legacy mode (2*C, H, W)
+            return False
         return False
 
     def _model_expects_vec(self) -> bool:
@@ -500,9 +556,22 @@ class SB3TeamPPOPolicy:
         
         Per module ownership: observation building must use rl/obs_builder.py::build_team_obs().
         Manual fallback removed - if builder is unavailable, raise error.
+        
+        CRITICAL: Agent ordering must match training (blue_0, blue_1 by agent_id).
+        Training uses build_blue_identities() which orders by agent_id ascending.
         """
         agents = game_field.blue_agents if side == "blue" else game_field.red_agents
         live = [a for a in agents if a is not None]
+        
+        # CRITICAL: Sort by agent_id to match training's canonical ordering (blue_0, blue_1)
+        # Training uses build_blue_identities() which creates identities ordered by agent_id
+        def _get_agent_id(agent):
+            try:
+                return int(getattr(agent, "agent_id", -1))
+            except Exception:
+                return -1
+        live.sort(key=_get_agent_id)  # Sort by agent_id ascending (0, 1, 2, ...)
+        
         while len(live) < 2:
             live.append(live[0] if live else None)
 
@@ -512,12 +581,30 @@ class SB3TeamPPOPolicy:
                 "Manual observation building is forbidden per module ownership."
             )
 
+        # CRITICAL: Detect if model expects tokenized observations (matches training config)
+        # Training uses tokenized when: use_tokenized_obs=True OR max_blue_agents > 2
+        use_tokenized = self._model_expects_tokenized()
+        
+        # Determine max_agents from observation space if tokenized, otherwise use 2
+        max_agents_for_obs = 2
+        if use_tokenized and self.model is not None:
+            try:
+                space = getattr(self.model.policy, "observation_space", None)
+                if hasattr(space, "spaces") and isinstance(space.spaces, dict):
+                    grid_space = space.spaces.get("grid", None)
+                    if grid_space is not None and hasattr(grid_space, "shape"):
+                        grid_shape = grid_space.shape
+                        if len(grid_shape) == 4:
+                            max_agents_for_obs = int(grid_shape[0])  # First dim is M (max_agents)
+            except Exception:
+                pass  # Fallback to 2
+
         return _viewer_obs_builder(
             game_field,
             live[:2],
-            max_agents=2,
+            max_agents=max_agents_for_obs,
             include_mask=self._model_expects_mask(),
-            tokenized=False,
+            tokenized=use_tokenized,
             vec_size_base=12,
             n_macros=N_MACROS,
             n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
@@ -743,16 +830,38 @@ class SB3TeamPPOPolicy:
         """
         Returns what the VIEWER internal-policy pipeline expects:
           (MacroAction enum, target_cell)
+        
+        CRITICAL: Maps agent to correct slot index based on sorted order (matches training's canonical ordering).
+        Training uses build_blue_identities() which creates blue_0, blue_1 based on list order.
+        We sort by agent_id, so agent at index 0 → slot 0, agent at index 1 → slot 1.
         """
         side = str(getattr(agent, "side", "blue")).lower()
         self._compute_joint_action_if_needed(game_field, tick=tick, side=side)
 
-        # Map agent_id -> [0,1]
-        aid = _safe_int(getattr(agent, "agent_id", 0), 0)
-        aid = 0 if aid <= 0 else 1
+        # CRITICAL: Map agent to slot index based on sorted order (not agent_id directly)
+        # Training: build_blue_identities() uses list index as slot index
+        # Viewer: We sort by agent_id, so find agent's position in sorted list
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        live = [a for a in blue_agents if a is not None]
+        def _get_agent_id(agent):
+            try:
+                return int(getattr(agent, "agent_id", -1))
+            except Exception:
+                return -1
+        live.sort(key=_get_agent_id)  # Sort by agent_id ascending
+        
+        # Find this agent's index in sorted list (0 or 1)
+        slot_index = 0
+        for i, a in enumerate(live[:2]):
+            if a is agent or (hasattr(a, "agent_id") and hasattr(agent, "agent_id") and getattr(a, "agent_id", -1) == getattr(agent, "agent_id", -2)):
+                slot_index = i
+                break
+        
+        # Ensure slot_index is 0 or 1
+        slot_index = max(0, min(1, slot_index))
 
-        macro_idx = int(self._cache_action[aid * 2 + 0]) % N_MACROS
-        target_idx = int(self._cache_action[aid * 2 + 1])
+        macro_idx = int(self._cache_action[slot_index * 2 + 0]) % N_MACROS
+        target_idx = int(self._cache_action[slot_index * 2 + 1])
 
         macro = USED_MACROS[macro_idx]  # <-- THIS is the crucial translation
 
@@ -953,6 +1062,13 @@ class SB3TeamHPPOPolicy:
         """
         agents = game_field.blue_agents if side == "blue" else game_field.red_agents
         live = [a for a in agents if a is not None]
+        # CRITICAL: Sort by agent_id to match training's canonical ordering (blue_0, blue_1)
+        def _get_agent_id(agent):
+            try:
+                return int(getattr(agent, "agent_id", -1))
+            except Exception:
+                return -1
+        live.sort(key=_get_agent_id)  # Sort by agent_id ascending (0, 1, 2, ...)
         while len(live) < 2:
             live.append(live[0] if live else None)
 
@@ -1177,8 +1293,33 @@ class SB3TeamHPPOPolicy:
         self._cache_action = a
 
     def act_for_agent(self, agent, game_field: ViewerGameField, *, tick: int) -> Tuple[MacroAction, Tuple[int, int]]:
+        """
+        CRITICAL: Maps agent to correct slot index based on sorted order (matches training's canonical ordering).
+        """
         self._compute_joint_action_if_needed(game_field, tick, side="blue")
-        idx = 0 if agent == game_field.blue_agents[0] else 2
+        
+        # CRITICAL: Map agent to slot index based on sorted order (not list position directly)
+        # Training: build_blue_identities() uses list index as slot index, but list is sorted by agent_id
+        # Viewer: We sort by agent_id, so find agent's position in sorted list
+        blue_agents = getattr(game_field, "blue_agents", []) or []
+        live = [a for a in blue_agents if a is not None]
+        def _get_agent_id(agent):
+            try:
+                return int(getattr(agent, "agent_id", -1))
+            except Exception:
+                return -1
+        live.sort(key=_get_agent_id)  # Sort by agent_id ascending
+        
+        # Find this agent's index in sorted list (0 or 1)
+        slot_index = 0
+        for i, a in enumerate(live[:2]):
+            if a is agent or (hasattr(a, "agent_id") and hasattr(agent, "agent_id") and getattr(a, "agent_id", -1) == getattr(agent, "agent_id", -2)):
+                slot_index = i
+                break
+        
+        # Ensure slot_index is 0 or 1, then map to action array index (0 or 2)
+        slot_index = max(0, min(1, slot_index))
+        idx = slot_index * 2  # 0 or 2 (for action array indexing)
 
         macro_idx = int(self._cache_action[idx]) % N_MACROS
         tgt_idx = int(self._cache_action[idx + 1]) % int(getattr(game_field, "num_macro_targets", 8) or 8)
@@ -1278,6 +1419,15 @@ class CTFViewer:
         self.blue_mode: str = "DEFAULT"
         self._apply_blue_mode(self.blue_mode)
         self._reset_op3_policies()
+        
+        # Set opponent to OP3 for testing (OP3_HARD is used during training to make agent better at OP3)
+        # Testing should use standard OP3 to measure actual performance
+        if hasattr(self.game_field, "set_red_opponent"):
+            try:
+                self.game_field.set_red_opponent("OP3")
+                print("[CTFViewer] Red opponent set to OP3 (standard test opponent)")
+            except Exception:
+                pass
 
     def _set_phase_op3(self) -> None:
         if hasattr(self.game_manager, "set_phase"):
@@ -1428,7 +1578,7 @@ class CTFViewer:
         num_episodes: int = 100,
         save_csv: Optional[str] = None,
         headless: bool = False,
-        opponent: str = "OP3_HARD",  # Default to OP3_HARD to match training (if trained vs OP3_HARD)
+        opponent: str = "OP3",  # Default to OP3 for testing (OP3_HARD is training-only to improve OP3 performance)
         eval_model: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -1491,8 +1641,18 @@ class CTFViewer:
 
         fixed_dt = 1.0 / 60.0
         # Match training: max_decision_steps (default 400 in CTFGameFieldSB3Env)
-        # Training uses decision steps, not sim ticks; approximate: 1 decision step ≈ 1 sim tick
-        max_steps_per_episode = 400  # Match training default max_decision_steps
+        # Training: 400 decision steps * 0.99 * decision_interval (~0.693s) = ~277 seconds
+        # Viewer: sim ticks at 60 Hz, so 277s * 60 = ~16,620 sim ticks
+        # CRITICAL: Training uses 0.99 * interval, so we must match that exactly
+        # But also check game_over for natural termination
+        decision_interval = float(getattr(self.game_field, "decision_interval_seconds", 0.7))
+        # Match training exactly: training uses 0.99 * interval per step
+        max_time_seconds = 400 * 0.99 * decision_interval  # = 400 * 0.693 = 277.2 seconds
+        max_steps_per_episode = int(max_time_seconds * 60)  # Convert to sim ticks at 60 Hz = ~16,632 ticks
+        # Ensure minimum reasonable limit (at least 60 seconds = 3600 ticks)
+        max_steps_per_episode = max(3600, max_steps_per_episode)
+        if not headless:
+            print(f"[Eval] Episode step limit: {max_steps_per_episode} sim ticks (~{max_steps_per_episode/60:.1f}s, matches training {400} decision steps)")
 
         episodes = []
         episode_id = 0
@@ -1541,6 +1701,11 @@ class CTFViewer:
                     self.sim_tick += 1
                     self.game_field.update(fixed_dt)
                     step_count += 1
+                    
+                    # Check for natural game termination (score limit or timeout)
+                    gm = self.game_manager
+                    if getattr(gm, "game_over", False):
+                        break
 
                     # Per-step: role timers (attacking vs defending)
                     if n_blue > 0 and hasattr(gf, "_zone_ranges") and hasattr(gf, "_agent_cell_pos") and hasattr(gf, "_agent_is_carrying_flag"):
@@ -1566,6 +1731,7 @@ class CTFViewer:
                         except Exception:
                             pass
 
+                    # Check for natural game termination (score limit or timeout)
                     gm = self.game_manager
                     if getattr(gm, "game_over", False):
                         break
@@ -1928,6 +2094,12 @@ class CTFViewer:
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.reset_default()
             self._set_phase_op3()
+            # Re-set opponent to OP3 for testing (OP3_HARD is training-only)
+            if hasattr(self.game_field, "set_red_opponent"):
+                try:
+                    self.game_field.set_red_opponent("OP3")
+                except Exception:
+                    pass
             self.sim_tick = 0
             if self.blue_mappo_team:
                 self.blue_mappo_team.reset_cache()
@@ -1954,6 +2126,12 @@ class CTFViewer:
             self.game_field.agents_per_team = 2
             self.game_field.reset_default()
             self._set_phase_op3()
+            # Re-set opponent to OP3 for testing (OP3_HARD is training-only)
+            if hasattr(self.game_field, "set_red_opponent"):
+                try:
+                    self.game_field.set_red_opponent("OP3")
+                except Exception:
+                    pass
             self.sim_tick = 0
             if self.blue_mappo_team:
                 self.blue_mappo_team.reset_cache()
@@ -1979,6 +2157,12 @@ class CTFViewer:
                     self.game_field.reset_default()
 
                 self._set_phase_op3()
+                # Re-set opponent to OP3 for testing (OP3_HARD is training-only)
+                if hasattr(self.game_field, "set_red_opponent"):
+                    try:
+                        self.game_field.set_red_opponent("OP3")
+                    except Exception:
+                        pass
                 self.sim_tick = 0
                 if self.blue_mappo_team:
                     self.blue_mappo_team.reset_cache()
