@@ -119,7 +119,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 3_100_000
+    total_timesteps: int = 3_000_000
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -133,7 +133,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_league_curriculum_v3"
+    run_tag: str = "ppo_league_curriculum_old_v3"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
