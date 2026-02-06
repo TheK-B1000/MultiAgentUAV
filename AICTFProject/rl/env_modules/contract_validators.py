@@ -218,10 +218,58 @@ def validate_dropped_reward_events_policy(
     return True
 
 
+def validate_mask_alignment(
+    mask: Any,
+    n_agents: int,
+    n_macros: int,
+    n_targets: int,
+    n_active_agents: Optional[int] = None,
+    debug: bool = False,
+) -> bool:
+    """
+    Fix 5.2: Assert action mask alignment once per reset in debug mode.
+    - mask length == n_agents * (n_macros + n_targets)
+    - per agent: macro part length n_macros, target part length n_targets
+    - no all-zero masks for active agents (n_active_agents; default all n_agents)
+    """
+    import numpy as np
+    m = np.asarray(mask).reshape(-1)
+    expected_len = n_agents * (n_macros + n_targets)
+    if m.size != expected_len:
+        if debug:
+            raise AssertionError(
+                f"Mask length mismatch: got {m.size}, expected {expected_len} "
+                f"(n_agents={n_agents}, n_macros={n_macros}, n_targets={n_targets})"
+            )
+        return False
+    sz = n_macros + n_targets
+    check_count = (n_active_agents if n_active_agents is not None else n_agents)
+    check_count = min(check_count, n_agents)
+    for i in range(n_agents):
+        start = i * sz
+        macro_slice = m[start : start + n_macros]
+        target_slice = m[start + n_macros : start + sz]
+        if macro_slice.size != n_macros or target_slice.size != n_targets:
+            if debug:
+                raise AssertionError(
+                    f"Agent {i} mask slice length: macro={macro_slice.size} (expected {n_macros}), "
+                    f"target={target_slice.size} (expected {n_targets})"
+                )
+            return False
+        if i < check_count and (not np.any(macro_slice) or not np.any(target_slice)):
+            if debug:
+                raise AssertionError(
+                    f"Agent {i} has all-zero macro or target mask (no valid actions)"
+                )
+            return False
+    return True
+
+
 __all__ = [
     "validate_agent_keys",
     "validate_reward_breakdown",
     "validate_obs_order",
     "validate_action_keys",
     "validate_dropped_reward_events_policy",
+    "validate_mask_alignment",
 ]
