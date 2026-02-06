@@ -48,7 +48,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
-DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v2.zip"
+DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip"
 # Baseline-specific model paths (auto-selected when testing baselines)
 BASELINE_MODEL_PATHS = {
     "fixed_op3": "rl/checkpoints_sb3/final_ppo_role_fixed.zip",
