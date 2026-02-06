@@ -463,6 +463,7 @@ class SB3TeamPPOPolicy:
 
         if self.model_path is None:
             print(f"[CTFViewer] PPO model not found: {model_path} (or .zip)")
+            self.model_loaded = False
             return
 
         try:
@@ -478,8 +479,14 @@ class SB3TeamPPOPolicy:
         except OSError as e:
             print(f"[CTFViewer] Torch/SB3 DLL error (try: reinstall torch, or run viewer in Default mode): {e}")
             self.model_loaded = False
+        except FileNotFoundError as e:
+            print(f"[CTFViewer] PPO model file not found: {self.model_path}")
+            print(f"[CTFViewer] Error: {e}")
+            self.model_loaded = False
         except Exception as e:
             print(f"[CTFViewer] Failed to load SB3 PPO model '{self.model_path}': {e}")
+            import traceback
+            print(f"[CTFViewer] Traceback: {traceback.format_exc()}")
             self.model_loaded = False
 
     def reset_cache(self) -> None:
