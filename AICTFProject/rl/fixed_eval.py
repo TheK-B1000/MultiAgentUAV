@@ -20,6 +20,7 @@ class FixedEvalCallback(BaseCallback):
     """
     Run deterministic evaluation on fixed opponents periodically.
     Tracks performance independent of training matchmaking.
+    When curriculum is provided, updates curriculum._fixed_eval_wr for fixed-eval gating.
     """
     
     def __init__(
@@ -28,11 +29,13 @@ class FixedEvalCallback(BaseCallback):
         cfg: Any,
         eval_every_episodes: int = 500,
         episodes_per_opponent: int = 10,
+        curriculum: Optional[Any] = None,
     ):
         super().__init__(verbose=1)
         self.cfg = cfg
         self.eval_every_episodes = eval_every_episodes
         self.episodes_per_opponent = episodes_per_opponent
+        self.curriculum = curriculum
         
         # Fixed opponents for eval
         self.fixed_opponents: List[Tuple[str, str]] = [
@@ -125,6 +128,10 @@ class FixedEvalCallback(BaseCallback):
             # Log to tensorboard
             self.logger.record(f"fixed_eval/{opp_full_key}_win_rate", win_rate)
             self.logger.record(f"fixed_eval/{opp_full_key}_avg_win_rate", np.mean(self.eval_results[opp_full_key]))
+            
+            # Update curriculum fixed-eval WR for fixed-eval gating (Phase 2 Deliverable G)
+            if self.curriculum is not None and hasattr(self.curriculum, "set_fixed_eval_wr"):
+                self.curriculum.set_fixed_eval_wr(opp_full_key, win_rate / 100.0)
         
         print("[FixedEval] Evaluation complete")
     
