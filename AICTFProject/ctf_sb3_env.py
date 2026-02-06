@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import math
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import gymnasium as gym
@@ -24,6 +25,7 @@ from rl.env_modules import (
     validate_obs_order,
     validate_action_keys,
     validate_dropped_reward_events_policy,
+    validate_mask_alignment,
 )
 
 
@@ -86,6 +88,8 @@ class CTFGameFieldSB3Env(gym.Env):
         obs_debug_validate_locality: bool = False,
         # Phase 2: Contract validation (MARL safety hardening)
         validate_contracts: bool = False,
+        # Fix 3.1/3.2: Dense progress shaping scale (ε); team_total += ε * mean(per_agent_progress)
+        auxiliary_progress_scale: float = 0.1,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
@@ -112,6 +116,7 @@ class CTFGameFieldSB3Env(gym.Env):
         self._include_opponent_context = bool(include_opponent_context)
         self._obs_debug_validate_locality = bool(obs_debug_validate_locality)
         self._validate_contracts = bool(validate_contracts)
+        self._auxiliary_progress_scale = float(auxiliary_progress_scale)
 
         self.max_decision_steps = int(max_decision_steps)
         self.enforce_masks = bool(enforce_masks)
@@ -315,6 +320,47 @@ class CTFGameFieldSB3Env(gym.Env):
     # -------------
     # Gym API
     # -------------
+
+    def _compute_dense_progress_rewards(self) -> List[float]:
+        """Fix 3.1: Per-agent dense progress: +0.01 when moving closer to assigned target (flag/home)."""
+        progress_list: List[float] = []
+        gf = self.gf
+        gm = getattr(gf, "manager", None) if gf else None
+        if gm is None:
+            return progress_list
+        blue_agents = getattr(gf, "blue_agents", [])
+        n_slots = self._max_blue_agents if self._max_blue_agents > 2 else 2
+        last_dists = getattr(self, "_last_dist_to_target", None) or [None] * n_slots
+        if len(last_dists) < n_slots:
+            last_dists = list(last_dists) + [None] * (n_slots - len(last_dists))
+        for i in range(n_slots):
+            progress_i = 0.0
+            if i < len(blue_agents):
+                agent = blue_agents[i]
+                if agent is not None and getattr(agent, "isEnabled", lambda: True)():
+                    try:
+                        if hasattr(gm, "_agent_float"):
+                            pos = gm._agent_float(agent)
+                        elif hasattr(agent, "get_position"):
+                            pos = agent.get_position()
+                        else:
+                            pos = (float(getattr(agent, "x", 0)), float(getattr(agent, "y", 0)))
+                        # Target: home if carrying flag, else enemy flag
+                        if getattr(agent, "is_carrying_flag", False):
+                            target = gm.get_team_zone_center("blue")
+                        else:
+                            target = gm.get_enemy_flag_position("blue") if hasattr(gm, "get_enemy_flag_position") else getattr(gm, "red_flag_position", (0, 0))
+                        curr_dist = math.dist((float(pos[0]), float(pos[1])), (float(target[0]), float(target[1])))
+                        last = last_dists[i] if i < len(last_dists) else None
+                        if last is not None and curr_dist < last:
+                            progress_i = 0.01
+                        last_dists[i] = curr_dist
+                    except Exception:
+                        last_dists[i] = last_dists[i] if i < len(last_dists) else None
+            progress_list.append(progress_i)
+        self._last_dist_to_target = last_dists
+        return progress_list
+
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
 
@@ -378,6 +424,8 @@ class CTFGameFieldSB3Env(gym.Env):
         # Reset episode-level tracking in managers
         self._reward_manager.reset_episode(n_agents=self._n_blue_agents)
         self._action_manager.reset_episode(n_agents=self._n_blue_agents)
+        # Fix 6.2: collision enter-only penalty tracking (per step delta)
+        self._prev_collision_events = 0
 
         n_act = self._max_blue_agents if self._max_blue_agents > 2 else 2
         self.action_space = spaces.MultiDiscrete(
@@ -464,6 +512,10 @@ class CTFGameFieldSB3Env(gym.Env):
             except Exception:
                 pass
 
+        # Fix 3.1: Reset per-agent last distance for dense progress shaping
+        n_slots = self._max_blue_agents if self._max_blue_agents > 2 else 2
+        self._last_dist_to_target = [None] * n_slots
+
         obs = self._get_obs()
         if self._print_reset_shapes:
             try:
@@ -476,6 +528,17 @@ class CTFGameFieldSB3Env(gym.Env):
                 )
             except Exception:
                 pass
+        # Fix 5.2: Assert mask alignment once per reset in debug mode
+        if self._validate_contracts and "mask" in obs:
+            n_slots = self._max_blue_agents if self._max_blue_agents > 2 else 2
+            validate_mask_alignment(
+                obs["mask"],
+                n_agents=n_slots,
+                n_macros=self._n_macros,
+                n_targets=self._n_targets,
+                n_active_agents=self._n_blue_agents,
+                debug=True,
+            )
         return obs, {}
 
     def step(self, action: np.ndarray):
@@ -536,6 +599,28 @@ class CTFGameFieldSB3Env(gym.Env):
             for i in range(n_slots)
         ]
 
+        # Fix 3.1/3.2: Dense progress per-agent; team_total += ε * mean(progress)
+        progress_list = self._compute_dense_progress_rewards()
+        for i in range(n_slots):
+            if i < len(progress_list):
+                reward_blue_per_agent[i] = reward_blue_per_agent[i] + progress_list[i]
+        mean_progress = (sum(progress_list) / len(progress_list)) if progress_list else 0.0
+        auxiliary_progress = self._auxiliary_progress_scale * mean_progress
+
+        # Fix 6.2: Collision penalty enter-only (not per-tick smear)
+        collision_penalty_enter = 0.0
+        current_ce = int(getattr(gm, "collision_events_this_episode", 0))
+        delta_ce = max(0, current_ce - getattr(self, "_prev_collision_events", 0))
+        self._prev_collision_events = current_ce
+        if delta_ce > 0:
+            collision_penalty_enter = -0.02 * float(delta_ce)  # small per enter-event penalty
+        team_total_step = float(reward_events_total) + float(stall_total) + collision_penalty_enter + auxiliary_progress
+        # So per_agent sums to team_total: add each agent's share of (ε*mean(progress)-sum(progress)) and collision
+        sum_progress = sum(progress_list) if progress_list else 0.0
+        n_slots_f = max(1, n_slots)
+        adj = (auxiliary_progress - sum_progress) / n_slots_f + collision_penalty_enter / n_slots_f
+        reward_blue_per_agent = [reward_blue_per_agent[i] + adj for i in range(n_slots)]
+
         # Check termination
         gm = self.gf.manager
         terminated = bool(getattr(gm, "game_over", False))
@@ -548,9 +633,9 @@ class CTFGameFieldSB3Env(gym.Env):
         if self._validate_contracts:
             validate_obs_order(obs, self._n_blue_agents, self._max_blue_agents, debug=True)
 
-        # Build StepReward
+        # Build StepReward (TEAM_SUM; per_agent logged for freeloading check — Fix 3.2)
         reward_breakdown = StepReward(
-            team_total=float(reward_events_total) + float(stall_total),
+            team_total=team_total_step,
             per_agent=reward_blue_per_agent,
             reward_events_total=float(reward_events_total),
             stall_penalty_total=float(stall_total),
