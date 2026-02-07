@@ -27,6 +27,8 @@ def _load_snapshot_policy_only(path: str):
     except Exception:
         pass
 
+    # load_data=True so we get observation_space, action_space, policy_class from the zip.
+    # (With load_data=False, data is always None and we cannot build the policy.)
     data, params, _ = load_from_zip_file(path, device="cpu", load_data=True)
     if not data or "policy" not in params:
         raise ValueError(f"Invalid snapshot zip: missing data or policy params in {path!r}")
