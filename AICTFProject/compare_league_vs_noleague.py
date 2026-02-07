@@ -261,18 +261,13 @@ def main():
         "--opponent",
         type=str,
         default="OP3",
-        choices=["OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD", "NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"],
+        choices=["OP1", "OP2", "OP3", "NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"],
         help="Opponent to test against (default: OP3). Use NAVAL_* for held-out naval opponents."
     )
     parser.add_argument(
         "--headless",
         action="store_true",
         help="Run without display (faster)"
-    )
-    parser.add_argument(
-        "--also-eval-op3-hard",
-        action="store_true",
-        help="Also run comparison vs OP3_HARD (harder test when OP3 is saturated)"
     )
     parser.add_argument(
         "--seed",
@@ -360,21 +355,6 @@ def main():
             episode_seeds=episode_seeds,
         )
         has_error = "error" in results.get("league", {}) or "error" in results.get("no_league", {})
-        # Optionally run harder eval vs OP3_HARD
-        if args.also_eval_op3_hard and args.opponent.upper() != "OP3_HARD":
-            print("\n" + "=" * 60)
-            print("HARD EVAL: OP3_HARD (stricter test)")
-            print("=" * 60)
-            seeds_hard = [args.seed + 1000 + i for i in range(args.episodes)]
-            results_hard = run_comparison_test(
-                league_model_path=args.league_model,
-                no_league_model_path=args.no_league_model,
-                num_episodes=args.episodes,
-                opponent="OP3_HARD",
-                headless=args.headless,
-                episode_seeds=seeds_hard,
-            )
-            has_error = has_error or "error" in results_hard.get("league", {}) or "error" in results_hard.get("no_league", {})
 
     # League (blue) vs No-League (red): does league beat no-league when no-league is the opponent?
     if getattr(args, "league_vs_noleague_red", False):
