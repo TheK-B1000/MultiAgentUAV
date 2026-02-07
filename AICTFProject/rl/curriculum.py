@@ -15,13 +15,12 @@ VALID_PHASES = ("OP1", "OP2", "OP3")
 def phase_from_tag(tag: str) -> str:
     """
     Map opponent/tier tags to canonical phase for stress schedule.
-    Stress keys are OP1 | OP2 | OP3 only; OP3_EASY/OP3_HARD/etc. map to OP3.
-    Species types (BALANCED, RUSHER, CAMPER) map to OP3.
+    Stress keys are OP1 | OP2 | OP3 only. Species types (BALANCED, RUSHER, CAMPER) map to OP3.
     """
     t = str(tag).upper().strip()
     if t in ("OP1", "OP2"):
         return t
-    if t in ("OP3", "OP3_EASY", "OP3_HARD", "OP3EASY", "OP3HARD", "SELF_PLAY") or t == "":
+    if t in ("OP3", "SELF_PLAY") or t == "":
         return "OP3"
     # Species types (used in OP3 phase)
     if t in ("BALANCED", "RUSHER", "CAMPER"):
@@ -70,6 +69,8 @@ class CurriculumConfig:
     min_episodes: Dict[str, int]
     min_winrate: Dict[str, float]
     winrate_window: int
+    # Per-phase window size for rolling win rate (optional). If set, used instead of winrate_window per phase.
+    winrate_window_by_phase: Optional[Dict[str, int]] = None
     required_win_by: Dict[str, int]
     elo_margin: float
     switch_to_league_after_op3_win: bool = True
@@ -88,8 +89,13 @@ class CurriculumState:
     _fixed_eval_wr: Dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        by_phase = getattr(self.config, "winrate_window_by_phase", None)
+        def window_for(ph: str) -> int:
+            if by_phase and ph in by_phase:
+                return int(by_phase[ph])
+            return int(self.config.winrate_window)
         self.recent_results = {
-            phase: deque(maxlen=int(self.config.winrate_window))
+            phase: deque(maxlen=window_for(phase))
             for phase in self.config.phases
         }
 
@@ -166,7 +172,7 @@ class CurriculumState:
 @dataclass
 class CurriculumControllerConfig:
     seed: int = 42
-    op3_tiers: List[str] = field(default_factory=lambda: ["OP3_EASY", "OP3", "OP3_HARD"])
+    op3_tiers: List[str] = field(default_factory=lambda: ["OP3"])
     window: int = 50
     min_episodes_per_tier: int = 80
     promote_winrate: float = 0.65
@@ -257,16 +263,6 @@ class CurriculumController:
             return self.league.sample_curriculum(phase)
 
         # OP3 adversarial curriculum
-        if self.current_tier == "OP3_EASY":
-            if len(self._tier_recent) >= int(self.cfg.window):
-                wr = sum(self._tier_recent) / float(len(self._tier_recent))
-                if wr >= float(self.cfg.easy_op3_trigger_winrate):
-                    if self.rng.random() < float(self.cfg.easy_op3_prob):
-                        return OpponentSpec(
-                            kind="SCRIPTED",
-                            key="OP3",
-                            rating=self.league.get_rating("SCRIPTED:OP3"),
-                        )
         if (
             self.cfg.enable_species
             and self._episode_count >= int(self.cfg.allow_species_after)
