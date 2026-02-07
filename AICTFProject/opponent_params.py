@@ -61,20 +61,6 @@ def sample_opponent_params(
             coordinated_attack = False
             attack_sync_window = 0
             noise_sigma = rng.uniform(0.0, 0.05)
-        elif key == "OP3_EASY":
-            # Easier than OP3: slower, less deception, no coordinated attack, less noise
-            speed_mult = rng.uniform(0.88, 1.02)
-            deception_prob = rng.uniform(0.0, 0.12)
-            coordinated_attack = False
-            attack_sync_window = 0
-            noise_sigma = rng.uniform(0.0, 0.03)
-        elif key == "OP3_HARD":
-            # Tough, fast, and smart: high deception, always coordinated, long sync window, more noise
-            speed_mult = rng.uniform(1.05, 1.25)
-            deception_prob = rng.uniform(0.25, 0.45)
-            coordinated_attack = True
-            attack_sync_window = rng.randint(5, 10)
-            noise_sigma = rng.uniform(0.03, 0.10)
         elif key == "OP3":
             # Standard OP3
             deception_prob = rng.uniform(0.1, 0.35)
