@@ -50,10 +50,11 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
 DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip"
 # Baseline-specific model paths (auto-selected when testing baselines)
+# Training saves to checkpoints_sb3/ under project root (run from AICTFProject)
 BASELINE_MODEL_PATHS = {
-    "fixed_op3": "rl/checkpoints_sb3/final_ppo_fixed_op3.zip",
-    "self_play": "rl/checkpoints_sb3/final_ppo_selfplay.zip",
-    "curriculum_no_league": "rl/checkpoints_sb3/final_ppo_noleague.zip",
+    "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
+    "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
+    "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
 }
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
@@ -2344,8 +2345,8 @@ if __name__ == "__main__":
     if args.baseline and getattr(viewer.blue_ppo_team, "model_loaded", False):
         viewer._apply_blue_mode("PPO")
 
-    # Handle baseline testing mode
-    if getattr(args, "test_baseline", False) and args.baseline:
+    # Handle baseline testing mode: when --baseline is set, run N episodes (no need for --test-baseline)
+    if args.baseline:
         baseline = args.baseline.lower()
         num_episodes = max(1, int(getattr(args, "test_baseline_n", 10)))
         print(f"\n[Baseline Test] Testing {baseline.upper()} baseline with display ({num_episodes} episodes)...")
