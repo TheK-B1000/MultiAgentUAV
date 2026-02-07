@@ -144,9 +144,6 @@ class PPOConfig:
     enable_eval: bool = False
 
     max_decision_steps: int = 400  # Match viewer/episode length (was 900, too long)
-    op3_gate_tag: str = "OP3_HARD"
-    # When learner Elo drops below this, substitute OP3_HARD with OP3 for more winnable games.
-    league_easy_scripted_elo_threshold: float = 1200.0
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
@@ -189,9 +186,6 @@ class PPOConfig:
     # RECOMMENDED: Lower thresholds for faster curriculum progression (was 0.90/0.75)
     fixed_eval_gate_OP1_wr: Optional[float] = 0.75  # advance to OP2 only if fixed eval vs OP1 >= this
     fixed_eval_gate_OP2_wr: Optional[float] = 0.60  # advance to OP3 only if fixed eval vs OP2 >= this
-    # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (avoid spicy too early)
-    op3_hard_max_fraction_until_stable: float = 0.05  # max 5% OP3_HARD until OP3 fixed-eval stable
-    op3_stable_fixed_eval_wr: float = 0.55  # OP3 fixed-eval WR >= this to allow full OP3_HARD
     # Reduced aggressiveness (if training unstable)
     use_reduced_aggressiveness: bool = False  # Enable gentler updates
     # Stable MARL PPO: gentler defaults for multi-agent nonstationarity (Fix 4.1)
@@ -471,18 +465,13 @@ class LeagueCallback(BaseCallback):
                 ):
                     phase = self.curriculum.phase
 
-            if phase == "OP3" and is_scripted:
+            # Best Curriculum v1: enter league only when OP3 competence proven (rolling WR ≥ 0.80)
+            if phase == "OP3":
                 min_eps = int(self.curriculum.config.min_episodes.get("OP3", 0))
-                min_wr = float(self.curriculum.config.min_winrate.get("OP3", 0.0))
-                req_win_by = int(self.curriculum.config.required_win_by.get("OP3", 0))
+                min_wr = float(self.curriculum.config.min_winrate.get("OP3", 0.80))
                 meets_eps = self.curriculum.phase_episode_count >= min_eps
                 meets_wr = self.curriculum.phase_winrate("OP3") >= min_wr
-                meets_score = True if req_win_by <= 0 else (win_by >= req_win_by)
-                gate_tag = str(self.cfg.op3_gate_tag).upper()
-                gate_ok = opp_key.endswith(f":{gate_tag}")
-                if self.curriculum.config.switch_to_league_after_op3_win and win and gate_ok:
-                    self.league_mode = True
-                elif meets_eps and meets_wr and meets_score and gate_ok:
+                if self.curriculum.config.switch_to_league_after_op3_win and meets_eps and meets_wr:
                     self.league_mode = True
 
             if self.verbose:
@@ -521,19 +510,7 @@ class LeagueCallback(BaseCallback):
                     self._enforce_league_snapshot_limit()
 
             next_opp = self._select_next_opponent()
-            # When learner is struggling (Elo below threshold), substitute OP3_HARD with OP3.
-            threshold = float(getattr(self.cfg, "league_easy_scripted_elo_threshold", 1200.0))
-            if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD" and
-                    self.league.learner_rating < threshold):
-                next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-            # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (Phase 2: avoid spicy too early)
-            if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD"):
-                op3_wr = self.curriculum._fixed_eval_wr.get("SCRIPTED:OP3", 0.0)
-                stable_wr = float(getattr(self.cfg, "op3_stable_fixed_eval_wr", 0.55))
-                max_frac = float(getattr(self.cfg, "op3_hard_max_fraction_until_stable", 0.05))
-                if op3_wr < stable_wr and np.random.random() >= max_frac:
-                    next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-            
+
             # ✅ Fix: Use indices=[i] with env_method for opponent/phase/league_mode setting
             # This works for both DummyVecEnv and SubprocVecEnv (SB3 handles indices correctly)
             env = self.model.get_env()
@@ -1075,39 +1052,36 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    # Sprint A: League with stability mix; use cfg consistently (Fix 3)
-    _species_prob = float(getattr(cfg, "stability_species_prob", 0.15))
-    _snapshot_prob = float(getattr(cfg, "stability_snapshot_prob", 0.20))
-    _scripted_prob = max(0.0, 1.0 - _snapshot_prob - _species_prob)
+    # OP3 anchor + Species Elo: 40% scripted OP3, 60% species (no snapshots)
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
         matchmaking_tau=200.0,
         scripted_floor=0.50,
-        species_prob=_species_prob,
-        snapshot_prob=_snapshot_prob,
-        stability_scripted_prob=_scripted_prob,
-        stability_snapshot_prob=_snapshot_prob,
-        stability_species_prob=_species_prob,
-        use_stability_mix=True,
-        min_episodes_per_opponent=3,  # Cap opponent switching frequency
-        species_rusher_bias=float(getattr(cfg, "species_rusher_bias", 0.5)),
+        species_prob=0.20,
+        snapshot_prob=0.0,
+        anchor_op3_prob=float(getattr(cfg, "anchor_op3_prob", 0.40)),
+        species_rusher_bias=float(getattr(cfg, "species_rusher_bias", 0.40)),
+        use_stability_mix=False,  # Use anchor+species mix
+        min_episodes_per_opponent=int(getattr(cfg, "min_episodes_per_opponent", 3)),
     )
 
     curriculum: Optional[CurriculumState] = None
     controller: Optional[CurriculumController] = None
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
+        # Best Curriculum v1: OP1→OP2→OP3 gates; league only after OP3 rolling WR ≥ 0.80
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
                 min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.40, "OP2": 0.40, "OP3": 0.45},  # Lower thresholds for faster progression (was 0.50/0.50/0.55)
-                winrate_window=50,
+                min_winrate={"OP1": 0.75, "OP2": 0.70, "OP3": 0.80},  # Best Curriculum v1 gates
+                winrate_window=100,
+                winrate_window_by_phase={"OP1": 50, "OP2": 50, "OP3": 100},
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
-                switch_to_league_after_op3_win=False,
-                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),  # Use config default (0.75), not hardcoded 0.90
-                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),  # Use config default (0.60), not hardcoded 0.75
+                switch_to_league_after_op3_win=True,
+                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),
+                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),
             )
         )
         controller = CurriculumController(
@@ -1285,7 +1259,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
 
     if cfg.enable_eval:
-        # Use OP3 for evaluation/testing (OP3_HARD is training-only to improve OP3 performance)
+        # Use OP3 for evaluation/testing
         eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
         eval_env = VecMonitor(eval_env)
         
