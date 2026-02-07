@@ -1,3 +1,4 @@
+
 import os
 import sys
 import csv
@@ -60,7 +61,7 @@ BASELINE_MODEL_PATHS = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
     "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
     "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
-    "curriculum_league": "checkpoints_sb3/final_ppo_league_curriculum_v3.zip",
+    "curriculum_league": "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip",
 }
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
