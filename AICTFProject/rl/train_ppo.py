@@ -119,7 +119,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 3_000_000
+    total_timesteps: int = 4_500_000
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -133,7 +133,7 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_league_curriculum_v4"
+    run_tag: str = "ppo_curriculum_old_v4"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -178,20 +178,10 @@ class PPOConfig:
     # Training stability improvements
     enable_opponent_tracking: bool = True  # Track opponent distribution and results
     opponent_tracking_window: int = 100  # Rolling window size for opponent stats
-    enable_fixed_eval: bool = True  # Run fixed eval suite (no learning)
     # League species / RUSHER: increase species exposure and bias toward RUSHER to fix RUSHER weakness
     stability_species_prob: float = 0.15  # Fraction of league episodes vs species (BALANCED/RUSHER/CAMPER)
     stability_snapshot_prob: float = 0.20  # Fraction of league episodes vs snapshot opponents
     species_rusher_bias: float = 0.5  # When species is picked, probability of forcing RUSHER (0=uniform)
-    fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
-    fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
-    # Phase 2 fixed-eval gating: advance only if fixed-eval WR meets threshold (None = disabled)
-    # RECOMMENDED: Lower thresholds for faster curriculum progression (was 0.90/0.75)
-    fixed_eval_gate_OP1_wr: Optional[float] = 0.75  # advance to OP2 only if fixed eval vs OP1 >= this
-    fixed_eval_gate_OP2_wr: Optional[float] = 0.60  # advance to OP3 only if fixed eval vs OP2 >= this
-    # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (avoid spicy too early)
-    op3_hard_max_fraction_until_stable: float = 0.05  # max 5% OP3_HARD until OP3 fixed-eval stable
-    op3_stable_fixed_eval_wr: float = 0.55  # OP3 fixed-eval WR >= this to allow full OP3_HARD
     # Reduced aggressiveness (if training unstable)
     use_reduced_aggressiveness: bool = False  # Enable gentler updates
     # Stable MARL PPO: gentler defaults for multi-agent nonstationarity (Fix 4.1)
@@ -526,14 +516,6 @@ class LeagueCallback(BaseCallback):
             if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD" and
                     self.league.learner_rating < threshold):
                 next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-            # OP3_HARD exposure cap until fixed-eval vs OP3 is stable (Phase 2: avoid spicy too early)
-            if (next_opp.kind == "SCRIPTED" and next_opp.key == "OP3_HARD"):
-                op3_wr = self.curriculum._fixed_eval_wr.get("SCRIPTED:OP3", 0.0)
-                stable_wr = float(getattr(self.cfg, "op3_stable_fixed_eval_wr", 0.55))
-                max_frac = float(getattr(self.cfg, "op3_hard_max_fraction_until_stable", 0.05))
-                if op3_wr < stable_wr and np.random.random() >= max_frac:
-                    next_opp = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-            
             # ✅ Fix: Use indices=[i] with env_method for opponent/phase/league_mode setting
             # This works for both DummyVecEnv and SubprocVecEnv (SB3 handles indices correctly)
             env = self.model.get_env()
@@ -1106,8 +1088,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
-                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),  # Use config default (0.75), not hardcoded 0.90
-                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),  # Use config default (0.60), not hardcoded 0.75
             )
         )
         controller = CurriculumController(
@@ -1115,13 +1095,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             league=league,
         )
     elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        # Stricter advancement (no fixed-eval gate): require more episodes + higher WR so we don't advance to physics too early
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.40, "OP2": 0.40, "OP3": 0.45},  # Lower thresholds for faster progression (was 0.50/0.50/0.55)
+                min_episodes={"OP1": 400, "OP2": 400, "OP3": 400},  # More time per phase before advancing
+                min_winrate={"OP1": 0.55, "OP2": 0.55, "OP3": 0.50},  # Require solid WR so agent is ready for next phase
                 winrate_window=50,
-                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
+                required_win_by={"OP1": 1, "OP2": 1, "OP3": 1},  # Must win last game by at least 1
                 elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
             )
@@ -1248,18 +1229,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         callbacks.append(SelfPlayCallback(cfg=cfg, league=league))
     elif mode == TrainMode.FIXED_OPPONENT.value:
         callbacks.append(FixedOpponentCallback(cfg=cfg))
-
-    # Phase 2: fixed-eval suite (updates curriculum._fixed_eval_wr for gating when curriculum is set)
-    if cfg.enable_fixed_eval:
-        from rl.fixed_eval import FixedEvalCallback
-        callbacks.append(
-            FixedEvalCallback(
-                cfg=cfg,
-                eval_every_episodes=int(cfg.fixed_eval_every_episodes),
-                episodes_per_opponent=int(cfg.fixed_eval_episodes),
-                curriculum=curriculum if curriculum is not None else None,
-            )
-        )
 
     # Top 5 IROS-style metrics: CSV at end of training (simple, publish-friendly)
     metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
@@ -1399,10 +1368,31 @@ def run_test_vec_schema() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
     import sys
+
     if "--verify-4v4" in sys.argv:
         run_verify_4v4(num_episodes=10)
     elif "--test-vec-schema" in sys.argv:
         run_test_vec_schema()
     else:
-        train_ppo()
+        parser = argparse.ArgumentParser(description="Train PPO (CTF)")
+        parser.add_argument("--mode", type=str, default=None,
+                            help="TrainMode: CURRICULUM_NO_LEAGUE, SELF_PLAY, FIXED_OPPONENT, CURRICULUM_LEAGUE")
+        parser.add_argument("--run_tag", type=str, default=None, help="Run name (checkpoints, tensorboard)")
+        parser.add_argument("--fixed_opponent_tag", type=str, default=None,
+                            help="For FIXED_OPPONENT: OP1, OP2, OP3 (default OP3)")
+        parser.add_argument("--total_timesteps", type=int, default=None, help="Override total timesteps")
+        args = parser.parse_args()
+
+        cfg = PPOConfig()
+        if args.mode is not None:
+            cfg.mode = str(args.mode).strip()
+        if args.run_tag is not None:
+            cfg.run_tag = str(args.run_tag).strip()
+        if args.fixed_opponent_tag is not None:
+            cfg.fixed_opponent_tag = str(args.fixed_opponent_tag).strip().upper()
+        if args.total_timesteps is not None:
+            cfg.total_timesteps = int(args.total_timesteps)
+
+        train_ppo(cfg)
