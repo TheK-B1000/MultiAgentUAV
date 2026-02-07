@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
 from dataclasses import dataclass
+
+# When run as python rl/train_ppo.py, project root (AICTFProject) must be on path for game_field, ctf_sb3_env, config
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.dirname(_this_dir)
+if _project_root and _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
