@@ -1133,10 +1133,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
         for i in range(max(1, int(cfg.n_envs)))
     ]
-    try:
-        venv = SubprocVecEnv(env_fns)
-    except Exception:
+    # Self-play: snapshot loading in SubprocVecEnv workers causes MemoryError (each worker
+    # loads the full .zip). Use DummyVecEnv so snapshot is loaded only in the main process.
+    if mode == TrainMode.SELF_PLAY.value:
         venv = DummyVecEnv(env_fns)
+    else:
+        try:
+            venv = SubprocVecEnv(env_fns)
+        except Exception:
+            venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
 
     # Naval realism: stress + physics-by-phase (OP1 no physics, OP2 relaxed, OP3 full)
