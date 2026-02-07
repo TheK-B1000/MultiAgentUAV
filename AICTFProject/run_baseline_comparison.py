@@ -37,7 +37,7 @@ sys.path.insert(0, _SCRIPT_DIR)
 BASELINE_MODEL_PATHS = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
     "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
-    "curriculum_league": "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip",
+    "curriculum_league": "rl/checkpoints_sb3/final_ppo_league_curriculum_v2.zip",
 }
 
 DISPLAY_NAMES = {
