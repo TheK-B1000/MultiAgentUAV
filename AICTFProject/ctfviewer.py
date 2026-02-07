@@ -51,9 +51,9 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip"
 # Baseline-specific model paths (auto-selected when testing baselines)
 BASELINE_MODEL_PATHS = {
-    "fixed_op3": "rl/checkpoints_sb3/final_ppo_role_fixed.zip",
-    "self_play": "rl/checkpoints_sb3/final_ppo_curriculum_selfplay_v2.zip",
-    "curriculum_no_league": "rl/checkpoints_sb3/final_ppo_curriculum_old_v1.zip",
+    "fixed_op3": "rl/checkpoints_sb3/final_ppo_fixed_op3.zip",
+    "self_play": "rl/checkpoints_sb3/final_ppo_selfplay.zip",
+    "curriculum_no_league": "rl/checkpoints_sb3/final_ppo_noleague.zip",
 }
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
