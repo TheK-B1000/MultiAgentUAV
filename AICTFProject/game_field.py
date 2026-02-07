@@ -1216,46 +1216,6 @@ class GameField:
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP2RedPolicy("red")
-        elif mode in ("OP3_EASY", "OP3EASY"):
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 0.9
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.0
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
-            self.suppression_range_cells = 1.5
-            self.mines_per_team = 1
-            self.max_mine_charges_per_agent = 1
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=1.0,
-                defense_radius_cells=3.0,
-                patrol_radius_cells=2,
-                assist_radius_mult=1.0,
-                defense_weight=1.25,
-                flag_weight=2.0,
-            )
-        elif mode in ("OP3_HARD", "OP3HARD"):
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.0
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.0
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=2.8,
-                defense_radius_cells=6.0,
-                patrol_radius_cells=4,
-                assist_radius_mult=2.0,
-                defense_weight=3.0,
-                flag_weight=1.0,
-            )
         elif mode in ("NAVAL_DEFENDER",):
             # Held-out test: naval-style cautious defender (heavy defense, mines, patrol)
             self.red_agents_per_team_override = None
