@@ -1,17 +1,22 @@
 """
-Compare League vs No-League Training: 10 Random Test Cases
+Compare League vs No-League Training (same N test scenarios)
 
-This script runs 10 random test episodes for both league and no-league models
-to compare win rates against OP3 (standard test opponent).
+Runs the same N episodes (same seeds) for both models so the comparison is fair:
+same opponent, same stress, same initial conditions. Both models see the exact
+same scenarios.
 
-Uses different random seeds for each episode to ensure diverse test cases
-while maintaining reproducibility (same seeds for both models).
+Why can league show a lower win rate here than when you "test league alone"?
+- Testing alone usually uses different random seeds each run, so you get a different
+  set of scenarios; by chance those can be easier and league wins 100%.
+- Here we fix seeds (e.g. 42, 43, ...) so both models face the same N scenarios.
+  That set may include some harder ones (spawns, opponent RNG), so league might
+  lose a few. Use --episodes 30 or 50 for a more stable WR, or --seed N to try
+  another scenario set.
 """
 import argparse
 import os
-import random
 import sys
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 # Add project root to path
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,9 +31,11 @@ def run_comparison_test(
     num_episodes: int = 10,
     opponent: str = "OP3",
     headless: bool = True,
+    episode_seeds: Optional[List[int]] = None,
 ) -> Dict[str, Dict[str, float]]:
     """
-    Run comparison test: 10 random episodes for each model.
+    Run comparison test: same N episodes (same seeds) for both models so the
+    comparison is fair. Same environment: OP3 opponent, OP3 stress.
     
     Args:
         league_model_path: Path to league-trained model (.zip)
@@ -36,10 +43,18 @@ def run_comparison_test(
         num_episodes: Number of episodes per model (default: 10)
         opponent: Opponent to test against (default: "OP3")
         headless: Run without display (faster)
+        episode_seeds: If provided, use these seeds for both models (same scenarios).
+                      If None, a fixed list [42, 43, ...] is used so both still see the same seeds.
     
     Returns:
         Dict with win rates for both models
     """
+    if episode_seeds is None:
+        episode_seeds = [42 + i for i in range(num_episodes)]
+    elif len(episode_seeds) < num_episodes:
+        episode_seeds = list(episode_seeds) + [42 + len(episode_seeds) + i for i in range(num_episodes - len(episode_seeds))]
+    else:
+        episode_seeds = list(episode_seeds)[:num_episodes]
     results = {}
     
     # Test League Model
@@ -47,8 +62,9 @@ def run_comparison_test(
     print("TESTING LEAGUE MODEL")
     print("=" * 60)
     print(f"Model: {league_model_path}")
-    print(f"Episodes: {num_episodes}")
+    print(f"Episodes: {num_episodes} (fixed seeds for both models = same scenarios)")
     print(f"Opponent: {opponent}")
+    print(f"Seeds: {episode_seeds[0]}..{episode_seeds[-1]} (use --seed to change scenario set)")
     print()
     
     try:
@@ -66,6 +82,7 @@ def run_comparison_test(
                 headless=headless,
                 opponent=opponent,
                 eval_model="ppo",
+                episode_seeds=episode_seeds,
             )
             results["league"] = {
                 "win_rate": summary_league.get("win_rate", 0.0),
@@ -106,6 +123,7 @@ def run_comparison_test(
                 headless=headless,
                 opponent=opponent,
                 eval_model="ppo",
+                episode_seeds=episode_seeds,
             )
             results["no_league"] = {
                 "win_rate": summary_noleague.get("win_rate", 0.0),
@@ -174,6 +192,49 @@ def run_comparison_test(
     return results
 
 
+def run_league_vs_noleague_red(
+    league_model_path: str,
+    no_league_model_path: str,
+    num_episodes: int,
+    headless: bool = True,
+    episode_seeds: Optional[List[int]] = None,
+) -> Dict[str, float]:
+    """
+    Test League (blue) vs No-League (red). No-league is loaded as the red opponent.
+    Same seeds so the comparison is fair. Returns league's win rate (blue wins).
+    """
+    if episode_seeds is None:
+        episode_seeds = [42 + i for i in range(num_episodes)]
+    else:
+        episode_seeds = list(episode_seeds)[:num_episodes]
+    out = {}
+    try:
+        viewer = CTFViewer(ppo_model_path=league_model_path, viewer_use_obs_builder=True)
+        if not getattr(viewer.blue_ppo_team, "model_loaded", False):
+            out["error"] = "League model failed to load"
+            return out
+        viewer._apply_blue_mode("PPO")
+        summary = viewer.evaluate_model(
+            num_episodes=num_episodes,
+            headless=headless,
+            red_model_path=no_league_model_path,
+            episode_seeds=episode_seeds,
+        )
+        if not summary:
+            out["win_rate"] = 0.0
+            out["wins"] = out["losses"] = out["draws"] = 0
+            return out
+        out["win_rate"] = summary.get("win_rate", 0.0)
+        out["wins"] = summary.get("wins", 0)
+        out["losses"] = summary.get("losses", 0)
+        out["draws"] = summary.get("draws", 0)
+        out["mean_time_to_first_score"] = summary.get("mean_time_to_first_score")
+        out["collision_free_rate"] = summary.get("collision_free_rate")
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compare League vs No-League training: 10 random test cases"
@@ -193,15 +254,15 @@ def main():
     parser.add_argument(
         "--episodes",
         type=int,
-        default=10,
-        help="Number of episodes per model (default: 10)"
+        default=30,
+        help="Number of episodes per model (default: 30; use 30–50 for more stable WR)"
     )
     parser.add_argument(
         "--opponent",
         type=str,
         default="OP3",
-        choices=["OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD"],
-        help="Opponent to test against (default: OP3)"
+        choices=["OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD", "NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"],
+        help="Opponent to test against (default: OP3). Use NAVAL_* for held-out naval opponents."
     )
     parser.add_argument(
         "--headless",
@@ -212,6 +273,22 @@ def main():
         "--also-eval-op3-hard",
         action="store_true",
         help="Also run comparison vs OP3_HARD (harder test when OP3 is saturated)"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Base seed for episode_seeds (default: 42); same N seeds used for both models"
+    )
+    parser.add_argument(
+        "--naval",
+        action="store_true",
+        help="Run comparison vs all three naval opponents (NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED); same seeds per opponent"
+    )
+    parser.add_argument(
+        "--league-vs-noleague-red",
+        action="store_true",
+        help="Also run League (blue) vs No-League (red): no-league as learned red opponent; report league WR"
     )
     
     args = parser.parse_args()
@@ -224,32 +301,107 @@ def main():
         print(f"[ERROR] No-league model not found: {args.no_league_model}")
         sys.exit(1)
     
-    # Run comparison vs primary opponent
-    results = run_comparison_test(
-        league_model_path=args.league_model,
-        no_league_model_path=args.no_league_model,
-        num_episodes=args.episodes,
-        opponent=args.opponent,
-        headless=args.headless,
-    )
+    NAVAL_OPPONENTS = ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED")
     
-    # Optionally run harder eval vs OP3_HARD (avoids 'everyone 100% vs OP3' saturation)
-    if args.also_eval_op3_hard and args.opponent.upper() != "OP3_HARD":
+    if getattr(args, "naval", False):
+        # Test vs all three naval opponents (same seeds for both models per opponent)
         print("\n" + "=" * 60)
-        print("HARD EVAL: OP3_HARD (stricter test)")
+        print("COMPARISON VS NAVAL OPPONENTS (held-out, physics on)")
         print("=" * 60)
-        results_hard = run_comparison_test(
+        all_results = {}
+        for opp in NAVAL_OPPONENTS:
+            offset = 1000 * (NAVAL_OPPONENTS.index(opp) + 1)
+            episode_seeds = [args.seed + offset + i for i in range(args.episodes)]
+            all_results[opp] = run_comparison_test(
+                league_model_path=args.league_model,
+                no_league_model_path=args.no_league_model,
+                num_episodes=args.episodes,
+                opponent=opp,
+                headless=args.headless,
+                episode_seeds=episode_seeds,
+            )
+        # Summary table
+        print("\n" + "=" * 60)
+        print("LEAGUE vs NO-LEAGUE vs NAVAL OPPONENTS (same setting)")
+        print("=" * 60)
+        print(f"{'Opponent':<20} {'League WR':>10} {'No-League WR':>12} {'Diff (L-NL)':>12}")
+        print("-" * 60)
+        for opp in NAVAL_OPPONENTS:
+            r = all_results.get(opp, {})
+            lw = r.get("league", {}).get("win_rate", 0.0)
+            nw = r.get("no_league", {}).get("win_rate", 0.0)
+            diff = lw - nw if "error" not in r.get("league", {}) and "error" not in r.get("no_league", {}) else float("nan")
+            if "error" in r.get("league", {}):
+                lw_s = "ERROR"
+            else:
+                lw_s = f"{lw:.0%}"
+            if "error" in r.get("no_league", {}):
+                nw_s = "ERROR"
+            else:
+                nw_s = f"{nw:.0%}"
+            diff_s = f"{diff:+.0%}" if not (diff != diff) else "n/a"
+            print(f"{opp:<20} {lw_s:>10} {nw_s:>12} {diff_s:>12}")
+        print("=" * 60)
+        has_error = any(
+            "error" in all_results.get(opp, {}).get("league", {}) or "error" in all_results.get(opp, {}).get("no_league", {})
+            for opp in NAVAL_OPPONENTS
+        )
+    else:
+        # Single opponent (default or --opponent)
+        print(f"[Compare] Using fixed seeds (base={args.seed}) so both models see the same {args.episodes} scenarios.")
+        print("[Compare] League may show lower WR than 'test alone' because that run uses different random scenarios.\n")
+        episode_seeds = [args.seed + i for i in range(args.episodes)]
+        results = run_comparison_test(
             league_model_path=args.league_model,
             no_league_model_path=args.no_league_model,
             num_episodes=args.episodes,
-            opponent="OP3_HARD",
+            opponent=args.opponent,
             headless=args.headless,
+            episode_seeds=episode_seeds,
         )
+        has_error = "error" in results.get("league", {}) or "error" in results.get("no_league", {})
+        # Optionally run harder eval vs OP3_HARD
+        if args.also_eval_op3_hard and args.opponent.upper() != "OP3_HARD":
+            print("\n" + "=" * 60)
+            print("HARD EVAL: OP3_HARD (stricter test)")
+            print("=" * 60)
+            seeds_hard = [args.seed + 1000 + i for i in range(args.episodes)]
+            results_hard = run_comparison_test(
+                league_model_path=args.league_model,
+                no_league_model_path=args.no_league_model,
+                num_episodes=args.episodes,
+                opponent="OP3_HARD",
+                headless=args.headless,
+                episode_seeds=seeds_hard,
+            )
+            has_error = has_error or "error" in results_hard.get("league", {}) or "error" in results_hard.get("no_league", {})
+
+    # League (blue) vs No-League (red): does league beat no-league when no-league is the opponent?
+    if getattr(args, "league_vs_noleague_red", False):
+        print("\n" + "=" * 60)
+        print("LEAGUE (blue) vs NO-LEAGUE (red) — no-league as learned red")
+        print("=" * 60)
+        seeds_cross = [args.seed + 5000 + i for i in range(args.episodes)]
+        cross = run_league_vs_noleague_red(
+            league_model_path=args.league_model,
+            no_league_model_path=args.no_league_model,
+            num_episodes=args.episodes,
+            headless=args.headless,
+            episode_seeds=seeds_cross,
+        )
+        if "error" in cross:
+            print(f"[ERROR] {cross['error']}")
+            has_error = True
+        else:
+            wr = cross.get("win_rate", 0.0)
+            w, l, d = cross.get("wins", 0), cross.get("losses", 0), cross.get("draws", 0)
+            print(f"League (blue) vs No-League (red): League WR = {wr:.0%}  (W/L/D: {w}/{l}/{d})")
+            if cross.get("mean_time_to_first_score") is not None:
+                print(f"  Mean time to first score (blue): {cross['mean_time_to_first_score']:.1f}s")
+            if cross.get("collision_free_rate") is not None:
+                print(f"  Collision-free rate: {cross['collision_free_rate']:.0%}")
+        print("=" * 60)
     
-    # Exit with error if any run had a model load failure
-    has_error = "error" in results.get("league", {}) or "error" in results.get("no_league", {})
-    if args.also_eval_op3_hard and args.opponent.upper() != "OP3_HARD":
-        has_error = has_error or "error" in results_hard.get("league", {}) or "error" in results_hard.get("no_league", {})
     if has_error:
         sys.exit(1)
 
