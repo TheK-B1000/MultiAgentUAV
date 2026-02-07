@@ -1256,6 +1256,69 @@ class GameField:
                 defense_weight=3.0,
                 flag_weight=1.0,
             )
+        elif mode in ("NAVAL_DEFENDER",):
+            # Held-out test: naval-style cautious defender (heavy defense, mines, patrol)
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 0.95
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=3.0,
+                defense_radius_cells=7.0,
+                patrol_radius_cells=5,
+                assist_radius_mult=2.2,
+                defense_weight=4.0,
+                flag_weight=0.75,
+            )
+        elif mode in ("NAVAL_RUSHER",):
+            # Held-out test: naval-style aggressive flag focus
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.1
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=1.2,
+                defense_radius_cells=3.0,
+                patrol_radius_cells=2,
+                assist_radius_mult=1.0,
+                defense_weight=0.8,
+                flag_weight=3.5,
+            )
+        elif mode in ("NAVAL_BALANCED",):
+            # Held-out test: naval-style balanced defender/attacker
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.0
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.0
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = int(self._default_mines_per_team)
+            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
+            self.policies["red"] = OP3RedPolicy(
+                "red",
+                mine_radius_check=2.0,
+                defense_radius_cells=5.0,
+                patrol_radius_cells=4,
+                assist_radius_mult=1.8,
+                defense_weight=2.0,
+                flag_weight=2.0,
+            )
         else:
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
