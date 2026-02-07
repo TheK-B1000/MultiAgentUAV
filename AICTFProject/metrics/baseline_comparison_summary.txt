@@ -1,0 +1,8 @@
+Baseline comparison (same setting: same seeds, same opponent OP3)
+Episodes: 500  Seed base: 42
+
+Fixed OP3: WR=99.40% (497W/3L/0D)  TtFS=9.86s  CollisionFree=0.00%
+
+Curriculum No-League: WR=99.60% (498W/2L/0D)  TtFS=9.91s  CollisionFree=0.00%
+
+Curriculum League: WR=92.40% (462W/38L/0D)  TtFS=10.15s  CollisionFree=0.00%
