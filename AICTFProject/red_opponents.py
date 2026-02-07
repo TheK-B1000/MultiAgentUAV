@@ -38,11 +38,19 @@ def _load_snapshot_policy_only(path: str):
     policy_kwargs = dict(data.get("policy_kwargs", {}))
     policy_kwargs.pop("device", None)
 
+    # Check if zip has Dict observation space (viewer and training use dict obs).
+    _is_dict_obs = hasattr(obs_space, "spaces") and isinstance(getattr(obs_space, "spaces", None), dict)
+
     policy_class = data.get("policy_class")
     if policy_class is None:
         try:
-            from rl.train_ppo import MaskedMultiInputPolicy
+            from rl.train_ppo import MaskedMultiInputPolicy, TokenizedCombinedExtractor
             policy_class = MaskedMultiInputPolicy
+            policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
+            policy_kwargs["features_extractor_kwargs"] = dict(
+                cnn_output_dim=256,
+                normalized_image=True,
+            )
         except Exception:
             from stable_baselines3 import PPO
             policy_class = getattr(PPO, "policy_aliases", {}).get("MlpPolicy")
@@ -58,12 +66,31 @@ def _load_snapshot_policy_only(path: str):
             except Exception:
                 raise RuntimeError(f"Unknown policy_class name in zip: {policy_class!r}")
 
+    # If zip has Dict obs but resolved policy expects Box (e.g. MlpPolicy), force our
+    # MultiInput + TokenizedCombinedExtractor so predict(dict_obs) works in viewer.
+    if _is_dict_obs:
+        try:
+            from rl.train_ppo import MaskedMultiInputPolicy, TokenizedCombinedExtractor
+            policy_class = MaskedMultiInputPolicy
+            policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
+            policy_kwargs["features_extractor_kwargs"] = dict(
+                cnn_output_dim=256,
+                normalized_image=True,
+            )
+        except Exception:
+            pass  # keep resolved class if import fails
+
     # SB3 ActorCritic policies require lr_schedule (unused for inference)
     lr = float(data.get("learning_rate", 1.5e-4))
     lr_schedule = lambda _: lr
 
     policy = policy_class(obs_space, action_space, lr_schedule, **policy_kwargs)
-    policy.load_state_dict(params["policy"], strict=True)
+    try:
+        policy.load_state_dict(params["policy"], strict=True)
+    except Exception:
+        # Zip may have been saved with different features_extractor (e.g. Flatten); load
+        # what we can so the policy at least accepts dict obs in the viewer.
+        policy.load_state_dict(params["policy"], strict=False)
     policy.eval()
 
     class _Predictor:
@@ -81,36 +108,70 @@ def _load_snapshot_policy_only(path: str):
 
 def make_species_wrapper(species_tag: str) -> Callable[..., Any]:
     """
-    Returns a GameField wrapper for red that forces a playstyle.
-    Wrapper signature supported by your GameField:
-      wrapper(obs, agent, game_field, base_policy) -> action
+    Returns a GameField wrapper for red with naval-realistic species archetypes.
+    RUSHER → Swarm Interceptor (intercept priority, zigzag, risk for speed).
+    CAMPER → Area Denial Patrol (patrol box, mine exploit, don't chase far).
+    BALANCED → Screen and Strike (one screens, one strikes; retreat threshold; opportunistic).
     """
     tag = str(species_tag).upper()
 
-    base = OP3RedPolicy("red")
-
-    # --- "species" hacks (edit these to match your scripted policy knobs) ---
-    # If OP3RedPolicy doesn't have these attributes, add them OR change the hack.
     if tag == "RUSHER":
-        # prioritize flag, ignore mines/defense
-        if hasattr(base, "mine_radius_check"):
-            base.mine_radius_check = 0.1
-        if hasattr(base, "defense_weight"):
-            base.defense_weight = 0.0
-        if hasattr(base, "flag_weight"):
-            base.flag_weight = 5.0
+        # Swarm Interceptor: high intercept on carrier/nearest threat, zigzag, willing to risk for speed
+        base = OP3RedPolicy(
+            "red",
+            mine_radius_check=0.1,
+            defense_weight=0.0,
+            flag_weight=5.0,
+            zigzag_prob=0.35,
+            chase_cap_cells=None,  # chase anywhere
+            retreat_radius_cells=None,
+        )
     elif tag == "CAMPER":
-        # defensive posture, high mine awareness
-        if hasattr(base, "mine_radius_check"):
-            base.mine_radius_check = 5.0
-        if hasattr(base, "defense_weight"):
-            base.defense_weight = 3.0
-        if hasattr(base, "flag_weight"):
-            base.flag_weight = 1.0
+        # Area Denial Patrol: patrol box, mine/obstacle exploit, punish intrusion, don't chase far
+        base = OP3RedPolicy(
+            "red",
+            mine_radius_check=5.0,
+            defense_radius_cells=6.0,
+            patrol_radius_cells=4,
+            defense_weight=3.0,
+            flag_weight=1.0,
+            zigzag_prob=None,
+            chase_cap_cells=3.0,
+            retreat_radius_cells=None,
+        )
+    elif tag == "BALANCED":
+        # Screen and Strike: two policies — agent 0 screens (defend), agent 1 strikes (attack); retreat threshold
+        base_screen = OP3RedPolicy(
+            "red",
+            mine_radius_check=2.0,
+            defense_radius_cells=5.0,
+            patrol_radius_cells=3,
+            defense_weight=2.0,
+            flag_weight=1.0,
+            retreat_radius_cells=None,
+        )
+        base_strike = OP3RedPolicy(
+            "red",
+            mine_radius_check=1.5,
+            defense_radius_cells=4.0,
+            defense_weight=1.0,
+            flag_weight=2.0,
+            retreat_radius_cells=4.0,  # retreat to defend if enemy within 4 cells
+        )
+
+        def wrapper(obs, agent, game_field, base_policy=None):
+            aid = int(getattr(agent, "agent_id", 0))
+            base = base_screen if aid == 0 else base_strike
+            action_id, target = base.select_action(obs, agent, game_field)
+            if isinstance(target, (tuple, list)) and len(target) >= 2:
+                return (int(action_id), (int(target[0]), int(target[1])))
+            return (int(action_id), None if target is None else int(target))
+
+        return wrapper
+    else:
+        base = OP3RedPolicy("red")
 
     def wrapper(obs, agent, game_field, base_policy=None):
-        # Use the tuned scripted policy directly
-        # Must return a format your GameField.decide() parser accepts.
         action_id, target = base.select_action(obs, agent, game_field)
         if isinstance(target, (tuple, list)) and len(target) >= 2:
             return (int(action_id), (int(target[0]), int(target[1])))
