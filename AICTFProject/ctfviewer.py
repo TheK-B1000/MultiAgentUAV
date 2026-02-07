@@ -60,6 +60,7 @@ BASELINE_MODEL_PATHS = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
     "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
     "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
+    "curriculum_league": "checkpoints_sb3/final_ppo_league_curriculum_v3.zip",
 }
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
@@ -1670,7 +1671,7 @@ class CTFViewer:
             num_episodes: Number of episodes to run
             save_csv: Path to save CSV (e.g., "eval_results.csv"). If None, auto-generates name.
             headless: If True, run without display (faster). If False, show viewer.
-            opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD"); ignored if red_model_path is set.
+            opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD", "NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"); ignored if red_model_path is set.
             eval_model: Force model for eval: "ppo", "mappo", "hppo". If None, auto-pick first loaded.
             red_model_path: If set, red uses this learned PPO (.zip) instead of scripted opponent (cross-play).
             episode_seeds: If set, use these seeds (one per episode) for reproducible varied initial states; len should be >= num_episodes.
@@ -1725,11 +1726,15 @@ class CTFViewer:
                     pass
             if hasattr(self.game_field, "set_red_policy_wrapper"):
                 self.game_field.set_red_policy_wrapper(None)
-        # Set phase (OP3 for learned red or standard OP3 eval)
+        # Set phase: naval opponents use OP3 (physics on); OP1/OP2 use own phase
         opponent_upper = str(opponent).upper() if not red_model_path else "OP3"
-        if opponent_upper in ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD"):
+        if opponent_upper in ("OP1", "OP2"):
+            self._set_phase(opponent_upper)
+        elif opponent_upper in ("OP3", "OP3_EASY", "OP3_HARD"):
             phase = opponent_upper.replace("_EASY", "").replace("_HARD", "")
             self._set_phase(phase)
+        elif opponent_upper in ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"):
+            self._set_phase_op3()
         else:
             self._set_phase_op3()
 
@@ -2182,6 +2187,69 @@ class CTFViewer:
         return out
 
     # ----------------------------
+    # Naval opponents (held-out test: which baseline is best under naval realism?)
+    # ----------------------------
+    NAVAL_OPPONENTS = ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED")
+
+    def evaluate_naval_opponents(
+        self,
+        num_episodes_per_opp: int = 30,
+        eval_model: Optional[str] = None,
+        headless: bool = True,
+        save_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run evaluation vs each naval opponent (NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED).
+        Uses OP3 stress (physics, sensors) so the test is naval-realistic. Held-out: not used in training.
+        Returns win rate and metrics per opponent so you can compare baselines.
+        """
+        results_per_opp = {}
+        for opp in self.NAVAL_OPPONENTS:
+            summary = self.evaluate_model(
+                num_episodes=num_episodes_per_opp,
+                save_csv=None,
+                headless=headless,
+                opponent=opp,
+                eval_model=eval_model,
+            )
+            if not summary:
+                results_per_opp[opp] = {"win_rate": 0.0, "mean_reward_per_timestep": None, "mean_time_to_first_score": None, "wins": 0, "losses": 0, "draws": 0}
+                continue
+            results_per_opp[opp] = {
+                "win_rate": summary["win_rate"],
+                "mean_reward_per_timestep": summary.get("mean_reward_per_timestep"),
+                "mean_time_to_first_score": summary.get("mean_time_to_first_score"),
+                "wins": summary["wins"],
+                "losses": summary["losses"],
+                "draws": summary["draws"],
+            }
+
+        print("\n" + "=" * 60)
+        print("NAVAL OPPONENT EVALUATION (held-out, physics on)")
+        print("=" * 60)
+        for opp in self.NAVAL_OPPONENTS:
+            r = results_per_opp.get(opp, {})
+            wr = r.get("win_rate", 0.0)
+            w, l, d = r.get("wins", 0), r.get("losses", 0), r.get("draws", 0)
+            print(f"  {opp}: WR {wr:.0%}  (W/L/D: {w}/{l}/{d})")
+        print("=" * 60)
+
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            csv_path = os.path.join(save_dir, "naval_opponent_summary.csv")
+            try:
+                with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    w.writerow(["opponent", "win_rate", "wins", "losses", "draws"])
+                    for opp in self.NAVAL_OPPONENTS:
+                        r = results_per_opp.get(opp, {})
+                        w.writerow([opp, r.get("win_rate", ""), r.get("wins", ""), r.get("losses", ""), r.get("draws", "")])
+                print(f"[Eval] Saved naval summary to {csv_path}")
+            except Exception as exc:
+                print(f"[WARN] Failed to save naval CSV: {exc}")
+        return {"results_per_opponent": results_per_opp}
+
+    # ----------------------------
     # Input handling
     # ----------------------------
     def handle_main_key(self, event):
@@ -2360,6 +2428,8 @@ if __name__ == "__main__":
     parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD). Default: OP3 for testing (OP3_HARD is training-only to improve OP3 performance).")
     parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
+    parser.add_argument("--eval-naval", action="store_true", help="Run naval opponent eval vs NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED (held-out, physics on)")
+    parser.add_argument("--eval-naval-n", type=int, default=30, metavar="N", help="Episodes per opponent for --eval-naval (default: 30)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
@@ -2441,6 +2511,14 @@ if __name__ == "__main__":
         # Fixed-opponent evaluation: OP1, OP2, OP3; generalization drop
         viewer.evaluate_fixed_opponents(
             num_episodes_per_opp=getattr(args, "eval_fixed_n", 50),
+            eval_model=args.eval_model,
+            headless=args.headless,
+            save_dir=_SCRIPT_DIR,
+        )
+    elif getattr(args, "eval_naval", False):
+        # Naval opponents (held-out): which baseline is best under naval realism?
+        viewer.evaluate_naval_opponents(
+            num_episodes_per_opp=getattr(args, "eval_naval_n", 30),
             eval_model=args.eval_model,
             headless=args.headless,
             save_dir=_SCRIPT_DIR,
