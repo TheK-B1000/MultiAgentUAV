@@ -12,23 +12,35 @@ except Exception:
     _obs_builder_build_team_obs = None
 
 
-def _load_snapshot_policy_only(path: str):
+def _viewer_dict_observation_space(include_mask: bool = True):
+    """Build Dict observation space matching viewer legacy (2 agents, C=7, H=W=20, vec 12 per agent)."""
+    from gymnasium import spaces
+    # Legacy: grid (2*7, 20, 20), vec (2*12), mask (2*(5+8))
+    grid = spaces.Box(low=0.0, high=1.0, shape=(14, 20, 20), dtype=np.float32)
+    vec = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
+    sp = {"grid": grid, "vec": vec}
+    if include_mask:
+        sp["mask"] = spaces.Box(low=0.0, high=1.0, shape=(2 * (5 + 8),), dtype=np.float32)
+    return spaces.Dict(sp)
+
+
+def _load_snapshot_policy_only(path: str, force_dict_obs: bool = False):
     """
     Load only the policy from an SB3 .zip (no PPO rollout buffer).
     Avoids allocating ~175 MiB per worker when using snapshot opponents in SubprocVecEnv.
     Returns an object with .policy and .predict(obs, deterministic=True) like PPO.
+
+    When force_dict_obs=True (e.g. viewer blue fallback), always build a Dict-observation
+    policy so predict(dict_obs) works even if the zip has Box or Flatten extractor.
     """
     import torch as th
     from stable_baselines3.common.save_util import load_from_zip_file
 
-    # Ensure custom policy class is importable for cloudpickle when loading in worker processes
     try:
         from rl.train_ppo import MaskedMultiInputPolicy  # noqa: F401
     except Exception:
         pass
 
-    # load_data=True so we get observation_space, action_space, policy_class from the zip.
-    # (With load_data=False, data is always None and we cannot build the policy.)
     data, params, _ = load_from_zip_file(path, device="cpu", load_data=True)
     if not data or "policy" not in params:
         raise ValueError(f"Invalid snapshot zip: missing data or policy params in {path!r}")
@@ -38,59 +50,65 @@ def _load_snapshot_policy_only(path: str):
     policy_kwargs = dict(data.get("policy_kwargs", {}))
     policy_kwargs.pop("device", None)
 
-    # Check if zip has Dict observation space (viewer and training use dict obs).
-    _is_dict_obs = hasattr(obs_space, "spaces") and isinstance(getattr(obs_space, "spaces", None), dict)
-
-    policy_class = data.get("policy_class")
-    if policy_class is None:
+    # Viewer fallback: always use Dict obs + default CombinedExtractor (accepts dict, no Flatten).
+    if force_dict_obs:
+        obs_space = _viewer_dict_observation_space(include_mask=True)
         try:
-            from rl.train_ppo import MaskedMultiInputPolicy, TokenizedCombinedExtractor
+            from rl.train_ppo import MaskedMultiInputPolicy
             policy_class = MaskedMultiInputPolicy
-            policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
-            policy_kwargs["features_extractor_kwargs"] = dict(
-                cnn_output_dim=256,
-                normalized_image=True,
-            )
         except Exception:
             from stable_baselines3 import PPO
-            policy_class = getattr(PPO, "policy_aliases", {}).get("MlpPolicy")
-            if policy_class is None:
-                raise RuntimeError("Could not resolve policy_class from zip or MaskedMultiInputPolicy")
-    elif isinstance(policy_class, str):
-        from stable_baselines3 import PPO
-        policy_class = getattr(PPO, "policy_aliases", {}).get(policy_class)
+            from stable_baselines3.common.policies import MultiInputActorCriticPolicy
+            policy_class = getattr(PPO, "policy_aliases", {}).get("MultiInputPolicy") or MultiInputActorCriticPolicy
+        # Use default extractor (CombinedExtractor for Dict), not zip's Flatten
+        policy_kwargs.pop("features_extractor_class", None)
+        policy_kwargs.pop("features_extractor_kwargs", None)
+    else:
+        _is_dict_obs = hasattr(obs_space, "spaces") and isinstance(getattr(obs_space, "spaces", None), dict)
+        policy_class = data.get("policy_class")
         if policy_class is None:
             try:
                 from rl.train_ppo import MaskedMultiInputPolicy
                 policy_class = MaskedMultiInputPolicy
             except Exception:
-                raise RuntimeError(f"Unknown policy_class name in zip: {policy_class!r}")
+                from stable_baselines3 import PPO
+                policy_class = getattr(PPO, "policy_aliases", {}).get("MlpPolicy")
+                if policy_class is None:
+                    raise RuntimeError("Could not resolve policy_class from zip or MaskedMultiInputPolicy")
+        elif isinstance(policy_class, str):
+            from stable_baselines3 import PPO
+            policy_class = getattr(PPO, "policy_aliases", {}).get(policy_class)
+            if policy_class is None:
+                try:
+                    from rl.train_ppo import MaskedMultiInputPolicy
+                    policy_class = MaskedMultiInputPolicy
+                except Exception:
+                    raise RuntimeError(f"Unknown policy_class name in zip: {policy_class!r}")
 
-    # If zip has Dict obs but resolved policy expects Box (e.g. MlpPolicy), force our
-    # MultiInput + TokenizedCombinedExtractor so predict(dict_obs) works in viewer.
-    if _is_dict_obs:
-        try:
-            from rl.train_ppo import MaskedMultiInputPolicy, TokenizedCombinedExtractor
-            policy_class = MaskedMultiInputPolicy
-            policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
-            policy_kwargs["features_extractor_kwargs"] = dict(
-                cnn_output_dim=256,
-                normalized_image=True,
-            )
-        except Exception:
-            pass  # keep resolved class if import fails
+        # Zip has Dict obs but resolved policy may use Flatten (e.g. MlpPolicy). Force
+        # MultiInput + default CombinedExtractor so predict(dict_obs) works.
+        if _is_dict_obs:
+            try:
+                from rl.train_ppo import MaskedMultiInputPolicy
+                policy_class = MaskedMultiInputPolicy
+            except Exception:
+                pass
+            policy_kwargs.pop("features_extractor_class", None)
+            policy_kwargs.pop("features_extractor_kwargs", None)
 
     # SB3 ActorCritic policies require lr_schedule (unused for inference)
     lr = float(data.get("learning_rate", 1.5e-4))
     lr_schedule = lambda _: lr
 
     policy = policy_class(obs_space, action_space, lr_schedule, **policy_kwargs)
-    try:
-        policy.load_state_dict(params["policy"], strict=True)
-    except Exception:
-        # Zip may have been saved with different features_extractor (e.g. Flatten); load
-        # what we can so the policy at least accepts dict obs in the viewer.
+    if force_dict_obs:
+        # Zip may have Box/Flatten architecture; load what we can (mlp heads may match).
         policy.load_state_dict(params["policy"], strict=False)
+    else:
+        try:
+            policy.load_state_dict(params["policy"], strict=True)
+        except Exception:
+            policy.load_state_dict(params["policy"], strict=False)
     policy.eval()
 
     class _Predictor:
