@@ -65,11 +65,9 @@ class MAPPOConfig:
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
-    op3_gate_tag: str = "OP3_HARD"
     snapshot_every_episodes: int = 100
     league_max_snapshots: int = 25
     league_scripted_fallback_tag: str = "OP3"
-    league_easy_scripted_elo_threshold: float = 1200.0
     self_play_snapshot_every_episodes: int = 25
     self_play_max_snapshots: int = 25
 
@@ -669,9 +667,6 @@ def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
             if next_spec.kind == "SNAPSHOT":
                 tag = str(getattr(cfg, "league_scripted_fallback_tag", "OP3")).upper()
                 next_spec = OpponentSpec(kind="SCRIPTED", key=tag, rating=league.get_rating(f"SCRIPTED:{tag}"))
-            elif (next_spec.kind == "SCRIPTED" and next_spec.key == "OP3_HARD" and
-                  league.learner_rating < float(getattr(cfg, "league_easy_scripted_elo_threshold", 1200.0))):
-                next_spec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=league.get_rating("SCRIPTED:OP3"))
             red_tag = next_spec.key
             mode_str = "LEAGUE" if league_mode else "CURR"
             base = (
