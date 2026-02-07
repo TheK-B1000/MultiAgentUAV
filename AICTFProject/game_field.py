@@ -1724,17 +1724,17 @@ class GameField:
         Version B: "continuous-friendly" CNN observation with optional Phase 2 sensing.
         Returns: [NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS]
         
-        Channel meanings (structured, local view only - no global state leakage):
+        Channel meanings (structured; sensing respects physics/sensor config when enabled):
           0: self (agent's own position)
           1: friendly teammates (nearby teammates in local view)
-          2: enemies (sensor-limited if physics enabled, local view only)
+          2: enemies (sensor-limited if physics enabled: range, dropout, noise)
           3: friendly mines (nearby friendly mines)
-          4: enemy mines (sensor-limited if physics enabled, local view only)
-          5: own flag (flag position in local view)
-          6: enemy flag (enemy flag position in local view)
+          4: enemy mines (sensor-limited if physics enabled)
+          5: own flag (always known — agent's base / homing objective)
+          6: enemy flag (sensor-limited if physics enabled; otherwise would leak global state)
         
-        Design: Nearby entities in structured channels (not in vec) to avoid global state leakage.
-        This provides local spatial awareness without revealing full game state.
+        When boat_cfg.enabled (physics/sensing), enemy flag is only revealed when in sensor
+        range, with same dropout/noise as enemies. Own flag kept always known for objective stability.
         """
         side = str(getattr(agent, "side", "blue")).lower()
         gm = getattr(self, "manager", None)
@@ -1846,7 +1846,7 @@ class GameField:
                     continue
                 splat_float(4, float(det[0]), float(det[1]), 1.0)
 
-        # Flags (kept always known for objective stability)
+        # Flags: own flag always known (base); enemy flag sensor-limited when physics enabled
         def _gm_attr(*names, default=None):
             if gm is None:
                 return default
@@ -1857,20 +1857,29 @@ class GameField:
 
         if side == "blue":
             own_flag_pos = _safe_xy(_gm_attr("blue_flag_position", "blue_flag_home", default=(0, 0)), (0.0, 0.0))
-            enemy_flag_pos = _safe_xy(self._gm_enemy_flag_position("blue"),
-                                      (float(getattr(self, "col_count", CNN_COLS) - 1),
-                                       float(getattr(self, "row_count", CNN_ROWS) // 2)))
+            enemy_flag_fx, enemy_flag_fy = _safe_xy(
+                self._gm_enemy_flag_position("blue"),
+                (float(getattr(self, "col_count", CNN_COLS) - 1), float(getattr(self, "row_count", CNN_ROWS) // 2)),
+            )
         else:
             own_flag_pos = _safe_xy(_gm_attr("red_flag_position", "red_flag_home",
                                              default=(getattr(self, "col_count", CNN_COLS) - 1,
                                                       getattr(self, "row_count", CNN_ROWS) - 1)),
                                     (float(getattr(self, "col_count", CNN_COLS) - 1),
                                      float(getattr(self, "row_count", CNN_ROWS) - 1)))
-            enemy_flag_pos = _safe_xy(self._gm_enemy_flag_position("red"),
-                                      (0.0, float(getattr(self, "row_count", CNN_ROWS) // 2)))
+            enemy_flag_fx, enemy_flag_fy = _safe_xy(
+                self._gm_enemy_flag_position("red"),
+                (0.0, float(getattr(self, "row_count", CNN_ROWS) // 2)),
+            )
 
         splat_float(5, float(own_flag_pos[0]), float(own_flag_pos[1]), 1.0)
-        splat_float(6, float(enemy_flag_pos[0]), float(enemy_flag_pos[1]), 1.0)
+        # Enemy flag: sensor-limited when physics enabled (no global leak)
+        if bool(getattr(self.boat_cfg, "enabled", False)):
+            enemy_flag_det = self._enemy_detected(agent, float(enemy_flag_fx), float(enemy_flag_fy))
+            if enemy_flag_det is not None:
+                splat_float(6, float(enemy_flag_det[0]), float(enemy_flag_det[1]), 1.0)
+        else:
+            splat_float(6, float(enemy_flag_fx), float(enemy_flag_fy), 1.0)
 
         return channels.tolist()
 
