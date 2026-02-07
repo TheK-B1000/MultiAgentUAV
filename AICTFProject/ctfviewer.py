@@ -56,14 +56,14 @@ METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
 #   checkpoints_sb3/research_model_phase1.zip
 # Or a snapshot:
 #   checkpoints_sb3/self_play_pool/sp_snapshot_ep000050.zip
-DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip"
+DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v2.zip"
 # Baseline-specific model paths (auto-selected when testing baselines)
 # Training saves to checkpoints_sb3/ under project root (run from AICTFProject)
 BASELINE_MODEL_PATHS = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
     "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
     "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
-    "curriculum_league": "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip",
+    "curriculum_league": "rl/checkpoints_sb3/final_ppo_league_curriculum_v2.zip",
 }
 DEFAULT_HPPO_LOW_MODEL_PATH = "rl/checkpoints_sb3/hppo_low_hppo_attack_defend.zip"
 DEFAULT_HPPO_HIGH_MODEL_PATH = "rl/checkpoints_sb3/hppo_high_hppo_attack_defend.zip"
@@ -497,7 +497,7 @@ class SB3TeamPPOPolicy:
             if e.args and e.args[0] == "policy_class":
                 try:
                     from red_opponents import _load_snapshot_policy_only
-                    self.model = _load_snapshot_policy_only(self.model_path)
+                    self.model = _load_snapshot_policy_only(self.model_path, force_dict_obs=True)
                     if hasattr(self.model.policy, "set_training_mode"):
                         self.model.policy.set_training_mode(False)
                     self.model_loaded = True
