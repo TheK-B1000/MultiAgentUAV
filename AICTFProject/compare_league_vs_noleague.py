@@ -72,6 +72,8 @@ def run_comparison_test(
                 "wins": summary_league.get("wins", 0),
                 "losses": summary_league.get("losses", 0),
                 "draws": summary_league.get("draws", 0),
+                "mean_time_to_first_score": summary_league.get("mean_time_to_first_score"),
+                "collision_free_rate": summary_league.get("collision_free_rate"),
             }
             print(f"\n[League] Win Rate: {results['league']['win_rate']:.2%}")
     except Exception as e:
@@ -110,6 +112,8 @@ def run_comparison_test(
                 "wins": summary_noleague.get("wins", 0),
                 "losses": summary_noleague.get("losses", 0),
                 "draws": summary_noleague.get("draws", 0),
+                "mean_time_to_first_score": summary_noleague.get("mean_time_to_first_score"),
+                "collision_free_rate": summary_noleague.get("collision_free_rate"),
             }
             print(f"\n[No-League] Win Rate: {results['no_league']['win_rate']:.2%}")
     except Exception as e:
@@ -130,6 +134,12 @@ def run_comparison_test(
         league_d = results["league"]["draws"]
         print(f"League Model:")
         print(f"  Win Rate: {league_wr:.2%} ({league_w}W/{league_l}L/{league_d}D)")
+        tfs = results["league"].get("mean_time_to_first_score")
+        if tfs is not None:
+            print(f"  Mean Time to First Score: {tfs:.2f}s")
+        cfr = results["league"].get("collision_free_rate")
+        if cfr is not None:
+            print(f"  Collision-Free Rate: {cfr:.0%}")
     else:
         print(f"League Model: ERROR - {results['league'].get('error', 'Unknown')}")
     
@@ -140,6 +150,12 @@ def run_comparison_test(
         no_league_d = results["no_league"]["draws"]
         print(f"No-League Model:")
         print(f"  Win Rate: {no_league_wr:.2%} ({no_league_w}W/{no_league_l}L/{no_league_d}D)")
+        tfs = results["no_league"].get("mean_time_to_first_score")
+        if tfs is not None:
+            print(f"  Mean Time to First Score: {tfs:.2f}s")
+        cfr = results["no_league"].get("collision_free_rate")
+        if cfr is not None:
+            print(f"  Collision-Free Rate: {cfr:.0%}")
     else:
         print(f"No-League Model: ERROR - {results['no_league'].get('error', 'Unknown')}")
     
@@ -192,6 +208,11 @@ def main():
         action="store_true",
         help="Run without display (faster)"
     )
+    parser.add_argument(
+        "--also-eval-op3-hard",
+        action="store_true",
+        help="Also run comparison vs OP3_HARD (harder test when OP3 is saturated)"
+    )
     
     args = parser.parse_args()
     
@@ -203,7 +224,7 @@ def main():
         print(f"[ERROR] No-league model not found: {args.no_league_model}")
         sys.exit(1)
     
-    # Run comparison
+    # Run comparison vs primary opponent
     results = run_comparison_test(
         league_model_path=args.league_model,
         no_league_model_path=args.no_league_model,
@@ -212,8 +233,24 @@ def main():
         headless=args.headless,
     )
     
-    # Exit with error if either model failed
-    if "error" in results.get("league", {}) or "error" in results.get("no_league", {}):
+    # Optionally run harder eval vs OP3_HARD (avoids 'everyone 100% vs OP3' saturation)
+    if args.also_eval_op3_hard and args.opponent.upper() != "OP3_HARD":
+        print("\n" + "=" * 60)
+        print("HARD EVAL: OP3_HARD (stricter test)")
+        print("=" * 60)
+        results_hard = run_comparison_test(
+            league_model_path=args.league_model,
+            no_league_model_path=args.no_league_model,
+            num_episodes=args.episodes,
+            opponent="OP3_HARD",
+            headless=args.headless,
+        )
+    
+    # Exit with error if any run had a model load failure
+    has_error = "error" in results.get("league", {}) or "error" in results.get("no_league", {})
+    if args.also_eval_op3_hard and args.opponent.upper() != "OP3_HARD":
+        has_error = has_error or "error" in results_hard.get("league", {}) or "error" in results_hard.get("no_league", {})
+    if has_error:
         sys.exit(1)
 
 
