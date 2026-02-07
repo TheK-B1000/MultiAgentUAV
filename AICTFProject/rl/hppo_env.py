@@ -222,11 +222,11 @@ class CTFHighLevelEnv(gym.Env):
             extras.extend(phase_vec.tolist())
 
         if self.obs_config.include_opp_tier_onehot:
-            opp_vec = np.zeros((5,), dtype=np.float32)
+            opp_vec = np.zeros((3,), dtype=np.float32)
             kind = str(getattr(self.base_env, "_opponent_kind", "scripted")).upper()
             tag = str(getattr(self.base_env, "_opponent_scripted_tag", "OP3")).upper()
             if kind == "SCRIPTED":
-                opp_map = {"OP1": 0, "OP2": 1, "OP3_EASY": 2, "OP3": 3, "OP3_HARD": 4}
+                opp_map = {"OP1": 0, "OP2": 1, "OP3": 2}
                 idx = opp_map.get(tag, None)
                 if idx is not None:
                     opp_vec[int(idx)] = 1.0
