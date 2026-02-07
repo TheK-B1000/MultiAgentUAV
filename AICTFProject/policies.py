@@ -244,7 +244,7 @@ class OP2RedPolicy(Policy):
 
 class OP3RedPolicy(Policy):
     """
-    OP3: Mixed defender-attacker.
+    OP3: Mixed defender-attacker. Supports naval-realistic knobs per species archetype.
     """
 
     def __init__(
@@ -256,6 +256,10 @@ class OP3RedPolicy(Policy):
         assist_radius_mult: float = 1.5,
         defense_weight: Optional[float] = None,
         flag_weight: Optional[float] = None,
+        # Naval-realistic knobs (optional; None = default behavior)
+        zigzag_prob: Optional[float] = None,  # Swarm Interceptor: stochastic offset to target (harder to track)
+        chase_cap_cells: Optional[float] = None,  # Area Denial: don't chase enemy beyond this from our flag
+        retreat_radius_cells: Optional[float] = None,  # Screen and Strike: retreat to defend if enemy within this
     ):
         self.side = side
         self.mine_radius_check = float(mine_radius_check)
@@ -264,9 +268,25 @@ class OP3RedPolicy(Policy):
         self.assist_radius_mult = float(assist_radius_mult)
         self.defense_weight = None if defense_weight is None else float(defense_weight)
         self.flag_weight = None if flag_weight is None else float(flag_weight)
+        self.zigzag_prob = None if zigzag_prob is None else max(0.0, min(1.0, float(zigzag_prob)))
+        self.chase_cap_cells = None if chase_cap_cells is None else float(chase_cap_cells)
+        self.retreat_radius_cells = None if retreat_radius_cells is None else float(retreat_radius_cells)
 
     def reset(self) -> None:
         return None
+
+    def _maybe_zigzag(self, tx: int, ty: int, game_field: "GameField") -> Tuple[int, int]:
+        """With zigzag_prob, add small random offset to target (naval: harder to track)."""
+        if self.zigzag_prob is None or self.zigzag_prob <= 0 or random.random() >= self.zigzag_prob:
+            return tx, ty
+        dx = random.randint(-1, 1)
+        dy = random.randint(-1, 1)
+        return self._clamp(tx + dx, ty + dy, game_field)
+
+    def _go_to_target(self, game_field: "GameField", tx: int, ty: int) -> Tuple[int, int]:
+        """Clamp then optionally zigzag (for movement targets only; use _safe_target for fixed positions)."""
+        tx, ty = self._clamp(tx, ty, game_field)
+        return self._maybe_zigzag(tx, ty, game_field)
 
     def _defender_action(self, agent: Agent, gm: GameManager, game_field: "GameField") -> Tuple[
         int, Optional[Tuple[int, int]]]:
@@ -287,7 +307,7 @@ class OP3RedPolicy(Policy):
             enemy_carrier = getattr(gm, "red_flag_carrier", None)
         if enemy_carrier is not None:
             ex, ey = _agent_xy(enemy_carrier)
-            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(ex), int(ey))
+            return _macro_to_int(MacroAction.GO_TO), self._go_to_target(game_field, int(ex), int(ey))
 
         # If low on charges and pickups exist, prioritize grabbing mines
         max_charges = int(getattr(game_field, "max_mine_charges_per_agent", 2))
@@ -317,12 +337,14 @@ class OP3RedPolicy(Policy):
                     best = e
             return best
 
-        # If enemy is near our flag, converge for defense
+        # If enemy is near our flag, converge for defense (Area Denial: chase_cap = don't chase far)
         near_flag_enemy = _nearest_enemy(float(flag_x), float(flag_y))
         if near_flag_enemy is not None:
             ex, ey = _agent_xy(near_flag_enemy)
-            if math.hypot(ex - float(flag_x), ey - float(flag_y)) <= self.defense_radius_cells:
-                return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(ex), int(ey))
+            dist_to_flag = math.hypot(ex - float(flag_x), ey - float(flag_y))
+            if dist_to_flag <= self.defense_radius_cells:
+                if self.chase_cap_cells is None or dist_to_flag <= self.chase_cap_cells:
+                    return _macro_to_int(MacroAction.GO_TO), self._go_to_target(game_field, int(ex), int(ey))
 
         # If teammate is close to an enemy, move to support for suppression
         for t in teammates:
@@ -332,7 +354,7 @@ class OP3RedPolicy(Policy):
                 continue
             ex, ey = _agent_xy(e)
             if math.hypot(ex - tx, ey - ty) <= assist_r:
-                return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, int(ex), int(ey))
+                return _macro_to_int(MacroAction.GO_TO), self._go_to_target(game_field, int(ex), int(ey))
 
         # Strategic mine placement in our defensive zone
         has_flag_mine = any(
@@ -373,12 +395,12 @@ class OP3RedPolicy(Policy):
                     tx, ty = mine_targets[0]
                     if math.hypot(ax - tx, ay - ty) <= self.mine_radius_check:
                         return _macro_to_int(MacroAction.PLACE_MINE), (tx, ty)
-                    return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, tx, ty)
+                    return _macro_to_int(MacroAction.GO_TO), self._go_to_target(game_field, tx, ty)
 
             # Prefer a patrol point that's not right under the agent
             patrol.sort(key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2, reverse=True)
             tx, ty = patrol[0]
-            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, tx, ty)
+            return _macro_to_int(MacroAction.GO_TO), self._go_to_target(game_field, tx, ty)
 
         return _macro_to_int(MacroAction.GO_TO), (fx, fy)
 
@@ -409,21 +431,39 @@ class OP3RedPolicy(Policy):
                 return _macro_to_int(MacroAction.GO_TO), (tx, ty)
         return _macro_to_int(MacroAction.GET_FLAG), None
 
+    def _enemy_within_radius(self, agent: Agent, game_field: "GameField", radius_cells: float) -> bool:
+        """True if any enemy is within radius_cells of agent (Screen/Strike: retreat threshold)."""
+        side = getattr(agent, "side", self.side)
+        enemies = game_field.red_agents if side == "blue" else game_field.blue_agents
+        ax, ay = _agent_xy(agent)
+        for e in enemies:
+            if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
+                continue
+            ex, ey = _agent_xy(e)
+            if math.hypot(ex - ax, ey - ay) <= radius_cells:
+                return True
+        return False
+
     def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
         gm: GameManager = game_field.manager
+        # Retreat threshold: if we would attack but enemy is close, defend instead (Screen and Strike)
+        def do_attack() -> Tuple[int, Optional[Tuple[int, int]]]:
+            if self.retreat_radius_cells is not None and self._enemy_within_radius(agent, game_field, self.retreat_radius_cells):
+                return self._defender_action(agent, gm, game_field)
+            return self._attacker_action(agent, gm, game_field)
         # Coordinated attack: when sync signal is on, both reds do attacker action
         if getattr(game_field, "red_sync_attack_now", False):
-            return self._attacker_action(agent, gm, game_field)
+            return do_attack()
         if self.defense_weight is not None and self.flag_weight is not None:
             total = float(self.defense_weight + self.flag_weight)
             if total > 0.0:
                 p_attack = float(self.flag_weight) / total
                 if random.random() < p_attack:
-                    return self._attacker_action(agent, gm, game_field)
+                    return do_attack()
                 return self._defender_action(agent, gm, game_field)
         if getattr(agent, "agent_id", 0) == 0:
             return self._defender_action(agent, gm, game_field)
-        return self._attacker_action(agent, gm, game_field)
+        return do_attack()
 
 
 class SelfPlayRedPolicy(Policy):
