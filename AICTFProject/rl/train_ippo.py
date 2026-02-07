@@ -175,8 +175,6 @@ class IPPOConfig:
     enable_eval: bool = False
 
     max_decision_steps: int = 900
-    op3_gate_tag: str = "OP3_HARD"
-    league_easy_scripted_elo_threshold: float = 1200.0
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
