@@ -23,7 +23,7 @@ sys.path.insert(0, _SCRIPT_DIR)
 
 
 # League and no-league model paths (league = primary; no-league = optional comparison)
-LEAGUE_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v3.zip"
+LEAGUE_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_curriculum_v2.zip"
 NO_LEAGUE_MODEL_PATH = "checkpoints_sb3/final_ppo_noleague.zip"
 
 SPECIES_TAGS = ("BALANCED", "RUSHER", "CAMPER")
