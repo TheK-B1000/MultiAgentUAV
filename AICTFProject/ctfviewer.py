@@ -32,9 +32,10 @@ from policies import OP3RedPolicy
 from config import MAP_NAME, MAP_PATH
 
 try:
-    from red_opponents import make_snapshot_wrapper
+    from red_opponents import make_snapshot_wrapper, make_species_wrapper
 except ImportError:
     make_snapshot_wrapper = None
+    make_species_wrapper = None
 
 # Match training constants (use same shapes)
 from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS, make_game_field
@@ -49,6 +50,7 @@ except Exception:
 # ----------------------------
 # Resolve relative paths from this script's directory so they work regardless of cwd
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
 
 # Point this to your Phase 1 SB3 output:
 #   checkpoints_sb3/research_model_phase1.zip
@@ -491,6 +493,28 @@ class SB3TeamPPOPolicy:
             print(f"[CTFViewer] PPO model file not found: {self.model_path}")
             print(f"[CTFViewer] Error: {e}")
             self.model_loaded = False
+        except KeyError as e:
+            if e.args and e.args[0] == "policy_class":
+                try:
+                    from red_opponents import _load_snapshot_policy_only
+                    self.model = _load_snapshot_policy_only(self.model_path)
+                    if hasattr(self.model.policy, "set_training_mode"):
+                        self.model.policy.set_training_mode(False)
+                    self.model_loaded = True
+                    use_tokenized = self._model_expects_tokenized()
+                    obs_mode = "tokenized" if use_tokenized else "legacy"
+                    print(f"[CTFViewer] Loaded SB3 PPO model from: {self.model_path} (fallback: policy-only zip)")
+                    print(f"[CTFViewer] Model observation mode: {obs_mode} (tokenized={use_tokenized})")
+                except Exception as e2:
+                    print(f"[CTFViewer] Failed to load SB3 PPO model '{self.model_path}': {e2}")
+                    import traceback
+                    print(f"[CTFViewer] Traceback: {traceback.format_exc()}")
+                    self.model_loaded = False
+            else:
+                print(f"[CTFViewer] Failed to load SB3 PPO model '{self.model_path}': {e}")
+                import traceback
+                print(f"[CTFViewer] Traceback: {traceback.format_exc()}")
+                self.model_loaded = False
         except Exception as e:
             print(f"[CTFViewer] Failed to load SB3 PPO model '{self.model_path}': {e}")
             import traceback
@@ -1047,8 +1071,8 @@ class SB3TeamHPPOPolicy:
             phase_vec[phase_map[phase_name]] = 1.0
         extras.extend(phase_vec.tolist())
 
-        opp_vec = np.zeros((5,), dtype=np.float32)
-        opp_map = {"OP1": 0, "OP2": 1, "OP3_EASY": 2, "OP3": 3, "OP3_HARD": 4}
+        opp_vec = np.zeros((3,), dtype=np.float32)
+        opp_map = {"OP1": 0, "OP2": 1, "OP3": 2}
         if opp_tag in opp_map:
             opp_vec[opp_map[opp_tag]] = 1.0
         extras.extend(opp_vec.tolist())
@@ -1435,7 +1459,7 @@ class CTFViewer:
         self._apply_blue_mode(self.blue_mode)
         self._reset_op3_policies()
         
-        # Set opponent to OP3 for testing (OP3_HARD is used during training to make agent better at OP3)
+        # Set opponent to OP3 for testing
         # Testing should use standard OP3 to measure actual performance
         if hasattr(self.game_field, "set_red_opponent"):
             try:
@@ -1536,7 +1560,7 @@ class CTFViewer:
             self.game_field.policies["blue"] = self._blue_policy_callable
             self.blue_mode = "PPO"
             self.blue_ppo_team.reset_cache()
-            print("[CTFViewer] Blue → PPO (SB3 .zip)")
+            print("[CTFViewer] Blue -> PPO (SB3 .zip)")
 
         elif mode == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
             def blue_policy(obs, agent, game_field):
@@ -1660,9 +1684,10 @@ class CTFViewer:
         num_episodes: int = 100,
         save_csv: Optional[str] = None,
         headless: bool = False,
-        opponent: str = "OP3",  # Default to OP3 for testing (OP3_HARD is training-only to improve OP3 performance)
+        opponent: str = "OP3",  # Default to OP3 for testing
         eval_model: Optional[str] = None,
         red_model_path: Optional[str] = None,
+        red_species_tag: Optional[str] = None,  # If set, red uses species (BALANCED/RUSHER/CAMPER) via wrapper; overrides opponent for policy
         episode_seeds: Optional[List[int]] = None,
     ) -> Dict[str, Any]:
         """
@@ -1672,9 +1697,10 @@ class CTFViewer:
             num_episodes: Number of episodes to run
             save_csv: Path to save CSV (e.g., "eval_results.csv"). If None, auto-generates name.
             headless: If True, run without display (faster). If False, show viewer.
-            opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD", "NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"); ignored if red_model_path is set.
+            opponent: Red opponent tag ("OP1", "OP2", "OP3", ...); ignored if red_model_path or red_species_tag is set.
             eval_model: Force model for eval: "ppo", "mappo", "hppo". If None, auto-pick first loaded.
             red_model_path: If set, red uses this learned PPO (.zip) instead of scripted opponent (cross-play).
+            red_species_tag: If set, red uses species playstyle (BALANCED, RUSHER, CAMPER) via scripted wrapper.
             episode_seeds: If set, use these seeds (one per episode) for reproducible varied initial states; len should be >= num_episodes.
 
         Returns:
@@ -1711,13 +1737,21 @@ class CTFViewer:
         if eval_model and self.blue_mode == "DEFAULT":
             print(f"[WARN] Requested model '{eval_model}' not loaded; using DEFAULT baseline.")
 
-        # Set red: learned model (cross-play) or scripted
+        # Set red: learned model (cross-play), species wrapper, or scripted
         if red_model_path:
             try:
                 self.set_red_learned_model(red_model_path)
             except Exception as e:
                 print(f"[Eval] Failed to set red to learned model {red_model_path!r}: {e}")
                 self.set_red_scripted("OP3")
+        elif red_species_tag and make_species_wrapper is not None:
+            if hasattr(self.game_field, "set_red_opponent"):
+                try:
+                    self.game_field.set_red_opponent("OP3")
+                except Exception:
+                    pass
+            if hasattr(self.game_field, "set_red_policy_wrapper"):
+                self.game_field.set_red_policy_wrapper(make_species_wrapper(str(red_species_tag).upper()))
         else:
             opponent_upper = str(opponent).upper()
             if hasattr(self.game_field, "set_red_opponent"):
@@ -1728,12 +1762,11 @@ class CTFViewer:
             if hasattr(self.game_field, "set_red_policy_wrapper"):
                 self.game_field.set_red_policy_wrapper(None)
         # Set phase: naval opponents use OP3 (physics on); OP1/OP2 use own phase
-        opponent_upper = str(opponent).upper() if not red_model_path else "OP3"
+        opponent_upper = str(opponent).upper() if not red_model_path and not red_species_tag else "OP3"
         if opponent_upper in ("OP1", "OP2"):
             self._set_phase(opponent_upper)
-        elif opponent_upper in ("OP3", "OP3_EASY", "OP3_HARD"):
-            phase = opponent_upper.replace("_EASY", "").replace("_HARD", "")
-            self._set_phase(phase)
+        elif opponent_upper == "OP3":
+            self._set_phase("OP3")
         elif opponent_upper in ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"):
             self._set_phase_op3()
         else:
@@ -2000,7 +2033,7 @@ class CTFViewer:
                 else "hppo" if self.blue_mode == "HPPO"
                 else "default"
             )
-            save_csv = os.path.join(_SCRIPT_DIR, f"eval_{model_name}_{opponent}_{len(episodes)}ep.csv")
+            save_csv = os.path.join(METRICS_DIR, f"eval_{model_name}_{opponent}_{len(episodes)}ep.csv")
 
         csv_columns = [
             "episode_id", "success", "time_to_first_score", "time_to_game_over",
@@ -2260,7 +2293,7 @@ class CTFViewer:
             self.game_manager.reset_game(reset_scores=True)
             self.game_field.reset_default()
             self._set_phase_op3()
-            # Re-set opponent to OP3 for testing (OP3_HARD is training-only)
+            # Re-set opponent to OP3 for testing
             if hasattr(self.game_field, "set_red_opponent"):
                 try:
                     self.game_field.set_red_opponent("OP3")
@@ -2292,7 +2325,7 @@ class CTFViewer:
             self.game_field.agents_per_team = 2
             self.game_field.reset_default()
             self._set_phase_op3()
-            # Re-set opponent to OP3 for testing (OP3_HARD is training-only)
+            # Re-set opponent to OP3 for testing
             if hasattr(self.game_field, "set_red_opponent"):
                 try:
                     self.game_field.set_red_opponent("OP3")
@@ -2323,7 +2356,7 @@ class CTFViewer:
                     self.game_field.reset_default()
 
                 self._set_phase_op3()
-                # Re-set opponent to OP3 for testing (OP3_HARD is training-only)
+                # Re-set opponent to OP3 for testing
                 if hasattr(self.game_field, "set_red_opponent"):
                     try:
                         self.game_field.set_red_opponent("OP3")
@@ -2426,7 +2459,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval-csv", type=str, metavar="PATH", help="CSV output path for evaluation (default: auto-generated)")
     parser.add_argument("--eval-model", type=str, choices=["ppo", "mappo", "hppo"], help="Model to evaluate (default: first loaded)")
     parser.add_argument("--headless", action="store_true", help="Run evaluation without display (faster)")
-    parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3/OP3_EASY/OP3_HARD). Default: OP3 for testing (OP3_HARD is training-only to improve OP3 performance).")
+    parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3). Default: OP3.")
     parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
     parser.add_argument("--eval-naval", action="store_true", help="Run naval opponent eval vs NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED (held-out, physics on)")
@@ -2474,7 +2507,7 @@ if __name__ == "__main__":
             print("[Baseline] Configuration: FIXED_OPPONENT mode with OP3 opponent")
             summary = viewer.evaluate_model(
                 num_episodes=num_episodes,
-                save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_fixed_op3_OP3_{num_episodes}ep.csv"),
+                save_csv=os.path.join(METRICS_DIR, f"eval_baseline_fixed_op3_OP3_{num_episodes}ep.csv"),
                 headless=False,  # Always show display for baseline testing
                 opponent="OP3",
                 eval_model=args.eval_model,
@@ -2487,7 +2520,7 @@ if __name__ == "__main__":
             print("[Baseline] Configuration: SELF_PLAY mode (using OP3 opponent for viewer)")
             summary = viewer.evaluate_model(
                 num_episodes=num_episodes,
-                save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_self_play_OP3_{num_episodes}ep.csv"),
+                save_csv=os.path.join(METRICS_DIR, f"eval_baseline_self_play_OP3_{num_episodes}ep.csv"),
                 headless=False,
                 opponent="OP3",
                 eval_model=args.eval_model,
@@ -2500,7 +2533,7 @@ if __name__ == "__main__":
             print("[Baseline] Configuration: CURRICULUM_NO_LEAGUE mode (eval vs OP3)")
             summary = viewer.evaluate_model(
                 num_episodes=num_episodes,
-                save_csv=os.path.join(_SCRIPT_DIR, f"eval_baseline_curriculum_no_league_OP3_{num_episodes}ep.csv"),
+                save_csv=os.path.join(METRICS_DIR, f"eval_baseline_curriculum_no_league_OP3_{num_episodes}ep.csv"),
                 headless=False,
                 opponent="OP3",
                 eval_model=args.eval_model,
@@ -2514,7 +2547,7 @@ if __name__ == "__main__":
             num_episodes_per_opp=getattr(args, "eval_fixed_n", 50),
             eval_model=args.eval_model,
             headless=args.headless,
-            save_dir=_SCRIPT_DIR,
+            save_dir=METRICS_DIR,
         )
     elif getattr(args, "eval_naval", False):
         # Naval opponents (held-out): which baseline is best under naval realism?
@@ -2522,7 +2555,7 @@ if __name__ == "__main__":
             num_episodes_per_opp=getattr(args, "eval_naval_n", 30),
             eval_model=args.eval_model,
             headless=args.headless,
-            save_dir=_SCRIPT_DIR,
+            save_dir=METRICS_DIR,
         )
     elif args.eval is not None:
         # Evaluation mode: N episodes with metrics, optionally with display
