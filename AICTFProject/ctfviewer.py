@@ -30,6 +30,11 @@ from macro_actions import MacroAction
 from policies import OP3RedPolicy
 from config import MAP_NAME, MAP_PATH
 
+try:
+    from red_opponents import make_snapshot_wrapper
+except ImportError:
+    make_snapshot_wrapper = None
+
 # Match training constants (use same shapes)
 from game_field import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS, make_game_field
 
@@ -1575,6 +1580,31 @@ class CTFViewer:
                     except Exception:
                         pass
 
+    def set_red_learned_model(self, model_path: str) -> None:
+        """
+        Set red to a learned PPO model (for cross-play evaluation).
+        Uses the same snapshot wrapper as training; requires red_opponents.make_snapshot_wrapper.
+        """
+        if make_snapshot_wrapper is None:
+            raise RuntimeError("red_opponents.make_snapshot_wrapper not available")
+        path = str(model_path).strip()
+        if not path or not os.path.isfile(path):
+            if os.path.isfile(path + ".zip"):
+                path = path + ".zip"
+            else:
+                raise FileNotFoundError(f"Red model not found: {model_path!r}")
+        if hasattr(self.game_field, "set_red_opponent"):
+            self.game_field.set_red_opponent("OP3")
+        if hasattr(self.game_field, "set_red_policy_wrapper"):
+            self.game_field.set_red_policy_wrapper(make_snapshot_wrapper(path))
+
+    def set_red_scripted(self, tag: str = "OP3") -> None:
+        """Set red back to scripted opponent (clears learned red wrapper)."""
+        if hasattr(self.game_field, "set_red_policy_wrapper"):
+            self.game_field.set_red_policy_wrapper(None)
+        if hasattr(self.game_field, "set_red_opponent"):
+            self.game_field.set_red_opponent(str(tag).upper())
+
     # ----------------------------
     # Main loop (fixed-step sim + alpha render)
     # ----------------------------
@@ -1630,6 +1660,8 @@ class CTFViewer:
         headless: bool = False,
         opponent: str = "OP3",  # Default to OP3 for testing (OP3_HARD is training-only to improve OP3 performance)
         eval_model: Optional[str] = None,
+        red_model_path: Optional[str] = None,
+        episode_seeds: Optional[List[int]] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate trained model performance by running N episodes and collecting IROS-style metrics.
@@ -1638,8 +1670,10 @@ class CTFViewer:
             num_episodes: Number of episodes to run
             save_csv: Path to save CSV (e.g., "eval_results.csv"). If None, auto-generates name.
             headless: If True, run without display (faster). If False, show viewer.
-            opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD")
+            opponent: Red opponent tag ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD"); ignored if red_model_path is set.
             eval_model: Force model for eval: "ppo", "mappo", "hppo". If None, auto-pick first loaded.
+            red_model_path: If set, red uses this learned PPO (.zip) instead of scripted opponent (cross-play).
+            episode_seeds: If set, use these seeds (one per episode) for reproducible varied initial states; len should be >= num_episodes.
 
         Returns:
             Dict with summary statistics and per-episode metrics
@@ -1675,19 +1709,29 @@ class CTFViewer:
         if eval_model and self.blue_mode == "DEFAULT":
             print(f"[WARN] Requested model '{eval_model}' not loaded; using DEFAULT baseline.")
 
-        # Set opponent
-        opponent_upper = str(opponent).upper()
-        if hasattr(self.game_field, "set_red_opponent"):
+        # Set red: learned model (cross-play) or scripted
+        if red_model_path:
             try:
-                self.game_field.set_red_opponent(opponent_upper)
-            except Exception:
-                pass
-        # Set phase to match opponent (OP1 -> OP1 phase, OP2 -> OP2 phase, OP3 -> OP3 phase)
+                self.set_red_learned_model(red_model_path)
+            except Exception as e:
+                print(f"[Eval] Failed to set red to learned model {red_model_path!r}: {e}")
+                self.set_red_scripted("OP3")
+        else:
+            opponent_upper = str(opponent).upper()
+            if hasattr(self.game_field, "set_red_opponent"):
+                try:
+                    self.game_field.set_red_opponent(opponent_upper)
+                except Exception:
+                    pass
+            if hasattr(self.game_field, "set_red_policy_wrapper"):
+                self.game_field.set_red_policy_wrapper(None)
+        # Set phase (OP3 for learned red or standard OP3 eval)
+        opponent_upper = str(opponent).upper() if not red_model_path else "OP3"
         if opponent_upper in ("OP1", "OP2", "OP3", "OP3_EASY", "OP3_HARD"):
             phase = opponent_upper.replace("_EASY", "").replace("_HARD", "")
             self._set_phase(phase)
         else:
-            self._set_phase_op3()  # Default to OP3
+            self._set_phase_op3()
 
         fixed_dt = 1.0 / 60.0
         # Match training: max_decision_steps (default 400 in CTFGameFieldSB3Env)
@@ -1721,6 +1765,9 @@ class CTFViewer:
         try:
             for ep_idx in range(num_episodes):
                 episode_id += 1
+                gf = self.game_field
+                if episode_seeds is not None and ep_idx < len(episode_seeds) and hasattr(gf, "set_seed"):
+                    gf.set_seed(int(episode_seeds[ep_idx]))
                 self.game_field.reset_default()
                 self._set_phase_op3()
                 self.sim_tick = 0
@@ -1865,8 +1912,8 @@ class CTFViewer:
                     "std_inter_robot_dist": std_inter_robot_dist,
                     "zone_coverage": zone_coverage,
                     "phase_name": str(getattr(gm, "phase_name", "OP3")),
-                    "opponent_kind": "SCRIPTED",
-                    "scripted_tag": str(opponent).upper(),
+                    "opponent_kind": "LEARNED" if red_model_path else "SCRIPTED",
+                    "scripted_tag": str(opponent).upper() if not red_model_path else "",
                     "blue_score": blue_score,
                     "red_score": red_score,
                     "mean_pct_attacking": mean_pct_attacking,
