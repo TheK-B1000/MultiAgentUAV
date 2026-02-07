@@ -1,0 +1,6 @@
+episode_id,success,time_to_first_score,time_to_game_over,collisions_per_episode,collision_events_per_episode,near_misses_per_episode,collision_free_episode,mean_inter_robot_dist,std_inter_robot_dist,zone_coverage,mean_pct_attacking,mean_pct_defending,flag_capture_variance,mean_flag_captures,blue_episode_reward,reward_per_timestep,collisions_per_100_steps,near_misses_per_100_steps,coverage_efficiency,phase_name,opponent_kind,scripted_tag,blue_score,red_score
+1,1,9.35,19.3,121,9,65,0,7.04143,4.50385,0.125,53.8894,46.1106,0.25,1.5,14.8448,0.0128193,10.4491,5.61313,0.000107945,OP3,SCRIPTED,OP3,3,1
+2,1,9.6,21.5167,341,9,51,0,8.68183,3.23114,0.216667,42.789,57.211,0.25,1.5,15.6023,0.0120855,26.4136,3.95043,0.000167829,OP3,SCRIPTED,OP3,3,1
+3,1,10.1833,20.15,114,10,87,0,8.35105,3.92489,0.191667,46.1093,53.8907,0.25,1.5,17.729,0.0146642,9.42928,7.19603,0.000158533,OP3,SCRIPTED,OP3,3,1
+4,1,11.4667,21.1667,142,11,90,0,8.60645,3.81767,0.208333,44.405,55.595,0.25,1.5,17.5298,0.013803,11.1811,7.08661,0.000164042,OP3,SCRIPTED,OP3,3,1
+5,1,8.73333,24.8333,99,8,71,0,9.28837,3.88714,0.233333,56.9846,43.0154,0.25,1.5,14.9762,0.0100512,6.6443,4.7651,0.0001566,OP3,SCRIPTED,OP3,3,2
