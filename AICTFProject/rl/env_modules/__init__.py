@@ -26,6 +26,7 @@ from rl.env_modules.contract_validators import (
     validate_obs_order,
     validate_action_keys,
     validate_dropped_reward_events_policy,
+    validate_mask_alignment,
 )
 
 __all__ = [
@@ -44,4 +45,5 @@ __all__ = [
     "validate_obs_order",
     "validate_action_keys",
     "validate_dropped_reward_events_policy",
+    "validate_mask_alignment",
 ]
