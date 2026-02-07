@@ -56,7 +56,11 @@ def _load_snapshot_policy_only(path: str):
             except Exception:
                 raise RuntimeError(f"Unknown policy_class name in zip: {policy_class!r}")
 
-    policy = policy_class(obs_space, action_space, **policy_kwargs)
+    # SB3 ActorCritic policies require lr_schedule (unused for inference)
+    lr = float(data.get("learning_rate", 1.5e-4))
+    lr_schedule = lambda _: lr
+
+    policy = policy_class(obs_space, action_space, lr_schedule, **policy_kwargs)
     policy.load_state_dict(params["policy"], strict=True)
     policy.eval()
 
