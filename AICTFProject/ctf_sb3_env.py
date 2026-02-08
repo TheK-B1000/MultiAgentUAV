@@ -84,9 +84,8 @@ class CTFGameFieldSB3Env(gym.Env):
         use_obs_builder: bool = True,
         # Step 4.1: add obs["context"] = opponent embedding id (stable int, not full path). Default off.
         include_opponent_context: bool = False,
-        # Step 5.1: when True, GameField.build_continuous_features asserts no global state in vec (debug only).
         obs_debug_validate_locality: bool = False,
-        # Phase 2: Contract validation (MARL safety hardening)
+        normalize_vec: bool = False,
         validate_contracts: bool = False,
         # Fix 3.1/3.2: Dense progress shaping scale (ε); team_total += ε * mean(per_agent_progress)
         auxiliary_progress_scale: float = 0.1,
@@ -115,6 +114,7 @@ class CTFGameFieldSB3Env(gym.Env):
         self._use_obs_builder = True  # Always True
         self._include_opponent_context = bool(include_opponent_context)
         self._obs_debug_validate_locality = bool(obs_debug_validate_locality)
+        self._normalize_vec = bool(normalize_vec)
         self._validate_contracts = bool(validate_contracts)
         self._auxiliary_progress_scale = float(auxiliary_progress_scale)
 
@@ -170,6 +170,7 @@ class CTFGameFieldSB3Env(gym.Env):
             high_level_mode_onehot=self._high_level_mode_onehot,
             base_vec_per_agent=self._base_vec_per_agent,
             obs_debug_validate_locality=self._obs_debug_validate_locality,
+            normalize_vec=self._normalize_vec,
         )
         # Sprint A: Enable ExecutionController by default (can be disabled via reset(..., options=...) if needed)
         enable_execution_controller = True
