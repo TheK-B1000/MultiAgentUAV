@@ -54,7 +54,6 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         assert len(vec_shape) == 2, f"tokenized vec must be (M, V), got {vec_shape}"
         M, C, H, W = grid_shape
         V = vec_shape[1]
-        # Single-agent grid space for NatureCNN
         single_grid = spaces.Box(
             low=float(grid_space.low.min()) if hasattr(grid_space, "low") else 0.0,
             high=float(grid_space.high.max()) if hasattr(grid_space, "high") else 1.0,
@@ -66,7 +65,6 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         self.cnn = NatureCNN(single_grid, features_dim=cnn_output_dim, normalized_image=normalized_image)
         self.vec_dim = V
         features_dim = M * cnn_output_dim + M * V
-        # Optional opponent context: shape (1,) when include_opponent_context=True
         context_space = spaces_dict.get("context")
         self._context_dim = 0
         if context_space is not None and hasattr(context_space, "shape"):
@@ -75,28 +73,25 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
 
     def forward(self, observations):
-        grid = observations["grid"]  # (B, M, C, H, W)
-        vec = observations["vec"]    # (B, M, V)
-        B = grid.shape[0]
-        M = self._M
+        grid = observations["grid"]
+        vec = observations["vec"]
+        B, M = grid.shape[0], self._M
 
-        # (B, M, C, H, W) -> (B*M, C, H, W)
-        grid_flat = grid.view(B * M, *grid.shape[2:])
-        cnn_out = self.cnn(grid_flat)  # (B*M, D)
+        grid_flat = grid.reshape(B * M, *grid.shape[2:])
+        cnn_out = self.cnn(grid_flat)
         D = cnn_out.shape[1]
-        cnn_out = cnn_out.view(B, M, D)  # (B, M, D)
+        cnn_out = cnn_out.reshape(B, M, D)
 
-        # Optional agent mask to zero padded slots (B, M)
         agent_mask = observations.get("agent_mask", None)
         if agent_mask is not None:
             if agent_mask.dim() == 1:
                 agent_mask = agent_mask.unsqueeze(0)
-            agent_mask = agent_mask.float().unsqueeze(-1)  # (B, M, 1)
+            agent_mask = agent_mask.float().unsqueeze(-1)
             cnn_out = cnn_out * agent_mask
             vec = vec * agent_mask
 
-        cnn_out = cnn_out.view(B, M * D)
-        vec_flat = vec.view(B, M * self._V)
+        cnn_out = cnn_out.reshape(B, M * D)
+        vec_flat = vec.reshape(B, M * self._V)
         out = torch.cat([cnn_out, vec_flat], dim=1)
         if self._context_dim > 0 and "context" in observations:
             ctx = observations["context"]
@@ -111,7 +106,7 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
 
 class TrainMode(str, Enum):
     CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"
-    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"  # OLD baseline: OP1 -> OP2 -> OP3, no league
+    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"
     FIXED_OPPONENT = "FIXED_OPPONENT"
     SELF_PLAY = "SELF_PLAY"
 
@@ -138,12 +133,12 @@ class PPOConfig:
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
     snapshot_every_episodes: int = 100
-    league_max_snapshots: int = 25  # cap league snapshots; delete oldest to save space
-    enable_tensorboard: bool = True  # RECOMMENDED: Enable to monitor training progress
+    league_max_snapshots: int = 25
+    enable_tensorboard: bool = True
     enable_checkpoints: bool = False
     enable_eval: bool = False
 
-    max_decision_steps: int = 400  # Match viewer/episode length (was 900, too long)
+    max_decision_steps: int = 400
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
@@ -151,53 +146,32 @@ class PPOConfig:
     self_play_snapshot_every_episodes: int = 25
     self_play_max_snapshots: int = 25
 
-    # Action execution noise (reliability metrics)
     action_flip_prob: float = 0.0
-
-    # Reproducibility: deterministic PyTorch (slower, full reproducibility)
     use_deterministic: bool = False
 
-    # Zero-shot scalability: max_blue_agents > 2 uses tokenized obs/action (train 2v2, test 4v4/8v8)
-    # Sprint B 4v4 smoke test: set max_blue_agents=4, mode=FIXED_OPPONENT, fixed_opponent_tag=OP1 or OP2
     max_blue_agents: int = 2
-    # Sprint A verification: print obs/action shapes once per reset
     print_reset_shapes: bool = False
-
-    # Reward contract: TEAM_SUM (default), PER_AGENT, SHAPLEY_APPROX (future). Logged in info["reward_mode"].
     reward_mode: str = "TEAM_SUM"
-    # Step 3.1: use canonical ObsBuilder (rollback: set False to keep legacy _get_obs path)
     use_obs_builder: bool = True
-    # Step 4.1: add obs["context"] = opponent embedding id (stable int). Default off until ready.
     include_opponent_context: bool = False
-    # Step 5.1: when True, GameField.build_continuous_features asserts no global state in vec (debug only).
     obs_debug_validate_locality: bool = False
-    
-    # Training stability improvements
-    enable_opponent_tracking: bool = True  # Track opponent distribution and results
-    opponent_tracking_window: int = 100  # Rolling window size for opponent stats
-    enable_fixed_eval: bool = True  # Run fixed eval suite (no learning)
-    # League species / RUSHER: increase species exposure and bias toward RUSHER to fix RUSHER weakness
-    stability_species_prob: float = 0.15  # Fraction of league episodes vs species (BALANCED/RUSHER/CAMPER)
-    stability_snapshot_prob: float = 0.20  # Fraction of league episodes vs snapshot opponents
-    species_rusher_bias: float = 0.5  # When species is picked, probability of forcing RUSHER (0=uniform)
-    # Option 1 (control): Match OP3 exposure — league sees OP3 as often as no-league (100% OP3 in league phase)
-    match_op3_exposure: bool = False  # If True: anchor_op3_prob=1.0, species_prob=0.0, snapshot_prob=0.0
-    fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
-    fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
-    # Phase 2 fixed-eval gating: advance only if fixed-eval WR meets threshold (None = disabled)
-    # RECOMMENDED: Lower thresholds for faster curriculum progression (was 0.90/0.75)
-    fixed_eval_gate_OP1_wr: Optional[float] = 0.75  # advance to OP2 only if fixed eval vs OP1 >= this
-    fixed_eval_gate_OP2_wr: Optional[float] = 0.60  # advance to OP3 only if fixed eval vs OP2 >= this
-    # Reduced aggressiveness (if training unstable)
-    use_reduced_aggressiveness: bool = False  # Enable gentler updates
-    # Stable MARL PPO: gentler defaults for multi-agent nonstationarity (Fix 4.1)
-    # RECOMMENDED: Enable for better MARL convergence and higher win rates
-    use_stable_marl_ppo: bool = True  # lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024
-    # KL guardrail: auto-reduce aggressiveness if approx_kl exceeds threshold repeatedly (Fix 4.2)
-    # RECOMMENDED: Enable KL guardrail to prevent policy thrashing
-    approx_kl_threshold: float = 0.05  # target approx_kl ~0.01–0.03; spike above = over-updating (raised to 0.05 for more tolerance)
-    kl_guardrail_consecutive: int = 3  # trigger after this many consecutive spikes
-    # Explicit tokenized obs gate (Fix 5.1): use tokenized extractor when max_blue_agents>2 OR use_tokenized_obs
+    normalize_vec: bool = False
+
+    enable_opponent_tracking: bool = True
+    opponent_tracking_window: int = 100
+    enable_fixed_eval: bool = True
+    stability_species_prob: float = 0.15
+    stability_snapshot_prob: float = 0.20
+    species_rusher_bias: float = 0.5
+    match_op3_exposure: bool = True
+    fixed_eval_every_episodes: int = 500
+    fixed_eval_episodes: int = 10
+    fixed_eval_gate_OP1_wr: Optional[float] = 0.75
+    fixed_eval_gate_OP2_wr: Optional[float] = 0.60
+    use_reduced_aggressiveness: bool = False
+    use_stable_marl_ppo: bool = True
+    approx_kl_threshold: float = 0.05
+    kl_guardrail_consecutive: int = 3
     use_tokenized_obs: bool = False
 
 
@@ -227,7 +201,8 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             use_obs_builder=getattr(cfg, "use_obs_builder", True),
             include_opponent_context=getattr(cfg, "include_opponent_context", False),
             obs_debug_validate_locality=getattr(cfg, "obs_debug_validate_locality", False),
-            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.15),  # Increased default for better dense rewards
+            normalize_vec=getattr(cfg, "normalize_vec", False),
+            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.15),
         )
         return env
     return _fn
@@ -254,35 +229,24 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
         if not dims:
             return logits
 
-        n_macros = int(dims[0]) if len(dims) > 0 else 0
-        n_targets = int(dims[1]) if len(dims) > 1 else 0
-        if n_macros <= 0:
-            return logits
-
-        # Layout: (macro, target) per agent; dims = [n_macros, n_targets, n_macros, n_targets, ...]
-        num_agents = len(dims) // 2
-        expected = num_agents * (n_macros + n_targets) if num_agents > 0 else 2 * (n_macros + n_targets)
+        expected = sum(dims)
         if mask.shape[1] < expected:
             pad = torch.ones((mask.shape[0], expected - mask.shape[1]), device=mask.device)
             mask = torch.cat([mask, pad], dim=1)
 
         full_mask = []
         offset = 0
-        for i, dim in enumerate(dims):
-            if i % 2 == 0:  # macro
-                sz = min(n_macros, mask.shape[1] - offset)
-                if sz > 0:
-                    full_mask.append(mask[:, offset: offset + sz])
-                    offset += sz  # ✅ Fix: Increment by sz (actual size used), not n_macros
-                else:
-                    full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
-            else:  # target
-                sz = min(n_targets, mask.shape[1] - offset)
-                if sz > 0 and n_targets > 0:
-                    full_mask.append(mask[:, offset: offset + sz])
-                    offset += sz  # ✅ Fix: Increment by sz (actual size used), not n_targets
-                else:
-                    full_mask.append(torch.ones((mask.shape[0], int(dim)), device=mask.device))
+        for dim in dims:
+            d = int(dim)
+            sz = min(d, mask.shape[1] - offset)
+            if sz > 0:
+                chunk = mask[:, offset : offset + sz]
+                offset += sz
+                if chunk.shape[1] < d:
+                    chunk = torch.cat([chunk, torch.ones((mask.shape[0], d - chunk.shape[1]), device=mask.device)], dim=1)
+                full_mask.append(chunk)
+            else:
+                full_mask.append(torch.ones((mask.shape[0], d), device=mask.device))
 
         mask_cat = torch.cat(full_mask, dim=1)
         invalid = (mask_cat <= 0.0)
@@ -330,14 +294,11 @@ class LeagueCallback(BaseCallback):
         self.draw_count = 0
         self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 25)))
         
-        # Step 1: Opponent distribution tracking
-        self._opponent_stats: Dict[str, Dict[str, int]] = {}  # opp_key -> {wins, losses, draws, total}
-        self._opponent_history: List[Tuple[str, str]] = []  # (opp_key, result) for rolling window
+        self._opponent_stats: Dict[str, Dict[str, int]] = {}
+        self._opponent_history: List[Tuple[str, str]] = []
         self._enable_opponent_tracking = getattr(cfg, "enable_opponent_tracking", True)
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
-        
-        # Step 5: Async episode handling - batch updates
-        self._pending_updates: List[Dict[str, Any]] = []  # Collect updates, apply on reset
+        self._pending_updates: List[Dict[str, Any]] = []
 
     def _enforce_league_snapshot_limit(self) -> None:
         """Delete oldest league snapshots when over cap to save disk space."""
@@ -355,12 +316,11 @@ class LeagueCallback(BaseCallback):
 
     def _select_next_opponent(self) -> OpponentSpec:
         if self.league_mode:
-            # Sprint A: Pass phase to league for stability mix
             return self.league.sample_league(phase=self.curriculum.phase)
         return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
     
     def _update_opponent_stats(self, opp_key: str, result: str):
-        """Track opponent distribution and results (Step 1)."""
+        """Track opponent distribution and rolling window stats."""
         if not self._enable_opponent_tracking:
             return
         
@@ -375,25 +335,22 @@ class LeagueCallback(BaseCallback):
         else:
             self._opponent_stats[opp_key]["draws"] += 1
         
-        # Rolling window
         self._opponent_history.append((opp_key, result))
         if len(self._opponent_history) > self._opponent_window:
             old_opp_key, old_result = self._opponent_history.pop(0)
             if old_opp_key in self._opponent_stats:
-                self._opponent_stats[old_opp_key]["total"] -= 1
+                self._opponent_stats[old_opp_key]["total"] = max(0, self._opponent_stats[old_opp_key]["total"] - 1)
                 if old_result == "WIN":
-                    self._opponent_stats[old_opp_key]["wins"] -= 1
+                    self._opponent_stats[old_opp_key]["wins"] = max(0, self._opponent_stats[old_opp_key]["wins"] - 1)
                 elif old_result == "LOSS":
-                    self._opponent_stats[old_opp_key]["losses"] -= 1
+                    self._opponent_stats[old_opp_key]["losses"] = max(0, self._opponent_stats[old_opp_key]["losses"] - 1)
                 else:
-                    self._opponent_stats[old_opp_key]["draws"] -= 1
+                    self._opponent_stats[old_opp_key]["draws"] = max(0, self._opponent_stats[old_opp_key]["draws"] - 1)
     
     def _print_opponent_distribution(self):
-        """Print opponent distribution (last N episodes)."""
+        """Print opponent distribution over last N episodes."""
         if not self._enable_opponent_tracking or not self._opponent_stats:
             return
-        
-        # Count recent opponents
         recent_opps: Dict[str, int] = {}
         for opp_key, _ in self._opponent_history[-self._opponent_window:]:
             recent_opps[opp_key] = recent_opps.get(opp_key, 0) + 1
@@ -409,7 +366,6 @@ class LeagueCallback(BaseCallback):
             losses = stats.get("losses", 0)
             draws = stats.get("draws", 0)
             total = stats.get("total", 0)
-            # ✅ Fix: Include draws in win-rate calculation (wins / total, not wins / (wins + losses))
             wr = (wins / max(1, total)) * 100 if total > 0 else 0.0
             parts.append(f"{opp_key}:{count}({wins}W/{losses}L/{draws}D,{wr:.0f}%WR)")
         print(" | ".join(parts))
@@ -450,7 +406,6 @@ class LeagueCallback(BaseCallback):
             opp_key = summary.opponent_key()
             self.league.update_elo(opp_key, actual)
             self.controller.record_result(opp_key, actual)
-            # ✅ Fix: Actually call _update_opponent_stats to track opponent distribution
             self._update_opponent_stats(opp_key, result)
 
             phase = self.curriculum.phase
@@ -467,7 +422,6 @@ class LeagueCallback(BaseCallback):
                 ):
                     phase = self.curriculum.phase
 
-            # Best Curriculum v1: enter league only when OP3 competence proven (rolling WR ≥ 0.80)
             if phase == "OP3":
                 min_eps = int(self.curriculum.config.min_episodes.get("OP3", 0))
                 min_wr = float(self.curriculum.config.min_winrate.get("OP3", 0.80))
@@ -487,7 +441,6 @@ class LeagueCallback(BaseCallback):
                     base = f"{base} elo={self.league.learner_rating:.1f}"
                 print(base)
                 
-                # Step 1: Print opponent distribution every N episodes
                 if self._enable_opponent_tracking and (self.episode_idx % 50 == 0):
                     self._print_opponent_distribution()
 
@@ -513,8 +466,6 @@ class LeagueCallback(BaseCallback):
 
             next_opp = self._select_next_opponent()
 
-            # ✅ Fix: Use indices=[i] with env_method for opponent/phase/league_mode setting
-            # This works for both DummyVecEnv and SubprocVecEnv (SB3 handles indices correctly)
             env = self.model.get_env()
             if env is not None:
                 try:
@@ -522,7 +473,6 @@ class LeagueCallback(BaseCallback):
                     env.env_method("set_phase", self.curriculum.phase, indices=[i])
                     env.env_method("set_league_mode", self.league_mode, indices=[i])
                 except Exception:
-                    # Fallback: if indices fails, try without (for compatibility)
                     try:
                         env.env_method("set_next_opponent", next_opp.kind, next_opp.key)
                         env.env_method("set_phase", self.curriculum.phase)
@@ -545,9 +495,8 @@ class CurriculumNoLeagueCallback(BaseCallback):
         self.loss_count = 0
         self.draw_count = 0
         
-        # Opponent distribution tracking (same as LeagueCallback)
-        self._opponent_stats: Dict[str, Dict[str, int]] = {}  # opp_key -> {wins, losses, draws, total}
-        self._opponent_history: List[Tuple[str, str]] = []  # (opp_key, result) for rolling window
+        self._opponent_stats: Dict[str, Dict[str, int]] = {}
+        self._opponent_history: List[Tuple[str, str]] = []
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
 
     def _on_step(self) -> bool:
@@ -591,8 +540,7 @@ class CurriculumNoLeagueCallback(BaseCallback):
             )
             phase = self.curriculum.phase
 
-            # Track opponent distribution (no-league always uses SCRIPTED:OP1/OP2/OP3)
-            opp_key = summary.opponent_key()  # Should be "SCRIPTED:OP1", "SCRIPTED:OP2", or "SCRIPTED:OP3"
+            opp_key = summary.opponent_key()
             self._update_opponent_stats(opp_key, result)
 
             if self.verbose:
@@ -601,7 +549,6 @@ class CurriculumNoLeagueCallback(BaseCallback):
                     f"score={blue_score}:{red_score} phase={phase} "
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
-                # Print opponent diet every 50 episodes
                 if self.episode_idx % 50 == 0:
                     self._print_opponent_distribution()
 
@@ -612,8 +559,15 @@ class CurriculumNoLeagueCallback(BaseCallback):
 
             env = self.model.get_env()
             if env is not None:
-                env.env_method("set_next_opponent", "SCRIPTED", phase)
-                env.env_method("set_phase", phase)
+                try:
+                    env.env_method("set_next_opponent", "SCRIPTED", phase, indices=[i])
+                    env.env_method("set_phase", phase, indices=[i])
+                except Exception:
+                    try:
+                        env.env_method("set_next_opponent", "SCRIPTED", phase)
+                        env.env_method("set_phase", phase)
+                    except Exception:
+                        pass
 
         return True
     
@@ -649,30 +603,27 @@ class CurriculumNoLeagueCallback(BaseCallback):
         else:
             self._opponent_stats[opp_key]["draws"] += 1
         
-        # Rolling window
         self._opponent_history.append((opp_key, result))
         if len(self._opponent_history) > self._opponent_window:
             old_opp_key, old_result = self._opponent_history.pop(0)
             if old_opp_key in self._opponent_stats:
-                self._opponent_stats[old_opp_key]["total"] -= 1
+                self._opponent_stats[old_opp_key]["total"] = max(0, self._opponent_stats[old_opp_key]["total"] - 1)
                 if old_result == "WIN":
-                    self._opponent_stats[old_opp_key]["wins"] -= 1
+                    self._opponent_stats[old_opp_key]["wins"] = max(0, self._opponent_stats[old_opp_key]["wins"] - 1)
                 elif old_result == "LOSS":
-                    self._opponent_stats[old_opp_key]["losses"] -= 1
+                    self._opponent_stats[old_opp_key]["losses"] = max(0, self._opponent_stats[old_opp_key]["losses"] - 1)
                 else:
-                    self._opponent_stats[old_opp_key]["draws"] -= 1
+                    self._opponent_stats[old_opp_key]["draws"] = max(0, self._opponent_stats[old_opp_key]["draws"] - 1)
     
     def _print_opponent_distribution(self):
         """Print opponent distribution (last N episodes and whole training)."""
         if not self._opponent_stats:
             return
         
-        # Last N episodes
         recent_opps: Dict[str, int] = {}
         for opp_key, _ in self._opponent_history[-self._opponent_window:]:
             recent_opps[opp_key] = recent_opps.get(opp_key, 0) + 1
         
-        # Whole training
         total_episodes = sum(stats.get("total", 0) for stats in self._opponent_stats.values())
         
         print(f"[NoLeagueDiet|last_{self._opponent_window}] ", end="")
@@ -683,7 +634,6 @@ class CurriculumNoLeagueCallback(BaseCallback):
                 parts.append(f"{opp_key}:{count}({pct:.0f}%)")
             print(" | ".join(parts))
         
-        # Whole training summary
         if total_episodes > 0:
             print(f"[NoLeagueDiet|total] ", end="")
             parts = []
@@ -707,9 +657,7 @@ class SelfPlayCallback(BaseCallback):
         self.loss_count = 0
         self.draw_count = 0
         self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
-        # Rolling slot index 1..max_snapshots for snapshot filenames (resets when at max)
         self._snapshot_roll_index = 0
-        # Total snapshots created over time (never resets, tracks cumulative count)
         self._total_snapshots_created = 0
 
     def _enforce_snapshot_limit(self) -> None:
@@ -750,7 +698,6 @@ class SelfPlayCallback(BaseCallback):
 
             if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
                 self._enforce_snapshot_limit()
-                # Rolling counter 1..max_snapshots for filenames (goes back to 1 when at max)
                 max_s = max(1, self._max_snapshots)
                 self._snapshot_roll_index = (self._snapshot_roll_index % max_s) + 1
                 slot = self._snapshot_roll_index
@@ -763,7 +710,7 @@ class SelfPlayCallback(BaseCallback):
                 else:
                     self.league.add_snapshot(path + ".zip")
                     self._enforce_snapshot_limit()
-                    self._total_snapshots_created += 1  # Track cumulative total
+                    self._total_snapshots_created += 1
 
             if self.verbose:
                 print(
@@ -878,15 +825,21 @@ class KLGuardrailCallback(BaseCallback):
         n_steps = getattr(self.model, "n_steps", 2048)
         if n_steps <= 0 or self.n_calls <= 1:
             return True
-        # Sample approx_kl once per PPO update (first step of each new rollout, after previous learn)
         if (self.n_calls - 1) % n_steps != 0:
             return True
         update_id = (self.n_calls - 1) // n_steps
         if update_id <= self._last_checked_update:
             return True
+        is_first_check = self._last_checked_update == -1
         self._last_checked_update = update_id
 
         name_to_value = getattr(self.logger, "name_to_value", None) or {}
+        if "train/approx_kl" not in name_to_value:
+            if self.verbose and is_first_check:
+                print(
+                    f"[KLGuardrail] WARNING: 'train/approx_kl' not found in logger. "
+                    f"Guardrail may be inactive. Check that PPO is logging approx_kl."
+                )
         approx_kl = float(name_to_value.get("train/approx_kl", 0.0))
 
         if approx_kl > self.threshold:
@@ -1058,7 +1011,7 @@ class MetricsCSVCallback(BaseCallback):
         "scripted_tag",
         "blue_score",
         "red_score",
-        "opponent_switch_count",  # Step 4.2: cumulative opponent switches so far
+        "opponent_switch_count",
         "vec_schema_version",
     ]
 
@@ -1143,7 +1096,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    # OP3 anchor + Species Elo; Option 1 (match_op3_exposure): 100% OP3 to match no-league (control experiment)
     match_op3 = getattr(cfg, "match_op3_exposure", False)
     if match_op3:
         anchor_op3_prob = 1.0
@@ -1163,44 +1115,33 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         snapshot_prob=snapshot_prob,
         anchor_op3_prob=anchor_op3_prob,
         species_rusher_bias=float(getattr(cfg, "species_rusher_bias", 0.40)),
-        use_stability_mix=False,  # Use anchor+species mix
+        use_stability_mix=False,
         min_episodes_per_opponent=int(getattr(cfg, "min_episodes_per_opponent", 3)),
     )
 
     curriculum: Optional[CurriculumState] = None
     controller: Optional[CurriculumController] = None
+
+    curriculum_config = CurriculumConfig(
+        phases=["OP1", "OP2", "OP3"],
+        min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
+        min_winrate={"OP1": 0.75, "OP2": 0.70, "OP3": 0.80},
+        winrate_window=100,
+        winrate_window_by_phase={"OP1": 50, "OP2": 50, "OP3": 100},
+        required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
+        elo_margin=80.0,
+        switch_to_league_after_op3_win=(mode == TrainMode.CURRICULUM_LEAGUE.value),
+        fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),
+        fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),
+    )
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
-        # Best Curriculum v1: OP1→OP2→OP3 gates; league only after OP3 rolling WR ≥ 0.80
-        curriculum = CurriculumState(
-            CurriculumConfig(
-                phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.75, "OP2": 0.70, "OP3": 0.80},  # Best Curriculum v1 gates
-                winrate_window=100,
-                winrate_window_by_phase={"OP1": 50, "OP2": 50, "OP3": 100},
-                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
-                elo_margin=80.0,
-                switch_to_league_after_op3_win=True,
-                fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),
-                fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),
-            )
-        )
+        curriculum = CurriculumState(curriculum_config)
         controller = CurriculumController(
             CurriculumControllerConfig(seed=cfg.seed),
             league=league,
         )
     elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value:
-        curriculum = CurriculumState(
-            CurriculumConfig(
-                phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.40, "OP2": 0.40, "OP3": 0.45},  # Lower thresholds for faster progression (was 0.50/0.50/0.55)
-                winrate_window=50,
-                required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
-                elo_margin=80.0,
-                switch_to_league_after_op3_win=False,
-            )
-        )
+        curriculum = CurriculumState(curriculum_config)
 
     if mode == TrainMode.FIXED_OPPONENT.value:
         default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
@@ -1215,7 +1156,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
-    # Same env_fns work with either vec env: both call env_fns[i]() with same rank i.
     env_fns = [
         _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
         for i in range(max(1, int(cfg.n_envs)))
@@ -1226,7 +1166,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
 
-    # Naval realism: stress + physics-by-phase (OP1 no physics, OP2 relaxed, OP3 full)
     try:
         venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
     except Exception:
@@ -1237,7 +1176,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         pass
 
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
-    # Fix 0: Explicit tokenized extractor only from config (not from agent_mask in obs — env always has it)
     use_tokenized = bool(getattr(cfg, "use_tokenized_obs", False)) or (int(getattr(cfg, "max_blue_agents", 2)) > 2)
     if use_tokenized:
         policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
@@ -1250,7 +1188,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     n_epochs = int(cfg.n_epochs)
     batch_size = int(cfg.batch_size)
 
-    if getattr(cfg, "use_stable_marl_ppo", False):
+    use_curriculum = mode in (TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value)
+    if use_curriculum or getattr(cfg, "use_stable_marl_ppo", False):
         learning_rate = 1.5e-4
         ent_coef = 0.005
         clip_range = 0.12
@@ -1338,7 +1277,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             )
         )
 
-    # Action execution noise metrics (if enabled)
     if getattr(cfg, "action_flip_prob", 0.0) > 0.0:
         noise_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_noise_metrics")
         callbacks.append(
@@ -1448,13 +1386,11 @@ def run_test_vec_schema() -> None:
     for agent in blue_agents:
         if agent is None:
             continue
-        # Signature: build_continuous_features(self, agent: Agent) — agent is an object, not an id
         vec = gf.build_continuous_features(agent)
         vec = np.asarray(vec, dtype=np.float32)
         assert vec.dtype == np.float32, f"dtype {vec.dtype}, expected float32"
         assert vec.shape == (V,), f"shape {vec.shape}, expected ({V},)"
         assert np.all(np.isfinite(vec)), f"non-finite values: {vec}"
-        # Schema VEC_SCHEMA_VERSION==1: norm coords [0,1], heading [-1,1], speed [0,1], deltas clipped [-1,1], etc.
         assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
             f"vec values outside expected schema bounds [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
         )
