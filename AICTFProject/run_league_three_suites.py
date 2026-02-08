@@ -16,6 +16,7 @@ import glob
 import os
 import random
 import sys
+import time
 from typing import Any, Dict, List, Optional
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -202,9 +203,15 @@ def main() -> None:
     parser.add_argument("--snapshot-glob", type=str, default="*snapshot*.zip",
                         help="Glob for snapshot files (default: *snapshot*.zip)")
     parser.add_argument("--max-snapshots", type=int, default=5, help="Max number of snapshots to use in suite 3 (sample if more found)")
-    parser.add_argument("--seed", type=int, default=42, help="Base seed for episode seeds")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Base seed for episode seeds (default: random per run for varied results)")
     parser.add_argument("--headless", action="store_true", help="Run headless")
     args = parser.parse_args()
+
+    # Different results each run: use random base seed unless --seed is set
+    if args.seed is None:
+        args.seed = random.randint(0, 2**31 - 1)
+        print(f"[Seed] Using random base seed: {args.seed} (use --seed {args.seed} to reproduce this run)")
 
     league_path = _resolve_path(args.league_model)
     no_league_path = _resolve_path(args.no_league_model)
