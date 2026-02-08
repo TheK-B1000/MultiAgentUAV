@@ -1,10 +1,6 @@
 """
-Observation builder bridge module for CTFGameFieldSB3Env.
-
-Handles:
-- Building team observations (canonical ordering)
-- High-level mode appending
-- Legacy vs tokenized observation paths
+Observation builder bridge for CTFGameFieldSB3Env.
+Builds team observations with canonical ordering; optional vec standardization.
 """
 from __future__ import annotations
 
@@ -18,6 +14,28 @@ try:
     from rl.obs_builder import build_team_obs
 except Exception:
     build_team_obs = None
+
+# Per-feature mean/std for vec standardization (schema: [0,1] and [-1,1] dims).
+def _vec_standardization_constants(size: int) -> tuple:
+    mean = np.zeros((size,), dtype=np.float32)
+    std = np.ones((size,), dtype=np.float32)
+    for i in range(min(12, size)):
+        if i in (2, 4, 5, 6, 7):
+            mean[i], std[i] = 0.0, 0.57735  # [-1,1]
+        else:
+            mean[i], std[i] = 0.5, 0.5  # [0,1]
+    return mean, std
+
+
+def _standardize_vec(vec: np.ndarray, mean: np.ndarray, std: np.ndarray, eps: float = 1e-8) -> np.ndarray:
+    vec = np.asarray(vec, dtype=np.float32)
+    m = mean.reshape(-1)
+    s = std.reshape(-1)
+    if vec.ndim == 1:
+        n = min(vec.shape[0], m.shape[0])
+        return ((vec[:n] - m[:n]) / (s[:n] + eps)).astype(np.float32)
+    n = min(vec.shape[-1], m.shape[0])
+    return ((vec[..., :n] - m[:n]) / (s[:n] + eps)).astype(np.float32)
 
 
 class EnvObsBuilder:
@@ -34,6 +52,7 @@ class EnvObsBuilder:
         high_level_mode_onehot: bool = True,
         base_vec_per_agent: int = 12,
         obs_debug_validate_locality: bool = False,
+        normalize_vec: bool = False,
     ) -> None:
         self._use_obs_builder = bool(use_obs_builder)
         self._include_mask_in_obs = bool(include_mask_in_obs)
@@ -43,6 +62,8 @@ class EnvObsBuilder:
         self._high_level_mode_onehot = bool(high_level_mode_onehot)
         self._base_vec_per_agent = int(base_vec_per_agent)
         self._obs_debug_validate_locality = bool(obs_debug_validate_locality)
+        self._normalize_vec = bool(normalize_vec)
+        self._vec_mean, self._vec_std = _vec_standardization_constants(self._base_vec_per_agent)
 
     def build_observation(
         self,
@@ -92,6 +113,8 @@ class EnvObsBuilder:
             role_macro_mask_fn=role_macro_mask_fn,
             vec_append_fn=self._append_high_level_mode,
         )
+        if self._normalize_vec and "vec" in out:
+            out["vec"] = _standardize_vec(out["vec"], self._vec_mean, self._vec_std)
         return out
 
     def _build_legacy_obs(
