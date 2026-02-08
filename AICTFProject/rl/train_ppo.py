@@ -315,9 +315,14 @@ class LeagueCallback(BaseCallback):
                 print(f"[WARN] league snapshot cleanup failed: {exc}")
 
     def _select_next_opponent(self) -> OpponentSpec:
-        if self.league_mode:
-            return self.league.sample_league(phase=self.curriculum.phase)
-        return self.controller.select_opponent(self.curriculum.phase, league_mode=self.league_mode)
+        if not self.league_mode:
+            phase = self.curriculum.phase
+            return OpponentSpec(
+                kind="SCRIPTED",
+                key=phase,
+                rating=self.league.get_rating(f"SCRIPTED:{phase}"),
+            )
+        return self.league.sample_league(phase=self.curriculum.phase)
     
     def _update_opponent_stats(self, opp_key: str, result: str):
         """Track opponent distribution and rolling window stats."""
