@@ -180,6 +180,8 @@ class PPOConfig:
     stability_species_prob: float = 0.15  # Fraction of league episodes vs species (BALANCED/RUSHER/CAMPER)
     stability_snapshot_prob: float = 0.20  # Fraction of league episodes vs snapshot opponents
     species_rusher_bias: float = 0.5  # When species is picked, probability of forcing RUSHER (0=uniform)
+    # Option 1 (control): Match OP3 exposure — league sees OP3 as often as no-league (100% OP3 in league phase)
+    match_op3_exposure: bool = False  # If True: anchor_op3_prob=1.0, species_prob=0.0, snapshot_prob=0.0
     fixed_eval_every_episodes: int = 500  # Run fixed eval every N episodes
     fixed_eval_episodes: int = 10  # Episodes per opponent in fixed eval
     # Phase 2 fixed-eval gating: advance only if fixed-eval WR meets threshold (None = disabled)
@@ -542,6 +544,11 @@ class CurriculumNoLeagueCallback(BaseCallback):
         self.win_count = 0
         self.loss_count = 0
         self.draw_count = 0
+        
+        # Opponent distribution tracking (same as LeagueCallback)
+        self._opponent_stats: Dict[str, Dict[str, int]] = {}  # opp_key -> {wins, losses, draws, total}
+        self._opponent_history: List[Tuple[str, str]] = []  # (opp_key, result) for rolling window
+        self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -584,12 +591,19 @@ class CurriculumNoLeagueCallback(BaseCallback):
             )
             phase = self.curriculum.phase
 
+            # Track opponent distribution (no-league always uses SCRIPTED:OP1/OP2/OP3)
+            opp_key = summary.opponent_key()  # Should be "SCRIPTED:OP1", "SCRIPTED:OP2", or "SCRIPTED:OP3"
+            self._update_opponent_stats(opp_key, result)
+
             if self.verbose:
                 print(
                     f"[PPO|CURR_NO_LEAGUE] ep={self.episode_idx} result={result} "
                     f"score={blue_score}:{red_score} phase={phase} "
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
+                # Print opponent diet every 50 episodes
+                if self.episode_idx % 50 == 0:
+                    self._print_opponent_distribution()
 
             self.logger.record("curr_noleague/episode", self.episode_idx)
             self.logger.record("curr_noleague/win_rate", self.win_count / max(1, self.episode_idx))
@@ -602,6 +616,83 @@ class CurriculumNoLeagueCallback(BaseCallback):
                 env.env_method("set_phase", phase)
 
         return True
+    
+    def _on_training_end(self) -> None:
+        """Print final opponent diet summary at end of training."""
+        if self._opponent_stats:
+            total_episodes = sum(stats.get("total", 0) for stats in self._opponent_stats.values())
+            if total_episodes > 0:
+                print("\n" + "=" * 60)
+                print("NO-LEAGUE OPPONENT DIET SUMMARY (whole training)")
+                print("=" * 60)
+                for opp_key in sorted(self._opponent_stats.keys()):
+                    stats = self._opponent_stats[opp_key]
+                    total = stats.get("total", 0)
+                    wins = stats.get("wins", 0)
+                    losses = stats.get("losses", 0)
+                    draws = stats.get("draws", 0)
+                    pct = (total / total_episodes) * 100
+                    wr = (wins / max(1, total)) * 100 if total > 0 else 0.0
+                    print(f"  {opp_key}: {total} episodes ({pct:.1f}%) | WR={wr:.1f}% ({wins}W/{losses}L/{draws}D)")
+                print("=" * 60 + "\n")
+    
+    def _update_opponent_stats(self, opp_key: str, result: str):
+        """Track opponent distribution and results (same logic as LeagueCallback)."""
+        if opp_key not in self._opponent_stats:
+            self._opponent_stats[opp_key] = {"wins": 0, "losses": 0, "draws": 0, "total": 0}
+        
+        self._opponent_stats[opp_key]["total"] += 1
+        if result == "WIN":
+            self._opponent_stats[opp_key]["wins"] += 1
+        elif result == "LOSS":
+            self._opponent_stats[opp_key]["losses"] += 1
+        else:
+            self._opponent_stats[opp_key]["draws"] += 1
+        
+        # Rolling window
+        self._opponent_history.append((opp_key, result))
+        if len(self._opponent_history) > self._opponent_window:
+            old_opp_key, old_result = self._opponent_history.pop(0)
+            if old_opp_key in self._opponent_stats:
+                self._opponent_stats[old_opp_key]["total"] -= 1
+                if old_result == "WIN":
+                    self._opponent_stats[old_opp_key]["wins"] -= 1
+                elif old_result == "LOSS":
+                    self._opponent_stats[old_opp_key]["losses"] -= 1
+                else:
+                    self._opponent_stats[old_opp_key]["draws"] -= 1
+    
+    def _print_opponent_distribution(self):
+        """Print opponent distribution (last N episodes and whole training)."""
+        if not self._opponent_stats:
+            return
+        
+        # Last N episodes
+        recent_opps: Dict[str, int] = {}
+        for opp_key, _ in self._opponent_history[-self._opponent_window:]:
+            recent_opps[opp_key] = recent_opps.get(opp_key, 0) + 1
+        
+        # Whole training
+        total_episodes = sum(stats.get("total", 0) for stats in self._opponent_stats.values())
+        
+        print(f"[NoLeagueDiet|last_{self._opponent_window}] ", end="")
+        if recent_opps:
+            parts = []
+            for opp_key, count in sorted(recent_opps.items(), key=lambda x: -x[1]):
+                pct = (count / max(1, len(self._opponent_history[-self._opponent_window:]))) * 100
+                parts.append(f"{opp_key}:{count}({pct:.0f}%)")
+            print(" | ".join(parts))
+        
+        # Whole training summary
+        if total_episodes > 0:
+            print(f"[NoLeagueDiet|total] ", end="")
+            parts = []
+            for opp_key in sorted(self._opponent_stats.keys()):
+                stats = self._opponent_stats[opp_key]
+                total = stats.get("total", 0)
+                pct = (total / total_episodes) * 100
+                parts.append(f"{opp_key}:{total}({pct:.0f}%)")
+            print(" | ".join(parts))
 
 
 class SelfPlayCallback(BaseCallback):
@@ -1052,15 +1143,25 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    # OP3 anchor + Species Elo: 40% scripted OP3, 60% species (no snapshots)
+    # OP3 anchor + Species Elo; Option 1 (match_op3_exposure): 100% OP3 to match no-league (control experiment)
+    match_op3 = getattr(cfg, "match_op3_exposure", False)
+    if match_op3:
+        anchor_op3_prob = 1.0
+        species_prob = 0.0
+        snapshot_prob = 0.0
+        print("[League] match_op3_exposure=True: 100% OP3 (control experiment, apples-to-apples with no-league)")
+    else:
+        anchor_op3_prob = float(getattr(cfg, "anchor_op3_prob", 0.40))
+        species_prob = 0.20
+        snapshot_prob = 0.0
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
         matchmaking_tau=200.0,
         scripted_floor=0.50,
-        species_prob=0.20,
-        snapshot_prob=0.0,
-        anchor_op3_prob=float(getattr(cfg, "anchor_op3_prob", 0.40)),
+        species_prob=species_prob,
+        snapshot_prob=snapshot_prob,
+        anchor_op3_prob=anchor_op3_prob,
         species_rusher_bias=float(getattr(cfg, "species_rusher_bias", 0.40)),
         use_stability_mix=False,  # Use anchor+species mix
         min_episodes_per_opponent=int(getattr(cfg, "min_episodes_per_opponent", 3)),
