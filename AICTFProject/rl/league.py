@@ -14,7 +14,7 @@ def elo_expected(r_a: float, r_b: float) -> float:
 
 @dataclass
 class OpponentSpec:
-    kind: str  # "SCRIPTED" | "SPECIES" | "SNAPSHOT"
+    kind: str
     key: str
     rating: float
 
@@ -29,17 +29,13 @@ class EloLeague:
         scripted_floor: float = 0.20,
         species_prob: float = 0.20,
         snapshot_prob: float = 0.60,
-        # OP3 anchor + Species Elo: after qualification, league = anchor OP3 + species only (no snapshots)
-        anchor_op3_prob: float = 0.40,  # 40% scripted OP3 anchor
-        # species_prob for league is implied 1 - anchor_op3_prob (60% species)
-        species_rusher_bias: float = 0.40,  # When sampling species, force RUSHER with this prob (0 = uniform)
-        # Legacy stability mix (unused when using anchor+species; kept for compat)
+        anchor_op3_prob: float = 0.40,
+        species_rusher_bias: float = 0.40,
         stability_scripted_prob: float = 0.70,
         stability_snapshot_prob: float = 0.20,
         stability_species_prob: float = 0.10,
-        use_stability_mix: bool = False,  # False = use anchor+species; True = legacy stability mix
-        # Opponent switching frequency cap
-        min_episodes_per_opponent: int = 3,  # Don't switch opponents more than once per N episodes
+        use_stability_mix: bool = False,
+        min_episodes_per_opponent: int = 3,
     ) -> None:
         self.rng = random.Random(int(seed))
         self.k = float(k_factor)
@@ -54,8 +50,6 @@ class EloLeague:
         self.stability_snapshot_prob = float(stability_snapshot_prob)
         self.stability_species_prob = float(stability_species_prob)
         self.min_episodes_per_opponent = max(1, int(min_episodes_per_opponent))
-        
-        # Track last opponent and episode count for switching cap (structured to avoid path colon bug)
         self._last_kind: Optional[str] = None
         self._last_key: Optional[str] = None
         self._episodes_with_current_opponent: int = 0
@@ -104,8 +98,6 @@ class EloLeague:
 
         learner_new = max(0.0, lr + self.k * (float(actual_score) - exp))
         self.set_learner_rating(learner_new)
-
-        # Rating anchors: do not update SCRIPTED or SPECIES ratings; only update SNAPSHOT
         if opponent_key.startswith("SCRIPTED:") or opponent_key.startswith("SPECIES:"):
             return
         opp_new = max(0.0, opp_r + self.k * ((1.0 - float(actual_score)) - (1.0 - exp)))
@@ -160,14 +152,12 @@ class EloLeague:
         if self.use_stability_mix:
             opp_spec = self._sample_stability_mix(target, phase)
         else:
-            # OP3 anchor + species only
             r = self.rng.random()
             if r < self.anchor_op3_prob:
                 opp_spec = OpponentSpec(
                     kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3")
                 )
             else:
-                # Species (with optional rusher bias)
                 if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
                     key = "SPECIES:RUSHER"
                 else:
@@ -180,27 +170,18 @@ class EloLeague:
         return opp_spec
     
     def _sample_stability_mix(self, target_rating: float, phase: str) -> OpponentSpec:
-        """
-        Sprint A: Sample with stability mix (70% scripted, 20% snapshot, 10% species).
-        """
         r = self.rng.random()
-        
-        # 70% scripted opponents (OP1/OP2/OP3 depending on phase)
         if r < self.stability_scripted_prob:
-            # Select scripted opponent based on phase
             if phase == "OP1":
                 scripted_tag = "OP1"
             elif phase == "OP2":
                 scripted_tag = "OP2"
-            else:  # OP3 or default
+            else:
                 scripted_tag = "OP3"
             key = f"SCRIPTED:{scripted_tag}"
             return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.get_rating(key))
         
         r -= self.stability_scripted_prob
-        
-        # 20% snapshot opponents: sample by rating closeness to learner (not uniform)
-        # So snapshots aren't "free wins" from weak recent checkpoints.
         if r < self.stability_snapshot_prob and self.snapshots:
             path = self._weighted_pick(
                 self.snapshots,
@@ -210,8 +191,6 @@ class EloLeague:
             return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
         
         r -= self.stability_snapshot_prob
-        
-        # Species variants (RUSHER bias to remediate weakness)
         if r < self.stability_species_prob:
             if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
                 key = "SPECIES:RUSHER"
@@ -219,8 +198,6 @@ class EloLeague:
                 key = self._weighted_pick(self.species_keys, target_rating)
             tag = key.split(":", 1)[1]
             return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
-        
-        # Fallback: scripted (shouldn't reach here, but safety)
         key = "SCRIPTED:OP3"
         return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
     
