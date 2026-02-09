@@ -62,10 +62,10 @@ class CurriculumConfig:
     min_episodes: Dict[str, int]
     min_winrate: Dict[str, float]
     winrate_window: int
-    # Per-phase window size for rolling win rate (optional). If set, used instead of winrate_window per phase.
-    winrate_window_by_phase: Optional[Dict[str, int]] = None
     required_win_by: Dict[str, int]
     elo_margin: float
+    # Per-phase window size for rolling win rate (optional). If set, used instead of winrate_window per phase.
+    winrate_window_by_phase: Optional[Dict[str, int]] = None
     switch_to_league_after_op3_win: bool = True
     # Fixed-eval gating: phase advance only if fixed-eval WR vs previous phase meets threshold (None = disabled)
     fixed_eval_gate_OP1_wr: Optional[float] = 0.90  # advance to OP2 only if fixed eval vs OP1 >= this
