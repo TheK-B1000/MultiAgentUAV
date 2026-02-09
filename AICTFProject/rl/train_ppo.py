@@ -166,8 +166,6 @@ class PPOConfig:
     match_op3_exposure: bool = True
     fixed_eval_every_episodes: int = 500
     fixed_eval_episodes: int = 10
-    fixed_eval_gate_OP1_wr: Optional[float] = 0.75
-    fixed_eval_gate_OP2_wr: Optional[float] = 0.60
     use_reduced_aggressiveness: bool = False
     use_stable_marl_ppo: bool = True
     approx_kl_threshold: float = 0.05
@@ -420,12 +418,28 @@ class LeagueCallback(BaseCallback):
             is_scripted = opp_key.startswith("SCRIPTED:")
             if is_scripted:
                 opp_rating = self.league.get_rating(opp_key)
-                if self.curriculum.advance_if_ready(
+                # Only check Elo once in league mode; during curriculum phase skip Elo entirely
+                advanced = self.curriculum.advance_if_ready(
                     learner_rating=self.league.learner_rating,
                     opponent_rating=opp_rating,
                     win_by=win_by,
-                ):
+                    skip_elo_check=not self.league_mode,
+                )
+                if advanced:
                     phase = self.curriculum.phase
+                # Debug: log why we're not advancing when we're past min episodes and still OP1
+                elif (
+                    phase == "OP1"
+                    and self.curriculum.phase_episode_count >= 200
+                    and self.episode_idx % 100 == 0
+                ):
+                    min_eps = self.curriculum.config.min_episodes.get("OP1", 0)
+                    min_wr = self.curriculum.config.min_winrate.get("OP1", 0.0)
+                    wr = self.curriculum.phase_winrate("OP1")
+                    print(
+                        f"[CURR-DEBUG] OP1 stuck: phase_eps={self.curriculum.phase_episode_count} (need>={min_eps}), "
+                        f"wr={wr:.3f} (need>={min_wr})"
+                    )
 
             if phase == "OP3":
                 min_eps = int(self.curriculum.config.min_episodes.get("OP3", 0))
@@ -538,12 +552,27 @@ class CurriculumNoLeagueCallback(BaseCallback):
             self.curriculum.phase_episode_count += 1
             self.curriculum.record_result(phase, actual)
 
+            # Debug: log advancement conditions every 50 episodes
+            if self.episode_idx % 50 == 0 and phase == "OP1":
+                min_eps = self.curriculum.config.min_episodes.get(phase, 0)
+                min_wr = self.curriculum.config.min_winrate.get(phase, 0.0)
+                winrate = self.curriculum.phase_winrate(phase)
+                meets_eps = self.curriculum.phase_episode_count >= min_eps
+                meets_wr = winrate >= min_wr
+                # Elo check is skipped when elo_margin=0 (curriculum-only mode)
+                meets_elo = (self.curriculum.config.elo_margin <= 0) or (1300.0 >= (1200.0 + self.curriculum.config.elo_margin))
+                print(f"[CURR-DEBUG] OP1->OP2: eps={self.curriculum.phase_episode_count}/{min_eps} ({meets_eps}), "
+                      f"wr={winrate:.3f}>={min_wr} ({meets_wr}), elo_skip={self.curriculum.config.elo_margin<=0} ({meets_elo})")
+
+            old_phase = phase
             self.curriculum.advance_if_ready(
                 learner_rating=1300.0,
                 opponent_rating=1200.0,
                 win_by=win_by,
             )
             phase = self.curriculum.phase
+            if phase != old_phase:
+                print(f"[CURR] ADVANCED: {old_phase} -> {phase} at episode {self.episode_idx}")
 
             opp_key = summary.opponent_key()
             self._update_opponent_stats(opp_key, result)
@@ -1127,17 +1156,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     curriculum: Optional[CurriculumState] = None
     controller: Optional[CurriculumController] = None
 
+    # Elo margin only applies in league mode (after OP3 gate); set to 0 for curriculum phases
+    # In CURRICULUM_LEAGUE, Elo check is skipped during curriculum phases (OP1/OP2/OP3) via dummy ratings
+    elo_margin = 80.0 if mode == TrainMode.CURRICULUM_LEAGUE.value else 0.0
     curriculum_config = CurriculumConfig(
         phases=["OP1", "OP2", "OP3"],
         min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-        min_winrate={"OP1": 0.75, "OP2": 0.70, "OP3": 0.80},
+        min_winrate={"OP1": 1.00, "OP2": 0.90, "OP3": 0.80},  # OP1: 100%, OP2: 90%, OP3: 80%
         winrate_window=100,
         winrate_window_by_phase={"OP1": 50, "OP2": 50, "OP3": 100},
         required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
-        elo_margin=80.0,
+        elo_margin=elo_margin,
         switch_to_league_after_op3_win=(mode == TrainMode.CURRICULUM_LEAGUE.value),
-        fixed_eval_gate_OP1_wr=getattr(cfg, "fixed_eval_gate_OP1_wr", 0.75),
-        fixed_eval_gate_OP2_wr=getattr(cfg, "fixed_eval_gate_OP2_wr", 0.60),
     )
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
         curriculum = CurriculumState(curriculum_config)
