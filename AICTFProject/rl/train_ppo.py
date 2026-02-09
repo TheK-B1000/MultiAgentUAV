@@ -1402,11 +1402,45 @@ def run_test_vec_schema() -> None:
     print("[test-vec-schema] GameField.build_continuous_features(agent): dtype=float32, shape=(12,), finite, in bounds. OK.")
 
 
+def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3") -> str:
+    """Return a unique default run_tag per mode so runs don't overwrite each other."""
+    m = str(mode).upper().strip()
+    if m == TrainMode.CURRICULUM_LEAGUE.value:
+        return "ppo_league"
+    if m == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        return "ppo_noleague"
+    if m == TrainMode.FIXED_OPPONENT.value:
+        return f"ppo_fixed_{fixed_opponent_tag.lower()}"
+    if m == TrainMode.SELF_PLAY.value:
+        return "ppo_self_play"
+    return "ppo_run"
+
+
 if __name__ == "__main__":
+    import argparse
     import sys
     if "--verify-4v4" in sys.argv:
         run_verify_4v4(num_episodes=10)
     elif "--test-vec-schema" in sys.argv:
         run_test_vec_schema()
     else:
-        train_ppo()
+        parser = argparse.ArgumentParser(description="Train PPO (CTF)")
+        parser.add_argument("--mode", type=str, default=None,
+                            help="Train mode: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE, FIXED_OPPONENT, SELF_PLAY")
+        parser.add_argument("--run-tag", type=str, default=None,
+                            help="Run name for checkpoints (default: unique per mode)")
+        parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
+        parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
+        args = parser.parse_args()
+        cfg = PPOConfig()
+        if args.mode is not None:
+            cfg.mode = args.mode.upper().strip()
+            if args.run_tag is not None:
+                cfg.run_tag = args.run_tag
+            else:
+                cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent)
+        if args.total_steps is not None:
+            cfg.total_timesteps = args.total_steps
+        if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
+            cfg.fixed_opponent_tag = args.fixed_opponent.upper()
+        train_ppo(cfg)
