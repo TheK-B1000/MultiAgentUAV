@@ -1,0 +1,10 @@
+Baseline comparison — Suite: vs species set
+Episodes: 100  Seed base: 42
+
+Fixed OP3: WR=95.00% (95W/5L/0D)  TtFS=9.81s  CollisionFree=0.00%
+
+Curriculum No-League: WR=90.00% (90W/10L/0D)  TtFS=9.98s  CollisionFree=0.00%
+
+Curriculum League: WR=97.00% (97W/3L/0D)  TtFS=9.88s  CollisionFree=0.00%
+
+Self-Play: WR=95.00% (95W/5L/0D)  TtFS=9.81s  CollisionFree=0.00%
