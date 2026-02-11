@@ -15,6 +15,12 @@ import sys
 import csv
 from typing import Any, Dict, List, Optional
 
+# Optional plotting (only if matplotlib is installed)
+try:
+    import matplotlib.pyplot as plt  # type: ignore
+except Exception:  # pragma: no cover - plotting is optional
+    plt = None  # type: ignore
+
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
 sys.path.insert(0, _SCRIPT_DIR)
@@ -30,7 +36,7 @@ BASELINE_MODEL_PATHS = {
 
 DISPLAY_NAMES = {
     "fixed_op3": "Fixed OP3",
-    "curriculum_no_league": "No-League",
+    "curriculum_no_league": "Paper",
     "curriculum_league": "League",
     "self_play": "Self-Play",
 }
@@ -169,6 +175,57 @@ def main() -> None:
                     r2.get("wins", 0), r2.get("losses", 0), r2.get("draws", 0),
                 ])
     print(f"Results saved to {csv_path}\n")
+
+    # Optional plots
+    if plt is not None:
+        try:
+            # Bar plot of win rates
+            labels = [DISPLAY_NAMES.get(k, k) for k in BASELINE_MODEL_PATHS]
+            if args.op4_only:
+                op4_wr = [
+                    op4_results.get(k, {}).get("win_rate", 0.0)
+                    if not op4_results.get(k, {}).get("error") else float("nan")
+                    for k in BASELINE_MODEL_PATHS
+                ]
+                x = range(len(labels))
+                plt.figure(figsize=(6, 4))
+                plt.bar(x, op4_wr, color="tab:red")
+                plt.xticks(x, labels, rotation=20)
+                plt.ylabel("Win rate vs OP4")
+                plt.ylim(0.0, 1.0)
+                plt.title("Baseline win rate vs OP4")
+                plt.tight_layout()
+                png_path = os.path.join(args.out_dir, "baseline_op4_win_rate.png")
+                plt.savefig(png_path)
+                plt.close()
+            else:
+                op3_wr = [
+                    op3.get(k, {}).get("win_rate", 0.0)
+                    if not op3.get(k, {}).get("error") else float("nan")
+                    for k in BASELINE_MODEL_PATHS
+                ]
+                op4_wr = [
+                    op4_results.get(k, {}).get("win_rate", 0.0)
+                    if not op4_results.get(k, {}).get("error") else float("nan")
+                    for k in BASELINE_MODEL_PATHS
+                ]
+                x = range(len(labels))
+                width = 0.35
+                plt.figure(figsize=(7, 4))
+                plt.bar([xi - width / 2 for xi in x], op3_wr, width=width, label="OP3", color="tab:blue")
+                plt.bar([xi + width / 2 for xi in x], op4_wr, width=width, label="OP4", color="tab:red")
+                plt.xticks(list(x), labels, rotation=20)
+                plt.ylabel("Win rate")
+                plt.ylim(0.0, 1.0)
+                plt.title("Baseline win rate vs OP3 vs OP4")
+                plt.legend()
+                plt.tight_layout()
+                png_path = os.path.join(args.out_dir, "baseline_comparison_win_rate.png")
+                plt.savefig(png_path)
+                plt.close()
+        except Exception:
+            # Plotting is best-effort; don't crash eval if plotting fails
+            pass
 
 
 if __name__ == "__main__":
