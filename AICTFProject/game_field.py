@@ -12,7 +12,16 @@ from agents import Agent
 from game_manager import GameManager
 from macro_actions import MacroAction
 from pathfinder import Pathfinder
-from policies import OP1RedPolicy, OP2RedPolicy, OP3RedPolicy, Policy
+from policies import (
+    OP1RedPolicy,
+    OP2RedPolicy,
+    OP3RedPolicy,
+    Policy,
+    InterceptorRedPolicy,
+    MineLayerRedPolicy,
+    CamperRotateRedPolicy,
+    BaitAndSwitchRedPolicy,
+)
 
 # -------------------------
 # Constants / configuration
@@ -1216,69 +1225,54 @@ class GameField:
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP2RedPolicy("red")
-        elif mode in ("NAVAL_DEFENDER",):
-            # Held-out test: naval-style cautious defender (heavy defense, mines, patrol)
+        elif mode == "INTERCEPTOR":
             self.red_agents_per_team_override = None
-            self.red_speed_scale = 0.95
+            self.red_speed_scale = 1.30
             self.red_speed_min = None
             self.red_speed_max = None
             self.red_deception_prob = 0.0
             self.red_evasion_prob = 0.0
             self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=3.0,
-                defense_radius_cells=7.0,
-                patrol_radius_cells=5,
-                assist_radius_mult=2.2,
-                defense_weight=4.0,
-                flag_weight=0.75,
-            )
-        elif mode in ("NAVAL_RUSHER",):
-            # Held-out test: naval-style aggressive flag focus
+            self.mines_per_team = min(8, int(getattr(self, "mines_per_team", self._default_mines_per_team)) + 4)
+            self.max_mine_charges_per_agent = 3
+            self.policies["red"] = InterceptorRedPolicy("red", intercept_fraction_ahead=0.4, tag_radius_cells=5.0)
+        elif mode == "MINELAYER":
             self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.1
+            self.red_speed_scale = 1.20
             self.red_speed_min = None
             self.red_speed_max = None
             self.red_deception_prob = 0.0
             self.red_evasion_prob = 0.0
             self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=1.2,
-                defense_radius_cells=3.0,
-                patrol_radius_cells=2,
-                assist_radius_mult=1.0,
-                defense_weight=0.8,
-                flag_weight=3.5,
-            )
-        elif mode in ("NAVAL_BALANCED",):
-            # Held-out test: naval-style balanced defender/attacker
+            self.mines_per_team = 8
+            self.max_mine_charges_per_agent = 3
+            self.policies["red"] = MineLayerRedPolicy("red", chokepoint_radius=6, mine_near_flag_first=True)
+        elif mode == "CAMPER_ROTATE":
             self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.0
+            self.red_speed_scale = 1.25
             self.red_speed_min = None
             self.red_speed_max = None
             self.red_deception_prob = 0.0
             self.red_evasion_prob = 0.0
             self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = int(self._default_mines_per_team)
-            self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
-            self.policies["red"] = OP3RedPolicy(
-                "red",
-                mine_radius_check=2.0,
-                defense_radius_cells=5.0,
-                patrol_radius_cells=4,
-                assist_radius_mult=1.8,
-                defense_weight=2.0,
-                flag_weight=2.0,
-            )
+            self.mines_per_team = 8
+            self.max_mine_charges_per_agent = 3
+            self.policies["red"] = CamperRotateRedPolicy("red", camp_radius_cells=6.0, intercept_fraction_ahead=0.45)
+        elif mode == "BAIT_SWITCH":
+            self.red_agents_per_team_override = None
+            self.red_speed_scale = 1.28
+            self.red_speed_min = None
+            self.red_speed_max = None
+            self.red_deception_prob = 0.4
+            self.red_evasion_prob = 0.0
+            self.red_sync_attack = False
+            self.suppression_range_cells = float(self._default_suppression_range_cells)
+            self.mines_per_team = 8
+            self.max_mine_charges_per_agent = 3
+            self.policies["red"] = BaitAndSwitchRedPolicy("red", feint_steps=8, feint_offset_cells=4)
         else:
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
