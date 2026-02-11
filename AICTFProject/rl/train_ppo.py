@@ -1154,7 +1154,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         anchor_op3_prob = 1.0
         species_prob = 0.0
         snapshot_prob = 0.0
-        print("[League] match_op3_exposure=True: 100% OP3 (control experiment, apples-to-apples with no-league)")
+        print("[League] match_op3_exposure=True: 100% OP3 (control experiment, apples-to-apples with Paper)")
     else:
         anchor_op3_prob = float(getattr(cfg, "anchor_op3_prob", 0.40))
         species_prob = 0.20
@@ -1475,7 +1475,7 @@ if __name__ == "__main__":
     else:
         parser = argparse.ArgumentParser(description="Train PPO (CTF)")
         parser.add_argument("--mode", type=str, default=None,
-                            help="Train mode: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE, FIXED_OPPONENT, SELF_PLAY")
+                            help="Train mode: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE (Paper), FIXED_OPPONENT, SELF_PLAY")
         parser.add_argument("--run-tag", type=str, default=None,
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
