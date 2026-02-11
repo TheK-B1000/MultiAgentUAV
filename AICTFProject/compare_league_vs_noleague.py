@@ -1,5 +1,5 @@
 """
-Compare League vs No-League: same seeds, same opponents (OP3 and sharpened).
+Compare League vs Paper: same seeds, same opponents (OP3 and OP4).
 Quiet run; single results table at the end.
 
   python compare_league_vs_noleague.py --episodes 50 --headless
@@ -53,9 +53,9 @@ def _run_one(
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="League vs No-League: OP3 + sharpened. Results at end.")
+    p = argparse.ArgumentParser(description="League vs Paper: OP3 + OP4. Results at end.")
     p.add_argument("--league-model", type=str, default=DEFAULT_LEAGUE, help="League checkpoint")
-    p.add_argument("--no-league-model", type=str, default=DEFAULT_NO_LEAGUE, help="No-league checkpoint")
+    p.add_argument("--no-league-model", type=str, default=DEFAULT_NO_LEAGUE, help="Paper checkpoint")
     p.add_argument("--episodes", type=int, default=50, help="Episodes per condition")
     p.add_argument("--seed", type=int, default=42, help="Random seed")
     p.add_argument("--headless", action="store_true", help="Headless")
@@ -65,7 +65,7 @@ def main() -> None:
         print(f"Error: league model not found: {args.league_model}")
         sys.exit(1)
     if not os.path.exists(args.no_league_model):
-        print(f"Error: no-league model not found: {args.no_league_model}")
+        print(f"Error: Paper model not found: {args.no_league_model}")
         sys.exit(1)
 
     n = max(1, args.episodes)
@@ -102,7 +102,7 @@ def main() -> None:
     print("=" * 60)
     print(f"Episodes per condition: {n}  |  Seed: {seed}")
     print()
-    print(f"{'Condition':<16} {'League WR':>12} {'No-League WR':>14} {'Diff':>8}")
+    print(f"{'Condition':<16} {'League WR':>12} {'Paper WR':>14} {'Diff':>8}")
     print("-" * 60)
     for label, lr, nr in [
         ("vs OP3", league_op3, no_league_op3),
