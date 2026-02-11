@@ -67,34 +67,6 @@ def sample_opponent_params(
             coordinated_attack = rng.random() < 0.5
             attack_sync_window = rng.randint(3, 8) if coordinated_attack else rng.randint(3, 6)
             noise_sigma = rng.uniform(0.0, 0.08)
-        elif key == "INTERCEPTOR":
-            # Sharp: cut off routes; fast and decisive
-            speed_mult = rng.uniform(1.05, 1.20)
-            deception_prob = rng.uniform(0.0, 0.1)
-            coordinated_attack = rng.random() < 0.4
-            attack_sync_window = rng.randint(2, 5)
-            noise_sigma = rng.uniform(0.0, 0.04)
-        elif key == "MINELAYER":
-            # Sharp: chokepoint denial; steady speed
-            speed_mult = rng.uniform(0.95, 1.10)
-            deception_prob = rng.uniform(0.0, 0.1)
-            coordinated_attack = rng.random() < 0.3
-            attack_sync_window = rng.randint(2, 5)
-            noise_sigma = rng.uniform(0.0, 0.05)
-        elif key == "CAMPER_ROTATE":
-            # Sharp: camp then rotate; reactive
-            speed_mult = rng.uniform(1.0, 1.15)
-            deception_prob = rng.uniform(0.0, 0.08)
-            coordinated_attack = rng.random() < 0.35
-            attack_sync_window = rng.randint(3, 6)
-            noise_sigma = rng.uniform(0.0, 0.04)
-        elif key == "BAIT_SWITCH":
-            # Sharp: feint then flip; deceptive
-            speed_mult = rng.uniform(1.05, 1.18)
-            deception_prob = rng.uniform(0.2, 0.4)
-            coordinated_attack = rng.random() < 0.5
-            attack_sync_window = rng.randint(4, 10)
-            noise_sigma = rng.uniform(0.02, 0.06)
         else:
             deception_prob = rng.uniform(0.05, 0.25)
             coordinated_attack = rng.random() < 0.4
