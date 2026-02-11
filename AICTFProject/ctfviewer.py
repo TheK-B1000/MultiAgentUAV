@@ -2470,7 +2470,7 @@ if __name__ == "__main__":
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
     parser.add_argument("--mappo-model", type=str, help="Path to MAPPO model .pth file (from train_mappo.py)")
     parser.add_argument("--baseline", type=str, choices=["fixed_op3", "self_play", "curriculum_no_league"], 
-                        help="Test baseline mode: fixed_op3 (FIXED_OPPONENT OP3), self_play (SELF_PLAY), curriculum_no_league (CURRICULUM_NO_LEAGUE)")
+                        help="Test baseline mode: fixed_op3 (FIXED_OPPONENT OP3), self_play (SELF_PLAY), curriculum_no_league (PAPER)")
     parser.add_argument("--test-baseline", action="store_true", 
                         help="Test baseline with display: run episodes with opponent matching baseline config")
     parser.add_argument("--test-baseline-n", type=int, default=10, metavar="N",
