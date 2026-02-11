@@ -586,11 +586,17 @@ class OP4RedPolicy(Policy):
         ax, ay = _agent_xy(agent)
         is_defender = getattr(agent, "agent_id", 0) == 0
 
+        # -------------------------------
+        # 1) If we are carrying: sprint home
+        # -------------------------------
         if agent.isCarryingFlag():
             home_tx, home_ty = int(round(flag_x)), int(round(flag_y))
             nx, ny = _path_next_step(game_field, ax, ay, home_tx, home_ty)
             return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
 
+        # -------------------------------
+        # 2) If our flag is taken: BOTH agents intercept/tag carrier
+        # -------------------------------
         our_flag_taken = (side == "red" and getattr(gm, "red_flag_taken", False)) or (
             side == "blue" and getattr(gm, "blue_flag_taken", False)
         )
@@ -607,13 +613,27 @@ class OP4RedPolicy(Policy):
             nx, ny = _path_next_step(game_field, ax, ay, int(round(bx)), int(round(by)))
             return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
 
+        # -------------------------------
+        # 3) No carrier: evaluate threat near our flag (both agents can react)
+        # -------------------------------
         enemies = game_field.red_agents if side == "blue" else game_field.blue_agents
         nearest_enemy = _nearest_enemy_to(enemies, float(flag_x), float(flag_y))
         enemy_dist = math.hypot(_agent_xy(nearest_enemy)[0] - flag_x, _agent_xy(nearest_enemy)[1] - flag_y) if nearest_enemy else 1e9
         threat_near_flag = nearest_enemy is not None and enemy_dist <= self.threat_radius_cells
 
+        # If a threat is close to our flag, both agents help collapse on it.
+        if threat_near_flag and nearest_enemy is not None:
+            ex, ey = _agent_xy(nearest_enemy)
+            nx, ny = _path_next_step(game_field, ax, ay, int(round(ex)), int(round(ey)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+        # -------------------------------
+        # 4) No immediate threat: specialised roles
+        # -------------------------------
         if is_defender:
+            # Defender: mine-heavy area denial + smart camping
             if threat_near_flag and nearest_enemy is not None:
+                # (We already handled shared threat logic above; this block is now mostly for completeness.)
                 ex, ey = _agent_xy(nearest_enemy)
                 nx, ny = _path_next_step(game_field, ax, ay, int(round(ex)), int(round(ey)))
                 return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
@@ -650,6 +670,7 @@ class OP4RedPolicy(Policy):
             nx, ny = _path_next_step(game_field, ax, ay, int(round(camp_x)), int(round(camp_y)))
             return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
 
+        # Attacker: aggressive flag runner with early commit and A* pathing
         if math.hypot(ax - efx, ay - efy) <= 1.5:
             return _macro_to_int(MacroAction.GET_FLAG), None
         nx, ny = _path_next_step(game_field, ax, ay, int(round(efx)), int(round(efy)))
