@@ -1761,13 +1761,13 @@ class CTFViewer:
                     pass
             if hasattr(self.game_field, "set_red_policy_wrapper"):
                 self.game_field.set_red_policy_wrapper(None)
-        # Set phase: naval opponents use OP3 (physics on); OP1/OP2 use own phase
+        # Set phase: sharpened opponents use OP3 (physics on); OP1/OP2 use own phase
         opponent_upper = str(opponent).upper() if not red_model_path and not red_species_tag else "OP3"
         if opponent_upper in ("OP1", "OP2"):
             self._set_phase(opponent_upper)
         elif opponent_upper == "OP3":
             self._set_phase("OP3")
-        elif opponent_upper in ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"):
+        elif opponent_upper in ("INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH"):
             self._set_phase_op3()
         else:
             self._set_phase_op3()
@@ -2221,11 +2221,11 @@ class CTFViewer:
         return out
 
     # ----------------------------
-    # Naval opponents (held-out test: which baseline is best under naval realism?)
+    # Sharpened opponents (tough scripted archetypes: interceptor, minelayer, camper-rotate, bait-switch)
     # ----------------------------
-    NAVAL_OPPONENTS = ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED")
+    SHARPENED_OPPONENTS = ("INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH")
 
-    def evaluate_naval_opponents(
+    def evaluate_sharpened_opponents(
         self,
         num_episodes_per_opp: int = 30,
         eval_model: Optional[str] = None,
@@ -2233,12 +2233,11 @@ class CTFViewer:
         save_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Run evaluation vs each naval opponent (NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED).
-        Uses OP3 stress (physics, sensors) so the test is naval-realistic. Held-out: not used in training.
-        Returns win rate and metrics per opponent so you can compare baselines.
+        Run evaluation vs each sharpened opponent (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH).
+        Uses OP3 physics. Held-out: not used in training. Tough test for baselines.
         """
         results_per_opp = {}
-        for opp in self.NAVAL_OPPONENTS:
+        for opp in self.SHARPENED_OPPONENTS:
             summary = self.evaluate_model(
                 num_episodes=num_episodes_per_opp,
                 save_csv=None,
@@ -2259,9 +2258,9 @@ class CTFViewer:
             }
 
         print("\n" + "=" * 60)
-        print("NAVAL OPPONENT EVALUATION (held-out, physics on)")
+        print("SHARPENED OPPONENT EVALUATION (held-out, physics on)")
         print("=" * 60)
-        for opp in self.NAVAL_OPPONENTS:
+        for opp in self.SHARPENED_OPPONENTS:
             r = results_per_opp.get(opp, {})
             wr = r.get("win_rate", 0.0)
             w, l, d = r.get("wins", 0), r.get("losses", 0), r.get("draws", 0)
@@ -2270,17 +2269,17 @@ class CTFViewer:
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            csv_path = os.path.join(save_dir, "naval_opponent_summary.csv")
+            csv_path = os.path.join(save_dir, "sharpened_opponent_summary.csv")
             try:
                 with open(csv_path, "w", newline="", encoding="utf-8") as f:
                     w = csv.writer(f)
                     w.writerow(["opponent", "win_rate", "wins", "losses", "draws"])
-                    for opp in self.NAVAL_OPPONENTS:
+                    for opp in self.SHARPENED_OPPONENTS:
                         r = results_per_opp.get(opp, {})
                         w.writerow([opp, r.get("win_rate", ""), r.get("wins", ""), r.get("losses", ""), r.get("draws", "")])
-                print(f"[Eval] Saved naval summary to {csv_path}")
+                print(f"[Eval] Saved sharpened summary to {csv_path}")
             except Exception as exc:
-                print(f"[WARN] Failed to save naval CSV: {exc}")
+                print(f"[WARN] Failed to save sharpened CSV: {exc}")
         return {"results_per_opponent": results_per_opp}
 
     # ----------------------------
@@ -2462,8 +2461,8 @@ if __name__ == "__main__":
     parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3). Default: OP3.")
     parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
-    parser.add_argument("--eval-naval", action="store_true", help="Run naval opponent eval vs NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED (held-out, physics on)")
-    parser.add_argument("--eval-naval-n", type=int, default=30, metavar="N", help="Episodes per opponent for --eval-naval (default: 30)")
+    parser.add_argument("--eval-sharpened", action="store_true", help="Run sharpened opponent eval vs INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH (held-out, physics on)")
+    parser.add_argument("--eval-sharpened-n", type=int, default=30, metavar="N", help="Episodes per opponent for --eval-sharpened (default: 30)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
@@ -2549,10 +2548,10 @@ if __name__ == "__main__":
             headless=args.headless,
             save_dir=METRICS_DIR,
         )
-    elif getattr(args, "eval_naval", False):
-        # Naval opponents (held-out): which baseline is best under naval realism?
-        viewer.evaluate_naval_opponents(
-            num_episodes_per_opp=getattr(args, "eval_naval_n", 30),
+    elif getattr(args, "eval_sharpened", False):
+        # Sharpened opponents (held-out): tough scripted test
+        viewer.evaluate_sharpened_opponents(
+            num_episodes_per_opp=getattr(args, "eval_sharpened_n", 30),
             eval_model=args.eval_model,
             headless=args.headless,
             save_dir=METRICS_DIR,
