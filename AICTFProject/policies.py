@@ -466,6 +466,333 @@ class OP3RedPolicy(Policy):
         return do_attack()
 
 
+# ---------------------------------------------------------------------------
+# Sharpened opponents: tough scripted archetypes that punish typical RL habits
+# (predict routes, deny chokepoints, camp-then-rotate, bait-and-switch, exploit pathing)
+# All use explicit heuristics over full game state (scripted red has oracle access).
+# ---------------------------------------------------------------------------
+
+
+def _nearest_enemy_to(agents: List[Any], refx: float, refy: float) -> Optional[Any]:
+    """Nearest agent in list to (refx, refy); skip disabled."""
+    best = None
+    best_d2 = 1e9
+    for e in agents or []:
+        if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
+            continue
+        ex, ey = _agent_xy(e)
+        d2 = (ex - refx) ** 2 + (ey - refy) ** 2
+        if d2 < best_d2:
+            best_d2 = d2
+            best = e
+    return best
+
+
+def _cells_on_line(x0: float, y0: float, x1: float, y1: float, cols: int, rows: int) -> List[Tuple[int, int]]:
+    """Bresenham-like: integer cells on the line from (x0,y0) to (x1,y1), clipped to grid."""
+    out: List[Tuple[int, int]] = []
+    dx = x1 - x0
+    dy = y1 - y0
+    steps = max(1, int(math.ceil(max(abs(dx), abs(dy)))))
+    for i in range(steps + 1):
+        t = i / steps
+        x = int(round(x0 + t * dx))
+        y = int(round(y0 + t * dy))
+        if 0 <= x < cols and 0 <= y < rows:
+            out.append((x, y))
+    return out
+
+
+def _blocking_intercept_point(
+    carrier_x: float, carrier_y: float,
+    goal_x: float, goal_y: float,
+    our_x: float, our_y: float,
+    fraction_ahead: float = 0.4,
+) -> Tuple[float, float]:
+    """
+    Heuristic: point on segment [carrier, goal] where we should go to block.
+    fraction_ahead: how far along from carrier toward goal (0.4 = 40% toward goal, so we cut in front).
+    """
+    dx = goal_x - carrier_x
+    dy = goal_y - carrier_y
+    return (
+        carrier_x + fraction_ahead * dx,
+        carrier_y + fraction_ahead * dy,
+    )
+
+
+def _path_next_step(game_field: "GameField", ax: float, ay: float, tx: int, ty: int) -> Tuple[int, int]:
+    """Next cell on A* path from (ax,ay) to (tx,ty); falls back to (tx,ty) if no pathfinder or path."""
+    cols, rows = game_field.col_count, game_field.row_count
+    tgt_clamped = (max(0, min(cols - 1, int(tx))), max(0, min(rows - 1, int(ty))))
+    pf = getattr(game_field, "pathfinder", None)
+    if pf is None or not hasattr(pf, "astar"):
+        return tgt_clamped
+    start = (int(round(ax)), int(round(ay)))
+    if start == tgt_clamped:
+        return tgt_clamped
+    try:
+        path = pf.astar(start, tgt_clamped)
+        if path and len(path) >= 2:
+            return path[1]
+        if path and len(path) == 1:
+            return path[0]
+    except Exception:
+        pass
+    return tgt_clamped
+
+
+class InterceptorRedPolicy(Policy):
+    """
+    Elite: pathfinding to block/tag; chase carrier when within tag_radius (strong tagging).
+    Predicts return path, moves along A* to block or directly to carrier to tag.
+    """
+
+    def __init__(self, side: str = "red", intercept_fraction_ahead: float = 0.4, tag_radius_cells: float = 5.0):
+        self.side = side
+        self.intercept_fraction_ahead = max(0.2, min(0.6, float(intercept_fraction_ahead)))
+        self.tag_radius_cells = float(tag_radius_cells)
+
+    def reset(self) -> None:
+        pass
+
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+        gm: GameManager = game_field.manager
+        side = getattr(agent, "side", self.side)
+        flag_x, flag_y = gm.get_team_zone_center(side)
+        efx, efy = gm.get_team_zone_center("blue") if side == "red" else gm.get_team_zone_center("red")
+        ax, ay = _agent_xy(agent)
+
+        if agent.isCarryingFlag():
+            home_tx, home_ty = int(round(flag_x)), int(round(flag_y))
+            nx, ny = _path_next_step(game_field, ax, ay, home_tx, home_ty)
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+        if side == "red" and getattr(gm, "red_flag_taken", False):
+            carrier = getattr(gm, "red_flag_carrier", None)
+        elif side == "blue" and getattr(gm, "blue_flag_taken", False):
+            carrier = getattr(gm, "blue_flag_carrier", None)
+        else:
+            carrier = None
+
+        if carrier is not None:
+            cx, cy = _agent_xy(carrier)
+            d_to_carrier = math.hypot(ax - cx, ay - cy)
+            if d_to_carrier <= self.tag_radius_cells:
+                nx, ny = _path_next_step(game_field, ax, ay, int(round(cx)), int(round(cy)))
+                return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+            bx, by = _blocking_intercept_point(cx, cy, float(flag_x), float(flag_y), ax, ay, self.intercept_fraction_ahead)
+            nx, ny = _path_next_step(game_field, ax, ay, int(round(bx)), int(round(by)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+        enemies = game_field.red_agents if side == "blue" else game_field.blue_agents
+        if getattr(agent, "agent_id", 0) == 0:
+            nearest = _nearest_enemy_to(enemies, float(flag_x), float(flag_y))
+            if nearest is not None:
+                ex, ey = _agent_xy(nearest)
+                if math.hypot(ex - flag_x, ey - flag_y) < 10.0:
+                    nx, ny = _path_next_step(game_field, ax, ay, int(round(ex)), int(round(ey)))
+                    return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+            mid_x = (float(flag_x) + float(efx)) / 2
+            mid_y = (float(flag_y) + float(efy)) / 2
+            nx, ny = _path_next_step(game_field, ax, ay, int(round(mid_x)), int(round(mid_y)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+        if math.hypot(ax - efx, ay - efy) <= 1.5:
+            return _macro_to_int(MacroAction.GET_FLAG), None
+        nx, ny = _path_next_step(game_field, ax, ay, int(round(efx)), int(round(efy)))
+        return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+
+class MineLayerRedPolicy(Policy):
+    """
+    Heuristic: chokepoints = cells on the line enemy_flag -> our_flag (likely path) in our half,
+    plus cells immediately around our flag. Place mines there first to force reroutes and punish pathing.
+    """
+
+    def __init__(
+        self,
+        side: str = "red",
+        chokepoint_radius: int = 5,
+        mine_near_flag_first: bool = True,
+    ):
+        self.side = side
+        self.chokepoint_radius = max(1, int(chokepoint_radius))
+        self.mine_near_flag_first = bool(mine_near_flag_first)
+
+    def reset(self) -> None:
+        pass
+
+    def _zone_col_range(self, game_field: "GameField", side: str) -> Tuple[int, int]:
+        if side == "red" and hasattr(game_field, "red_zone_col_range"):
+            return tuple(game_field.red_zone_col_range)
+        if hasattr(game_field, "blue_zone_col_range"):
+            return tuple(game_field.blue_zone_col_range)
+        return (0, game_field.col_count - 1)
+
+    def _chokepoint_cells(self, game_field: "GameField", flag_x: float, flag_y: float, efx: float, efy: float, side: str) -> List[Tuple[int, int]]:
+        """Heuristic: cells on the line between flags that lie in our zone (likely attacker path)."""
+        zmin, zmax = self._zone_col_range(game_field, side)
+        path = _cells_on_line(efx, efy, flag_x, flag_y, game_field.col_count, game_field.row_count)
+        in_zone = [(x, y) for x, y in path if zmin <= x <= zmax and self._is_free(x, y, game_field)]
+        return in_zone
+
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+        gm: GameManager = game_field.manager
+        side = getattr(agent, "side", self.side)
+        flag_x, flag_y = gm.get_team_zone_center(side)
+        efx, efy = gm.get_team_zone_center("blue") if side == "red" else gm.get_team_zone_center("red")
+        ax, ay = _agent_xy(agent)
+
+        if agent.isCarryingFlag():
+            return _macro_to_int(MacroAction.GO_HOME), None
+
+        if side == "red" and getattr(gm, "red_flag_taken", False):
+            carrier = getattr(gm, "red_flag_carrier", None)
+        elif side == "blue" and getattr(gm, "blue_flag_taken", False):
+            carrier = getattr(gm, "blue_flag_carrier", None)
+        else:
+            carrier = None
+        if carrier is not None:
+            cx, cy = _agent_xy(carrier)
+            nx, ny = _path_next_step(game_field, ax, ay, int(round(cx)), int(round(cy)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+        max_charges = int(getattr(game_field, "max_mine_charges_per_agent", 2))
+        charges = int(getattr(agent, "mine_charges", 0))
+        # Elite: always grab mine when low (strong defense)
+        if charges < max_charges:
+            my_pickups = [p for p in getattr(game_field, "mine_pickups", []) if getattr(p, "owner_side", None) == side]
+            if my_pickups:
+                return _macro_to_int(MacroAction.GRAB_MINE), None
+
+        zmin, zmax = self._zone_col_range(game_field, side)
+        chokepoints = self._chokepoint_cells(game_field, float(flag_x), float(flag_y), float(efx), float(efy), side)
+        candidates: List[Tuple[float, Tuple[int, int]]] = []
+        for px, py in chokepoints:
+            if self._cell_has_mine(game_field, px, py):
+                continue
+            flag_dist = math.hypot(px - flag_x, py - flag_y)
+            candidates.append((-flag_dist, (px, py)))
+        for dy in range(-self.chokepoint_radius, self.chokepoint_radius + 1):
+            for dx in range(-self.chokepoint_radius, self.chokepoint_radius + 1):
+                px, py = int(flag_x + dx), int(flag_y + dy)
+                if not (0 <= px < game_field.col_count and 0 <= py < game_field.row_count and zmin <= px <= zmax):
+                    continue
+                if not self._is_free(px, py, game_field) or self._cell_has_mine(game_field, px, py):
+                    continue
+                candidates.append((-math.hypot(px - flag_x, py - flag_y), (px, py)))
+        if charges > 0 and candidates:
+            candidates.sort(key=lambda t: t[0])
+            _, (tx, ty) = candidates[0]
+            if math.hypot(ax - tx, ay - ty) <= 1.5:
+                return _macro_to_int(MacroAction.PLACE_MINE), (tx, ty)
+            nx, ny = _path_next_step(game_field, ax, ay, tx, ty)
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+        nx, ny = _path_next_step(game_field, ax, ay, int(flag_x), int(flag_y))
+        return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+
+class CamperRotateRedPolicy(Policy):
+    """
+    Heuristic: camp at defensive position (between our flag and midline). On threat (enemy near flag
+    or our flag taken), rotate to home-intercept: move to blocking point on carrier->goal path.
+    """
+
+    def __init__(self, side: str = "red", camp_radius_cells: float = 5.0, intercept_fraction_ahead: float = 0.4):
+        self.side = side
+        self.camp_radius_cells = float(camp_radius_cells)
+        self.intercept_fraction_ahead = float(intercept_fraction_ahead)
+
+    def reset(self) -> None:
+        pass
+
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+        gm: GameManager = game_field.manager
+        side = getattr(agent, "side", self.side)
+        flag_x, flag_y = gm.get_team_zone_center(side)
+        efx, efy = gm.get_team_zone_center("blue") if side == "red" else gm.get_team_zone_center("red")
+        ax, ay = _agent_xy(agent)
+
+        if agent.isCarryingFlag():
+            return _macro_to_int(MacroAction.GO_HOME), None
+
+        our_flag_taken = (side == "red" and getattr(gm, "red_flag_taken", False)) or (
+            side == "blue" and getattr(gm, "blue_flag_taken", False)
+        )
+        enemies = game_field.red_agents if side == "blue" else game_field.blue_agents
+        near_flag = _nearest_enemy_to(enemies, float(flag_x), float(flag_y))
+        dist_near = math.hypot(_agent_xy(near_flag)[0] - flag_x, _agent_xy(near_flag)[1] - flag_y) if near_flag else 1e9
+        threat = our_flag_taken or (near_flag is not None and dist_near <= self.camp_radius_cells)
+
+        if threat and our_flag_taken:
+            carrier = getattr(gm, "red_flag_carrier", None) if side == "red" else getattr(gm, "blue_flag_carrier", None)
+            if carrier is not None:
+                cx, cy = _agent_xy(carrier)
+                bx, by = _blocking_intercept_point(cx, cy, float(efx), float(efy), ax, ay, self.intercept_fraction_ahead)
+                nx, ny = _path_next_step(game_field, ax, ay, int(round(bx)), int(round(by)))
+                return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+        if threat and near_flag is not None:
+            ex, ey = _agent_xy(near_flag)
+            nx, ny = _path_next_step(game_field, ax, ay, int(round(ex)), int(round(ey)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+        camp_x = (float(flag_x) + float(efx)) / 2
+        camp_y = (float(flag_y) + float(efy)) / 2
+        nx, ny = _path_next_step(game_field, ax, ay, int(round(camp_x)), int(round(camp_y)))
+        return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+
+class BaitAndSwitchRedPolicy(Policy):
+    """
+    Heuristic: feint toward a convincing lane (offset from flag toward map edge); after feint_steps
+    or when close to decoy (bait taken), switch to GET_FLAG. Punishes defenders who overcommit.
+    """
+
+    def __init__(self, side: str = "red", feint_steps: int = 12, feint_offset_cells: int = 5):
+        self.side = side
+        self.feint_steps = max(1, int(feint_steps))
+        self.feint_offset_cells = int(feint_offset_cells)
+        self._step: int = 0
+
+    def reset(self) -> None:
+        self._step = 0
+
+    def select_action(self, obs: Any, agent: Agent, game_field: "GameField") -> Tuple[int, Optional[Tuple[int, int]]]:
+        gm: GameManager = game_field.manager
+        side = getattr(agent, "side", self.side)
+        efx, efy = gm.get_team_zone_center("blue") if side == "red" else gm.get_team_zone_center("red")
+        ax, ay = _agent_xy(agent)
+        aid = int(getattr(agent, "agent_id", 0))
+        if aid == 0:
+            self._step = (self._step + 1) % (self.feint_steps * 2)
+
+        if agent.isCarryingFlag():
+            return _macro_to_int(MacroAction.GO_HOME), None
+
+        if side == "red" and getattr(gm, "red_flag_taken", False):
+            carrier = getattr(gm, "red_flag_carrier", None)
+        elif side == "blue" and getattr(gm, "blue_flag_taken", False):
+            carrier = getattr(gm, "blue_flag_carrier", None)
+        else:
+            carrier = None
+        if carrier is not None:
+            cx, cy = _agent_xy(carrier)
+            nx, ny = _path_next_step(game_field, ax, ay, int(round(cx)), int(round(cy)))
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+        row_offset = (self.feint_offset_cells if aid == 0 else -self.feint_offset_cells)
+        decoy_x = int(efx)
+        decoy_y = max(0, min(game_field.row_count - 1, int(efy) + row_offset))
+        feint_phase = (aid + self._step) % (self.feint_steps * 2) < self.feint_steps
+        if feint_phase and math.hypot(ax - decoy_x, ay - decoy_y) > 2.0:
+            nx, ny = _path_next_step(game_field, ax, ay, decoy_x, decoy_y)
+            return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+        if math.hypot(ax - efx, ay - efy) <= 1.5:
+            return _macro_to_int(MacroAction.GET_FLAG), None
+        nx, ny = _path_next_step(game_field, ax, ay, int(round(efx)), int(round(efy)))
+        return _macro_to_int(MacroAction.GO_TO), self._safe_target(game_field, nx, ny)
+
+
 class SelfPlayRedPolicy(Policy):
     """
     Neural self-play opponent wrapper for RED.
@@ -551,5 +878,9 @@ __all__ = [
     "OP1RedPolicy",
     "OP2RedPolicy",
     "OP3RedPolicy",
+    "InterceptorRedPolicy",
+    "MineLayerRedPolicy",
+    "CamperRotateRedPolicy",
+    "BaitAndSwitchRedPolicy",
     "SelfPlayRedPolicy",
 ]
