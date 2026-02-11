@@ -1,20 +1,14 @@
 """
-Proper MARL baseline evaluation: one test protocol, minimal outputs.
-
-Default: Run all baselines (Fixed OP3, Curriculum No-League, Curriculum League, Self-Play)
-against held-out sharpened opponents (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH).
-Same seeds for all; one CSV, one summary, one win-rate plot.
+MARL baseline evaluation: all baselines vs OP3 and vs sharpened opponents.
+Quiet run; single results table and one CSV at the end.
 
   python run_baseline_comparison.py --episodes 100 --headless
 
-Outputs (metrics/): baseline_eval_results.csv, baseline_eval_summary.txt, baseline_eval_win_rate.png
-
-Use --full to run the legacy four suites (OP3, species, sharpened, snapshots) with separate files.
+Outputs: metrics/baseline_eval.csv, and results printed at end.
 """
 from __future__ import annotations
 
 import argparse
-import glob
 import os
 import sys
 import csv
@@ -22,19 +16,10 @@ from typing import Any, Dict, List, Optional
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
-CHECKPOINTS_DIR = os.path.join(_SCRIPT_DIR, "checkpoints_sb3")
 sys.path.insert(0, _SCRIPT_DIR)
 
-# Species set for suite 2 (League should shine vs diverse playstyles)
-SPECIES_TAGS = ["BALANCED", "RUSHER", "CAMPER"]
-
-# Sharpened opponents: tough scripted archetypes (held-out; punish typical RL habits)
 SHARPENED_OPPONENTS = ["INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH"]
 
-# League snapshot glob for suite 3 (round-robin)
-LEAGUE_SNAPSHOT_GLOB = "ppo_league_league_snapshot_ep*.zip"
-
-# Baseline model paths (must match ctfviewer.BASELINE_MODEL_PATHS for consistency)
 BASELINE_MODEL_PATHS = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
     "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
@@ -44,608 +29,139 @@ BASELINE_MODEL_PATHS = {
 
 DISPLAY_NAMES = {
     "fixed_op3": "Fixed OP3",
-    "curriculum_no_league": "Curriculum No-League",
-    "curriculum_league": "Curriculum League",
+    "curriculum_no_league": "No-League",
+    "curriculum_league": "League",
     "self_play": "Self-Play",
 }
 
 
-def _aggregate_summaries(summaries: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Aggregate multiple evaluate_model summaries into one (sum wins/losses/draws, average rates)."""
-    if not summaries:
-        return {
-            "win_rate": 0.0,
-            "wins": 0,
-            "losses": 0,
-            "draws": 0,
-            "mean_time_to_first_score": None,
-            "collision_free_rate": 0.0,
-            "mean_reward_per_timestep": None,
-            "mean_collisions_per_100_steps": None,
-            "error": None,
-        }
-    wins = sum(s.get("wins", 0) for s in summaries)
-    losses = sum(s.get("losses", 0) for s in summaries)
-    draws = sum(s.get("draws", 0) for s in summaries)
-    total = wins + losses + draws
-    tfs_list = [s.get("mean_time_to_first_score") for s in summaries if s.get("mean_time_to_first_score") is not None]
-    cfr_list = [s.get("collision_free_rate", 0.0) for s in summaries]
-    return {
-        "win_rate": wins / total if total else 0.0,
-        "wins": wins,
-        "losses": losses,
-        "draws": draws,
-        "mean_time_to_first_score": sum(tfs_list) / len(tfs_list) if tfs_list else None,
-        "collision_free_rate": sum(cfr_list) / len(cfr_list) if cfr_list else 0.0,
-        "mean_reward_per_timestep": None,
-        "mean_collisions_per_100_steps": None,
-        "error": None,
-    }
-
-
-def _run_one_baseline_eval(
+def _run_eval(
     full_path: str,
     num_episodes: int,
-    episode_seeds: List[int],
+    seeds: List[int],
     headless: bool,
-    *,
     opponent: str = "OP3",
-    red_species_tag: Optional[str] = None,
-    red_model_path: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Single evaluation run; optional red_species_tag or red_model_path (snapshot)."""
     from ctfviewer import CTFViewer
-
     viewer = CTFViewer(ppo_model_path=full_path, viewer_use_obs_builder=True)
     if not viewer.blue_ppo_team.model_loaded:
-        return {
-            "win_rate": 0.0,
-            "wins": 0,
-            "losses": 0,
-            "draws": 0,
-            "mean_time_to_first_score": None,
-            "collision_free_rate": 0.0,
-            "mean_reward_per_timestep": None,
-            "mean_collisions_per_100_steps": None,
-            "error": "Failed to load model",
-        }
-    summary = viewer.evaluate_model(
+        return {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": "Failed to load model"}
+    s = viewer.evaluate_model(
         num_episodes=num_episodes,
         headless=headless,
         opponent=opponent,
         eval_model="ppo",
-        episode_seeds=episode_seeds,
-        red_species_tag=red_species_tag,
-        red_model_path=red_model_path,
+        episode_seeds=seeds,
+        quiet=True,
     )
     return {
-        "win_rate": summary.get("win_rate", 0.0),
-        "wins": summary.get("wins", 0),
-        "losses": summary.get("losses", 0),
-        "draws": summary.get("draws", 0),
-        "mean_time_to_first_score": summary.get("mean_time_to_first_score"),
-        "collision_free_rate": summary.get("collision_free_rate", 0.0),
-        "mean_reward_per_timestep": summary.get("mean_reward_per_timestep"),
-        "mean_collisions_per_100_steps": summary.get("mean_collisions_per_100_steps"),
+        "win_rate": s.get("win_rate", 0.0),
+        "wins": s.get("wins", 0),
+        "losses": s.get("losses", 0),
+        "draws": s.get("draws", 0),
         "error": None,
     }
 
 
-def run_one_baseline(
-    baseline_key: str,
-    model_path: str,
-    num_episodes: int,
-    opponent: str,
-    episode_seeds: List[int],
-    headless: bool,
-    *,
-    red_species_tag: Optional[str] = None,
-    red_model_path: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Run evaluation for one baseline; return summary dict. Optional: red_species_tag or red_model_path for suite 2/3."""
-    full_path = os.path.join(_SCRIPT_DIR, model_path) if not os.path.isabs(model_path) else model_path
-    if not os.path.exists(full_path):
-        return {
-            "win_rate": 0.0,
-            "wins": 0,
-            "losses": 0,
-            "draws": 0,
-            "mean_time_to_first_score": None,
-            "collision_free_rate": 0.0,
-            "mean_reward_per_timestep": None,
-            "mean_collisions_per_100_steps": None,
-            "error": f"Model not found: {full_path}",
-        }
-    try:
-        return _run_one_baseline_eval(
-            full_path,
-            num_episodes,
-            episode_seeds,
-            headless,
-            opponent=opponent,
-            red_species_tag=red_species_tag,
-            red_model_path=red_model_path,
-        )
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {
-            "win_rate": 0.0,
-            "wins": 0,
-            "losses": 0,
-            "draws": 0,
-            "mean_time_to_first_score": None,
-            "collision_free_rate": 0.0,
-            "mean_reward_per_timestep": None,
-            "mean_collisions_per_100_steps": None,
-            "error": str(e),
-        }
-
-
-def run_suite_op3(
-    num_episodes: int,
-    episode_seeds: List[int],
-    headless: bool,
-) -> Dict[str, Dict[str, Any]]:
-    """Suite 1: vs OP3 only (current behavior). League may tie if OP3 is solved."""
-    results: Dict[str, Dict[str, Any]] = {}
-    for baseline_key, model_path in BASELINE_MODEL_PATHS.items():
-        print(f"  [OP3] {DISPLAY_NAMES.get(baseline_key, baseline_key)}...")
-        results[baseline_key] = run_one_baseline(
-            baseline_key=baseline_key,
-            model_path=model_path,
-            num_episodes=num_episodes,
-            opponent="OP3",
-            episode_seeds=episode_seeds,
-            headless=headless,
-        )
-    return results
-
-
-def run_suite_species(
-    num_episodes: int,
-    seed_base: int,
-    headless: bool,
-) -> Dict[str, Dict[str, Any]]:
-    """Suite 2: vs species set (BALANCED, RUSHER, CAMPER). League should shine."""
-    n = len(SPECIES_TAGS)
-    per_species = max(1, num_episodes // n)
-    results: Dict[str, Dict[str, Any]] = {}
-    for baseline_key, model_path in BASELINE_MODEL_PATHS.items():
-        print(f"  [species] {DISPLAY_NAMES.get(baseline_key, baseline_key)}...")
-        full_path = os.path.join(_SCRIPT_DIR, model_path) if not os.path.isabs(model_path) else model_path
-        if not os.path.exists(full_path):
-            results[baseline_key] = {
-                "win_rate": 0.0,
-                "wins": 0,
-                "losses": 0,
-                "draws": 0,
-                "mean_time_to_first_score": None,
-                "collision_free_rate": 0.0,
-                "mean_reward_per_timestep": None,
-                "mean_collisions_per_100_steps": None,
-                "error": f"Model not found: {full_path}",
-            }
+def _run_suite_op3(num_episodes: int, seed_base: int, headless: bool) -> Dict[str, Dict[str, Any]]:
+    seeds = [seed_base + i for i in range(num_episodes)]
+    out = {}
+    for key, rel_path in BASELINE_MODEL_PATHS.items():
+        path = os.path.join(_SCRIPT_DIR, rel_path) if not os.path.isabs(rel_path) else rel_path
+        if not os.path.exists(path):
+            out[key] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": "Model not found"}
             continue
-        summaries: List[Dict[str, Any]] = []
-        for i, tag in enumerate(SPECIES_TAGS):
-            ep_count = per_species if i < n - 1 else (num_episodes - per_species * (n - 1))
-            seeds = [seed_base + 1000 * i + j for j in range(ep_count)]
-            try:
-                s = _run_one_baseline_eval(
-                    full_path,
-                    ep_count,
-                    seeds,
-                    headless,
-                    opponent="OP3",
-                    red_species_tag=tag,
-                )
-                summaries.append(s)
-            except Exception as e:
-                summaries.append({
-                    "wins": 0, "losses": 0, "draws": 0,
-                    "mean_time_to_first_score": None,
-                    "collision_free_rate": 0.0,
-                })
-        results[baseline_key] = _aggregate_summaries(summaries)
-    return results
+        try:
+            out[key] = _run_eval(path, num_episodes, seeds, headless, opponent="OP3")
+        except Exception as e:
+            out[key] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": str(e)}
+    return out
 
 
-def run_suite_sharpened(
-    num_episodes: int,
-    seed_base: int,
-    headless: bool,
-) -> Dict[str, Dict[str, Any]]:
-    """Suite: vs sharpened opponents only (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH). Tough held-out test."""
+def _run_suite_sharpened(num_episodes: int, seed_base: int, headless: bool) -> Dict[str, Dict[str, Any]]:
     n = len(SHARPENED_OPPONENTS)
-    per_opp = max(1, num_episodes // n)
-    results: Dict[str, Dict[str, Any]] = {}
-    for baseline_key, model_path in BASELINE_MODEL_PATHS.items():
-        print(f"  [sharpened] {DISPLAY_NAMES.get(baseline_key, baseline_key)}...")
-        full_path = os.path.join(_SCRIPT_DIR, model_path) if not os.path.isabs(model_path) else model_path
-        if not os.path.exists(full_path):
-            results[baseline_key] = {
-                "win_rate": 0.0,
-                "wins": 0,
-                "losses": 0,
-                "draws": 0,
-                "mean_time_to_first_score": None,
-                "collision_free_rate": 0.0,
-                "mean_reward_per_timestep": None,
-                "mean_collisions_per_100_steps": None,
-                "error": f"Model not found: {full_path}",
-            }
+    per = max(1, num_episodes // n)
+    out = {}
+    for key, rel_path in BASELINE_MODEL_PATHS.items():
+        path = os.path.join(_SCRIPT_DIR, rel_path) if not os.path.isabs(rel_path) else rel_path
+        if not os.path.exists(path):
+            out[key] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": "Model not found"}
             continue
-        summaries: List[Dict[str, Any]] = []
-        for i, opp in enumerate(SHARPENED_OPPONENTS):
-            ep_count = per_opp if i < n - 1 else (num_episodes - per_opp * (n - 1))
-            seeds = [seed_base + 2000 * i + j for j in range(ep_count)]
-            try:
-                s = _run_one_baseline_eval(
-                    full_path,
-                    ep_count,
-                    seeds,
-                    headless,
-                    opponent=opp,
-                )
-                summaries.append(s)
-            except Exception as e:
-                summaries.append({
-                    "wins": 0, "losses": 0, "draws": 0,
-                    "mean_time_to_first_score": None,
-                    "collision_free_rate": 0.0,
-                })
-        results[baseline_key] = _aggregate_summaries(summaries)
-    return results
-
-
-def discover_league_snapshots() -> List[str]:
-    """Return full paths to league snapshot .zip files (sorted)."""
-    pattern = os.path.join(CHECKPOINTS_DIR, LEAGUE_SNAPSHOT_GLOB)
-    paths = glob.glob(pattern)
-    paths = [p for p in paths if p.endswith(".zip") and os.path.isfile(p)]
-    paths.sort()
-    return paths
-
-
-def run_suite_snapshots(
-    num_episodes: int,
-    seed_base: int,
-    headless: bool,
-) -> Dict[str, Dict[str, Any]]:
-    """Suite 3: vs snapshot pool (league snapshots round-robin). League should shine."""
-    snapshots = discover_league_snapshots()
-    if not snapshots:
-        print("[WARN] No league snapshots found; suite 3 will report errors.")
-        return {
-            k: {
-                "win_rate": 0.0,
-                "wins": 0,
-                "losses": 0,
-                "draws": 0,
-                "mean_time_to_first_score": None,
-                "collision_free_rate": 0.0,
-                "mean_reward_per_timestep": None,
-                "mean_collisions_per_100_steps": None,
-                "error": "No league snapshots (ppo_league_league_snapshot_ep*.zip) found",
+        wins = losses = draws = 0
+        try:
+            for i, opp in enumerate(SHARPENED_OPPONENTS):
+                count = per if i < n - 1 else (num_episodes - per * (n - 1))
+                seeds = [seed_base + 2000 + i * 500 + j for j in range(count)]
+                r = _run_eval(path, count, seeds, headless, opponent=opp)
+                wins += r.get("wins", 0)
+                losses += r.get("losses", 0)
+                draws += r.get("draws", 0)
+            total = wins + losses + draws
+            out[key] = {
+                "win_rate": wins / total if total else 0.0,
+                "wins": wins,
+                "losses": losses,
+                "draws": draws,
+                "error": None,
             }
-            for k in BASELINE_MODEL_PATHS
-        }
-    n = len(snapshots)
-    per_snapshot = max(1, num_episodes // n)
-    results: Dict[str, Dict[str, Any]] = {}
-    for baseline_key, model_path in BASELINE_MODEL_PATHS.items():
-        print(f"  [snapshots] {DISPLAY_NAMES.get(baseline_key, baseline_key)}...")
-        full_path = os.path.join(_SCRIPT_DIR, model_path) if not os.path.isabs(model_path) else model_path
-        if not os.path.exists(full_path):
-            results[baseline_key] = {
-                "win_rate": 0.0,
-                "wins": 0,
-                "losses": 0,
-                "draws": 0,
-                "mean_time_to_first_score": None,
-                "collision_free_rate": 0.0,
-                "mean_reward_per_timestep": None,
-                "mean_collisions_per_100_steps": None,
-                "error": f"Model not found: {full_path}",
-            }
-            continue
-        summaries = []
-        for i, snap_path in enumerate(snapshots):
-            ep_count = per_snapshot if i < n - 1 else (num_episodes - per_snapshot * (n - 1))
-            seeds = [seed_base + 2000 + i * 500 + j for j in range(ep_count)]
-            try:
-                s = _run_one_baseline_eval(
-                    full_path,
-                    ep_count,
-                    seeds,
-                    headless,
-                    opponent="OP3",
-                    red_model_path=snap_path,
-                )
-                summaries.append(s)
-            except Exception as e:
-                summaries.append({
-                    "wins": 0, "losses": 0, "draws": 0,
-                    "mean_time_to_first_score": None,
-                    "collision_free_rate": 0.0,
-                })
-        results[baseline_key] = _aggregate_summaries(summaries)
-    return results
-
-
-def save_results_csv(results: Dict[str, Dict[str, Any]], out_path: str) -> None:
-    """Write baseline comparison results to CSV."""
-    rows = []
-    for baseline_key, data in results.items():
-        row = {
-            "baseline": baseline_key,
-            "display_name": DISPLAY_NAMES.get(baseline_key, baseline_key),
-            "win_rate": data.get("win_rate", 0.0),
-            "wins": data.get("wins", 0),
-            "losses": data.get("losses", 0),
-            "draws": data.get("draws", 0),
-            "mean_time_to_first_score": data.get("mean_time_to_first_score"),
-            "collision_free_rate": data.get("collision_free_rate", 0.0),
-            "mean_reward_per_timestep": data.get("mean_reward_per_timestep"),
-            "mean_collisions_per_100_steps": data.get("mean_collisions_per_100_steps"),
-            "error": data.get("error") or "",
-        }
-        rows.append(row)
-    fieldnames = list(rows[0].keys()) if rows else []
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        for row in rows:
-            w.writerow(row)
-    print(f"[Saved] {out_path}")
-
-
-def save_summary_txt(
-    results: Dict[str, Dict[str, Any]],
-    num_episodes: int,
-    seed_base: int,
-    out_path: str,
-    suite_label: str = "OP3",
-) -> None:
-    """Write human-readable summary."""
-    lines = [
-        f"Baseline comparison — Suite: {suite_label}",
-        f"Episodes: {num_episodes}  Seed base: {seed_base}",
-        "",
-    ]
-    for baseline_key in BASELINE_MODEL_PATHS:
-        name = DISPLAY_NAMES.get(baseline_key, baseline_key)
-        data = results.get(baseline_key, {})
-        if data.get("error"):
-            lines.append(f"{name}: ERROR - {data['error']}")
-        else:
-            wr = data.get("win_rate", 0.0)
-            w, l, d = data.get("wins", 0), data.get("losses", 0), data.get("draws", 0)
-            tfs = data.get("mean_time_to_first_score")
-            cfr = data.get("collision_free_rate", 0.0)
-            tfs_str = f"{tfs:.2f}s" if tfs is not None else "N/A"
-            lines.append(f"{name}: WR={wr:.2%} ({w}W/{l}L/{d}D)  TtFS={tfs_str}  CollisionFree={cfr:.2%}")
-        lines.append("")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-    print(f"[Saved] {out_path}")
-
-
-def plot_comparison(results: Dict[str, Dict[str, Any]], save_dir: str, suffix: str = "") -> None:
-    """Generate comparison bar charts. suffix is used in filenames (e.g. _OP3, _species, _snapshots)."""
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("[WARN] matplotlib not installed; skipping plots. Install with: pip install matplotlib")
-        return
-
-    baseline_keys = [k for k in BASELINE_MODEL_PATHS if k in results and not results[k].get("error")]
-    if not baseline_keys:
-        print("[WARN] No valid results to plot.")
-        return
-    labels = [DISPLAY_NAMES.get(k, k) for k in baseline_keys]
-    prefix = f"baseline_comparison{suffix}_"
-
-    # 1) Win rate
-    win_rates = [results[k]["win_rate"] for k in baseline_keys]
-    fig, ax = plt.subplots(figsize=(8, 4))
-    x = range(len(baseline_keys))
-    colors = ["#2ecc71", "#3498db", "#9b59b6", "#e74c3c"][: len(baseline_keys)]
-    bars = ax.bar(x, win_rates, color=colors, edgecolor="black")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Win rate")
-    ax.set_ylim(0, 1.05)
-    ax.set_title(f"Baseline comparison{suffix}: Win rate")
-    for i, v in enumerate(win_rates):
-        ax.text(i, v + 0.02, f"{v:.0%}", ha="center", fontsize=11)
-    plt.tight_layout()
-    p = os.path.join(save_dir, f"{prefix}win_rate.png")
-    plt.savefig(p, dpi=150)
-    plt.close()
-    print(f"[Saved] {p}")
-
-    # 2) Mean time to first score
-    tfs_vals = []
-    for k in baseline_keys:
-        t = results[k].get("mean_time_to_first_score")
-        tfs_vals.append(t if t is not None else 0.0)
-    if any(t is not None for t in [results[k].get("mean_time_to_first_score") for k in baseline_keys]):
-        fig, ax = plt.subplots(figsize=(8, 4))
-        bars = ax.bar(x, tfs_vals, color=colors, edgecolor="black")
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.set_ylabel("Mean time to first score (s)")
-        ax.set_title(f"Baseline comparison{suffix}: Time to first score")
-        for i, v in enumerate(tfs_vals):
-            if v > 0:
-                ax.text(i, v + 1, f"{v:.1f}s", ha="center", fontsize=10)
-        plt.tight_layout()
-        p = os.path.join(save_dir, f"{prefix}time_to_first_score.png")
-        plt.savefig(p, dpi=150)
-        plt.close()
-        print(f"[Saved] {p}")
-
-    # 3) Collision-free rate
-    cfr_vals = [results[k].get("collision_free_rate", 0.0) for k in baseline_keys]
-    fig, ax = plt.subplots(figsize=(8, 4))
-    bars = ax.bar(x, cfr_vals, color=colors, edgecolor="black")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Collision-free rate")
-    ax.set_ylim(0, 1.05)
-    ax.set_title(f"Baseline comparison{suffix}: Collision-free rate")
-    for i, v in enumerate(cfr_vals):
-        ax.text(i, v + 0.02, f"{v:.0%}", ha="center", fontsize=11)
-    plt.tight_layout()
-    p = os.path.join(save_dir, f"{prefix}collision_free_rate.png")
-    plt.savefig(p, dpi=150)
-    plt.close()
-    print(f"[Saved] {p}")
-
-
-def _print_suite_results(results: Dict[str, Dict[str, Any]], suite_name: str) -> None:
-    for baseline_key, model_path in BASELINE_MODEL_PATHS.items():
-        r = results.get(baseline_key, {})
-        if r.get("error"):
-            print(f"  {DISPLAY_NAMES.get(baseline_key, baseline_key)}: ERROR - {r['error']}")
-        else:
-            print(f"  {DISPLAY_NAMES.get(baseline_key, baseline_key)}: WR={r['win_rate']:.2%} ({r['wins']}W/{r['losses']}L/{r['draws']}D)")
-    print()
-
-
-def _save_single_plot(results: Dict[str, Dict[str, Any]], save_dir: str, filename: str = "baseline_eval_win_rate.png") -> None:
-    """Save one win-rate bar chart."""
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("[WARN] matplotlib not installed; skipping plot. pip install matplotlib")
-        return
-    baseline_keys = [k for k in BASELINE_MODEL_PATHS if k in results and not results[k].get("error")]
-    if not baseline_keys:
-        return
-    labels = [DISPLAY_NAMES.get(k, k) for k in baseline_keys]
-    vals = [results[k].get("win_rate", 0.0) for k in baseline_keys]
-    colors = ["#2ecc71", "#3498db", "#9b59b6", "#e74c3c"][: len(baseline_keys)]
-    fig, ax = plt.subplots(figsize=(8, 4))
-    x = range(len(baseline_keys))
-    ax.bar(x, vals, color=colors, edgecolor="black")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Win rate")
-    ax.set_ylim(0, 1.05)
-    ax.set_title("Baseline evaluation: Win rate vs sharpened opponents")
-    for i, v in enumerate(vals):
-        ax.text(i, v + 0.02, f"{v:.0%}", ha="center", fontsize=11)
-    plt.tight_layout()
-    p = os.path.join(save_dir, filename)
-    plt.savefig(p, dpi=150)
-    plt.close()
-    print(f"[Saved] {p}")
+        except Exception as e:
+            out[key] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": str(e)}
+    return out
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="MARL baseline evaluation: one test (vs sharpened opponents), one CSV + summary + plot. Use --full for legacy four suites."
-    )
-    parser.add_argument("--episodes", type=int, default=100, help="Episodes per baseline (default: 100)")
-    parser.add_argument("--seed", type=int, default=42, help="Base seed (default: 42)")
-    parser.add_argument("--headless", action="store_true", help="Run headless (no display)")
-    parser.add_argument("--no-plots", action="store_true", help="Skip generating plot")
-    parser.add_argument("--out-dir", type=str, default=METRICS_DIR, help="Output directory (default: metrics/)")
-    parser.add_argument("--league-model", type=str, default=None, help="Path to league checkpoint (e.g. checkpoints_sb3/final_ppo_league_8m.zip)")
-    parser.add_argument("--full", action="store_true", help="Run legacy four suites (OP3, species, sharpened, snapshots) with separate outputs")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description="MARL baseline eval: OP3 + sharpened opponents. Results at end.")
+    p.add_argument("--episodes", type=int, default=100, help="Episodes per condition (default: 100)")
+    p.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
+    p.add_argument("--headless", action="store_true", help="Headless (no display)")
+    p.add_argument("--out-dir", type=str, default=METRICS_DIR, help="Output directory")
+    p.add_argument("--league-model", type=str, default=None, help="League checkpoint path (overrides default)")
+    args = p.parse_args()
 
-    if getattr(args, "league_model", None):
+    if args.league_model:
         BASELINE_MODEL_PATHS["curriculum_league"] = args.league_model
-        print(f"[League model] {args.league_model}")
 
-    num_episodes = max(1, args.episodes)
-    seed_base = args.seed
+    n = max(1, args.episodes)
+    seed = args.seed
     os.makedirs(args.out_dir, exist_ok=True)
 
-    # -------------------------------------------------------------------------
-    # Default: single proper evaluation — all baselines vs sharpened opponents
-    # -------------------------------------------------------------------------
-    if not getattr(args, "full", False):
-        print("=" * 60)
-        print("BASELINE EVALUATION (vs sharpened opponents)")
-        print("Opponents: INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH")
-        print("=" * 60)
-        results = run_suite_sharpened(num_episodes, seed_base, args.headless)
-        for k in BASELINE_MODEL_PATHS:
-            r = results.get(k, {})
-            name = DISPLAY_NAMES.get(k, k)
-            if r.get("error"):
-                print(f"  {name}: ERROR - {r['error']}")
-            else:
-                print(f"  {name}: WR={r['win_rate']:.2%} ({r['wins']}W/{r['losses']}L/{r['draws']}D)")
-        print("=" * 60)
+    op3 = _run_suite_op3(n, seed, args.headless)
+    sharp = _run_suite_sharpened(n, seed, args.headless)
 
-        save_results_csv(results, os.path.join(args.out_dir, "baseline_eval_results.csv"))
-        save_summary_txt(results, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_eval_summary.txt"), suite_label="vs sharpened opponents")
-        if not args.no_plots:
-            _save_single_plot(results, args.out_dir, "baseline_eval_win_rate.png")
-        print("Done. Outputs:")
-        print(f"  {args.out_dir}/baseline_eval_results.csv")
-        print(f"  {args.out_dir}/baseline_eval_summary.txt")
-        print(f"  {args.out_dir}/baseline_eval_win_rate.png")
-        return
+    # Single results table
+    print("\n" + "=" * 70)
+    print("MARL BASELINE EVALUATION")
+    print("=" * 70)
+    print(f"Episodes per condition: {n}  |  Seed: {seed}")
+    print()
+    print(f"{'Baseline':<20} {'vs OP3':>12} {'vs Sharpened':>14}")
+    print("-" * 70)
+    for key in BASELINE_MODEL_PATHS:
+        name = DISPLAY_NAMES.get(key, key)
+        r1 = op3.get(key, {})
+        r2 = sharp.get(key, {})
+        wr1 = r1.get("win_rate", 0.0) if not r1.get("error") else float("nan")
+        wr2 = r2.get("win_rate", 0.0) if not r2.get("error") else float("nan")
+        s1 = f"{wr1:.1%}" if wr1 == wr1 else "ERROR"
+        s2 = f"{wr2:.1%}" if wr2 == wr2 else "ERROR"
+        print(f"{name:<20} {s1:>12} {s2:>14}")
+    print("=" * 70)
 
-    # -------------------------------------------------------------------------
-    # --full: legacy four suites (OP3, species, sharpened, snapshots)
-    # -------------------------------------------------------------------------
-    print("=" * 60)
-    print("SUITE 1: vs OP3 only")
-    print("=" * 60)
-    episode_seeds = [seed_base + i for i in range(num_episodes)]
-    results_op3 = run_suite_op3(num_episodes, episode_seeds, args.headless)
-    _print_suite_results(results_op3, "OP3")
-    save_results_csv(results_op3, os.path.join(args.out_dir, "baseline_comparison_OP3_results.csv"))
-    save_summary_txt(results_op3, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_OP3_summary.txt"), suite_label="vs OP3 only")
-    if not args.no_plots:
-        plot_comparison(results_op3, args.out_dir, suffix="_OP3")
-
-    print("=" * 60)
-    print("SUITE 2: vs species set (BALANCED, RUSHER, CAMPER)")
-    print("=" * 60)
-    results_species = run_suite_species(num_episodes, seed_base, args.headless)
-    _print_suite_results(results_species, "species")
-    save_results_csv(results_species, os.path.join(args.out_dir, "baseline_comparison_species_results.csv"))
-    save_summary_txt(results_species, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_species_summary.txt"), suite_label="vs species set")
-    if not args.no_plots:
-        plot_comparison(results_species, args.out_dir, suffix="_species")
-
-    print("=" * 60)
-    print("SUITE: vs sharpened opponents")
-    print("=" * 60)
-    results_sharpened = run_suite_sharpened(num_episodes, seed_base, args.headless)
-    _print_suite_results(results_sharpened, "sharpened")
-    save_results_csv(results_sharpened, os.path.join(args.out_dir, "baseline_comparison_sharpened_results.csv"))
-    save_summary_txt(results_sharpened, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_sharpened_summary.txt"), suite_label="vs sharpened opponents")
-    if not args.no_plots:
-        plot_comparison(results_sharpened, args.out_dir, suffix="_sharpened")
-
-    snapshots = discover_league_snapshots()
-    print("=" * 60)
-    print(f"SUITE 3: vs snapshot pool ({len(snapshots)} snapshots)")
-    print("=" * 60)
-    results_snapshots = run_suite_snapshots(num_episodes, seed_base, args.headless)
-    _print_suite_results(results_snapshots, "snapshots")
-    save_results_csv(results_snapshots, os.path.join(args.out_dir, "baseline_comparison_snapshots_results.csv"))
-    save_summary_txt(results_snapshots, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_snapshots_summary.txt"), suite_label="vs snapshot pool")
-    if not args.no_plots:
-        plot_comparison(results_snapshots, args.out_dir, suffix="_snapshots")
-
-    print("=" * 60)
-    print("DONE (--full). Outputs: baseline_comparison_OP3_*, _species_*, _sharpened_*, _snapshots_*")
-    print("=" * 60)
+    # One CSV
+    csv_path = os.path.join(args.out_dir, "baseline_eval.csv")
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["baseline", "op3_win_rate", "op3_wins", "op3_losses", "op3_draws", "sharpened_win_rate", "sharpened_wins", "sharpened_losses", "sharpened_draws"])
+        for key in BASELINE_MODEL_PATHS:
+            r1, r2 = op3.get(key, {}), sharp.get(key, {})
+            w.writerow([
+                DISPLAY_NAMES.get(key, key),
+                r1.get("win_rate", 0.0) if not r1.get("error") else "",
+                r1.get("wins", 0), r1.get("losses", 0), r1.get("draws", 0),
+                r2.get("win_rate", 0.0) if not r2.get("error") else "",
+                r2.get("wins", 0), r2.get("losses", 0), r2.get("draws", 0),
+            ])
+    print(f"Results saved to {csv_path}\n")
 
 
 if __name__ == "__main__":
