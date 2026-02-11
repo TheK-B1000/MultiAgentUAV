@@ -2465,6 +2465,8 @@ if __name__ == "__main__":
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
     parser.add_argument("--eval-op4", action="store_true", help="Run evaluation vs OP4 (single elite opponent, testing only)")
     parser.add_argument("--eval-op4-n", type=int, default=30, metavar="N", help="Episodes for --eval-op4 (default: 30)")
+    parser.add_argument("--agents-per-team", type=int, default=None,
+                        help="Agents per team for viewer/eval (e.g. 2 for 2v2, 4 for 4v4). Default: use GameField default.")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
@@ -2492,6 +2494,16 @@ if __name__ == "__main__":
         hppo_high_path=args.hppo_high or DEFAULT_HPPO_HIGH_MODEL_PATH,
         mappo_model_path=args.mappo_model or DEFAULT_MAPPO_MODEL_PATH,
     )
+
+    # Optional: override agents per team (e.g. 4 for 4v4)
+    if getattr(args, "agents_per_team", None):
+        n_agents = max(1, int(args.agents_per_team))
+        gf = viewer.game_field
+        if hasattr(gf, "set_agent_count_and_reset"):
+            gf.set_agent_count_and_reset(n_agents)
+        else:
+            gf.agents_per_team = n_agents
+            gf.reset_default()
 
     # When running a baseline, use the loaded PPO model for Blue (not default scripted baseline)
     if args.baseline and getattr(viewer.blue_ppo_team, "model_loaded", False):
