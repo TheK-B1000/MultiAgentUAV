@@ -1771,13 +1771,13 @@ class CTFViewer:
                     pass
             if hasattr(self.game_field, "set_red_policy_wrapper"):
                 self.game_field.set_red_policy_wrapper(None)
-        # Set phase: sharpened opponents use OP3 (physics on); OP1/OP2 use own phase
+        # Set phase: OP4 uses OP3 physics; OP1/OP2 use own phase
         opponent_upper = str(opponent).upper() if not red_model_path and not red_species_tag else "OP3"
         if opponent_upper in ("OP1", "OP2"):
             self._set_phase(opponent_upper)
         elif opponent_upper == "OP3":
             self._set_phase("OP3")
-        elif opponent_upper in ("INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH"):
+        elif opponent_upper == "OP4":
             self._set_phase_op3()
         else:
             self._set_phase_op3()
@@ -2231,34 +2231,27 @@ class CTFViewer:
         return out
 
     # ----------------------------
-    # Sharpened opponents (tough scripted archetypes: interceptor, minelayer, camper-rotate, bait-switch)
+    # OP4 (single elite opponent for testing)
     # ----------------------------
-    SHARPENED_OPPONENTS = ("INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH")
 
-    def evaluate_sharpened_opponents(
+    def evaluate_op4(
         self,
-        num_episodes_per_opp: int = 30,
+        num_episodes: int = 30,
         eval_model: Optional[str] = None,
         headless: bool = True,
         save_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Run evaluation vs each sharpened opponent (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH).
-        Uses OP3 physics. Held-out: not used in training. Tough test for baselines.
-        """
-        results_per_opp = {}
-        for opp in self.SHARPENED_OPPONENTS:
-            summary = self.evaluate_model(
-                num_episodes=num_episodes_per_opp,
-                save_csv=None,
-                headless=headless,
-                opponent=opp,
-                eval_model=eval_model,
-            )
-            if not summary:
-                results_per_opp[opp] = {"win_rate": 0.0, "mean_reward_per_timestep": None, "mean_time_to_first_score": None, "wins": 0, "losses": 0, "draws": 0}
-                continue
-            results_per_opp[opp] = {
+        """Run evaluation vs OP4 (single elite opponent: smart, mines, tags). Uses OP3 physics. Testing only."""
+        summary = self.evaluate_model(
+            num_episodes=num_episodes,
+            save_csv=None,
+            headless=headless,
+            opponent="OP4",
+            eval_model=eval_model,
+        )
+        results = {}
+        if summary:
+            results["OP4"] = {
                 "win_rate": summary["win_rate"],
                 "mean_reward_per_timestep": summary.get("mean_reward_per_timestep"),
                 "mean_time_to_first_score": summary.get("mean_time_to_first_score"),
@@ -2266,31 +2259,30 @@ class CTFViewer:
                 "losses": summary["losses"],
                 "draws": summary["draws"],
             }
+        else:
+            results["OP4"] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0}
 
         print("\n" + "=" * 60)
-        print("SHARPENED OPPONENT EVALUATION (held-out, physics on)")
+        print("OP4 EVALUATION (testing only, physics on)")
         print("=" * 60)
-        for opp in self.SHARPENED_OPPONENTS:
-            r = results_per_opp.get(opp, {})
-            wr = r.get("win_rate", 0.0)
-            w, l, d = r.get("wins", 0), r.get("losses", 0), r.get("draws", 0)
-            print(f"  {opp}: WR {wr:.0%}  (W/L/D: {w}/{l}/{d})")
+        r = results.get("OP4", {})
+        wr = r.get("win_rate", 0.0)
+        w, l, d = r.get("wins", 0), r.get("losses", 0), r.get("draws", 0)
+        print(f"  OP4: WR {wr:.0%}  (W/L/D: {w}/{l}/{d})")
         print("=" * 60)
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            csv_path = os.path.join(save_dir, "sharpened_opponent_summary.csv")
+            csv_path = os.path.join(save_dir, "op4_eval_summary.csv")
             try:
                 with open(csv_path, "w", newline="", encoding="utf-8") as f:
                     w = csv.writer(f)
                     w.writerow(["opponent", "win_rate", "wins", "losses", "draws"])
-                    for opp in self.SHARPENED_OPPONENTS:
-                        r = results_per_opp.get(opp, {})
-                        w.writerow([opp, r.get("win_rate", ""), r.get("wins", ""), r.get("losses", ""), r.get("draws", "")])
-                print(f"[Eval] Saved sharpened summary to {csv_path}")
+                    w.writerow(["OP4", r.get("win_rate", ""), r.get("wins", ""), r.get("losses", ""), r.get("draws", "")])
+                print(f"[Eval] Saved OP4 summary to {csv_path}")
             except Exception as exc:
-                print(f"[WARN] Failed to save sharpened CSV: {exc}")
-        return {"results_per_opponent": results_per_opp}
+                print(f"[WARN] Failed to save OP4 CSV: {exc}")
+        return {"results_per_opponent": results}
 
     # ----------------------------
     # Input handling
@@ -2471,8 +2463,8 @@ if __name__ == "__main__":
     parser.add_argument("--opponent", type=str, default="OP3", help="Red opponent for evaluation (OP1/OP2/OP3). Default: OP3.")
     parser.add_argument("--eval-fixed-opponents", action="store_true", help="Run fixed-opponent eval vs OP1, OP2, OP3; report win rate and generalization drop")
     parser.add_argument("--eval-fixed-n", type=int, default=50, metavar="N", help="Episodes per opponent for --eval-fixed-opponents (default: 50)")
-    parser.add_argument("--eval-sharpened", action="store_true", help="Run sharpened opponent eval vs INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH (held-out, physics on)")
-    parser.add_argument("--eval-sharpened-n", type=int, default=30, metavar="N", help="Episodes per opponent for --eval-sharpened (default: 30)")
+    parser.add_argument("--eval-op4", action="store_true", help="Run evaluation vs OP4 (single elite opponent, testing only)")
+    parser.add_argument("--eval-op4-n", type=int, default=30, metavar="N", help="Episodes for --eval-op4 (default: 30)")
     parser.add_argument("--ppo-model", type=str, help="Path to PPO model .zip file (overrides DEFAULT_PPO_MODEL_PATH)")
     parser.add_argument("--hppo-low", type=str, help="Path to HPPO low-level model .zip")
     parser.add_argument("--hppo-high", type=str, help="Path to HPPO high-level model .zip")
@@ -2558,10 +2550,10 @@ if __name__ == "__main__":
             headless=args.headless,
             save_dir=METRICS_DIR,
         )
-    elif getattr(args, "eval_sharpened", False):
-        # Sharpened opponents (held-out): tough scripted test
-        viewer.evaluate_sharpened_opponents(
-            num_episodes_per_opp=getattr(args, "eval_sharpened_n", 30),
+    elif getattr(args, "eval_op4", False):
+        # OP4: single elite opponent (testing only)
+        viewer.evaluate_op4(
+            num_episodes=getattr(args, "eval_op4_n", 30),
             eval_model=args.eval_model,
             headless=args.headless,
             save_dir=METRICS_DIR,
