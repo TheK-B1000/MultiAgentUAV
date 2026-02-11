@@ -1222,26 +1222,35 @@ class GameField:
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP2RedPolicy("red")
-        # OP4: single elite opponent (testing only) — smart, mines, tags, big threat
+        # OP4: single elite opponent (testing only) — OP3 policy but faster/smarter
         elif mode == "OP4":
             self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.70
+            # Very fast red agents (still clearly faster than OP3, but slightly nerfed)
+            self.red_speed_scale = 1.85
             self.red_speed_min = None
             self.red_speed_max = None
-            self.red_deception_prob = 0.0
+            # Strong (but not overwhelming) deception + coordinated attacks
+            self.red_deception_prob = 0.4
             self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
+            self.red_sync_attack = True
+            self.red_attack_sync_window = 6
             self.suppression_range_cells = float(self._default_suppression_range_cells)
             self.mines_per_team = 8
             self.max_mine_charges_per_agent = 4
-            self.policies["red"] = OP4RedPolicy(
+            # Use OP3RedPolicy heuristics but with more aggressive settings
+            self.policies["red"] = OP3RedPolicy(
                 "red",
-                tag_radius_cells=8.0,
-                intercept_fraction_ahead=0.55,
-                threat_radius_cells=12.0,
-                chokepoint_radius=8,
+                mine_radius_check=1.5,
+                defense_radius_cells=5.0,
+                patrol_radius_cells=4,
+                assist_radius_mult=2.0,
+                defense_weight=0.4,
+                flag_weight=0.6,
+                zigzag_prob=0.2,
+                chase_cap_cells=9.0,
+                retreat_radius_cells=3.0,
             )
-            self._apply_op4_dynamics("OP4", 1.70)
+            self._apply_op4_dynamics("OP4", 1.85)
         else:
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
