@@ -297,6 +297,7 @@ class LeagueCallback(BaseCallback):
         self._enable_opponent_tracking = getattr(cfg, "enable_opponent_tracking", True)
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
         self._pending_updates: List[Dict[str, Any]] = []
+        self._selfplay_enabled: bool = False  # Track if we've enabled self-play
 
     def _enforce_league_snapshot_limit(self) -> None:
         """Delete oldest league snapshots when over cap to save disk space."""
@@ -312,6 +313,18 @@ class LeagueCallback(BaseCallback):
             except Exception as exc:
                 print(f"[WARN] league snapshot cleanup failed: {exc}")
 
+    def _get_op3_win_rate(self) -> float:
+        """Get win rate against OP3 over the tracking window."""
+        op3_key = "SCRIPTED:OP3"
+        stats = self._opponent_stats.get(op3_key, {})
+        wins = stats.get("wins", 0)
+        losses = stats.get("losses", 0)
+        draws = stats.get("draws", 0)
+        total = wins + losses + draws
+        if total < 10:  # Need at least 10 games for reliable estimate
+            return 0.0
+        return wins / total if total > 0 else 0.0
+    
     def _select_next_opponent(self) -> OpponentSpec:
         if not self.league_mode:
             phase = self.curriculum.phase
@@ -320,7 +333,13 @@ class LeagueCallback(BaseCallback):
                 key=phase,
                 rating=self.league.get_rating(f"SCRIPTED:{phase}"),
             )
-        return self.league.sample_league(phase=self.curriculum.phase)
+        # Enable self-play (snapshots) when OP3 win rate >= 80%
+        op3_wr = self._get_op3_win_rate()
+        enable_snapshots = op3_wr >= 0.80 and len(self.league.snapshots) > 0
+        if enable_snapshots and not self._selfplay_enabled:
+            self._selfplay_enabled = True
+            print(f"[League] OP3 win rate {op3_wr:.1%} >= 80%: enabling self-play (snapshots)")
+        return self.league.sample_league(phase=self.curriculum.phase, enable_snapshots=enable_snapshots)
     
     def _update_opponent_stats(self, opp_key: str, result: str):
         """Track opponent distribution and rolling window stats."""
