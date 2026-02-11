@@ -128,7 +128,8 @@ class PPOConfig:
     device: str = "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    run_tag: str = "ppo_league_curriculum_v1"
+    # Distinct tag for 4v4 runs so they don't overwrite 2v2 checkpoints
+    run_tag: str = "ppo_league_curriculum_4v4"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -149,7 +150,8 @@ class PPOConfig:
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
 
-    max_blue_agents: int = 2
+    # 4v4 training (blue has 4 agents; red mirrors)
+    max_blue_agents: int = 4
     print_reset_shapes: bool = False
     reward_mode: str = "TEAM_SUM"
     use_obs_builder: bool = True
@@ -170,7 +172,9 @@ class PPOConfig:
     use_stable_marl_ppo: bool = True
     approx_kl_threshold: float = 0.05
     kl_guardrail_consecutive: int = 3
-    use_tokenized_obs: bool = False
+    # Tokenized obs work well for variable/large team sizes (auto-enabled for max_blue_agents > 2,
+    # but we set it explicitly to make the intent clear for 4v4 experiments).
+    use_tokenized_obs: bool = True
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
