@@ -1,18 +1,15 @@
 """
-Run 3 evaluation suites for all baselines; separate outputs so nothing is overwritten.
+Proper MARL baseline evaluation: one test protocol, minimal outputs.
 
-Suites:
-  1) vs OP3 only — same seeds, same opponent. League may tie if OP3 is solved.
-  2) vs species set — BALANCED, RUSHER, CAMPER. League should shine.
-  3) vs snapshot pool — league snapshots (ppo_league_league_snapshot_ep*.zip) round-robin. League should shine.
+Default: Run all baselines (Fixed OP3, Curriculum No-League, Curriculum League, Self-Play)
+against held-out sharpened opponents (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH).
+Same seeds for all; one CSV, one summary, one win-rate plot.
 
-Expected: League >= No-League on (2) and (3).
+  python run_baseline_comparison.py --episodes 100 --headless
 
-Baselines: fixed_op3, curriculum_no_league, curriculum_league, self_play.
+Outputs (metrics/): baseline_eval_results.csv, baseline_eval_summary.txt, baseline_eval_win_rate.png
 
-Outputs (in metrics/ by default; distinct filenames per suite):
-  - baseline_comparison_OP3_* / baseline_comparison_species_* / baseline_comparison_snapshots_*
-  - *_results.csv, *_summary.txt, *_win_rate.png, *_time_to_first_score.png, *_collision_free_rate.png
+Use --full to run the legacy four suites (OP3, species, sharpened, snapshots) with separate files.
 """
 from __future__ import annotations
 
@@ -30,6 +27,9 @@ sys.path.insert(0, _SCRIPT_DIR)
 
 # Species set for suite 2 (League should shine vs diverse playstyles)
 SPECIES_TAGS = ["BALANCED", "RUSHER", "CAMPER"]
+
+# Sharpened opponents: tough scripted archetypes (held-out; punish typical RL habits)
+SHARPENED_OPPONENTS = ["INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH"]
 
 # League snapshot glob for suite 3 (round-robin)
 LEAGUE_SNAPSHOT_GLOB = "ppo_league_league_snapshot_ep*.zip"
@@ -239,6 +239,54 @@ def run_suite_species(
                     headless,
                     opponent="OP3",
                     red_species_tag=tag,
+                )
+                summaries.append(s)
+            except Exception as e:
+                summaries.append({
+                    "wins": 0, "losses": 0, "draws": 0,
+                    "mean_time_to_first_score": None,
+                    "collision_free_rate": 0.0,
+                })
+        results[baseline_key] = _aggregate_summaries(summaries)
+    return results
+
+
+def run_suite_sharpened(
+    num_episodes: int,
+    seed_base: int,
+    headless: bool,
+) -> Dict[str, Dict[str, Any]]:
+    """Suite: vs sharpened opponents only (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH). Tough held-out test."""
+    n = len(SHARPENED_OPPONENTS)
+    per_opp = max(1, num_episodes // n)
+    results: Dict[str, Dict[str, Any]] = {}
+    for baseline_key, model_path in BASELINE_MODEL_PATHS.items():
+        print(f"  [sharpened] {DISPLAY_NAMES.get(baseline_key, baseline_key)}...")
+        full_path = os.path.join(_SCRIPT_DIR, model_path) if not os.path.isabs(model_path) else model_path
+        if not os.path.exists(full_path):
+            results[baseline_key] = {
+                "win_rate": 0.0,
+                "wins": 0,
+                "losses": 0,
+                "draws": 0,
+                "mean_time_to_first_score": None,
+                "collision_free_rate": 0.0,
+                "mean_reward_per_timestep": None,
+                "mean_collisions_per_100_steps": None,
+                "error": f"Model not found: {full_path}",
+            }
+            continue
+        summaries: List[Dict[str, Any]] = []
+        for i, opp in enumerate(SHARPENED_OPPONENTS):
+            ep_count = per_opp if i < n - 1 else (num_episodes - per_opp * (n - 1))
+            seeds = [seed_base + 2000 * i + j for j in range(ep_count)]
+            try:
+                s = _run_one_baseline_eval(
+                    full_path,
+                    ep_count,
+                    seeds,
+                    headless,
+                    opponent=opp,
                 )
                 summaries.append(s)
             except Exception as e:
@@ -469,23 +517,89 @@ def _print_suite_results(results: Dict[str, Dict[str, Any]], suite_name: str) ->
     print()
 
 
+def _save_single_plot(results: Dict[str, Dict[str, Any]], save_dir: str, filename: str = "baseline_eval_win_rate.png") -> None:
+    """Save one win-rate bar chart."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("[WARN] matplotlib not installed; skipping plot. pip install matplotlib")
+        return
+    baseline_keys = [k for k in BASELINE_MODEL_PATHS if k in results and not results[k].get("error")]
+    if not baseline_keys:
+        return
+    labels = [DISPLAY_NAMES.get(k, k) for k in baseline_keys]
+    vals = [results[k].get("win_rate", 0.0) for k in baseline_keys]
+    colors = ["#2ecc71", "#3498db", "#9b59b6", "#e74c3c"][: len(baseline_keys)]
+    fig, ax = plt.subplots(figsize=(8, 4))
+    x = range(len(baseline_keys))
+    ax.bar(x, vals, color=colors, edgecolor="black")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Win rate")
+    ax.set_ylim(0, 1.05)
+    ax.set_title("Baseline evaluation: Win rate vs sharpened opponents")
+    for i, v in enumerate(vals):
+        ax.text(i, v + 0.02, f"{v:.0%}", ha="center", fontsize=11)
+    plt.tight_layout()
+    p = os.path.join(save_dir, filename)
+    plt.savefig(p, dpi=150)
+    plt.close()
+    print(f"[Saved] {p}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run 3 evaluation suites (vs OP3, vs species, vs snapshot pool) for all baselines; separate outputs so League can be compared on (2) and (3)."
+        description="MARL baseline evaluation: one test (vs sharpened opponents), one CSV + summary + plot. Use --full for legacy four suites."
     )
-    parser.add_argument("--episodes", type=int, default=50, help="Number of episodes per baseline per suite (default: 50)")
+    parser.add_argument("--episodes", type=int, default=100, help="Episodes per baseline (default: 100)")
     parser.add_argument("--seed", type=int, default=42, help="Base seed (default: 42)")
     parser.add_argument("--headless", action="store_true", help="Run headless (no display)")
-    parser.add_argument("--no-plots", action="store_true", help="Skip generating plots")
+    parser.add_argument("--no-plots", action="store_true", help="Skip generating plot")
     parser.add_argument("--out-dir", type=str, default=METRICS_DIR, help="Output directory (default: metrics/)")
+    parser.add_argument("--league-model", type=str, default=None, help="Path to league checkpoint (e.g. checkpoints_sb3/final_ppo_league_8m.zip)")
+    parser.add_argument("--full", action="store_true", help="Run legacy four suites (OP3, species, sharpened, snapshots) with separate outputs")
     args = parser.parse_args()
+
+    if getattr(args, "league_model", None):
+        BASELINE_MODEL_PATHS["curriculum_league"] = args.league_model
+        print(f"[League model] {args.league_model}")
 
     num_episodes = max(1, args.episodes)
     seed_base = args.seed
     os.makedirs(args.out_dir, exist_ok=True)
 
     # -------------------------------------------------------------------------
-    # Suite 1: vs OP3 only (League may tie if OP3 is solved)
+    # Default: single proper evaluation — all baselines vs sharpened opponents
+    # -------------------------------------------------------------------------
+    if not getattr(args, "full", False):
+        print("=" * 60)
+        print("BASELINE EVALUATION (vs sharpened opponents)")
+        print("Opponents: INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH")
+        print("=" * 60)
+        results = run_suite_sharpened(num_episodes, seed_base, args.headless)
+        for k in BASELINE_MODEL_PATHS:
+            r = results.get(k, {})
+            name = DISPLAY_NAMES.get(k, k)
+            if r.get("error"):
+                print(f"  {name}: ERROR - {r['error']}")
+            else:
+                print(f"  {name}: WR={r['win_rate']:.2%} ({r['wins']}W/{r['losses']}L/{r['draws']}D)")
+        print("=" * 60)
+
+        save_results_csv(results, os.path.join(args.out_dir, "baseline_eval_results.csv"))
+        save_summary_txt(results, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_eval_summary.txt"), suite_label="vs sharpened opponents")
+        if not args.no_plots:
+            _save_single_plot(results, args.out_dir, "baseline_eval_win_rate.png")
+        print("Done. Outputs:")
+        print(f"  {args.out_dir}/baseline_eval_results.csv")
+        print(f"  {args.out_dir}/baseline_eval_summary.txt")
+        print(f"  {args.out_dir}/baseline_eval_win_rate.png")
+        return
+
+    # -------------------------------------------------------------------------
+    # --full: legacy four suites (OP3, species, sharpened, snapshots)
     # -------------------------------------------------------------------------
     print("=" * 60)
     print("SUITE 1: vs OP3 only")
@@ -493,47 +607,44 @@ def main() -> None:
     episode_seeds = [seed_base + i for i in range(num_episodes)]
     results_op3 = run_suite_op3(num_episodes, episode_seeds, args.headless)
     _print_suite_results(results_op3, "OP3")
-
     save_results_csv(results_op3, os.path.join(args.out_dir, "baseline_comparison_OP3_results.csv"))
     save_summary_txt(results_op3, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_OP3_summary.txt"), suite_label="vs OP3 only")
     if not args.no_plots:
         plot_comparison(results_op3, args.out_dir, suffix="_OP3")
 
-    # -------------------------------------------------------------------------
-    # Suite 2: vs species set (BALANCED, RUSHER, CAMPER) — League should shine
-    # -------------------------------------------------------------------------
     print("=" * 60)
     print("SUITE 2: vs species set (BALANCED, RUSHER, CAMPER)")
     print("=" * 60)
     results_species = run_suite_species(num_episodes, seed_base, args.headless)
     _print_suite_results(results_species, "species")
-
     save_results_csv(results_species, os.path.join(args.out_dir, "baseline_comparison_species_results.csv"))
     save_summary_txt(results_species, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_species_summary.txt"), suite_label="vs species set")
     if not args.no_plots:
         plot_comparison(results_species, args.out_dir, suffix="_species")
 
-    # -------------------------------------------------------------------------
-    # Suite 3: vs snapshot pool (league snapshots round-robin) — League should shine
-    # -------------------------------------------------------------------------
+    print("=" * 60)
+    print("SUITE: vs sharpened opponents")
+    print("=" * 60)
+    results_sharpened = run_suite_sharpened(num_episodes, seed_base, args.headless)
+    _print_suite_results(results_sharpened, "sharpened")
+    save_results_csv(results_sharpened, os.path.join(args.out_dir, "baseline_comparison_sharpened_results.csv"))
+    save_summary_txt(results_sharpened, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_sharpened_summary.txt"), suite_label="vs sharpened opponents")
+    if not args.no_plots:
+        plot_comparison(results_sharpened, args.out_dir, suffix="_sharpened")
+
     snapshots = discover_league_snapshots()
     print("=" * 60)
-    print(f"SUITE 3: vs snapshot pool (round-robin, {len(snapshots)} snapshots)")
+    print(f"SUITE 3: vs snapshot pool ({len(snapshots)} snapshots)")
     print("=" * 60)
     results_snapshots = run_suite_snapshots(num_episodes, seed_base, args.headless)
     _print_suite_results(results_snapshots, "snapshots")
-
     save_results_csv(results_snapshots, os.path.join(args.out_dir, "baseline_comparison_snapshots_results.csv"))
     save_summary_txt(results_snapshots, num_episodes, seed_base, os.path.join(args.out_dir, "baseline_comparison_snapshots_summary.txt"), suite_label="vs snapshot pool")
     if not args.no_plots:
         plot_comparison(results_snapshots, args.out_dir, suffix="_snapshots")
 
     print("=" * 60)
-    print("DONE. Expected: League >= No-League on suite 2 and 3.")
-    print("Outputs (no overwrite):")
-    print(f"  {args.out_dir}/baseline_comparison_OP3_*")
-    print(f"  {args.out_dir}/baseline_comparison_species_*")
-    print(f"  {args.out_dir}/baseline_comparison_snapshots_*")
+    print("DONE (--full). Outputs: baseline_comparison_OP3_*, _species_*, _sharpened_*, _snapshots_*")
     print("=" * 60)
 
 
