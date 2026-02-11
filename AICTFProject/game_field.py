@@ -16,11 +16,8 @@ from policies import (
     OP1RedPolicy,
     OP2RedPolicy,
     OP3RedPolicy,
+    OP4RedPolicy,
     Policy,
-    InterceptorRedPolicy,
-    MineLayerRedPolicy,
-    CamperRotateRedPolicy,
-    BaitAndSwitchRedPolicy,
 )
 
 # -------------------------
@@ -1225,21 +1222,10 @@ class GameField:
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP2RedPolicy("red")
-        elif mode == "INTERCEPTOR":
+        # OP4: single elite opponent (testing only) — smart, mines, tags, big threat
+        elif mode == "OP4":
             self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.30
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.0
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = min(8, int(getattr(self, "mines_per_team", self._default_mines_per_team)) + 4)
-            self.max_mine_charges_per_agent = 3
-            self.policies["red"] = InterceptorRedPolicy("red", intercept_fraction_ahead=0.4, tag_radius_cells=5.0)
-        elif mode == "MINELAYER":
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.20
+            self.red_speed_scale = 1.70
             self.red_speed_min = None
             self.red_speed_max = None
             self.red_deception_prob = 0.0
@@ -1247,32 +1233,15 @@ class GameField:
             self.red_sync_attack = False
             self.suppression_range_cells = float(self._default_suppression_range_cells)
             self.mines_per_team = 8
-            self.max_mine_charges_per_agent = 3
-            self.policies["red"] = MineLayerRedPolicy("red", chokepoint_radius=6, mine_near_flag_first=True)
-        elif mode == "CAMPER_ROTATE":
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.25
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.0
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = 8
-            self.max_mine_charges_per_agent = 3
-            self.policies["red"] = CamperRotateRedPolicy("red", camp_radius_cells=6.0, intercept_fraction_ahead=0.45)
-        elif mode == "BAIT_SWITCH":
-            self.red_agents_per_team_override = None
-            self.red_speed_scale = 1.28
-            self.red_speed_min = None
-            self.red_speed_max = None
-            self.red_deception_prob = 0.4
-            self.red_evasion_prob = 0.0
-            self.red_sync_attack = False
-            self.suppression_range_cells = float(self._default_suppression_range_cells)
-            self.mines_per_team = 8
-            self.max_mine_charges_per_agent = 3
-            self.policies["red"] = BaitAndSwitchRedPolicy("red", feint_steps=8, feint_offset_cells=4)
+            self.max_mine_charges_per_agent = 4
+            self.policies["red"] = OP4RedPolicy(
+                "red",
+                tag_radius_cells=8.0,
+                intercept_fraction_ahead=0.55,
+                threat_radius_cells=12.0,
+                chokepoint_radius=8,
+            )
+            self._apply_op4_dynamics("OP4", 1.70)
         else:
             self.red_agents_per_team_override = None
             self.red_speed_scale = 1.0
@@ -1280,6 +1249,20 @@ class GameField:
             self.mines_per_team = int(self._default_mines_per_team)
             self.max_mine_charges_per_agent = int(self._default_max_mine_charges_per_agent)
             self.policies["red"] = OP3RedPolicy("red")
+
+    def _apply_op4_dynamics(self, mode: str, speed_scale: float) -> None:
+        """Sync GameManager dynamics_config for OP4 so red speed is applied consistently."""
+        gm = getattr(self, "manager", None)
+        if gm is None or not hasattr(gm, "set_dynamics_config"):
+            return
+        cfg = dict(getattr(gm, "dynamics_config", None) or {})
+        cfg["red_speed_mult"] = 1.0
+        cfg["opponent_kind"] = "scripted"
+        cfg["opponent_key"] = str(mode).upper()
+        table = dict(cfg.get("scripted_speed_mult") or {})
+        table[str(mode).upper()] = 1.0  # speed already in move_rate_cps at spawn
+        cfg["scripted_speed_mult"] = table
+        gm.set_dynamics_config(cfg)
 
     def set_policy_wrapper(self, side: str, wrapper: Optional[Callable[..., Any]]) -> None:
         side = str(side).lower()
