@@ -1689,6 +1689,7 @@ class CTFViewer:
         red_model_path: Optional[str] = None,
         red_species_tag: Optional[str] = None,  # If set, red uses species (BALANCED/RUSHER/CAMPER) via wrapper; overrides opponent for policy
         episode_seeds: Optional[List[int]] = None,
+        quiet: bool = False,
     ) -> Dict[str, Any]:
         """
         Evaluate trained model performance by running N episodes and collecting IROS-style metrics.
@@ -1702,39 +1703,48 @@ class CTFViewer:
             red_model_path: If set, red uses this learned PPO (.zip) instead of scripted opponent (cross-play).
             red_species_tag: If set, red uses species playstyle (BALANCED, RUSHER, CAMPER) via scripted wrapper.
             episode_seeds: If set, use these seeds (one per episode) for reproducible varied initial states; len should be >= num_episodes.
+            quiet: If True, suppress progress and mode prints (for batch eval).
 
         Returns:
             Dict with summary statistics and per-episode metrics
         """
-        if not headless:
-            print(f"[Eval] Running {num_episodes} episodes with display. Press ESC to stop early.")
-        else:
-            print(f"[Eval] Running {num_episodes} episodes headless...")
+        if not quiet:
+            if not headless:
+                print(f"[Eval] Running {num_episodes} episodes with display. Press ESC to stop early.")
+            else:
+                print(f"[Eval] Running {num_episodes} episodes headless...")
 
         # Use requested model or first loaded
         want = (eval_model or "").strip().upper()
         if want == "PPO" and self.blue_ppo_team and self.blue_ppo_team.model_loaded:
             self._apply_blue_mode("PPO")
-            print("[Eval] Using PPO for evaluation")
+            if not quiet:
+                print("[Eval] Using PPO for evaluation")
         elif want == "MAPPO" and self.blue_mappo_team and self.blue_mappo_team.model_loaded:
             self._apply_blue_mode("MAPPO")
-            print("[Eval] Using MAPPO for evaluation")
+            if not quiet:
+                print("[Eval] Using MAPPO for evaluation")
         elif want == "HPPO" and self.blue_hppo_team and self.blue_hppo_team.model_loaded:
             self._apply_blue_mode("HPPO")
-            print("[Eval] Using HPPO for evaluation")
+            if not quiet:
+                print("[Eval] Using HPPO for evaluation")
         elif self.blue_mode == "DEFAULT":
             if self.blue_ppo_team and self.blue_ppo_team.model_loaded:
                 self._apply_blue_mode("PPO")
-                print("[Eval] Switched to PPO mode for evaluation")
+                if not quiet:
+                    print("[Eval] Switched to PPO mode for evaluation")
             elif self.blue_mappo_team and self.blue_mappo_team.model_loaded:
                 self._apply_blue_mode("MAPPO")
-                print("[Eval] Switched to MAPPO mode for evaluation")
+                if not quiet:
+                    print("[Eval] Switched to MAPPO mode for evaluation")
             elif self.blue_hppo_team and self.blue_hppo_team.model_loaded:
                 self._apply_blue_mode("HPPO")
-                print("[Eval] Switched to HPPO mode for evaluation")
+                if not quiet:
+                    print("[Eval] Switched to HPPO mode for evaluation")
             else:
-                print("[WARN] No trained model loaded! Using DEFAULT baseline.")
-        if eval_model and self.blue_mode == "DEFAULT":
+                if not quiet:
+                    print("[WARN] No trained model loaded! Using DEFAULT baseline.")
+        if eval_model and self.blue_mode == "DEFAULT" and not quiet:
             print(f"[WARN] Requested model '{eval_model}' not loaded; using DEFAULT baseline.")
 
         # Set red: learned model (cross-play), species wrapper, or scripted
