@@ -261,8 +261,8 @@ def main():
         "--opponent",
         type=str,
         default="OP3",
-        choices=["OP1", "OP2", "OP3", "NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED"],
-        help="Opponent to test against (default: OP3). Use NAVAL_* for held-out naval opponents."
+        choices=["OP1", "OP2", "OP3", "INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH"],
+        help="Opponent to test against (default: OP3). Use sharpened names for held-out tough test."
     )
     parser.add_argument(
         "--headless",
@@ -276,9 +276,9 @@ def main():
         help="Base seed for episode_seeds (default: 42); same N seeds used for both models"
     )
     parser.add_argument(
-        "--naval",
+        "--sharpened",
         action="store_true",
-        help="Run comparison vs all three naval opponents (NAVAL_DEFENDER, NAVAL_RUSHER, NAVAL_BALANCED); same seeds per opponent"
+        help="Run comparison vs all four sharpened opponents (INTERCEPTOR, MINELAYER, CAMPER_ROTATE, BAIT_SWITCH); same seeds per opponent"
     )
     parser.add_argument(
         "--league-vs-noleague-red",
@@ -296,16 +296,16 @@ def main():
         print(f"[ERROR] No-league model not found: {args.no_league_model}")
         sys.exit(1)
     
-    NAVAL_OPPONENTS = ("NAVAL_DEFENDER", "NAVAL_RUSHER", "NAVAL_BALANCED")
+    SHARPENED_OPPONENTS = ("INTERCEPTOR", "MINELAYER", "CAMPER_ROTATE", "BAIT_SWITCH")
     
-    if getattr(args, "naval", False):
-        # Test vs all three naval opponents (same seeds for both models per opponent)
+    if getattr(args, "sharpened", False):
+        # Test vs all four sharpened opponents (same seeds for both models per opponent)
         print("\n" + "=" * 60)
-        print("COMPARISON VS NAVAL OPPONENTS (held-out, physics on)")
+        print("COMPARISON VS SHARPENED OPPONENTS (held-out, physics on)")
         print("=" * 60)
         all_results = {}
-        for opp in NAVAL_OPPONENTS:
-            offset = 1000 * (NAVAL_OPPONENTS.index(opp) + 1)
+        for opp in SHARPENED_OPPONENTS:
+            offset = 1000 * (SHARPENED_OPPONENTS.index(opp) + 1)
             episode_seeds = [args.seed + offset + i for i in range(args.episodes)]
             all_results[opp] = run_comparison_test(
                 league_model_path=args.league_model,
@@ -317,11 +317,11 @@ def main():
             )
         # Summary table
         print("\n" + "=" * 60)
-        print("LEAGUE vs NO-LEAGUE vs NAVAL OPPONENTS (same setting)")
+        print("LEAGUE vs NO-LEAGUE vs SHARPENED OPPONENTS (same setting)")
         print("=" * 60)
         print(f"{'Opponent':<20} {'League WR':>10} {'No-League WR':>12} {'Diff (L-NL)':>12}")
         print("-" * 60)
-        for opp in NAVAL_OPPONENTS:
+        for opp in SHARPENED_OPPONENTS:
             r = all_results.get(opp, {})
             lw = r.get("league", {}).get("win_rate", 0.0)
             nw = r.get("no_league", {}).get("win_rate", 0.0)
@@ -339,7 +339,7 @@ def main():
         print("=" * 60)
         has_error = any(
             "error" in all_results.get(opp, {}).get("league", {}) or "error" in all_results.get(opp, {}).get("no_league", {})
-            for opp in NAVAL_OPPONENTS
+            for opp in SHARPENED_OPPONENTS
         )
     else:
         # Single opponent (default or --opponent)
