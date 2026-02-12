@@ -176,6 +176,35 @@ def main() -> None:
                 ])
     print(f"Results saved to {csv_path}\n")
 
+    # ------------------------------------------------------------------
+    # Compact research-style summary (per-baseline OP3/OP4 performance)
+    # ------------------------------------------------------------------
+    def _safe_wr(d: Dict[str, Any]) -> float:
+        return float(d.get("win_rate", 0.0)) if not d.get("error") else float("nan")
+
+    print("Research-style summary (Performance & Robustness)")
+    print("-" * 70)
+
+    # Performance & Robustness (success vs OP3 / OP4 and generalization drop)
+    if args.op4_only:
+        for key in BASELINE_MODEL_PATHS:
+            name = DISPLAY_NAMES.get(key, key)
+            r2 = op4_results.get(key, {})
+            wr2 = _safe_wr(r2)
+            print(f"  {name}: win rate vs OP4 = {wr2:.1%}")
+    else:
+        for key in BASELINE_MODEL_PATHS:
+            name = DISPLAY_NAMES.get(key, key)
+            r1, r2 = op3.get(key, {}), op4_results.get(key, {})
+            wr1, wr2 = _safe_wr(r1), _safe_wr(r2)
+            if wr1 == wr1 and wr2 == wr2:
+                drop = wr1 - wr2
+                print(f"  {name}: OP3={wr1:.1%}, OP4={wr2:.1%}, generalization drop={drop:.1%}")
+            else:
+                print(f"  {name}: OP3/OP4 eval error (see CSV).")
+
+    print("-" * 70)
+
     # Optional plots
     if plt is not None:
         try:
