@@ -54,17 +54,29 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         assert len(vec_shape) == 2, f"tokenized vec must be (M, V), got {vec_shape}"
         M, C, H, W = grid_shape
         V = vec_shape[1]
-        single_grid = spaces.Box(
-            low=float(grid_space.low.min()) if hasattr(grid_space, "low") else 0.0,
-            high=float(grid_space.high.max()) if hasattr(grid_space, "high") else 1.0,
-            shape=(C, H, W),
-            dtype=grid_space.dtype,
-        )
+
         self._M = M
         self._V = V
-        self.cnn = NatureCNN(single_grid, features_dim=cnn_output_dim, normalized_image=normalized_image)
+
+        # If spatial grid is at least 3x3, use NatureCNN; otherwise fall back to simple flatten
+        if H >= 3 and W >= 3:
+            single_grid = spaces.Box(
+                low=float(grid_space.low.min()) if hasattr(grid_space, "low") else 0.0,
+                high=float(grid_space.high.max()) if hasattr(grid_space, "high") else 1.0,
+                shape=(C, H, W),
+                dtype=grid_space.dtype,
+            )
+            self.cnn = NatureCNN(single_grid, features_dim=cnn_output_dim, normalized_image=normalized_image)
+            self._use_cnn = True
+            cnn_latent_dim = cnn_output_dim
+        else:
+            # Grid is effectively a vector (e.g. 1x1); treat channels as features per token
+            self.cnn = None
+            self._use_cnn = False
+            cnn_latent_dim = C
+
         self.vec_dim = V
-        features_dim = M * cnn_output_dim + M * V
+        features_dim = M * cnn_latent_dim + M * V
         context_space = spaces_dict.get("context")
         self._context_dim = 0
         if context_space is not None and hasattr(context_space, "shape"):
@@ -77,10 +89,15 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         vec = observations["vec"]
         B, M = grid.shape[0], self._M
 
-        grid_flat = grid.reshape(B * M, *grid.shape[2:])
-        cnn_out = self.cnn(grid_flat)
-        D = cnn_out.shape[1]
-        cnn_out = cnn_out.reshape(B, M, D)
+        if self._use_cnn:
+            grid_flat = grid.reshape(B * M, *grid.shape[2:])
+            cnn_out = self.cnn(grid_flat)
+            D = cnn_out.shape[1]
+            cnn_out = cnn_out.reshape(B, M, D)
+        else:
+            # No CNN: just flatten channel dimension per token
+            D = grid.shape[2]  # channels C
+            cnn_out = grid.reshape(B, M, D)
 
         agent_mask = observations.get("agent_mask", None)
         if agent_mask is not None:
@@ -172,9 +189,8 @@ class PPOConfig:
     use_stable_marl_ppo: bool = True
     approx_kl_threshold: float = 0.05
     kl_guardrail_consecutive: int = 3
-    # Tokenized obs work well for variable/large team sizes (auto-enabled for max_blue_agents > 2,
-    # but we set it explicitly to make the intent clear for 4v4 experiments).
-    use_tokenized_obs: bool = True
+    # For now, keep standard (non-tokenized) CNN obs for 4v4 to avoid tiny 1x1 grids
+    use_tokenized_obs: bool = False
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -1234,7 +1250,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         pass
 
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
-    use_tokenized = bool(getattr(cfg, "use_tokenized_obs", False)) or (int(getattr(cfg, "max_blue_agents", 2)) > 2)
+    use_tokenized = bool(getattr(cfg, "use_tokenized_obs", False))
     if use_tokenized:
         policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
         policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
