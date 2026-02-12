@@ -152,7 +152,9 @@ class PPOConfig:
     eval_episodes: int = 6
     snapshot_every_episodes: int = 100
     league_max_snapshots: int = 25
-    enable_tensorboard: bool = True
+    # Disable TensorBoard by default to avoid dependency/version issues.
+    # Re-enable (True) if you install a compatible tensorboard+protobuf pair.
+    enable_tensorboard: bool = False
     enable_checkpoints: bool = False
     enable_eval: bool = False
 
@@ -1475,14 +1477,14 @@ def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3") -> str
     """Return a unique default run_tag per mode so runs don't overwrite each other."""
     m = str(mode).upper().strip()
     if m == TrainMode.CURRICULUM_LEAGUE.value:
-        return "ppo_league"
+        return "ppo_league_4v4"
     if m == TrainMode.CURRICULUM_NO_LEAGUE.value:
-        return "ppo_noleague"
+        return "ppo_paper_4v4"
     if m == TrainMode.FIXED_OPPONENT.value:
-        return f"ppo_fixed_{fixed_opponent_tag.lower()}"
+        return f"ppo_fixed_{fixed_opponent_tag.lower()}_4v4"
     if m == TrainMode.SELF_PLAY.value:
-        return "ppo_self_play"
-    return "ppo_run"
+        return "ppo_self_play_4v4"
+    return "ppo_run_4v4"
 
 
 if __name__ == "__main__":
