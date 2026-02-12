@@ -1,10 +1,10 @@
 """
-Self-play training using league-based snapshots (same as train_ppo.py SELF_PLAY mode).
+Self-play training using league-based snapshots with new 4v4/8v8 observation space.
 
 This script trains blue agents against a population of opponents:
 - Scripted opponents (OP3) for curriculum
-- Past snapshots of the learning agent (self-play)
-- Uses EloLeague for opponent management and snapshot tracking
+- Past snapshots of the learning agent (self-play) using new snapshot wrapper v2
+- Uses new snapshot_wrapper_v2 for 4v4/8v8 compatibility
 """
 
 from __future__ import annotations
@@ -18,16 +18,22 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
 
 from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
 from rl.common import env_seed, set_global_seed
-from rl.league import EloLeague
 from rl.episode_result import parse_episode_result
-from rl.train_ppo import TokenizedCombinedExtractor, MaskedMultiInputPolicy, SelfPlayCallback
+from rl.train_ppo import TokenizedCombinedExtractor, MaskedMultiInputPolicy
 from config import MAP_NAME, MAP_PATH
+
+# Import v2 snapshot wrapper for 4v4/8v8
+try:
+    from snapshot_wrapper_v2 import make_snapshot_wrapper_v2
+    HAS_V2_WRAPPER = True
+except ImportError:
+    HAS_V2_WRAPPER = False
+    print("[WARN] snapshot_wrapper_v2 not available; falling back to legacy wrapper")
 
 
 @dataclass
@@ -57,14 +63,169 @@ class SelfPlayConfig:
     max_blue_agents: int = 4
     use_tokenized_obs: bool = False
     
-    # Self-play snapshot management (same as train_ppo.py)
-    self_play_use_latest_snapshot: bool = True
+    # Self-play snapshot management
     self_play_snapshot_every_episodes: int = 25
     self_play_max_snapshots: int = 10  # Rolling window: keep only latest N snapshots
+    self_play_use_latest_snapshot: bool = True
+
+
+class SelfPlayCallbackV2(BaseCallback):
+    """
+    Self-play callback using new snapshot wrapper v2 for 4v4/8v8 compatibility.
+    
+    Manages snapshots and switches opponents using set_red_policy_wrapper directly,
+    bypassing the old league SNAPSHOT path.
+    """
+    
+    def __init__(self, cfg: SelfPlayConfig, verbose: int = 1):
+        super().__init__(verbose)
+        self.cfg = cfg
+        self.episode_idx = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.draw_count = 0
+        self._snapshot_paths: List[str] = []
+        self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 10)))
+        self._current_snapshot_path: Optional[str] = None
+        
+    def _enforce_snapshot_limit(self) -> None:
+        """Delete oldest snapshots when over limit."""
+        if self._max_snapshots <= 0:
+            return
+        while len(self._snapshot_paths) > self._max_snapshots:
+            old_path = self._snapshot_paths.pop(0)
+            try:
+                if old_path and os.path.exists(old_path):
+                    os.remove(old_path)
+                    if self.verbose:
+                        print(f"[Self-Play] Deleted old snapshot: {os.path.basename(old_path)}")
+            except Exception as exc:
+                if self.verbose:
+                    print(f"[WARN] Failed to delete snapshot {old_path}: {exc}")
+    
+    def _on_step(self) -> bool:
+        from rl.episode_result import parse_episode_result
+        
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+        
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+            info = infos[i] if i < len(infos) else {}
+            summary = parse_episode_result(info)
+            if summary is None:
+                continue
+            
+            self.episode_idx += 1
+            
+            # Parse actual game scores to determine result
+            blue_score = summary.blue_score
+            red_score = summary.red_score
+            
+            if blue_score > red_score:
+                result = "WIN"
+                self.win_count += 1
+            elif blue_score < red_score:
+                result = "LOSS"
+                self.loss_count += 1
+            else:
+                result = "DRAW"
+                self.draw_count += 1
+            
+            # Save snapshot periodically
+            if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
+                self._enforce_snapshot_limit()
+                slot = len(self._snapshot_paths) + 1
+                prefix = f"{self.cfg.run_tag}_selfplay_snapshot"
+                snap_path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_slot{slot:03d}")
+                try:
+                    self.model.save(snap_path)
+                    snap_path_zip = snap_path + ".zip"
+                    self._snapshot_paths.append(snap_path_zip)
+                    self._enforce_snapshot_limit()
+                    
+                    # Switch to this new snapshot as opponent
+                    self._switch_to_snapshot(snap_path_zip)
+                    
+                    if self.verbose:
+                        print(f"[Self-Play] Saved snapshot {slot}: {os.path.basename(snap_path_zip)}")
+                except Exception as exc:
+                    if self.verbose:
+                        print(f"[WARN] Snapshot save failed: {exc}")
+            
+            # Print progress
+            if self.verbose:
+                snapshot_count = len(self._snapshot_paths)
+                print(
+                    f"[PPO|SELF] ep={self.episode_idx} result={result} "
+                    f"score={blue_score}:{red_score} "
+                    f"snapshots={snapshot_count} "
+                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
+                )
+            
+            # Log metrics
+            self.logger.record("self/episode", self.episode_idx)
+            self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
+            self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
+            self.logger.record("self/snapshots", float(len(self._snapshot_paths)))
+        
+        return True
+    
+    def _switch_to_snapshot(self, snapshot_path: str) -> None:
+        """Switch red opponent to use the given snapshot (using v2 wrapper)."""
+        if not HAS_V2_WRAPPER:
+            if self.verbose:
+                print("[WARN] v2 wrapper not available; cannot use snapshot opponent")
+            return
+        
+        if not os.path.exists(snapshot_path):
+            if self.verbose:
+                print(f"[WARN] Snapshot not found: {snapshot_path}")
+            return
+        
+        try:
+            # Get environment to access game_field
+            env = self.model.get_env()
+            if env is None:
+                return
+            
+            # Get max_agents from config
+            max_agents = int(getattr(self.cfg, "max_blue_agents", 4))
+            
+            # Create v2 wrapper
+            wrapper = make_snapshot_wrapper_v2(
+                snapshot_path,
+                max_agents=max_agents,
+                n_macros=5,  # Default, should match training
+                n_targets=8,  # Default, should match training
+                include_mask_in_obs=True,
+                include_opponent_context=False,
+                normalize_vec=False,
+            )
+            
+            # Set red policy wrapper directly (bypasses league SNAPSHOT path)
+            try:
+                env.env_method("set_red_policy_wrapper", wrapper)
+            except Exception:
+                # Fallback: try per-env
+                for i in range(env.num_envs):
+                    try:
+                        env.env_method("set_red_policy_wrapper", wrapper, indices=[i])
+                    except Exception:
+                        pass
+            
+            self._current_snapshot_path = snapshot_path
+            
+        except Exception as e:
+            if self.verbose:
+                print(f"[WARN] Failed to switch to snapshot {snapshot_path}: {e}")
+                import traceback
+                traceback.print_exc()
 
 
 def _make_env_fn(cfg: SelfPlayConfig, default_opponent: tuple = ("SCRIPTED", "OP3"), rank: int = 0):
-    """Environment factory for self-play (same as train_ppo.py)."""
+    """Environment factory for self-play."""
     def _fn():
         s = env_seed(cfg.seed, rank)
         import numpy as np
@@ -99,34 +260,25 @@ def _make_env_fn(cfg: SelfPlayConfig, default_opponent: tuple = ("SCRIPTED", "OP
 
 def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     """
-    Train self-play using league-based snapshots (same as train_ppo.py SELF_PLAY mode).
+    Train self-play using new snapshot wrapper v2 for 4v4/8v8 compatibility.
     
     Blue learns against:
-    - Scripted opponents (OP3) for curriculum
-    - Past snapshots of itself (self-play)
-    - Uses EloLeague for opponent management
+    - Scripted opponents (OP3) initially
+    - Past snapshots of itself (self-play) using v2 wrapper
     """
     if cfg is None:
         cfg = SelfPlayConfig()
     
+    if not HAS_V2_WRAPPER:
+        raise RuntimeError(
+            "snapshot_wrapper_v2 is required for 4v4/8v8 self-play. "
+            "Please ensure snapshot_wrapper_v2.py exists and is importable."
+        )
+    
     set_global_seed(cfg.seed, torch_seed=True, deterministic=False)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
     
-    # Setup league (same as train_ppo.py SELF_PLAY mode)
-    league = EloLeague(
-        seed=cfg.seed,
-        k_factor=32.0,
-        matchmaking_tau=200.0,
-        scripted_floor=0.50,
-        species_prob=0.0,  # No species in self-play
-        snapshot_prob=0.0,  # Managed by callback
-        anchor_op3_prob=1.0,  # Start with OP3
-        species_rusher_bias=0.40,
-        use_stability_mix=False,
-        min_episodes_per_opponent=3,
-    )
-    
-    # Default opponent: OP3 (same as train_ppo.py SELF_PLAY)
+    # Default opponent: OP3
     default_opponent = ("SCRIPTED", "OP3")
     phase_name = "SELF_PLAY"
     
@@ -191,45 +343,34 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     else:
         model.set_logger(configure(None, []))
     
-    # Create initial snapshot (same as train_ppo.py)
+    # Create initial snapshot and set as opponent
     init_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_init")
     try:
         model.save(init_path)
-    except Exception as exc:
-        print(f"[WARN] self-play init snapshot save failed: {exc}")
-    else:
-        league.add_snapshot(init_path + ".zip")
-        init_key = league.latest_snapshot_key()
-        max_snaps = max(0, int(getattr(cfg, "self_play_max_snapshots", 10)))
-        if max_snaps > 0:
-            while len(league.snapshots) > max_snaps:
-                oldest = league.snapshots.pop(0)
-                try:
-                    if oldest and os.path.exists(oldest):
-                        os.remove(oldest)
-                except Exception as exc:
-                    print(f"[WARN] snapshot cleanup failed: {exc}")
-        if init_key:
+        init_path_zip = init_path + ".zip"
+        
+        # Switch to initial snapshot using v2 wrapper
+        if HAS_V2_WRAPPER:
+            wrapper = make_snapshot_wrapper_v2(
+                init_path_zip,
+                max_agents=cfg.max_blue_agents,
+                n_macros=5,
+                n_targets=8,
+                include_mask_in_obs=True,
+                include_opponent_context=False,
+                normalize_vec=False,
+            )
             try:
-                venv.env_method("set_next_opponent", "SNAPSHOT", init_key)
-                venv.reset()
+                venv.env_method("set_red_policy_wrapper", wrapper)
             except Exception:
                 pass
-    
-    # Create PPOConfig-like object for SelfPlayCallback
-    # (SelfPlayCallback expects a PPOConfig, so we create a minimal compatible object)
-    class PPOConfigCompat:
-        def __init__(self, cfg: SelfPlayConfig):
-            self.run_tag = cfg.run_tag
-            self.checkpoint_dir = cfg.checkpoint_dir
-            self.self_play_snapshot_every_episodes = cfg.self_play_snapshot_every_episodes
-            self.self_play_max_snapshots = cfg.self_play_max_snapshots
-            self.self_play_use_latest_snapshot = cfg.self_play_use_latest_snapshot
-    
-    ppo_cfg_compat = PPOConfigCompat(cfg)
+        
+        print(f"[Self-Play] Created initial snapshot: {os.path.basename(init_path_zip)}")
+    except Exception as exc:
+        print(f"[WARN] Initial snapshot creation failed: {exc}")
     
     # Callbacks
-    callbacks = [SelfPlayCallback(cfg=ppo_cfg_compat, league=league)]
+    callbacks = [SelfPlayCallbackV2(cfg=cfg)]
     
     if cfg.enable_checkpoints:
         callbacks.append(
@@ -245,6 +386,7 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     # Training
     print(f"[Self-Play] Starting training: {cfg.total_timesteps} total steps")
     print(f"[Self-Play] Snapshot every {cfg.self_play_snapshot_every_episodes} episodes, max {cfg.self_play_max_snapshots} snapshots")
+    print(f"[Self-Play] Using snapshot wrapper v2 for 4v4/8v8 compatibility")
     
     model.learn(
         total_timesteps=int(cfg.total_timesteps),
@@ -257,13 +399,13 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     model.save(final_path)
     print(f"[Self-Play] Training complete.")
     print(f"  Final model: {final_path}.zip")
-    print(f"  Snapshots: {len(league.snapshots)}")
+    print(f"  Snapshots created: {len(callbacks[0]._snapshot_paths)}")
 
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Train self-play (league-based with snapshots)")
+    parser = argparse.ArgumentParser(description="Train self-play (4v4/8v8 with snapshot wrapper v2)")
     parser.add_argument("--run-tag", type=str, default=None, help="Run name for checkpoints")
     parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
     parser.add_argument("--max-blue-agents", type=int, default=4, help="Number of agents per team")
