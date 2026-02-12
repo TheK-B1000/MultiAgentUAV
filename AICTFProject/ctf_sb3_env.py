@@ -614,7 +614,9 @@ class CTFGameFieldSB3Env(gym.Env):
         delta_ce = max(0, current_ce - getattr(self, "_prev_collision_events", 0))
         self._prev_collision_events = current_ce
         if delta_ce > 0:
-            collision_penalty_enter = -0.02 * float(delta_ce)  # small per enter-event penalty
+            # Stronger enter-collision penalty so boats learn to avoid both blue–blue and blue–red contact.
+            # Tuning knob: make |coef| larger for stricter collision avoidance.
+            collision_penalty_enter = -0.10 * float(delta_ce)
         team_total_step = float(reward_events_total) + float(stall_total) + collision_penalty_enter + auxiliary_progress
         # So per_agent sums to team_total: add each agent's share of (ε*mean(progress)-sum(progress)) and collision
         sum_progress = sum(progress_list) if progress_list else 0.0
