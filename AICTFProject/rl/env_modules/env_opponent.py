@@ -24,6 +24,14 @@ except Exception:
 
 from red_opponents import make_species_wrapper, make_snapshot_wrapper
 
+# Try to import v2 wrapper for 4v4/8v8 support
+try:
+    from snapshot_wrapper_v2 import make_snapshot_wrapper_v2
+    _HAS_V2_WRAPPER = True
+except ImportError:
+    _HAS_V2_WRAPPER = False
+    make_snapshot_wrapper_v2 = None
+
 # Step 4.1: max opponent context id (stable int in [0, MAX_OPPONENT_CONTEXT_IDS-1])
 MAX_OPPONENT_CONTEXT_IDS = 256
 
@@ -98,7 +106,41 @@ class EnvOpponentManager:
         self._opponent_scripted_tag = "OP3"
         if game_field is None:
             return
-        wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
+        
+        # Use v2 wrapper for 4v4/8v8 (new obs space), v1 for 2v2 (legacy)
+        # Detect agent count from game_field
+        max_agents = int(getattr(game_field, "agents_per_team", 2) or 2)
+        # Also check red_agents count as fallback (more reliable for 4v4/8v8)
+        if hasattr(game_field, "red_agents"):
+            red_agents = getattr(game_field, "red_agents", []) or []
+            red_count = len([a for a in red_agents if a is not None])
+            if red_count > 2:
+                max_agents = max(max_agents, red_count)
+        # Also check blue_agents count (for consistency)
+        if hasattr(game_field, "blue_agents"):
+            blue_agents = getattr(game_field, "blue_agents", []) or []
+            blue_count = len([a for a in blue_agents if a is not None])
+            if blue_count > 2:
+                max_agents = max(max_agents, blue_count)
+        
+        if _HAS_V2_WRAPPER and max_agents > 2:
+            # Use v2 wrapper for 4v4/8v8
+            try:
+                wrapper = make_snapshot_wrapper_v2(
+                    self._opponent_snapshot_path,
+                    max_agents=max_agents,
+                    n_macros=int(getattr(game_field, "num_macro_actions", 5) or 5),
+                    n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+                )
+            except Exception as e:
+                print(f"[WARN] Failed to load snapshot with v2 wrapper: {e}; falling back to v1")
+                import traceback
+                traceback.print_exc()
+                wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
+        else:
+            # Use v1 wrapper for 2v2 (legacy compatibility)
+            wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
+        
         game_field.set_red_policy_wrapper(wrapper)
 
     def _opponent_context_id(self) -> int:
