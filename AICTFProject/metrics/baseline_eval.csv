@@ -1,5 +1,5 @@
 baseline,op3_win_rate,op3_wins,op3_losses,op3_draws,op4_win_rate,op4_wins,op4_losses,op4_draws
-Fixed OP3,0.994,497,3,0,0.46,230,270,0
-No-League,0.934,467,33,0,0.312,156,344,0
-League,0.972,486,14,0,0.514,257,243,0
-Self-Play,0.998,499,1,0,0.434,217,283,0
+Fixed OP3,0.99,99,1,0,0.54,54,46,0
+Paper,0.89,89,11,0,0.31,31,69,0
+League,1.0,100,0,0,0.55,55,45,0
+Self-Play,1.0,100,0,0,0.39,39,61,0
