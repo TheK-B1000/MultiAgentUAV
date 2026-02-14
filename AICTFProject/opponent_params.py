@@ -25,17 +25,20 @@ def sample_opponent_params(
     key: str,
     phase: str = "OP3",
     rng: Optional[random.Random] = None,
+    n_agents: int = 2,
 ) -> OpponentParams:
     """
     Sample OpponentParams for (kind, key). Per-episode speed_mult by phase.
     kind: "SCRIPTED" | "SPECIES" | "SNAPSHOT"
     key: e.g. "OP1", "OP2", "OP3", "RUSHER", "CAMPER", "BALANCED", or snapshot path label
     phase: curriculum phase (OP1/OP2/OP3) for speed_mult distribution.
+    n_agents: agents per team (2=2v2, 4=4v4). When >2, OP3 is scaled down so Blue has a fairer fight.
     """
     rng = rng or random.Random()
     kind = str(kind).upper()
     key = str(key).upper()
     phase = str(phase).upper()
+    n_agents = max(1, int(n_agents))
 
     # Speed variation: per-episode multiplier by phase
     if phase == "OP1":
@@ -50,6 +53,9 @@ def sample_opponent_params(
     attack_sync_window = 0
     noise_sigma = 0.0
 
+    # 4v4/8v8: scale down OP3 so scripted Red is not overwhelming (same logic as 2v2 OP2-ish)
+    op3_easy = n_agents > 2
+
     if kind == "SCRIPTED":
         if key == "OP1":
             deception_prob = 0.0
@@ -62,11 +68,19 @@ def sample_opponent_params(
             attack_sync_window = 0
             noise_sigma = rng.uniform(0.0, 0.05)
         elif key == "OP3":
-            # Standard OP3
-            deception_prob = rng.uniform(0.1, 0.35)
-            coordinated_attack = rng.random() < 0.5
-            attack_sync_window = rng.randint(3, 8) if coordinated_attack else rng.randint(3, 6)
-            noise_sigma = rng.uniform(0.0, 0.08)
+            if op3_easy:
+                # 4v4/8v8: easier OP3 — lower speed, less deception, less coordination
+                speed_mult = rng.uniform(0.88, 1.08)
+                deception_prob = rng.uniform(0.05, 0.18)
+                coordinated_attack = rng.random() < 0.25
+                attack_sync_window = rng.randint(2, 5) if coordinated_attack else rng.randint(2, 4)
+                noise_sigma = rng.uniform(0.0, 0.04)
+            else:
+                # Standard OP3 (2v2)
+                deception_prob = rng.uniform(0.1, 0.35)
+                coordinated_attack = rng.random() < 0.5
+                attack_sync_window = rng.randint(3, 8) if coordinated_attack else rng.randint(3, 6)
+                noise_sigma = rng.uniform(0.0, 0.08)
         else:
             deception_prob = rng.uniform(0.05, 0.25)
             coordinated_attack = rng.random() < 0.4
