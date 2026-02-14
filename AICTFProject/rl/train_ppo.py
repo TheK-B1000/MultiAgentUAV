@@ -2,9 +2,16 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
+
+# Add parent directory to path so imports work regardless of where script is run from
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
+if _PARENT_DIR not in sys.path:
+    sys.path.insert(0, _PARENT_DIR)
 
 import numpy as np
 
@@ -222,7 +229,7 @@ def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int
             include_opponent_context=getattr(cfg, "include_opponent_context", False),
             obs_debug_validate_locality=getattr(cfg, "obs_debug_validate_locality", False),
             normalize_vec=getattr(cfg, "normalize_vec", False),
-            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.15),
+            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.22),
         )
         return env
     return _fn
@@ -1200,12 +1207,28 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     # Elo margin only applies in league mode (after OP3 gate); set to 0 for curriculum phases
     # In CURRICULUM_LEAGUE, Elo check is skipped during curriculum phases (OP1/OP2/OP3) via dummy ratings
     elo_margin = 80.0 if mode == TrainMode.CURRICULUM_LEAGUE.value else 0.0
+
+    # 4v4/8v8: same curriculum bar is harder (red has more agents too; blue coordination is harder).
+    # Use relaxed win-rate gates, more episodes, and more total timesteps so all baselines (Paper, League, Fixed) can succeed.
+    max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    if max_agents > 2:
+        _min_episodes = {"OP1": 350, "OP2": 300, "OP3": 350}
+        _min_winrate = {"OP1": 0.70, "OP2": 0.65, "OP3": 0.80}
+        _winrate_window_by_phase = {"OP1": 80, "OP2": 80, "OP3": 120}
+        if cfg.total_timesteps < 6_000_000:
+            cfg.total_timesteps = 6_000_000
+            print(f"[PPO] 4v4: using total_timesteps={cfg.total_timesteps} for better convergence")
+    else:
+        _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
+        _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
+        _winrate_window_by_phase = {"OP1": 50, "OP2": 50, "OP3": 100}
+
     curriculum_config = CurriculumConfig(
         phases=["OP1", "OP2", "OP3"],
-        min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-        min_winrate={"OP1": 1.00, "OP2": 0.90, "OP3": 0.80},  # OP1: 100%, OP2: 90%, OP3: 80%
+        min_episodes=_min_episodes,
+        min_winrate=_min_winrate,
         winrate_window=100,
-        winrate_window_by_phase={"OP1": 50, "OP2": 50, "OP3": 100},
+        winrate_window_by_phase=_winrate_window_by_phase,
         required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
         elo_margin=elo_margin,
         switch_to_league_after_op3_win=(mode == TrainMode.CURRICULUM_LEAGUE.value),
@@ -1277,6 +1300,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         ent_coef = ent_coef * 0.5
         clip_range = clip_range * 0.75
         print(f"[PPO] Using reduced aggressiveness: LR={learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={clip_range:.2f}")
+
+    # 4v4/8v8: gentler LR to reduce KL spikes and stabilize (scripted OP3 also scaled down in opponent_params)
+    max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    if max_agents > 2:
+        learning_rate = learning_rate * 0.75
+        print(f"[PPO] 4v4: using lr={learning_rate:.2e} for stability")
     
     model = PPO(
         policy=MaskedMultiInputPolicy,
@@ -1403,7 +1432,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
 
-    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}")
+    # 4v4/8v8: save to a distinct file so we never overwrite 2v2 final_ppo_league.zip
+    max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    suffix = "_4v4" if (max_agents > 2 and not cfg.run_tag.endswith("_4v4")) else ""
+    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}{suffix}")
     model.save(final_path)
     print(f"[PPO] Training complete. Final model saved to: {final_path}.zip")
 
@@ -1502,6 +1534,7 @@ if __name__ == "__main__":
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
+        parser.add_argument("--max-blue-agents", type=int, default=None, help="Number of agents per team (default: 4 for 4v4)")
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:
@@ -1514,4 +1547,9 @@ if __name__ == "__main__":
             cfg.total_timesteps = args.total_steps
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
+        if args.max_blue_agents is not None:
+            n = max(1, min(int(args.max_blue_agents), 16))
+            if n != int(args.max_blue_agents):
+                print(f"[PPO] --max-blue-agents {args.max_blue_agents} out of range; clamped to {n} (max 16).")
+            cfg.max_blue_agents = n
         train_ppo(cfg)
