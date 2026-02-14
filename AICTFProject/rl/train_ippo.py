@@ -460,15 +460,26 @@ def train_ippo(cfg: Optional[IPPOConfig] = None) -> None:
         snapshot_prob=0.30,
     )
     
+    # 4v4/8v8: use relaxed curriculum (same as PPO) so IPPO can advance
+    max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    if max_agents > 2:
+        _min_episodes = {"OP1": 350, "OP2": 300, "OP3": 350}
+        _min_winrate = {"OP1": 0.70, "OP2": 0.65, "OP3": 0.80}
+        _winrate_window = 80
+    else:
+        _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
+        _min_winrate = {"OP1": 0.50, "OP2": 0.50, "OP3": 0.55}
+        _winrate_window = 50
+
     curriculum: Optional[CurriculumState] = None
     controller: Optional[CurriculumController] = None
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.50, "OP2": 0.50, "OP3": 0.55},
-                winrate_window=50,
+                min_episodes=_min_episodes,
+                min_winrate=_min_winrate,
+                winrate_window=_winrate_window,
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
@@ -482,9 +493,9 @@ def train_ippo(cfg: Optional[IPPOConfig] = None) -> None:
         curriculum = CurriculumState(
             CurriculumConfig(
                 phases=["OP1", "OP2", "OP3"],
-                min_episodes={"OP1": 200, "OP2": 200, "OP3": 250},
-                min_winrate={"OP1": 0.50, "OP2": 0.50, "OP3": 0.55},
-                winrate_window=50,
+                min_episodes=_min_episodes,
+                min_winrate=_min_winrate,
+                winrate_window=_winrate_window,
                 required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
                 elo_margin=80.0,
                 switch_to_league_after_op3_win=False,
