@@ -14,6 +14,12 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+# Add parent directory to path so imports work regardless of where script is run from
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
+if _PARENT_DIR not in sys.path:
+    sys.path.insert(0, _PARENT_DIR)
+
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback
@@ -64,9 +70,13 @@ class SelfPlayConfig:
     use_tokenized_obs: bool = False
     
     # Self-play snapshot management
-    self_play_snapshot_every_episodes: int = 25
+    self_play_snapshot_every_episodes: int = 50  # 4v4: less frequent so red is slightly older, blue wins more
     self_play_max_snapshots: int = 10  # Rolling window: keep only latest N snapshots
     self_play_use_latest_snapshot: bool = True
+
+    # 4v4 warmup: train vs scripted OP1 for N episodes before self-play (avoids getting wrecked from ep 1)
+    warmup_opponent: str = "OP1"
+    warmup_episodes: int = 200
 
 
 class SelfPlayCallbackV2(BaseCallback):
@@ -75,9 +85,17 @@ class SelfPlayCallbackV2(BaseCallback):
     
     Manages snapshots and switches opponents using set_red_policy_wrapper directly,
     bypassing the old league SNAPSHOT path.
+    Supports warmup: vs scripted opponent for warmup_episodes, then switch to snapshot.
     """
     
-    def __init__(self, cfg: SelfPlayConfig, verbose: int = 1):
+    def __init__(
+        self,
+        cfg: SelfPlayConfig,
+        *,
+        init_snapshot_path: Optional[str] = None,
+        warmup_episodes: int = 0,
+        verbose: int = 1,
+    ):
         super().__init__(verbose)
         self.cfg = cfg
         self.episode_idx = 0
@@ -87,6 +105,9 @@ class SelfPlayCallbackV2(BaseCallback):
         self._snapshot_paths: List[str] = []
         self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 10)))
         self._current_snapshot_path: Optional[str] = None
+        self._init_snapshot_path = init_snapshot_path
+        self._warmup_episodes = max(0, int(warmup_episodes))
+        self._warmup_done = False
         
     def _enforce_snapshot_limit(self) -> None:
         """Delete oldest snapshots when over limit."""
@@ -118,6 +139,18 @@ class SelfPlayCallbackV2(BaseCallback):
                 continue
             
             self.episode_idx += 1
+
+            # After warmup: switch from scripted opponent to initial snapshot (self-play)
+            if (
+                self._warmup_episodes > 0
+                and not self._warmup_done
+                and self.episode_idx >= self._warmup_episodes
+            ):
+                self._warmup_done = True
+                if self._init_snapshot_path and os.path.exists(self._init_snapshot_path):
+                    self._switch_to_snapshot(self._init_snapshot_path)
+                    if self.verbose:
+                        print(f"[Self-Play] Warmup done (ep {self.episode_idx}). Switched to self-play (initial snapshot).")
             
             # Parse actual game scores to determine result
             blue_score = summary.blue_score
@@ -133,8 +166,8 @@ class SelfPlayCallbackV2(BaseCallback):
                 result = "DRAW"
                 self.draw_count += 1
             
-            # Save snapshot periodically
-            if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
+            # Save snapshot periodically (only after warmup; during warmup red is scripted)
+            if self._warmup_done and (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
                 self._enforce_snapshot_limit()
                 slot = len(self._snapshot_paths) + 1
                 prefix = f"{self.cfg.run_tag}_selfplay_snapshot"
@@ -252,7 +285,7 @@ def _make_env_fn(cfg: SelfPlayConfig, default_opponent: tuple = ("SCRIPTED", "OP
             include_opponent_context=False,
             obs_debug_validate_locality=False,
             normalize_vec=False,
-            auxiliary_progress_scale=0.15,
+            auxiliary_progress_scale=0.22,
         )
         return env
     return _fn
@@ -277,9 +310,11 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     
     set_global_seed(cfg.seed, torch_seed=True, deterministic=False)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
-    
-    # Default opponent: OP3
-    default_opponent = ("SCRIPTED", "OP3")
+
+    warmup_episodes = max(0, int(getattr(cfg, "warmup_episodes", 0)))
+    warmup_opponent = str(getattr(cfg, "warmup_opponent", "OP1")).upper()
+    # During warmup, red = scripted (OP1); after warmup, red = snapshot
+    default_opponent = ("SCRIPTED", warmup_opponent) if warmup_episodes > 0 else ("SCRIPTED", "OP3")
     phase_name = "SELF_PLAY"
     
     # Create environments
@@ -343,14 +378,13 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     else:
         model.set_logger(configure(None, []))
     
-    # Create initial snapshot and set as opponent
+    # Create initial snapshot; set as red only if no warmup (otherwise red stays scripted until warmup_episodes)
     init_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_init")
+    init_path_zip = None
     try:
         model.save(init_path)
         init_path_zip = init_path + ".zip"
-        
-        # Switch to initial snapshot using v2 wrapper
-        if HAS_V2_WRAPPER:
+        if warmup_episodes == 0 and HAS_V2_WRAPPER:
             wrapper = make_snapshot_wrapper_v2(
                 init_path_zip,
                 max_agents=cfg.max_blue_agents,
@@ -364,13 +398,19 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
                 venv.env_method("set_red_policy_wrapper", wrapper)
             except Exception:
                 pass
-        
-        print(f"[Self-Play] Created initial snapshot: {os.path.basename(init_path_zip)}")
+        print(f"[Self-Play] Created initial snapshot: {os.path.basename(init_path_zip)}"
+              + (f" (red = scripted {warmup_opponent} for first {warmup_episodes} eps)" if warmup_episodes > 0 else " (red = this snapshot)"))
     except Exception as exc:
         print(f"[WARN] Initial snapshot creation failed: {exc}")
     
     # Callbacks
-    callbacks = [SelfPlayCallbackV2(cfg=cfg)]
+    callbacks = [
+        SelfPlayCallbackV2(
+            cfg=cfg,
+            init_snapshot_path=init_path_zip,
+            warmup_episodes=warmup_episodes,
+        )
+    ]
     
     if cfg.enable_checkpoints:
         callbacks.append(
@@ -385,6 +425,8 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     
     # Training
     print(f"[Self-Play] Starting training: {cfg.total_timesteps} total steps")
+    if warmup_episodes > 0:
+        print(f"[Self-Play] Warmup: first {warmup_episodes} episodes vs scripted {warmup_opponent}, then self-play")
     print(f"[Self-Play] Snapshot every {cfg.self_play_snapshot_every_episodes} episodes, max {cfg.self_play_max_snapshots} snapshots")
     print(f"[Self-Play] Using snapshot wrapper v2 for 4v4/8v8 compatibility")
     
@@ -411,6 +453,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-blue-agents", type=int, default=4, help="Number of agents per team")
     parser.add_argument("--snapshot-every", type=int, default=25, help="Episodes between snapshots")
     parser.add_argument("--max-snapshots", type=int, default=10, help="Max snapshots to keep (rolling window)")
+    parser.add_argument("--warmup-episodes", type=int, default=None, help="Episodes vs scripted before self-play (default 200)")
+    parser.add_argument("--warmup-opponent", type=str, default=None, help="Scripted opponent during warmup (default OP1)")
     args = parser.parse_args()
     
     cfg = SelfPlayConfig()
@@ -419,10 +463,17 @@ if __name__ == "__main__":
     if args.total_steps is not None:
         cfg.total_timesteps = args.total_steps
     if args.max_blue_agents is not None:
-        cfg.max_blue_agents = args.max_blue_agents
+        n = max(1, min(int(args.max_blue_agents), 16))
+        if n != int(args.max_blue_agents):
+            print(f"[Self-Play] --max-blue-agents {args.max_blue_agents} out of range; clamped to {n} (max 16).")
+        cfg.max_blue_agents = n
     if args.snapshot_every is not None:
         cfg.self_play_snapshot_every_episodes = args.snapshot_every
     if args.max_snapshots is not None:
         cfg.self_play_max_snapshots = args.max_snapshots
-    
+    if args.warmup_episodes is not None:
+        cfg.warmup_episodes = args.warmup_episodes
+    if args.warmup_opponent is not None:
+        cfg.warmup_opponent = args.warmup_opponent
+
     train_self_play(cfg)
