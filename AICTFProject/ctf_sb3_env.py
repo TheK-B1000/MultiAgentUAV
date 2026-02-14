@@ -88,7 +88,7 @@ class CTFGameFieldSB3Env(gym.Env):
         normalize_vec: bool = False,
         validate_contracts: bool = False,
         # Fix 3.1/3.2: Dense progress shaping scale (ε); team_total += ε * mean(per_agent_progress)
-        auxiliary_progress_scale: float = 0.1,
+        auxiliary_progress_scale: float = 0.2,
     ):
         super().__init__()
         self.make_game_field_fn = make_game_field_fn
@@ -134,7 +134,8 @@ class CTFGameFieldSB3Env(gym.Env):
         self._decision_step_count = 0
 
         # max_blue_agents: 2 = legacy 2v2; >2 = tokenized for zero-shot (train 2v2, test 4v4/8v8)
-        self._max_blue_agents = max(2, int(max_blue_agents))
+        # Cap at 16 to avoid typos (e.g. 48555555) causing OOM
+        self._max_blue_agents = max(2, min(int(max_blue_agents), 16))
         self._n_blue_agents = min(2, self._max_blue_agents)  # actual count set at reset from options
 
         # Must match GameField.build_continuous_features() default
@@ -323,7 +324,7 @@ class CTFGameFieldSB3Env(gym.Env):
     # -------------
 
     def _compute_dense_progress_rewards(self) -> List[float]:
-        """Fix 3.1: Per-agent dense progress: +0.01 when moving closer to assigned target (flag/home)."""
+        """Fix 3.1: Per-agent dense progress when moving closer to target (flag/home). Stronger signal for offense/defense."""
         progress_list: List[float] = []
         gf = self.gf
         gm = getattr(gf, "manager", None) if gf else None
@@ -354,7 +355,7 @@ class CTFGameFieldSB3Env(gym.Env):
                         curr_dist = math.dist((float(pos[0]), float(pos[1])), (float(target[0]), float(target[1])))
                         last = last_dists[i] if i < len(last_dists) else None
                         if last is not None and curr_dist < last:
-                            progress_i = 0.01
+                            progress_i = 0.02  # stronger per-step progress (was 0.01) for offense/defense
                         last_dists[i] = curr_dist
                     except Exception:
                         last_dists[i] = last_dists[i] if i < len(last_dists) else None
@@ -371,8 +372,8 @@ class CTFGameFieldSB3Env(gym.Env):
         self.gf = self.make_game_field_fn()
         self.gf.obs_debug_validate_locality = self._obs_debug_validate_locality
 
-        # n_agents: 2 = legacy 2v2; 4/8 for zero-shot (train 2v2, test 4v4/8v8)
-        n_agents_option = 2
+        # n_agents: 2 = legacy 2v2; 4/8 for 4v4/8v8 (use _max_blue_agents when options has no n_agents)
+        n_agents_option = self._max_blue_agents if self._max_blue_agents > 2 else 2
         if options and isinstance(options.get("n_agents"), (int, float)):
             n_agents_option = min(self._max_blue_agents, max(1, int(options["n_agents"])))
         try:
