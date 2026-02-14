@@ -190,12 +190,13 @@ class EnvOpponentManager:
         elif kind == "SNAPSHOT":
             self.set_opponent_snapshot(key, game_field)
 
-        # Apply OpponentParams (speed multipliers, etc.)
+        # Apply OpponentParams (speed multipliers, etc.); 4v4 uses easier OP3 via n_agents
         try:
             from opponent_params import sample_opponent_params
             phase = str(phase_name).upper()
             rng = __import__("random").Random(int(seed) + 1)
-            params = sample_opponent_params(kind=kind, key=key, phase=phase, rng=rng)
+            n_agents = int(getattr(game_field, "agents_per_team", 2))
+            params = sample_opponent_params(kind=kind, key=key, phase=phase, rng=rng, n_agents=n_agents)
             if hasattr(game_field, "set_opponent_params"):
                 game_field.set_opponent_params(params)
         except Exception:
