@@ -6,49 +6,53 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 # -------------------------
 # Reward constants (baseline)
+# Tuned to encourage offense, defense, and teamwork (especially for 4v4).
 # -------------------------
 
-WIN_TEAM_REWARD = 5.0
-LOSE_TEAM_PUNISH = -5.0  # symmetric terminal signal for the losing team
-DRAW_TEAM_PENALTY = -1.0
+# Terminal: strong signal so policy learns to win
+WIN_TEAM_REWARD = 8.0
+LOSE_TEAM_PUNISH = -8.0  # symmetric terminal signal for the losing team
+DRAW_TEAM_PENALTY = -2.0
 
-FLAG_PICKUP_REWARD = 1.0
-FLAG_CARRY_HOME_REWARD = 5.0
+# Offense: capturing and carrying flag
+FLAG_PICKUP_REWARD = 1.5
+FLAG_CARRY_HOME_REWARD = 7.0
 ENEMY_MAV_KILL_REWARD = 2.0
 ACTION_FAILED_PUNISHMENT = -0.5
 
 FLAG_RETURN_DELAY = 10.0
 
 # PBRS (potential based reward shaping): F = coef * (gamma * Phi(s') - Phi(s))
-FLAG_PROXIMITY_COEF = 0.35
+FLAG_PROXIMITY_COEF = 0.45
 DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env binding
-DEFENSE_SHAPING_MULT = 2.0
-DEFENSE_CARRIER_PROGRESS_COEF = 0.15
+DEFENSE_SHAPING_MULT = 2.5
+DEFENSE_CARRIER_PROGRESS_COEF = 0.25
 
 # Sprint A: Minimal shaping rewards (progress-to-flag/home)
-PROGRESS_TO_FLAG_COEF = 0.05  # Small reward for moving toward enemy flag
-PROGRESS_TO_HOME_COEF = 0.05  # Small reward for moving toward home (when carrying flag)
+PROGRESS_TO_FLAG_COEF = 0.08
+PROGRESS_TO_HOME_COEF = 0.08
 PROGRESS_REWARD_THRESHOLD = 0.1  # Minimum distance change to trigger reward
 
-# Optional low-magnitude extras (safe defaults)
-EXPLORATION_REWARD = 0.01
-COORDINATION_BONUS = 0.3
-DEFENSE_INTERCEPT_BONUS = 1.5
-DEFENSE_MINE_REWARD = 0.2
-OFFENSE_MINE_REWARD = 0.15
-MINE_PICKUP_REWARD = 0.1
-MINE_KILL_BONUS = 0.5
-TEAM_SUPPRESSION_BONUS = 0.2
-SUPPRESSION_SETUP_BONUS = 0.05
+# Teamwork and coordination
+EXPLORATION_REWARD = 0.02
+COORDINATION_BONUS = 0.5
+DEFENSE_INTERCEPT_BONUS = 2.0
+DEFENSE_MINE_REWARD = 0.3
+OFFENSE_MINE_REWARD = 0.2
+MINE_PICKUP_REWARD = 0.15
+MINE_KILL_BONUS = 0.6
+TEAM_SUPPRESSION_BONUS = 0.35
+SUPPRESSION_SETUP_BONUS = 0.1
 MINE_AVOID_PENALTY = -0.05
 MINE_AVOID_RADIUS_CELLS = 1.5
-OFFENSE_CROSS_MIDLINE_REWARD = 0.1
-CARRY_CROSS_MIDLINE_REWARD = 0.3
+# Offense: reward pushing into enemy half and bringing flag back
+OFFENSE_CROSS_MIDLINE_REWARD = 0.2
+CARRY_CROSS_MIDLINE_REWARD = 0.5
 STALL_PENALTY = -0.4
 STALL_INTERVAL_SECONDS = 30.0
-TEAM_FLAG_TAKEN_PENALTY = -0.5
-TEAM_FLAG_SCORED_PENALTY = -3.0
-TEAM_FLAG_RECOVER_REWARD = 0.5
+TEAM_FLAG_TAKEN_PENALTY = -0.8
+TEAM_FLAG_SCORED_PENALTY = -4.0
+TEAM_FLAG_RECOVER_REWARD = 0.8
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
