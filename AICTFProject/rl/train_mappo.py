@@ -75,12 +75,19 @@ class MAPPOConfig:
     curriculum_min_winrate: Dict[str, float] = None
     curriculum_winrate_window: int = 50
     curriculum_required_win_by: Dict[str, int] = None
+    max_blue_agents: int = 2
 
     def __post_init__(self) -> None:
         if self.curriculum_min_episodes is None:
-            self.curriculum_min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
+            if getattr(self, "max_blue_agents", 2) > 2:
+                self.curriculum_min_episodes = {"OP1": 350, "OP2": 300, "OP3": 350}
+            else:
+                self.curriculum_min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
         if self.curriculum_min_winrate is None:
-            self.curriculum_min_winrate = {"OP1": 0.50, "OP2": 0.50, "OP3": 0.55}
+            if getattr(self, "max_blue_agents", 2) > 2:
+                self.curriculum_min_winrate = {"OP1": 0.70, "OP2": 0.65, "OP3": 0.80}
+            else:
+                self.curriculum_min_winrate = {"OP1": 0.50, "OP2": 0.50, "OP3": 0.55}
         if self.curriculum_required_win_by is None:
             self.curriculum_required_win_by = {"OP1": 0, "OP2": 0, "OP3": 0}
 
