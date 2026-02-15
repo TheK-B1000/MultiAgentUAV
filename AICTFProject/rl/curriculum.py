@@ -67,6 +67,9 @@ class CurriculumConfig:
     # Per-phase window size for rolling win rate (optional). If set, used instead of winrate_window per phase.
     winrate_window_by_phase: Optional[Dict[str, int]] = None
     switch_to_league_after_op3_win: bool = True
+    # Before switching to league/elo: require this win rate vs SCRIPTED:OP3 over at least this many OP3 games (0 = disabled).
+    min_winrate_vs_op3: float = 0.0
+    min_games_vs_op3: int = 0
 
 
 @dataclass
