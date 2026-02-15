@@ -10,6 +10,7 @@ This script trains blue agents against a population of opponents:
 from __future__ import annotations
 
 import os
+import random
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -24,13 +25,14 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv, VecMonitor
 
 from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
 from rl.common import env_seed, set_global_seed
 from rl.episode_result import parse_episode_result
 from rl.train_ppo import TokenizedCombinedExtractor, MaskedMultiInputPolicy
+from rl.curriculum import STRESS_BY_PHASE
 from config import MAP_NAME, MAP_PATH
 
 # Import v2 snapshot wrapper for 4v4/8v8
@@ -44,19 +46,20 @@ except ImportError:
 
 @dataclass
 class SelfPlayConfig:
-    """Configuration for self-play training (league-based with snapshots)."""
+    """Configuration for self-play training (league-based with snapshots). Stability preset for 4v4."""
     seed: int = 42
     total_timesteps: int = 2_000_000
     n_envs: int = 4
     n_steps: int = 2048
-    batch_size: int = 512
-    n_epochs: int = 10
+    batch_size: int = 1024
+    n_epochs: int = 3
     gamma: float = 0.995
     gae_lambda: float = 0.95
-    clip_range: float = 0.2
+    clip_range: float = 0.1
     ent_coef: float = 0.01
-    learning_rate: float = 3e-4
+    learning_rate: float = 3e-5
     max_grad_norm: float = 0.5
+    target_kl: float = 0.02
     device: str = "cpu"
     
     checkpoint_dir: str = "checkpoints_sb3"
@@ -74,9 +77,15 @@ class SelfPlayConfig:
     self_play_max_snapshots: int = 10  # Rolling window: keep only latest N snapshots
     self_play_use_latest_snapshot: bool = True
 
-    # 4v4 warmup: train vs scripted OP1 for N episodes before self-play (avoids getting wrecked from ep 1)
+    # 4v4 warmup: train vs scripted OP1 (then mix OP2) so Blue learns defense/offense before self-play
     warmup_opponent: str = "OP1"
-    warmup_episodes: int = 200
+    warmup_episodes: int = 300
+    # Mix in scripted opponents when resampling so Blue wins more and learns defense (same rewards as League/Fixed)
+    scripted_opponent_prob: float = 0.35
+    scripted_op1_prob: float = 0.45  # When picking scripted, use OP1 this often (easier); else OP2
+    resample_opponent_every_episodes: int = 25
+    # Prefer older snapshots when sampling (so Blue beats "yesterday" and gets more wins)
+    snapshot_prefer_oldest_half: bool = True
 
 
 class SelfPlayCallbackV2(BaseCallback):
@@ -108,13 +117,17 @@ class SelfPlayCallbackV2(BaseCallback):
         self._init_snapshot_path = init_snapshot_path
         self._warmup_episodes = max(0, int(warmup_episodes))
         self._warmup_done = False
-        
+        self._snapshot_seq = 0
+
     def _enforce_snapshot_limit(self) -> None:
-        """Delete oldest snapshots when over limit."""
+        """Delete oldest snapshots when over limit. Never delete the current opponent."""
         if self._max_snapshots <= 0:
             return
         while len(self._snapshot_paths) > self._max_snapshots:
             old_path = self._snapshot_paths.pop(0)
+            if old_path == self._current_snapshot_path:
+                self._snapshot_paths.append(old_path)
+                continue
             try:
                 if old_path and os.path.exists(old_path):
                     os.remove(old_path)
@@ -123,7 +136,33 @@ class SelfPlayCallbackV2(BaseCallback):
             except Exception as exc:
                 if self.verbose:
                     print(f"[WARN] Failed to delete snapshot {old_path}: {exc}")
-    
+
+    def _choose_snapshot(self) -> Optional[str]:
+        """Pick a snapshot from the pool. Prefer older (weaker) ones so Blue wins more and learns."""
+        if not self._snapshot_paths:
+            return None
+        paths = self._snapshot_paths
+        # Exclude newest 1–2 so we don't fight today's self
+        pool = paths[:-2] if len(paths) > 2 else paths
+        if not pool:
+            return None
+        # Prefer oldest half of pool so opponent is weaker and Blue gets more wins
+        if getattr(self.cfg, "snapshot_prefer_oldest_half", True) and len(pool) > 1:
+            half = max(1, len(pool) // 2)
+            pool = pool[:half]
+        return random.choice(pool)
+
+    def _switch_to_scripted(self, tag: str = "OP2") -> None:
+        """Queue scripted opponent for next reset (so we mix in scripted, not only snapshots)."""
+        try:
+            env = self.model.get_env()
+            if env is not None:
+                env.env_method("set_next_opponent", "SCRIPTED", tag)
+            self._current_snapshot_path = None
+        except Exception as e:
+            if self.verbose:
+                print(f"[WARN] Failed to switch to scripted {tag}: {e}")
+
     def _on_step(self) -> bool:
         from rl.episode_result import parse_episode_result
         
@@ -169,23 +208,40 @@ class SelfPlayCallbackV2(BaseCallback):
             # Save snapshot periodically (only after warmup; during warmup red is scripted)
             if self._warmup_done and (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
                 self._enforce_snapshot_limit()
-                slot = len(self._snapshot_paths) + 1
+                self._snapshot_seq += 1
+                snap_id = f"ep{self.episode_idx:06d}_s{self._snapshot_seq:04d}"
                 prefix = f"{self.cfg.run_tag}_selfplay_snapshot"
-                snap_path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_slot{slot:03d}")
+                snap_path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_{snap_id}.zip")
                 try:
                     self.model.save(snap_path)
-                    snap_path_zip = snap_path + ".zip"
-                    self._snapshot_paths.append(snap_path_zip)
+                    self._snapshot_paths.append(snap_path)
                     self._enforce_snapshot_limit()
-                    
-                    # Switch to this new snapshot as opponent
-                    self._switch_to_snapshot(snap_path_zip)
-                    
+                    # Maybe switch to this new snapshot or to an older one from the pool
+                    opp = self._choose_snapshot()
+                    if opp:
+                        self._switch_to_snapshot(opp)
                     if self.verbose:
-                        print(f"[Self-Play] Saved snapshot {slot}: {os.path.basename(snap_path_zip)}")
+                        print(f"[Self-Play] Saved snapshot: {os.path.basename(snap_path)}")
                 except Exception as exc:
                     if self.verbose:
                         print(f"[WARN] Snapshot save failed: {exc}")
+
+            # Periodically resample opponent: mix in scripted (OP1/OP2) so Blue wins more and learns defense
+            resample_every = max(1, int(getattr(self.cfg, "resample_opponent_every_episodes", 25)))
+            scripted_prob = float(getattr(self.cfg, "scripted_opponent_prob", 0.0))
+            op1_prob = float(getattr(self.cfg, "scripted_op1_prob", 0.45))
+            just_saved = (
+                self._warmup_done
+                and (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0
+            )
+            if self._warmup_done and (self.episode_idx % resample_every == 0) and not just_saved:
+                if random.random() < scripted_prob:
+                    tag = "OP1" if random.random() < op1_prob else "OP2"
+                    self._switch_to_scripted(tag)
+                else:
+                    opp = self._choose_snapshot()
+                    if opp:
+                        self._switch_to_snapshot(opp)
             
             # Print progress
             if self.verbose:
@@ -257,6 +313,41 @@ class SelfPlayCallbackV2(BaseCallback):
                 traceback.print_exc()
 
 
+class RewardScaleVecWrapper(VecEnv):
+    """Scale step rewards by a constant (e.g. 1/n_agents for TEAM_SUM in 4v4 to reduce gradient scale)."""
+
+    def __init__(self, venv: VecEnv, scale: float = 1.0):
+        super().__init__(venv.num_envs, venv.observation_space, venv.action_space)
+        self.venv = venv
+        self._scale = float(scale)
+
+    def step_wait(self):
+        obs, rewards, dones, infos = self.venv.step_wait()
+        rewards = rewards * self._scale
+        return obs, rewards, dones, infos
+
+    def reset(self):
+        return self.venv.reset()
+
+    def close(self):
+        return self.venv.close()
+
+    def env_is_wrapped(self, *args, **kwargs):
+        return self.venv.env_is_wrapped(*args, **kwargs)
+
+    def get_attr(self, *args, **kwargs):
+        return self.venv.get_attr(*args, **kwargs)
+
+    def set_attr(self, *args, **kwargs):
+        return self.venv.set_attr(*args, **kwargs)
+
+    def env_method(self, *args, **kwargs):
+        return self.venv.env_method(*args, **kwargs)
+
+    def step_async(self, actions):
+        return self.venv.step_async(actions)
+
+
 def _make_env_fn(cfg: SelfPlayConfig, default_opponent: tuple = ("SCRIPTED", "OP3"), rank: int = 0):
     """Environment factory for self-play."""
     def _fn():
@@ -296,8 +387,11 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     Train self-play using new snapshot wrapper v2 for 4v4/8v8 compatibility.
     
     Blue learns against:
-    - Scripted opponents (OP3) initially
-    - Past snapshots of itself (self-play) using v2 wrapper
+    - Scripted OP1/OP2 during warmup and when resampling (same eased 4v4 params as Fixed/League)
+    - Past snapshots of itself (prefer older/weaker so Blue wins more)
+    
+    Uses same GameManager rewards as other baselines: defense presence, escort carrier,
+    progress toward carrier when defending, so Blue learns defense and smarter play.
     """
     if cfg is None:
         cfg = SelfPlayConfig()
@@ -333,8 +427,21 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     else:
         venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
-    
-    # Set phase
+
+    # Same stress schedule as League/Fixed so game difficulty (mines, physics) matches other baselines
+    try:
+        venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
+    except Exception:
+        pass
+
+    # Scale rewards by 1/max_blue_agents so TEAM_SUM doesn't inflate gradients in 4v4
+    max_agents = max(1, int(getattr(cfg, "max_blue_agents", 4)))
+    reward_scale = 1.0 / max_agents
+    venv = RewardScaleVecWrapper(venv, scale=reward_scale)
+    print(f"[Self-Play] Reward scale 1/{max_agents} = {reward_scale:.3f} (TEAM_SUM normalization)")
+    print(f"[Self-Play] Same rewards as other baselines: defense presence, escort, progress-to-carrier when defending")
+
+    # Set phase (uses same GameManager rewards: defense, escort, intercept)
     try:
         venv.env_method("set_phase", phase_name)
     except Exception:
@@ -347,11 +454,11 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
         policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
         policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
     
-    # Create PPO model
-    model = PPO(
+    # Create PPO model (stability preset: lr 3e-5, n_epochs 3, clip 0.1, target_kl 0.02)
+    ppo_kwargs = dict(
         policy=MaskedMultiInputPolicy,
         env=venv,
-        learning_rate=cfg.learning_rate,
+        learning_rate=float(cfg.learning_rate),
         n_steps=int(cfg.n_steps),
         batch_size=int(cfg.batch_size),
         n_epochs=int(cfg.n_epochs),
@@ -371,6 +478,9 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
         seed=cfg.seed,
         device=cfg.device,
     )
+    if getattr(cfg, "target_kl", None) is not None and float(cfg.target_kl) > 0:
+        ppo_kwargs["target_kl"] = float(cfg.target_kl)
+    model = PPO(**ppo_kwargs)
     
     # Setup logger
     if cfg.enable_tensorboard:
@@ -428,6 +538,7 @@ def train_self_play(cfg: Optional[SelfPlayConfig] = None) -> None:
     if warmup_episodes > 0:
         print(f"[Self-Play] Warmup: first {warmup_episodes} episodes vs scripted {warmup_opponent}, then self-play")
     print(f"[Self-Play] Snapshot every {cfg.self_play_snapshot_every_episodes} episodes, max {cfg.self_play_max_snapshots} snapshots")
+    print(f"[Self-Play] Scripted mix: {cfg.scripted_opponent_prob:.0%} resample prob, OP1 {cfg.scripted_op1_prob:.0%} / OP2 {1-cfg.scripted_op1_prob:.0%} (learn defense like other baselines)")
     print(f"[Self-Play] Using snapshot wrapper v2 for 4v4/8v8 compatibility")
     
     model.learn(
@@ -455,6 +566,9 @@ if __name__ == "__main__":
     parser.add_argument("--max-snapshots", type=int, default=10, help="Max snapshots to keep (rolling window)")
     parser.add_argument("--warmup-episodes", type=int, default=None, help="Episodes vs scripted before self-play (default 200)")
     parser.add_argument("--warmup-opponent", type=str, default=None, help="Scripted opponent during warmup (default OP1)")
+    parser.add_argument("--scripted-prob", type=float, default=None, help="Prob of scripted when resampling (default 0.35)")
+    parser.add_argument("--scripted-op1-prob", type=float, default=None, help="When scripted, use OP1 this fraction (default 0.45); else OP2")
+    parser.add_argument("--resample-every", type=int, default=None, help="Episodes between opponent resample (default 25)")
     args = parser.parse_args()
     
     cfg = SelfPlayConfig()
@@ -475,5 +589,11 @@ if __name__ == "__main__":
         cfg.warmup_episodes = args.warmup_episodes
     if args.warmup_opponent is not None:
         cfg.warmup_opponent = args.warmup_opponent
+    if getattr(args, "scripted_prob", None) is not None:
+        cfg.scripted_opponent_prob = float(args.scripted_prob)
+    if getattr(args, "scripted_op1_prob", None) is not None:
+        cfg.scripted_op1_prob = float(args.scripted_op1_prob)
+    if getattr(args, "resample_every", None) is not None:
+        cfg.resample_opponent_every_episodes = max(1, int(args.resample_every))
 
     train_self_play(cfg)
