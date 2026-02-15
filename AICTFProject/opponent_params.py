@@ -62,19 +62,45 @@ def sample_opponent_params(
             coordinated_attack = False
             attack_sync_window = 0
             noise_sigma = 0.0
+            if n_agents >= 8:
+                speed_mult = rng.uniform(0.82, 0.92)
+            elif n_agents >= 4:
+                speed_mult = rng.uniform(0.90, 1.00)
         elif key == "OP2":
             deception_prob = rng.uniform(0.0, 0.15)
             coordinated_attack = False
             attack_sync_window = 0
             noise_sigma = rng.uniform(0.0, 0.05)
+            if n_agents >= 8:
+                speed_mult = rng.uniform(0.76, 0.88)
+                deception_prob = rng.uniform(0.0, 0.04)
+                noise_sigma = 0.0
+            elif n_agents >= 4:
+                speed_mult = rng.uniform(0.84, 1.00)
+                deception_prob = rng.uniform(0.0, 0.06)
+                noise_sigma = 0.0
         elif key == "OP3":
             if op3_easy:
-                # 4v4/8v8: easier OP3 — lower speed, less deception, less coordination
-                speed_mult = rng.uniform(0.88, 1.08)
-                deception_prob = rng.uniform(0.05, 0.18)
-                coordinated_attack = rng.random() < 0.25
-                attack_sync_window = rng.randint(2, 5) if coordinated_attack else rng.randint(2, 4)
-                noise_sigma = rng.uniform(0.0, 0.04)
+                # 4v4/8v8: much easier OP3 so Blue can learn (Fixed/League were still ~0% WR)
+                # Red clearly slower than Blue (1.0); no deception/coordination
+                if n_agents >= 8:
+                    speed_mult = rng.uniform(0.70, 0.82)
+                    deception_prob = 0.0
+                    coordinated_attack = False
+                    attack_sync_window = 0
+                    noise_sigma = 0.0
+                elif n_agents >= 4:
+                    speed_mult = rng.uniform(0.66, 0.78)
+                    deception_prob = 0.0
+                    coordinated_attack = False
+                    attack_sync_window = 0
+                    noise_sigma = 0.0
+                else:
+                    speed_mult = rng.uniform(0.88, 1.08)
+                    deception_prob = rng.uniform(0.05, 0.18)
+                    coordinated_attack = rng.random() < 0.25
+                    attack_sync_window = rng.randint(2, 5) if coordinated_attack else rng.randint(2, 4)
+                    noise_sigma = rng.uniform(0.0, 0.04)
             else:
                 # Standard OP3 (2v2)
                 deception_prob = rng.uniform(0.1, 0.35)
@@ -107,6 +133,45 @@ def sample_opponent_params(
             coordinated_attack = rng.random() < 0.5
             attack_sync_window = rng.randint(3, 7)
             noise_sigma = rng.uniform(0.0, 0.06)
+        # 4v4/8v8: scale down species so League is winnable (Red slower than Blue)
+        if n_agents >= 8:
+            if key == "RUSHER":
+                speed_mult = rng.uniform(0.72, 0.84)
+                deception_prob = 0.0
+                coordinated_attack = False
+                attack_sync_window = 0
+                noise_sigma = 0.0
+            elif key == "CAMPER":
+                speed_mult = rng.uniform(0.70, 0.82)
+                deception_prob = 0.0
+                coordinated_attack = False
+                attack_sync_window = 0
+                noise_sigma = 0.0
+            else:  # BALANCED
+                speed_mult = rng.uniform(0.72, 0.84)
+                deception_prob = 0.0
+                coordinated_attack = False
+                attack_sync_window = 0
+                noise_sigma = 0.0
+        elif n_agents >= 4:
+            if key == "RUSHER":
+                speed_mult = rng.uniform(0.80, 0.90)
+                deception_prob = rng.uniform(0.0, 0.03)
+                coordinated_attack = False
+                attack_sync_window = 0
+                noise_sigma = 0.0
+            elif key == "CAMPER":
+                speed_mult = rng.uniform(0.78, 0.88)
+                deception_prob = rng.uniform(0.0, 0.05)
+                coordinated_attack = False
+                attack_sync_window = 0
+                noise_sigma = 0.0
+            else:  # BALANCED
+                speed_mult = rng.uniform(0.78, 0.88)
+                deception_prob = rng.uniform(0.0, 0.04)
+                coordinated_attack = False
+                attack_sync_window = 0
+                noise_sigma = 0.0
 
     else:  # SNAPSHOT or unknown
         speed_mult = rng.uniform(0.85, 1.15)
