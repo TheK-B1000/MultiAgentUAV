@@ -34,7 +34,7 @@ from rl.curriculum import (
     STRESS_BY_PHASE,
 )
 from rl.league import EloLeague, OpponentSpec
-from rl.episode_result import parse_episode_result, EpisodeSummary
+from rl.episode_result import parse_episode_result, EpisodeSummary, path_to_snapshot_key
 from config import MAP_NAME, MAP_PATH
 
 
@@ -198,6 +198,8 @@ class PPOConfig:
     use_stable_marl_ppo: bool = True
     approx_kl_threshold: float = 0.05
     kl_guardrail_consecutive: int = 3
+    # Sanity check: set True and run a few steps to verify approx_kl ~ 0 (if huge, logprob/action plumbing is broken)
+    test_kl_zero_lr: bool = False
     # For now, keep standard (non-tokenized) CNN obs for 4v4 to avoid tiny 1x1 grids
     use_tokenized_obs: bool = False
 
@@ -288,6 +290,7 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
         return self.action_dist.proba_distribution(action_logits=logits)
 
     def forward(self, obs: Dict[str, torch.Tensor], deterministic: bool = False):
+        # Same distribution for get_actions and log_prob (no clip after); SB3 stores as old_log_prob for PPO ratio.
         features = self.extract_features(obs)
         latent_pi, latent_vf = self.mlp_extractor(features)
         logits = self.action_net(latent_pi)
@@ -353,10 +356,60 @@ class LeagueCallback(BaseCallback):
         if total < 10:  # Need at least 10 games for reliable estimate
             return 0.0
         return wins / total if total > 0 else 0.0
+
+    def _meets_op3_gate_for_league(self) -> bool:
+        """True if wins vs SCRIPTED:OP3 are sufficient to allow switching to league (before elo)."""
+        min_wr = float(getattr(self.curriculum.config, "min_winrate_vs_op3", 0.0) or 0.0)
+        min_games = int(getattr(self.curriculum.config, "min_games_vs_op3", 0) or 0)
+        if min_games <= 0 or min_wr <= 0.0:
+            return True
+        op3_key = "SCRIPTED:OP3"
+        stats = self._opponent_stats.get(op3_key, {})
+        wins = stats.get("wins", 0)
+        total = stats.get("wins", 0) + stats.get("losses", 0) + stats.get("draws", 0)
+        if total < min_games:
+            return False
+        return (wins / total) >= min_wr
     
     def _select_next_opponent(self) -> OpponentSpec:
         if not self.league_mode:
             phase = self.curriculum.phase
+            max_agents = int(getattr(self.cfg, "max_blue_agents", 2))
+            # 4v4 learnable band: keep WR in 30–70% by mixing easier opponents when in OP3 (fail-forward)
+            if phase == "OP3" and max_agents > 2:
+                op3_wr = self._get_op3_win_rate()
+                r = self.league.rng.random()
+                snapshots = self.league.snapshots
+                # WR < 25%: mostly OP1/OP2 so gradient isn't "despair"
+                if op3_wr < 0.25:
+                    if r < 0.60:
+                        scripted_tag = self.league.rng.choice(["OP1", "OP2"])
+                        return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.league.get_rating(f"SCRIPTED:{scripted_tag}"))
+                    if r < 0.75 and snapshots:
+                        path = self.league.rng.choice(snapshots)
+                        return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
+                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
+                # WR 25–40%: 50% OP1/OP2, 20% OP3, 30% snapshots
+                if op3_wr < 0.40:
+                    if r < 0.50:
+                        scripted_tag = self.league.rng.choice(["OP1", "OP2"])
+                        return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.league.get_rating(f"SCRIPTED:{scripted_tag}"))
+                    if r < 0.70:
+                        return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
+                    if snapshots:
+                        path = self.league.rng.choice(snapshots)
+                        return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
+                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
+                # WR >= 40%: ramp OP3 to 35% (40% easy, 35% OP3, 25% snapshots)
+                if r < 0.40:
+                    scripted_tag = self.league.rng.choice(["OP1", "OP2"])
+                    return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.league.get_rating(f"SCRIPTED:{scripted_tag}"))
+                if r < 0.75:
+                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
+                if snapshots:
+                    path = self.league.rng.choice(snapshots)
+                    return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
+                return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
             return OpponentSpec(
                 kind="SCRIPTED",
                 key=phase,
@@ -475,7 +528,7 @@ class LeagueCallback(BaseCallback):
                 )
                 if advanced:
                     phase = self.curriculum.phase
-                # Debug: log why we're not advancing when we're past min episodes and still OP1
+                # Debug: log why we're not advancing when still in OP1 (every 100 eps)
                 elif (
                     phase == "OP1"
                     and self.curriculum.phase_episode_count >= 200
@@ -484,9 +537,12 @@ class LeagueCallback(BaseCallback):
                     min_eps = self.curriculum.config.min_episodes.get("OP1", 0)
                     min_wr = self.curriculum.config.min_winrate.get("OP1", 0.0)
                     wr = self.curriculum.phase_winrate("OP1")
+                    meets_eps = self.curriculum.phase_episode_count >= min_eps
+                    meets_wr = wr >= min_wr
+                    blocker = "min_episodes" if not meets_eps else "min_winrate" if not meets_wr else "?"
                     print(
-                        f"[CURR-DEBUG] OP1 stuck: phase_eps={self.curriculum.phase_episode_count} (need>={min_eps}), "
-                        f"wr={wr:.3f} (need>={min_wr})"
+                        f"[CURR-DEBUG] OP1 waiting: phase_eps={self.curriculum.phase_episode_count}/{min_eps} ({'ok' if meets_eps else 'need more'}), "
+                        f"wr={wr:.3f}>={min_wr} ({'ok' if meets_wr else 'need higher'}) → advance when both ok (blocked by: {blocker})"
                     )
 
             if phase == "OP3":
@@ -494,8 +550,22 @@ class LeagueCallback(BaseCallback):
                 min_wr = float(self.curriculum.config.min_winrate.get("OP3", 0.80))
                 meets_eps = self.curriculum.phase_episode_count >= min_eps
                 meets_wr = self.curriculum.phase_winrate("OP3") >= min_wr
-                if self.curriculum.config.switch_to_league_after_op3_win and meets_eps and meets_wr:
+                meets_op3_gate = self._meets_op3_gate_for_league()
+                if self.curriculum.config.switch_to_league_after_op3_win and meets_eps and meets_wr and meets_op3_gate:
                     self.league_mode = True
+                    if getattr(self.curriculum.config, "min_games_vs_op3", 0) > 0:
+                        op3_stats = self._opponent_stats.get("SCRIPTED:OP3", {})
+                        tw = op3_stats.get("wins", 0) + op3_stats.get("losses", 0) + op3_stats.get("draws", 0)
+                        print(f"[League] OP3 gate passed: {op3_stats.get('wins', 0)}W vs OP3 in last {tw} OP3 games → switching to league/elo")
+                elif phase == "OP3" and not self.league_mode and self.episode_idx % 100 == 0:
+                    min_g = getattr(self.curriculum.config, "min_games_vs_op3", 0)
+                    min_wr_op3 = getattr(self.curriculum.config, "min_winrate_vs_op3", 0.0)
+                    if min_g > 0 and min_wr_op3 > 0:
+                        op3_stats = self._opponent_stats.get("SCRIPTED:OP3", {})
+                        w, l, d = op3_stats.get("wins", 0), op3_stats.get("losses", 0), op3_stats.get("draws", 0)
+                        tot = w + l + d
+                        wr_op3 = (w / tot) if tot > 0 else 0.0
+                        print(f"[CURR-DEBUG] OP3→League gate: vs OP3 {w}W/{tot} games ({wr_op3:.1%}), need >={min_wr_op3:.0%} in >={min_g} games (phase_eps={meets_eps}, phase_wr={meets_wr})")
 
             if self.verbose:
                 mode = "LEAGUE" if self.league_mode else "CURR"
@@ -1178,13 +1248,17 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    match_op3 = getattr(cfg, "match_op3_exposure", False)
+    # 4v4: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
+    max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
     if match_op3:
         anchor_op3_prob = 1.0
         species_prob = 0.0
         snapshot_prob = 0.0
-        print("[League] match_op3_exposure=True: 100% OP3 (control experiment, apples-to-apples with Paper)")
+        print("[League] match_op3_exposure=True: 100% OP3 (2v2 control)")
     else:
+        if max_agents > 2:
+            print("[League] 4v4: using opponent mix (OP1/OP2/OP3/snapshots) to keep WR in learnable band")
         anchor_op3_prob = float(getattr(cfg, "anchor_op3_prob", 0.40))
         species_prob = 0.20
         snapshot_prob = 0.0
@@ -1215,6 +1289,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _min_episodes = {"OP1": 350, "OP2": 300, "OP3": 350}
         _min_winrate = {"OP1": 0.70, "OP2": 0.65, "OP3": 0.80}
         _winrate_window_by_phase = {"OP1": 80, "OP2": 80, "OP3": 120}
+        _min_winrate_vs_op3 = 0.50
+        _min_games_vs_op3 = 50
         if cfg.total_timesteps < 6_000_000:
             cfg.total_timesteps = 6_000_000
             print(f"[PPO] 4v4: using total_timesteps={cfg.total_timesteps} for better convergence")
@@ -1222,6 +1298,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
         _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
         _winrate_window_by_phase = {"OP1": 50, "OP2": 50, "OP3": 100}
+        _min_winrate_vs_op3 = 0.0
+        _min_games_vs_op3 = 0
 
     curriculum_config = CurriculumConfig(
         phases=["OP1", "OP2", "OP3"],
@@ -1232,6 +1310,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         required_win_by={"OP1": 0, "OP2": 1, "OP3": 1},
         elo_margin=elo_margin,
         switch_to_league_after_op3_win=(mode == TrainMode.CURRICULUM_LEAGUE.value),
+        min_winrate_vs_op3=_min_winrate_vs_op3,
+        min_games_vs_op3=_min_games_vs_op3,
     )
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
         curriculum = CurriculumState(curriculum_config)
@@ -1306,6 +1386,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     if max_agents > 2:
         learning_rate = learning_rate * 0.75
         print(f"[PPO] 4v4: using lr={learning_rate:.2e} for stability")
+
+    # KL sanity check: run with lr=0 and verify approx_kl ~ 0 in logs; if huge, logprob/action plumbing is broken
+    if getattr(cfg, "test_kl_zero_lr", False):
+        learning_rate = 0.0
+        print("[PPO] test_kl_zero_lr=True: learning_rate=0 — verify approx_kl ~ 0 in logs (if not, check old_logprob/action pairing)")
     
     model = PPO(
         policy=MaskedMultiInputPolicy,
@@ -1535,6 +1620,7 @@ if __name__ == "__main__":
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
         parser.add_argument("--max-blue-agents", type=int, default=None, help="Number of agents per team (default: 4 for 4v4)")
+        parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:
@@ -1552,4 +1638,6 @@ if __name__ == "__main__":
             if n != int(args.max_blue_agents):
                 print(f"[PPO] --max-blue-agents {args.max_blue_agents} out of range; clamped to {n} (max 16).")
             cfg.max_blue_agents = n
+        if getattr(args, "test_kl_zero_lr", False):
+            cfg.test_kl_zero_lr = True
         train_ppo(cfg)
