@@ -25,34 +25,38 @@ FLAG_RETURN_DELAY = 10.0
 # PBRS (potential based reward shaping): F = coef * (gamma * Phi(s') - Phi(s))
 FLAG_PROXIMITY_COEF = 0.45
 DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env binding
-DEFENSE_SHAPING_MULT = 2.5
-DEFENSE_CARRIER_PROGRESS_COEF = 0.25
+DEFENSE_SHAPING_MULT = 3.5
+DEFENSE_CARRIER_PROGRESS_COEF = 0.45
+DEFENSE_PRESENCE_RADIUS = 6.0
+DEFENSE_PRESENCE_REWARD = 0.06
+ESCORT_CARRIER_RADIUS = 5.0
+ESCORT_CARRIER_REWARD = 0.08
 
 # Sprint A: Minimal shaping rewards (progress-to-flag/home)
 PROGRESS_TO_FLAG_COEF = 0.08
 PROGRESS_TO_HOME_COEF = 0.08
 PROGRESS_REWARD_THRESHOLD = 0.1  # Minimum distance change to trigger reward
 
-# Teamwork and coordination
+# Teamwork and coordination (emphasize defense + smarter play over blind rush)
 EXPLORATION_REWARD = 0.02
-COORDINATION_BONUS = 0.5
-DEFENSE_INTERCEPT_BONUS = 2.0
-DEFENSE_MINE_REWARD = 0.3
+COORDINATION_BONUS = 0.7
+DEFENSE_INTERCEPT_BONUS = 2.8
+DEFENSE_MINE_REWARD = 0.45
 OFFENSE_MINE_REWARD = 0.2
 MINE_PICKUP_REWARD = 0.15
-MINE_KILL_BONUS = 0.6
+MINE_KILL_BONUS = 0.7
 TEAM_SUPPRESSION_BONUS = 0.35
-SUPPRESSION_SETUP_BONUS = 0.1
+SUPPRESSION_SETUP_BONUS = 0.12
 MINE_AVOID_PENALTY = -0.05
 MINE_AVOID_RADIUS_CELLS = 1.5
-# Offense: reward pushing into enemy half and bringing flag back
-OFFENSE_CROSS_MIDLINE_REWARD = 0.2
-CARRY_CROSS_MIDLINE_REWARD = 0.5
+# Offense: reward pushing into enemy half and bringing flag back (not over-incentivize blind rush)
+OFFENSE_CROSS_MIDLINE_REWARD = 0.15
+CARRY_CROSS_MIDLINE_REWARD = 0.45
 STALL_PENALTY = -0.4
 STALL_INTERVAL_SECONDS = 30.0
 TEAM_FLAG_TAKEN_PENALTY = -0.8
 TEAM_FLAG_SCORED_PENALTY = -4.0
-TEAM_FLAG_RECOVER_REWARD = 0.8
+TEAM_FLAG_RECOVER_REWARD = 1.2
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
@@ -753,6 +757,7 @@ class GameManager:
 
                 self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
                 self.add_team_reward("red", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                # Concede: team-wide negative so Blue learns to defend (block/intercept/deny)
                 self.add_team_reward("blue", TEAM_FLAG_SCORED_PENALTY)
 
                 if self._teammate_near(agent):
@@ -1029,6 +1034,19 @@ class GameManager:
                                 break
                         break
 
+            # Teamwork: defense presence — reward staying near our flag when enemy has it
+            if enemy_has_our_flag and (not i_am_carrier):
+                home = self.blue_flag_home if side == "blue" else self.red_flag_home
+                dist_home = math.hypot(ax2 - float(home[0]), ay2 - float(home[1]))
+                if dist_home <= float(DEFENSE_PRESENCE_RADIUS):
+                    self.add_agent_reward(agent, DEFENSE_PRESENCE_REWARD)
+
+            # Teamwork: escort — reward being near our carrier when we have the flag
+            if (i_am_carrier or teammate_is_carrier) and (not i_am_carrier) and enemy_carrier is not None:
+                cx, cy = self._agent_float(enemy_carrier)
+                if math.hypot(ax2 - cx, ay2 - cy) <= float(ESCORT_CARRIER_RADIUS):
+                    self.add_agent_reward(agent, ESCORT_CARRIER_REWARD)
+
     # -------------------------
     # Mine/combat hooks (minimal)
     # -------------------------
@@ -1115,44 +1133,40 @@ class GameManager:
         carrier: Optional[Any],
     ) -> None:
         """
-        Sprint A: Apply minimal shaping rewards for progress toward flag/home.
-        
-        Provides small, dense rewards for:
-        - Moving toward enemy flag (when not carrying)
-        - Moving toward home (when carrying flag)
+        Dense rewards for progress toward the right goal (teamwork-aware).
+        - When carrying: progress toward home.
+        - When enemy has our flag: progress toward carrier (defense), not enemy flag.
+        - Otherwise: progress toward enemy flag (offense).
         """
         if agent is None:
             return
-        
+
         max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
         if max_dist <= 1e-6:
             return
-        
+
         sx, sy = float(start_pos[0]), float(start_pos[1])
         ex, ey = float(end_pos[0]), float(end_pos[1])
-        
-        # Determine goal based on state
+
         if i_am_carrier:
-            # When carrying flag, reward progress toward home
             goal_x, goal_y = self.get_team_zone_center(side)
             goal = (float(goal_x), float(goal_y))
             coef = float(PROGRESS_TO_HOME_COEF)
+        elif enemy_has_our_flag and carrier is not None:
+            goal = self._agent_float(carrier)
+            coef = float(DEFENSE_CARRIER_PROGRESS_COEF)
         else:
-            # When not carrying, reward progress toward enemy flag
             if side == "blue":
                 goal = (float(self.red_flag_position[0]), float(self.red_flag_position[1]))
             else:
                 goal = (float(self.blue_flag_position[0]), float(self.blue_flag_position[1]))
             coef = float(PROGRESS_TO_FLAG_COEF)
-        
-        # Compute distance change
+
         prev_dist = math.dist([sx, sy], goal)
         curr_dist = math.dist([ex, ey], goal)
-        dist_change = prev_dist - curr_dist  # Positive = getting closer
-        
-        # Only reward if meaningful progress (above threshold)
+        dist_change = prev_dist - curr_dist
+
         if dist_change > float(PROGRESS_REWARD_THRESHOLD):
-            # Normalize by max distance and scale by coefficient
             normalized_progress = dist_change / max_dist
             reward = coef * normalized_progress
             if reward > 0.0:
