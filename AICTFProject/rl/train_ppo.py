@@ -374,39 +374,12 @@ class LeagueCallback(BaseCallback):
     def _select_next_opponent(self) -> OpponentSpec:
         if not self.league_mode:
             phase = self.curriculum.phase
-            max_agents = int(getattr(self.cfg, "max_blue_agents", 2))
-            # 4v4 learnable band: keep WR in 30–70% by mixing easier opponents when in OP3 (fail-forward)
-            if phase == "OP3" and max_agents > 2:
-                op3_wr = self._get_op3_win_rate()
+            # OP3 phase: only use OP3 and snapshots (no OP1/OP2 mixing)
+            if phase == "OP3":
                 r = self.league.rng.random()
                 snapshots = self.league.snapshots
-                # WR < 25%: mostly OP1/OP2 so gradient isn't "despair"
-                if op3_wr < 0.25:
-                    if r < 0.60:
-                        scripted_tag = self.league.rng.choice(["OP1", "OP2"])
-                        return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.league.get_rating(f"SCRIPTED:{scripted_tag}"))
-                    if r < 0.75 and snapshots:
-                        path = self.league.rng.choice(snapshots)
-                        return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
-                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-                # WR 25–40%: 50% OP1/OP2, 20% OP3, 30% snapshots
-                if op3_wr < 0.40:
-                    if r < 0.50:
-                        scripted_tag = self.league.rng.choice(["OP1", "OP2"])
-                        return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.league.get_rating(f"SCRIPTED:{scripted_tag}"))
-                    if r < 0.70:
-                        return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-                    if snapshots:
-                        path = self.league.rng.choice(snapshots)
-                        return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
-                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-                # WR >= 40%: ramp OP3 to 35% (40% easy, 35% OP3, 25% snapshots)
-                if r < 0.40:
-                    scripted_tag = self.league.rng.choice(["OP1", "OP2"])
-                    return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.league.get_rating(f"SCRIPTED:{scripted_tag}"))
-                if r < 0.75:
-                    return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
-                if snapshots:
+                # 70% OP3, 30% snapshots (if available)
+                if snapshots and r < 0.30:
                     path = self.league.rng.choice(snapshots)
                     return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
                 return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
@@ -415,13 +388,15 @@ class LeagueCallback(BaseCallback):
                 key=phase,
                 rating=self.league.get_rating(f"SCRIPTED:{phase}"),
             )
-        # Enable self-play (snapshots) when OP3 win rate >= 80%
+        # League mode: OP3 phase only uses OP3 + species + snapshots (no OP1/OP2)
+        phase = self.curriculum.phase
         op3_wr = self._get_op3_win_rate()
         enable_snapshots = op3_wr >= 0.80 and len(self.league.snapshots) > 0
         if enable_snapshots and not self._selfplay_enabled:
             self._selfplay_enabled = True
             print(f"[League] OP3 win rate {op3_wr:.1%} >= 80%: enabling self-play (snapshots)")
-        return self.league.sample_league(phase=self.curriculum.phase, enable_snapshots=enable_snapshots)
+        # Force phase="OP3" so league doesn't sample OP1/OP2
+        return self.league.sample_league(phase="OP3", enable_snapshots=enable_snapshots)
     
     def _update_opponent_stats(self, opp_key: str, result: str):
         """Track opponent distribution and rolling window stats."""
