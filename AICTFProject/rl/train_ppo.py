@@ -374,14 +374,8 @@ class LeagueCallback(BaseCallback):
     def _select_next_opponent(self) -> OpponentSpec:
         if not self.league_mode:
             phase = self.curriculum.phase
-            # OP3 phase: only use OP3 and snapshots (no OP1/OP2 mixing)
+            # OP3 phase: only OP3 (no snapshots until league mode; need 70% WR vs OP3 to switch)
             if phase == "OP3":
-                r = self.league.rng.random()
-                snapshots = self.league.snapshots
-                # 70% OP3, 30% snapshots (if available)
-                if snapshots and r < 0.30:
-                    path = self.league.rng.choice(snapshots)
-                    return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.league.get_rating(path_to_snapshot_key(path)))
                 return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
             return OpponentSpec(
                 kind="SCRIPTED",
@@ -391,10 +385,10 @@ class LeagueCallback(BaseCallback):
         # League mode: OP3 phase only uses OP3 + species + snapshots (no OP1/OP2)
         phase = self.curriculum.phase
         op3_wr = self._get_op3_win_rate()
-        enable_snapshots = op3_wr >= 0.80 and len(self.league.snapshots) > 0
+        enable_snapshots = op3_wr >= 0.70 and len(self.league.snapshots) > 0
         if enable_snapshots and not self._selfplay_enabled:
             self._selfplay_enabled = True
-            print(f"[League] OP3 win rate {op3_wr:.1%} >= 80%: enabling self-play (snapshots)")
+            print(f"[League] OP3 win rate {op3_wr:.1%} >= 70%: enabling self-play (snapshots)")
         # Force phase="OP3" so league doesn't sample OP1/OP2
         return self.league.sample_league(phase="OP3", enable_snapshots=enable_snapshots)
     
@@ -1264,7 +1258,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _min_episodes = {"OP1": 350, "OP2": 300, "OP3": 350}
         _min_winrate = {"OP1": 0.70, "OP2": 0.65, "OP3": 0.80}
         _winrate_window_by_phase = {"OP1": 80, "OP2": 80, "OP3": 120}
-        _min_winrate_vs_op3 = 0.50
+        _min_winrate_vs_op3 = 0.70
         _min_games_vs_op3 = 50
         if cfg.total_timesteps < 6_000_000:
             cfg.total_timesteps = 6_000_000
