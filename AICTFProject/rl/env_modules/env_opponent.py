@@ -123,25 +123,36 @@ class EnvOpponentManager:
             if blue_count > 2:
                 max_agents = max(max_agents, blue_count)
         
-        if _HAS_V2_WRAPPER and max_agents > 2:
-            # Use v2 wrapper for 4v4/8v8
-            try:
-                wrapper = make_snapshot_wrapper_v2(
-                    self._opponent_snapshot_path,
-                    max_agents=max_agents,
-                    n_macros=int(getattr(game_field, "num_macro_actions", 5) or 5),
-                    n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
-                )
-            except Exception as e:
-                print(f"[WARN] Failed to load snapshot with v2 wrapper: {e}; falling back to v1")
-                import traceback
-                traceback.print_exc()
+        try:
+            if _HAS_V2_WRAPPER and max_agents > 2:
+                try:
+                    wrapper = make_snapshot_wrapper_v2(
+                        self._opponent_snapshot_path,
+                        max_agents=max_agents,
+                        n_macros=int(getattr(game_field, "num_macro_actions", 5) or 5),
+                        n_targets=int(getattr(game_field, "num_macro_targets", 8) or 8),
+                    )
+                except Exception as e:
+                    print(f"[WARN] Failed to load snapshot with v2 wrapper: {e}; falling back to v1")
+                    wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
+            else:
                 wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
-        else:
-            # Use v1 wrapper for 2v2 (legacy compatibility)
-            wrapper = make_snapshot_wrapper(self._opponent_snapshot_path)
-        
-        game_field.set_red_policy_wrapper(wrapper)
+            game_field.set_red_policy_wrapper(wrapper)
+        except Exception as e:
+            print(f"[WARN] Snapshot load failed (corrupt?): {self._opponent_snapshot_path!r}: {e}; using SCRIPTED:OP3")
+            self._opponent_snapshot_path = None
+            self._opponent_kind = "SCRIPTED"
+            self._opponent_scripted_tag = "OP3"
+            self.set_opponent_scripted("OP3", game_field)
+            try:
+                from opponent_params import sample_opponent_params
+                rng = __import__("random").Random()
+                n_agents = int(getattr(game_field, "agents_per_team", 2))
+                params = sample_opponent_params(kind="SCRIPTED", key="OP3", phase="OP3", rng=rng, n_agents=n_agents)
+                if hasattr(game_field, "set_opponent_params"):
+                    game_field.set_opponent_params(params)
+            except Exception:
+                pass
 
     def _opponent_context_id(self) -> int:
         """Stable opponent embedding id in [0, MAX_OPPONENT_CONTEXT_IDS-1]."""
