@@ -151,9 +151,9 @@ class PPOConfig:
     max_grad_norm: float = 0.5
     device: str = "cpu"
 
-    checkpoint_dir: str = "checkpoints_sb3"
-    # Distinct tag for 4v4 runs so they don't overwrite 2v2 checkpoints
-    run_tag: str = "ppo_league_curriculum_4v4"
+    # 2v2: use separate dir and tag so we don't overwrite pretrained (e.g. 4v4) models
+    checkpoint_dir: str = "checkpoints_sb3_2v2"
+    run_tag: str = "ppo_league_curriculum_2v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -1486,7 +1486,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
 
-    # 4v4/8v8: save to a distinct file so we never overwrite 2v2 final_ppo_league.zip
+    # 2v2: save as final_<run_tag>.zip (run_tag ends with _2v2). 4v4: add _4v4 so we don't overwrite 2v2.
     max_agents = int(getattr(cfg, "max_blue_agents", 2))
     suffix = "_4v4" if (max_agents > 2 and not cfg.run_tag.endswith("_4v4")) else ""
     final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}{suffix}")
@@ -1559,18 +1559,19 @@ def run_test_vec_schema() -> None:
     print("[test-vec-schema] GameField.build_continuous_features(agent): dtype=float32, shape=(12,), finite, in bounds. OK.")
 
 
-def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3") -> str:
-    """Return a unique default run_tag per mode so runs don't overwrite each other."""
+def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", max_blue_agents: int = 2) -> str:
+    """Return a unique default run_tag per mode; suffix _2v2 or _4v4 so we don't overwrite other variants."""
+    variant = "2v2" if max_blue_agents <= 2 else "4v4"
     m = str(mode).upper().strip()
     if m == TrainMode.CURRICULUM_LEAGUE.value:
-        return "ppo_league_4v4"
+        return f"ppo_league_{variant}"
     if m == TrainMode.CURRICULUM_NO_LEAGUE.value:
-        return "ppo_paper_4v4"
+        return f"ppo_paper_{variant}"
     if m == TrainMode.FIXED_OPPONENT.value:
-        return f"ppo_fixed_{fixed_opponent_tag.lower()}_4v4"
+        return f"ppo_fixed_{fixed_opponent_tag.lower()}_{variant}"
     if m == TrainMode.SELF_PLAY.value:
-        return "ppo_self_play_4v4"
-    return "ppo_run_4v4"
+        return f"ppo_self_play_{variant}"
+    return f"ppo_run_{variant}"
 
 
 if __name__ == "__main__":
@@ -1588,25 +1589,30 @@ if __name__ == "__main__":
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
-        parser.add_argument("--max-blue-agents", type=int, default=None, help="Number of agents per team (default: 4 for 4v4)")
+        parser.add_argument("--max-blue-agents", type=int, default=None, help="Number of agents per team (default: 2 for 2v2)")
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:
             cfg.mode = args.mode.upper().strip()
-            if args.run_tag is not None:
-                cfg.run_tag = args.run_tag
-            else:
-                cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent)
-        if args.total_steps is not None:
-            cfg.total_timesteps = args.total_steps
-        if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
-            cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if args.max_blue_agents is not None:
             n = max(1, min(int(args.max_blue_agents), 16))
             if n != int(args.max_blue_agents):
                 print(f"[PPO] --max-blue-agents {args.max_blue_agents} out of range; clamped to {n} (max 16).")
             cfg.max_blue_agents = n
+        # Checkpoint dir and run_tag: 2v2 vs 4v4 so we never overwrite the other
+        if cfg.max_blue_agents <= 2:
+            cfg.checkpoint_dir = "checkpoints_sb3_2v2"
+        else:
+            cfg.checkpoint_dir = "checkpoints_sb3"
+        if args.run_tag is not None:
+            cfg.run_tag = args.run_tag
+        else:
+            cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
+        if args.total_steps is not None:
+            cfg.total_timesteps = args.total_steps
+        if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
+            cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):
             cfg.test_kl_zero_lr = True
         train_ppo(cfg)

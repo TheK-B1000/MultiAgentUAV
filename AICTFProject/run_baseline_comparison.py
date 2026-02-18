@@ -33,6 +33,13 @@ BASELINE_MODEL_PATHS = {
     "curriculum_league": "checkpoints_sb3/final_ppo_league.zip",
     "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
 }
+# 2v2 models (separate dir/tags so we don't overwrite pretrained 4v4)
+BASELINE_MODEL_PATHS_2V2 = {
+    "fixed_op3": "checkpoints_sb3_2v2/final_ppo_fixed_op3_2v2.zip",
+    "curriculum_no_league": "checkpoints_sb3_2v2/final_ppo_paper_2v2.zip",
+    "curriculum_league": "checkpoints_sb3_2v2/final_ppo_league_curriculum_2v2.zip",
+    "self_play": "checkpoints_sb3_2v2/final_ppo_self_play_2v2.zip",
+}
 
 DISPLAY_NAMES = {
     "fixed_op3": "Fixed OP3",
@@ -70,10 +77,11 @@ def _run_eval(
     }
 
 
-def _run_suite_op3(num_episodes: int, seed_base: int, headless: bool) -> Dict[str, Dict[str, Any]]:
+def _run_suite_op3(num_episodes: int, seed_base: int, headless: bool, paths: Optional[Dict[str, str]] = None) -> Dict[str, Dict[str, Any]]:
+    paths = paths or BASELINE_MODEL_PATHS
     seeds = [seed_base + i for i in range(num_episodes)]
     out = {}
-    for key, rel_path in BASELINE_MODEL_PATHS.items():
+    for key, rel_path in paths.items():
         path = os.path.join(_SCRIPT_DIR, rel_path) if not os.path.isabs(rel_path) else rel_path
         if not os.path.exists(path):
             out[key] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": "Model not found"}
@@ -85,11 +93,12 @@ def _run_suite_op3(num_episodes: int, seed_base: int, headless: bool) -> Dict[st
     return out
 
 
-def _run_suite_op4(num_episodes: int, seed_base: int, headless: bool) -> Dict[str, Dict[str, Any]]:
+def _run_suite_op4(num_episodes: int, seed_base: int, headless: bool, paths: Optional[Dict[str, str]] = None) -> Dict[str, Dict[str, Any]]:
     """Run all baselines vs single OP4 opponent."""
+    paths = paths or BASELINE_MODEL_PATHS
     seeds = [seed_base + 2000 + j for j in range(num_episodes)]
     out = {}
-    for key, rel_path in BASELINE_MODEL_PATHS.items():
+    for key, rel_path in paths.items():
         path = os.path.join(_SCRIPT_DIR, rel_path) if not os.path.isabs(rel_path) else rel_path
         if not os.path.exists(path):
             out[key] = {"win_rate": 0.0, "wins": 0, "losses": 0, "draws": 0, "error": "Model not found"}
@@ -109,17 +118,19 @@ def main() -> None:
     p.add_argument("--op4-only", action="store_true", help="Evaluate only vs OP4; skip OP3")
     p.add_argument("--out-dir", type=str, default=METRICS_DIR, help="Output directory")
     p.add_argument("--league-model", type=str, default=None, help="League checkpoint path (overrides default)")
+    p.add_argument("--2v2", action="store_true", dest="use_2v2", help="Use 2v2 baseline paths (checkpoints_sb3_2v2, *_2v2.zip)")
     args = p.parse_args()
 
+    paths = BASELINE_MODEL_PATHS_2V2 if getattr(args, "use_2v2", False) else BASELINE_MODEL_PATHS
     if args.league_model:
-        BASELINE_MODEL_PATHS["curriculum_league"] = args.league_model
+        paths["curriculum_league"] = args.league_model
 
     n = max(1, args.episodes)
     seed = args.seed
     os.makedirs(args.out_dir, exist_ok=True)
 
-    op3 = _run_suite_op3(n, seed, args.headless) if not args.op4_only else {}
-    op4_results = _run_suite_op4(n, seed, args.headless)
+    op3 = _run_suite_op3(n, seed, args.headless, paths=paths) if not args.op4_only else {}
+    op4_results = _run_suite_op4(n, seed, args.headless, paths=paths)
 
     # Single results table
     print("\n" + "=" * 70)
@@ -130,7 +141,7 @@ def main() -> None:
     if args.op4_only:
         print(f"{'Baseline':<20} {'vs OP4':>12}")
         print("-" * 70)
-        for key in BASELINE_MODEL_PATHS:
+        for key in paths:
             name = DISPLAY_NAMES.get(key, key)
             r2 = op4_results.get(key, {})
             wr2 = r2.get("win_rate", 0.0) if not r2.get("error") else float("nan")
@@ -139,7 +150,7 @@ def main() -> None:
     else:
         print(f"{'Baseline':<20} {'vs OP3':>12} {'vs OP4':>12}")
         print("-" * 70)
-        for key in BASELINE_MODEL_PATHS:
+        for key in paths:
             name = DISPLAY_NAMES.get(key, key)
             r1 = op3.get(key, {})
             r2 = op4_results.get(key, {})
@@ -156,7 +167,7 @@ def main() -> None:
         w = csv.writer(f)
         if args.op4_only:
             w.writerow(["baseline", "op4_win_rate", "op4_wins", "op4_losses", "op4_draws"])
-            for key in BASELINE_MODEL_PATHS:
+            for key in paths:
                 r2 = op4_results.get(key, {})
                 w.writerow([
                     DISPLAY_NAMES.get(key, key),
@@ -165,7 +176,7 @@ def main() -> None:
                 ])
         else:
             w.writerow(["baseline", "op3_win_rate", "op3_wins", "op3_losses", "op3_draws", "op4_win_rate", "op4_wins", "op4_losses", "op4_draws"])
-            for key in BASELINE_MODEL_PATHS:
+            for key in paths:
                 r1, r2 = op3.get(key, {}), op4_results.get(key, {})
                 w.writerow([
                     DISPLAY_NAMES.get(key, key),
@@ -187,13 +198,13 @@ def main() -> None:
 
     # Performance & Robustness (success vs OP3 / OP4 and generalization drop)
     if args.op4_only:
-        for key in BASELINE_MODEL_PATHS:
+        for key in paths:
             name = DISPLAY_NAMES.get(key, key)
             r2 = op4_results.get(key, {})
             wr2 = _safe_wr(r2)
             print(f"  {name}: win rate vs OP4 = {wr2:.1%}")
     else:
-        for key in BASELINE_MODEL_PATHS:
+        for key in paths:
             name = DISPLAY_NAMES.get(key, key)
             r1, r2 = op3.get(key, {}), op4_results.get(key, {})
             wr1, wr2 = _safe_wr(r1), _safe_wr(r2)
@@ -209,12 +220,12 @@ def main() -> None:
     if plt is not None:
         try:
             # Bar plot of win rates
-            labels = [DISPLAY_NAMES.get(k, k) for k in BASELINE_MODEL_PATHS]
+            labels = [DISPLAY_NAMES.get(k, k) for k in paths]
             if args.op4_only:
                 op4_wr = [
                     op4_results.get(k, {}).get("win_rate", 0.0)
                     if not op4_results.get(k, {}).get("error") else float("nan")
-                    for k in BASELINE_MODEL_PATHS
+                    for k in paths
                 ]
                 x = range(len(labels))
                 plt.figure(figsize=(6, 4))
@@ -231,12 +242,12 @@ def main() -> None:
                 op3_wr = [
                     op3.get(k, {}).get("win_rate", 0.0)
                     if not op3.get(k, {}).get("error") else float("nan")
-                    for k in BASELINE_MODEL_PATHS
+                    for k in paths
                 ]
                 op4_wr = [
                     op4_results.get(k, {}).get("win_rate", 0.0)
                     if not op4_results.get(k, {}).get("error") else float("nan")
-                    for k in BASELINE_MODEL_PATHS
+                    for k in paths
                 ]
                 x = range(len(labels))
                 width = 0.35

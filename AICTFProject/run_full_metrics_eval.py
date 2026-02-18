@@ -33,6 +33,13 @@ BASELINE_MODEL_PATHS: Dict[str, str] = {
     "curriculum_league": "checkpoints_sb3/final_ppo_league.zip",
     "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
 }
+# 2v2 models (separate dir/tags so we don't overwrite pretrained 4v4)
+BASELINE_MODEL_PATHS_2V2: Dict[str, str] = {
+    "fixed_op3": "checkpoints_sb3_2v2/final_ppo_fixed_op3_2v2.zip",
+    "curriculum_no_league": "checkpoints_sb3_2v2/final_ppo_paper_2v2.zip",
+    "curriculum_league": "checkpoints_sb3_2v2/final_ppo_league_curriculum_2v2.zip",
+    "self_play": "checkpoints_sb3_2v2/final_ppo_self_play_2v2.zip",
+}
 
 DISPLAY_NAMES: Dict[str, str] = {
     "fixed_op3": "Fixed OP3",
@@ -127,10 +134,17 @@ def main() -> None:
         default=None,
         help="Optional League checkpoint path (overrides default curriculum_league path)",
     )
+    parser.add_argument(
+        "--2v2",
+        action="store_true",
+        dest="use_2v2",
+        help="Use 2v2 baseline paths (checkpoints_sb3_2v2, *_2v2.zip)",
+    )
     args = parser.parse_args()
 
+    paths = BASELINE_MODEL_PATHS_2V2 if getattr(args, "use_2v2", False) else BASELINE_MODEL_PATHS
     if args.league_model:
-        BASELINE_MODEL_PATHS["curriculum_league"] = args.league_model
+        paths["curriculum_league"] = args.league_model
 
     from analyze_eval_metrics import load_episodes, summarize_episodes
     import math
@@ -143,7 +157,7 @@ def main() -> None:
     # Keep track of per-baseline summaries (collect silently, print at end)
     summaries: Dict[str, Dict[str, Any]] = {}
 
-    for key, rel_path in BASELINE_MODEL_PATHS.items():
+    for key, rel_path in paths.items():
         name = DISPLAY_NAMES.get(key, key)
         path = os.path.join(_SCRIPT_DIR, rel_path) if not os.path.isabs(rel_path) else rel_path
 
