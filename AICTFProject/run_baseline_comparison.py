@@ -27,11 +27,12 @@ sys.path.insert(0, _SCRIPT_DIR)
 
 OP4_OPPONENT = "OP4"  # Single elite opponent for testing
 
+# 4v4 models (default/legacy - kept for backward compatibility with old pretrained models)
 BASELINE_MODEL_PATHS = {
-    "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
-    "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
-    "curriculum_league": "checkpoints_sb3/final_ppo_league.zip",
-    "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
+    "fixed_op3": "checkpoints_sb3_4v4/final_ppo_fixed_op3_4v4.zip",
+    "curriculum_no_league": "checkpoints_sb3_4v4/final_ppo_paper_4v4.zip",
+    "curriculum_league": "checkpoints_sb3_4v4/final_ppo_league_4v4.zip",
+    "self_play": "checkpoints_sb3_4v4/final_ppo_self_play_4v4.zip",
 }
 # 2v2 models (separate dir/tags so we don't overwrite pretrained 4v4)
 BASELINE_MODEL_PATHS_2V2 = {
