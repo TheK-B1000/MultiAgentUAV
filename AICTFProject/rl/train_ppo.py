@@ -176,8 +176,8 @@ class PPOConfig:
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
 
-    # 4v4 training (blue has 4 agents; red mirrors)
-    max_blue_agents: int = 4
+    # 2v2 by default; set 4 for 4v4 (uses separate checkpoint_dir/run_tag to avoid overwriting)
+    max_blue_agents: int = 2
     print_reset_shapes: bool = False
     reward_mode: str = "TEAM_SUM"
     use_obs_builder: bool = True
@@ -1217,8 +1217,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     mode = str(cfg.mode).upper().strip()
 
-    # 4v4: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
+    # Log actual configuration
     max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    print(f"\n[PPO] Training configuration:")
+    print(f"  - Team size: {max_agents}v{max_agents} ({'2v2' if max_agents <= 2 else '4v4+'})")
+    print(f"  - Checkpoint dir: {cfg.checkpoint_dir}")
+    print(f"  - Run tag: {cfg.run_tag}")
+    print(f"  - Mode: {cfg.mode}\n")
+
+    # 4v4: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
     match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
     if match_op3:
         anchor_op3_prob = 1.0
@@ -1604,7 +1611,7 @@ if __name__ == "__main__":
         if cfg.max_blue_agents <= 2:
             cfg.checkpoint_dir = "checkpoints_sb3_2v2"
         else:
-            cfg.checkpoint_dir = "checkpoints_sb3"
+            cfg.checkpoint_dir = "checkpoints_sb3_4v4"  # 4v4 also uses explicit directory name
         if args.run_tag is not None:
             cfg.run_tag = args.run_tag
         else:
