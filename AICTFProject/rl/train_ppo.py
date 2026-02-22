@@ -138,7 +138,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 4_000_000
+    total_timesteps: int = 4_000_000  # 4 million steps (2v2 default; 4v4 may override to 6M)
     n_envs: int = 4
     n_steps: int = 2048
     batch_size: int = 512
@@ -151,9 +151,9 @@ class PPOConfig:
     max_grad_norm: float = 0.5
     device: str = "cpu"
 
-    checkpoint_dir: str = "checkpoints_sb3"
-    # Distinct tag for 4v4 runs so they don't overwrite 2v2 checkpoints
-    run_tag: str = "ppo_league_curriculum_4v4"
+    # 2v2 default: separate dir/tag so we don't overwrite 4v4 models
+    checkpoint_dir: str = "checkpoints_sb3_2v2"
+    run_tag: str = "ppo_league_curriculum_2v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -176,8 +176,8 @@ class PPOConfig:
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
 
-    # 4v4 training (blue has 4 agents; red mirrors)
-    max_blue_agents: int = 4
+    # 2v2 default; set 4 for 4v4
+    max_blue_agents: int = 2
     print_reset_shapes: bool = False
     reward_mode: str = "TEAM_SUM"
     use_obs_builder: bool = True
@@ -1219,6 +1219,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     max_agents = int(getattr(cfg, "max_blue_agents", 2))
     team_size = _agents_suffix(max_agents)
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
+    print(f"[PPO] Total timesteps: {cfg.total_timesteps:,}")
     print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
 
     # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
@@ -1630,6 +1631,11 @@ if __name__ == "__main__":
             else:
                 cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
+        # Keep checkpoint dir in sync with team size so 2v2 and 4v4 don't overwrite each other
+        if cfg.max_blue_agents == 4:
+            cfg.checkpoint_dir = "checkpoints_sb3_4v4"
+        elif cfg.max_blue_agents == 2:
+            cfg.checkpoint_dir = "checkpoints_sb3_2v2"
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_timesteps
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
