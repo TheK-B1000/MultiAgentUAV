@@ -151,9 +151,9 @@ class PPOConfig:
     max_grad_norm: float = 0.5
     device: str = "cpu"
 
-    # 2v2: use separate dir and tag so we don't overwrite pretrained (e.g. 4v4) models
-    checkpoint_dir: str = "checkpoints_sb3_2v2"
-    run_tag: str = "ppo_league_curriculum_2v2"
+    checkpoint_dir: str = "checkpoints_sb3"
+    # Distinct tag for 4v4 runs so they don't overwrite 2v2 checkpoints
+    run_tag: str = "ppo_league_curriculum_4v4"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -176,8 +176,8 @@ class PPOConfig:
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
 
-    # 2v2 by default; set 4 for 4v4 (uses separate checkpoint_dir/run_tag to avoid overwriting)
-    max_blue_agents: int = 2
+    # 4v4 training (blue has 4 agents; red mirrors)
+    max_blue_agents: int = 4
     print_reset_shapes: bool = False
     reward_mode: str = "TEAM_SUM"
     use_obs_builder: bool = True
@@ -1216,16 +1216,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
 
     mode = str(cfg.mode).upper().strip()
-
-    # Log actual configuration
     max_agents = int(getattr(cfg, "max_blue_agents", 2))
-    print(f"\n[PPO] Training configuration:")
-    print(f"  - Team size: {max_agents}v{max_agents} ({'2v2' if max_agents <= 2 else '4v4+'})")
-    print(f"  - Checkpoint dir: {cfg.checkpoint_dir}")
-    print(f"  - Run tag: {cfg.run_tag}")
-    print(f"  - Mode: {cfg.mode}\n")
+    team_size = _agents_suffix(max_agents)
+    print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
+    print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
 
-    # 4v4: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
+    # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
     match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
     if match_op3:
         anchor_op3_prob = 1.0
@@ -1234,7 +1230,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[League] match_op3_exposure=True: 100% OP3 (2v2 control)")
     else:
         if max_agents > 2:
-            print("[League] 4v4: using opponent mix (OP1/OP2/OP3/snapshots) to keep WR in learnable band")
+            print(f"[League] {team_size}: using opponent mix (OP1/OP2/OP3/snapshots) to keep WR in learnable band")
         anchor_op3_prob = float(getattr(cfg, "anchor_op3_prob", 0.40))
         species_prob = 0.20
         snapshot_prob = 0.0
@@ -1493,10 +1489,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
 
-    # 2v2: save as final_<run_tag>.zip (run_tag ends with _2v2). 4v4: add _4v4 so we don't overwrite 2v2.
-    max_agents = int(getattr(cfg, "max_blue_agents", 2))
-    suffix = "_4v4" if (max_agents > 2 and not cfg.run_tag.endswith("_4v4")) else ""
-    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}{suffix}")
+    # run_tag already includes _2v2/_4v4/_8v8 so final/checkpoints/snapshots are distinct per agent size
+    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}")
     model.save(final_path)
     print(f"[PPO] Training complete. Final model saved to: {final_path}.zip")
 
@@ -1566,19 +1560,39 @@ def run_test_vec_schema() -> None:
     print("[test-vec-schema] GameField.build_continuous_features(agent): dtype=float32, shape=(12,), finite, in bounds. OK.")
 
 
-def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", max_blue_agents: int = 2) -> str:
-    """Return a unique default run_tag per mode; suffix _2v2 or _4v4 so we don't overwrite other variants."""
-    variant = "2v2" if max_blue_agents <= 2 else "4v4"
+def _agents_suffix(n_agents: int) -> str:
+    """Return agent-size suffix for filenames: 2v2, 4v4, 8v8, or NvN."""
+    n = max(1, min(int(n_agents), 16))
+    return f"{n}v{n}"
+
+
+def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
+    """Ensure run_tag ends with _2v2, _4v4, _8v8 (or _NvN) so saves/snapshots are distinct per agent size."""
+    suffix = _agents_suffix(n_agents)
+    tag_suffix = f"_{suffix}"
+    # Strip any existing agent suffix so we don't get ppo_league_4v4_2v2
+    for existing in ("_2v2", "_4v4", "_8v8"):
+        if run_tag.endswith(existing):
+            run_tag = run_tag[: -len(existing)]
+            break
+    if not run_tag.endswith(tag_suffix):
+        run_tag = run_tag.rstrip("_") + tag_suffix
+    return run_tag
+
+
+def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 4) -> str:
+    """Return a unique default run_tag per mode and agent size so runs don't overwrite each other."""
     m = str(mode).upper().strip()
+    suffix = _agents_suffix(n_agents)
     if m == TrainMode.CURRICULUM_LEAGUE.value:
-        return f"ppo_league_{variant}"
+        return f"ppo_league_{suffix}"
     if m == TrainMode.CURRICULUM_NO_LEAGUE.value:
-        return f"ppo_paper_{variant}"
+        return f"ppo_paper_{suffix}"
     if m == TrainMode.FIXED_OPPONENT.value:
-        return f"ppo_fixed_{fixed_opponent_tag.lower()}_{variant}"
+        return f"ppo_fixed_{fixed_opponent_tag.lower()}_{suffix}"
     if m == TrainMode.SELF_PLAY.value:
-        return f"ppo_self_play_{variant}"
-    return f"ppo_run_{variant}"
+        return f"ppo_self_play_{suffix}"
+    return f"ppo_run_{suffix}"
 
 
 if __name__ == "__main__":
@@ -1596,7 +1610,8 @@ if __name__ == "__main__":
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
-        parser.add_argument("--max-blue-agents", type=int, default=None, help="Number of agents per team (default: 2 for 2v2)")
+        parser.add_argument("--agents", type=int, default=None, choices=[2, 4, 8], help="Team size: 2=2v2, 4=4v4, 8=8v8 (sets --max-blue-agents)")
+        parser.add_argument("--max-blue-agents", type=int, default=None, help="Agents per team (1-16). Use 2/4/8 for 2v2/4v4/8v8; overrides --agents if set.")
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         args = parser.parse_args()
         cfg = PPOConfig()
@@ -1607,17 +1622,16 @@ if __name__ == "__main__":
             if n != int(args.max_blue_agents):
                 print(f"[PPO] --max-blue-agents {args.max_blue_agents} out of range; clamped to {n} (max 16).")
             cfg.max_blue_agents = n
-        # Checkpoint dir and run_tag: 2v2 vs 4v4 so we never overwrite the other
-        if cfg.max_blue_agents <= 2:
-            cfg.checkpoint_dir = "checkpoints_sb3_2v2"
-        else:
-            cfg.checkpoint_dir = "checkpoints_sb3_4v4"  # 4v4 also uses explicit directory name
-        if args.run_tag is not None:
-            cfg.run_tag = args.run_tag
-        else:
-            cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
+        elif getattr(args, "agents", None) is not None:
+            cfg.max_blue_agents = int(args.agents)
+        if args.mode is not None:
+            if args.run_tag is not None:
+                cfg.run_tag = args.run_tag
+            else:
+                cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
+        cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         if args.total_steps is not None:
-            cfg.total_timesteps = args.total_steps
+            cfg.total_timesteps = args.total_timesteps
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):
