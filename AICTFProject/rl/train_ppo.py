@@ -1265,7 +1265,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _min_games_vs_op3 = 50
         if cfg.total_timesteps < 6_000_000:
             cfg.total_timesteps = 6_000_000
-            print(f"[PPO] 4v4: using total_timesteps={cfg.total_timesteps} for better convergence")
+            print(f"[PPO] {team_size}: using total_timesteps={cfg.total_timesteps} for better convergence")
     else:
         _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
         _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
@@ -1354,10 +1354,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print(f"[PPO] Using reduced aggressiveness: LR={learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={clip_range:.2f}")
 
     # 4v4/8v8: gentler LR to reduce KL spikes and stabilize (scripted OP3 also scaled down in opponent_params)
-    max_agents = int(getattr(cfg, "max_blue_agents", 2))
     if max_agents > 2:
         learning_rate = learning_rate * 0.75
-        print(f"[PPO] 4v4: using lr={learning_rate:.2e} for stability")
+        print(f"[PPO] {team_size}: using lr={learning_rate:.2e} for stability")
 
     # KL sanity check: run with lr=0 and verify approx_kl ~ 0 in logs; if huge, logprob/action plumbing is broken
     if getattr(cfg, "test_kl_zero_lr", False):
@@ -1631,7 +1630,7 @@ if __name__ == "__main__":
                 cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         if args.total_steps is not None:
-            cfg.total_timesteps = args.total_timesteps
+            cfg.total_timesteps = args.total_steps
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):
