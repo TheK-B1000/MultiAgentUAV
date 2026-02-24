@@ -1221,6 +1221,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
     print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
 
+    # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM on CPU.
+    if max_agents > 4:
+        original_n_envs = int(getattr(cfg, "n_envs", 4))
+        original_n_steps = int(getattr(cfg, "n_steps", 2048))
+        if original_n_envs > 2 or original_n_steps > 1024:
+            print(
+                f"[PPO] {team_size}: reducing n_envs/n_steps for memory: "
+                f"n_envs {original_n_envs}->2, n_steps {original_n_steps}->1024"
+            )
+        cfg.n_envs = min(original_n_envs, 2)
+        cfg.n_steps = min(original_n_steps, 1024)
+
     # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
     match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
     if match_op3:
@@ -1259,7 +1271,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     max_agents = int(getattr(cfg, "max_blue_agents", 2))
     if max_agents > 2:
         _min_episodes = {"OP1": 350, "OP2": 300, "OP3": 350}
-        _min_winrate = {"OP1": 0.70, "OP2": 0.65, "OP3": 0.80}
+        # Use same phase win-rate thresholds for 2v2/4v4/8v8: OP1=100%, OP2=90%, OP3=80%
+        _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
         _winrate_window_by_phase = {"OP1": 80, "OP2": 80, "OP3": 120}
         _min_winrate_vs_op3 = 0.70
         _min_games_vs_op3 = 50
