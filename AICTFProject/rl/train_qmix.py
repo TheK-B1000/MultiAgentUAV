@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""
+QMIX training against the CTF environment.
+
+NOTE: This script is now deprecated. Training has migrated to the GPU-native PPO
+pipeline using `game_field_gpu.py` and `rl.train_ppo`. The legacy CPU `game_field.py`
+has been removed and QMIX is no longer maintained.
+"""
+
 import os
 import random
 from dataclasses import dataclass
@@ -10,8 +18,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
-from game_field import make_game_field
+from game_field_gpu import CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from macro_actions import MacroAction
 from obs_encoder import ObsEncoder
 from rl.common import batch_by_agent_id, set_global_seed, simulate_decision_window
@@ -235,6 +242,11 @@ def qmix_update(
 
 
 def train_qmix(cfg: Optional[QMIXConfig] = None) -> None:
+    raise RuntimeError(
+        "QMIX training via rl.train_qmix has been disabled after migration to the "
+        "GPU-native PPO pipeline. The legacy CPU game_field.GameField has been removed. "
+        "Please use rl.train_ppo with GPUCTFVecEnv in game_field_gpu.py instead."
+    )
     cfg = cfg or QMIXConfig()
     set_global_seed(cfg.seed)
 

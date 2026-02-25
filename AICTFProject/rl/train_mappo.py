@@ -4,7 +4,11 @@ MAPPO (Multi-Agent PPO) with central critic: curriculum, league, fixed opponent,
 Training modes: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE, FIXED_OPPONENT, SELF_PLAY.
 Uses GameField + decision windows and rl_policy.ActorCriticNet. Saves .pth state_dict.
 
-Usage:
+NOTE: This script is now deprecated. Training has migrated to the GPU-native PPO
+pipeline using `game_field_gpu.py` and `rl.train_ppo`. The legacy CPU `game_field.py`
+has been removed and MAPPO is no longer maintained.
+
+Usage (deprecated):
   python -m rl.train_mappo [--mode CURRICULUM_LEAGUE] [--total_steps 500000] ...
 """
 from __future__ import annotations
@@ -19,8 +23,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from game_field import GameField, CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
-from game_field import make_game_field
+from game_field_gpu import CNN_ROWS, CNN_COLS, NUM_CNN_CHANNELS
 from macro_actions import MacroAction
 from rl_policy import ActorCriticNet
 from rl.common import batch_by_agent_id, set_global_seed, simulate_decision_window
@@ -322,6 +325,11 @@ def _enforce_league_snapshot_limit(league: EloLeague, max_snapshots: int) -> Non
 
 
 def train_mappo(cfg: Optional[MAPPOConfig] = None) -> None:
+    raise RuntimeError(
+        "MAPPO training via rl.train_mappo has been disabled after migration to the "
+        "GPU-native PPO pipeline. The legacy CPU game_field.GameField has been removed. "
+        "Please use rl.train_ppo with GPUCTFVecEnv in game_field_gpu.py instead."
+    )
     cfg = cfg or MAPPOConfig()
     set_global_seed(cfg.seed)
     mode = str(cfg.mode or TrainMode.CURRICULUM_LEAGUE.value).strip().upper()

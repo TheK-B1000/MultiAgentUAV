@@ -21,15 +21,9 @@ from stable_baselines3.common.policies import MultiInputActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, NatureCNN
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import VecMonitor
 
-from game_field import make_game_field
-from ctf_sb3_env import CTFGameFieldSB3Env
-try:
-    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
-except Exception:
-    GPUCTFVecEnv = None
-    GPUFieldConfig = None
+from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from rl.common import env_seed, set_global_seed
 from rl.curriculum import (
     CurriculumConfig,
@@ -40,7 +34,6 @@ from rl.curriculum import (
 )
 from rl.league import EloLeague, OpponentSpec
 from rl.episode_result import parse_episode_result, EpisodeSummary, path_to_snapshot_key
-from config import MAP_NAME, MAP_PATH
 
 
 class TokenizedCombinedExtractor(BaseFeaturesExtractor):
@@ -207,40 +200,7 @@ class PPOConfig:
     test_kl_zero_lr: bool = False
     # For now, keep standard (non-tokenized) CNN obs for 4v4 to avoid tiny 1x1 grids
     use_tokenized_obs: bool = False
-    gpu_native_env: bool = False
-
-
-def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
-    """Env factory; per-env seed via env_seed so DummyVecEnv/SubprocVecEnv behave the same."""
-    def _fn():
-        s = env_seed(cfg.seed, rank)
-        np.random.seed(s)
-        torch.manual_seed(s)
-        env = CTFGameFieldSB3Env(
-            make_game_field_fn=lambda: make_game_field(
-                map_name=MAP_NAME or None,
-                map_path=MAP_PATH or None,
-            ),
-            max_decision_steps=cfg.max_decision_steps,
-            enforce_masks=True,
-            seed=s,
-            include_mask_in_obs=True,
-            default_opponent_kind=default_opponent[0],
-            default_opponent_key=default_opponent[1],
-            ppo_gamma=cfg.gamma,
-            action_flip_prob=getattr(cfg, "action_flip_prob", 0.0),
-            max_blue_agents=getattr(cfg, "max_blue_agents", 2),
-            print_reset_shapes=getattr(cfg, "print_reset_shapes", False),
-            allow_missing_vec_features=getattr(cfg, "allow_missing_vec_features", False),
-            reward_mode=getattr(cfg, "reward_mode", "TEAM_SUM"),
-            use_obs_builder=getattr(cfg, "use_obs_builder", True),
-            include_opponent_context=getattr(cfg, "include_opponent_context", False),
-            obs_debug_validate_locality=getattr(cfg, "obs_debug_validate_locality", False),
-            normalize_vec=getattr(cfg, "normalize_vec", False),
-            auxiliary_progress_scale=getattr(cfg, "auxiliary_progress_scale", 0.22),
-        )
-        return env
-    return _fn
+    gpu_native_env: bool = True  # All training uses game_field_gpu
 
 
 class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
@@ -1336,31 +1296,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
-    if bool(getattr(cfg, "gpu_native_env", False)):
-        if GPUCTFVecEnv is None or GPUFieldConfig is None:
-            raise RuntimeError("GPU native env requested, but game_field_gpu imports failed.")
-        gpu_cfg = GPUFieldConfig(
-            n_envs=max(1, int(cfg.n_envs)),
-            max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-            max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-            max_decision_steps=max(1, int(cfg.max_decision_steps)),
-            aquaticus_profile=True,
-            rules_profile="AQUATICUS_2024",
-            device=str(cfg.device),
-            seed=int(cfg.seed),
-        )
-        print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
-        venv = GPUCTFVecEnv(gpu_cfg)
-    else:
-        env_fns = [
-            _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
-            for i in range(max(1, int(cfg.n_envs)))
-        ]
-        try:
-            venv = SubprocVecEnv(env_fns)
-        except Exception:
-            venv = DummyVecEnv(env_fns)
-    venv = VecMonitor(venv)
+    gpu_cfg = GPUFieldConfig(
+        n_envs=max(1, int(cfg.n_envs)),
+        max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+        max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+        max_decision_steps=max(1, int(cfg.max_decision_steps)),
+        aquaticus_profile=True,
+        rules_profile="AQUATICUS_2024",
+        device=str(cfg.device),
+        seed=int(cfg.seed),
+    )
+    print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
+    venv = VecMonitor(GPUCTFVecEnv(gpu_cfg))
 
     try:
         venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
@@ -1509,25 +1456,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
 
     if cfg.enable_eval:
-        # Use OP3 for evaluation/testing
-        if bool(getattr(cfg, "gpu_native_env", False)):
-            if GPUCTFVecEnv is None or GPUFieldConfig is None:
-                raise RuntimeError("GPU native eval env requested, but game_field_gpu imports failed.")
-            eval_env = GPUCTFVecEnv(
-                GPUFieldConfig(
-                    n_envs=1,
-                    max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-                    max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-                    max_decision_steps=max(1, int(cfg.max_decision_steps)),
-                    aquaticus_profile=True,
-                    rules_profile="AQUATICUS_2024",
-                    device=str(cfg.device),
-                    seed=int(cfg.seed),
-                )
+        eval_env = VecMonitor(GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+                max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+                max_decision_steps=max(1, int(cfg.max_decision_steps)),
+                aquaticus_profile=True,
+                rules_profile="AQUATICUS_2024",
+                device=str(cfg.device),
+                seed=int(cfg.seed),
             )
-        else:
-            eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
-        eval_env = VecMonitor(eval_env)
+        ))
         
         # CRITICAL: Match training environment setup (stress schedule + phase)
         # This ensures eval environment matches training and viewer environments
@@ -1571,68 +1511,49 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
 
 def run_verify_4v4(num_episodes: int = 10) -> None:
-    """Sprint A verification: run N random-action episodes at 4v4, print shapes on reset."""
-    cfg = PPOConfig(
+    """Run N random-action episodes at 4v4 on GPU env, print shapes on reset."""
+    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+    set_global_seed(42)
+    cfg = GPUFieldConfig(
+        n_envs=1,
         max_blue_agents=4,
-        mode=TrainMode.FIXED_OPPONENT.value,
-        fixed_opponent_tag="OP1",
-        print_reset_shapes=True,
+        max_red_agents=4,
+        max_decision_steps=400,
+        aquaticus_profile=True,
+        rules_profile="AQUATICUS_2024",
+        device="cpu",
+        seed=42,
     )
-    set_global_seed(cfg.seed)
-    env = CTFGameFieldSB3Env(
-        make_game_field_fn=lambda: make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None),
-        max_decision_steps=cfg.max_decision_steps,
-        enforce_masks=True,
-        seed=cfg.seed,
-        include_mask_in_obs=True,
-        default_opponent_kind="SCRIPTED",
-        default_opponent_key="OP1",
-        ppo_gamma=cfg.gamma,
-        max_blue_agents=4,
-        print_reset_shapes=True,
-    )
+    venv = GPUCTFVecEnv(cfg)
     for ep in range(num_episodes):
-        obs, _ = env.reset(options={"n_agents": 4})
+        obs = venv.reset()
         done = False
         steps = 0
-        while not done and steps < env.max_decision_steps * 2:
-            action = env.action_space.sample()
-            obs, reward, term, trunc, info = env.step(action)
-            done = term or trunc
+        while not done and steps < 800:
+            action = venv.action_space.sample()
+            obs, reward, done_arr, infos = venv.step(action)
+            done = bool(done_arr[0])
             steps += 1
         print(f"[Verify-4v4] episode {ep + 1}/{num_episodes} steps={steps} done={done}")
-    env.close()
+    venv.close()
     print(f"[Verify-4v4] Done. {num_episodes} random-action 4v4 episodes completed.")
 
 
 def run_test_vec_schema() -> None:
-    """
-    Step 2.2 verification: GameField.build_continuous_features(agent) takes an Agent instance
-    (not agent_id) and returns float32 shape (12,), finite, in schema bounds.
-    """
-    from game_field import GameField
-    from config import MAP_NAME, MAP_PATH
-    V = 12
-    assert hasattr(GameField, "VEC_SCHEMA_VERSION"), "GameField missing VEC_SCHEMA_VERSION"
-    assert getattr(GameField, "VEC_SCHEMA_VERSION", 0) >= 1, "VEC_SCHEMA_VERSION must be >= 1"
-
-    gf = make_game_field(map_name=MAP_NAME or None, map_path=MAP_PATH or None)
-    gf.reset_default()
-    blue_agents = getattr(gf, "blue_agents", []) or []
-    assert blue_agents, "No blue agents after reset_default"
-
-    for agent in blue_agents:
-        if agent is None:
-            continue
-        vec = gf.build_continuous_features(agent)
-        vec = np.asarray(vec, dtype=np.float32)
-        assert vec.dtype == np.float32, f"dtype {vec.dtype}, expected float32"
-        assert vec.shape == (V,), f"shape {vec.shape}, expected ({V},)"
-        assert np.all(np.isfinite(vec)), f"non-finite values: {vec}"
-        assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
-            f"vec values outside expected schema bounds [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
-        )
-    print("[test-vec-schema] GameField.build_continuous_features(agent): dtype=float32, shape=(12,), finite, in bounds. OK.")
+    """Verify GPU core obs: vec has shape (B, N, 12), float32, finite, in bounds."""
+    from game_field_gpu import BatchedCTFCore, GPUFieldConfig
+    cfg = GPUFieldConfig(n_envs=1, max_blue_agents=2, max_red_agents=2, device="cpu", seed=42)
+    core = BatchedCTFCore(cfg)
+    core.reset_all()
+    obs = core.get_obs()
+    vec = obs["vec"]
+    assert vec.dtype == np.float32, f"vec.dtype {vec.dtype}, expected float32"
+    assert vec.ndim == 3 and vec.shape[2] == 12, f"vec.shape {vec.shape}, expected (B, N, 12)"
+    assert np.all(np.isfinite(vec)), "vec has non-finite values"
+    assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
+        f"vec outside [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
+    )
+    print("[test-vec-schema] GPU core get_obs() vec: dtype=float32, shape=(B,N,12), finite, in bounds. OK.")
 
 
 def _agents_suffix(n_agents: int) -> str:
@@ -1687,7 +1608,7 @@ if __name__ == "__main__":
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
         parser.add_argument("--agents", type=int, default=None, choices=[2, 4, 8], help="Team size: 2=2v2, 4=4v4, 8=8v8 (sets --max-blue-agents)")
         parser.add_argument("--max-blue-agents", type=int, default=None, help="Agents per team (1-16). Use 2/4/8 for 2v2/4v4/8v8; overrides --agents if set.")
-        parser.add_argument("--gpu-native-env", action="store_true", help="Use torch-batched GPU-native env (game_field_gpu.py) instead of Python GameField envs.")
+        parser.add_argument("--gpu-native-env", action="store_true", help="Deprecated flag; training always uses game_field_gpu.")
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         args = parser.parse_args()
         cfg = PPOConfig()
@@ -1712,6 +1633,5 @@ if __name__ == "__main__":
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):
             cfg.test_kl_zero_lr = True
-        if getattr(args, "gpu_native_env", False):
-            cfg.gpu_native_env = True
+        cfg.gpu_native_env = True  # All training uses game_field_gpu
         train_ppo(cfg)
