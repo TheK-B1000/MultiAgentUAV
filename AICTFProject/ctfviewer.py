@@ -168,6 +168,20 @@ class CoreRenderer:
         if not rf_taken:
             self._draw_flag_icon(surface, rect, cw, ch, rf, (250, 120, 70))
 
+        # Mines (same as last time: place on own half, trigger when enemy steps in radius)
+        if getattr(c, "blue_mine_active", None) is not None:
+            for i in range(c.blue_mine_x.shape[1]):
+                if c.blue_mine_active[0, i].item():
+                    mx = c.blue_mine_x[0, i].item()
+                    my = c.blue_mine_y[0, i].item()
+                    self._draw_mine(surface, rect, cw, ch, mx, my, (90, 170, 250))
+        if getattr(c, "red_mine_active", None) is not None:
+            for i in range(c.red_mine_x.shape[1]):
+                if c.red_mine_active[0, i].item():
+                    mx = c.red_mine_x[0, i].item()
+                    my = c.red_mine_y[0, i].item()
+                    self._draw_mine(surface, rect, cw, ch, mx, my, (250, 120, 70))
+
         # Agents
         bx, by = self._t(c.blue_x), self._t(c.blue_y)
         bh = self._t(c.blue_heading)
@@ -201,6 +215,14 @@ class CoreRenderer:
                              flag_clr=(90, 170, 250))
 
     # ---- helpers ----
+
+    @staticmethod
+    def _draw_mine(surface: pg.Surface, rect: pg.Rect, cw: float, ch: float, x: float, y: float, color: Tuple[int, int, int]) -> None:
+        cx = rect.left + (float(x) + 0.5) * cw
+        cy = rect.top + (float(y) + 0.5) * ch
+        r = int(0.35 * min(cw, ch))
+        pg.draw.circle(surface, color, (int(cx), int(cy)), r)
+        pg.draw.circle(surface, (240, 240, 240), (int(cx), int(cy)), r, width=1)
 
     @staticmethod
     def _draw_flag_zone(surface, rect, cw, ch, pos, color):
@@ -521,6 +543,9 @@ class CTFViewer:
         txt(f"BLUE: {bs}", 30, 60, (100, 180, 255))
         txt(f"RED: {rs}", 180, 60, (255, 100, 100))
         txt(f"Step: {step}/{self.core.max_steps}", 330, 60, (200, 200, 230))
+        # 3 min game: 0.1 s per step -> time remaining
+        sec_left = max(0, (self.core.max_steps - step)) * 0.1
+        txt(f"Time: {int(sec_left // 60)}:{int(sec_left % 60):02d}", 500, 60, (200, 200, 230))
 
         # Debug HUD: per-side tagging and side info.
         try:

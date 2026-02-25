@@ -25,7 +25,8 @@ class GPUFieldConfig:
     max_red_agents: int = 2
     map_rows: int = 20
     map_cols: int = 20
-    max_decision_steps: int = 400
+    # 3-minute games at 0.1 s per step -> 1800 steps; game ends at time 0 or score 3
+    max_decision_steps: int = 1800
     decision_interval_seconds: float = 0.7
 
     # Dynamics (matching BoatSimConfig defaults in game_field.py)
@@ -47,7 +48,13 @@ class GPUFieldConfig:
 
     n_macros: int = 5
     n_targets: int = 8
-    score_limit: int = 9
+    score_limit: int = 3
+
+    # Mines: each team can place up to max_mines_per_team on their own half.
+    # Mines trigger when an enemy steps within mine_trigger_radius_cells.
+    max_mines_per_team: int = 3
+    mine_trigger_radius_cells: float = 1.5
+    mine_cooldown_steps: int = 60
 
     # Profile and reward controls
     aquaticus_profile: bool = True
@@ -150,17 +157,22 @@ class BatchedCTFCore:
         self.blue_score = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.red_score = torch.zeros((B,), dtype=torch.int32, device=dev)
 
+        # Flags at vertical center; a little inward from edges (2 cells) toward middle
+        home_y = float(self.rows // 2)
+        inward = 2.0
+        blue_x = min(inward, float(max(0, self.cols - 1)))
+        red_x = max(float(self.cols - 1) - inward, 0.0)
         self.blue_flag_home = torch.stack(
             [
-                torch.zeros((B,), dtype=f32, device=dev),
-                torch.full((B,), float(self.rows // 2), dtype=f32, device=dev),
+                torch.full((B,), blue_x, dtype=f32, device=dev),
+                torch.full((B,), home_y, dtype=f32, device=dev),
             ],
             dim=1,
         )
         self.red_flag_home = torch.stack(
             [
-                torch.full((B,), float(self.cols - 1), dtype=f32, device=dev),
-                torch.full((B,), float(self.rows // 2), dtype=f32, device=dev),
+                torch.full((B,), red_x, dtype=f32, device=dev),
+                torch.full((B,), home_y, dtype=f32, device=dev),
             ],
             dim=1,
         )
@@ -179,6 +191,18 @@ class BatchedCTFCore:
         # Capture confirmation counters (batched per-agent).
         self.blue_home_contact_frames = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
         self.red_home_contact_frames = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
+
+        # Mines: each team has max_mines_per_team slots. Active=1 means placed on field.
+        Nm = int(self.cfg.max_mines_per_team)
+        self.Nm = Nm
+        self.blue_mine_x = torch.zeros((B, Nm), dtype=f32, device=dev)
+        self.blue_mine_y = torch.zeros((B, Nm), dtype=f32, device=dev)
+        self.blue_mine_active = torch.zeros((B, Nm), dtype=torch.bool, device=dev)
+        self.red_mine_x = torch.zeros((B, Nm), dtype=f32, device=dev)
+        self.red_mine_y = torch.zeros((B, Nm), dtype=f32, device=dev)
+        self.red_mine_active = torch.zeros((B, Nm), dtype=torch.bool, device=dev)
+        self.blue_mine_cooldown = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.red_mine_cooldown = torch.zeros((B,), dtype=torch.int32, device=dev)
 
     def _build_macro_targets(self) -> None:
         c_mid = self.cols // 2
@@ -268,6 +292,10 @@ class BatchedCTFCore:
         self.red_role_switch_prob[idx] = 0.0
         self.blue_home_contact_frames[idx] = 0
         self.red_home_contact_frames[idx] = 0
+        self.blue_mine_active[idx] = False
+        self.red_mine_active[idx] = False
+        self.blue_mine_cooldown[idx] = 0
+        self.red_mine_cooldown[idx] = 0
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
 
@@ -395,11 +423,11 @@ class BatchedCTFCore:
         side: str = "blue",
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        For agents carrying a flag, compute a waypoint that routes *around*
-        nearby enemies using distance-weighted tangent vectors (tangent hook).
-        Side preference pushes away from center line (y=10) toward North/South.
+        For carriers, waypoint that routes *around* defenders using the same
+        side-weighted tangent hook: tangent perpendicular to goal (home),
+        exponential repulsion by distance. step_side=7 clears the 2.5 tag radius.
         """
-        threat_radius = 7.0
+        threat_radius = 8.0
         center_y = 10.0
         hx = home_x[:, None].expand_as(own_x)
         hy = home_y[:, None].expand_as(own_y)
@@ -409,50 +437,35 @@ class BatchedCTFCore:
         home_ux = home_dx / home_n
         home_uy = home_dy / home_n
 
-        # Pairwise distances to every enemy  [B, N_own, N_enemy]
+        # Tangent perpendicular to GOAL (home) direction
+        tan_x = -home_uy
+        tan_y = home_ux
+
+        # Pairwise distances [B, N_own, N_enemy]; nearest *alive* enemy per agent
         dxx = own_x[:, :, None] - enemy_x[:, None, :]
         dyy = own_y[:, :, None] - enemy_y[:, None, :]
         dd = torch.sqrt(dxx ** 2 + dyy ** 2 + 1e-8)
+        big = torch.full_like(dd, 1e9)
+        dd_masked = torch.where(enemy_alive[:, None, :], dd, big)
+        nearest_dist = dd_masked.min(dim=2)[0]
+        in_range = nearest_dist < threat_radius
+        nearest_dist = nearest_dist.clamp(min=1e-6)
 
-        in_range = (dd < threat_radius) & enemy_alive[:, None, :]
+        # Same exponential repulsion as striker: ( (8 - d) / 8 )^2
+        repulsion = torch.pow(torch.clamp(threat_radius - nearest_dist, min=0.0) / threat_radius, 2.0)
+        repulsion = repulsion * in_range.float()
 
-        away_x = dxx / dd
-        away_y = dyy / dd
+        # Side bias: above center -> go high, below -> go low
+        side_bias = torch.where(own_y > center_y, 1.0, -1.0)
 
-        # Two tangent candidates (perpendicular to away)
-        t1x, t1y = -away_y, away_x
-        t2x, t2y = away_y, -away_x
-
-        # Pick the tangent more aligned with the home direction
-        dot1 = t1x * home_ux[:, :, None] + t1y * home_uy[:, :, None]
-        dot2 = t2x * home_ux[:, :, None] + t2y * home_uy[:, :, None]
-        use_t1 = dot1 >= dot2
-        tan_x = torch.where(use_t1, t1x, t2x)
-        tan_y = torch.where(use_t1, t1y, t2y)
-
-        weight = torch.clamp((threat_radius - dd) / threat_radius, 0.0, 1.0)
-        weight = weight * in_range.float()
-
-        agg_x = (tan_x * weight).sum(dim=2)
-        agg_y = (tan_y * weight).sum(dim=2)
-        agg_n = torch.sqrt(agg_x ** 2 + agg_y ** 2 + 1e-8)
-        agg_x = agg_x / agg_n
-        agg_y = agg_y / agg_n
-
-        has_threat = weight.sum(dim=2) > 0.0
-
-        # Strong lateral dodge for carriers under threat (tangent hook)
-        step_fwd = 3.5
-        step_side = 5.0
-        evade_tx = own_x + home_ux * step_fwd + agg_x * step_side
-        evade_ty = own_y + home_uy * step_fwd + agg_y * step_side
-        # Nonlinear repulsion: push away from center line toward boundary (North/South)
-        side_preference = 1.0 if (side == "blue") else -1.0
-        repulsion = torch.clamp(2.0 - torch.abs(own_y - center_y) / 5.0, 0.0, 2.0)
-        evade_ty = evade_ty + side_preference * repulsion * 2.0
+        step_fwd = 2.0
+        step_side = 7.0
+        evade_tx = own_x + home_ux * step_fwd + tan_x * side_bias * repulsion * step_side
+        evade_ty = own_y + home_uy * step_fwd + tan_y * side_bias * repulsion * step_side
         evade_tx = torch.clamp(evade_tx, 0.0, float(max(0, self.cols - 1)))
         evade_ty = torch.clamp(evade_ty, 0.0, float(max(0, self.rows - 1)))
 
+        has_threat = repulsion > 0.0
         should_evade = has_threat & carrying
         final_tx = torch.where(should_evade, evade_tx, hx)
         final_ty = torch.where(should_evade, evade_ty, hy)
@@ -567,7 +580,7 @@ class BatchedCTFCore:
             target[:, guardian_idx, 0] = gx
             target[:, guardian_idx, 1] = gy
 
-        # ======== Striker (agent 1): lane preference (Blue North y=15, Red South y=5) ========
+        # ======== Striker (agent 1): lane preference + side-weighted tangent hook ========
         center_y = 10.0
         lane_y_north = min(max_y, 15.0)
         lane_y_south = max(0.0, 5.0)
@@ -577,7 +590,7 @@ class BatchedCTFCore:
             efy = enemy_flag_pos[:, 1]
             rx = own_x[:, striker_idx]
             ry = own_y[:, striker_idx]
-            # Prefer lane when crossing neutral zone: Blue North (y=15), Red South (y=5)
+            # Lane preference: Blue North (y=15), Red South (y=5) when crossing neutral zone
             dist_to_flag = torch.sqrt((rx - efx) ** 2 + (ry - efy) ** 2 + 1e-8)
             lane_y = torch.full((B,), lane_y_north if is_blue else lane_y_south, device=device)
             sy_easy = torch.where(dist_to_flag > 4.0, lane_y, efy)
@@ -599,30 +612,20 @@ class BatchedCTFCore:
                 goal_dx = goal_dx / goal_n
                 goal_dy = goal_dy / goal_n
 
+                # Tangent perpendicular to GOAL direction (not to enemy)
+                tan_x = -goal_dy
+                tan_y = goal_dx
+
                 away_x = rx - nbx
                 away_y = ry - nby
-                away_n = torch.sqrt(away_x * away_x + away_y * away_y + 1e-8)
-                away_x = away_x / away_n
-                away_y = away_y / away_n
-                t1x = -away_y
-                t1y = away_x
-                t2x = -t1x
-                t2y = -t1y
-                dot1 = t1x * goal_dx + t1y * goal_dy
-                use_t1 = dot1 >= 0.0
-                tan_x = torch.where(use_t1, t1x, t2x)
-                tan_y = torch.where(use_t1, t1y, t2y)
+                dist_to_enemy = torch.sqrt(away_x * away_x + away_y * away_y + 1e-8)
+                # Exponential repulsion: stronger as enemy gets closer (hook 6 when within 8)
+                repulsion = torch.pow(torch.clamp(8.0 - dist_to_enemy, min=0.0) / 8.0, 2.0)
+                # Side bias: above center -> go high, below -> go low (breaks symmetry)
+                side_bias = torch.where(ry > center_y, 1.0, -1.0)
 
-                step_fwd_base = torch.full((B,), 3.0, device=device)
-                step_side_base = torch.full((B,), 2.5, device=device)
-                step_forward = torch.where(striker_carry, step_fwd_base * 1.5, step_fwd_base)
-                step_side = torch.where(striker_carry, step_side_base * 2.0, step_side_base)
-                tx_med = rx + goal_dx * step_forward + tan_x * step_side
-                ty_med = ry + goal_dy * step_forward + tan_y * step_side
-                # Nonlinear repulsion: push away from center line (y=10) toward lane boundary
-                side_preference = 1.0 if is_blue else -1.0  # Blue toward North, Red toward South
-                repulsion = torch.clamp(2.0 - torch.abs(ry - center_y) / 5.0, 0.0, 2.0)
-                ty_med = ty_med + side_preference * repulsion * 2.0
+                tx_med = rx + (goal_dx * 2.0) + (tan_x * side_bias * repulsion * 6.0)
+                ty_med = ry + (goal_dy * 2.0) + (tan_y * side_bias * repulsion * 6.0)
                 sx_med = torch.clamp(tx_med, 0.0, max_x)
                 sy_med = torch.clamp(ty_med, 0.0, max_y)
 
@@ -898,26 +901,124 @@ class BatchedCTFCore:
             self.red_x = torch.clamp(self.red_x + fx_r2, 0.0, float(max(0, self.cols - 1)))
             self.red_y = torch.clamp(self.red_y + fy_r2, 0.0, float(max(0, self.rows - 1)))
 
+    # ------------------------------------------------------------------
+    # Mine system
+    # ------------------------------------------------------------------
+    def _scripted_place_mines(self) -> None:
+        """
+        Scripted mine placement for both sides.
+        Defenders place mines on their own half near the flag approach lanes.
+        Mines are only placed when cooldown is 0 and there is a free slot.
+        """
+        B, device = self.B, self.device
+        midline = float(self.cols) * 0.5
+        cooldown = int(self.cfg.mine_cooldown_steps)
+        max_y = float(max(0, self.rows - 1))
+
+        for side in ("blue", "red"):
+            if side == "blue":
+                mine_x, mine_y, mine_active = self.blue_mine_x, self.blue_mine_y, self.blue_mine_active
+                mine_cd = self.blue_mine_cooldown
+                flag_home = self.blue_flag_home
+                defender_x = self.blue_x[:, 0]
+                defender_y = self.blue_y[:, 0]
+                own_lo, own_hi = 0.0, midline
+            else:
+                mine_x, mine_y, mine_active = self.red_mine_x, self.red_mine_y, self.red_mine_active
+                mine_cd = self.red_mine_cooldown
+                flag_home = self.red_flag_home
+                defender_x = self.red_x[:, 0]
+                defender_y = self.red_y[:, 0]
+                own_lo, own_hi = midline, float(max(0, self.cols - 1))
+
+            can_place = (mine_cd <= 0)
+            if not can_place.any():
+                continue
+
+            free_slot = (~mine_active).to(torch.int64).argmax(dim=1)
+            has_free = (~mine_active).any(dim=1)
+            should_place = can_place & has_free
+
+            # Place interval: every 40 steps, near defender position (on own half)
+            place_trigger = should_place & ((self.step_count % 40) == 0)
+            if not place_trigger.any():
+                continue
+
+            env_idx = torch.where(place_trigger)[0]
+            slot = free_slot[env_idx]
+            px = torch.clamp(defender_x[env_idx] + self._rand_uniform((env_idx.numel(),), -2.0, 2.0), own_lo, own_hi)
+            py = torch.clamp(defender_y[env_idx] + self._rand_uniform((env_idx.numel(),), -3.0, 3.0), 0.0, max_y)
+            mine_x[env_idx, slot] = px
+            mine_y[env_idx, slot] = py
+            mine_active[env_idx, slot] = True
+            if side == "blue":
+                self.blue_mine_cooldown[env_idx] = cooldown
+            else:
+                self.red_mine_cooldown[env_idx] = cooldown
+
+    def _apply_mine_triggers(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Check if any enemy agent stepped on a mine. Triggered mines tag the
+        enemy (sets tagged=True) and deactivate the mine. If the tagged agent
+        was carrying a flag, the flag is returned home.
+
+        Returns (blue_mine_tags, red_mine_tags): per-env count of mine triggers.
+        """
+        trigger_r = float(self.cfg.mine_trigger_radius_cells)
+        B, device = self.B, self.device
+        blue_mine_tags = torch.zeros((B,), dtype=torch.float32, device=device)
+        red_mine_tags = torch.zeros((B,), dtype=torch.float32, device=device)
+
+        # Blue mines trigger on red agents
+        if self.blue_mine_active.any():
+            dx = self.red_x[:, :, None] - self.blue_mine_x[:, None, :]
+            dy = self.red_y[:, :, None] - self.blue_mine_y[:, None, :]
+            dd = torch.sqrt(dx * dx + dy * dy + 1e-8)
+            triggered = (dd <= trigger_r) & self.blue_mine_active[:, None, :] & self.red_alive[:, :, None] & (~self.red_tagged[:, :, None])
+            agent_hit = triggered.any(dim=2)
+            mine_hit = triggered.any(dim=1)
+            if agent_hit.any():
+                self.red_tagged = self.red_tagged | agent_hit
+                red_carry_hit = agent_hit & self.red_carrying
+                if red_carry_hit.any():
+                    env = red_carry_hit.any(dim=1)
+                    self.red_carrying[red_carry_hit] = False
+                    self.blue_flag_pos[env] = self.blue_flag_home[env]
+                blue_mine_tags = agent_hit.sum(dim=1).to(torch.float32)
+            if mine_hit.any():
+                self.blue_mine_active = self.blue_mine_active & (~mine_hit)
+
+        # Red mines trigger on blue agents
+        if self.red_mine_active.any():
+            dx = self.blue_x[:, :, None] - self.red_mine_x[:, None, :]
+            dy = self.blue_y[:, :, None] - self.red_mine_y[:, None, :]
+            dd = torch.sqrt(dx * dx + dy * dy + 1e-8)
+            triggered = (dd <= trigger_r) & self.red_mine_active[:, None, :] & self.blue_alive[:, :, None] & (~self.blue_tagged[:, :, None])
+            agent_hit = triggered.any(dim=2)
+            mine_hit = triggered.any(dim=1)
+            if agent_hit.any():
+                self.blue_tagged = self.blue_tagged | agent_hit
+                blue_carry_hit = agent_hit & self.blue_carrying
+                if blue_carry_hit.any():
+                    env = blue_carry_hit.any(dim=1)
+                    self.blue_carrying[blue_carry_hit] = False
+                    self.red_flag_pos[env] = self.red_flag_home[env]
+                red_mine_tags = agent_hit.sum(dim=1).to(torch.float32)
+            if mine_hit.any():
+                self.red_mine_active = self.red_mine_active & (~mine_hit)
+
+        return blue_mine_tags, red_mine_tags
+
     def _apply_aquaticus_tag_rules(
         self,
         blue_oob: torch.Tensor,
         red_oob: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Enforce Aquaticus tagging:
-          - tagger must be untagged and on own side
-          - tagged carrier drops flag instantly to home
-          - OOB causes automatic tag
-        Returns per-env counts:
-          - blue_tag_noflag_count
-          - blue_tag_withflag_count
-          - red_tag_total_count
+        Tagging requires 2-on-1 local superiority (two eligible taggers in range).
+        OOB does NOT cause tagging; it only drops the flag if the agent is carrying.
         """
-        # OOB -> auto-tag
-        self.blue_tagged = self.blue_tagged | blue_oob
-        self.red_tagged = self.red_tagged | red_oob
-
-        # OOB while carrying -> instant flag return
+        # OOB while carrying -> drop flag (no tag applied)
         blue_oob_carry = blue_oob & self.blue_carrying
         red_oob_carry = red_oob & self.red_carrying
         if blue_oob_carry.any():
@@ -935,9 +1036,7 @@ class BatchedCTFCore:
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
         in_tag_range = dist <= float(self.cfg.tag_range_cells)
 
-        # Aquaticus constraint:
-        #  - tagger must be untagged and on own side
-        #  - target must be untagged and on the opponent side (i.e., in tagger's home half)
+        # Tagger must be untagged and on own side; target must be untagged and on opponent side
         blue_can_tag = (~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
         red_can_tag = (~self.red_tagged) & self._is_on_home_side("red", self.red_x)
         red_on_blue_side = self._is_on_home_side("blue", self.red_x)
@@ -948,8 +1047,11 @@ class BatchedCTFCore:
         blue_tags = in_tag_range & blue_can_tag[:, :, None] & red_targetable[:, None, :]
         red_tags = in_tag_range & red_can_tag[:, None, :] & blue_targetable[:, :, None]
 
-        newly_red_tagged = blue_tags.any(dim=1) & (~self.red_tagged)
-        newly_blue_tagged = red_tags.any(dim=2) & (~self.blue_tagged)
+        # 2-on-1 requirement: at least two eligible taggers in range
+        blue_tag_count = blue_tags.sum(dim=1)
+        red_tag_count = red_tags.sum(dim=2)
+        newly_red_tagged = (blue_tag_count >= 2) & (~self.red_tagged)
+        newly_blue_tagged = (red_tag_count >= 2) & (~self.blue_tagged)
 
         red_had_flag = newly_red_tagged & self.red_carrying
         blue_had_flag = newly_blue_tagged & self.blue_carrying
@@ -1190,10 +1292,13 @@ class BatchedCTFCore:
         blue_tag_withflag: torch.Tensor,
         red_tag_total: torch.Tensor,
         blue_oob: torch.Tensor,
+        blue_mine_tags: Optional[torch.Tensor] = None,
+        red_mine_tags: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         # Aquaticus table (points):
         # tag no-flag +100 / opp -100
         # tag with-flag +50 / opp -100
+        # mine tag same as 2-on-1: +100 blue / -100 red
         # flag grab +50 / opp -50
         # capture +100 / opp -100
         # OOB -100
@@ -1202,6 +1307,10 @@ class BatchedCTFCore:
         r += 100.0 * blue_tag_noflag
         r += 50.0 * blue_tag_withflag
         r -= 100.0 * red_tag_total
+        if blue_mine_tags is not None:
+            r += 100.0 * blue_mine_tags
+        if red_mine_tags is not None:
+            r -= 100.0 * red_mine_tags
 
         r += 50.0 * blue_grab_env.to(torch.float32)
         r -= 50.0 * red_grab_env.to(torch.float32)
@@ -1282,11 +1391,20 @@ class BatchedCTFCore:
             red_tag_total = kill_blue.sum(dim=1).to(torch.float32)
             self._respawn_timers()
 
+        # Mines: place + trigger
+        self._scripted_place_mines()
+        self.blue_mine_cooldown = torch.clamp(self.blue_mine_cooldown - 1, min=0)
+        self.red_mine_cooldown = torch.clamp(self.red_mine_cooldown - 1, min=0)
+        blue_mine_tags, red_mine_tags = self._apply_mine_triggers()
+        self._untag_if_home()
+
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()
 
         dense = self._dense_shaping(prev_blue_x, prev_blue_y, yaw_cmd_blue)
         sparse_points = self._sparse_reward_points(
-            blue_grab_env, red_grab_env, blue_cap_env, red_cap_env, blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob
+            blue_grab_env, red_grab_env, blue_cap_env, red_cap_env,
+            blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob,
+            blue_mine_tags=blue_mine_tags, red_mine_tags=red_mine_tags,
         )
 
         self.step_count += 1
