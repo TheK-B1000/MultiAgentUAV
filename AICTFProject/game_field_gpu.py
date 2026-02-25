@@ -39,8 +39,9 @@ class GPUFieldConfig:
     sensor_noise_sigma_cells: float = 0.0
     sensor_dropout_prob: float = 0.0
     suppression_range_cells: float = 2.0
-    tag_range_cells: float = 10.0
-    home_untag_radius_cells: float = 1.25
+    # Local tag radius (in map cells) used by Aquaticus-style tagging.
+    tag_range_cells: float = 2.5
+    home_untag_radius_cells: float = 2.0
     avoid_collision_radius_cells: float = 0.75
     opregion_safe_speed_cps: float = 0.8
 
@@ -55,6 +56,14 @@ class GPUFieldConfig:
     dense_weight: float = 0.35
     reward_scale: float = 2.0
     reward_clip: float = 1.0
+
+    # Viewer-only convenience: when True, newly tagged agents are snapped back
+    # to their home flag position instead of returning under their own motion.
+    # Training configs should generally leave this as False.
+    teleport_tagged_home: bool = False
+    # Number of consecutive frames an agent must be inside home radius while
+    # carrying to count as a capture (filters single-frame tunneling at speed).
+    capture_confirm_frames: int = 2
 
     # PPO stability
     stalemate_max_steps: int = 120
@@ -103,6 +112,8 @@ class BatchedCTFCore:
         self._opponent_kind = "SCRIPTED"
         self._opponent_key = "OP1"
         self.rules_profile = str(cfg.rules_profile).upper()
+
+        self.blue_scripted = False
 
         self._build_macro_targets()
         self._alloc_state()
@@ -159,6 +170,15 @@ class BatchedCTFCore:
         self.rt_current_strength_cps = torch.full((B,), float(self.cfg.current_strength_cps), dtype=f32, device=dev)
         self.rt_drift_sigma_cells = torch.full((B,), float(self.cfg.drift_sigma_cells), dtype=f32, device=dev)
         self._last_dense_progress = torch.zeros((B,), dtype=f32, device=dev)
+        # Scripted-opponent behavior knobs (batched).
+        self.red_deception_prob = torch.zeros((B,), dtype=f32, device=dev)
+        self.red_speed_mult = torch.ones((B,), dtype=f32, device=dev)
+        self.red_attacker_style = torch.zeros((B,), dtype=torch.int32, device=dev)  # 0 easy, 1 medium
+        self.red_defender_style = torch.zeros((B,), dtype=torch.int32, device=dev)  # 0 easy, 1 medium
+        self.red_role_switch_prob = torch.zeros((B,), dtype=f32, device=dev)
+        # Capture confirmation counters (batched per-agent).
+        self.blue_home_contact_frames = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
+        self.red_home_contact_frames = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
 
     def _build_macro_targets(self) -> None:
         c_mid = self.cols // 2
@@ -241,6 +261,13 @@ class BatchedCTFCore:
         self.blue_tagged[idx] = False
         self.red_tagged[idx] = False
         self._last_dense_progress[idx] = 0.0
+        self.red_deception_prob[idx] = 0.0
+        self.red_speed_mult[idx] = 1.0
+        self.red_attacker_style[idx] = 0
+        self.red_defender_style[idx] = 0
+        self.red_role_switch_prob[idx] = 0.0
+        self.blue_home_contact_frames[idx] = 0
+        self.red_home_contact_frames[idx] = 0
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
 
@@ -278,6 +305,57 @@ class BatchedCTFCore:
         ):
             if key in cfg:
                 setattr(self.cfg, key, float(cfg[key]))
+        if "deception_prob" in cfg:
+            val = cfg["deception_prob"]
+            if isinstance(val, torch.Tensor):
+                t = val.to(self.device, dtype=torch.float32).reshape(-1)
+                if t.numel() == self.B:
+                    self.red_deception_prob = torch.clamp(t, 0.0, 1.0)
+                else:
+                    self.red_deception_prob.fill_(float(torch.clamp(t[0], 0.0, 1.0).item()))
+            else:
+                self.red_deception_prob.fill_(max(0.0, min(1.0, float(val))))
+        if "speed_mult" in cfg:
+            val = cfg["speed_mult"]
+            if isinstance(val, torch.Tensor):
+                t = val.to(self.device, dtype=torch.float32).reshape(-1)
+                if t.numel() == self.B:
+                    self.red_speed_mult = torch.clamp(t, 0.25, 2.0)
+                else:
+                    self.red_speed_mult.fill_(float(torch.clamp(t[0], 0.25, 2.0).item()))
+            else:
+                v = max(0.25, min(2.0, float(val)))
+                self.red_speed_mult.fill_(v)
+        if "attacker_style" in cfg:
+            val = cfg["attacker_style"]
+            if isinstance(val, torch.Tensor):
+                t = val.to(self.device, dtype=torch.int32).reshape(-1)
+                if t.numel() == self.B:
+                    self.red_attacker_style = torch.clamp(t, 0, 1)
+                else:
+                    self.red_attacker_style.fill_(int(torch.clamp(t[0], 0, 1).item()))
+            else:
+                self.red_attacker_style.fill_(int(max(0, min(1, int(val)))))
+        if "defender_style" in cfg:
+            val = cfg["defender_style"]
+            if isinstance(val, torch.Tensor):
+                t = val.to(self.device, dtype=torch.int32).reshape(-1)
+                if t.numel() == self.B:
+                    self.red_defender_style = torch.clamp(t, 0, 1)
+                else:
+                    self.red_defender_style.fill_(int(torch.clamp(t[0], 0, 1).item()))
+            else:
+                self.red_defender_style.fill_(int(max(0, min(1, int(val)))))
+        if "role_switch_prob" in cfg:
+            val = cfg["role_switch_prob"]
+            if isinstance(val, torch.Tensor):
+                t = val.to(self.device, dtype=torch.float32).reshape(-1)
+                if t.numel() == self.B:
+                    self.red_role_switch_prob = torch.clamp(t, 0.0, 1.0)
+                else:
+                    self.red_role_switch_prob.fill_(float(torch.clamp(t[0], 0.0, 1.0).item()))
+            else:
+                self.red_role_switch_prob.fill_(max(0.0, min(1.0, float(val))))
 
     def _apply_profile_runtime(self) -> None:
         # Optional stress schedule by phase (same hook shape used by train_ppo callbacks).
@@ -294,19 +372,365 @@ class BatchedCTFCore:
             self.cfg.max_speed_cps = min(float(self.cfg.max_speed_cps), 2.2)
             self.cfg.max_accel_cps2 = min(float(self.cfg.max_accel_cps2), 2.0)
             self.cfg.max_yaw_rate_rps = min(float(self.cfg.max_yaw_rate_rps), 4.0)
+            # Tagging radius should be local, not half-field. Clamp to a few cells.
+            self.cfg.tag_range_cells = min(float(self.cfg.tag_range_cells), 2.5)
 
     def _decode_targets(self, target_idx: torch.Tensor) -> torch.Tensor:
         tidx = torch.remainder(target_idx, self.cfg.n_targets).long()
         return self._macro_targets.index_select(0, tidx.reshape(-1)).reshape(self.B, self.Nb, 2)
 
-    def _red_scripted_actions(self) -> Tuple[torch.Tensor, torch.Tensor]:
-        # Lightweight scripted bot: closest blue chase; if carrying, return home.
-        dx = self.blue_x[:, :1] - self.red_x
-        dy = self.blue_y[:, :1] - self.red_y
-        target = torch.stack([self.red_x + dx, self.red_y + dy], dim=-1)
-        near_flag = self.red_carrying | ((self.red_x - self.blue_flag_pos[:, 0:1]).abs() < 1.0)
-        target[near_flag] = self.red_flag_home[:, None, :].expand(-1, self.Nr, -1)[near_flag]
+    # ------------------------------------------------------------------
+    # Carrier evasion: multi-threat tangent routing toward home
+    # ------------------------------------------------------------------
+    def _carrier_evasion_target(
+        self,
+        own_x: torch.Tensor,
+        own_y: torch.Tensor,
+        home_x: torch.Tensor,
+        home_y: torch.Tensor,
+        enemy_x: torch.Tensor,
+        enemy_y: torch.Tensor,
+        enemy_alive: torch.Tensor,
+        carrying: torch.Tensor,
+        side: str = "blue",
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        For agents carrying a flag, compute a waypoint that routes *around*
+        nearby enemies using distance-weighted tangent vectors (tangent hook).
+        Side preference pushes away from center line (y=10) toward North/South.
+        """
+        threat_radius = 7.0
+        center_y = 10.0
+        hx = home_x[:, None].expand_as(own_x)
+        hy = home_y[:, None].expand_as(own_y)
+        home_dx = hx - own_x
+        home_dy = hy - own_y
+        home_n = torch.sqrt(home_dx ** 2 + home_dy ** 2 + 1e-8)
+        home_ux = home_dx / home_n
+        home_uy = home_dy / home_n
+
+        # Pairwise distances to every enemy  [B, N_own, N_enemy]
+        dxx = own_x[:, :, None] - enemy_x[:, None, :]
+        dyy = own_y[:, :, None] - enemy_y[:, None, :]
+        dd = torch.sqrt(dxx ** 2 + dyy ** 2 + 1e-8)
+
+        in_range = (dd < threat_radius) & enemy_alive[:, None, :]
+
+        away_x = dxx / dd
+        away_y = dyy / dd
+
+        # Two tangent candidates (perpendicular to away)
+        t1x, t1y = -away_y, away_x
+        t2x, t2y = away_y, -away_x
+
+        # Pick the tangent more aligned with the home direction
+        dot1 = t1x * home_ux[:, :, None] + t1y * home_uy[:, :, None]
+        dot2 = t2x * home_ux[:, :, None] + t2y * home_uy[:, :, None]
+        use_t1 = dot1 >= dot2
+        tan_x = torch.where(use_t1, t1x, t2x)
+        tan_y = torch.where(use_t1, t1y, t2y)
+
+        weight = torch.clamp((threat_radius - dd) / threat_radius, 0.0, 1.0)
+        weight = weight * in_range.float()
+
+        agg_x = (tan_x * weight).sum(dim=2)
+        agg_y = (tan_y * weight).sum(dim=2)
+        agg_n = torch.sqrt(agg_x ** 2 + agg_y ** 2 + 1e-8)
+        agg_x = agg_x / agg_n
+        agg_y = agg_y / agg_n
+
+        has_threat = weight.sum(dim=2) > 0.0
+
+        # Strong lateral dodge for carriers under threat (tangent hook)
+        step_fwd = 3.5
+        step_side = 5.0
+        evade_tx = own_x + home_ux * step_fwd + agg_x * step_side
+        evade_ty = own_y + home_uy * step_fwd + agg_y * step_side
+        # Nonlinear repulsion: push away from center line toward boundary (North/South)
+        side_preference = 1.0 if (side == "blue") else -1.0
+        repulsion = torch.clamp(2.0 - torch.abs(own_y - center_y) / 5.0, 0.0, 2.0)
+        evade_ty = evade_ty + side_preference * repulsion * 2.0
+        evade_tx = torch.clamp(evade_tx, 0.0, float(max(0, self.cols - 1)))
+        evade_ty = torch.clamp(evade_ty, 0.0, float(max(0, self.rows - 1)))
+
+        should_evade = has_threat & carrying
+        final_tx = torch.where(should_evade, evade_tx, hx)
+        final_ty = torch.where(should_evade, evade_ty, hy)
+        return final_tx, final_ty
+
+    # ------------------------------------------------------------------
+    # Unified NPC brain for both sides
+    # ------------------------------------------------------------------
+    def _get_scripted_targets(self, side: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Consolidated NPC brain usable for both "blue" and "red".
+
+        Agent roles (parameterised by *side*):
+          Agent 0 – Defender / Guardian: patrols own half, intercepts intruders.
+          Agent 1 – Striker: attacks enemy flag with single-threat tangent evasion.
+
+        All carriers (any agent index) get multi-threat tangent evasion toward
+        home via ``_carrier_evasion_target`` so they dodge enemies instead of
+        running straight back.
+        """
+        is_blue = (side == "blue")
+        B, device = self.B, self.device
+        midline = float(self.cols) * 0.5
+        idx_env = torch.arange(B, device=device)
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
+
+        if is_blue:
+            N, Ne = self.Nb, self.Nr
+            own_x, own_y = self.blue_x, self.blue_y
+            own_carrying = self.blue_carrying
+            own_tagged = self.blue_tagged
+            own_alive = self.blue_alive
+            own_flag_home = self.blue_flag_home
+            enemy_x, enemy_y = self.red_x, self.red_y
+            enemy_carrying = self.red_carrying
+            enemy_alive = self.red_alive
+            enemy_flag_pos = self.red_flag_pos
+            enemy_flag_home = self.red_flag_home
+            atk_medium = torch.ones((B,), dtype=torch.bool, device=device)
+            def_medium = torch.ones((B,), dtype=torch.bool, device=device)
+            deception_prob = torch.zeros((B,), dtype=torch.float32, device=device)
+            role_switch_prob = torch.zeros((B,), dtype=torch.float32, device=device)
+        else:
+            N, Ne = self.Nr, self.Nb
+            own_x, own_y = self.red_x, self.red_y
+            own_carrying = self.red_carrying
+            own_tagged = self.red_tagged
+            own_alive = self.red_alive
+            own_flag_home = self.red_flag_home
+            enemy_x, enemy_y = self.blue_x, self.blue_y
+            enemy_carrying = self.blue_carrying
+            enemy_alive = self.blue_alive
+            enemy_flag_pos = self.blue_flag_pos
+            enemy_flag_home = self.blue_flag_home
+            atk_medium = self.red_attacker_style > 0
+            def_medium = self.red_defender_style > 0
+            deception_prob = self.red_deception_prob
+            role_switch_prob = self.red_role_switch_prob
+
+        target = torch.zeros((B, N, 2), dtype=torch.float32, device=device)
+        guardian_idx = 0
+        striker_idx = 1 if N > 1 else 0
+
+        # ---- shared team state ----
+        enemy_carrier_exists = enemy_carrying.any(dim=1)
+        if is_blue:
+            enemy_on_own = enemy_alive & (enemy_x < midline)
+        else:
+            enemy_on_own = enemy_alive & (enemy_x > midline)
+        any_intruder = enemy_on_own.any(dim=1)
+
+        guardian_out = (
+            own_tagged[:, guardian_idx]
+            if guardian_idx < N
+            else torch.zeros((B,), dtype=torch.bool, device=device)
+        )
+        role_coin = torch.rand((B,), generator=self._rng, device=device) < torch.clamp(role_switch_prob, 0.0, 1.0)
+        striker_pivot = guardian_out & (enemy_carrier_exists | any_intruder) & role_coin
+
+        # ======== Defender (agent 0) ========
+        if guardian_idx < N:
+            phase = self.step_count.to(torch.float32) * 0.12
+            orbit_r = 2.0
+            easy_x = torch.clamp(own_flag_home[:, 0] + orbit_r * torch.cos(phase), 0.0, max_x)
+            easy_y = torch.clamp(own_flag_home[:, 1] + orbit_r * torch.sin(phase), 0.0, max_y)
+            # Defender loiter: opens midline (Blue x=3, Red x=17)
+            if is_blue:
+                med_x = torch.full((B,), min(max_x, 3.0), device=device)
+            else:
+                med_x = torch.full((B,), min(max_x, 17.0), device=device)
+            med_y = torch.full((B,), min(max_y, 10.0), device=device)
+            gx = torch.where(def_medium, med_x, easy_x)
+            gy = torch.where(def_medium, med_y, easy_y)
+
+            if enemy_carrier_exists.any():
+                ci = torch.argmax(enemy_carrying.to(torch.int64), dim=1)
+                gx = torch.where(enemy_carrier_exists, enemy_x[idx_env, ci], gx)
+                gy = torch.where(enemy_carrier_exists, enemy_y[idx_env, ci], gy)
+            else:
+                chase = def_medium & any_intruder
+                if chase.any():
+                    dxx = own_x[:, guardian_idx : guardian_idx + 1, None] - enemy_x[:, None, :]
+                    dyy = own_y[:, guardian_idx : guardian_idx + 1, None] - enemy_y[:, None, :]
+                    dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
+                    big = torch.full_like(dd, 1e9)
+                    dd_masked = torch.where(enemy_on_own[:, None, :], dd, big)
+                    nearest = torch.argmin(dd_masked, dim=2).squeeze(1)
+                    gx = torch.where(chase, enemy_x[idx_env, nearest], gx)
+                    gy = torch.where(chase, enemy_y[idx_env, nearest], gy)
+
+            target[:, guardian_idx, 0] = gx
+            target[:, guardian_idx, 1] = gy
+
+        # ======== Striker (agent 1): lane preference (Blue North y=15, Red South y=5) ========
+        center_y = 10.0
+        lane_y_north = min(max_y, 15.0)
+        lane_y_south = max(0.0, 5.0)
+        if striker_idx < N:
+            striker_carry = own_carrying[:, striker_idx]
+            efx = enemy_flag_pos[:, 0]
+            efy = enemy_flag_pos[:, 1]
+            rx = own_x[:, striker_idx]
+            ry = own_y[:, striker_idx]
+            # Prefer lane when crossing neutral zone: Blue North (y=15), Red South (y=5)
+            dist_to_flag = torch.sqrt((rx - efx) ** 2 + (ry - efy) ** 2 + 1e-8)
+            lane_y = torch.full((B,), lane_y_north if is_blue else lane_y_south, device=device)
+            sy_easy = torch.where(dist_to_flag > 4.0, lane_y, efy)
+            sx_easy = efx
+            sx_med = sx_easy.clone()
+            sy_med = sy_easy.clone()
+
+            if atk_medium.any():
+                dxx = own_x[:, striker_idx : striker_idx + 1, None] - enemy_x[:, None, :]
+                dyy = own_y[:, striker_idx : striker_idx + 1, None] - enemy_y[:, None, :]
+                dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8).squeeze(1)
+                nearest = torch.argmin(dd, dim=1)
+                nbx = enemy_x[idx_env, nearest]
+                nby = enemy_y[idx_env, nearest]
+
+                goal_dx = sx_easy - rx
+                goal_dy = sy_easy - ry
+                goal_n = torch.sqrt(goal_dx * goal_dx + goal_dy * goal_dy + 1e-8)
+                goal_dx = goal_dx / goal_n
+                goal_dy = goal_dy / goal_n
+
+                away_x = rx - nbx
+                away_y = ry - nby
+                away_n = torch.sqrt(away_x * away_x + away_y * away_y + 1e-8)
+                away_x = away_x / away_n
+                away_y = away_y / away_n
+                t1x = -away_y
+                t1y = away_x
+                t2x = -t1x
+                t2y = -t1y
+                dot1 = t1x * goal_dx + t1y * goal_dy
+                use_t1 = dot1 >= 0.0
+                tan_x = torch.where(use_t1, t1x, t2x)
+                tan_y = torch.where(use_t1, t1y, t2y)
+
+                step_fwd_base = torch.full((B,), 3.0, device=device)
+                step_side_base = torch.full((B,), 2.5, device=device)
+                step_forward = torch.where(striker_carry, step_fwd_base * 1.5, step_fwd_base)
+                step_side = torch.where(striker_carry, step_side_base * 2.0, step_side_base)
+                tx_med = rx + goal_dx * step_forward + tan_x * step_side
+                ty_med = ry + goal_dy * step_forward + tan_y * step_side
+                # Nonlinear repulsion: push away from center line (y=10) toward lane boundary
+                side_preference = 1.0 if is_blue else -1.0  # Blue toward North, Red toward South
+                repulsion = torch.clamp(2.0 - torch.abs(ry - center_y) / 5.0, 0.0, 2.0)
+                ty_med = ty_med + side_preference * repulsion * 2.0
+                sx_med = torch.clamp(tx_med, 0.0, max_x)
+                sy_med = torch.clamp(ty_med, 0.0, max_y)
+
+            sx = torch.where(atk_medium, sx_med, sx_easy)
+            sy = torch.where(atk_medium, sy_med, sy_easy)
+
+            # Dynamic pivot when guardian is tagged and threats exist
+            if striker_pivot.any():
+                threat_mask = enemy_on_own | enemy_carrying
+                dxx = own_x[:, striker_idx : striker_idx + 1, None] - enemy_x[:, None, :]
+                dyy = own_y[:, striker_idx : striker_idx + 1, None] - enemy_y[:, None, :]
+                dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
+                big = torch.full_like(dd, 1e9)
+                dd_masked = torch.where(threat_mask[:, None, :], dd, big)
+                nearest = torch.argmin(dd_masked, dim=2).squeeze(1)
+                sx = torch.where(striker_pivot, enemy_x[idx_env, nearest], sx)
+                sy = torch.where(striker_pivot, enemy_y[idx_env, nearest], sy)
+
+            target[:, striker_idx, 0] = sx
+            target[:, striker_idx, 1] = sy
+
+        # ======== Carrier evasion (replaces straight-home override) ========
+        # Any agent carrying a flag uses multi-threat tangent routing so they
+        # dodge nearby enemies instead of heading straight back.
+        if own_carrying.any():
+            evade_tx, evade_ty = self._carrier_evasion_target(
+                own_x, own_y,
+                own_flag_home[:, 0], own_flag_home[:, 1],
+                enemy_x, enemy_y, enemy_alive,
+                own_carrying,
+                side=side,
+            )
+            target[..., 0] = torch.where(own_carrying, evade_tx, target[..., 0])
+            target[..., 1] = torch.where(own_carrying, evade_ty, target[..., 1])
+
+        # ======== Safety: non-carriers intercept enemy who stole own flag ========
+        if enemy_carrier_exists.any():
+            ci = torch.argmax(enemy_carrying.to(torch.int64), dim=1)
+            cx = enemy_x[idx_env, ci]
+            cy = enemy_y[idx_env, ci]
+            not_carrying = ~own_carrying
+            intercept = enemy_carrier_exists[:, None] & not_carrying
+            target[..., 0] = torch.where(intercept, cx[:, None], target[..., 0])
+            target[..., 1] = torch.where(intercept, cy[:, None], target[..., 1])
+
+        # ======== Carrier shielding: escort 4 units perpendicular to carrier path ========
+        shield_dist = 4.0
+        own_carry_any = own_carrying.any(dim=1)
+        if own_carry_any.any() and N > 1:
+            carr_idx = torch.argmax(own_carrying.to(torch.int64), dim=1)
+            carr_x = own_x[idx_env, carr_idx]
+            carr_y = own_y[idx_env, carr_idx]
+            home_ux = own_flag_home[:, 0] - carr_x
+            home_uy = own_flag_home[:, 1] - carr_y
+            home_n = torch.sqrt(home_ux ** 2 + home_uy ** 2 + 1e-8)
+            home_ux = home_ux / home_n
+            home_uy = home_uy / home_n
+            perp1_x = -home_uy
+            perp1_y = home_ux
+            dxx = carr_x[:, None] - enemy_x
+            dyy = carr_y[:, None] - enemy_y
+            dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
+            near_enemy = torch.argmin(dd, dim=1)
+            nex = enemy_x[idx_env, near_enemy]
+            ney = enemy_y[idx_env, near_enemy]
+            to_enemy_x = nex - carr_x
+            to_enemy_y = ney - carr_y
+            dot_perp1 = perp1_x * to_enemy_x + perp1_y * to_enemy_y
+            use_perp1 = dot_perp1 >= 0.0
+            escort_off_x = torch.where(use_perp1, perp1_x, -perp1_x)
+            escort_off_y = torch.where(use_perp1, perp1_y, -perp1_y)
+            escort_x = carr_x + escort_off_x * shield_dist
+            escort_y = carr_y + escort_off_y * shield_dist
+            escort_x = torch.clamp(escort_x, 0.0, max_x)
+            escort_y = torch.clamp(escort_y, 0.0, max_y)
+            for j in range(N):
+                is_not_carrier = own_carry_any & (carr_idx != j) & (~own_carrying[:, j])
+                escort_ok = is_not_carrier & (~enemy_carrier_exists)
+                target[:, j, 0] = torch.where(escort_ok, escort_x, target[:, j, 0])
+                target[:, j, 1] = torch.where(escort_ok, escort_y, target[:, j, 1])
+
+        # ======== Red-only: deception feints (non-carrier agents only) ========
+        if (not is_blue) and deception_prob.numel() == B and float(deception_prob.max().item()) > 0.0:
+            pulse = (self.step_count % 30 == 0)
+            p = torch.clamp(deception_prob, 0.0, 1.0)
+            r = torch.rand((B,), generator=self._rng, device=device)
+            feint_env = pulse & (r < p)
+            if feint_env.any():
+                env_idx = torch.where(feint_env)[0]
+                hold_x = torch.full((env_idx.numel(),), min(max_x, midline - 0.5), device=device)
+                hold_y = enemy_flag_home[env_idx, 1]
+                punch_x = enemy_flag_home[env_idx, 0]
+                punch_y = enemy_flag_home[env_idx, 1]
+                do_hold = ((self.step_count[env_idx] // 30) % 2 == 0)
+                tx = torch.where(do_hold, hold_x, punch_x)
+                ty = torch.where(do_hold, hold_y, punch_y)
+                tx = torch.clamp(tx + self._rand_uniform((env_idx.numel(),), -3.0, 3.0), 0.0, max_x)
+                ty = torch.clamp(ty + self._rand_uniform((env_idx.numel(),), -3.0, 3.0), 0.0, max_y)
+                for j in range(N):
+                    not_carry = ~own_carrying[env_idx, j]
+                    target[env_idx, j, 0] = torch.where(not_carry, tx, target[env_idx, j, 0])
+                    target[env_idx, j, 1] = torch.where(not_carry, ty, target[env_idx, j, 1])
+
         return target[..., 0], target[..., 1]
+
+    def _red_scripted_actions(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Scripted red team -- delegates to the unified NPC brain."""
+        return self._get_scripted_targets("red")
 
     def _integrate_side(
         self,
@@ -328,24 +752,28 @@ class BatchedCTFCore:
         desired_heading = torch.atan2(dy, dx)
         err = (desired_heading - heading + math.pi) % (2.0 * math.pi) - math.pi
 
-        yaw_rate_cmd = torch.clamp(err / max(1e-6, dt), -self.cfg.max_yaw_rate_rps, self.cfg.max_yaw_rate_rps)
+        max_yaw = min(4.0, float(self.cfg.max_yaw_rate_rps))
+        yaw_rate_cmd = torch.clamp(err / max(1e-6, dt), -max_yaw, max_yaw)
         # Turn-radius bound: |omega| <= v / R_min (with floor for low-speed controllability)
         min_r = max(1e-3, float(self.cfg.min_turn_radius_cells))
-        omega_bound = torch.clamp(speed / min_r, min=0.5, max=float(self.cfg.max_yaw_rate_rps))
+        omega_bound = torch.clamp(speed / min_r, min=0.5, max=max_yaw)
         yaw_rate_cmd = torch.clamp(yaw_rate_cmd, -omega_bound, omega_bound)
 
-        desired_speed = torch.full_like(speed, float(self.cfg.max_speed_cps))
+        max_speed = min(2.2, float(self.cfg.max_speed_cps))
+        max_accel = min(2.0, float(self.cfg.max_accel_cps2))
+        desired_speed = torch.full_like(speed, max_speed)
         if speed_cap is not None:
             desired_speed = torch.minimum(desired_speed, torch.clamp(speed_cap, min=0.0))
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
-        desired_speed = torch.where(dist < 0.75, desired_speed * (dist / 0.75), desired_speed)
+        # Deceleration zone near objective to prevent overshoot/spin lock.
+        desired_speed = torch.where(dist < 2.0, desired_speed * torch.clamp(dist / 2.0, 0.0, 1.0), desired_speed)
         accel_cmd = torch.clamp(
             (desired_speed - speed) / max(1e-6, dt),
-            -float(self.cfg.max_accel_cps2),
-            float(self.cfg.max_accel_cps2),
+            -max_accel,
+            max_accel,
         )
 
-        speed2 = torch.clamp(speed + accel_cmd * dt, 0.0, float(self.cfg.max_speed_cps))
+        speed2 = torch.clamp(speed + accel_cmd * dt, 0.0, max_speed)
         if speed_cap is not None:
             speed2 = torch.minimum(speed2, torch.clamp(speed_cap, min=0.0))
         heading2 = heading + yaw_rate_cmd * dt
@@ -354,7 +782,14 @@ class BatchedCTFCore:
 
         nx_raw = x + vx * dt
         ny_raw = y + vy * dt
-        oob = (nx_raw < 0.0) | (nx_raw > float(max(0, self.cols - 1))) | (ny_raw < 0.0) | (ny_raw > float(max(0, self.rows - 1)))
+        # Small tolerance prevents numerical edge jitter from causing false OOB tags.
+        tol = 1e-4
+        oob = (
+            (nx_raw < (0.0 - tol))
+            | (nx_raw > (float(max(0, self.cols - 1)) + tol))
+            | (ny_raw < (0.0 - tol))
+            | (ny_raw > (float(max(0, self.rows - 1)) + tol))
+        )
         x2 = torch.clamp(nx_raw, 0.0, float(max(0, self.cols - 1)))
         y2 = torch.clamp(ny_raw, 0.0, float(max(0, self.rows - 1)))
 
@@ -394,45 +829,74 @@ class BatchedCTFCore:
         prev_red_y: torch.Tensor,
     ) -> None:
         """
-        Aquaticus-style safety guardrail:
-        if any agent pair gets too close, halt by reverting to previous position and zeroing speed.
+        Tangential repulsion: if agents get too close, apply a small shove that nudges
+        them apart instead of halting them in place. This prevents "nose-to-nose" lockups.
         """
         rr = float(self.cfg.avoid_collision_radius_cells)
         if rr <= 0.0:
             return
 
-        # Blue-Blue
+        shove = 0.5
+
+        # Blue-Blue repulsion
         ddx = self.blue_x[:, :, None] - self.blue_x[:, None, :]
         ddy = self.blue_y[:, :, None] - self.blue_y[:, None, :]
         d = torch.sqrt(ddx * ddx + ddy * ddy + 1e-8)
         eye = torch.eye(self.Nb, dtype=torch.bool, device=self.device)[None, :, :]
         close_bb = (d < rr) & (~eye)
-        halt_b = close_bb.any(dim=2)
+        if close_bb.any():
+            dir_x = ddx / d
+            dir_y = ddy / d
+            # Net repulsion from all close neighbors
+            fx = (dir_x * close_bb.to(dir_x.dtype)).sum(dim=2)
+            fy = (dir_y * close_bb.to(dir_y.dtype)).sum(dim=2)
+            norm = torch.sqrt(fx * fx + fy * fy + 1e-8)
+            fx = fx / norm * shove
+            fy = fy / norm * shove
+            self.blue_x = torch.clamp(self.blue_x + fx, 0.0, float(max(0, self.cols - 1)))
+            self.blue_y = torch.clamp(self.blue_y + fy, 0.0, float(max(0, self.rows - 1)))
 
-        # Red-Red
+        # Red-Red repulsion
         ddx_r = self.red_x[:, :, None] - self.red_x[:, None, :]
         ddy_r = self.red_y[:, :, None] - self.red_y[:, None, :]
         d_r = torch.sqrt(ddx_r * ddx_r + ddy_r * ddy_r + 1e-8)
         eye_r = torch.eye(self.Nr, dtype=torch.bool, device=self.device)[None, :, :]
         close_rr = (d_r < rr) & (~eye_r)
-        halt_r = close_rr.any(dim=2)
+        if close_rr.any():
+            dir_xr = ddx_r / d_r
+            dir_yr = ddy_r / d_r
+            fx_r = (dir_xr * close_rr.to(dir_xr.dtype)).sum(dim=2)
+            fy_r = (dir_yr * close_rr.to(dir_yr.dtype)).sum(dim=2)
+            norm_r = torch.sqrt(fx_r * fx_r + fy_r * fy_r + 1e-8)
+            fx_r = fx_r / norm_r * shove
+            fy_r = fy_r / norm_r * shove
+            self.red_x = torch.clamp(self.red_x + fx_r, 0.0, float(max(0, self.cols - 1)))
+            self.red_y = torch.clamp(self.red_y + fy_r, 0.0, float(max(0, self.rows - 1)))
 
-        # Blue-Red
+        # Blue-Red repulsion
         dx_br = self.blue_x[:, :, None] - self.red_x[:, None, :]
         dy_br = self.blue_y[:, :, None] - self.red_y[:, None, :]
         d_br = torch.sqrt(dx_br * dx_br + dy_br * dy_br + 1e-8)
         close_br = d_br < rr
-        halt_b = halt_b | close_br.any(dim=2)
-        halt_r = halt_r | close_br.any(dim=1)
-
-        if halt_b.any():
-            self.blue_x = torch.where(halt_b, prev_blue_x, self.blue_x)
-            self.blue_y = torch.where(halt_b, prev_blue_y, self.blue_y)
-            self.blue_speed = torch.where(halt_b, torch.zeros_like(self.blue_speed), self.blue_speed)
-        if halt_r.any():
-            self.red_x = torch.where(halt_r, prev_red_x, self.red_x)
-            self.red_y = torch.where(halt_r, prev_red_y, self.red_y)
-            self.red_speed = torch.where(halt_r, torch.zeros_like(self.red_speed), self.red_speed)
+        if close_br.any():
+            dir_xbr = dx_br / d_br
+            dir_ybr = dy_br / d_br
+            # For blue, repel away from red
+            fx_b = (dir_xbr * close_br.to(dir_xbr.dtype)).sum(dim=2)
+            fy_b = (dir_ybr * close_br.to(dir_ybr.dtype)).sum(dim=2)
+            norm_b = torch.sqrt(fx_b * fx_b + fy_b * fy_b + 1e-8)
+            fx_b = fx_b / norm_b * shove
+            fy_b = fy_b / norm_b * shove
+            self.blue_x = torch.clamp(self.blue_x + fx_b, 0.0, float(max(0, self.cols - 1)))
+            self.blue_y = torch.clamp(self.blue_y + fy_b, 0.0, float(max(0, self.rows - 1)))
+            # For red, repel in the opposite direction
+            fx_r2 = -(dir_xbr * close_br.to(dir_xbr.dtype)).sum(dim=1)
+            fy_r2 = -(dir_ybr * close_br.to(dir_ybr.dtype)).sum(dim=1)
+            norm_r2 = torch.sqrt(fx_r2 * fx_r2 + fy_r2 * fy_r2 + 1e-8)
+            fx_r2 = fx_r2 / norm_r2 * shove
+            fy_r2 = fy_r2 / norm_r2 * shove
+            self.red_x = torch.clamp(self.red_x + fx_r2, 0.0, float(max(0, self.cols - 1)))
+            self.red_y = torch.clamp(self.red_y + fy_r2, 0.0, float(max(0, self.rows - 1)))
 
     def _apply_aquaticus_tag_rules(
         self,
@@ -471,10 +935,15 @@ class BatchedCTFCore:
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
         in_tag_range = dist <= float(self.cfg.tag_range_cells)
 
+        # Aquaticus constraint:
+        #  - tagger must be untagged and on own side
+        #  - target must be untagged and on the opponent side (i.e., in tagger's home half)
         blue_can_tag = (~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
         red_can_tag = (~self.red_tagged) & self._is_on_home_side("red", self.red_x)
-        red_targetable = ~self.red_tagged
-        blue_targetable = ~self.blue_tagged
+        red_on_blue_side = self._is_on_home_side("blue", self.red_x)
+        blue_on_red_side = self._is_on_home_side("red", self.blue_x)
+        red_targetable = (~self.red_tagged) & red_on_blue_side
+        blue_targetable = (~self.blue_tagged) & blue_on_red_side
 
         blue_tags = in_tag_range & blue_can_tag[:, :, None] & red_targetable[:, None, :]
         red_tags = in_tag_range & red_can_tag[:, None, :] & blue_targetable[:, :, None]
@@ -562,32 +1031,84 @@ class BatchedCTFCore:
         return kill_blue, kill_red, blue_had_flag, red_had_flag
 
     def _apply_flag_rules(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        b_to_red = torch.sqrt((self.blue_x - self.red_flag_pos[:, None, 0]) ** 2 + (self.blue_y - self.red_flag_pos[:, None, 1]) ** 2 + 1e-8)
-        r_to_blue = torch.sqrt((self.red_x - self.blue_flag_pos[:, None, 0]) ** 2 + (self.red_y - self.blue_flag_pos[:, None, 1]) ** 2 + 1e-8)
+        # Attach flags smoothly to their carriers when being carried, so the flag
+        # position in observations and scoring is spatially consistent.
+        if self.blue_carrying.any():
+            idx = torch.argmax(self.blue_carrying.to(torch.int64), dim=1)
+            env = torch.arange(self.B, device=self.device)
+            self.red_flag_pos[env] = torch.stack(
+                [self.blue_x[env, idx], self.blue_y[env, idx]], dim=1
+            )
+        if self.red_carrying.any():
+            idx = torch.argmax(self.red_carrying.to(torch.int64), dim=1)
+            env = torch.arange(self.B, device=self.device)
+            self.blue_flag_pos[env] = torch.stack(
+                [self.red_x[env, idx], self.red_y[env, idx]], dim=1
+            )
 
-        blue_grab_env = (~self.red_carrying.any(dim=1)) & ((b_to_red <= 0.8) & (~self.blue_tagged)).any(dim=1)
-        red_grab_env = (~self.blue_carrying.any(dim=1)) & ((r_to_blue <= 0.8) & (~self.red_tagged)).any(dim=1)
+        b_to_red = torch.sqrt(
+            (self.blue_x - self.red_flag_pos[:, None, 0]) ** 2
+            + (self.blue_y - self.red_flag_pos[:, None, 1]) ** 2
+            + 1e-8
+        )
+        r_to_blue = torch.sqrt(
+            (self.red_x - self.blue_flag_pos[:, None, 0]) ** 2
+            + (self.red_y - self.blue_flag_pos[:, None, 1]) ** 2
+            + 1e-8
+        )
+
+        grab_r = 1.2
+        blue_grab_env = (~self.red_carrying.any(dim=1)) & ((b_to_red <= grab_r) & (~self.blue_tagged)).any(dim=1)
+        red_grab_env = (~self.blue_carrying.any(dim=1)) & ((r_to_blue <= grab_r) & (~self.red_tagged)).any(dim=1)
 
         if blue_grab_env.any():
-            idx = torch.argmax(((b_to_red <= 0.8) & (~self.blue_tagged)).to(torch.int64), dim=1)
+            idx = torch.argmax(((b_to_red <= grab_r) & (~self.blue_tagged)).to(torch.int64), dim=1)
             env_idx = torch.where(blue_grab_env)[0]
             self.blue_carrying[env_idx] = False
             self.blue_carrying[env_idx, idx[env_idx]] = True
-            self.red_flag_pos[env_idx] = torch.stack([self.blue_x[env_idx, idx[env_idx]], self.blue_y[env_idx, idx[env_idx]]], dim=1)
-            self.blue_score[env_idx] += int(self._score_grab_delta())
+            # Flag follows carrier, but grab does NOT change scoreboard. Reward comes
+            # from sparse reward shaping only, not from score-based termination.
+            self.red_flag_pos[env_idx] = torch.stack(
+                [self.blue_x[env_idx, idx[env_idx]], self.blue_y[env_idx, idx[env_idx]]],
+                dim=1,
+            )
 
         if red_grab_env.any():
-            idx = torch.argmax(((r_to_blue <= 0.8) & (~self.red_tagged)).to(torch.int64), dim=1)
+            idx = torch.argmax(((r_to_blue <= grab_r) & (~self.red_tagged)).to(torch.int64), dim=1)
             env_idx = torch.where(red_grab_env)[0]
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
-            self.blue_flag_pos[env_idx] = torch.stack([self.red_x[env_idx, idx[env_idx]], self.red_y[env_idx, idx[env_idx]]], dim=1)
-            self.red_score[env_idx] += int(self._score_grab_delta())
+            self.blue_flag_pos[env_idx] = torch.stack(
+                [self.red_x[env_idx, idx[env_idx]], self.red_y[env_idx, idx[env_idx]]],
+                dim=1,
+            )
 
-        b_home_dist = torch.sqrt((self.blue_x - self.blue_flag_home[:, None, 0]) ** 2 + (self.blue_y - self.blue_flag_home[:, None, 1]) ** 2 + 1e-8)
-        r_home_dist = torch.sqrt((self.red_x - self.red_flag_home[:, None, 0]) ** 2 + (self.red_y - self.red_flag_home[:, None, 1]) ** 2 + 1e-8)
-        blue_capture_now = self.blue_alive & self.blue_carrying & (~self.blue_tagged) & (b_home_dist <= 0.8)
-        red_capture_now = self.red_alive & self.red_carrying & (~self.red_tagged) & (r_home_dist <= 0.8)
+        b_home_dist = torch.sqrt(
+            (self.blue_x - self.blue_flag_home[:, None, 0]) ** 2
+            + (self.blue_y - self.blue_flag_home[:, None, 1]) ** 2
+            + 1e-8
+        )
+        r_home_dist = torch.sqrt(
+            (self.red_x - self.red_flag_home[:, None, 0]) ** 2
+            + (self.red_y - self.red_flag_home[:, None, 1]) ** 2
+            + 1e-8
+        )
+        cap_r = 1.2
+        blue_capture_contact = self.blue_alive & self.blue_carrying & (~self.blue_tagged) & (b_home_dist <= cap_r)
+        red_capture_contact = self.red_alive & self.red_carrying & (~self.red_tagged) & (r_home_dist <= cap_r)
+        self.blue_home_contact_frames = torch.where(
+            blue_capture_contact,
+            torch.clamp(self.blue_home_contact_frames + 1, max=1000),
+            torch.zeros_like(self.blue_home_contact_frames),
+        )
+        self.red_home_contact_frames = torch.where(
+            red_capture_contact,
+            torch.clamp(self.red_home_contact_frames + 1, max=1000),
+            torch.zeros_like(self.red_home_contact_frames),
+        )
+        needed = max(1, int(getattr(self.cfg, "capture_confirm_frames", 2)))
+        blue_capture_now = blue_capture_contact & (self.blue_home_contact_frames >= needed)
+        red_capture_now = red_capture_contact & (self.red_home_contact_frames >= needed)
 
         b_cap_env = blue_capture_now.any(dim=1)
         r_cap_env = red_capture_now.any(dim=1)
@@ -595,10 +1116,12 @@ class BatchedCTFCore:
             self.blue_score[b_cap_env] += int(self._score_capture_delta())
             self.blue_carrying[b_cap_env] = False
             self.red_flag_pos[b_cap_env] = self.red_flag_home[b_cap_env]
+            self.blue_home_contact_frames[b_cap_env] = 0
         if r_cap_env.any():
             self.red_score[r_cap_env] += int(self._score_capture_delta())
             self.red_carrying[r_cap_env] = False
             self.blue_flag_pos[r_cap_env] = self.blue_flag_home[r_cap_env]
+            self.red_home_contact_frames[r_cap_env] = 0
         return blue_grab_env, red_grab_env, b_cap_env, r_cap_env
 
     def _build_blue_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -704,6 +1227,10 @@ class BatchedCTFCore:
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
         a = blue_action_flat.view(self.B, self.Nb, 2)
+        # For stability, fix the integration timestep at 0.1 seconds regardless of
+        # external wall-clock or decision_interval_seconds configuration.
+        old_dt = self.dt
+        self.dt = 0.1
         macro = torch.remainder(a[..., 0].long(), self.cfg.n_macros)
         targ = torch.remainder(a[..., 1].long(), self.cfg.n_targets)
 
@@ -712,7 +1239,10 @@ class BatchedCTFCore:
         prev_red_x = self.red_x.clone()
         prev_red_y = self.red_y.clone()
 
-        btx, bty = self._build_blue_targets_from_action(macro, targ)
+        if self.blue_scripted:
+            btx, bty = self._get_scripted_targets("blue")
+        else:
+            btx, bty = self._build_blue_targets_from_action(macro, targ)
         rtx, rty = self._red_scripted_actions()
 
         # Tagged agents: OpRegion-like forced safe return to home region.
@@ -722,15 +1252,12 @@ class BatchedCTFCore:
         if self.red_tagged.any():
             rtx = torch.where(self.red_tagged, self.red_flag_home[:, None, 0], rtx)
             rty = torch.where(self.red_tagged, self.red_flag_home[:, None, 1], rty)
-        blue_speed_cap = torch.where(
-            self.blue_tagged,
-            torch.full_like(self.blue_speed, float(self.cfg.opregion_safe_speed_cps)),
-            torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps)),
-        )
-        red_speed_cap = torch.where(
-            self.red_tagged,
-            torch.full_like(self.red_speed, float(self.cfg.opregion_safe_speed_cps)),
-            torch.full_like(self.red_speed, float(self.cfg.max_speed_cps)),
+        # Use normal speed for all blue agents. Red speed is modulated by the opponent
+        # speed multiplier (scripted difficulty) on a per-env basis.
+        blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps))
+        red_speed_cap = (
+            torch.full_like(self.red_speed, float(self.cfg.max_speed_cps))
+            * self.red_speed_mult[:, None]
         )
 
         self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, blue_oob, yaw_cmd_blue = self._integrate_side(
@@ -783,6 +1310,8 @@ class BatchedCTFCore:
         self.truncated = truncated
 
         reward = self._reward_total(dense, sparse_points, stalemate_trigger)
+        # Restore original dt after physics integration.
+        self.dt = old_dt
         obs_t = self.get_obs_tensors()
         info = self._build_info(dense=dense, sparse_points=sparse_points, stalemate=stalemate_trigger)
         if tensor_obs:
@@ -1152,6 +1681,25 @@ class GPUCTFVecEnv(VecEnv):
             for i in np.where(done)[0]:
                 infos[i] = dict(infos[i])
                 infos[i]["terminal_observation"] = {k: v[i].copy() for k, v in obs.items()}
+                # So training callbacks (parse_episode_result) get a single episode_result dict.
+                bs = int(infos[i].get("blue_score", 0))
+                rs = int(infos[i].get("red_score", 0))
+                infos[i]["episode_result"] = {
+                    "blue_score": bs,
+                    "red_score": rs,
+                    "success": 1 if bs > rs else 0,
+                    "phase_name": str(infos[i].get("phase", "OP3")),
+                    "opponent_kind": str(infos[i].get("opponent_kind", "scripted")),
+                    "opponent_snapshot": "",
+                    "scripted_tag": str(infos[i].get("opponent_key", "OP3")),
+                    "species_tag": "BALANCED",
+                    "collisions_per_episode": 0,
+                    "collision_events_per_episode": 0,
+                    "collision_free_episode": 1,
+                    "near_misses_per_episode": 0,
+                    "zone_coverage": 0.0,
+                    "vec_schema_version": 1,
+                }
             self.core.reset_indices(reset_mask)
             obs = self.core.get_obs()
         self._pending_actions = None

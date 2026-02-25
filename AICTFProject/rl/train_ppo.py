@@ -24,6 +24,7 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import VecMonitor
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+from opponent_params import sample_batched_opponent_params
 from rl.common import env_seed, set_global_seed
 from rl.curriculum import (
     CurriculumConfig,
@@ -1323,6 +1324,36 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         venv.env_method("set_phase", phase_name)
     except Exception:
         pass
+    # Initial scripted-opponent parameters (including deception and speed for red team).
+    try:
+        kind, key = default_opponent
+        # For scripted opponents, always use the OP3 profile so the enemy
+        # behaves like the strong Aquaticus baseline regardless of phase.
+        if str(kind).upper() == "SCRIPTED":
+            key = "OP3"
+        opp_params = sample_batched_opponent_params(
+            kind=kind,
+            key=key,
+            phase=phase_name,
+            n_agents=gpu_cfg.max_red_agents,
+            batch_size=gpu_cfg.n_envs,
+            device=gpu_cfg.device,
+        )
+        dyn_cfg: Dict[str, Any] = {}
+        if "deception_prob" in opp_params:
+            dyn_cfg["deception_prob"] = opp_params["deception_prob"]
+        if "speed_mult" in opp_params:
+            dyn_cfg["speed_mult"] = opp_params["speed_mult"]
+        if "attacker_style" in opp_params:
+            dyn_cfg["attacker_style"] = opp_params["attacker_style"]
+        if "defender_style" in opp_params:
+            dyn_cfg["defender_style"] = opp_params["defender_style"]
+        if "role_switch_prob" in opp_params:
+            dyn_cfg["role_switch_prob"] = opp_params["role_switch_prob"]
+        if dyn_cfg:
+            venv.env_method("set_dynamics_config", dyn_cfg)
+    except Exception as exc:
+        print(f"[PPO] opponent_params sampling failed (using defaults): {exc}")
 
     policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
     use_tokenized = bool(getattr(cfg, "use_tokenized_obs", False))

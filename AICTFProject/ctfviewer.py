@@ -1,8 +1,8 @@
 """
 CTF Viewer -- renders a single BatchedCTFCore environment in pygame.
 
-Blue team is controlled by an SB3 PPO model (if found) or takes random
-actions.  Red team uses the scripted bot built into the GPU core.
+Blue team is controlled by an SB3 PPO model (if found) or scripted DEMO.
+Red team uses the scripted bot built into the GPU core.
 
 No dependency on game_field.py, viewer_game_field.py, or policies.py.
 """
@@ -257,8 +257,20 @@ class CTFViewer:
             max_red_agents=2,
             device=device,
         )
-        self.core = BatchedCTFCore(cfg)
         self.cfg = cfg
+        self.core = BatchedCTFCore(self.cfg)
+        # Use Aquaticus OP3-like scripted opponent defaults for the red team in the viewer:
+        # medium attacker/defender styles, with some role switching and deception.
+        try:
+            self.core.set_dynamics_config(
+                {
+                    "attacker_style": 1,
+                    "defender_style": 1,
+                    "role_switch_prob": 0.3,
+                }
+            )
+        except Exception:
+            pass
         self.core.reset_all()
 
         self.renderer = CoreRenderer(self.core)
@@ -272,12 +284,13 @@ class CTFViewer:
         )
 
         if self.ppo.model_loaded:
-            print("[Viewer] PPO ready. F3 toggles PPO / random.")
+            print("[Viewer] PPO ready. F3 toggles PPO / DEMO.")
+            self.blue_mode: str = "PPO"
         else:
-            print("[Viewer] No PPO model. Running random actions.")
+            print("[Viewer] No PPO model. Running DEMO (scripted blue).")
             print(f"[Viewer] Searched: {ppo_model_path}")
-
-        self.blue_mode: str = "PPO" if self.ppo.model_loaded else "RANDOM"
+            self.blue_mode: str = "DEMO"
+            self.core.blue_scripted = True
 
         # Pygame
         pg.init()
@@ -290,19 +303,18 @@ class CTFViewer:
         self.clock = pg.time.Clock()
         self.font = pg.font.SysFont(None, 26)
         self.bigfont = pg.font.SysFont(None, 48)
+        self._last_info: Dict[str, Any] = {}
 
     # ---- stepping ----
 
     def _get_action(self) -> torch.Tensor:
+        nb = self.cfg.max_blue_agents
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
             obs_np = self.core.get_obs()
             act_np = self.ppo.predict(obs_np)
         else:
-            nb = self.cfg.max_blue_agents
-            act_np = np.stack([
-                np.random.randint(0, self.cfg.n_macros, size=(nb,)),
-                np.random.randint(0, self.cfg.n_targets, size=(nb,)),
-            ], axis=-1).reshape(-1).astype(np.int64)
+            # DEMO: zeros; core uses scripted blue when blue_scripted=True
+            act_np = np.zeros((nb * 2,), dtype=np.int64)
         return torch.as_tensor(act_np, dtype=torch.int64, device=self.core.device).unsqueeze(0)
 
     def _step_env(self) -> Dict[str, Any]:
@@ -320,6 +332,7 @@ class CTFViewer:
                 mask = done
             self.core.reset_indices(mask)
         info = infos[0] if infos else {}
+        self._last_info = info
         return info
 
     # ---- main loop ----
@@ -333,6 +346,7 @@ class CTFViewer:
                 elif event.type == pg.KEYDOWN:
                     self._handle_key(event)
 
+            # Single simulation step per frame, locked to 30 FPS for predictable speed.
             self._step_env()
             self._draw()
             pg.display.flip()
@@ -440,6 +454,23 @@ class CTFViewer:
 
     # ---- input ----
 
+    def _rebuild_core(self, agents_per_team: int) -> None:
+        """Recreate the core with a new number of agents per team."""
+        agents = max(1, int(agents_per_team))
+        self.cfg.max_blue_agents = agents
+        self.cfg.max_red_agents = agents
+        self.core = BatchedCTFCore(self.cfg)
+        self.core.blue_scripted = (self.blue_mode == "DEMO")
+        try:
+            self.core.set_dynamics_config(
+                {"attacker_style": 1, "defender_style": 1, "role_switch_prob": 0.3}
+            )
+        except Exception:
+            pass
+        self.core.reset_all()
+        self.renderer = CoreRenderer(self.core)
+        print(f"[Viewer] Agents per team -> {agents} v {agents}")
+
     def _handle_key(self, event: Any) -> None:
         k = event.key
         if k == pg.K_ESCAPE:
@@ -447,11 +478,16 @@ class CTFViewer:
         elif k in (pg.K_F1, pg.K_r):
             self.core.reset_all()
             print("[Viewer] Reset")
+        elif k == pg.K_F2:
+            # Toggle between 2v2 and 4v4 layouts.
+            current = int(getattr(self.cfg, "max_blue_agents", 2))
+            new_agents = 4 if current <= 2 else 2
+            self._rebuild_core(new_agents)
         elif k == pg.K_F3:
-            if self.blue_mode == "PPO" and self.ppo.model_loaded:
-                self.blue_mode = "RANDOM"
-            elif self.ppo.model_loaded:
-                self.blue_mode = "PPO"
+            cycle = ["PPO", "DEMO"] if self.ppo.model_loaded else ["DEMO"]
+            idx = cycle.index(self.blue_mode) if self.blue_mode in cycle else 0
+            self.blue_mode = cycle[(idx + 1) % len(cycle)]
+            self.core.blue_scripted = (self.blue_mode == "DEMO")
             print(f"[Viewer] Blue -> {self.blue_mode}")
 
     # ---- drawing ----
@@ -466,10 +502,14 @@ class CTFViewer:
         def txt(s: str, x: int, y: int, c=(230, 230, 240)):
             self.screen.blit(self.font.render(s, True, c), (x, y))
 
-        mode_clr = (120, 255, 120) if self.blue_mode == "PPO" else (255, 255, 120)
-        txt("F1/R: Reset | F3: Toggle PPO/Random | ESC: Quit",
+        mode_clr = {
+            "PPO": (120, 255, 120),
+            "DEMO": (120, 200, 255),
+        }.get(self.blue_mode, (230, 230, 240))
+        txt("F1: Reset | F2: Agents 2v2/4v4 | F3: PPO / Demo | ESC: Quit",
             30, 10, (200, 200, 220))
-        txt(f"Blue: {self.blue_mode} | 2 v 2", 30, 36, mode_clr)
+        txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)}",
+            30, 36, mode_clr)
 
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
             txt(f"Model: {os.path.basename(self.ppo.model_path or '')}",
@@ -481,6 +521,22 @@ class CTFViewer:
         txt(f"BLUE: {bs}", 30, 60, (100, 180, 255))
         txt(f"RED: {rs}", 180, 60, (255, 100, 100))
         txt(f"Step: {step}/{self.core.max_steps}", 330, 60, (200, 200, 230))
+
+        # Debug HUD: per-side tagging and side info.
+        try:
+            # Shapes: (1, Nb), (1, Nr)
+            b_tag = self.core.blue_tagged[0].detach().cpu().numpy().astype(int).tolist()
+            r_tag = self.core.red_tagged[0].detach().cpu().numpy().astype(int).tolist()
+            b_x = self.core.blue_x[0].detach().cpu().numpy().tolist()
+            r_x = self.core.red_x[0].detach().cpu().numpy().tolist()
+            mid = float(self.core.cols - 1) * 0.5
+            b_side = ["B" if x <= mid else "R" for x in b_x]
+            r_side = ["R" if x >= mid else "B" for x in r_x]
+            blue_oob_last = bool(self._last_info.get("stalemate_truncated", False))  # fallback if no explicit oob field
+            txt(f"DBG blue_tag={b_tag} side={b_side} | red_tag={r_tag} side={r_side}",
+                30, 80, (150, 220, 150))
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------

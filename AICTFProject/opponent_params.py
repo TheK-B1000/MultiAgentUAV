@@ -41,17 +41,30 @@ def sample_batched_opponent_params(
     sync_c_low, sync_c_high = 0, 0
     sync_nc_low, sync_nc_high = 0, 0
     n_low, n_high = 0.0, 0.0
+    # MOOS-IvP style role profile defaults:
+    # 0 = easy, 1 = medium
+    attacker_style = 0
+    defender_style = 0
+    role_switch_prob = 0.0
 
     op3_easy = n_agents > 2
 
     # 2. Evaluate logic tree for bounds
     if kind == "SCRIPTED":
         if key == "OP1":
+            # Pav01-like baseline: Easy Attacker + Easy Defender
+            attacker_style = 0
+            defender_style = 0
+            role_switch_prob = 0.05
             if n_agents >= 8:
                 s_low, s_high = 0.82, 0.92
             elif n_agents >= 4:
                 s_low, s_high = 0.90, 1.00
         elif key == "OP2":
+            # Strategy 2-like: Easy Attacker + Medium Defender
+            attacker_style = 0
+            defender_style = 1
+            role_switch_prob = 0.15
             d_low, d_high = 0.0, 0.15
             n_low, n_high = 0.0, 0.05
             if n_agents >= 8:
@@ -63,6 +76,10 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.0, 0.06
                 n_low, n_high = 0.0, 0.0
         elif key == "OP3":
+            # Strategy 3/4-like: Medium Attacker + Medium Defender + dynamic switching
+            attacker_style = 1
+            defender_style = 1
+            role_switch_prob = 0.35
             if op3_easy:
                 if n_agents >= 8:
                     s_low, s_high = 0.70, 0.82
@@ -82,6 +99,9 @@ def sample_batched_opponent_params(
                 sync_nc_low, sync_nc_high = 3, 6
                 n_low, n_high = 0.0, 0.08
         else:
+            attacker_style = 1
+            defender_style = 1
+            role_switch_prob = 0.25
             d_low, d_high = 0.05, 0.25
             c_prob = 0.4
             sync_c_low, sync_c_high = 3, 6
@@ -90,6 +110,9 @@ def sample_batched_opponent_params(
 
     elif kind == "SPECIES":
         if key == "RUSHER":
+            attacker_style = 1
+            defender_style = 0
+            role_switch_prob = 0.20
             s_low, s_high = 1.05, 1.25
             d_low, d_high = 0.0, 0.15
             c_prob = 0.3
@@ -97,6 +120,9 @@ def sample_batched_opponent_params(
             sync_nc_low, sync_nc_high = 2, 5
             n_low, n_high = 0.0, 0.05
         elif key == "CAMPER":
+            attacker_style = 0
+            defender_style = 1
+            role_switch_prob = 0.10
             s_low, s_high = 0.80, 1.0
             d_low, d_high = 0.2, 0.4
             c_prob = 0.4
@@ -104,6 +130,9 @@ def sample_batched_opponent_params(
             sync_nc_low, sync_nc_high = 4, 8
             n_low, n_high = 0.02, 0.08
         else:  # BALANCED
+            attacker_style = 1
+            defender_style = 1
+            role_switch_prob = 0.25
             s_low, s_high = 0.90, 1.10
             d_low, d_high = 0.1, 0.3
             c_prob = 0.5
@@ -134,6 +163,9 @@ def sample_batched_opponent_params(
             n_low, n_high = 0.0, 0.0
 
     else:  # SNAPSHOT
+        attacker_style = 1
+        defender_style = 1
+        role_switch_prob = 0.25
         s_low, s_high = 0.85, 1.15
         d_low, d_high = 0.1, 0.3
         c_prob = 0.4
@@ -164,4 +196,7 @@ def sample_batched_opponent_params(
         "coordinated_attack": coordinated_attack,
         "attack_sync_window": attack_sync_window,
         "noise_sigma": noise_sigma,
+        "attacker_style": torch.full((batch_size,), int(attacker_style), dtype=torch.int32, device=device),
+        "defender_style": torch.full((batch_size,), int(defender_style), dtype=torch.int32, device=device),
+        "role_switch_prob": torch.full((batch_size,), float(role_switch_prob), dtype=torch.float32, device=device),
     }
