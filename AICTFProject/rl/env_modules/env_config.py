@@ -214,9 +214,9 @@ class EnvConfigManager:
                 self.set_physics_enabled(bool(cfg.get("physics_enabled", False)), game_field)
             if cfg.get("relaxed_dynamics"):
                 game_field.set_dynamics_config(
-                    max_speed_cps=float(cfg.get("max_speed_cps", 2.8)),
-                    max_accel_cps2=float(cfg.get("max_accel_cps2", 2.5)),
-                    max_yaw_rate_rps=float(cfg.get("max_yaw_rate_rps", 5.0)),
+                    max_speed_cps=float(cfg.get("max_speed_cps", 2.2)),
+                    max_accel_cps2=float(cfg.get("max_accel_cps2", 2.0)),
+                    max_yaw_rate_rps=float(cfg.get("max_yaw_rate_rps", 4.0)),
                 )
             elif "max_speed_cps" in cfg or "max_accel_cps2" in cfg or "max_yaw_rate_rps" in cfg:
                 boat_cfg = getattr(game_field, "boat_cfg", None)

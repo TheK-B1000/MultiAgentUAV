@@ -25,6 +25,11 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMoni
 
 from game_field import make_game_field
 from ctf_sb3_env import CTFGameFieldSB3Env
+try:
+    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+except Exception:
+    GPUCTFVecEnv = None
+    GPUFieldConfig = None
 from rl.common import env_seed, set_global_seed
 from rl.curriculum import (
     CurriculumConfig,
@@ -202,6 +207,7 @@ class PPOConfig:
     test_kl_zero_lr: bool = False
     # For now, keep standard (non-tokenized) CNN obs for 4v4 to avoid tiny 1x1 grids
     use_tokenized_obs: bool = False
+    gpu_native_env: bool = False
 
 
 def _make_env_fn(cfg: PPOConfig, *, default_opponent: Tuple[str, str], rank: int) -> Any:
@@ -1330,18 +1336,39 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
-    env_fns = [
-        _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
-        for i in range(max(1, int(cfg.n_envs)))
-    ]
-    try:
-        venv = SubprocVecEnv(env_fns)
-    except Exception:
-        venv = DummyVecEnv(env_fns)
+    if bool(getattr(cfg, "gpu_native_env", False)):
+        if GPUCTFVecEnv is None or GPUFieldConfig is None:
+            raise RuntimeError("GPU native env requested, but game_field_gpu imports failed.")
+        gpu_cfg = GPUFieldConfig(
+            n_envs=max(1, int(cfg.n_envs)),
+            max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+            max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+            max_decision_steps=max(1, int(cfg.max_decision_steps)),
+            aquaticus_profile=True,
+            rules_profile="AQUATICUS_2024",
+            device=str(cfg.device),
+            seed=int(cfg.seed),
+        )
+        print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
+        venv = GPUCTFVecEnv(gpu_cfg)
+    else:
+        env_fns = [
+            _make_env_fn(cfg, default_opponent=default_opponent, rank=i)
+            for i in range(max(1, int(cfg.n_envs)))
+        ]
+        try:
+            venv = SubprocVecEnv(env_fns)
+        except Exception:
+            venv = DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
 
     try:
         venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
+    except Exception:
+        pass
+    try:
+        # Project default: enforce Aquaticus scoring/rules profile across manager-backed envs.
+        venv.env_method("set_dynamics_config", {"rules_profile": "AQUATICUS_2024"})
     except Exception:
         pass
     try:
@@ -1483,7 +1510,23 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     if cfg.enable_eval:
         # Use OP3 for evaluation/testing
-        eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
+        if bool(getattr(cfg, "gpu_native_env", False)):
+            if GPUCTFVecEnv is None or GPUFieldConfig is None:
+                raise RuntimeError("GPU native eval env requested, but game_field_gpu imports failed.")
+            eval_env = GPUCTFVecEnv(
+                GPUFieldConfig(
+                    n_envs=1,
+                    max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+                    max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+                    max_decision_steps=max(1, int(cfg.max_decision_steps)),
+                    aquaticus_profile=True,
+                    rules_profile="AQUATICUS_2024",
+                    device=str(cfg.device),
+                    seed=int(cfg.seed),
+                )
+            )
+        else:
+            eval_env = DummyVecEnv([_make_env_fn(cfg, default_opponent=("SCRIPTED", "OP3"), rank=0)])
         eval_env = VecMonitor(eval_env)
         
         # CRITICAL: Match training environment setup (stress schedule + phase)
@@ -1644,6 +1687,7 @@ if __name__ == "__main__":
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
         parser.add_argument("--agents", type=int, default=None, choices=[2, 4, 8], help="Team size: 2=2v2, 4=4v4, 8=8v8 (sets --max-blue-agents)")
         parser.add_argument("--max-blue-agents", type=int, default=None, help="Agents per team (1-16). Use 2/4/8 for 2v2/4v4/8v8; overrides --agents if set.")
+        parser.add_argument("--gpu-native-env", action="store_true", help="Use torch-batched GPU-native env (game_field_gpu.py) instead of Python GameField envs.")
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         args = parser.parse_args()
         cfg = PPOConfig()
@@ -1668,4 +1712,6 @@ if __name__ == "__main__":
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):
             cfg.test_kl_zero_lr = True
+        if getattr(args, "gpu_native_env", False):
+            cfg.gpu_native_env = True
         train_ppo(cfg)

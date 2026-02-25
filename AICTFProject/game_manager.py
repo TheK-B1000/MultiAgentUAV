@@ -66,6 +66,17 @@ PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
     "SELF": -1.5,
 }
 
+# Aquaticus-aligned profile knobs (scaled for RL stability; keeps event ratios).
+# Source semantics:
+#   - GRAB gives score
+#   - CAPTURE gives additional score
+#   - tag/out-of-bounds are event rewards (not scoreboard)
+AQUATICUS_GRAB_SCORE = 1
+AQUATICUS_CAPTURE_SCORE = 2
+AQUATICUS_TAG_NO_FLAG_REWARD = 1.0
+AQUATICUS_TAG_WITH_FLAG_REWARD = 0.5
+AQUATICUS_OOB_PENALTY = -1.0
+
 Cell = Tuple[int, int]
 FloatPos = Tuple[float, float]
 RewardEvent = Tuple[float, str, float]  # (t, agent_id, value)
@@ -100,6 +111,11 @@ class GameManager:
     phase_name: str = "OP1"
     # Naval framing: if True, on timeout Blue wins (defense held) regardless of score
     timeout_blue_wins_defense_held: bool = False
+    # Rules profile:
+    #   - "OURS_PLUS": existing tuned rewards/scores
+    #   - "AQUATICUS_2024": Aquaticus-aligned scoring semantics (+1 grab, +2 capture)
+    # Default is Aquaticus to keep project-wide behavior aligned.
+    rules_profile: str = "AQUATICUS_2024"
 
     # --- flags ---
     blue_flag_home: Cell = (0, 0)
@@ -190,6 +206,34 @@ class GameManager:
         """Set curriculum phase name (canonical uppercase)."""
         self.phase_name = str(phase).upper().strip()
 
+    def set_rules_profile(self, profile: str) -> None:
+        """
+        Set game-rule profile.
+        - OURS_PLUS: existing project behavior
+        - AQUATICUS_2024: Aquaticus-style scoring semantics (+1 grab, +2 capture)
+        """
+        p = str(profile).upper().strip()
+        if p not in ("OURS_PLUS", "AQUATICUS_2024"):
+            raise ValueError(f"Unknown rules profile: {profile}")
+        self.rules_profile = p
+        # Aquaticus grab+capture can produce 3 points in one run, so use a higher score limit.
+        # Keep legacy behavior untouched unless this profile is explicitly enabled.
+        if p == "AQUATICUS_2024" and int(self.score_limit) <= 3:
+            self.score_limit = 9
+
+    def _grab_score_delta(self) -> int:
+        return int(AQUATICUS_GRAB_SCORE) if self.rules_profile == "AQUATICUS_2024" else 0
+
+    def _capture_score_delta(self) -> int:
+        return int(AQUATICUS_CAPTURE_SCORE) if self.rules_profile == "AQUATICUS_2024" else 1
+
+    def _flag_pickup_reward(self) -> float:
+        # Keep dense rewards in OURS_PLUS; use sparser event emphasis in Aquaticus profile.
+        return float(1.0) if self.rules_profile == "AQUATICUS_2024" else float(FLAG_PICKUP_REWARD)
+
+    def _flag_capture_reward(self) -> float:
+        return float(2.0) if self.rules_profile == "AQUATICUS_2024" else float(FLAG_CARRY_HOME_REWARD)
+
     def set_shaping_gamma(self, gamma: float) -> None:
         """Set shaping gamma; must match PPO gamma for PBRS policy invariance."""
         g = float(gamma)
@@ -227,6 +271,9 @@ class GameManager:
             raise TypeError(f"dynamics config must be dict or None, got {type(cfg)}")
         # Shallow copy to avoid external mutation surprises.
         self.dynamics_config = dict(cfg)
+        rp = self.dynamics_config.get("rules_profile", None)
+        if rp is not None:
+            self.set_rules_profile(str(rp))
 
     def get_dynamics_config(self) -> Optional[Dict[str, Any]]:
         """Get a safe copy of the current dynamics config (or None)."""
@@ -455,6 +502,8 @@ class GameManager:
     # -------------------------
 
     def reset_game(self, reset_scores: bool = True) -> None:
+        if str(self.rules_profile).upper() == "AQUATICUS_2024" and int(self.score_limit) <= 3:
+            self.score_limit = 9
         if reset_scores:
             self.blue_score = 0
             self.red_score = 0
@@ -689,7 +738,19 @@ class GameManager:
         if hasattr(agent, "setCarryingFlag"):
             agent.setCarryingFlag(True)
 
-        self.add_agent_reward(agent, FLAG_PICKUP_REWARD)
+        # Aquaticus profile: grab contributes to score immediately.
+        # Legacy profile: score increments only on capture.
+        grab_delta = self._grab_score_delta()
+        if grab_delta > 0:
+            if side == "blue":
+                self.blue_score += int(grab_delta)
+            else:
+                self.red_score += int(grab_delta)
+            if self.time_to_first_score is None:
+                self.time_to_first_score = float(self.sim_time)
+            self.last_score_time = float(self.sim_time)
+
+        self.add_agent_reward(agent, self._flag_pickup_reward())
 
         if self._teammate_near(agent):
             self.add_agent_reward(agent, COORDINATION_BONUS)
@@ -711,7 +772,7 @@ class GameManager:
         # Blue scores carrying red flag at blue home
         if side == "blue" and self.red_flag_taken and (self.red_flag_carrier is agent):
             if math.hypot(ax - float(self.blue_flag_home[0]), ay - float(self.blue_flag_home[1])) <= 2.0:
-                self.blue_score += 1
+                self.blue_score += int(self._capture_score_delta())
                 if self.time_to_first_score is None:
                     self.time_to_first_score = float(self.sim_time)
                 self._reset_red_flag_to_home()
@@ -720,8 +781,9 @@ class GameManager:
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
 
-                self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
-                self.add_team_reward("blue", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                cap_reward = self._flag_capture_reward()
+                self.add_agent_reward(agent, cap_reward)
+                self.add_team_reward("blue", cap_reward * 0.5, exclude_agent=agent)
                 self.add_team_reward("red", TEAM_FLAG_SCORED_PENALTY)
 
                 if self._teammate_near(agent):
@@ -746,7 +808,7 @@ class GameManager:
             return False
         if side == "red" and self.blue_flag_taken and (self.blue_flag_carrier is agent):
             if math.hypot(ax - float(self.red_flag_home[0]), ay - float(self.red_flag_home[1])) <= 2.0:
-                self.red_score += 1
+                self.red_score += int(self._capture_score_delta())
                 if self.time_to_first_score is None:
                     self.time_to_first_score = float(self.sim_time)
                 self._reset_blue_flag_to_home()
@@ -755,8 +817,9 @@ class GameManager:
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
 
-                self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
-                self.add_team_reward("red", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                cap_reward = self._flag_capture_reward()
+                self.add_agent_reward(agent, cap_reward)
+                self.add_team_reward("red", cap_reward * 0.5, exclude_agent=agent)
                 # Concede: team-wide negative so Blue learns to defend (block/intercept/deny)
                 self.add_team_reward("blue", TEAM_FLAG_SCORED_PENALTY)
 
@@ -1097,7 +1160,13 @@ class GameManager:
                 self.red_mine_kills_this_episode += 1
             self.add_agent_reward(killer_agent, MINE_KILL_BONUS)
 
-        self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
+        if self.rules_profile == "AQUATICUS_2024":
+            if victim_agent is not None and bool(getattr(victim_agent, "is_carrying_flag", False)):
+                self.add_agent_reward(killer_agent, AQUATICUS_TAG_WITH_FLAG_REWARD)
+            else:
+                self.add_agent_reward(killer_agent, AQUATICUS_TAG_NO_FLAG_REWARD)
+        else:
+            self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
 
         # Optional team share for mine kills (explicit, excludes killer)
         if kside in ("blue", "red") and cause == "mine":
@@ -1175,4 +1244,7 @@ class GameManager:
     def punish_failed_action(self, agent: Any) -> None:
         if agent is None:
             return
-        self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
+        if self.rules_profile == "AQUATICUS_2024":
+            self.add_agent_reward(agent, AQUATICUS_OOB_PENALTY)
+        else:
+            self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
