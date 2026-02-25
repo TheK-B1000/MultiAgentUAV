@@ -20,8 +20,9 @@ GLOBAL_STATE_CHANNELS = 8
 @dataclass
 class GPUFieldConfig:
     n_envs: int = 64
-    max_blue_agents: int = 4
-    max_red_agents: int = 4
+    # Aquaticus standard setup is 2v2.
+    max_blue_agents: int = 2
+    max_red_agents: int = 2
     map_rows: int = 20
     map_cols: int = 20
     max_decision_steps: int = 400
@@ -38,6 +39,10 @@ class GPUFieldConfig:
     sensor_noise_sigma_cells: float = 0.0
     sensor_dropout_prob: float = 0.0
     suppression_range_cells: float = 2.0
+    tag_range_cells: float = 10.0
+    home_untag_radius_cells: float = 1.25
+    avoid_collision_radius_cells: float = 0.75
+    opregion_safe_speed_cps: float = 0.8
 
     n_macros: int = 5
     n_targets: int = 8
@@ -118,6 +123,7 @@ class BatchedCTFCore:
         self.blue_heading = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.blue_speed = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.blue_alive = torch.ones((B, Nb), dtype=torch.bool, device=dev)
+        self.blue_tagged = torch.zeros((B, Nb), dtype=torch.bool, device=dev)
         self.blue_carrying = torch.zeros((B, Nb), dtype=torch.bool, device=dev)
         self.blue_respawn = torch.zeros((B, Nb), dtype=f32, device=dev)
 
@@ -126,6 +132,7 @@ class BatchedCTFCore:
         self.red_heading = torch.zeros((B, Nr), dtype=f32, device=dev)
         self.red_speed = torch.zeros((B, Nr), dtype=f32, device=dev)
         self.red_alive = torch.ones((B, Nr), dtype=torch.bool, device=dev)
+        self.red_tagged = torch.zeros((B, Nr), dtype=torch.bool, device=dev)
         self.red_carrying = torch.zeros((B, Nr), dtype=torch.bool, device=dev)
         self.red_respawn = torch.zeros((B, Nr), dtype=f32, device=dev)
 
@@ -194,6 +201,7 @@ class BatchedCTFCore:
             self.blue_heading[idx].zero_()
             self.blue_speed[idx].zero_()
             self.blue_alive[idx].fill_(True)
+            self.blue_tagged[idx].fill_(False)
             self.blue_carrying[idx].fill_(False)
             self.blue_respawn[idx].zero_()
         else:
@@ -204,6 +212,7 @@ class BatchedCTFCore:
             self.red_heading[idx].fill_(math.pi)
             self.red_speed[idx].zero_()
             self.red_alive[idx].fill_(True)
+            self.red_tagged[idx].fill_(False)
             self.red_carrying[idx].fill_(False)
             self.red_respawn[idx].zero_()
 
@@ -229,6 +238,8 @@ class BatchedCTFCore:
         self.red_score[idx] = 0
         self.blue_flag_pos[idx] = self.blue_flag_home[idx]
         self.red_flag_pos[idx] = self.red_flag_home[idx]
+        self.blue_tagged[idx] = False
+        self.red_tagged[idx] = False
         self._last_dense_progress[idx] = 0.0
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
@@ -306,6 +317,7 @@ class BatchedCTFCore:
         alive: torch.Tensor,
         target_x: torch.Tensor,
         target_y: torch.Tensor,
+        speed_cap: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Marine kinematics with acceleration/yaw constraints and turn-radius limiting.
@@ -323,6 +335,8 @@ class BatchedCTFCore:
         yaw_rate_cmd = torch.clamp(yaw_rate_cmd, -omega_bound, omega_bound)
 
         desired_speed = torch.full_like(speed, float(self.cfg.max_speed_cps))
+        if speed_cap is not None:
+            desired_speed = torch.minimum(desired_speed, torch.clamp(speed_cap, min=0.0))
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
         desired_speed = torch.where(dist < 0.75, desired_speed * (dist / 0.75), desired_speed)
         accel_cmd = torch.clamp(
@@ -332,6 +346,8 @@ class BatchedCTFCore:
         )
 
         speed2 = torch.clamp(speed + accel_cmd * dt, 0.0, float(self.cfg.max_speed_cps))
+        if speed_cap is not None:
+            speed2 = torch.minimum(speed2, torch.clamp(speed_cap, min=0.0))
         heading2 = heading + yaw_rate_cmd * dt
         vx = speed2 * torch.cos(heading2) + self.rt_current_strength_cps[:, None]
         vy = speed2 * torch.sin(heading2)
@@ -353,6 +369,139 @@ class BatchedCTFCore:
         h_out = heading2 * alive_f + heading * (1.0 - alive_f)
         s_out = speed2 * alive_f + speed * (1.0 - alive_f)
         return x_out, y_out, h_out, s_out, oob & alive, yaw_rate_cmd
+
+    def _is_on_home_side(self, side: str, x: torch.Tensor) -> torch.Tensor:
+        mid = float(self.cols - 1) * 0.5
+        if side == "blue":
+            return x <= mid
+        return x >= mid
+
+    def _untag_if_home(self) -> None:
+        bdx = self.blue_x - self.blue_flag_home[:, None, 0]
+        bdy = self.blue_y - self.blue_flag_home[:, None, 1]
+        b_home = torch.sqrt(bdx * bdx + bdy * bdy + 1e-8) <= float(self.cfg.home_untag_radius_cells)
+        rdx = self.red_x - self.red_flag_home[:, None, 0]
+        rdy = self.red_y - self.red_flag_home[:, None, 1]
+        r_home = torch.sqrt(rdx * rdx + rdy * rdy + 1e-8) <= float(self.cfg.home_untag_radius_cells)
+        self.blue_tagged = self.blue_tagged & (~b_home)
+        self.red_tagged = self.red_tagged & (~r_home)
+
+    def _apply_avoid_collision_guard(
+        self,
+        prev_blue_x: torch.Tensor,
+        prev_blue_y: torch.Tensor,
+        prev_red_x: torch.Tensor,
+        prev_red_y: torch.Tensor,
+    ) -> None:
+        """
+        Aquaticus-style safety guardrail:
+        if any agent pair gets too close, halt by reverting to previous position and zeroing speed.
+        """
+        rr = float(self.cfg.avoid_collision_radius_cells)
+        if rr <= 0.0:
+            return
+
+        # Blue-Blue
+        ddx = self.blue_x[:, :, None] - self.blue_x[:, None, :]
+        ddy = self.blue_y[:, :, None] - self.blue_y[:, None, :]
+        d = torch.sqrt(ddx * ddx + ddy * ddy + 1e-8)
+        eye = torch.eye(self.Nb, dtype=torch.bool, device=self.device)[None, :, :]
+        close_bb = (d < rr) & (~eye)
+        halt_b = close_bb.any(dim=2)
+
+        # Red-Red
+        ddx_r = self.red_x[:, :, None] - self.red_x[:, None, :]
+        ddy_r = self.red_y[:, :, None] - self.red_y[:, None, :]
+        d_r = torch.sqrt(ddx_r * ddx_r + ddy_r * ddy_r + 1e-8)
+        eye_r = torch.eye(self.Nr, dtype=torch.bool, device=self.device)[None, :, :]
+        close_rr = (d_r < rr) & (~eye_r)
+        halt_r = close_rr.any(dim=2)
+
+        # Blue-Red
+        dx_br = self.blue_x[:, :, None] - self.red_x[:, None, :]
+        dy_br = self.blue_y[:, :, None] - self.red_y[:, None, :]
+        d_br = torch.sqrt(dx_br * dx_br + dy_br * dy_br + 1e-8)
+        close_br = d_br < rr
+        halt_b = halt_b | close_br.any(dim=2)
+        halt_r = halt_r | close_br.any(dim=1)
+
+        if halt_b.any():
+            self.blue_x = torch.where(halt_b, prev_blue_x, self.blue_x)
+            self.blue_y = torch.where(halt_b, prev_blue_y, self.blue_y)
+            self.blue_speed = torch.where(halt_b, torch.zeros_like(self.blue_speed), self.blue_speed)
+        if halt_r.any():
+            self.red_x = torch.where(halt_r, prev_red_x, self.red_x)
+            self.red_y = torch.where(halt_r, prev_red_y, self.red_y)
+            self.red_speed = torch.where(halt_r, torch.zeros_like(self.red_speed), self.red_speed)
+
+    def _apply_aquaticus_tag_rules(
+        self,
+        blue_oob: torch.Tensor,
+        red_oob: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Enforce Aquaticus tagging:
+          - tagger must be untagged and on own side
+          - tagged carrier drops flag instantly to home
+          - OOB causes automatic tag
+        Returns per-env counts:
+          - blue_tag_noflag_count
+          - blue_tag_withflag_count
+          - red_tag_total_count
+        """
+        # OOB -> auto-tag
+        self.blue_tagged = self.blue_tagged | blue_oob
+        self.red_tagged = self.red_tagged | red_oob
+
+        # OOB while carrying -> instant flag return
+        blue_oob_carry = blue_oob & self.blue_carrying
+        red_oob_carry = red_oob & self.red_carrying
+        if blue_oob_carry.any():
+            env = blue_oob_carry.any(dim=1)
+            self.blue_carrying[blue_oob_carry] = False
+            self.red_flag_pos[env] = self.red_flag_home[env]
+        if red_oob_carry.any():
+            env = red_oob_carry.any(dim=1)
+            self.red_carrying[red_oob_carry] = False
+            self.blue_flag_pos[env] = self.blue_flag_home[env]
+
+        # Pairwise distances
+        dx = self.blue_x[:, :, None] - self.red_x[:, None, :]
+        dy = self.blue_y[:, :, None] - self.red_y[:, None, :]
+        dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+        in_tag_range = dist <= float(self.cfg.tag_range_cells)
+
+        blue_can_tag = (~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
+        red_can_tag = (~self.red_tagged) & self._is_on_home_side("red", self.red_x)
+        red_targetable = ~self.red_tagged
+        blue_targetable = ~self.blue_tagged
+
+        blue_tags = in_tag_range & blue_can_tag[:, :, None] & red_targetable[:, None, :]
+        red_tags = in_tag_range & red_can_tag[:, None, :] & blue_targetable[:, :, None]
+
+        newly_red_tagged = blue_tags.any(dim=1) & (~self.red_tagged)
+        newly_blue_tagged = red_tags.any(dim=2) & (~self.blue_tagged)
+
+        red_had_flag = newly_red_tagged & self.red_carrying
+        blue_had_flag = newly_blue_tagged & self.blue_carrying
+
+        self.red_tagged = self.red_tagged | newly_red_tagged
+        self.blue_tagged = self.blue_tagged | newly_blue_tagged
+
+        if red_had_flag.any():
+            env = red_had_flag.any(dim=1)
+            self.red_carrying[red_had_flag] = False
+            self.blue_flag_pos[env] = self.blue_flag_home[env]
+        if blue_had_flag.any():
+            env = blue_had_flag.any(dim=1)
+            self.blue_carrying[blue_had_flag] = False
+            self.red_flag_pos[env] = self.red_flag_home[env]
+
+        blue_tag_withflag = red_had_flag.sum(dim=1).to(torch.float32)
+        blue_tag_total = newly_red_tagged.sum(dim=1).to(torch.float32)
+        blue_tag_noflag = torch.clamp(blue_tag_total - blue_tag_withflag, min=0.0)
+        red_tag_total = newly_blue_tagged.sum(dim=1).to(torch.float32)
+        return blue_tag_noflag, blue_tag_withflag, red_tag_total
 
     def _respawn_timers(self) -> None:
         dt = self.dt
@@ -416,11 +565,11 @@ class BatchedCTFCore:
         b_to_red = torch.sqrt((self.blue_x - self.red_flag_pos[:, None, 0]) ** 2 + (self.blue_y - self.red_flag_pos[:, None, 1]) ** 2 + 1e-8)
         r_to_blue = torch.sqrt((self.red_x - self.blue_flag_pos[:, None, 0]) ** 2 + (self.red_y - self.blue_flag_pos[:, None, 1]) ** 2 + 1e-8)
 
-        blue_grab_env = (~self.red_carrying.any(dim=1)) & (b_to_red <= 0.8).any(dim=1)
-        red_grab_env = (~self.blue_carrying.any(dim=1)) & (r_to_blue <= 0.8).any(dim=1)
+        blue_grab_env = (~self.red_carrying.any(dim=1)) & ((b_to_red <= 0.8) & (~self.blue_tagged)).any(dim=1)
+        red_grab_env = (~self.blue_carrying.any(dim=1)) & ((r_to_blue <= 0.8) & (~self.red_tagged)).any(dim=1)
 
         if blue_grab_env.any():
-            idx = torch.argmax((b_to_red <= 0.8).to(torch.int64), dim=1)
+            idx = torch.argmax(((b_to_red <= 0.8) & (~self.blue_tagged)).to(torch.int64), dim=1)
             env_idx = torch.where(blue_grab_env)[0]
             self.blue_carrying[env_idx] = False
             self.blue_carrying[env_idx, idx[env_idx]] = True
@@ -428,7 +577,7 @@ class BatchedCTFCore:
             self.blue_score[env_idx] += int(self._score_grab_delta())
 
         if red_grab_env.any():
-            idx = torch.argmax((r_to_blue <= 0.8).to(torch.int64), dim=1)
+            idx = torch.argmax(((r_to_blue <= 0.8) & (~self.red_tagged)).to(torch.int64), dim=1)
             env_idx = torch.where(red_grab_env)[0]
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
@@ -437,8 +586,8 @@ class BatchedCTFCore:
 
         b_home_dist = torch.sqrt((self.blue_x - self.blue_flag_home[:, None, 0]) ** 2 + (self.blue_y - self.blue_flag_home[:, None, 1]) ** 2 + 1e-8)
         r_home_dist = torch.sqrt((self.red_x - self.red_flag_home[:, None, 0]) ** 2 + (self.red_y - self.red_flag_home[:, None, 1]) ** 2 + 1e-8)
-        blue_capture_now = self.blue_alive & self.blue_carrying & (b_home_dist <= 0.8)
-        red_capture_now = self.red_alive & self.red_carrying & (r_home_dist <= 0.8)
+        blue_capture_now = self.blue_alive & self.blue_carrying & (~self.blue_tagged) & (b_home_dist <= 0.8)
+        red_capture_now = self.red_alive & self.red_carrying & (~self.red_tagged) & (r_home_dist <= 0.8)
 
         b_cap_env = blue_capture_now.any(dim=1)
         r_cap_env = red_capture_now.any(dim=1)
@@ -514,10 +663,9 @@ class BatchedCTFCore:
         red_grab_env: torch.Tensor,
         blue_cap_env: torch.Tensor,
         red_cap_env: torch.Tensor,
-        kill_blue: torch.Tensor,
-        kill_red: torch.Tensor,
-        blue_had_flag: torch.Tensor,
-        red_had_flag: torch.Tensor,
+        blue_tag_noflag: torch.Tensor,
+        blue_tag_withflag: torch.Tensor,
+        red_tag_total: torch.Tensor,
         blue_oob: torch.Tensor,
     ) -> torch.Tensor:
         # Aquaticus table (points):
@@ -527,10 +675,6 @@ class BatchedCTFCore:
         # capture +100 / opp -100
         # OOB -100
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
-
-        blue_tag_noflag = (kill_red & (~red_had_flag)).sum(dim=1).to(torch.float32)
-        blue_tag_withflag = (kill_red & red_had_flag).sum(dim=1).to(torch.float32)
-        red_tag_total = kill_blue.sum(dim=1).to(torch.float32)
 
         r += 100.0 * blue_tag_noflag
         r += 50.0 * blue_tag_withflag
@@ -565,24 +709,57 @@ class BatchedCTFCore:
 
         prev_blue_x = self.blue_x.clone()
         prev_blue_y = self.blue_y.clone()
+        prev_red_x = self.red_x.clone()
+        prev_red_y = self.red_y.clone()
 
         btx, bty = self._build_blue_targets_from_action(macro, targ)
         rtx, rty = self._red_scripted_actions()
 
-        self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, blue_oob, yaw_cmd_blue = self._integrate_side(
-            self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, self.blue_alive, btx, bty
+        # Tagged agents: OpRegion-like forced safe return to home region.
+        if self.blue_tagged.any():
+            btx = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 0], btx)
+            bty = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 1], bty)
+        if self.red_tagged.any():
+            rtx = torch.where(self.red_tagged, self.red_flag_home[:, None, 0], rtx)
+            rty = torch.where(self.red_tagged, self.red_flag_home[:, None, 1], rty)
+        blue_speed_cap = torch.where(
+            self.blue_tagged,
+            torch.full_like(self.blue_speed, float(self.cfg.opregion_safe_speed_cps)),
+            torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps)),
         )
-        self.red_x, self.red_y, self.red_heading, self.red_speed, _, _ = self._integrate_side(
-            self.red_x, self.red_y, self.red_heading, self.red_speed, self.red_alive, rtx, rty
+        red_speed_cap = torch.where(
+            self.red_tagged,
+            torch.full_like(self.red_speed, float(self.cfg.opregion_safe_speed_cps)),
+            torch.full_like(self.red_speed, float(self.cfg.max_speed_cps)),
         )
 
-        kill_blue, kill_red, blue_had_flag, red_had_flag = self._apply_suppression()
-        self._respawn_timers()
+        self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, blue_oob, yaw_cmd_blue = self._integrate_side(
+            self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, self.blue_alive, btx, bty, speed_cap=blue_speed_cap
+        )
+        self.red_x, self.red_y, self.red_heading, self.red_speed, red_oob, _ = self._integrate_side(
+            self.red_x, self.red_y, self.red_heading, self.red_speed, self.red_alive, rtx, rty, speed_cap=red_speed_cap
+        )
+
+        # AvoidCollision safety guardrail (halt motion if too close)
+        self._apply_avoid_collision_guard(prev_blue_x, prev_blue_y, prev_red_x, prev_red_y)
+
+        if bool(self.cfg.aquaticus_profile) or self.rules_profile == "AQUATICUS_2024":
+            blue_tag_noflag, blue_tag_withflag, red_tag_total = self._apply_aquaticus_tag_rules(blue_oob, red_oob)
+            self._untag_if_home()
+            kill_blue = torch.zeros_like(self.blue_tagged)
+            kill_red = torch.zeros_like(self.red_tagged)
+        else:
+            kill_blue, kill_red, blue_had_flag, red_had_flag = self._apply_suppression()
+            blue_tag_noflag = (kill_red & (~red_had_flag)).sum(dim=1).to(torch.float32)
+            blue_tag_withflag = (kill_red & red_had_flag).sum(dim=1).to(torch.float32)
+            red_tag_total = kill_blue.sum(dim=1).to(torch.float32)
+            self._respawn_timers()
+
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()
 
         dense = self._dense_shaping(prev_blue_x, prev_blue_y, yaw_cmd_blue)
         sparse_points = self._sparse_reward_points(
-            blue_grab_env, red_grab_env, blue_cap_env, red_cap_env, kill_blue, kill_red, blue_had_flag, red_had_flag, blue_oob
+            blue_grab_env, red_grab_env, blue_cap_env, red_cap_env, blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob
         )
 
         self.step_count += 1
@@ -591,8 +768,9 @@ class BatchedCTFCore:
             | red_grab_env
             | blue_cap_env
             | red_cap_env
-            | kill_blue.any(dim=1)
-            | kill_red.any(dim=1)
+            | (blue_tag_noflag > 0.0)
+            | (blue_tag_withflag > 0.0)
+            | (red_tag_total > 0.0)
         )
         low_progress = torch.abs(self._last_dense_progress) < float(self.cfg.stalemate_progress_eps)
         no_event = ~event_happened
@@ -699,7 +877,10 @@ class BatchedCTFCore:
 
         out[..., 0] = torch.clamp(self.blue_x / cols, 0.0, 1.0)
         out[..., 1] = torch.clamp(self.blue_y / rows, 0.0, 1.0)
-        out[..., 2] = torch.clamp(self.blue_heading / math.pi, -1.0, 1.0)
+        # Discretized bearing theta_i (formal Aquaticus-style state element).
+        heading_norm = (self.blue_heading + math.pi) / (2.0 * math.pi)
+        heading_bins = torch.floor(torch.clamp(heading_norm, 0.0, 0.9999) * 16.0) / 15.0
+        out[..., 2] = torch.clamp(heading_bins * 2.0 - 1.0, -1.0, 1.0)
         out[..., 3] = torch.clamp(self.blue_speed / max_speed, 0.0, 1.0)
         out[..., 4] = torch.clamp((self.red_flag_pos[:, None, 0] - self.blue_x) / max(1.0, float(self.cols)), -1.0, 1.0)
         out[..., 5] = torch.clamp((self.red_flag_pos[:, None, 1] - self.blue_y) / max(1.0, float(self.rows)), -1.0, 1.0)
