@@ -158,7 +158,7 @@ class PPOConfig:
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
     snapshot_every_episodes: int = 100
-    league_max_snapshots: int = 25
+    league_max_snapshots: int = 5
     # Disable TensorBoard by default to avoid dependency/version issues.
     # Re-enable (True) if you install a compatible tensorboard+protobuf pair.
     enable_tensorboard: bool = False
@@ -171,7 +171,7 @@ class PPOConfig:
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
     self_play_snapshot_every_episodes: int = 25
-    self_play_max_snapshots: int = 25
+    self_play_max_snapshots: int = 5
 
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
@@ -335,13 +335,20 @@ class LeagueCallback(BaseCallback):
         """Delete oldest league snapshots when over cap to save disk space."""
         if self._league_max_snapshots <= 0:
             return
+        # Resolve checkpoint_dir once so we can resolve relative snapshot paths
+        ckpt_abs = os.path.abspath(self.cfg.checkpoint_dir)
         while len(self.league.snapshots) > self._league_max_snapshots:
             oldest = self.league.snapshots.pop(0)
             try:
-                if oldest and os.path.exists(oldest):
-                    os.remove(oldest)
-                    if self.verbose:
-                        print(f"[League] deleted old snapshot: {oldest}")
+                if not oldest:
+                    continue
+                # Try stored path (may be relative) and absolute path so cleanup works regardless of cwd
+                for p in (oldest, os.path.abspath(oldest), os.path.join(ckpt_abs, os.path.basename(oldest))):
+                    if p and os.path.isfile(p):
+                        os.remove(p)
+                        if self.verbose:
+                            print(f"[League] deleted old snapshot: {os.path.basename(p)}")
+                        break
             except Exception as exc:
                 print(f"[WARN] league snapshot cleanup failed: {exc}")
 
@@ -567,7 +574,9 @@ class LeagueCallback(BaseCallback):
                 except Exception as exc:
                     print(f"[WARN] snapshot save failed: {exc}")
                 else:
-                    self.league.add_snapshot(path + ".zip")
+                    # Store absolute path so cleanup can find the file regardless of cwd
+                    path_zip = os.path.abspath(path + ".zip")
+                    self.league.add_snapshot(path_zip)
                     self._enforce_league_snapshot_limit()
 
             next_opp = self._select_next_opponent()
@@ -1500,7 +1509,17 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     callbacks = CallbackList(callbacks)
 
-    model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
+    try:
+        model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
+    except Exception as exc:
+        # Save current model on any failure (OOM, crash, etc.) so progress is not lost
+        crash_path = os.path.join(cfg.checkpoint_dir, f"crash_save_{cfg.run_tag}")
+        try:
+            model.save(crash_path)
+            print(f"[PPO] Training failed. Model saved to: {crash_path}.zip")
+        except Exception as save_exc:
+            print(f"[WARN] Could not save model on crash: {save_exc}")
+        raise
 
     # run_tag already includes _2v2/_4v4/_8v8 so final/checkpoints/snapshots are distinct per agent size
     final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}")
