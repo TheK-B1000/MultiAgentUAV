@@ -50,11 +50,13 @@ class GPUFieldConfig:
     n_targets: int = 8
     score_limit: int = 3
 
-    # Mines: each team can place up to max_mines_per_team on their own half.
-    # Mines trigger when an enemy steps within mine_trigger_radius_cells.
+    # Mines: pickups spawn; agents must GRAB_MINE (macro 1) to get a charge, then PLACE_MINE (macro 3) to place anywhere.
     max_mines_per_team: int = 3
+    max_mine_charges_per_agent: int = 2
     mine_trigger_radius_cells: float = 1.5
-    mine_cooldown_steps: int = 60
+    mine_pickup_radius_cells: float = 1.2
+    mine_pickup_respawn_steps: int = 120
+    n_mine_pickups: int = 4
 
     # Profile and reward controls
     aquaticus_profile: bool = True
@@ -126,6 +128,22 @@ class BatchedCTFCore:
         self._alloc_state()
         self.reset_all()
 
+    def _init_pickup_positions(self) -> None:
+        """Set fixed spawn positions for mine pickups (2 per side on 20x20)."""
+        B, Np = self.B, self.Np
+        dev = self.device
+        c, r = self.cols, self.rows
+        # Fixed positions: blue side (x~3), red side (x~cols-4)
+        positions = [
+            (min(3.0, float(c - 1)), min(5.0, float(r - 1))),
+            (min(3.0, float(c - 1)), min(14.0, float(r - 1))),
+            (max(0.0, float(c - 1) - 3.0), min(5.0, float(r - 1))),
+            (max(0.0, float(c - 1) - 3.0), min(14.0, float(r - 1))),
+        ]
+        for k in range(min(Np, len(positions))):
+            self.pickup_x[:, k] = positions[k][0]
+            self.pickup_y[:, k] = positions[k][1]
+
     def _alloc_state(self) -> None:
         B, Nb, Nr = self.B, self.Nb, self.Nr
         dev = self.device
@@ -192,7 +210,7 @@ class BatchedCTFCore:
         self.blue_home_contact_frames = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
         self.red_home_contact_frames = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
 
-        # Mines: each team has max_mines_per_team slots. Active=1 means placed on field.
+        # Mines: each team has max_mines_per_team slots. Agents get charges by GRAB_MINE at pickups, place with PLACE_MINE.
         Nm = int(self.cfg.max_mines_per_team)
         self.Nm = Nm
         self.blue_mine_x = torch.zeros((B, Nm), dtype=f32, device=dev)
@@ -201,8 +219,16 @@ class BatchedCTFCore:
         self.red_mine_x = torch.zeros((B, Nm), dtype=f32, device=dev)
         self.red_mine_y = torch.zeros((B, Nm), dtype=f32, device=dev)
         self.red_mine_active = torch.zeros((B, Nm), dtype=torch.bool, device=dev)
-        self.blue_mine_cooldown = torch.zeros((B,), dtype=torch.int32, device=dev)
-        self.red_mine_cooldown = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.blue_mine_charges = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
+        self.red_mine_charges = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
+        # Mine pickups: spawn points; agents pick up with GRAB_MINE (blue) or by moving near (red scripted).
+        Np = int(getattr(self.cfg, "n_mine_pickups", 4))
+        self.Np = Np
+        self.pickup_x = torch.zeros((B, Np), dtype=f32, device=dev)
+        self.pickup_y = torch.zeros((B, Np), dtype=f32, device=dev)
+        self.pickup_active = torch.ones((B, Np), dtype=torch.bool, device=dev)
+        self.pickup_respawn = torch.zeros((B, Np), dtype=torch.int32, device=dev)
+        self._init_pickup_positions()
 
     def _build_macro_targets(self) -> None:
         c_mid = self.cols // 2
@@ -264,7 +290,8 @@ class BatchedCTFCore:
         return 1 if self.rules_profile == "AQUATICUS_2024" else 0
 
     def _score_capture_delta(self) -> int:
-        return 2 if self.rules_profile == "AQUATICUS_2024" else 1
+        # One point per capture. Game ends at score_limit (3) or when timer reaches 0.
+        return 1
 
     def reset_all(self) -> None:
         mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
@@ -294,8 +321,10 @@ class BatchedCTFCore:
         self.red_home_contact_frames[idx] = 0
         self.blue_mine_active[idx] = False
         self.red_mine_active[idx] = False
-        self.blue_mine_cooldown[idx] = 0
-        self.red_mine_cooldown[idx] = 0
+        self.blue_mine_charges[idx] = 0
+        self.red_mine_charges[idx] = 0
+        self.pickup_active[idx] = True
+        self.pickup_respawn[idx] = 0
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
 
@@ -902,60 +931,8 @@ class BatchedCTFCore:
             self.red_y = torch.clamp(self.red_y + fy_r2, 0.0, float(max(0, self.rows - 1)))
 
     # ------------------------------------------------------------------
-    # Mine system
+    # Mine system: pickups spawn; agents GRAB_MINE (macro 1) then PLACE_MINE (macro 3) anywhere.
     # ------------------------------------------------------------------
-    def _scripted_place_mines(self) -> None:
-        """
-        Scripted mine placement for both sides.
-        Defenders place mines on their own half near the flag approach lanes.
-        Mines are only placed when cooldown is 0 and there is a free slot.
-        """
-        B, device = self.B, self.device
-        midline = float(self.cols) * 0.5
-        cooldown = int(self.cfg.mine_cooldown_steps)
-        max_y = float(max(0, self.rows - 1))
-
-        for side in ("blue", "red"):
-            if side == "blue":
-                mine_x, mine_y, mine_active = self.blue_mine_x, self.blue_mine_y, self.blue_mine_active
-                mine_cd = self.blue_mine_cooldown
-                flag_home = self.blue_flag_home
-                defender_x = self.blue_x[:, 0]
-                defender_y = self.blue_y[:, 0]
-                own_lo, own_hi = 0.0, midline
-            else:
-                mine_x, mine_y, mine_active = self.red_mine_x, self.red_mine_y, self.red_mine_active
-                mine_cd = self.red_mine_cooldown
-                flag_home = self.red_flag_home
-                defender_x = self.red_x[:, 0]
-                defender_y = self.red_y[:, 0]
-                own_lo, own_hi = midline, float(max(0, self.cols - 1))
-
-            can_place = (mine_cd <= 0)
-            if not can_place.any():
-                continue
-
-            free_slot = (~mine_active).to(torch.int64).argmax(dim=1)
-            has_free = (~mine_active).any(dim=1)
-            should_place = can_place & has_free
-
-            # Place interval: every 40 steps, near defender position (on own half)
-            place_trigger = should_place & ((self.step_count % 40) == 0)
-            if not place_trigger.any():
-                continue
-
-            env_idx = torch.where(place_trigger)[0]
-            slot = free_slot[env_idx]
-            px = torch.clamp(defender_x[env_idx] + self._rand_uniform((env_idx.numel(),), -2.0, 2.0), own_lo, own_hi)
-            py = torch.clamp(defender_y[env_idx] + self._rand_uniform((env_idx.numel(),), -3.0, 3.0), 0.0, max_y)
-            mine_x[env_idx, slot] = px
-            mine_y[env_idx, slot] = py
-            mine_active[env_idx, slot] = True
-            if side == "blue":
-                self.blue_mine_cooldown[env_idx] = cooldown
-            else:
-                self.red_mine_cooldown[env_idx] = cooldown
-
     def _apply_mine_triggers(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Check if any enemy agent stepped on a mine. Triggered mines tag the
@@ -1008,6 +985,89 @@ class BatchedCTFCore:
                 self.red_mine_active = self.red_mine_active & (~mine_hit)
 
         return blue_mine_tags, red_mine_tags
+
+    def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> None:
+        """
+        Respawn pickups; then blue grabs with GRAB_MINE (macro 1) or auto-grab when scripted; red grabs when near (scripted).
+        """
+        B, device = self.B, self.device
+        Np = self.Np
+        radius = float(getattr(self.cfg, "mine_pickup_radius_cells", 1.2))
+        respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 120))
+        max_charge = int(getattr(self.cfg, "max_mine_charges_per_agent", 2))
+
+        self.pickup_respawn = torch.clamp(self.pickup_respawn - 1, min=0)
+        self.pickup_active = self.pickup_active | ((self.pickup_respawn <= 0) & (~self.pickup_active))
+
+        # Blue: (macro 1 GRAB_MINE or scripted) and near an active pickup and under max charge
+        grab_blue = ((macro_blue == 1) | self.blue_scripted) & (self.blue_mine_charges < max_charge)
+        for i in range(self.Nb):
+            dx = self.blue_x[:, i : i + 1] - self.pickup_x[:, :]
+            dy = self.blue_y[:, i : i + 1] - self.pickup_y[:, :]
+            dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+            near = (dist <= radius) & self.pickup_active
+            for k in range(Np):
+                take = grab_blue[:, i] & near[:, k]
+                if take.any():
+                    self.blue_mine_charges[:, i] = torch.where(
+                        take,
+                        torch.clamp(self.blue_mine_charges[:, i] + 1, max=max_charge),
+                        self.blue_mine_charges[:, i],
+                    )
+                    self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
+                    self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
+                    break
+
+        # Red: any red agent near an active pickup gets a charge (scripted grab)
+        for i in range(self.Nr):
+            under = self.red_mine_charges[:, i] < max_charge
+            dx = self.red_x[:, i : i + 1] - self.pickup_x[:, :]
+            dy = self.red_y[:, i : i + 1] - self.pickup_y[:, :]
+            dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+            near = (dist <= radius) & self.pickup_active & under[:, None]
+            for k in range(Np):
+                take = near[:, k]
+                if take.any():
+                    self.red_mine_charges[:, i] = torch.where(
+                        take,
+                        torch.clamp(self.red_mine_charges[:, i] + 1, max=max_charge),
+                        self.red_mine_charges[:, i],
+                    )
+                    self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
+                    self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
+                    break
+
+    def _apply_mine_placement(self, macro_blue: torch.Tensor) -> None:
+        """
+        Blue: PLACE_MINE (macro 3) or scripted (defender every 50 steps) places at current position if charge > 0.
+        Red: scripted placement when has charge (e.g. defender places every 50 steps).
+        """
+        B, device = self.B, self.device
+        Nm = self.Nm
+        midline = float(self.cols) * 0.5
+
+        # Blue: (macro 3 or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot
+        place_blue = ((macro_blue == 3) | (self.blue_scripted & (torch.arange(self.Nb, device=self.device) == 0) & ((self.step_count % 50) == 0))) & (self.blue_mine_charges > 0)
+        for i in range(self.Nb):
+            for slot in range(Nm):
+                can = place_blue[:, i] & (~self.blue_mine_active[:, slot])
+                if can.any():
+                    self.blue_mine_x[can, slot] = self.blue_x[can, i]
+                    self.blue_mine_y[can, slot] = self.blue_y[can, i]
+                    self.blue_mine_active[can, slot] = True
+                    self.blue_mine_charges[:, i] = torch.where(can, torch.clamp(self.blue_mine_charges[:, i] - 1, min=0), self.blue_mine_charges[:, i])
+                    break
+
+        # Red: scripted place when defender (agent 0) has charge, every 50 steps
+        place_red = (self.red_mine_charges[:, 0] > 0) & ((self.step_count % 50) == 0)
+        for slot in range(Nm):
+            can = place_red & (~self.red_mine_active[:, slot])
+            if can.any():
+                self.red_mine_x[can, slot] = self.red_x[can, 0]
+                self.red_mine_y[can, slot] = self.red_y[can, 0]
+                self.red_mine_active[can, slot] = True
+                self.red_mine_charges[:, 0] = torch.where(can, torch.clamp(self.red_mine_charges[:, 0] - 1, min=0), self.red_mine_charges[:, 0])
+                break
 
     def _apply_aquaticus_tag_rules(
         self,
@@ -1391,10 +1451,9 @@ class BatchedCTFCore:
             red_tag_total = kill_blue.sum(dim=1).to(torch.float32)
             self._respawn_timers()
 
-        # Mines: place + trigger
-        self._scripted_place_mines()
-        self.blue_mine_cooldown = torch.clamp(self.blue_mine_cooldown - 1, min=0)
-        self.red_mine_cooldown = torch.clamp(self.red_mine_cooldown - 1, min=0)
+        # Mines: pickups (grab with GRAB_MINE / near for red), then place (PLACE_MINE / scripted red), then trigger
+        self._apply_mine_pickups(macro)
+        self._apply_mine_placement(macro)
         blue_mine_tags, red_mine_tags = self._apply_mine_triggers()
         self._untag_if_home()
 

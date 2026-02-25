@@ -168,7 +168,15 @@ class CoreRenderer:
         if not rf_taken:
             self._draw_flag_icon(surface, rect, cw, ch, rf, (250, 120, 70))
 
-        # Mines (same as last time: place on own half, trigger when enemy steps in radius)
+        # Mine pickups (spawn points; agents GRAB_MINE to get a charge)
+        if getattr(c, "pickup_active", None) is not None:
+            for i in range(c.pickup_x.shape[1]):
+                if c.pickup_active[0, i].item():
+                    px = c.pickup_x[0, i].item()
+                    py = c.pickup_y[0, i].item()
+                    self._draw_mine_pickup(surface, rect, cw, ch, px, py)
+
+        # Placed mines (trigger when enemy steps in radius)
         if getattr(c, "blue_mine_active", None) is not None:
             for i in range(c.blue_mine_x.shape[1]):
                 if c.blue_mine_active[0, i].item():
@@ -223,6 +231,16 @@ class CoreRenderer:
         r = int(0.35 * min(cw, ch))
         pg.draw.circle(surface, color, (int(cx), int(cy)), r)
         pg.draw.circle(surface, (240, 240, 240), (int(cx), int(cy)), r, width=1)
+
+    @staticmethod
+    def _draw_mine_pickup(surface: pg.Surface, rect: pg.Rect, cw: float, ch: float, x: float, y: float) -> None:
+        """Draw a mine pickup spawn (diamond) so it’s distinct from placed mines."""
+        cx = rect.left + (float(x) + 0.5) * cw
+        cy = rect.top + (float(y) + 0.5) * ch
+        s = int(0.4 * min(cw, ch))
+        pts = [(int(cx), int(cy) - s), (int(cx) + s, int(cy)), (int(cx), int(cy) + s), (int(cx) - s, int(cy))]
+        pg.draw.polygon(surface, (255, 220, 80), pts)
+        pg.draw.polygon(surface, (200, 180, 40), pts, width=1)
 
     @staticmethod
     def _draw_flag_zone(surface, rect, cw, ch, pos, color):
