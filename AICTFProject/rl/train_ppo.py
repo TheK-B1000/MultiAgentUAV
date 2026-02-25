@@ -147,7 +147,8 @@ class PPOConfig:
     ent_coef: float = 0.01
     learning_rate: float = 3e-4
     max_grad_norm: float = 0.5
-    device: str = "cpu"
+    # Default to GPU when available, otherwise CPU.
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
     # Distinct tag for 4v4 runs so they don't overwrite 2v2 checkpoints

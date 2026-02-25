@@ -78,24 +78,32 @@ class PPOController:
     BatchedCTFCore (B=1), produces a flat int64 action tensor each tick.
     """
 
-    def __init__(self, model_path: str, n_macros: int = N_MACROS,
-                 n_targets: int = N_TARGETS, deterministic: bool = True):
+    def __init__(
+        self,
+        model_path: str,
+        n_macros: int = N_MACROS,
+        n_targets: int = N_TARGETS,
+        deterministic: bool = True,
+        device: str = "cpu",
+    ):
         self.model: Optional[Any] = None
         self.model_loaded = False
         self.deterministic = deterministic
         self.n_macros = n_macros
         self.n_targets = n_targets
         self.model_path: Optional[str] = _resolve_zip_path(model_path)
+        self.device = str(device)
 
         if self.model_path is None:
             print(f"[PPO] Model not found: {model_path}")
             return
         try:
             from stable_baselines3 import PPO as SB3PPO
-            self.model = SB3PPO.load(self.model_path, device="cpu")
+            # Load the model onto the requested device (CPU or GPU).
+            self.model = SB3PPO.load(self.model_path, device=self.device)
             self.model.policy.set_training_mode(False)
             self.model_loaded = True
-            print(f"[PPO] Loaded: {self.model_path}")
+            print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
         except Exception as exc:
             print(f"[PPO] Failed to load: {exc}")
             import traceback; traceback.print_exc()
@@ -255,10 +263,13 @@ class CTFViewer:
 
         self.renderer = CoreRenderer(self.core)
 
-        # PPO
-        self.ppo = PPOController(ppo_model_path,
-                                 n_macros=cfg.n_macros,
-                                 n_targets=cfg.n_targets)
+        # PPO (load model on the same device as the core)
+        self.ppo = PPOController(
+            ppo_model_path,
+            n_macros=cfg.n_macros,
+            n_targets=cfg.n_targets,
+            device=device,
+        )
 
         if self.ppo.model_loaded:
             print("[Viewer] PPO ready. F3 toggles PPO / random.")
