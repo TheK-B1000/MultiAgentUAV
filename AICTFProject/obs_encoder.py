@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, Union, TYPE_CHECKING
 
+import gymnasium
 import torch
 import torch.nn as nn
+from gymnasium import spaces
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 if TYPE_CHECKING:
     import numpy as np
@@ -169,4 +172,77 @@ class ObsEncoder(nn.Module):
         return z
 
 
-__all__ = ["ObsEncoder", "ObsEncoderSpec"]
+class CTFeaturesExtractor(BaseFeaturesExtractor):
+    """
+    SB3-compatible features extractor for the Dict observation space
+    produced by BatchedCTFCore / GPUCTFVecEnv.
+
+    Handles the 5D grid tensor [B, N_agents, C, H, W] by folding agents into
+    the batch dimension for the shared CNN, then concatenating per-agent CNN
+    latents with the vector obs, masking dead agents, and projecting through
+    a final linear head.
+
+    Expected observation keys (set by GPUCTFVecEnv):
+        grid        [B, N, C, H, W]   spatial per-agent obs
+        vec         [B, N, vec_dim]    normalised scalars per agent
+        agent_mask  [B, N]             1.0 alive / 0.0 dead
+        mask        [B, flat]          action-validity mask
+    """
+
+    def __init__(
+        self,
+        observation_space: spaces.Dict,
+        cnn_latent: int = 128,
+        features_dim: int = 256,
+        pool_hw: Tuple[int, int] = (2, 2),
+    ) -> None:
+        super().__init__(observation_space, features_dim=features_dim)
+
+        grid_shape = observation_space["grid"].shape    # (N, C, H, W)
+        vec_shape = observation_space["vec"].shape       # (N, vec_dim)
+        mask_shape = observation_space["mask"].shape      # (flat_mask,)
+
+        self.n_agents = int(grid_shape[0])
+        in_channels = int(grid_shape[1])
+        h, w = int(grid_shape[2]), int(grid_shape[3])
+        vec_dim = int(vec_shape[1])
+        flat_mask = int(mask_shape[0])
+
+        self.cnn = ObsEncoder(
+            in_channels=in_channels,
+            height=h,
+            width=w,
+            latent_dim=cnn_latent,
+            pool_hw=pool_hw,
+        )
+
+        per_agent = cnn_latent + vec_dim
+        combined = self.n_agents * per_agent + flat_mask
+
+        self.head = nn.Sequential(
+            nn.Linear(combined, features_dim),
+            nn.ReLU(inplace=True),
+        )
+        nn.init.orthogonal_(self.head[0].weight, gain=nn.init.calculate_gain("relu"))
+        nn.init.constant_(self.head[0].bias, 0.0)
+
+    def forward(self, obs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        grid = obs["grid"]
+        vec = obs["vec"]
+        agent_mask = obs["agent_mask"]
+        mask = obs["mask"]
+
+        B, N, C, H, W = grid.shape
+
+        cnn_out = self.cnn(grid.reshape(B * N, C, H, W))   # [B*N, cnn_latent]
+        cnn_out = cnn_out.reshape(B, N, -1)                 # [B, N, cnn_latent]
+
+        per_agent = torch.cat([cnn_out, vec], dim=-1)       # [B, N, cnn_latent+vec_dim]
+        per_agent = per_agent * agent_mask.unsqueeze(-1)     # zero dead agents
+
+        flat = per_agent.reshape(B, -1)                      # [B, N*(cnn_latent+vec_dim)]
+        combined = torch.cat([flat, mask], dim=-1)           # [B, total]
+        return self.head(combined)
+
+
+__all__ = ["ObsEncoder", "ObsEncoderSpec", "CTFeaturesExtractor"]

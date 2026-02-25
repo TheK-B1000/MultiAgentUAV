@@ -699,7 +699,7 @@ class BatchedCTFCore:
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
 
-    def step(self, blue_action_flat: torch.Tensor) -> Tuple[Dict[str, np.ndarray], np.ndarray, np.ndarray, np.ndarray, List[dict]]:
+    def step(self, blue_action_flat: torch.Tensor, *, tensor_obs: bool = False):
         self._apply_profile_runtime()
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
@@ -783,10 +783,12 @@ class BatchedCTFCore:
         self.truncated = truncated
 
         reward = self._reward_total(dense, sparse_points, stalemate_trigger)
-        obs = self.get_obs()
+        obs_t = self.get_obs_tensors()
         info = self._build_info(dense=dense, sparse_points=sparse_points, stalemate=stalemate_trigger)
+        if tensor_obs:
+            return obs_t, reward, terminated, truncated, info
         return (
-            obs,
+            {k: v.detach().cpu().numpy().astype(np.float32) for k, v in obs_t.items()},
             reward.detach().cpu().numpy().astype(np.float32),
             terminated.detach().cpu().numpy(),
             truncated.detach().cpu().numpy(),
@@ -916,21 +918,30 @@ class BatchedCTFCore:
             mask[:, :, idx_home][carrying] = 1.0
         return mask.reshape(self.B, -1)
 
-    def get_obs(self) -> Dict[str, np.ndarray]:
+    def get_obs_tensors(self) -> Dict[str, torch.Tensor]:
+        """Observations as GPU tensors -- zero-copy, no CPU round-trip."""
         return {
-            "grid": self._build_grid_obs().detach().cpu().numpy().astype(np.float32),
-            "vec": self._build_vec_obs().detach().cpu().numpy().astype(np.float32),
-            "agent_mask": self.blue_alive.detach().cpu().numpy().astype(np.float32),
-            "mask": self._build_action_mask().detach().cpu().numpy().astype(np.float32),
+            "grid": self._build_grid_obs(),
+            "vec": self._build_vec_obs(),
+            "agent_mask": self.blue_alive.to(torch.float32),
+            "mask": self._build_action_mask(),
         }
 
-    def get_global_state(self) -> np.ndarray:
+    def get_obs(self) -> Dict[str, np.ndarray]:
+        return {k: v.detach().cpu().numpy().astype(np.float32)
+                for k, v in self.get_obs_tensors().items()}
+
+    def get_global_state_tensor(self) -> torch.Tensor:
+        """Global state grid as a flat GPU tensor [B, GLOBAL_STATE_CHANNELS*H*W]."""
         g = torch.zeros((self.B, GLOBAL_STATE_CHANNELS, CNN_ROWS, CNN_COLS), dtype=torch.float32, device=self.device)
         self._scatter_points(g, 0, self.blue_x, self.blue_y, self.blue_alive)
         self._scatter_points(g, 1, self.red_x, self.red_y, self.red_alive)
         self._scatter_points(g, 6, self.blue_flag_pos[:, 0:1], self.blue_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
         self._scatter_points(g, 7, self.red_flag_pos[:, 0:1], self.red_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
-        return g.reshape(self.B, -1).detach().cpu().numpy().astype(np.float32)
+        return g.reshape(self.B, -1)
+
+    def get_global_state(self) -> np.ndarray:
+        return self.get_global_state_tensor().detach().cpu().numpy().astype(np.float32)
 
 
 class GPUCTFVecEnv(VecEnv):
