@@ -1274,7 +1274,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         # Use same phase win-rate thresholds for 2v2/4v4/8v8: OP1=100%, OP2=90%, OP3=80%
         _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
         _winrate_window_by_phase = {"OP1": 80, "OP2": 80, "OP3": 120}
-        _min_winrate_vs_op3 = 0.70
+        # Extra OP3→League gate: require 80% vs OP3 over last _min_games_vs_op3 games
+        _min_winrate_vs_op3 = 0.80
         _min_games_vs_op3 = 50
         if cfg.total_timesteps < 6_000_000:
             cfg.total_timesteps = 6_000_000
