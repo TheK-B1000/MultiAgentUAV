@@ -1,189 +1,167 @@
-# opponent_params.py
 """
-OpponentParams: per-episode adversarial style (speed, deception, coordinated attack).
-Each style (scripted tag, species tag, snapshot) maps to a distribution over these params.
+OpponentParams: Batched per-episode adversarial style (speed, deception, coordinated attack).
+Each style maps to a distribution over these params and returns GPU tensors for BatchedCTFCore.
 """
 from __future__ import annotations
 
-import random
-from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional, Union
+
+import torch
 
 
-@dataclass
-class OpponentParams:
-    """Per-episode red opponent behavior parameters (adversarial styles)."""
-    speed_mult: float
-    deception_prob: float
-    coordinated_attack: bool
-    attack_sync_window: int  # steps to hold sync; also used as feint duration k
-    noise_sigma: float
-
-
-def sample_opponent_params(
+def sample_batched_opponent_params(
     kind: str,
     key: str,
     phase: str = "OP3",
-    rng: Optional[random.Random] = None,
     n_agents: int = 2,
-) -> OpponentParams:
+    batch_size: int = 1,
+    device: Union[str, torch.device] = "cpu",
+    generator: Optional[torch.Generator] = None,
+) -> Dict[str, torch.Tensor]:
     """
-    Sample OpponentParams for (kind, key). Per-episode speed_mult by phase.
-    kind: "SCRIPTED" | "SPECIES" | "SNAPSHOT"
-    key: e.g. "OP1", "OP2", "OP3", "RUSHER", "CAMPER", "BALANCED", or snapshot path label
-    phase: curriculum phase (OP1/OP2/OP3) for speed_mult distribution.
-    n_agents: agents per team (2=2v2, 4=4v4). When >2, OP3 is scaled down so Blue has a fairer fight.
+    Sample adversarial parameters for a full batch of environments simultaneously.
+    Returns a dictionary of tensors sized [batch_size] residing on the target device.
     """
-    rng = rng or random.Random()
     kind = str(kind).upper()
     key = str(key).upper()
     phase = str(phase).upper()
     n_agents = max(1, int(n_agents))
 
-    # Speed variation: per-episode multiplier by phase
+    # 1. Determine base speed bounds by phase
     if phase == "OP1":
-        speed_mult = rng.uniform(0.95, 1.05)
+        s_low, s_high = 0.95, 1.05
     elif phase == "OP2":
-        speed_mult = rng.uniform(0.85, 1.15)
+        s_low, s_high = 0.85, 1.15
     else:
-        speed_mult = rng.uniform(0.75, 1.25)
+        s_low, s_high = 0.75, 1.25
 
-    deception_prob = 0.0
-    coordinated_attack = False
-    attack_sync_window = 0
-    noise_sigma = 0.0
+    # Base defaults
+    d_low, d_high = 0.0, 0.0
+    c_prob = 0.0
+    sync_c_low, sync_c_high = 0, 0
+    sync_nc_low, sync_nc_high = 0, 0
+    n_low, n_high = 0.0, 0.0
 
-    # 4v4/8v8: scale down OP3 so scripted Red is not overwhelming (same logic as 2v2 OP2-ish)
     op3_easy = n_agents > 2
 
+    # 2. Evaluate logic tree for bounds
     if kind == "SCRIPTED":
         if key == "OP1":
-            deception_prob = 0.0
-            coordinated_attack = False
-            attack_sync_window = 0
-            noise_sigma = 0.0
             if n_agents >= 8:
-                speed_mult = rng.uniform(0.82, 0.92)
+                s_low, s_high = 0.82, 0.92
             elif n_agents >= 4:
-                speed_mult = rng.uniform(0.90, 1.00)
+                s_low, s_high = 0.90, 1.00
         elif key == "OP2":
-            deception_prob = rng.uniform(0.0, 0.15)
-            coordinated_attack = False
-            attack_sync_window = 0
-            noise_sigma = rng.uniform(0.0, 0.05)
+            d_low, d_high = 0.0, 0.15
+            n_low, n_high = 0.0, 0.05
             if n_agents >= 8:
-                speed_mult = rng.uniform(0.76, 0.88)
-                deception_prob = rng.uniform(0.0, 0.04)
-                noise_sigma = 0.0
+                s_low, s_high = 0.76, 0.88
+                d_low, d_high = 0.0, 0.04
+                n_low, n_high = 0.0, 0.0
             elif n_agents >= 4:
-                speed_mult = rng.uniform(0.84, 1.00)
-                deception_prob = rng.uniform(0.0, 0.06)
-                noise_sigma = 0.0
+                s_low, s_high = 0.84, 1.00
+                d_low, d_high = 0.0, 0.06
+                n_low, n_high = 0.0, 0.0
         elif key == "OP3":
             if op3_easy:
-                # 4v4/8v8: much easier OP3 so Blue can learn (Fixed/League were still ~0% WR)
-                # Red clearly slower than Blue (1.0); no deception/coordination
                 if n_agents >= 8:
-                    speed_mult = rng.uniform(0.70, 0.82)
-                    deception_prob = 0.0
-                    coordinated_attack = False
-                    attack_sync_window = 0
-                    noise_sigma = 0.0
+                    s_low, s_high = 0.70, 0.82
                 elif n_agents >= 4:
-                    speed_mult = rng.uniform(0.66, 0.78)
-                    deception_prob = 0.0
-                    coordinated_attack = False
-                    attack_sync_window = 0
-                    noise_sigma = 0.0
+                    s_low, s_high = 0.66, 0.78
                 else:
-                    speed_mult = rng.uniform(0.88, 1.08)
-                    deception_prob = rng.uniform(0.05, 0.18)
-                    coordinated_attack = rng.random() < 0.25
-                    attack_sync_window = rng.randint(2, 5) if coordinated_attack else rng.randint(2, 4)
-                    noise_sigma = rng.uniform(0.0, 0.04)
+                    s_low, s_high = 0.88, 1.08
+                    d_low, d_high = 0.05, 0.18
+                    c_prob = 0.25
+                    sync_c_low, sync_c_high = 2, 5
+                    sync_nc_low, sync_nc_high = 2, 4
+                    n_low, n_high = 0.0, 0.04
             else:
-                # Standard OP3 (2v2)
-                deception_prob = rng.uniform(0.1, 0.35)
-                coordinated_attack = rng.random() < 0.5
-                attack_sync_window = rng.randint(3, 8) if coordinated_attack else rng.randint(3, 6)
-                noise_sigma = rng.uniform(0.0, 0.08)
+                d_low, d_high = 0.1, 0.35
+                c_prob = 0.5
+                sync_c_low, sync_c_high = 3, 8
+                sync_nc_low, sync_nc_high = 3, 6
+                n_low, n_high = 0.0, 0.08
         else:
-            deception_prob = rng.uniform(0.05, 0.25)
-            coordinated_attack = rng.random() < 0.4
-            attack_sync_window = rng.randint(3, 6)
-            noise_sigma = rng.uniform(0.0, 0.06)
+            d_low, d_high = 0.05, 0.25
+            c_prob = 0.4
+            sync_c_low, sync_c_high = 3, 6
+            sync_nc_low, sync_nc_high = 3, 6
+            n_low, n_high = 0.0, 0.06
 
     elif kind == "SPECIES":
-        # Same base logic (OP3), different parameter distributions
         if key == "RUSHER":
-            speed_mult = rng.uniform(1.05, 1.25)
-            deception_prob = rng.uniform(0.0, 0.15)
-            coordinated_attack = rng.random() < 0.3
-            attack_sync_window = rng.randint(2, 5)
-            noise_sigma = rng.uniform(0.0, 0.05)
+            s_low, s_high = 1.05, 1.25
+            d_low, d_high = 0.0, 0.15
+            c_prob = 0.3
+            sync_c_low, sync_c_high = 2, 5
+            sync_nc_low, sync_nc_high = 2, 5
+            n_low, n_high = 0.0, 0.05
         elif key == "CAMPER":
-            speed_mult = rng.uniform(0.80, 1.0)
-            deception_prob = rng.uniform(0.2, 0.4)
-            coordinated_attack = rng.random() < 0.4
-            attack_sync_window = rng.randint(4, 8)
-            noise_sigma = rng.uniform(0.02, 0.08)
+            s_low, s_high = 0.80, 1.0
+            d_low, d_high = 0.2, 0.4
+            c_prob = 0.4
+            sync_c_low, sync_c_high = 4, 8
+            sync_nc_low, sync_nc_high = 4, 8
+            n_low, n_high = 0.02, 0.08
         else:  # BALANCED
-            speed_mult = rng.uniform(0.90, 1.10)
-            deception_prob = rng.uniform(0.1, 0.3)
-            coordinated_attack = rng.random() < 0.5
-            attack_sync_window = rng.randint(3, 7)
-            noise_sigma = rng.uniform(0.0, 0.06)
-        # 4v4/8v8: scale down species so League is winnable (Red slower than Blue)
+            s_low, s_high = 0.90, 1.10
+            d_low, d_high = 0.1, 0.3
+            c_prob = 0.5
+            sync_c_low, sync_c_high = 3, 7
+            sync_nc_low, sync_nc_high = 3, 7
+            n_low, n_high = 0.0, 0.06
+            
+        # Species scaling for larger teams
         if n_agents >= 8:
-            if key == "RUSHER":
-                speed_mult = rng.uniform(0.72, 0.84)
-                deception_prob = 0.0
-                coordinated_attack = False
-                attack_sync_window = 0
-                noise_sigma = 0.0
-            elif key == "CAMPER":
-                speed_mult = rng.uniform(0.70, 0.82)
-                deception_prob = 0.0
-                coordinated_attack = False
-                attack_sync_window = 0
-                noise_sigma = 0.0
-            else:  # BALANCED
-                speed_mult = rng.uniform(0.72, 0.84)
-                deception_prob = 0.0
-                coordinated_attack = False
-                attack_sync_window = 0
-                noise_sigma = 0.0
+            s_low, s_high = 0.72, 0.84 if key != "CAMPER" else (0.70, 0.82)
+            d_low, d_high, c_prob = 0.0, 0.0, 0.0
+            sync_c_low, sync_c_high = 0, 0
+            sync_nc_low, sync_nc_high = 0, 0
+            n_low, n_high = 0.0, 0.0
         elif n_agents >= 4:
             if key == "RUSHER":
-                speed_mult = rng.uniform(0.80, 0.90)
-                deception_prob = rng.uniform(0.0, 0.03)
-                coordinated_attack = False
-                attack_sync_window = 0
-                noise_sigma = 0.0
+                s_low, s_high = 0.80, 0.90
+                d_low, d_high = 0.0, 0.03
             elif key == "CAMPER":
-                speed_mult = rng.uniform(0.78, 0.88)
-                deception_prob = rng.uniform(0.0, 0.05)
-                coordinated_attack = False
-                attack_sync_window = 0
-                noise_sigma = 0.0
-            else:  # BALANCED
-                speed_mult = rng.uniform(0.78, 0.88)
-                deception_prob = rng.uniform(0.0, 0.04)
-                coordinated_attack = False
-                attack_sync_window = 0
-                noise_sigma = 0.0
+                s_low, s_high = 0.78, 0.88
+                d_low, d_high = 0.0, 0.05
+            else:
+                s_low, s_high = 0.78, 0.88
+                d_low, d_high = 0.0, 0.04
+            c_prob = 0.0
+            sync_c_low, sync_c_high = 0, 0
+            sync_nc_low, sync_nc_high = 0, 0
+            n_low, n_high = 0.0, 0.0
 
-    else:  # SNAPSHOT or unknown
-        speed_mult = rng.uniform(0.85, 1.15)
-        deception_prob = rng.uniform(0.1, 0.3)
-        coordinated_attack = rng.random() < 0.4
-        attack_sync_window = rng.randint(3, 7)
-        noise_sigma = rng.uniform(0.0, 0.06)
+    else:  # SNAPSHOT
+        s_low, s_high = 0.85, 1.15
+        d_low, d_high = 0.1, 0.3
+        c_prob = 0.4
+        sync_c_low, sync_c_high = 3, 7
+        sync_nc_low, sync_nc_high = 3, 7
+        n_low, n_high = 0.0, 0.06
 
-    return OpponentParams(
-        speed_mult=float(speed_mult),
-        deception_prob=float(deception_prob),
-        coordinated_attack=bool(coordinated_attack),
-        attack_sync_window=int(max(0, attack_sync_window)),
-        noise_sigma=float(max(0.0, noise_sigma)),
-    )
+    # 3. Batch Tensor Generation
+    # We generate all parameters at once directly on the target GPU/CPU
+    
+    speed_mult = s_low + (s_high - s_low) * torch.rand(batch_size, device=device, generator=generator)
+    deception_prob = d_low + (d_high - d_low) * torch.rand(batch_size, device=device, generator=generator)
+    
+    coordinated_attack = torch.rand(batch_size, device=device, generator=generator) < c_prob
+
+    # Note: torch.randint upper bound is exclusive, so we add 1 to the high bounds
+    sync_c = torch.randint(sync_c_low, sync_c_high + 1, (batch_size,), device=device, generator=generator)
+    sync_nc = torch.randint(sync_nc_low, sync_nc_high + 1, (batch_size,), device=device, generator=generator)
+    
+    # Select the correct sync window based on the coordinated_attack boolean mask
+    attack_sync_window = torch.where(coordinated_attack, sync_c, sync_nc).to(torch.int32)
+    
+    noise_sigma = n_low + (n_high - n_low) * torch.rand(batch_size, device=device, generator=generator)
+
+    return {
+        "speed_mult": speed_mult,
+        "deception_prob": deception_prob,
+        "coordinated_attack": coordinated_attack,
+        "attack_sync_window": attack_sync_window,
+        "noise_sigma": noise_sigma,
+    }
