@@ -157,7 +157,7 @@ class PPOConfig:
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
-    snapshot_every_episodes: int = 100
+    snapshot_every_episodes: int = 200
     league_max_snapshots: int = 5
     # Disable TensorBoard by default to avoid dependency/version issues.
     # Re-enable (True) if you install a compatible tensorboard+protobuf pair.
@@ -170,7 +170,7 @@ class PPOConfig:
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
     self_play_use_latest_snapshot: bool = True
-    self_play_snapshot_every_episodes: int = 25
+    self_play_snapshot_every_episodes: int = 200
     self_play_max_snapshots: int = 5
 
     action_flip_prob: float = 0.0
