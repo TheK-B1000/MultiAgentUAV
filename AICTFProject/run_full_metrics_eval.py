@@ -26,12 +26,23 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
 sys.path.insert(0, _SCRIPT_DIR)
 
-# Reuse the same default model paths as run_baseline_comparison.py
+# Default model paths; match train_ppo run_tag naming (final_ppo_<run_tag>.zip).
+# For 4v4/8v8 the suffix is appended automatically when --agents is set.
 BASELINE_MODEL_PATHS: Dict[str, str] = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
-    "curriculum_no_league": "checkpoints_sb3/final_ppo_noleague.zip",
+    "curriculum_no_league": "checkpoints_sb3/final_ppo_paper.zip",
     "curriculum_league": "checkpoints_sb3/final_ppo_league.zip",
-    "self_play": "checkpoints_sb3/final_ppo_selfplay.zip",
+    "self_play": "checkpoints_sb3/final_ppo_self_play.zip",
+}
+
+# Alternate filenames for older 2v2 runs that used different naming
+_FALLBACK_PATHS: Dict[str, List[str]] = {
+    "curriculum_no_league": ["checkpoints_sb3/final_ppo_noleague.zip"],
+    "self_play": ["checkpoints_sb3/final_ppo_selfplay.zip"],
+    "curriculum_league": [
+        "checkpoints_sb3/final_ppo_league_v3.zip",
+        "checkpoints_sb3/final_ppo_league_v2.zip",
+    ],
 }
 
 DISPLAY_NAMES: Dict[str, str] = {
@@ -50,6 +61,7 @@ def _run_eval_for_baseline(
     num_episodes: int,
     seed_base: int,
     headless: bool,
+    agents_per_team: int = 2,
 ) -> Dict[str, str]:
     """
     For a single baseline model, run eval vs OP3 and OP4 using CTFViewer,
@@ -67,12 +79,18 @@ def _run_eval_for_baseline(
             seeds = [seed_base + 2000 + i for i in range(num_episodes)]
 
         viewer = CTFViewer(ppo_model_path=model_path, viewer_use_obs_builder=True)
+        if agents_per_team != 2 and hasattr(viewer.game_field, "set_agent_count_and_reset"):
+            try:
+                viewer.game_field.set_agent_count_and_reset(agents_per_team)
+            except Exception as e:
+                print(f"[WARN] {baseline_key}: could not set agents_per_team={agents_per_team}: {e}")
         if not viewer.blue_ppo_team.model_loaded:
             print(f"[WARN] {baseline_key}: failed to load model at {model_path!r}, skipping {opp}.")
             continue
 
         os.makedirs(METRICS_DIR, exist_ok=True)
-        csv_name = f"full_{baseline_key}_{opp}_{num_episodes}ep.csv"
+        team_tag = f"{agents_per_team}v{agents_per_team}"
+        csv_name = f"full_{baseline_key}_{opp}_{num_episodes}ep_{team_tag}.csv"
         csv_path = os.path.join(METRICS_DIR, csv_name)
 
         print(f"[Eval] {DISPLAY_NAMES.get(baseline_key, baseline_key)} vs {opp}: "
@@ -127,10 +145,36 @@ def main() -> None:
         default=None,
         help="Optional League checkpoint path (overrides default curriculum_league path)",
     )
+    parser.add_argument(
+        "--agents",
+        type=int,
+        default=2,
+        choices=[2, 4, 8],
+        help="Agents per team for eval (2v2, 4v4, 8v8). Use 4 for 4v4 models.",
+    )
+    parser.add_argument(
+        "--suffix",
+        type=str,
+        default=None,
+        help="Override model suffix (e.g. 4v4). If set, baseline paths become final_ppo_<name>_<suffix>.zip",
+    )
     args = parser.parse_args()
 
     if args.league_model:
         BASELINE_MODEL_PATHS["curriculum_league"] = args.league_model
+    # Apply suffix: explicit --suffix or auto from --agents (e.g. agents=4 -> 4v4)
+    suffix = args.suffix
+    if suffix is None and args.agents != 2:
+        suffix = f"{args.agents}v{args.agents}"
+    if suffix:
+        suffix = suffix.strip()
+        for k in list(BASELINE_MODEL_PATHS.keys()):
+            p = BASELINE_MODEL_PATHS[k]
+            if p.endswith(".zip"):
+                base = p[:-4]
+                BASELINE_MODEL_PATHS[k] = base + "_" + suffix + ".zip"
+            else:
+                BASELINE_MODEL_PATHS[k] = p + "_" + suffix
 
     from analyze_eval_metrics import load_episodes, summarize_episodes
     import math
@@ -138,7 +182,8 @@ def main() -> None:
     n = max(1, int(args.episodes))
     seed = int(args.seed)
 
-    print(f"\n=== Full Metrics Eval: {n} episodes per baseline per opponent (OP3, OP4) ===\n")
+    team_label = f"{args.agents}v{args.agents}"
+    print(f"\n=== Full Metrics Eval ({team_label}): {n} episodes per baseline per opponent (OP3, OP4) ===\n")
 
     # Keep track of per-baseline summaries (collect silently, print at end)
     summaries: Dict[str, Dict[str, Any]] = {}
@@ -147,9 +192,19 @@ def main() -> None:
         name = DISPLAY_NAMES.get(key, key)
         path = os.path.join(_SCRIPT_DIR, rel_path) if not os.path.isabs(rel_path) else rel_path
 
+        # Try fallback paths if primary doesn't exist (handles old 2v2 naming)
         if not os.path.exists(path):
-            print(f"[WARN] Model for {name} not found at {path!r}, skipping.")
-            continue
+            found = False
+            for alt in _FALLBACK_PATHS.get(key, []):
+                alt_path = os.path.join(_SCRIPT_DIR, alt)
+                if os.path.exists(alt_path):
+                    path = alt_path
+                    print(f"[Eval] {name}: using fallback {os.path.basename(alt_path)}")
+                    found = True
+                    break
+            if not found:
+                print(f"[WARN] Model for {name} not found at {path!r}, skipping.")
+                continue
 
         csv_paths = _run_eval_for_baseline(
             baseline_key=key,
@@ -157,6 +212,7 @@ def main() -> None:
             num_episodes=n,
             seed_base=seed,
             headless=args.headless,
+            agents_per_team=args.agents,
         )
 
         # For each opponent, load and summarize (silently)
