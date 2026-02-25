@@ -31,16 +31,17 @@ sys.path.insert(0, _SCRIPT_DIR)
 BASELINE_MODEL_PATHS: Dict[str, str] = {
     "fixed_op3": "checkpoints_sb3/final_ppo_fixed_op3.zip",
     "curriculum_no_league": "checkpoints_sb3/final_ppo_paper.zip",
-    "curriculum_league": "checkpoints_sb3/final_ppo_league.zip",
+    # Prefer v3 for League by default
+    "curriculum_league": "checkpoints_sb3/final_ppo_league_v3.zip",
     "self_play": "checkpoints_sb3/final_ppo_self_play.zip",
 }
 
-# Alternate filenames for older 2v2 runs that used different naming
+# Alternate filenames for older runs that used different naming
 _FALLBACK_PATHS: Dict[str, List[str]] = {
     "curriculum_no_league": ["checkpoints_sb3/final_ppo_noleague.zip"],
     "self_play": ["checkpoints_sb3/final_ppo_selfplay.zip"],
     "curriculum_league": [
-        "checkpoints_sb3/final_ppo_league_v3.zip",
+        "checkpoints_sb3/final_ppo_league.zip",
         "checkpoints_sb3/final_ppo_league_v2.zip",
     ],
 }
@@ -290,7 +291,7 @@ def main() -> None:
 
     # Additional detailed metrics table
     print("\n" + "=" * 120)
-    print("DETAILED METRICS - Performance, Coordination, Stability, Specialization")
+    print("DETAILED METRICS - Performance, Coordination, Stability, Specialization, Robustness")
     print("=" * 120 + "\n")
 
     # Performance metrics
@@ -394,6 +395,39 @@ def main() -> None:
             f"{_fmt_float(float(op4.get('collisions_per_100_steps_mean', math.nan)), 2):>14} "
             f"{_fmt_pct(float(op3.get('collision_free_rate', math.nan))):>15} "
             f"{_fmt_pct(float(op4.get('collision_free_rate', math.nan))):>15}"
+        )
+
+    # Robustness / generalization metrics
+    print("\nROBUSTNESS / GENERALIZATION METRICS (Dynamic Curriculum Alignment):")
+    print(
+        "Higher success vs OP4 with small OP3→OP4 drop and low reward variance "
+        "indicates better generalization to unseen opponents and noise-robustness.\n"
+    )
+    print(
+        f"{'Baseline':<20} "
+        f"{'Succ OP3':>10} {'Succ OP4':>10} "
+        f"{'Drop(OP3-OP4)':>15} {'Rel Drop':>10} "
+        f"{'Rew Std OP3':>14} {'Rew Std OP4':>14}"
+    )
+    print("-" * 120)
+    for key in BASELINE_MODEL_PATHS:
+        name = DISPLAY_NAMES.get(key, key)
+        s = summaries.get(key, {})
+        op3 = s.get("OP3", {})
+        op4 = s.get("OP4", {})
+        if not op3 or not op4:
+            continue
+        succ_op3 = float(op3.get("success_rate", 0.0))
+        succ_op4 = float(op4.get("success_rate", 0.0))
+        drop = succ_op3 - succ_op4
+        rel_drop = drop / succ_op3 if succ_op3 > 0 else math.nan
+        rew_std_op3 = float(op3.get("reward_std", math.nan))
+        rew_std_op4 = float(op4.get("reward_std", math.nan))
+        print(
+            f"{name:<20} "
+            f"{_fmt_pct(succ_op3):>10} {_fmt_pct(succ_op4):>10} "
+            f"{_fmt_pct(drop):>15} {_fmt_pct(rel_drop):>10} "
+            f"{_fmt_float(rew_std_op3, 2):>14} {_fmt_float(rew_std_op4, 2):>14}"
         )
 
     print("\n" + "=" * 120)
