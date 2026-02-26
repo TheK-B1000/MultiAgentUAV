@@ -17,7 +17,7 @@ def run_eval(config: Dict[str, Any], checkpoint_path: str, out_dir: Path) -> Dic
     episodes_per_seed = int(eval_cfg.get("episodes_per_seed", 50))
     seeds = list(eval_cfg.get("seeds", [1, 2, 3, 4, 5]))
 
-    _, policy_mapping_fn, _ = build_multiagent_specs(config)
+    _, policy_mapping_fn, _, _ = build_multiagent_specs(config, league_controller=None)
     algo = Algorithm.from_checkpoint(checkpoint_path)
 
     records: List[Dict[str, Any]] = []

@@ -1,7 +1,7 @@
-exp_name: aquaticus_2v2_rllib_ppo
+exp_name: aquaticus_2v2_rllib_ppo_paper
 seed: 42
 results_root: research_pyquaticus/results
-mode: CURRICULUM_LEAGUE
+mode: CURRICULUM_NO_LEAGUE
 
 pyquaticus:
   env_name: pyquaticus_research
@@ -42,28 +42,11 @@ curriculum:
       train_iterations: 15
       min_episodes: 20
       min_winrate: 0.75
-      eval_every_iters: 0
-      eval_episodes: 10
     - name: OP2
       train_iterations: 20
       min_episodes: 20
       min_winrate: 0.70
-      eval_every_iters: 0
-      eval_episodes: 10
     - name: OP3
-      train_iterations: 25
+      train_iterations: 15
       min_episodes: 20
       min_winrate: 0.65
-      eval_every_iters: 0
-      eval_episodes: 10
-
-league:
-  k_factor: 32.0
-  matchmaking_tau: 250.0
-  anchor_op3_prob: 0.30
-  species_prob: 0.30
-  snapshot_prob: 0.40
-  snapshot_every_iters: 10
-  max_snapshots: 5
-  min_games_vs_op3: 20
-  min_winrate_vs_op3: 0.70

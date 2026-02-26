@@ -1,11 +1,11 @@
-exp_name: aquaticus_2v2_rllib_ppo
+exp_name: aquaticus_4v4_rllib_ppo_league
 seed: 42
 results_root: research_pyquaticus/results
 mode: CURRICULUM_LEAGUE
 
 pyquaticus:
   env_name: pyquaticus_research
-  team_size: 2
+  team_size: 4
   render_mode: null
   env_config:
     sim_speedup_factor: 4
@@ -29,7 +29,7 @@ rllib:
   entropy_coeff: 0.01
   vf_loss_coeff: 1.0
   checkpoint_every_iters: 10
-  training_iterations: 50
+  training_iterations: 60
 
 evaluation:
   episodes_per_seed: 50
@@ -39,23 +39,17 @@ curriculum:
   winrate_window: 50
   phases:
     - name: OP1
-      train_iterations: 15
+      train_iterations: 20
       min_episodes: 20
       min_winrate: 0.75
-      eval_every_iters: 0
-      eval_episodes: 10
     - name: OP2
       train_iterations: 20
       min_episodes: 20
       min_winrate: 0.70
-      eval_every_iters: 0
-      eval_episodes: 10
     - name: OP3
-      train_iterations: 25
+      train_iterations: 20
       min_episodes: 20
       min_winrate: 0.65
-      eval_every_iters: 0
-      eval_episodes: 10
 
 league:
   k_factor: 32.0

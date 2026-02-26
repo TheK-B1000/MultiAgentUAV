@@ -14,6 +14,7 @@ from ray.rllib.algorithms.ppo import PPOConfig
 
 from env_factory import register_pyquaticus_env, build_multiagent_specs
 from eval import run_eval
+from league_controller import LeagueController
 
 
 def _safe_cmd_output(cmd: str, cwd: str | None = None) -> str:
@@ -50,6 +51,7 @@ def main() -> None:
 
     exp_name = str(cfg.get("exp_name", "pyquaticus_exp"))
     seed = int(cfg.get("seed", 42))
+    mode = str(cfg.get("mode", "CURRICULUM_LEAGUE")).upper()
     root = Path(cfg.get("results_root", "research_pyquaticus/results"))
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = root / f"{exp_name}_{ts}"
@@ -58,7 +60,8 @@ def main() -> None:
 
     ray.init(ignore_reinit_error=True, include_dashboard=False)
     env_name = register_pyquaticus_env(cfg)
-    policies, policy_mapping_fn, policies_to_train = build_multiagent_specs(cfg)
+    league = LeagueController(cfg)
+    policies, policy_mapping_fn, policies_to_train, callbacks_cls = build_multiagent_specs(cfg, league_controller=league)
 
     rllib_cfg = cfg.get("rllib", {})
     ppo = (
@@ -85,25 +88,85 @@ def main() -> None:
             policy_mapping_fn=policy_mapping_fn,
             policies_to_train=policies_to_train,
         )
+        .callbacks(callbacks_cls)
         .debugging(seed=seed)
     )
 
     algo = ppo.build_algo()
 
     checkpoint_every = int(rllib_cfg.get("checkpoint_every_iters", 10))
-    iters = int(rllib_cfg.get("training_iterations", 50))
+    flat_iters = int(rllib_cfg.get("training_iterations", 50))
     train_log_path = run_dir / "train_log.jsonl"
     final_checkpoint = None
 
     with train_log_path.open("w", encoding="utf-8") as logf:
-        for i in range(1, iters + 1):
-            result = algo.train()
-            logf.write(json.dumps({"iter": i, "result": result}) + "\n")
-            print(f"[train] iter={i} reward_mean={result.get('episode_reward_mean', 'n/a')}")
-            if i % checkpoint_every == 0 or i == iters:
-                ckpt = algo.save(checkpoint_dir=str(run_dir / "checkpoints"))
-                final_checkpoint = ckpt.checkpoint.path
-                print(f"[train] checkpoint: {final_checkpoint}")
+        global_iter = 0
+        phases = list(cfg.get("curriculum", {}).get("phases", []))
+        if not phases:
+            phases = [{"name": "OP3", "train_iterations": flat_iters}]
+
+        for phase in phases:
+            phase_name = str(phase.get("name", "OP3")).upper()
+            phase_iters = int(phase.get("train_iterations", flat_iters))
+            eval_every = int(phase.get("eval_every_iters", 0))
+            eval_episodes = int(phase.get("eval_episodes", 10))
+            min_wr = float(phase.get("min_winrate", 0.0))
+            min_eps = int(phase.get("min_episodes", 0))
+            league.phase_idx = next((i for i, p in enumerate(league.phases) if p["name"] == phase_name), league.phase_idx)
+            league.phase_episode_count = 0
+            print(f"[curriculum] phase={phase_name} mode={mode} train_iters={phase_iters}")
+
+            for _ in range(phase_iters):
+                global_iter += 1
+                result = algo.train()
+                log_row = {
+                    "iter": global_iter,
+                    "phase": phase_name,
+                    "mode": mode,
+                    "league_mode": bool(league.league_mode),
+                    "learner_elo": league.learner_rating,
+                    "result": result,
+                }
+                logf.write(json.dumps(log_row) + "\n")
+                print(
+                    f"[train] iter={global_iter} phase={phase_name} league={league.league_mode} "
+                    f"elo={league.learner_rating:.1f} reward_mean={result.get('episode_reward_mean', 'n/a')}"
+                )
+
+                # Optional small eval during phase for early-advance gate.
+                if eval_every > 0 and (global_iter % eval_every == 0):
+                    small_cfg = dict(cfg)
+                    small_cfg["evaluation"] = {"episodes_per_seed": eval_episodes, "seeds": [seed]}
+                    ck = algo.save(checkpoint_dir=str(run_dir / "checkpoints"))
+                    temp_ckpt = ck.checkpoint.path
+                    small_summary = run_eval(small_cfg, temp_ckpt, run_dir / "eval_during_train" / f"iter_{global_iter:06d}")
+                    wr = float(small_summary.get("win_rate", 0.0))
+                    print(f"[curriculum] phase={phase_name} interim_win_rate={wr:.3f} target={min_wr:.3f}")
+                    if league.phase_episode_count >= min_eps and wr >= min_wr:
+                        print(f"[curriculum] early-advance phase={phase_name} at iter={global_iter}")
+                        break
+
+                if global_iter % checkpoint_every == 0:
+                    ckpt = algo.save(checkpoint_dir=str(run_dir / "checkpoints"))
+                    final_checkpoint = ckpt.checkpoint.path
+                    print(f"[train] checkpoint: {final_checkpoint}")
+                    # Snapshot registration and self-play baseline: red uses frozen copy of learner.
+                    if mode in ("CURRICULUM_LEAGUE", "SELF_PLAY"):
+                        snap_key = league.add_snapshot(final_checkpoint)
+                        print(f"[league] registered snapshot: {snap_key}")
+                        try:
+                            learner = algo.get_policy("learner_policy")
+                            snapshot = algo.get_policy("snapshot_policy")
+                            if learner is not None and snapshot is not None:
+                                snapshot.set_weights(learner.get_weights())
+                                print("[self-play] copied learner_policy -> snapshot_policy")
+                        except Exception as e:
+                            print(f"[self-play] weight copy skipped: {e}")
+
+            league.maybe_advance_phase()
+            league.maybe_enable_league_mode()
+            if mode == "CURRICULUM_NO_LEAGUE":
+                league.league_mode = False
 
     if not final_checkpoint:
         ckpt = algo.save(checkpoint_dir=str(run_dir / "checkpoints"))
