@@ -66,6 +66,11 @@ class LeagueController:
         # Tracking for OP3 gate
         self.op3_results: List[float] = []
 
+        # Lifetime W/L/D for logging
+        self.total_wins: int = 0
+        self.total_losses: int = 0
+        self.total_draws: int = 0
+
     @property
     def phase_name(self) -> str:
         return self.phases[min(self.phase_idx, len(self.phases) - 1)]["name"]
@@ -143,8 +148,12 @@ class LeagueController:
         actual = 0.5
         if blue_score > red_score:
             actual = 1.0
+            self.total_wins += 1
         elif blue_score < red_score:
             actual = 0.0
+            self.total_losses += 1
+        else:
+            self.total_draws += 1
 
         self.phase_episode_count += 1
         ph = self.phase_name

@@ -1,0 +1,15 @@
+# MultiAgentUAV / Pyquaticus training and viewer
+# Install: pip install -r requirements.txt
+
+# RL training
+ray[rllib]
+PyYAML
+
+# Pyquaticus env (needed by run_experiment.py and ctfviewer)
+pettingzoo
+gymnasium
+shapely
+numpy
+scipy
+pygame
+opencv-python

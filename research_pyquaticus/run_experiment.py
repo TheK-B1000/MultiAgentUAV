@@ -4,9 +4,20 @@ import argparse
 import json
 import os
 import subprocess
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
+
+# Pyquaticus repo layout: MultiAgentUAV/pyquaticus/pyquaticus/ (package with config, envs, ...).
+# Add the pyquaticus repo root so "import pyquaticus" finds the inner package.
+_run_dir = Path(__file__).resolve().parent
+_project_root = _run_dir.parent
+_pyquaticus_root = _project_root / "pyquaticus"
+if _pyquaticus_root.is_dir() and str(_pyquaticus_root) not in sys.path:
+    sys.path.insert(0, str(_pyquaticus_root))
+elif str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 import ray
 import yaml
@@ -28,7 +39,7 @@ def _safe_cmd_output(cmd: str, cwd: str | None = None) -> str:
 def _write_repro_bundle(run_dir: Path, cfg: Dict[str, Any]) -> None:
     (run_dir / "config_used.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
     meta = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "git_commit_main_repo": _safe_cmd_output("git rev-parse HEAD"),
         "git_commit_pyquaticus": _safe_cmd_output("git rev-parse HEAD", cwd=str(Path.cwd() / "pyquaticus")),
         "python_version": _safe_cmd_output("python --version"),
@@ -58,7 +69,15 @@ def main() -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     _write_repro_bundle(run_dir, cfg)
 
-    ray.init(ignore_reinit_error=True, include_dashboard=False)
+    # So Ray workers can import pyquaticus (they start with a fresh interpreter).
+    _pythonpath = os.pathsep.join([str(_pyquaticus_root), str(_project_root)])
+    if os.environ.get("PYTHONPATH"):
+        _pythonpath = _pythonpath + os.pathsep + os.environ["PYTHONPATH"]
+    ray.init(
+        ignore_reinit_error=True,
+        include_dashboard=False,
+        runtime_env={"env_vars": {"PYTHONPATH": _pythonpath}},
+    )
     env_name = register_pyquaticus_env(cfg)
     league = LeagueController(cfg)
     policies, policy_mapping_fn, policies_to_train, callbacks_cls = build_multiagent_specs(cfg, league_controller=league)
@@ -75,7 +94,7 @@ def main() -> None:
         )
         .training(
             train_batch_size=int(rllib_cfg.get("train_batch_size", 4096)),
-            sgd_minibatch_size=int(rllib_cfg.get("sgd_minibatch_size", 256)),
+            minibatch_size=int(rllib_cfg.get("minibatch_size", rllib_cfg.get("sgd_minibatch_size", 256))),
             num_sgd_iter=int(rllib_cfg.get("num_sgd_iter", 8)),
             gamma=float(rllib_cfg.get("gamma", 0.99)),
             lr=float(rllib_cfg.get("lr", 3e-4)),
@@ -114,24 +133,79 @@ def main() -> None:
             min_eps = int(phase.get("min_episodes", 0))
             league.phase_idx = next((i for i, p in enumerate(league.phases) if p["name"] == phase_name), league.phase_idx)
             league.phase_episode_count = 0
-            print(f"[curriculum] phase={phase_name} mode={mode} train_iters={phase_iters}")
+            # Tag: [PPO|LEAGUE] | [PPO|CURRICULUM] | [PPO|SELF_PLAY] — same format for all modes
+            if mode == "SELF_PLAY":
+                ppo_tag = "[PPO|SELF_PLAY]"
+            elif league.league_mode:
+                ppo_tag = "[PPO|LEAGUE]"
+            else:
+                ppo_tag = "[PPO|CURRICULUM]"
+            # Phase start: same field order as per-iter line (phase, train_iters, opp, W, L, D, elo)
+            default_opp = f"SCRIPTED:{phase_name}" if not league.league_mode else ("SCRIPTED:OP3" if not league.snapshots else league.snapshots[-1])
+            if mode == "SELF_PLAY":
+                default_opp = league.snapshots[-1] if league.snapshots else "SCRIPTED:OP3"
+            print(
+                f"{ppo_tag} phase={phase_name} train_iters={phase_iters} opp={default_opp} "
+                f"W={league.total_wins} | L={league.total_losses} | D={league.total_draws} elo={league.learner_rating:.1f}"
+            )
 
             for _ in range(phase_iters):
                 global_iter += 1
                 result = algo.train()
+                cm = result.get("custom_metrics") or {}
+                # Score (blue:red) and result (WIN/LOSS/TIE) from batch means
+                b, r = cm.get("blue_score"), cm.get("red_score")
+                if isinstance(b, (list, tuple)) and b:
+                    b = sum(b) / len(b)
+                if isinstance(r, (list, tuple)) and r:
+                    r = sum(r) / len(r)
+                try:
+                    sb = int(round(b)) if b is not None else 0
+                    sr = int(round(r)) if r is not None else 0
+                except (TypeError, ValueError):
+                    sb, sr = 0, 0
+                score_str = f"{sb}:{sr}"
+                if b is not None and r is not None:
+                    if b > r:
+                        result_str = "WIN"
+                    elif b < r:
+                        result_str = "LOSS"
+                    else:
+                        result_str = "TIE"
+                else:
+                    result_str = "?"
+                # Opponent: last from batch (custom_metrics may be list)
+                opp_raw = cm.get("opponent_key", "?")
+                opp_str = opp_raw[-1] if isinstance(opp_raw, (list, tuple)) and opp_raw else (opp_raw if isinstance(opp_raw, str) else "?")
+                ep_total = result.get("episodes_total") or result.get("episodes_this_iter") or global_iter
+                print(
+                    f"{ppo_tag} ep={ep_total} result={result_str} score={score_str} phase={phase_name} "
+                    f"opp={opp_str} W={league.total_wins} | L={league.total_losses} | D={league.total_draws} elo={league.learner_rating:.1f}"
+                )
+                # Log only JSON-serializable metrics (result can contain classes, ABCMeta, etc.)
+                def _safe(v):
+                    if v is None or isinstance(v, (bool, int, str, float)):
+                        return v
+                    if isinstance(v, (list, tuple)):
+                        return [_safe(x) for x in v]
+                    if isinstance(v, dict):
+                        return {str(k): _safe(x) for k, x in v.items() if isinstance(k, (str, int))}
+                    if hasattr(v, "item"):
+                        return float(v.item())  # numpy scalar
+                    try:
+                        return float(v)
+                    except (TypeError, ValueError):
+                        return str(v)
+                result_safe = {k: _safe(v) for k, v in result.items() if isinstance(k, str)}
                 log_row = {
                     "iter": global_iter,
                     "phase": phase_name,
                     "mode": mode,
                     "league_mode": bool(league.league_mode),
                     "learner_elo": league.learner_rating,
-                    "result": result,
+                    "result": result_safe,
                 }
                 logf.write(json.dumps(log_row) + "\n")
-                print(
-                    f"[train] iter={global_iter} phase={phase_name} league={league.league_mode} "
-                    f"elo={league.learner_rating:.1f} reward_mean={result.get('episode_reward_mean', 'n/a')}"
-                )
 
                 # Optional small eval during phase for early-advance gate.
                 if eval_every > 0 and (global_iter % eval_every == 0):
@@ -141,9 +215,9 @@ def main() -> None:
                     temp_ckpt = ck.checkpoint.path
                     small_summary = run_eval(small_cfg, temp_ckpt, run_dir / "eval_during_train" / f"iter_{global_iter:06d}")
                     wr = float(small_summary.get("win_rate", 0.0))
-                    print(f"[curriculum] phase={phase_name} interim_win_rate={wr:.3f} target={min_wr:.3f}")
+                    print(f"{ppo_tag} phase={phase_name} interim_win_rate={wr:.3f} target={min_wr:.3f}")
                     if league.phase_episode_count >= min_eps and wr >= min_wr:
-                        print(f"[curriculum] early-advance phase={phase_name} at iter={global_iter}")
+                        print(f"{ppo_tag} early-advance phase={phase_name} at iter={global_iter}")
                         break
 
                 if global_iter % checkpoint_every == 0:

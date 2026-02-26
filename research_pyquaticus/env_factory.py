@@ -3,12 +3,108 @@ from __future__ import annotations
 import copy
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
+import gymnasium as gym
 from pyquaticus.config import config_dict_std
 from pyquaticus.envs.pyquaticus import PyQuaticusEnv
 from pyquaticus.envs.rllib_pettingzoo_wrapper import ParallelPettingZooWrapper
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.policy.policy import Policy
 from ray.tune.registry import register_env
+
+
+def _flatten_obs(ob: Any) -> np.ndarray:
+    """Flatten dict/array observation to 1D float32 with deterministic key order for RLlib batching."""
+    if isinstance(ob, dict):
+        keys = sorted(ob.keys(), key=lambda k: (str(k), repr(k)))
+        return np.concatenate([_flatten_obs(ob[k]) for k in keys]).astype(np.float32)
+    if isinstance(ob, np.ndarray):
+        if ob.dtype == object and ob.size > 0 and isinstance(ob.flat[0], dict):
+            return np.concatenate([_flatten_obs(ob.flat[i]) for i in range(ob.size)]).astype(np.float32)
+        if ob.dtype == object or ob.ndim == 0:
+            return np.array(ob, dtype=np.float32).flatten()
+        return ob.astype(np.float32).flatten()
+    if isinstance(ob, (list, tuple)):
+        if ob and isinstance(ob[0], dict):
+            return np.concatenate([_flatten_obs(x) for x in ob]).astype(np.float32)
+        return np.array(ob, dtype=np.float32).flatten()
+    return np.array([float(ob)], dtype=np.float32)
+
+
+class FlattenDictObsWrapper:
+    """Wraps a parallel env that returns dict observations; flattens to 1D arrays so RLlib can batch."""
+
+    def __init__(self, env: Any):
+        self._env = env
+        self.agents = getattr(env, "agents", None) or getattr(env, "possible_agents", [])
+        self.possible_agents = getattr(env, "possible_agents", None) or self.agents
+        self._flat_dim: Optional[int] = None
+        self._obs_space: Optional[gym.spaces.Dict] = None
+        self._act_space = None
+
+    def _ensure_obs_space(self, sample_obs: Dict[str, Any]) -> None:
+        if self._flat_dim is not None:
+            return
+        flat = _flatten_obs(sample_obs)
+        self._flat_dim = int(flat.size)
+        self._obs_space = gym.spaces.Dict({
+            aid: gym.spaces.Box(
+                low=-np.inf, high=np.inf,
+                shape=(self._flat_dim,), dtype=np.float32,
+            )
+            for aid in self.agents
+        })
+        self._act_space = gym.spaces.Dict({
+            aid: self._env.action_space(aid) for aid in self.agents
+        })
+
+    def observation_space(self, agent_id: str) -> gym.Space:
+        if self._obs_space is None:
+            obs, _ = self._env.reset()
+            self._ensure_obs_space(obs[self.agents[0]])
+        return self._obs_space[agent_id]
+
+    def action_space(self, agent_id: str) -> gym.Space:
+        if self._act_space is None:
+            self._act_space = gym.spaces.Dict({
+                aid: self._env.action_space(aid) for aid in self.agents
+            })
+        return self._act_space[agent_id]
+
+    @property
+    def observation_spaces(self) -> Dict[str, gym.Space]:
+        if self._obs_space is None:
+            obs, _ = self._env.reset()
+            self._ensure_obs_space(obs[self.agents[0]])
+        return {aid: self._obs_space[aid] for aid in self.agents}
+
+    @property
+    def action_spaces(self) -> Dict[str, gym.Space]:
+        if self._act_space is None:
+            self._act_space = gym.spaces.Dict({
+                aid: self._env.action_space(aid) for aid in self.agents
+            })
+        return self._act_space
+
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
+        obs, infos = self._env.reset(seed=seed, options=options)
+        for aid in list(obs.keys()):
+            if self._flat_dim is None:
+                self._ensure_obs_space(obs[aid])
+            obs[aid] = _flatten_obs(obs[aid])
+        return obs, infos
+
+    def step(self, action_dict: Dict[str, Any]):
+        obs, rewards, terminated, truncated, infos = self._env.step(action_dict)
+        for aid in list(obs.keys()):
+            obs[aid] = _flatten_obs(obs[aid])
+        return obs, rewards, terminated, truncated, infos
+
+    def close(self):
+        return getattr(self._env, "close", lambda: None)()
+
+    def render(self):
+        return getattr(self._env, "render", lambda: None)()
 
 
 def get_learning_agent_ids(team_size: int) -> List[str]:
@@ -70,7 +166,9 @@ def register_pyquaticus_env(config: Dict[str, Any]) -> str:
     env_name = str(config.get("pyquaticus", {}).get("env_name", "pyquaticus_research"))
 
     def _creator(_):
-        return ParallelPettingZooWrapper(make_parallel_env(config))
+        inner = make_parallel_env(config)
+        flat = FlattenDictObsWrapper(inner)
+        return ParallelPettingZooWrapper(flat)
 
     register_env(env_name, _creator)
     return env_name
@@ -85,9 +183,10 @@ def build_multiagent_specs(
     Build RLlib multi-agent specs with learner + opponent pools.
     Red opponent policy is selected per episode via episode.user_data['opponent_policy'].
     """
-    sample_env = ParallelPettingZooWrapper(make_parallel_env(config))
+    sample_env = ParallelPettingZooWrapper(FlattenDictObsWrapper(make_parallel_env(config)))
     team_size = int(config.get("pyquaticus", {}).get("team_size", 2))
     learning_agent_ids = set(get_learning_agent_ids(team_size))
+    sample_env.reset()  # so FlattenDictObsWrapper sets flat obs shape
     obs_space = sample_env.observation_space["agent_0"]
     act_space = sample_env.action_space["agent_0"]
     sample_env.close()
@@ -128,9 +227,6 @@ def build_multiagent_specs(
             episode.user_data["opponent_key"] = opp.key
 
         def on_episode_end(self, *, worker, base_env, policies, episode, **kwargs):
-            if league_controller is None:
-                return
-            # Pull score from any agent info (global_state is shared).
             blue_score = 0.0
             red_score = 0.0
             try:
@@ -145,10 +241,15 @@ def build_multiagent_specs(
                     red_score = float(gs.get("red_team_score", 0.0))
             except Exception:
                 pass
-            league_controller.record_episode(
-                opponent_key=str(episode.user_data.get("opponent_key", "SCRIPTED:OP3")),
-                blue_score=blue_score,
-                red_score=red_score,
-            )
+            # Expose in result for driver to print (phase, mode, score, opp)
+            episode.custom_metrics["blue_score"] = blue_score
+            episode.custom_metrics["red_score"] = red_score
+            episode.custom_metrics["opponent_key"] = str(episode.user_data.get("opponent_key", "?"))
+            if league_controller is not None:
+                league_controller.record_episode(
+                    opponent_key=str(episode.user_data.get("opponent_key", "SCRIPTED:OP3")),
+                    blue_score=blue_score,
+                    red_score=red_score,
+                )
 
     return policies, policy_mapping_fn, ["learner_policy"], LeagueCallbacks
