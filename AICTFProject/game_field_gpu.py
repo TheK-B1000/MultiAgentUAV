@@ -25,7 +25,9 @@ class GPUFieldConfig:
     max_red_agents: int = 2
     map_rows: int = 20
     map_cols: int = 20
-    # 3-minute games at 0.1 s per step -> 1800 steps; game ends at time 0 or score 3
+    # 3-minute games at 0.1 s physics timestep -> 1800 steps; game ends at time 0 or score 3.
+    # Note: decision_interval_seconds is a wall-clock/metadata hint only; the physics integrator
+    # in BatchedCTFCore.step() always uses a fixed dt = 0.1 seconds for stability.
     max_decision_steps: int = 1800
     decision_interval_seconds: float = 0.7
 
@@ -882,6 +884,10 @@ class BatchedCTFCore:
         """
         Tangential repulsion: if agents get too close, apply a small shove that nudges
         them apart instead of halting them in place. This prevents "nose-to-nose" lockups.
+
+        This shove is a non-physical training convenience (an artificial impulse) and
+        differs from the exact Aquaticus boat dynamics, but helps keep agents from
+        freezing in unrealistic collision configurations.
         """
         rr = float(self.cfg.avoid_collision_radius_cells)
         if rr <= 0.0:
@@ -1101,8 +1107,6 @@ class BatchedCTFCore:
           - Each defender in tag radius contributes +1 pressure on nearby opponents.
           - If pressure >= 2 is sustained for tag_channel_seconds, the target is tagged.
           - If pressure drops below 2, the per-agent channel timer resets.
-
-        A solo defender (pressure == 1) applies a mild slowdown to the carrier instead of tagging.
 
         OOB does NOT cause tagging; it only drops the flag if the agent is carrying.
         """
