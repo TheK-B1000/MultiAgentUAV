@@ -1,0 +1,35 @@
+exp_name: aquaticus_2v2_rllib_ppo
+seed: 42
+results_root: research_pyquaticus/results
+
+pyquaticus:
+  env_name: pyquaticus_research
+  team_size: 2
+  render_mode: null
+  env_config:
+    sim_speedup_factor: 4
+    max_score: 3
+    max_time: 240
+    tagging_cooldown: 60
+    tag_on_oob: true
+    normalize_obs: true
+    normalize_state: false
+
+rllib:
+  framework: torch
+  num_env_runners: 8
+  num_cpus_per_env_runner: 0.25
+  train_batch_size: 4096
+  sgd_minibatch_size: 256
+  num_sgd_iter: 8
+  gamma: 0.99
+  lr: 0.0003
+  clip_param: 0.2
+  entropy_coeff: 0.01
+  vf_loss_coeff: 1.0
+  checkpoint_every_iters: 10
+  training_iterations: 50
+
+evaluation:
+  episodes_per_seed: 50
+  seeds: [1, 2, 3, 4, 5]
