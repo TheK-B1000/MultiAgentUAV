@@ -319,7 +319,12 @@ class BatchedCTFCore:
         self.red_role_switch_prob[idx] = 0.0
         self.blue_home_contact_frames[idx] = 0
         self.red_home_contact_frames[idx] = 0
+        # Mines: fully clear placed mines and charges so a new episode starts with a clean field.
+        self.blue_mine_x[idx] = 0.0
+        self.blue_mine_y[idx] = 0.0
         self.blue_mine_active[idx] = False
+        self.red_mine_x[idx] = 0.0
+        self.red_mine_y[idx] = 0.0
         self.red_mine_active[idx] = False
         self.blue_mine_charges[idx] = 0
         self.red_mine_charges[idx] = 0
@@ -1853,6 +1858,12 @@ class GPUCTFVecEnv(VecEnv):
         actions = torch.as_tensor(self._pending_actions, dtype=torch.int64, device=self.core.device)
         obs, rew, term, trunc, infos = self.core.step(actions)
         done = np.logical_or(term, trunc)
+        # Terminal outcome bonus (win +1, lose -1, draw -0.5) so doc's "terminal rewards" match behavior.
+        if done.any():
+            bs = self.core.blue_score.detach().cpu().numpy()
+            rs = self.core.red_score.detach().cpu().numpy()
+            bonus = np.where(bs > rs, 1.0, np.where(bs < rs, -1.0, -0.5))
+            rew = rew + np.where(done, bonus, 0.0).astype(rew.dtype)
         if done.any():
             reset_mask = torch.from_numpy(done).to(self.core.device)
             for i in np.where(done)[0]:
