@@ -51,12 +51,18 @@ class GPUFieldConfig:
     score_limit: int = 3
 
     # Mines: pickups spawn; agents must GRAB_MINE (macro 1) to get a charge, then PLACE_MINE (macro 3) to place anywhere.
-    max_mines_per_team: int = 3
+    # For realism, each team can have at most 2 active mines on the field, and there are 4 pickups total
+    # (2 on the blue side, 2 on the red side). Pickups are single-use with no respawn.
+    max_mines_per_team: int = 2
     max_mine_charges_per_agent: int = 2
     mine_trigger_radius_cells: float = 1.5
     mine_pickup_radius_cells: float = 1.2
-    mine_pickup_respawn_steps: int = 120
+    mine_pickup_respawn_steps: int = 0   # 0 => no respawn; pickups are single-use
     n_mine_pickups: int = 4
+
+    # Tagging channel controls:
+    # - tag_channel_seconds: pressure >= 2 must be sustained for this many seconds before a tag is applied.
+    tag_channel_seconds: float = 1.0
 
     # Profile and reward controls
     aquaticus_profile: bool = True
@@ -210,6 +216,10 @@ class BatchedCTFCore:
         self.blue_home_contact_frames = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
         self.red_home_contact_frames = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
 
+        # Tagging channel: per-agent timers accumulating time under 2+ defender pressure.
+        self.red_tag_pressure_time = torch.zeros((B, Nr), dtype=f32, device=dev)
+        self.blue_tag_pressure_time = torch.zeros((B, Nb), dtype=f32, device=dev)
+
         # Mines: each team has max_mines_per_team slots. Agents get charges by GRAB_MINE at pickups, place with PLACE_MINE.
         Nm = int(self.cfg.max_mines_per_team)
         self.Nm = Nm
@@ -330,6 +340,10 @@ class BatchedCTFCore:
         self.red_mine_charges[idx] = 0
         self.pickup_active[idx] = True
         self.pickup_respawn[idx] = 0
+
+        # Reset tagging channel timers.
+        self.red_tag_pressure_time[idx] = 0.0
+        self.blue_tag_pressure_time[idx] = 0.0
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
 
@@ -998,11 +1012,13 @@ class BatchedCTFCore:
         B, device = self.B, self.device
         Np = self.Np
         radius = float(getattr(self.cfg, "mine_pickup_radius_cells", 1.2))
-        respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 120))
+        respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 0))
         max_charge = int(getattr(self.cfg, "max_mine_charges_per_agent", 2))
 
-        self.pickup_respawn = torch.clamp(self.pickup_respawn - 1, min=0)
-        self.pickup_active = self.pickup_active | ((self.pickup_respawn <= 0) & (~self.pickup_active))
+        # If respawn_delay > 0, pickups will respawn after a cooldown; when <= 0, pickups are single-use.
+        if respawn_delay > 0:
+            self.pickup_respawn = torch.clamp(self.pickup_respawn - 1, min=0)
+            self.pickup_active = self.pickup_active | ((self.pickup_respawn <= 0) & (~self.pickup_active))
 
         # Blue: (macro 1 GRAB_MINE or scripted) and near an active pickup and under max charge
         grab_blue = ((macro_blue == 1) | self.blue_scripted) & (self.blue_mine_charges < max_charge)
@@ -1080,7 +1096,14 @@ class BatchedCTFCore:
         red_oob: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Tagging requires 2-on-1 local superiority (two eligible taggers in range).
+        Tagging uses a net/tag stack with a short tag channel:
+
+          - Each defender in tag radius contributes +1 pressure on nearby opponents.
+          - If pressure >= 2 is sustained for tag_channel_seconds, the target is tagged.
+          - If pressure drops below 2, the per-agent channel timer resets.
+
+        A solo defender (pressure == 1) applies a mild slowdown to the carrier instead of tagging.
+
         OOB does NOT cause tagging; it only drops the flag if the agent is carrying.
         """
         # OOB while carrying -> drop flag (no tag applied)
@@ -1112,11 +1135,53 @@ class BatchedCTFCore:
         blue_tags = in_tag_range & blue_can_tag[:, :, None] & red_targetable[:, None, :]
         red_tags = in_tag_range & red_can_tag[:, None, :] & blue_targetable[:, :, None]
 
-        # 2-on-1 requirement: at least two eligible taggers in range
-        blue_tag_count = blue_tags.sum(dim=1)
-        red_tag_count = red_tags.sum(dim=2)
-        newly_red_tagged = (blue_tag_count >= 2) & (~self.red_tagged)
-        newly_blue_tagged = (red_tag_count >= 2) & (~self.blue_tagged)
+        # Pressure counts: how many eligible taggers are in range of each target agent.
+        # blue_pressure_on_red: (B, Nr), red_pressure_on_blue: (B, Nb)
+        blue_pressure_on_red = blue_tags.sum(dim=1)
+        red_pressure_on_blue = red_tags.sum(dim=2)
+
+        dt = self.dt
+        channel_T = float(getattr(self.cfg, "tag_channel_seconds", 1.0))
+
+        # Tagging channel: accumulate time when pressure >= 2; reset when below.
+        red_under_channel = blue_pressure_on_red >= 2
+        blue_under_channel = red_pressure_on_blue >= 2
+
+        self.red_tag_pressure_time = torch.where(
+            red_under_channel,
+            self.red_tag_pressure_time + dt,
+            torch.zeros_like(self.red_tag_pressure_time),
+        )
+        self.blue_tag_pressure_time = torch.where(
+            blue_under_channel,
+            self.blue_tag_pressure_time + dt,
+            torch.zeros_like(self.blue_tag_pressure_time),
+        )
+
+        newly_red_tagged = (
+            (self.red_tag_pressure_time >= channel_T)
+            & (~self.red_tagged)
+            & red_targetable
+        )
+        newly_blue_tagged = (
+            (self.blue_tag_pressure_time >= channel_T)
+            & (~self.blue_tagged)
+            & blue_targetable
+        )
+
+        # Clear timers for agents that just got tagged.
+        if newly_red_tagged.any():
+            self.red_tag_pressure_time = torch.where(
+                newly_red_tagged,
+                torch.zeros_like(self.red_tag_pressure_time),
+                self.red_tag_pressure_time,
+            )
+        if newly_blue_tagged.any():
+            self.blue_tag_pressure_time = torch.where(
+                newly_blue_tagged,
+                torch.zeros_like(self.blue_tag_pressure_time),
+                self.blue_tag_pressure_time,
+            )
 
         red_had_flag = newly_red_tagged & self.red_carrying
         blue_had_flag = newly_blue_tagged & self.blue_carrying

@@ -39,6 +39,8 @@ from game_field_gpu import (
     CNN_ROWS,
     NUM_CNN_CHANNELS,
 )
+from rl.curriculum import STRESS_BY_PHASE
+from opponent_params import sample_batched_opponent_params
 
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -299,17 +301,38 @@ class CTFViewer:
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
-        # Use Aquaticus OP3-like scripted opponent defaults for the red team in the viewer:
-        # medium attacker/defender styles, with some role switching and deception.
+        # Configure core to use full OP3 physics + OP3 scripted opponent, matching hardest training setting.
         try:
-            self.core.set_dynamics_config(
-                {
-                    "attacker_style": 1,
-                    "defender_style": 1,
-                    "role_switch_prob": 0.3,
-                }
+            # OP3 phase and stress schedule (currents, drift, delay, sensor noise/dropout).
+            self.core.set_phase("OP3")
+            self.core.set_stress_schedule(STRESS_BY_PHASE)
+            # Ensure Aquaticus rules profile is active.
+            self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
+
+            # Sample OP3 scripted opponent parameters (2v2 by default in viewer).
+            opp = sample_batched_opponent_params(
+                kind="SCRIPTED",
+                key="OP3",
+                phase="OP3",
+                n_agents=cfg.max_red_agents,
+                batch_size=cfg.n_envs,
+                device=cfg.device,
             )
+            dyn_cfg = {}
+            if "deception_prob" in opp:
+                dyn_cfg["deception_prob"] = opp["deception_prob"]
+            if "speed_mult" in opp:
+                dyn_cfg["speed_mult"] = opp["speed_mult"]
+            if "attacker_style" in opp:
+                dyn_cfg["attacker_style"] = opp["attacker_style"]
+            if "defender_style" in opp:
+                dyn_cfg["defender_style"] = opp["defender_style"]
+            if "role_switch_prob" in opp:
+                dyn_cfg["role_switch_prob"] = opp["role_switch_prob"]
+            if dyn_cfg:
+                self.core.set_dynamics_config(dyn_cfg)
         except Exception:
+            # Fall back silently if curriculum/opponent modules are unavailable; core defaults will be used.
             pass
         self.core.reset_all()
 
@@ -564,22 +587,6 @@ class CTFViewer:
         # 3 min game: 0.1 s per step -> time remaining
         sec_left = max(0, (self.core.max_steps - step)) * 0.1
         txt(f"Time: {int(sec_left // 60)}:{int(sec_left % 60):02d}", 500, 60, (200, 200, 230))
-
-        # Debug HUD: per-side tagging and side info.
-        try:
-            # Shapes: (1, Nb), (1, Nr)
-            b_tag = self.core.blue_tagged[0].detach().cpu().numpy().astype(int).tolist()
-            r_tag = self.core.red_tagged[0].detach().cpu().numpy().astype(int).tolist()
-            b_x = self.core.blue_x[0].detach().cpu().numpy().tolist()
-            r_x = self.core.red_x[0].detach().cpu().numpy().tolist()
-            mid = float(self.core.cols - 1) * 0.5
-            b_side = ["B" if x <= mid else "R" for x in b_x]
-            r_side = ["R" if x >= mid else "B" for x in r_x]
-            blue_oob_last = bool(self._last_info.get("stalemate_truncated", False))  # fallback if no explicit oob field
-            txt(f"DBG blue_tag={b_tag} side={b_side} | red_tag={r_tag} side={r_side}",
-                30, 80, (150, 220, 150))
-        except Exception:
-            pass
 
 
 # ---------------------------------------------------------------------------
