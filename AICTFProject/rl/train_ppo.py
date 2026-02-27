@@ -25,7 +25,6 @@ from stable_baselines3.common.vec_env import VecMonitor
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from opponent_params import sample_batched_opponent_params
-from rl.common import env_seed, set_global_seed
 from rl.curriculum import (
     CurriculumConfig,
     CurriculumController,
@@ -35,6 +34,27 @@ from rl.curriculum import (
 )
 from rl.league import EloLeague, OpponentSpec
 from rl.episode_result import parse_episode_result, EpisodeSummary, path_to_snapshot_key
+
+
+def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = False) -> None:
+    """
+    Set global RNG seeds for reproducibility.
+
+    This replaces the original implementation from rl.common so that
+    train_ppo.py can run without that module.
+    """
+    import random
+
+    random.seed(seed)
+    np.random.seed(seed)
+
+    if torch_seed:
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+        if deterministic:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
 
 class TokenizedCombinedExtractor(BaseFeaturesExtractor):
