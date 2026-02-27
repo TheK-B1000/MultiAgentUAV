@@ -185,6 +185,9 @@ class PPOConfig:
     enable_checkpoints: bool = False
     enable_eval: bool = False
 
+    # Enable TQDM progress bar (via stable_baselines3's progress_bar=True, if supported).
+    enable_progress_bar: bool = True
+
     max_decision_steps: int = 400
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
@@ -1544,8 +1547,21 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     callbacks = CallbackList(callbacks)
 
+    # Optional TQDM progress bar for ETA (if supported by this SB3 version).
+    learn_kwargs: Dict[str, Any] = {}
+    if getattr(cfg, "enable_progress_bar", False):
+        learn_kwargs["progress_bar"] = True
+
     try:
-        model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
+        try:
+            model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks, **learn_kwargs)
+        except TypeError as type_exc:
+            # Older stable_baselines3 versions may not accept the progress_bar argument.
+            if "progress_bar" in str(type_exc):
+                print("[PPO] progress_bar not supported by this stable_baselines3 version; retrying without it.")
+                model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
+            else:
+                raise
     except Exception as exc:
         # Save current model on any failure (OOM, crash, etc.) so progress is not lost
         crash_path = os.path.join(cfg.checkpoint_dir, f"crash_save_{cfg.run_tag}")
