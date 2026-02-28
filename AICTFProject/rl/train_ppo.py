@@ -1673,6 +1673,7 @@ if __name__ == "__main__":
         parser.add_argument("--run-tag", type=str, default=None,
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
+        parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory for checkpoints/snapshots (e.g. /content/drive/MyDrive/ppo_checkpoints)")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
         parser.add_argument("--agents", type=int, default=None, choices=[2, 4, 8], help="Team size: 2=2v2, 4=4v4, 8=8v8 (sets --max-blue-agents)")
         parser.add_argument("--max-blue-agents", type=int, default=None, help="Agents per team (1-16). Use 2/4/8 for 2v2/4v4/8v8; overrides --agents if set.")
@@ -1697,6 +1698,8 @@ if __name__ == "__main__":
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_steps
+        if getattr(args, "checkpoint_dir", None) is not None:
+            cfg.checkpoint_dir = args.checkpoint_dir
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):

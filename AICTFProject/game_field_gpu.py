@@ -1073,8 +1073,18 @@ class BatchedCTFCore:
         Nm = self.Nm
         midline = float(self.cols) * 0.5
 
-        # Blue: (macro 3 or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot
-        place_blue = ((macro_blue == 3) | (self.blue_scripted & (torch.arange(self.Nb, device=self.device) == 0) & ((self.step_count % 50) == 0))) & (self.blue_mine_charges > 0)
+        # Blue: (macro 3 or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot.
+        # Use an explicit defender mask with the same (B, Nb) shape as macro_blue to avoid
+        # shape/broadcast issues when Nb != B (e.g. 2v2 with n_envs=4 on Colab).
+        scripted_mask: torch.Tensor
+        if self.blue_scripted and (self.step_count % 50) == 0:
+            scripted_mask = torch.zeros_like(macro_blue, dtype=torch.bool, device=device)
+            # Defender is agent index 0 for each env
+            scripted_mask[:, 0] = True
+        else:
+            scripted_mask = torch.zeros_like(macro_blue, dtype=torch.bool, device=device)
+
+        place_blue = ((macro_blue == 3) | scripted_mask) & (self.blue_mine_charges > 0)
         for i in range(self.Nb):
             for slot in range(Nm):
                 can = place_blue[:, i] & (~self.blue_mine_active[:, slot])
