@@ -185,7 +185,9 @@ class PPOConfig:
     enable_checkpoints: bool = False
     enable_eval: bool = False
 
-    # Enable TQDM progress bar (via stable_baselines3's progress_bar=True, if supported).
+    # Quiet training: no per-episode prints (faster, especially for 8v8). Set True to see each episode.
+    verbose_training: bool = False
+    # Show TQDM progress bar with ETA (set False to disable).
     enable_progress_bar: bool = True
 
     max_decision_steps: int = 400
@@ -303,7 +305,8 @@ class LeagueCallback(BaseCallback):
         curriculum: CurriculumState,
         controller: CurriculumController,
     ) -> None:
-        super().__init__(verbose=1)
+        _v = 1 if getattr(cfg, "verbose_training", False) else 0
+        super().__init__(verbose=_v)
         self.cfg = cfg
         self.league = league
         self.curriculum = curriculum
@@ -497,7 +500,8 @@ class LeagueCallback(BaseCallback):
                     phase = self.curriculum.phase
                 # Debug: log why we're not advancing when still in OP1 (every 100 eps)
                 elif (
-                    phase == "OP1"
+                    self.verbose
+                    and phase == "OP1"
                     and self.curriculum.phase_episode_count >= 200
                     and self.episode_idx % 100 == 0
                 ):
@@ -520,11 +524,11 @@ class LeagueCallback(BaseCallback):
                 meets_op3_gate = self._meets_op3_gate_for_league()
                 if self.curriculum.config.switch_to_league_after_op3_win and meets_eps and meets_wr and meets_op3_gate:
                     self.league_mode = True
-                    if getattr(self.curriculum.config, "min_games_vs_op3", 0) > 0:
+                    if self.verbose and getattr(self.curriculum.config, "min_games_vs_op3", 0) > 0:
                         op3_stats = self._opponent_stats.get("SCRIPTED:OP3", {})
                         tw = op3_stats.get("wins", 0) + op3_stats.get("losses", 0) + op3_stats.get("draws", 0)
                         print(f"[League] OP3 gate passed: {op3_stats.get('wins', 0)}W vs OP3 in last {tw} OP3 games → switching to league/elo")
-                elif phase == "OP3" and not self.league_mode and self.episode_idx % 100 == 0:
+                elif self.verbose and phase == "OP3" and not self.league_mode and self.episode_idx % 100 == 0:
                     min_g = getattr(self.curriculum.config, "min_games_vs_op3", 0)
                     min_wr_op3 = getattr(self.curriculum.config, "min_winrate_vs_op3", 0.0)
                     if min_g > 0 and min_wr_op3 > 0:
@@ -593,7 +597,8 @@ class CurriculumNoLeagueCallback(BaseCallback):
     """OP1 -> OP2 -> OP3 curriculum only; no league, no species, no snapshots."""
 
     def __init__(self, *, cfg: PPOConfig, curriculum: CurriculumState) -> None:
-        super().__init__(verbose=1)
+        _v = 1 if getattr(cfg, "verbose_training", False) else 0
+        super().__init__(verbose=_v)
         self.cfg = cfg
         self.curriculum = curriculum
         self.episode_idx = 0
@@ -639,8 +644,8 @@ class CurriculumNoLeagueCallback(BaseCallback):
             self.curriculum.phase_episode_count += 1
             self.curriculum.record_result(phase, actual)
 
-            # Debug: log advancement conditions every 50 episodes
-            if self.episode_idx % 50 == 0 and phase == "OP1":
+            # Debug: log advancement conditions every 50 episodes (only when verbose)
+            if self.verbose and self.episode_idx % 50 == 0 and phase == "OP1":
                 min_eps = self.curriculum.config.min_episodes.get(phase, 0)
                 min_wr = self.curriculum.config.min_winrate.get(phase, 0.0)
                 winrate = self.curriculum.phase_winrate(phase)
@@ -658,7 +663,7 @@ class CurriculumNoLeagueCallback(BaseCallback):
                 win_by=win_by,
             )
             phase = self.curriculum.phase
-            if phase != old_phase:
+            if phase != old_phase and self.verbose:
                 print(f"[CURR] ADVANCED: {old_phase} -> {phase} at episode {self.episode_idx}")
 
             opp_key = summary.opponent_key()
@@ -770,7 +775,8 @@ class SelfPlayCallback(BaseCallback):
     """Self-play with rolling snapshot pool: counter resets to 1 when at max and old are deleted."""
 
     def __init__(self, *, cfg: PPOConfig, league: EloLeague) -> None:
-        super().__init__(verbose=1)
+        _v = 1 if getattr(cfg, "verbose_training", False) else 0
+        super().__init__(verbose=_v)
         self.cfg = cfg
         self.league = league
         self.episode_idx = 0
@@ -878,7 +884,8 @@ class SelfPlayCallback(BaseCallback):
 
 class FixedOpponentCallback(BaseCallback):
     def __init__(self, *, cfg: PPOConfig) -> None:
-        super().__init__(verbose=1)
+        _v = 1 if getattr(cfg, "verbose_training", False) else 0
+        super().__init__(verbose=_v)
         self.cfg = cfg
         self.episode_idx = 0
         self.win_count = 0
@@ -1219,7 +1226,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     max_agents = int(getattr(cfg, "max_blue_agents", 2))
     team_size = _agents_suffix(max_agents)
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
+    print(f"[PPO] Total timesteps: {cfg.total_timesteps:,}")
     print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
+    if not getattr(cfg, "verbose_training", False):
+        print("[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.")
 
     # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM on CPU.
     if max_agents > 4:
@@ -1679,6 +1689,7 @@ if __name__ == "__main__":
         parser.add_argument("--max-blue-agents", type=int, default=None, help="Agents per team (1-16). Use 2/4/8 for 2v2/4v4/8v8; overrides --agents if set.")
         parser.add_argument("--gpu-native-env", action="store_true", help="Deprecated flag; training always uses game_field_gpu.")
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
+        parser.add_argument("--verbose-training", action="store_true", help="Print each episode result and debug logs (slower; default is quiet for speed)")
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:
@@ -1704,5 +1715,7 @@ if __name__ == "__main__":
             cfg.fixed_opponent_tag = args.fixed_opponent.upper()
         if getattr(args, "test_kl_zero_lr", False):
             cfg.test_kl_zero_lr = True
+        if getattr(args, "verbose_training", False):
+            cfg.verbose_training = True
         cfg.gpu_native_env = True  # All training uses game_field_gpu
         train_ppo(cfg)
