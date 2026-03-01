@@ -180,7 +180,7 @@ def main():
     plt.xticks(x, labels, fontsize=18)
     plt.yticks(fontsize=18)
     plt.ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
-    plt.title("2v2 Win rate ({} episodes each)".format(n_episodes), fontsize=22)
+    plt.title("2v2 Win rate", fontsize=22)
     plt.ylim(0, 105)
     for i, (bar, wr) in enumerate(zip(bars, win_rates)):
         plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)

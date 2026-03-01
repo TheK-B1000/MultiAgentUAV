@@ -218,7 +218,7 @@ def main():
         for bar, wr in zip(bars, win_rates):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)
 
-    plt.suptitle(f"Win rate ({n_episodes} episodes each)", fontsize=22)
+    plt.suptitle("Win rate", fontsize=22)
     plt.tight_layout()
     plt.savefig(args.out, dpi=150)
     print(f"Saved: {args.out}")
