@@ -552,6 +552,13 @@ class LeagueCallback(BaseCallback):
                 if self._enable_opponent_tracking and (self.episode_idx % 50 == 0):
                     self._print_opponent_distribution()
 
+            # Summary every 1000 episodes (always, not gated by verbose)
+            if self.episode_idx > 0 and self.episode_idx % 1000 == 0:
+                wr = (self.win_count / self.episode_idx) * 100
+                mode = "LEAGUE" if self.league_mode else "CURR"
+                opp_summary = "mixed" if self.league_mode else phase
+                print(f"[PPO] ep={self.episode_idx} mode={mode} phase={phase} opp={opp_summary} W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
+
             self.logger.record("curr/episode", self.episode_idx)
             self.logger.record("curr/win_rate", self.win_count / max(1, self.episode_idx))
             self.logger.record("curr/draw_rate", self.draw_count / max(1, self.episode_idx))
@@ -677,6 +684,11 @@ class CurriculumNoLeagueCallback(BaseCallback):
                 )
                 if self.episode_idx % 50 == 0:
                     self._print_opponent_distribution()
+
+            # Summary every 1000 episodes (always, not gated by verbose)
+            if self.episode_idx > 0 and self.episode_idx % 1000 == 0:
+                wr = (self.win_count / self.episode_idx) * 100
+                print(f"[PPO] ep={self.episode_idx} mode=PAPER phase={phase} opp={phase} W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
 
             self.logger.record("curr_noleague/episode", self.episode_idx)
             self.logger.record("curr_noleague/win_rate", self.win_count / max(1, self.episode_idx))
@@ -847,6 +859,11 @@ class SelfPlayCallback(BaseCallback):
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
 
+            # Summary every 1000 episodes (always, not gated by verbose)
+            if self.episode_idx > 0 and self.episode_idx % 1000 == 0:
+                wr = (self.win_count / self.episode_idx) * 100
+                print(f"[PPO] ep={self.episode_idx} mode=SELF_PLAY phase=SELF_PLAY opp=self W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
+
             self.logger.record("self/episode", self.episode_idx)
             self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
             self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
@@ -925,6 +942,12 @@ class FixedOpponentCallback(BaseCallback):
                     f"score={blue_score}:{red_score} opp=SCRIPTED:{opp} "
                     f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
                 )
+
+            # Summary every 1000 episodes (always, not gated by verbose)
+            if self.episode_idx > 0 and self.episode_idx % 1000 == 0:
+                wr = (self.win_count / self.episode_idx) * 100
+                opp = str(summary.scripted_tag or self.cfg.fixed_opponent_tag).upper()
+                print(f"[PPO] ep={self.episode_idx} mode=FIXED phase=FIXED opp=SCRIPTED:{opp} W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
 
             self.logger.record("fixed/episode", self.episode_idx)
             self.logger.record("fixed/win_rate", self.win_count / max(1, self.episode_idx))
