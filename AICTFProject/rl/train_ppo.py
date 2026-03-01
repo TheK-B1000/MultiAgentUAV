@@ -1737,7 +1737,8 @@ if __name__ == "__main__":
         elif n_agents == 4:
             cfg.checkpoint_dir = "checkpoints_sb3_4v4"
         elif n_agents == 3:
-            cfg.checkpoint_dir = "checkpoints_sb3_3v3"
+            # Default 3v3 save path (Colab Drive); override with --checkpoint-dir if needed (e.g. local PC).
+            cfg.checkpoint_dir = "/content/drive/MyDrive/CTF_models"
         elif n_agents == 2:
             cfg.checkpoint_dir = "checkpoints_sb3_2v2"
         if args.total_steps is not None:
