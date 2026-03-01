@@ -54,7 +54,7 @@ def path_ensure_zip(path: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Plot 2v2, 3v3, 4v4 win rates: Ours vs Jacob et al. vs Self-play")
-    parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
+    parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). OP4 = held-out eval for generalization.")
     parser.add_argument("--out", type=str, default="all_winrates.png", help="Output plot path")
     parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory containing .zip files (default: checkpoints_sb3)")

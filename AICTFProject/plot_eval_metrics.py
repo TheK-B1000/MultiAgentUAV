@@ -197,7 +197,7 @@ def main() -> None:
     parser.add_argument("--league-4v4", type=str, default=None, help="4v4 League model .zip")
     parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 Paper model .zip")
     parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play model .zip")
-    parser.add_argument("--episodes", type=int, default=100)
+    parser.add_argument("--episodes", type=int, default=25)
     parser.add_argument("--opponent", type=str, default="OP3", help="Single opponent for main eval")
     parser.add_argument(
         "--opponents",

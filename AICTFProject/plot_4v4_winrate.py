@@ -36,7 +36,7 @@ def main():
     parser.add_argument("--league", type=str, default=None, help="Path to League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
-    parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
+    parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval.")
     parser.add_argument("--out", type=str, default="4v4_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
