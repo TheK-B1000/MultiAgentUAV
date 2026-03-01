@@ -1707,6 +1707,16 @@ if __name__ == "__main__":
             else:
                 cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
+        # Separate checkpoint dir per team size so runs don't overwrite each other
+        n_agents = cfg.max_blue_agents
+        if n_agents == 8:
+            cfg.checkpoint_dir = "checkpoints_sb3_8v8"
+        elif n_agents == 4:
+            cfg.checkpoint_dir = "checkpoints_sb3_4v4"
+        elif n_agents == 3:
+            cfg.checkpoint_dir = "checkpoints_sb3_3v3"
+        elif n_agents == 2:
+            cfg.checkpoint_dir = "checkpoints_sb3_2v2"
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_steps
         if getattr(args, "checkpoint_dir", None) is not None:
