@@ -8,7 +8,7 @@ Usage:
   python plot_all_winrates.py [--episodes N] [--out plot.png] [--checkpoint-dir DIR]
 
 Defaults (under checkpoints_sb3/):
-  2v2: final_weekend_league_2v2.zip, final_ppo_paper_2v2_colab.zip, final_weekend_selfplay_2v2.zip
+  2v2: final_weekend_league_2v2.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
   3v3: final_ppo_league_3v3_colab.zip, final_ppo_paper_3v3_colab.zip, final_ppo_selfplay_3v3_colab.zip
   4v4: final_ppo_league_4v4_colab.zip, final_ppo_paper_4v4_colab.zip, final_ppo_selfplay_4v4_colab.zip
 """
@@ -31,7 +31,7 @@ if SCRIPT_DIR not in sys.path:
 DEFAULTS = {
     2: (
         "final_weekend_league_2v2.zip",
-        "final_ppo_paper_2v2_colab.zip",
+        "final_weekend_paper_2v2.zip",
         "final_weekend_selfplay_2v2.zip",
     ),
     3: (
@@ -66,6 +66,7 @@ def main():
 
     from stable_baselines3 import PPO
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+    from rl.train_ppo import MaskedMultiInputPolicy
 
     device = args.device
     n_episodes = args.episodes
@@ -132,7 +133,11 @@ def main():
 
         def run_eval(model_path: str) -> tuple[int, int, int]:
             _numpy_compat_shim()
-            custom = {"observation_space": env.observation_space, "action_space": env.action_space}
+            custom = {
+                "observation_space": env.observation_space,
+                "action_space": env.action_space,
+                "policy_class": MaskedMultiInputPolicy,
+            }
             model = PPO.load(model_path, device=device, custom_objects=custom)
             model.policy.set_training_mode(False)
             wins, losses, draws = 0, 0, 0

@@ -14,7 +14,7 @@ Usage:
 
 Defaults (under checkpoints_sb3/):
   --league   final_weekend_league_2v2.zip
-  --paper    final_ppo_paper_2v2_colab.zip
+  --paper    final_weekend_paper_2v2.zip
   --selfplay final_weekend_selfplay_2v2.zip
 """
 from __future__ import annotations
@@ -53,7 +53,7 @@ def main():
         return os.path.abspath(p)
 
     league_path = path_or_default(args.league, "final_weekend_league_2v2.zip")
-    paper_path = path_or_default(args.paper, "final_ppo_paper_2v2_colab.zip")
+    paper_path = path_or_default(args.paper, "final_weekend_paper_2v2.zip")
     selfplay_path = path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip")
 
     for label, p in [("League", league_path), ("Paper", paper_path), ("Self-play", selfplay_path)]:
@@ -84,6 +84,8 @@ def main():
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
     except Exception:
         pass
+
+    from rl.train_ppo import MaskedMultiInputPolicy
 
     def _numpy_compat_shim():
         """Allow loading models saved on Colab (NumPy 2.x) when running on NumPy 1.x. Register only at load time."""
@@ -116,8 +118,12 @@ def main():
     def run_eval(model_path: str) -> tuple[int, int, int]:
         """Run n_episodes, return (wins, losses, draws)."""
         _numpy_compat_shim()
-        # Use eval env's spaces so Colab checkpoints (whose saved spaces may not deserialize on NumPy 1.x) load correctly.
-        custom = {"observation_space": env.observation_space, "action_space": env.action_space}
+        # Use eval env's spaces and policy class so checkpoints that fail to deserialize (e.g. different Python) still load.
+        custom = {
+            "observation_space": env.observation_space,
+            "action_space": env.action_space,
+            "policy_class": MaskedMultiInputPolicy,
+        }
         model = PPO.load(model_path, device=device, custom_objects=custom)
         model.policy.set_training_mode(False)
         wins, losses, draws = 0, 0, 0

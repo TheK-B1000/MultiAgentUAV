@@ -68,9 +68,14 @@ def run_eval_episodes(
 ) -> list[dict]:
     """Run n_episodes, return list of per-episode dicts: success, steps, return, zone_coverage, collision_free."""
     from stable_baselines3 import PPO
+    from rl.train_ppo import MaskedMultiInputPolicy
 
     _numpy_compat_shim()
-    custom = {"observation_space": env.observation_space, "action_space": env.action_space}
+    custom = {
+        "observation_space": env.observation_space,
+        "action_space": env.action_space,
+        "policy_class": MaskedMultiInputPolicy,
+    }
     model = PPO.load(model_path, device=device, custom_objects=custom)
     model.policy.set_training_mode(False)
 

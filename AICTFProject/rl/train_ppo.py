@@ -148,10 +148,11 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
 
 
 class TrainMode(str, Enum):
-    CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"
-    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"
-    FIXED_OPPONENT = "FIXED_OPPONENT"
-    SELF_PLAY = "SELF_PLAY"
+    """Training modes. Paper = curriculum (OP1→OP2→OP3) with no league/snapshots."""
+    CURRICULUM_LEAGUE = "CURRICULUM_LEAGUE"   # League: curriculum then league (OP3 + snapshots)
+    CURRICULUM_NO_LEAGUE = "CURRICULUM_NO_LEAGUE"  # Paper: curriculum only, no league
+    FIXED_OPPONENT = "FIXED_OPPONENT"         # Fixed: 100% single scripted opponent (e.g. OP3)
+    SELF_PLAY = "SELF_PLAY"                   # Self-play: vs past snapshots of self
 
 
 @dataclass
@@ -1713,7 +1714,7 @@ if __name__ == "__main__":
     else:
         parser = argparse.ArgumentParser(description="Train PPO (CTF)")
         parser.add_argument("--mode", type=str, default=None,
-                            help="Train mode: CURRICULUM_LEAGUE, CURRICULUM_NO_LEAGUE (Paper), FIXED_OPPONENT, SELF_PLAY")
+                            help="Train mode: CURRICULUM_LEAGUE (League), CURRICULUM_NO_LEAGUE (Paper=curriculum no league), FIXED_OPPONENT, SELF_PLAY")
         parser.add_argument("--run-tag", type=str, default=None,
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
