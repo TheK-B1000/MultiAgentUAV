@@ -1310,9 +1310,20 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         # Extra OP3→League gate: require 80% vs OP3 over last _min_games_vs_op3 games
         _min_winrate_vs_op3 = 0.80
         _min_games_vs_op3 = 50
-        if cfg.total_timesteps < 6_000_000:
-            cfg.total_timesteps = 6_000_000
-            print(f"[PPO] {team_size}: using total_timesteps={cfg.total_timesteps} for better convergence")
+        # Per-team step floors: 3v3=5M, 4v4=6M, 8v8=8M (do not override if user passed a higher value)
+        if max_agents > 4:
+            if cfg.total_timesteps < 8_000_000:
+                cfg.total_timesteps = 8_000_000
+                print(f"[PPO] 8v8: using total_timesteps={cfg.total_timesteps} for better convergence")
+        elif max_agents == 4:
+            if cfg.total_timesteps < 6_000_000:
+                cfg.total_timesteps = 6_000_000
+                print(f"[PPO] {team_size}: using total_timesteps={cfg.total_timesteps} for better convergence")
+        else:
+            # 3v3: 5M default/floor (keeps user --total-steps 5000000)
+            if cfg.total_timesteps < 5_000_000:
+                cfg.total_timesteps = 5_000_000
+                print(f"[PPO] 3v3: using total_timesteps={cfg.total_timesteps}")
     else:
         _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
         _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
