@@ -45,7 +45,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
-DEFAULT_PPO_MODEL_PATH = "rl/checkpoints_sb3/final_ppo_league_v3.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/final_ppo_paper_2v2_colab.zip"
 N_MACROS = 5
 N_TARGETS = 8
 
@@ -301,19 +301,19 @@ class CTFViewer:
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
-        # Configure core to use full OP3 physics + OP3 scripted opponent, matching hardest training setting.
+        # Configure core to use full OP4 physics + OP4 scripted opponent (held-out eval, matches plot_eval_metrics default).
         try:
-            # OP3 phase and stress schedule (currents, drift, delay, sensor noise/dropout).
-            self.core.set_phase("OP3")
+            # OP4 phase and stress schedule (currents, drift, delay, sensor noise/dropout).
+            self.core.set_phase("OP4")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
             # Ensure Aquaticus rules profile is active.
             self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
 
-            # Sample OP3 scripted opponent parameters (2v2 by default in viewer).
+            # Sample OP4 scripted opponent parameters (2v2 by default in viewer).
             opp = sample_batched_opponent_params(
                 kind="SCRIPTED",
-                key="OP3",
-                phase="OP3",
+                key="OP4",
+                phase="OP4",
                 n_agents=cfg.max_red_agents,
                 batch_size=cfg.n_envs,
                 device=cfg.device,
