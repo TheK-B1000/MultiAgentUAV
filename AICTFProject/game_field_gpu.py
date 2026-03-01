@@ -10,6 +10,11 @@ import torch
 from gymnasium import spaces
 from stable_baselines3.common.vec_env import VecEnv
 
+try:
+    from opponent_params import sample_batched_opponent_params
+except ImportError:
+    sample_batched_opponent_params = None
+
 
 CNN_COLS = 20
 CNN_ROWS = 20
@@ -362,6 +367,32 @@ class BatchedCTFCore:
     def set_next_opponent(self, kind: str, key: str) -> None:
         self._opponent_kind = str(kind).upper()
         self._opponent_key = str(key).upper()
+        # Apply OP1/OP2/OP3 params so red actually plays easy/medium/strong (not always OP3).
+        if sample_batched_opponent_params is not None and self._opponent_kind == "SCRIPTED" and self._opponent_key in ("OP1", "OP2", "OP3"):
+            try:
+                opp_params = sample_batched_opponent_params(
+                    kind=self._opponent_kind,
+                    key=self._opponent_key,
+                    phase=self._opponent_key,
+                    n_agents=self.Nr,
+                    batch_size=self.B,
+                    device=self.device,
+                )
+                dyn_cfg: Dict[str, Any] = {}
+                if "deception_prob" in opp_params:
+                    dyn_cfg["deception_prob"] = opp_params["deception_prob"]
+                if "speed_mult" in opp_params:
+                    dyn_cfg["speed_mult"] = opp_params["speed_mult"]
+                if "attacker_style" in opp_params:
+                    dyn_cfg["attacker_style"] = opp_params["attacker_style"]
+                if "defender_style" in opp_params:
+                    dyn_cfg["defender_style"] = opp_params["defender_style"]
+                if "role_switch_prob" in opp_params:
+                    dyn_cfg["role_switch_prob"] = opp_params["role_switch_prob"]
+                if dyn_cfg:
+                    self.set_dynamics_config(dyn_cfg)
+            except Exception:
+                pass
 
     def set_dynamics_config(self, cfg: Optional[Dict[str, Any]]) -> None:
         if not isinstance(cfg, dict):

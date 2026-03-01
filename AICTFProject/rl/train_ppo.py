@@ -1392,12 +1392,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     except Exception:
         pass
     # Initial scripted-opponent parameters (including deception and speed for red team).
+    # Use actual phase/key (OP1=easier, OP2=medium, OP3=strong) so OP1/OP2 are not able to score easily.
     try:
         kind, key = default_opponent
-        # For scripted opponents, always use the OP3 profile so the enemy
-        # behaves like the strong Aquaticus baseline regardless of phase.
-        if str(kind).upper() == "SCRIPTED":
-            key = "OP3"
         opp_params = sample_batched_opponent_params(
             kind=kind,
             key=key,
