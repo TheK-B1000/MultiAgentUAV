@@ -1251,6 +1251,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
     print(f"[PPO] Total timesteps: {cfg.total_timesteps:,}")
     print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
+    print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
+    if "/content/drive" in os.path.abspath(cfg.checkpoint_dir) or "MyDrive" in cfg.checkpoint_dir:
+        print("[PPO] Saving to Google Drive — progress will persist if runtime disconnects.")
     if not getattr(cfg, "verbose_training", False):
         print("[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.")
 
@@ -1738,17 +1741,16 @@ if __name__ == "__main__":
             else:
                 cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
-        # Separate checkpoint dir per team size so runs don't overwrite each other
+        # Separate checkpoint dir per team size. On Colab, save to Drive so runs persist (no 15h loss on disconnect).
         n_agents = cfg.max_blue_agents
-        if n_agents == 8:
-            cfg.checkpoint_dir = "checkpoints_sb3_8v8"
-        elif n_agents == 4:
-            cfg.checkpoint_dir = "checkpoints_sb3_4v4"
-        elif n_agents == 3:
-            # Default 3v3 save path (Colab Drive); override with --checkpoint-dir if needed (e.g. local PC).
-            cfg.checkpoint_dir = "/content/drive/MyDrive/CTF_models"
-        elif n_agents == 2:
-            cfg.checkpoint_dir = "checkpoints_sb3_2v2"
+        suffix = _agents_suffix(n_agents)
+        if os.path.exists("/content/drive/MyDrive"):
+            # Colab with Drive mounted: all runs save to Drive
+            base = "/content/drive/MyDrive/CTF_models"
+            cfg.checkpoint_dir = os.path.join(base, suffix)
+        else:
+            # Local PC: save under project
+            cfg.checkpoint_dir = f"checkpoints_sb3_{suffix}"
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_steps
         if getattr(args, "checkpoint_dir", None) is not None:
