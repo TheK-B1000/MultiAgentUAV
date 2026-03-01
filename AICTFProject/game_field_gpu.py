@@ -1982,14 +1982,18 @@ class GPUCTFVecEnv(VecEnv):
                 # So training callbacks (parse_episode_result) get a single episode_result dict.
                 bs = int(infos[i].get("blue_score", 0))
                 rs = int(infos[i].get("red_score", 0))
+                okind = str(infos[i].get("opponent_kind", "scripted")).lower()
+                okey = str(infos[i].get("opponent_key", "OP3") or "")
+                # When red is a snapshot, pass key so callbacks get SNAPSHOT:name instead of SNAPSHOT:unknown
+                osnap = okey if okind == "snapshot" else ""
                 infos[i]["episode_result"] = {
                     "blue_score": bs,
                     "red_score": rs,
                     "success": 1 if bs > rs else 0,
                     "phase_name": str(infos[i].get("phase", "OP3")),
-                    "opponent_kind": str(infos[i].get("opponent_kind", "scripted")),
-                    "opponent_snapshot": "",
-                    "scripted_tag": str(infos[i].get("opponent_key", "OP3")),
+                    "opponent_kind": okind,
+                    "opponent_snapshot": osnap,
+                    "scripted_tag": okey if okind == "scripted" else "",
                     "species_tag": "BALANCED",
                     "collisions_per_episode": 0,
                     "collision_events_per_episode": 0,

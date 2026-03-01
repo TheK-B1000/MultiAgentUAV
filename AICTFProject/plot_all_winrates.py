@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plot win rate for 2v2, 3v3, and 4v4: League vs Paper vs Self-play vs OP3.
+Plot win rate for 2v2, 3v3, and 4v4: Ours vs Jacob et al. vs Self-play vs OP3.
 
 Evaluates 9 models total (3 per team size) and produces one figure with 3 panels.
 
@@ -8,9 +8,9 @@ Usage:
   python plot_all_winrates.py [--episodes N] [--out plot.png] [--checkpoint-dir DIR]
 
 Defaults (under checkpoints_sb3/):
-  2v2: final_weekend_league_2v2.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
+  2v2: final_ppo_league_2v2_colab.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
   3v3: final_ppo_league_3v3_colab.zip, final_ppo_paper_3v3_colab.zip, final_ppo_selfplay_3v3_colab.zip
-  4v4: final_ppo_league_4v4_colab.zip, final_ppo_paper_4v4_colab.zip, final_ppo_selfplay_4v4_colab.zip
+  4v4: final_ppo_league_4v4_colab.zip, final_weekend_paper_4v4.zip, final_ppo_selfplay_4v4_colab.zip
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ if SCRIPT_DIR not in sys.path:
 # Default filenames per team size (league, paper, selfplay)
 DEFAULTS = {
     2: (
-        "final_weekend_league_2v2.zip",
+        "final_ppo_league_2v2_colab.zip",
         "final_weekend_paper_2v2.zip",
         "final_weekend_selfplay_2v2.zip",
     ),
@@ -41,11 +41,11 @@ DEFAULTS = {
     ),
     4: (
         "final_ppo_league_4v4_colab.zip",
-        "final_ppo_paper_4v4_colab.zip",
+        "final_weekend_paper_4v4.zip",
         "final_ppo_selfplay_4v4_colab.zip",
     ),
 }
-METHOD_LABELS = ("League", "Paper", "Self-play")
+METHOD_LABELS = ("Ours", "Jacob et al.", "Self-play")
 
 
 def path_ensure_zip(path: str) -> str:
@@ -53,7 +53,7 @@ def path_ensure_zip(path: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Plot 2v2, 3v3, 4v4 win rates: League vs Paper vs Self-play")
+    parser = argparse.ArgumentParser(description="Plot 2v2, 3v3, 4v4 win rates: Ours vs Jacob et al. vs Self-play")
     parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). OP4 = held-out eval for generalization.")
     parser.add_argument("--out", type=str, default="all_winrates.png", help="Output plot path")
@@ -78,8 +78,8 @@ def main():
     for n_agents in (2, 3, 4):
         league_name, paper_name, selfplay_name = DEFAULTS[n_agents]
         paths = {
-            "League": os.path.join(ckpt_dir, path_ensure_zip(league_name)),
-            "Paper": os.path.join(ckpt_dir, path_ensure_zip(paper_name)),
+            "Ours": os.path.join(ckpt_dir, path_ensure_zip(league_name)),
+            "Jacob et al.": os.path.join(ckpt_dir, path_ensure_zip(paper_name)),
             "Self-play": os.path.join(ckpt_dir, path_ensure_zip(selfplay_name)),
         }
         for method, p in paths.items():
@@ -191,7 +191,8 @@ def main():
         print("matplotlib not installed; skipping plot. Install with: pip install matplotlib")
         return
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    plt.rc("font", size=16)
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
     colors = ["#2ecc71", "#3498db", "#9b59b6"]
 
     for idx, n_agents in enumerate((2, 3, 4)):
@@ -199,7 +200,7 @@ def main():
         suffix = f"{n_agents}v{n_agents}"
         method_order = [m for m in METHOD_LABELS if results[n_agents].get(m) and results[n_agents][m]["total"] > 0]
         if not method_order:
-            ax.set_title(suffix)
+            ax.set_title(suffix, fontsize=20)
             ax.set_ylim(0, 105)
             continue
         win_rates = [
@@ -209,14 +210,15 @@ def main():
         x = np.arange(len(method_order))
         bars = ax.bar(x, win_rates, color=colors[: len(method_order)], edgecolor="black", linewidth=1.2)
         ax.set_xticks(x)
-        ax.set_xticklabels(method_order)
-        ax.set_ylabel("Win rate vs " + opponent + " (%)")
-        ax.set_title(suffix)
+        ax.set_xticklabels(method_order, fontsize=18)
+        ax.tick_params(axis="y", labelsize=18)
+        ax.set_ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
+        ax.set_title(suffix, fontsize=20)
         ax.set_ylim(0, 105)
         for bar, wr in zip(bars, win_rates):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=10)
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)
 
-    plt.suptitle(f"Win rate ({n_episodes} episodes each)")
+    plt.suptitle(f"Win rate ({n_episodes} episodes each)", fontsize=22)
     plt.tight_layout()
     plt.savefig(args.out, dpi=150)
     print(f"Saved: {args.out}")

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-Plot 2v2 win rate of League, Paper, and Self-play models vs a scripted opponent (default OP3).
+Plot 2v2 win rate: Ours (league), Jacob et al. (paper), Self-play vs a scripted opponent (default OP3).
 
-Use --opponent OP4 to evaluate vs a held-out opponent (OP4 is never used in training);
-League (trained on variety) vs Paper (trained on OP3 only) on OP4 then tests generalization.
+Use --opponent OP4 to evaluate vs a held-out opponent (OP4 is never used in training).
 
 Uses the same evaluation environment as training: GPUCTFVecEnv (game_field_gpu.py),
 i.e. the same BatchedCTFCore backend. ctfviewer.py is for visual playback only (pygame);
@@ -13,7 +12,7 @@ Usage:
   python plot_2v2_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
 Defaults (under checkpoints_sb3/):
-  --league   final_weekend_league_2v2.zip
+  --league   final_ppo_league_2v2_colab.zip
   --paper    final_weekend_paper_2v2.zip
   --selfplay final_weekend_selfplay_2v2.zip
 """
@@ -35,7 +34,7 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 def main():
-    parser = argparse.ArgumentParser(description="Plot 2v2 win rate: League vs Paper vs Self-play")
+    parser = argparse.ArgumentParser(description="Plot 2v2 win rate: Ours vs Jacob et al. vs Self-play")
     parser.add_argument("--league", type=str, default=None, help="Path to League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
@@ -52,11 +51,11 @@ def main():
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_weekend_league_2v2.zip")
+    league_path = path_or_default(args.league, "final_ppo_league_2v2_colab.zip")
     paper_path = path_or_default(args.paper, "final_weekend_paper_2v2.zip")
     selfplay_path = path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip")
 
-    for label, p in [("League", league_path), ("Paper", paper_path), ("Self-play", selfplay_path)]:
+    for label, p in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         if not os.path.isfile(p):
             print(f"[WARN] Not found: {p}")
             sys.exit(1)
@@ -154,7 +153,7 @@ def main():
 
     # Run evaluation for each model
     results = {}
-    for label, path in [("League", league_path), ("Paper", paper_path), ("Self-play", selfplay_path)]:
+    for label, path in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         print(f"Evaluating {label}: {path} ...")
         w, l, d = run_eval(path)
         results[label] = {"wins": w, "losses": l, "draws": d, "total": w + l + d}
@@ -176,13 +175,15 @@ def main():
     win_rates = [(results[l]["wins"] / max(1, results[l]["total"]) * 100) for l in labels]
     colors = ["#2ecc71", "#3498db", "#9b59b6"]
     x = np.arange(len(labels))
+    plt.rc("font", size=16)
     bars = plt.bar(x, win_rates, color=colors, edgecolor="black", linewidth=1.2)
-    plt.xticks(x, labels)
-    plt.ylabel("Win rate vs " + opponent + " (%)")
-    plt.title("2v2 Win rate ({} episodes each)".format(n_episodes))
+    plt.xticks(x, labels, fontsize=18)
+    plt.yticks(fontsize=18)
+    plt.ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
+    plt.title("2v2 Win rate ({} episodes each)".format(n_episodes), fontsize=22)
     plt.ylim(0, 105)
     for i, (bar, wr) in enumerate(zip(bars, win_rates)):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=11)
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)
     plt.tight_layout()
     plt.savefig(args.out, dpi=150)
     print(f"Saved: {args.out}")
