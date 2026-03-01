@@ -63,6 +63,7 @@ PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
     "OP1": -0.5,
     "OP2": -1.0,
     "OP3": -1.5,
+    "OP4": -1.5,   # held-out eval only; same as OP3
     "SELF": -1.5,
 }
 

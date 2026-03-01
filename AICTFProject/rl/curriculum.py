@@ -19,7 +19,7 @@ def phase_from_tag(tag: str) -> str:
     t = str(tag).upper().strip()
     if t in ("OP1", "OP2"):
         return t
-    if t in ("OP3", "SELF_PLAY") or t == "":
+    if t in ("OP3", "OP4", "SELF_PLAY") or t == "":
         return "OP3"
     if t in ("BALANCED", "RUSHER", "CAMPER"):
         return "OP3"

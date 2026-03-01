@@ -368,7 +368,7 @@ class BatchedCTFCore:
         self._opponent_kind = str(kind).upper()
         self._opponent_key = str(key).upper()
         # Apply OP1/OP2/OP3 params so red actually plays easy/medium/strong (not always OP3).
-        if sample_batched_opponent_params is not None and self._opponent_kind == "SCRIPTED" and self._opponent_key in ("OP1", "OP2", "OP3"):
+        if sample_batched_opponent_params is not None and self._opponent_kind == "SCRIPTED" and self._opponent_key in ("OP1", "OP2", "OP3", "OP4"):
             try:
                 opp_params = sample_batched_opponent_params(
                     kind=self._opponent_kind,
@@ -1996,6 +1996,7 @@ class GPUCTFVecEnv(VecEnv):
                     "collision_free_episode": 1,
                     "near_misses_per_episode": 0,
                     "zone_coverage": 0.0,
+                    "decision_steps": int(infos[i].get("decision_steps", 0)),
                     "vec_schema_version": 1,
                 }
             self.core.reset_indices(reset_mask)

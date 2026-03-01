@@ -98,6 +98,31 @@ def sample_batched_opponent_params(
                 sync_c_low, sync_c_high = 3, 8
                 sync_nc_low, sync_nc_high = 3, 6
                 n_low, n_high = 0.0, 0.08
+        elif key == "OP4":
+            # Held-out eval opponent: never used in training. Aggressive rusher-like + high deception.
+            # Different from OP3 so League (trained on variety) can be fairly compared to Paper (OP3-only) on generalization.
+            attacker_style = 1
+            defender_style = 0
+            role_switch_prob = 0.45
+            if op3_easy:
+                if n_agents >= 8:
+                    s_low, s_high = 0.74, 0.88
+                elif n_agents >= 4:
+                    s_low, s_high = 0.72, 0.86
+                else:
+                    s_low, s_high = 0.92, 1.18
+                    d_low, d_high = 0.12, 0.28
+                    c_prob = 0.35
+                    sync_c_low, sync_c_high = 2, 6
+                    sync_nc_low, sync_nc_high = 2, 5
+                    n_low, n_high = 0.0, 0.05
+            else:
+                s_low, s_high = 0.85, 1.22
+                d_low, d_high = 0.15, 0.40
+                c_prob = 0.45
+                sync_c_low, sync_c_high = 3, 7
+                sync_nc_low, sync_nc_high = 3, 6
+                n_low, n_high = 0.01, 0.07
         else:
             attacker_style = 1
             defender_style = 1

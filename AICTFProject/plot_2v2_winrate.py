@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Plot 2v2 win rate of League, Paper, and Self-play models vs OP3.
+Plot 2v2 win rate of League, Paper, and Self-play models vs a scripted opponent (default OP3).
+
+Use --opponent OP4 to evaluate vs a held-out opponent (OP4 is never used in training);
+League (trained on variety) vs Paper (trained on OP3 only) on OP4 then tests generalization.
 
 Uses the same evaluation environment as training: GPUCTFVecEnv (game_field_gpu.py),
 i.e. the same BatchedCTFCore backend. ctfviewer.py is for visual playback only (pygame);
@@ -10,9 +13,9 @@ Usage:
   python plot_2v2_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
 Defaults (under checkpoints_sb3/):
-  --league   final_ppo_league_2v2_colab.zip
+  --league   final_weekend_league_2v2.zip
   --paper    final_ppo_paper_2v2_colab.zip
-  --selfplay final_ppo_selfplay_2v2_colab.zip
+  --selfplay final_weekend_selfplay_2v2.zip
 """
 from __future__ import annotations
 
@@ -37,7 +40,7 @@ def main():
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
-    parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3)")
+    parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training) to compare League vs Paper generalization.")
     parser.add_argument("--out", type=str, default="2v2_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
     args = parser.parse_args()
@@ -49,9 +52,9 @@ def main():
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_ppo_league_2v2_colab.zip")
+    league_path = path_or_default(args.league, "final_weekend_league_2v2.zip")
     paper_path = path_or_default(args.paper, "final_ppo_paper_2v2_colab.zip")
-    selfplay_path = path_or_default(args.selfplay, "final_ppo_selfplay_2v2_colab.zip")
+    selfplay_path = path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip")
 
     for label, p in [("League", league_path), ("Paper", paper_path), ("Self-play", selfplay_path)]:
         if not os.path.isfile(p):
