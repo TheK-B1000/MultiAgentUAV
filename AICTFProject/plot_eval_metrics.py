@@ -134,12 +134,25 @@ def run_eval_episodes(
                         decision_steps = int(ep_res.get("decision_steps", info.get("decision_steps", 0)))
                         zone_cov = float(ep_res.get("zone_coverage", 0.0))
                         collision_free = int(ep_res.get("collision_free_episode", 1))
+                        ttfs = ep_res.get("time_to_first_score")
+                        try:
+                            ttfs_f = float(ttfs) if ttfs is not None and ttfs != "" else np.nan
+                        except (TypeError, ValueError):
+                            ttfs_f = np.nan
+                        mean_dist = ep_res.get("mean_inter_robot_dist")
+                        try:
+                            mean_dist_f = float(mean_dist) if mean_dist is not None and mean_dist != "" else np.nan
+                        except (TypeError, ValueError):
+                            mean_dist_f = np.nan
                         episodes.append({
                             "success": success,
                             "steps": decision_steps,
                             "return": ep_return,
                             "zone_coverage": zone_cov,
                             "collision_free": collision_free,
+                            "win_margin": bs - rs,
+                            "time_to_first_score": ttfs_f,
+                            "mean_inter_robot_dist": mean_dist_f,
                         })
                         ep_return = 0.0
                 break
@@ -149,22 +162,33 @@ def run_eval_episodes(
 
 def compute_aggregates(episodes: list[dict]) -> dict:
     """Compute mean and std (over episodes) for paper-ready tables."""
+    base = {
+        "success_rate": 0.0,
+        "success_rate_std": 0.0,
+        "mean_steps": 0.0,
+        "mean_steps_std": 0.0,
+        "mean_return": 0.0,
+        "return_var": 0.0,
+        "return_var_std": 0.0,
+        "coverage_efficiency": 0.0,
+        "coverage_efficiency_std": 0.0,
+        "collision_free_rate": 0.0,
+        "collision_free_rate_std": 0.0,
+        "win_margin_mean": 0.0,
+        "win_margin_std": 0.0,
+        "time_to_first_score_mean": float("nan"),
+        "time_to_first_score_std": 0.0,
+        "mean_inter_robot_dist_mean": float("nan"),
+        "mean_inter_robot_dist_std": 0.0,
+    }
     if not episodes:
-        return {
-            "success_rate": 0.0,
-            "success_rate_std": 0.0,
-            "mean_steps": 0.0,
-            "mean_steps_std": 0.0,
-            "mean_return": 0.0,
-            "return_var": 0.0,
-            "return_var_std": 0.0,
-            "coverage_efficiency": 0.0,
-            "coverage_efficiency_std": 0.0,
-            "collision_free_rate": 0.0,
-            "collision_free_rate_std": 0.0,
-        }
+        return base
     arr = np.array([
-        [e["success"], e["steps"], e["return"], e["zone_coverage"], e["collision_free"]]
+        [e["success"], e["steps"], e["return"], e["zone_coverage"], e["collision_free"],
+        e["win_margin"],
+        e.get("time_to_first_score", np.nan),
+        e.get("mean_inter_robot_dist", np.nan),
+    ]
         for e in episodes
     ])
     n = arr.shape[0]
@@ -175,11 +199,21 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     mean_steps_std = float(np.std(arr[:, 1], ddof=ddof))
     mean_return = float(np.mean(arr[:, 2]))
     return_var = float(np.var(arr[:, 2], ddof=ddof))
-    return_var_std = 0.0  # single run: one variance value
+    return_var_std = 0.0
     coverage_efficiency = float(np.mean(arr[:, 3])) * 100.0
     coverage_efficiency_std = float(np.std(arr[:, 3], ddof=ddof)) * 100.0
     collision_free_rate = float(np.mean(arr[:, 4])) * 100.0
     collision_free_rate_std = float(np.std(arr[:, 4], ddof=ddof)) * 100.0
+    win_margin_mean = float(np.mean(arr[:, 5]))
+    win_margin_std = float(np.std(arr[:, 5], ddof=ddof))
+    ttfs = arr[:, 6]
+    ttfs_valid = ttfs[np.isfinite(ttfs)]
+    time_to_first_score_mean = float(np.mean(ttfs_valid)) if len(ttfs_valid) > 0 else np.nan
+    time_to_first_score_std = float(np.std(ttfs_valid, ddof=1)) if len(ttfs_valid) > 1 else 0.0
+    midist = arr[:, 7]
+    midist_valid = midist[np.isfinite(midist)]
+    mean_inter_robot_dist_mean = float(np.mean(midist_valid)) if len(midist_valid) > 0 else np.nan
+    mean_inter_robot_dist_std = float(np.std(midist_valid, ddof=1)) if len(midist_valid) > 1 else 0.0
     return {
         "success_rate": success_rate,
         "success_rate_std": success_rate_std,
@@ -192,6 +226,12 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "coverage_efficiency_std": coverage_efficiency_std,
         "collision_free_rate": collision_free_rate,
         "collision_free_rate_std": collision_free_rate_std,
+        "win_margin_mean": win_margin_mean,
+        "win_margin_std": win_margin_std,
+        "time_to_first_score_mean": time_to_first_score_mean,
+        "time_to_first_score_std": time_to_first_score_std,
+        "mean_inter_robot_dist_mean": mean_inter_robot_dist_mean,
+        "mean_inter_robot_dist_std": mean_inter_robot_dist_std,
     }
 
 
@@ -350,6 +390,12 @@ def main() -> None:
                 "return_variance_std": r.get("return_var_std", 0),
                 "coverage_efficiency_mean": r.get("coverage_efficiency", 0),
                 "coverage_efficiency_std": r.get("coverage_efficiency_std", 0),
+                "win_margin_mean": r.get("win_margin_mean", 0),
+                "win_margin_std": r.get("win_margin_std", 0),
+                "time_to_first_score_mean": r.get("time_to_first_score_mean", float("nan")),
+                "time_to_first_score_std": r.get("time_to_first_score_std", 0),
+                "mean_inter_robot_dist_mean": r.get("mean_inter_robot_dist_mean", float("nan")),
+                "mean_inter_robot_dist_std": r.get("mean_inter_robot_dist_std", 0),
             })
     # Print compact table to console
     print("\n--- Paper-ready metrics (mean ± std over episodes, opponent=%s) ---" % table_opp)
@@ -361,10 +407,17 @@ def main() -> None:
             m = row["method"]
             print(f"    {m}:")
             print(f"      success_rate:        {row['success_rate_mean']:.2f} ± {row['success_rate_std']:.2f} %")
+            print(f"      win_margin:           {row['win_margin_mean']:.2f} ± {row['win_margin_std']:.2f} (blue - red)")
             print(f"      mean_steps:          {row['mean_steps_mean']:.1f} ± {row['mean_steps_std']:.1f}")
             print(f"      collision_free:      {row['collision_free_mean']:.2f} ± {row['collision_free_std']:.2f} %")
             print(f"      return_variance:     {row['return_variance_mean']:.4f} ± {row['return_variance_std']:.4f}")
             print(f"      coverage_efficiency: {row['coverage_efficiency_mean']:.2f} ± {row['coverage_efficiency_std']:.2f} %")
+            ttfs = row.get('time_to_first_score_mean', float('nan'))
+            if ttfs is not None and (isinstance(ttfs, (int, float)) and np.isfinite(ttfs)):
+                print(f"      time_to_first_score: {ttfs:.2f} ± {row.get('time_to_first_score_std', 0):.2f} (lower = faster offense)")
+            midist = row.get('mean_inter_robot_dist_mean', float('nan'))
+            if midist is not None and (isinstance(midist, (int, float)) and np.isfinite(midist)):
+                print(f"      mean_inter_robot_dist: {midist:.3f} ± {row.get('mean_inter_robot_dist_std', 0):.3f} (higher = more spread)")
     if args.table_out and table_rows:
         import csv
         fieldnames = list(table_rows[0].keys())
@@ -396,6 +449,7 @@ def main() -> None:
         suffix: str,
         fmt: str = "{:.1f}%",
         ylim: tuple[float, float] | None = (0, 105),
+        draw_zero: bool = False,
     ) -> None:
         """One clean bar chart with 2v2 and 4v4 grouped (like 2v2_winrate style), agent count + opponent in title."""
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -410,9 +464,12 @@ def main() -> None:
         ax.set_ylabel(ylabel, fontsize=20)
         ax.set_title(title, fontsize=22)
         ax.legend(fontsize=16)
+        if draw_zero:
+            ax.axhline(0, color="gray", linestyle="--", linewidth=1)
         if ylim:
             ax.set_ylim(ylim[0], ylim[1])
-        text_offset = 1.5 if ylim else (max(values_2v2 + values_4v4) * 0.02 if (values_2v2 or values_4v4) else 0.01)
+        all_vals = values_2v2 + values_4v4
+        text_offset = 1.5 if ylim else (max(abs(v) for v in all_vals) * 0.05 + 0.1 if all_vals else 0.5)
         for bar, val in zip(bars1, values_2v2):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
         for bar, val in zip(bars2, values_4v4):
@@ -427,10 +484,24 @@ def main() -> None:
     r4 = results_by_mode["4v4"]
     labels = [m[0] for m in model_paths_2v2]
 
-    # 5 clean PNGs: Performance, Coordination, Robustness, Stability, Robotics (each shows 2v2 & 4v4, agent count + OP in title)
+    # 5 clean PNGs + Offense metrics (Performance, Win margin, Coordination, Robustness, Stability, Robotics)
     sr_2 = [r2[(l, plot_opp)]["success_rate"] for l in labels]
     sr_4 = [r4[(l, plot_opp)]["success_rate"] for l in labels]
     _save_single(f"Performance (2v2 & 4v4 vs {plot_opp})", f"Success rate vs {plot_opp} (%)", sr_2, sr_4, f"Performance_{plot_opp}")
+
+    # Win margin (blue - red): higher = dominance
+    wm_2 = [r2[(l, plot_opp)]["win_margin_mean"] for l in labels]
+    wm_4 = [r4[(l, plot_opp)]["win_margin_mean"] for l in labels]
+    _save_single(
+        f"Win margin (2v2 & 4v4 vs {plot_opp})",
+        "Win margin (blue - red)",
+        wm_2,
+        wm_4,
+        f"WinMargin_{plot_opp}",
+        fmt="{:.2f}",
+        ylim=None,
+        draw_zero=True,
+    )
 
     cf_2 = [r2[(l, plot_opp)]["collision_free_rate"] for l in labels]
     cf_4 = [r4[(l, plot_opp)]["collision_free_rate"] for l in labels]
