@@ -1343,8 +1343,10 @@ class BatchedCTFCore:
         )
 
         grab_r = 1.2
-        blue_grab_env = (~self.red_carrying.any(dim=1)) & ((b_to_red <= grab_r) & (~self.blue_tagged)).any(dim=1)
-        red_grab_env = (~self.blue_carrying.any(dim=1)) & ((r_to_blue <= grab_r) & (~self.red_tagged)).any(dim=1)
+        # Allow simultaneous flag steals: blue can grab red flag even if red is
+        # already carrying blue flag, and vice versa (mirror real CTF rules).
+        blue_grab_env = ((b_to_red <= grab_r) & (~self.blue_tagged)).any(dim=1)
+        red_grab_env = ((r_to_blue <= grab_r) & (~self.red_tagged)).any(dim=1)
 
         if blue_grab_env.any():
             idx = torch.argmax(((b_to_red <= grab_r) & (~self.blue_tagged)).to(torch.int64), dim=1)

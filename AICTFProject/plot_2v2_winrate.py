@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training) to compare League vs Paper generalization.")
+    parser.add_argument("--seed", type=int, default=42, help="Base random seed for eval env (OP4 uses seed+1 to avoid identical streams).")
     parser.add_argument("--out", type=str, default="2v2_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
     args = parser.parse_args()
@@ -67,7 +68,8 @@ def main():
     n_episodes = args.episodes
     opponent = args.opponent.upper()
     # Different seed per opponent so OP3 vs OP4 runs don't replay the same RNG stream
-    seed = 42 + (1 if opponent == "OP4" else 0)
+    base_seed = int(args.seed)
+    seed = base_seed + (1 if opponent == "OP4" else 0)
     print(f"2v2 win rate vs {opponent} ({n_episodes} episodes per model, seed={seed})")
 
     cfg = GPUFieldConfig(

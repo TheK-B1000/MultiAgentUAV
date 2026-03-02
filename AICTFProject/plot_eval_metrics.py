@@ -226,14 +226,17 @@ def load_training_success_auc(csv_path: str) -> float | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2 and 4v4)")
+    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2, 3v3, 4v4)")
     parser.add_argument("--league", type=str, default=None, help="2v2 League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="2v2 Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="2v2 Self-play model .zip")
+    parser.add_argument("--league-3v3", type=str, default=None, help="3v3 League model .zip")
+    parser.add_argument("--paper-3v3", type=str, default=None, help="3v3 Paper model .zip")
+    parser.add_argument("--selfplay-3v3", type=str, default=None, help="3v3 Self-play model .zip")
     parser.add_argument("--league-4v4", type=str, default=None, help="4v4 League model .zip")
     parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 Paper model .zip")
     parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play model .zip")
-    parser.add_argument("--episodes", type=int, default=25)
+    parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--opponent", type=str, default=None, help="Single opponent (used only if --opponents not set)")
     parser.add_argument(
         "--opponents",
@@ -262,13 +265,19 @@ def main() -> None:
         ("Jacob et al.", path_or_default(args.paper, "final_weekend_paper_2v2.zip")),
         ("Self-play", path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip")),
     ]
+    # 3v3: matches plot_3v3_winrate.py
+    model_paths_3v3 = [
+        ("Ours", path_or_default(args.league_3v3, "final_weekend_league_3v3.zip")),
+        ("Jacob et al.", path_or_default(args.paper_3v3, "final_weekend_paper_3v3.zip")),
+        ("Self-play", path_or_default(args.selfplay_3v3, "final_weekend_selfplay_3v3.zip")),
+    ]
     # 4v4: same defaults as plot_4v4_winrate.py
     model_paths_4v4 = [
         ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4_colab.zip")),
         ("Jacob et al.", path_or_default(args.paper_4v4, "final_weekend_paper_4v4.zip")),
         ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_selfplay_4v4_colab.zip")),
     ]
-    for _label, p in model_paths_2v2 + model_paths_4v4:
+    for _label, p in model_paths_2v2 + model_paths_3v3 + model_paths_4v4:
         if not os.path.isfile(p):
             print(f"[WARN] Not found: {p}")
             sys.exit(1)
@@ -284,6 +293,7 @@ def main() -> None:
 
     for mode, n_agents, model_paths in [
         ("2v2", 2, model_paths_2v2),
+        ("3v3", 3, model_paths_3v3),
         ("4v4", 4, model_paths_4v4),
     ]:
         # Match winrate scripts: use a fresh env (and seed) per opponent, so numbers are directly comparable
@@ -316,13 +326,13 @@ def main() -> None:
         if training_auc is not None:
             print(f"Training AUC (success curve): {training_auc:.4f}")
 
-    # Paper-ready table: mean ± std per method per setting (2v2, 4v4); use --table-opponent to pick OP4
+    # Paper-ready table: mean ± std per method per setting (2v2, 3v3, 4v4); use --table-opponent to pick OP4
     main_opp = opponents[0]
     table_opp = (args.table_opponent or "").strip().upper() or main_opp
     if table_opp not in opponents:
         table_opp = main_opp
     table_rows: list[dict] = []
-    for mode, model_paths in [("2v2", model_paths_2v2), ("4v4", model_paths_4v4)]:
+    for mode, model_paths in [("2v2", model_paths_2v2), ("3v3", model_paths_3v3), ("4v4", model_paths_4v4)]:
         results = results_by_mode[mode]
         for label, _ in model_paths:
             r = results.get((label, table_opp), {})
@@ -343,7 +353,7 @@ def main() -> None:
             })
     # Print compact table to console
     print("\n--- Paper-ready metrics (mean ± std over episodes, opponent=%s) ---" % table_opp)
-    for mode in ("2v2", "4v4"):
+    for mode in ("2v2", "3v3", "4v4"):
         print(f"\n  [{mode}]")
         for row in table_rows:
             if row["setting"] != mode:

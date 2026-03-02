@@ -524,11 +524,35 @@ class CTFViewer:
         self.cfg.max_red_agents = agents
         self.core = BatchedCTFCore(self.cfg)
         self.core.blue_scripted = (self.blue_mode == "DEMO")
+        # Reconfigure opponent to match OP4 scripted behavior for the new team size
         try:
-            self.core.set_dynamics_config(
-                {"attacker_style": 1, "defender_style": 1, "role_switch_prob": 0.3}
+            self.core.set_phase("OP4")
+            self.core.set_stress_schedule(STRESS_BY_PHASE)
+            self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
+
+            opp = sample_batched_opponent_params(
+                kind="SCRIPTED",
+                key="OP4",
+                phase="OP4",
+                n_agents=agents,
+                batch_size=self.cfg.n_envs,
+                device=self.cfg.device,
             )
+            dyn_cfg: Dict[str, Any] = {}
+            if "deception_prob" in opp:
+                dyn_cfg["deception_prob"] = opp["deception_prob"]
+            if "speed_mult" in opp:
+                dyn_cfg["speed_mult"] = opp["speed_mult"]
+            if "attacker_style" in opp:
+                dyn_cfg["attacker_style"] = opp["attacker_style"]
+            if "defender_style" in opp:
+                dyn_cfg["defender_style"] = opp["defender_style"]
+            if "role_switch_prob" in opp:
+                dyn_cfg["role_switch_prob"] = opp["role_switch_prob"]
+            if dyn_cfg:
+                self.core.set_dynamics_config(dyn_cfg)
         except Exception:
+            # If curriculum/opponent code is unavailable, fall back to defaults
             pass
         self.core.reset_all()
         self.renderer = CoreRenderer(self.core)
