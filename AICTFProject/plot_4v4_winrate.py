@@ -65,7 +65,9 @@ def main():
     device = args.device
     n_episodes = args.episodes
     opponent = args.opponent.upper()
-    print(f"4v4 win rate vs {opponent} ({n_episodes} episodes per model)")
+    # Use different seed per opponent so OP3 vs OP4 runs don't replay the same RNG stream (which can yield identical W/L/D)
+    seed = 42 + (1 if opponent == "OP4" else 0)
+    print(f"4v4 win rate vs {opponent} ({n_episodes} episodes per model, seed={seed})")
 
     cfg = GPUFieldConfig(
         n_envs=1,
@@ -75,7 +77,7 @@ def main():
         aquaticus_profile=True,
         rules_profile="AQUATICUS_2024",
         device=device,
-        seed=42,
+        seed=seed,
     )
     env = GPUCTFVecEnv(cfg)
     try:
@@ -84,6 +86,16 @@ def main():
         out = env.env_method("get_opponent_key")
         actual = (out[0] if out else "").strip().upper()
         print(f"Opponent: {actual} (requested {opponent})")
+        # Log red params so we can confirm OP3 vs OP4 differ (defender_style, role_switch, speed)
+        try:
+            core = getattr(env, "core", None) or (getattr(env, "vec", None) and getattr(env.vec, "core", None))
+            if core is not None:
+                ds = int(core.red_defender_style[0].item())
+                rs = float(core.red_role_switch_prob[0].item())
+                sp = float(core.red_speed_mult[0].item())
+                print(f"  red params: defender_style={ds}, role_switch_prob={rs:.2f}, speed_mult={sp:.2f}")
+        except Exception:
+            pass
         if actual != opponent:
             import warnings
             warnings.warn(f"Opponent mismatch: core has {actual!r}, requested {opponent!r}. Eval may not be vs intended opponent.")
