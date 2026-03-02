@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Plot 4v4 win rate: Ours (league), Jacob et al. (paper), Self-play vs a scripted opponent (default OP3).
+Plot 4v4 win rate: Ours (league), Jacob et al. (paper), Self-play vs a scripted opponent.
 
-Use --opponent OP4 to evaluate vs a held-out opponent (OP4 is never used in training).
+Default opponent: OP4 (held-out, harder than OP3; never used in training). Use --opponent OP3 for in-training opponent.
 
 Uses the same evaluation environment as training: GPUCTFVecEnv (game_field_gpu.py).
 Training is done with rl/train_ppo.py.
@@ -37,7 +37,7 @@ def main():
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
-    parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval.")
+    parser.add_argument("--opponent", type=str, default="OP4", help="Scripted opponent (OP1, OP2, OP3, OP4). Default OP4 (harder, held-out).")
     parser.add_argument("--out", type=str, default="4v4_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
     args = parser.parse_args()
@@ -65,6 +65,7 @@ def main():
     device = args.device
     n_episodes = args.episodes
     opponent = args.opponent.upper()
+    print(f"4v4 win rate vs {opponent} ({n_episodes} episodes per model)")
 
     cfg = GPUFieldConfig(
         n_envs=1,
@@ -80,8 +81,15 @@ def main():
     try:
         env.env_method("set_phase", opponent)
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
-    except Exception:
-        pass
+        out = env.env_method("get_opponent_key")
+        actual = (out[0] if out else "").strip().upper()
+        print(f"Opponent: {actual} (requested {opponent})")
+        if actual != opponent:
+            import warnings
+            warnings.warn(f"Opponent mismatch: core has {actual!r}, requested {opponent!r}. Eval may not be vs intended opponent.")
+    except Exception as e:
+        import warnings
+        warnings.warn(f"Failed to set opponent to {opponent!r}: {e}. Red team may still be previous opponent.")
 
     from rl.train_ppo import MaskedMultiInputPolicy
 

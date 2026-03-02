@@ -66,6 +66,7 @@ def main():
     device = args.device
     n_episodes = args.episodes
     opponent = args.opponent.upper()
+    print(f"2v2 win rate vs {opponent} ({n_episodes} episodes per model)")
 
     cfg = GPUFieldConfig(
         n_envs=1,
@@ -81,8 +82,15 @@ def main():
     try:
         env.env_method("set_phase", opponent)
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
-    except Exception:
-        pass
+        out = env.env_method("get_opponent_key")
+        actual = (out[0] if out else "").strip().upper()
+        print(f"Opponent: {actual} (requested {opponent})")
+        if actual != opponent:
+            import warnings
+            warnings.warn(f"Opponent mismatch: core has {actual!r}, requested {opponent!r}. Eval may not be vs intended opponent.")
+    except Exception as e:
+        import warnings
+        warnings.warn(f"Failed to set opponent to {opponent!r}: {e}. Red team may still be previous opponent.")
 
     from rl.train_ppo import MaskedMultiInputPolicy
 

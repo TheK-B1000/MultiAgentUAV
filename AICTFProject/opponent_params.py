@@ -1,6 +1,15 @@
 """
 OpponentParams: Batched per-episode adversarial style (speed, deception, coordinated attack).
 Each style maps to a distribution over these params and returns GPU tensors for BatchedCTFCore.
+
+OP3 vs OP4 (must be clearly different for held-out eval):
+  - OP3: Used in training. Medium attacker + medium defender (defender_style=1), moderate
+    role switching (0.35), moderate deception and speed. Balanced play.
+  - OP4: Held-out; never used in training. Medium attacker + EASY defender (defender_style=0)
+    so red commits more to attack (rusher-like). Higher role_switch_prob (0.45+), higher
+    deception and speed bounds. Intentionally harder and behaviorally distinct from OP3.
+  The core uses: red_attacker_style, red_defender_style, red_deception_prob, red_speed_mult,
+  red_role_switch_prob, so OP3 vs OP4 produce different red behavior.
 """
 from __future__ import annotations
 
@@ -99,30 +108,31 @@ def sample_batched_opponent_params(
                 sync_nc_low, sync_nc_high = 3, 6
                 n_low, n_high = 0.0, 0.08
         elif key == "OP4":
-            # Held-out eval opponent: never used in training. Aggressive rusher-like + high deception.
-            # Different from OP3 so League (trained on variety) can be fairly compared to Paper (OP3-only) on generalization.
+            # Held-out eval opponent: never used in training. Intentionally harder and distinct from OP3:
+            # rusher-like (attacker_style=1, defender_style=0), higher speed & deception, more role switching.
             attacker_style = 1
-            defender_style = 0
-            role_switch_prob = 0.45
+            defender_style = 0  # easy defender -> red commits more to attack (OP3 has 1 = medium defender)
+            role_switch_prob = 0.50  # OP3 uses 0.35 -> OP4 switches roles more
             if op3_easy:
                 if n_agents >= 8:
                     s_low, s_high = 0.74, 0.88
                 elif n_agents >= 4:
                     s_low, s_high = 0.72, 0.86
                 else:
-                    s_low, s_high = 0.92, 1.18
-                    d_low, d_high = 0.12, 0.28
+                    s_low, s_high = 0.95, 1.22  # faster than OP3 (0.88-1.08)
+                    d_low, d_high = 0.15, 0.32  # higher deception than OP3 (0.05-0.18)
                     c_prob = 0.35
                     sync_c_low, sync_c_high = 2, 6
                     sync_nc_low, sync_nc_high = 2, 5
                     n_low, n_high = 0.0, 0.05
             else:
-                s_low, s_high = 0.85, 1.22
-                d_low, d_high = 0.15, 0.40
-                c_prob = 0.45
+                # 2v2 / harder branch: clearly faster and more deceptive than OP3
+                s_low, s_high = 0.92, 1.28   # OP3 uses phase default 0.75-1.25 -> OP4 faster
+                d_low, d_high = 0.22, 0.48   # OP3 0.1-0.35 -> OP4 higher deception
+                c_prob = 0.48
                 sync_c_low, sync_c_high = 3, 7
                 sync_nc_low, sync_nc_high = 3, 6
-                n_low, n_high = 0.01, 0.07
+                n_low, n_high = 0.01, 0.08
         else:
             attacker_style = 1
             defender_style = 1

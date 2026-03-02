@@ -391,8 +391,16 @@ class BatchedCTFCore:
                     dyn_cfg["role_switch_prob"] = opp_params["role_switch_prob"]
                 if dyn_cfg:
                     self.set_dynamics_config(dyn_cfg)
-            except Exception:
-                pass
+            except Exception as e:
+                import warnings
+                warnings.warn(
+                    f"BatchedCTFCore: set_next_opponent({self._opponent_key!r}) failed to apply params: {e}. "
+                    "Red team may still use previous opponent params — OP3 vs OP4 evals can match."
+                )
+
+    def get_opponent_key(self) -> str:
+        """Return current red opponent key (OP1/OP2/OP3/OP4). For eval verification."""
+        return str(self._opponent_key)
 
     def set_dynamics_config(self, cfg: Optional[Dict[str, Any]]) -> None:
         if not isinstance(cfg, dict):

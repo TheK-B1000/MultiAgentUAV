@@ -6,7 +6,7 @@ Uses the same models as plot_2v2_winrate and plot_4v4_winrate (Ours / Jacob et a
 Runs both 2v2 and 4v4 eval with GPUCTFVecEnv (optional OP3/OP4) and collects:
   - Performance: success rate, mean steps to completion
   - Coordination: coverage efficiency (zone_coverage), coordination proxy (collision-free)
-  - Robustness: generalization (success vs OP4 vs OP3 if --opponents OP3 OP4)
+  - Robustness: generalization (success vs OP3 vs OP4); default eval uses both opponents
   - Stability: return variance across episodes
   - Specialization: placeholder (requires action logging)
   - Robotics: safety (collision-free rate); energy/path N/A
@@ -14,7 +14,9 @@ Runs both 2v2 and 4v4 eval with GPUCTFVecEnv (optional OP3/OP4) and collects:
 Usage:
   python plot_eval_metrics.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N]
   python plot_eval_metrics.py [--league-4v4 PATH] [--paper-4v4 PATH] [--selfplay-4v4 PATH]  # 4v4 checkpoints
-  python plot_eval_metrics.py --opponents OP3 OP4 --episodes 50 --out eval_metrics.png
+  python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
+  python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
+  python plot_eval_metrics.py --table-out eval_table.csv --out eval_metrics.png
   python plot_eval_metrics.py --training-csv logs/behavior_ppo.csv   # add AUC learning curve if CSV has episode_id, success
 
   Produces eval_metrics_2v2.png and eval_metrics_4v4.png (or base of --out + _2v2.png / _4v4.png).
@@ -86,8 +88,22 @@ def run_eval_episodes(
     try:
         env.env_method("set_phase", opponent)
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
-    except Exception:
-        pass
+        # Verify core actually has this opponent (so eval is truly vs OP3/OP4)
+        out = env.env_method("get_opponent_key")
+        actual = (out[0] if out else "").strip().upper()
+        requested = str(opponent).strip().upper()
+        if actual != requested:
+            import warnings
+            warnings.warn(
+                f"Opponent mismatch: requested {requested!r}, core has {actual!r}. "
+                "Eval may not be against the intended opponent."
+            )
+    except Exception as e:
+        import warnings
+        warnings.warn(
+            f"Failed to set opponent to {opponent!r}: {e}. "
+            "Red team may still be using the previous opponent — OP3 vs OP4 results can look identical."
+        )
 
     episodes: list[dict] = []
     obs = env.reset()
@@ -130,32 +146,50 @@ def run_eval_episodes(
 
 
 def compute_aggregates(episodes: list[dict]) -> dict:
+    """Compute mean and std (over episodes) for paper-ready tables."""
     if not episodes:
         return {
             "success_rate": 0.0,
+            "success_rate_std": 0.0,
             "mean_steps": 0.0,
+            "mean_steps_std": 0.0,
             "mean_return": 0.0,
             "return_var": 0.0,
+            "return_var_std": 0.0,
             "coverage_efficiency": 0.0,
+            "coverage_efficiency_std": 0.0,
             "collision_free_rate": 0.0,
+            "collision_free_rate_std": 0.0,
         }
     arr = np.array([
         [e["success"], e["steps"], e["return"], e["zone_coverage"], e["collision_free"]]
         for e in episodes
     ])
+    n = arr.shape[0]
+    ddof = 1 if n > 1 else 0
     success_rate = float(np.mean(arr[:, 0])) * 100.0
+    success_rate_std = float(np.std(arr[:, 0], ddof=ddof)) * 100.0
     mean_steps = float(np.mean(arr[:, 1]))
+    mean_steps_std = float(np.std(arr[:, 1], ddof=ddof))
     mean_return = float(np.mean(arr[:, 2]))
-    return_var = float(np.var(arr[:, 2]))
+    return_var = float(np.var(arr[:, 2], ddof=ddof))
+    return_var_std = 0.0  # single run: one variance value
     coverage_efficiency = float(np.mean(arr[:, 3])) * 100.0
+    coverage_efficiency_std = float(np.std(arr[:, 3], ddof=ddof)) * 100.0
     collision_free_rate = float(np.mean(arr[:, 4])) * 100.0
+    collision_free_rate_std = float(np.std(arr[:, 4], ddof=ddof)) * 100.0
     return {
         "success_rate": success_rate,
+        "success_rate_std": success_rate_std,
         "mean_steps": mean_steps,
+        "mean_steps_std": mean_steps_std,
         "mean_return": mean_return,
         "return_var": return_var,
+        "return_var_std": return_var_std,
         "coverage_efficiency": coverage_efficiency,
+        "coverage_efficiency_std": coverage_efficiency_std,
         "collision_free_rate": collision_free_rate,
+        "collision_free_rate_std": collision_free_rate_std,
     }
 
 
@@ -198,15 +232,16 @@ def main() -> None:
     parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 Paper model .zip")
     parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=25)
-    parser.add_argument("--opponent", type=str, default="OP4", help="Single opponent for main eval")
+    parser.add_argument("--opponent", type=str, default=None, help="Single opponent (used only if --opponents not set)")
     parser.add_argument(
         "--opponents",
         type=str,
         nargs="+",
         default=None,
-        help="E.g. OP3 OP4 to compute generalization (success on OP4 vs OP3)",
+        help="Opponents to evaluate (default: OP3 OP4 for full metrics + robustness). E.g. --opponents OP4 for single opponent.",
     )
     parser.add_argument("--out", type=str, default="eval_metrics.png")
+    parser.add_argument("--table-out", type=str, default=None, help="If set, write paper-ready metrics table to this CSV (e.g. eval_table.csv)")
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--training-csv", type=str, default=None, help="Optional training CSV for AUC learning curve")
     args = parser.parse_args()
@@ -237,7 +272,8 @@ def main() -> None:
 
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 
-    opponents = args.opponents if args.opponents else [args.opponent]
+    # Default: OP3 + OP4 so one run gives all metrics and robustness; use --opponents OP4 for single opponent
+    opponents = args.opponents if args.opponents else ([args.opponent] if args.opponent is not None else ["OP3", "OP4"])
     n_episodes = args.episodes
 
     # results_by_mode[mode][(label, opponent)] = aggregate dict
@@ -274,8 +310,56 @@ def main() -> None:
         if training_auc is not None:
             print(f"Training AUC (success curve): {training_auc:.4f}")
 
+    # Paper-ready table: mean ± std per method per setting (2v2, 4v4); primary opponent only
+    main_opp = opponents[0]
+    table_rows: list[dict] = []
+    for mode, model_paths in [("2v2", model_paths_2v2), ("4v4", model_paths_4v4)]:
+        results = results_by_mode[mode]
+        for label, _ in model_paths:
+            r = results.get((label, main_opp), {})
+            table_rows.append({
+                "setting": mode,
+                "method": label,
+                "opponent": main_opp,
+                "success_rate_mean": r.get("success_rate", 0),
+                "success_rate_std": r.get("success_rate_std", 0),
+                "mean_steps_mean": r.get("mean_steps", 0),
+                "mean_steps_std": r.get("mean_steps_std", 0),
+                "collision_free_mean": r.get("collision_free_rate", 0),
+                "collision_free_std": r.get("collision_free_rate_std", 0),
+                "return_variance_mean": r.get("return_var", 0),
+                "return_variance_std": r.get("return_var_std", 0),
+                "coverage_efficiency_mean": r.get("coverage_efficiency", 0),
+                "coverage_efficiency_std": r.get("coverage_efficiency_std", 0),
+            })
+    # Print compact table to console
+    print("\n--- Paper-ready metrics (mean ± std over episodes, opponent=%s) ---" % main_opp)
+    for mode in ("2v2", "4v4"):
+        print(f"\n  [{mode}]")
+        for row in table_rows:
+            if row["setting"] != mode:
+                continue
+            m = row["method"]
+            print(f"    {m}:")
+            print(f"      success_rate:        {row['success_rate_mean']:.2f} ± {row['success_rate_std']:.2f} %")
+            print(f"      mean_steps:          {row['mean_steps_mean']:.1f} ± {row['mean_steps_std']:.1f}")
+            print(f"      collision_free:      {row['collision_free_mean']:.2f} ± {row['collision_free_std']:.2f} %")
+            print(f"      return_variance:     {row['return_variance_mean']:.4f} ± {row['return_variance_std']:.4f}")
+            print(f"      coverage_efficiency: {row['coverage_efficiency_mean']:.2f} ± {row['coverage_efficiency_std']:.2f} %")
+    if args.table_out and table_rows:
+        import csv
+        fieldnames = list(table_rows[0].keys())
+        with open(args.table_out, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(table_rows)
+        print(f"\nTable saved: {args.table_out}")
+
     import matplotlib.pyplot as plt
     plt.rc("font", size=16)
+    # Match winrate plot style: same colors per method, black bar edges, value labels
+    bar_colors = ["#2ecc71", "#3498db", "#9b59b6"]  # Ours, Jacob et al., Self-play
+    bar_kw = dict(edgecolor="black", linewidth=1.2)
 
     # Output path: eval_metrics.png -> eval_metrics_2v2.png, eval_metrics_4v4.png
     base_out = args.out
@@ -296,21 +380,25 @@ def main() -> None:
 
         fig, axes = plt.subplots(2, 3, figsize=(14, 9))
         fig.suptitle(f"Evaluation metrics ({mode})", fontsize=22)
+        for ax in axes.flat:
+            ax.tick_params(axis="both", labelsize=18)
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels, fontsize=18)
 
         # 1. Performance
         ax = axes[0, 0]
         ax.set_title("Performance", fontsize=20)
         sr = [results[(l, main_opp)]["success_rate"] for l in labels]
-        ax.bar(x - width / 2, sr, width, label="Success rate (%)", color="#2ecc71")
-        ax.set_ylabel("Success rate (%)", fontsize=18)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=18)
-        ax.tick_params(axis="y", labelsize=18)
+        bars = ax.bar(x - width / 2, sr, width, label="Success rate (%)", color=bar_colors, **bar_kw)
+        for bar, val in zip(bars, sr):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=16)
+        ax.set_ylabel("Success rate (%)", fontsize=20)
         ax.set_ylim(0, 105)
         ax2 = ax.twinx()
         steps = [results[(l, main_opp)]["mean_steps"] for l in labels]
-        ax2.bar(x + width / 2, steps, width, label="Mean steps to done", color="#3498db", alpha=0.7)
-        ax2.set_ylabel("Mean steps (lower better)", fontsize=18)
+        bars2 = ax2.bar(x + width / 2, steps, width, label="Mean steps", color=bar_colors, alpha=0.85, **bar_kw)
+        ax2.set_ylabel("Mean steps (lower better)", fontsize=20)
+        ax2.tick_params(axis="y", labelsize=18)
         ax.legend(loc="upper left", fontsize=14)
         ax2.legend(loc="upper right", fontsize=14)
 
@@ -319,12 +407,13 @@ def main() -> None:
         ax.set_title("Coordination", fontsize=20)
         cov = [results[(l, main_opp)]["coverage_efficiency"] for l in labels]
         cf = [results[(l, main_opp)]["collision_free_rate"] for l in labels]
-        ax.bar(x - width / 2, cov, width, label="Coverage efficiency (%)", color="#9b59b6")
-        ax.bar(x + width / 2, cf, width, label="Collision-free rate (%)", color="#e74c3c", alpha=0.7)
-        ax.set_ylabel("%", fontsize=18)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=18)
-        ax.tick_params(axis="y", labelsize=18)
+        b1 = ax.bar(x - width / 2, cov, width, label="Coverage (%)", color=bar_colors, **bar_kw)
+        b2 = ax.bar(x + width / 2, cf, width, label="Collision-free (%)", color="#e74c3c", alpha=0.85, **bar_kw)
+        for bar, val in zip(b1, cov):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{val:.0f}", ha="center", fontsize=14)
+        for bar, val in zip(b2, cf):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{val:.0f}", ha="center", fontsize=14)
+        ax.set_ylabel("%", fontsize=20)
         ax.set_ylim(0, 105)
         ax.legend(fontsize=14)
 
@@ -334,28 +423,28 @@ def main() -> None:
         if "OP4" in opponents and "OP3" in opponents:
             sr_op3 = [results.get((l, "OP3"), {}).get("success_rate", 0) for l in labels]
             sr_op4 = [results.get((l, "OP4"), {}).get("success_rate", 0) for l in labels]
-            ax.bar(x - width / 2, sr_op3, width, label="Success vs OP3 (%)", color="#3498db")
-            ax.bar(x + width / 2, sr_op4, width, label="Success vs OP4 (%)", color="#e67e22")
-            ax.set_ylabel("Success rate (%)", fontsize=18)
+            b3 = ax.bar(x - width / 2, sr_op3, width, label="vs OP3 (%)", color=bar_colors, **bar_kw)
+            b4 = ax.bar(x + width / 2, sr_op4, width, label="vs OP4 (%)", color="#e67e22", alpha=0.9, **bar_kw)
+            for bar, val in zip(b3, sr_op3):
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{val:.1f}", ha="center", fontsize=14)
+            for bar, val in zip(b4, sr_op4):
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{val:.1f}", ha="center", fontsize=14)
+            ax.set_ylabel("Success rate (%)", fontsize=20)
             ax.legend(fontsize=14)
         else:
             ax.text(0.5, 0.5, "Use --opponents OP3 OP4\nfor generalization", ha="center", va="center", transform=ax.transAxes, fontsize=16)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=18)
-        ax.tick_params(axis="y", labelsize=18)
         ax.set_ylim(0, 105)
 
         # 4. Stability
         ax = axes[1, 0]
         ax.set_title("Stability (return variance)", fontsize=20)
         rvar = [results[(l, main_opp)]["return_var"] for l in labels]
-        ax.bar(x, rvar, color=["#2ecc71", "#3498db", "#9b59b6"])
-        ax.set_ylabel("Variance of episode return", fontsize=18)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=18)
-        ax.tick_params(axis="y", labelsize=18)
+        bars = ax.bar(x, rvar, color=bar_colors, **bar_kw)
+        for bar, val in zip(bars, rvar):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01, f"{val:.3f}", ha="center", fontsize=14)
+        ax.set_ylabel("Variance of episode return", fontsize=20)
         if training_auc is not None:
-            ax.text(0.02, 0.98, f"Training AUC: {training_auc:.3f}", transform=ax.transAxes, fontsize=14, va="top")
+            ax.text(0.02, 0.98, f"Training AUC: {training_auc:.3f}", transform=ax.transAxes, fontsize=12, va="top")
 
         # 5. Specialization
         ax = axes[1, 1]
@@ -367,13 +456,11 @@ def main() -> None:
         ax = axes[1, 2]
         ax.set_title("Robotics metrics", fontsize=20)
         safety = [results[(l, main_opp)]["collision_free_rate"] for l in labels]
-        ax.bar(x, safety, color=["#2ecc71", "#3498db", "#9b59b6"])
-        ax.set_ylabel("Safety (collision-free %)", fontsize=18)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=18)
-        ax.tick_params(axis="y", labelsize=18)
+        bars = ax.bar(x, safety, color=bar_colors, **bar_kw)
+        for bar, val in zip(bars, safety):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=18)
+        ax.set_ylabel("Safety (collision-free %)", fontsize=20)
         ax.set_ylim(0, 105)
-        ax.text(0.02, 0.02, "Energy / path optimality: N/A", transform=ax.transAxes, fontsize=14)
 
         plt.tight_layout()
         out_path = f"{base_out}_{mode}.png"
