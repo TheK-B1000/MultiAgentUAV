@@ -49,9 +49,23 @@ def main() -> None:
         default=42,
         help="Base random seed for eval env (OP4 uses seed+1 to avoid identical streams).",
     )
+    parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
+    parser.add_argument("--match-eval-op3", action="store_true", help="Use OP3 (training-time opponent), 100 episodes, seed=42.")
     parser.add_argument("--out", type=str, default="3v3_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
     args = parser.parse_args()
+    if args.match_eval:
+        args.opponent = "OP4"
+        args.episodes = 100
+        args.seed = 42
+        if args.out == "3v3_winrate.png":
+            args.out = "3v3_winrate_OP4_100ep.png"
+    elif args.match_eval_op3:
+        args.opponent = "OP3"
+        args.episodes = 100
+        args.seed = 42
+        if args.out == "3v3_winrate.png":
+            args.out = "3v3_winrate_OP3_100ep.png"
 
     default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3")
 

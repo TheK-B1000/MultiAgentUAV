@@ -38,9 +38,24 @@ def main():
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP4", help="Scripted opponent (OP1, OP2, OP3, OP4). Default OP4 (harder, held-out).")
+    parser.add_argument("--seed", type=int, default=42, help="Base random seed (OP4 uses seed+1). Use --seed 42 to match plot_eval_metrics.")
+    parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
+    parser.add_argument("--match-eval-op3", action="store_true", help="Use OP3 (training-time opponent), 100 episodes, seed=42.")
     parser.add_argument("--out", type=str, default="4v4_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
     args = parser.parse_args()
+    if args.match_eval:
+        args.opponent = "OP4"
+        args.episodes = 100
+        args.seed = 42
+        if args.out == "4v4_winrate.png":
+            args.out = "4v4_winrate_OP4_100ep.png"
+    elif args.match_eval_op3:
+        args.opponent = "OP3"
+        args.episodes = 100
+        args.seed = 42
+        if args.out == "4v4_winrate.png":
+            args.out = "4v4_winrate_OP3_100ep.png"
 
     default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3")
 
@@ -65,8 +80,8 @@ def main():
     device = args.device
     n_episodes = args.episodes
     opponent = args.opponent.upper()
-    # Use different seed per opponent so OP3 vs OP4 runs don't replay the same RNG stream (which can yield identical W/L/D)
-    seed = 42 + (1 if opponent == "OP4" else 0)
+    base_seed = int(args.seed)
+    seed = base_seed + (1 if opponent == "OP4" else 0)
     print(f"4v4 win rate vs {opponent} ({n_episodes} episodes per model, seed={seed})")
 
     cfg = GPUFieldConfig(

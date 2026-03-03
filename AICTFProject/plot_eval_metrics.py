@@ -235,6 +235,70 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     }
 
 
+def _safe_float(val: str | float) -> float:
+    """Parse CSV value; 'nan' -> np.nan."""
+    if val is None or (isinstance(val, str) and val.strip().lower() in ("", "nan", "none")):
+        return float("nan")
+    try:
+        f = float(val)
+        return f if np.isfinite(f) else float("nan")
+    except (ValueError, TypeError):
+        return float("nan")
+
+
+def load_metrics_csv(csv_path: str) -> tuple[dict[str, dict[tuple[str, str], dict]], list[str]]:
+    """
+    Load results_by_mode and opponents from a saved eval table CSV.
+    Returns (results_by_mode, opponents).
+    CSV must have: setting, method, opponent, success_rate_mean, success_rate_std, ...
+    """
+    import csv as csv_module
+
+    results_by_mode: dict[str, dict[tuple[str, str], dict]] = {}
+    opponents_set: set[str] = set()
+
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv_module.DictReader(f)
+        rows = list(reader)
+
+    if not rows:
+        return results_by_mode, []
+
+    for row in rows:
+        setting = str(row.get("setting", "")).strip()
+        method = str(row.get("method", "")).strip()
+        opponent = str(row.get("opponent", "")).strip().upper()
+        if not setting or not method or not opponent:
+            continue
+        opponents_set.add(opponent)
+
+        agg = {
+            "success_rate": _safe_float(row.get("success_rate_mean", 0)),
+            "success_rate_std": _safe_float(row.get("success_rate_std", 0)),
+            "mean_steps": _safe_float(row.get("mean_steps_mean", 0)),
+            "mean_steps_std": _safe_float(row.get("mean_steps_std", 0)),
+            "collision_free_rate": _safe_float(row.get("collision_free_mean", 0)),
+            "collision_free_rate_std": _safe_float(row.get("collision_free_std", 0)),
+            "return_var": _safe_float(row.get("return_variance_mean", 0)),
+            "return_var_std": _safe_float(row.get("return_variance_std", 0)),
+            "coverage_efficiency": _safe_float(row.get("coverage_efficiency_mean", 0)),
+            "coverage_efficiency_std": _safe_float(row.get("coverage_efficiency_std", 0)),
+            "win_margin_mean": _safe_float(row.get("win_margin_mean", 0)),
+            "win_margin_std": _safe_float(row.get("win_margin_std", 0)),
+            "time_to_first_score_mean": _safe_float(row.get("time_to_first_score_mean", "nan")),
+            "time_to_first_score_std": _safe_float(row.get("time_to_first_score_std", 0)),
+            "mean_inter_robot_dist_mean": _safe_float(row.get("mean_inter_robot_dist_mean", "nan")),
+            "mean_inter_robot_dist_std": _safe_float(row.get("mean_inter_robot_dist_std", 0)),
+        }
+
+        if setting not in results_by_mode:
+            results_by_mode[setting] = {}
+        results_by_mode[setting][(method, opponent)] = agg
+
+    opponents = sorted(opponents_set)
+    return results_by_mode, opponents
+
+
 def load_training_success_auc(csv_path: str) -> float | None:
     """Load CSV with episode_id, success; return trapezoidal AUC of success curve, or None."""
     try:
@@ -290,6 +354,14 @@ def main() -> None:
     parser.add_argument("--table-opponent", type=str, default=None, help="Opponent for table/CSV and printed metrics (default: first in --opponents). E.g. --table-opponent OP4 to get OP4 results.")
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--training-csv", type=str, default=None, help="Optional training CSV for AUC learning curve")
+    parser.add_argument(
+        "--from-csv",
+        "--metrics-csv",
+        type=str,
+        default=None,
+        dest="metrics_csv",
+        help="Read metrics from this CSV instead of running evaluation. Ensures reproducibility: plots use frozen numbers.",
+    )
     args = parser.parse_args()
 
     default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3")
@@ -317,47 +389,54 @@ def main() -> None:
         ("Jacob et al.", path_or_default(args.paper_4v4, "final_weekend_paper_4v4.zip")),
         ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_selfplay_4v4_colab.zip")),
     ]
-    for _label, p in model_paths_2v2 + model_paths_3v3 + model_paths_4v4:
-        if not os.path.isfile(p):
-            print(f"[WARN] Not found: {p}")
-            sys.exit(1)
+    use_metrics_csv = args.metrics_csv and os.path.isfile(args.metrics_csv)
 
-    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+    if use_metrics_csv:
+        print(f"Loading metrics from {args.metrics_csv} (no evaluation run).")
+        results_by_mode, opponents = load_metrics_csv(args.metrics_csv)
+        if not results_by_mode:
+            sys.exit(f"[ERROR] No valid rows in {args.metrics_csv}")
+        print(f"  Opponents in CSV: {opponents}")
+    else:
+        if args.metrics_csv:
+            print(f"[WARN] --metrics-csv={args.metrics_csv} not found or not a file; running evaluation.")
+        for _label, p in model_paths_2v2 + model_paths_3v3 + model_paths_4v4:
+            if not os.path.isfile(p):
+                print(f"[WARN] Not found: {p}")
+                sys.exit(1)
 
-    # Default: OP3 + OP4 so one run gives all metrics and robustness; use --opponents OP4 for single opponent
-    opponents = args.opponents if args.opponents else ([args.opponent] if args.opponent is not None else ["OP3", "OP4"])
-    n_episodes = args.episodes
+        from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 
-    # results_by_mode[mode][(label, opponent)] = aggregate dict
-    results_by_mode: dict[str, dict[tuple[str, str], dict]] = {}
+        opponents = args.opponents if args.opponents else ([args.opponent] if args.opponent is not None else ["OP3", "OP4"])
+        n_episodes = args.episodes
 
-    for mode, n_agents, model_paths in [
-        ("2v2", 2, model_paths_2v2),
-        ("3v3", 3, model_paths_3v3),
-        ("4v4", 4, model_paths_4v4),
-    ]:
-        # Match winrate scripts: use a fresh env (and seed) per opponent, so numbers are directly comparable
-        results: dict[tuple[str, str], dict] = {}
-        for opp in opponents:
-            opp_clean = str(opp).strip().upper()
-            seed = 42 + (1 if opp_clean == "OP4" else 0)
-            cfg = GPUFieldConfig(
-                n_envs=1,
-                max_blue_agents=n_agents,
-                max_red_agents=n_agents,
-                max_decision_steps=400,
-                aquaticus_profile=True,
-                rules_profile="AQUATICUS_2024",
-                device=args.device,
-                seed=seed,
-            )
-            env = GPUCTFVecEnv(cfg)
-            for label, model_path in model_paths:
-                print(f"[{mode}] Evaluating {label} vs {opp_clean} ({n_episodes} episodes, seed={seed})...")
-                episodes = run_eval_episodes(model_path, env, n_episodes, args.device, opp_clean)
-                results[(label, opp_clean)] = compute_aggregates(episodes)
-            env.close()
-        results_by_mode[mode] = results
+        results_by_mode = {}
+        for mode, n_agents, model_paths in [
+            ("2v2", 2, model_paths_2v2),
+            ("3v3", 3, model_paths_3v3),
+            ("4v4", 4, model_paths_4v4),
+        ]:
+            results = {}
+            for opp in opponents:
+                opp_clean = str(opp).strip().upper()
+                seed = 42 + (1 if opp_clean == "OP4" else 0)
+                cfg = GPUFieldConfig(
+                    n_envs=1,
+                    max_blue_agents=n_agents,
+                    max_red_agents=n_agents,
+                    max_decision_steps=400,
+                    aquaticus_profile=True,
+                    rules_profile="AQUATICUS_2024",
+                    device=args.device,
+                    seed=seed,
+                )
+                env = GPUCTFVecEnv(cfg)
+                for label, model_path in model_paths:
+                    print(f"[{mode}] Evaluating {label} vs {opp_clean} ({n_episodes} episodes, seed={seed})...")
+                    episodes = run_eval_episodes(model_path, env, n_episodes, args.device, opp_clean)
+                    results[(label, opp_clean)] = compute_aggregates(episodes)
+                env.close()
+            results_by_mode[mode] = results
 
     # Optional training AUC (per-run, not per-model; we don't have per-model CSVs by default)
     training_auc: float | None = None
@@ -373,7 +452,7 @@ def main() -> None:
         table_opp = main_opp
     table_rows: list[dict] = []
     for mode, model_paths in [("2v2", model_paths_2v2), ("3v3", model_paths_3v3), ("4v4", model_paths_4v4)]:
-        results = results_by_mode[mode]
+        results = results_by_mode.get(mode, {})
         for label, _ in model_paths:
             r = results.get((label, table_opp), {})
             table_rows.append({
@@ -437,27 +516,28 @@ def main() -> None:
     if base_out.endswith(".png"):
         base_out = base_out[:-4]
     plot_opp = table_opp
-    mode_configs = [("2v2", model_paths_2v2), ("4v4", model_paths_4v4)]
-
     method_labels = [m[0] for m in model_paths_2v2]  # Ours, Jacob et al., Self-play (same for 2v2/4v4)
 
     def _save_single(
         title: str,
         ylabel: str,
         values_2v2: list[float],
+        values_3v3: list[float],
         values_4v4: list[float],
         suffix: str,
         fmt: str = "{:.1f}%",
         ylim: tuple[float, float] | None = (0, 105),
         draw_zero: bool = False,
     ) -> None:
-        """One clean bar chart with 2v2 and 4v4 grouped (like 2v2_winrate style), agent count + opponent in title."""
+        """One clean bar chart with 2v2, 3v3, and 4v4 grouped, agent count + opponent in title."""
         fig, ax = plt.subplots(figsize=(10, 6))
         n = len(method_labels)
         x = np.arange(n)
-        width = 0.35
-        bars1 = ax.bar(x - width / 2, values_2v2, width, label="2v2", color=bar_colors, **bar_kw)
-        bars2 = ax.bar(x + width / 2, values_4v4, width, label="4v4", color=bar_colors, alpha=0.75, **bar_kw)
+        width = 0.22
+        # Colors: 2v2 -> bar_colors[0], 3v3 -> bar_colors[1], 4v4 -> bar_colors[2]
+        bars1 = ax.bar(x - width, values_2v2, width, label="2v2", color=bar_colors[0], **bar_kw)
+        bars2 = ax.bar(x, values_3v3, width, label="3v3", color=bar_colors[1], **bar_kw)
+        bars3 = ax.bar(x + width, values_4v4, width, label="4v4", color=bar_colors[2], alpha=0.8, **bar_kw)
         ax.set_xticks(x)
         ax.set_xticklabels(method_labels, fontsize=18)
         ax.tick_params(axis="y", labelsize=18)
@@ -468,11 +548,13 @@ def main() -> None:
             ax.axhline(0, color="gray", linestyle="--", linewidth=1)
         if ylim:
             ax.set_ylim(ylim[0], ylim[1])
-        all_vals = values_2v2 + values_4v4
+        all_vals = values_2v2 + values_3v3 + values_4v4
         text_offset = 1.5 if ylim else (max(abs(v) for v in all_vals) * 0.05 + 0.1 if all_vals else 0.5)
         for bar, val in zip(bars1, values_2v2):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
-        for bar, val in zip(bars2, values_4v4):
+        for bar, val in zip(bars2, values_3v3):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
+        for bar, val in zip(bars3, values_4v4):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
         plt.tight_layout()
         path = f"{base_out}_{suffix}.png"
@@ -480,22 +562,33 @@ def main() -> None:
         plt.close()
         print(f"Saved: {path}")
 
-    r2 = results_by_mode["2v2"]
-    r4 = results_by_mode["4v4"]
+    r2 = results_by_mode.get("2v2", {})
+    r3 = results_by_mode.get("3v3", {})
+    r4 = results_by_mode.get("4v4", {})
     labels = [m[0] for m in model_paths_2v2]
 
-    # 5 clean PNGs + Offense metrics (Performance, Win margin, Coordination, Robustness, Stability, Robotics)
+    # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics (now with 2v2, 3v3, 4v4)
     sr_2 = [r2[(l, plot_opp)]["success_rate"] for l in labels]
+    sr_3 = [r3[(l, plot_opp)]["success_rate"] for l in labels]
     sr_4 = [r4[(l, plot_opp)]["success_rate"] for l in labels]
-    _save_single(f"Performance (2v2 & 4v4 vs {plot_opp})", f"Success rate vs {plot_opp} (%)", sr_2, sr_4, f"Performance_{plot_opp}")
+    _save_single(
+        f"Performance (2v2, 3v3, 4v4 vs {plot_opp})",
+        f"Success rate vs {plot_opp} (%)",
+        sr_2,
+        sr_3,
+        sr_4,
+        f"Performance_{plot_opp}",
+    )
 
     # Win margin (blue - red): higher = dominance
     wm_2 = [r2[(l, plot_opp)]["win_margin_mean"] for l in labels]
+    wm_3 = [r3[(l, plot_opp)]["win_margin_mean"] for l in labels]
     wm_4 = [r4[(l, plot_opp)]["win_margin_mean"] for l in labels]
     _save_single(
-        f"Win margin (2v2 & 4v4 vs {plot_opp})",
+        f"Win margin (2v2, 3v3, 4v4 vs {plot_opp})",
         "Win margin (blue - red)",
         wm_2,
+        wm_3,
         wm_4,
         f"WinMargin_{plot_opp}",
         fmt="{:.2f}",
@@ -504,8 +597,16 @@ def main() -> None:
     )
 
     cf_2 = [r2[(l, plot_opp)]["collision_free_rate"] for l in labels]
+    cf_3 = [r3[(l, plot_opp)]["collision_free_rate"] for l in labels]
     cf_4 = [r4[(l, plot_opp)]["collision_free_rate"] for l in labels]
-    _save_single(f"Coordination (2v2 & 4v4 vs {plot_opp})", "Collision-free (%)", cf_2, cf_4, f"Coordination_{plot_opp}")
+    _save_single(
+        f"Coordination (2v2, 3v3, 4v4 vs {plot_opp})",
+        "Collision-free (%)",
+        cf_2,
+        cf_3,
+        cf_4,
+        f"Coordination_{plot_opp}",
+    )
 
     if "OP4" in opponents and "OP3" in opponents:
         # Robustness: show both OP3 and OP4 for 2v2 and 4v4 (one chart: 2v2 vs OP3, 2v2 vs OP4, 4v4 vs OP3, 4v4 vs OP4 as 4 series would cramp; do two charts)
@@ -535,15 +636,40 @@ def main() -> None:
         plt.close()
         print(f"Saved: {base_out}_Robustness_OP3_OP4.png")
     else:
-        _save_single(f"Robustness (2v2 & 4v4 vs {plot_opp})", f"Success rate vs {plot_opp} (%)", sr_2, sr_4, f"Robustness_{plot_opp}")
+        _save_single(
+            f"Robustness (2v2, 3v3, 4v4 vs {plot_opp})",
+            f"Success rate vs {plot_opp} (%)",
+            sr_2,
+            sr_3,
+            sr_4,
+            f"Robustness_{plot_opp}",
+        )
 
     rvar_2 = [r2[(l, plot_opp)]["return_var"] for l in labels]
+    rvar_3 = [r3[(l, plot_opp)]["return_var"] for l in labels]
     rvar_4 = [r4[(l, plot_opp)]["return_var"] for l in labels]
-    _save_single(f"Stability (2v2 & 4v4 vs {plot_opp})", "Variance of episode return", rvar_2, rvar_4, f"Stability_{plot_opp}", fmt="{:.3f}", ylim=None)
+    _save_single(
+        f"Stability (2v2, 3v3, 4v4 vs {plot_opp})",
+        "Variance of episode return",
+        rvar_2,
+        rvar_3,
+        rvar_4,
+        f"Stability_{plot_opp}",
+        fmt="{:.3f}",
+        ylim=None,
+    )
 
     safety_2 = [r2[(l, plot_opp)]["collision_free_rate"] for l in labels]
+    safety_3 = [r3[(l, plot_opp)]["collision_free_rate"] for l in labels]
     safety_4 = [r4[(l, plot_opp)]["collision_free_rate"] for l in labels]
-    _save_single(f"Robotics (2v2 & 4v4 vs {plot_opp})", "Safety (collision-free %)", safety_2, safety_4, f"Robotics_{plot_opp}")
+    _save_single(
+        f"Robotics (2v2, 3v3, 4v4 vs {plot_opp})",
+        "Safety (collision-free %)",
+        safety_2,
+        safety_3,
+        safety_4,
+        f"Robotics_{plot_opp}",
+    )
 
     return
 
