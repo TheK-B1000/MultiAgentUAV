@@ -24,6 +24,7 @@ except ImportError:
     sample_batched_opponent_params = None
 
 from macro_actions import MacroAction
+from agents import AgentHandle
 
 # Scoring and sparse reward values: single source of truth from game_manager.
 from game_manager import (
@@ -1781,23 +1782,6 @@ class BatchedCTFCore:
 # -------- Adapter for MAPPO/QMIX: GameField-like API over BatchedCTFCore(B=1) --------
 
 
-class _FakeAgent:
-    """Minimal agent stand-in for policy.act(obs, agent=..., game_field=...)."""
-
-    __slots__ = ("agent_id", "side", "unique_id", "_alive_getter")
-
-    def __init__(self, agent_id: int, side: str = "blue", alive_getter=None):
-        self.agent_id = int(agent_id)
-        self.side = str(side)
-        self.unique_id = f"{self.side}_{self.agent_id}"
-        self._alive_getter = alive_getter
-
-    def isEnabled(self) -> bool:
-        if self._alive_getter is None:
-            return True
-        return bool(self._alive_getter(self.agent_id))
-
-
 class _FakeGM:
     """Minimal GameManager stand-in for MAPPO/QMIX (scores, game_over, set_phase, terminal bonus)."""
 
@@ -1850,7 +1834,7 @@ class GPUEnvAdapter:
         self.num_macro_targets = int(cfg.n_targets)
         self.agents_per_team = int(cfg.max_blue_agents)
         self._gm = _FakeGM(self._core)
-        self._blue_agents: List[_FakeAgent] = []
+        self._blue_agents: List[AgentHandle] = []
         self._refresh_agents()
 
     def _refresh_agents(self) -> None:
@@ -1858,12 +1842,12 @@ class GPUEnvAdapter:
             return bool(self._core.blue_alive[0, i].item())
 
         self._blue_agents = [
-            _FakeAgent(i, "blue", alive_getter=alive)
+            AgentHandle(i, "blue", alive_getter=alive)
             for i in range(self.agents_per_team)
         ]
 
     @property
-    def blue_agents(self) -> List[_FakeAgent]:
+    def blue_agents(self) -> List[AgentHandle]:
         self._refresh_agents()
         return self._blue_agents
 
@@ -1885,7 +1869,7 @@ class GPUEnvAdapter:
     def get_obs(self) -> Dict[str, np.ndarray]:
         return self._core.get_obs()
 
-    def build_observation(self, agent: _FakeAgent) -> np.ndarray:
+    def build_observation(self, agent: AgentHandle) -> np.ndarray:
         """Single-agent grid obs (C, H, W) for policy.act()."""
         ot = self._core.get_obs_tensors()
         grid = ot["grid"]
@@ -1899,7 +1883,7 @@ class GPUEnvAdapter:
         y = float(self._core._macro_targets[idx, 1].item())
         return (x, y)
 
-    def _mask_for_agent(self, agent: _FakeAgent, macro_only: bool) -> np.ndarray:
+    def _mask_for_agent(self, agent: AgentHandle, macro_only: bool) -> np.ndarray:
         m = self._core._build_action_mask()
         i = getattr(agent, "agent_id", 0)
         n_m = self._cfg.n_macros
@@ -1909,10 +1893,10 @@ class GPUEnvAdapter:
             return m[0, base : base + n_m].detach().cpu().numpy().astype(np.bool_)
         return m[0, base + n_m : base + n_m + n_t].detach().cpu().numpy().astype(np.bool_)
 
-    def get_macro_mask(self, agent: _FakeAgent) -> np.ndarray:
+    def get_macro_mask(self, agent: AgentHandle) -> np.ndarray:
         return self._mask_for_agent(agent, macro_only=True)
 
-    def get_target_mask(self, agent: _FakeAgent) -> np.ndarray:
+    def get_target_mask(self, agent: AgentHandle) -> np.ndarray:
         return self._mask_for_agent(agent, macro_only=False)
 
     def get_global_state_dim(self) -> int:
