@@ -297,17 +297,54 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
         return actions, values, log_prob
 
 
-class ProgressLogCallback(BaseCallback):
-    """Print steps progress every N steps (no tqdm/rich required)."""
+def _tqdm_available() -> bool:
+    try:
+        import tqdm  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
-    def __init__(self, total_timesteps: int, interval: int = 50_000):
+
+class ProgressLogCallback(BaseCallback):
+    """Progress bar with ETA via tqdm; falls back to print every N steps if tqdm missing."""
+
+    def __init__(self, total_timesteps: int, interval: int = 50_000, use_tqdm: bool = True):
         super().__init__(verbose=0)
         self._total = int(total_timesteps)
         self._interval = max(1, int(interval))
         self._last_milestone = 0
+        self._last_n = 0
+        self._pbar = None
+        self._use_tqdm = bool(use_tqdm) and _tqdm_available()
+
+    def _init_callback(self) -> None:
+        if self._use_tqdm and self._total > 0:
+            try:
+                from tqdm import tqdm
+                self._pbar = tqdm(
+                    total=self._total,
+                    unit=" step",
+                    unit_scale=True,
+                    desc="PPO",
+                    dynamic_ncols=True,
+                    miniters=max(1, self._total // 500),
+                )
+            except Exception:
+                self._pbar = None
+                self._use_tqdm = False
 
     def _on_step(self) -> bool:
         if self._total <= 0:
+            return True
+        if self._pbar is not None:
+            n = min(self.num_timesteps, self._total)
+            delta = n - self._last_n
+            self._last_n = n
+            if delta > 0:
+                self._pbar.update(delta)
+            if n >= self._total:
+                self._pbar.close()
+                self._pbar = None
             return True
         milestone = self.num_timesteps // self._interval
         if milestone > self._last_milestone:
@@ -315,6 +352,14 @@ class ProgressLogCallback(BaseCallback):
             pct = 100.0 * self.num_timesteps / self._total
             print(f"[PPO] Steps {self.num_timesteps:,}/{self._total:,} ({pct:.1f}%)")
         return True
+
+    def _on_training_end(self) -> None:
+        if self._pbar is not None:
+            try:
+                self._pbar.close()
+            except Exception:
+                pass
+            self._pbar = None
 
 
 class LeagueCallback(BaseCallback):
@@ -658,7 +703,10 @@ class CurriculumNoLeagueCallback(BaseCallback):
         self.win_count = 0
         self.loss_count = 0
         self.draw_count = 0
-        
+        self.phase_win_count = 0
+        self.phase_loss_count = 0
+        self.phase_draw_count = 0
+
         self._opponent_stats: Dict[str, Dict[str, int]] = {}
         self._opponent_history: List[Tuple[str, str]] = []
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
@@ -684,14 +732,17 @@ class CurriculumNoLeagueCallback(BaseCallback):
                 result = "WIN"
                 actual = 1.0
                 self.win_count += 1
+                self.phase_win_count += 1
             elif blue_score < red_score:
                 result = "LOSS"
                 actual = 0.0
                 self.loss_count += 1
+                self.phase_loss_count += 1
             else:
                 result = "DRAW"
                 actual = 0.5
                 self.draw_count += 1
+                self.phase_draw_count += 1
 
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
@@ -716,8 +767,15 @@ class CurriculumNoLeagueCallback(BaseCallback):
                 win_by=win_by,
             )
             phase = self.curriculum.phase
-            if phase != old_phase and self.verbose:
-                print(f"[CURR] ADVANCED: {old_phase} -> {phase} at episode {self.episode_idx}")
+            if phase != old_phase:
+                phase_tot = self.phase_win_count + self.phase_loss_count + self.phase_draw_count
+                phase_wr = (100.0 * self.phase_win_count / phase_tot) if phase_tot > 0 else 0.0
+                print(f"[PPO] Phase {old_phase} complete: W={self.phase_win_count} L={self.phase_loss_count} D={self.phase_draw_count} WR={phase_wr:.1f}%")
+                self.phase_win_count = 0
+                self.phase_loss_count = 0
+                self.phase_draw_count = 0
+                if self.verbose:
+                    print(f"[CURR] ADVANCED: {old_phase} -> {phase} at episode {self.episode_idx}")
 
             opp_key = summary.opponent_key()
             self._update_opponent_stats(opp_key, result)
