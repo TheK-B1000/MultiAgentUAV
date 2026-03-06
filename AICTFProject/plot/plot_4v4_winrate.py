@@ -10,7 +10,7 @@ Training is done with rl/train_ppo.py.
 Usage:
   python plot_4v4_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
-Defaults (under checkpoints_sb3/):
+Defaults (under checkpoints_sb3/4v4/):
   --league   final_ppo_league_4v4_colab.zip
   --paper    final_weekend_paper_4v4.zip
   --selfplay final_ppo_selfplay_4v4_colab.zip

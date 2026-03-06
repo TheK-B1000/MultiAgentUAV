@@ -173,8 +173,8 @@ class PPOConfig:
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
-    # Distinct tag for 4v4 runs so they don't overwrite 2v2 checkpoints
-    run_tag: str = "ppo_league_curriculum_4v4"
+    # Distinct tag per team size so runs don't overwrite each other (default 2v2)
+    run_tag: str = "ppo_league_curriculum_2v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -202,8 +202,8 @@ class PPOConfig:
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
 
-    # 4v4 training (blue has 4 agents; red mirrors)
-    max_blue_agents: int = 4
+    # Team size: 2=2v2 (default), 4=4v4, 8=8v8 (use --agents 4 for 4v4)
+    max_blue_agents: int = 2
     print_reset_shapes: bool = False
     reward_mode: str = "TEAM_SUM"
     use_obs_builder: bool = True
@@ -217,7 +217,7 @@ class PPOConfig:
     stability_species_prob: float = 0.15
     stability_snapshot_prob: float = 0.20
     species_rusher_bias: float = 0.5
-    match_op3_exposure: bool = True
+    match_op3_exposure: bool = False
     fixed_eval_every_episodes: int = 500
     fixed_eval_episodes: int = 10
     use_reduced_aggressiveness: bool = False
@@ -1600,10 +1600,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     try:
         try:
             model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks, **learn_kwargs)
-        except TypeError as type_exc:
-            # Older stable_baselines3 versions may not accept the progress_bar argument.
-            if "progress_bar" in str(type_exc):
-                print("[PPO] progress_bar not supported by this stable_baselines3 version; retrying without it.")
+        except (TypeError, ImportError) as prog_exc:
+            # Older SB3 may not accept progress_bar; or tqdm/rich missing (SB3 adds ProgressBarCallback).
+            if learn_kwargs.get("progress_bar") and ("progress_bar" in str(prog_exc) or "tqdm" in str(prog_exc).lower() or "rich" in str(prog_exc).lower()):
                 model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
             else:
                 raise
@@ -1689,7 +1688,7 @@ def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
     return run_tag
 
 
-def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 4) -> str:
+def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 2) -> str:
     """Return a unique default run_tag per mode and agent size so runs don't overwrite each other."""
     m = str(mode).upper().strip()
     suffix = _agents_suffix(n_agents)
@@ -1725,6 +1724,7 @@ if __name__ == "__main__":
         parser.add_argument("--gpu-native-env", action="store_true", help="Deprecated flag; training always uses game_field_gpu.")
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         parser.add_argument("--verbose-training", action="store_true", help="Print each episode result and debug logs (slower; default is quiet for speed)")
+        parser.add_argument("--device", type=str, default=None, help="Device for env and PPO: cuda, cuda:0, or cpu. Default: cuda if available else cpu.")
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:
@@ -1762,5 +1762,7 @@ if __name__ == "__main__":
             cfg.test_kl_zero_lr = True
         if getattr(args, "verbose_training", False):
             cfg.verbose_training = True
+        if getattr(args, "device", None) is not None:
+            cfg.device = str(args.device).strip().lower()
         cfg.gpu_native_env = True  # All training uses game_field_gpu
         train_ppo(cfg)

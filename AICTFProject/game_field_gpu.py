@@ -1386,7 +1386,7 @@ class BatchedCTFCore:
             env_idx = torch.where(red_grab_env)[0]
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
-            if grab_delta > 0:
+            if grab_delta > 0 and self._phase not in ("OP1", "OP2"):
                 score_env = env_idx[grace_ok[env_idx]]
                 if score_env.numel() > 0:
                     self.red_score[score_env] += grab_delta
@@ -1435,7 +1435,7 @@ class BatchedCTFCore:
             self.blue_home_contact_frames[b_cap_env] = 0
         if r_cap_env.any():
             award_r = r_cap_env & grace_ok
-            if award_r.any():
+            if award_r.any() and self._phase not in ("OP1", "OP2"):
                 self.red_score[award_r] += cap_delta_r
             self.red_carrying[r_cap_env] = False
             self.blue_flag_pos[r_cap_env] = self.blue_flag_home[r_cap_env]
@@ -2029,6 +2029,8 @@ class GPUCTFVecEnv(VecEnv):
 
     def get_attr(self, attr_name: str, indices=None):
         idx = self._get_indices(indices)
+        if attr_name == "render_mode":
+            return [None for _ in idx]
         val = getattr(self.core, attr_name)
         return [val for _ in idx]
 

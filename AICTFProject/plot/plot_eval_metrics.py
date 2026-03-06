@@ -376,30 +376,32 @@ def main() -> None:
     if args.table_out:
         os.makedirs(os.path.dirname(os.path.abspath(args.table_out)) or ".", exist_ok=True)
 
-    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3")
-    def path_or_default(name: str | None, default_name: str) -> str:
-        p = name if name is not None else os.path.join(default_dir, default_name)
+    def path_or_default(name: str | None, default_name: str, subdir: str) -> str:
+        if name is not None:
+            p = name
+        else:
+            p = os.path.join(SCRIPT_DIR, "checkpoints_sb3", subdir, default_name)
         if not p.endswith(".zip"):
             p = p + ".zip"
         return os.path.abspath(p)
 
     # 2v2: same defaults as plot_2v2_winrate.py
     model_paths_2v2 = [
-        ("Ours", path_or_default(args.league, "final_ppo_league_2v2_colab.zip")),
-        ("Jacob et al.", path_or_default(args.paper, "final_weekend_paper_2v2.zip")),
-        ("Self-play", path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip")),
+        ("Ours", path_or_default(args.league, "final_ppo_league_2v2_colab.zip", "2v2")),
+        ("Jacob et al.", path_or_default(args.paper, "final_weekend_paper_2v2.zip", "2v2")),
+        ("Self-play", path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip", "2v2")),
     ]
     # 3v3: matches plot_3v3_winrate.py
     model_paths_3v3 = [
-        ("Ours", path_or_default(args.league_3v3, "final_weekend_league_3v3.zip")),
-        ("Jacob et al.", path_or_default(args.paper_3v3, "final_weekend_paper_3v3.zip")),
-        ("Self-play", path_or_default(args.selfplay_3v3, "final_weekend_selfplay_3v3.zip")),
+        ("Ours", path_or_default(args.league_3v3, "final_weekend_league_3v3.zip", "3v3")),
+        ("Jacob et al.", path_or_default(args.paper_3v3, "final_weekend_paper_3v3.zip", "3v3")),
+        ("Self-play", path_or_default(args.selfplay_3v3, "final_weekend_selfplay_3v3.zip", "3v3")),
     ]
     # 4v4: same defaults as plot_4v4_winrate.py
     model_paths_4v4 = [
-        ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4_colab.zip")),
-        ("Jacob et al.", path_or_default(args.paper_4v4, "final_weekend_paper_4v4.zip")),
-        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_selfplay_4v4_colab.zip")),
+        ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4_colab.zip", "4v4")),
+        ("Jacob et al.", path_or_default(args.paper_4v4, "final_weekend_paper_4v4.zip", "4v4")),
+        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_selfplay_4v4_colab.zip", "4v4")),
     ]
     use_metrics_csv = args.metrics_csv and os.path.isfile(args.metrics_csv)
 

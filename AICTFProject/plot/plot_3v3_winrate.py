@@ -10,7 +10,7 @@ with max_blue_agents = max_red_agents = 3. Training is done with rl/train_ppo.py
 Usage:
   python plot_3v3_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
-Defaults (under checkpoints_sb3/):
+Defaults (under checkpoints_sb3/3v3/):
   --league   final_weekend_league_3v3.zip
   --paper    final_weekend_paper_3v3.zip
   --selfplay final_weekend_selfplay_3v3.zip

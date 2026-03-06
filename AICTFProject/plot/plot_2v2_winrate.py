@@ -11,7 +11,7 @@ training is done with rl/train_ppo.py.
 Usage:
   python plot_2v2_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
-Defaults (under checkpoints_sb3/):
+Defaults (under checkpoints_sb3/2v2/):
   --league   final_ppo_league_2v2_colab.zip
   --paper    final_weekend_paper_2v2.zip
   --selfplay final_weekend_selfplay_2v2.zip

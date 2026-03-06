@@ -50,7 +50,10 @@ def main() -> None:
         os.makedirs(figures_dir, exist_ok=True)
         args.out = os.path.join(figures_dir, os.path.basename(args.out))
 
-    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3")
+    n_agents = args.agents
+    # 4v4 models in checkpoints_sb3/4v4; 6v6 in checkpoints_sb3/6v6 if present
+    subdir = "4v4" if n_agents == 4 else "6v6"
+    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3", subdir)
 
     def path_or_default(name: str | None, default_name: str) -> str:
         p = name if name is not None else os.path.join(default_dir, default_name)
@@ -58,7 +61,6 @@ def main() -> None:
             p = p + ".zip"
         return os.path.abspath(p)
 
-    n_agents = args.agents
     suffix = "4v4_colab" if n_agents == 4 else "6v6"
     league_path = path_or_default(args.league, f"final_ppo_league_{suffix}.zip")
     paper_path = path_or_default(args.paper, f"final_weekend_paper_{'4v4' if n_agents == 4 else '6v6'}.zip")
