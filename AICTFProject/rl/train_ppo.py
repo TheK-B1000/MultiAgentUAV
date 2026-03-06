@@ -1750,8 +1750,8 @@ if __name__ == "__main__":
             base = "/content/drive/MyDrive/CTF_models"
             cfg.checkpoint_dir = os.path.join(base, suffix)
         else:
-            # Local PC: save under project
-            cfg.checkpoint_dir = f"checkpoints_sb3_{suffix}"
+            # Local PC: save under project (checkpoints_sb3/2v2, 3v3, 4v4)
+            cfg.checkpoint_dir = os.path.join("checkpoints_sb3", suffix)
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_steps
         if getattr(args, "checkpoint_dir", None) is not None:

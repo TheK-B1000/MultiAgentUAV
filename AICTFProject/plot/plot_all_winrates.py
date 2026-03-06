@@ -7,7 +7,7 @@ Evaluates 9 models total (3 per team size) and produces one figure with 3 panels
 Usage:
   python plot_all_winrates.py [--episodes N] [--out plot.png] [--checkpoint-dir DIR]
 
-Defaults (under checkpoints_sb3/):
+Defaults (under checkpoints_sb3/2v2, 3v3, 4v4/):
   2v2: final_ppo_league_2v2_colab.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
   3v3: final_ppo_league_3v3_colab.zip, final_ppo_paper_3v3_colab.zip, final_ppo_selfplay_3v3_colab.zip
   4v4: final_ppo_league_4v4_colab.zip, final_weekend_paper_4v4.zip, final_ppo_selfplay_4v4_colab.zip
@@ -57,7 +57,7 @@ def main():
     parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). OP4 = held-out eval for generalization.")
     parser.add_argument("--out", type=str, default="all_winrates.png", help="Output plot path")
-    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory containing .zip files (default: checkpoints_sb3)")
+    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Parent dir checkpoints_sb3 (default: project checkpoints_sb3)")
     parser.add_argument("--device", type=str, default="cpu", help="Device (cpu or cuda)")
     args = parser.parse_args()
 
@@ -70,6 +70,7 @@ def main():
 
     ckpt_dir = args.checkpoint_dir or os.path.join(SCRIPT_DIR, "checkpoints_sb3")
     ckpt_dir = os.path.abspath(ckpt_dir)
+    subdirs = {2: "2v2", 3: "3v3", 4: "4v4"}
 
     from stable_baselines3 import PPO
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
@@ -83,11 +84,12 @@ def main():
     results = {2: {}, 3: {}, 4: {}}
 
     for n_agents in (2, 3, 4):
+        subdir = subdirs[n_agents]
         league_name, paper_name, selfplay_name = DEFAULTS[n_agents]
         paths = {
-            "Ours": os.path.join(ckpt_dir, path_ensure_zip(league_name)),
-            "Jacob et al.": os.path.join(ckpt_dir, path_ensure_zip(paper_name)),
-            "Self-play": os.path.join(ckpt_dir, path_ensure_zip(selfplay_name)),
+            "Ours": os.path.join(ckpt_dir, subdir, path_ensure_zip(league_name)),
+            "Jacob et al.": os.path.join(ckpt_dir, subdir, path_ensure_zip(paper_name)),
+            "Self-play": os.path.join(ckpt_dir, subdir, path_ensure_zip(selfplay_name)),
         }
         for method, p in paths.items():
             if not os.path.isfile(p):

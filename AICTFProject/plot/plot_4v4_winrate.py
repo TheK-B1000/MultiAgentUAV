@@ -64,7 +64,7 @@ def main():
         os.makedirs(figures_dir, exist_ok=True)
         args.out = os.path.join(figures_dir, os.path.basename(args.out))
 
-    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3")
+    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3", "4v4")
 
     def path_or_default(name: str, default_name: str) -> str:
         p = name if name is not None else os.path.join(default_dir, default_name)
