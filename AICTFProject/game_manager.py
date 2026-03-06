@@ -1,3 +1,13 @@
+"""
+Game state, reward routing, and flag logic. Single source of truth for scoring and
+sparse reward constants.
+
+- game_field_gpu (BatchedCTFCore) imports get_grab_score_delta, get_capture_score_delta,
+  AQUATICUS_SPARSE_*, and DEFAULT_SCORE_LIMIT from here so GPU training and the viewer
+  use the same values.
+- GameManager (this module) is also used by agents.py and any GameField that binds
+  a GameManager (non-vectorized / legacy pipelines).
+"""
 from __future__ import annotations
 
 import math
@@ -78,6 +88,31 @@ AQUATICUS_TAG_NO_FLAG_REWARD = 1.0
 AQUATICUS_TAG_WITH_FLAG_REWARD = 0.5
 AQUATICUS_OOB_PENALTY = -1.0
 
+# Sparse reward "points" used by game_field_gpu (BatchedCTFCore) before /100 normalization.
+# Single source of truth so GPU and manager stay aligned.
+AQUATICUS_SPARSE_TAG_NO_FLAG = 100.0
+AQUATICUS_SPARSE_TAG_WITH_FLAG = 50.0
+AQUATICUS_SPARSE_GRAB = 50.0
+AQUATICUS_SPARSE_CAPTURE = 100.0
+AQUATICUS_SPARSE_OOB = -100.0
+AQUATICUS_SPARSE_MINE_TAG = 100.0
+
+# Default score limit (Aquaticus can use higher; manager may set 9 when profile is AQUATICUS_2024).
+DEFAULT_SCORE_LIMIT = 3
+
+
+def get_grab_score_delta(rules_profile: str) -> int:
+    """Score added to the grabbing team when they pick up the enemy flag. Used by GPU core and GameManager."""
+    return int(AQUATICUS_GRAB_SCORE) if str(rules_profile).upper().strip() == "AQUATICUS_2024" else 0
+
+
+def get_capture_score_delta(rules_profile: str) -> int:
+    """Score added when a carrier scores (brings flag home). Used by GPU core and GameManager."""
+    if str(rules_profile).upper().strip() == "AQUATICUS_2024":
+        return int(AQUATICUS_CAPTURE_SCORE)
+    return 1
+
+
 Cell = Tuple[int, int]
 FloatPos = Tuple[float, float]
 RewardEvent = Tuple[float, str, float]  # (t, agent_id, value)
@@ -86,7 +121,7 @@ RewardEvent = Tuple[float, str, float]  # (t, agent_id, value)
 @dataclass
 class GameManager:
     """
-    Game state + reward routing.
+    Game state + reward routing for the non-GPU game field (not used by PPO/GPU training).
 
     Research invariants:
       - Rewards are emitted ONLY as per-agent events (no global reward returned).
@@ -223,10 +258,10 @@ class GameManager:
             self.score_limit = 9
 
     def _grab_score_delta(self) -> int:
-        return int(AQUATICUS_GRAB_SCORE) if self.rules_profile == "AQUATICUS_2024" else 0
+        return get_grab_score_delta(self.rules_profile)
 
     def _capture_score_delta(self) -> int:
-        return int(AQUATICUS_CAPTURE_SCORE) if self.rules_profile == "AQUATICUS_2024" else 1
+        return get_capture_score_delta(self.rules_profile)
 
     def _flag_pickup_reward(self) -> float:
         # Keep dense rewards in OURS_PLUS; use sparser event emphasis in Aquaticus profile.
@@ -711,15 +746,17 @@ class GameManager:
         self._remember_agent(agent)
 
         ax, ay = self._agent_float(agent)
+        # Which flag we are trying to pick: enemy's flag. Block only if we already hold it.
+        # (Our flag being held by the enemy does NOT block us from taking theirs.)
         if side == "blue":
-            enemy_taken = self.red_flag_taken
+            enemy_taken = self.red_flag_taken  # red's flag taken by blue
             enemy_pos = self.red_flag_position
         else:
-            enemy_taken = self.blue_flag_taken
+            enemy_taken = self.blue_flag_taken  # blue's flag taken by red
             enemy_pos = self.blue_flag_position
 
         if enemy_taken:
-            return False
+            return False  # already carrying that flag
 
         if math.hypot(ax - float(enemy_pos[0]), ay - float(enemy_pos[1])) > 1.0:
             return False

@@ -1,3 +1,11 @@
+"""
+GPU-vectorized CTF environment used by PPO/MAPPO/QMIX training and the viewer.
+
+Training (rl/train_ppo.py, train_mappo.py, train_qmix.py) uses BatchedCTFCore via
+GPUCTFVecEnv. Scoring and sparse reward values are imported from game_manager so
+both paths stay aligned (get_grab_score_delta, get_capture_score_delta, AQUATICUS_SPARSE_*).
+GameManager (game_manager.py) remains the single source of truth for those constants.
+"""
 from __future__ import annotations
 
 import math
@@ -15,6 +23,18 @@ try:
 except ImportError:
     sample_batched_opponent_params = None
 
+# Scoring and sparse reward values: single source of truth from game_manager.
+from game_manager import (
+    get_grab_score_delta,
+    get_capture_score_delta,
+    AQUATICUS_SPARSE_TAG_NO_FLAG,
+    AQUATICUS_SPARSE_TAG_WITH_FLAG,
+    AQUATICUS_SPARSE_GRAB,
+    AQUATICUS_SPARSE_CAPTURE,
+    AQUATICUS_SPARSE_OOB,
+    AQUATICUS_SPARSE_MINE_TAG,
+    DEFAULT_SCORE_LIMIT,
+)
 
 CNN_COLS = 20
 CNN_ROWS = 20
@@ -55,7 +75,7 @@ class GPUFieldConfig:
 
     n_macros: int = 5
     n_targets: int = 8
-    score_limit: int = 3
+    score_limit: int = DEFAULT_SCORE_LIMIT
 
     # Mines: pickups spawn; agents must GRAB_MINE (macro 1) to get a charge, then PLACE_MINE (macro 3) to place anywhere.
     # For realism, each team can have at most 2 active mines on the field, and there are 4 pickups total
@@ -303,13 +323,6 @@ class BatchedCTFCore:
             self.red_carrying[idx].fill_(False)
             self.red_respawn[idx].zero_()
 
-    def _score_grab_delta(self) -> int:
-        return 1 if self.rules_profile == "AQUATICUS_2024" else 0
-
-    def _score_capture_delta(self) -> int:
-        # One point per capture. Game ends at score_limit (3) or when timer reaches 0.
-        return 1
-
     def reset_all(self) -> None:
         mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
         self.reset_indices(mask)
@@ -402,6 +415,31 @@ class BatchedCTFCore:
         """Return current red opponent key (OP1/OP2/OP3/OP4). For eval verification."""
         return str(self._opponent_key)
 
+    def _apply_dynamics_tensor(
+        self,
+        cfg: Dict[str, Any],
+        key: str,
+        attr: str,
+        low: float,
+        high: float,
+        dtype: torch.dtype = torch.float32,
+    ) -> None:
+        """Apply a single dynamics config key to a batched tensor. Used by set_dynamics_config."""
+        if key not in cfg:
+            return
+        val = cfg[key]
+        tensor = getattr(self, attr)
+        if isinstance(val, torch.Tensor):
+            t = val.to(device=self.device, dtype=dtype).reshape(-1)
+            if t.numel() == self.B:
+                setattr(self, attr, torch.clamp(t, low, high))
+            else:
+                scalar = torch.clamp(t[0], low, high).item()
+                tensor.fill_(int(scalar) if dtype == torch.int32 else float(scalar))
+        else:
+            scalar = max(low, min(high, int(val) if dtype == torch.int32 else float(val)))
+            tensor.fill_(scalar)
+
     def set_dynamics_config(self, cfg: Optional[Dict[str, Any]]) -> None:
         if not isinstance(cfg, dict):
             return
@@ -422,57 +460,11 @@ class BatchedCTFCore:
         ):
             if key in cfg:
                 setattr(self.cfg, key, float(cfg[key]))
-        if "deception_prob" in cfg:
-            val = cfg["deception_prob"]
-            if isinstance(val, torch.Tensor):
-                t = val.to(self.device, dtype=torch.float32).reshape(-1)
-                if t.numel() == self.B:
-                    self.red_deception_prob = torch.clamp(t, 0.0, 1.0)
-                else:
-                    self.red_deception_prob.fill_(float(torch.clamp(t[0], 0.0, 1.0).item()))
-            else:
-                self.red_deception_prob.fill_(max(0.0, min(1.0, float(val))))
-        if "speed_mult" in cfg:
-            val = cfg["speed_mult"]
-            if isinstance(val, torch.Tensor):
-                t = val.to(self.device, dtype=torch.float32).reshape(-1)
-                if t.numel() == self.B:
-                    self.red_speed_mult = torch.clamp(t, 0.25, 2.0)
-                else:
-                    self.red_speed_mult.fill_(float(torch.clamp(t[0], 0.25, 2.0).item()))
-            else:
-                v = max(0.25, min(2.0, float(val)))
-                self.red_speed_mult.fill_(v)
-        if "attacker_style" in cfg:
-            val = cfg["attacker_style"]
-            if isinstance(val, torch.Tensor):
-                t = val.to(self.device, dtype=torch.int32).reshape(-1)
-                if t.numel() == self.B:
-                    self.red_attacker_style = torch.clamp(t, 0, 1)
-                else:
-                    self.red_attacker_style.fill_(int(torch.clamp(t[0], 0, 1).item()))
-            else:
-                self.red_attacker_style.fill_(int(max(0, min(1, int(val)))))
-        if "defender_style" in cfg:
-            val = cfg["defender_style"]
-            if isinstance(val, torch.Tensor):
-                t = val.to(self.device, dtype=torch.int32).reshape(-1)
-                if t.numel() == self.B:
-                    self.red_defender_style = torch.clamp(t, 0, 1)
-                else:
-                    self.red_defender_style.fill_(int(torch.clamp(t[0], 0, 1).item()))
-            else:
-                self.red_defender_style.fill_(int(max(0, min(1, int(val)))))
-        if "role_switch_prob" in cfg:
-            val = cfg["role_switch_prob"]
-            if isinstance(val, torch.Tensor):
-                t = val.to(self.device, dtype=torch.float32).reshape(-1)
-                if t.numel() == self.B:
-                    self.red_role_switch_prob = torch.clamp(t, 0.0, 1.0)
-                else:
-                    self.red_role_switch_prob.fill_(float(torch.clamp(t[0], 0.0, 1.0).item()))
-            else:
-                self.red_role_switch_prob.fill_(max(0.0, min(1.0, float(val))))
+        self._apply_dynamics_tensor(cfg, "deception_prob", "red_deception_prob", 0.0, 1.0)
+        self._apply_dynamics_tensor(cfg, "speed_mult", "red_speed_mult", 0.25, 2.0)
+        self._apply_dynamics_tensor(cfg, "attacker_style", "red_attacker_style", 0, 1, torch.int32)
+        self._apply_dynamics_tensor(cfg, "defender_style", "red_defender_style", 0, 1, torch.int32)
+        self._apply_dynamics_tensor(cfg, "role_switch_prob", "red_role_switch_prob", 0.0, 1.0)
 
     def _apply_profile_runtime(self) -> None:
         # Optional stress schedule by phase (same hook shape used by train_ppo callbacks).
@@ -567,9 +559,10 @@ class BatchedCTFCore:
         """
         Consolidated NPC brain usable for both "blue" and "red".
 
-        Agent roles (parameterised by *side*):
+        Agent roles (parameterised by *side*); all N agents are assigned a target:
           Agent 0 – Defender / Guardian: patrols own half, intercepts intruders.
-          Agent 1 – Striker: attacks enemy flag with single-threat tangent evasion.
+          Agent 1 – Striker: attacks enemy flag with lane preference and tangent evasion.
+          Agents 2..N-1 – Strikers with lane spread (so 4v4/6v6/8v8 all have roles, no (0,0) targets).
 
         All carriers (any agent index) get multi-threat tangent evasion toward
         home via ``_carrier_evasion_target`` so they dodge enemies instead of
@@ -735,6 +728,19 @@ class BatchedCTFCore:
 
             target[:, striker_idx, 0] = sx
             target[:, striker_idx, 1] = sy
+
+        # ======== Extra agents (N > 2): assign striker-like targets with lane spread ========
+        # So 4v4/6v6/8v8 all have roles; agents 2..N-1 go to enemy flag with y-offset to avoid clustering.
+        efx = enemy_flag_pos[:, 0]
+        efy = enemy_flag_pos[:, 1]
+        for j in range(2, N):
+            lane_offset = (j - 1) * (max_y * 0.25 / max(1, N - 1))  # spread across lanes
+            if is_blue:
+                lane_y_j = torch.clamp(efy + lane_offset, 0.0, max_y)
+            else:
+                lane_y_j = torch.clamp(efy - lane_offset, 0.0, max_y)
+            target[:, j, 0] = efx
+            target[:, j, 1] = lane_y_j
 
         # ======== Carrier evasion (replaces straight-home override) ========
         # Any agent carrying a flag uses multi-threat tangent routing so they
@@ -1343,18 +1349,19 @@ class BatchedCTFCore:
         )
 
         grab_r = 1.2
-        # Allow simultaneous flag steals: blue can grab red flag even if red is
-        # already carrying blue flag, and vice versa (mirror real CTF rules).
+        # Both flags can be taken at once: blue can grab red flag regardless of whether
+        # red has blue's flag, and vice versa. Each grab only updates that side's carrying state.
         blue_grab_env = ((b_to_red <= grab_r) & (~self.blue_tagged)).any(dim=1)
         red_grab_env = ((r_to_blue <= grab_r) & (~self.red_tagged)).any(dim=1)
 
+        grab_delta = get_grab_score_delta(self.rules_profile)
         if blue_grab_env.any():
             idx = torch.argmax(((b_to_red <= grab_r) & (~self.blue_tagged)).to(torch.int64), dim=1)
             env_idx = torch.where(blue_grab_env)[0]
             self.blue_carrying[env_idx] = False
             self.blue_carrying[env_idx, idx[env_idx]] = True
-            # Flag follows carrier, but grab does NOT change scoreboard. Reward comes
-            # from sparse reward shaping only, not from score-based termination.
+            if grab_delta > 0:
+                self.blue_score[env_idx] += grab_delta
             self.red_flag_pos[env_idx] = torch.stack(
                 [self.blue_x[env_idx, idx[env_idx]], self.blue_y[env_idx, idx[env_idx]]],
                 dim=1,
@@ -1365,6 +1372,8 @@ class BatchedCTFCore:
             env_idx = torch.where(red_grab_env)[0]
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
+            if grab_delta > 0:
+                self.red_score[env_idx] += grab_delta
             self.blue_flag_pos[env_idx] = torch.stack(
                 [self.red_x[env_idx, idx[env_idx]], self.red_y[env_idx, idx[env_idx]]],
                 dim=1,
@@ -1400,12 +1409,12 @@ class BatchedCTFCore:
         b_cap_env = blue_capture_now.any(dim=1)
         r_cap_env = red_capture_now.any(dim=1)
         if b_cap_env.any():
-            self.blue_score[b_cap_env] += int(self._score_capture_delta())
+            self.blue_score[b_cap_env] += get_capture_score_delta(self.rules_profile)
             self.blue_carrying[b_cap_env] = False
             self.red_flag_pos[b_cap_env] = self.red_flag_home[b_cap_env]
             self.blue_home_contact_frames[b_cap_env] = 0
         if r_cap_env.any():
-            self.red_score[r_cap_env] += int(self._score_capture_delta())
+            self.red_score[r_cap_env] += get_capture_score_delta(self.rules_profile)
             self.red_carrying[r_cap_env] = False
             self.blue_flag_pos[r_cap_env] = self.blue_flag_home[r_cap_env]
             self.red_home_contact_frames[r_cap_env] = 0
@@ -1480,28 +1489,20 @@ class BatchedCTFCore:
         blue_mine_tags: Optional[torch.Tensor] = None,
         red_mine_tags: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        # Aquaticus table (points):
-        # tag no-flag +100 / opp -100
-        # tag with-flag +50 / opp -100
-        # mine tag same as 2-on-1: +100 blue / -100 red
-        # flag grab +50 / opp -50
-        # capture +100 / opp -100
-        # OOB -100
+        # Values from game_manager (AQUATICUS_SPARSE_*) so scoring/rewards stay aligned.
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
-
-        r += 100.0 * blue_tag_noflag
-        r += 50.0 * blue_tag_withflag
-        r -= 100.0 * red_tag_total
+        r += float(AQUATICUS_SPARSE_TAG_NO_FLAG) * blue_tag_noflag
+        r += float(AQUATICUS_SPARSE_TAG_WITH_FLAG) * blue_tag_withflag
+        r -= float(AQUATICUS_SPARSE_TAG_NO_FLAG) * red_tag_total
         if blue_mine_tags is not None:
-            r += 100.0 * blue_mine_tags
+            r += float(AQUATICUS_SPARSE_MINE_TAG) * blue_mine_tags
         if red_mine_tags is not None:
-            r -= 100.0 * red_mine_tags
-
-        r += 50.0 * blue_grab_env.to(torch.float32)
-        r -= 50.0 * red_grab_env.to(torch.float32)
-        r += 100.0 * blue_cap_env.to(torch.float32)
-        r -= 100.0 * red_cap_env.to(torch.float32)
-        r += -100.0 * blue_oob.sum(dim=1).to(torch.float32)
+            r -= float(AQUATICUS_SPARSE_MINE_TAG) * red_mine_tags
+        r += float(AQUATICUS_SPARSE_GRAB) * blue_grab_env.to(torch.float32)
+        r -= float(AQUATICUS_SPARSE_GRAB) * red_grab_env.to(torch.float32)
+        r += float(AQUATICUS_SPARSE_CAPTURE) * blue_cap_env.to(torch.float32)
+        r -= float(AQUATICUS_SPARSE_CAPTURE) * red_cap_env.to(torch.float32)
+        r += float(AQUATICUS_SPARSE_OOB) * blue_oob.sum(dim=1).to(torch.float32)
         return r
 
     def _reward_total(

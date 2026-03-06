@@ -566,9 +566,9 @@ class CTFViewer:
             self.core.reset_all()
             print("[Viewer] Reset")
         elif k == pg.K_F2:
-            # Toggle between 2v2 and 4v4 layouts.
+            # Cycle 2v2 -> 3v3 -> 4v4 -> 2v2 (all agents get roles; scripted red uses defender + strikers).
             current = int(getattr(self.cfg, "max_blue_agents", 2))
-            new_agents = 4 if current <= 2 else 2
+            new_agents = {2: 3, 3: 4, 4: 2}.get(current, 3)
             self._rebuild_core(new_agents)
         elif k == pg.K_F3:
             cycle = ["PPO", "DEMO"] if self.ppo.model_loaded else ["DEMO"]
