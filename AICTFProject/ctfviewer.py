@@ -167,11 +167,13 @@ class PPOController:
             _ensure_numpy_core_compat()
             _ensure_numpy_random_compat()
             from stable_baselines3 import PPO as SB3PPO
-            # custom_objects: avoid unpickling policy/spaces from another Python/NumPy version.
+            # custom_objects: avoid unpickling policy/spaces/schedules from another Python/NumPy version.
             obs_space, action_space = _make_obs_action_spaces(2, self.n_macros, self.n_targets)
             custom_objects = {
                 "observation_space": obs_space,
                 "action_space": action_space,
+                "clip_range": 0.2,
+                "lr_schedule": lambda progress_remaining: 3e-4 * progress_remaining,
             }
             try:
                 from rl.train_ppo import MaskedMultiInputPolicy
