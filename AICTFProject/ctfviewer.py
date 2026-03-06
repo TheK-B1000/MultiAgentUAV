@@ -15,22 +15,72 @@ from typing import Optional, Tuple, Any, List, Dict
 
 import numpy as np
 
-# NumPy 1.x compat shim for models saved under NumPy 2.x
-if not hasattr(np, "_core"):
-    import types
-    _core = types.ModuleType("numpy._core")
-    _core.__path__ = []
-    sys.modules["numpy._core"] = _core
-    for _name in ("numeric", "multiarray", "umath"):
+
+def _ensure_numpy_core_compat() -> None:
+    """Register numpy._core.* so models saved under NumPy 2.x load on NumPy 1.x (and vice versa)."""
+    try:
+        import types
+        # NumPy 1.x: create numpy._core and point numpy._core.* to numpy.core.*
+        if not hasattr(np, "_core"):
+            _core = types.ModuleType("numpy._core")
+            _core.__path__ = []
+            sys.modules["numpy._core"] = _core
+            for _name in ("numeric", "multiarray", "umath"):
+                try:
+                    _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
+                    setattr(_core, _name, _sub)
+                    sys.modules[f"numpy._core.{_name}"] = _sub
+                except Exception:
+                    pass
+        # Ensure numpy._core.numeric is always available (unpickle may need it)
+        if "numpy._core.numeric" not in sys.modules:
+            _sub = None
+            try:
+                _sub = __import__("numpy.core.numeric", fromlist=["numeric"])
+            except Exception:
+                pass
+            if _sub is not None:
+                sys.modules["numpy._core.numeric"] = _sub
+                if hasattr(np, "_core") and not hasattr(np._core, "numeric"):
+                    setattr(np._core, "numeric", _sub)
+    except Exception:
+        pass
+
+
+def _ensure_numpy_random_compat() -> None:
+    """Register numpy.random._pcg64 and patch unpickler so models saved with NumPy 2.x load."""
+    try:
+        # Ensure _pcg64 is importable (NumPy 1.17+ has it)
         try:
-            _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
-            setattr(_core, _name, _sub)
-            sys.modules[f"numpy._core.{_name}"] = _sub
+            import numpy.random._pcg64 as _pcg64
+            sys.modules["numpy.random._pcg64"] = _pcg64
         except Exception:
-            pass
+            import numpy.random
+            if hasattr(numpy.random, "_pcg64"):
+                sys.modules["numpy.random._pcg64"] = getattr(numpy.random, "_pcg64")
+
+        # Patch so BitGenerator *class* (from pickle) is accepted, not only string name
+        import numpy.random._pickle as _np_pickle
+        from numpy.random.bit_generator import BitGenerator
+        _orig_ctor = getattr(_np_pickle, "__bit_generator_ctor", None)
+        if _orig_ctor is not None:
+
+            def _bit_generator_ctor_patched(bit_generator):
+                if isinstance(bit_generator, type) and issubclass(bit_generator, BitGenerator):
+                    return bit_generator()
+                return _orig_ctor(bit_generator)
+
+            _np_pickle.__bit_generator_ctor = _bit_generator_ctor_patched
+    except Exception:
+        pass
+
+
+_ensure_numpy_core_compat()
+_ensure_numpy_random_compat()
 
 import torch
 import pygame as pg
+from gymnasium import spaces
 
 from game_field_gpu import (
     GPUFieldConfig,
@@ -45,7 +95,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/final_ppo_paper_2v2_colab.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/final_ppo_league_2v2_colab.zip"
 N_MACROS = 5
 N_TARGETS = 8
 
@@ -69,6 +119,20 @@ def _resolve_zip_path(path: str) -> Optional[str]:
         if not sr.endswith(".zip"):
             candidates.append(sr + ".zip")
     return _try_paths(*candidates)
+
+
+def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: int = N_TARGETS):
+    """Build observation and action spaces for GPU CTF (so SB3 can load when saved ones fail to unpickle)."""
+    obs_space = spaces.Dict(
+        {
+            "grid": spaces.Box(low=0.0, high=1.0, shape=(n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
+            "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 12), dtype=np.float32),
+            "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue,), dtype=np.float32),
+            "mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue * (n_macros + n_targets),), dtype=np.float32),
+        }
+    )
+    action_space = spaces.MultiDiscrete([n_macros, n_targets] * n_blue)
+    return obs_space, action_space
 
 
 # ---------------------------------------------------------------------------
@@ -100,15 +164,33 @@ class PPOController:
             print(f"[PPO] Model not found: {model_path}")
             return
         try:
+            _ensure_numpy_core_compat()
+            _ensure_numpy_random_compat()
             from stable_baselines3 import PPO as SB3PPO
-            # Load the model onto the requested device (CPU or GPU).
-            self.model = SB3PPO.load(self.model_path, device=self.device)
+            # custom_objects: avoid unpickling policy/spaces from another Python/NumPy version.
+            obs_space, action_space = _make_obs_action_spaces(2, self.n_macros, self.n_targets)
+            custom_objects = {
+                "observation_space": obs_space,
+                "action_space": action_space,
+            }
+            try:
+                from rl.train_ppo import MaskedMultiInputPolicy
+                custom_objects["policy_class"] = MaskedMultiInputPolicy
+            except Exception:
+                from stable_baselines3.common.policies import MultiInputActorCriticPolicy
+                custom_objects["policy_class"] = MultiInputActorCriticPolicy
+            self.model = SB3PPO.load(
+                self.model_path,
+                device=self.device,
+                custom_objects=custom_objects,
+            )
             self.model.policy.set_training_mode(False)
             self.model_loaded = True
             print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
         except Exception as exc:
             print(f"[PPO] Failed to load: {exc}")
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
     def predict(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
         """Return flat int64 action array [n_blue * 2] from batched obs (B=1)."""
@@ -298,16 +380,22 @@ class CTFViewer:
             max_blue_agents=2,
             max_red_agents=2,
             device=device,
+            max_decision_steps=1800,
+            stalemate_max_steps=1800,  # effectively disable stalemate truncation (match ends on time or score)
+            rules_profile="OURS_PLUS",  # 1 point per capture only (no grab point)
+            score_limit=3,
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
-        # Configure core to use full OP4 physics + OP4 scripted opponent (held-out eval, matches plot_eval_metrics default).
+        self.cfg.max_decision_steps = 1800
+        self.cfg.stalemate_max_steps = 1800
+        self.core.max_steps = 1800
+        self.core.rules_profile = "OURS_PLUS"
+        print(f"[Viewer] Match length: {self.core.max_steps} steps (~3 min) | scoring: OURS (1 pt/capture)")
         try:
-            # OP4 phase and stress schedule (currents, drift, delay, sensor noise/dropout).
             self.core.set_phase("OP4")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            # Ensure Aquaticus rules profile is active.
-            self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"rules_profile": "OURS_PLUS", "aquaticus_profile": True})
 
             # Sample OP4 scripted opponent parameters (2v2 by default in viewer).
             opp = sample_batched_opponent_params(
@@ -389,11 +477,8 @@ class CTFViewer:
         else:
             any_done = bool(done.any())
         if any_done:
-            if isinstance(done, np.ndarray):
-                mask = torch.from_numpy(done).to(self.core.device)
-            else:
-                mask = done
-            self.core.reset_indices(mask)
+            # Full reset so flags and carrying state are clean (avoids wrong-flag-after-reset bug).
+            self.core.reset_all()
         info = infos[0] if infos else {}
         self._last_info = info
         return info
@@ -522,13 +607,16 @@ class CTFViewer:
         agents = max(1, int(agents_per_team))
         self.cfg.max_blue_agents = agents
         self.cfg.max_red_agents = agents
+        self.cfg.max_decision_steps = 1800
+        self.cfg.stalemate_max_steps = 1800
         self.core = BatchedCTFCore(self.cfg)
+        self.core.max_steps = 1800
+        self.core.rules_profile = "OURS_PLUS"
         self.core.blue_scripted = (self.blue_mode == "DEMO")
-        # Reconfigure opponent to match OP4 scripted behavior for the new team size
         try:
             self.core.set_phase("OP4")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"rules_profile": "OURS_PLUS", "aquaticus_profile": True})
 
             opp = sample_batched_opponent_params(
                 kind="SCRIPTED",
@@ -566,10 +654,15 @@ class CTFViewer:
             self.core.reset_all()
             print("[Viewer] Reset")
         elif k == pg.K_F2:
-            # Cycle 2v2 -> 3v3 -> 4v4 -> 2v2 (all agents get roles; scripted red uses defender + strikers).
+            # Cycle 2v2 -> 3v3 -> 4v4 -> 2v2
             current = int(getattr(self.cfg, "max_blue_agents", 2))
             new_agents = {2: 3, 3: 4, 4: 2}.get(current, 3)
             self._rebuild_core(new_agents)
+        elif k in (pg.K_2, pg.K_3, pg.K_4):
+            # Direct switch: 2 -> 2v2, 3 -> 3v3, 4 -> 4v4
+            new_agents = 2 if k == pg.K_2 else (3 if k == pg.K_3 else 4)
+            if new_agents != int(getattr(self.cfg, "max_blue_agents", 2)):
+                self._rebuild_core(new_agents)
         elif k == pg.K_F3:
             cycle = ["PPO", "DEMO"] if self.ppo.model_loaded else ["DEMO"]
             idx = cycle.index(self.blue_mode) if self.blue_mode in cycle else 0
@@ -593,7 +686,7 @@ class CTFViewer:
             "PPO": (120, 255, 120),
             "DEMO": (120, 200, 255),
         }.get(self.blue_mode, (230, 230, 240))
-        txt("F1: Reset | F2: Agents 2v2/4v4 | F3: PPO / Demo | ESC: Quit",
+        txt("F1: Reset | F2: 2v2/3v3/4v4 (cycle) | 2/3/4: set team size | F3: PPO/Demo | ESC: Quit",
             30, 10, (200, 200, 220))
         txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)}",
             30, 36, mode_clr)

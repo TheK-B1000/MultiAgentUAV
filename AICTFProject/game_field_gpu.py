@@ -109,6 +109,8 @@ class GPUFieldConfig:
     # Number of consecutive frames an agent must be inside home radius while
     # carrying to count as a capture (filters single-frame tunneling at speed).
     capture_confirm_frames: int = 2
+    # No score for grab/capture in the first N steps (avoids spurious points at game start).
+    score_grace_steps: int = 10
 
     # PPO stability
     stalemate_max_steps: int = 120
@@ -340,8 +342,10 @@ class BatchedCTFCore:
         self.stalemate_steps[idx] = 0
         self.blue_score[idx] = 0
         self.red_score[idx] = 0
-        self.blue_flag_pos[idx] = self.blue_flag_home[idx]
-        self.red_flag_pos[idx] = self.red_flag_home[idx]
+        self.blue_flag_pos[idx] = self.blue_flag_home[idx].clone()
+        self.red_flag_pos[idx] = self.red_flag_home[idx].clone()
+        self.blue_carrying[idx] = False
+        self.red_carrying[idx] = False
         self.blue_tagged[idx] = False
         self.red_tagged[idx] = False
         self._last_dense_progress[idx] = 0.0
@@ -1352,6 +1356,11 @@ class BatchedCTFCore:
         )
 
         grab_r = 1.2
+        # Grace period: no score for grab/capture in the first few steps (avoids spurious
+        # points from spawn/initial state or first-frame edge cases in the viewer).
+        grace_steps = max(0, int(getattr(self.cfg, "score_grace_steps", 10)))
+        grace_ok = (self.step_count >= grace_steps).to(torch.bool)
+
         # Both flags can be taken at once: blue can grab red flag regardless of whether
         # red has blue's flag, and vice versa. Each grab only updates that side's carrying state.
         blue_grab_env = ((b_to_red <= grab_r) & (~self.blue_tagged)).any(dim=1)
@@ -1364,7 +1373,9 @@ class BatchedCTFCore:
             self.blue_carrying[env_idx] = False
             self.blue_carrying[env_idx, idx[env_idx]] = True
             if grab_delta > 0:
-                self.blue_score[env_idx] += grab_delta
+                score_env = env_idx[grace_ok[env_idx]]
+                if score_env.numel() > 0:
+                    self.blue_score[score_env] += grab_delta
             self.red_flag_pos[env_idx] = torch.stack(
                 [self.blue_x[env_idx, idx[env_idx]], self.blue_y[env_idx, idx[env_idx]]],
                 dim=1,
@@ -1376,7 +1387,9 @@ class BatchedCTFCore:
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
             if grab_delta > 0:
-                self.red_score[env_idx] += grab_delta
+                score_env = env_idx[grace_ok[env_idx]]
+                if score_env.numel() > 0:
+                    self.red_score[score_env] += grab_delta
             self.blue_flag_pos[env_idx] = torch.stack(
                 [self.red_x[env_idx, idx[env_idx]], self.red_y[env_idx, idx[env_idx]]],
                 dim=1,
@@ -1411,13 +1424,19 @@ class BatchedCTFCore:
 
         b_cap_env = blue_capture_now.any(dim=1)
         r_cap_env = red_capture_now.any(dim=1)
+        cap_delta_b = get_capture_score_delta(self.rules_profile)
+        cap_delta_r = get_capture_score_delta(self.rules_profile)
         if b_cap_env.any():
-            self.blue_score[b_cap_env] += get_capture_score_delta(self.rules_profile)
+            award_b = b_cap_env & grace_ok
+            if award_b.any():
+                self.blue_score[award_b] += cap_delta_b
             self.blue_carrying[b_cap_env] = False
             self.red_flag_pos[b_cap_env] = self.red_flag_home[b_cap_env]
             self.blue_home_contact_frames[b_cap_env] = 0
         if r_cap_env.any():
-            self.red_score[r_cap_env] += get_capture_score_delta(self.rules_profile)
+            award_r = r_cap_env & grace_ok
+            if award_r.any():
+                self.red_score[award_r] += cap_delta_r
             self.red_carrying[r_cap_env] = False
             self.blue_flag_pos[r_cap_env] = self.blue_flag_home[r_cap_env]
             self.red_home_contact_frames[r_cap_env] = 0
