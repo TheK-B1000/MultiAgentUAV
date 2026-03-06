@@ -44,7 +44,7 @@ from opponent_params import sample_batched_opponent_params
 
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-METRICS_DIR = os.path.join(_SCRIPT_DIR, "metrics")
+METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
 DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/final_ppo_paper_2v2_colab.zip"
 N_MACROS = 5
 N_TARGETS = 8
