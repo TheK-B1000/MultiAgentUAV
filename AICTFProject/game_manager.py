@@ -5,8 +5,6 @@ sparse reward constants.
 - game_field_gpu (BatchedCTFCore) imports get_grab_score_delta, get_capture_score_delta,
   AQUATICUS_SPARSE_*, and DEFAULT_SCORE_LIMIT from here so GPU training and the viewer
   use the same values.
-- GameManager (this module) is also used by agents.py and any GameField that binds
-  a GameManager (non-vectorized / legacy pipelines).
 """
 from __future__ import annotations
 

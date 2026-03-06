@@ -1,7 +1,7 @@
 """
 GPU-vectorized CTF environment used by PPO/MAPPO/QMIX training and the viewer.
 
-Training (rl/train_ppo.py, train_mappo.py, train_qmix.py) uses BatchedCTFCore via
+Training (rl/train_ppo.py) uses BatchedCTFCore via
 GPUCTFVecEnv. Scoring and sparse reward values are imported from game_manager so
 both paths stay aligned (get_grab_score_delta, get_capture_score_delta, AQUATICUS_SPARSE_*).
 GameManager (game_manager.py) remains the single source of truth for those constants.
@@ -22,6 +22,8 @@ try:
     from opponent_params import sample_batched_opponent_params
 except ImportError:
     sample_batched_opponent_params = None
+
+from macro_actions import MacroAction
 
 # Scoring and sparse reward values: single source of truth from game_manager.
 from game_manager import (
@@ -77,7 +79,7 @@ class GPUFieldConfig:
     n_targets: int = 8
     score_limit: int = DEFAULT_SCORE_LIMIT
 
-    # Mines: pickups spawn; agents must GRAB_MINE (macro 1) to get a charge, then PLACE_MINE (macro 3) to place anywhere.
+    # Mines: pickups spawn; agents must GRAB_MINE to get a charge, then PLACE_MINE to place anywhere.
     # For realism, each team can have at most 2 active mines on the field, and there are 4 pickups total
     # (2 on the blue side, 2 on the red side). Pickups are single-use with no respawn.
     max_mines_per_team: int = 2
@@ -1001,7 +1003,7 @@ class BatchedCTFCore:
             self.red_y = torch.clamp(self.red_y + fy_r2, 0.0, float(max(0, self.rows - 1)))
 
     # ------------------------------------------------------------------
-    # Mine system: pickups spawn; agents GRAB_MINE (macro 1) then PLACE_MINE (macro 3) anywhere.
+    # Mine system: pickups spawn; agents GRAB_MINE then PLACE_MINE anywhere.
     # ------------------------------------------------------------------
     def _apply_mine_triggers(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -1058,7 +1060,7 @@ class BatchedCTFCore:
 
     def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> None:
         """
-        Respawn pickups; then blue grabs with GRAB_MINE (macro 1) or auto-grab when scripted; red grabs when near (scripted).
+        Respawn pickups; then blue grabs with GRAB_MINE or auto-grab when scripted; red grabs when near (scripted).
         """
         B, device = self.B, self.device
         Np = self.Np
@@ -1071,8 +1073,8 @@ class BatchedCTFCore:
             self.pickup_respawn = torch.clamp(self.pickup_respawn - 1, min=0)
             self.pickup_active = self.pickup_active | ((self.pickup_respawn <= 0) & (~self.pickup_active))
 
-        # Blue: (macro 1 GRAB_MINE or scripted) and near an active pickup and under max charge
-        grab_blue = ((macro_blue == 1) | self.blue_scripted) & (self.blue_mine_charges < max_charge)
+        # Blue: (GRAB_MINE or scripted) and near an active pickup and under max charge
+        grab_blue = ((macro_blue == MacroAction.GRAB_MINE) | self.blue_scripted) & (self.blue_mine_charges < max_charge)
         for i in range(self.Nb):
             dx = self.blue_x[:, i : i + 1] - self.pickup_x[:, :]
             dy = self.blue_y[:, i : i + 1] - self.pickup_y[:, :]
@@ -1111,14 +1113,14 @@ class BatchedCTFCore:
 
     def _apply_mine_placement(self, macro_blue: torch.Tensor) -> None:
         """
-        Blue: PLACE_MINE (macro 3) or scripted (defender every 50 steps) places at current position if charge > 0.
+        Blue: PLACE_MINE or scripted (defender every 50 steps) places at current position if charge > 0.
         Red: scripted placement when has charge (e.g. defender places every 50 steps).
         """
         B, device = self.B, self.device
         Nm = self.Nm
         midline = float(self.cols) * 0.5
 
-        # Blue: (macro 3 or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot.
+        # Blue: (PLACE_MINE or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot.
         # Use an explicit defender mask with the same (B, Nb) shape as macro_blue to avoid
         # shape/broadcast issues when Nb != B (e.g. 2v2 with n_envs=4 on Colab).
         scripted_mask: torch.Tensor
@@ -1129,7 +1131,7 @@ class BatchedCTFCore:
         else:
             scripted_mask = torch.zeros_like(macro_blue, dtype=torch.bool, device=device)
 
-        place_blue = ((macro_blue == 3) | scripted_mask) & (self.blue_mine_charges > 0)
+        place_blue = ((macro_blue == MacroAction.PLACE_MINE) | scripted_mask) & (self.blue_mine_charges > 0)
         for i in range(self.Nb):
             for slot in range(Nm):
                 can = place_blue[:, i] & (~self.blue_mine_active[:, slot])
@@ -1423,8 +1425,8 @@ class BatchedCTFCore:
     def _build_blue_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         t_xy = self._decode_targets(target)
         tx, ty = t_xy[..., 0], t_xy[..., 1]
-        get_flag = macro == 2
-        go_home = macro == 4
+        get_flag = macro == MacroAction.GET_FLAG
+        go_home = macro == MacroAction.GO_HOME
         tx = torch.where(get_flag, self.red_flag_pos[:, None, 0], tx)
         ty = torch.where(get_flag, self.red_flag_pos[:, None, 1], ty)
         tx = torch.where(go_home, self.blue_flag_home[:, None, 0], tx)
