@@ -297,6 +297,26 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
         return actions, values, log_prob
 
 
+class ProgressLogCallback(BaseCallback):
+    """Print steps progress every N steps (no tqdm/rich required)."""
+
+    def __init__(self, total_timesteps: int, interval: int = 50_000):
+        super().__init__(verbose=0)
+        self._total = int(total_timesteps)
+        self._interval = max(1, int(interval))
+        self._last_milestone = 0
+
+    def _on_step(self) -> bool:
+        if self._total <= 0:
+            return True
+        milestone = self.num_timesteps // self._interval
+        if milestone > self._last_milestone:
+            self._last_milestone = milestone
+            pct = 100.0 * self.num_timesteps / self._total
+            print(f"[PPO] Steps {self.num_timesteps:,}/{self._total:,} ({pct:.1f}%)")
+        return True
+
+
 class LeagueCallback(BaseCallback):
     def __init__(
         self,
@@ -325,6 +345,9 @@ class LeagueCallback(BaseCallback):
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
         self._pending_updates: List[Dict[str, Any]] = []
         self._selfplay_enabled: bool = False  # Track if we've enabled self-play
+        self.phase_win_count = 0
+        self.phase_loss_count = 0
+        self.phase_draw_count = 0
 
     def _enforce_league_snapshot_limit(self) -> None:
         """Delete oldest league snapshots when over cap to save disk space."""
@@ -486,6 +509,12 @@ class LeagueCallback(BaseCallback):
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
             self.curriculum.record_result(phase, actual)
+            if result == "WIN":
+                self.phase_win_count += 1
+            elif result == "LOSS":
+                self.phase_loss_count += 1
+            else:
+                self.phase_draw_count += 1
 
             is_scripted = opp_key.startswith("SCRIPTED:")
             if is_scripted:
@@ -498,6 +527,13 @@ class LeagueCallback(BaseCallback):
                     skip_elo_check=not self.league_mode,
                 )
                 if advanced:
+                    old_phase = phase
+                    phase_tot = self.phase_win_count + self.phase_loss_count + self.phase_draw_count
+                    phase_wr = (100.0 * self.phase_win_count / phase_tot) if phase_tot > 0 else 0.0
+                    print(f"[PPO] Phase {old_phase} complete: W={self.phase_win_count} L={self.phase_loss_count} D={self.phase_draw_count} WR={phase_wr:.1f}%")
+                    self.phase_win_count = 0
+                    self.phase_loss_count = 0
+                    self.phase_draw_count = 0
                     phase = self.curriculum.phase
                 # Debug: log why we're not advancing when still in OP1 (every 100 eps)
                 elif (
@@ -558,7 +594,16 @@ class LeagueCallback(BaseCallback):
                 wr = (self.win_count / self.episode_idx) * 100
                 mode = "LEAGUE" if self.league_mode else "CURR"
                 opp_summary = "mixed" if self.league_mode else phase
-                print(f"[PPO] ep={self.episode_idx} mode={mode} phase={phase} opp={opp_summary} W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
+                phase_tot = self.phase_win_count + self.phase_loss_count + self.phase_draw_count
+                phase_wr = (100.0 * self.phase_win_count / phase_tot) if phase_tot > 0 else 0.0
+                print(f"[PPO] ep={self.episode_idx} mode={mode} phase={phase} opp={opp_summary} | total W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
+                print(f"[PPO]   current phase {phase}: W={self.phase_win_count} L={self.phase_loss_count} D={self.phase_draw_count} WR={phase_wr:.1f}%")
+                for p in ("OP1", "OP2", "OP3"):
+                    st = self._opponent_stats.get(f"SCRIPTED:{p}", {})
+                    w, l, d = st.get("wins", 0), st.get("losses", 0), st.get("draws", 0)
+                    if w + l + d > 0:
+                        pwr = (100.0 * w / (w + l + d)) if (w + l + d) > 0 else 0.0
+                        print(f"[PPO]   {p}: W={w} L={l} D={d} WR={pwr:.1f}%")
 
             self.logger.record("curr/episode", self.episode_idx)
             self.logger.record("curr/win_rate", self.win_count / max(1, self.episode_idx))
@@ -1257,6 +1302,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[PPO] Saving to Google Drive — progress will persist if runtime disconnects.")
     if not getattr(cfg, "verbose_training", False):
         print("[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.")
+    print("[PPO] Progress: steps every 50k timesteps; W/L/D summary + per-phase (OP1/OP2/OP3) every 1000 episodes.")
 
     # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM on CPU.
     if max_agents > 4:
@@ -1524,6 +1570,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     # Top 5 IROS-style metrics: CSV at end of training (simple, publish-friendly)
     metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
     callbacks.append(MetricsCSVCallback(save_path=metrics_csv_path))
+
+    # Progress: steps every 50k (works without tqdm/rich)
+    callbacks.append(ProgressLogCallback(total_timesteps=int(cfg.total_timesteps), interval=50_000))
 
     # Fix 4.2: KL guardrail – log approx_kl and set model._kl_guardrail_triggered if spikes repeatedly
     if getattr(cfg, "approx_kl_threshold", 0) > 0 and getattr(cfg, "kl_guardrail_consecutive", 0) > 0:
