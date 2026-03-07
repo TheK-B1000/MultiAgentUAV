@@ -1537,14 +1537,16 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     n_epochs = int(cfg.n_epochs)
     batch_size = int(cfg.batch_size)
 
+    rollout_size = int(cfg.n_steps) * int(cfg.n_envs)
     use_curriculum = mode in (TrainMode.CURRICULUM_LEAGUE.value, TrainMode.CURRICULUM_NO_LEAGUE.value)
     if use_curriculum or getattr(cfg, "use_stable_marl_ppo", False):
         learning_rate = 1.5e-4
         ent_coef = 0.005
         clip_range = 0.12
         n_epochs = 4
-        batch_size = 1024
-        print("[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024")
+        # batch_size must be <= rollout (n_steps*n_envs=256) to avoid SB3 truncated-batch warning
+        batch_size = min(1024, rollout_size)
+        print(f"[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size={batch_size}")
     elif getattr(cfg, "use_reduced_aggressiveness", False):
         learning_rate = learning_rate * 0.67
         ent_coef = ent_coef * 0.5
