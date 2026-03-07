@@ -157,16 +157,17 @@ class TrainMode(str, Enum):
 
 @dataclass
 class PPOConfig:
+    """Defaults are paper-aligned (Table 3): γ 0.995, λ 0.99, c1 1.0, c2 0.01, ε 0.2, buffer 256, batch 64."""
     seed: int = 42
     total_timesteps: int = 4_000_000
     n_envs: int = 4
-    n_steps: int = 2048
-    batch_size: int = 512
+    n_steps: int = 64  # paper experienceBufferSize 256 => n_envs * n_steps = 256
+    batch_size: int = 64  # paper batchSizeBackward 64
     n_epochs: int = 10
     gamma: float = 0.995
-    gae_lambda: float = 0.95
-    clip_range: float = 0.2
-    ent_coef: float = 0.01
+    gae_lambda: float = 0.99  # paper λ
+    clip_range: float = 0.2  # paper ε
+    ent_coef: float = 0.01  # paper c2
     learning_rate: float = 3e-4
     max_grad_norm: float = 0.5
     # Default to GPU when available, otherwise CPU.
@@ -1473,13 +1474,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
+    # Env defaults are paper (Table 3) from GPUFieldConfig / game_manager
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
         max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
         max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
-        rules_profile="AQUATICUS_2024",
         device=str(cfg.device),
         seed=int(cfg.seed),
     )
@@ -1575,7 +1576,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         gae_lambda=float(cfg.gae_lambda),
         clip_range=clip_range,
         ent_coef=ent_coef,
-        vf_coef=0.5,
+        vf_coef=1.0,  # paper c1
         max_grad_norm=float(cfg.max_grad_norm),
         tensorboard_log=(
             os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
@@ -1832,6 +1833,7 @@ if __name__ == "__main__":
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         parser.add_argument("--verbose-training", action="store_true", help="Print each episode result and debug logs (slower; default is quiet for speed)")
         parser.add_argument("--device", type=str, default=None, help="Device for env and PPO: cuda, cuda:0, or cpu. Default: cuda if available else cpu.")
+        parser.add_argument("--paper", action="store_true", help="Use paper-aligned game params, rewards, and PPO hyperparams (Table 3).")
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:

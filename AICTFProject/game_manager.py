@@ -5,12 +5,80 @@ sparse reward constants.
 - game_field_gpu (BatchedCTFCore) imports get_grab_score_delta, get_capture_score_delta,
   AQUATICUS_SPARSE_*, and DEFAULT_SCORE_LIMIT from here so GPU training and the viewer
   use the same values.
+
+- See docs/PAPER_PARAMS_COMPARISON.md for paper "Multi-agent RL for UAV CTF" vs code.
 """
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+# -------------------------
+# Paper (UAV CTF) — Table 3: game params, rewards, PPO. Single source of truth for paper-aligned runs.
+# See docs/PAPER_PARAMS_COMPARISON.md.
+# -------------------------
+# Game (physical): zoneLength 2.5m, landMineRadius 1.5m, suppressionRange 2.0m, maxGameTime 200s,
+#                  maxActions 16, movementSpeed 0.5 m/s, avoidanceRadius 1.5m, ∆tsim 0.5s
+PAPER_ZONE_LENGTH_CELLS = 2.5
+PAPER_LANDMINE_RADIUS_CELLS = 1.5
+PAPER_SUPPRESSION_RANGE_CELLS = 2.0
+PAPER_MAX_GAME_TIME_S = 200
+PAPER_DT_SIM_S = 0.5
+PAPER_MAX_DECISION_STEPS = int(PAPER_MAX_GAME_TIME_S / PAPER_DT_SIM_S)  # 400
+PAPER_MOVEMENT_SPEED_MPS = 0.5
+# 0.5 m/s * 0.5 s = 0.25 m per step; 1 cell = 1 m => 0.25 cells/step
+PAPER_MAX_SPEED_CPS = 0.25
+PAPER_AVOIDANCE_RADIUS_CELLS = 1.5
+PAPER_MAX_ACTIONS = 16
+# 5 macros (GoTo, GrabMine, GetFlag, PlaceMine, GoHome) × 4 targets = 20 (core uses 5 macros)
+PAPER_N_MACROS = 5
+PAPER_N_TARGETS = 4
+
+# Rewards (Table 3)
+PAPER_WIN_TEAM_REWARD = 1.0
+PAPER_FLAG_PICKUP_REWARD = 0.1
+PAPER_FLAG_CARRY_HOME_REWARD = 0.5
+PAPER_ENABLED_LANDMINE_REWARD = 0.2
+PAPER_ENEMY_MAV_KILL_REWARD = 0.5
+PAPER_ACTION_FAILED_PUNISHMENT = -0.2
+
+# Sparse "points" for GPU: raw/100 = reward (so 0.1 paper reward => 10 raw).
+PAPER_SPARSE_GRAB = 10.0
+PAPER_SPARSE_CAPTURE = 50.0
+PAPER_SPARSE_TAG_NO_FLAG = 50.0
+PAPER_SPARSE_TAG_WITH_FLAG = 25.0
+PAPER_SPARSE_MINE_TAG = 50.0
+PAPER_SPARSE_OOB = -20.0
+PAPER_GRAB_SCORE = 1
+PAPER_CAPTURE_SCORE = 1
+
+
+def get_paper_game_params() -> Dict[str, Any]:
+    """Return dict of paper-aligned game params for GPUFieldConfig / train_ppo (Table 3)."""
+    return {
+        "max_decision_steps": PAPER_MAX_DECISION_STEPS,
+        "decision_interval_seconds": PAPER_DT_SIM_S,
+        "max_speed_cps": PAPER_MAX_SPEED_CPS,
+        "avoid_collision_radius_cells": PAPER_AVOIDANCE_RADIUS_CELLS,
+        "tag_range_cells": PAPER_ZONE_LENGTH_CELLS,
+        "mine_trigger_radius_cells": PAPER_LANDMINE_RADIUS_CELLS,
+        "suppression_range_cells": PAPER_SUPPRESSION_RANGE_CELLS,
+        "n_macros": PAPER_N_MACROS,
+        "n_targets": PAPER_N_TARGETS,
+    }
+
+
+def get_paper_reward_constants() -> Dict[str, float]:
+    """Return dict of paper-aligned reward constants (Table 3)."""
+    return {
+        "win_team_reward": PAPER_WIN_TEAM_REWARD,
+        "flag_pickup_reward": PAPER_FLAG_PICKUP_REWARD,
+        "flag_carry_home_reward": PAPER_FLAG_CARRY_HOME_REWARD,
+        "enabled_landmine_reward": PAPER_ENABLED_LANDMINE_REWARD,
+        "enemy_mav_kill_reward": PAPER_ENEMY_MAV_KILL_REWARD,
+        "action_failed_punishment": PAPER_ACTION_FAILED_PUNISHMENT,
+    }
 
 # -------------------------
 # Reward constants (baseline)
@@ -101,13 +169,21 @@ DEFAULT_SCORE_LIMIT = 3
 
 def get_grab_score_delta(rules_profile: str) -> int:
     """Score added to the grabbing team when they pick up the enemy flag. Used by GPU core and GameManager."""
-    return int(AQUATICUS_GRAB_SCORE) if str(rules_profile).upper().strip() == "AQUATICUS_2024" else 0
+    p = str(rules_profile).upper().strip()
+    if p == "AQUATICUS_2024":
+        return int(AQUATICUS_GRAB_SCORE)
+    if p == "PAPER":
+        return int(PAPER_GRAB_SCORE)
+    return 0
 
 
 def get_capture_score_delta(rules_profile: str) -> int:
     """Score added when a carrier scores (brings flag home). Used by GPU core and GameManager."""
-    if str(rules_profile).upper().strip() == "AQUATICUS_2024":
+    p = str(rules_profile).upper().strip()
+    if p == "AQUATICUS_2024":
         return int(AQUATICUS_CAPTURE_SCORE)
+    if p == "PAPER":
+        return int(PAPER_CAPTURE_SCORE)
     return 1
 
 

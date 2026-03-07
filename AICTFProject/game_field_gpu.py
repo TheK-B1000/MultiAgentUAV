@@ -27,9 +27,11 @@ from macro_actions import MacroAction
 from agents import AgentHandle
 
 # Scoring and sparse reward values: single source of truth from game_manager.
+# Paper (Table 3) is the default; game params and rewards come from game_manager.
 from game_manager import (
     get_grab_score_delta,
     get_capture_score_delta,
+    get_paper_game_params,
     AQUATICUS_SPARSE_TAG_NO_FLAG,
     AQUATICUS_SPARSE_TAG_WITH_FLAG,
     AQUATICUS_SPARSE_GRAB,
@@ -37,6 +39,21 @@ from game_manager import (
     AQUATICUS_SPARSE_OOB,
     AQUATICUS_SPARSE_MINE_TAG,
     DEFAULT_SCORE_LIMIT,
+    PAPER_SPARSE_GRAB,
+    PAPER_SPARSE_CAPTURE,
+    PAPER_SPARSE_TAG_NO_FLAG,
+    PAPER_SPARSE_TAG_WITH_FLAG,
+    PAPER_SPARSE_MINE_TAG,
+    PAPER_SPARSE_OOB,
+    PAPER_MAX_DECISION_STEPS,
+    PAPER_DT_SIM_S,
+    PAPER_MAX_SPEED_CPS,
+    PAPER_AVOIDANCE_RADIUS_CELLS,
+    PAPER_ZONE_LENGTH_CELLS,
+    PAPER_LANDMINE_RADIUS_CELLS,
+    PAPER_SUPPRESSION_RANGE_CELLS,
+    PAPER_N_MACROS,
+    PAPER_N_TARGETS,
 )
 
 CNN_COLS = 20
@@ -47,20 +64,18 @@ GLOBAL_STATE_CHANNELS = 8
 
 @dataclass
 class GPUFieldConfig:
+    """Config for BatchedCTFCore. Defaults are paper-aligned (Table 3) from game_manager."""
     n_envs: int = 64
-    # Aquaticus standard setup is 2v2.
     max_blue_agents: int = 2
     max_red_agents: int = 2
     map_rows: int = 20
     map_cols: int = 20
-    # 3-minute games at 0.1 s physics timestep -> 1800 steps; game ends at time 0 or score 3.
-    # Note: decision_interval_seconds is a wall-clock/metadata hint only; the physics integrator
-    # in BatchedCTFCore.step() always uses a fixed dt = 0.1 seconds for stability.
-    max_decision_steps: int = 1800
-    decision_interval_seconds: float = 0.7
+    # Paper default: maxGameTime 200s, ∆t 0.5s => 400 steps (from game_manager)
+    max_decision_steps: int = PAPER_MAX_DECISION_STEPS
+    decision_interval_seconds: float = PAPER_DT_SIM_S
 
-    # Dynamics (matching BoatSimConfig defaults in game_field.py)
-    max_speed_cps: float = 2.2
+    # Dynamics: paper default movementSpeed 0.5 m/s => 0.25 cells/step (from game_manager)
+    max_speed_cps: float = PAPER_MAX_SPEED_CPS
     max_accel_cps2: float = 2.0
     max_yaw_rate_rps: float = 4.0
     min_turn_radius_cells: float = 0.75
@@ -69,23 +84,19 @@ class GPUFieldConfig:
     sensor_range_cells: float = 9999.0
     sensor_noise_sigma_cells: float = 0.0
     sensor_dropout_prob: float = 0.0
-    suppression_range_cells: float = 2.0
-    # Local tag radius (in map cells) used by Aquaticus-style tagging.
-    tag_range_cells: float = 2.5
+    suppression_range_cells: float = PAPER_SUPPRESSION_RANGE_CELLS
+    tag_range_cells: float = PAPER_ZONE_LENGTH_CELLS
     home_untag_radius_cells: float = 2.0
-    avoid_collision_radius_cells: float = 0.75
+    avoid_collision_radius_cells: float = PAPER_AVOIDANCE_RADIUS_CELLS
     opregion_safe_speed_cps: float = 0.8
 
-    n_macros: int = 5
-    n_targets: int = 8
+    n_macros: int = PAPER_N_MACROS
+    n_targets: int = PAPER_N_TARGETS
     score_limit: int = DEFAULT_SCORE_LIMIT
 
-    # Mines: pickups spawn; agents must GRAB_MINE to get a charge, then PLACE_MINE to place anywhere.
-    # For realism, each team can have at most 2 active mines on the field, and there are 4 pickups total
-    # (2 on the blue side, 2 on the red side). Pickups are single-use with no respawn.
     max_mines_per_team: int = 2
     max_mine_charges_per_agent: int = 2
-    mine_trigger_radius_cells: float = 1.5
+    mine_trigger_radius_cells: float = PAPER_LANDMINE_RADIUS_CELLS
     mine_pickup_radius_cells: float = 1.2
     mine_pickup_respawn_steps: int = 0   # 0 => no respawn; pickups are single-use
     n_mine_pickups: int = 4
@@ -94,9 +105,9 @@ class GPUFieldConfig:
     # - tag_channel_seconds: pressure >= 2 must be sustained for this many seconds before a tag is applied.
     tag_channel_seconds: float = 1.0
 
-    # Profile and reward controls
+    # Profile and reward controls (default PAPER = Table 3 from game_manager)
     aquaticus_profile: bool = True
-    rules_profile: str = "AQUATICUS_2024"  # OURS_PLUS | AQUATICUS_2024
+    rules_profile: str = "PAPER"  # PAPER (default) | AQUATICUS_2024
     sparse_weight: float = 1.0
     dense_weight: float = 0.35
     reward_scale: float = 2.0
@@ -121,6 +132,21 @@ class GPUFieldConfig:
 
     device: str = "cpu"
     seed: int = 42
+
+    @classmethod
+    def from_paper(cls, n_envs: int = 4, device: str = "cpu", seed: int = 42, **overrides) -> "GPUFieldConfig":
+        """Build config from game_manager paper params (Table 3). Override with kwargs as needed."""
+        params = get_paper_game_params()
+        return cls(
+            n_envs=n_envs,
+            device=device,
+            seed=seed,
+            rules_profile="PAPER",
+            max_blue_agents=2,
+            max_red_agents=2,
+            **params,
+            **overrides,
+        )
 
 
 class BatchedCTFCore:
@@ -1511,20 +1537,34 @@ class BatchedCTFCore:
         blue_mine_tags: Optional[torch.Tensor] = None,
         red_mine_tags: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        # Values from game_manager (AQUATICUS_SPARSE_*) so scoring/rewards stay aligned.
+        # Values from game_manager (AQUATICUS_SPARSE_* or PAPER_SPARSE_*) so scoring/rewards stay aligned.
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
-        r += float(AQUATICUS_SPARSE_TAG_NO_FLAG) * blue_tag_noflag
-        r += float(AQUATICUS_SPARSE_TAG_WITH_FLAG) * blue_tag_withflag
-        r -= float(AQUATICUS_SPARSE_TAG_NO_FLAG) * red_tag_total
-        if blue_mine_tags is not None:
-            r += float(AQUATICUS_SPARSE_MINE_TAG) * blue_mine_tags
-        if red_mine_tags is not None:
-            r -= float(AQUATICUS_SPARSE_MINE_TAG) * red_mine_tags
-        r += float(AQUATICUS_SPARSE_GRAB) * blue_grab_env.to(torch.float32)
-        r -= float(AQUATICUS_SPARSE_GRAB) * red_grab_env.to(torch.float32)
-        r += float(AQUATICUS_SPARSE_CAPTURE) * blue_cap_env.to(torch.float32)
-        r -= float(AQUATICUS_SPARSE_CAPTURE) * red_cap_env.to(torch.float32)
-        r += float(AQUATICUS_SPARSE_OOB) * blue_oob.sum(dim=1).to(torch.float32)
+        if self.rules_profile == "PAPER":
+            r += float(PAPER_SPARSE_TAG_NO_FLAG) * blue_tag_noflag
+            r += float(PAPER_SPARSE_TAG_WITH_FLAG) * blue_tag_withflag
+            r -= float(PAPER_SPARSE_TAG_NO_FLAG) * red_tag_total
+            if blue_mine_tags is not None:
+                r += float(PAPER_SPARSE_MINE_TAG) * blue_mine_tags
+            if red_mine_tags is not None:
+                r -= float(PAPER_SPARSE_MINE_TAG) * red_mine_tags
+            r += float(PAPER_SPARSE_GRAB) * blue_grab_env.to(torch.float32)
+            r -= float(PAPER_SPARSE_GRAB) * red_grab_env.to(torch.float32)
+            r += float(PAPER_SPARSE_CAPTURE) * blue_cap_env.to(torch.float32)
+            r -= float(PAPER_SPARSE_CAPTURE) * red_cap_env.to(torch.float32)
+            r += float(PAPER_SPARSE_OOB) * blue_oob.sum(dim=1).to(torch.float32)
+        else:
+            r += float(AQUATICUS_SPARSE_TAG_NO_FLAG) * blue_tag_noflag
+            r += float(AQUATICUS_SPARSE_TAG_WITH_FLAG) * blue_tag_withflag
+            r -= float(AQUATICUS_SPARSE_TAG_NO_FLAG) * red_tag_total
+            if blue_mine_tags is not None:
+                r += float(AQUATICUS_SPARSE_MINE_TAG) * blue_mine_tags
+            if red_mine_tags is not None:
+                r -= float(AQUATICUS_SPARSE_MINE_TAG) * red_mine_tags
+            r += float(AQUATICUS_SPARSE_GRAB) * blue_grab_env.to(torch.float32)
+            r -= float(AQUATICUS_SPARSE_GRAB) * red_grab_env.to(torch.float32)
+            r += float(AQUATICUS_SPARSE_CAPTURE) * blue_cap_env.to(torch.float32)
+            r -= float(AQUATICUS_SPARSE_CAPTURE) * red_cap_env.to(torch.float32)
+            r += float(AQUATICUS_SPARSE_OOB) * blue_oob.sum(dim=1).to(torch.float32)
         return r
 
     def _reward_total(
@@ -1544,10 +1584,9 @@ class BatchedCTFCore:
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
         a = blue_action_flat.view(self.B, self.Nb, 2)
-        # For stability, fix the integration timestep at 0.1 seconds regardless of
-        # external wall-clock or decision_interval_seconds configuration.
-        old_dt = self.dt
-        self.dt = 0.1
+        # Paper profile uses config dt (0.5 s); else fix at 0.1 s for stability.
+        if self.rules_profile != "PAPER":
+            self.dt = 0.1
         macro = torch.remainder(a[..., 0].long(), self.cfg.n_macros)
         targ = torch.remainder(a[..., 1].long(), self.cfg.n_targets)
 
