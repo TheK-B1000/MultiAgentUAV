@@ -299,24 +299,39 @@ class BatchedCTFCore:
         self._init_pickup_positions()
 
     def _build_macro_targets(self) -> None:
-        c_mid = self.cols // 2
-        r_mid = self.rows // 2
-        top = max(0, min(self.rows - 1, 5))
-        bot = max(0, min(self.rows - 1, self.rows - 5))
-        self._macro_targets = torch.tensor(
-            [
-                [0.0, float(r_mid)],
-                [float(self.cols - 1), float(r_mid)],
-                [2.0, float(r_mid)],
-                [float(self.cols - 3), float(r_mid)],
-                [float(c_mid), float(r_mid)],
-                [float(c_mid), float(top)],
-                [float(c_mid), float(bot)],
-                [4.0, float(r_mid)],
-            ],
-            dtype=torch.float32,
-            device=self.device,
-        )
+        """Build fixed 2D waypoint set. Paper: categorical over 50 fixed positions; else 8 (or n_targets)."""
+        n = int(self.cfg.n_targets)
+        if n >= 50:
+            # Paper-aligned: 50 fixed 2D positions (e.g. 5×10 grid over field).
+            positions = []
+            for i in range(50):
+                # 5 columns × 10 rows; cell centers
+                c, r = (i % 5), (i // 5)
+                x = float(self.cols) * (c + 0.5) / 5.0
+                y = float(self.rows) * (r + 0.5) / 10.0
+                x = max(0.0, min(float(self.cols - 1), x))
+                y = max(0.0, min(float(self.rows - 1), y))
+                positions.append([x, y])
+            self._macro_targets = torch.tensor(positions, dtype=torch.float32, device=self.device)
+        else:
+            c_mid = self.cols // 2
+            r_mid = self.rows // 2
+            top = max(0, min(self.rows - 1, 5))
+            bot = max(0, min(self.rows - 1, self.rows - 5))
+            self._macro_targets = torch.tensor(
+                [
+                    [0.0, float(r_mid)],
+                    [float(self.cols - 1), float(r_mid)],
+                    [2.0, float(r_mid)],
+                    [float(self.cols - 3), float(r_mid)],
+                    [float(c_mid), float(r_mid)],
+                    [float(c_mid), float(top)],
+                    [float(c_mid), float(bot)],
+                    [4.0, float(r_mid)],
+                ],
+                dtype=torch.float32,
+                device=self.device,
+            )
 
     def _rand_uniform(self, shape: Sequence[int], lo: float, hi: float) -> torch.Tensor:
         t = torch.rand(tuple(shape), generator=self._rng, device=self.device)
@@ -1580,6 +1595,7 @@ class BatchedCTFCore:
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
 
     def step(self, blue_action_flat: torch.Tensor, *, tensor_obs: bool = False):
+        old_dt = float(self.dt)
         self._apply_profile_runtime()
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
@@ -1674,10 +1690,20 @@ class BatchedCTFCore:
         self.truncated = truncated
 
         reward = self._reward_total(dense, sparse_points, stalemate_trigger)
-        # Restore original dt after physics integration.
+        dt_used = float(self.dt)  # dt actually used this step (for sim2real game_time_sec)
         self.dt = old_dt
         obs_t = self.get_obs_tensors()
         info = self._build_info(dense=dense, sparse_points=sparse_points, stalemate=stalemate_trigger)
+        # Sim-to-real: optional per-step speed logging (paper: measure real speed and pickup times, adjust sim).
+        _logger = getattr(self, "sim2real_logger", None)
+        if _logger is not None:
+            sc = self.step_count.cpu().numpy()
+            sp = self.blue_speed.cpu().numpy()
+            al = self.blue_alive.cpu().numpy()
+            for b in range(self.B):
+                for j in range(self.Nb):
+                    if al[b, j]:
+                        _logger.log_step(int(b), int(sc[b]), j, float(sc[b] * dt_used), float(sp[b, j]), "")
         if tensor_obs:
             return obs_t, reward, terminated, truncated, info
         return (
@@ -1754,7 +1780,8 @@ class BatchedCTFCore:
 
     def _build_vec_obs(self) -> torch.Tensor:
         """
-        Normalized observation vector (stable for PPO critic):
+        Normalized observation vector (stable for PPO critic).
+        Paper profile: game time/20 (0..10), decision counter (0..13), agent id; else time fraction and agent id.
           0: x_norm in [0,1]
           1: y_norm in [0,1]
           2: heading/pi in [-1,1]
@@ -1762,17 +1789,19 @@ class BatchedCTFCore:
           4-7: relative flag deltas normalized to [-1,1]
           8: carrying flag (0/1)
           9: nearest enemy distance normalized to [0,1]
-          10: time fraction in [0,1]
-          11: agent id normalized in [0,1]
+          10: (PAPER) game time/20 in 0..10 normalized to [0,1]; else time fraction
+          11: (PAPER) decision counter 0..13 normalized to [0,1]; else agent id
+          12: (PAPER only) agent id normalized in [0,1]
         """
-        out = torch.zeros((self.B, self.Nb, 12), dtype=torch.float32, device=self.device)
+        use_paper_obs = self.rules_profile == "PAPER"
+        vec_size = 13 if use_paper_obs else 12
+        out = torch.zeros((self.B, self.Nb, vec_size), dtype=torch.float32, device=self.device)
         cols = max(1.0, float(self.cols - 1))
         rows = max(1.0, float(self.rows - 1))
         max_speed = max(1e-6, float(self.cfg.max_speed_cps))
 
         out[..., 0] = torch.clamp(self.blue_x / cols, 0.0, 1.0)
         out[..., 1] = torch.clamp(self.blue_y / rows, 0.0, 1.0)
-        # Discretized bearing theta_i (formal Aquaticus-style state element).
         heading_norm = (self.blue_heading + math.pi) / (2.0 * math.pi)
         heading_bins = torch.floor(torch.clamp(heading_norm, 0.0, 0.9999) * 16.0) / 15.0
         out[..., 2] = torch.clamp(heading_bins * 2.0 - 1.0, -1.0, 1.0)
@@ -1788,10 +1817,18 @@ class BatchedCTFCore:
         d = torch.sqrt(dx * dx + dy * dy + 1e-8)
         nearest_enemy = torch.min(d, dim=2).values
         out[..., 9] = torch.clamp(nearest_enemy / max(1e-6, self.max_dist), 0.0, 1.0)
-        out[..., 10] = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
 
         agent_id = torch.arange(self.Nb, device=self.device, dtype=torch.float32)
-        out[..., 11] = agent_id[None, :] / max(1.0, float(self.Nb - 1))
+        agent_id_norm = agent_id[None, :] / max(1.0, float(self.Nb - 1))
+        if use_paper_obs:
+            # Paper: game time/20 (0..10) and decision counter (0..13)
+            game_time_sec = self.step_count[:, None].to(torch.float32) * self.dt
+            out[..., 10] = torch.clamp(game_time_sec / 200.0, 0.0, 1.0)  # 200 s => 10, normalized to [0,1]
+            out[..., 11] = torch.clamp(self.step_count[:, None].to(torch.float32) / 13.0, 0.0, 1.0)
+            out[..., 12] = agent_id_norm
+        else:
+            out[..., 10] = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
+            out[..., 11] = agent_id_norm
         return out
 
     def _build_action_mask(self) -> torch.Tensor:
@@ -1999,10 +2036,11 @@ class GPUCTFVecEnv(VecEnv):
         self._n_macros = int(cfg.n_macros)
         self._n_targets = int(cfg.n_targets)
         self._n_blue = int(cfg.max_blue_agents)
+        _vec_size = 13 if (getattr(cfg, "rules_profile", "") or "").upper() == "PAPER" else 12
         obs_space = spaces.Dict(
             {
                 "grid": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-                "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, 12), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, _vec_size), dtype=np.float32),
                 "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue,), dtype=np.float32),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue * (self._n_macros + self._n_targets),), dtype=np.float32),
             }

@@ -2,11 +2,6 @@
 Game state, reward routing, and flag logic. Single source of truth for scoring and
 sparse reward constants.
 
-- game_field_gpu (BatchedCTFCore) imports get_grab_score_delta, get_capture_score_delta,
-  AQUATICUS_SPARSE_*, and DEFAULT_SCORE_LIMIT from here so GPU training and the viewer
-  use the same values.
-
-- See docs/PAPER_PARAMS_COMPARISON.md for paper "Multi-agent RL for UAV CTF" vs code.
 """
 from __future__ import annotations
 

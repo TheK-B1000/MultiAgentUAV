@@ -1491,11 +1491,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
     except Exception:
         pass
-    try:
-        # Project default: enforce Aquaticus scoring/rules profile across manager-backed envs.
-        venv.env_method("set_dynamics_config", {"rules_profile": "AQUATICUS_2024"})
-    except Exception:
-        pass
+    # rules_profile left at GPUFieldConfig default (PAPER) for Table 3 and 200 s episodes.
     try:
         venv.env_method("set_phase", phase_name)
     except Exception:
@@ -1671,7 +1667,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
                 max_decision_steps=max(1, int(cfg.max_decision_steps)),
                 aquaticus_profile=True,
-                rules_profile="AQUATICUS_2024",
                 device=str(cfg.device),
                 seed=int(cfg.seed),
             )
@@ -1760,7 +1755,7 @@ def run_verify_4v4(num_episodes: int = 10) -> None:
 
 
 def run_test_vec_schema() -> None:
-    """Verify GPU core obs: vec has shape (B, N, 12), float32, finite, in bounds."""
+    """Verify GPU core obs: vec has shape (B, N, 12 or 13), float32, finite, in bounds (13 when rules_profile=PAPER)."""
     from game_field_gpu import BatchedCTFCore, GPUFieldConfig
     cfg = GPUFieldConfig(n_envs=1, max_blue_agents=2, max_red_agents=2, device="cpu", seed=42)
     core = BatchedCTFCore(cfg)
@@ -1768,12 +1763,12 @@ def run_test_vec_schema() -> None:
     obs = core.get_obs()
     vec = obs["vec"]
     assert vec.dtype == np.float32, f"vec.dtype {vec.dtype}, expected float32"
-    assert vec.ndim == 3 and vec.shape[2] == 12, f"vec.shape {vec.shape}, expected (B, N, 12)"
+    assert vec.ndim == 3 and vec.shape[2] in (12, 13), f"vec.shape {vec.shape}, expected (B, N, 12 or 13)"
     assert np.all(np.isfinite(vec)), "vec has non-finite values"
     assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
         f"vec outside [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
     )
-    print("[test-vec-schema] GPU core get_obs() vec: dtype=float32, shape=(B,N,12), finite, in bounds. OK.")
+    print(f"[test-vec-schema] GPU core get_obs() vec: dtype=float32, shape={vec.shape}, finite, in bounds. OK.")
 
 
 def _agents_suffix(n_agents: int) -> str:
