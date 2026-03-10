@@ -12,7 +12,7 @@ Usage:
   python plot_2v2_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
 Defaults (under checkpoints_sb3/2v2/):
-  --league   final_ppo_league_2v2_colab.zip
+  --league   final_ppo_league_2v2.zip
   --paper    final_weekend_paper_2v2.zip
   --selfplay final_weekend_selfplay_2v2.zip
 """
@@ -74,7 +74,7 @@ def main():
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_ppo_league_2v2_colab")
+    league_path = path_or_default(args.league, "final_ppo_league_2v2")
     paper_path = path_or_default(args.paper, "final_ppo_paper_2v2")
     selfplay_path = path_or_default(args.selfplay, "final_ppo_self_play_2v2")
 
@@ -99,9 +99,9 @@ def main():
         max_blue_agents=2,
         max_red_agents=2,
         max_decision_steps=400,
-        n_targets=8,  # match checkpoints trained with 8 waypoints (action 26, obs dim 5652)
+        n_targets=4,  # match final_ppo_league_2v2.zip (trained with 4 waypoints, action 18, obs 5646)
         aquaticus_profile=True,
-        rules_profile="AQUATICUS_2024",
+        rules_profile="PAPER",  # vec 13 to match checkpoint obs dim
         device=device,
         seed=seed,
     )

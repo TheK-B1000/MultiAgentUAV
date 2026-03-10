@@ -8,7 +8,7 @@ Usage:
   python plot_all_winrates.py [--episodes N] [--out plot.png] [--checkpoint-dir DIR]
 
 Defaults (under checkpoints_sb3/2v2, 3v3, 4v4/):
-  2v2: final_ppo_league_2v2_colab.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
+  2v2: final_ppo_league_2v2.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
   3v3: final_ppo_league_3v3_colab.zip, final_ppo_paper_3v3_colab.zip, final_ppo_selfplay_3v3_colab.zip
   4v4: final_ppo_league_4v4_colab.zip, final_weekend_paper_4v4.zip, final_ppo_selfplay_4v4_colab.zip
 """
@@ -30,7 +30,7 @@ if SCRIPT_DIR not in sys.path:
 # Default filenames per team size (league, paper, selfplay)
 DEFAULTS = {
     2: (
-        "final_ppo_league_2v2_colab.zip",
+        "final_ppo_league_2v2.zip",
         "final_weekend_paper_2v2.zip",
         "final_weekend_selfplay_2v2.zip",
     ),

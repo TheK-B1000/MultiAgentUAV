@@ -108,9 +108,9 @@ def main() -> None:
         max_blue_agents=3,
         max_red_agents=3,
         max_decision_steps=400,
-        n_targets=8,  # match checkpoints trained with 8 waypoints
+        n_targets=4,  # match 3v3 checkpoints trained with 4 waypoints
         aquaticus_profile=True,
-        rules_profile="AQUATICUS_2024",
+        rules_profile="PAPER",
         device=device,
         seed=seed,
     )

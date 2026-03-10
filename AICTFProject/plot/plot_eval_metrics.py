@@ -387,7 +387,7 @@ def main() -> None:
 
     # 2v2: same defaults as plot_2v2_winrate.py
     model_paths_2v2 = [
-        ("Ours", path_or_default(args.league, "final_ppo_league_2v2_colab.zip", "2v2")),
+        ("Ours", path_or_default(args.league, "final_ppo_league_2v2.zip", "2v2")),
         ("Jacob et al.", path_or_default(args.paper, "final_weekend_paper_2v2.zip", "2v2")),
         ("Self-play", path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip", "2v2")),
     ]

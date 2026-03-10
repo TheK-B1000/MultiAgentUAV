@@ -95,7 +95,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/2v2/final_ppo_league_2v2_colab.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/2v2/final_ppo_league_2v2.zip"
 N_MACROS = 5
 N_TARGETS = 8
 
@@ -381,11 +381,11 @@ class CTFViewer:
             n_envs=1,
             max_blue_agents=2,
             max_red_agents=2,
-            n_targets=8,  # match checkpoints trained with 8 waypoints (action 26, obs dim 5652)
+            n_targets=4,  # match final_ppo_league_2v2.zip (4 waypoints, action 18, obs 5646)
+            rules_profile="PAPER",  # keep PAPER so obs is 13-dim and matches the saved model
             device=device,
             max_decision_steps=1800,
             stalemate_max_steps=1800,  # effectively disable stalemate truncation (match ends on time or score)
-            rules_profile="OURS_PLUS",  # 1 point per capture only (no grab point)
             score_limit=3,
         )
         self.cfg = cfg
@@ -393,12 +393,11 @@ class CTFViewer:
         self.cfg.max_decision_steps = 1800
         self.cfg.stalemate_max_steps = 1800
         self.core.max_steps = 1800
-        self.core.rules_profile = "OURS_PLUS"
-        print(f"[Viewer] Match length: {self.core.max_steps} steps (~3 min) | scoring: OURS (1 pt/capture)")
+        print(f"[Viewer] Match length: {self.core.max_steps} steps (~3 min) | rules: PAPER (obs matches model)")
         try:
             self.core.set_phase("OP4")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"rules_profile": "OURS_PLUS", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"aquaticus_profile": True})
 
             # Sample OP4 scripted opponent parameters (2v2 by default in viewer).
             opp = sample_batched_opponent_params(
@@ -614,12 +613,11 @@ class CTFViewer:
         self.cfg.stalemate_max_steps = 1800
         self.core = BatchedCTFCore(self.cfg)
         self.core.max_steps = 1800
-        self.core.rules_profile = "OURS_PLUS"
         self.core.blue_scripted = (self.blue_mode == "DEMO")
         try:
             self.core.set_phase("OP4")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"rules_profile": "OURS_PLUS", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"aquaticus_profile": True})
 
             opp = sample_batched_opponent_params(
                 kind="SCRIPTED",
