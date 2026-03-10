@@ -377,33 +377,34 @@ class CoreRenderer:
 class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
                  device: str = "cpu"):
+        paper_steps = 400
         cfg = GPUFieldConfig(
             n_envs=1,
             max_blue_agents=2,
             max_red_agents=2,
             device=device,
-            max_decision_steps=1800,
-            stalemate_max_steps=1800,  # effectively disable stalemate truncation (match ends on time or score)
-            rules_profile="OURS_PLUS",  # 1 point per capture only (no grab point)
+            max_decision_steps=paper_steps,
+            stalemate_max_steps=paper_steps,
+            rules_profile="AQUATICUS_2024",
             score_limit=3,
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
-        self.cfg.max_decision_steps = 1800
-        self.cfg.stalemate_max_steps = 1800
-        self.core.max_steps = 1800
-        self.core.rules_profile = "OURS_PLUS"
-        print(f"[Viewer] Match length: {self.core.max_steps} steps (~3 min) | scoring: OURS (1 pt/capture)")
+        self.cfg.max_decision_steps = paper_steps
+        self.cfg.stalemate_max_steps = paper_steps
+        self.core.max_steps = paper_steps
+        self.core.rules_profile = "AQUATICUS_2024"
+        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: AQUATICUS_2024")
         try:
-            self.core.set_phase("OP4")
+            self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"rules_profile": "OURS_PLUS", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
 
-            # Sample OP4 scripted opponent parameters (2v2 by default in viewer).
+            # Match eval/training's scripted test opponent.
             opp = sample_batched_opponent_params(
                 kind="SCRIPTED",
-                key="OP4",
-                phase="OP4",
+                key="OP3",
+                phase="OP3",
                 n_agents=cfg.max_red_agents,
                 batch_size=cfg.n_envs,
                 device=cfg.device,
