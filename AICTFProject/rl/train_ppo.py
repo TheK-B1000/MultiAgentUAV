@@ -1631,8 +1631,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
     callbacks.append(MetricsCSVCallback(save_path=metrics_csv_path))
 
-    # Progress: steps every 50k (works without tqdm/rich)
-    callbacks.append(ProgressLogCallback(total_timesteps=int(cfg.total_timesteps), interval=50_000))
+    # Progress:
+    # - If SB3's built-in progress bar is enabled (cfg.enable_progress_bar), let SB3 handle tqdm/rich.
+    # - Otherwise, fall back to our simple ProgressLogCallback (prints every 50k steps).
+    if not getattr(cfg, "enable_progress_bar", False):
+        callbacks.append(ProgressLogCallback(total_timesteps=int(cfg.total_timesteps), interval=50_000))
 
     # Fix 4.2: KL guardrail – log approx_kl and set model._kl_guardrail_triggered if spikes repeatedly
     if getattr(cfg, "approx_kl_threshold", 0) > 0 and getattr(cfg, "kl_guardrail_consecutive", 0) > 0:
