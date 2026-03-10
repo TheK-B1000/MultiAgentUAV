@@ -395,15 +395,15 @@ class CTFViewer:
         self.core.max_steps = 1800
         print(f"[Viewer] Match length: {self.core.max_steps} steps (~3 min) | rules: PAPER (obs matches model)")
         try:
-            self.core.set_phase("OP4")
+            # Default viewer opponent: OP3 (paper's hardest scripted opponent).
+            self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"aquaticus_profile": True})
 
-            # Sample OP4 scripted opponent parameters (2v2 by default in viewer).
+            # Sample OP3 scripted opponent parameters (2v2 by default in viewer).
             opp = sample_batched_opponent_params(
                 kind="SCRIPTED",
-                key="OP4",
-                phase="OP4",
+                key="OP3",
+                phase="OP3",
                 n_agents=cfg.max_red_agents,
                 batch_size=cfg.n_envs,
                 device=cfg.device,
@@ -421,7 +421,7 @@ class CTFViewer:
                 dyn_cfg["role_switch_prob"] = opp["role_switch_prob"]
             if dyn_cfg:
                 self.core.set_dynamics_config(dyn_cfg)
-            except Exception:
+        except Exception:
             # Fall back silently if curriculum/opponent modules are unavailable; core defaults will be used.
             pass
         self.core.reset_all()
@@ -538,7 +538,7 @@ class CTFViewer:
                             episodes.append(self._episode_row(ep, steps, ep_reward))
                             return self._summarize(episodes)
                     self._draw()
-            pg.display.flip()
+                    pg.display.flip()
                     self.clock.tick(60)
 
             episodes.append(self._episode_row(ep, steps, ep_reward))
