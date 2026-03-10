@@ -77,7 +77,9 @@ class GPUFieldConfig:
     opregion_safe_speed_cps: float = 0.8
 
     n_macros: int = 5
-    n_targets: int = 8
+    # Number of discrete 2D macro targets for GoTo/PlaceMine.
+    # Paper-aligned default: 50 fixed positions sampled over the map.
+    n_targets: int = 50
     score_limit: int = DEFAULT_SCORE_LIMIT
 
     # Mines: pickups spawn; agents must GRAB_MINE to get a charge, then PLACE_MINE to place anywhere.
@@ -273,24 +275,39 @@ class BatchedCTFCore:
         self._init_pickup_positions()
 
     def _build_macro_targets(self) -> None:
-        c_mid = self.cols // 2
-        r_mid = self.rows // 2
-        top = max(0, min(self.rows - 1, 5))
-        bot = max(0, min(self.rows - 1, self.rows - 5))
-        self._macro_targets = torch.tensor(
+        """
+        Build a fixed set of 2D macro targets for GoTo/PlaceMine.
+
+        We follow the paper's successful variant: a categorical distribution over
+        ~50 predetermined locations spread across the map. Targets are laid out
+        on a coarse grid covering both halves of the field, so agents can learn
+        richer paths and mine placements while keeping the action space discrete.
+        """
+        # Use a 5 x 10 grid over the full map (cols x rows) → 50 targets.
+        num_x = 5
+        num_y = 10
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
+
+        xs = []
+        ys = []
+        for ix in range(num_x):
+            # Evenly spaced from 0 to max_x
+            x = max_x * (ix / float(max(1, num_x - 1)))
+            for iy in range(num_y):
+                # Evenly spaced from 0 to max_y
+                y = max_y * (iy / float(max(1, num_y - 1)))
+                xs.append(x)
+                ys.append(y)
+
+        targets = torch.stack(
             [
-                [0.0, float(r_mid)],
-                [float(self.cols - 1), float(r_mid)],
-                [2.0, float(r_mid)],
-                [float(self.cols - 3), float(r_mid)],
-                [float(c_mid), float(r_mid)],
-                [float(c_mid), float(top)],
-                [float(c_mid), float(bot)],
-                [4.0, float(r_mid)],
+                torch.tensor(xs, dtype=torch.float32, device=self.device),
+                torch.tensor(ys, dtype=torch.float32, device=self.device),
             ],
-            dtype=torch.float32,
-            device=self.device,
+            dim=1,
         )
+        self._macro_targets = targets
 
     def _rand_uniform(self, shape: Sequence[int], lo: float, hi: float) -> torch.Tensor:
         t = torch.rand(tuple(shape), generator=self._rng, device=self.device)
@@ -1725,8 +1742,9 @@ class BatchedCTFCore:
           9: nearest enemy distance normalized to [0,1]
           10: time fraction in [0,1]
           11: agent id normalized in [0,1]
+          12: decision fraction in [0,1] (step_count/max_steps)
         """
-        out = torch.zeros((self.B, self.Nb, 12), dtype=torch.float32, device=self.device)
+        out = torch.zeros((self.B, self.Nb, 13), dtype=torch.float32, device=self.device)
         cols = max(1.0, float(self.cols - 1))
         rows = max(1.0, float(self.rows - 1))
         max_speed = max(1e-6, float(self.cfg.max_speed_cps))
@@ -1749,10 +1767,15 @@ class BatchedCTFCore:
         d = torch.sqrt(dx * dx + dy * dy + 1e-8)
         nearest_enemy = torch.min(d, dim=2).values
         out[..., 9] = torch.clamp(nearest_enemy / max(1e-6, self.max_dist), 0.0, 1.0)
-        out[..., 10] = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
+        time_frac = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
+        out[..., 10] = time_frac
 
         agent_id = torch.arange(self.Nb, device=self.device, dtype=torch.float32)
         out[..., 11] = agent_id[None, :] / max(1.0, float(self.Nb - 1))
+
+        # Decision budget used (same normalization as time fraction, but kept as a separate feature
+        # so the policy can distinguish between absolute time and how many decisions have been spent).
+        out[..., 12] = time_frac
         return out
 
     def _build_action_mask(self) -> torch.Tensor:
@@ -1963,7 +1986,7 @@ class GPUCTFVecEnv(VecEnv):
         obs_space = spaces.Dict(
             {
                 "grid": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-                "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, 12), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, 13), dtype=np.float32),
                 "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue,), dtype=np.float32),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue * (self._n_macros + self._n_targets),), dtype=np.float32),
             }

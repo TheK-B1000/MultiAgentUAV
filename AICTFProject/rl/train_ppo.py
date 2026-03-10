@@ -164,7 +164,7 @@ class PPOConfig:
     batch_size: int = 512
     n_epochs: int = 10
     gamma: float = 0.995
-    gae_lambda: float = 0.95
+    gae_lambda: float = 0.99
     clip_range: float = 0.2
     ent_coef: float = 0.01
     learning_rate: float = 3e-4
@@ -1418,20 +1418,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         # Extra OP3→League gate: require 80% vs OP3 over last _min_games_vs_op3 games
         _min_winrate_vs_op3 = 0.80
         _min_games_vs_op3 = 50
-        # Per-team step floors: 3v3=5M, 4v4=6M, 8v8=8M (do not override if user passed a higher value)
+        # 8v8 only: floor at 8M for convergence (2v2=2M, 3v3=3M, 4v4=4M set by default in CLI)
         if max_agents > 4:
             if cfg.total_timesteps < 8_000_000:
                 cfg.total_timesteps = 8_000_000
                 print(f"[PPO] 8v8: using total_timesteps={cfg.total_timesteps} for better convergence")
-        elif max_agents == 4:
-            if cfg.total_timesteps < 6_000_000:
-                cfg.total_timesteps = 6_000_000
-                print(f"[PPO] {team_size}: using total_timesteps={cfg.total_timesteps} for better convergence")
-        else:
-            # 3v3: 5M default/floor (keeps user --total-steps 5000000)
-            if cfg.total_timesteps < 5_000_000:
-                cfg.total_timesteps = 5_000_000
-                print(f"[PPO] 3v3: using total_timesteps={cfg.total_timesteps}")
     else:
         _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
         _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
@@ -1472,6 +1463,17 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     else:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
+
+    # If using CUDA, check that this PyTorch build supports the GPU (e.g. RTX 50-series needs nightly/sm_120)
+    if str(cfg.device).lower().startswith("cuda"):
+        try:
+            torch.zeros(1, device=cfg.device)
+        except RuntimeError as e:
+            err = str(e).lower()
+            if "no kernel image" in err or "not compatible" in err or "sm_" in err:
+                print(f"[PPO] GPU not supported by this PyTorch build ({e}). Falling back to CPU.")
+                print("[PPO] To use RTX 50-series (Blackwell), install PyTorch nightly: pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128")
+                cfg.device = "cpu"
 
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
@@ -1861,6 +1863,11 @@ if __name__ == "__main__":
             cfg.checkpoint_dir = os.path.join("checkpoints_sb3", suffix)
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_steps
+        else:
+            # Default total timesteps by team size: 2v2=2M, 3v3=3M, 4v4=4M, 8v8=8M
+            cfg.total_timesteps = {2: 2_000_000, 3: 3_000_000, 4: 4_000_000, 8: 8_000_000}.get(
+                cfg.max_blue_agents, 4_000_000
+            )
         if getattr(args, "checkpoint_dir", None) is not None:
             cfg.checkpoint_dir = args.checkpoint_dir
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
@@ -1871,5 +1878,9 @@ if __name__ == "__main__":
             cfg.verbose_training = True
         if getattr(args, "device", None) is not None:
             cfg.device = str(args.device).strip().lower()
+        else:
+            # Prefer CUDA when available (default pip torch is sometimes CPU-only; user may have installed cu118/cu121)
+            if torch.cuda.is_available():
+                cfg.device = "cuda"
         cfg.gpu_native_env = True  # All training uses game_field_gpu
         train_ppo(cfg)
