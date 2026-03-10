@@ -381,6 +381,7 @@ class CTFViewer:
             n_envs=1,
             max_blue_agents=2,
             max_red_agents=2,
+            n_targets=8,  # match checkpoints trained with 8 waypoints (action 26, obs dim 5652)
             device=device,
             max_decision_steps=1800,
             stalemate_max_steps=1800,  # effectively disable stalemate truncation (match ends on time or score)
@@ -421,7 +422,7 @@ class CTFViewer:
                 dyn_cfg["role_switch_prob"] = opp["role_switch_prob"]
             if dyn_cfg:
                 self.core.set_dynamics_config(dyn_cfg)
-        except Exception:
+            except Exception:
             # Fall back silently if curriculum/opponent modules are unavailable; core defaults will be used.
             pass
         self.core.reset_all()
@@ -538,7 +539,7 @@ class CTFViewer:
                             episodes.append(self._episode_row(ep, steps, ep_reward))
                             return self._summarize(episodes)
                     self._draw()
-                    pg.display.flip()
+            pg.display.flip()
                     self.clock.tick(60)
 
             episodes.append(self._episode_row(ep, steps, ep_reward))

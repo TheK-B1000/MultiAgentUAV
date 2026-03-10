@@ -28,17 +28,18 @@ import numpy as np
 # Suppress SB3 warning about render_mode (our env does not define it; not needed for eval).
 warnings.filterwarnings("ignore", message=".*render_mode.*")
 
-# Add project root for imports
+# Add project root for imports (game_field_gpu, etc.)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 def main():
     parser = argparse.ArgumentParser(description="Plot 2v2 win rate: Ours vs Jacob et al. vs Self-play")
     parser.add_argument("--league", type=str, default=None, help="Path to League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
-    parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
+    parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training) to compare League vs Paper generalization.")
     parser.add_argument("--seed", type=int, default=42, help="Base random seed for eval env (OP4 uses seed+1 to avoid identical streams).")
     parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
@@ -60,22 +61,22 @@ def main():
             args.out = "2v2_winrate_OP3_100ep.png"
 
     # Send plots to AICTFProject/figures/ when --out is a bare filename
-    project_root = os.path.dirname(SCRIPT_DIR)
+    project_root = PROJECT_ROOT
     if not os.path.dirname(os.path.abspath(args.out)):
         figures_dir = os.path.join(project_root, "figures")
         os.makedirs(figures_dir, exist_ok=True)
         args.out = os.path.join(figures_dir, os.path.basename(args.out))
 
-    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3", "2v2")
+    default_dir = os.path.join(project_root, "checkpoints_sb3", "2v2")
     def path_or_default(name: str, default_name: str) -> str:
         p = name if name is not None else os.path.join(default_dir, default_name)
         if not p.endswith(".zip"):
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_ppo_league_2v2_colab.zip")
-    paper_path = path_or_default(args.paper, "final_weekend_paper_2v2.zip")
-    selfplay_path = path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip")
+    league_path = path_or_default(args.league, "final_ppo_league_2v2_colab")
+    paper_path = path_or_default(args.paper, "final_ppo_paper_2v2")
+    selfplay_path = path_or_default(args.selfplay, "final_ppo_self_play_2v2")
 
     for label, p in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         if not os.path.isfile(p):
@@ -98,6 +99,7 @@ def main():
         max_blue_agents=2,
         max_red_agents=2,
         max_decision_steps=400,
+        n_targets=8,  # match checkpoints trained with 8 waypoints (action 26, obs dim 5652)
         aquaticus_profile=True,
         rules_profile="AQUATICUS_2024",
         device=device,
