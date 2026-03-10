@@ -1,10 +1,10 @@
 """
 Game state, reward routing, and flag logic. Single source of truth for scoring and
-sparse reward constants.
+reward/shaping constants.
 
 - game_field_gpu (BatchedCTFCore) imports get_grab_score_delta, get_capture_score_delta,
-  AQUATICUS_SPARSE_*, and DEFAULT_SCORE_LIMIT from here so GPU training and the viewer
-  use the same values.
+  sparse event point constants, and DEFAULT_SCORE_LIMIT from here so GPU training and
+  the viewer use the same values.
 """
 from __future__ import annotations
 
@@ -75,39 +75,28 @@ PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
     "SELF": -1.5,
 }
 
-# Aquaticus-aligned profile knobs (scaled for RL stability; keeps event ratios).
-# Source semantics:
-#   - GRAB gives score
-#   - CAPTURE gives additional score
-#   - tag/out-of-bounds are event rewards (not scoreboard)
-AQUATICUS_GRAB_SCORE = 1
-AQUATICUS_CAPTURE_SCORE = 2
-AQUATICUS_TAG_NO_FLAG_REWARD = 1.0
-AQUATICUS_TAG_WITH_FLAG_REWARD = 0.5
-AQUATICUS_OOB_PENALTY = -1.0
-
 # Sparse reward "points" used by game_field_gpu (BatchedCTFCore) before /100 normalization.
-# Single source of truth so GPU and manager stay aligned.
-AQUATICUS_SPARSE_TAG_NO_FLAG = 100.0
-AQUATICUS_SPARSE_TAG_WITH_FLAG = 50.0
-AQUATICUS_SPARSE_GRAB = 50.0
-AQUATICUS_SPARSE_CAPTURE = 100.0
-AQUATICUS_SPARSE_OOB = -100.0
-AQUATICUS_SPARSE_MINE_TAG = 100.0
+# Neutral names; values define OURS sparse event scaling.
+SPARSE_TAG_NO_FLAG_POINTS = 100.0
+SPARSE_TAG_WITH_FLAG_POINTS = 50.0
+SPARSE_FLAG_GRAB_POINTS = 50.0
+SPARSE_FLAG_CAPTURE_POINTS = 100.0
+SPARSE_OOB_POINTS = -100.0
+SPARSE_MINE_TAG_POINTS = 100.0
 
-# Default score limit (Aquaticus can use higher; manager may set 9 when profile is AQUATICUS_2024).
+# Default score limit for CTF scoring.
 DEFAULT_SCORE_LIMIT = 3
 
 
 def get_grab_score_delta(rules_profile: str) -> int:
     """Score added to the grabbing team when they pick up the enemy flag. Used by GPU core and GameManager."""
-    return int(AQUATICUS_GRAB_SCORE) if str(rules_profile).upper().strip() == "AQUATICUS_2024" else 0
+    # OURS default: only captures change the scoreboard; grabs are rewarded via FLAG_PICKUP_REWARD.
+    return 0
 
 
 def get_capture_score_delta(rules_profile: str) -> int:
     """Score added when a carrier scores (brings flag home). Used by GPU core and GameManager."""
-    if str(rules_profile).upper().strip() == "AQUATICUS_2024":
-        return int(AQUATICUS_CAPTURE_SCORE)
+    # OURS default: each capture increments score by 1.
     return 1
 
 
@@ -145,11 +134,8 @@ class GameManager:
     phase_name: str = "OP1"
     # Naval framing: if True, on timeout Blue wins (defense held) regardless of score
     timeout_blue_wins_defense_held: bool = False
-    # Rules profile:
-    #   - "OURS_PLUS": existing tuned rewards/scores
-    #   - "AQUATICUS_2024": Aquaticus-aligned scoring semantics (+1 grab, +2 capture)
-    # Default is Aquaticus to keep project-wide behavior aligned.
-    rules_profile: str = "AQUATICUS_2024"
+    # Rules profile (historical; kept for compatibility, but OURS behavior is always used).
+    rules_profile: str = "OURS_PLUS"
 
     # --- flags ---
     blue_flag_home: Cell = (0, 0)
@@ -242,18 +228,9 @@ class GameManager:
 
     def set_rules_profile(self, profile: str) -> None:
         """
-        Set game-rule profile.
-        - OURS_PLUS: existing project behavior
-        - AQUATICUS_2024: Aquaticus-style scoring semantics (+1 grab, +2 capture)
+        Kept for backward compatibility; always uses OURS_PLUS semantics.
         """
-        p = str(profile).upper().strip()
-        if p not in ("OURS_PLUS", "AQUATICUS_2024"):
-            raise ValueError(f"Unknown rules profile: {profile}")
-        self.rules_profile = p
-        # Aquaticus grab+capture can produce 3 points in one run, so use a higher score limit.
-        # Keep legacy behavior untouched unless this profile is explicitly enabled.
-        if p == "AQUATICUS_2024" and int(self.score_limit) <= 3:
-            self.score_limit = 9
+        self.rules_profile = "OURS_PLUS"
 
     def _grab_score_delta(self) -> int:
         return get_grab_score_delta(self.rules_profile)
@@ -262,11 +239,10 @@ class GameManager:
         return get_capture_score_delta(self.rules_profile)
 
     def _flag_pickup_reward(self) -> float:
-        # Keep dense rewards in OURS_PLUS; use sparser event emphasis in Aquaticus profile.
-        return float(1.0) if self.rules_profile == "AQUATICUS_2024" else float(FLAG_PICKUP_REWARD)
+        return float(FLAG_PICKUP_REWARD)
 
     def _flag_capture_reward(self) -> float:
-        return float(2.0) if self.rules_profile == "AQUATICUS_2024" else float(FLAG_CARRY_HOME_REWARD)
+        return float(FLAG_CARRY_HOME_REWARD)
 
     def set_shaping_gamma(self, gamma: float) -> None:
         """Set shaping gamma; must match PPO gamma for PBRS policy invariance."""
@@ -536,8 +512,9 @@ class GameManager:
     # -------------------------
 
     def reset_game(self, reset_scores: bool = True) -> None:
-        if str(self.rules_profile).upper() == "AQUATICUS_2024" and int(self.score_limit) <= 3:
-            self.score_limit = 9
+        # Legacy hook; no-op for OURS_PLUS.
+        if False:
+            self.score_limit = max(self.score_limit, 9)
         if reset_scores:
             self.blue_score = 0
             self.red_score = 0
@@ -1196,13 +1173,8 @@ class GameManager:
                 self.red_mine_kills_this_episode += 1
             self.add_agent_reward(killer_agent, MINE_KILL_BONUS)
 
-        if self.rules_profile == "AQUATICUS_2024":
-            if victim_agent is not None and bool(getattr(victim_agent, "is_carrying_flag", False)):
-                self.add_agent_reward(killer_agent, AQUATICUS_TAG_WITH_FLAG_REWARD)
-            else:
-                self.add_agent_reward(killer_agent, AQUATICUS_TAG_NO_FLAG_REWARD)
-        else:
-            self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
+        # OURS default: single consistent kill reward (plus optional mine bonus above).
+        self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
 
         # Optional team share for mine kills (explicit, excludes killer)
         if kside in ("blue", "red") and cause == "mine":
@@ -1280,7 +1252,4 @@ class GameManager:
     def punish_failed_action(self, agent: Any) -> None:
         if agent is None:
             return
-        if self.rules_profile == "AQUATICUS_2024":
-            self.add_agent_reward(agent, AQUATICUS_OOB_PENALTY)
-        else:
-            self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)
+        self.add_agent_reward(agent, ACTION_FAILED_PUNISHMENT)

@@ -3,7 +3,7 @@ GPU-vectorized CTF environment used by PPO/MAPPO/QMIX training and the viewer.
 
 Training (rl/train_ppo.py) uses BatchedCTFCore via
 GPUCTFVecEnv. Scoring and sparse reward values are imported from game_manager so
-both paths stay aligned (get_grab_score_delta, get_capture_score_delta, AQUATICUS_SPARSE_*).
+both paths stay aligned (get_grab_score_delta, get_capture_score_delta, sparse event points).
 GameManager (game_manager.py) remains the single source of truth for those constants.
 """
 from __future__ import annotations
@@ -30,12 +30,12 @@ from agents import AgentHandle
 from game_manager import (
     get_grab_score_delta,
     get_capture_score_delta,
-    AQUATICUS_SPARSE_TAG_NO_FLAG,
-    AQUATICUS_SPARSE_TAG_WITH_FLAG,
-    AQUATICUS_SPARSE_GRAB,
-    AQUATICUS_SPARSE_CAPTURE,
-    AQUATICUS_SPARSE_OOB,
-    AQUATICUS_SPARSE_MINE_TAG,
+    SPARSE_TAG_NO_FLAG_POINTS,
+    SPARSE_TAG_WITH_FLAG_POINTS,
+    SPARSE_FLAG_GRAB_POINTS,
+    SPARSE_FLAG_CAPTURE_POINTS,
+    SPARSE_OOB_POINTS,
+    SPARSE_MINE_TAG_POINTS,
     DEFAULT_SCORE_LIMIT,
 )
 
@@ -53,11 +53,12 @@ class GPUFieldConfig:
     max_red_agents: int = 2
     map_rows: int = 20
     map_cols: int = 20
-    # 3-minute games at 0.1 s physics timestep -> 1800 steps; game ends at time 0 or score 3.
-    # Note: decision_interval_seconds is a wall-clock/metadata hint only; the physics integrator
-    # in BatchedCTFCore.step() always uses a fixed dt = 0.1 seconds for stability.
-    max_decision_steps: int = 1800
-    decision_interval_seconds: float = 0.7
+    # Paper-aligned timing (Table 3):
+    #   - maxGameTime ≈ 200 s
+    #   - Δt_sim ≈ 0.5 s
+    #   => 400 decision steps per episode when using dt = decision_interval_seconds.
+    max_decision_steps: int = 400
+    decision_interval_seconds: float = 0.5
 
     # Dynamics (matching BoatSimConfig defaults in game_field.py)
     max_speed_cps: float = 2.2
@@ -1528,20 +1529,20 @@ class BatchedCTFCore:
         blue_mine_tags: Optional[torch.Tensor] = None,
         red_mine_tags: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        # Values from game_manager (AQUATICUS_SPARSE_*) so scoring/rewards stay aligned.
+        # Values from game_manager (sparse event points) so scoring/rewards stay aligned.
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
-        r += float(AQUATICUS_SPARSE_TAG_NO_FLAG) * blue_tag_noflag
-        r += float(AQUATICUS_SPARSE_TAG_WITH_FLAG) * blue_tag_withflag
-        r -= float(AQUATICUS_SPARSE_TAG_NO_FLAG) * red_tag_total
+        r += float(SPARSE_TAG_NO_FLAG_POINTS) * blue_tag_noflag
+        r += float(SPARSE_TAG_WITH_FLAG_POINTS) * blue_tag_withflag
+        r -= float(SPARSE_TAG_NO_FLAG_POINTS) * red_tag_total
         if blue_mine_tags is not None:
-            r += float(AQUATICUS_SPARSE_MINE_TAG) * blue_mine_tags
+            r += float(SPARSE_MINE_TAG_POINTS) * blue_mine_tags
         if red_mine_tags is not None:
-            r -= float(AQUATICUS_SPARSE_MINE_TAG) * red_mine_tags
-        r += float(AQUATICUS_SPARSE_GRAB) * blue_grab_env.to(torch.float32)
-        r -= float(AQUATICUS_SPARSE_GRAB) * red_grab_env.to(torch.float32)
-        r += float(AQUATICUS_SPARSE_CAPTURE) * blue_cap_env.to(torch.float32)
-        r -= float(AQUATICUS_SPARSE_CAPTURE) * red_cap_env.to(torch.float32)
-        r += float(AQUATICUS_SPARSE_OOB) * blue_oob.sum(dim=1).to(torch.float32)
+            r -= float(SPARSE_MINE_TAG_POINTS) * red_mine_tags
+        r += float(SPARSE_FLAG_GRAB_POINTS) * blue_grab_env.to(torch.float32)
+        r -= float(SPARSE_FLAG_GRAB_POINTS) * red_grab_env.to(torch.float32)
+        r += float(SPARSE_FLAG_CAPTURE_POINTS) * blue_cap_env.to(torch.float32)
+        r -= float(SPARSE_FLAG_CAPTURE_POINTS) * red_cap_env.to(torch.float32)
+        r += float(SPARSE_OOB_POINTS) * blue_oob.sum(dim=1).to(torch.float32)
         return r
 
     def _reward_total(
@@ -1561,10 +1562,6 @@ class BatchedCTFCore:
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
         a = blue_action_flat.view(self.B, self.Nb, 2)
-        # For stability, fix the integration timestep at 0.1 seconds regardless of
-        # external wall-clock or decision_interval_seconds configuration.
-        old_dt = self.dt
-        self.dt = 0.1
         macro = torch.remainder(a[..., 0].long(), self.cfg.n_macros)
         targ = torch.remainder(a[..., 1].long(), self.cfg.n_targets)
 
@@ -1652,8 +1649,6 @@ class BatchedCTFCore:
         self.truncated = truncated
 
         reward = self._reward_total(dense, sparse_points, stalemate_trigger)
-        # Restore original dt after physics integration.
-        self.dt = old_dt
         obs_t = self.get_obs_tensors()
         info = self._build_info(dense=dense, sparse_points=sparse_points, stalemate=stalemate_trigger)
         if tensor_obs:
