@@ -98,10 +98,10 @@ class GPUFieldConfig:
     tag_channel_seconds: float = 1.0
 
     # Profile and reward controls
-    aquaticus_profile: bool = True
-    rules_profile: str = "AQUATICUS_2024"  # OURS_PLUS | AQUATICUS_2024
+    aquaticus_profile: bool = False
+    rules_profile: str = "OURS_PLUS"
     sparse_weight: float = 1.0
-    dense_weight: float = 0.35
+    dense_weight: float = 0.2
     reward_scale: float = 2.0
     reward_clip: float = 1.0
 

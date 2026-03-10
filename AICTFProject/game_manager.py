@@ -18,15 +18,16 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 # -------------------------
 
 # Terminal: strong signal so policy learns to win
-WIN_TEAM_REWARD = 8.0
-LOSE_TEAM_PUNISH = -8.0  # symmetric terminal signal for the losing team
-DRAW_TEAM_PENALTY = -2.0
+# Jacob et al.-style magnitudes (Table 3-like, small and symmetric).
+WIN_TEAM_REWARD = 1.0
+LOSE_TEAM_PUNISH = -1.0  # symmetric terminal signal for the losing team
+DRAW_TEAM_PENALTY = -0.5
 
-# Offense: capturing and carrying flag
-FLAG_PICKUP_REWARD = 1.5
-FLAG_CARRY_HOME_REWARD = 7.0
-ENEMY_MAV_KILL_REWARD = 2.0
-ACTION_FAILED_PUNISHMENT = -0.5
+# Offense: capturing and carrying flag (closer to Jacob et al. values)
+FLAG_PICKUP_REWARD = 0.1
+FLAG_CARRY_HOME_REWARD = 0.5
+ENEMY_MAV_KILL_REWARD = 0.5
+ACTION_FAILED_PUNISHMENT = -0.2
 
 FLAG_RETURN_DELAY = 10.0
 
@@ -45,26 +46,27 @@ PROGRESS_TO_FLAG_COEF = 0.08
 PROGRESS_TO_HOME_COEF = 0.08
 PROGRESS_REWARD_THRESHOLD = 0.1  # Minimum distance change to trigger reward
 
-# Teamwork and coordination (emphasize defense + smarter play over blind rush)
-EXPLORATION_REWARD = 0.02
-COORDINATION_BONUS = 0.7
-DEFENSE_INTERCEPT_BONUS = 2.8
-DEFENSE_MINE_REWARD = 0.45
-OFFENSE_MINE_REWARD = 0.2
-MINE_PICKUP_REWARD = 0.15
-MINE_KILL_BONUS = 0.7
-TEAM_SUPPRESSION_BONUS = 0.35
-SUPPRESSION_SETUP_BONUS = 0.12
-MINE_AVOID_PENALTY = -0.05
+# Teamwork and coordination (extra shaping).
+# For a paper-style, low-noise setup, keep these at 0.0 so PBRS + sparse events dominate.
+EXPLORATION_REWARD = 0.0
+COORDINATION_BONUS = 0.0
+DEFENSE_INTERCEPT_BONUS = 0.0
+DEFENSE_MINE_REWARD = 0.0
+OFFENSE_MINE_REWARD = 0.0
+MINE_PICKUP_REWARD = 0.0
+MINE_KILL_BONUS = 0.0
+TEAM_SUPPRESSION_BONUS = 0.0
+SUPPRESSION_SETUP_BONUS = 0.0
+MINE_AVOID_PENALTY = 0.0
 MINE_AVOID_RADIUS_CELLS = 1.5
-# Offense: reward pushing into enemy half and bringing flag back (not over-incentivize blind rush)
-OFFENSE_CROSS_MIDLINE_REWARD = 0.15
-CARRY_CROSS_MIDLINE_REWARD = 0.45
-STALL_PENALTY = -0.4
+# Offense: reward pushing into enemy half and bringing flag back (disabled for simpler shaping)
+OFFENSE_CROSS_MIDLINE_REWARD = 0.0
+CARRY_CROSS_MIDLINE_REWARD = 0.0
+STALL_PENALTY = -0.1
 STALL_INTERVAL_SECONDS = 30.0
-TEAM_FLAG_TAKEN_PENALTY = -0.8
-TEAM_FLAG_SCORED_PENALTY = -4.0
-TEAM_FLAG_RECOVER_REWARD = 1.2
+TEAM_FLAG_TAKEN_PENALTY = -0.2
+TEAM_FLAG_SCORED_PENALTY = -0.5
+TEAM_FLAG_RECOVER_REWARD = 0.2
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
