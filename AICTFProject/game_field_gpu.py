@@ -247,6 +247,11 @@ class BatchedCTFCore:
         self.red_attacker_style = torch.zeros((B,), dtype=torch.int32, device=dev)  # 0 easy, 1 medium
         self.red_defender_style = torch.zeros((B,), dtype=torch.int32, device=dev)  # 0 easy, 1 medium
         self.red_role_switch_prob = torch.zeros((B,), dtype=f32, device=dev)
+        # Per-episode scripted-policy randomization so agents cannot overfit to one fixed NPC pattern.
+        self.red_script_role_flip = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.red_script_lane_sign = torch.ones((B,), dtype=f32, device=dev)
+        self.red_script_guard_x = torch.zeros((B,), dtype=f32, device=dev)
+        self.red_script_guard_y = torch.zeros((B,), dtype=f32, device=dev)
         # Capture confirmation counters (batched per-agent).
         self.blue_home_contact_frames = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
         self.red_home_contact_frames = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
@@ -372,6 +377,14 @@ class BatchedCTFCore:
         self.red_attacker_style[idx] = 0
         self.red_defender_style[idx] = 0
         self.red_role_switch_prob[idx] = 0.0
+        self.red_script_role_flip[idx] = torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.35
+        self.red_script_lane_sign[idx] = torch.where(
+            torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.5,
+            torch.tensor(-1.0, dtype=torch.float32, device=self.device),
+            torch.tensor(1.0, dtype=torch.float32, device=self.device),
+        )
+        self.red_script_guard_x[idx] = self._rand_uniform((idx.numel(),), 14.5, 17.5)
+        self.red_script_guard_y[idx] = self._rand_uniform((idx.numel(),), 7.0, 13.0)
         self.blue_home_contact_frames[idx] = 0
         self.red_home_contact_frames[idx] = 0
         # Mines: fully clear placed mines and charges so a new episode starts with a clean field.
@@ -636,6 +649,21 @@ class BatchedCTFCore:
         target = torch.zeros((B, N, 2), dtype=torch.float32, device=device)
         guardian_idx = 0
         striker_idx = 1 if N > 1 else 0
+        if (not is_blue) and N > 1:
+            flip = self.red_script_role_flip
+            guardian_idx_t = torch.where(
+                flip,
+                torch.ones((B,), dtype=torch.int64, device=device),
+                torch.zeros((B,), dtype=torch.int64, device=device),
+            )
+            striker_idx_t = torch.where(
+                flip,
+                torch.zeros((B,), dtype=torch.int64, device=device),
+                torch.ones((B,), dtype=torch.int64, device=device),
+            )
+        else:
+            guardian_idx_t = torch.full((B,), guardian_idx, dtype=torch.int64, device=device)
+            striker_idx_t = torch.full((B,), striker_idx, dtype=torch.int64, device=device)
 
         # ---- shared team state ----
         enemy_carrier_exists = enemy_carrying.any(dim=1)
@@ -645,11 +673,7 @@ class BatchedCTFCore:
             enemy_on_own = enemy_alive & (enemy_x > midline)
         any_intruder = enemy_on_own.any(dim=1)
 
-        guardian_out = (
-            own_tagged[:, guardian_idx]
-            if guardian_idx < N
-            else torch.zeros((B,), dtype=torch.bool, device=device)
-        )
+        guardian_out = own_tagged[idx_env, guardian_idx_t] if N > 0 else torch.zeros((B,), dtype=torch.bool, device=device)
         role_coin = torch.rand((B,), generator=self._rng, device=device) < torch.clamp(role_switch_prob, 0.0, 1.0)
         striker_pivot = guardian_out & (enemy_carrier_exists | any_intruder) & role_coin
 
@@ -659,12 +683,13 @@ class BatchedCTFCore:
             orbit_r = 2.0
             easy_x = torch.clamp(own_flag_home[:, 0] + orbit_r * torch.cos(phase), 0.0, max_x)
             easy_y = torch.clamp(own_flag_home[:, 1] + orbit_r * torch.sin(phase), 0.0, max_y)
-            # Defender loiter: opens midline (Blue x=3, Red x=17)
+            # Defender loiter: opens midline. Red anchor is randomized per episode.
             if is_blue:
                 med_x = torch.full((B,), min(max_x, 3.0), device=device)
+                med_y = torch.full((B,), min(max_y, 10.0), device=device)
             else:
-                med_x = torch.full((B,), min(max_x, 17.0), device=device)
-            med_y = torch.full((B,), min(max_y, 10.0), device=device)
+                med_x = torch.clamp(self.red_script_guard_x, 0.0, max_x)
+                med_y = torch.clamp(self.red_script_guard_y, 0.0, max_y)
             gx = torch.where(def_medium, med_x, easy_x)
             gy = torch.where(def_medium, med_y, easy_y)
 
@@ -675,40 +700,46 @@ class BatchedCTFCore:
             else:
                 chase = def_medium & any_intruder
                 if chase.any():
-                    dxx = own_x[:, guardian_idx : guardian_idx + 1, None] - enemy_x[:, None, :]
-                    dyy = own_y[:, guardian_idx : guardian_idx + 1, None] - enemy_y[:, None, :]
+                    guard_x = own_x[idx_env, guardian_idx_t]
+                    guard_y = own_y[idx_env, guardian_idx_t]
+                    dxx = guard_x[:, None] - enemy_x
+                    dyy = guard_y[:, None] - enemy_y
                     dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
                     big = torch.full_like(dd, 1e9)
-                    dd_masked = torch.where(enemy_on_own[:, None, :], dd, big)
-                    nearest = torch.argmin(dd_masked, dim=2).squeeze(1)
+                    dd_masked = torch.where(enemy_on_own, dd, big)
+                    nearest = torch.argmin(dd_masked, dim=1)
                     gx = torch.where(chase, enemy_x[idx_env, nearest], gx)
                     gy = torch.where(chase, enemy_y[idx_env, nearest], gy)
 
-            target[:, guardian_idx, 0] = gx
-            target[:, guardian_idx, 1] = gy
+            target[idx_env, guardian_idx_t, 0] = gx
+            target[idx_env, guardian_idx_t, 1] = gy
 
         # ======== Striker (agent 1): lane preference + side-weighted tangent hook ========
         center_y = 10.0
         lane_y_north = min(max_y, 15.0)
         lane_y_south = max(0.0, 5.0)
         if striker_idx < N:
-            striker_carry = own_carrying[:, striker_idx]
             efx = enemy_flag_pos[:, 0]
             efy = enemy_flag_pos[:, 1]
-            rx = own_x[:, striker_idx]
-            ry = own_y[:, striker_idx]
-            # Lane preference: Blue North (y=15), Red South (y=5) when crossing neutral zone
+            rx = own_x[idx_env, striker_idx_t]
+            ry = own_y[idx_env, striker_idx_t]
+            # Lane preference: randomized for red each episode instead of fixed south-only routing.
             dist_to_flag = torch.sqrt((rx - efx) ** 2 + (ry - efy) ** 2 + 1e-8)
-            lane_y = torch.full((B,), lane_y_north if is_blue else lane_y_south, device=device)
+            if is_blue:
+                lane_y = torch.full((B,), lane_y_north, device=device)
+            else:
+                lane_mid = torch.full((B,), center_y, device=device)
+                lane_amp = torch.full((B,), 5.0, device=device)
+                lane_y = torch.clamp(lane_mid + self.red_script_lane_sign * lane_amp, 0.0, max_y)
             sy_easy = torch.where(dist_to_flag > 4.0, lane_y, efy)
             sx_easy = efx
             sx_med = sx_easy.clone()
             sy_med = sy_easy.clone()
 
             if atk_medium.any():
-                dxx = own_x[:, striker_idx : striker_idx + 1, None] - enemy_x[:, None, :]
-                dyy = own_y[:, striker_idx : striker_idx + 1, None] - enemy_y[:, None, :]
-                dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8).squeeze(1)
+                dxx = rx[:, None] - enemy_x
+                dyy = ry[:, None] - enemy_y
+                dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
                 nearest = torch.argmin(dd, dim=1)
                 nbx = enemy_x[idx_env, nearest]
                 nby = enemy_y[idx_env, nearest]
@@ -742,17 +773,17 @@ class BatchedCTFCore:
             # Dynamic pivot when guardian is tagged and threats exist
             if striker_pivot.any():
                 threat_mask = enemy_on_own | enemy_carrying
-                dxx = own_x[:, striker_idx : striker_idx + 1, None] - enemy_x[:, None, :]
-                dyy = own_y[:, striker_idx : striker_idx + 1, None] - enemy_y[:, None, :]
+                dxx = rx[:, None] - enemy_x
+                dyy = ry[:, None] - enemy_y
                 dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
                 big = torch.full_like(dd, 1e9)
-                dd_masked = torch.where(threat_mask[:, None, :], dd, big)
-                nearest = torch.argmin(dd_masked, dim=2).squeeze(1)
+                dd_masked = torch.where(threat_mask, dd, big)
+                nearest = torch.argmin(dd_masked, dim=1)
                 sx = torch.where(striker_pivot, enemy_x[idx_env, nearest], sx)
                 sy = torch.where(striker_pivot, enemy_y[idx_env, nearest], sy)
 
-            target[:, striker_idx, 0] = sx
-            target[:, striker_idx, 1] = sy
+            target[idx_env, striker_idx_t, 0] = sx
+            target[idx_env, striker_idx_t, 1] = sy
 
         # ======== Extra agents (N > 2): assign striker-like targets with lane spread ========
         # So 4v4/6v6/8v8 all have roles; agents 2..N-1 go to enemy flag with y-offset to avoid clustering.
