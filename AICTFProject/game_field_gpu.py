@@ -43,6 +43,7 @@ CNN_COLS = 20
 CNN_ROWS = 20
 NUM_CNN_CHANNELS = 7
 GLOBAL_STATE_CHANNELS = 8
+VEC_OBS_DIM = 16
 
 
 @dataclass
@@ -92,6 +93,7 @@ class GPUFieldConfig:
     mine_pickup_radius_cells: float = 1.2
     mine_pickup_respawn_steps: int = 0   # 0 => no respawn; pickups are single-use
     n_mine_pickups: int = 4
+    enabled_mine_reward: float = 0.2
 
     # Tagging channel controls:
     # - tag_channel_seconds: pressure >= 2 must be sustained for this many seconds before a tag is applied.
@@ -313,6 +315,18 @@ class BatchedCTFCore:
             ],
             dim=1,
         )
+        # Reserve the first target slots for mine pickup coordinates so PPO can
+        # intentionally route to those action-relevant points.
+        pickup_positions = [
+            (min(3.0, max_x), min(5.0, max_y)),
+            (min(3.0, max_x), min(14.0, max_y)),
+            (max(0.0, max_x - 3.0), min(5.0, max_y)),
+            (max(0.0, max_x - 3.0), min(14.0, max_y)),
+        ]
+        n_pickup_targets = min(int(getattr(self.cfg, "n_mine_pickups", 4)), len(pickup_positions), int(targets.shape[0]))
+        for k in range(n_pickup_targets):
+            targets[k, 0] = pickup_positions[k][0]
+            targets[k, 1] = pickup_positions[k][1]
         self._macro_targets = targets
 
     def _rand_uniform(self, shape: Sequence[int], lo: float, hi: float) -> torch.Tensor:
@@ -1112,7 +1126,7 @@ class BatchedCTFCore:
 
         return blue_mine_tags, red_mine_tags
 
-    def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> None:
+    def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> torch.Tensor:
         """
         Respawn pickups; then blue grabs with GRAB_MINE or auto-grab when scripted; red grabs when near (scripted).
         """
@@ -1121,6 +1135,7 @@ class BatchedCTFCore:
         radius = float(getattr(self.cfg, "mine_pickup_radius_cells", 1.2))
         respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 0))
         max_charge = int(getattr(self.cfg, "max_mine_charges_per_agent", 2))
+        blue_pickups = torch.zeros((B,), dtype=torch.float32, device=device)
 
         # If respawn_delay > 0, pickups will respawn after a cooldown; when <= 0, pickups are single-use.
         if respawn_delay > 0:
@@ -1137,6 +1152,7 @@ class BatchedCTFCore:
             for k in range(Np):
                 take = grab_blue[:, i] & near[:, k]
                 if take.any():
+                    blue_pickups += take.to(torch.float32)
                     self.blue_mine_charges[:, i] = torch.where(
                         take,
                         torch.clamp(self.blue_mine_charges[:, i] + 1, max=max_charge),
@@ -1164,15 +1180,16 @@ class BatchedCTFCore:
                     self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
                     self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
                     break
+        return blue_pickups
 
-    def _apply_mine_placement(self, macro_blue: torch.Tensor) -> None:
+    def _apply_mine_placement(self, macro_blue: torch.Tensor) -> torch.Tensor:
         """
         Blue: PLACE_MINE or scripted (defender every 50 steps) places at current position if charge > 0.
         Red: scripted placement when has charge (e.g. defender places every 50 steps).
         """
         B, device = self.B, self.device
         Nm = self.Nm
-        midline = float(self.cols) * 0.5
+        blue_placements = torch.zeros((B,), dtype=torch.float32, device=device)
 
         # Blue: (PLACE_MINE or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot.
         # Use an explicit defender mask with the same (B, Nb) shape as macro_blue to avoid
@@ -1190,6 +1207,7 @@ class BatchedCTFCore:
             for slot in range(Nm):
                 can = place_blue[:, i] & (~self.blue_mine_active[:, slot])
                 if can.any():
+                    blue_placements += can.to(torch.float32)
                     self.blue_mine_x[can, slot] = self.blue_x[can, i]
                     self.blue_mine_y[can, slot] = self.blue_y[can, i]
                     self.blue_mine_active[can, slot] = True
@@ -1206,6 +1224,7 @@ class BatchedCTFCore:
                 self.red_mine_active[can, slot] = True
                 self.red_mine_charges[:, 0] = torch.where(can, torch.clamp(self.red_mine_charges[:, 0] - 1, min=0), self.red_mine_charges[:, 0])
                 break
+        return blue_placements
 
     def _apply_aquaticus_tag_rules(
         self,
@@ -1645,8 +1664,8 @@ class BatchedCTFCore:
             self._respawn_timers()
 
         # Mines: pickups (grab with GRAB_MINE / near for red), then place (PLACE_MINE / scripted red), then trigger
-        self._apply_mine_pickups(macro)
-        self._apply_mine_placement(macro)
+        blue_mine_pickups = self._apply_mine_pickups(macro)
+        blue_mine_placements = self._apply_mine_placement(macro)
         blue_mine_tags, red_mine_tags = self._apply_mine_triggers()
         self._untag_if_home()
 
@@ -1658,6 +1677,7 @@ class BatchedCTFCore:
             blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob,
             blue_mine_tags=blue_mine_tags, red_mine_tags=red_mine_tags,
         )
+        sparse_points += float(getattr(self.cfg, "enabled_mine_reward", 0.2) * 100.0) * blue_mine_placements
 
         self.step_count += 1
         event_happened = (
@@ -1751,6 +1771,8 @@ class BatchedCTFCore:
                     ex = torch.clamp(ex + self._randn(ex.shape) * float(self.cfg.sensor_noise_sigma_cells), 0.0, float(max(0, self.cols - 1)))
                     ey = torch.clamp(ey + self._randn(ey.shape) * float(self.cfg.sensor_noise_sigma_cells), 0.0, float(max(0, self.rows - 1)))
             self._scatter_points(grid[:, i], 2, ex, ey, elive)
+            self._scatter_points(grid[:, i], 3, self.blue_mine_x, self.blue_mine_y, self.blue_mine_active)
+            self._scatter_points(grid[:, i], 4, self.pickup_x, self.pickup_y, self.pickup_active)
 
             self._scatter_points(grid[:, i], 5, self.blue_flag_pos[:, 0:1], self.blue_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
             self._scatter_points(grid[:, i], 6, self.red_flag_pos[:, 0:1], self.red_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
@@ -1769,8 +1791,11 @@ class BatchedCTFCore:
           10: time fraction in [0,1]
           11: agent id normalized in [0,1]
           12: decision fraction in [0,1] (step_count/max_steps)
+          13: mine charge ratio in [0,1]
+          14: nearest active pickup distance in [0,1]
+          15: nearest friendly mine distance in [0,1]
         """
-        out = torch.zeros((self.B, self.Nb, 13), dtype=torch.float32, device=self.device)
+        out = torch.zeros((self.B, self.Nb, VEC_OBS_DIM), dtype=torch.float32, device=self.device)
         cols = max(1.0, float(self.cols - 1))
         rows = max(1.0, float(self.rows - 1))
         max_speed = max(1e-6, float(self.cfg.max_speed_cps))
@@ -1802,6 +1827,30 @@ class BatchedCTFCore:
         # Decision budget used (same normalization as time fraction, but kept as a separate feature
         # so the policy can distinguish between absolute time and how many decisions have been spent).
         out[..., 12] = time_frac
+        max_charge = max(1.0, float(getattr(self.cfg, "max_mine_charges_per_agent", 2)))
+        out[..., 13] = torch.clamp(self.blue_mine_charges.to(torch.float32) / max_charge, 0.0, 1.0)
+
+        pdx = self.pickup_x[:, None, :] - self.blue_x[:, :, None]
+        pdy = self.pickup_y[:, None, :] - self.blue_y[:, :, None]
+        pickup_dist = torch.sqrt(pdx * pdx + pdy * pdy + 1e-8)
+        pickup_mask = self.pickup_active[:, None, :].expand(-1, self.Nb, -1)
+        pickup_dist = torch.where(
+            pickup_mask,
+            pickup_dist,
+            torch.full_like(pickup_dist, float(self.max_dist)),
+        )
+        out[..., 14] = torch.clamp(torch.min(pickup_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
+
+        mdx = self.blue_mine_x[:, None, :] - self.blue_x[:, :, None]
+        mdy = self.blue_mine_y[:, None, :] - self.blue_y[:, :, None]
+        mine_dist = torch.sqrt(mdx * mdx + mdy * mdy + 1e-8)
+        mine_mask = self.blue_mine_active[:, None, :].expand(-1, self.Nb, -1)
+        mine_dist = torch.where(
+            mine_mask,
+            mine_dist,
+            torch.full_like(mine_dist, float(self.max_dist)),
+        )
+        out[..., 15] = torch.clamp(torch.min(mine_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
         return out
 
     def _build_action_mask(self) -> torch.Tensor:
@@ -1819,6 +1868,28 @@ class BatchedCTFCore:
             mask[:, :, idx_grab][carrying] = 0.0
             mask[:, :, idx_place][carrying] = 0.0
             mask[:, :, idx_home][carrying] = 1.0
+        has_mine = self.blue_mine_charges > 0
+        if has_mine.any():
+            idx_grab, idx_get, idx_place = 1, 2, 3
+            mask[:, :, idx_grab][has_mine] = 0.0
+            mask[:, :, idx_get][has_mine] = 0.0
+            mask[:, :, idx_place][has_mine] = 1.0
+        no_payload = (~self.blue_carrying) & (~has_mine)
+        if no_payload.any():
+            idx_grab, idx_get, idx_home = 1, 2, 4
+            mask[:, :, idx_grab][no_payload] = 1.0
+            mask[:, :, idx_get][no_payload] = 1.0
+            mask[:, :, idx_home][no_payload] = 0.0
+            pickup_radius = float(getattr(self.cfg, "mine_pickup_radius_cells", 1.2))
+            pdx = self.pickup_x[:, None, :] - self.blue_x[:, :, None]
+            pdy = self.pickup_y[:, None, :] - self.blue_y[:, :, None]
+            pickup_dist = torch.sqrt(pdx * pdx + pdy * pdy + 1e-8)
+            near_pickup = ((pickup_dist <= pickup_radius) & self.pickup_active[:, None, :]).any(dim=2)
+            mask[:, :, idx_grab][no_payload & (~near_pickup)] = 0.0
+        no_mine = ~has_mine
+        if no_mine.any():
+            idx_place = 3
+            mask[:, :, idx_place][no_mine] = 0.0
         return mask.reshape(self.B, -1)
 
     def get_obs_tensors(self) -> Dict[str, torch.Tensor]:
@@ -1839,6 +1910,9 @@ class BatchedCTFCore:
         g = torch.zeros((self.B, GLOBAL_STATE_CHANNELS, CNN_ROWS, CNN_COLS), dtype=torch.float32, device=self.device)
         self._scatter_points(g, 0, self.blue_x, self.blue_y, self.blue_alive)
         self._scatter_points(g, 1, self.red_x, self.red_y, self.red_alive)
+        self._scatter_points(g, 2, self.blue_mine_x, self.blue_mine_y, self.blue_mine_active)
+        self._scatter_points(g, 3, self.red_mine_x, self.red_mine_y, self.red_mine_active)
+        self._scatter_points(g, 4, self.pickup_x, self.pickup_y, self.pickup_active)
         self._scatter_points(g, 6, self.blue_flag_pos[:, 0:1], self.blue_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
         self._scatter_points(g, 7, self.red_flag_pos[:, 0:1], self.red_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
         return g.reshape(self.B, -1)
@@ -2012,7 +2086,7 @@ class GPUCTFVecEnv(VecEnv):
         obs_space = spaces.Dict(
             {
                 "grid": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-                "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, 13), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, VEC_OBS_DIM), dtype=np.float32),
                 "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue,), dtype=np.float32),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue * (self._n_macros + self._n_targets),), dtype=np.float32),
             }
@@ -2066,7 +2140,7 @@ class GPUCTFVecEnv(VecEnv):
                     "near_misses_per_episode": 0,
                     "zone_coverage": 0.0,
                     "decision_steps": int(infos[i].get("decision_steps", 0)),
-                    "vec_schema_version": 1,
+                    "vec_schema_version": 2,
                 }
             self.core.reset_indices(reset_mask)
             obs = self.core.get_obs()
