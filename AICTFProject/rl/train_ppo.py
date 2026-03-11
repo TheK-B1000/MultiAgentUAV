@@ -222,6 +222,7 @@ class PPOConfig:
     fixed_eval_episodes: int = 10
     use_reduced_aggressiveness: bool = False
     use_stable_marl_ppo: bool = True
+    target_kl: Optional[float] = 0.03
     approx_kl_threshold: float = 0.05
     kl_guardrail_consecutive: int = 3
     # Sanity check: set True and run a few steps to verify approx_kl ~ 0 (if huge, logprob/action plumbing is broken)
@@ -1097,9 +1098,15 @@ class KLGuardrailCallback(BaseCallback):
             if self._spike_count >= self.consecutive:
                 setattr(self.model, "_kl_guardrail_triggered", True)
                 if self.verbose:
+                    stable_enabled = bool(getattr(getattr(self.model, "cfg", None), "use_stable_marl_ppo", False))
+                    guidance = (
+                        "stable MARL PPO is already enabled; lower lr / n_epochs / clip_range, and use target_kl early stopping."
+                        if stable_enabled
+                        else "consider enabling use_stable_marl_ppo."
+                    )
                     print(
                         f"[KLGuardrail] approx_kl exceeded {self.threshold} for {self._spike_count} consecutive updates "
-                        f"(last approx_kl={approx_kl:.4f}). Set model._kl_guardrail_triggered=True; consider enabling use_stable_marl_ppo."
+                        f"(last approx_kl={approx_kl:.4f}). Set model._kl_guardrail_triggered=True; {guidance}"
                     )
         else:
             self._spike_count = 0
@@ -1572,6 +1579,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         ent_coef=ent_coef,
         vf_coef=1.0,
         max_grad_norm=float(cfg.max_grad_norm),
+        target_kl=float(cfg.target_kl) if getattr(cfg, "target_kl", None) is not None else None,
         tensorboard_log=(
             os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
             if cfg.enable_tensorboard
@@ -1582,6 +1590,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         seed=cfg.seed,
         device=cfg.device,
     )
+    model.cfg = cfg
 
     if cfg.enable_tensorboard:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
