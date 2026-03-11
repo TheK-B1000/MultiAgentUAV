@@ -1860,11 +1860,9 @@ if __name__ == "__main__":
         if args.total_steps is not None:
             cfg.total_timesteps = args.total_steps
         else:
-            # Default total timesteps by team size (tuned for this project):
-            # 2v2 = 1.5M, 3v3 = 2.0M, 4v4 = 2.5M, 8v8 = 4.0M
-            cfg.total_timesteps = {2: 1_500_000, 3: 2_000_000, 4: 2_500_000, 8: 4_000_000}.get(
-                cfg.max_blue_agents, 2_500_000
-            )
+            # Default total timesteps (tuned for this project):
+            # All team sizes (2v2, 3v3, 4v4, 8v8) use 1.0M steps by default.
+            cfg.total_timesteps = 1_000_000
         if getattr(args, "checkpoint_dir", None) is not None:
             cfg.checkpoint_dir = args.checkpoint_dir
         if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
