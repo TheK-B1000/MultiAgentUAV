@@ -642,13 +642,6 @@ class LeagueCallback(BaseCallback):
                 phase_tot = self.phase_win_count + self.phase_loss_count + self.phase_draw_count
                 phase_wr = (100.0 * self.phase_win_count / phase_tot) if phase_tot > 0 else 0.0
                 print(f"[PPO] ep={self.episode_idx} mode={mode} phase={phase} opp={opp_summary} | total W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
-                print(f"[PPO]   current phase {phase}: W={self.phase_win_count} L={self.phase_loss_count} D={self.phase_draw_count} WR={phase_wr:.1f}%")
-                for p in ("OP1", "OP2", "OP3"):
-                    st = self._opponent_stats.get(f"SCRIPTED:{p}", {})
-                    w, l, d = st.get("wins", 0), st.get("losses", 0), st.get("draws", 0)
-                    if w + l + d > 0:
-                        pwr = (100.0 * w / (w + l + d)) if (w + l + d) > 0 else 0.0
-                        print(f"[PPO]   {p}: W={w} L={l} D={d} WR={pwr:.1f}%")
 
             self.logger.record("curr/episode", self.episode_idx)
             self.logger.record("curr/win_rate", self.win_count / max(1, self.episode_idx))
@@ -1481,7 +1474,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
-        rules_profile="AQUATICUS_2024",
+        rules_profile="OURS",
         device=str(cfg.device),
         seed=int(cfg.seed),
     )
@@ -1493,8 +1486,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     except Exception:
         pass
     try:
-        # Project default: enforce Aquaticus scoring/rules profile across manager-backed envs.
-        venv.env_method("set_dynamics_config", {"rules_profile": "AQUATICUS_2024"})
+        # Project default: enforce the repo's current OURS scoring/rules profile.
+        venv.env_method("set_dynamics_config", {"rules_profile": "OURS"})
     except Exception:
         pass
     try:
@@ -1577,7 +1570,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         gae_lambda=float(cfg.gae_lambda),
         clip_range=clip_range,
         ent_coef=ent_coef,
-        vf_coef=0.5,
+        vf_coef=1.0,
         max_grad_norm=float(cfg.max_grad_norm),
         tensorboard_log=(
             os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
@@ -1675,7 +1668,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
                 max_decision_steps=max(1, int(cfg.max_decision_steps)),
                 aquaticus_profile=True,
-                rules_profile="AQUATICUS_2024",
+                rules_profile="OURS",
                 device=str(cfg.device),
                 seed=int(cfg.seed),
             )
@@ -1744,7 +1737,7 @@ def run_verify_4v4(num_episodes: int = 10) -> None:
         max_red_agents=4,
         max_decision_steps=400,
         aquaticus_profile=True,
-        rules_profile="AQUATICUS_2024",
+        rules_profile="OURS",
         device="cpu",
         seed=42,
     )
