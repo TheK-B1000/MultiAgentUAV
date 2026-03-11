@@ -385,7 +385,7 @@ class CTFViewer:
             device=device,
             max_decision_steps=paper_steps,
             stalemate_max_steps=paper_steps,
-            rules_profile="AQUATICUS_2024",
+            rules_profile="OURS",
             score_limit=3,
         )
         self.cfg = cfg
@@ -393,12 +393,12 @@ class CTFViewer:
         self.cfg.max_decision_steps = paper_steps
         self.cfg.stalemate_max_steps = paper_steps
         self.core.max_steps = paper_steps
-        self.core.rules_profile = "AQUATICUS_2024"
-        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: AQUATICUS_2024")
+        self.core.rules_profile = "OURS"
+        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: OURS")
         try:
             self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"rules_profile": "AQUATICUS_2024", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
 
             # Match eval/training's scripted test opponent.
             opp = sample_batched_opponent_params(
@@ -610,21 +610,21 @@ class CTFViewer:
         agents = max(1, int(agents_per_team))
         self.cfg.max_blue_agents = agents
         self.cfg.max_red_agents = agents
-        self.cfg.max_decision_steps = 1800
-        self.cfg.stalemate_max_steps = 1800
+        self.cfg.max_decision_steps = 400
+        self.cfg.stalemate_max_steps = 400
         self.core = BatchedCTFCore(self.cfg)
-        self.core.max_steps = 1800
-        self.core.rules_profile = "OURS_PLUS"
+        self.core.max_steps = 400
+        self.core.rules_profile = "OURS"
         self.core.blue_scripted = (self.blue_mode == "DEMO")
         try:
-            self.core.set_phase("OP4")
+            self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
-            self.core.set_dynamics_config({"rules_profile": "OURS_PLUS", "aquaticus_profile": True})
+            self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
 
             opp = sample_batched_opponent_params(
                 kind="SCRIPTED",
-                key="OP4",
-                phase="OP4",
+                key="OP3",
+                phase="OP3",
                 n_agents=agents,
                 batch_size=self.cfg.n_envs,
                 device=self.cfg.device,
