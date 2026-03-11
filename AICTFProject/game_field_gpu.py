@@ -99,7 +99,7 @@ class GPUFieldConfig:
 
     # Profile and reward controls
     aquaticus_profile: bool = False
-    rules_profile: str = "OURS_PLUS"
+    rules_profile: str = "OURS"
     sparse_weight: float = 1.0
     dense_weight: float = 0.2
     reward_scale: float = 2.0
@@ -1601,7 +1601,7 @@ class BatchedCTFCore:
         # AvoidCollision safety guardrail (halt motion if too close)
         self._apply_avoid_collision_guard(prev_blue_x, prev_blue_y, prev_red_x, prev_red_y)
 
-        if bool(self.cfg.aquaticus_profile) or self.rules_profile == "AQUATICUS_2024":
+        if bool(self.cfg.aquaticus_profile) or self.rules_profile in ("AQUATICUS_2024", "OURS", "OURS_PLUS"):
             blue_tag_noflag, blue_tag_withflag, red_tag_total = self._apply_aquaticus_tag_rules(blue_oob, red_oob)
             self._untag_if_home()
             kill_blue = torch.zeros_like(self.blue_tagged)
