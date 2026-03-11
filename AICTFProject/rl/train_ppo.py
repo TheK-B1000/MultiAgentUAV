@@ -455,10 +455,10 @@ class LeagueCallback(BaseCallback):
         # League mode: OP3 phase only uses OP3 + species + snapshots (no OP1/OP2)
         phase = self.curriculum.phase
         op3_wr = self._get_op3_win_rate()
-        enable_snapshots = op3_wr >= 0.70 and len(self.league.snapshots) > 0
+        enable_snapshots = op3_wr >= 0.80 and len(self.league.snapshots) > 0
         if enable_snapshots and not self._selfplay_enabled:
             self._selfplay_enabled = True
-            print(f"[League] OP3 win rate {op3_wr:.1%} >= 70%: enabling self-play (snapshots)")
+            print(f"[League] OP3 win rate {op3_wr:.1%} >= 80%: enabling self-play (snapshots)")
         # Force phase="OP3" so league doesn't sample OP1/OP2
         return self.league.sample_league(phase="OP3", enable_snapshots=enable_snapshots)
     
