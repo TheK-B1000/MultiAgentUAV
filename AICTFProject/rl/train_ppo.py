@@ -159,7 +159,7 @@ class TrainMode(str, Enum):
 class PPOConfig:
     seed: int = 42
     total_timesteps: int = 4_000_000
-    n_envs: int = 4
+    n_envs: int = 8
     n_steps: int = 2048
     batch_size: int = 512
     n_epochs: int = 10
@@ -222,7 +222,7 @@ class PPOConfig:
     fixed_eval_episodes: int = 10
     use_reduced_aggressiveness: bool = False
     use_stable_marl_ppo: bool = True
-    target_kl: Optional[float] = 0.03
+    target_kl: Optional[float] = 0.02
     approx_kl_threshold: float = 0.05
     kl_guardrail_consecutive: int = 3
     # Sanity check: set True and run a few steps to verify approx_kl ~ 0 (if huge, logprob/action plumbing is broken)
@@ -296,6 +296,20 @@ class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
         log_prob = distribution.log_prob(actions)
         values = self.value_net(latent_vf)
         return actions, values, log_prob
+
+    def evaluate_actions(self, obs: Dict[str, torch.Tensor], actions: torch.Tensor):
+        # PPO training must use the same masked distribution as rollout collection,
+        # otherwise old_log_prob and new log_prob are computed from different policies.
+        features = self.extract_features(obs)
+        latent_pi, latent_vf = self.mlp_extractor(features)
+        logits = self.action_net(latent_pi)
+        if isinstance(obs, dict) and "mask" in obs:
+            logits = self._apply_action_mask(logits, obs["mask"])
+        distribution = self.action_dist.proba_distribution(action_logits=logits)
+        log_prob = distribution.log_prob(actions)
+        values = self.value_net(latent_vf)
+        entropy = distribution.entropy()
+        return values, log_prob, entropy
 
 
 def _tqdm_available() -> bool:
@@ -1546,10 +1560,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     if use_curriculum or getattr(cfg, "use_stable_marl_ppo", False):
         learning_rate = 1.5e-4
         ent_coef = 0.005
-        clip_range = 0.12
-        n_epochs = 4
+        clip_range = 0.10
+        n_epochs = 2
         batch_size = 1024
-        print("[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=4, clip_range=0.12, ent_coef=0.005, batch_size=1024")
+        print("[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=2, clip_range=0.10, ent_coef=0.005, batch_size=1024, target_kl=0.02")
     elif getattr(cfg, "use_reduced_aggressiveness", False):
         learning_rate = learning_rate * 0.67
         ent_coef = ent_coef * 0.5
