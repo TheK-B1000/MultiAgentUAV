@@ -81,7 +81,7 @@ PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
 # Neutral names; values define OURS sparse event scaling.
 SPARSE_TAG_NO_FLAG_POINTS = 100.0
 SPARSE_TAG_WITH_FLAG_POINTS = 50.0
-SPARSE_FLAG_GRAB_POINTS = 50.0
+SPARSE_FLAG_GRAB_POINTS = 0.0
 SPARSE_FLAG_CAPTURE_POINTS = 100.0
 SPARSE_OOB_POINTS = -100.0
 SPARSE_MINE_TAG_POINTS = 100.0
@@ -137,7 +137,7 @@ class GameManager:
     # Naval framing: if True, on timeout Blue wins (defense held) regardless of score
     timeout_blue_wins_defense_held: bool = False
     # Rules profile (historical; kept for compatibility, but OURS behavior is always used).
-    rules_profile: str = "OURS_PLUS"
+    rules_profile: str = "OURS"
 
     # --- flags ---
     blue_flag_home: Cell = (0, 0)
@@ -230,9 +230,9 @@ class GameManager:
 
     def set_rules_profile(self, profile: str) -> None:
         """
-        Kept for backward compatibility; always uses OURS_PLUS semantics.
+        Kept for backward compatibility; always uses OURS semantics.
         """
-        self.rules_profile = "OURS_PLUS"
+        self.rules_profile = "OURS"
 
     def _grab_score_delta(self) -> int:
         return get_grab_score_delta(self.rules_profile)
@@ -514,7 +514,7 @@ class GameManager:
     # -------------------------
 
     def reset_game(self, reset_scores: bool = True) -> None:
-        # Legacy hook; no-op for OURS_PLUS.
+    # Legacy hook; no-op for OURS.
         if False:
             self.score_limit = max(self.score_limit, 9)
         if reset_scores:
