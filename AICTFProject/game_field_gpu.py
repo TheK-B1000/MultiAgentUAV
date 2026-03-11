@@ -37,13 +37,20 @@ from game_manager import (
     SPARSE_OOB_POINTS,
     SPARSE_MINE_TAG_POINTS,
     DEFAULT_SCORE_LIMIT,
+    WIN_TEAM_REWARD,
+    LOSE_TEAM_PUNISH,
+    DRAW_TEAM_PENALTY,
+    FLAG_PICKUP_REWARD,
+    FLAG_CARRY_HOME_REWARD,
+    ENEMY_MAV_KILL_REWARD,
+    ACTION_FAILED_PUNISHMENT,
 )
 
 CNN_COLS = 20
 CNN_ROWS = 20
 NUM_CNN_CHANNELS = 7
 GLOBAL_STATE_CHANNELS = 8
-VEC_OBS_DIM = 16
+VEC_OBS_DIM = 18
 
 
 @dataclass
@@ -94,6 +101,26 @@ class GPUFieldConfig:
     mine_pickup_respawn_steps: int = 0   # 0 => no respawn; pickups are single-use
     n_mine_pickups: int = 4
     enabled_mine_reward: float = 0.2
+    flag_pickup_reward: float = FLAG_PICKUP_REWARD
+    flag_carry_home_reward: float = FLAG_CARRY_HOME_REWARD
+    enemy_mav_kill_reward: float = ENEMY_MAV_KILL_REWARD
+    action_failed_punishment: float = ACTION_FAILED_PUNISHMENT
+    win_team_reward: float = WIN_TEAM_REWARD
+    lose_team_punish: float = LOSE_TEAM_PUNISH
+    draw_team_penalty: float = DRAW_TEAM_PENALTY
+    pbrs_gamma: float = 0.995
+    pbrs_attack_coef: float = 1.0
+    pbrs_return_coef: float = 1.0
+    pbrs_defense_coef: float = 0.5
+    team_defense_presence_reward: float = 0.03
+    team_escort_reward: float = 0.02
+    team_intercept_reward: float = 0.02
+    macro_commit_go_to_ticks: int = 4
+    macro_commit_grab_ticks: int = 3
+    macro_commit_get_flag_ticks: int = 4
+    macro_commit_place_ticks: int = 2
+    macro_commit_go_home_ticks: int = 4
+    macro_arrival_radius_cells: float = 1.0
 
     # Tagging channel controls:
     # - tag_channel_seconds: pressure >= 2 must be sustained for this many seconds before a tag is applied.
@@ -151,6 +178,18 @@ class BatchedCTFCore:
         self.rows = int(cfg.map_rows)
         self.cols = int(cfg.map_cols)
         self.max_steps = int(cfg.max_decision_steps)
+        self.max_sim_steps = int(cfg.max_decision_steps) * max(
+            1,
+            int(
+                max(
+                    cfg.macro_commit_go_to_ticks,
+                    cfg.macro_commit_grab_ticks,
+                    cfg.macro_commit_get_flag_ticks,
+                    cfg.macro_commit_place_ticks,
+                    cfg.macro_commit_go_home_ticks,
+                )
+            ),
+        )
         self.score_limit = int(cfg.score_limit)
         self.dt = float(cfg.decision_interval_seconds) * 0.99
         self.max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
@@ -193,9 +232,14 @@ class BatchedCTFCore:
         f32 = torch.float32
 
         self.step_count = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.sim_step_count = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.done = torch.zeros((B,), dtype=torch.bool, device=dev)
         self.truncated = torch.zeros((B,), dtype=torch.bool, device=dev)
         self.stalemate_steps = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.blue_commit_macro = torch.zeros((B, Nb), dtype=torch.int64, device=dev)
+        self.blue_commit_target = torch.zeros((B, Nb), dtype=torch.int64, device=dev)
+        self.blue_commit_ticks_left = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
+        self.blue_commit_success = torch.zeros((B, Nb), dtype=torch.bool, device=dev)
 
         self.blue_x = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.blue_y = torch.zeros((B, Nb), dtype=f32, device=dev)
@@ -376,6 +420,7 @@ class BatchedCTFCore:
         self.done[idx] = False
         self.truncated[idx] = False
         self.step_count[idx] = 0
+        self.sim_step_count[idx] = 0
         self.stalemate_steps[idx] = 0
         self.blue_score[idx] = 0
         self.red_score[idx] = 0
@@ -401,6 +446,10 @@ class BatchedCTFCore:
         self.red_script_guard_y[idx] = self._rand_uniform((idx.numel(),), 7.0, 13.0)
         self.blue_home_contact_frames[idx] = 0
         self.red_home_contact_frames[idx] = 0
+        self.blue_commit_macro[idx] = 0
+        self.blue_commit_target[idx] = 0
+        self.blue_commit_ticks_left[idx] = 0
+        self.blue_commit_success[idx] = False
         # Mines: fully clear placed mines and charges so a new episode starts with a clean field.
         self.blue_mine_x[idx] = 0.0
         self.blue_mine_y[idx] = 0.0
@@ -539,6 +588,14 @@ class BatchedCTFCore:
     def _decode_targets(self, target_idx: torch.Tensor) -> torch.Tensor:
         tidx = torch.remainder(target_idx, self.cfg.n_targets).long()
         return self._macro_targets.index_select(0, tidx.reshape(-1)).reshape(self.B, self.Nb, 2)
+
+    def _macro_commit_ticks(self, macro: torch.Tensor) -> torch.Tensor:
+        ticks = torch.full_like(macro, int(self.cfg.macro_commit_go_to_ticks), dtype=torch.int32)
+        ticks = torch.where(macro == int(MacroAction.GRAB_MINE), torch.full_like(ticks, int(self.cfg.macro_commit_grab_ticks)), ticks)
+        ticks = torch.where(macro == int(MacroAction.GET_FLAG), torch.full_like(ticks, int(self.cfg.macro_commit_get_flag_ticks)), ticks)
+        ticks = torch.where(macro == int(MacroAction.PLACE_MINE), torch.full_like(ticks, int(self.cfg.macro_commit_place_ticks)), ticks)
+        ticks = torch.where(macro == int(MacroAction.GO_HOME), torch.full_like(ticks, int(self.cfg.macro_commit_go_home_ticks)), ticks)
+        return torch.clamp(ticks, min=1)
 
     # ------------------------------------------------------------------
     # Carrier evasion: multi-threat tangent routing toward home
@@ -693,7 +750,7 @@ class BatchedCTFCore:
 
         # ======== Defender (agent 0) ========
         if guardian_idx < N:
-            phase = self.step_count.to(torch.float32) * 0.12
+            phase = self.sim_step_count.to(torch.float32) * 0.12
             orbit_r = 2.0
             easy_x = torch.clamp(own_flag_home[:, 0] + orbit_r * torch.cos(phase), 0.0, max_x)
             easy_y = torch.clamp(own_flag_home[:, 1] + orbit_r * torch.sin(phase), 0.0, max_y)
@@ -874,7 +931,7 @@ class BatchedCTFCore:
 
         # ======== Red-only: deception feints (non-carrier agents only) ========
         if (not is_blue) and deception_prob.numel() == B and float(deception_prob.max().item()) > 0.0:
-            pulse = (self.step_count % 30 == 0)
+            pulse = (self.sim_step_count % 30 == 0)
             p = torch.clamp(deception_prob, 0.0, 1.0)
             r = torch.rand((B,), generator=self._rng, device=device)
             feint_env = pulse & (r < p)
@@ -884,7 +941,7 @@ class BatchedCTFCore:
                 hold_y = enemy_flag_home[env_idx, 1]
                 punch_x = enemy_flag_home[env_idx, 0]
                 punch_y = enemy_flag_home[env_idx, 1]
-                do_hold = ((self.step_count[env_idx] // 30) % 2 == 0)
+                do_hold = ((self.sim_step_count[env_idx] // 30) % 2 == 0)
                 tx = torch.where(do_hold, hold_x, punch_x)
                 ty = torch.where(do_hold, hold_y, punch_y)
                 tx = torch.clamp(tx + self._rand_uniform((env_idx.numel(),), -3.0, 3.0), 0.0, max_x)
@@ -1126,7 +1183,7 @@ class BatchedCTFCore:
 
         return blue_mine_tags, red_mine_tags
 
-    def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> torch.Tensor:
+    def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Respawn pickups; then blue grabs with GRAB_MINE or auto-grab when scripted; red grabs when near (scripted).
         """
@@ -1136,6 +1193,7 @@ class BatchedCTFCore:
         respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 0))
         max_charge = int(getattr(self.cfg, "max_mine_charges_per_agent", 2))
         blue_pickups = torch.zeros((B,), dtype=torch.float32, device=device)
+        blue_pickup_agents = torch.zeros((B, self.Nb), dtype=torch.bool, device=device)
 
         # If respawn_delay > 0, pickups will respawn after a cooldown; when <= 0, pickups are single-use.
         if respawn_delay > 0:
@@ -1153,6 +1211,7 @@ class BatchedCTFCore:
                 take = grab_blue[:, i] & near[:, k]
                 if take.any():
                     blue_pickups += take.to(torch.float32)
+                    blue_pickup_agents[:, i] = blue_pickup_agents[:, i] | take
                     self.blue_mine_charges[:, i] = torch.where(
                         take,
                         torch.clamp(self.blue_mine_charges[:, i] + 1, max=max_charge),
@@ -1180,9 +1239,9 @@ class BatchedCTFCore:
                     self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
                     self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
                     break
-        return blue_pickups
+        return blue_pickups, blue_pickup_agents
 
-    def _apply_mine_placement(self, macro_blue: torch.Tensor) -> torch.Tensor:
+    def _apply_mine_placement(self, macro_blue: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Blue: PLACE_MINE or scripted (defender every 50 steps) places at current position if charge > 0.
         Red: scripted placement when has charge (e.g. defender places every 50 steps).
@@ -1190,12 +1249,13 @@ class BatchedCTFCore:
         B, device = self.B, self.device
         Nm = self.Nm
         blue_placements = torch.zeros((B,), dtype=torch.float32, device=device)
+        blue_placement_agents = torch.zeros((B, self.Nb), dtype=torch.bool, device=device)
 
         # Blue: (PLACE_MINE or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot.
         # Use an explicit defender mask with the same (B, Nb) shape as macro_blue to avoid
         # shape/broadcast issues when Nb != B (e.g. 2v2 with n_envs=4 on Colab).
         scripted_mask: torch.Tensor
-        if self.blue_scripted and (self.step_count % 50) == 0:
+        if self.blue_scripted and (self.sim_step_count % 50) == 0:
             scripted_mask = torch.zeros_like(macro_blue, dtype=torch.bool, device=device)
             # Defender is agent index 0 for each env
             scripted_mask[:, 0] = True
@@ -1208,6 +1268,7 @@ class BatchedCTFCore:
                 can = place_blue[:, i] & (~self.blue_mine_active[:, slot])
                 if can.any():
                     blue_placements += can.to(torch.float32)
+                    blue_placement_agents[:, i] = blue_placement_agents[:, i] | can
                     self.blue_mine_x[can, slot] = self.blue_x[can, i]
                     self.blue_mine_y[can, slot] = self.blue_y[can, i]
                     self.blue_mine_active[can, slot] = True
@@ -1215,7 +1276,7 @@ class BatchedCTFCore:
                     break
 
         # Red: scripted place when defender (agent 0) has charge, every 50 steps
-        place_red = (self.red_mine_charges[:, 0] > 0) & ((self.step_count % 50) == 0)
+        place_red = (self.red_mine_charges[:, 0] > 0) & ((self.sim_step_count % 50) == 0)
         for slot in range(Nm):
             can = place_red & (~self.red_mine_active[:, slot])
             if can.any():
@@ -1224,7 +1285,7 @@ class BatchedCTFCore:
                 self.red_mine_active[can, slot] = True
                 self.red_mine_charges[:, 0] = torch.where(can, torch.clamp(self.red_mine_charges[:, 0] - 1, min=0), self.red_mine_charges[:, 0])
                 break
-        return blue_placements
+        return blue_placements, blue_placement_agents
 
     def _apply_aquaticus_tag_rules(
         self,
@@ -1523,28 +1584,82 @@ class BatchedCTFCore:
         ty = torch.where(self.blue_carrying, self.blue_flag_home[:, None, 1], ty)
         return tx, ty
 
-    def _dense_shaping(self, prev_blue_x: torch.Tensor, prev_blue_y: torch.Tensor, yaw_cmd_blue: torch.Tensor) -> torch.Tensor:
-        """
-        Dense terms designed to avoid PPO stalling/spinning:
-          - potential progress to objective
-          - defense presence / escort proximity
-          - spin penalty and idle penalty
-        """
-        carrying = self.blue_carrying
-        tgt_x = torch.where(carrying, self.blue_flag_home[:, None, 0], self.red_flag_pos[:, None, 0])
-        tgt_y = torch.where(carrying, self.blue_flag_home[:, None, 1], self.red_flag_pos[:, None, 1])
-        prev_d = torch.sqrt((prev_blue_x - tgt_x) ** 2 + (prev_blue_y - tgt_y) ** 2 + 1e-8)
-        cur_d = torch.sqrt((self.blue_x - tgt_x) ** 2 + (self.blue_y - tgt_y) ** 2 + 1e-8)
-        progress = torch.clamp((prev_d - cur_d) / max(1e-6, self.max_dist), min=-1.0, max=1.0).mean(dim=1)
+    def _compute_potentials(
+        self,
+        blue_x: torch.Tensor,
+        blue_y: torch.Tensor,
+        blue_carrying: torch.Tensor,
+        red_carrying: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        attack_dx = self.red_flag_pos[:, None, 0] - blue_x
+        attack_dy = self.red_flag_pos[:, None, 1] - blue_y
+        attack_dist = torch.sqrt(attack_dx * attack_dx + attack_dy * attack_dy + 1e-8)
+        attack_phi = torch.where(
+            blue_carrying,
+            torch.zeros_like(attack_dist),
+            -attack_dist / max(1e-6, self.max_dist),
+        ).mean(dim=1)
 
-        # Defense presence: if red carries blue flag, reward blue near own flag (intercept posture).
+        return_dx = self.blue_flag_home[:, None, 0] - blue_x
+        return_dy = self.blue_flag_home[:, None, 1] - blue_y
+        return_dist = torch.sqrt(return_dx * return_dx + return_dy * return_dy + 1e-8)
+        return_phi = torch.where(
+            blue_carrying,
+            -return_dist / max(1e-6, self.max_dist),
+            torch.zeros_like(return_dist),
+        ).mean(dim=1)
+
+        red_has_flag = red_carrying.any(dim=1)
+        red_carrier_idx = torch.argmax(red_carrying.to(torch.int64), dim=1)
+        red_carrier_x = self.red_x[torch.arange(self.B, device=self.device), red_carrier_idx]
+        red_carrier_y = self.red_y[torch.arange(self.B, device=self.device), red_carrier_idx]
+        defend_dx = red_carrier_x[:, None] - blue_x
+        defend_dy = red_carrier_y[:, None] - blue_y
+        defend_dist = torch.sqrt(defend_dx * defend_dx + defend_dy * defend_dy + 1e-8)
+        defend_phi = torch.where(
+            red_has_flag[:, None],
+            -defend_dist / max(1e-6, self.max_dist),
+            torch.zeros_like(defend_dist),
+        ).mean(dim=1)
+        return attack_phi, return_phi, defend_phi
+
+    def _pbrs_reward(
+        self,
+        prev_blue_x: torch.Tensor,
+        prev_blue_y: torch.Tensor,
+        prev_blue_carrying: torch.Tensor,
+    ) -> torch.Tensor:
+        prev_attack, prev_return, prev_defend = self._compute_potentials(
+            prev_blue_x, prev_blue_y, prev_blue_carrying, self.red_carrying
+        )
+        cur_attack, cur_return, cur_defend = self._compute_potentials(
+            self.blue_x, self.blue_y, self.blue_carrying, self.red_carrying
+        )
+        gamma = float(self.cfg.pbrs_gamma)
+        rpbrs = (
+            float(self.cfg.pbrs_attack_coef) * (gamma * cur_attack - prev_attack)
+            + float(self.cfg.pbrs_return_coef) * (gamma * cur_return - prev_return)
+            + float(self.cfg.pbrs_defense_coef) * (gamma * cur_defend - prev_defend)
+        )
+        self._last_dense_progress = gamma * cur_attack - prev_attack
+        return rpbrs
+
+    def _team_coordination_reward(
+        self,
+        prev_blue_x: torch.Tensor,
+        prev_blue_y: torch.Tensor,
+        yaw_cmd_blue: torch.Tensor,
+    ) -> torch.Tensor:
         red_has_flag = self.red_carrying.any(dim=1)
         home_dx = self.blue_x - self.blue_flag_home[:, None, 0]
         home_dy = self.blue_y - self.blue_flag_home[:, None, 1]
         near_home = (torch.sqrt(home_dx * home_dx + home_dy * home_dy + 1e-8) <= 6.0).to(torch.float32).mean(dim=1)
-        defense_presence = torch.where(red_has_flag, 0.03 * near_home, torch.zeros_like(near_home))
+        defense_presence = torch.where(
+            red_has_flag,
+            float(self.cfg.team_defense_presence_reward) * near_home,
+            torch.zeros_like(near_home),
+        )
 
-        # Escort: if blue has enemy flag, reward teammates near carrier.
         blue_has_flag = self.blue_carrying.any(dim=1)
         carrier_idx = torch.argmax(self.blue_carrying.to(torch.int64), dim=1)
         carrier_x = self.blue_x[torch.arange(self.B, device=self.device), carrier_idx]
@@ -1552,19 +1667,29 @@ class BatchedCTFCore:
         edx = self.blue_x - carrier_x[:, None]
         edy = self.blue_y - carrier_y[:, None]
         escort = (torch.sqrt(edx * edx + edy * edy + 1e-8) <= 5.0).to(torch.float32).mean(dim=1)
-        escort_bonus = torch.where(blue_has_flag, 0.02 * escort, torch.zeros_like(escort))
+        escort_bonus = torch.where(
+            blue_has_flag,
+            float(self.cfg.team_escort_reward) * escort,
+            torch.zeros_like(escort),
+        )
 
-        # Spin penalty: large yaw with tiny translational progress.
+        red_carrier_idx = torch.argmax(self.red_carrying.to(torch.int64), dim=1)
+        red_carrier_x = self.red_x[torch.arange(self.B, device=self.device), red_carrier_idx]
+        red_carrier_y = self.red_y[torch.arange(self.B, device=self.device), red_carrier_idx]
+        intercept_dx = self.blue_x - red_carrier_x[:, None]
+        intercept_dy = self.blue_y - red_carrier_y[:, None]
+        intercept = (torch.sqrt(intercept_dx * intercept_dx + intercept_dy * intercept_dy + 1e-8) <= 5.0).to(torch.float32).mean(dim=1)
+        intercept_bonus = torch.where(
+            red_has_flag,
+            float(self.cfg.team_intercept_reward) * intercept,
+            torch.zeros_like(intercept),
+        )
+
         yaw_abs = torch.abs(yaw_cmd_blue) / max(1e-6, float(self.cfg.max_yaw_rate_rps))
         move_dist = torch.sqrt((self.blue_x - prev_blue_x) ** 2 + (self.blue_y - prev_blue_y) ** 2 + 1e-8)
         spin_pen = self.cfg.spin_penalty_coef * (yaw_abs * (move_dist < 0.03).to(torch.float32)).mean(dim=1)
-
-        # Idle penalty: almost no movement by the team.
         idle_pen = self.cfg.idle_penalty_coef * (self.blue_speed.mean(dim=1) < 0.15).to(torch.float32)
-
-        dense = progress + defense_presence + escort_bonus - spin_pen - idle_pen
-        self._last_dense_progress = progress
-        return dense
+        return defense_presence + escort_bonus + intercept_bonus - spin_pen - idle_pen
 
     def _sparse_reward_points(
         self,
@@ -1581,28 +1706,20 @@ class BatchedCTFCore:
     ) -> torch.Tensor:
         # Values from game_manager (sparse event points) so scoring/rewards stay aligned.
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
-        r += float(SPARSE_TAG_NO_FLAG_POINTS) * blue_tag_noflag
-        r += float(SPARSE_TAG_WITH_FLAG_POINTS) * blue_tag_withflag
-        r -= float(SPARSE_TAG_NO_FLAG_POINTS) * red_tag_total
-        if blue_mine_tags is not None:
-            r += float(SPARSE_MINE_TAG_POINTS) * blue_mine_tags
-        if red_mine_tags is not None:
-            r -= float(SPARSE_MINE_TAG_POINTS) * red_mine_tags
-        r += float(SPARSE_FLAG_GRAB_POINTS) * blue_grab_env.to(torch.float32)
-        r -= float(SPARSE_FLAG_GRAB_POINTS) * red_grab_env.to(torch.float32)
-        r += float(SPARSE_FLAG_CAPTURE_POINTS) * blue_cap_env.to(torch.float32)
-        r -= float(SPARSE_FLAG_CAPTURE_POINTS) * red_cap_env.to(torch.float32)
         r += float(SPARSE_OOB_POINTS) * blue_oob.sum(dim=1).to(torch.float32)
         return r
 
     def _reward_total(
         self,
-        dense: torch.Tensor,
+        rterm: torch.Tensor,
+        roff: torch.Tensor,
+        rpbrs: torch.Tensor,
+        rteam: torch.Tensor,
         sparse_points: torch.Tensor,
         stalemate_trigger: torch.Tensor,
     ) -> torch.Tensor:
         sparse_norm = sparse_points / 100.0
-        raw = self.cfg.sparse_weight * sparse_norm + self.cfg.dense_weight * dense
+        raw = rterm + roff + rpbrs + rteam + self.cfg.sparse_weight * sparse_norm
         raw = raw + torch.where(stalemate_trigger, torch.tensor(float(self.cfg.stalemate_penalty), device=self.device), torch.tensor(0.0, device=self.device))
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
@@ -1612,13 +1729,22 @@ class BatchedCTFCore:
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
         a = blue_action_flat.view(self.B, self.Nb, 2)
-        macro = torch.remainder(a[..., 0].long(), self.cfg.n_macros)
-        targ = torch.remainder(a[..., 1].long(), self.cfg.n_targets)
+        requested_macro = torch.remainder(a[..., 0].long(), self.cfg.n_macros)
+        requested_targ = torch.remainder(a[..., 1].long(), self.cfg.n_targets)
+        new_commit = self.blue_commit_ticks_left <= 0
+        self.blue_commit_macro = torch.where(new_commit, requested_macro, self.blue_commit_macro)
+        self.blue_commit_target = torch.where(new_commit, requested_targ, self.blue_commit_target)
+        self.blue_commit_ticks_left = torch.where(new_commit, self._macro_commit_ticks(requested_macro), self.blue_commit_ticks_left)
+        self.blue_commit_success = torch.where(new_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
+        macro = self.blue_commit_macro
+        targ = self.blue_commit_target
 
         prev_blue_x = self.blue_x.clone()
         prev_blue_y = self.blue_y.clone()
         prev_red_x = self.red_x.clone()
         prev_red_y = self.red_y.clone()
+        prev_blue_alive = self.blue_alive.clone()
+        prev_blue_carrying = self.blue_carrying.clone()
 
         if self.blue_scripted:
             btx, bty = self._get_scripted_targets("blue")
@@ -1664,22 +1790,50 @@ class BatchedCTFCore:
             self._respawn_timers()
 
         # Mines: pickups (grab with GRAB_MINE / near for red), then place (PLACE_MINE / scripted red), then trigger
-        blue_mine_pickups = self._apply_mine_pickups(macro)
-        blue_mine_placements = self._apply_mine_placement(macro)
+        blue_mine_pickups, blue_mine_pickup_agents = self._apply_mine_pickups(macro)
+        blue_mine_placements, blue_mine_placement_agents = self._apply_mine_placement(macro)
         blue_mine_tags, red_mine_tags = self._apply_mine_triggers()
         self._untag_if_home()
 
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()
+        blue_grab_agents = self.blue_carrying & (~prev_blue_carrying)
+        blue_cap_agents = prev_blue_carrying & (~self.blue_carrying) & blue_cap_env[:, None]
+        commit_target_xy = self._decode_targets(self.blue_commit_target)
+        commit_dist = torch.sqrt(
+            (self.blue_x - commit_target_xy[..., 0]) ** 2
+            + (self.blue_y - commit_target_xy[..., 1]) ** 2
+            + 1e-8
+        )
+        action_success = torch.zeros_like(self.blue_commit_success)
+        action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GO_TO)) & (commit_dist <= float(self.cfg.macro_arrival_radius_cells)))
+        action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GRAB_MINE)) & blue_mine_pickup_agents)
+        action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GET_FLAG)) & blue_grab_agents)
+        action_success = action_success | ((self.blue_commit_macro == int(MacroAction.PLACE_MINE)) & blue_mine_placement_agents)
+        action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GO_HOME)) & blue_cap_agents)
+        self.blue_commit_success = self.blue_commit_success | action_success
 
-        dense = self._dense_shaping(prev_blue_x, prev_blue_y, yaw_cmd_blue)
         sparse_points = self._sparse_reward_points(
             blue_grab_env, red_grab_env, blue_cap_env, red_cap_env,
             blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob,
             blue_mine_tags=blue_mine_tags, red_mine_tags=red_mine_tags,
         )
-        sparse_points += float(getattr(self.cfg, "enabled_mine_reward", 0.2) * 100.0) * blue_mine_placements
+        blue_kill_count = blue_tag_noflag + blue_tag_withflag + blue_mine_tags
+        roff = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        roff += float(self.cfg.flag_pickup_reward) * blue_grab_agents.sum(dim=1).to(torch.float32)
+        roff += float(self.cfg.flag_carry_home_reward) * blue_cap_agents.sum(dim=1).to(torch.float32)
+        roff += float(self.cfg.enabled_mine_reward) * blue_mine_placement_agents.sum(dim=1).to(torch.float32)
+        roff += float(self.cfg.enemy_mav_kill_reward) * blue_kill_count
+        self.blue_commit_ticks_left = torch.clamp(self.blue_commit_ticks_left - 1, min=0)
+        ended_commit = self.blue_commit_success | (self.blue_commit_ticks_left <= 0) | (~self.blue_alive) | self.blue_tagged
+        failed_commit = ended_commit & (~self.blue_commit_success) & prev_blue_alive
+        roff += float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
+        self.blue_commit_ticks_left = torch.where(ended_commit, torch.zeros_like(self.blue_commit_ticks_left), self.blue_commit_ticks_left)
+        self.blue_commit_success = torch.where(ended_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
+        rpbrs = self._pbrs_reward(prev_blue_x, prev_blue_y, prev_blue_carrying)
+        rteam = self._team_coordination_reward(prev_blue_x, prev_blue_y, yaw_cmd_blue)
 
         self.step_count += 1
+        self.sim_step_count += 1
         event_happened = (
             blue_grab_env
             | red_grab_env
@@ -1695,13 +1849,30 @@ class BatchedCTFCore:
         stalemate_trigger = self.stalemate_steps >= int(self.cfg.stalemate_max_steps)
 
         terminated = (self.blue_score >= self.score_limit) | (self.red_score >= self.score_limit)
-        truncated = (self.step_count >= self.max_steps) | stalemate_trigger
+        truncated = (self.step_count >= self.max_steps) | (self.sim_step_count >= self.max_sim_steps) | stalemate_trigger
         self.done = terminated | truncated
         self.truncated = truncated
 
-        reward = self._reward_total(dense, sparse_points, stalemate_trigger)
+        rterm = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        done = terminated | truncated
+        rterm = torch.where(
+            done & (self.blue_score > self.red_score),
+            torch.full_like(rterm, float(self.cfg.win_team_reward)),
+            rterm,
+        )
+        rterm = torch.where(
+            done & (self.blue_score < self.red_score),
+            torch.full_like(rterm, float(self.cfg.lose_team_punish)),
+            rterm,
+        )
+        rterm = torch.where(
+            done & (self.blue_score == self.red_score),
+            torch.full_like(rterm, float(self.cfg.draw_team_penalty)),
+            rterm,
+        )
+        reward = self._reward_total(rterm, roff, rpbrs, rteam, sparse_points, stalemate_trigger)
         obs_t = self.get_obs_tensors()
-        info = self._build_info(dense=dense, sparse_points=sparse_points, stalemate=stalemate_trigger)
+        info = self._build_info(dense=rpbrs + rteam, sparse_points=sparse_points, stalemate=stalemate_trigger)
         if tensor_obs:
             return obs_t, reward, terminated, truncated, info
         return (
@@ -1717,6 +1888,7 @@ class BatchedCTFCore:
         bs = self.blue_score.detach().cpu().numpy()
         rs = self.red_score.detach().cpu().numpy()
         steps = self.step_count.detach().cpu().numpy()
+        sim_steps = self.sim_step_count.detach().cpu().numpy()
         d_np = dense.detach().cpu().numpy()
         s_np = sparse_points.detach().cpu().numpy()
         st_np = stalemate.detach().cpu().numpy()
@@ -1726,6 +1898,7 @@ class BatchedCTFCore:
                     "blue_score": int(bs[i]),
                     "red_score": int(rs[i]),
                     "decision_steps": int(steps[i]),
+                    "sim_steps": int(sim_steps[i]),
                     "phase": self._phase,
                     "league_mode": bool(self._league_mode),
                     "opponent_kind": self._opponent_kind.lower(),
@@ -1786,14 +1959,14 @@ class BatchedCTFCore:
           2: heading/pi in [-1,1]
           3: speed/max_speed in [0,1]
           4-7: relative flag deltas normalized to [-1,1]
-          8: carrying flag (0/1)
-          9: nearest enemy distance normalized to [0,1]
-          10: time fraction in [0,1]
-          11: agent id normalized in [0,1]
-          12: decision fraction in [0,1] (step_count/max_steps)
-          13: mine charge ratio in [0,1]
-          14: nearest active pickup distance in [0,1]
-          15: nearest friendly mine distance in [0,1]
+          8-10: payload one-hot [none, mine, flag]
+          11: nearest enemy distance normalized to [0,1]
+          12: time fraction in [0,1]
+          13: agent id normalized in [0,1]
+          14: decision fraction in [0,1] (step_count/max_steps)
+          15: mine charge ratio in [0,1]
+          16: nearest active pickup distance in [0,1]
+          17: nearest friendly mine distance in [0,1]
         """
         out = torch.zeros((self.B, self.Nb, VEC_OBS_DIM), dtype=torch.float32, device=self.device)
         cols = max(1.0, float(self.cols - 1))
@@ -1811,24 +1984,28 @@ class BatchedCTFCore:
         out[..., 5] = torch.clamp((self.red_flag_pos[:, None, 1] - self.blue_y) / max(1.0, float(self.rows)), -1.0, 1.0)
         out[..., 6] = torch.clamp((self.blue_flag_pos[:, None, 0] - self.blue_x) / max(1.0, float(self.cols)), -1.0, 1.0)
         out[..., 7] = torch.clamp((self.blue_flag_pos[:, None, 1] - self.blue_y) / max(1.0, float(self.rows)), -1.0, 1.0)
-        out[..., 8] = self.blue_carrying.to(torch.float32)
+        has_mine = self.blue_mine_charges > 0
+        no_payload = (~self.blue_carrying) & (~has_mine)
+        out[..., 8] = no_payload.to(torch.float32)
+        out[..., 9] = has_mine.to(torch.float32)
+        out[..., 10] = self.blue_carrying.to(torch.float32)
 
         dx = self.red_x[:, None, :] - self.blue_x[:, :, None]
         dy = self.red_y[:, None, :] - self.blue_y[:, :, None]
         d = torch.sqrt(dx * dx + dy * dy + 1e-8)
         nearest_enemy = torch.min(d, dim=2).values
-        out[..., 9] = torch.clamp(nearest_enemy / max(1e-6, self.max_dist), 0.0, 1.0)
-        time_frac = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
-        out[..., 10] = time_frac
+        out[..., 11] = torch.clamp(nearest_enemy / max(1e-6, self.max_dist), 0.0, 1.0)
+        time_frac = torch.clamp(self.sim_step_count[:, None].to(torch.float32) / max(1.0, float(self.max_sim_steps)), 0.0, 1.0)
+        out[..., 12] = time_frac
 
         agent_id = torch.arange(self.Nb, device=self.device, dtype=torch.float32)
-        out[..., 11] = agent_id[None, :] / max(1.0, float(self.Nb - 1))
+        out[..., 13] = agent_id[None, :] / max(1.0, float(self.Nb - 1))
 
         # Decision budget used (same normalization as time fraction, but kept as a separate feature
         # so the policy can distinguish between absolute time and how many decisions have been spent).
-        out[..., 12] = time_frac
+        out[..., 14] = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
         max_charge = max(1.0, float(getattr(self.cfg, "max_mine_charges_per_agent", 2)))
-        out[..., 13] = torch.clamp(self.blue_mine_charges.to(torch.float32) / max_charge, 0.0, 1.0)
+        out[..., 15] = torch.clamp(self.blue_mine_charges.to(torch.float32) / max_charge, 0.0, 1.0)
 
         pdx = self.pickup_x[:, None, :] - self.blue_x[:, :, None]
         pdy = self.pickup_y[:, None, :] - self.blue_y[:, :, None]
@@ -1839,7 +2016,7 @@ class BatchedCTFCore:
             pickup_dist,
             torch.full_like(pickup_dist, float(self.max_dist)),
         )
-        out[..., 14] = torch.clamp(torch.min(pickup_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
+        out[..., 16] = torch.clamp(torch.min(pickup_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
 
         mdx = self.blue_mine_x[:, None, :] - self.blue_x[:, :, None]
         mdy = self.blue_mine_y[:, None, :] - self.blue_y[:, :, None]
@@ -1850,7 +2027,7 @@ class BatchedCTFCore:
             mine_dist,
             torch.full_like(mine_dist, float(self.max_dist)),
         )
-        out[..., 15] = torch.clamp(torch.min(mine_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
+        out[..., 17] = torch.clamp(torch.min(mine_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
         return out
 
     def _build_action_mask(self) -> torch.Tensor:
@@ -1890,6 +2067,14 @@ class BatchedCTFCore:
         if no_mine.any():
             idx_place = 3
             mask[:, :, idx_place][no_mine] = 0.0
+        committed = (self.blue_commit_ticks_left > 0) & self.blue_alive
+        if committed.any():
+            macro_mask = torch.zeros_like(mask[:, :, : self.cfg.n_macros])
+            macro_mask.scatter_(2, self.blue_commit_macro.unsqueeze(-1), 1.0)
+            mask[:, :, : self.cfg.n_macros] = torch.where(committed.unsqueeze(-1), macro_mask, mask[:, :, : self.cfg.n_macros])
+            target_mask = torch.zeros_like(mask[:, :, self.cfg.n_macros :])
+            target_mask.scatter_(2, self.blue_commit_target.unsqueeze(-1), 1.0)
+            mask[:, :, self.cfg.n_macros :] = torch.where(committed.unsqueeze(-1), target_mask, mask[:, :, self.cfg.n_macros :])
         return mask.reshape(self.B, -1)
 
     def get_obs_tensors(self) -> Dict[str, torch.Tensor]:
@@ -2107,12 +2292,6 @@ class GPUCTFVecEnv(VecEnv):
         actions = torch.as_tensor(self._pending_actions, dtype=torch.int64, device=self.core.device)
         obs, rew, term, trunc, infos = self.core.step(actions)
         done = np.logical_or(term, trunc)
-        # Terminal outcome bonus (win +1, lose -1, draw -0.5) so doc's "terminal rewards" match behavior.
-        if done.any():
-            bs = self.core.blue_score.detach().cpu().numpy()
-            rs = self.core.red_score.detach().cpu().numpy()
-            bonus = np.where(bs > rs, 1.0, np.where(bs < rs, -1.0, -0.5))
-            rew = rew + np.where(done, bonus, 0.0).astype(rew.dtype)
         if done.any():
             reset_mask = torch.from_numpy(done).to(self.core.device)
             for i in np.where(done)[0]:
