@@ -27,8 +27,9 @@ import numpy as np
 warnings.filterwarnings("ignore", message=".*render_mode.*")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 
 def main():
@@ -36,7 +37,7 @@ def main():
     parser.add_argument("--league", type=str, default=None, help="Path to League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
-    parser.add_argument("--episodes", type=int, default=25, help="Evaluation episodes per model")
+    parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
     parser.add_argument("--opponent", type=str, default="OP4", help="Scripted opponent (OP1, OP2, OP3, OP4). Default OP4 (harder, held-out).")
     parser.add_argument("--seed", type=int, default=42, help="Base random seed (OP4 uses seed+1). Use --seed 42 to match plot_eval_metrics.")
     parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
@@ -58,13 +59,12 @@ def main():
             args.out = "4v4_winrate_OP3_100ep.png"
 
     # Send plots to AICTFProject/figures/ when --out is a bare filename
-    project_root = os.path.dirname(SCRIPT_DIR)
     if not os.path.dirname(os.path.abspath(args.out)):
-        figures_dir = os.path.join(project_root, "figures")
+        figures_dir = os.path.join(PROJECT_ROOT, "figures")
         os.makedirs(figures_dir, exist_ok=True)
         args.out = os.path.join(figures_dir, os.path.basename(args.out))
 
-    default_dir = os.path.join(SCRIPT_DIR, "checkpoints_sb3", "4v4")
+    default_dir = os.path.join(PROJECT_ROOT, "checkpoints_sb3", "4v4")
 
     def path_or_default(name: str, default_name: str) -> str:
         p = name if name is not None else os.path.join(default_dir, default_name)
