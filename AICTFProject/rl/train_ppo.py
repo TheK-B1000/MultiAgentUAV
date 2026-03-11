@@ -1757,7 +1757,7 @@ def run_verify_4v4(num_episodes: int = 10) -> None:
 
 
 def run_test_vec_schema() -> None:
-    """Verify GPU core obs: vec has shape (B, N, 12), float32, finite, in bounds."""
+    """Verify GPU core obs: vec has shape (B, N, 16), float32, finite, in bounds."""
     from game_field_gpu import BatchedCTFCore, GPUFieldConfig
     cfg = GPUFieldConfig(n_envs=1, max_blue_agents=2, max_red_agents=2, device="cpu", seed=42)
     core = BatchedCTFCore(cfg)
@@ -1765,12 +1765,12 @@ def run_test_vec_schema() -> None:
     obs = core.get_obs()
     vec = obs["vec"]
     assert vec.dtype == np.float32, f"vec.dtype {vec.dtype}, expected float32"
-    assert vec.ndim == 3 and vec.shape[2] == 12, f"vec.shape {vec.shape}, expected (B, N, 12)"
+    assert vec.ndim == 3 and vec.shape[2] == 16, f"vec.shape {vec.shape}, expected (B, N, 16)"
     assert np.all(np.isfinite(vec)), "vec has non-finite values"
     assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
         f"vec outside [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
     )
-    print("[test-vec-schema] GPU core get_obs() vec: dtype=float32, shape=(B,N,12), finite, in bounds. OK.")
+    print("[test-vec-schema] GPU core get_obs() vec: dtype=float32, shape=(B,N,16), finite, in bounds. OK.")
 
 
 def _agents_suffix(n_agents: int) -> str:
