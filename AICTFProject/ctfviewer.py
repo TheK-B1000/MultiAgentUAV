@@ -95,7 +95,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/2v2/final_ppo_league_2v2_OLD.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/2v2/final_ppo_league_2v2.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -126,7 +126,7 @@ def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: in
     obs_space = spaces.Dict(
         {
             "grid": spaces.Box(low=0.0, high=1.0, shape=(n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-            "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 13), dtype=np.float32),
+        "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 16), dtype=np.float32),
             "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue,), dtype=np.float32),
             "mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue * (n_macros + n_targets),), dtype=np.float32),
         }
