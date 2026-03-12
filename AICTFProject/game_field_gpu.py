@@ -8,6 +8,8 @@ GameManager (game_manager.py) remains the single source of truth for those const
 """
 from __future__ import annotations
 
+import os
+import sys
 import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -51,6 +53,105 @@ CNN_ROWS = 20
 NUM_CNN_CHANNELS = 7
 GLOBAL_STATE_CHANNELS = 8
 VEC_OBS_DIM = 18
+
+
+def _ensure_numpy_core_compat() -> None:
+    """Register numpy._core.* aliases so SB3 models load across NumPy versions."""
+    try:
+        import types
+        if not hasattr(np, "_core"):
+            _core = types.ModuleType("numpy._core")
+            _core.__path__ = []
+            sys.modules["numpy._core"] = _core
+            for _name in ("numeric", "multiarray", "umath"):
+                try:
+                    _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
+                    setattr(_core, _name, _sub)
+                    sys.modules[f"numpy._core.{_name}"] = _sub
+                except Exception:
+                    pass
+        if "numpy._core.numeric" not in sys.modules:
+            try:
+                _sub = __import__("numpy.core.numeric", fromlist=["numeric"])
+                sys.modules["numpy._core.numeric"] = _sub
+                if hasattr(np, "_core") and not hasattr(np._core, "numeric"):
+                    setattr(np._core, "numeric", _sub)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _ensure_numpy_random_compat() -> None:
+    """Register NumPy random pickle aliases used by older/newer SB3 checkpoints."""
+    try:
+        try:
+            import numpy.random._pcg64 as _pcg64
+            sys.modules["numpy.random._pcg64"] = _pcg64
+        except Exception:
+            import numpy.random
+            if hasattr(numpy.random, "_pcg64"):
+                sys.modules["numpy.random._pcg64"] = getattr(numpy.random, "_pcg64")
+
+        import numpy.random._pickle as _np_pickle
+        from numpy.random.bit_generator import BitGenerator
+        _orig_ctor = getattr(_np_pickle, "__bit_generator_ctor", None)
+        if _orig_ctor is not None:
+            def _bit_generator_ctor_patched(bit_generator):
+                if isinstance(bit_generator, type) and issubclass(bit_generator, BitGenerator):
+                    return bit_generator()
+                return _orig_ctor(bit_generator)
+            _np_pickle.__bit_generator_ctor = _bit_generator_ctor_patched
+    except Exception:
+        pass
+
+
+def _try_paths(*candidates: str) -> Optional[str]:
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+def _resolve_snapshot_path(path: str) -> Optional[str]:
+    if not path:
+        return None
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [path]
+    if not path.endswith(".zip"):
+        candidates.append(path + ".zip")
+    if not os.path.isabs(path):
+        local = os.path.join(script_dir, path)
+        cwd_local = os.path.join(os.getcwd(), path)
+        candidates.extend([local, cwd_local])
+        if not local.endswith(".zip"):
+            candidates.append(local + ".zip")
+        if not cwd_local.endswith(".zip"):
+            candidates.append(cwd_local + ".zip")
+    return _try_paths(*candidates)
+
+
+def _make_obs_action_spaces(n_agents: int, n_macros: int, n_targets: int):
+    obs_space = spaces.Dict(
+        {
+            "grid": spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(n_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
+                dtype=np.float32,
+            ),
+            "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_agents, VEC_OBS_DIM), dtype=np.float32),
+            "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_agents,), dtype=np.float32),
+            "mask": spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(n_agents * (n_macros + n_targets),),
+                dtype=np.float32,
+            ),
+        }
+    )
+    action_space = spaces.MultiDiscrete([n_macros, n_targets] * n_agents)
+    return obs_space, action_space
 
 
 @dataclass
@@ -202,6 +303,7 @@ class BatchedCTFCore:
         self._stress_schedule: Optional[dict] = None
         self._opponent_kind = "SCRIPTED"
         self._opponent_key = "OP1"
+        self._snapshot_policy_cache: Dict[str, Optional[Any]] = {}
         self.rules_profile = str(cfg.rules_profile).upper()
 
         self.blue_scripted = False
@@ -380,6 +482,95 @@ class BatchedCTFCore:
     def _randn(self, shape: Sequence[int]) -> torch.Tensor:
         return torch.randn(tuple(shape), generator=self._rng, device=self.device)
 
+    def _mirror_x(self, x: torch.Tensor, side: str) -> torch.Tensor:
+        if side == "red":
+            return float(max(0, self.cols - 1)) - x
+        return x
+
+    def _mirror_heading(self, heading: torch.Tensor, side: str) -> torch.Tensor:
+        if side == "red":
+            mirrored = math.pi - heading
+            return (mirrored + math.pi) % (2.0 * math.pi) - math.pi
+        return heading
+
+    def _side_tensors(self, side: str) -> Dict[str, torch.Tensor]:
+        if side == "red":
+            return {
+                "own_x": self.red_x,
+                "own_y": self.red_y,
+                "own_heading": self.red_heading,
+                "own_speed": self.red_speed,
+                "own_alive": self.red_alive,
+                "own_carrying": self.red_carrying,
+                "own_flag": self.red_flag_pos,
+                "own_flag_home": self.red_flag_home,
+                "own_mine_x": self.red_mine_x,
+                "own_mine_y": self.red_mine_y,
+                "own_mine_active": self.red_mine_active,
+                "own_mine_charges": self.red_mine_charges,
+                "enemy_x": self.blue_x,
+                "enemy_y": self.blue_y,
+                "enemy_alive": self.blue_alive,
+                "enemy_flag": self.blue_flag_pos,
+                "n_agents": torch.tensor(self.Nr, device=self.device),
+            }
+        return {
+            "own_x": self.blue_x,
+            "own_y": self.blue_y,
+            "own_heading": self.blue_heading,
+            "own_speed": self.blue_speed,
+            "own_alive": self.blue_alive,
+            "own_carrying": self.blue_carrying,
+            "own_flag": self.blue_flag_pos,
+            "own_flag_home": self.blue_flag_home,
+            "own_mine_x": self.blue_mine_x,
+            "own_mine_y": self.blue_mine_y,
+            "own_mine_active": self.blue_mine_active,
+            "own_mine_charges": self.blue_mine_charges,
+            "enemy_x": self.red_x,
+            "enemy_y": self.red_y,
+            "enemy_alive": self.red_alive,
+            "enemy_flag": self.red_flag_pos,
+            "n_agents": torch.tensor(self.Nb, device=self.device),
+        }
+
+    def _load_snapshot_policy(self, snapshot_key: str) -> Optional[Any]:
+        resolved = _resolve_snapshot_path(snapshot_key)
+        if resolved is None:
+            return None
+        if resolved in self._snapshot_policy_cache:
+            return self._snapshot_policy_cache[resolved]
+        try:
+            _ensure_numpy_core_compat()
+            _ensure_numpy_random_compat()
+            from stable_baselines3 import PPO as SB3PPO
+            obs_space, action_space = _make_obs_action_spaces(self.Nr, int(self.cfg.n_macros), int(self.cfg.n_targets))
+            custom_objects = {
+                "observation_space": obs_space,
+                "action_space": action_space,
+                "clip_range": 0.2,
+                "lr_schedule": lambda progress_remaining: 3e-4 * progress_remaining,
+            }
+            try:
+                from rl.train_ppo import MaskedMultiInputPolicy
+                custom_objects["policy_class"] = MaskedMultiInputPolicy
+            except Exception:
+                from stable_baselines3.common.policies import MultiInputActorCriticPolicy
+                custom_objects["policy_class"] = MultiInputActorCriticPolicy
+            model = SB3PPO.load(
+                resolved,
+                device=str(self.device),
+                custom_objects=custom_objects,
+            )
+            model.policy.set_training_mode(False)
+            self._snapshot_policy_cache[resolved] = model
+            return model
+        except Exception as exc:
+            import warnings
+            self._snapshot_policy_cache[resolved] = None
+            warnings.warn(f"Failed to load snapshot opponent policy from {resolved}: {exc}")
+            return None
+
     def _respawn_side(self, blue: bool, env_mask: Optional[torch.Tensor] = None) -> None:
         if env_mask is None:
             env_mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
@@ -416,15 +607,24 @@ class BatchedCTFCore:
     def _apply_opponent_params_for_mask(self, env_mask: torch.Tensor) -> None:
         if sample_batched_opponent_params is None:
             return
-        if self._opponent_kind != "SCRIPTED" or self._opponent_key not in ("OP1", "OP2", "OP3", "OP4"):
-            return
+        # Only SCRIPTED with OP1/OP2/OP3/OP4 have defined params. SNAPSHOT/SPECIES are not
+        # implemented for red in this core (red is always scripted). Use OP3 params for those
+        # so red is strong scripted instead of trivial reset defaults.
+        use_kind = self._opponent_kind
+        use_key = self._opponent_key
+        if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4"):
+            if use_kind in ("SNAPSHOT", "SPECIES"):
+                use_kind = "SCRIPTED"
+                use_key = "OP3"
+            else:
+                return
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
             return
         opp_params = sample_batched_opponent_params(
-            kind=self._opponent_kind,
-            key=self._opponent_key,
-            phase=self._opponent_key,
+            kind=use_kind,
+            key=use_key,
+            phase=use_key,
             n_agents=self.Nr,
             batch_size=int(idx.numel()),
             device=self.device,
@@ -509,7 +709,7 @@ class BatchedCTFCore:
 
     def set_next_opponent(self, kind: str, key: str) -> None:
         self._opponent_kind = str(kind).upper()
-        self._opponent_key = str(key).upper()
+        self._opponent_key = str(key) if self._opponent_kind == "SNAPSHOT" else str(key).upper()
         # Apply OP1/OP2/OP3 params so red actually plays easy/medium/strong (not always OP3).
         if sample_batched_opponent_params is not None and self._opponent_kind == "SCRIPTED" and self._opponent_key in ("OP1", "OP2", "OP3", "OP4"):
             try:
@@ -595,9 +795,14 @@ class BatchedCTFCore:
             # Tagging radius should be local, not half-field. Clamp to a few cells.
             self.cfg.tag_range_cells = min(float(self.cfg.tag_range_cells), 2.5)
 
-    def _decode_targets(self, target_idx: torch.Tensor) -> torch.Tensor:
+    def _decode_targets(self, target_idx: torch.Tensor, side: str = "blue") -> torch.Tensor:
         tidx = torch.remainder(target_idx, self.cfg.n_targets).long()
-        return self._macro_targets.index_select(0, tidx.reshape(-1)).reshape(self.B, self.Nb, 2)
+        n_agents = target_idx.shape[1]
+        out = self._macro_targets.index_select(0, tidx.reshape(-1)).reshape(self.B, n_agents, 2)
+        if side == "red":
+            out = out.clone()
+            out[..., 0] = self._mirror_x(out[..., 0], side)
+        return out
 
     def _macro_commit_ticks(self, macro: torch.Tensor) -> torch.Tensor:
         ticks = torch.full_like(macro, int(self.cfg.macro_commit_go_to_ticks), dtype=torch.int32)
@@ -1193,7 +1398,7 @@ class BatchedCTFCore:
 
         return blue_mine_tags, red_mine_tags
 
-    def _apply_mine_pickups(self, macro_blue: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _apply_mine_pickups(self, macro_blue: torch.Tensor, macro_red: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Respawn pickups; then blue grabs with GRAB_MINE or auto-grab when scripted; red grabs when near (scripted).
         """
@@ -1231,13 +1436,15 @@ class BatchedCTFCore:
                     self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
                     break
 
-        # Red: any red agent near an active pickup gets a charge (scripted grab)
+        # Red: snapshot opponents use GRAB_MINE; scripted opponents auto-grab when near.
         for i in range(self.Nr):
             under = self.red_mine_charges[:, i] < max_charge
             dx = self.red_x[:, i : i + 1] - self.pickup_x[:, :]
             dy = self.red_y[:, i : i + 1] - self.pickup_y[:, :]
             dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
             near = (dist <= radius) & self.pickup_active & under[:, None]
+            if macro_red is not None:
+                near = near & (macro_red[:, i : i + 1] == int(MacroAction.GRAB_MINE))
             for k in range(Np):
                 take = near[:, k]
                 if take.any():
@@ -1251,7 +1458,7 @@ class BatchedCTFCore:
                     break
         return blue_pickups, blue_pickup_agents
 
-    def _apply_mine_placement(self, macro_blue: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _apply_mine_placement(self, macro_blue: torch.Tensor, macro_red: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Blue: PLACE_MINE or scripted (defender every 50 steps) places at current position if charge > 0.
         Red: scripted placement when has charge (e.g. defender places every 50 steps).
@@ -1285,16 +1492,28 @@ class BatchedCTFCore:
                     self.blue_mine_charges[:, i] = torch.where(can, torch.clamp(self.blue_mine_charges[:, i] - 1, min=0), self.blue_mine_charges[:, i])
                     break
 
-        # Red: scripted place when defender (agent 0) has charge, every 50 steps
-        place_red = (self.red_mine_charges[:, 0] > 0) & ((self.sim_step_count % 50) == 0)
-        for slot in range(Nm):
-            can = place_red & (~self.red_mine_active[:, slot])
-            if can.any():
-                self.red_mine_x[can, slot] = self.red_x[can, 0]
-                self.red_mine_y[can, slot] = self.red_y[can, 0]
-                self.red_mine_active[can, slot] = True
-                self.red_mine_charges[:, 0] = torch.where(can, torch.clamp(self.red_mine_charges[:, 0] - 1, min=0), self.red_mine_charges[:, 0])
-                break
+        if macro_red is None:
+            # Red: scripted place when defender (agent 0) has charge, every 50 steps
+            place_red = (self.red_mine_charges[:, 0] > 0) & ((self.sim_step_count % 50) == 0)
+            for slot in range(Nm):
+                can = place_red & (~self.red_mine_active[:, slot])
+                if can.any():
+                    self.red_mine_x[can, slot] = self.red_x[can, 0]
+                    self.red_mine_y[can, slot] = self.red_y[can, 0]
+                    self.red_mine_active[can, slot] = True
+                    self.red_mine_charges[:, 0] = torch.where(can, torch.clamp(self.red_mine_charges[:, 0] - 1, min=0), self.red_mine_charges[:, 0])
+                    break
+        else:
+            place_red = (macro_red == int(MacroAction.PLACE_MINE)) & (self.red_mine_charges > 0)
+            for i in range(self.Nr):
+                for slot in range(Nm):
+                    can = place_red[:, i] & (~self.red_mine_active[:, slot])
+                    if can.any():
+                        self.red_mine_x[can, slot] = self.red_x[can, i]
+                        self.red_mine_y[can, slot] = self.red_y[can, i]
+                        self.red_mine_active[can, slot] = True
+                        self.red_mine_charges[:, i] = torch.where(can, torch.clamp(self.red_mine_charges[:, i] - 1, min=0), self.red_mine_charges[:, i])
+                        break
         return blue_placements, blue_placement_agents
 
     def _apply_aquaticus_tag_rules(
@@ -1581,18 +1800,41 @@ class BatchedCTFCore:
             self.red_home_contact_frames[r_cap_env] = 0
         return blue_grab_env, red_grab_env, b_cap_env, r_cap_env
 
-    def _build_blue_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        t_xy = self._decode_targets(target)
+    def _build_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor, side: str = "blue") -> Tuple[torch.Tensor, torch.Tensor]:
+        side_t = self._side_tensors(side)
+        own_flag_home = side_t["own_flag_home"]
+        enemy_flag = side_t["enemy_flag"]
+        own_carrying = side_t["own_carrying"]
+        t_xy = self._decode_targets(target, side=side)
         tx, ty = t_xy[..., 0], t_xy[..., 1]
         get_flag = macro == MacroAction.GET_FLAG
         go_home = macro == MacroAction.GO_HOME
-        tx = torch.where(get_flag, self.red_flag_pos[:, None, 0], tx)
-        ty = torch.where(get_flag, self.red_flag_pos[:, None, 1], ty)
-        tx = torch.where(go_home, self.blue_flag_home[:, None, 0], tx)
-        ty = torch.where(go_home, self.blue_flag_home[:, None, 1], ty)
-        tx = torch.where(self.blue_carrying, self.blue_flag_home[:, None, 0], tx)
-        ty = torch.where(self.blue_carrying, self.blue_flag_home[:, None, 1], ty)
+        tx = torch.where(get_flag, enemy_flag[:, None, 0], tx)
+        ty = torch.where(get_flag, enemy_flag[:, None, 1], ty)
+        tx = torch.where(go_home, own_flag_home[:, None, 0], tx)
+        ty = torch.where(go_home, own_flag_home[:, None, 1], ty)
+        tx = torch.where(own_carrying, own_flag_home[:, None, 0], tx)
+        ty = torch.where(own_carrying, own_flag_home[:, None, 1], ty)
         return tx, ty
+
+    def _build_blue_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        return self._build_targets_from_action(macro, target, side="blue")
+
+    def _get_red_snapshot_actions(self) -> Optional[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+        model = self._load_snapshot_policy(self._opponent_key)
+        if model is None:
+            return None
+        obs = {
+            k: v.detach().cpu().numpy().astype(np.float32)
+            for k, v in self.get_obs_tensors(side="red").items()
+        }
+        actions_np, _ = model.predict(obs, deterministic=True)
+        actions = torch.as_tensor(actions_np, device=self.device, dtype=torch.int64)
+        actions = actions.reshape(self.B, self.Nr, 2)
+        red_macro = torch.remainder(actions[..., 0], self.cfg.n_macros).long()
+        red_target = torch.remainder(actions[..., 1], self.cfg.n_targets).long()
+        rtx, rty = self._build_targets_from_action(red_macro, red_target, side="red")
+        return red_macro, rtx, rty
 
     def _compute_potentials(
         self,
@@ -1759,8 +2001,20 @@ class BatchedCTFCore:
         if self.blue_scripted:
             btx, bty = self._get_scripted_targets("blue")
         else:
-            btx, bty = self._build_blue_targets_from_action(macro, targ)
-        rtx, rty = self._red_scripted_actions()
+            btx, bty = self._build_targets_from_action(macro, targ, side="blue")
+        red_macro: Optional[torch.Tensor] = None
+        red_snapshot = (
+            self._opponent_kind == "SNAPSHOT"
+            and _resolve_snapshot_path(self._opponent_key) is not None
+        )
+        if red_snapshot:
+            red_policy_actions = self._get_red_snapshot_actions()
+            if red_policy_actions is not None:
+                red_macro, rtx, rty = red_policy_actions
+            else:
+                rtx, rty = self._red_scripted_actions()
+        else:
+            rtx, rty = self._red_scripted_actions()
 
         # Tagged agents: OpRegion-like forced safe return to home region.
         if self.blue_tagged.any():
@@ -1800,8 +2054,8 @@ class BatchedCTFCore:
             self._respawn_timers()
 
         # Mines: pickups (grab with GRAB_MINE / near for red), then place (PLACE_MINE / scripted red), then trigger
-        blue_mine_pickups, blue_mine_pickup_agents = self._apply_mine_pickups(macro)
-        blue_mine_placements, blue_mine_placement_agents = self._apply_mine_placement(macro)
+        blue_mine_pickups, blue_mine_pickup_agents = self._apply_mine_pickups(macro, red_macro)
+        blue_mine_placements, blue_mine_placement_agents = self._apply_mine_placement(macro, red_macro)
         blue_mine_tags, red_mine_tags = self._apply_mine_triggers()
         self._untag_if_home()
 
@@ -1928,22 +2182,41 @@ class BatchedCTFCore:
         if live.any():
             grid[b_idx[live], ch, cy[live], cx[live]] = 1.0
 
-    def _build_grid_obs(self) -> torch.Tensor:
-        grid = torch.zeros((self.B, self.Nb, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=torch.float32, device=self.device)
-        for i in range(self.Nb):
-            self_live = self.blue_alive[:, i : i + 1]
-            self._scatter_points(grid[:, i], 0, self.blue_x[:, i : i + 1], self.blue_y[:, i : i + 1], self_live)
+    def _build_grid_obs(self, side: str = "blue") -> torch.Tensor:
+        side_t = self._side_tensors(side)
+        own_x = side_t["own_x"]
+        own_y = side_t["own_y"]
+        own_alive = side_t["own_alive"]
+        enemy_x = side_t["enemy_x"]
+        enemy_y = side_t["enemy_y"]
+        enemy_alive = side_t["enemy_alive"]
+        own_mine_x = side_t["own_mine_x"]
+        own_mine_y = side_t["own_mine_y"]
+        own_mine_active = side_t["own_mine_active"]
+        own_flag = side_t["own_flag"]
+        enemy_flag = side_t["enemy_flag"]
+        n_agents = int(own_x.shape[1])
+        grid = torch.zeros((self.B, n_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=torch.float32, device=self.device)
+        own_x_obs = self._mirror_x(own_x, side)
+        enemy_x_obs = self._mirror_x(enemy_x, side)
+        own_mine_x_obs = self._mirror_x(own_mine_x, side)
+        pickup_x_obs = self._mirror_x(self.pickup_x, side)
+        own_flag_x_obs = self._mirror_x(own_flag[:, 0:1], side)
+        enemy_flag_x_obs = self._mirror_x(enemy_flag[:, 0:1], side)
+        for i in range(n_agents):
+            self_live = own_alive[:, i : i + 1]
+            self._scatter_points(grid[:, i], 0, own_x_obs[:, i : i + 1], own_y[:, i : i + 1], self_live)
 
-            friend_live = self.blue_alive.clone()
+            friend_live = own_alive.clone()
             friend_live[:, i] = False
-            self._scatter_points(grid[:, i], 1, self.blue_x, self.blue_y, friend_live)
+            self._scatter_points(grid[:, i], 1, own_x_obs, own_y, friend_live)
 
-            ex = self.red_x
-            ey = self.red_y
-            elive = self.red_alive
+            ex = enemy_x_obs
+            ey = enemy_y
+            elive = enemy_alive
             if self.cfg.sensor_range_cells < 1e8:
-                dx = ex - self.blue_x[:, i : i + 1]
-                dy = ey - self.blue_y[:, i : i + 1]
+                dx = enemy_x - own_x[:, i : i + 1]
+                dy = enemy_y - own_y[:, i : i + 1]
                 dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
                 in_range = dist <= float(self.cfg.sensor_range_cells)
                 if self.cfg.sensor_dropout_prob > 0.0:
@@ -1954,14 +2227,14 @@ class BatchedCTFCore:
                     ex = torch.clamp(ex + self._randn(ex.shape) * float(self.cfg.sensor_noise_sigma_cells), 0.0, float(max(0, self.cols - 1)))
                     ey = torch.clamp(ey + self._randn(ey.shape) * float(self.cfg.sensor_noise_sigma_cells), 0.0, float(max(0, self.rows - 1)))
             self._scatter_points(grid[:, i], 2, ex, ey, elive)
-            self._scatter_points(grid[:, i], 3, self.blue_mine_x, self.blue_mine_y, self.blue_mine_active)
-            self._scatter_points(grid[:, i], 4, self.pickup_x, self.pickup_y, self.pickup_active)
+            self._scatter_points(grid[:, i], 3, own_mine_x_obs, own_mine_y, own_mine_active)
+            self._scatter_points(grid[:, i], 4, pickup_x_obs, self.pickup_y, self.pickup_active)
 
-            self._scatter_points(grid[:, i], 5, self.blue_flag_pos[:, 0:1], self.blue_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
-            self._scatter_points(grid[:, i], 6, self.red_flag_pos[:, 0:1], self.red_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
+            self._scatter_points(grid[:, i], 5, own_flag_x_obs, own_flag[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
+            self._scatter_points(grid[:, i], 6, enemy_flag_x_obs, enemy_flag[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
         return grid
 
-    def _build_vec_obs(self) -> torch.Tensor:
+    def _build_vec_obs(self, side: str = "blue") -> torch.Tensor:
         """
         Normalized observation vector (stable for PPO critic):
           0: x_norm in [0,1]
@@ -1978,49 +2251,73 @@ class BatchedCTFCore:
           16: nearest active pickup distance in [0,1]
           17: nearest friendly mine distance in [0,1]
         """
-        out = torch.zeros((self.B, self.Nb, VEC_OBS_DIM), dtype=torch.float32, device=self.device)
+        side_t = self._side_tensors(side)
+        own_x = side_t["own_x"]
+        own_y = side_t["own_y"]
+        own_heading = side_t["own_heading"]
+        own_speed = side_t["own_speed"]
+        own_alive = side_t["own_alive"]
+        own_carrying = side_t["own_carrying"]
+        own_flag = side_t["own_flag"]
+        own_flag_home = side_t["own_flag_home"]
+        own_mine_x = side_t["own_mine_x"]
+        own_mine_y = side_t["own_mine_y"]
+        own_mine_active = side_t["own_mine_active"]
+        own_mine_charges = side_t["own_mine_charges"]
+        enemy_x = side_t["enemy_x"]
+        enemy_y = side_t["enemy_y"]
+        enemy_flag = side_t["enemy_flag"]
+        n_agents = int(own_x.shape[1])
+        out = torch.zeros((self.B, n_agents, VEC_OBS_DIM), dtype=torch.float32, device=self.device)
         cols = max(1.0, float(self.cols - 1))
         rows = max(1.0, float(self.rows - 1))
         max_speed = max(1e-6, float(self.cfg.max_speed_cps))
+        own_x_obs = self._mirror_x(own_x, side)
+        enemy_x_obs = self._mirror_x(enemy_x, side)
+        own_flag_x_obs = self._mirror_x(own_flag[:, None, 0], side)
+        own_flag_home_x_obs = self._mirror_x(own_flag_home[:, None, 0], side)
+        enemy_flag_x_obs = self._mirror_x(enemy_flag[:, None, 0], side)
+        pickup_x_obs = self._mirror_x(self.pickup_x[:, None, :], side)
+        own_mine_x_obs = self._mirror_x(own_mine_x[:, None, :], side)
 
-        out[..., 0] = torch.clamp(self.blue_x / cols, 0.0, 1.0)
-        out[..., 1] = torch.clamp(self.blue_y / rows, 0.0, 1.0)
+        out[..., 0] = torch.clamp(own_x_obs / cols, 0.0, 1.0)
+        out[..., 1] = torch.clamp(own_y / rows, 0.0, 1.0)
         # Discretized bearing theta_i (formal Aquaticus-style state element).
-        heading_norm = (self.blue_heading + math.pi) / (2.0 * math.pi)
+        heading_norm = (self._mirror_heading(own_heading, side) + math.pi) / (2.0 * math.pi)
         heading_bins = torch.floor(torch.clamp(heading_norm, 0.0, 0.9999) * 16.0) / 15.0
         out[..., 2] = torch.clamp(heading_bins * 2.0 - 1.0, -1.0, 1.0)
-        out[..., 3] = torch.clamp(self.blue_speed / max_speed, 0.0, 1.0)
-        out[..., 4] = torch.clamp((self.red_flag_pos[:, None, 0] - self.blue_x) / max(1.0, float(self.cols)), -1.0, 1.0)
-        out[..., 5] = torch.clamp((self.red_flag_pos[:, None, 1] - self.blue_y) / max(1.0, float(self.rows)), -1.0, 1.0)
-        out[..., 6] = torch.clamp((self.blue_flag_pos[:, None, 0] - self.blue_x) / max(1.0, float(self.cols)), -1.0, 1.0)
-        out[..., 7] = torch.clamp((self.blue_flag_pos[:, None, 1] - self.blue_y) / max(1.0, float(self.rows)), -1.0, 1.0)
-        has_mine = self.blue_mine_charges > 0
-        no_payload = (~self.blue_carrying) & (~has_mine)
+        out[..., 3] = torch.clamp(own_speed / max_speed, 0.0, 1.0)
+        out[..., 4] = torch.clamp((enemy_flag_x_obs - own_x_obs) / max(1.0, float(self.cols)), -1.0, 1.0)
+        out[..., 5] = torch.clamp((enemy_flag[:, None, 1] - own_y) / max(1.0, float(self.rows)), -1.0, 1.0)
+        out[..., 6] = torch.clamp((own_flag_x_obs - own_x_obs) / max(1.0, float(self.cols)), -1.0, 1.0)
+        out[..., 7] = torch.clamp((own_flag[:, None, 1] - own_y) / max(1.0, float(self.rows)), -1.0, 1.0)
+        has_mine = own_mine_charges > 0
+        no_payload = (~own_carrying) & (~has_mine)
         out[..., 8] = no_payload.to(torch.float32)
         out[..., 9] = has_mine.to(torch.float32)
-        out[..., 10] = self.blue_carrying.to(torch.float32)
+        out[..., 10] = own_carrying.to(torch.float32)
 
-        dx = self.red_x[:, None, :] - self.blue_x[:, :, None]
-        dy = self.red_y[:, None, :] - self.blue_y[:, :, None]
+        dx = enemy_x_obs[:, None, :] - own_x_obs[:, :, None]
+        dy = enemy_y[:, None, :] - own_y[:, :, None]
         d = torch.sqrt(dx * dx + dy * dy + 1e-8)
         nearest_enemy = torch.min(d, dim=2).values
         out[..., 11] = torch.clamp(nearest_enemy / max(1e-6, self.max_dist), 0.0, 1.0)
         time_frac = torch.clamp(self.sim_step_count[:, None].to(torch.float32) / max(1.0, float(self.max_sim_steps)), 0.0, 1.0)
         out[..., 12] = time_frac
 
-        agent_id = torch.arange(self.Nb, device=self.device, dtype=torch.float32)
-        out[..., 13] = agent_id[None, :] / max(1.0, float(self.Nb - 1))
+        agent_id = torch.arange(n_agents, device=self.device, dtype=torch.float32)
+        out[..., 13] = agent_id[None, :] / max(1.0, float(n_agents - 1))
 
         # Decision budget used (same normalization as time fraction, but kept as a separate feature
         # so the policy can distinguish between absolute time and how many decisions have been spent).
         out[..., 14] = torch.clamp(self.step_count[:, None].to(torch.float32) / max(1.0, float(self.max_steps)), 0.0, 1.0)
         max_charge = max(1.0, float(getattr(self.cfg, "max_mine_charges_per_agent", 2)))
-        out[..., 15] = torch.clamp(self.blue_mine_charges.to(torch.float32) / max_charge, 0.0, 1.0)
+        out[..., 15] = torch.clamp(own_mine_charges.to(torch.float32) / max_charge, 0.0, 1.0)
 
-        pdx = self.pickup_x[:, None, :] - self.blue_x[:, :, None]
-        pdy = self.pickup_y[:, None, :] - self.blue_y[:, :, None]
+        pdx = pickup_x_obs - own_x_obs[:, :, None]
+        pdy = self.pickup_y[:, None, :] - own_y[:, :, None]
         pickup_dist = torch.sqrt(pdx * pdx + pdy * pdy + 1e-8)
-        pickup_mask = self.pickup_active[:, None, :].expand(-1, self.Nb, -1)
+        pickup_mask = self.pickup_active[:, None, :].expand(-1, n_agents, -1)
         pickup_dist = torch.where(
             pickup_mask,
             pickup_dist,
@@ -2028,34 +2325,42 @@ class BatchedCTFCore:
         )
         out[..., 16] = torch.clamp(torch.min(pickup_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
 
-        mdx = self.blue_mine_x[:, None, :] - self.blue_x[:, :, None]
-        mdy = self.blue_mine_y[:, None, :] - self.blue_y[:, :, None]
+        mdx = own_mine_x_obs - own_x_obs[:, :, None]
+        mdy = own_mine_y[:, None, :] - own_y[:, :, None]
         mine_dist = torch.sqrt(mdx * mdx + mdy * mdy + 1e-8)
-        mine_mask = self.blue_mine_active[:, None, :].expand(-1, self.Nb, -1)
+        mine_mask = own_mine_active[:, None, :].expand(-1, n_agents, -1)
         mine_dist = torch.where(
             mine_mask,
             mine_dist,
             torch.full_like(mine_dist, float(self.max_dist)),
         )
         out[..., 17] = torch.clamp(torch.min(mine_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
+        out[..., 0] = out[..., 0] * own_alive.to(torch.float32)
         return out
 
-    def _build_action_mask(self) -> torch.Tensor:
-        mask = torch.ones((self.B, self.Nb, self.cfg.n_macros + self.cfg.n_targets), dtype=torch.float32, device=self.device)
-        dead = ~self.blue_alive
+    def _build_action_mask(self, side: str = "blue") -> torch.Tensor:
+        side_t = self._side_tensors(side)
+        own_alive = side_t["own_alive"]
+        own_carrying = side_t["own_carrying"]
+        own_mine_charges = side_t["own_mine_charges"]
+        own_x = side_t["own_x"]
+        own_y = side_t["own_y"]
+        n_agents = int(own_alive.shape[1])
+        mask = torch.ones((self.B, n_agents, self.cfg.n_macros + self.cfg.n_targets), dtype=torch.float32, device=self.device)
+        dead = ~own_alive
         if dead.any():
             mask[:, :, : self.cfg.n_macros][dead] = 0.0
             mask[:, :, self.cfg.n_macros :][dead] = 0.0
             mask[:, :, 0][dead] = 1.0
             mask[:, :, self.cfg.n_macros + 0][dead] = 1.0
-        carrying = self.blue_carrying
+        carrying = own_carrying
         if carrying.any():
             idx_get, idx_grab, idx_place, idx_home = 2, 1, 3, 4
             mask[:, :, idx_get][carrying] = 0.0
             mask[:, :, idx_grab][carrying] = 0.0
             mask[:, :, idx_place][carrying] = 0.0
             mask[:, :, idx_home][carrying] = 1.0
-        has_mine = self.blue_mine_charges > 0
+        has_mine = own_mine_charges > 0
         if has_mine.any():
             idx_grab, idx_get, idx_place = 1, 2, 3
             mask[:, :, idx_grab][has_mine] = 0.0
@@ -2068,8 +2373,8 @@ class BatchedCTFCore:
             mask[:, :, idx_get][no_payload] = 1.0
             mask[:, :, idx_home][no_payload] = 0.0
             pickup_radius = float(getattr(self.cfg, "mine_pickup_radius_cells", 1.2))
-            pdx = self.pickup_x[:, None, :] - self.blue_x[:, :, None]
-            pdy = self.pickup_y[:, None, :] - self.blue_y[:, :, None]
+            pdx = self.pickup_x[:, None, :] - own_x[:, :, None]
+            pdy = self.pickup_y[:, None, :] - own_y[:, :, None]
             pickup_dist = torch.sqrt(pdx * pdx + pdy * pdy + 1e-8)
             near_pickup = ((pickup_dist <= pickup_radius) & self.pickup_active[:, None, :]).any(dim=2)
             mask[:, :, idx_grab][no_payload & (~near_pickup)] = 0.0
@@ -2077,8 +2382,8 @@ class BatchedCTFCore:
         if no_mine.any():
             idx_place = 3
             mask[:, :, idx_place][no_mine] = 0.0
-        committed = (self.blue_commit_ticks_left > 0) & self.blue_alive
-        if committed.any():
+        committed = (self.blue_commit_ticks_left > 0) & self.blue_alive if side == "blue" else None
+        if committed is not None and committed.any():
             macro_mask = torch.zeros_like(mask[:, :, : self.cfg.n_macros])
             macro_mask.scatter_(2, self.blue_commit_macro.unsqueeze(-1), 1.0)
             mask[:, :, : self.cfg.n_macros] = torch.where(committed.unsqueeze(-1), macro_mask, mask[:, :, : self.cfg.n_macros])
@@ -2087,18 +2392,19 @@ class BatchedCTFCore:
             mask[:, :, self.cfg.n_macros :] = torch.where(committed.unsqueeze(-1), target_mask, mask[:, :, self.cfg.n_macros :])
         return mask.reshape(self.B, -1)
 
-    def get_obs_tensors(self) -> Dict[str, torch.Tensor]:
+    def get_obs_tensors(self, side: str = "blue") -> Dict[str, torch.Tensor]:
         """Observations as GPU tensors -- zero-copy, no CPU round-trip."""
+        own_alive = self.red_alive if side == "red" else self.blue_alive
         return {
-            "grid": self._build_grid_obs(),
-            "vec": self._build_vec_obs(),
-            "agent_mask": self.blue_alive.to(torch.float32),
-            "mask": self._build_action_mask(),
+            "grid": self._build_grid_obs(side=side),
+            "vec": self._build_vec_obs(side=side),
+            "agent_mask": own_alive.to(torch.float32),
+            "mask": self._build_action_mask(side=side),
         }
 
-    def get_obs(self) -> Dict[str, np.ndarray]:
+    def get_obs(self, side: str = "blue") -> Dict[str, np.ndarray]:
         return {k: v.detach().cpu().numpy().astype(np.float32)
-                for k, v in self.get_obs_tensors().items()}
+                for k, v in self.get_obs_tensors(side=side).items()}
 
     def get_global_state_tensor(self) -> torch.Tensor:
         """Global state grid as a flat GPU tensor [B, GLOBAL_STATE_CHANNELS*H*W]."""
