@@ -11,6 +11,9 @@ import os
 import sys
 import csv
 import math
+import json
+import base64
+import zipfile
 from typing import Optional, Tuple, Any, List, Dict
 
 import numpy as np
@@ -95,7 +98,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/2v2/final_ppo_league_2v2.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/4v4/final_ppo_league_4v4.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -135,6 +138,52 @@ def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: in
     return obs_space, action_space
 
 
+def _read_model_metadata(model_path: str) -> Dict[str, Any]:
+    """Read saved SB3 metadata so viewer/core shape matches the checkpoint."""
+    resolved = _resolve_zip_path(model_path)
+    if resolved is None:
+        return {}
+
+    meta: Dict[str, Any] = {"model_path": resolved}
+    try:
+        import cloudpickle
+
+        with zipfile.ZipFile(resolved) as archive:
+            data = json.loads(archive.read("data").decode("utf-8"))
+        obs_entry = data.get("observation_space")
+        act_entry = data.get("action_space")
+        cfg_entry = data.get("cfg")
+
+        if isinstance(obs_entry, dict) and ":serialized:" in obs_entry:
+            try:
+                meta["observation_space"] = cloudpickle.loads(base64.b64decode(obs_entry[":serialized:"]))
+            except Exception:
+                pass
+        if isinstance(act_entry, dict) and ":serialized:" in act_entry:
+            try:
+                meta["action_space"] = cloudpickle.loads(base64.b64decode(act_entry[":serialized:"]))
+            except Exception:
+                pass
+        if isinstance(cfg_entry, dict) and ":serialized:" in cfg_entry:
+            try:
+                meta["cfg"] = cloudpickle.loads(base64.b64decode(cfg_entry[":serialized:"]))
+            except Exception:
+                pass
+
+        cfg = meta.get("cfg")
+        if cfg is not None and hasattr(cfg, "max_blue_agents"):
+            meta["n_blue"] = int(getattr(cfg, "max_blue_agents"))
+        elif "action_space" in meta and hasattr(meta["action_space"], "nvec"):
+            meta["n_blue"] = max(1, int(len(meta["action_space"].nvec) // 2))
+        elif "observation_space" in meta:
+            grid_space = meta["observation_space"].spaces.get("grid")
+            if grid_space is not None and getattr(grid_space, "shape", None):
+                meta["n_blue"] = int(grid_space.shape[0])
+        return meta
+    except Exception:
+        return meta
+
+
 # ---------------------------------------------------------------------------
 # PPO wrapper  (loads SB3 model, builds obs from core, returns flat action)
 # ---------------------------------------------------------------------------
@@ -147,6 +196,7 @@ class PPOController:
     def __init__(
         self,
         model_path: str,
+        n_blue: int,
         n_macros: int = N_MACROS,
         n_targets: int = N_TARGETS,
         deterministic: bool = True,
@@ -157,7 +207,9 @@ class PPOController:
         self.deterministic = deterministic
         self.n_macros = n_macros
         self.n_targets = n_targets
-        self.model_path: Optional[str] = _resolve_zip_path(model_path)
+        self.n_blue = int(n_blue)
+        self.model_meta = _read_model_metadata(model_path)
+        self.model_path: Optional[str] = self.model_meta.get("model_path") or _resolve_zip_path(model_path)
         self.device = str(device)
 
         if self.model_path is None:
@@ -168,12 +220,16 @@ class PPOController:
             _ensure_numpy_random_compat()
             from stable_baselines3 import PPO as SB3PPO
             # custom_objects: avoid unpickling policy/spaces/schedules from another Python/NumPy version.
-            obs_space, action_space = _make_obs_action_spaces(2, self.n_macros, self.n_targets)
+            obs_space = self.model_meta.get("observation_space")
+            action_space = self.model_meta.get("action_space")
+            if obs_space is None or action_space is None:
+                obs_space, action_space = _make_obs_action_spaces(self.n_blue, self.n_macros, self.n_targets)
             custom_objects = {
                 "observation_space": obs_space,
                 "action_space": action_space,
                 "clip_range": 0.2,
                 "lr_schedule": lambda progress_remaining: 3e-4 * progress_remaining,
+                "cfg": None,
             }
             try:
                 from rl.train_ppo import MaskedMultiInputPolicy
@@ -377,11 +433,13 @@ class CoreRenderer:
 class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
                  device: str = "cpu"):
+        model_meta = _read_model_metadata(ppo_model_path)
+        initial_agents = max(1, int(model_meta.get("n_blue", 2)))
         paper_steps = 400
         cfg = GPUFieldConfig(
             n_envs=1,
-            max_blue_agents=2,
-            max_red_agents=2,
+            max_blue_agents=initial_agents,
+            max_red_agents=initial_agents,
             device=device,
             max_decision_steps=paper_steps,
             stalemate_max_steps=paper_steps,
@@ -432,6 +490,7 @@ class CTFViewer:
         # PPO (load model on the same device as the core)
         self.ppo = PPOController(
             ppo_model_path,
+            n_blue=cfg.max_blue_agents,
             n_macros=cfg.n_macros,
             n_targets=cfg.n_targets,
             device=device,
@@ -458,12 +517,31 @@ class CTFViewer:
         self.font = pg.font.SysFont(None, 26)
         self.bigfont = pg.font.SysFont(None, 48)
         self._last_info: Dict[str, Any] = {}
+        self._ppo_mismatch_warned = False
+
+    def _ppo_team_size_compatible(self, agents_per_team: Optional[int] = None) -> bool:
+        agents = int(agents_per_team if agents_per_team is not None else self.cfg.max_blue_agents)
+        return bool(self.ppo.model_loaded and self.ppo.n_blue == agents)
+
+    def _set_demo_due_to_mismatch(self, agents_per_team: int) -> None:
+        self.blue_mode = "DEMO"
+        self.core.blue_scripted = True
+        if not self._ppo_mismatch_warned:
+            print(
+                f"[Viewer] PPO model expects {self.ppo.n_blue}v{self.ppo.n_blue}; "
+                f"switched to DEMO for {agents_per_team}v{agents_per_team}."
+            )
+            self._ppo_mismatch_warned = True
 
     # ---- stepping ----
 
     def _get_action(self) -> torch.Tensor:
         nb = self.cfg.max_blue_agents
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
+            if not self._ppo_team_size_compatible():
+                self._set_demo_due_to_mismatch(nb)
+                act_np = np.zeros((nb * 2,), dtype=np.int64)
+                return torch.as_tensor(act_np, dtype=torch.int64, device=self.core.device).unsqueeze(0)
             obs_np = self.core.get_obs()
             act_np = self.ppo.predict(obs_np)
         else:
@@ -647,6 +725,10 @@ class CTFViewer:
             pass
         self.core.reset_all()
         self.renderer = CoreRenderer(self.core)
+        if self.blue_mode == "PPO" and not self._ppo_team_size_compatible(agents):
+            self._set_demo_due_to_mismatch(agents)
+        else:
+            self._ppo_mismatch_warned = False
         print(f"[Viewer] Agents per team -> {agents} v {agents}")
 
     def _handle_key(self, event: Any) -> None:
@@ -669,9 +751,20 @@ class CTFViewer:
         elif k == pg.K_F3:
             cycle = ["PPO", "DEMO"] if self.ppo.model_loaded else ["DEMO"]
             idx = cycle.index(self.blue_mode) if self.blue_mode in cycle else 0
-            self.blue_mode = cycle[(idx + 1) % len(cycle)]
-            self.core.blue_scripted = (self.blue_mode == "DEMO")
-            print(f"[Viewer] Blue -> {self.blue_mode}")
+            requested = cycle[(idx + 1) % len(cycle)]
+            if requested == "PPO" and not self._ppo_team_size_compatible():
+                print(
+                    f"[Viewer] Cannot enable PPO at {int(self.cfg.max_blue_agents)}v{int(self.cfg.max_red_agents)}; "
+                    f"loaded model is {self.ppo.n_blue}v{self.ppo.n_blue}."
+                )
+                self.blue_mode = "DEMO"
+                self.core.blue_scripted = True
+            else:
+                self.blue_mode = requested
+                self.core.blue_scripted = (self.blue_mode == "DEMO")
+                if self.blue_mode == "PPO":
+                    self._ppo_mismatch_warned = False
+                print(f"[Viewer] Blue -> {self.blue_mode}")
 
     # ---- drawing ----
 
