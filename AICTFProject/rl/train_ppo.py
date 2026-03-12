@@ -158,7 +158,7 @@ class TrainMode(str, Enum):
 @dataclass
 class PPOConfig:
     seed: int = 42
-    total_timesteps: int = 4_000_000
+    total_timesteps: int = 1_000_000
     n_envs: int = 8
     n_steps: int = 2048
     batch_size: int = 512
