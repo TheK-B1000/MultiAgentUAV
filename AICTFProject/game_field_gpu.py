@@ -413,6 +413,34 @@ class BatchedCTFCore:
         mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
         self.reset_indices(mask)
 
+    def _apply_opponent_params_for_mask(self, env_mask: torch.Tensor) -> None:
+        if sample_batched_opponent_params is None:
+            return
+        if self._opponent_kind != "SCRIPTED" or self._opponent_key not in ("OP1", "OP2", "OP3", "OP4"):
+            return
+        idx = torch.where(env_mask)[0]
+        if idx.numel() == 0:
+            return
+        opp_params = sample_batched_opponent_params(
+            kind=self._opponent_kind,
+            key=self._opponent_key,
+            phase=self._opponent_key,
+            n_agents=self.Nr,
+            batch_size=int(idx.numel()),
+            device=self.device,
+            generator=self._rng,
+        )
+        if "deception_prob" in opp_params:
+            self.red_deception_prob[idx] = opp_params["deception_prob"].to(device=self.device, dtype=self.red_deception_prob.dtype)
+        if "speed_mult" in opp_params:
+            self.red_speed_mult[idx] = opp_params["speed_mult"].to(device=self.device, dtype=self.red_speed_mult.dtype)
+        if "attacker_style" in opp_params:
+            self.red_attacker_style[idx] = opp_params["attacker_style"].to(device=self.device, dtype=self.red_attacker_style.dtype)
+        if "defender_style" in opp_params:
+            self.red_defender_style[idx] = opp_params["defender_style"].to(device=self.device, dtype=self.red_defender_style.dtype)
+        if "role_switch_prob" in opp_params:
+            self.red_role_switch_prob[idx] = opp_params["role_switch_prob"].to(device=self.device, dtype=self.red_role_switch_prob.dtype)
+
     def reset_indices(self, env_mask: torch.Tensor) -> None:
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
@@ -465,6 +493,7 @@ class BatchedCTFCore:
         # Reset tagging channel timers.
         self.red_tag_pressure_time[idx] = 0.0
         self.blue_tag_pressure_time[idx] = 0.0
+        self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
 
@@ -484,27 +513,8 @@ class BatchedCTFCore:
         # Apply OP1/OP2/OP3 params so red actually plays easy/medium/strong (not always OP3).
         if sample_batched_opponent_params is not None and self._opponent_kind == "SCRIPTED" and self._opponent_key in ("OP1", "OP2", "OP3", "OP4"):
             try:
-                opp_params = sample_batched_opponent_params(
-                    kind=self._opponent_kind,
-                    key=self._opponent_key,
-                    phase=self._opponent_key,
-                    n_agents=self.Nr,
-                    batch_size=self.B,
-                    device=self.device,
-                )
-                dyn_cfg: Dict[str, Any] = {}
-                if "deception_prob" in opp_params:
-                    dyn_cfg["deception_prob"] = opp_params["deception_prob"]
-                if "speed_mult" in opp_params:
-                    dyn_cfg["speed_mult"] = opp_params["speed_mult"]
-                if "attacker_style" in opp_params:
-                    dyn_cfg["attacker_style"] = opp_params["attacker_style"]
-                if "defender_style" in opp_params:
-                    dyn_cfg["defender_style"] = opp_params["defender_style"]
-                if "role_switch_prob" in opp_params:
-                    dyn_cfg["role_switch_prob"] = opp_params["role_switch_prob"]
-                if dyn_cfg:
-                    self.set_dynamics_config(dyn_cfg)
+                mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
+                self._apply_opponent_params_for_mask(mask)
             except Exception as e:
                 import warnings
                 warnings.warn(
