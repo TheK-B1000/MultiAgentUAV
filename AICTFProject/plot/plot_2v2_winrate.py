@@ -50,14 +50,13 @@ def main():
         args.opponent = "OP4"
         args.episodes = 100
         args.seed = 42
-        if args.out == "2v2_winrate.png":
-            args.out = "2v2_winrate_OP4_100ep.png"
     elif args.match_eval_op3:
         args.opponent = "OP3"
         args.episodes = 100
         args.seed = 42
-        if args.out == "2v2_winrate.png":
-            args.out = "2v2_winrate_OP3_100ep.png"
+    # Default output filename includes difficulty (opponent) and episode count
+    if args.out == "2v2_winrate.png":
+        args.out = f"2v2_winrate_{args.opponent.upper()}_{args.episodes}ep.png"
 
     # Send plots to AICTFProject/figures/ when --out is a bare filename
     if not os.path.dirname(os.path.abspath(args.out)):
