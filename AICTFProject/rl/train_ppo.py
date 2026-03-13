@@ -408,6 +408,11 @@ class LeagueCallback(BaseCallback):
         self.phase_loss_count = 0
         self.phase_draw_count = 0
 
+    @staticmethod
+    def _curriculum_window_value(result: str) -> float:
+        """Algorithm 1 uses binary curriculum windows: win=1, non-win=0."""
+        return 1.0 if str(result).upper() == "WIN" else 0.0
+
     def _enforce_league_snapshot_limit(self) -> None:
         """Delete oldest league snapshots when over cap to save disk space."""
         if self._league_max_snapshots <= 0:
@@ -554,13 +559,14 @@ class LeagueCallback(BaseCallback):
                 self.draw_count += 1
 
             opp_key = summary.opponent_key()
-            self.league.update_elo(opp_key, actual)
+            if self.league_mode:
+                self.league.update_elo(opp_key, actual)
             self.controller.record_result(opp_key, actual)
             self._update_opponent_stats(opp_key, result)
 
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
-            self.curriculum.record_result(phase, actual)
+            self.curriculum.record_result(phase, self._curriculum_window_value(result))
             if result == "WIN":
                 self.phase_win_count += 1
             elif result == "LOSS":
@@ -658,7 +664,7 @@ class LeagueCallback(BaseCallback):
             if self.league_mode:
                 self.logger.record("league/elo", float(self.league.learner_rating))
 
-            if (self.episode_idx % int(self.cfg.snapshot_every_episodes)) == 0:
+            if self.league_mode and (self.episode_idx % int(self.cfg.snapshot_every_episodes)) == 0:
                 self._enforce_league_snapshot_limit()
                 prefix = f"{self.cfg.run_tag}_league_snapshot"
                 path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_ep{self.episode_idx:06d}")
@@ -706,10 +712,14 @@ class CurriculumNoLeagueCallback(BaseCallback):
         self.phase_win_count = 0
         self.phase_loss_count = 0
         self.phase_draw_count = 0
-
         self._opponent_stats: Dict[str, Dict[str, int]] = {}
         self._opponent_history: List[Tuple[str, str]] = []
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
+
+    @staticmethod
+    def _curriculum_window_value(result: str) -> float:
+        """Paper curriculum windows count draws as non-wins."""
+        return 1.0 if str(result).upper() == "WIN" else 0.0
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -746,7 +756,7 @@ class CurriculumNoLeagueCallback(BaseCallback):
 
             phase = self.curriculum.phase
             self.curriculum.phase_episode_count += 1
-            self.curriculum.record_result(phase, actual)
+            self.curriculum.record_result(phase, self._curriculum_window_value(result))
 
             # Debug: log advancement conditions every 50 episodes (only when verbose)
             if self.verbose and self.episode_idx % 50 == 0 and phase == "OP1":
