@@ -233,9 +233,67 @@ def sample_batched_opponent_params(
     noise_sigma = n_low + (n_high - n_low) * torch.rand(batch_size, device=device, generator=generator)
 
     if kind == "SCRIPTED" and key == "OP4":
-        attacker_style_t = torch.randint(0, 2, (batch_size,), device=device, generator=generator, dtype=torch.int32)
-        defender_style_t = torch.randint(0, 2, (batch_size,), device=device, generator=generator, dtype=torch.int32)
-        role_switch_prob_t = 0.10 + 0.55 * torch.rand(batch_size, device=device, generator=generator)
+        # OP4 is a held-out "random beast": each episode samples one of several scripted
+        # archetypes so robustness matters more than specializing to a single unseen style.
+        mode = torch.randint(0, 4, (batch_size,), device=device, generator=generator, dtype=torch.int32)
+
+        # 0 = rush/pressure, 1 = counter/contain, 2 = balanced/deceptive, 3 = chaotic switcher
+        attacker_style_t = torch.where(
+            mode == 1,
+            torch.zeros((batch_size,), dtype=torch.int32, device=device),
+            torch.ones((batch_size,), dtype=torch.int32, device=device),
+        )
+        defender_style_t = torch.where(
+            mode == 0,
+            torch.zeros((batch_size,), dtype=torch.int32, device=device),
+            torch.ones((batch_size,), dtype=torch.int32, device=device),
+        )
+
+        rush_mask = mode == 0
+        counter_mask = mode == 1
+        balanced_mask = mode == 2
+        chaos_mask = mode == 3
+
+        speed_mult = torch.empty((batch_size,), dtype=torch.float32, device=device)
+        deception_prob = torch.empty((batch_size,), dtype=torch.float32, device=device)
+        role_switch_prob_t = torch.empty((batch_size,), dtype=torch.float32, device=device)
+
+        rush_u = torch.rand(batch_size, device=device, generator=generator)
+        counter_u = torch.rand(batch_size, device=device, generator=generator)
+        balanced_u = torch.rand(batch_size, device=device, generator=generator)
+        chaos_u = torch.rand(batch_size, device=device, generator=generator)
+
+        # Rush: faster, lower deception, high switching.
+        speed_mult = torch.where(rush_mask, 1.00 + 0.30 * rush_u, speed_mult)
+        deception_prob = torch.where(rush_mask, 0.02 + 0.16 * rush_u, deception_prob)
+        role_switch_prob_t = torch.where(rush_mask, 0.48 + 0.32 * rush_u, role_switch_prob_t)
+
+        # Counter: slower, higher deception, steadier roles.
+        speed_mult = torch.where(counter_mask, 0.72 + 0.18 * counter_u, speed_mult)
+        deception_prob = torch.where(counter_mask, 0.28 + 0.28 * counter_u, deception_prob)
+        role_switch_prob_t = torch.where(counter_mask, 0.02 + 0.12 * counter_u, role_switch_prob_t)
+
+        # Balanced/deceptive: middling speed, meaningful deception, moderate switching.
+        speed_mult = torch.where(balanced_mask, 0.86 + 0.20 * balanced_u, speed_mult)
+        deception_prob = torch.where(balanced_mask, 0.12 + 0.26 * balanced_u, deception_prob)
+        role_switch_prob_t = torch.where(balanced_mask, 0.18 + 0.22 * balanced_u, role_switch_prob_t)
+
+        # Chaotic switcher: moderate speed, high deception, extreme switching.
+        speed_mult = torch.where(chaos_mask, 0.84 + 0.28 * chaos_u, speed_mult)
+        deception_prob = torch.where(chaos_mask, 0.22 + 0.30 * chaos_u, deception_prob)
+        role_switch_prob_t = torch.where(chaos_mask, 0.62 + 0.28 * chaos_u, role_switch_prob_t)
+
+        # Let the chaotic archetype also randomize role styles more aggressively.
+        attacker_style_t = torch.where(
+            chaos_mask,
+            torch.randint(0, 2, (batch_size,), device=device, generator=generator, dtype=torch.int32),
+            attacker_style_t,
+        )
+        defender_style_t = torch.where(
+            chaos_mask,
+            torch.randint(0, 2, (batch_size,), device=device, generator=generator, dtype=torch.int32),
+            defender_style_t,
+        )
     else:
         attacker_style_t = torch.full((batch_size,), int(attacker_style), dtype=torch.int32, device=device)
         defender_style_t = torch.full((batch_size,), int(defender_style), dtype=torch.int32, device=device)
