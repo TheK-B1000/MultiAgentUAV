@@ -665,22 +665,22 @@ class BatchedCTFCore:
         self.red_defender_style[idx] = 0
         self.red_role_switch_prob[idx] = 0.0
         red_is_op4 = self._opponent_kind == "SCRIPTED" and str(self._opponent_key).upper() == "OP4"
-        role_flip_p = 0.65 if red_is_op4 else 0.35
+        role_flip_p = 0.10 if red_is_op4 else 0.35
         self.red_script_role_flip[idx] = (
             torch.rand((idx.numel(),), generator=self._rng, device=self.device) < role_flip_p
         )
         if red_is_op4:
-            # OP4 routes through a consistent north lane more often and holds a more forward
-            # defensive anchor, making it play differently from OP3's balanced routing.
+            # OP4 favors a steadier south-lane route and a deeper home-side guard anchor so it
+            # behaves like a counter/contain team instead of a rush-pressure variant of OP3.
             self.red_script_lane_sign[idx] = torch.where(
                 torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.8,
-                torch.tensor(1.0, dtype=torch.float32, device=self.device),
                 torch.tensor(-1.0, dtype=torch.float32, device=self.device),
+                torch.tensor(1.0, dtype=torch.float32, device=self.device),
             )
-            guard_x_low = max(0.0, float(self.cols) - 8.0)
-            guard_x_high = max(guard_x_low + 0.5, float(self.cols) - 4.0)
+            guard_x_low = max(0.0, float(self.cols) - 5.5)
+            guard_x_high = max(guard_x_low + 0.5, float(self.cols) - 2.5)
             self.red_script_guard_x[idx] = self._rand_uniform((idx.numel(),), guard_x_low, guard_x_high)
-            self.red_script_guard_y[idx] = self._rand_uniform((idx.numel(),), 3.0, 8.5)
+            self.red_script_guard_y[idx] = self._rand_uniform((idx.numel(),), 10.5, 16.0)
         else:
             self.red_script_lane_sign[idx] = torch.where(
                 torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.5,
