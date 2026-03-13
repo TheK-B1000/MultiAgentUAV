@@ -2,7 +2,7 @@
 """
 Plot 4v4 win rate: Ours (league), Jacob et al. (paper), Self-play vs a scripted opponent.
 
-Default opponent: OP4 (held-out, harder than OP3; never used in training). Use --opponent OP3 for in-training opponent.
+Default opponent: OP3 (in-training opponent). Use --opponent OP4 for held-out generalization.
 
 Uses the same evaluation environment as training: GPUCTFVecEnv (game_field_gpu.py).
 Training is done with rl/train_ppo.py.
@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
-    parser.add_argument("--opponent", type=str, default="OP4", help="Scripted opponent (OP1, OP2, OP3, OP4). Default OP4 (harder, held-out).")
+    parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training).")
     parser.add_argument("--seed", type=int, default=42, help="Base random seed (OP4 uses seed+1). Use --seed 42 to match plot_eval_metrics.")
     parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
     parser.add_argument("--match-eval-op3", action="store_true", help="Use OP3 (training-time opponent), 100 episodes, seed=42.")
