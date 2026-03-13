@@ -134,10 +134,9 @@ class EloLeague:
 
     def sample_league(self, target_rating: Optional[float] = None, phase: Optional[str] = None, enable_snapshots: bool = False) -> OpponentSpec:
         """
-        Sample opponent from league: OP3 anchor + Species Elo.
-        If enable_snapshots=True and snapshots exist, includes snapshots (self-play).
-        After qualification, league is 40% scripted OP3 (anchor) + 60% species (matchmade).
-        When snapshots enabled: 60% OP3, 20% species, 20% snapshots.
+        Sample opponent from league after curriculum qualification.
+        Standard league is 60% scripted OP3 + 20% species + 20% snapshots.
+        Before snapshots exist, the snapshot share is folded back into OP3.
         min_episodes_per_opponent stickiness is preserved.
         """
         target = self.learner_rating if target_rating is None else float(target_rating)
@@ -153,8 +152,9 @@ class EloLeague:
 
         if self.use_stability_mix:
             opp_spec = self._sample_stability_mix(target, phase)
-        elif enable_snapshots and self.snapshots:
-            # Self-play mode: OP3 (60%), Species (20%), Snapshots (20%)
+        else:
+            # Standard league: OP3 (60%), Species (20%), Snapshots (20%).
+            # If snapshots are not enabled yet, or none exist, fold snapshot mass into OP3.
             r = self.rng.random()
             if r < 0.60:
                 opp_spec = OpponentSpec(
@@ -168,27 +168,21 @@ class EloLeague:
                 tag = key.split(":", 1)[1]
                 opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
             else:
-                # Snapshot (self-play): 20%
-                path = self._weighted_pick(
-                    self.snapshots,
-                    target,
-                    key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
-                )
-                opp_spec = OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
-        else:
-            # Standard league: OP3 (40%) + Species (60%)
-            r = self.rng.random()
-            if r < self.anchor_op3_prob:
-                opp_spec = OpponentSpec(
-                    kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3")
-                )
-            else:
-                if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
-                    key = "SPECIES:RUSHER"
+                if enable_snapshots and self.snapshots:
+                    path = self._weighted_pick(
+                        self.snapshots,
+                        target,
+                        key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
+                    )
+                    opp_spec = OpponentSpec(
+                        kind="SNAPSHOT",
+                        key=path,
+                        rating=self.get_rating(path_to_snapshot_key(path)),
+                    )
                 else:
-                    key = self._weighted_pick(self.species_keys, target)
-                tag = key.split(":", 1)[1]
-                opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+                    opp_spec = OpponentSpec(
+                        kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3")
+                    )
 
         self._last_kind = opp_spec.kind
         self._last_key = opp_spec.key
