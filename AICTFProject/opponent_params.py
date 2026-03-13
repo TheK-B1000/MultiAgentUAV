@@ -5,9 +5,9 @@ Each style maps to a distribution over these params and returns GPU tensors for 
 OP3 vs OP4 (must be clearly different for held-out eval):
   - OP3: Used in training. Medium attacker + medium defender (defender_style=1), moderate
     role switching (0.35), moderate deception and speed. Balanced play.
-  - OP4: Held-out; never used in training. Counter-style team with stronger home defense,
-    steadier roles, more deceptive routing, and less all-in attack pressure. It should test
-    strategic generalization, not just whether blue handles a faster OP3.
+  - OP4: Held-out; never used in training. High-variance opponent that samples across several
+    plausible scripted styles each episode. It is intentionally broader and less predictable
+    than OP3 so robustness matters more than narrow specialization.
   The core uses: red_attacker_style, red_defender_style, red_deception_prob, red_speed_mult,
   red_role_switch_prob, so OP3 vs OP4 produce different red behavior.
 """
@@ -108,40 +108,38 @@ def sample_batched_opponent_params(
                 sync_nc_low, sync_nc_high = 3, 6
                 n_low, n_high = 0.0, 0.08
         elif key == "OP4":
-            # Held-out eval opponent: never used in training. Make it strategically distinct from
-            # OP3 by emphasizing defense/counter-play rather than extra rush pressure.
-            attacker_style = 0
-            defender_style = 1
-            role_switch_prob = 0.12
+            # Held-out eval opponent: never used in training. Make it deliberately broad and
+            # stochastic so robustness matters more than memorizing one scripted style.
+            role_switch_prob = 0.35
             if op3_easy:
                 if n_agents >= 8:
-                    s_low, s_high = 0.74, 0.84
-                    d_low, d_high = 0.10, 0.22
-                    c_prob = 0.08
-                    sync_c_low, sync_c_high = 1, 3
-                    sync_nc_low, sync_nc_high = 1, 2
-                    n_low, n_high = 0.0, 0.02
-                elif n_agents >= 4:
-                    s_low, s_high = 0.82, 0.94
-                    d_low, d_high = 0.14, 0.28
-                    c_prob = 0.12
+                    s_low, s_high = 0.72, 0.96
+                    d_low, d_high = 0.04, 0.24
+                    c_prob = 0.14
                     sync_c_low, sync_c_high = 1, 4
                     sync_nc_low, sync_nc_high = 1, 3
                     n_low, n_high = 0.0, 0.03
-                else:
-                    s_low, s_high = 0.84, 1.00
-                    d_low, d_high = 0.20, 0.38
-                    c_prob = 0.16
-                    sync_c_low, sync_c_high = 1, 4
-                    sync_nc_low, sync_nc_high = 1, 3
+                elif n_agents >= 4:
+                    s_low, s_high = 0.78, 1.04
+                    d_low, d_high = 0.06, 0.30
+                    c_prob = 0.20
+                    sync_c_low, sync_c_high = 1, 5
+                    sync_nc_low, sync_nc_high = 1, 4
                     n_low, n_high = 0.0, 0.04
+                else:
+                    s_low, s_high = 0.82, 1.12
+                    d_low, d_high = 0.08, 0.38
+                    c_prob = 0.24
+                    sync_c_low, sync_c_high = 1, 5
+                    sync_nc_low, sync_nc_high = 1, 4
+                    n_low, n_high = 0.0, 0.05
             else:
-                s_low, s_high = 0.84, 1.02
-                d_low, d_high = 0.22, 0.42
-                c_prob = 0.18
-                sync_c_low, sync_c_high = 1, 4
-                sync_nc_low, sync_nc_high = 1, 3
-                n_low, n_high = 0.0, 0.05
+                s_low, s_high = 0.84, 1.20
+                d_low, d_high = 0.12, 0.46
+                c_prob = 0.30
+                sync_c_low, sync_c_high = 1, 6
+                sync_nc_low, sync_nc_high = 1, 5
+                n_low, n_high = 0.0, 0.06
         else:
             attacker_style = 1
             defender_style = 1
@@ -234,13 +232,22 @@ def sample_batched_opponent_params(
     
     noise_sigma = n_low + (n_high - n_low) * torch.rand(batch_size, device=device, generator=generator)
 
+    if kind == "SCRIPTED" and key == "OP4":
+        attacker_style_t = torch.randint(0, 2, (batch_size,), device=device, generator=generator, dtype=torch.int32)
+        defender_style_t = torch.randint(0, 2, (batch_size,), device=device, generator=generator, dtype=torch.int32)
+        role_switch_prob_t = 0.10 + 0.55 * torch.rand(batch_size, device=device, generator=generator)
+    else:
+        attacker_style_t = torch.full((batch_size,), int(attacker_style), dtype=torch.int32, device=device)
+        defender_style_t = torch.full((batch_size,), int(defender_style), dtype=torch.int32, device=device)
+        role_switch_prob_t = torch.full((batch_size,), float(role_switch_prob), dtype=torch.float32, device=device)
+
     return {
         "speed_mult": speed_mult,
         "deception_prob": deception_prob,
         "coordinated_attack": coordinated_attack,
         "attack_sync_window": attack_sync_window,
         "noise_sigma": noise_sigma,
-        "attacker_style": torch.full((batch_size,), int(attacker_style), dtype=torch.int32, device=device),
-        "defender_style": torch.full((batch_size,), int(defender_style), dtype=torch.int32, device=device),
-        "role_switch_prob": torch.full((batch_size,), float(role_switch_prob), dtype=torch.float32, device=device),
+        "attacker_style": attacker_style_t,
+        "defender_style": defender_style_t,
+        "role_switch_prob": role_switch_prob_t,
     }
