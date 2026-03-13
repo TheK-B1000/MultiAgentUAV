@@ -11,9 +11,9 @@ Usage:
   python plot_4v4_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
 Defaults (under checkpoints_sb3/4v4/):
-  --league   final_ppo_league_4v4_colab.zip
-  --paper    final_weekend_paper_4v4.zip
-  --selfplay final_ppo_selfplay_4v4_colab.zip
+  --league   final_ppo_league_4v4.zip
+  --paper    final_ppo_paper_4v4.zip
+  --selfplay final_ppo_self_play_4v4.zip
 """
 from __future__ import annotations
 
@@ -71,9 +71,9 @@ def main():
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_ppo_league_4v4_colab.zip")
-    paper_path = path_or_default(args.paper, "final_weekend_paper_4v4.zip")
-    selfplay_path = path_or_default(args.selfplay, "final_ppo_selfplay_4v4_colab.zip")
+    league_path = path_or_default(args.league, "final_ppo_league_4v4.zip")
+    paper_path = path_or_default(args.paper, "final_ppo_paper_4v4.zip")
+    selfplay_path = path_or_default(args.selfplay, "final_ppo_self_play_4v4.zip")
 
     for label, p in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         if not os.path.isfile(p):
