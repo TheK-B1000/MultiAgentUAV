@@ -404,7 +404,6 @@ class LeagueCallback(BaseCallback):
         self._enable_opponent_tracking = getattr(cfg, "enable_opponent_tracking", True)
         self._opponent_window = getattr(cfg, "opponent_tracking_window", 100)
         self._pending_updates: List[Dict[str, Any]] = []
-        self._selfplay_enabled: bool = False  # Track if we've enabled self-play
         self.phase_win_count = 0
         self.phase_loss_count = 0
         self.phase_draw_count = 0
@@ -459,7 +458,7 @@ class LeagueCallback(BaseCallback):
     def _select_next_opponent(self) -> OpponentSpec:
         if not self.league_mode:
             phase = self.curriculum.phase
-            # OP3 phase: only OP3 (no snapshots until league mode; need 70% WR vs OP3 to switch)
+            # OP3 phase: only OP3 until the curriculum gate switches into league mode.
             if phase == "OP3":
                 return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.league.get_rating("SCRIPTED:OP3"))
             return OpponentSpec(
@@ -467,15 +466,8 @@ class LeagueCallback(BaseCallback):
                 key=phase,
                 rating=self.league.get_rating(f"SCRIPTED:{phase}"),
             )
-        # League mode: OP3 phase only uses OP3 + species + snapshots (no OP1/OP2)
-        phase = self.curriculum.phase
-        op3_wr = self._get_op3_win_rate()
-        enable_snapshots = op3_wr >= 0.80 and len(self.league.snapshots) > 0
-        if enable_snapshots and not self._selfplay_enabled:
-            self._selfplay_enabled = True
-            print(f"[League] OP3 win rate {op3_wr:.1%} >= 80%: enabling self-play (snapshots)")
-        # Force phase="OP3" so league doesn't sample OP1/OP2
-        return self.league.sample_league(phase="OP3", enable_snapshots=enable_snapshots)
+        # League mode: after the OP3 gate, use only the league mix (OP3/species/snapshots).
+        return self.league.sample_league(phase="OP3", enable_snapshots=True)
     
     def _update_opponent_stats(self, opp_key: str, result: str):
         """Track opponent distribution and rolling window stats."""
@@ -1469,7 +1461,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
         phase_name = str(cfg.fixed_opponent_tag).upper()
     elif mode == TrainMode.SELF_PLAY.value:
-        default_opponent = ("SCRIPTED", "OP3")
+        default_opponent = ("SNAPSHOT", "__SELF_PLAY_BOOTSTRAP__")
         phase_name = "SELF_PLAY"
     elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
         default_opponent = ("SCRIPTED", curriculum.phase)
