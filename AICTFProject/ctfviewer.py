@@ -124,6 +124,51 @@ def _resolve_zip_path(path: str) -> Optional[str]:
     return _try_paths(*candidates)
 
 
+def _team_size_tag(n_agents: int) -> str:
+    n = max(1, int(n_agents))
+    return f"{n}v{n}"
+
+
+def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[str]:
+    """Infer sibling checkpoints for the requested team size from the currently selected model path."""
+    resolved = _resolve_zip_path(model_path)
+    raw = resolved or model_path or ""
+    if not raw:
+        return []
+
+    team_tag = _team_size_tag(n_agents)
+    dirname = os.path.dirname(raw)
+    basename = os.path.basename(raw)
+    stem, ext = os.path.splitext(basename)
+    ext = ext or ".zip"
+
+    candidates: List[str] = []
+
+    # Replace both directory tag and filename suffix when the checkpoint follows the repo naming scheme.
+    for src_tag in ("2v2", "3v3", "4v4", "8v8"):
+        dir_variant = raw.replace(f"\\{src_tag}\\", f"\\{team_tag}\\").replace(f"/{src_tag}/", f"/{team_tag}/")
+        file_variant = os.path.join(os.path.dirname(dir_variant), os.path.basename(dir_variant).replace(src_tag, team_tag))
+        candidates.append(file_variant)
+
+    # Generic filename replacement for custom names that still embed the team tag.
+    for src_tag in ("2v2", "3v3", "4v4", "8v8"):
+        if src_tag in stem:
+            candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
+
+    # Final fallback to the standard league naming used in this repo.
+    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints_sb3", team_tag, f"final_ppo_league_{team_tag}{ext}"))
+
+    # Deduplicate while preserving order.
+    seen = set()
+    ordered: List[str] = []
+    for c in candidates:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        ordered.append(c)
+    return ordered
+
+
 def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: int = N_TARGETS):
     """Build observation and action spaces for GPU CTF (so SB3 can load when saved ones fail to unpickle)."""
     obs_space = spaces.Dict(
@@ -201,6 +246,7 @@ class PPOController:
         n_targets: int = N_TARGETS,
         deterministic: bool = True,
         device: str = "cpu",
+        print_traceback: bool = False,
     ):
         self.model: Optional[Any] = None
         self.model_loaded = False
@@ -208,6 +254,7 @@ class PPOController:
         self.n_macros = n_macros
         self.n_targets = n_targets
         self.n_blue = int(n_blue)
+        self.print_traceback = bool(print_traceback)
         self.model_meta = _read_model_metadata(model_path)
         self.model_path: Optional[str] = self.model_meta.get("model_path") or _resolve_zip_path(model_path)
         self.device = str(device)
@@ -247,8 +294,9 @@ class PPOController:
             print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
         except Exception as exc:
             print(f"[PPO] Failed to load: {exc}")
-            import traceback
-            traceback.print_exc()
+            if self.print_traceback:
+                import traceback
+                traceback.print_exc()
 
     def predict(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
         """Return flat int64 action array [n_blue * 2] from batched obs (B=1)."""
@@ -433,6 +481,8 @@ class CoreRenderer:
 class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
                  device: str = "cpu"):
+        self.device = str(device)
+        self.ppo_model_path = str(ppo_model_path)
         model_meta = _read_model_metadata(ppo_model_path)
         initial_agents = max(1, int(model_meta.get("n_blue", 2)))
         paper_steps = 400
@@ -493,7 +543,7 @@ class CTFViewer:
             n_blue=cfg.max_blue_agents,
             n_macros=cfg.n_macros,
             n_targets=cfg.n_targets,
-            device=device,
+            device=self.device,
         )
 
         if self.ppo.model_loaded:
@@ -518,6 +568,32 @@ class CTFViewer:
         self.bigfont = pg.font.SysFont(None, 48)
         self._last_info: Dict[str, Any] = {}
         self._ppo_mismatch_warned = False
+
+    def _try_reload_ppo_for_agents(self, agents_per_team: int) -> bool:
+        agents = max(1, int(agents_per_team))
+        for candidate in _candidate_model_paths_for_agents(self.ppo_model_path, agents):
+            resolved = _resolve_zip_path(candidate)
+            if resolved is None:
+                continue
+            meta = _read_model_metadata(resolved)
+            model_agents = int(meta.get("n_blue", 0) or 0)
+            if model_agents and model_agents != agents:
+                continue
+            controller = PPOController(
+                resolved,
+                n_blue=agents,
+                n_macros=self.cfg.n_macros,
+                n_targets=self.cfg.n_targets,
+                device=self.device,
+                print_traceback=False,
+            )
+            if controller.model_loaded:
+                self.ppo = controller
+                self.ppo_model_path = resolved
+                self._ppo_mismatch_warned = False
+                print(f"[Viewer] PPO model -> {agents}v{agents}: {resolved}")
+                return True
+        return False
 
     def _ppo_team_size_compatible(self, agents_per_team: Optional[int] = None) -> bool:
         agents = int(agents_per_team if agents_per_team is not None else self.cfg.max_blue_agents)
@@ -725,8 +801,15 @@ class CTFViewer:
             pass
         self.core.reset_all()
         self.renderer = CoreRenderer(self.core)
-        if self.blue_mode == "PPO" and not self._ppo_team_size_compatible(agents):
-            self._set_demo_due_to_mismatch(agents)
+        if not self._ppo_team_size_compatible(agents):
+            if self._try_reload_ppo_for_agents(agents):
+                self._ppo_mismatch_warned = False
+                if self.blue_mode == "PPO":
+                    self.core.blue_scripted = False
+            elif self.blue_mode == "PPO":
+                self._set_demo_due_to_mismatch(agents)
+            else:
+                self._ppo_mismatch_warned = False
         else:
             self._ppo_mismatch_warned = False
         print(f"[Viewer] Agents per team -> {agents} v {agents}")
@@ -753,12 +836,17 @@ class CTFViewer:
             idx = cycle.index(self.blue_mode) if self.blue_mode in cycle else 0
             requested = cycle[(idx + 1) % len(cycle)]
             if requested == "PPO" and not self._ppo_team_size_compatible():
-                print(
-                    f"[Viewer] Cannot enable PPO at {int(self.cfg.max_blue_agents)}v{int(self.cfg.max_red_agents)}; "
-                    f"loaded model is {self.ppo.n_blue}v{self.ppo.n_blue}."
-                )
-                self.blue_mode = "DEMO"
-                self.core.blue_scripted = True
+                agents = int(self.cfg.max_blue_agents)
+                if not self._try_reload_ppo_for_agents(agents):
+                    print(
+                        f"[Viewer] Cannot enable PPO at {agents}v{agents}; "
+                        f"no matching PPO checkpoint was found."
+                    )
+                    self.blue_mode = "DEMO"
+                    self.core.blue_scripted = True
+                    return
+                cycle = ["PPO", "DEMO"]
+                requested = "PPO"
             else:
                 self.blue_mode = requested
                 self.core.blue_scripted = (self.blue_mode == "DEMO")
