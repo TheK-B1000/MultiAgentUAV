@@ -1434,11 +1434,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         # Extra OP3→League gate: require 80% vs OP3 over last _min_games_vs_op3 games
         _min_winrate_vs_op3 = 0.80
         _min_games_vs_op3 = 50
-        # 8v8 only: floor at 8M for convergence (2v2=2M, 3v3=3M, 4v4=4M set by default in CLI)
-        if max_agents > 4:
-            if cfg.total_timesteps < 8_000_000:
-                cfg.total_timesteps = 8_000_000
-                print(f"[PPO] 8v8: using total_timesteps={cfg.total_timesteps} for better convergence")
     else:
         _min_episodes = {"OP1": 200, "OP2": 200, "OP3": 250}
         _min_winrate = {"OP1": 1.00, "OP2": 0.90, "OP3": 0.80}
@@ -1736,8 +1731,23 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
             else:
                 raise
+    except (MemoryError, torch.cuda.OutOfMemoryError, RuntimeError) as exc:
+        if "out of memory" in str(exc).lower() or "OutOfMemoryError" in type(exc).__name__:
+            crash_path = os.path.join(cfg.checkpoint_dir, f"oom_save_{cfg.run_tag}")
+            try:
+                model.save(crash_path)
+                print(f"[PPO] OOM. Model saved to: {crash_path}.zip")
+            except Exception as save_exc:
+                crash_path = os.path.join(cfg.checkpoint_dir, f"crash_save_{cfg.run_tag}")
+                try:
+                    model.save(crash_path)
+                    print(f"[PPO] OOM. Model saved to: {crash_path}.zip")
+                except Exception as save_exc2:
+                    print(f"[WARN] Could not save model on OOM: {save_exc2}")
+            print("[PPO] To continue: restart with lower memory (e.g. --device cpu, or reduce n_envs/n_steps in code for 8v8). Load the saved .zip and train with remaining steps if your setup supports resume.")
+        raise
     except Exception as exc:
-        # Save current model on any failure (OOM, crash, etc.) so progress is not lost
+        # Save current model on any other failure so progress is not lost
         crash_path = os.path.join(cfg.checkpoint_dir, f"crash_save_{cfg.run_tag}")
         try:
             model.save(crash_path)
