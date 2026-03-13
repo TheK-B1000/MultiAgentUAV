@@ -152,6 +152,9 @@ class CurriculumState:
             return False
         self.phase_idx += 1
         self.phase_episode_count = 0
+        next_phase = self.phase
+        if next_phase in self.recent_results:
+            self.recent_results[next_phase].clear()
         return True
 
 
