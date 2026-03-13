@@ -5,9 +5,9 @@ Each style maps to a distribution over these params and returns GPU tensors for 
 OP3 vs OP4 (must be clearly different for held-out eval):
   - OP3: Used in training. Medium attacker + medium defender (defender_style=1), moderate
     role switching (0.35), moderate deception and speed. Balanced play.
-  - OP4: Held-out; never used in training. Attack-leaning pressure team with easier defense,
-    more role switching, higher deception, and faster routing. It should feel different from
-    OP3, not just slightly stronger.
+  - OP4: Held-out; never used in training. Counter-style team with stronger home defense,
+    steadier roles, more deceptive routing, and less all-in attack pressure. It should test
+    strategic generalization, not just whether blue handles a faster OP3.
   The core uses: red_attacker_style, red_defender_style, red_deception_prob, red_speed_mult,
   red_role_switch_prob, so OP3 vs OP4 produce different red behavior.
 """
@@ -108,40 +108,40 @@ def sample_batched_opponent_params(
                 sync_nc_low, sync_nc_high = 3, 6
                 n_low, n_high = 0.0, 0.08
         elif key == "OP4":
-            # Held-out eval opponent: never used in training. Make it behaviorally distinct from
-            # OP3 by keeping attack pressure high even for larger teams.
-            attacker_style = 1
-            defender_style = 0
-            role_switch_prob = 0.50
+            # Held-out eval opponent: never used in training. Make it strategically distinct from
+            # OP3 by emphasizing defense/counter-play rather than extra rush pressure.
+            attacker_style = 0
+            defender_style = 1
+            role_switch_prob = 0.12
             if op3_easy:
                 if n_agents >= 8:
-                    s_low, s_high = 0.82, 0.96
-                    d_low, d_high = 0.06, 0.14
-                    c_prob = 0.18
-                    sync_c_low, sync_c_high = 2, 4
+                    s_low, s_high = 0.74, 0.84
+                    d_low, d_high = 0.10, 0.22
+                    c_prob = 0.08
+                    sync_c_low, sync_c_high = 1, 3
+                    sync_nc_low, sync_nc_high = 1, 2
+                    n_low, n_high = 0.0, 0.02
+                elif n_agents >= 4:
+                    s_low, s_high = 0.82, 0.94
+                    d_low, d_high = 0.14, 0.28
+                    c_prob = 0.12
+                    sync_c_low, sync_c_high = 1, 4
                     sync_nc_low, sync_nc_high = 1, 3
                     n_low, n_high = 0.0, 0.03
-                elif n_agents >= 4:
-                    s_low, s_high = 0.86, 1.02
-                    d_low, d_high = 0.08, 0.18
-                    c_prob = 0.24
-                    sync_c_low, sync_c_high = 2, 5
-                    sync_nc_low, sync_nc_high = 2, 4
-                    n_low, n_high = 0.0, 0.04
                 else:
-                    s_low, s_high = 0.98, 1.24
-                    d_low, d_high = 0.18, 0.34
-                    c_prob = 0.35
-                    sync_c_low, sync_c_high = 2, 6
-                    sync_nc_low, sync_nc_high = 2, 5
-                    n_low, n_high = 0.0, 0.05
+                    s_low, s_high = 0.84, 1.00
+                    d_low, d_high = 0.20, 0.38
+                    c_prob = 0.16
+                    sync_c_low, sync_c_high = 1, 4
+                    sync_nc_low, sync_nc_high = 1, 3
+                    n_low, n_high = 0.0, 0.04
             else:
-                s_low, s_high = 0.96, 1.30
-                d_low, d_high = 0.22, 0.48
-                c_prob = 0.48
-                sync_c_low, sync_c_high = 3, 7
-                sync_nc_low, sync_nc_high = 3, 6
-                n_low, n_high = 0.01, 0.08
+                s_low, s_high = 0.84, 1.02
+                d_low, d_high = 0.22, 0.42
+                c_prob = 0.18
+                sync_c_low, sync_c_high = 1, 4
+                sync_nc_low, sync_nc_high = 1, 3
+                n_low, n_high = 0.0, 0.05
         else:
             attacker_style = 1
             defender_style = 1
