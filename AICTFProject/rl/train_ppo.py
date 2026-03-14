@@ -628,9 +628,9 @@ class LeagueCallback(BaseCallback):
                             op3_stats = self._opponent_stats.get("SCRIPTED:OP3", {})
                             tw = op3_stats.get("wins", 0) + op3_stats.get("losses", 0) + op3_stats.get("draws", 0)
                             print(f"[League] OP3 gate passed: {op3_stats.get('wins', 0)}W vs OP3 in last {tw} OP3 games → switching to league/elo")
-                    elif use_fallback:
+                    elif use_fallback and not self.league_mode:
                         self.league_mode = True
-                        print(f"[League] 250k-step fallback: entering league at {self.num_timesteps:,} steps (80%% normal promotion not met)")
+                        print(f"[League] 250k-step fallback: entering league at {self.num_timesteps:,} steps (80% normal promotion not met)")
                 elif self.verbose and phase == "OP3" and not self.league_mode and self.episode_idx % 100 == 0:
                     min_g = getattr(self.curriculum.config, "min_games_vs_op3", 0)
                     min_wr_op3 = getattr(self.curriculum.config, "min_winrate_vs_op3", 0.0)
