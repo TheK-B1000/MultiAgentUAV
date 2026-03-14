@@ -180,6 +180,8 @@ class PPOConfig:
     eval_episodes: int = 6
     snapshot_every_episodes: int = 200
     league_max_snapshots: int = 5
+    # If still in OP3 and not in league after this many timesteps, enter league anyway (80% normal promotion, 250k fallback).
+    league_fallback_timesteps: int = 250_000
     # Disable TensorBoard by default to avoid dependency/version issues.
     # Re-enable (True) if you install a compatible tensorboard+protobuf pair.
     enable_tensorboard: bool = False
@@ -617,12 +619,18 @@ class LeagueCallback(BaseCallback):
                 meets_eps = self.curriculum.phase_episode_count >= min_eps
                 meets_wr = self.curriculum.phase_winrate("OP3") >= min_wr
                 meets_op3_gate = self._meets_op3_gate_for_league()
-                if self.curriculum.config.switch_to_league_after_op3_win and meets_eps and meets_wr and meets_op3_gate:
-                    self.league_mode = True
-                    if self.verbose and getattr(self.curriculum.config, "min_games_vs_op3", 0) > 0:
-                        op3_stats = self._opponent_stats.get("SCRIPTED:OP3", {})
-                        tw = op3_stats.get("wins", 0) + op3_stats.get("losses", 0) + op3_stats.get("draws", 0)
-                        print(f"[League] OP3 gate passed: {op3_stats.get('wins', 0)}W vs OP3 in last {tw} OP3 games → switching to league/elo")
+                fallback_steps = max(0, int(getattr(self.cfg, "league_fallback_timesteps", 250_000)))
+                use_fallback = fallback_steps > 0 and self.num_timesteps >= fallback_steps
+                if self.curriculum.config.switch_to_league_after_op3_win:
+                    if meets_eps and meets_wr and meets_op3_gate:
+                        self.league_mode = True
+                        if self.verbose and getattr(self.curriculum.config, "min_games_vs_op3", 0) > 0:
+                            op3_stats = self._opponent_stats.get("SCRIPTED:OP3", {})
+                            tw = op3_stats.get("wins", 0) + op3_stats.get("losses", 0) + op3_stats.get("draws", 0)
+                            print(f"[League] OP3 gate passed: {op3_stats.get('wins', 0)}W vs OP3 in last {tw} OP3 games → switching to league/elo")
+                    elif use_fallback:
+                        self.league_mode = True
+                        print(f"[League] 250k-step fallback: entering league at {self.num_timesteps:,} steps (80%% normal promotion not met)")
                 elif self.verbose and phase == "OP3" and not self.league_mode and self.episode_idx % 100 == 0:
                     min_g = getattr(self.curriculum.config, "min_games_vs_op3", 0)
                     min_wr_op3 = getattr(self.curriculum.config, "min_winrate_vs_op3", 0.0)
