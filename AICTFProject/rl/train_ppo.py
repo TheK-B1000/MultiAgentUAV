@@ -399,7 +399,7 @@ class LeagueCallback(BaseCallback):
         self.win_count = 0
         self.loss_count = 0
         self.draw_count = 0
-        self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 25)))
+        self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 5)))
         
         self._opponent_stats: Dict[str, Dict[str, int]] = {}
         self._opponent_history: List[Tuple[str, str]] = []
@@ -1272,7 +1272,7 @@ class NoiseMetricsCSVCallback(BaseCallback):
 
 
 class MetricsCSVCallback(BaseCallback):
-    """Collect Top 5 IROS-style metrics per episode and write one CSV at end of training (publish-friendly)."""
+    """Stream Top 5 IROS-style metrics per episode to CSV (one row per episode, no in-memory accumulation)."""
 
     CSV_COLUMNS = [
         "episode_id",
@@ -1297,10 +1297,32 @@ class MetricsCSVCallback(BaseCallback):
     def __init__(self, *, save_path: str) -> None:
         super().__init__(verbose=0)
         self.save_path = str(save_path)
-        self._rows: List[Dict[str, Any]] = []
+        self._header_written = False
         self._episode_id = 0
         self._opponent_switch_count = 0
         self._last_opponent_key: Optional[str] = None
+        self._rows_written = 0
+
+    def _fmt(self, v: Any) -> str:
+        if v is None:
+            return ""
+        if isinstance(v, float):
+            return f"{v:.6g}"
+        return str(v)
+
+    def _write_row(self, row: Dict[str, Any]) -> None:
+        path = self.save_path
+        if not path.lower().endswith(".csv"):
+            path = path + ".csv"
+        os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+        mode = "w" if not self._header_written else "a"
+        with open(path, mode, newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=self.CSV_COLUMNS, extrasaction="ignore")
+            if not self._header_written:
+                w.writeheader()
+                self._header_written = True
+            w.writerow({k: self._fmt(row.get(k)) for k in self.CSV_COLUMNS})
+        self._rows_written += 1
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -1337,34 +1359,16 @@ class MetricsCSVCallback(BaseCallback):
                 "opponent_switch_count": self._opponent_switch_count,
                 "vec_schema_version": summary.vec_schema_version,
             }
-            self._rows.append(row)
+            try:
+                self._write_row(row)
+            except Exception as exc:
+                print(f"[WARN] Metrics CSV write failed: {exc}")
         return True
 
-    def _fmt(self, v: Any) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, float):
-            return f"{v:.6g}"
-        return str(v)
-
     def _on_training_end(self) -> None:
-        if not self._rows:
-            return
-        path = self.save_path
-        if not path.lower().endswith(".csv"):
-            path = path + ".csv"
-        try:
-            os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                w = csv.DictWriter(f, fieldnames=self.CSV_COLUMNS, extrasaction="ignore")
-                w.writeheader()
-                for row in self._rows:
-                    out = {k: self._fmt(row.get(k)) for k in self.CSV_COLUMNS}
-                    w.writerow(out)
-            if self.verbose:
-                print(f"[Metrics] Saved {len(self._rows)} rows to {path}")
-        except Exception as exc:
-            print(f"[WARN] Metrics CSV save failed: {exc}")
+        if self.verbose and self._rows_written > 0:
+            path = self.save_path if self.save_path.lower().endswith(".csv") else self.save_path + ".csv"
+            print(f"[Metrics] Wrote {self._rows_written} rows to {path}")
 
 
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
