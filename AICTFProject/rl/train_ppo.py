@@ -1781,11 +1781,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         if uses_league:
             print("[League] match_op3_exposure=True: 100% OP3 (2v2 control)")
     else:
-        if uses_league and max_agents > 2:
-            print(f"[League] {team_size}: using opponent mix (OP1/OP2/OP3/snapshots) to keep WR in learnable band")
         anchor_op3_prob = float(getattr(cfg, "league_anchor_op3_prob", 0.60))
         species_prob = float(getattr(cfg, "league_species_prob", 0.20))
         snapshot_prob = float(getattr(cfg, "league_snapshot_prob", 0.20))
+        if uses_league and max_agents > 2:
+            print(
+                f"[League] {team_size}: using league mix "
+                f"(OP3={100.0 * anchor_op3_prob:.0f}%, species={100.0 * species_prob:.0f}%, "
+                f"snapshots={100.0 * snapshot_prob:.0f}%)"
+            )
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
