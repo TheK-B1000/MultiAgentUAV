@@ -1702,6 +1702,16 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         learning_rate = 0.0
         print("[PPO] test_kl_zero_lr=True: learning_rate=0 — verify approx_kl ~ 0 in logs (if not, check old_logprob/action pairing)")
     
+    rollout_size = max(1, int(cfg.n_steps) * max(1, int(cfg.n_envs)))
+    if batch_size > rollout_size:
+        adjusted_batch_size = rollout_size
+        for candidate in (1024, 512, 256, 128, 64, 32):
+            if candidate <= rollout_size and rollout_size % candidate == 0:
+                adjusted_batch_size = candidate
+                break
+        print(f"[PPO] Adjusting batch_size for rollout size: {batch_size}->{adjusted_batch_size} (n_steps*n_envs={rollout_size})")
+        batch_size = adjusted_batch_size
+
     model = PPO(
         policy=MaskedMultiInputPolicy,
         env=venv,
