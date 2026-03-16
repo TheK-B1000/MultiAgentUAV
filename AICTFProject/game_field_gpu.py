@@ -8,6 +8,7 @@ GameManager (game_manager.py) remains the single source of truth for those const
 """
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 import math
@@ -298,12 +299,12 @@ class BatchedCTFCore:
         self._rng = torch.Generator(device=self.device)
         self._rng.manual_seed(int(cfg.seed))
 
-        self._phase = "OP1"
-        self._league_mode = False
+        self._phase: List[str] = ["OP1"] * self.B
+        self._league_mode = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
         self._stress_schedule: Optional[dict] = None
-        self._opponent_kind = "SCRIPTED"
-        self._opponent_key = "OP1"
-        self._snapshot_policy_cache: Dict[str, Optional[Any]] = {}
+        self._opponent_kind: List[str] = ["SCRIPTED"] * self.B
+        self._opponent_key: List[str] = ["OP1"] * self.B
+        self._snapshot_policy_cache: Dict[str, Tuple[float, Optional[Any]]] = {}
         self.rules_profile = str(cfg.rules_profile).upper()
 
         self.blue_scripted = False
@@ -342,6 +343,10 @@ class BatchedCTFCore:
         self.blue_commit_target = torch.zeros((B, Nb), dtype=torch.int64, device=dev)
         self.blue_commit_ticks_left = torch.zeros((B, Nb), dtype=torch.int32, device=dev)
         self.blue_commit_success = torch.zeros((B, Nb), dtype=torch.bool, device=dev)
+        self.red_commit_macro = torch.zeros((B, Nr), dtype=torch.int64, device=dev)
+        self.red_commit_target = torch.zeros((B, Nr), dtype=torch.int64, device=dev)
+        self.red_commit_ticks_left = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
+        self.red_commit_success = torch.zeros((B, Nr), dtype=torch.bool, device=dev)
 
         self.blue_x = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.blue_y = torch.zeros((B, Nb), dtype=f32, device=dev)
@@ -538,8 +543,15 @@ class BatchedCTFCore:
         resolved = _resolve_snapshot_path(snapshot_key)
         if resolved is None:
             return None
-        if resolved in self._snapshot_policy_cache:
-            return self._snapshot_policy_cache[resolved]
+        try:
+            mtime = float(os.path.getmtime(resolved))
+        except OSError:
+            return None
+        cached = self._snapshot_policy_cache.get(resolved)
+        if cached is not None:
+            cached_mtime, cached_model = cached
+            if abs(cached_mtime - mtime) < 1e-9:
+                return cached_model
         try:
             _ensure_numpy_core_compat()
             _ensure_numpy_random_compat()
@@ -563,11 +575,11 @@ class BatchedCTFCore:
                 custom_objects=custom_objects,
             )
             model.policy.set_training_mode(False)
-            self._snapshot_policy_cache[resolved] = model
+            self._snapshot_policy_cache[resolved] = (mtime, model)
             return model
         except Exception as exc:
             import warnings
-            self._snapshot_policy_cache[resolved] = None
+            self._snapshot_policy_cache[resolved] = (mtime, None)
             warnings.warn(f"Failed to load snapshot opponent policy from {resolved}: {exc}")
             return None
 
@@ -604,42 +616,67 @@ class BatchedCTFCore:
         mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
         self.reset_indices(mask)
 
+    def _normalize_env_indices(self, env_indices: Optional[Sequence[int]] = None) -> torch.Tensor:
+        if env_indices is None:
+            return torch.arange(self.B, device=self.device, dtype=torch.int64)
+        if isinstance(env_indices, torch.Tensor):
+            idx = env_indices.to(device=self.device, dtype=torch.int64).reshape(-1)
+        else:
+            idx = torch.as_tensor(list(env_indices), device=self.device, dtype=torch.int64).reshape(-1)
+        if idx.numel() == 0:
+            return idx
+        return torch.clamp(idx, 0, max(0, self.B - 1))
+
+    def _phase_tensor_equals(self, phases: Sequence[str]) -> torch.Tensor:
+        return torch.as_tensor(
+            [str(p).upper() in phases for p in self._phase],
+            device=self.device,
+            dtype=torch.bool,
+        )
+
     def _apply_opponent_params_for_mask(self, env_mask: torch.Tensor) -> None:
         if sample_batched_opponent_params is None:
             return
-        # Only SCRIPTED with OP1/OP2/OP3/OP4 have defined params. SNAPSHOT/SPECIES are not
-        # implemented for red in this core (red is always scripted). Use OP3 params for those
-        # so red is strong scripted instead of trivial reset defaults.
-        use_kind = self._opponent_kind
-        use_key = self._opponent_key
-        if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4"):
-            if use_kind in ("SNAPSHOT", "SPECIES"):
-                use_kind = "SCRIPTED"
-                use_key = "OP3"
-            else:
-                return
+        # Only SCRIPTED with OP1/OP2/OP3/OP4 have defined params.
+        # SNAPSHOT opponents should keep neutral/default red dynamics so they are not
+        # implicitly boosted by scripted OP3 behavior. SPECIES currently reuses strong scripted params.
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
             return
-        opp_params = sample_batched_opponent_params(
-            kind=use_kind,
-            key=use_key,
-            phase=use_key,
-            n_agents=self.Nr,
-            batch_size=int(idx.numel()),
-            device=self.device,
-            generator=self._rng,
-        )
-        if "deception_prob" in opp_params:
-            self.red_deception_prob[idx] = opp_params["deception_prob"].to(device=self.device, dtype=self.red_deception_prob.dtype)
-        if "speed_mult" in opp_params:
-            self.red_speed_mult[idx] = opp_params["speed_mult"].to(device=self.device, dtype=self.red_speed_mult.dtype)
-        if "attacker_style" in opp_params:
-            self.red_attacker_style[idx] = opp_params["attacker_style"].to(device=self.device, dtype=self.red_attacker_style.dtype)
-        if "defender_style" in opp_params:
-            self.red_defender_style[idx] = opp_params["defender_style"].to(device=self.device, dtype=self.red_defender_style.dtype)
-        if "role_switch_prob" in opp_params:
-            self.red_role_switch_prob[idx] = opp_params["role_switch_prob"].to(device=self.device, dtype=self.red_role_switch_prob.dtype)
+        grouped: Dict[Tuple[str, str], List[int]] = {}
+        for env_i in idx.detach().cpu().tolist():
+            use_kind = str(self._opponent_kind[env_i]).upper()
+            use_key = str(self._opponent_key[env_i]).upper()
+            if use_kind == "SNAPSHOT":
+                continue
+            if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4"):
+                if use_kind == "SPECIES":
+                    use_kind = "SCRIPTED"
+                    use_key = "OP3"
+                else:
+                    continue
+            grouped.setdefault((use_kind, use_key), []).append(env_i)
+        for (use_kind, use_key), env_list in grouped.items():
+            sub_idx = torch.as_tensor(env_list, device=self.device, dtype=torch.int64)
+            opp_params = sample_batched_opponent_params(
+                kind=use_kind,
+                key=use_key,
+                phase=use_key,
+                n_agents=self.Nr,
+                batch_size=int(sub_idx.numel()),
+                device=self.device,
+                generator=self._rng,
+            )
+            if "deception_prob" in opp_params:
+                self.red_deception_prob[sub_idx] = opp_params["deception_prob"].to(device=self.device, dtype=self.red_deception_prob.dtype)
+            if "speed_mult" in opp_params:
+                self.red_speed_mult[sub_idx] = opp_params["speed_mult"].to(device=self.device, dtype=self.red_speed_mult.dtype)
+            if "attacker_style" in opp_params:
+                self.red_attacker_style[sub_idx] = opp_params["attacker_style"].to(device=self.device, dtype=self.red_attacker_style.dtype)
+            if "defender_style" in opp_params:
+                self.red_defender_style[sub_idx] = opp_params["defender_style"].to(device=self.device, dtype=self.red_defender_style.dtype)
+            if "role_switch_prob" in opp_params:
+                self.red_role_switch_prob[sub_idx] = opp_params["role_switch_prob"].to(device=self.device, dtype=self.red_role_switch_prob.dtype)
 
     def reset_indices(self, env_mask: torch.Tensor) -> None:
         idx = torch.where(env_mask)[0]
@@ -664,37 +701,47 @@ class BatchedCTFCore:
         self.red_attacker_style[idx] = 0
         self.red_defender_style[idx] = 0
         self.red_role_switch_prob[idx] = 0.0
-        red_is_op4 = self._opponent_kind == "SCRIPTED" and str(self._opponent_key).upper() == "OP4"
-        role_flip_p = 0.55 if red_is_op4 else 0.35
+        red_is_op4 = torch.as_tensor(
+            [
+                str(self._opponent_kind[i]).upper() == "SCRIPTED" and str(self._opponent_key[i]).upper() == "OP4"
+                for i in idx.detach().cpu().tolist()
+            ],
+            device=self.device,
+            dtype=torch.bool,
+        )
+        role_flip_p = torch.where(
+            red_is_op4,
+            torch.full((idx.numel(),), 0.55, dtype=torch.float32, device=self.device),
+            torch.full((idx.numel(),), 0.35, dtype=torch.float32, device=self.device),
+        )
         self.red_script_role_flip[idx] = (
             torch.rand((idx.numel(),), generator=self._rng, device=self.device) < role_flip_p
         )
-        if red_is_op4:
-            # OP4 intentionally randomizes its route bias and guard anchor so each episode can
-            # present a different scripted profile.
-            self.red_script_lane_sign[idx] = torch.where(
-                torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.5,
-                torch.tensor(-1.0, dtype=torch.float32, device=self.device),
-                torch.tensor(1.0, dtype=torch.float32, device=self.device),
-            )
+        self.red_script_lane_sign[idx] = torch.where(
+            torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.5,
+            torch.tensor(-1.0, dtype=torch.float32, device=self.device),
+            torch.tensor(1.0, dtype=torch.float32, device=self.device),
+        )
+        op4_idx = idx[red_is_op4]
+        if op4_idx.numel() > 0:
             guard_x_low = max(0.0, float(self.cols) - 9.0)
             guard_x_high = max(guard_x_low + 0.5, float(self.cols) - 2.5)
-            self.red_script_guard_x[idx] = self._rand_uniform((idx.numel(),), guard_x_low, guard_x_high)
-            self.red_script_guard_y[idx] = self._rand_uniform((idx.numel(),), 3.5, 16.0)
-        else:
-            self.red_script_lane_sign[idx] = torch.where(
-                torch.rand((idx.numel(),), generator=self._rng, device=self.device) < 0.5,
-                torch.tensor(-1.0, dtype=torch.float32, device=self.device),
-                torch.tensor(1.0, dtype=torch.float32, device=self.device),
-            )
-            self.red_script_guard_x[idx] = self._rand_uniform((idx.numel(),), 14.5, 17.5)
-            self.red_script_guard_y[idx] = self._rand_uniform((idx.numel(),), 7.0, 13.0)
+            self.red_script_guard_x[op4_idx] = self._rand_uniform((op4_idx.numel(),), guard_x_low, guard_x_high)
+            self.red_script_guard_y[op4_idx] = self._rand_uniform((op4_idx.numel(),), 3.5, 16.0)
+        non_op4_idx = idx[~red_is_op4]
+        if non_op4_idx.numel() > 0:
+            self.red_script_guard_x[non_op4_idx] = self._rand_uniform((non_op4_idx.numel(),), 14.5, 17.5)
+            self.red_script_guard_y[non_op4_idx] = self._rand_uniform((non_op4_idx.numel(),), 7.0, 13.0)
         self.blue_home_contact_frames[idx] = 0
         self.red_home_contact_frames[idx] = 0
         self.blue_commit_macro[idx] = 0
         self.blue_commit_target[idx] = 0
         self.blue_commit_ticks_left[idx] = 0
         self.blue_commit_success[idx] = False
+        self.red_commit_macro[idx] = 0
+        self.red_commit_target[idx] = 0
+        self.red_commit_ticks_left[idx] = 0
+        self.red_commit_success[idx] = False
         # Mines: fully clear placed mines and charges so a new episode starts with a clean field.
         self.blue_mine_x[idx] = 0.0
         self.blue_mine_y[idx] = 0.0
@@ -715,33 +762,44 @@ class BatchedCTFCore:
         self._respawn_side(blue=False, env_mask=env_mask)
 
     # env_method-compatible setters
-    def set_phase(self, phase: str) -> None:
-        self._phase = str(phase).upper()
+    def set_phase(self, phase: str, env_indices: Optional[Sequence[int]] = None) -> None:
+        phase_s = str(phase).upper()
+        for env_i in self._normalize_env_indices(env_indices).detach().cpu().tolist():
+            self._phase[env_i] = phase_s
 
-    def set_league_mode(self, league_mode: bool) -> None:
-        self._league_mode = bool(league_mode)
+    def set_league_mode(self, league_mode: bool, env_indices: Optional[Sequence[int]] = None) -> None:
+        idx = self._normalize_env_indices(env_indices)
+        if idx.numel() > 0:
+            self._league_mode[idx] = bool(league_mode)
 
-    def set_stress_schedule(self, schedule: Optional[dict]) -> None:
+    def set_stress_schedule(self, schedule: Optional[dict], env_indices: Optional[Sequence[int]] = None) -> None:
         self._stress_schedule = schedule
 
-    def set_next_opponent(self, kind: str, key: str) -> None:
-        self._opponent_kind = str(kind).upper()
-        self._opponent_key = str(key) if self._opponent_kind == "SNAPSHOT" else str(key).upper()
-        # Apply OP1/OP2/OP3 params so red actually plays easy/medium/strong (not always OP3).
-        if sample_batched_opponent_params is not None and self._opponent_kind == "SCRIPTED" and self._opponent_key in ("OP1", "OP2", "OP3", "OP4"):
-            try:
-                mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
-                self._apply_opponent_params_for_mask(mask)
-            except Exception as e:
-                import warnings
-                warnings.warn(
-                    f"BatchedCTFCore: set_next_opponent({self._opponent_key!r}) failed to apply params: {e}. "
-                    "Red team may still use previous opponent params — OP3 vs OP4 evals can match."
-                )
+    def set_next_opponent(self, kind: str, key: str, env_indices: Optional[Sequence[int]] = None) -> None:
+        kind_s = str(kind).upper()
+        key_s = str(key) if kind_s == "SNAPSHOT" else str(key).upper()
+        idx = self._normalize_env_indices(env_indices)
+        for env_i in idx.detach().cpu().tolist():
+            self._opponent_kind[env_i] = kind_s
+            self._opponent_key[env_i] = key_s
+        try:
+            mask = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
+            if idx.numel() > 0:
+                mask[idx] = True
+            self._apply_opponent_params_for_mask(mask)
+        except Exception as e:
+            import warnings
+            warnings.warn(
+                f"BatchedCTFCore: set_next_opponent({key_s!r}) failed to apply params: {e}. "
+                "Red team may still use previous opponent params; targeted opponent changes may lag."
+            )
 
-    def get_opponent_key(self) -> str:
+    def get_opponent_key(self, env_indices: Optional[Sequence[int]] = None) -> str:
         """Return current red opponent key (OP1/OP2/OP3/OP4). For eval verification."""
-        return str(self._opponent_key)
+        idx = self._normalize_env_indices(env_indices)
+        if idx.numel() == 0:
+            return "OP1"
+        return str(self._opponent_key[int(idx[0].item())])
 
     def _apply_dynamics_tensor(
         self,
@@ -797,12 +855,16 @@ class BatchedCTFCore:
     def _apply_profile_runtime(self) -> None:
         # Optional stress schedule by phase (same hook shape used by train_ppo callbacks).
         if isinstance(self._stress_schedule, dict):
-            p = self._stress_schedule.get(str(self._phase).upper(), None)
-            if isinstance(p, dict):
-                if "current_strength_cps" in p:
-                    self.rt_current_strength_cps.fill_(float(p["current_strength_cps"]))
-                if "drift_sigma_cells" in p:
-                    self.rt_drift_sigma_cells.fill_(float(p["drift_sigma_cells"]))
+            for phase_name in set(self._phase):
+                env_mask = self._phase_tensor_equals((phase_name,))
+                if not env_mask.any():
+                    continue
+                p = self._stress_schedule.get(str(phase_name).upper(), None)
+                if isinstance(p, dict):
+                    if "current_strength_cps" in p:
+                        self.rt_current_strength_cps[env_mask] = float(p["current_strength_cps"])
+                    if "drift_sigma_cells" in p:
+                        self.rt_drift_sigma_cells[env_mask] = float(p["drift_sigma_cells"])
 
         # Aquaticus profile keeps marine constraints and can add mild stochastic water drift.
         if self.cfg.aquaticus_profile:
@@ -1735,6 +1797,7 @@ class BatchedCTFCore:
         # points from spawn/initial state or first-frame edge cases in the viewer).
         grace_steps = max(0, int(getattr(self.cfg, "score_grace_steps", 10)))
         grace_ok = (self.step_count >= grace_steps).to(torch.bool)
+        red_score_allowed = ~self._phase_tensor_equals(("OP1", "OP2"))
 
         # Both flags can be taken at once: blue can grab red flag regardless of whether
         # red has blue's flag, and vice versa. Each grab only updates that side's carrying state.
@@ -1761,8 +1824,8 @@ class BatchedCTFCore:
             env_idx = torch.where(red_grab_env)[0]
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
-            if grab_delta > 0 and self._phase not in ("OP1", "OP2"):
-                score_env = env_idx[grace_ok[env_idx]]
+            if grab_delta > 0:
+                score_env = env_idx[grace_ok[env_idx] & red_score_allowed[env_idx]]
                 if score_env.numel() > 0:
                     self.red_score[score_env] += grab_delta
             self.blue_flag_pos[env_idx] = torch.stack(
@@ -1809,8 +1872,8 @@ class BatchedCTFCore:
             self.red_flag_pos[b_cap_env] = self.red_flag_home[b_cap_env]
             self.blue_home_contact_frames[b_cap_env] = 0
         if r_cap_env.any():
-            award_r = r_cap_env & grace_ok
-            if award_r.any() and self._phase not in ("OP1", "OP2"):
+            award_r = r_cap_env & grace_ok & red_score_allowed
+            if award_r.any():
                 self.red_score[award_r] += cap_delta_r
             self.red_carrying[r_cap_env] = False
             self.blue_flag_pos[r_cap_env] = self.blue_flag_home[r_cap_env]
@@ -1837,21 +1900,37 @@ class BatchedCTFCore:
     def _build_blue_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         return self._build_targets_from_action(macro, target, side="blue")
 
-    def _get_red_snapshot_actions(self) -> Optional[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-        model = self._load_snapshot_policy(self._opponent_key)
-        if model is None:
+    def _get_red_snapshot_actions(self, env_mask: torch.Tensor) -> Optional[Tuple[torch.Tensor, torch.Tensor]]:
+        idx = torch.where(env_mask)[0]
+        if idx.numel() == 0:
             return None
-        obs = {
-            k: v.detach().cpu().numpy().astype(np.float32)
-            for k, v in self.get_obs_tensors(side="red").items()
-        }
-        actions_np, _ = model.predict(obs, deterministic=True)
-        actions = torch.as_tensor(actions_np, device=self.device, dtype=torch.int64)
-        actions = actions.reshape(self.B, self.Nr, 2)
-        red_macro = torch.remainder(actions[..., 0], self.cfg.n_macros).long()
-        red_target = torch.remainder(actions[..., 1], self.cfg.n_targets).long()
-        rtx, rty = self._build_targets_from_action(red_macro, red_target, side="red")
-        return red_macro, rtx, rty
+        obs_full = self.get_obs_tensors(side="red")
+        red_macro = torch.zeros((self.B, self.Nr), device=self.device, dtype=torch.int64)
+        red_target = torch.zeros((self.B, self.Nr), device=self.device, dtype=torch.int64)
+        any_loaded = False
+        grouped: Dict[str, List[int]] = {}
+        for env_i in idx.detach().cpu().tolist():
+            resolved = _resolve_snapshot_path(self._opponent_key[env_i])
+            if resolved is None:
+                continue
+            grouped.setdefault(self._opponent_key[env_i], []).append(env_i)
+        for snapshot_key, env_list in grouped.items():
+            model = self._load_snapshot_policy(snapshot_key)
+            if model is None:
+                continue
+            any_loaded = True
+            sub_idx = torch.as_tensor(env_list, device=self.device, dtype=torch.int64)
+            obs = {
+                k: v.index_select(0, sub_idx).detach().cpu().numpy().astype(np.float32)
+                for k, v in obs_full.items()
+            }
+            actions_np, _ = model.predict(obs, deterministic=True)
+            actions = torch.as_tensor(actions_np, device=self.device, dtype=torch.int64).reshape(sub_idx.numel(), self.Nr, 2)
+            red_macro[sub_idx] = torch.remainder(actions[..., 0], self.cfg.n_macros).long()
+            red_target[sub_idx] = torch.remainder(actions[..., 1], self.cfg.n_targets).long()
+        if not any_loaded:
+            return None
+        return red_macro, red_target
 
     def _compute_potentials(
         self,
@@ -2013,25 +2092,48 @@ class BatchedCTFCore:
         prev_red_x = self.red_x.clone()
         prev_red_y = self.red_y.clone()
         prev_blue_alive = self.blue_alive.clone()
+        prev_red_alive = self.red_alive.clone()
         prev_blue_carrying = self.blue_carrying.clone()
+        prev_red_carrying = self.red_carrying.clone()
+        prev_red_mine_charges = self.red_mine_charges.clone()
 
         if self.blue_scripted:
             btx, bty = self._get_scripted_targets("blue")
         else:
             btx, bty = self._build_targets_from_action(macro, targ, side="blue")
         red_macro: Optional[torch.Tensor] = None
-        red_snapshot = (
-            self._opponent_kind == "SNAPSHOT"
-            and _resolve_snapshot_path(self._opponent_key) is not None
+        red_snapshot_mask = torch.as_tensor(
+            [
+                str(self._opponent_kind[i]).upper() == "SNAPSHOT" and _resolve_snapshot_path(self._opponent_key[i]) is not None
+                for i in range(self.B)
+            ],
+            device=self.device,
+            dtype=torch.bool,
         )
-        if red_snapshot:
-            red_policy_actions = self._get_red_snapshot_actions()
+        rtx, rty = self._red_scripted_actions()
+        if red_snapshot_mask.any():
+            red_policy_actions = self._get_red_snapshot_actions(red_snapshot_mask)
             if red_policy_actions is not None:
-                red_macro, rtx, rty = red_policy_actions
-            else:
-                rtx, rty = self._red_scripted_actions()
-        else:
-            rtx, rty = self._red_scripted_actions()
+                red_requested_macro, red_requested_targ = red_policy_actions
+                snapshot_agent_mask = red_snapshot_mask[:, None]
+                new_red_commit = snapshot_agent_mask & (self.red_commit_ticks_left <= 0)
+                self.red_commit_macro = torch.where(new_red_commit, red_requested_macro, self.red_commit_macro)
+                self.red_commit_target = torch.where(new_red_commit, red_requested_targ, self.red_commit_target)
+                self.red_commit_ticks_left = torch.where(
+                    new_red_commit,
+                    self._macro_commit_ticks(red_requested_macro),
+                    self.red_commit_ticks_left,
+                )
+                self.red_commit_success = torch.where(
+                    new_red_commit,
+                    torch.zeros_like(self.red_commit_success),
+                    self.red_commit_success,
+                )
+                red_macro = self.red_commit_macro
+                red_targ = self.red_commit_target
+                red_snapshot_tx, red_snapshot_ty = self._build_targets_from_action(red_macro, red_targ, side="red")
+                rtx = torch.where(snapshot_agent_mask, red_snapshot_tx, rtx)
+                rty = torch.where(snapshot_agent_mask, red_snapshot_ty, rty)
 
         # Tagged agents: OpRegion-like forced safe return to home region.
         if self.blue_tagged.any():
@@ -2079,6 +2181,10 @@ class BatchedCTFCore:
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()
         blue_grab_agents = self.blue_carrying & (~prev_blue_carrying)
         blue_cap_agents = prev_blue_carrying & (~self.blue_carrying) & blue_cap_env[:, None]
+        red_grab_agents = self.red_carrying & (~prev_red_carrying)
+        red_cap_agents = prev_red_carrying & (~self.red_carrying) & red_cap_env[:, None]
+        red_mine_pickup_agents = self.red_mine_charges > prev_red_mine_charges
+        red_mine_placement_agents = self.red_mine_charges < prev_red_mine_charges
         commit_target_xy = self._decode_targets(self.blue_commit_target)
         commit_dist = torch.sqrt(
             (self.blue_x - commit_target_xy[..., 0]) ** 2
@@ -2092,6 +2198,31 @@ class BatchedCTFCore:
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.PLACE_MINE)) & blue_mine_placement_agents)
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GO_HOME)) & blue_cap_agents)
         self.blue_commit_success = self.blue_commit_success | action_success
+        if red_snapshot_mask.any() and red_macro is not None:
+            red_commit_target_xy = self._decode_targets(self.red_commit_target, side="red")
+            red_commit_dist = torch.sqrt(
+                (self.red_x - red_commit_target_xy[..., 0]) ** 2
+                + (self.red_y - red_commit_target_xy[..., 1]) ** 2
+                + 1e-8
+            )
+            red_action_success = torch.zeros_like(self.red_commit_success)
+            red_action_success = red_action_success | (
+                (self.red_commit_macro == int(MacroAction.GO_TO))
+                & (red_commit_dist <= float(self.cfg.macro_arrival_radius_cells))
+            )
+            red_action_success = red_action_success | (
+                (self.red_commit_macro == int(MacroAction.GRAB_MINE)) & red_mine_pickup_agents
+            )
+            red_action_success = red_action_success | (
+                (self.red_commit_macro == int(MacroAction.GET_FLAG)) & red_grab_agents
+            )
+            red_action_success = red_action_success | (
+                (self.red_commit_macro == int(MacroAction.PLACE_MINE)) & red_mine_placement_agents
+            )
+            red_action_success = red_action_success | (
+                (self.red_commit_macro == int(MacroAction.GO_HOME)) & red_cap_agents
+            )
+            self.red_commit_success = self.red_commit_success | (red_action_success & red_snapshot_mask[:, None])
 
         sparse_points = self._sparse_reward_points(
             blue_grab_env, red_grab_env, blue_cap_env, red_cap_env,
@@ -2110,6 +2241,21 @@ class BatchedCTFCore:
         roff += float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
         self.blue_commit_ticks_left = torch.where(ended_commit, torch.zeros_like(self.blue_commit_ticks_left), self.blue_commit_ticks_left)
         self.blue_commit_success = torch.where(ended_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
+        if red_snapshot_mask.any() and red_macro is not None:
+            self.red_commit_ticks_left = torch.clamp(self.red_commit_ticks_left - 1, min=0)
+            ended_red_commit = (
+                self.red_commit_success | (self.red_commit_ticks_left <= 0) | (~self.red_alive) | self.red_tagged
+            ) & red_snapshot_mask[:, None]
+            self.red_commit_ticks_left = torch.where(
+                ended_red_commit,
+                torch.zeros_like(self.red_commit_ticks_left),
+                self.red_commit_ticks_left,
+            )
+            self.red_commit_success = torch.where(
+                ended_red_commit,
+                torch.zeros_like(self.red_commit_success),
+                self.red_commit_success,
+            )
         rpbrs = self._pbrs_reward(prev_blue_x, prev_blue_y, prev_blue_carrying)
         rteam = self._team_coordination_reward(prev_blue_x, prev_blue_y, yaw_cmd_blue)
 
@@ -2180,10 +2326,10 @@ class BatchedCTFCore:
                     "red_score": int(rs[i]),
                     "decision_steps": int(steps[i]),
                     "sim_steps": int(sim_steps[i]),
-                    "phase": self._phase,
-                    "league_mode": bool(self._league_mode),
-                    "opponent_kind": self._opponent_kind.lower(),
-                    "opponent_key": self._opponent_key,
+                    "phase": self._phase[i],
+                    "league_mode": bool(self._league_mode[i].item()),
+                    "opponent_kind": str(self._opponent_kind[i]).lower(),
+                    "opponent_key": self._opponent_key[i],
                     "rules_profile": self.rules_profile,
                     "dense_reward": float(d_np[i]),
                     "sparse_points": float(s_np[i]),
@@ -2399,13 +2545,20 @@ class BatchedCTFCore:
         if no_mine.any():
             idx_place = 3
             mask[:, :, idx_place][no_mine] = 0.0
-        committed = (self.blue_commit_ticks_left > 0) & self.blue_alive if side == "blue" else None
+        if side == "blue":
+            committed = (self.blue_commit_ticks_left > 0) & self.blue_alive
+            commit_macro = self.blue_commit_macro
+            commit_target = self.blue_commit_target
+        else:
+            committed = (self.red_commit_ticks_left > 0) & self.red_alive
+            commit_macro = self.red_commit_macro
+            commit_target = self.red_commit_target
         if committed is not None and committed.any():
             macro_mask = torch.zeros_like(mask[:, :, : self.cfg.n_macros])
-            macro_mask.scatter_(2, self.blue_commit_macro.unsqueeze(-1), 1.0)
+            macro_mask.scatter_(2, commit_macro.unsqueeze(-1), 1.0)
             mask[:, :, : self.cfg.n_macros] = torch.where(committed.unsqueeze(-1), macro_mask, mask[:, :, : self.cfg.n_macros])
             target_mask = torch.zeros_like(mask[:, :, self.cfg.n_macros :])
-            target_mask.scatter_(2, self.blue_commit_target.unsqueeze(-1), 1.0)
+            target_mask.scatter_(2, commit_target.unsqueeze(-1), 1.0)
             mask[:, :, self.cfg.n_macros :] = torch.where(committed.unsqueeze(-1), target_mask, mask[:, :, self.cfg.n_macros :])
         return mask.reshape(self.B, -1)
 
@@ -2678,6 +2831,13 @@ class GPUCTFVecEnv(VecEnv):
     def env_method(self, method_name: str, *method_args, indices=None, **method_kwargs):
         idx = self._get_indices(indices)
         method = getattr(self.core, method_name)
+        method_kwargs = dict(method_kwargs)
+        try:
+            sig = inspect.signature(method)
+        except Exception:
+            sig = None
+        if sig is not None and "env_indices" in sig.parameters:
+            method_kwargs.setdefault("env_indices", idx)
         out = method(*method_args, **method_kwargs)
         return [out for _ in idx]
 
