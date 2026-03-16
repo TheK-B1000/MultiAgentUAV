@@ -1858,20 +1858,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
 
-    # Safety: GPUCTFVecEnv currently stores opponent/phase/league state globally on the core,
-    # so dynamic-opponent modes are only correct with a single live env.
-    dynamic_opponent_mode = mode in (
-        TrainMode.CURRICULUM_LEAGUE.value,
-        TrainMode.CURRICULUM_NO_LEAGUE.value,
-        TrainMode.SELF_PLAY.value,
-    )
-    if dynamic_opponent_mode and int(cfg.n_envs) != 1:
-        print(
-            f"[PPO] Forcing n_envs {cfg.n_envs}->1 for {mode}: "
-            "opponent/phase state is global in GPUCTFVecEnv, so multi-env dynamic training is not correct yet."
-        )
-        cfg.n_envs = 1
-
     # If using CUDA, check that this PyTorch build supports the GPU (e.g. RTX 50-series needs nightly/sm_120)
     if str(cfg.device).lower().startswith("cuda"):
         try:
