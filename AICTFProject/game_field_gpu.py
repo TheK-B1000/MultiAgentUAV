@@ -634,15 +634,34 @@ class BatchedCTFCore:
             dtype=torch.bool,
         )
 
+    def _apply_neutral_red_params(self, env_mask: torch.Tensor) -> None:
+        idx = torch.where(env_mask)[0]
+        if idx.numel() == 0:
+            return
+        self.red_deception_prob[idx] = 0.0
+        self.red_speed_mult[idx] = 1.0
+        self.red_attacker_style[idx] = 0
+        self.red_defender_style[idx] = 0
+        self.red_role_switch_prob[idx] = 0.0
+
     def _apply_opponent_params_for_mask(self, env_mask: torch.Tensor) -> None:
         if sample_batched_opponent_params is None:
             return
         # Only SCRIPTED with OP1/OP2/OP3/OP4 have defined params.
-        # SNAPSHOT opponents should keep neutral/default red dynamics so they are not
-        # implicitly boosted by scripted OP3 behavior. SPECIES currently reuses strong scripted params.
+        # SNAPSHOT opponents should keep neutral/default red dynamics so they behave
+        # like true self-play rather than inheriting scripted-opponent boosts.
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
             return
+        snapshot_mask = torch.as_tensor(
+            [str(self._opponent_kind[env_i]).upper() == "SNAPSHOT" for env_i in idx.detach().cpu().tolist()],
+            device=self.device,
+            dtype=torch.bool,
+        )
+        if snapshot_mask.any():
+            neutral_mask = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
+            neutral_mask[idx[snapshot_mask]] = True
+            self._apply_neutral_red_params(neutral_mask)
         grouped: Dict[Tuple[str, str], List[int]] = {}
         for env_i in idx.detach().cpu().tolist():
             use_kind = str(self._opponent_kind[env_i]).upper()
