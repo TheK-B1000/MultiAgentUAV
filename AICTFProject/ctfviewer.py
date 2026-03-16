@@ -98,7 +98,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/4v4/final_ppo_league_4v4.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/8v8/final_ppo_league_8v8.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -822,13 +822,13 @@ class CTFViewer:
             self.core.reset_all()
             print("[Viewer] Reset")
         elif k == pg.K_F2:
-            # Cycle 2v2 -> 3v3 -> 4v4 -> 2v2
+            # Cycle 2v2 -> 3v3 -> 4v4 -> 8v8 -> 2v2
             current = int(getattr(self.cfg, "max_blue_agents", 2))
-            new_agents = {2: 3, 3: 4, 4: 2}.get(current, 3)
+            new_agents = {2: 3, 3: 4, 4: 8, 8: 2}.get(current, 3)
             self._rebuild_core(new_agents)
-        elif k in (pg.K_2, pg.K_3, pg.K_4):
-            # Direct switch: 2 -> 2v2, 3 -> 3v3, 4 -> 4v4
-            new_agents = 2 if k == pg.K_2 else (3 if k == pg.K_3 else 4)
+        elif k in (pg.K_2, pg.K_3, pg.K_4, pg.K_8):
+            # Direct switch: 2 -> 2v2, 3 -> 3v3, 4 -> 4v4, 8 -> 8v8
+            new_agents = {pg.K_2: 2, pg.K_3: 3, pg.K_4: 4, pg.K_8: 8}[k]
             if new_agents != int(getattr(self.cfg, "max_blue_agents", 2)):
                 self._rebuild_core(new_agents)
         elif k == pg.K_F3:
@@ -870,7 +870,7 @@ class CTFViewer:
             "PPO": (120, 255, 120),
             "DEMO": (120, 200, 255),
         }.get(self.blue_mode, (230, 230, 240))
-        txt("F1: Reset | F2: 2v2/3v3/4v4 (cycle) | 2/3/4: set team size | F3: PPO/Demo | ESC: Quit",
+        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 (cycle) | 2/3/4/8: set team size | F3: PPO/Demo | ESC: Quit",
             30, 10, (200, 200, 220))
         txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)}",
             30, 36, mode_clr)
