@@ -2091,7 +2091,13 @@ class BatchedCTFCore:
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
 
-    def step(self, blue_action_flat: torch.Tensor, *, tensor_obs: bool = False):
+    def step(
+        self,
+        blue_action_flat: torch.Tensor,
+        *,
+        tensor_obs: bool = False,
+        red_action_flat: Optional[torch.Tensor] = None,
+    ):
         self._apply_profile_runtime()
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
@@ -2121,38 +2127,63 @@ class BatchedCTFCore:
         else:
             btx, bty = self._build_targets_from_action(macro, targ, side="blue")
         red_macro: Optional[torch.Tensor] = None
-        red_snapshot_mask = torch.as_tensor(
-            [
-                str(self._opponent_kind[i]).upper() == "SNAPSHOT" and _resolve_snapshot_path(self._opponent_key[i]) is not None
-                for i in range(self.B)
-            ],
-            device=self.device,
-            dtype=torch.bool,
-        )
         rtx, rty = self._red_scripted_actions()
-        if red_snapshot_mask.any():
-            red_policy_actions = self._get_red_snapshot_actions(red_snapshot_mask)
-            if red_policy_actions is not None:
-                red_requested_macro, red_requested_targ = red_policy_actions
-                snapshot_agent_mask = red_snapshot_mask[:, None]
-                new_red_commit = snapshot_agent_mask & (self.red_commit_ticks_left <= 0)
-                self.red_commit_macro = torch.where(new_red_commit, red_requested_macro, self.red_commit_macro)
-                self.red_commit_target = torch.where(new_red_commit, red_requested_targ, self.red_commit_target)
-                self.red_commit_ticks_left = torch.where(
-                    new_red_commit,
-                    self._macro_commit_ticks(red_requested_macro),
-                    self.red_commit_ticks_left,
-                )
-                self.red_commit_success = torch.where(
-                    new_red_commit,
-                    torch.zeros_like(self.red_commit_success),
-                    self.red_commit_success,
-                )
-                red_macro = self.red_commit_macro
-                red_targ = self.red_commit_target
-                red_snapshot_tx, red_snapshot_ty = self._build_targets_from_action(red_macro, red_targ, side="red")
-                rtx = torch.where(snapshot_agent_mask, red_snapshot_tx, rtx)
-                rty = torch.where(snapshot_agent_mask, red_snapshot_ty, rty)
+        if red_action_flat is not None:
+            if red_action_flat.device != self.device:
+                red_action_flat = red_action_flat.to(self.device)
+            red_a = red_action_flat.view(self.B, self.Nr, 2)
+            red_requested_macro = torch.remainder(red_a[..., 0].long(), self.cfg.n_macros)
+            red_requested_targ = torch.remainder(red_a[..., 1].long(), self.cfg.n_targets)
+            red_control_mask = torch.ones((self.B,), device=self.device, dtype=torch.bool)
+            external_red_mask = red_control_mask[:, None]
+            new_red_commit = external_red_mask & (self.red_commit_ticks_left <= 0)
+            self.red_commit_macro = torch.where(new_red_commit, red_requested_macro, self.red_commit_macro)
+            self.red_commit_target = torch.where(new_red_commit, red_requested_targ, self.red_commit_target)
+            self.red_commit_ticks_left = torch.where(
+                new_red_commit,
+                self._macro_commit_ticks(red_requested_macro),
+                self.red_commit_ticks_left,
+            )
+            self.red_commit_success = torch.where(
+                new_red_commit,
+                torch.zeros_like(self.red_commit_success),
+                self.red_commit_success,
+            )
+            red_macro = self.red_commit_macro
+            red_targ = self.red_commit_target
+            rtx, rty = self._build_targets_from_action(red_macro, red_targ, side="red")
+        else:
+            red_control_mask = torch.as_tensor(
+                [
+                    str(self._opponent_kind[i]).upper() == "SNAPSHOT" and _resolve_snapshot_path(self._opponent_key[i]) is not None
+                    for i in range(self.B)
+                ],
+                device=self.device,
+                dtype=torch.bool,
+            )
+            if red_control_mask.any():
+                red_policy_actions = self._get_red_snapshot_actions(red_control_mask)
+                if red_policy_actions is not None:
+                    red_requested_macro, red_requested_targ = red_policy_actions
+                    snapshot_agent_mask = red_control_mask[:, None]
+                    new_red_commit = snapshot_agent_mask & (self.red_commit_ticks_left <= 0)
+                    self.red_commit_macro = torch.where(new_red_commit, red_requested_macro, self.red_commit_macro)
+                    self.red_commit_target = torch.where(new_red_commit, red_requested_targ, self.red_commit_target)
+                    self.red_commit_ticks_left = torch.where(
+                        new_red_commit,
+                        self._macro_commit_ticks(red_requested_macro),
+                        self.red_commit_ticks_left,
+                    )
+                    self.red_commit_success = torch.where(
+                        new_red_commit,
+                        torch.zeros_like(self.red_commit_success),
+                        self.red_commit_success,
+                    )
+                    red_macro = self.red_commit_macro
+                    red_targ = self.red_commit_target
+                    red_snapshot_tx, red_snapshot_ty = self._build_targets_from_action(red_macro, red_targ, side="red")
+                    rtx = torch.where(snapshot_agent_mask, red_snapshot_tx, rtx)
+                    rty = torch.where(snapshot_agent_mask, red_snapshot_ty, rty)
 
         # Tagged agents: OpRegion-like forced safe return to home region.
         if self.blue_tagged.any():
@@ -2217,7 +2248,7 @@ class BatchedCTFCore:
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.PLACE_MINE)) & blue_mine_placement_agents)
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GO_HOME)) & blue_cap_agents)
         self.blue_commit_success = self.blue_commit_success | action_success
-        if red_snapshot_mask.any() and red_macro is not None:
+        if red_control_mask.any() and red_macro is not None:
             red_commit_target_xy = self._decode_targets(self.red_commit_target, side="red")
             red_commit_dist = torch.sqrt(
                 (self.red_x - red_commit_target_xy[..., 0]) ** 2
@@ -2241,7 +2272,7 @@ class BatchedCTFCore:
             red_action_success = red_action_success | (
                 (self.red_commit_macro == int(MacroAction.GO_HOME)) & red_cap_agents
             )
-            self.red_commit_success = self.red_commit_success | (red_action_success & red_snapshot_mask[:, None])
+            self.red_commit_success = self.red_commit_success | (red_action_success & red_control_mask[:, None])
 
         sparse_points = self._sparse_reward_points(
             blue_grab_env, red_grab_env, blue_cap_env, red_cap_env,
@@ -2260,11 +2291,11 @@ class BatchedCTFCore:
         roff += float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
         self.blue_commit_ticks_left = torch.where(ended_commit, torch.zeros_like(self.blue_commit_ticks_left), self.blue_commit_ticks_left)
         self.blue_commit_success = torch.where(ended_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
-        if red_snapshot_mask.any() and red_macro is not None:
+        if red_control_mask.any() and red_macro is not None:
             self.red_commit_ticks_left = torch.clamp(self.red_commit_ticks_left - 1, min=0)
             ended_red_commit = (
                 self.red_commit_success | (self.red_commit_ticks_left <= 0) | (~self.red_alive) | self.red_tagged
-            ) & red_snapshot_mask[:, None]
+            ) & red_control_mask[:, None]
             self.red_commit_ticks_left = torch.where(
                 ended_red_commit,
                 torch.zeros_like(self.red_commit_ticks_left),
