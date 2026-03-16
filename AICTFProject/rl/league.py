@@ -134,10 +134,9 @@ class EloLeague:
 
     def sample_league(self, target_rating: Optional[float] = None, phase: Optional[str] = None, enable_snapshots: bool = False) -> OpponentSpec:
         """
-        Sample opponent from league after curriculum qualification.
-        Standard league is 60% scripted OP3 + 20% species + 20% snapshots.
-        Before snapshots exist, the snapshot share is folded back into OP3.
-        min_episodes_per_opponent stickiness is preserved.
+        Sample opponent from the league population after curriculum qualification.
+        Category weights come from anchor_op3_prob / species_prob / snapshot_prob and
+        are renormalized among currently available opponent types.
         """
         target = self.learner_rating if target_rating is None else float(target_rating)
         phase = str(phase).upper() if phase else "OP3"
@@ -153,14 +152,34 @@ class EloLeague:
         if self.use_stability_mix:
             opp_spec = self._sample_stability_mix(target, phase)
         else:
-            # Standard league: OP3 (60%), Species (20%), Snapshots (20%).
-            # If snapshots are not enabled yet, or none exist, fold snapshot mass into OP3.
-            r = self.rng.random()
-            if r < 0.60:
+            categories: List[tuple[str, float]] = []
+            scripted_tag = phase if phase in ("OP1", "OP2", "OP3") else "OP3"
+            categories.append(("SCRIPTED", max(0.0, float(self.anchor_op3_prob))))
+            if self.species_prob > 0.0:
+                categories.append(("SPECIES", max(0.0, float(self.species_prob))))
+            if enable_snapshots and self.snapshots and self.snapshot_prob > 0.0:
+                categories.append(("SNAPSHOT", max(0.0, float(self.snapshot_prob))))
+
+            total_weight = sum(weight for _, weight in categories)
+            if total_weight <= 0.0:
+                chosen_kind = "SCRIPTED"
+            else:
+                pick = self.rng.random() * total_weight
+                acc = 0.0
+                chosen_kind = "SCRIPTED"
+                for kind, weight in categories:
+                    acc += weight
+                    if acc >= pick:
+                        chosen_kind = kind
+                        break
+
+            if chosen_kind == "SCRIPTED":
                 opp_spec = OpponentSpec(
-                    kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3")
+                    kind="SCRIPTED",
+                    key=scripted_tag,
+                    rating=self.get_rating(f"SCRIPTED:{scripted_tag}"),
                 )
-            elif r < 0.80:
+            elif chosen_kind == "SPECIES":
                 if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
                     key = "SPECIES:RUSHER"
                 else:
@@ -168,21 +187,16 @@ class EloLeague:
                 tag = key.split(":", 1)[1]
                 opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
             else:
-                if enable_snapshots and self.snapshots:
-                    path = self._weighted_pick(
-                        self.snapshots,
-                        target,
-                        key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
-                    )
-                    opp_spec = OpponentSpec(
-                        kind="SNAPSHOT",
-                        key=path,
-                        rating=self.get_rating(path_to_snapshot_key(path)),
-                    )
-                else:
-                    opp_spec = OpponentSpec(
-                        kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3")
-                    )
+                path = self._weighted_pick(
+                    self.snapshots,
+                    target,
+                    key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
+                )
+                opp_spec = OpponentSpec(
+                    kind="SNAPSHOT",
+                    key=path,
+                    rating=self.get_rating(path_to_snapshot_key(path)),
+                )
 
         self._last_kind = opp_spec.kind
         self._last_key = opp_spec.key
