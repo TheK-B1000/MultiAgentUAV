@@ -53,7 +53,7 @@ def main() -> None:
     parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
     parser.add_argument("--match-eval-op3", action="store_true", help="Use OP3 (training-time opponent), 100 episodes, seed=42.")
     parser.add_argument("--out", type=str, default="3v3_winrate.png", help="Output plot path")
-    parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
+    parser.add_argument("--device", type=str, default="cuda", help="Device for eval (cpu or cuda)")
     args = parser.parse_args()
     if args.match_eval:
         args.opponent = "OP4"

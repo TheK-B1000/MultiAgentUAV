@@ -40,7 +40,7 @@ def main() -> None:
         help="Scripted opponent (OP1, OP2, OP3, OP4). Default OP4 (harder, held-out).",
     )
     parser.add_argument("--out", type=str, default="6v6_winrate.png", help="Output plot path")
-    parser.add_argument("--device", type=str, default="cpu", help="Device for eval (cpu or cuda)")
+    parser.add_argument("--device", type=str, default="cuda", help="Device for eval (cpu or cuda)")
     parser.add_argument("--seed", type=int, default=42, help="Base random seed (OP4 uses seed+1).")
     args = parser.parse_args()
 
