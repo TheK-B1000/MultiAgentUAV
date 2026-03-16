@@ -197,9 +197,13 @@ class PPOConfig:
 
     mode: str = TrainMode.CURRICULUM_LEAGUE.value
     fixed_opponent_tag: str = "OP3"
-    self_play_use_latest_snapshot: bool = True
+    self_play_use_latest_snapshot: bool = False
+    self_play_latest_snapshot_prob: float = 0.35
     self_play_snapshot_every_episodes: int = 200
     self_play_max_snapshots: int = 5
+    league_anchor_op3_prob: float = 0.60
+    league_species_prob: float = 0.20
+    league_snapshot_prob: float = 0.20
 
     action_flip_prob: float = 0.0
     use_deterministic: bool = False
@@ -222,6 +226,12 @@ class PPOConfig:
     match_op3_exposure: bool = False
     fixed_eval_every_episodes: int = 500
     fixed_eval_episodes: int = 10
+    enable_mirror_eval: bool = True
+    mirror_eval_every_episodes: int = 500
+    mirror_eval_episodes: int = 10
+    enable_league_eval: bool = True
+    league_eval_every_episodes: int = 500
+    league_eval_episodes: int = 6
     use_reduced_aggressiveness: bool = False
     use_stable_marl_ppo: bool = True
     target_kl: Optional[float] = 0.02
@@ -716,6 +726,181 @@ class LeagueCallback(BaseCallback):
         return True
 
 
+class LeagueEvalCallback(BaseCallback):
+    """Deterministic league evaluation against anchors, species, snapshots, and mirror self-play."""
+
+    def __init__(self, *, cfg: PPOConfig, league: EloLeague) -> None:
+        super().__init__(verbose=0)
+        self.cfg = cfg
+        self.league = league
+        self.episode_idx = 0
+        self._eval_env: Optional[GPUCTFVecEnv] = None
+        self._mirror_eval_snapshot_path = os.path.join(
+            self.cfg.checkpoint_dir,
+            f"{self.cfg.run_tag}_league_mirror_eval_current.zip",
+        )
+
+    def _init_callback(self) -> None:
+        eval_cfg = GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=max(1, int(getattr(self.cfg, "max_blue_agents", 2))),
+            max_red_agents=max(1, int(getattr(self.cfg, "max_blue_agents", 2))),
+            max_decision_steps=max(1, int(self.cfg.max_decision_steps)),
+            aquaticus_profile=True,
+            rules_profile="OURS",
+            device=str(self.cfg.device),
+            seed=int(self.cfg.seed) + 2000,
+        )
+        self._eval_env = GPUCTFVecEnv(eval_cfg)
+        try:
+            self._eval_env.env_method("set_stress_schedule", STRESS_BY_PHASE)
+        except Exception:
+            pass
+
+    def _run_eval_matchup(self, kind: str, key: str, *, episodes: int, phase: str) -> Optional[Tuple[int, int, int]]:
+        env = self._eval_env
+        if env is None:
+            return None
+        try:
+            env.env_method("set_next_opponent", kind, key)
+            env.env_method("set_phase", phase)
+            env.env_method("set_league_mode", True)
+        except Exception:
+            return None
+
+        wins = 0
+        losses = 0
+        draws = 0
+        obs = env.reset()
+        completed = 0
+        while completed < episodes:
+            actions, _ = self.model.predict(obs, deterministic=True)
+            env.step_async(actions)
+            obs, _, dones, infos = env.step_wait()
+            if not bool(dones[0]):
+                continue
+            summary = parse_episode_result(infos[0])
+            if summary is None:
+                continue
+            if summary.blue_score > summary.red_score:
+                wins += 1
+            elif summary.blue_score < summary.red_score:
+                losses += 1
+            else:
+                draws += 1
+            completed += 1
+        return wins, losses, draws
+
+    def _run_mirror_eval(self, episodes: int) -> Optional[Tuple[int, int, int]]:
+        env = self._eval_env
+        if env is None:
+            return None
+        mirror_path_no_ext = os.path.splitext(self._mirror_eval_snapshot_path)[0]
+        try:
+            self.model.save(mirror_path_no_ext)
+            env.env_method("set_next_opponent", "SNAPSHOT", self._mirror_eval_snapshot_path)
+            env.env_method("set_phase", "OP3")
+            env.env_method("set_league_mode", True)
+        except Exception:
+            return None
+        wins = 0
+        losses = 0
+        draws = 0
+        obs = env.reset()
+        completed = 0
+        while completed < episodes:
+            actions, _ = self.model.predict(obs, deterministic=True)
+            env.step_async(actions)
+            obs, _, dones, infos = env.step_wait()
+            if not bool(dones[0]):
+                continue
+            summary = parse_episode_result(infos[0])
+            if summary is None:
+                continue
+            if summary.blue_score > summary.red_score:
+                wins += 1
+            elif summary.blue_score < summary.red_score:
+                losses += 1
+            else:
+                draws += 1
+            completed += 1
+        return wins, losses, draws
+
+    def _record_matchup(self, label: str, result: Tuple[int, int, int]) -> None:
+        wins, losses, draws = result
+        total = max(1, wins + losses + draws)
+        wr = wins / total
+        _log_line(
+            f"[PPO|LEAGUE_EVAL] ep={self.episode_idx} opp={label} "
+            f"W={wins} L={losses} D={draws} WR={100.0 * wr:.1f}% over {total} episodes"
+        )
+        metric = label.lower().replace(":", "_").replace("/", "_").replace("-", "_")
+        self.logger.record(f"league_eval/{metric}_win_rate", wr)
+        self.logger.record(f"league_eval/{metric}_draw_rate", draws / total)
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
+        for i, done in enumerate(dones):
+            if not done:
+                continue
+            info = infos[i] if i < len(infos) else {}
+            summary = parse_episode_result(info)
+            if summary is None:
+                continue
+            self.episode_idx += 1
+            if not bool(info.get("league_mode", False)):
+                continue
+            if not bool(getattr(self.cfg, "enable_league_eval", True)):
+                continue
+            every = max(1, int(getattr(self.cfg, "league_eval_every_episodes", 500)))
+            if self.episode_idx % every != 0:
+                continue
+
+            episodes = max(1, int(getattr(self.cfg, "league_eval_episodes", 6)))
+            for scripted_tag in ("OP1", "OP2", "OP3"):
+                result = self._run_eval_matchup("SCRIPTED", scripted_tag, episodes=episodes, phase=scripted_tag)
+                if result is not None:
+                    self._record_matchup(f"SCRIPTED:{scripted_tag}", result)
+
+            for species_tag in ("RUSHER", "CAMPER", "BALANCED"):
+                result = self._run_eval_matchup("SPECIES", species_tag, episodes=episodes, phase="OP3")
+                if result is not None:
+                    self._record_matchup(f"SPECIES:{species_tag}", result)
+
+            latest_snapshot = self.league.latest_snapshot_key()
+            if latest_snapshot:
+                result = self._run_eval_matchup("SNAPSHOT", latest_snapshot, episodes=episodes, phase="OP3")
+                if result is not None:
+                    self._record_matchup(path_to_snapshot_key(latest_snapshot), result)
+
+            if self.league.snapshots:
+                spec = self.league.sample_snapshot(target_rating=self.league.learner_rating)
+                if spec.kind == "SNAPSHOT":
+                    result = self._run_eval_matchup("SNAPSHOT", spec.key, episodes=episodes, phase="OP3")
+                    if result is not None:
+                        self._record_matchup(f"RATED/{path_to_snapshot_key(spec.key)}", result)
+
+            if bool(getattr(self.cfg, "enable_mirror_eval", True)):
+                mirror_result = self._run_mirror_eval(max(1, int(getattr(self.cfg, "mirror_eval_episodes", episodes))))
+                if mirror_result is not None:
+                    self._record_matchup("MIRROR_CURRENT", mirror_result)
+        return True
+
+    def _on_training_end(self) -> None:
+        if self._eval_env is not None:
+            try:
+                self._eval_env.close()
+            except Exception:
+                pass
+            self._eval_env = None
+        try:
+            if os.path.exists(self._mirror_eval_snapshot_path):
+                os.remove(self._mirror_eval_snapshot_path)
+        except Exception:
+            pass
+
+
 class CurriculumNoLeagueCallback(BaseCallback):
     """OP1 -> OP2 -> OP3 curriculum only; no league, no species, no snapshots."""
 
@@ -930,6 +1115,10 @@ class SelfPlayCallback(BaseCallback):
         self._snapshot_roll_index = 0
         self._total_snapshots_created = 0
         self._eval_env: Optional[GPUCTFVecEnv] = None
+        self._mirror_eval_snapshot_path = os.path.join(
+            self.cfg.checkpoint_dir,
+            f"{self.cfg.run_tag}_mirror_eval_current.zip",
+        )
 
     def _init_callback(self) -> None:
         eval_cfg = GPUFieldConfig(
@@ -985,6 +1174,56 @@ class SelfPlayCallback(BaseCallback):
                 draws += 1
             completed += 1
         return wins, losses, draws
+
+    def _run_mirror_eval(self) -> Optional[Tuple[int, int, int]]:
+        env = self._eval_env
+        if env is None:
+            return None
+        episodes = max(1, int(getattr(self.cfg, "mirror_eval_episodes", 10)))
+        mirror_path_no_ext = os.path.splitext(self._mirror_eval_snapshot_path)[0]
+        try:
+            self.model.save(mirror_path_no_ext)
+            env.env_method("set_next_opponent", "SNAPSHOT", self._mirror_eval_snapshot_path)
+            env.env_method("set_phase", "SELF_PLAY")
+        except Exception:
+            return None
+
+        wins = 0
+        losses = 0
+        draws = 0
+        obs = env.reset()
+        completed = 0
+        while completed < episodes:
+            actions, _ = self.model.predict(obs, deterministic=True)
+            env.step_async(actions)
+            obs, _, dones, infos = env.step_wait()
+            if not bool(dones[0]):
+                continue
+            summary = parse_episode_result(infos[0])
+            if summary is None:
+                continue
+            if summary.blue_score > summary.red_score:
+                wins += 1
+            elif summary.blue_score < summary.red_score:
+                losses += 1
+            else:
+                draws += 1
+            completed += 1
+        return wins, losses, draws
+
+    def _choose_training_snapshot(self) -> Optional[str]:
+        if len(self.league.snapshots) == 0:
+            return None
+        latest_snapshot = self.league.latest_snapshot_key()
+        if bool(self.cfg.self_play_use_latest_snapshot):
+            return latest_snapshot
+        latest_prob = max(0.0, min(1.0, float(getattr(self.cfg, "self_play_latest_snapshot_prob", 0.35))))
+        if latest_snapshot and len(self.league.snapshots) > 1 and self.league.rng.random() < latest_prob:
+            return latest_snapshot
+        spec = self.league.sample_snapshot()
+        if spec.kind == "SNAPSHOT":
+            return spec.key
+        return latest_snapshot
 
     def _enforce_snapshot_limit(self) -> None:
         if self._max_snapshots <= 0:
@@ -1076,13 +1315,24 @@ class SelfPlayCallback(BaseCallback):
             self.logger.record("self/snapshots", float(len(self.league.snapshots)))
             self.logger.record("self/total_snapshots_created", float(self._total_snapshots_created))
 
-            next_snapshot = None
-            if bool(self.cfg.self_play_use_latest_snapshot):
-                next_snapshot = self.league.latest_snapshot_key()
-            else:
-                spec = self.league.sample_snapshot()
-                if spec.kind == "SNAPSHOT":
-                    next_snapshot = spec.key
+            if (
+                bool(getattr(self.cfg, "enable_mirror_eval", True))
+                and self.episode_idx > 0
+                and self.episode_idx % max(1, int(getattr(self.cfg, "mirror_eval_every_episodes", 500))) == 0
+            ):
+                mirror_result = self._run_mirror_eval()
+                if mirror_result is not None:
+                    mir_w, mir_l, mir_d = mirror_result
+                    mir_eps = max(1, mir_w + mir_l + mir_d)
+                    mir_wr = 100.0 * mir_w / mir_eps
+                    _log_line(
+                        f"[PPO|MIRROR_EVAL] ep={self.episode_idx} current_vs_current "
+                        f"W={mir_w} L={mir_l} D={mir_d} WR={mir_wr:.1f}% over {mir_eps} deterministic episodes"
+                    )
+                    self.logger.record("mirror_eval/win_rate", mir_w / mir_eps)
+                    self.logger.record("mirror_eval/draw_rate", mir_d / mir_eps)
+
+            next_snapshot = self._choose_training_snapshot()
 
             if len(self.league.snapshots) == 0:
                 fallback_path = os.path.join(
@@ -1111,6 +1361,11 @@ class SelfPlayCallback(BaseCallback):
             except Exception:
                 pass
             self._eval_env = None
+        try:
+            if os.path.exists(self._mirror_eval_snapshot_path):
+                os.remove(self._mirror_eval_snapshot_path)
+        except Exception:
+            pass
 
 
 class FixedOpponentCallback(BaseCallback):
@@ -1516,18 +1771,21 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         cfg.max_decision_steps = min(original_max_decision_steps, 250)
 
     # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
+    # Only print league mix message when this run actually uses league (League or Self-play); Paper is curriculum-only.
+    uses_league = mode in (TrainMode.CURRICULUM_LEAGUE.value, TrainMode.SELF_PLAY.value)
     match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
     if match_op3:
         anchor_op3_prob = 1.0
         species_prob = 0.0
         snapshot_prob = 0.0
-        print("[League] match_op3_exposure=True: 100% OP3 (2v2 control)")
+        if uses_league:
+            print("[League] match_op3_exposure=True: 100% OP3 (2v2 control)")
     else:
-        if max_agents > 2:
+        if uses_league and max_agents > 2:
             print(f"[League] {team_size}: using opponent mix (OP1/OP2/OP3/snapshots) to keep WR in learnable band")
-        anchor_op3_prob = float(getattr(cfg, "anchor_op3_prob", 0.40))
-        species_prob = 0.20
-        snapshot_prob = 0.0
+        anchor_op3_prob = float(getattr(cfg, "league_anchor_op3_prob", 0.60))
+        species_prob = float(getattr(cfg, "league_species_prob", 0.20))
+        snapshot_prob = float(getattr(cfg, "league_snapshot_prob", 0.20))
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
@@ -1599,6 +1857,20 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     else:
         default_opponent = ("SCRIPTED", "OP1")
         phase_name = curriculum.phase if curriculum is not None else "OP1"
+
+    # Safety: GPUCTFVecEnv currently stores opponent/phase/league state globally on the core,
+    # so dynamic-opponent modes are only correct with a single live env.
+    dynamic_opponent_mode = mode in (
+        TrainMode.CURRICULUM_LEAGUE.value,
+        TrainMode.CURRICULUM_NO_LEAGUE.value,
+        TrainMode.SELF_PLAY.value,
+    )
+    if dynamic_opponent_mode and int(cfg.n_envs) != 1:
+        print(
+            f"[PPO] Forcing n_envs {cfg.n_envs}->1 for {mode}: "
+            "opponent/phase state is global in GPUCTFVecEnv, so multi-env dynamic training is not correct yet."
+        )
+        cfg.n_envs = 1
 
     # If using CUDA, check that this PyTorch build supports the GPU (e.g. RTX 50-series needs nightly/sm_120)
     if str(cfg.device).lower().startswith("cuda"):
@@ -1768,6 +2040,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     callbacks = []
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
         callbacks.append(LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller))
+        callbacks.append(LeagueEvalCallback(cfg=cfg, league=league))
     elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
         callbacks.append(CurriculumNoLeagueCallback(cfg=cfg, curriculum=curriculum))
     elif mode == TrainMode.SELF_PLAY.value:
