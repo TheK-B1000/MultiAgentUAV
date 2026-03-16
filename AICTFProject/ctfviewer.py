@@ -480,9 +480,11 @@ class CoreRenderer:
 # ---------------------------------------------------------------------------
 class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
-                 device: str = "cpu"):
+                 device: str = "cpu",
+                 deterministic: bool = True):
         self.device = str(device)
         self.ppo_model_path = str(ppo_model_path)
+        self.deterministic = bool(deterministic)
         model_meta = _read_model_metadata(ppo_model_path)
         initial_agents = max(1, int(model_meta.get("n_blue", 2)))
         paper_steps = 400
@@ -507,29 +509,8 @@ class CTFViewer:
             self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
             self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
-
-            # Match eval/training's scripted test opponent.
-            opp = sample_batched_opponent_params(
-                kind="SCRIPTED",
-                key="OP3",
-                phase="OP3",
-                n_agents=cfg.max_red_agents,
-                batch_size=cfg.n_envs,
-                device=cfg.device,
-            )
-            dyn_cfg = {}
-            if "deception_prob" in opp:
-                dyn_cfg["deception_prob"] = opp["deception_prob"]
-            if "speed_mult" in opp:
-                dyn_cfg["speed_mult"] = opp["speed_mult"]
-            if "attacker_style" in opp:
-                dyn_cfg["attacker_style"] = opp["attacker_style"]
-            if "defender_style" in opp:
-                dyn_cfg["defender_style"] = opp["defender_style"]
-            if "role_switch_prob" in opp:
-                dyn_cfg["role_switch_prob"] = opp["role_switch_prob"]
-            if dyn_cfg:
-                self.core.set_dynamics_config(dyn_cfg)
+            # Use the core's official opponent-selection path so every reset re-applies OP3.
+            self.core.set_next_opponent("SCRIPTED", "OP3")
         except Exception:
             # Fall back silently if curriculum/opponent modules are unavailable; core defaults will be used.
             pass
@@ -544,6 +525,7 @@ class CTFViewer:
             n_macros=cfg.n_macros,
             n_targets=cfg.n_targets,
             device=self.device,
+            deterministic=self.deterministic,
         )
 
         if self.ppo.model_loaded:
@@ -585,6 +567,7 @@ class CTFViewer:
                 n_macros=self.cfg.n_macros,
                 n_targets=self.cfg.n_targets,
                 device=self.device,
+                deterministic=self.deterministic,
                 print_traceback=False,
             )
             if controller.model_loaded:
@@ -774,28 +757,7 @@ class CTFViewer:
             self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
             self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
-
-            opp = sample_batched_opponent_params(
-                kind="SCRIPTED",
-                key="OP3",
-                phase="OP3",
-                n_agents=agents,
-                batch_size=self.cfg.n_envs,
-                device=self.cfg.device,
-            )
-            dyn_cfg: Dict[str, Any] = {}
-            if "deception_prob" in opp:
-                dyn_cfg["deception_prob"] = opp["deception_prob"]
-            if "speed_mult" in opp:
-                dyn_cfg["speed_mult"] = opp["speed_mult"]
-            if "attacker_style" in opp:
-                dyn_cfg["attacker_style"] = opp["attacker_style"]
-            if "defender_style" in opp:
-                dyn_cfg["defender_style"] = opp["defender_style"]
-            if "role_switch_prob" in opp:
-                dyn_cfg["role_switch_prob"] = opp["role_switch_prob"]
-            if dyn_cfg:
-                self.core.set_dynamics_config(dyn_cfg)
+            self.core.set_next_opponent("SCRIPTED", "OP3")
         except Exception:
             # If curriculum/opponent code is unavailable, fall back to defaults
             pass
@@ -853,6 +815,12 @@ class CTFViewer:
                 if self.blue_mode == "PPO":
                     self._ppo_mismatch_warned = False
                 print(f"[Viewer] Blue -> {self.blue_mode}")
+        elif k == pg.K_F4:
+            self.deterministic = not self.deterministic
+            if self.ppo is not None:
+                self.ppo.deterministic = self.deterministic
+            mode = "deterministic" if self.deterministic else "stochastic"
+            print(f"[Viewer] PPO inference -> {mode}")
 
     # ---- drawing ----
 
@@ -870,13 +838,14 @@ class CTFViewer:
             "PPO": (120, 255, 120),
             "DEMO": (120, 200, 255),
         }.get(self.blue_mode, (230, 230, 240))
-        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 (cycle) | 2/3/4/8: set team size | F3: PPO/Demo | ESC: Quit",
+        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 (cycle) | 2/3/4/8: set team size | F3: PPO/Demo | F4: det/stoch | ESC: Quit",
             30, 10, (200, 200, 220))
         txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)}",
             30, 36, mode_clr)
 
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
-            txt(f"Model: {os.path.basename(self.ppo.model_path or '')}",
+            infer_mode = "det" if self.deterministic else "stoch"
+            txt(f"Model: {os.path.basename(self.ppo.model_path or '')} | {infer_mode}",
                 350, 36, (140, 240, 140))
 
         bs = int(self.core.blue_score[0].item())
@@ -902,11 +871,14 @@ if __name__ == "__main__":
                         help="Headless evaluation (no display)")
     parser.add_argument("--device", type=str, default="cpu",
                         help="Torch device (cpu / cuda)")
+    parser.add_argument("--stochastic", action="store_true",
+                        help="Use stochastic PPO actions instead of deterministic inference")
     args = parser.parse_args()
 
     viewer = CTFViewer(
         ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
         device=args.device,
+        deterministic=not args.stochastic,
     )
 
     if args.eval is not None:
