@@ -475,7 +475,7 @@ def main() -> None:
     if table_opp not in opponents:
         table_opp = main_opp
     table_rows: list[dict] = []
-    for mode, model_paths in [("2v2", model_paths_2v2), ("3v3", model_paths_3v3), ("4v4", model_paths_4v4)]:
+    for mode, model_paths in [("2v2", model_paths_2v2), ("3v3", model_paths_3v3), ("4v4", model_paths_4v4), ("8v8", model_paths_8v8)]:
         results = results_by_mode.get(mode, {})
         for label, _ in model_paths:
             r = results.get((label, table_opp), {})
