@@ -791,40 +791,78 @@ class LeagueEvalCallback(BaseCallback):
             completed += 1
         return wins, losses, draws
 
-    def _run_mirror_eval(self, episodes: int) -> Optional[Tuple[int, int, int]]:
+    def _run_side_swapped_mirror_eval(self, episodes: int) -> Optional[Dict[str, Tuple[int, int, int]]]:
         env = self._eval_env
         if env is None:
             return None
         mirror_path_no_ext = os.path.splitext(self._mirror_eval_snapshot_path)[0]
         try:
             self.model.save(mirror_path_no_ext)
-            env.env_method("set_next_opponent", "SNAPSHOT", self._mirror_eval_snapshot_path)
             env.env_method("set_phase", "OP3")
             env.env_method("set_league_mode", True)
         except Exception:
             return None
-        wins = 0
-        losses = 0
-        draws = 0
-        obs = env.reset()
-        completed = 0
-        while completed < episodes:
-            actions, _ = self.model.predict(obs, deterministic=True)
-            env.step_async(actions)
-            obs, _, dones, infos = env.step_wait()
-            if not bool(dones[0]):
-                continue
-            summary = parse_episode_result(infos[0])
-            if summary is None:
-                continue
-            if summary.blue_score > summary.red_score:
-                wins += 1
-            elif summary.blue_score < summary.red_score:
-                losses += 1
-            else:
-                draws += 1
-            completed += 1
-        return wins, losses, draws
+        snapshot_model = env.core._load_snapshot_policy(self._mirror_eval_snapshot_path)
+        if snapshot_model is None:
+            return None
+
+        def _obs_numpy(side: str) -> Dict[str, np.ndarray]:
+            return {
+                k: v.detach().cpu().numpy().astype(np.float32)
+                for k, v in env.core.get_obs_tensors(side=side).items()
+            }
+
+        def _run_pass(blue_model, red_model, *, current_side: str) -> Tuple[int, int, int]:
+            wins = 0
+            losses = 0
+            draws = 0
+            env.core.reset_all()
+            completed = 0
+            while completed < episodes:
+                blue_obs = _obs_numpy("blue")
+                red_obs = _obs_numpy("red")
+                blue_actions_np, _ = blue_model.predict(blue_obs, deterministic=True)
+                red_actions_np, _ = red_model.predict(red_obs, deterministic=True)
+                blue_actions = torch.as_tensor(blue_actions_np, dtype=torch.int64, device=env.core.device)
+                red_actions = torch.as_tensor(red_actions_np, dtype=torch.int64, device=env.core.device)
+                _, _, terminated, truncated, infos = env.core.step(
+                    blue_actions,
+                    tensor_obs=True,
+                    red_action_flat=red_actions,
+                )
+                done = torch.logical_or(terminated, truncated)
+                if not bool(done[0].item()):
+                    continue
+                summary = parse_episode_result(infos[0])
+                if summary is not None:
+                    if current_side == "blue":
+                        if summary.blue_score > summary.red_score:
+                            wins += 1
+                        elif summary.blue_score < summary.red_score:
+                            losses += 1
+                        else:
+                            draws += 1
+                    else:
+                        if summary.red_score > summary.blue_score:
+                            wins += 1
+                        elif summary.red_score < summary.blue_score:
+                            losses += 1
+                        else:
+                            draws += 1
+                    completed += 1
+                env.core.reset_indices(done)
+            return wins, losses, draws
+
+        blue_pass = _run_pass(self.model, snapshot_model, current_side="blue")
+        red_pass = _run_pass(snapshot_model, self.model, current_side="red")
+        total_w = blue_pass[0] + red_pass[0]
+        total_l = blue_pass[1] + red_pass[1]
+        total_d = blue_pass[2] + red_pass[2]
+        return {
+            "blue": blue_pass,
+            "red": red_pass,
+            "avg": (total_w, total_l, total_d),
+        }
 
     def _record_matchup(self, label: str, result: Tuple[int, int, int]) -> None:
         wins, losses, draws = result
@@ -882,9 +920,13 @@ class LeagueEvalCallback(BaseCallback):
                         self._record_matchup(f"RATED/{path_to_snapshot_key(spec.key)}", result)
 
             if bool(getattr(self.cfg, "enable_mirror_eval", True)):
-                mirror_result = self._run_mirror_eval(max(1, int(getattr(self.cfg, "mirror_eval_episodes", episodes))))
+                mirror_result = self._run_side_swapped_mirror_eval(max(1, int(getattr(self.cfg, "mirror_eval_episodes", episodes))))
                 if mirror_result is not None:
-                    self._record_matchup("MIRROR_CURRENT", mirror_result)
+                    blue_w, blue_l, blue_d = mirror_result["blue"]
+                    red_w, red_l, red_d = mirror_result["red"]
+                    self._record_matchup("MIRROR_CURRENT_AVG", mirror_result["avg"])
+                    self._record_matchup("MIRROR_CURRENT_AS_BLUE", (blue_w, blue_l, blue_d))
+                    self._record_matchup("MIRROR_CURRENT_AS_RED", (red_w, red_l, red_d))
         return True
 
     def _on_training_end(self) -> None:
@@ -1175,7 +1217,7 @@ class SelfPlayCallback(BaseCallback):
             completed += 1
         return wins, losses, draws
 
-    def _run_mirror_eval(self) -> Optional[Tuple[int, int, int]]:
+    def _run_side_swapped_mirror_eval(self) -> Optional[Dict[str, Tuple[int, int, int]]]:
         env = self._eval_env
         if env is None:
             return None
@@ -1183,33 +1225,70 @@ class SelfPlayCallback(BaseCallback):
         mirror_path_no_ext = os.path.splitext(self._mirror_eval_snapshot_path)[0]
         try:
             self.model.save(mirror_path_no_ext)
-            env.env_method("set_next_opponent", "SNAPSHOT", self._mirror_eval_snapshot_path)
             env.env_method("set_phase", "SELF_PLAY")
         except Exception:
             return None
+        snapshot_model = env.core._load_snapshot_policy(self._mirror_eval_snapshot_path)
+        if snapshot_model is None:
+            return None
 
-        wins = 0
-        losses = 0
-        draws = 0
-        obs = env.reset()
-        completed = 0
-        while completed < episodes:
-            actions, _ = self.model.predict(obs, deterministic=True)
-            env.step_async(actions)
-            obs, _, dones, infos = env.step_wait()
-            if not bool(dones[0]):
-                continue
-            summary = parse_episode_result(infos[0])
-            if summary is None:
-                continue
-            if summary.blue_score > summary.red_score:
-                wins += 1
-            elif summary.blue_score < summary.red_score:
-                losses += 1
-            else:
-                draws += 1
-            completed += 1
-        return wins, losses, draws
+        def _obs_numpy(side: str) -> Dict[str, np.ndarray]:
+            return {
+                k: v.detach().cpu().numpy().astype(np.float32)
+                for k, v in env.core.get_obs_tensors(side=side).items()
+            }
+
+        def _run_pass(blue_model, red_model, *, current_side: str) -> Tuple[int, int, int]:
+            wins = 0
+            losses = 0
+            draws = 0
+            env.core.reset_all()
+            completed = 0
+            while completed < episodes:
+                blue_obs = _obs_numpy("blue")
+                red_obs = _obs_numpy("red")
+                blue_actions_np, _ = blue_model.predict(blue_obs, deterministic=True)
+                red_actions_np, _ = red_model.predict(red_obs, deterministic=True)
+                blue_actions = torch.as_tensor(blue_actions_np, dtype=torch.int64, device=env.core.device)
+                red_actions = torch.as_tensor(red_actions_np, dtype=torch.int64, device=env.core.device)
+                _, _, terminated, truncated, infos = env.core.step(
+                    blue_actions,
+                    tensor_obs=True,
+                    red_action_flat=red_actions,
+                )
+                done = torch.logical_or(terminated, truncated)
+                if not bool(done[0].item()):
+                    continue
+                summary = parse_episode_result(infos[0])
+                if summary is not None:
+                    if current_side == "blue":
+                        if summary.blue_score > summary.red_score:
+                            wins += 1
+                        elif summary.blue_score < summary.red_score:
+                            losses += 1
+                        else:
+                            draws += 1
+                    else:
+                        if summary.red_score > summary.blue_score:
+                            wins += 1
+                        elif summary.red_score < summary.blue_score:
+                            losses += 1
+                        else:
+                            draws += 1
+                    completed += 1
+                env.core.reset_indices(done)
+            return wins, losses, draws
+
+        blue_pass = _run_pass(self.model, snapshot_model, current_side="blue")
+        red_pass = _run_pass(snapshot_model, self.model, current_side="red")
+        total_w = blue_pass[0] + red_pass[0]
+        total_l = blue_pass[1] + red_pass[1]
+        total_d = blue_pass[2] + red_pass[2]
+        return {
+            "blue": blue_pass,
+            "red": red_pass,
+            "avg": (total_w, total_l, total_d),
+        }
 
     def _choose_training_snapshot(self) -> Optional[str]:
         if len(self.league.snapshots) == 0:
@@ -1320,17 +1399,25 @@ class SelfPlayCallback(BaseCallback):
                 and self.episode_idx > 0
                 and self.episode_idx % max(1, int(getattr(self.cfg, "mirror_eval_every_episodes", 500))) == 0
             ):
-                mirror_result = self._run_mirror_eval()
+                mirror_result = self._run_side_swapped_mirror_eval()
                 if mirror_result is not None:
-                    mir_w, mir_l, mir_d = mirror_result
+                    blue_w, blue_l, blue_d = mirror_result["blue"]
+                    red_w, red_l, red_d = mirror_result["red"]
+                    mir_w, mir_l, mir_d = mirror_result["avg"]
                     mir_eps = max(1, mir_w + mir_l + mir_d)
                     mir_wr = 100.0 * mir_w / mir_eps
                     _log_line(
-                        f"[PPO|MIRROR_EVAL] ep={self.episode_idx} current_vs_current "
-                        f"W={mir_w} L={mir_l} D={mir_d} WR={mir_wr:.1f}% over {mir_eps} deterministic episodes"
+                        f"[PPO|MIRROR_EVAL] ep={self.episode_idx} avg "
+                        f"W={mir_w} L={mir_l} D={mir_d} WR={mir_wr:.1f}% over {mir_eps} deterministic episodes "
+                        f"| current_as_blue={blue_w}-{blue_l}-{blue_d} "
+                        f"| current_as_red={red_w}-{red_l}-{red_d}"
                     )
                     self.logger.record("mirror_eval/win_rate", mir_w / mir_eps)
                     self.logger.record("mirror_eval/draw_rate", mir_d / mir_eps)
+                    blue_eps = max(1, blue_w + blue_l + blue_d)
+                    red_eps = max(1, red_w + red_l + red_d)
+                    self.logger.record("mirror_eval/current_as_blue_win_rate", blue_w / blue_eps)
+                    self.logger.record("mirror_eval/current_as_red_win_rate", red_w / red_eps)
 
             next_snapshot = self._choose_training_snapshot()
 
@@ -1784,7 +1871,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         anchor_op3_prob = float(getattr(cfg, "league_anchor_op3_prob", 0.60))
         species_prob = float(getattr(cfg, "league_species_prob", 0.20))
         snapshot_prob = float(getattr(cfg, "league_snapshot_prob", 0.20))
-        if uses_league and max_agents > 2:
+        if uses_league:
             print(
                 f"[League] {team_size}: using league mix "
                 f"(OP3={100.0 * anchor_op3_prob:.0f}%, species={100.0 * species_prob:.0f}%, "
