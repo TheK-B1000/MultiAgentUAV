@@ -1858,8 +1858,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         cfg.max_decision_steps = min(original_max_decision_steps, 250)
 
     # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
-    # Only print league mix message when this run actually uses league (League or Self-play); Paper is curriculum-only.
-    uses_league = mode in (TrainMode.CURRICULUM_LEAGUE.value, TrainMode.SELF_PLAY.value)
+    # Logging:
+    # - League (CURRICULUM_LEAGUE) prints the actual scripted/species/snapshot mix.
+    # - Self-play uses pure self-play vs its own snapshot pool; we log that separately instead of reusing the league mix line.
+    uses_league = mode == TrainMode.CURRICULUM_LEAGUE.value
     match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
     if match_op3:
         anchor_op3_prob = 1.0
@@ -1871,12 +1873,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         anchor_op3_prob = float(getattr(cfg, "league_anchor_op3_prob", 0.60))
         species_prob = float(getattr(cfg, "league_species_prob", 0.20))
         snapshot_prob = float(getattr(cfg, "league_snapshot_prob", 0.20))
-        if uses_league:
+        if mode == TrainMode.CURRICULUM_LEAGUE.value:
             print(
                 f"[League] {team_size}: using league mix "
                 f"(OP3={100.0 * anchor_op3_prob:.0f}%, species={100.0 * species_prob:.0f}%, "
                 f"snapshots={100.0 * snapshot_prob:.0f}%)"
             )
+        elif mode == TrainMode.SELF_PLAY.value:
+            max_snaps = int(getattr(cfg, "self_play_max_snapshots", 0))
+            if max_snaps > 0:
+                print(f"[SelfPlay] {team_size}: pure self-play vs rolling snapshot pool (max {max_snaps} snapshots)")
+            else:
+                print(f"[SelfPlay] {team_size}: pure self-play vs latest checkpoint (no snapshot pool configured)")
     league = EloLeague(
         seed=cfg.seed,
         k_factor=32.0,
