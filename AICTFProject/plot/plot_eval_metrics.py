@@ -330,7 +330,7 @@ def load_training_success_auc(csv_path: str) -> float | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2, 3v3, 4v4)")
+    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2, 3v3, 4v4, 8v8)")
     parser.add_argument("--league", type=str, default=None, help="2v2 League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="2v2 Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="2v2 Self-play model .zip")
@@ -340,6 +340,9 @@ def main() -> None:
     parser.add_argument("--league-4v4", type=str, default=None, help="4v4 League model .zip")
     parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 Paper model .zip")
     parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play model .zip")
+    parser.add_argument("--league-8v8", type=str, default=None, help="8v8 League model .zip")
+    parser.add_argument("--paper-8v8", type=str, default=None, help="8v8 Paper model .zip")
+    parser.add_argument("--selfplay-8v8", type=str, default=None, help="8v8 Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--opponent", type=str, default=None, help="Single opponent (used only if --opponents not set)")
     parser.add_argument(
@@ -385,7 +388,7 @@ def main() -> None:
             p = p + ".zip"
         return os.path.abspath(p)
 
-    # 2v2: same defaults as plot_2v2_winrate.py
+    # 2v2: same defaults as (modern) plot_2v2_winrate.py
     model_paths_2v2 = [
         ("Ours", path_or_default(args.league, "final_ppo_league_2v2_colab.zip", "2v2")),
         ("Jacob et al.", path_or_default(args.paper, "final_weekend_paper_2v2.zip", "2v2")),
@@ -397,11 +400,17 @@ def main() -> None:
         ("Jacob et al.", path_or_default(args.paper_3v3, "final_weekend_paper_3v3.zip", "3v3")),
         ("Self-play", path_or_default(args.selfplay_3v3, "final_weekend_selfplay_3v3.zip", "3v3")),
     ]
-    # 4v4: same defaults as plot_4v4_winrate.py
+    # 4v4: same defaults as (modern) plot_4v4_winrate.py
     model_paths_4v4 = [
-        ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4_colab.zip", "4v4")),
-        ("Jacob et al.", path_or_default(args.paper_4v4, "final_weekend_paper_4v4.zip", "4v4")),
-        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_selfplay_4v4_colab.zip", "4v4")),
+        ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4.zip", "4v4")),
+        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_paper_4v4.zip", "4v4")),
+        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_self_play_4v4.zip", "4v4")),
+    ]
+    # 8v8: matches plot_8v8_winrate.py
+    model_paths_8v8 = [
+        ("Ours", path_or_default(args.league_8v8, "final_ppo_league_8v8.zip", "8v8")),
+        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_paper_8v8.zip", "8v8")),
+        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_self_play_8v8.zip", "8v8")),
     ]
     use_metrics_csv = args.metrics_csv and os.path.isfile(args.metrics_csv)
 
@@ -429,6 +438,7 @@ def main() -> None:
             ("2v2", 2, model_paths_2v2),
             ("3v3", 3, model_paths_3v3),
             ("4v4", 4, model_paths_4v4),
+            ("8v8", 8, model_paths_8v8),
         ]:
             results = {}
             for opp in opponents:
@@ -440,7 +450,7 @@ def main() -> None:
                     max_red_agents=n_agents,
                     max_decision_steps=400,
                     aquaticus_profile=True,
-                    rules_profile="AQUATICUS_2024",
+                    rules_profile="OURS",
                     device=args.device,
                     seed=seed,
                 )

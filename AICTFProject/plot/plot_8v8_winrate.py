@@ -103,7 +103,7 @@ def main():
         max_red_agents=8,
         max_decision_steps=400,
         aquaticus_profile=True,
-        rules_profile="AQUATICUS_2024",
+        rules_profile="OURS",
         device=device,
         seed=seed,
     )
