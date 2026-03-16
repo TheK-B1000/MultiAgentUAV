@@ -2383,7 +2383,7 @@ class BatchedCTFCore:
             mask[:, :, idx_grab][has_mine] = 0.0
             mask[:, :, idx_get][has_mine] = 0.0
             mask[:, :, idx_place][has_mine] = 1.0
-        no_payload = (~self.blue_carrying) & (~has_mine)
+        no_payload = (~own_carrying) & (~has_mine)
         if no_payload.any():
             idx_grab, idx_get, idx_home = 1, 2, 4
             mask[:, :, idx_grab][no_payload] = 1.0
