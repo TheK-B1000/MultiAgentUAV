@@ -929,6 +929,62 @@ class SelfPlayCallback(BaseCallback):
         self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
         self._snapshot_roll_index = 0
         self._total_snapshots_created = 0
+        self._eval_env: Optional[GPUCTFVecEnv] = None
+
+    def _init_callback(self) -> None:
+        eval_cfg = GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=max(1, int(getattr(self.cfg, "max_blue_agents", 2))),
+            max_red_agents=max(1, int(getattr(self.cfg, "max_blue_agents", 2))),
+            max_decision_steps=max(1, int(self.cfg.max_decision_steps)),
+            aquaticus_profile=True,
+            rules_profile="OURS",
+            device=str(self.cfg.device),
+            seed=int(self.cfg.seed) + 1000,
+        )
+        self._eval_env = GPUCTFVecEnv(eval_cfg)
+        try:
+            self._eval_env.env_method("set_stress_schedule", STRESS_BY_PHASE)
+        except Exception:
+            pass
+        try:
+            self._eval_env.env_method("set_phase", "SELF_PLAY")
+        except Exception:
+            pass
+
+    def _run_deterministic_self_eval(self, snapshot_key: str) -> Optional[Tuple[int, int, int]]:
+        env = self._eval_env
+        if env is None or not snapshot_key:
+            return None
+        episodes = max(1, int(getattr(self.cfg, "fixed_eval_episodes", 10)))
+        try:
+            env.env_method("set_next_opponent", "SNAPSHOT", snapshot_key)
+            env.env_method("set_phase", "SELF_PLAY")
+        except Exception:
+            return None
+
+        wins = 0
+        losses = 0
+        draws = 0
+        obs = env.reset()
+        completed = 0
+        while completed < episodes:
+            actions, _ = self.model.predict(obs, deterministic=True)
+            env.step_async(actions)
+            obs, _, dones, infos = env.step_wait()
+            if not bool(dones[0]):
+                continue
+            summary = parse_episode_result(infos[0])
+            if summary is None:
+                continue
+            if summary.blue_score > summary.red_score:
+                wins += 1
+            elif summary.blue_score < summary.red_score:
+                losses += 1
+            else:
+                draws += 1
+            completed += 1
+        return wins, losses, draws
 
     def _enforce_snapshot_limit(self) -> None:
         if self._max_snapshots <= 0:
@@ -995,6 +1051,25 @@ class SelfPlayCallback(BaseCallback):
                 wr = (self.win_count / self.episode_idx) * 100
                 _log_line(f"[PPO] ep={self.episode_idx} mode=SELF_PLAY phase=SELF_PLAY opp=self W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
 
+            if (
+                bool(getattr(self.cfg, "enable_fixed_eval", True))
+                and self.episode_idx > 0
+                and self.episode_idx % max(1, int(getattr(self.cfg, "fixed_eval_every_episodes", 500))) == 0
+            ):
+                latest_snapshot = self.league.latest_snapshot_key()
+                if latest_snapshot:
+                    det_result = self._run_deterministic_self_eval(latest_snapshot)
+                    if det_result is not None:
+                        det_w, det_l, det_d = det_result
+                        det_eps = max(1, det_w + det_l + det_d)
+                        det_wr = 100.0 * det_w / det_eps
+                        _log_line(
+                            f"[PPO|SELF_EVAL] ep={self.episode_idx} latest_snapshot={path_to_snapshot_key(latest_snapshot)} "
+                            f"W={det_w} L={det_l} D={det_d} WR={det_wr:.1f}% over {det_eps} deterministic episodes"
+                        )
+                        self.logger.record("self_eval/win_rate", det_w / det_eps)
+                        self.logger.record("self_eval/draw_rate", det_d / det_eps)
+
             self.logger.record("self/episode", self.episode_idx)
             self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
             self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
@@ -1028,6 +1103,14 @@ class SelfPlayCallback(BaseCallback):
                     env.env_method("set_next_opponent", "SNAPSHOT", next_snapshot)
 
         return True
+
+    def _on_training_end(self) -> None:
+        if self._eval_env is not None:
+            try:
+                self._eval_env.close()
+            except Exception:
+                pass
+            self._eval_env = None
 
 
 class FixedOpponentCallback(BaseCallback):
@@ -1403,17 +1486,34 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.")
     print("[PPO] Progress: steps every 50k timesteps; W/L/D summary + per-phase (OP1/OP2/OP3) every 1000 episodes.")
 
-    # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM on CPU.
-    if max_agents > 4:
+    # Larger team sizes need shorter episodes / smaller rollouts to keep wall-clock time reasonable.
+    if max_agents == 6:
+        original_n_envs = int(getattr(cfg, "n_envs", 8))
+        original_n_steps = int(getattr(cfg, "n_steps", 2048))
+        original_max_decision_steps = int(getattr(cfg, "max_decision_steps", 400))
+        if original_n_envs > 1 or original_n_steps > 512 or original_max_decision_steps > 250:
+            print(
+                f"[PPO] {team_size}: using fast profile for wall-clock speed: "
+                f"n_envs {original_n_envs}->1, n_steps {original_n_steps}->512, "
+                f"max_decision_steps {original_max_decision_steps}->250"
+            )
+        cfg.n_envs = min(original_n_envs, 1)
+        cfg.n_steps = min(original_n_steps, 512)
+        cfg.max_decision_steps = min(original_max_decision_steps, 250)
+    elif max_agents > 6:
+        # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM.
         original_n_envs = int(getattr(cfg, "n_envs", 4))
         original_n_steps = int(getattr(cfg, "n_steps", 2048))
-        if original_n_envs > 2 or original_n_steps > 1024:
+        original_max_decision_steps = int(getattr(cfg, "max_decision_steps", 400))
+        if original_n_envs > 2 or original_n_steps > 1024 or original_max_decision_steps > 250:
             print(
-                f"[PPO] {team_size}: reducing n_envs/n_steps for memory: "
-                f"n_envs {original_n_envs}->2, n_steps {original_n_steps}->1024"
+                f"[PPO] {team_size}: reducing rollout/episode size for memory: "
+                f"n_envs {original_n_envs}->2, n_steps {original_n_steps}->1024, "
+                f"max_decision_steps {original_max_decision_steps}->250"
             )
         cfg.n_envs = min(original_n_envs, 2)
         cfg.n_steps = min(original_n_steps, 1024)
+        cfg.max_decision_steps = min(original_max_decision_steps, 250)
 
     # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
     match_op3 = getattr(cfg, "match_op3_exposure", False) and (max_agents <= 2)
