@@ -173,7 +173,7 @@ def main():
         for ep in range(n_episodes):
             while True:
                 single = {k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v for k, v in obs.items()}
-                act, _ = model.predict(single, deterministic=True)
+                act, _ = model.predict(single, deterministic=False)
                 env.step_async(act)
                 obs, _, done, infos = env.step_wait()
                 if done.any():
