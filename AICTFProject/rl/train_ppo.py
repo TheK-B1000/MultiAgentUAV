@@ -1879,31 +1879,49 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print(f"[PPO] Adjusting batch_size for rollout size: {batch_size}->{adjusted_batch_size} (n_steps*n_envs={rollout_size})")
         batch_size = adjusted_batch_size
 
-    model = PPO(
-        policy=MaskedMultiInputPolicy,
-        env=venv,
-        learning_rate=learning_rate,
-        n_steps=int(cfg.n_steps),
-        batch_size=batch_size,
-        n_epochs=n_epochs,
-        gamma=float(cfg.gamma),
-        gae_lambda=float(cfg.gae_lambda),
-        clip_range=clip_range,
-        ent_coef=ent_coef,
-        vf_coef=1.0,
-        max_grad_norm=float(cfg.max_grad_norm),
-        target_kl=float(cfg.target_kl) if getattr(cfg, "target_kl", None) is not None else None,
-        tensorboard_log=(
-            os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
-            if cfg.enable_tensorboard
-            else None
-        ),
-        policy_kwargs=policy_kwargs,
-        verbose=0,
-        seed=cfg.seed,
-        device=cfg.device,
-    )
-    model.cfg = cfg
+    # Optional resume from checkpoint: when cfg.load_path is set and the file exists, load PPO instead of creating a fresh model.
+    load_path = getattr(cfg, "load_path", None)
+    if load_path and os.path.isfile(load_path):
+        from stable_baselines3 import PPO as _PPO
+        print(f"[PPO] Resuming from checkpoint: {load_path}")
+        model = _PPO.load(
+            load_path,
+            env=venv,
+            device=cfg.device,
+            custom_objects={
+                "observation_space": venv.observation_space,
+                "action_space": venv.action_space,
+                "policy_class": MaskedMultiInputPolicy,
+            },
+        )
+        # Ensure cfg/run_tag/checkpoint_dir are kept from current run, not from the checkpoint.
+        model.cfg = cfg
+    else:
+        model = PPO(
+            policy=MaskedMultiInputPolicy,
+            env=venv,
+            learning_rate=learning_rate,
+            n_steps=int(cfg.n_steps),
+            batch_size=batch_size,
+            n_epochs=n_epochs,
+            gamma=float(cfg.gamma),
+            gae_lambda=float(cfg.gae_lambda),
+            clip_range=clip_range,
+            ent_coef=ent_coef,
+            vf_coef=1.0,
+            max_grad_norm=float(cfg.max_grad_norm),
+            target_kl=float(cfg.target_kl) if getattr(cfg, "target_kl", None) is not None else None,
+            tensorboard_log=(
+                os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
+                if cfg.enable_tensorboard
+                else None
+            ),
+            policy_kwargs=policy_kwargs,
+            verbose=0,
+            seed=cfg.seed,
+            device=cfg.device,
+        )
+        model.cfg = cfg
 
     if cfg.enable_tensorboard:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
@@ -2034,7 +2052,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             else:
                 raise
     except (MemoryError, torch.cuda.OutOfMemoryError, RuntimeError) as exc:
-        if "out of memory" in str(exc).lower() or "OutOfMemoryError" in type(exc).__name__:
+        # Treat both CUDA OOM and CPU/NumPy memory errors (e.g. ArrayMemoryError) as OOM so we always try to save.
+        _exc_name_lower = type(exc).__name__.lower()
+        _msg_lower = str(exc).lower()
+        is_oom = (
+            isinstance(exc, (MemoryError, torch.cuda.OutOfMemoryError))
+            or "out of memory" in _msg_lower
+            or "arraymemoryerror" in _exc_name_lower
+        )
+        if is_oom:
             crash_path = os.path.join(cfg.checkpoint_dir, f"oom_save_{cfg.run_tag}")
             try:
                 model.save(crash_path)
@@ -2178,6 +2204,7 @@ if __name__ == "__main__":
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory for checkpoints/snapshots (e.g. /content/drive/MyDrive/ppo_checkpoints)")
+        parser.add_argument("--load", type=str, default=None, help="Optional path to a .zip checkpoint to resume from")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
         parser.add_argument(
             "--agents",
@@ -2232,6 +2259,8 @@ if __name__ == "__main__":
             cfg.test_kl_zero_lr = True
         if getattr(args, "verbose_training", False):
             cfg.verbose_training = True
+        if getattr(args, "load", None) is not None:
+            cfg.load_path = args.load
         if getattr(args, "device", None) is not None:
             cfg.device = str(args.device).strip().lower()
         else:
