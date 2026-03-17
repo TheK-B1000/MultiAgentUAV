@@ -19,7 +19,7 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.policies import MultiInputActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, NatureCNN
-from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import VecMonitor
 
@@ -219,17 +219,17 @@ class PPOConfig:
 
     enable_opponent_tracking: bool = True
     opponent_tracking_window: int = 100
-    enable_fixed_eval: bool = True
+    enable_fixed_eval: bool = False
     stability_species_prob: float = 0.15
     stability_snapshot_prob: float = 0.20
     species_rusher_bias: float = 0.5
     match_op3_exposure: bool = False
     fixed_eval_every_episodes: int = 500
     fixed_eval_episodes: int = 10
-    enable_mirror_eval: bool = True
+    enable_mirror_eval: bool = False
     mirror_eval_every_episodes: int = 500
     mirror_eval_episodes: int = 10
-    enable_league_eval: bool = True
+    enable_league_eval: bool = False
     league_eval_every_episodes: int = 500
     league_eval_episodes: int = 6
     use_reduced_aggressiveness: bool = False
@@ -1157,139 +1157,6 @@ class SelfPlayCallback(BaseCallback):
         self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
         self._snapshot_roll_index = 0
         self._total_snapshots_created = 0
-        self._eval_env: Optional[GPUCTFVecEnv] = None
-        self._mirror_eval_snapshot_path = os.path.join(
-            self.cfg.checkpoint_dir,
-            f"{self.cfg.run_tag}_mirror_eval_current.zip",
-        )
-
-    def _init_callback(self) -> None:
-        eval_cfg = GPUFieldConfig(
-            n_envs=1,
-            max_blue_agents=max(1, int(getattr(self.cfg, "max_blue_agents", 2))),
-            max_red_agents=max(1, int(getattr(self.cfg, "max_blue_agents", 2))),
-            max_decision_steps=max(1, int(self.cfg.max_decision_steps)),
-            aquaticus_profile=True,
-            rules_profile="OURS",
-            device=str(self.cfg.device),
-            seed=int(self.cfg.seed) + 1000,
-        )
-        self._eval_env = GPUCTFVecEnv(eval_cfg)
-        try:
-            self._eval_env.env_method("set_stress_schedule", STRESS_BY_PHASE)
-        except Exception:
-            pass
-        try:
-            self._eval_env.env_method("set_phase", "SELF_PLAY")
-        except Exception:
-            pass
-
-    def _run_deterministic_self_eval(self, snapshot_key: str) -> Optional[Tuple[int, int, int]]:
-        env = self._eval_env
-        if env is None or not snapshot_key:
-            return None
-        episodes = max(1, int(getattr(self.cfg, "fixed_eval_episodes", 10)))
-        try:
-            env.env_method("set_next_opponent", "SNAPSHOT", snapshot_key)
-            env.env_method("set_phase", "SELF_PLAY")
-        except Exception:
-            return None
-
-        wins = 0
-        losses = 0
-        draws = 0
-        obs = env.reset()
-        completed = 0
-        while completed < episodes:
-            actions, _ = self.model.predict(obs, deterministic=True)
-            env.step_async(actions)
-            obs, _, dones, infos = env.step_wait()
-            if not bool(dones[0]):
-                continue
-            summary = parse_episode_result(infos[0])
-            if summary is None:
-                continue
-            if summary.blue_score > summary.red_score:
-                wins += 1
-            elif summary.blue_score < summary.red_score:
-                losses += 1
-            else:
-                draws += 1
-            completed += 1
-        return wins, losses, draws
-
-    def _run_side_swapped_mirror_eval(self) -> Optional[Dict[str, Tuple[int, int, int]]]:
-        env = self._eval_env
-        if env is None:
-            return None
-        episodes = max(1, int(getattr(self.cfg, "mirror_eval_episodes", 10)))
-        mirror_path_no_ext = os.path.splitext(self._mirror_eval_snapshot_path)[0]
-        try:
-            self.model.save(mirror_path_no_ext)
-            env.env_method("set_phase", "SELF_PLAY")
-        except Exception:
-            return None
-        snapshot_model = env.core._load_snapshot_policy(self._mirror_eval_snapshot_path)
-        if snapshot_model is None:
-            return None
-
-        def _obs_numpy(side: str) -> Dict[str, np.ndarray]:
-            return {
-                k: v.detach().cpu().numpy().astype(np.float32)
-                for k, v in env.core.get_obs_tensors(side=side).items()
-            }
-
-        def _run_pass(blue_model, red_model, *, current_side: str) -> Tuple[int, int, int]:
-            wins = 0
-            losses = 0
-            draws = 0
-            env.core.reset_all()
-            completed = 0
-            while completed < episodes:
-                blue_obs = _obs_numpy("blue")
-                red_obs = _obs_numpy("red")
-                blue_actions_np, _ = blue_model.predict(blue_obs, deterministic=True)
-                red_actions_np, _ = red_model.predict(red_obs, deterministic=True)
-                blue_actions = torch.as_tensor(blue_actions_np, dtype=torch.int64, device=env.core.device)
-                red_actions = torch.as_tensor(red_actions_np, dtype=torch.int64, device=env.core.device)
-                _, _, terminated, truncated, infos = env.core.step(
-                    blue_actions,
-                    tensor_obs=True,
-                    red_action_flat=red_actions,
-                )
-                done = torch.logical_or(terminated, truncated)
-                if not bool(done[0].item()):
-                    continue
-                summary = parse_episode_result(infos[0])
-                if summary is not None:
-                    if current_side == "blue":
-                        if summary.blue_score > summary.red_score:
-                            wins += 1
-                        elif summary.blue_score < summary.red_score:
-                            losses += 1
-                        else:
-                            draws += 1
-                    else:
-                        if summary.red_score > summary.blue_score:
-                            wins += 1
-                        elif summary.red_score < summary.blue_score:
-                            losses += 1
-                        else:
-                            draws += 1
-                    completed += 1
-                env.core.reset_indices(done)
-            return wins, losses, draws
-
-        blue_pass = _run_pass(self.model, snapshot_model, current_side="blue")
-        red_pass = _run_pass(snapshot_model, self.model, current_side="red")
-        total_w = blue_pass[0] + red_pass[0]
-        total_l = blue_pass[1] + red_pass[1]
-        total_d = blue_pass[2] + red_pass[2]
-        return {
-            "blue": blue_pass,
-            "red": red_pass,
-            "avg": (total_w, total_l, total_d),
-        }
 
     def _choose_training_snapshot(self) -> Optional[str]:
         if len(self.league.snapshots) == 0:
@@ -1370,55 +1237,11 @@ class SelfPlayCallback(BaseCallback):
                 wr = (self.win_count / self.episode_idx) * 100
                 _log_line(f"[PPO] ep={self.episode_idx} mode=SELF_PLAY phase=SELF_PLAY opp=self W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
 
-            if (
-                bool(getattr(self.cfg, "enable_fixed_eval", True))
-                and self.episode_idx > 0
-                and self.episode_idx % max(1, int(getattr(self.cfg, "fixed_eval_every_episodes", 500))) == 0
-            ):
-                latest_snapshot = self.league.latest_snapshot_key()
-                if latest_snapshot:
-                    det_result = self._run_deterministic_self_eval(latest_snapshot)
-                    if det_result is not None:
-                        det_w, det_l, det_d = det_result
-                        det_eps = max(1, det_w + det_l + det_d)
-                        det_wr = 100.0 * det_w / det_eps
-                        _log_line(
-                            f"[PPO|SELF_EVAL] ep={self.episode_idx} latest_snapshot={path_to_snapshot_key(latest_snapshot)} "
-                            f"W={det_w} L={det_l} D={det_d} WR={det_wr:.1f}% over {det_eps} deterministic episodes"
-                        )
-                        self.logger.record("self_eval/win_rate", det_w / det_eps)
-                        self.logger.record("self_eval/draw_rate", det_d / det_eps)
-
             self.logger.record("self/episode", self.episode_idx)
             self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
             self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
             self.logger.record("self/snapshots", float(len(self.league.snapshots)))
             self.logger.record("self/total_snapshots_created", float(self._total_snapshots_created))
-
-            if (
-                bool(getattr(self.cfg, "enable_mirror_eval", True))
-                and self.episode_idx > 0
-                and self.episode_idx % max(1, int(getattr(self.cfg, "mirror_eval_every_episodes", 500))) == 0
-            ):
-                mirror_result = self._run_side_swapped_mirror_eval()
-                if mirror_result is not None:
-                    blue_w, blue_l, blue_d = mirror_result["blue"]
-                    red_w, red_l, red_d = mirror_result["red"]
-                    mir_w, mir_l, mir_d = mirror_result["avg"]
-                    mir_eps = max(1, mir_w + mir_l + mir_d)
-                    mir_wr = 100.0 * mir_w / mir_eps
-                    _log_line(
-                        f"[PPO|MIRROR_EVAL] ep={self.episode_idx} avg "
-                        f"W={mir_w} L={mir_l} D={mir_d} WR={mir_wr:.1f}% over {mir_eps} deterministic episodes "
-                        f"| current_as_blue={blue_w}-{blue_l}-{blue_d} "
-                        f"| current_as_red={red_w}-{red_l}-{red_d}"
-                    )
-                    self.logger.record("mirror_eval/win_rate", mir_w / mir_eps)
-                    self.logger.record("mirror_eval/draw_rate", mir_d / mir_eps)
-                    blue_eps = max(1, blue_w + blue_l + blue_d)
-                    red_eps = max(1, red_w + red_l + red_d)
-                    self.logger.record("mirror_eval/current_as_blue_win_rate", blue_w / blue_eps)
-                    self.logger.record("mirror_eval/current_as_red_win_rate", red_w / red_eps)
 
             next_snapshot = self._choose_training_snapshot()
 
@@ -1441,20 +1264,6 @@ class SelfPlayCallback(BaseCallback):
                     env.env_method("set_next_opponent", "SNAPSHOT", next_snapshot)
 
         return True
-
-    def _on_training_end(self) -> None:
-        if self._eval_env is not None:
-            try:
-                self._eval_env.close()
-            except Exception:
-                pass
-            self._eval_env = None
-        try:
-            if os.path.exists(self._mirror_eval_snapshot_path):
-                os.remove(self._mirror_eval_snapshot_path)
-        except Exception:
-            pass
-
 
 class FixedOpponentCallback(BaseCallback):
     def __init__(self, *, cfg: PPOConfig) -> None:
@@ -2126,7 +1935,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     callbacks = []
     if mode == TrainMode.CURRICULUM_LEAGUE.value:
         callbacks.append(LeagueCallback(cfg=cfg, league=league, curriculum=curriculum, controller=controller))
-        callbacks.append(LeagueEvalCallback(cfg=cfg, league=league))
     elif mode == TrainMode.CURRICULUM_NO_LEAGUE.value and curriculum is not None:
         callbacks.append(CurriculumNoLeagueCallback(cfg=cfg, curriculum=curriculum))
     elif mode == TrainMode.SELF_PLAY.value:
@@ -2174,7 +1982,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             )
         )
 
-    if cfg.enable_eval:
+    if cfg.enable_eval and mode not in (TrainMode.CURRICULUM_LEAGUE.value, TrainMode.SELF_PLAY.value):
         eval_env = VecMonitor(GPUCTFVecEnv(
             GPUFieldConfig(
                 n_envs=1,
