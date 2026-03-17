@@ -896,7 +896,8 @@ class LeagueEvalCallback(BaseCallback):
                 continue
 
             episodes = max(1, int(getattr(self.cfg, "league_eval_episodes", 6)))
-            for scripted_tag in ("OP1", "OP2", "OP3"):
+            # In league mode we've already passed the OP1/OP2 curriculum gates; league eval only needs OP3 + species + snapshots.
+            for scripted_tag in ("OP3",):
                 result = self._run_eval_matchup("SCRIPTED", scripted_tag, episodes=episodes, phase=scripted_tag)
                 if result is not None:
                     self._record_matchup(f"SCRIPTED:{scripted_tag}", result)
