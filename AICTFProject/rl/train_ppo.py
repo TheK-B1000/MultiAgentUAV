@@ -179,7 +179,7 @@ class PPOConfig:
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
     snapshot_every_episodes: int = 200
-    league_max_snapshots: int = 5
+    league_max_snapshots: int = 3
     # If still in OP3 and not in league after this many timesteps, enter league anyway (80% normal promotion, 250k fallback).
     league_fallback_timesteps: int = 250_000
     # Disable TensorBoard by default to avoid dependency/version issues.
@@ -200,7 +200,7 @@ class PPOConfig:
     self_play_use_latest_snapshot: bool = False
     self_play_latest_snapshot_prob: float = 0.35
     self_play_snapshot_every_episodes: int = 200
-    self_play_max_snapshots: int = 5
+    self_play_max_snapshots: int = 3
     league_anchor_op3_prob: float = 0.60
     league_species_prob: float = 0.20
     league_snapshot_prob: float = 0.20
@@ -421,7 +421,7 @@ class LeagueCallback(BaseCallback):
         self.win_count = 0
         self.loss_count = 0
         self.draw_count = 0
-        self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 5)))
+        self._league_max_snapshots = max(0, int(getattr(cfg, "league_max_snapshots", 3)))
         
         self._opponent_stats: Dict[str, Dict[str, int]] = {}
         self._opponent_history: List[Tuple[str, str]] = []
