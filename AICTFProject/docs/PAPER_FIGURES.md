@@ -56,7 +56,7 @@ python plot_4v4_winrate.py --opponent OP4 --episodes 100 --seed 42
 
 ### Combined eval metrics (success, coordination, stability, etc.)
 
-Run once to generate all paper-ready figures and the CSV table:
+Run once to generate all paper-ready figures and the CSV table. **By default this evaluates 2v2–5v5 only** (8v8 is slow and skipped). To include 8v8, add e.g. `--modes 2v2 3v3 4v4 5v5 8v8`.
 
 ```bash
 python plot_eval_metrics.py --opponents OP4 --episodes 100 --table-out eval_table_OP4_100ep.csv --table-opponent OP4
