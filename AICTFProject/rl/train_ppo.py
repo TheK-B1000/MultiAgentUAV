@@ -239,8 +239,9 @@ class PPOConfig:
     kl_guardrail_consecutive: int = 3
     # Sanity check: set True and run a few steps to verify approx_kl ~ 0 (if huge, logprob/action plumbing is broken)
     test_kl_zero_lr: bool = False
-    # For now, keep standard (non-tokenized) CNN obs for 4v4 to avoid tiny 1x1 grids
-    use_tokenized_obs: bool = False
+    # Default to the paper-style shared CNN extractor over each agent's spatial grid.
+    # Set False only for ablations that intentionally fall back to SB3's default extractor.
+    use_tokenized_obs: bool = True
     gpu_native_env: bool = True  # All training uses game_field_gpu
 
 
@@ -1832,11 +1833,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     except Exception as exc:
         print(f"[PPO] opponent_params sampling failed (using defaults): {exc}")
 
-    policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
-    use_tokenized = bool(getattr(cfg, "use_tokenized_obs", False))
-    if use_tokenized:
-        policy_kwargs["features_extractor_class"] = TokenizedCombinedExtractor
-        policy_kwargs["features_extractor_kwargs"] = dict(cnn_output_dim=256, normalized_image=True)
+    policy_kwargs = dict(
+        net_arch=dict(pi=[256, 256], vf=[256, 256]),
+        features_extractor_class=TokenizedCombinedExtractor,
+        features_extractor_kwargs=dict(cnn_output_dim=256, normalized_image=True),
+    )
+    use_tokenized = bool(getattr(cfg, "use_tokenized_obs", True))
+    if not use_tokenized:
+        policy_kwargs.pop("features_extractor_class", None)
+        policy_kwargs.pop("features_extractor_kwargs", None)
 
     # Step 4: Stable MARL PPO (Fix 4.1) or reduced aggressiveness
     learning_rate = float(cfg.learning_rate)
