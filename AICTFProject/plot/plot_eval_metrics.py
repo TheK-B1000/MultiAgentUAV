@@ -328,6 +328,8 @@ def main() -> None:
             ("5v5", 5, model_paths_5v5),
             ("8v8", 8, model_paths_8v8),
         ]:
+            # Whole-line banner so narrow terminals / scrollback do not hide [3v3] on continuation lines
+            print(f"===== eval metrics: {mode} ({n_agents} agents per team) =====", flush=True)
             results = {}
             for opp in opponents:
                 opp_clean = str(opp).strip().upper()
