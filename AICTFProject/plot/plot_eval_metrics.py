@@ -2,8 +2,8 @@
 """
 Plot evaluation metrics by category: Performance, Coordination, Robustness, Stability, Specialization, Robotics.
 
-Uses the same models as plot_2v2_winrate and plot_4v4_winrate (Ours / Jacob et al. / Self-play).
-Runs both 2v2 and 4v4 eval with GPUCTFVecEnv (optional OP3/OP4) and collects:
+Uses the same default checkpoints as plot_*_winrate.py (Ours / Jacob et al. / Self-play).
+Runs 2v2, 3v3, 4v4, 5v5, and 8v8 eval with GPUCTFVecEnv (optional OP3/OP4) and collects:
   - Performance: success rate, mean steps to completion
   - Coordination: coverage efficiency (zone_coverage), coordination proxy (collision-free)
   - Robustness: generalization (success vs OP3 vs OP4); default eval uses both opponents
@@ -14,6 +14,7 @@ Runs both 2v2 and 4v4 eval with GPUCTFVecEnv (optional OP3/OP4) and collects:
 Usage:
   python plot_eval_metrics.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N]
   python plot_eval_metrics.py [--league-4v4 PATH] [--paper-4v4 PATH] [--selfplay-4v4 PATH]  # 4v4 checkpoints
+  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_*_5v5.zip)
   python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
   python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
   python plot_eval_metrics.py --table-out eval_table.csv --out eval_metrics.png
@@ -36,8 +37,10 @@ import numpy as np
 warnings.filterwarnings("ignore", message=".*render_mode.*")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+# Imports resolve from AICTFProject (rl/, game_field_gpu.py), not plot/
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 
 def _numpy_compat_shim() -> None:
@@ -330,7 +333,7 @@ def load_training_success_auc(csv_path: str) -> float | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2, 3v3, 4v4, 8v8)")
+    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2–5v5, 8v8)")
     parser.add_argument("--league", type=str, default=None, help="2v2 League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="2v2 Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="2v2 Self-play model .zip")
@@ -340,6 +343,9 @@ def main() -> None:
     parser.add_argument("--league-4v4", type=str, default=None, help="4v4 League model .zip")
     parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 Paper model .zip")
     parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play model .zip")
+    parser.add_argument("--league-5v5", type=str, default=None, help="5v5 League model .zip")
+    parser.add_argument("--paper-5v5", type=str, default=None, help="5v5 Paper model .zip")
+    parser.add_argument("--selfplay-5v5", type=str, default=None, help="5v5 Self-play model .zip")
     parser.add_argument("--league-8v8", type=str, default=None, help="8v8 League model .zip")
     parser.add_argument("--paper-8v8", type=str, default=None, help="8v8 Paper model .zip")
     parser.add_argument("--selfplay-8v8", type=str, default=None, help="8v8 Self-play model .zip")
@@ -383,28 +389,86 @@ def main() -> None:
         if name is not None:
             p = name
         else:
-            p = os.path.join(SCRIPT_DIR, "checkpoints_sb3", subdir, default_name)
+            p = os.path.join(project_root, "checkpoints_sb3", subdir, default_name)
         if not p.endswith(".zip"):
             p = p + ".zip"
         return os.path.abspath(p)
 
-    # 2v2: same defaults as (modern) plot_2v2_winrate.py
+    def path_or_default_candidates(name: str | None, candidates: list[str], subdir: str) -> str:
+        """Like path_or_default but tries several filenames under subdir (5v5 resumed/oom names)."""
+        if name is not None:
+            p = name
+        else:
+            base = os.path.join(project_root, "checkpoints_sb3", subdir)
+            chosen: str | None = None
+            for cand in candidates:
+                bn = cand if cand.endswith(".zip") else cand + ".zip"
+                full = os.path.join(base, os.path.basename(bn))
+                if os.path.isfile(full):
+                    chosen = full
+                    break
+            if chosen is None:
+                first = candidates[0]
+                first = first if first.endswith(".zip") else first + ".zip"
+                chosen = os.path.join(base, os.path.basename(first))
+            p = chosen
+        if not p.endswith(".zip"):
+            p = p + ".zip"
+        return os.path.abspath(p)
+
+    # Defaults: same as plot_2v2_winrate.py / plot_3v3_winrate.py / plot_4v4_winrate.py / plot_8v8_winrate.py
+    # (checkpoints_sb3/<NxN>/ under AICTFProject, not under plot/)
     model_paths_2v2 = [
-        ("Ours", path_or_default(args.league, "final_ppo_league_2v2_colab.zip", "2v2")),
-        ("Jacob et al.", path_or_default(args.paper, "final_weekend_paper_2v2.zip", "2v2")),
-        ("Self-play", path_or_default(args.selfplay, "final_weekend_selfplay_2v2.zip", "2v2")),
+        ("Ours", path_or_default(args.league, "final_ppo_league_2v2.zip", "2v2")),
+        ("Jacob et al.", path_or_default(args.paper, "final_ppo_paper_2v2.zip", "2v2")),
+        ("Self-play", path_or_default(args.selfplay, "final_ppo_self_play_2v2.zip", "2v2")),
     ]
     # 3v3: matches plot_3v3_winrate.py
     model_paths_3v3 = [
-        ("Ours", path_or_default(args.league_3v3, "final_weekend_league_3v3.zip", "3v3")),
-        ("Jacob et al.", path_or_default(args.paper_3v3, "final_weekend_paper_3v3.zip", "3v3")),
-        ("Self-play", path_or_default(args.selfplay_3v3, "final_weekend_selfplay_3v3.zip", "3v3")),
+        ("Ours", path_or_default(args.league_3v3, "final_ppo_league_3v3.zip", "3v3")),
+        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_paper_3v3.zip", "3v3")),
+        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_self_play_3v3.zip", "3v3")),
     ]
     # 4v4: same defaults as (modern) plot_4v4_winrate.py
     model_paths_4v4 = [
         ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4.zip", "4v4")),
         ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_paper_4v4.zip", "4v4")),
         ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_self_play_4v4.zip", "4v4")),
+    ]
+    # 5v5: same fallbacks as plot_5v5_winrate.py (final → resumed → oom_save)
+    model_paths_5v5 = [
+        (
+            "Ours",
+            path_or_default_candidates(
+                args.league_5v5,
+                [
+                    "final_ppo_league_5v5.zip",
+                    "final_ppo_league_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_league_5v5.zip",
+                ],
+                "5v5",
+            ),
+        ),
+        (
+            "Jacob et al.",
+            path_or_default_candidates(
+                args.paper_5v5,
+                [
+                    "final_ppo_paper_5v5.zip",
+                    "final_ppo_paper_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_paper_5v5.zip",
+                ],
+                "5v5",
+            ),
+        ),
+        (
+            "Self-play",
+            path_or_default_candidates(
+                args.selfplay_5v5,
+                ["final_ppo_self_play_5v5.zip", "oom_save_ppo_self_play_5v5.zip"],
+                "5v5",
+            ),
+        ),
     ]
     # 8v8: matches plot_8v8_winrate.py
     model_paths_8v8 = [
@@ -423,7 +487,7 @@ def main() -> None:
     else:
         if args.metrics_csv:
             print(f"[WARN] --metrics-csv={args.metrics_csv} not found or not a file; running evaluation.")
-        for _label, p in model_paths_2v2 + model_paths_3v3 + model_paths_4v4:
+        for _label, p in model_paths_2v2 + model_paths_3v3 + model_paths_4v4 + model_paths_5v5 + model_paths_8v8:
             if not os.path.isfile(p):
                 print(f"[WARN] Not found: {p}")
                 sys.exit(1)
@@ -438,6 +502,7 @@ def main() -> None:
             ("2v2", 2, model_paths_2v2),
             ("3v3", 3, model_paths_3v3),
             ("4v4", 4, model_paths_4v4),
+            ("5v5", 5, model_paths_5v5),
             ("8v8", 8, model_paths_8v8),
         ]:
             results = {}
@@ -469,13 +534,19 @@ def main() -> None:
         if training_auc is not None:
             print(f"Training AUC (success curve): {training_auc:.4f}")
 
-    # Paper-ready table: mean ± std per method per setting (2v2, 3v3, 4v4); use --table-opponent to pick OP4
+    # Paper-ready table: mean ± std per method per setting (2v2–5v5, 8v8); use --table-opponent to pick OP4
     main_opp = opponents[0]
     table_opp = (args.table_opponent or "").strip().upper() or main_opp
     if table_opp not in opponents:
         table_opp = main_opp
     table_rows: list[dict] = []
-    for mode, model_paths in [("2v2", model_paths_2v2), ("3v3", model_paths_3v3), ("4v4", model_paths_4v4), ("8v8", model_paths_8v8)]:
+    for mode, model_paths in [
+        ("2v2", model_paths_2v2),
+        ("3v3", model_paths_3v3),
+        ("4v4", model_paths_4v4),
+        ("5v5", model_paths_5v5),
+        ("8v8", model_paths_8v8),
+    ]:
         results = results_by_mode.get(mode, {})
         for label, _ in model_paths:
             r = results.get((label, table_opp), {})
@@ -502,7 +573,7 @@ def main() -> None:
             })
     # Print compact table to console
     print("\n--- Paper-ready metrics (mean ± std over episodes, opponent=%s) ---" % table_opp)
-    for mode in ("2v2", "3v3", "4v4"):
+    for mode in ("2v2", "3v3", "4v4", "5v5", "8v8"):
         print(f"\n  [{mode}]")
         for row in table_rows:
             if row["setting"] != mode:
@@ -533,7 +604,7 @@ def main() -> None:
     import matplotlib.pyplot as plt
     plt.rc("font", size=16)
     # Match 2v2_winrate.png: one clean bar chart per figure, well spaced, agent count + opponent in title
-    bar_colors = ["#2ecc71", "#3498db", "#9b59b6"]  # Ours, Jacob et al., Self-play
+    team_bar_colors = ["#2ecc71", "#3498db", "#9b59b6", "#e67e22"]  # 2v2, 3v3, 4v4, 5v5
     bar_kw = dict(edgecolor="black", linewidth=1.2)
 
     base_out = args.out
@@ -542,44 +613,46 @@ def main() -> None:
     plot_opp = table_opp
     method_labels = [m[0] for m in model_paths_2v2]  # Ours, Jacob et al., Self-play (same for 2v2/4v4)
 
+    def _metric_at(res: dict, label: str, opp: str, key: str, default: float = 0.0) -> float:
+        return float(res.get((label, opp), {}).get(key, default))
+
     def _save_single(
         title: str,
         ylabel: str,
         values_2v2: list[float],
         values_3v3: list[float],
         values_4v4: list[float],
+        values_5v5: list[float],
         suffix: str,
         fmt: str = "{:.1f}%",
         ylim: tuple[float, float] | None = (0, 105),
         draw_zero: bool = False,
     ) -> None:
-        """One clean bar chart with 2v2, 3v3, and 4v4 grouped, agent count + opponent in title."""
-        fig, ax = plt.subplots(figsize=(10, 6))
+        """Bar chart: 2v2, 3v3, 4v4, 5v5 grouped per method."""
+        fig, ax = plt.subplots(figsize=(11, 6))
         n = len(method_labels)
         x = np.arange(n)
-        width = 0.22
-        # Colors: 2v2 -> bar_colors[0], 3v3 -> bar_colors[1], 4v4 -> bar_colors[2]
-        bars1 = ax.bar(x - width, values_2v2, width, label="2v2", color=bar_colors[0], **bar_kw)
-        bars2 = ax.bar(x, values_3v3, width, label="3v3", color=bar_colors[1], **bar_kw)
-        bars3 = ax.bar(x + width, values_4v4, width, label="4v4", color=bar_colors[2], alpha=0.8, **bar_kw)
+        width = 0.18
+        offs = (-1.5 * width, -0.5 * width, 0.5 * width, 1.5 * width)
+        bars1 = ax.bar(x + offs[0], values_2v2, width, label="2v2", color=team_bar_colors[0], **bar_kw)
+        bars2 = ax.bar(x + offs[1], values_3v3, width, label="3v3", color=team_bar_colors[1], **bar_kw)
+        bars3 = ax.bar(x + offs[2], values_4v4, width, label="4v4", color=team_bar_colors[2], alpha=0.9, **bar_kw)
+        bars4 = ax.bar(x + offs[3], values_5v5, width, label="5v5", color=team_bar_colors[3], alpha=0.9, **bar_kw)
         ax.set_xticks(x)
         ax.set_xticklabels(method_labels, fontsize=18)
         ax.tick_params(axis="y", labelsize=18)
         ax.set_ylabel(ylabel, fontsize=20)
         ax.set_title(title, fontsize=22)
-        ax.legend(fontsize=16)
+        ax.legend(fontsize=14, ncol=2)
         if draw_zero:
             ax.axhline(0, color="gray", linestyle="--", linewidth=1)
         if ylim:
             ax.set_ylim(ylim[0], ylim[1])
-        all_vals = values_2v2 + values_3v3 + values_4v4
+        all_vals = values_2v2 + values_3v3 + values_4v4 + values_5v5
         text_offset = 1.5 if ylim else (max(abs(v) for v in all_vals) * 0.05 + 0.1 if all_vals else 0.5)
-        for bar, val in zip(bars1, values_2v2):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
-        for bar, val in zip(bars2, values_3v3):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
-        for bar, val in zip(bars3, values_4v4):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=16)
+        for bars, vals in ((bars1, values_2v2), (bars2, values_3v3), (bars3, values_4v4), (bars4, values_5v5)):
+            for bar, val in zip(bars, vals):
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=14)
         plt.tight_layout()
         path = f"{base_out}_{suffix}.png"
         plt.savefig(path, dpi=150)
@@ -589,46 +662,53 @@ def main() -> None:
     r2 = results_by_mode.get("2v2", {})
     r3 = results_by_mode.get("3v3", {})
     r4 = results_by_mode.get("4v4", {})
+    r5 = results_by_mode.get("5v5", {})
     labels = [m[0] for m in model_paths_2v2]
 
-    # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics (now with 2v2, 3v3, 4v4)
-    sr_2 = [r2[(l, plot_opp)]["success_rate"] for l in labels]
-    sr_3 = [r3[(l, plot_opp)]["success_rate"] for l in labels]
-    sr_4 = [r4[(l, plot_opp)]["success_rate"] for l in labels]
+    # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics (2v2–5v5)
+    sr_2 = [_metric_at(r2, l, plot_opp, "success_rate") for l in labels]
+    sr_3 = [_metric_at(r3, l, plot_opp, "success_rate") for l in labels]
+    sr_4 = [_metric_at(r4, l, plot_opp, "success_rate") for l in labels]
+    sr_5 = [_metric_at(r5, l, plot_opp, "success_rate") for l in labels]
     _save_single(
-        f"Performance (2v2, 3v3, 4v4 vs {plot_opp})",
+        f"Performance (2v2–5v5 vs {plot_opp})",
         f"Success rate vs {plot_opp} (%)",
         sr_2,
         sr_3,
         sr_4,
+        sr_5,
         f"Performance_{plot_opp}",
     )
 
     # Win margin (blue - red): higher = dominance
-    wm_2 = [r2[(l, plot_opp)]["win_margin_mean"] for l in labels]
-    wm_3 = [r3[(l, plot_opp)]["win_margin_mean"] for l in labels]
-    wm_4 = [r4[(l, plot_opp)]["win_margin_mean"] for l in labels]
+    wm_2 = [_metric_at(r2, l, plot_opp, "win_margin_mean") for l in labels]
+    wm_3 = [_metric_at(r3, l, plot_opp, "win_margin_mean") for l in labels]
+    wm_4 = [_metric_at(r4, l, plot_opp, "win_margin_mean") for l in labels]
+    wm_5 = [_metric_at(r5, l, plot_opp, "win_margin_mean") for l in labels]
     _save_single(
-        f"Win margin (2v2, 3v3, 4v4 vs {plot_opp})",
+        f"Win margin (2v2–5v5 vs {plot_opp})",
         "Win margin (blue - red)",
         wm_2,
         wm_3,
         wm_4,
+        wm_5,
         f"WinMargin_{plot_opp}",
         fmt="{:.2f}",
         ylim=None,
         draw_zero=True,
     )
 
-    cf_2 = [r2[(l, plot_opp)]["collision_free_rate"] for l in labels]
-    cf_3 = [r3[(l, plot_opp)]["collision_free_rate"] for l in labels]
-    cf_4 = [r4[(l, plot_opp)]["collision_free_rate"] for l in labels]
+    cf_2 = [_metric_at(r2, l, plot_opp, "collision_free_rate") for l in labels]
+    cf_3 = [_metric_at(r3, l, plot_opp, "collision_free_rate") for l in labels]
+    cf_4 = [_metric_at(r4, l, plot_opp, "collision_free_rate") for l in labels]
+    cf_5 = [_metric_at(r5, l, plot_opp, "collision_free_rate") for l in labels]
     _save_single(
-        f"Coordination (2v2, 3v3, 4v4 vs {plot_opp})",
+        f"Coordination (2v2–5v5 vs {plot_opp})",
         "Collision-free (%)",
         cf_2,
         cf_3,
         cf_4,
+        cf_5,
         f"Coordination_{plot_opp}",
     )
 
@@ -636,14 +716,15 @@ def main() -> None:
         # Robustness: show both OP3 and OP4 for 2v2 and 4v4 (one chart: 2v2 vs OP3, 2v2 vs OP4, 4v4 vs OP3, 4v4 vs OP4 as 4 series would cramp; do two charts)
         # Single Robustness chart: 2v2 vs OP3, 4v4 vs OP3 in one; then 2v2 vs OP4, 4v4 vs OP4 in another. That's 2 charts. User asked 5. So one "Robustness" with 4 series is cramped. Use one Robustness chart with 2v2 (vs OP3 + OP4) and 4v4 (vs OP3 + OP4): 2 groups of 2 bars per method = 6 groups of 2 = 12 bars. Simpler: Robustness shows success vs OP3 (2v2 and 4v4) and vs OP4 (2v2 and 4v4) as grouped bars: for each method, 4 bars (2v2-OP3, 2v2-OP4, 4v4-OP3, 4v4-OP4). That's 3 methods × 4 = 12 bars - cramped. Keep it to 5 graphs: Robustness one figure with 2v2 vs OP3, 4v4 vs OP3, 2v2 vs OP4, 4v4 vs OP4 as four lines of data - we can do 2v2 (OP3, OP4) and 4v4 (OP3, OP4) with width 0.2 so 4 bars per method. Actually for "5 nice graphs" just do one Robustness figure: y = success rate, x = Ours, Jacob, Self-play, with 2 bars per method (2v2 vs plot_opp, 4v4 vs plot_opp). So same as Performance but we're labeling "Robustness". That duplicates Performance. So Robustness should show generalization: e.g. 2v2 vs OP3 and 2v2 vs OP4. So one chart: for each method, two bars (vs OP3, vs OP4) for 2v2; then same for 4v4. That's 2 subplots (2v2, 4v4) in one figure. So one Robustness.png with 2 panels (2v2 and 4v4), each panel has 3 methods × 2 bars (OP3, OP4). Clean.
         # Simpler: 5 figures. Robustness = one figure with two panels (2v2, 4v4), each panel 3 methods × 2 bars (OP3, OP4). So we need a small multi-panel for Robustness only, or we do Robustness_2v2 and Robustness_4v4 as separate files and that makes 6 files (Perf, Coord, Robust_2v2, Robust_4v4, Stability, Robotics). User said 5. So: Performance, Coordination, Stability, Robotics (each 2v2 & 4v4 grouped), and Robustness (one figure: 2v2 with OP3/OP4 bars, 4v4 with OP3/OP4 bars - two panels in one figure, each panel clean and spacious). So Robustness is one file with 2 subplots (2v2, 4v4), each subplot 3 methods × 2 bars (OP3, OP4). That gives 5 files and agent count + OP in titles.
-        fig, (ax2, ax4) = plt.subplots(1, 2, figsize=(12, 5))
-        for ax, mode, res in [(ax2, "2v2", r2), (ax4, "4v4", r4)]:
+        method_cols = ["#2ecc71", "#3498db", "#9b59b6"]
+        fig, (ax2, ax4, ax5) = plt.subplots(1, 3, figsize=(18, 5))
+        for ax, mode, res in [(ax2, "2v2", r2), (ax4, "4v4", r4), (ax5, "5v5", r5)]:
             x = np.arange(len(labels))
             w = 0.35
             v3 = [res.get((l, "OP3"), {}).get("success_rate", 0) for l in labels]
             v4 = [res.get((l, "OP4"), {}).get("success_rate", 0) for l in labels]
-            b3 = ax.bar(x - w / 2, v3, w, label="vs OP3", color=bar_colors, **bar_kw)
-            b4 = ax.bar(x + w / 2, v4, w, label="vs OP4", color=bar_colors, alpha=0.75, **bar_kw)
+            b3 = ax.bar(x - w / 2, v3, w, label="vs OP3", color=method_cols, **bar_kw)
+            b4 = ax.bar(x + w / 2, v4, w, label="vs OP4", color=method_cols, alpha=0.75, **bar_kw)
             ax.set_xticks(x)
             ax.set_xticklabels(labels, fontsize=18)
             ax.set_ylabel("Success rate (%)", fontsize=20)
@@ -654,44 +735,49 @@ def main() -> None:
                 ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=14)
             for b, val in zip(b4, v4):
                 ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=14)
-        plt.suptitle(f"Robustness (2v2 & 4v4 vs OP3 / OP4)", fontsize=22)
+        plt.suptitle("Robustness (2v2, 4v4 & 5v5 vs OP3 / OP4)", fontsize=22)
         plt.tight_layout()
         plt.savefig(f"{base_out}_Robustness_OP3_OP4.png", dpi=150)
         plt.close()
         print(f"Saved: {base_out}_Robustness_OP3_OP4.png")
     else:
         _save_single(
-            f"Robustness (2v2, 3v3, 4v4 vs {plot_opp})",
+            f"Robustness (2v2–5v5 vs {plot_opp})",
             f"Success rate vs {plot_opp} (%)",
             sr_2,
             sr_3,
             sr_4,
+            sr_5,
             f"Robustness_{plot_opp}",
         )
 
-    rvar_2 = [r2[(l, plot_opp)]["return_var"] for l in labels]
-    rvar_3 = [r3[(l, plot_opp)]["return_var"] for l in labels]
-    rvar_4 = [r4[(l, plot_opp)]["return_var"] for l in labels]
+    rvar_2 = [_metric_at(r2, l, plot_opp, "return_var") for l in labels]
+    rvar_3 = [_metric_at(r3, l, plot_opp, "return_var") for l in labels]
+    rvar_4 = [_metric_at(r4, l, plot_opp, "return_var") for l in labels]
+    rvar_5 = [_metric_at(r5, l, plot_opp, "return_var") for l in labels]
     _save_single(
-        f"Stability (2v2, 3v3, 4v4 vs {plot_opp})",
+        f"Stability (2v2–5v5 vs {plot_opp})",
         "Variance of episode return",
         rvar_2,
         rvar_3,
         rvar_4,
+        rvar_5,
         f"Stability_{plot_opp}",
         fmt="{:.3f}",
         ylim=None,
     )
 
-    safety_2 = [r2[(l, plot_opp)]["collision_free_rate"] for l in labels]
-    safety_3 = [r3[(l, plot_opp)]["collision_free_rate"] for l in labels]
-    safety_4 = [r4[(l, plot_opp)]["collision_free_rate"] for l in labels]
+    safety_2 = [_metric_at(r2, l, plot_opp, "collision_free_rate") for l in labels]
+    safety_3 = [_metric_at(r3, l, plot_opp, "collision_free_rate") for l in labels]
+    safety_4 = [_metric_at(r4, l, plot_opp, "collision_free_rate") for l in labels]
+    safety_5 = [_metric_at(r5, l, plot_opp, "collision_free_rate") for l in labels]
     _save_single(
-        f"Robotics (2v2, 3v3, 4v4 vs {plot_opp})",
+        f"Robotics (2v2–5v5 vs {plot_opp})",
         "Safety (collision-free %)",
         safety_2,
         safety_3,
         safety_4,
+        safety_5,
         f"Robotics_{plot_opp}",
     )
 
