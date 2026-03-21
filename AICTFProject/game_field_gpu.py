@@ -1345,8 +1345,12 @@ class BatchedCTFCore:
             cap = self._align_speed_cap_to_speed(speed, speed_cap)
             speed2 = torch.minimum(speed2, cap)
         heading2 = heading + yaw_rate_cmd * dt
-        vx = speed2 * torch.cos(heading2) + self.rt_current_strength_cps[:, None]
-        vy = speed2 * torch.sin(heading2)
+        # CUDA/trig can misbehave if heading/speed dtypes differ (e.g. float64 vs float32).
+        s2 = speed2.float()
+        h2 = heading2.float()
+        cur = self.rt_current_strength_cps[:, None].to(dtype=s2.dtype, device=s2.device)
+        vx = s2 * torch.cos(h2) + cur
+        vy = s2 * torch.sin(h2)
 
         nx_raw = x + vx * dt
         ny_raw = y + vy * dt
