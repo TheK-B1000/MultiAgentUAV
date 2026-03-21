@@ -21,8 +21,11 @@ Usage:
   python plot_eval_metrics.py --table-out eval_table.csv --table-opponent OP4   # table/CSV and plots use OP4
   python plot_eval_metrics.py --training-csv logs/behavior_ppo.csv   # add AUC learning curve if CSV has episode_id, success
 
-  Produces 5 clean, well-spaced PNGs (agent count + OP3/OP4 in title): Performance, Coordination,
-  Robustness, Stability, Robotics. Base name from --out (e.g. eval_metrics -> eval_metrics_Performance_OP4.png).
+  Robustness (OP3 vs OP4, success rate): default panels 2v2 & 4v4 (paper-style). Add 5v5 panel:
+    python plot_eval_metrics.py --robustness-modes 2v2 4v4 5v5
+
+  Produces PNGs: Performance, Coordination, Robustness_OP3_OP4 (when both opponents), Stability, Robotics.
+  Base name from --out (e.g. eval_metrics -> eval_metrics_Performance_OP4.png).
 """
 from __future__ import annotations
 
@@ -358,6 +361,17 @@ def main() -> None:
         default=None,
         help="Opponents to evaluate (default: OP3 OP4 for full metrics + robustness). E.g. --opponents OP4 for single opponent.",
     )
+    parser.add_argument(
+        "--robustness-modes",
+        type=str,
+        nargs="+",
+        default=None,
+        metavar="MODE",
+        help=(
+            "Team sizes for eval_metrics_*_Robustness_OP3_OP4.png (default: 2v2 4v4, paper-style). "
+            "Example: --robustness-modes 2v2 4v4 5v5 for a third panel."
+        ),
+    )
     parser.add_argument("--out", type=str, default="eval_metrics.png", help="Output plot path (default: figures/eval_metrics.png)")
     parser.add_argument("--table-out", type=str, default=None, help="If set, write paper-ready metrics table to this CSV (default: csv/eval_table.csv)")
     parser.add_argument("--table-opponent", type=str, default=None, help="Opponent for table/CSV and printed metrics (default: first in --opponents). E.g. --table-opponent OP4 to get OP4 results.")
@@ -601,6 +615,18 @@ def main() -> None:
             writer.writerows(table_rows)
         print(f"\nTable saved: {args.table_out}")
 
+    _valid_rob_modes = {"2v2", "3v3", "4v4", "5v5", "8v8"}
+    if args.robustness_modes:
+        robustness_modes: list[str] = []
+        for m in args.robustness_modes:
+            key = str(m).strip().lower()
+            if key not in _valid_rob_modes:
+                sys.exit(f"[ERROR] --robustness-modes: unknown {m!r} (use {sorted(_valid_rob_modes)})")
+            robustness_modes.append(key)
+    else:
+        # Paper-style figure: 2v2 & 4v4 only (match OP3/OP4 robustness bar layout).
+        robustness_modes = ["2v2", "4v4"]
+
     import matplotlib.pyplot as plt
     plt.rc("font", size=16)
     # Match 2v2_winrate.png: one clean bar chart per figure, well spaced, agent count + opponent in title
@@ -712,13 +738,26 @@ def main() -> None:
         f"Coordination_{plot_opp}",
     )
 
-    if "OP4" in opponents and "OP3" in opponents:
-        # Robustness: show both OP3 and OP4 for 2v2 and 4v4 (one chart: 2v2 vs OP3, 2v2 vs OP4, 4v4 vs OP3, 4v4 vs OP4 as 4 series would cramp; do two charts)
-        # Single Robustness chart: 2v2 vs OP3, 4v4 vs OP3 in one; then 2v2 vs OP4, 4v4 vs OP4 in another. That's 2 charts. User asked 5. So one "Robustness" with 4 series is cramped. Use one Robustness chart with 2v2 (vs OP3 + OP4) and 4v4 (vs OP3 + OP4): 2 groups of 2 bars per method = 6 groups of 2 = 12 bars. Simpler: Robustness shows success vs OP3 (2v2 and 4v4) and vs OP4 (2v2 and 4v4) as grouped bars: for each method, 4 bars (2v2-OP3, 2v2-OP4, 4v4-OP3, 4v4-OP4). That's 3 methods × 4 = 12 bars - cramped. Keep it to 5 graphs: Robustness one figure with 2v2 vs OP3, 4v4 vs OP3, 2v2 vs OP4, 4v4 vs OP4 as four lines of data - we can do 2v2 (OP3, OP4) and 4v4 (OP3, OP4) with width 0.2 so 4 bars per method. Actually for "5 nice graphs" just do one Robustness figure: y = success rate, x = Ours, Jacob, Self-play, with 2 bars per method (2v2 vs plot_opp, 4v4 vs plot_opp). So same as Performance but we're labeling "Robustness". That duplicates Performance. So Robustness should show generalization: e.g. 2v2 vs OP3 and 2v2 vs OP4. So one chart: for each method, two bars (vs OP3, vs OP4) for 2v2; then same for 4v4. That's 2 subplots (2v2, 4v4) in one figure. So one Robustness.png with 2 panels (2v2 and 4v4), each panel has 3 methods × 2 bars (OP3, OP4). Clean.
-        # Simpler: 5 figures. Robustness = one figure with two panels (2v2, 4v4), each panel 3 methods × 2 bars (OP3, OP4). So we need a small multi-panel for Robustness only, or we do Robustness_2v2 and Robustness_4v4 as separate files and that makes 6 files (Perf, Coord, Robust_2v2, Robust_4v4, Stability, Robotics). User said 5. So: Performance, Coordination, Stability, Robotics (each 2v2 & 4v4 grouped), and Robustness (one figure: 2v2 with OP3/OP4 bars, 4v4 with OP3/OP4 bars - two panels in one figure, each panel clean and spacious). So Robustness is one file with 2 subplots (2v2, 4v4), each subplot 3 methods × 2 bars (OP3, OP4). That gives 5 files and agent count + OP in titles.
+    if {"OP3", "OP4"}.issubset({str(o).strip().upper() for o in opponents}):
+        # One panel per --robustness-modes; each panel = 3 methods × 2 bars (OP3 solid, OP4 alpha).
         method_cols = ["#2ecc71", "#3498db", "#9b59b6"]
-        fig, (ax2, ax4, ax5) = plt.subplots(1, 3, figsize=(18, 5))
-        for ax, mode, res in [(ax2, "2v2", r2), (ax4, "4v4", r4), (ax5, "5v5", r5)]:
+        r8 = results_by_mode.get("8v8", {})
+        mode_to_res = {"2v2": r2, "3v3": r3, "4v4": r4, "5v5": r5, "8v8": r8}
+        n_p = len(robustness_modes)
+        fig, axes = plt.subplots(1, n_p, figsize=(6 * n_p, 5), squeeze=False)
+        ax_list = list(axes[0])
+
+        def _robustness_suptitle(modes: list[str]) -> str:
+            if len(modes) == 1:
+                body = modes[0]
+            elif len(modes) == 2:
+                body = f"{modes[0]} & {modes[1]}"
+            else:
+                body = ", ".join(modes[:-1]) + f" & {modes[-1]}"
+            return f"Robustness ({body} vs OP3 / OP4)"
+
+        for ax, mode in zip(ax_list, robustness_modes):
+            res = mode_to_res.get(mode, {})
             x = np.arange(len(labels))
             w = 0.35
             v3 = [res.get((l, "OP3"), {}).get("success_rate", 0) for l in labels]
@@ -735,7 +774,7 @@ def main() -> None:
                 ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=14)
             for b, val in zip(b4, v4):
                 ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=14)
-        plt.suptitle("Robustness (2v2, 4v4 & 5v5 vs OP3 / OP4)", fontsize=22)
+        plt.suptitle(_robustness_suptitle(robustness_modes), fontsize=22)
         plt.tight_layout()
         plt.savefig(f"{base_out}_Robustness_OP3_OP4.png", dpi=150)
         plt.close()
