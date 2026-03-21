@@ -68,6 +68,13 @@ def run_eval_episodes(
     try:
         env.env_method("set_phase", opponent)
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
+        # Match training (train_ppo): phase-indexed current/drift via stress schedule.
+        try:
+            from rl.curriculum import STRESS_BY_PHASE
+
+            env.env_method("set_stress_schedule", STRESS_BY_PHASE)
+        except Exception:
+            pass
         out = env.env_method("get_opponent_key")
         actual = (out[0] if out else "").strip().upper()
         requested = str(opponent).strip().upper()
