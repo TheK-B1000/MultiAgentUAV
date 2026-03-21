@@ -17,6 +17,7 @@ Usage:
   python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_*_5v5.zip)
   python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
   python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
+  python plot_eval_metrics.py --modes 2v2 3v3 4v4 5v5        # skip slow 8v8 eval
   python plot_eval_metrics.py --table-out eval_table.csv --out eval_metrics.png
   python plot_eval_metrics.py --table-out eval_table.csv --table-opponent OP4   # table/CSV and plots use OP4
   python plot_eval_metrics.py --training-csv logs/behavior_ppo.csv   # add AUC learning curve if CSV has episode_id, success
@@ -162,6 +163,17 @@ def main() -> None:
     parser.add_argument("--paper-8v8", type=str, default=None, help="8v8 Paper model .zip")
     parser.add_argument("--selfplay-8v8", type=str, default=None, help="8v8 Self-play model .zip")
     parser.add_argument("--episodes", type=int, default=100)
+    parser.add_argument(
+        "--modes",
+        type=str,
+        nargs="+",
+        default=None,
+        metavar="MODE",
+        help=(
+            "Team sizes to evaluate (default: all 2v2 3v3 4v4 5v5 8v8). "
+            "Example: --modes 2v2 4v4 skips other sizes (faster)."
+        ),
+    )
     parser.add_argument("--opponent", type=str, default=None, help="Single opponent (used only if --opponents not set)")
     parser.add_argument(
         "--opponents",
@@ -299,6 +311,36 @@ def main() -> None:
         ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_paper_8v8.zip", "8v8")),
         ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_self_play_8v8.zip", "8v8")),
     ]
+    _full_mode_plan: list[tuple[str, int, list[tuple[str, str]]]] = [
+        ("2v2", 2, model_paths_2v2),
+        ("3v3", 3, model_paths_3v3),
+        ("4v4", 4, model_paths_4v4),
+        ("5v5", 5, model_paths_5v5),
+        ("8v8", 8, model_paths_8v8),
+    ]
+    _valid_mode_names = {m[0] for m in _full_mode_plan}
+    if args.modes:
+        mode_plan: list[tuple[str, int, list[tuple[str, str]]]] = []
+        seen: set[str] = set()
+        for raw in args.modes:
+            key = str(raw).strip().lower()
+            found: str | None = None
+            for name, _, _ in _full_mode_plan:
+                if name.lower() == key:
+                    found = name
+                    break
+            if found is None:
+                sys.exit(f"[ERROR] --modes: unknown {raw!r} (use {sorted(_valid_mode_names)})")
+            if found not in seen:
+                seen.add(found)
+                for entry in _full_mode_plan:
+                    if entry[0] == found:
+                        mode_plan.append(entry)
+                        break
+    else:
+        mode_plan = list(_full_mode_plan)
+    evaluated_mode_order = [m[0] for m in mode_plan]
+
     use_metrics_csv = args.metrics_csv and os.path.isfile(args.metrics_csv)
 
     if use_metrics_csv:
@@ -310,7 +352,11 @@ def main() -> None:
     else:
         if args.metrics_csv:
             print(f"[WARN] --metrics-csv={args.metrics_csv} not found or not a file; running evaluation.")
-        for _label, p in model_paths_2v2 + model_paths_3v3 + model_paths_4v4 + model_paths_5v5 + model_paths_8v8:
+        paths_needed: list[str] = []
+        for _, _, mp in mode_plan:
+            for _lab, p in mp:
+                paths_needed.append(p)
+        for p in paths_needed:
             if not os.path.isfile(p):
                 print(f"[WARN] Not found: {p}")
                 sys.exit(1)
@@ -321,13 +367,7 @@ def main() -> None:
         n_episodes = args.episodes
 
         results_by_mode = {}
-        for mode, n_agents, model_paths in [
-            ("2v2", 2, model_paths_2v2),
-            ("3v3", 3, model_paths_3v3),
-            ("4v4", 4, model_paths_4v4),
-            ("5v5", 5, model_paths_5v5),
-            ("8v8", 8, model_paths_8v8),
-        ]:
+        for mode, n_agents, model_paths in mode_plan:
             # Whole-line banner so narrow terminals / scrollback do not hide [3v3] on continuation lines
             print(f"===== eval metrics: {mode} ({n_agents} agents per team) =====", flush=True)
             results = {}
@@ -365,13 +405,7 @@ def main() -> None:
     if table_opp not in opponents:
         table_opp = main_opp
     table_rows: list[dict] = []
-    for mode, model_paths in [
-        ("2v2", model_paths_2v2),
-        ("3v3", model_paths_3v3),
-        ("4v4", model_paths_4v4),
-        ("5v5", model_paths_5v5),
-        ("8v8", model_paths_8v8),
-    ]:
+    for mode, _, model_paths in mode_plan:
         results = results_by_mode.get(mode, {})
         for label, _ in model_paths:
             r = results.get((label, table_opp), {})
@@ -398,7 +432,7 @@ def main() -> None:
             })
     # Print compact table to console
     print("\n--- Paper-ready metrics (mean ± std over episodes, opponent=%s) ---" % table_opp)
-    for mode in ("2v2", "3v3", "4v4", "5v5", "8v8"):
+    for mode in evaluated_mode_order:
         print(f"\n  [{mode}]")
         for row in table_rows:
             if row["setting"] != mode:
@@ -437,6 +471,13 @@ def main() -> None:
     else:
         # Paper-style figure: 2v2 & 4v4 only (match OP3/OP4 robustness bar layout).
         robustness_modes = ["2v2", "4v4"]
+
+    # Only panels for team sizes that were actually evaluated (e.g. --modes 2v2 4v4).
+    robustness_modes = [m for m in robustness_modes if m in results_by_mode]
+    if not robustness_modes:
+        robustness_modes = [m for m in ("2v2", "4v4", "3v3", "5v5", "8v8") if m in results_by_mode][:2]
+    if not robustness_modes:
+        robustness_modes = list(results_by_mode.keys())[:1]
 
     import matplotlib.pyplot as plt
     plt.rc("font", size=16)
