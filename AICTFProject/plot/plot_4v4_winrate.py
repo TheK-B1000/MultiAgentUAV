@@ -32,6 +32,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+from eval_rollout import count_wld, run_eval_episodes
 
 
 def main():
@@ -114,9 +118,7 @@ def main():
             print(f"[WARN] Not found: {p}")
             sys.exit(1)
 
-    from stable_baselines3 import PPO
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
-    from rl.train_ppo import MaskedMultiInputPolicy
 
     device = args.device
     n_episodes = args.episodes
@@ -189,46 +191,11 @@ def main():
 
             warnings.warn(f"Failed to set opponent to {opponent!r}: {e}. Red team may still be previous opponent.")
 
-        def run_eval(model_path: str) -> tuple[int, int, int]:
-            _numpy_compat_shim()
-            custom = {
-                "observation_space": env.observation_space,
-                "action_space": env.action_space,
-                "policy_class": MaskedMultiInputPolicy,
-            }
-            model = PPO.load(model_path, device=device, custom_objects=custom)
-            model.policy.set_training_mode(False)
-            wins, losses, draws = 0, 0, 0
-            obs = env.reset()
-            for ep in range(n_episodes):
-                while True:
-                    single = {
-                        k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
-                        for k, v in obs.items()
-                    }
-                    act, _ = model.predict(single, deterministic=True)
-                    env.step_async(act)
-                    obs, _, done, infos = env.step_wait()
-                    if done.any():
-                        for i in range(len(done)):
-                            if done[i]:
-                                info = infos[i] if i < len(infos) else {}
-                                ep_res = info.get("episode_result", info)
-                                bs = int(ep_res.get("blue_score", 0))
-                                rs = int(ep_res.get("red_score", 0))
-                                if bs > rs:
-                                    wins += 1
-                                elif bs < rs:
-                                    losses += 1
-                                else:
-                                    draws += 1
-                        break
-            return wins, losses, draws
-
         results: dict = {}
         for label, path in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
             print(f"Evaluating {label}: {path} ...")
-            w, l, d = run_eval(path)
+            episodes = run_eval_episodes(path, env, n_episodes, device, opponent)
+            w, l, d = count_wld(episodes)
             results[label] = {"wins": w, "losses": l, "draws": d, "total": w + l + d}
             wr = (w / (w + l + d) * 100) if (w + l + d) > 0 else 0.0
             print(f"  {label}: W={w} L={l} D={d} WR={wr:.1f}%")
