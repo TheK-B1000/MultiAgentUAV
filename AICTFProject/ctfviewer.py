@@ -98,7 +98,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/8v8/final_ppo_league_8v8.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/4v4/final_ppo_league_4v4.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -486,7 +486,7 @@ class CTFViewer:
         self.ppo_model_path = str(ppo_model_path)
         self.deterministic = bool(deterministic)
         model_meta = _read_model_metadata(ppo_model_path)
-        initial_agents = max(1, int(model_meta.get("n_blue", 2)))
+        initial_agents = max(1, int(model_meta.get("n_blue", 4)))
         paper_steps = 400
         cfg = GPUFieldConfig(
             n_envs=1,
