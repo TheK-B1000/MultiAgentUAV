@@ -3,7 +3,7 @@
 Plot evaluation metrics by category: Performance, Coordination, Robustness, Stability, Specialization, Robotics.
 
 Uses the same default checkpoints as plot_*_winrate.py (Ours / Jacob et al. / Self-play).
-Runs 2v2, 3v3, 4v4, 5v5, and 8v8 eval with GPUCTFVecEnv (optional OP3/OP4) and collects:
+Runs 2v2, 3v3, 4v4, and 5v5 eval by default (8v8 is opt-in: ``--modes ... 8v8``). Uses GPUCTFVecEnv (optional OP3/OP4) and collects:
   - Performance: success rate, mean steps to completion
   - Coordination: coverage efficiency (zone_coverage), coordination proxy (collision-free)
   - Robustness: generalization (success vs OP3 vs OP4); default eval uses both opponents
@@ -17,7 +17,7 @@ Usage:
   python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_*_5v5.zip)
   python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
   python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
-  python plot_eval_metrics.py --modes 2v2 3v3 4v4 5v5        # skip slow 8v8 eval
+  python plot_eval_metrics.py --modes 2v2 3v3 4v4 5v5 8v8   # include slow 8v8 eval
   python plot_eval_metrics.py --table-out eval_table.csv --out eval_metrics.png
   python plot_eval_metrics.py --table-out eval_table.csv --table-opponent OP4   # table/CSV and plots use OP4
   python plot_eval_metrics.py --training-csv logs/behavior_ppo.csv   # add AUC learning curve if CSV has episode_id, success
@@ -146,7 +146,7 @@ def load_training_success_auc(csv_path: str) -> float | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot evaluation metrics by category (2v2–5v5, 8v8)")
+    parser = argparse.ArgumentParser(description="Plot evaluation metrics (default: 2v2–5v5; 8v8 via --modes)")
     parser.add_argument("--league", type=str, default=None, help="2v2 League model .zip")
     parser.add_argument("--paper", type=str, default=None, help="2v2 Paper model .zip")
     parser.add_argument("--selfplay", type=str, default=None, help="2v2 Self-play model .zip")
@@ -170,8 +170,8 @@ def main() -> None:
         default=None,
         metavar="MODE",
         help=(
-            "Team sizes to evaluate (default: all 2v2 3v3 4v4 5v5 8v8). "
-            "Example: --modes 2v2 4v4 skips other sizes (faster)."
+            "Team sizes to evaluate (default: 2v2 3v3 4v4 5v5 — 8v8 is not run unless listed here). "
+            "Example: --modes 2v2 4v4 only, or add 8v8 for full grid."
         ),
     )
     parser.add_argument("--opponent", type=str, default=None, help="Single opponent (used only if --opponents not set)")
@@ -338,7 +338,8 @@ def main() -> None:
                         mode_plan.append(entry)
                         break
     else:
-        mode_plan = list(_full_mode_plan)
+        # 8v8 is much slower; do not eval by default (opt in with --modes ... 8v8).
+        mode_plan = [t for t in _full_mode_plan if t[0] != "8v8"]
     evaluated_mode_order = [m[0] for m in mode_plan]
 
     use_metrics_csv = args.metrics_csv and os.path.isfile(args.metrics_csv)
@@ -349,6 +350,12 @@ def main() -> None:
         if not results_by_mode:
             sys.exit(f"[ERROR] No valid rows in {args.metrics_csv}")
         print(f"  Opponents in CSV: {opponents}")
+        # Table/plots: follow CSV contents (may include 8v8) unless --modes narrowed the plan.
+        if args.modes is None:
+            mode_plan = [t for t in _full_mode_plan if t[0] in results_by_mode]
+        else:
+            mode_plan = [t for t in mode_plan if t[0] in results_by_mode]
+        evaluated_mode_order = [m[0] for m in mode_plan]
     else:
         if args.metrics_csv:
             print(f"[WARN] --metrics-csv={args.metrics_csv} not found or not a file; running evaluation.")
