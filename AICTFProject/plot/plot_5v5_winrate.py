@@ -33,6 +33,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+from eval_rollout import count_wld, run_eval_episodes
 
 
 def main():
@@ -161,32 +165,6 @@ def main():
     n_episodes = args.episodes
     base_seed = int(args.seed)
 
-    def _numpy_compat_shim():
-        if "numpy._core.numeric" not in sys.modules:
-            try:
-                import numpy.core as _core
-                import numpy.core.numeric
-                import numpy.core.multiarray
-                import numpy.core.umath
-                sys.modules["numpy._core"] = _core
-                sys.modules["numpy._core.numeric"] = _core.numeric
-                sys.modules["numpy._core.multiarray"] = _core.multiarray
-                sys.modules["numpy._core.umath"] = _core.umath
-            except Exception:
-                pass
-        try:
-            import numpy.random._pickle as _np_pickle
-            _orig_bg_ctor = _np_pickle.__bit_generator_ctor
-
-            def _patched_bg_ctor(bit_generator_name="MT19937"):
-                if isinstance(bit_generator_name, type):
-                    bit_generator_name = bit_generator_name.__name__
-                return _orig_bg_ctor(bit_generator_name)
-
-            _np_pickle.__bit_generator_ctor = _patched_bg_ctor
-        except Exception:
-            pass
-
     for opponent in opponents_list:
         seed = base_seed + (1 if opponent == "OP4" else 0)
         print(f"5v5 win rate vs {opponent} ({n_episodes} episodes per model, seed={seed})")
@@ -226,46 +204,11 @@ def main():
 
             w.warn(f"Failed to set opponent to {opponent!r}: {e}.")
 
-        def run_eval(model_path: str) -> tuple[int, int, int]:
-            _numpy_compat_shim()
-            custom = {
-                "observation_space": env.observation_space,
-                "action_space": env.action_space,
-                "policy_class": MaskedMultiInputPolicy,
-            }
-            model = PPO.load(model_path, device=device, custom_objects=custom)
-            model.policy.set_training_mode(False)
-            wins, losses, draws = 0, 0, 0
-            obs = env.reset()
-            for _ep in range(n_episodes):
-                while True:
-                    single = {
-                        k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
-                        for k, v in obs.items()
-                    }
-                    act, _ = model.predict(single, deterministic=True)
-                    env.step_async(act)
-                    obs, _, done, infos = env.step_wait()
-                    if done.any():
-                        for i in range(len(done)):
-                            if done[i]:
-                                info = infos[i] if i < len(infos) else {}
-                                ep_res = info.get("episode_result", info)
-                                bs = int(ep_res.get("blue_score", 0))
-                                rs = int(ep_res.get("red_score", 0))
-                                if bs > rs:
-                                    wins += 1
-                                elif bs < rs:
-                                    losses += 1
-                                else:
-                                    draws += 1
-                        break
-            return wins, losses, draws
-
         results: dict = {}
         for label, path in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
             print(f"Evaluating {label}: {path} ...")
-            w, l, d = run_eval(path)
+            episodes = run_eval_episodes(path, env, n_episodes, device, opponent)
+            w, l, d = count_wld(episodes)
             results[label] = {"wins": w, "losses": l, "draws": d, "total": w + l + d}
             wr = (w / (w + l + d) * 100) if (w + l + d) > 0 else 0.0
             print(f"  {label}: W={w} L={l} D={d} WR={wr:.1f}%")
