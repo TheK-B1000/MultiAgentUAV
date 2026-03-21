@@ -689,7 +689,15 @@ class BatchedCTFCore:
             if "deception_prob" in opp_params:
                 self.red_deception_prob[sub_idx] = opp_params["deception_prob"].to(device=self.device, dtype=self.red_deception_prob.dtype)
             if "speed_mult" in opp_params:
-                self.red_speed_mult[sub_idx] = opp_params["speed_mult"].to(device=self.device, dtype=self.red_speed_mult.dtype)
+                sm = opp_params["speed_mult"].to(device=self.device, dtype=self.red_speed_mult.dtype).reshape(-1)
+                n_sub = int(sub_idx.numel())
+                if sm.numel() == n_sub:
+                    self.red_speed_mult[sub_idx] = sm
+                elif sm.numel() == 1:
+                    self.red_speed_mult[sub_idx] = sm[0]
+                else:
+                    # e.g. per-agent samples leaked in — collapse to one value per env row
+                    self.red_speed_mult[sub_idx] = sm.mean()
             if "attacker_style" in opp_params:
                 self.red_attacker_style[sub_idx] = opp_params["attacker_style"].to(device=self.device, dtype=self.red_attacker_style.dtype)
             if "defender_style" in opp_params:
@@ -1049,6 +1057,11 @@ class BatchedCTFCore:
             guardian_idx_t = torch.full((B,), guardian_idx, dtype=torch.int64, device=device)
             striker_idx_t = torch.full((B,), striker_idx, dtype=torch.int64, device=device)
 
+        # Advanced indexing uses these as column indices; clamp defensively (avoids CUDA assert if corrupted).
+        n_max = max(0, N - 1)
+        guardian_idx_t = torch.clamp(guardian_idx_t, 0, n_max)
+        striker_idx_t = torch.clamp(striker_idx_t, 0, n_max)
+
         # ---- shared team state ----
         enemy_carrier_exists = enemy_carrying.any(dim=1)
         if is_blue:
@@ -1270,6 +1283,22 @@ class BatchedCTFCore:
         """Scripted red team -- delegates to the unified NPC brain."""
         return self._get_scripted_targets("red")
 
+    def _align_speed_cap_to_speed(self, speed: torch.Tensor, speed_cap: torch.Tensor) -> torch.Tensor:
+        """Ensure speed_cap matches speed's (B, N) layout for torch.minimum / arithmetic."""
+        cap = torch.clamp(speed_cap.to(dtype=speed.dtype, device=speed.device), min=0.0)
+        if cap.shape == speed.shape:
+            return cap
+        if cap.dim() == 1 and cap.shape[0] == speed.shape[0]:
+            return cap[:, None].expand_as(speed)
+        if cap.numel() == 1:
+            return cap.view(1, 1).expand_as(speed)
+        if cap.numel() == speed.numel():
+            return cap.reshape(speed.shape)
+        raise RuntimeError(
+            f"speed_cap shape {tuple(cap.shape)} / numel={cap.numel()} incompatible with "
+            f"speed {tuple(speed.shape)} / numel={speed.numel()}"
+        )
+
     def _integrate_side(
         self,
         x: torch.Tensor,
@@ -1313,7 +1342,8 @@ class BatchedCTFCore:
 
         speed2 = torch.clamp(speed + accel_cmd * dt, 0.0, max_speed)
         if speed_cap is not None:
-            speed2 = torch.minimum(speed2, torch.clamp(speed_cap, min=0.0))
+            cap = self._align_speed_cap_to_speed(speed, speed_cap)
+            speed2 = torch.minimum(speed2, cap)
         heading2 = heading + yaw_rate_cmd * dt
         vx = speed2 * torch.cos(heading2) + self.rt_current_strength_cps[:, None]
         vy = speed2 * torch.sin(heading2)
@@ -2101,7 +2131,13 @@ class BatchedCTFCore:
         self._apply_profile_runtime()
         if blue_action_flat.device != self.device:
             blue_action_flat = blue_action_flat.to(self.device)
-        a = blue_action_flat.view(self.B, self.Nb, 2)
+        n_act_exp = int(self.B * self.Nb * 2)
+        if int(blue_action_flat.numel()) != n_act_exp:
+            raise ValueError(
+                f"BatchedCTFCore.step: expected {n_act_exp} action ints (B={self.B}, Nb={self.Nb}), "
+                f"got numel={int(blue_action_flat.numel())} shape={tuple(blue_action_flat.shape)}"
+            )
+        a = blue_action_flat.reshape(self.B, self.Nb, 2)
         requested_macro = torch.remainder(a[..., 0].long(), self.cfg.n_macros)
         requested_targ = torch.remainder(a[..., 1].long(), self.cfg.n_targets)
         new_commit = self.blue_commit_ticks_left <= 0
@@ -2131,7 +2167,13 @@ class BatchedCTFCore:
         if red_action_flat is not None:
             if red_action_flat.device != self.device:
                 red_action_flat = red_action_flat.to(self.device)
-            red_a = red_action_flat.view(self.B, self.Nr, 2)
+            n_red_exp = int(self.B * self.Nr * 2)
+            if int(red_action_flat.numel()) != n_red_exp:
+                raise ValueError(
+                    f"BatchedCTFCore.step: expected {n_red_exp} red action ints (B={self.B}, Nr={self.Nr}), "
+                    f"got numel={int(red_action_flat.numel())} shape={tuple(red_action_flat.shape)}"
+                )
+            red_a = red_action_flat.reshape(self.B, self.Nr, 2)
             red_requested_macro = torch.remainder(red_a[..., 0].long(), self.cfg.n_macros)
             red_requested_targ = torch.remainder(red_a[..., 1].long(), self.cfg.n_targets)
             red_control_mask = torch.ones((self.B,), device=self.device, dtype=torch.bool)
@@ -2186,19 +2228,25 @@ class BatchedCTFCore:
                     rty = torch.where(snapshot_agent_mask, red_snapshot_ty, rty)
 
         # Tagged agents: OpRegion-like forced safe return to home region.
-        if self.blue_tagged.any():
+        if bool(self.blue_tagged.any().item()):
             btx = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 0], btx)
             bty = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 1], bty)
-        if self.red_tagged.any():
+        if bool(self.red_tagged.any().item()):
             rtx = torch.where(self.red_tagged, self.red_flag_home[:, None, 0], rtx)
             rty = torch.where(self.red_tagged, self.red_flag_home[:, None, 1], rty)
         # Use normal speed for all blue agents. Red speed is modulated by the opponent
         # speed multiplier (scripted difficulty) on a per-env basis.
         blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps))
-        red_speed_cap = (
-            torch.full_like(self.red_speed, float(self.cfg.max_speed_cps))
-            * self.red_speed_mult[:, None]
-        )
+        B = self.B
+        rm = self.red_speed_mult.reshape(-1).to(device=self.red_speed.device, dtype=self.red_speed.dtype)
+        if rm.numel() < B:
+            rm = torch.cat(
+                [rm, torch.ones(B - rm.numel(), device=self.red_speed.device, dtype=self.red_speed.dtype)],
+                dim=0,
+            )
+        elif rm.numel() > B:
+            rm = rm[:B]
+        red_speed_cap = torch.full_like(self.red_speed, float(self.cfg.max_speed_cps)) * rm[:, None]
 
         self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, blue_oob, yaw_cmd_blue = self._integrate_side(
             self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, self.blue_alive, btx, bty, speed_cap=blue_speed_cap
@@ -2248,7 +2296,7 @@ class BatchedCTFCore:
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.PLACE_MINE)) & blue_mine_placement_agents)
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GO_HOME)) & blue_cap_agents)
         self.blue_commit_success = self.blue_commit_success | action_success
-        if red_control_mask.any() and red_macro is not None:
+        if bool(red_control_mask.any().item()) and red_macro is not None:
             red_commit_target_xy = self._decode_targets(self.red_commit_target, side="red")
             red_commit_dist = torch.sqrt(
                 (self.red_x - red_commit_target_xy[..., 0]) ** 2
@@ -2291,7 +2339,7 @@ class BatchedCTFCore:
         roff += float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
         self.blue_commit_ticks_left = torch.where(ended_commit, torch.zeros_like(self.blue_commit_ticks_left), self.blue_commit_ticks_left)
         self.blue_commit_success = torch.where(ended_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
-        if red_control_mask.any() and red_macro is not None:
+        if bool(red_control_mask.any().item()) and red_macro is not None:
             self.red_commit_ticks_left = torch.clamp(self.red_commit_ticks_left - 1, min=0)
             ended_red_commit = (
                 self.red_commit_success | (self.red_commit_ticks_left <= 0) | (~self.red_alive) | self.red_tagged
@@ -2825,7 +2873,14 @@ class GPUCTFVecEnv(VecEnv):
 
     def step_wait(self):
         assert self._pending_actions is not None, "step_async() must be called before step_wait()"
-        actions = torch.as_tensor(self._pending_actions, dtype=torch.int64, device=self.core.device)
+        flat = np.asarray(self._pending_actions, dtype=np.int64).reshape(-1)
+        n_exp = int(self.core.B * self.core.Nb * 2)
+        if int(flat.size) != n_exp:
+            raise ValueError(
+                f"GPUCTFVecEnv: expected {n_exp} action values (B={self.core.B}, Nb={self.core.Nb}), "
+                f"got {int(flat.size)} from predict() shape={getattr(self._pending_actions, 'shape', None)}"
+            )
+        actions = torch.as_tensor(flat, dtype=torch.int64, device=self.core.device)
         obs, rew, term, trunc, infos = self.core.step(actions)
         done = np.logical_or(term, trunc)
         if done.any():
