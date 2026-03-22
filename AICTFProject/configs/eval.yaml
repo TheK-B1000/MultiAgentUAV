@@ -1,0 +1,73 @@
+# Evaluation harness contract for deterministic evaluation runs.
+#
+# This file defines the standard evaluation configuration:
+# - Deterministic opponent suite
+# - Deterministic seeds list
+# - Deterministic environment settings
+# - Deterministic number of episodes per condition
+
+# Seed configuration
+seeds:
+  base_seed: 42
+  seed_list: [42, 123, 456, 789, 1337]  # List of seeds for evaluation runs
+  deterministic: true  # Enable PyTorch deterministic mode
+
+# Opponent suite (deterministic)
+opponents:
+  - kind: "SCRIPTED"
+    key: "OP1"
+    episodes_per_seed: 10
+  - kind: "SCRIPTED"
+    key: "OP2"
+    episodes_per_seed: 10
+  - kind: "SCRIPTED"
+    key: "OP3"
+    episodes_per_seed: 10
+  - kind: "SPECIES"
+    key: "BALANCED"
+    episodes_per_seed: 10
+  - kind: "SPECIES"
+    key: "RUSHER"
+    episodes_per_seed: 10
+  - kind: "SPECIES"
+    key: "CAMPER"
+    episodes_per_seed: 10
+  # Snapshot opponents can be added here with deterministic paths
+
+# Environment settings (locked in eval mode)
+environment:
+  n_agents: 2  # Fixed number of agents
+  max_decision_steps: 400
+  phase: "OP3"  # Fixed phase (or specify per opponent)
+  physics_enabled: false  # Lock physics settings
+  stress_schedule: null  # Disable stress schedule
+  action_noise: 0.0  # Disable action noise
+  opponent_params_random: false  # Disable opponent param randomness
+
+# Evaluation mode settings
+eval_mode:
+  enabled: true
+  allow_action_noise: false
+  allow_opponent_params_random: false
+  allow_curriculum_random: false
+  lock_opponent_identity: true
+  lock_phase_schedule: true
+  lock_n_agents: true
+  lock_physics_stress: true
+
+# Metrics to collect
+metrics:
+  - "success"
+  - "time_to_first_score"
+  - "time_to_game_over"
+  - "collision_events_per_episode"
+  - "collision_free_episode"
+  - "mean_inter_robot_dist"
+  - "zone_coverage"
+  - "dropped_reward_events"
+
+# Output configuration
+output:
+  manifest_file: "eval_manifest.json"  # Determinism manifest output
+  results_file: "eval_results.csv"  # Episode results CSV
+  log_level: "INFO"

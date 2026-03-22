@@ -1,334 +1,889 @@
+"""
+CTF Viewer -- renders a single BatchedCTFCore environment in pygame.
+
+Blue team is controlled by an SB3 PPO model (if found) or scripted DEMO.
+Red team uses the scripted bot built into the GPU core.
+
+No dependency on game_field.py, viewer_game_field.py, or policies.py.
+"""
+
+import os
 import sys
-import pygame as pg
-import torch
+import csv
+import math
+import json
+import base64
+import zipfile
+from typing import Optional, Tuple, Any, List, Dict
+
 import numpy as np
-from typing import Optional, Tuple, Any
-
-from game_field import GameField
-from macro_actions import MacroAction
-from rl_policy import ActorCriticNet
-from policies import OP3RedPolicy
-
-# Match the final checkpoint from train_ppo_event.py
-DEFAULT_MODEL_PATH = "checkpoints/ctf_fixed_blue_op3.pth"
 
 
-class LearnedPolicy:
-    """
-    Wraps the trained CNN+extra dual-head ActorCriticNet so GameField can use it
-    like any other Policy: policy(agent, game_field) -> (macro_idx, target_idx).
-    """
+def _ensure_numpy_core_compat() -> None:
+    """Register numpy._core.* so models saved under NumPy 2.x load on NumPy 1.x (and vice versa)."""
+    try:
+        import types
+        # NumPy 1.x: create numpy._core and point numpy._core.* to numpy.core.*
+        if not hasattr(np, "_core"):
+            _core = types.ModuleType("numpy._core")
+            _core.__path__ = []
+            sys.modules["numpy._core"] = _core
+            for _name in ("numeric", "multiarray", "umath"):
+                try:
+                    _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
+                    setattr(_core, _name, _sub)
+                    sys.modules[f"numpy._core.{_name}"] = _sub
+                except Exception:
+                    pass
+        # Ensure numpy._core.numeric is always available (unpickle may need it)
+        if "numpy._core.numeric" not in sys.modules:
+            _sub = None
+            try:
+                _sub = __import__("numpy.core.numeric", fromlist=["numeric"])
+            except Exception:
+                pass
+            if _sub is not None:
+                sys.modules["numpy._core.numeric"] = _sub
+                if hasattr(np, "_core") and not hasattr(np._core, "numeric"):
+                    setattr(np._core, "numeric", _sub)
+    except Exception:
+        pass
 
-    def __init__(self, model_path: Optional[str] = None):
-        self.device = torch.device("cpu")  # viewer is fine on CPU
 
-        # Must match training config: 7xHxW + extra_dim
-        self.net = ActorCriticNet(
-            n_macros=len(MacroAction),
-            n_targets=50,
-            height=30,    # matches GRID_ROWS used in training
-            width=40,     # matches GRID_COLS used in training
-            latent_dim=128,
-            extra_dim=7,  # whatever extra_dim you used in training
-        ).to(self.device)
-
-        self.model_loaded = False
-        path = model_path if model_path else DEFAULT_MODEL_PATH
-
+def _ensure_numpy_random_compat() -> None:
+    """Register numpy.random._pcg64 and patch unpickler so models saved with NumPy 2.x load."""
+    try:
+        # Ensure _pcg64 is importable (NumPy 1.17+ has it)
         try:
-            state = torch.load(path, map_location=self.device)
-            # Support {'model': state_dict} or plain state_dict
-            if isinstance(state, dict) and "model" in state:
-                state_dict = state["model"]
-            else:
-                state_dict = state
+            import numpy.random._pcg64 as _pcg64
+            sys.modules["numpy.random._pcg64"] = _pcg64
+        except Exception:
+            import numpy.random
+            if hasattr(numpy.random, "_pcg64"):
+                sys.modules["numpy.random._pcg64"] = getattr(numpy.random, "_pcg64")
 
-            self.net.load_state_dict(state_dict)
-            print(f"[LearnedPolicy] Loaded model from {path}")
-            self.model_loaded = True
-        except Exception as e:
-            print(f"[LearnedPolicy] Failed to load model '{path}': {e}")
-            self.model_loaded = False
+        # Patch so BitGenerator *class* (from pickle) is accepted, not only string name
+        import numpy.random._pickle as _np_pickle
+        from numpy.random.bit_generator import BitGenerator
+        _orig_ctor = getattr(_np_pickle, "__bit_generator_ctor", None)
+        if _orig_ctor is not None:
 
-        self.net.eval()
+            def _bit_generator_ctor_patched(bit_generator):
+                if isinstance(bit_generator, type) and issubclass(bit_generator, BitGenerator):
+                    return bit_generator()
+                return _orig_ctor(bit_generator)
 
-    # GameField calls policy(agent, game_field) -> (action_id, param)
-    def __call__(self, agent, game_field) -> Tuple[int, Any]:
-        # CNN-style observation: 7xHxW map + extra vector
-        cnn_obs, extra_vec = game_field.build_cnn_observation(agent)
-        return self.select_action(cnn_obs, extra_vec, agent, game_field)
+            _np_pickle.__bit_generator_ctor = _bit_generator_ctor_patched
+    except Exception:
+        pass
 
-    def select_action(
+
+_ensure_numpy_core_compat()
+_ensure_numpy_random_compat()
+
+import torch
+import pygame as pg
+from gymnasium import spaces
+
+from game_field_gpu import (
+    GPUFieldConfig,
+    BatchedCTFCore,
+    CNN_COLS,
+    CNN_ROWS,
+    NUM_CNN_CHANNELS,
+)
+from rl.curriculum import STRESS_BY_PHASE
+from opponent_params import sample_batched_opponent_params
+
+# ---------------------------------------------------------------------------
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/4v4/final_ppo_league_4v4.zip"
+N_MACROS = 5
+N_TARGETS = 50
+
+
+def _try_paths(*candidates: str) -> Optional[str]:
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+def _resolve_zip_path(path: str) -> Optional[str]:
+    if not path:
+        return None
+    candidates = [path]
+    if not path.endswith(".zip"):
+        candidates.append(path + ".zip")
+    if not os.path.isabs(path):
+        sr = os.path.join(_SCRIPT_DIR, path)
+        candidates.append(sr)
+        if not sr.endswith(".zip"):
+            candidates.append(sr + ".zip")
+    return _try_paths(*candidates)
+
+
+def _team_size_tag(n_agents: int) -> str:
+    n = max(1, int(n_agents))
+    return f"{n}v{n}"
+
+
+def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[str]:
+    """Infer sibling checkpoints for the requested team size from the currently selected model path."""
+    resolved = _resolve_zip_path(model_path)
+    raw = resolved or model_path or ""
+    if not raw:
+        return []
+
+    team_tag = _team_size_tag(n_agents)
+    dirname = os.path.dirname(raw)
+    basename = os.path.basename(raw)
+    stem, ext = os.path.splitext(basename)
+    ext = ext or ".zip"
+
+    candidates: List[str] = []
+
+    # Replace both directory tag and filename suffix when the checkpoint follows the repo naming scheme.
+    for src_tag in ("2v2", "3v3", "4v4", "8v8"):
+        dir_variant = raw.replace(f"\\{src_tag}\\", f"\\{team_tag}\\").replace(f"/{src_tag}/", f"/{team_tag}/")
+        file_variant = os.path.join(os.path.dirname(dir_variant), os.path.basename(dir_variant).replace(src_tag, team_tag))
+        candidates.append(file_variant)
+
+    # Generic filename replacement for custom names that still embed the team tag.
+    for src_tag in ("2v2", "3v3", "4v4", "8v8"):
+        if src_tag in stem:
+            candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
+
+    # Final fallback to the standard league naming used in this repo.
+    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints_sb3", team_tag, f"final_ppo_league_{team_tag}{ext}"))
+
+    # Deduplicate while preserving order.
+    seen = set()
+    ordered: List[str] = []
+    for c in candidates:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        ordered.append(c)
+    return ordered
+
+
+def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: int = N_TARGETS):
+    """Build observation and action spaces for GPU CTF (so SB3 can load when saved ones fail to unpickle)."""
+    obs_space = spaces.Dict(
+        {
+            "grid": spaces.Box(low=0.0, high=1.0, shape=(n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
+        "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 18), dtype=np.float32),
+            "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue,), dtype=np.float32),
+            "mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue * (n_macros + n_targets),), dtype=np.float32),
+        }
+    )
+    action_space = spaces.MultiDiscrete([n_macros, n_targets] * n_blue)
+    return obs_space, action_space
+
+
+def _read_model_metadata(model_path: str) -> Dict[str, Any]:
+    """Read saved SB3 metadata so viewer/core shape matches the checkpoint."""
+    resolved = _resolve_zip_path(model_path)
+    if resolved is None:
+        return {}
+
+    meta: Dict[str, Any] = {"model_path": resolved}
+    try:
+        import cloudpickle
+
+        with zipfile.ZipFile(resolved) as archive:
+            data = json.loads(archive.read("data").decode("utf-8"))
+        obs_entry = data.get("observation_space")
+        act_entry = data.get("action_space")
+        cfg_entry = data.get("cfg")
+
+        if isinstance(obs_entry, dict) and ":serialized:" in obs_entry:
+            try:
+                meta["observation_space"] = cloudpickle.loads(base64.b64decode(obs_entry[":serialized:"]))
+            except Exception:
+                pass
+        if isinstance(act_entry, dict) and ":serialized:" in act_entry:
+            try:
+                meta["action_space"] = cloudpickle.loads(base64.b64decode(act_entry[":serialized:"]))
+            except Exception:
+                pass
+        if isinstance(cfg_entry, dict) and ":serialized:" in cfg_entry:
+            try:
+                meta["cfg"] = cloudpickle.loads(base64.b64decode(cfg_entry[":serialized:"]))
+            except Exception:
+                pass
+
+        cfg = meta.get("cfg")
+        if cfg is not None and hasattr(cfg, "max_blue_agents"):
+            meta["n_blue"] = int(getattr(cfg, "max_blue_agents"))
+        elif "action_space" in meta and hasattr(meta["action_space"], "nvec"):
+            meta["n_blue"] = max(1, int(len(meta["action_space"].nvec) // 2))
+        elif "observation_space" in meta:
+            grid_space = meta["observation_space"].spaces.get("grid")
+            if grid_space is not None and getattr(grid_space, "shape", None):
+                meta["n_blue"] = int(grid_space.shape[0])
+        return meta
+    except Exception:
+        return meta
+
+
+# ---------------------------------------------------------------------------
+# PPO wrapper  (loads SB3 model, builds obs from core, returns flat action)
+# ---------------------------------------------------------------------------
+class PPOController:
+    """
+    Wraps an SB3 PPO model trained on GPUCTFVecEnv.  Given a
+    BatchedCTFCore (B=1), produces a flat int64 action tensor each tick.
+    """
+
+    def __init__(
         self,
-        cnn_obs: np.ndarray,
-        extra_vec: np.ndarray,
-        agent,
-        game_field,
-    ) -> Tuple[int, Any]:
+        model_path: str,
+        n_blue: int,
+        n_macros: int = N_MACROS,
+        n_targets: int = N_TARGETS,
+        deterministic: bool = True,
+        device: str = "cpu",
+        print_traceback: bool = False,
+    ):
+        self.model: Optional[Any] = None
+        self.model_loaded = False
+        self.deterministic = deterministic
+        self.n_macros = n_macros
+        self.n_targets = n_targets
+        self.n_blue = int(n_blue)
+        self.print_traceback = bool(print_traceback)
+        self.model_meta = _read_model_metadata(model_path)
+        self.model_path: Optional[str] = self.model_meta.get("model_path") or _resolve_zip_path(model_path)
+        self.device = str(device)
 
-        # Fallback if no model
-        if not self.model_loaded:
-            return int(MacroAction.GO_TO), None
-
-        with torch.no_grad():
-            # cnn_obs: [C, H, W] → [1, C, H, W]
-            obs_tensor = torch.tensor(
-                cnn_obs, dtype=torch.float32, device=self.device
+        if self.model_path is None:
+            print(f"[PPO] Model not found: {model_path}")
+            return
+        try:
+            _ensure_numpy_core_compat()
+            _ensure_numpy_random_compat()
+            from stable_baselines3 import PPO as SB3PPO
+            # custom_objects: avoid unpickling policy/spaces/schedules from another Python/NumPy version.
+            obs_space = self.model_meta.get("observation_space")
+            action_space = self.model_meta.get("action_space")
+            if obs_space is None or action_space is None:
+                obs_space, action_space = _make_obs_action_spaces(self.n_blue, self.n_macros, self.n_targets)
+            custom_objects = {
+                "observation_space": obs_space,
+                "action_space": action_space,
+                "clip_range": 0.2,
+                "lr_schedule": lambda progress_remaining: 3e-4 * progress_remaining,
+                "cfg": None,
+            }
+            try:
+                from rl.train_ppo import MaskedMultiInputPolicy
+                custom_objects["policy_class"] = MaskedMultiInputPolicy
+            except Exception:
+                from stable_baselines3.common.policies import MultiInputActorCriticPolicy
+                custom_objects["policy_class"] = MultiInputActorCriticPolicy
+            self.model = SB3PPO.load(
+                self.model_path,
+                device=self.device,
+                custom_objects=custom_objects,
             )
-            if obs_tensor.dim() == 3:
-                obs_tensor = obs_tensor.unsqueeze(0)
+            self.model.policy.set_training_mode(False)
+            self.model_loaded = True
+            print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
+        except Exception as exc:
+            print(f"[PPO] Failed to load: {exc}")
+            if self.print_traceback:
+                import traceback
+                traceback.print_exc()
 
-            # extra_vec: [extra_dim] → [1, extra_dim]
-            extra_tensor = torch.tensor(
-                extra_vec, dtype=torch.float32, device=self.device
-            )
-            if extra_tensor.dim() == 1:
-                extra_tensor = extra_tensor.unsqueeze(0)
+    def predict(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
+        """Return flat int64 action array [n_blue * 2] from batched obs (B=1)."""
+        if not self.model_loaded or self.model is None:
+            n_blue = obs["agent_mask"].shape[-1] if "agent_mask" in obs else 2
+            return np.zeros((n_blue * 2,), dtype=np.int64)
 
-            out = self.net.act(
-                obs_tensor,
-                extra=extra_tensor,
-                agent=agent,
-                game_field=game_field,
-                deterministic=True,  # deterministic for viewer/demo
-            )
-
-            macro_action = out["macro_action"]
-            if isinstance(macro_action, torch.Tensor):
-                macro_action = int(macro_action[0].item())
-
-            target_action = out["target_action"]
-            if isinstance(target_action, torch.Tensor):
-                target_action = int(target_action[0].item())
-
-            # macro is the MacroAction index, target is the macro_target index
-            return macro_action, target_action
+        # SB3 expects obs without the batch dim for single-env predict
+        single = {k: v[0] if v.ndim > 1 and v.shape[0] == 1 else v
+                  for k, v in obs.items()}
+        act, _ = self.model.predict(single, deterministic=self.deterministic)
+        return np.asarray(act).reshape(-1).astype(np.int64)
 
 
+# ---------------------------------------------------------------------------
+# Renderer -- draws the state of a BatchedCTFCore[0] onto a pygame Surface
+# ---------------------------------------------------------------------------
+class CoreRenderer:
+    """Pygame renderer that reads tensor state from a BatchedCTFCore (env 0)."""
+
+    def __init__(self, core: BatchedCTFCore):
+        self.core = core
+
+    def _t(self, tensor: torch.Tensor) -> np.ndarray:
+        return tensor[0].detach().cpu().numpy()
+
+    def draw(self, surface: pg.Surface, rect: pg.Rect) -> None:
+        c = self.core
+        rows, cols = c.rows, c.cols
+        cw = rect.width / max(1, cols)
+        ch = rect.height / max(1, rows)
+
+        # Background
+        surface.fill((20, 22, 30), rect)
+
+        # Zone halves
+        mid_x = rect.left + int(cols / 2 * cw)
+        blue_band = pg.Surface((mid_x - rect.left, rect.height), pg.SRCALPHA)
+        blue_band.fill((15, 45, 120, 100))
+        surface.blit(blue_band, (rect.left, rect.top))
+        red_band = pg.Surface((rect.right - mid_x, rect.height), pg.SRCALPHA)
+        red_band.fill((120, 45, 15, 100))
+        surface.blit(red_band, (mid_x, rect.top))
+        pg.draw.line(surface, (190, 190, 210),
+                     (mid_x, rect.top), (mid_x, rect.bottom), 2)
+
+        # Flags
+        bf = self._t(c.blue_flag_pos)
+        rf = self._t(c.red_flag_pos)
+        bfh = self._t(c.blue_flag_home)
+        rfh = self._t(c.red_flag_home)
+        bf_taken = bool(c.red_carrying[0].any().item())
+        rf_taken = bool(c.blue_carrying[0].any().item())
+
+        self._draw_flag_zone(surface, rect, cw, ch, bfh, (90, 170, 250))
+        self._draw_flag_zone(surface, rect, cw, ch, rfh, (250, 120, 70))
+        if not bf_taken:
+            self._draw_flag_icon(surface, rect, cw, ch, bf, (90, 170, 250))
+        if not rf_taken:
+            self._draw_flag_icon(surface, rect, cw, ch, rf, (250, 120, 70))
+
+        # Mine pickups (spawn points; agents GRAB_MINE to get a charge)
+        if getattr(c, "pickup_active", None) is not None:
+            for i in range(c.pickup_x.shape[1]):
+                if c.pickup_active[0, i].item():
+                    px = c.pickup_x[0, i].item()
+                    py = c.pickup_y[0, i].item()
+                    self._draw_mine_pickup(surface, rect, cw, ch, px, py)
+
+        # Placed mines (trigger when enemy steps in radius)
+        if getattr(c, "blue_mine_active", None) is not None:
+            for i in range(c.blue_mine_x.shape[1]):
+                if c.blue_mine_active[0, i].item():
+                    mx = c.blue_mine_x[0, i].item()
+                    my = c.blue_mine_y[0, i].item()
+                    self._draw_mine(surface, rect, cw, ch, mx, my, (90, 170, 250))
+        if getattr(c, "red_mine_active", None) is not None:
+            for i in range(c.red_mine_x.shape[1]):
+                if c.red_mine_active[0, i].item():
+                    mx = c.red_mine_x[0, i].item()
+                    my = c.red_mine_y[0, i].item()
+                    self._draw_mine(surface, rect, cw, ch, mx, my, (250, 120, 70))
+
+        # Agents
+        bx, by = self._t(c.blue_x), self._t(c.blue_y)
+        bh = self._t(c.blue_heading)
+        b_alive = self._t(c.blue_alive)
+        b_tagged = self._t(c.blue_tagged)
+        b_carry = self._t(c.blue_carrying)
+
+        rx, ry = self._t(c.red_x), self._t(c.red_y)
+        rh = self._t(c.red_heading)
+        r_alive = self._t(c.red_alive)
+        r_tagged = self._t(c.red_tagged)
+        r_carry = self._t(c.red_carrying)
+
+        for i in range(bx.shape[0]):
+            if not b_alive[i]:
+                continue
+            self._draw_agent(surface, rect, cw, ch,
+                             bx[i], by[i], bh[i],
+                             body=(0, 180, 255),
+                             tagged=bool(b_tagged[i]),
+                             carrying=bool(b_carry[i]),
+                             flag_clr=(250, 120, 70))
+        for i in range(rx.shape[0]):
+            if not r_alive[i]:
+                continue
+            self._draw_agent(surface, rect, cw, ch,
+                             rx[i], ry[i], rh[i],
+                             body=(255, 120, 40),
+                             tagged=bool(r_tagged[i]),
+                             carrying=bool(r_carry[i]),
+                             flag_clr=(90, 170, 250))
+
+    # ---- helpers ----
+
+    @staticmethod
+    def _draw_mine(surface: pg.Surface, rect: pg.Rect, cw: float, ch: float, x: float, y: float, color: Tuple[int, int, int]) -> None:
+        cx = rect.left + (float(x) + 0.5) * cw
+        cy = rect.top + (float(y) + 0.5) * ch
+        r = int(0.35 * min(cw, ch))
+        pg.draw.circle(surface, color, (int(cx), int(cy)), r)
+        pg.draw.circle(surface, (240, 240, 240), (int(cx), int(cy)), r, width=1)
+
+    @staticmethod
+    def _draw_mine_pickup(surface: pg.Surface, rect: pg.Rect, cw: float, ch: float, x: float, y: float) -> None:
+        """Draw a mine pickup spawn (diamond) so it’s distinct from placed mines."""
+        cx = rect.left + (float(x) + 0.5) * cw
+        cy = rect.top + (float(y) + 0.5) * ch
+        s = int(0.4 * min(cw, ch))
+        pts = [(int(cx), int(cy) - s), (int(cx) + s, int(cy)), (int(cx), int(cy) + s), (int(cx) - s, int(cy))]
+        pg.draw.polygon(surface, (255, 220, 80), pts)
+        pg.draw.polygon(surface, (200, 180, 40), pts, width=1)
+
+    @staticmethod
+    def _draw_flag_zone(surface, rect, cw, ch, pos, color):
+        cx = rect.left + (float(pos[0]) + 0.5) * cw
+        cy = rect.top + (float(pos[1]) + 0.5) * ch
+        r = int(1.25 * min(cw, ch))
+        zone = pg.Surface((rect.width, rect.height), pg.SRCALPHA)
+        local = (int(cx - rect.left), int(cy - rect.top))
+        pg.draw.circle(zone, (*color, 40), local, r)
+        pg.draw.circle(zone, (*color, 110), local, r, width=2)
+        surface.blit(zone, rect.topleft)
+
+    @staticmethod
+    def _draw_flag_icon(surface, rect, cw, ch, pos, color):
+        cx = rect.left + (float(pos[0]) + 0.5) * cw
+        cy = rect.top + (float(pos[1]) + 0.5) * ch
+        sz = int(0.5 * min(cw, ch))
+        pg.draw.rect(surface, color,
+                     pg.Rect(int(cx - sz / 2), int(cy - sz / 2), sz, sz))
+
+    @staticmethod
+    def _draw_agent(surface, rect, cw, ch, x, y, heading, *,
+                    body, tagged, carrying, flag_clr):
+        cx = rect.left + (float(x) + 0.5) * cw
+        cy = rect.top + (float(y) + 0.5) * ch
+        tri = 0.45 * min(cw, ch)
+
+        ux, uy = math.cos(float(heading)), math.sin(float(heading))
+        lx, ly = -uy, ux
+        tip = (int(cx + ux * tri), int(cy + uy * tri))
+        left = (int(cx - ux * tri * 0.6 + lx * tri * 0.6),
+                int(cy - uy * tri * 0.6 + ly * tri * 0.6))
+        right = (int(cx - ux * tri * 0.6 - lx * tri * 0.6),
+                 int(cy - uy * tri * 0.6 - ly * tri * 0.6))
+
+        pg.draw.polygon(surface, body, (tip, left, right))
+        if carrying:
+            fs = int(tri * 0.5)
+            pg.draw.rect(surface, flag_clr,
+                         pg.Rect(tip[0] - fs // 2, tip[1] - fs // 2, fs, fs))
+        if tagged:
+            pg.draw.polygon(surface, (245, 245, 245), (tip, left, right), width=2)
+
+
+# ---------------------------------------------------------------------------
+# CTFViewer
+# ---------------------------------------------------------------------------
 class CTFViewer:
-    def __init__(self):
-        rows, cols = 30, 40
-        grid = [[0] * cols for _ in range(rows)]
-        self.game_field = GameField(grid)
-        self.game_manager = self.game_field.getGameManager()
+    def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
+                 device: str = "cpu",
+                 deterministic: bool = True):
+        self.device = str(device)
+        self.ppo_model_path = str(ppo_model_path)
+        self.deterministic = bool(deterministic)
+        model_meta = _read_model_metadata(ppo_model_path)
+        initial_agents = max(1, int(model_meta.get("n_blue", 4)))
+        paper_steps = 400
+        cfg = GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=initial_agents,
+            max_red_agents=initial_agents,
+            device=device,
+            max_decision_steps=paper_steps,
+            stalemate_max_steps=paper_steps,
+            rules_profile="OURS",
+            score_limit=3,
+        )
+        self.cfg = cfg
+        self.core = BatchedCTFCore(self.cfg)
+        self.cfg.max_decision_steps = paper_steps
+        self.cfg.stalemate_max_steps = paper_steps
+        self.core.max_steps = paper_steps
+        self.core.rules_profile = "OURS"
+        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: OURS")
+        try:
+            self.core.set_phase("OP3")
+            self.core.set_stress_schedule(STRESS_BY_PHASE)
+            self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
+            # Use the core's official opponent-selection path so every reset re-applies OP3.
+            self.core.set_next_opponent("SCRIPTED", "OP3")
+        except Exception:
+            # Fall back silently if curriculum/opponent modules are unavailable; core defaults will be used.
+            pass
+        self.core.reset_all()
 
-        # ------------- Pygame setup -------------
-        pg.init()
-        self.size = (1024, 768)
-        self.screen = pg.display.set_mode(self.size)
-        pg.display.set_caption("UAV CTF – Learned CNN Agent vs OP3")
-        self.clock = pg.time.Clock()
-        self.font = pg.font.SysFont("Consolas", 18)
-        self.bigfont = pg.font.SysFont(None, 48)
+        self.renderer = CoreRenderer(self.core)
 
-        self.input_active = False
-        self.input_text = ""
-
-        # ---- Sanity Check Obs Dim (CNN) ----
-        if self.game_field.blue_agents:
-            cnn_obs, extra_vec = self.game_field.build_observation(
-                self.game_field.blue_agents[0]
-            )
-            print(
-                f"[CTFViewer] CNN obs shape: {cnn_obs.shape}, extra_dim={extra_vec.shape[0]}"
-            )
-
-        # ---- Setup Policies ----
-        # 1. Red is always OP3 (Baseline)
-        if hasattr(self.game_field, "policies") and isinstance(
-            self.game_field.policies, dict
-        ):
-            self.game_field.policies["red"] = OP3RedPolicy("red")
-
-        # 2. Blue can be OP3 or Learned
-        self.blue_op3_baseline = OP3RedPolicy("blue")
-        self.blue_learned_policy: Optional[LearnedPolicy] = None
-        self.use_learned_blue: bool = False
-
-        # Try loading learned model
-        self.blue_learned_policy = LearnedPolicy(model_path=DEFAULT_MODEL_PATH)
-
-        if self.blue_learned_policy.model_loaded:
-            self._set_blue_policy(use_learned=True)
-            print("[CTFViewer] Default: Blue using LEARNED CNN policy")
-        else:
-            self._set_blue_policy(use_learned=False)
-            print("[CTFViewer] Default: Blue using OP3 Baseline")
-
-        self._reset_op3_policies()
-
-    def _set_blue_policy(self, use_learned: bool):
-        self.use_learned_blue = use_learned
-        target_policy = (
-            self.blue_learned_policy if use_learned else self.blue_op3_baseline
+        # PPO (load model on the same device as the core)
+        self.ppo = PPOController(
+            ppo_model_path,
+            n_blue=cfg.max_blue_agents,
+            n_macros=cfg.n_macros,
+            n_targets=cfg.n_targets,
+            device=self.device,
+            deterministic=self.deterministic,
         )
 
-        if hasattr(self.game_field, "policies") and isinstance(
-            self.game_field.policies, dict
-        ):
-            self.game_field.policies["blue"] = target_policy
+        if self.ppo.model_loaded:
+            print("[Viewer] PPO ready. F3 toggles PPO / DEMO.")
+            self.blue_mode: str = "PPO"
+        else:
+            print("[Viewer] No PPO model. Running DEMO (scripted blue).")
+            print(f"[Viewer] Searched: {ppo_model_path}")
+            self.blue_mode: str = "DEMO"
+            self.core.blue_scripted = True
 
-    def _reset_op3_policies(self):
-        # Reset internal state of scripted policies
-        if hasattr(self.game_field, "policies") and isinstance(
-            self.game_field.policies, dict
-        ):
-            for side in ("blue", "red"):
-                pol = self.game_field.policies.get(side)
-                if hasattr(pol, "reset"):
-                    pol.reset()
+        # Pygame
+        pg.init()
+        self.size = (1024, 720)
+        try:
+            self.screen = pg.display.set_mode(self.size, pg.SCALED | pg.DOUBLEBUF, vsync=1)
+        except TypeError:
+            self.screen = pg.display.set_mode(self.size, pg.SCALED | pg.DOUBLEBUF)
+        pg.display.set_caption("CTF Viewer (GPU core)")
+        self.clock = pg.time.Clock()
+        self.font = pg.font.SysFont(None, 26)
+        self.bigfont = pg.font.SysFont(None, 48)
+        self._last_info: Dict[str, Any] = {}
+        self._ppo_mismatch_warned = False
 
-    # Main loop
-    def run(self):
+    def _try_reload_ppo_for_agents(self, agents_per_team: int) -> bool:
+        agents = max(1, int(agents_per_team))
+        for candidate in _candidate_model_paths_for_agents(self.ppo_model_path, agents):
+            resolved = _resolve_zip_path(candidate)
+            if resolved is None:
+                continue
+            meta = _read_model_metadata(resolved)
+            model_agents = int(meta.get("n_blue", 0) or 0)
+            if model_agents and model_agents != agents:
+                continue
+            controller = PPOController(
+                resolved,
+                n_blue=agents,
+                n_macros=self.cfg.n_macros,
+                n_targets=self.cfg.n_targets,
+                device=self.device,
+                deterministic=self.deterministic,
+                print_traceback=False,
+            )
+            if controller.model_loaded:
+                self.ppo = controller
+                self.ppo_model_path = resolved
+                self._ppo_mismatch_warned = False
+                print(f"[Viewer] PPO model -> {agents}v{agents}: {resolved}")
+                return True
+        return False
+
+    def _ppo_team_size_compatible(self, agents_per_team: Optional[int] = None) -> bool:
+        agents = int(agents_per_team if agents_per_team is not None else self.cfg.max_blue_agents)
+        return bool(self.ppo.model_loaded and self.ppo.n_blue == agents)
+
+    def _set_demo_due_to_mismatch(self, agents_per_team: int) -> None:
+        self.blue_mode = "DEMO"
+        self.core.blue_scripted = True
+        if not self._ppo_mismatch_warned:
+            print(
+                f"[Viewer] PPO model expects {self.ppo.n_blue}v{self.ppo.n_blue}; "
+                f"switched to DEMO for {agents_per_team}v{agents_per_team}."
+            )
+            self._ppo_mismatch_warned = True
+
+    # ---- stepping ----
+
+    def _get_action(self) -> torch.Tensor:
+        nb = self.cfg.max_blue_agents
+        if self.blue_mode == "PPO" and self.ppo.model_loaded:
+            if not self._ppo_team_size_compatible():
+                self._set_demo_due_to_mismatch(nb)
+                act_np = np.zeros((nb * 2,), dtype=np.int64)
+                return torch.as_tensor(act_np, dtype=torch.int64, device=self.core.device).unsqueeze(0)
+            obs_np = self.core.get_obs()
+            act_np = self.ppo.predict(obs_np)
+        else:
+            # DEMO: zeros; core uses scripted blue when blue_scripted=True
+            act_np = np.zeros((nb * 2,), dtype=np.int64)
+        return torch.as_tensor(act_np, dtype=torch.int64, device=self.core.device).unsqueeze(0)
+
+    def _step_env(self) -> Dict[str, Any]:
+        action = self._get_action()
+        obs, rew, term, trunc, infos = self.core.step(action)
+        done = np.logical_or(term, trunc) if isinstance(term, np.ndarray) else (term | trunc)
+        if isinstance(done, np.ndarray):
+            any_done = done.any()
+        else:
+            any_done = bool(done.any())
+        if any_done:
+            # Full reset so flags and carrying state are clean (avoids wrong-flag-after-reset bug).
+            self.core.reset_all()
+        info = infos[0] if infos else {}
+        self._last_info = info
+        return info
+
+    # ---- main loop ----
+
+    def run(self) -> None:
         running = True
         while running:
-            dt_ms = self.clock.tick(60)
-            dt_sec = dt_ms / 1000.0
-
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False
                 elif event.type == pg.KEYDOWN:
-                    if self.input_active:
-                        self.handle_input_key(event)
-                    else:
-                        self.handle_main_key(event)
+                    self._handle_key(event)
 
-            self.game_field.update(dt_sec)
-            self.draw()
+            # Single simulation step per frame, locked to 30 FPS for predictable speed.
+            self._step_env()
+            self._draw()
             pg.display.flip()
+            self.clock.tick(30)
 
         pg.quit()
-        sys.exit()
 
-    # Input handling
-    def handle_main_key(self, event):
+    # ---- evaluation ----
+
+    def evaluate(self, num_episodes: int = 100, headless: bool = False) -> Dict[str, Any]:
+        print(f"[Eval] {num_episodes} episodes | mode={self.blue_mode} | headless={headless}")
+        episodes: List[Dict[str, Any]] = []
+
+        for ep in range(num_episodes):
+            self.core.reset_all()
+            ep_reward = 0.0
+            steps = 0
+            max_steps = self.cfg.max_decision_steps
+
+            for _ in range(max_steps):
+                action = self._get_action()
+                obs, rew, term, trunc, infos = self.core.step(action)
+                r = float(rew[0]) if isinstance(rew, np.ndarray) else float(rew[0].item())
+                ep_reward += r
+                steps += 1
+
+                done_val = False
+                if isinstance(term, np.ndarray):
+                    done_val = bool(term[0]) or bool(trunc[0])
+                else:
+                    done_val = bool(term[0].item()) or bool(trunc[0].item())
+                if done_val:
+                    break
+
+                if not headless:
+                    for event in pg.event.get():
+                        if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+                            print(f"[Eval] Stopped early at episode {ep + 1}")
+                            episodes.append(self._episode_row(ep, steps, ep_reward))
+                            return self._summarize(episodes)
+                    self._draw()
+                    pg.display.flip()
+                    self.clock.tick(60)
+
+            episodes.append(self._episode_row(ep, steps, ep_reward))
+            if (ep + 1) % 10 == 0:
+                wins = sum(1 for e in episodes if e["success"])
+                print(f"[Eval] Ep {ep + 1}/{num_episodes} | WR {wins / len(episodes):.0%}")
+
+        return self._summarize(episodes)
+
+    def _episode_row(self, ep: int, steps: int, ep_reward: float) -> Dict[str, Any]:
+        bs = int(self.core.blue_score[0].item())
+        rs = int(self.core.red_score[0].item())
+        return {
+            "episode": ep + 1,
+            "blue_score": bs,
+            "red_score": rs,
+            "success": 1 if bs > rs else 0,
+            "steps": steps,
+            "reward": ep_reward,
+            "reward_per_step": ep_reward / max(1, steps),
+        }
+
+    def _summarize(self, episodes: List[Dict]) -> Dict[str, Any]:
+        if not episodes:
+            print("[Eval] No episodes.")
+            return {}
+        wins = sum(e["success"] for e in episodes)
+        n = len(episodes)
+        summary = {
+            "num_episodes": n,
+            "win_rate": wins / n,
+            "wins": wins,
+            "losses": n - wins,
+            "mean_reward_per_step": float(np.mean([e["reward_per_step"] for e in episodes])),
+            "mean_blue_score": float(np.mean([e["blue_score"] for e in episodes])),
+            "mean_red_score": float(np.mean([e["red_score"] for e in episodes])),
+        }
+
+        csv_path = os.path.join(METRICS_DIR,
+                                f"eval_{self.blue_mode.lower()}_{n}ep.csv")
+        try:
+            os.makedirs(METRICS_DIR, exist_ok=True)
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=list(episodes[0].keys()))
+                w.writeheader()
+                w.writerows(episodes)
+            print(f"[Eval] CSV saved: {csv_path}")
+        except Exception as exc:
+            print(f"[Eval] CSV write failed: {exc}")
+
+        print("\n" + "=" * 50)
+        print("EVALUATION SUMMARY")
+        print("=" * 50)
+        print(f"  Episodes:     {n}")
+        print(f"  Win Rate:     {summary['win_rate']:.0%} ({wins}W / {n - wins}L)")
+        print(f"  Avg Blue:     {summary['mean_blue_score']:.2f}")
+        print(f"  Avg Red:      {summary['mean_red_score']:.2f}")
+        print(f"  Reward/Step:  {summary['mean_reward_per_step']:.4f}")
+        print("=" * 50)
+
+        summary["episodes"] = episodes
+        return summary
+
+    # ---- input ----
+
+    def _rebuild_core(self, agents_per_team: int) -> None:
+        """Recreate the core with a new number of agents per team."""
+        agents = max(1, int(agents_per_team))
+        self.cfg.max_blue_agents = agents
+        self.cfg.max_red_agents = agents
+        self.cfg.max_decision_steps = 400
+        self.cfg.stalemate_max_steps = 400
+        self.core = BatchedCTFCore(self.cfg)
+        self.core.max_steps = 400
+        self.core.rules_profile = "OURS"
+        self.core.blue_scripted = (self.blue_mode == "DEMO")
+        try:
+            self.core.set_phase("OP3")
+            self.core.set_stress_schedule(STRESS_BY_PHASE)
+            self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
+            self.core.set_next_opponent("SCRIPTED", "OP3")
+        except Exception:
+            # If curriculum/opponent code is unavailable, fall back to defaults
+            pass
+        self.core.reset_all()
+        self.renderer = CoreRenderer(self.core)
+        if not self._ppo_team_size_compatible(agents):
+            if self._try_reload_ppo_for_agents(agents):
+                self._ppo_mismatch_warned = False
+                if self.blue_mode == "PPO":
+                    self.core.blue_scripted = False
+            elif self.blue_mode == "PPO":
+                self._set_demo_due_to_mismatch(agents)
+            else:
+                self._ppo_mismatch_warned = False
+        else:
+            self._ppo_mismatch_warned = False
+        print(f"[Viewer] Agents per team -> {agents} v {agents}")
+
+    def _handle_key(self, event: Any) -> None:
         k = event.key
-        if k == pg.K_F1:
-            # Reset
-            self.game_manager.reset_game(reset_scores=True)
-            self.game_field.reset_default()
-            self._reset_op3_policies()
-
-        elif k == pg.K_F2:
-            # Change agent count
-            self.input_active = True
-            self.input_text = ""
-
-        elif k == pg.K_F3:
-            # Swap zones
-            self.game_manager.reset_game(reset_scores=True)
-            self.game_field.runTestCase3()
-            self._reset_op3_policies()
-
-        elif k == pg.K_r:
-            # Quick soft reset
-            self.game_field.reset_default()
-            self._reset_op3_policies()
-
-        elif k == pg.K_F4:
-            # Toggle Blue Policy
-            if not self.blue_learned_policy or not self.blue_learned_policy.model_loaded:
-                print("[CTFViewer] Cannot toggle: Model not loaded.")
-                return
-
-            new_state = not self.use_learned_blue
-            self._set_blue_policy(new_state)
-            if not new_state:
-                self._reset_op3_policies()
-            print(
-                f"[CTFViewer] Blue Policy switched to: "
-                f"{'LEARNED' if new_state else 'OP3'}"
-            )
-
-        elif k == pg.K_F5:
-            self.game_field.debug_draw_ranges = not self.game_field.debug_draw_ranges
-        elif k == pg.K_F6:
-            self.game_field.debug_draw_mine_ranges = not self.game_field.debug_draw_mine_ranges
-        elif k == pg.K_ESCAPE:
+        if k == pg.K_ESCAPE:
             pg.event.post(pg.event.Event(pg.QUIT))
+        elif k in (pg.K_F1, pg.K_r):
+            self.core.reset_all()
+            print("[Viewer] Reset")
+        elif k == pg.K_F2:
+            # Cycle 2v2 -> 3v3 -> 4v4 -> 8v8 -> 2v2
+            current = int(getattr(self.cfg, "max_blue_agents", 2))
+            new_agents = {2: 3, 3: 4, 4: 8, 8: 2}.get(current, 3)
+            self._rebuild_core(new_agents)
+        elif k in (pg.K_2, pg.K_3, pg.K_4, pg.K_8):
+            # Direct switch: 2 -> 2v2, 3 -> 3v3, 4 -> 4v4, 8 -> 8v8
+            new_agents = {pg.K_2: 2, pg.K_3: 3, pg.K_4: 4, pg.K_8: 8}[k]
+            if new_agents != int(getattr(self.cfg, "max_blue_agents", 2)):
+                self._rebuild_core(new_agents)
+        elif k == pg.K_F3:
+            cycle = ["PPO", "DEMO"] if self.ppo.model_loaded else ["DEMO"]
+            idx = cycle.index(self.blue_mode) if self.blue_mode in cycle else 0
+            requested = cycle[(idx + 1) % len(cycle)]
+            if requested == "PPO" and not self._ppo_team_size_compatible():
+                agents = int(self.cfg.max_blue_agents)
+                if not self._try_reload_ppo_for_agents(agents):
+                    print(
+                        f"[Viewer] Cannot enable PPO at {agents}v{agents}; "
+                        f"no matching PPO checkpoint was found."
+                    )
+                    self.blue_mode = "DEMO"
+                    self.core.blue_scripted = True
+                    return
+                cycle = ["PPO", "DEMO"]
+                requested = "PPO"
+            else:
+                self.blue_mode = requested
+                self.core.blue_scripted = (self.blue_mode == "DEMO")
+                if self.blue_mode == "PPO":
+                    self._ppo_mismatch_warned = False
+                print(f"[Viewer] Blue -> {self.blue_mode}")
+        elif k == pg.K_F4:
+            self.deterministic = not self.deterministic
+            if self.ppo is not None:
+                self.ppo.deterministic = self.deterministic
+            mode = "deterministic" if self.deterministic else "stochastic"
+            print(f"[Viewer] PPO inference -> {mode}")
 
-    def handle_input_key(self, event):
-        if event.key == pg.K_RETURN:
-            try:
-                n = int(self.input_text or "2")
-                n = max(1, min(100, n))
-                self.game_manager.reset_game(reset_scores=True)
-                self.game_field.runTestCase2(n, self.game_manager)
-                self._reset_op3_policies()
-            except Exception:
-                pass
-            self.input_active = False
-        elif event.key == pg.K_ESCAPE:
-            self.input_active = False
-        elif event.key == pg.K_BACKSPACE:
-            self.input_text = self.input_text[:-1]
-        elif event.unicode.isdigit():
-            if len(self.input_text) < 3:
-                self.input_text += event.unicode
+    # ---- drawing ----
 
-    # Drawing / HUD
-    def draw(self):
-        self.screen.fill((20, 24, 32))
+    def _draw(self) -> None:
+        self.screen.fill((12, 12, 18))
+        hud_h = 80
+        field_rect = pg.Rect(20, hud_h + 10,
+                             self.size[0] - 40, self.size[1] - hud_h - 30)
+        self.renderer.draw(self.screen, field_rect)
 
-        hud_h = 100
-        field_rect = pg.Rect(
-            20, hud_h + 20, self.size[0] - 40, self.size[1] - hud_h - 40
-        )
-        self.game_field.draw(self.screen, field_rect)
+        def txt(s: str, x: int, y: int, c=(230, 230, 240)):
+            self.screen.blit(self.font.render(s, True, c), (x, y))
 
-        def txt(text, x, y, color=(200, 200, 200), size=None):
-            f = self.font if size is None else self.bigfont
-            img = f.render(text, True, color)
-            self.screen.blit(img, (x, y))
+        mode_clr = {
+            "PPO": (120, 255, 120),
+            "DEMO": (120, 200, 255),
+        }.get(self.blue_mode, (230, 230, 240))
+        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 (cycle) | 2/3/4/8: set team size | F3: PPO/Demo | F4: det/stoch | ESC: Quit",
+            30, 10, (200, 200, 220))
+        txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)}",
+            30, 36, mode_clr)
 
-        gm = self.game_manager
+        if self.blue_mode == "PPO" and self.ppo.model_loaded:
+            infer_mode = "det" if self.deterministic else "stoch"
+            txt(f"Model: {os.path.basename(self.ppo.model_path or '')} | {infer_mode}",
+                350, 36, (140, 240, 140))
 
-        # Policy Status
-        pol_name = "CNN PPO" if self.use_learned_blue else "OP3 SCRIPT"
-        pol_color = (
-            (80, 255, 80) if self.use_learned_blue else (255, 255, 100)
-        )
-
-        # Header
-        txt(
-            "F1:Reset  F2:Agents  F3:SwapZones  F4:TogglePolicy  F5/F6:Debug",
-            20,
-            15,
-            (150, 160, 180),
-        )
-
-        # Stats Row
-        row_2_y = 50
-        txt(f"BLUE SCORE: {gm.blue_score}", 20, row_2_y, (100, 180, 255))
-        txt(f"RED SCORE:  {gm.red_score}", 200, row_2_y, (255, 100, 100))
-        txt(f"TIME: {int(gm.current_time)}s", 380, row_2_y)
-
-        # Policy Indicator
-        txt(f"Blue Agent: {pol_name}", self.size[0] - 300, row_2_y, pol_color)
-
-        # Input Overlay
-        if self.input_active:
-            overlay = pg.Surface(self.size, pg.SRCALPHA)
-            overlay.fill((0, 0, 0, 200))
-            self.screen.blit(overlay, (0, 0))
-
-            cx, cy = self.size[0] // 2, self.size[1] // 2
-            box = pg.Rect(0, 0, 400, 180)
-            box.center = (cx, cy)
-
-            pg.draw.rect(self.screen, (40, 45, 60), box, border_radius=8)
-            pg.draw.rect(self.screen, (80, 90, 120), box, width=2, border_radius=8)
-
-            txt("Agent Count (1-100):", box.x + 20, box.y + 30, (255, 255, 255))
-            txt(
-                self.input_text + "_",
-                box.x + 20,
-                box.y + 80,
-                (100, 255, 255),
-                size="big",
-            )
+        bs = int(self.core.blue_score[0].item())
+        rs = int(self.core.red_score[0].item())
+        step = int(self.core.step_count[0].item())
+        txt(f"BLUE: {bs}", 30, 60, (100, 180, 255))
+        txt(f"RED: {rs}", 180, 60, (255, 100, 100))
+        txt(f"Step: {step}/{self.core.max_steps}", 330, 60, (200, 200, 230))
+        # 3 min game: 0.1 s per step -> time remaining
+        sec_left = max(0, (self.core.max_steps - step)) * 0.1
+        txt(f"Time: {int(sec_left // 60)}:{int(sec_left % 60):02d}", 500, 60, (200, 200, 230))
 
 
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    CTFViewer().run()
+    import argparse
+    parser = argparse.ArgumentParser(description="CTF Viewer (GPU core, PPO)")
+    parser.add_argument("--ppo-model", type=str, default=None,
+                        help=f"PPO .zip path (default: {DEFAULT_PPO_MODEL_PATH})")
+    parser.add_argument("--eval", type=int, metavar="N",
+                        help="Run N evaluation episodes")
+    parser.add_argument("--headless", action="store_true",
+                        help="Headless evaluation (no display)")
+    parser.add_argument("--device", type=str, default="cpu",
+                        help="Torch device (cpu / cuda)")
+    parser.add_argument("--stochastic", action="store_true",
+                        help="Use stochastic PPO actions instead of deterministic inference")
+    args = parser.parse_args()
+
+    viewer = CTFViewer(
+        ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
+        device=args.device,
+        deterministic=not args.stochastic,
+    )
+
+    if args.eval is not None:
+        viewer.evaluate(num_episodes=args.eval, headless=args.headless)
+        if not args.headless:
+            viewer.run()
+    else:
+        viewer.run()
