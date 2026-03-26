@@ -45,14 +45,31 @@ def _numpy_compat_shim() -> None:
         pass
 
 
+def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
+    """Mean policy entropy at one observation (stochastic policy, eval mode)."""
+    import torch
+
+    with torch.no_grad():
+        packed = model.policy.obs_to_tensor(single_obs)
+        obs_tensor = packed[0] if isinstance(packed, tuple) else packed
+        dist = model.policy.get_distribution(obs_tensor)
+        ent = dist.entropy()
+        return float(torch.mean(ent).item())
+
+
 def run_eval_episodes(
     model_path: str,
     env: Any,
     n_episodes: int,
     device: str,
     opponent: str,
+    *,
+    record_entropy: bool = False,
 ) -> list[dict]:
-    """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics)."""
+    """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
+
+    If record_entropy is True, each episode dict includes policy_entropy (first-step mean entropy).
+    """
     from stable_baselines3 import PPO
     from rl.train_ppo import MaskedMultiInputPolicy
 
@@ -99,11 +116,17 @@ def run_eval_episodes(
     for _ in range(n_episodes):
         ep_return = 0.0
         steps = 0
+        ep_entropy_first = float("nan")
         while True:
             single = {
                 k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
                 for k, v in obs.items()
             }
+            if record_entropy and steps == 0:
+                try:
+                    ep_entropy_first = _policy_entropy_first_step(model, single)
+                except Exception:
+                    ep_entropy_first = float("nan")
             act, _ = model.predict(single, deterministic=True)
             env.step_async(act)
             obs, rew, done, infos = env.step_wait()
@@ -130,20 +153,21 @@ def run_eval_episodes(
                             mean_dist_f = float(mean_dist) if mean_dist is not None and mean_dist != "" else np.nan
                         except (TypeError, ValueError):
                             mean_dist_f = np.nan
-                        episodes.append(
-                            {
-                                "success": success,
-                                "blue_score": bs,
-                                "red_score": rs,
-                                "steps": decision_steps,
-                                "return": ep_return,
-                                "zone_coverage": zone_cov,
-                                "collision_free": collision_free,
-                                "win_margin": bs - rs,
-                                "time_to_first_score": ttfs_f,
-                                "mean_inter_robot_dist": mean_dist_f,
-                            }
-                        )
+                        row = {
+                            "success": success,
+                            "blue_score": bs,
+                            "red_score": rs,
+                            "steps": decision_steps,
+                            "return": ep_return,
+                            "zone_coverage": zone_cov,
+                            "collision_free": collision_free,
+                            "win_margin": bs - rs,
+                            "time_to_first_score": ttfs_f,
+                            "mean_inter_robot_dist": mean_dist_f,
+                        }
+                        if record_entropy:
+                            row["policy_entropy"] = ep_entropy_first
+                        episodes.append(row)
                         ep_return = 0.0
                 break
 
@@ -166,8 +190,13 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "mean_steps": 0.0,
         "mean_steps_std": 0.0,
         "mean_return": 0.0,
+        "return_std": 0.0,
         "return_var": 0.0,
         "return_var_std": 0.0,
+        "mean_captures": 0.0,
+        "mean_captures_std": 0.0,
+        "defense_shutout_rate": 0.0,
+        "defense_shutout_std": 0.0,
         "coverage_efficiency": 0.0,
         "coverage_efficiency_std": 0.0,
         "collision_free_rate": 0.0,
@@ -178,6 +207,8 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "time_to_first_score_std": 0.0,
         "mean_inter_robot_dist_mean": float("nan"),
         "mean_inter_robot_dist_std": 0.0,
+        "policy_entropy_mean": float("nan"),
+        "policy_entropy_std": 0.0,
     }
     if not episodes:
         return base
@@ -203,8 +234,28 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     mean_steps = float(np.mean(arr[:, 1]))
     mean_steps_std = float(np.std(arr[:, 1], ddof=ddof))
     mean_return = float(np.mean(arr[:, 2]))
+    return_std = float(np.std(arr[:, 2], ddof=ddof))
     return_var = float(np.var(arr[:, 2], ddof=ddof))
     return_var_std = 0.0
+    arr_bs = np.array([int(e["blue_score"]) for e in episodes], dtype=float)
+    arr_rs = np.array([int(e["red_score"]) for e in episodes], dtype=float)
+    mean_captures = float(np.mean(arr_bs))
+    mean_captures_std = float(np.std(arr_bs, ddof=ddof))
+    shutout = (arr_rs == 0).astype(float)
+    defense_shutout_rate = float(np.mean(shutout)) * 100.0
+    defense_shutout_std = float(np.std(shutout, ddof=ddof)) * 100.0
+    ent_list = [
+        float(e["policy_entropy"])
+        for e in episodes
+        if "policy_entropy" in e and np.isfinite(float(e["policy_entropy"]))
+    ]
+    if ent_list:
+        ea = np.array(ent_list, dtype=float)
+        policy_entropy_mean = float(np.mean(ea))
+        policy_entropy_std = float(np.std(ea, ddof=1)) if len(ea) > 1 else 0.0
+    else:
+        policy_entropy_mean = float("nan")
+        policy_entropy_std = 0.0
     coverage_efficiency = float(np.mean(arr[:, 3])) * 100.0
     coverage_efficiency_std = float(np.std(arr[:, 3], ddof=ddof))
     collision_free_rate = float(np.mean(arr[:, 4])) * 100.0
@@ -225,8 +276,13 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "mean_steps": mean_steps,
         "mean_steps_std": mean_steps_std,
         "mean_return": mean_return,
+        "return_std": return_std,
         "return_var": return_var,
         "return_var_std": return_var_std,
+        "mean_captures": mean_captures,
+        "mean_captures_std": mean_captures_std,
+        "defense_shutout_rate": defense_shutout_rate,
+        "defense_shutout_std": defense_shutout_std,
         "coverage_efficiency": coverage_efficiency,
         "coverage_efficiency_std": coverage_efficiency_std,
         "collision_free_rate": collision_free_rate,
@@ -237,4 +293,6 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "time_to_first_score_std": time_to_first_score_std,
         "mean_inter_robot_dist_mean": mean_inter_robot_dist_mean,
         "mean_inter_robot_dist_std": mean_inter_robot_dist_std,
+        "policy_entropy_mean": policy_entropy_mean,
+        "policy_entropy_std": policy_entropy_std,
     }

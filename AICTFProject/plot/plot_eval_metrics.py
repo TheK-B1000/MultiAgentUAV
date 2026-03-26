@@ -196,7 +196,12 @@ def main() -> None:
     parser.add_argument("--out", type=str, default="eval_metrics.png", help="Output plot path (default: figures/eval_metrics.png)")
     parser.add_argument("--table-out", type=str, default=None, help="If set, write paper-ready metrics table to this CSV (default: csv/eval_table.csv)")
     parser.add_argument("--table-opponent", type=str, default=None, help="Opponent for table/CSV and printed metrics (default: first in --opponents). E.g. --table-opponent OP4 to get OP4 results.")
-    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="PPO load device. plot_*_winrate.py defaults to cuda — use the same device here or numbers diverge.",
+    )
     parser.add_argument("--training-csv", type=str, default=None, help="Optional training CSV for AUC learning curve")
     parser.add_argument(
         "--from-csv",
@@ -501,43 +506,72 @@ def main() -> None:
     def _metric_at(res: dict, label: str, opp: str, key: str, default: float = 0.0) -> float:
         return float(res.get((label, opp), {}).get(key, default))
 
-    def _save_single(
-        title: str,
+    def _mode_span_fragment(modes: list[str]) -> str:
+        """Human-readable list for titles, e.g. '2v2, 3v3 & 4v4'."""
+        if not modes:
+            return ""
+        if len(modes) == 1:
+            return modes[0]
+        if len(modes) == 2:
+            return f"{modes[0]} & {modes[1]}"
+        return ", ".join(modes[:-1]) + f" & {modes[-1]}"
+
+    def _save_grouped_by_modes(
+        title_prefix: str,
         ylabel: str,
-        values_2v2: list[float],
-        values_3v3: list[float],
-        values_4v4: list[float],
-        values_5v5: list[float],
         suffix: str,
+        mode_series: list[tuple[str, list[float]]],
         fmt: str = "{:.1f}%",
         ylim: tuple[float, float] | None = (0, 105),
         draw_zero: bool = False,
     ) -> None:
-        """Bar chart: 2v2, 3v3, 4v4, 5v5 grouped per method."""
+        """
+        Grouped bar chart: one cluster per method (Ours / Jacob / Self-play),
+        one bar per team size in mode_series only (no fake zeros for unevaluated modes).
+        """
+        if not mode_series:
+            return
         fig, ax = plt.subplots(figsize=(11, 6))
-        n = len(method_labels)
-        x = np.arange(n)
-        width = 0.18
-        offs = (-1.5 * width, -0.5 * width, 0.5 * width, 1.5 * width)
-        bars1 = ax.bar(x + offs[0], values_2v2, width, label="2v2", color=team_bar_colors[0], **bar_kw)
-        bars2 = ax.bar(x + offs[1], values_3v3, width, label="3v3", color=team_bar_colors[1], **bar_kw)
-        bars3 = ax.bar(x + offs[2], values_4v4, width, label="4v4", color=team_bar_colors[2], alpha=0.9, **bar_kw)
-        bars4 = ax.bar(x + offs[3], values_5v5, width, label="5v5", color=team_bar_colors[3], alpha=0.9, **bar_kw)
+        n_methods = len(method_labels)
+        n_modes = len(mode_series)
+        x = np.arange(n_methods)
+        bar_w = min(0.75 / max(1, n_modes), 0.22)
+        offsets = [(i - (n_modes - 1) / 2.0) * bar_w for i in range(n_modes)]
+        all_vals: list[float] = []
+        for _, vals in mode_series:
+            all_vals.extend(vals)
+        text_offset = 1.5 if ylim else (max(abs(v) for v in all_vals) * 0.05 + 0.1 if all_vals else 0.5)
+
+        for i, (mode_name, vals) in enumerate(mode_series):
+            bars = ax.bar(
+                x + offsets[i],
+                vals,
+                bar_w,
+                label=mode_name,
+                color=team_bar_colors[i % len(team_bar_colors)],
+                alpha=0.95 if i < n_modes - 1 else 0.9,
+                **bar_kw,
+            )
+            for bar, val in zip(bars, vals):
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + text_offset,
+                    fmt.format(val),
+                    ha="center",
+                    fontsize=14,
+                )
+        span = _mode_span_fragment([m for m, _ in mode_series])
+        title = f"{title_prefix} ({span} vs {plot_opp})"
         ax.set_xticks(x)
         ax.set_xticklabels(method_labels, fontsize=18)
         ax.tick_params(axis="y", labelsize=18)
         ax.set_ylabel(ylabel, fontsize=20)
         ax.set_title(title, fontsize=22)
-        ax.legend(fontsize=14, ncol=2)
+        ax.legend(fontsize=14, ncol=min(4, max(2, n_modes)))
         if draw_zero:
             ax.axhline(0, color="gray", linestyle="--", linewidth=1)
         if ylim:
             ax.set_ylim(ylim[0], ylim[1])
-        all_vals = values_2v2 + values_3v3 + values_4v4 + values_5v5
-        text_offset = 1.5 if ylim else (max(abs(v) for v in all_vals) * 0.05 + 0.1 if all_vals else 0.5)
-        for bars, vals in ((bars1, values_2v2), (bars2, values_3v3), (bars3, values_4v4), (bars4, values_5v5)):
-            for bar, val in zip(bars, vals):
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + text_offset, fmt.format(val), ha="center", fontsize=14)
         plt.tight_layout()
         path = f"{base_out}_{suffix}.png"
         plt.savefig(path, dpi=150)
@@ -550,51 +584,38 @@ def main() -> None:
     r5 = results_by_mode.get("5v5", {})
     labels = [m[0] for m in model_paths_2v2]
 
-    # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics (2v2–5v5)
-    sr_2 = [_metric_at(r2, l, plot_opp, "success_rate") for l in labels]
-    sr_3 = [_metric_at(r3, l, plot_opp, "success_rate") for l in labels]
-    sr_4 = [_metric_at(r4, l, plot_opp, "success_rate") for l in labels]
-    sr_5 = [_metric_at(r5, l, plot_opp, "success_rate") for l in labels]
-    _save_single(
-        f"Performance (2v2–5v5 vs {plot_opp})",
+    def _series_for_metric(metric_key: str) -> list[tuple[str, list[float]]]:
+        series: list[tuple[str, list[float]]] = []
+        for m in evaluated_mode_order:
+            res = results_by_mode.get(m, {})
+            series.append((m, [_metric_at(res, lab, plot_opp, metric_key) for lab in labels]))
+        return series
+
+    # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics
+    # (only team sizes in evaluated_mode_order — no placeholder zeros for skipped modes)
+    _save_grouped_by_modes(
+        "Performance",
         f"Success rate vs {plot_opp} (%)",
-        sr_2,
-        sr_3,
-        sr_4,
-        sr_5,
         f"Performance_{plot_opp}",
+        _series_for_metric("success_rate"),
     )
 
     # Win margin (blue - red): higher = dominance
-    wm_2 = [_metric_at(r2, l, plot_opp, "win_margin_mean") for l in labels]
-    wm_3 = [_metric_at(r3, l, plot_opp, "win_margin_mean") for l in labels]
-    wm_4 = [_metric_at(r4, l, plot_opp, "win_margin_mean") for l in labels]
-    wm_5 = [_metric_at(r5, l, plot_opp, "win_margin_mean") for l in labels]
-    _save_single(
-        f"Win margin (2v2–5v5 vs {plot_opp})",
+    _save_grouped_by_modes(
+        "Win margin",
         "Win margin (blue - red)",
-        wm_2,
-        wm_3,
-        wm_4,
-        wm_5,
         f"WinMargin_{plot_opp}",
+        _series_for_metric("win_margin_mean"),
         fmt="{:.2f}",
         ylim=None,
         draw_zero=True,
     )
 
-    cf_2 = [_metric_at(r2, l, plot_opp, "collision_free_rate") for l in labels]
-    cf_3 = [_metric_at(r3, l, plot_opp, "collision_free_rate") for l in labels]
-    cf_4 = [_metric_at(r4, l, plot_opp, "collision_free_rate") for l in labels]
-    cf_5 = [_metric_at(r5, l, plot_opp, "collision_free_rate") for l in labels]
-    _save_single(
-        f"Coordination (2v2–5v5 vs {plot_opp})",
+    _save_grouped_by_modes(
+        "Coordination",
         "Collision-free (%)",
-        cf_2,
-        cf_3,
-        cf_4,
-        cf_5,
         f"Coordination_{plot_opp}",
+        _series_for_metric("collision_free_rate"),
     )
 
     if {"OP3", "OP4"}.issubset({str(o).strip().upper() for o in opponents}):
@@ -639,44 +660,27 @@ def main() -> None:
         plt.close()
         print(f"Saved: {base_out}_Robustness_OP3_OP4.png")
     else:
-        _save_single(
-            f"Robustness (2v2–5v5 vs {plot_opp})",
+        _save_grouped_by_modes(
+            "Robustness",
             f"Success rate vs {plot_opp} (%)",
-            sr_2,
-            sr_3,
-            sr_4,
-            sr_5,
             f"Robustness_{plot_opp}",
+            _series_for_metric("success_rate"),
         )
 
-    rvar_2 = [_metric_at(r2, l, plot_opp, "return_var") for l in labels]
-    rvar_3 = [_metric_at(r3, l, plot_opp, "return_var") for l in labels]
-    rvar_4 = [_metric_at(r4, l, plot_opp, "return_var") for l in labels]
-    rvar_5 = [_metric_at(r5, l, plot_opp, "return_var") for l in labels]
-    _save_single(
-        f"Stability (2v2–5v5 vs {plot_opp})",
+    _save_grouped_by_modes(
+        "Stability",
         "Variance of episode return",
-        rvar_2,
-        rvar_3,
-        rvar_4,
-        rvar_5,
         f"Stability_{plot_opp}",
+        _series_for_metric("return_var"),
         fmt="{:.3f}",
         ylim=None,
     )
 
-    safety_2 = [_metric_at(r2, l, plot_opp, "collision_free_rate") for l in labels]
-    safety_3 = [_metric_at(r3, l, plot_opp, "collision_free_rate") for l in labels]
-    safety_4 = [_metric_at(r4, l, plot_opp, "collision_free_rate") for l in labels]
-    safety_5 = [_metric_at(r5, l, plot_opp, "collision_free_rate") for l in labels]
-    _save_single(
-        f"Robotics (2v2–5v5 vs {plot_opp})",
+    _save_grouped_by_modes(
+        "Robotics",
         "Safety (collision-free %)",
-        safety_2,
-        safety_3,
-        safety_4,
-        safety_5,
         f"Robotics_{plot_opp}",
+        _series_for_metric("collision_free_rate"),
     )
 
     return
