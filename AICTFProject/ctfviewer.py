@@ -98,7 +98,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/4v4/final_ppo_league_4v4.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/8v8/final_ppo_league_8v8.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
