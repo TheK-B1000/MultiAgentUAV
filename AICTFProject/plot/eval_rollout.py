@@ -45,6 +45,28 @@ def _numpy_compat_shim() -> None:
         pass
 
 
+def ppo_load_custom_objects(env: Any) -> dict[str, Any]:
+    """``custom_objects`` for ``PPO.load`` when unpickling checkpoints saved with another Python.
+
+    On Python 3.12, lambdas/schedules in older pickles can raise
+    ``code() argument 13 must be str, not int``. Inference only needs weights; replacing
+    ``clip_range``, ``lr_schedule``, and ``cfg`` avoids that without affecting ``predict``.
+    """
+    from stable_baselines3.common.utils import FloatSchedule
+
+    from rl.train_ppo import MaskedMultiInputPolicy, PPOConfig
+
+    _cfg = PPOConfig()
+    return {
+        "observation_space": env.observation_space,
+        "action_space": env.action_space,
+        "policy_class": MaskedMultiInputPolicy,
+        "clip_range": float(_cfg.clip_range),
+        "lr_schedule": FloatSchedule(_cfg.learning_rate),
+        "cfg": _cfg,
+    }
+
+
 def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
     """Mean policy entropy at one observation (stochastic policy, eval mode)."""
     import torch
@@ -64,23 +86,27 @@ def run_eval_episodes(
     device: str,
     opponent: str,
     *,
+    deterministic: bool = True,
     record_entropy: bool = False,
+    progress_every: int = 0,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
+    If deterministic is False, uses stochastic policy actions (sampled); default True matches greedy argmax.
     If record_entropy is True, each episode dict includes policy_entropy (first-step mean entropy).
+    If progress_every > 0, prints after episode 1, then every progress_every episodes, and on the last
+    (flush=True) so long 8v8 runs do not look hung.
     """
     from stable_baselines3 import PPO
-    from rl.train_ppo import MaskedMultiInputPolicy
 
     _numpy_compat_shim()
-    custom = {
-        "observation_space": env.observation_space,
-        "action_space": env.action_space,
-        "policy_class": MaskedMultiInputPolicy,
-    }
-    model = PPO.load(model_path, device=device, custom_objects=custom)
+    model = PPO.load(model_path, device=device, custom_objects=ppo_load_custom_objects(env))
     model.policy.set_training_mode(False)
+    if progress_every > 0:
+        print(
+            f"  checkpoint loaded; {n_episodes} episodes (first result prints after ep 1; 8v8 is slow)",
+            flush=True,
+        )
 
     try:
         env.env_method("set_phase", opponent)
@@ -127,7 +153,7 @@ def run_eval_episodes(
                     ep_entropy_first = _policy_entropy_first_step(model, single)
                 except Exception:
                     ep_entropy_first = float("nan")
-            act, _ = model.predict(single, deterministic=True)
+            act, _ = model.predict(single, deterministic=deterministic)
             env.step_async(act)
             obs, rew, done, infos = env.step_wait()
             steps += 1
@@ -168,6 +194,10 @@ def run_eval_episodes(
                         if record_entropy:
                             row["policy_entropy"] = ep_entropy_first
                         episodes.append(row)
+                        if progress_every > 0:
+                            le = len(episodes)
+                            if le == 1 or le % progress_every == 0 or le == n_episodes:
+                                print(f"  episode {le}/{n_episodes}", flush=True)
                         ep_return = 0.0
                 break
 
