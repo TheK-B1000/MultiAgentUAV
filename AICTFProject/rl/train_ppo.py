@@ -1638,34 +1638,37 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.")
     print("[PPO] Progress: steps every 50k timesteps; W/L/D summary + per-phase (OP1/OP2/OP3) every 1000 episodes.")
 
-    # Larger team sizes need shorter episodes / smaller rollouts to keep wall-clock time reasonable.
+    # Larger team sizes need smaller rollouts to keep memory reasonable; episode length matches
+    # PPOConfig default / win-rate eval (400 decision steps), not a shorter 250-step horizon.
     if max_agents == 6:
         original_n_envs = int(getattr(cfg, "n_envs", 8))
         original_n_steps = int(getattr(cfg, "n_steps", 2048))
         original_max_decision_steps = int(getattr(cfg, "max_decision_steps", 400))
-        if original_n_envs > 1 or original_n_steps > 512 or original_max_decision_steps > 250:
+        cap_steps = min(original_max_decision_steps, 400)
+        if original_n_envs > 1 or original_n_steps > 512 or original_max_decision_steps > 400:
             print(
                 f"[PPO] {team_size}: using fast profile for wall-clock speed: "
                 f"n_envs {original_n_envs}->1, n_steps {original_n_steps}->512, "
-                f"max_decision_steps {original_max_decision_steps}->250"
+                f"max_decision_steps {original_max_decision_steps}->{cap_steps}"
             )
         cfg.n_envs = min(original_n_envs, 1)
         cfg.n_steps = min(original_n_steps, 512)
-        cfg.max_decision_steps = min(original_max_decision_steps, 250)
+        cfg.max_decision_steps = cap_steps
     elif max_agents > 6:
         # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM.
         original_n_envs = int(getattr(cfg, "n_envs", 4))
         original_n_steps = int(getattr(cfg, "n_steps", 2048))
         original_max_decision_steps = int(getattr(cfg, "max_decision_steps", 400))
-        if original_n_envs > 2 or original_n_steps > 1024 or original_max_decision_steps > 250:
+        cap_steps = min(original_max_decision_steps, 400)
+        if original_n_envs > 2 or original_n_steps > 1024 or original_max_decision_steps > 400:
             print(
                 f"[PPO] {team_size}: reducing rollout/episode size for memory: "
                 f"n_envs {original_n_envs}->2, n_steps {original_n_steps}->1024, "
-                f"max_decision_steps {original_max_decision_steps}->250"
+                f"max_decision_steps {original_max_decision_steps}->{cap_steps}"
             )
         cfg.n_envs = min(original_n_envs, 2)
         cfg.n_steps = min(original_n_steps, 1024)
-        cfg.max_decision_steps = min(original_max_decision_steps, 250)
+        cfg.max_decision_steps = cap_steps
 
     # 4v4/8v8: never force 100% OP3; use mix so winrate stays in learnable band (30–70%)
     # Logging:
