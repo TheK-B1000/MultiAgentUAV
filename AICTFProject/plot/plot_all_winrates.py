@@ -74,7 +74,6 @@ def main():
 
     from stable_baselines3 import PPO
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
-    from rl.train_ppo import MaskedMultiInputPolicy
 
     device = args.device
     n_episodes = args.episodes
@@ -141,13 +140,10 @@ def main():
                 pass
 
         def run_eval(model_path: str) -> tuple[int, int, int]:
+            from eval_rollout import ppo_load_custom_objects
+
             _numpy_compat_shim()
-            custom = {
-                "observation_space": env.observation_space,
-                "action_space": env.action_space,
-                "policy_class": MaskedMultiInputPolicy,
-            }
-            model = PPO.load(model_path, device=device, custom_objects=custom)
+            model = PPO.load(model_path, device=device, custom_objects=ppo_load_custom_objects(env))
             model.policy.set_training_mode(False)
             wins, losses, draws = 0, 0, 0
             obs = env.reset()

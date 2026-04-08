@@ -73,7 +73,6 @@ def main() -> None:
 
     from stable_baselines3 import PPO
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
-    from rl.train_ppo import MaskedMultiInputPolicy
 
     device = args.device
     n_episodes = args.episodes
@@ -154,14 +153,11 @@ def main() -> None:
             pass
 
     def run_eval(model_path: str) -> tuple[int, int, int]:
+        from eval_rollout import ppo_load_custom_objects
+
         _numpy_compat_shim()
-        custom = {
-            "observation_space": env.observation_space,
-            "action_space": env.action_space,
-            "policy_class": MaskedMultiInputPolicy,
-        }
         try:
-            model = PPO.load(model_path, device=device, custom_objects=custom)
+            model = PPO.load(model_path, device=device, custom_objects=ppo_load_custom_objects(env))
         except RuntimeError as e:
             if "size mismatch" in str(e) or "shape" in str(e).lower():
                 sys.exit(

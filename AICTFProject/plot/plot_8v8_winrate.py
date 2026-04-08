@@ -10,6 +10,9 @@ Training is done with rl/train_ppo.py.
 Usage:
   python plot_8v8_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
+  8v8 eval is heavy (100 episodes x 3 models); use --episodes 10 for a quick check. Progress prints every
+  --progress-every episodes (default 10); set --progress-every 0 for quiet.
+
 Defaults (under checkpoints_sb3/8v8/):
   --league   final_ppo_league_8v8.zip
   --paper    final_ppo_paper_8v8.zip
@@ -48,6 +51,17 @@ def main():
     parser.add_argument("--match-eval-op3", action="store_true", help="Use OP3 (training-time opponent), 100 episodes, seed=42.")
     parser.add_argument("--out", type=str, default="8v8_winrate.png", help="Output plot path")
     parser.add_argument("--device", type=str, default="cuda", help="Device for eval (cpu or cuda)")
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=10,
+        help="Print progress every N finished episodes per model (0=quiet). Default 10 so long runs do not look stuck.",
+    )
+    parser.add_argument(
+        "--stochastic",
+        action="store_true",
+        help="Sample actions from the policy (stochastic). Default is deterministic (argmax), matching paper-style win-rate plots.",
+    )
     args = parser.parse_args()
     if args.match_eval:
         args.opponent = "OP4"
@@ -59,7 +73,8 @@ def main():
         args.seed = 42
     # Default output filename includes difficulty (opponent) and episode count
     if args.out == "8v8_winrate.png":
-        args.out = f"8v8_winrate_{args.opponent.upper()}_{args.episodes}ep.png"
+        suf = "_stoch" if args.stochastic else ""
+        args.out = f"8v8_winrate_{args.opponent.upper()}_{args.episodes}ep{suf}.png"
 
     # Send plots to AICTFProject/figures/ when --out is a bare filename
     if not os.path.dirname(os.path.abspath(args.out)):
@@ -99,7 +114,8 @@ def main():
     opponent = args.opponent.upper()
     base_seed = int(args.seed)
     seed = base_seed + (1 if opponent == "OP4" else 0)
-    print(f"8v8 win rate vs {opponent} ({n_episodes} episodes per model, seed={seed})")
+    infer = "stochastic" if args.stochastic else "deterministic"
+    print(f"8v8 win rate vs {opponent} ({n_episodes} episodes per model, seed={seed}, policy={infer})")
 
     cfg = GPUFieldConfig(
         n_envs=1,
@@ -138,7 +154,15 @@ def main():
     results = {}
     for label, path in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         print(f"Evaluating {label}: {path} ...")
-        episodes = run_eval_episodes(path, env, n_episodes, device, opponent)
+        episodes = run_eval_episodes(
+            path,
+            env,
+            n_episodes,
+            device,
+            opponent,
+            deterministic=not args.stochastic,
+            progress_every=max(0, int(args.progress_every)),
+        )
         w, l, d = count_wld(episodes)
         results[label] = {"wins": w, "losses": l, "draws": d, "total": w + l + d}
         wr = (w / (w + l + d) * 100) if (w + l + d) > 0 else 0.0
@@ -163,7 +187,8 @@ def main():
     plt.xticks(x, labels, fontsize=18)
     plt.yticks(fontsize=18)
     plt.ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
-    plt.title("8v8 Win rate", fontsize=22)
+    title = "8v8 Win rate" + (" (stochastic)" if args.stochastic else "")
+    plt.title(title, fontsize=22)
     plt.ylim(0, 105)
     for i, (bar, wr) in enumerate(zip(bars, win_rates)):
         plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)
