@@ -506,6 +506,37 @@ def main() -> None:
     def _metric_at(res: dict, label: str, opp: str, key: str, default: float = 0.0) -> float:
         return float(res.get((label, opp), {}).get(key, default))
 
+    # Per-metric map: metric_key -> key in compute_aggregates holding the per-episode std.
+    # Errors shown on bars are the standard error of the mean: SE = std / sqrt(N).
+    # Note: success_rate / collision_free_rate / coverage_efficiency / defense_shutout are
+    # already stored in % units, so their std is already in %. Same conversion applies.
+    METRIC_STD_KEY = {
+        "success_rate": "success_rate_std",
+        "win_margin_mean": "win_margin_std",
+        "collision_free_rate": "collision_free_rate_std",
+        "coverage_efficiency": "coverage_efficiency_std",
+        "defense_shutout_rate": "defense_shutout_std",
+        "mean_return": "return_std",
+        "mean_steps": "mean_steps_std",
+        "mean_captures": "mean_captures_std",
+        "time_to_first_score_mean": "time_to_first_score_std",
+        "mean_inter_robot_dist_mean": "mean_inter_robot_dist_std",
+        "policy_entropy_mean": "policy_entropy_std",
+        # return_var has no meaningful SE across episodes; omit so Stability stays bar-only.
+    }
+
+    def _metric_se_at(res: dict, label: str, opp: str, key: str, n: int) -> float:
+        """Standard error for metric ``key``: std/sqrt(n), zero if unknown or n<=0."""
+        import math
+
+        std_key = METRIC_STD_KEY.get(key)
+        if std_key is None or n is None or int(n) <= 0:
+            return 0.0
+        std = float(res.get((label, opp), {}).get(std_key, 0.0))
+        if not np.isfinite(std) or std <= 0.0:
+            return 0.0
+        return std / math.sqrt(float(n))
+
     def _mode_span_fragment(modes: list[str]) -> str:
         """Human-readable list for titles, e.g. '2v2, 3v3 & 4v4'."""
         if not modes:
@@ -524,10 +555,15 @@ def main() -> None:
         fmt: str = "{:.1f}%",
         ylim: tuple[float, float] | None = (0, 105),
         draw_zero: bool = False,
+        mode_errs: list[list[float]] | None = None,
     ) -> None:
         """
         Grouped bar chart: one cluster per method (Ours / Jacob / Self-play),
         one bar per team size in mode_series only (no fake zeros for unevaluated modes).
+
+        If ``mode_errs`` is given (same shape as ``mode_series``), each bar gets a
+        \u00b11 standard-error bar (SE = std/\u221aN). Bars without a meaningful
+        SE should pass 0.0.
         """
         if not mode_series:
             return
@@ -543,6 +579,7 @@ def main() -> None:
         text_offset = 1.5 if ylim else (max(abs(v) for v in all_vals) * 0.05 + 0.1 if all_vals else 0.5)
 
         for i, (mode_name, vals) in enumerate(mode_series):
+            errs = (mode_errs[i] if mode_errs is not None and i < len(mode_errs) else None)
             bars = ax.bar(
                 x + offsets[i],
                 vals,
@@ -550,12 +587,16 @@ def main() -> None:
                 label=mode_name,
                 color=team_bar_colors[i % len(team_bar_colors)],
                 alpha=0.95 if i < n_modes - 1 else 0.9,
+                yerr=errs,
+                capsize=4,
+                error_kw={"elinewidth": 1.3, "ecolor": "black"},
                 **bar_kw,
             )
-            for bar, val in zip(bars, vals):
+            for j, (bar, val) in enumerate(zip(bars, vals)):
+                err = float(errs[j]) if errs is not None and j < len(errs) else 0.0
                 ax.text(
                     bar.get_x() + bar.get_width() / 2,
-                    bar.get_height() + text_offset,
+                    bar.get_height() + err + text_offset,
                     fmt.format(val),
                     ha="center",
                     fontsize=14,
@@ -584,38 +625,46 @@ def main() -> None:
     r5 = results_by_mode.get("5v5", {})
     labels = [m[0] for m in model_paths_2v2]
 
-    def _series_for_metric(metric_key: str) -> list[tuple[str, list[float]]]:
+    def _series_for_metric(metric_key: str) -> tuple[list[tuple[str, list[float]]], list[list[float]]]:
         series: list[tuple[str, list[float]]] = []
+        errs: list[list[float]] = []
         for m in evaluated_mode_order:
             res = results_by_mode.get(m, {})
             series.append((m, [_metric_at(res, lab, plot_opp, metric_key) for lab in labels]))
-        return series
+            errs.append([_metric_se_at(res, lab, plot_opp, metric_key, n_episodes) for lab in labels])
+        return series, errs
 
     # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics
     # (only team sizes in evaluated_mode_order — no placeholder zeros for skipped modes)
+    _series, _errs = _series_for_metric("success_rate")
     _save_grouped_by_modes(
         "Performance",
         f"Success rate vs {plot_opp} (%)",
         f"Performance_{plot_opp}",
-        _series_for_metric("success_rate"),
+        _series,
+        mode_errs=_errs,
     )
 
     # Win margin (blue - red): higher = dominance
+    _series, _errs = _series_for_metric("win_margin_mean")
     _save_grouped_by_modes(
         "Win margin",
         "Win margin (blue - red)",
         f"WinMargin_{plot_opp}",
-        _series_for_metric("win_margin_mean"),
+        _series,
         fmt="{:.2f}",
         ylim=None,
         draw_zero=True,
+        mode_errs=_errs,
     )
 
+    _series, _errs = _series_for_metric("collision_free_rate")
     _save_grouped_by_modes(
         "Coordination",
         "Collision-free (%)",
         f"Coordination_{plot_opp}",
-        _series_for_metric("collision_free_rate"),
+        _series,
+        mode_errs=_errs,
     )
 
     if {"OP3", "OP4"}.issubset({str(o).strip().upper() for o in opponents}):
@@ -642,45 +691,61 @@ def main() -> None:
             w = 0.35
             v3 = [res.get((l, "OP3"), {}).get("success_rate", 0) for l in labels]
             v4 = [res.get((l, "OP4"), {}).get("success_rate", 0) for l in labels]
-            b3 = ax.bar(x - w / 2, v3, w, label="vs OP3", color=method_cols, **bar_kw)
-            b4 = ax.bar(x + w / 2, v4, w, label="vs OP4", color=method_cols, alpha=0.75, **bar_kw)
+            e3 = [_metric_se_at(res, l, "OP3", "success_rate", n_episodes) for l in labels]
+            e4 = [_metric_se_at(res, l, "OP4", "success_rate", n_episodes) for l in labels]
+            err_kw = {"capsize": 4, "ecolor": "black", "elinewidth": 1.3}
+            b3 = ax.bar(
+                x - w / 2, v3, w, label="vs OP3", color=method_cols,
+                yerr=e3, error_kw=err_kw, **bar_kw,
+            )
+            b4 = ax.bar(
+                x + w / 2, v4, w, label="vs OP4", color=method_cols, alpha=0.75,
+                yerr=e4, error_kw=err_kw, **bar_kw,
+            )
             ax.set_xticks(x)
             ax.set_xticklabels(labels, fontsize=18)
             ax.set_ylabel("Success rate (%)", fontsize=20)
             ax.set_title(f"Robustness ({mode})", fontsize=20)
             ax.legend(fontsize=14)
-            ax.set_ylim(0, 105)
-            for b, val in zip(b3, v3):
-                ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=14)
-            for b, val in zip(b4, v4):
-                ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5, f"{val:.1f}%", ha="center", fontsize=14)
+            ax.set_ylim(0, 115)
+            for b, val, err in zip(b3, v3, e3):
+                ax.text(b.get_x() + b.get_width() / 2, b.get_height() + err + 1.5, f"{val:.1f}%", ha="center", fontsize=13)
+            for b, val, err in zip(b4, v4, e4):
+                ax.text(b.get_x() + b.get_width() / 2, b.get_height() + err + 1.5, f"{val:.1f}%", ha="center", fontsize=13)
         plt.suptitle(_robustness_suptitle(robustness_modes), fontsize=22)
         plt.tight_layout()
         plt.savefig(f"{base_out}_Robustness_OP3_OP4.png", dpi=150)
         plt.close()
         print(f"Saved: {base_out}_Robustness_OP3_OP4.png")
     else:
+        _series, _errs = _series_for_metric("success_rate")
         _save_grouped_by_modes(
             "Robustness",
             f"Success rate vs {plot_opp} (%)",
             f"Robustness_{plot_opp}",
-            _series_for_metric("success_rate"),
+            _series,
+            mode_errs=_errs,
         )
 
+    # Stability = variance of episode return; SE of a variance across episodes is
+    # not meaningfully reported here, so leave as plain bars.
+    _series, _ = _series_for_metric("return_var")
     _save_grouped_by_modes(
         "Stability",
         "Variance of episode return",
         f"Stability_{plot_opp}",
-        _series_for_metric("return_var"),
+        _series,
         fmt="{:.3f}",
         ylim=None,
     )
 
+    _series, _errs = _series_for_metric("collision_free_rate")
     _save_grouped_by_modes(
         "Robotics",
         "Safety (collision-free %)",
         f"Robotics_{plot_opp}",
-        _series_for_metric("collision_free_rate"),
+        _series,
+        mode_errs=_errs,
     )
 
     return

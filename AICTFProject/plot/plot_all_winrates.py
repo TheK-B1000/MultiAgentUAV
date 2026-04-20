@@ -24,8 +24,13 @@ import numpy as np
 warnings.filterwarnings("ignore", message=".*render_mode.*")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
+
+from eval_rollout import binomial_se  # noqa: E402
 
 # Default filenames per team size (league, paper, selfplay)
 DEFAULTS = {
@@ -62,7 +67,7 @@ def main():
     args = parser.parse_args()
 
     # Send plots to AICTFProject/figures/ when --out is a bare filename
-    project_root = os.path.dirname(SCRIPT_DIR)
+    project_root = PROJECT_ROOT
     if not os.path.dirname(os.path.abspath(args.out)):
         figures_dir = os.path.join(project_root, "figures")
         os.makedirs(figures_dir, exist_ok=True)
@@ -206,24 +211,36 @@ def main():
         method_order = [m for m in METHOD_LABELS if results[n_agents].get(m) and results[n_agents][m]["total"] > 0]
         if not method_order:
             ax.set_title(suffix, fontsize=20)
-            ax.set_ylim(0, 105)
+            ax.set_ylim(0, 115)
             continue
         win_rates = [
             results[n_agents][m]["wins"] / max(1, results[n_agents][m]["total"]) * 100
             for m in method_order
         ]
+        ses = [
+            binomial_se(results[n_agents][m]["wins"], results[n_agents][m]["total"])
+            for m in method_order
+        ]
         x = np.arange(len(method_order))
-        bars = ax.bar(x, win_rates, color=colors[: len(method_order)], edgecolor="black", linewidth=1.2)
+        bars = ax.bar(
+            x, win_rates, color=colors[: len(method_order)], edgecolor="black", linewidth=1.2,
+            yerr=ses, capsize=6, error_kw={"elinewidth": 1.6, "ecolor": "black"},
+        )
         ax.set_xticks(x)
         ax.set_xticklabels(method_order, fontsize=18)
         ax.tick_params(axis="y", labelsize=18)
         ax.set_ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
         ax.set_title(suffix, fontsize=20)
-        ax.set_ylim(0, 105)
-        for bar, wr in zip(bars, win_rates):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)
+        ax.set_ylim(0, 115)
+        for bar, wr, se in zip(bars, win_rates, ses):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + se + 2.0,
+                f"{wr:.1f}% \u00b1 {se:.1f}",
+                ha="center", fontsize=15,
+            )
 
-    plt.suptitle("Win rate", fontsize=22)
+    plt.suptitle("Win rate  (error bars = \u00b11 binomial SE)", fontsize=22)
     plt.tight_layout()
     plt.savefig(args.out, dpi=150)
     print(f"Saved: {args.out}")

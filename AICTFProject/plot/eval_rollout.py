@@ -212,6 +212,22 @@ def count_wld(episodes: list[dict]) -> tuple[int, int, int]:
     return w, l, d
 
 
+def binomial_se(wins: int, total: int) -> float:
+    """Binomial standard error of a win-rate percentage: SE = sqrt(p*(1-p)/N) * 100.
+
+    This is the canonical "std dev" reported on win-rate bar charts (also equals
+    ``success_rate_std / sqrt(N)`` from ``compute_aggregates``). Returns 0.0 at
+    the p=0 / p=1 extremes and at total<=0.
+    """
+    import math
+
+    if total is None or int(total) <= 0:
+        return 0.0
+    p = float(wins) / float(total)
+    p = max(0.0, min(1.0, p))
+    return 100.0 * math.sqrt(p * (1.0 - p) / float(total))
+
+
 def compute_aggregates(episodes: list[dict]) -> dict:
     """Mean and std (over episodes) for paper-ready tables."""
     base = {

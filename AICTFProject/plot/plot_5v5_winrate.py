@@ -36,7 +36,7 @@ if PROJECT_ROOT not in sys.path:
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from eval_rollout import count_wld, run_eval_episodes
+from eval_rollout import binomial_se, count_wld, run_eval_episodes
 
 
 def main():
@@ -226,17 +226,27 @@ def main():
 
         labels = list(results.keys())
         win_rates = [(results[l]["wins"] / max(1, results[l]["total"]) * 100) for l in labels]
+        ses = [binomial_se(results[l]["wins"], results[l]["total"]) for l in labels]
         colors = ["#2ecc71", "#3498db", "#9b59b6"]
         x = np.arange(len(labels))
         plt.rc("font", size=16)
-        bars = plt.bar(x, win_rates, color=colors, edgecolor="black", linewidth=1.2)
+        plt.figure()
+        bars = plt.bar(
+            x, win_rates, color=colors, edgecolor="black", linewidth=1.2,
+            yerr=ses, capsize=6, error_kw={"elinewidth": 1.6, "ecolor": "black"},
+        )
         plt.xticks(x, labels, fontsize=18)
         plt.yticks(fontsize=18)
         plt.ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
         plt.title("5v5 Win rate", fontsize=22)
-        plt.ylim(0, 105)
-        for bar, wr in zip(bars, win_rates):
-            plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5, f"{wr:.1f}%", ha="center", fontsize=18)
+        plt.ylim(0, 115)
+        for bar, wr, se in zip(bars, win_rates, ses):
+            plt.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + se + 2.0,
+                f"{wr:.1f}% \u00b1 {se:.1f}",
+                ha="center", fontsize=16,
+            )
         plt.tight_layout()
         out_file = out_path_for(opponent)
         plt.savefig(out_file, dpi=150)
