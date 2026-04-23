@@ -92,7 +92,7 @@ from game_field_gpu import (
     CNN_ROWS,
     NUM_CNN_CHANNELS,
 )
-from rl.curriculum import STRESS_BY_PHASE
+from rl.stress_schedule import STRESS_BY_PHASE
 from opponent_params import sample_batched_opponent_params
 
 # ---------------------------------------------------------------------------

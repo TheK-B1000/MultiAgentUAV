@@ -113,7 +113,7 @@ def run_eval_episodes(
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
         # Match training (train_ppo): phase-indexed current/drift via stress schedule.
         try:
-            from rl.curriculum import STRESS_BY_PHASE
+            from rl.stress_schedule import STRESS_BY_PHASE
 
             env.env_method("set_stress_schedule", STRESS_BY_PHASE)
         except Exception:
