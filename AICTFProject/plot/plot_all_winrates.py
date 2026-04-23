@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+Plot win rate for 2v2, 3v3, and 4v4: Ours vs Jacob et al. vs Self-play vs OP3.
+
+Evaluates 9 models total (3 per team size) and produces one figure with 3 panels.
+
+Usage:
+  python plot_all_winrates.py [--episodes N] [--out plot.png] [--checkpoint-dir DIR]
+
+Defaults (under checkpoints_sb3/2v2, 3v3, 4v4/):
+  2v2: final_ppo_league_2v2_colab.zip, final_weekend_paper_2v2.zip, final_weekend_selfplay_2v2.zip
+  3v3: final_ppo_league_3v3_colab.zip, final_ppo_paper_3v3_colab.zip, final_ppo_selfplay_3v3_colab.zip
+  4v4: final_ppo_league_4v4_colab.zip, final_weekend_paper_4v4.zip, final_ppo_selfplay_4v4_colab.zip
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+import warnings
+
+import numpy as np
+
+warnings.filterwarnings("ignore", message=".*render_mode.*")
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+from eval_rollout import binomial_se  # noqa: E402
+
+# Default filenames per team size (league, paper, selfplay)
+DEFAULTS = {
+    2: (
+        "final_ppo_league_2v2_colab.zip",
+        "final_weekend_paper_2v2.zip",
+        "final_weekend_selfplay_2v2.zip",
+    ),
+    3: (
+        "final_ppo_league_3v3_colab.zip",
+        "final_ppo_paper_3v3_colab.zip",
+        "final_ppo_selfplay_3v3_colab.zip",
+    ),
+    4: (
+        "final_ppo_league_4v4_colab.zip",
+        "final_weekend_paper_4v4.zip",
+        "final_ppo_selfplay_4v4_colab.zip",
+    ),
+}
+METHOD_LABELS = ("Ours", "Jacob et al.", "Self-play")
+
+
+def path_ensure_zip(path: str) -> str:
+    return path if path.endswith(".zip") else path + ".zip"
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Plot 2v2, 3v3, 4v4 win rates: Ours vs Jacob et al. vs Self-play")
+    parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
+    parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). OP4 = held-out eval for generalization.")
+    parser.add_argument("--out", type=str, default="all_winrates.png", help="Output plot path")
+    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Parent dir checkpoints_sb3 (default: project checkpoints_sb3)")
+    parser.add_argument("--device", type=str, default="cpu", help="Device (cpu or cuda)")
+    args = parser.parse_args()
+
+    # Send plots to AICTFProject/figures/ when --out is a bare filename
+    project_root = PROJECT_ROOT
+    if not os.path.dirname(os.path.abspath(args.out)):
+        figures_dir = os.path.join(project_root, "figures")
+        os.makedirs(figures_dir, exist_ok=True)
+        args.out = os.path.join(figures_dir, os.path.basename(args.out))
+
+    ckpt_dir = args.checkpoint_dir or os.path.join(SCRIPT_DIR, "checkpoints_sb3")
+    ckpt_dir = os.path.abspath(ckpt_dir)
+    subdirs = {2: "2v2", 3: "3v3", 4: "4v4"}
+
+    from stable_baselines3 import PPO
+    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+
+    device = args.device
+    n_episodes = args.episodes
+    opponent = args.opponent.upper()
+
+    # results[team_size][method] = {"wins": w, "losses": l, "draws": d, "total": t}
+    results = {2: {}, 3: {}, 4: {}}
+
+    for n_agents in (2, 3, 4):
+        subdir = subdirs[n_agents]
+        league_name, paper_name, selfplay_name = DEFAULTS[n_agents]
+        paths = {
+            "Ours": os.path.join(ckpt_dir, subdir, path_ensure_zip(league_name)),
+            "Jacob et al.": os.path.join(ckpt_dir, subdir, path_ensure_zip(paper_name)),
+            "Self-play": os.path.join(ckpt_dir, subdir, path_ensure_zip(selfplay_name)),
+        }
+        for method, p in paths.items():
+            if not os.path.isfile(p):
+                print(f"[WARN] Not found: {p}")
+                results[n_agents][method] = {"wins": 0, "losses": 0, "draws": 0, "total": 0}
+                continue
+
+        cfg = GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=n_agents,
+            max_red_agents=n_agents,
+            max_decision_steps=400,
+            aquaticus_profile=True,
+            rules_profile="AQUATICUS_2024",
+            device=device,
+            seed=42,
+        )
+        env = GPUCTFVecEnv(cfg)
+        try:
+            env.env_method("set_phase", opponent)
+            env.env_method("set_next_opponent", "SCRIPTED", opponent)
+        except Exception:
+            pass
+
+        def _numpy_compat_shim():
+            if "numpy._core.numeric" not in sys.modules:
+                try:
+                    import numpy.core as _core
+                    import numpy.core.numeric
+                    import numpy.core.multiarray
+                    import numpy.core.umath
+                    sys.modules["numpy._core"] = _core
+                    sys.modules["numpy._core.numeric"] = _core.numeric
+                    sys.modules["numpy._core.multiarray"] = _core.multiarray
+                    sys.modules["numpy._core.umath"] = _core.umath
+                except Exception:
+                    pass
+            try:
+                import numpy.random._pickle as _np_pickle
+                _orig_bg_ctor = _np_pickle.__bit_generator_ctor
+
+                def _patched_bg_ctor(bit_generator_name="MT19937"):
+                    if isinstance(bit_generator_name, type):
+                        bit_generator_name = bit_generator_name.__name__
+                    return _orig_bg_ctor(bit_generator_name)
+
+                _np_pickle.__bit_generator_ctor = _patched_bg_ctor
+            except Exception:
+                pass
+
+        def run_eval(model_path: str) -> tuple[int, int, int]:
+            from eval_rollout import ppo_load_custom_objects
+
+            _numpy_compat_shim()
+            model = PPO.load(model_path, device=device, custom_objects=ppo_load_custom_objects(env))
+            model.policy.set_training_mode(False)
+            wins, losses, draws = 0, 0, 0
+            obs = env.reset()
+            for ep in range(n_episodes):
+                while True:
+                    single = {
+                        k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
+                        for k, v in obs.items()
+                    }
+                    act, _ = model.predict(single, deterministic=True)
+                    env.step_async(act)
+                    obs, _, done, infos = env.step_wait()
+                    if done.any():
+                        for i in range(len(done)):
+                            if done[i]:
+                                info = infos[i] if i < len(infos) else {}
+                                ep_res = info.get("episode_result", info)
+                                bs = int(ep_res.get("blue_score", 0))
+                                rs = int(ep_res.get("red_score", 0))
+                                if bs > rs:
+                                    wins += 1
+                                elif bs < rs:
+                                    losses += 1
+                                else:
+                                    draws += 1
+                        break
+            return wins, losses, draws
+
+        suffix = f"{n_agents}v{n_agents}"
+        print(f"--- {suffix} ---")
+        for method in METHOD_LABELS:
+            p = paths[method]
+            if not os.path.isfile(p):
+                continue
+            print(f"  Evaluating {method}: {os.path.basename(p)} ...")
+            w, l, d = run_eval(p)
+            results[n_agents][method] = {"wins": w, "losses": l, "draws": d, "total": w + l + d}
+            t = w + l + d
+            wr = (w / t * 100) if t > 0 else 0.0
+            print(f"    {method}: W={w} L={l} D={d} WR={wr:.1f}%")
+
+        env.close()
+
+    # Plot: 3 subplots (2v2, 3v3, 4v4)
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not installed; skipping plot. Install with: pip install matplotlib")
+        return
+
+    plt.rc("font", size=16)
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+    colors = ["#2ecc71", "#3498db", "#9b59b6"]
+
+    for idx, n_agents in enumerate((2, 3, 4)):
+        ax = axes[idx]
+        suffix = f"{n_agents}v{n_agents}"
+        method_order = [m for m in METHOD_LABELS if results[n_agents].get(m) and results[n_agents][m]["total"] > 0]
+        if not method_order:
+            ax.set_title(suffix, fontsize=20)
+            ax.set_ylim(0, 115)
+            continue
+        win_rates = [
+            results[n_agents][m]["wins"] / max(1, results[n_agents][m]["total"]) * 100
+            for m in method_order
+        ]
+        ses = [
+            binomial_se(results[n_agents][m]["wins"], results[n_agents][m]["total"])
+            for m in method_order
+        ]
+        x = np.arange(len(method_order))
+        bars = ax.bar(
+            x, win_rates, color=colors[: len(method_order)], edgecolor="black", linewidth=1.2,
+            yerr=ses, capsize=6, error_kw={"elinewidth": 1.6, "ecolor": "black"},
+        )
+        ax.set_xticks(x)
+        ax.set_xticklabels(method_order, fontsize=18)
+        ax.tick_params(axis="y", labelsize=18)
+        ax.set_ylabel("Win rate vs " + opponent + " (%)", fontsize=20)
+        ax.set_title(suffix, fontsize=20)
+        ax.set_ylim(0, 115)
+        for bar, wr, se in zip(bars, win_rates, ses):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + se + 2.0,
+                f"{wr:.1f}% \u00b1 {se:.1f}",
+                ha="center", fontsize=15,
+            )
+
+    plt.suptitle("Win rate  (error bars = \u00b11 binomial SE)", fontsize=22)
+    plt.tight_layout()
+    plt.savefig(args.out, dpi=150)
+    print(f"Saved: {args.out}")
+
+
+if __name__ == "__main__":
+    main()

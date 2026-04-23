@@ -14,7 +14,7 @@ def elo_expected(r_a: float, r_b: float) -> float:
 
 @dataclass
 class OpponentSpec:
-    kind: str  # "SCRIPTED" | "SPECIES" | "SNAPSHOT"
+    kind: str
     key: str
     rating: float
 
@@ -29,15 +29,13 @@ class EloLeague:
         scripted_floor: float = 0.20,
         species_prob: float = 0.20,
         snapshot_prob: float = 0.60,
-        # Sprint A: Stability mix (70% scripted, 20% snapshot, 10% species)
+        anchor_op3_prob: float = 0.40,
+        species_rusher_bias: float = 0.40,
         stability_scripted_prob: float = 0.70,
         stability_snapshot_prob: float = 0.20,
         stability_species_prob: float = 0.10,
-        use_stability_mix: bool = True,
-        # Opponent switching frequency cap
-        min_episodes_per_opponent: int = 3,  # Don't switch opponents more than once per N episodes
-        # Remediate RUSHER weakness: when sampling species, with this probability force RUSHER (0 = uniform)
-        species_rusher_bias: float = 0.0,
+        use_stability_mix: bool = False,
+        min_episodes_per_opponent: int = 3,
     ) -> None:
         self.rng = random.Random(int(seed))
         self.k = float(k_factor)
@@ -45,17 +43,15 @@ class EloLeague:
         self.scripted_floor = float(scripted_floor)
         self.species_prob = float(species_prob)
         self.snapshot_prob = float(snapshot_prob)
-        
-        # Sprint A: Stability mix configuration
+        self.anchor_op3_prob = max(0.0, min(1.0, float(anchor_op3_prob)))
+        self.species_rusher_bias = max(0.0, min(1.0, float(species_rusher_bias)))
         self.use_stability_mix = bool(use_stability_mix)
         self.stability_scripted_prob = float(stability_scripted_prob)
         self.stability_snapshot_prob = float(stability_snapshot_prob)
         self.stability_species_prob = float(stability_species_prob)
         self.min_episodes_per_opponent = max(1, int(min_episodes_per_opponent))
-        self.species_rusher_bias = max(0.0, min(1.0, float(species_rusher_bias)))
-        
-        # Track last opponent and episode count for switching cap
-        self._last_opponent_key: Optional[str] = None
+        self._last_kind: Optional[str] = None
+        self._last_key: Optional[str] = None
         self._episodes_with_current_opponent: int = 0
 
         self.learner_key = "__LEARNER__"
@@ -66,8 +62,6 @@ class EloLeague:
             "SCRIPTED:OP1",
             "SCRIPTED:OP2",
             "SCRIPTED:OP3",
-            "SCRIPTED:OP3_EASY",
-            "SCRIPTED:OP3_HARD",
         ] + self.species_keys:
             self.ratings.setdefault(key, 1200.0)
 
@@ -93,14 +87,20 @@ class EloLeague:
         return float(self.ratings.get(key, 1200.0))
 
     def update_elo(self, opponent_key: str, actual_score: float) -> None:
+        """
+        Update learner Elo from match result. Opponent rating is updated only for
+        SNAPSHOT opponents; SCRIPTED and SPECIES ratings are anchored (fixed) so
+        Elo stays comparable over time and does not inflate.
+        """
         lr = self.learner_rating
         opp_r = self.get_rating(opponent_key)
         exp = elo_expected(lr, opp_r)
 
         learner_new = max(0.0, lr + self.k * (float(actual_score) - exp))
-        opp_new = max(0.0, opp_r + self.k * ((1.0 - float(actual_score)) - (1.0 - exp)))
-
         self.set_learner_rating(learner_new)
+        if opponent_key.startswith("SCRIPTED:") or opponent_key.startswith("SPECIES:"):
+            return
+        opp_new = max(0.0, opp_r + self.k * ((1.0 - float(actual_score)) - (1.0 - exp)))
         self.ratings[opponent_key] = float(opp_new)
 
     def _weighted_pick(
@@ -132,96 +132,98 @@ class EloLeague:
         key = f"SCRIPTED:{phase}"
         return OpponentSpec(kind="SCRIPTED", key=phase, rating=self.get_rating(key))
 
-    def sample_league(self, target_rating: Optional[float] = None, phase: Optional[str] = None) -> OpponentSpec:
+    def sample_league(self, target_rating: Optional[float] = None, phase: Optional[str] = None, enable_snapshots: bool = False) -> OpponentSpec:
         """
-        Sample opponent from league with stability mix (Sprint A).
-        
-        Stability mix:
-        - 70% scripted opponents (OP1/OP2/OP3 depending on phase)
-        - 20% snapshot opponents (uniform from last N snapshots)
-        - 10% species variants
-        
-        Also caps opponent switching frequency to avoid chaos.
+        Sample opponent from the league population after curriculum qualification.
+        Category weights come from anchor_op3_prob / species_prob / snapshot_prob and
+        are renormalized among currently available opponent types.
         """
         target = self.learner_rating if target_rating is None else float(target_rating)
         phase = str(phase).upper() if phase else "OP3"
-        
-        # Sprint A: Cap opponent switching frequency
-        if (self._last_opponent_key is not None and 
+
+        # Cap opponent switching frequency (stickiness)
+        if (self._last_kind is not None and self._last_key is not None and
             self._episodes_with_current_opponent < self.min_episodes_per_opponent):
-            # Reuse last opponent if we haven't met minimum episodes
             self._episodes_with_current_opponent += 1
             return self._reconstruct_last_opponent()
-        
-        # Reset counter when switching
+
         self._episodes_with_current_opponent = 1
-        
-        # Sprint A: Use stability mix if enabled
+
         if self.use_stability_mix:
             opp_spec = self._sample_stability_mix(target, phase)
         else:
-            # Original sampling logic
-            r = self.rng.random()
-            if r < self.scripted_floor or (not self.snapshots):
-                key = "SCRIPTED:OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "SCRIPTED:OP3"
-                tag = key.split(":", 1)[1]
-                opp_spec = OpponentSpec(kind="SCRIPTED", key=tag, rating=self.get_rating(key))
+            categories: List[tuple[str, float]] = []
+            scripted_tag = phase if phase in ("OP1", "OP2", "OP3") else "OP3"
+            categories.append(("SCRIPTED", max(0.0, float(self.anchor_op3_prob))))
+            if self.species_prob > 0.0:
+                categories.append(("SPECIES", max(0.0, float(self.species_prob))))
+            if enable_snapshots and self.snapshots and self.snapshot_prob > 0.0:
+                categories.append(("SNAPSHOT", max(0.0, float(self.snapshot_prob))))
+
+            total_weight = sum(weight for _, weight in categories)
+            if total_weight <= 0.0:
+                chosen_kind = "SCRIPTED"
             else:
-                r -= self.scripted_floor
-                if r < self.species_prob:
-                    if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
-                        key = "SPECIES:RUSHER"
-                    else:
-                        key = self._weighted_pick(self.species_keys, target)
-                    tag = key.split(":", 1)[1]
-                    opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
-                elif self.snapshots:
-                    path = self._weighted_pick(
-                        self.snapshots, target, key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p))
-                    )
-                    opp_spec = OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
+                pick = self.rng.random() * total_weight
+                acc = 0.0
+                chosen_kind = "SCRIPTED"
+                for kind, weight in categories:
+                    acc += weight
+                    if acc >= pick:
+                        chosen_kind = kind
+                        break
+
+            if chosen_kind == "SCRIPTED":
+                opp_spec = OpponentSpec(
+                    kind="SCRIPTED",
+                    key=scripted_tag,
+                    rating=self.get_rating(f"SCRIPTED:{scripted_tag}"),
+                )
+            elif chosen_kind == "SPECIES":
+                if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
+                    key = "SPECIES:RUSHER"
                 else:
-                    key = "SCRIPTED:OP3"
-                    opp_spec = OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
-        
-        # Track for switching cap
-        self._last_opponent_key = f"{opp_spec.kind}:{opp_spec.key}"
+                    key = self._weighted_pick(self.species_keys, target)
+                tag = key.split(":", 1)[1]
+                opp_spec = OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
+            else:
+                path = self._weighted_pick(
+                    self.snapshots,
+                    target,
+                    key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
+                )
+                opp_spec = OpponentSpec(
+                    kind="SNAPSHOT",
+                    key=path,
+                    rating=self.get_rating(path_to_snapshot_key(path)),
+                )
+
+        self._last_kind = opp_spec.kind
+        self._last_key = opp_spec.key
         return opp_spec
     
     def _sample_stability_mix(self, target_rating: float, phase: str) -> OpponentSpec:
-        """
-        Sprint A: Sample with stability mix (70% scripted, 20% snapshot, 10% species).
-        """
         r = self.rng.random()
-        
-        # 70% scripted opponents (OP1/OP2/OP3 depending on phase)
         if r < self.stability_scripted_prob:
-            # Select scripted opponent based on phase
             if phase == "OP1":
                 scripted_tag = "OP1"
             elif phase == "OP2":
                 scripted_tag = "OP2"
-            else:  # OP3 or default
-                # Prefer OP3_HARD if available, else OP3
-                scripted_tag = "OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "OP3"
-            
+            else:
+                scripted_tag = "OP3"
             key = f"SCRIPTED:{scripted_tag}"
             return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.get_rating(key))
         
         r -= self.stability_scripted_prob
-        
-        # 20% snapshot opponents (uniform from last N snapshots)
         if r < self.stability_snapshot_prob and self.snapshots:
-            # Use uniform sampling from last N snapshots (not weighted by rating for stability)
-            # Take last N snapshots (e.g., last 10)
-            recent_snapshots = self.snapshots[-min(10, len(self.snapshots)):]
-            if recent_snapshots:
-                path = self.rng.choice(recent_snapshots)
-                return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
+            path = self._weighted_pick(
+                self.snapshots,
+                target_rating,
+                key_to_rating=lambda p: self.get_rating(path_to_snapshot_key(p)),
+            )
+            return OpponentSpec(kind="SNAPSHOT", key=path, rating=self.get_rating(path_to_snapshot_key(path)))
         
         r -= self.stability_snapshot_prob
-        
-        # Species variants (RUSHER bias to remediate weakness)
         if r < self.stability_species_prob:
             if self.species_rusher_bias > 0 and self.rng.random() < self.species_rusher_bias:
                 key = "SPECIES:RUSHER"
@@ -229,28 +231,27 @@ class EloLeague:
                 key = self._weighted_pick(self.species_keys, target_rating)
             tag = key.split(":", 1)[1]
             return OpponentSpec(kind="SPECIES", key=tag, rating=self.get_rating(key))
-        
-        # Fallback: scripted (shouldn't reach here, but safety)
-        scripted_tag = "OP3_HARD" if "SCRIPTED:OP3_HARD" in self.ratings else "OP3"
-        key = f"SCRIPTED:{scripted_tag}"
-        return OpponentSpec(kind="SCRIPTED", key=scripted_tag, rating=self.get_rating(key))
+        key = "SCRIPTED:OP3"
+        return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating(key))
     
     def _reconstruct_last_opponent(self) -> OpponentSpec:
-        """Reconstruct last opponent spec from tracked key."""
-        if self._last_opponent_key is None:
+        """Reconstruct last opponent spec from structured _last_kind/_last_key (no string parsing)."""
+        if self._last_kind is None or self._last_key is None:
             return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3"))
-        
-        parts = self._last_opponent_key.split(":", 1)
-        if len(parts) != 2:
-            return OpponentSpec(kind="SCRIPTED", key="OP3", rating=self.get_rating("SCRIPTED:OP3"))
-        
-        kind, key = parts
-        rating = self.get_rating(self._last_opponent_key)
+        kind = self._last_kind
+        key = self._last_key
+        if kind == "SNAPSHOT":
+            rating = self.get_rating(path_to_snapshot_key(key))
+        elif kind in ("SCRIPTED", "SPECIES"):
+            rating = self.get_rating(f"{kind}:{key}")
+        else:
+            rating = self.learner_rating
         return OpponentSpec(kind=kind, key=key, rating=rating)
     
     def reset_opponent_tracking(self) -> None:
         """Reset opponent tracking (e.g., on episode reset)."""
-        self._last_opponent_key = None
+        self._last_kind = None
+        self._last_key = None
         self._episodes_with_current_opponent = 0
 
     def sample_species(self, target_rating: Optional[float] = None) -> OpponentSpec:

@@ -1,3 +1,11 @@
+"""
+Game state, reward routing, and flag logic. Single source of truth for scoring and
+reward/shaping constants.
+
+- game_field_gpu (BatchedCTFCore) imports get_grab_score_delta, get_capture_score_delta,
+  sparse event point constants, and DEFAULT_SCORE_LIMIT from here so GPU training and
+  the viewer use the same values.
+"""
 from __future__ import annotations
 
 import math
@@ -6,57 +14,93 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 # -------------------------
 # Reward constants (baseline)
+# Tuned to encourage offense, defense, and teamwork (especially for 4v4).
 # -------------------------
 
-WIN_TEAM_REWARD = 5.0
-LOSE_TEAM_PUNISH = -5.0  # symmetric terminal signal for the losing team
-DRAW_TEAM_PENALTY = -1.0
+# Terminal: strong signal so policy learns to win
+# Jacob et al.-style magnitudes (Table 3-like, small and symmetric).
+WIN_TEAM_REWARD = 1.0
+LOSE_TEAM_PUNISH = -1.0  # symmetric terminal signal for the losing team
+DRAW_TEAM_PENALTY = -0.5
 
-FLAG_PICKUP_REWARD = 1.0
-FLAG_CARRY_HOME_REWARD = 5.0
-ENEMY_MAV_KILL_REWARD = 2.0
-ACTION_FAILED_PUNISHMENT = -0.5
+# Offense: capturing and carrying flag (closer to Jacob et al. values)
+FLAG_PICKUP_REWARD = 0.1
+FLAG_CARRY_HOME_REWARD = 0.5
+ENEMY_MAV_KILL_REWARD = 0.5
+ACTION_FAILED_PUNISHMENT = -0.2
 
 FLAG_RETURN_DELAY = 10.0
 
 # PBRS (potential based reward shaping): F = coef * (gamma * Phi(s') - Phi(s))
-FLAG_PROXIMITY_COEF = 0.35
+FLAG_PROXIMITY_COEF = 0.45
 DEFAULT_SHAPING_GAMMA = 0.99  # IMPORTANT: set this from PPO gamma via env binding
-DEFENSE_SHAPING_MULT = 2.0
-DEFENSE_CARRIER_PROGRESS_COEF = 0.15
+DEFENSE_SHAPING_MULT = 3.5
+DEFENSE_CARRIER_PROGRESS_COEF = 0.45
+DEFENSE_PRESENCE_RADIUS = 6.0
+DEFENSE_PRESENCE_REWARD = 0.06
+ESCORT_CARRIER_RADIUS = 5.0
+ESCORT_CARRIER_REWARD = 0.08
 
 # Sprint A: Minimal shaping rewards (progress-to-flag/home)
-PROGRESS_TO_FLAG_COEF = 0.05  # Small reward for moving toward enemy flag
-PROGRESS_TO_HOME_COEF = 0.05  # Small reward for moving toward home (when carrying flag)
+PROGRESS_TO_FLAG_COEF = 0.08
+PROGRESS_TO_HOME_COEF = 0.08
 PROGRESS_REWARD_THRESHOLD = 0.1  # Minimum distance change to trigger reward
 
-# Optional low-magnitude extras (safe defaults)
-EXPLORATION_REWARD = 0.01
-COORDINATION_BONUS = 0.3
-DEFENSE_INTERCEPT_BONUS = 1.5
-DEFENSE_MINE_REWARD = 0.2
-OFFENSE_MINE_REWARD = 0.15
-MINE_PICKUP_REWARD = 0.1
-MINE_KILL_BONUS = 0.5
-TEAM_SUPPRESSION_BONUS = 0.2
-SUPPRESSION_SETUP_BONUS = 0.05
-MINE_AVOID_PENALTY = -0.05
+# Teamwork and coordination (extra shaping).
+# For a paper-style, low-noise setup, keep these at 0.0 so PBRS + sparse events dominate.
+EXPLORATION_REWARD = 0.0
+COORDINATION_BONUS = 0.0
+DEFENSE_INTERCEPT_BONUS = 0.0
+DEFENSE_MINE_REWARD = 0.0
+OFFENSE_MINE_REWARD = 0.0
+MINE_PICKUP_REWARD = 0.0
+MINE_KILL_BONUS = 0.0
+TEAM_SUPPRESSION_BONUS = 0.0
+SUPPRESSION_SETUP_BONUS = 0.0
+MINE_AVOID_PENALTY = 0.0
 MINE_AVOID_RADIUS_CELLS = 1.5
-OFFENSE_CROSS_MIDLINE_REWARD = 0.1
-CARRY_CROSS_MIDLINE_REWARD = 0.3
-STALL_PENALTY = -0.4
+# Offense: reward pushing into enemy half and bringing flag back (disabled for simpler shaping)
+OFFENSE_CROSS_MIDLINE_REWARD = 0.0
+CARRY_CROSS_MIDLINE_REWARD = 0.0
+STALL_PENALTY = -0.1
 STALL_INTERVAL_SECONDS = 30.0
-TEAM_FLAG_TAKEN_PENALTY = -0.5
-TEAM_FLAG_SCORED_PENALTY = -3.0
-TEAM_FLAG_RECOVER_REWARD = 0.5
+TEAM_FLAG_TAKEN_PENALTY = -0.2
+TEAM_FLAG_SCORED_PENALTY = -0.5
+TEAM_FLAG_RECOVER_REWARD = 0.2
 
 # Optional draw penalty by phase (default 0, research-safe)
 PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
     "OP1": -0.5,
     "OP2": -1.0,
     "OP3": -1.5,
+    "OP4": -1.5,   # held-out eval only; same as OP3
     "SELF": -1.5,
 }
+
+# Sparse reward "points" used by game_field_gpu (BatchedCTFCore) before /100 normalization.
+# Neutral names; values define OURS sparse event scaling.
+SPARSE_TAG_NO_FLAG_POINTS = 100.0
+SPARSE_TAG_WITH_FLAG_POINTS = 50.0
+SPARSE_FLAG_GRAB_POINTS = 0.0
+SPARSE_FLAG_CAPTURE_POINTS = 100.0
+SPARSE_OOB_POINTS = -100.0
+SPARSE_MINE_TAG_POINTS = 100.0
+
+# Default score limit for CTF scoring.
+DEFAULT_SCORE_LIMIT = 3
+
+
+def get_grab_score_delta(rules_profile: str) -> int:
+    """Score added to the grabbing team when they pick up the enemy flag. Used by GPU core and GameManager."""
+    # OURS default: only captures change the scoreboard; grabs are rewarded via FLAG_PICKUP_REWARD.
+    return 0
+
+
+def get_capture_score_delta(rules_profile: str) -> int:
+    """Score added when a carrier scores (brings flag home). Used by GPU core and GameManager."""
+    # OURS default: each capture increments score by 1.
+    return 1
+
 
 Cell = Tuple[int, int]
 FloatPos = Tuple[float, float]
@@ -66,7 +110,7 @@ RewardEvent = Tuple[float, str, float]  # (t, agent_id, value)
 @dataclass
 class GameManager:
     """
-    Game state + reward routing.
+    Game state + reward routing for the non-GPU game field (not used by PPO/GPU training).
 
     Research invariants:
       - Rewards are emitted ONLY as per-agent events (no global reward returned).
@@ -92,6 +136,8 @@ class GameManager:
     phase_name: str = "OP1"
     # Naval framing: if True, on timeout Blue wins (defense held) regardless of score
     timeout_blue_wins_defense_held: bool = False
+    # Rules profile (historical; kept for compatibility, but OURS behavior is always used).
+    rules_profile: str = "OURS"
 
     # --- flags ---
     blue_flag_home: Cell = (0, 0)
@@ -182,6 +228,24 @@ class GameManager:
         """Set curriculum phase name (canonical uppercase)."""
         self.phase_name = str(phase).upper().strip()
 
+    def set_rules_profile(self, profile: str) -> None:
+        """
+        Kept for backward compatibility; always uses OURS semantics.
+        """
+        self.rules_profile = "OURS"
+
+    def _grab_score_delta(self) -> int:
+        return get_grab_score_delta(self.rules_profile)
+
+    def _capture_score_delta(self) -> int:
+        return get_capture_score_delta(self.rules_profile)
+
+    def _flag_pickup_reward(self) -> float:
+        return float(FLAG_PICKUP_REWARD)
+
+    def _flag_capture_reward(self) -> float:
+        return float(FLAG_CARRY_HOME_REWARD)
+
     def set_shaping_gamma(self, gamma: float) -> None:
         """Set shaping gamma; must match PPO gamma for PBRS policy invariance."""
         g = float(gamma)
@@ -219,6 +283,9 @@ class GameManager:
             raise TypeError(f"dynamics config must be dict or None, got {type(cfg)}")
         # Shallow copy to avoid external mutation surprises.
         self.dynamics_config = dict(cfg)
+        rp = self.dynamics_config.get("rules_profile", None)
+        if rp is not None:
+            self.set_rules_profile(str(rp))
 
     def get_dynamics_config(self) -> Optional[Dict[str, Any]]:
         """Get a safe copy of the current dynamics config (or None)."""
@@ -447,6 +514,9 @@ class GameManager:
     # -------------------------
 
     def reset_game(self, reset_scores: bool = True) -> None:
+    # Legacy hook; no-op for OURS.
+        if False:
+            self.score_limit = max(self.score_limit, 9)
         if reset_scores:
             self.blue_score = 0
             self.red_score = 0
@@ -653,15 +723,17 @@ class GameManager:
         self._remember_agent(agent)
 
         ax, ay = self._agent_float(agent)
+        # Which flag we are trying to pick: enemy's flag. Block only if we already hold it.
+        # (Our flag being held by the enemy does NOT block us from taking theirs.)
         if side == "blue":
-            enemy_taken = self.red_flag_taken
+            enemy_taken = self.red_flag_taken  # red's flag taken by blue
             enemy_pos = self.red_flag_position
         else:
-            enemy_taken = self.blue_flag_taken
+            enemy_taken = self.blue_flag_taken  # blue's flag taken by red
             enemy_pos = self.blue_flag_position
 
         if enemy_taken:
-            return False
+            return False  # already carrying that flag
 
         if math.hypot(ax - float(enemy_pos[0]), ay - float(enemy_pos[1])) > 1.0:
             return False
@@ -681,7 +753,19 @@ class GameManager:
         if hasattr(agent, "setCarryingFlag"):
             agent.setCarryingFlag(True)
 
-        self.add_agent_reward(agent, FLAG_PICKUP_REWARD)
+        # Aquaticus profile: grab contributes to score immediately.
+        # Legacy profile: score increments only on capture.
+        grab_delta = self._grab_score_delta()
+        if grab_delta > 0:
+            if side == "blue":
+                self.blue_score += int(grab_delta)
+            else:
+                self.red_score += int(grab_delta)
+            if self.time_to_first_score is None:
+                self.time_to_first_score = float(self.sim_time)
+            self.last_score_time = float(self.sim_time)
+
+        self.add_agent_reward(agent, self._flag_pickup_reward())
 
         if self._teammate_near(agent):
             self.add_agent_reward(agent, COORDINATION_BONUS)
@@ -703,7 +787,7 @@ class GameManager:
         # Blue scores carrying red flag at blue home
         if side == "blue" and self.red_flag_taken and (self.red_flag_carrier is agent):
             if math.hypot(ax - float(self.blue_flag_home[0]), ay - float(self.blue_flag_home[1])) <= 2.0:
-                self.blue_score += 1
+                self.blue_score += int(self._capture_score_delta())
                 if self.time_to_first_score is None:
                     self.time_to_first_score = float(self.sim_time)
                 self._reset_red_flag_to_home()
@@ -712,8 +796,9 @@ class GameManager:
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
 
-                self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
-                self.add_team_reward("blue", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                cap_reward = self._flag_capture_reward()
+                self.add_agent_reward(agent, cap_reward)
+                self.add_team_reward("blue", cap_reward * 0.5, exclude_agent=agent)
                 self.add_team_reward("red", TEAM_FLAG_SCORED_PENALTY)
 
                 if self._teammate_near(agent):
@@ -738,7 +823,7 @@ class GameManager:
             return False
         if side == "red" and self.blue_flag_taken and (self.blue_flag_carrier is agent):
             if math.hypot(ax - float(self.red_flag_home[0]), ay - float(self.red_flag_home[1])) <= 2.0:
-                self.red_score += 1
+                self.red_score += int(self._capture_score_delta())
                 if self.time_to_first_score is None:
                     self.time_to_first_score = float(self.sim_time)
                 self._reset_blue_flag_to_home()
@@ -747,8 +832,10 @@ class GameManager:
                 if hasattr(agent, "setCarryingFlag"):
                     agent.setCarryingFlag(False, scored=True)
 
-                self.add_agent_reward(agent, FLAG_CARRY_HOME_REWARD)
-                self.add_team_reward("red", FLAG_CARRY_HOME_REWARD * 0.5, exclude_agent=agent)
+                cap_reward = self._flag_capture_reward()
+                self.add_agent_reward(agent, cap_reward)
+                self.add_team_reward("red", cap_reward * 0.5, exclude_agent=agent)
+                # Concede: team-wide negative so Blue learns to defend (block/intercept/deny)
                 self.add_team_reward("blue", TEAM_FLAG_SCORED_PENALTY)
 
                 if self._teammate_near(agent):
@@ -1025,6 +1112,19 @@ class GameManager:
                                 break
                         break
 
+            # Teamwork: defense presence — reward staying near our flag when enemy has it
+            if enemy_has_our_flag and (not i_am_carrier):
+                home = self.blue_flag_home if side == "blue" else self.red_flag_home
+                dist_home = math.hypot(ax2 - float(home[0]), ay2 - float(home[1]))
+                if dist_home <= float(DEFENSE_PRESENCE_RADIUS):
+                    self.add_agent_reward(agent, DEFENSE_PRESENCE_REWARD)
+
+            # Teamwork: escort — reward being near our carrier when we have the flag
+            if (i_am_carrier or teammate_is_carrier) and (not i_am_carrier) and enemy_carrier is not None:
+                cx, cy = self._agent_float(enemy_carrier)
+                if math.hypot(ax2 - cx, ay2 - cy) <= float(ESCORT_CARRIER_RADIUS):
+                    self.add_agent_reward(agent, ESCORT_CARRIER_REWARD)
+
     # -------------------------
     # Mine/combat hooks (minimal)
     # -------------------------
@@ -1075,6 +1175,7 @@ class GameManager:
                 self.red_mine_kills_this_episode += 1
             self.add_agent_reward(killer_agent, MINE_KILL_BONUS)
 
+        # OURS default: single consistent kill reward (plus optional mine bonus above).
         self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
 
         # Optional team share for mine kills (explicit, excludes killer)
@@ -1111,44 +1212,40 @@ class GameManager:
         carrier: Optional[Any],
     ) -> None:
         """
-        Sprint A: Apply minimal shaping rewards for progress toward flag/home.
-        
-        Provides small, dense rewards for:
-        - Moving toward enemy flag (when not carrying)
-        - Moving toward home (when carrying flag)
+        Dense rewards for progress toward the right goal (teamwork-aware).
+        - When carrying: progress toward home.
+        - When enemy has our flag: progress toward carrier (defense), not enemy flag.
+        - Otherwise: progress toward enemy flag (offense).
         """
         if agent is None:
             return
-        
+
         max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
         if max_dist <= 1e-6:
             return
-        
+
         sx, sy = float(start_pos[0]), float(start_pos[1])
         ex, ey = float(end_pos[0]), float(end_pos[1])
-        
-        # Determine goal based on state
+
         if i_am_carrier:
-            # When carrying flag, reward progress toward home
             goal_x, goal_y = self.get_team_zone_center(side)
             goal = (float(goal_x), float(goal_y))
             coef = float(PROGRESS_TO_HOME_COEF)
+        elif enemy_has_our_flag and carrier is not None:
+            goal = self._agent_float(carrier)
+            coef = float(DEFENSE_CARRIER_PROGRESS_COEF)
         else:
-            # When not carrying, reward progress toward enemy flag
             if side == "blue":
                 goal = (float(self.red_flag_position[0]), float(self.red_flag_position[1]))
             else:
                 goal = (float(self.blue_flag_position[0]), float(self.blue_flag_position[1]))
             coef = float(PROGRESS_TO_FLAG_COEF)
-        
-        # Compute distance change
+
         prev_dist = math.dist([sx, sy], goal)
         curr_dist = math.dist([ex, ey], goal)
-        dist_change = prev_dist - curr_dist  # Positive = getting closer
-        
-        # Only reward if meaningful progress (above threshold)
+        dist_change = prev_dist - curr_dist
+
         if dist_change > float(PROGRESS_REWARD_THRESHOLD):
-            # Normalize by max distance and scale by coefficient
             normalized_progress = dist_change / max_dist
             reward = coef * normalized_progress
             if reward > 0.0:

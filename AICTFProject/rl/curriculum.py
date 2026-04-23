@@ -8,25 +8,21 @@ from collections import deque
 
 from rl.league import EloLeague, OpponentSpec
 
-# Phase contract: stress schedule and set_phase() use only these.
 VALID_PHASES = ("OP1", "OP2", "OP3")
 
 
 def phase_from_tag(tag: str) -> str:
     """
     Map opponent/tier tags to canonical phase for stress schedule.
-    Stress keys are OP1 | OP2 | OP3 only; OP3_EASY/OP3_HARD/etc. map to OP3.
-    Species types (BALANCED, RUSHER, CAMPER) map to OP3.
+    Stress keys are OP1 | OP2 | OP3 only. Species types (BALANCED, RUSHER, CAMPER) map to OP3.
     """
     t = str(tag).upper().strip()
     if t in ("OP1", "OP2"):
         return t
-    if t in ("OP3", "OP3_EASY", "OP3_HARD", "OP3EASY", "OP3HARD", "SELF_PLAY") or t == "":
+    if t in ("OP3", "OP4", "SELF_PLAY") or t == "":
         return "OP3"
-    # Species types (used in OP3 phase)
     if t in ("BALANCED", "RUSHER", "CAMPER"):
         return "OP3"
-    # Unknown tag: use OP3 so stress still applies; caller can fix tag
     import warnings
     warnings.warn(
         f"Unknown phase tag {tag!r}; using OP3 for stress schedule.",
@@ -36,10 +32,6 @@ def phase_from_tag(tag: str) -> str:
     return "OP3"
 
 
-# Curriculum Axis 2: environment stress + naval realism by phase.
-# Pass to env_method("set_stress_schedule", STRESS_BY_PHASE). When set_phase(phase) is called,
-# env applies: physics_enabled (ASV kinematics + maritime sensors), stress knobs, and relaxed_dynamics for OP2.
-# OP1 = no physics so blue learns CTF first; OP2 = physics on with relaxed stress; OP3 = full realism.
 STRESS_BY_PHASE: Dict[str, Dict[str, Any]] = {
     "OP1": {
         "physics_enabled": False,
@@ -72,7 +64,12 @@ class CurriculumConfig:
     winrate_window: int
     required_win_by: Dict[str, int]
     elo_margin: float
+    # Per-phase window size for rolling win rate (optional). If set, used instead of winrate_window per phase.
+    winrate_window_by_phase: Optional[Dict[str, int]] = None
     switch_to_league_after_op3_win: bool = True
+    # Before switching to league/elo: require this win rate vs SCRIPTED:OP3 over at least this many OP3 games (0 = disabled).
+    min_winrate_vs_op3: float = 0.0
+    min_games_vs_op3: int = 0
 
 
 @dataclass
@@ -83,8 +80,13 @@ class CurriculumState:
     recent_results: Dict[str, Deque[int]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        by_phase = getattr(self.config, "winrate_window_by_phase", None)
+        def window_for(ph: str) -> int:
+            if by_phase and ph in by_phase:
+                return int(by_phase[ph])
+            return int(self.config.winrate_window)
         self.recent_results = {
-            phase: deque(maxlen=int(self.config.winrate_window))
+            phase: deque(maxlen=window_for(phase))
             for phase in self.config.phases
         }
 
@@ -116,6 +118,8 @@ class CurriculumState:
         learner_rating: float,
         opponent_rating: float,
         win_by: int,
+        *,
+        skip_elo_check: bool = False,
     ) -> bool:
         phase = str(phase).upper()
         min_eps = int(self.config.min_episodes.get(phase, 0))
@@ -126,7 +130,11 @@ class CurriculumState:
         meets_score = True if req_win_by <= 0 else (win_by >= req_win_by)
         meets_eps = self.phase_episode_count >= min_eps
         meets_wr = winrate >= min_wr
-        meets_elo = float(learner_rating) >= (float(opponent_rating) + float(self.config.elo_margin))
+        # Only check Elo when in league mode (skip_elo_check=False and elo_margin > 0)
+        if skip_elo_check or float(self.config.elo_margin) <= 0:
+            meets_elo = True
+        else:
+            meets_elo = float(learner_rating) >= (float(opponent_rating) + float(self.config.elo_margin))
         return bool(meets_eps and meets_wr and meets_score and meets_elo)
 
     def advance_if_ready(
@@ -134,21 +142,26 @@ class CurriculumState:
         learner_rating: float,
         opponent_rating: float,
         win_by: int,
+        *,
+        skip_elo_check: bool = False,
     ) -> bool:
         if self.phase_idx >= (len(self.config.phases) - 1):
             return False
         phase = self.phase
-        if self.should_advance(phase, learner_rating, opponent_rating, win_by):
-            self.phase_idx += 1
-            self.phase_episode_count = 0
-            return True
-        return False
+        if not self.should_advance(phase, learner_rating, opponent_rating, win_by, skip_elo_check=skip_elo_check):
+            return False
+        self.phase_idx += 1
+        self.phase_episode_count = 0
+        next_phase = self.phase
+        if next_phase in self.recent_results:
+            self.recent_results[next_phase].clear()
+        return True
 
 
 @dataclass
 class CurriculumControllerConfig:
     seed: int = 42
-    op3_tiers: List[str] = field(default_factory=lambda: ["OP3_EASY", "OP3", "OP3_HARD"])
+    op3_tiers: List[str] = field(default_factory=lambda: ["OP3"])
     window: int = 50
     min_episodes_per_tier: int = 80
     promote_winrate: float = 0.65
@@ -239,16 +252,6 @@ class CurriculumController:
             return self.league.sample_curriculum(phase)
 
         # OP3 adversarial curriculum
-        if self.current_tier == "OP3_EASY":
-            if len(self._tier_recent) >= int(self.cfg.window):
-                wr = sum(self._tier_recent) / float(len(self._tier_recent))
-                if wr >= float(self.cfg.easy_op3_trigger_winrate):
-                    if self.rng.random() < float(self.cfg.easy_op3_prob):
-                        return OpponentSpec(
-                            kind="SCRIPTED",
-                            key="OP3",
-                            rating=self.league.get_rating("SCRIPTED:OP3"),
-                        )
         if (
             self.cfg.enable_species
             and self._episode_count >= int(self.cfg.allow_species_after)
