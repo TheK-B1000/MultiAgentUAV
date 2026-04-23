@@ -98,7 +98,7 @@ from opponent_params import sample_batched_opponent_params
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/8v8/final_ppo_league_8v8.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/8v8/final_ppo_cnn_fixed_op3_8v8.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -155,8 +155,8 @@ def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[st
         if src_tag in stem:
             candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
 
-    # Final fallback to the standard league naming used in this repo.
-    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints_sb3", team_tag, f"final_ppo_league_{team_tag}{ext}"))
+    # Final fallback: default CNN training run (FIXED_OPPONENT OP3).
+    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints_sb3", team_tag, f"final_ppo_cnn_fixed_op3_{team_tag}{ext}"))
 
     # Deduplicate while preserving order.
     seen = set()

@@ -1280,7 +1280,7 @@ def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
     """Ensure run_tag ends with _2v2, _4v4, _8v8 (or _NvN) so saves/snapshots are distinct per agent size."""
     suffix = _agents_suffix(n_agents)
     tag_suffix = f"_{suffix}"
-    # Strip any existing agent suffix so we don't get ppo_league_4v4_2v2
+    # Strip any existing agent suffix so we don't get ppo_cnn_4v4_2v2
     for existing in ("_2v2", "_4v4", "_8v8"):
         if run_tag.endswith(existing):
             run_tag = run_tag[: -len(existing)]

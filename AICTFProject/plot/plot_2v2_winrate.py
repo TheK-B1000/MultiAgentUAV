@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Plot 2v2 win rate: Ours (league), Jacob et al. (paper), Self-play vs a scripted opponent (default OP3).
+Plot 2v2 win rate: Ours (CNN vs OP3), comparison (CNN vs OP2), Self-play vs a scripted opponent (default OP3).
 
 Use --opponent OP4 to evaluate vs a held-out opponent (OP4 is never used in training).
 
 Uses the same evaluation environment as training: GPUCTFVecEnv (game_field_gpu.py),
 i.e. the same BatchedCTFCore backend. ctfviewer.py is for visual playback only (pygame);
-training is done with rl/train_ppo.py.
+training is done with rl/train_ppo.py (see default run_tags: ppo_cnn_fixed_op3_*, ppo_cnn_selfplay_*).
 
 Usage:
   python plot_2v2_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
-Defaults (under project checkpoints_sb3/2v2/):
-  --league   final_ppo_league_2v2.zip
-  --paper    final_ppo_paper_2v2.zip
-  --selfplay final_ppo_self_play_2v2.zip
+Defaults (under project checkpoints_sb3/2v2/; from ``final_<run_tag>.zip``):
+  --league   final_ppo_cnn_fixed_op3_2v2.zip   (Ours)
+  --paper    final_ppo_cnn_fixed_op2_2v2.zip   (comparison baseline)
+  --selfplay final_ppo_cnn_selfplay_2v2.zip
 """
 from __future__ import annotations
 
@@ -40,11 +40,31 @@ from eval_rollout import binomial_se, count_wld, run_eval_episodes
 
 def main():
     parser = argparse.ArgumentParser(description="Plot 2v2 win rate: Ours vs Jacob et al. vs Self-play")
-    parser.add_argument("--league", type=str, default=None, help="Path to League model .zip")
-    parser.add_argument("--paper", type=str, default=None, help="Path to Paper model .zip")
-    parser.add_argument("--selfplay", type=str, default=None, help="Path to Self-play model .zip")
+    parser.add_argument(
+        "--league",
+        type=str,
+        default=None,
+        help="Path to primary (Ours) checkpoint .zip (default: final_ppo_cnn_fixed_op3_2v2.zip)",
+    )
+    parser.add_argument(
+        "--paper",
+        type=str,
+        default=None,
+        help="Path to comparison checkpoint .zip (default: final_ppo_cnn_fixed_op2_2v2.zip; train with --fixed-opponent OP2)",
+    )
+    parser.add_argument(
+        "--selfplay",
+        type=str,
+        default=None,
+        help="Path to self-play checkpoint .zip (default: final_ppo_cnn_selfplay_2v2.zip)",
+    )
     parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
-    parser.add_argument("--opponent", type=str, default="OP3", help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training) to compare League vs Paper generalization.")
+    parser.add_argument(
+        "--opponent",
+        type=str,
+        default="OP3",
+        help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training) to compare checkpoints.",
+    )
     parser.add_argument("--seed", type=int, default=42, help="Base random seed for eval env (OP4 uses seed+1 to avoid identical streams).")
     parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")
     parser.add_argument("--match-eval-op3", action="store_true", help="Use OP3 (training-time opponent), 100 episodes, seed=42.")
@@ -76,9 +96,9 @@ def main():
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_ppo_league_2v2.zip")
-    paper_path = path_or_default(args.paper, "final_ppo_paper_2v2.zip")
-    selfplay_path = path_or_default(args.selfplay, "final_ppo_self_play_2v2.zip")
+    league_path = path_or_default(args.league, "final_ppo_cnn_fixed_op3_2v2.zip")
+    paper_path = path_or_default(args.paper, "final_ppo_cnn_fixed_op2_2v2.zip")
+    selfplay_path = path_or_default(args.selfplay, "final_ppo_cnn_selfplay_2v2.zip")
 
     for label, p in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         if not os.path.isfile(p):

@@ -2,7 +2,7 @@
 """
 Plot evaluation metrics by category: Performance, Coordination, Robustness, Stability, Specialization, Robotics.
 
-Uses the same default checkpoints as plot_*_winrate.py (Ours / Jacob et al. / Self-play).
+Uses the same default checkpoints as plot_*_winrate.py (Ours = CNN vs OP3, comparison = CNN vs OP2, self-play).
 Runs 2v2, 3v3, 4v4, and 5v5 eval by default (8v8 is opt-in: ``--modes ... 8v8``). Uses GPUCTFVecEnv (optional OP3/OP4) and collects:
   - Performance: success rate, mean steps to completion
   - Coordination: coverage efficiency (zone_coverage), coordination proxy (collision-free)
@@ -14,7 +14,7 @@ Runs 2v2, 3v3, 4v4, and 5v5 eval by default (8v8 is opt-in: ``--modes ... 8v8``)
 Usage:
   python plot_eval_metrics.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N]
   python plot_eval_metrics.py [--league-4v4 PATH] [--paper-4v4 PATH] [--selfplay-4v4 PATH]  # 4v4 checkpoints
-  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_*_5v5.zip)
+  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_cnn_*_5v5.zip)
   python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
   python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
   python plot_eval_metrics.py --modes 2v2 3v3 4v4 5v5 8v8   # include slow 8v8 eval
@@ -147,21 +147,21 @@ def load_training_success_auc(csv_path: str) -> float | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot evaluation metrics (default: 2v2–5v5; 8v8 via --modes)")
-    parser.add_argument("--league", type=str, default=None, help="2v2 League model .zip")
-    parser.add_argument("--paper", type=str, default=None, help="2v2 Paper model .zip")
-    parser.add_argument("--selfplay", type=str, default=None, help="2v2 Self-play model .zip")
-    parser.add_argument("--league-3v3", type=str, default=None, help="3v3 League model .zip")
-    parser.add_argument("--paper-3v3", type=str, default=None, help="3v3 Paper model .zip")
-    parser.add_argument("--selfplay-3v3", type=str, default=None, help="3v3 Self-play model .zip")
-    parser.add_argument("--league-4v4", type=str, default=None, help="4v4 League model .zip")
-    parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 Paper model .zip")
-    parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play model .zip")
-    parser.add_argument("--league-5v5", type=str, default=None, help="5v5 League model .zip")
-    parser.add_argument("--paper-5v5", type=str, default=None, help="5v5 Paper model .zip")
-    parser.add_argument("--selfplay-5v5", type=str, default=None, help="5v5 Self-play model .zip")
-    parser.add_argument("--league-8v8", type=str, default=None, help="8v8 League model .zip")
-    parser.add_argument("--paper-8v8", type=str, default=None, help="8v8 Paper model .zip")
-    parser.add_argument("--selfplay-8v8", type=str, default=None, help="8v8 Self-play model .zip")
+    parser.add_argument("--league", type=str, default=None, help="2v2 primary (Ours) CNN checkpoint .zip")
+    parser.add_argument("--paper", type=str, default=None, help="2v2 comparison CNN checkpoint .zip (e.g. trained vs OP2)")
+    parser.add_argument("--selfplay", type=str, default=None, help="2v2 Self-play CNN checkpoint .zip")
+    parser.add_argument("--league-3v3", type=str, default=None, help="3v3 primary (Ours) CNN checkpoint .zip")
+    parser.add_argument("--paper-3v3", type=str, default=None, help="3v3 comparison CNN checkpoint .zip")
+    parser.add_argument("--selfplay-3v3", type=str, default=None, help="3v3 Self-play CNN checkpoint .zip")
+    parser.add_argument("--league-4v4", type=str, default=None, help="4v4 primary (Ours) CNN checkpoint .zip")
+    parser.add_argument("--paper-4v4", type=str, default=None, help="4v4 comparison CNN checkpoint .zip")
+    parser.add_argument("--selfplay-4v4", type=str, default=None, help="4v4 Self-play CNN checkpoint .zip")
+    parser.add_argument("--league-5v5", type=str, default=None, help="5v5 primary (Ours) CNN checkpoint .zip")
+    parser.add_argument("--paper-5v5", type=str, default=None, help="5v5 comparison CNN checkpoint .zip")
+    parser.add_argument("--selfplay-5v5", type=str, default=None, help="5v5 Self-play CNN checkpoint .zip")
+    parser.add_argument("--league-8v8", type=str, default=None, help="8v8 primary (Ours) CNN checkpoint .zip")
+    parser.add_argument("--paper-8v8", type=str, default=None, help="8v8 comparison CNN checkpoint .zip")
+    parser.add_argument("--selfplay-8v8", type=str, default=None, help="8v8 Self-play CNN checkpoint .zip")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument(
         "--modes",
@@ -256,24 +256,24 @@ def main() -> None:
             p = p + ".zip"
         return os.path.abspath(p)
 
-    # Defaults: same as plot_2v2_winrate.py / plot_3v3_winrate.py / plot_4v4_winrate.py / plot_8v8_winrate.py
-    # (checkpoints_sb3/<NxN>/ under AICTFProject, not under plot/)
+    # Defaults: same naming as plot_2v2_winrate.py (final_ppo_cnn_fixed_op3_*, op2 comparison, selfplay).
+    # Checkpoints live under checkpoints_sb3/<NxN>/ (AICTFProject root), not under plot/.
     model_paths_2v2 = [
-        ("Ours", path_or_default(args.league, "final_ppo_league_2v2.zip", "2v2")),
-        ("Jacob et al.", path_or_default(args.paper, "final_ppo_paper_2v2.zip", "2v2")),
-        ("Self-play", path_or_default(args.selfplay, "final_ppo_self_play_2v2.zip", "2v2")),
+        ("Ours", path_or_default(args.league, "final_ppo_cnn_fixed_op3_2v2.zip", "2v2")),
+        ("Jacob et al.", path_or_default(args.paper, "final_ppo_cnn_fixed_op2_2v2.zip", "2v2")),
+        ("Self-play", path_or_default(args.selfplay, "final_ppo_cnn_selfplay_2v2.zip", "2v2")),
     ]
     # 3v3: matches plot_3v3_winrate.py
     model_paths_3v3 = [
-        ("Ours", path_or_default(args.league_3v3, "final_ppo_league_3v3.zip", "3v3")),
-        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_paper_3v3.zip", "3v3")),
-        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_self_play_3v3.zip", "3v3")),
+        ("Ours", path_or_default(args.league_3v3, "final_ppo_cnn_fixed_op3_3v3.zip", "3v3")),
+        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_cnn_fixed_op2_3v3.zip", "3v3")),
+        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_cnn_selfplay_3v3.zip", "3v3")),
     ]
     # 4v4: same defaults as (modern) plot_4v4_winrate.py
     model_paths_4v4 = [
-        ("Ours", path_or_default(args.league_4v4, "final_ppo_league_4v4.zip", "4v4")),
-        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_paper_4v4.zip", "4v4")),
-        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_self_play_4v4.zip", "4v4")),
+        ("Ours", path_or_default(args.league_4v4, "final_ppo_cnn_fixed_op3_4v4.zip", "4v4")),
+        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_cnn_fixed_op2_4v4.zip", "4v4")),
+        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_cnn_selfplay_4v4.zip", "4v4")),
     ]
     # 5v5: same fallbacks as plot_5v5_winrate.py (final → resumed → oom_save)
     model_paths_5v5 = [
@@ -282,9 +282,9 @@ def main() -> None:
             path_or_default_candidates(
                 args.league_5v5,
                 [
-                    "final_ppo_league_5v5.zip",
-                    "final_ppo_league_5v5_resumed_5v5.zip",
-                    "oom_save_ppo_league_5v5.zip",
+                    "final_ppo_cnn_fixed_op3_5v5.zip",
+                    "final_ppo_cnn_fixed_op3_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_cnn_fixed_op3_5v5.zip",
                 ],
                 "5v5",
             ),
@@ -294,9 +294,9 @@ def main() -> None:
             path_or_default_candidates(
                 args.paper_5v5,
                 [
-                    "final_ppo_paper_5v5.zip",
-                    "final_ppo_paper_5v5_resumed_5v5.zip",
-                    "oom_save_ppo_paper_5v5.zip",
+                    "final_ppo_cnn_fixed_op2_5v5.zip",
+                    "final_ppo_cnn_fixed_op2_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_cnn_fixed_op2_5v5.zip",
                 ],
                 "5v5",
             ),
@@ -305,16 +305,16 @@ def main() -> None:
             "Self-play",
             path_or_default_candidates(
                 args.selfplay_5v5,
-                ["final_ppo_self_play_5v5.zip", "oom_save_ppo_self_play_5v5.zip"],
+                ["final_ppo_cnn_selfplay_5v5.zip", "oom_save_ppo_cnn_selfplay_5v5.zip"],
                 "5v5",
             ),
         ),
     ]
     # 8v8: matches plot_8v8_winrate.py
     model_paths_8v8 = [
-        ("Ours", path_or_default(args.league_8v8, "final_ppo_league_8v8.zip", "8v8")),
-        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_paper_8v8.zip", "8v8")),
-        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_self_play_8v8.zip", "8v8")),
+        ("Ours", path_or_default(args.league_8v8, "final_ppo_cnn_fixed_op3_8v8.zip", "8v8")),
+        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_cnn_fixed_op2_8v8.zip", "8v8")),
+        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_cnn_selfplay_8v8.zip", "8v8")),
     ]
     _full_mode_plan: list[tuple[str, int, list[tuple[str, str]]]] = [
         ("2v2", 2, model_paths_2v2),

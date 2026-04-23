@@ -6,7 +6,7 @@ Utility script to turn CSV metrics from PPO training/eval into LaTeX-ready plots
 Expected CSV format
 -------------------
 This script is designed for the episode-level CSVs written by the training/eval
-pipeline (e.g. files like `checkpoints_sb3/ppo_league_metrics.csv` or the
+pipeline (e.g. files like `checkpoints_sb3/2v2/ppo_cnn_fixed_op3_2v2_metrics.csv` or the
 `eval_*.csv` files produced by the viewer).
 
 The CSV must contain at least:
@@ -159,7 +159,7 @@ def main() -> None:
     parser.add_argument(
         "csv",
         nargs="+",
-        help="One or more metrics CSV files (e.g. checkpoints_sb3/ppo_league_metrics.csv).",
+        help="One or more metrics CSV files (e.g. checkpoints_sb3/2v2/ppo_cnn_fixed_op3_2v2_metrics.csv).",
     )
     parser.add_argument(
         "--out-dir",
