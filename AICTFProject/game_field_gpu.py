@@ -28,6 +28,7 @@ except ImportError:
 
 from macro_actions import MacroAction
 from agents import AgentHandle
+from rl.global_state import build_global_state_batch
 
 # Scoring and sparse reward values: single source of truth from game_manager.
 from game_manager import (
@@ -2889,9 +2890,13 @@ class GPUCTFVecEnv(VecEnv):
         done = np.logical_or(term, trunc)
         if done.any():
             reset_mask = torch.from_numpy(done).to(self.core.device)
+            # MARL / CTDE: fixed-size global features at terminal timestep (before reset) for value bootstrap.
+            gs_terminal = build_global_state_batch(self.core).detach().cpu().numpy().astype(np.float32)
             for i in np.where(done)[0]:
                 infos[i] = dict(infos[i])
-                infos[i]["terminal_observation"] = {k: v[i].copy() for k, v in obs.items()}
+                tobs = {k: v[i].copy() for k, v in obs.items()}
+                tobs["global_state"] = gs_terminal[i].copy()
+                infos[i]["terminal_observation"] = tobs
                 # So training callbacks (parse_episode_result) get a single episode_result dict.
                 bs = int(infos[i].get("blue_score", 0))
                 rs = int(infos[i].get("red_score", 0))

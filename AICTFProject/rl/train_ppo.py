@@ -18,14 +18,15 @@ import numpy as np
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.policies import MultiInputActorCriticPolicy
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import VecMonitor
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from opponent_params import sample_batched_opponent_params
+from rl.ctf_cnn_extractor import TokenizedCombinedExtractor
 from rl.episode_result import parse_episode_result
+from rl.global_state import GLOBAL_STATE_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
 
 
@@ -50,98 +51,6 @@ def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = Fa
             torch.backends.cudnn.benchmark = False
 
 
-class _PerAgentGridCNN(torch.nn.Module):
-    """Light CNN for small spatial maps (e.g. 20×20). SB3 ``NatureCNN`` is sized for Atari (~84×84)."""
-
-    def __init__(self, n_channels: int, features_dim: int):
-        super().__init__()
-        self.trunk = torch.nn.Sequential(
-            torch.nn.Conv2d(n_channels, 32, kernel_size=3, stride=1, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            torch.nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            torch.nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            torch.nn.AdaptiveAvgPool2d((1, 1)),
-            torch.nn.Flatten(start_dim=1),
-        )
-        self.proj = torch.nn.Linear(64, features_dim)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.proj(self.trunk(x))
-
-
-class TokenizedCombinedExtractor(BaseFeaturesExtractor):
-    """
-    Per-agent CNN on local grids, concatenated with per-agent vectors.
-    grid (B, M, C, H, W), vec (B, M, V) -> (B, M * cnn_dim + M * V).
-    """
-
-    def __init__(self, observation_space, cnn_output_dim: int = 256, normalized_image: bool = True):
-        import gymnasium as gym
-        from gymnasium import spaces
-
-        assert isinstance(observation_space, gym.Space) and hasattr(observation_space, "spaces")
-        spaces_dict = observation_space.spaces
-        grid_space = spaces_dict.get("grid")
-        vec_space = spaces_dict.get("vec")
-        assert grid_space is not None and vec_space is not None
-        grid_shape = getattr(grid_space, "shape", None)
-        vec_shape = getattr(vec_space, "shape", None)
-        assert len(grid_shape) == 4, f"tokenized grid must be (M, C, H, W), got {grid_shape}"
-        assert len(vec_shape) == 2, f"tokenized vec must be (M, V), got {vec_shape}"
-        M, C, H, W = grid_shape
-        V = vec_shape[1]
-
-        assert H >= 3 and W >= 3, f"CNN requires H,W>=3; got {(H, W)}"
-        cnn_latent_dim = int(cnn_output_dim)
-        features_dim = int(M) * cnn_latent_dim + int(M) * int(V)
-        context_space = spaces_dict.get("context")
-        self._context_dim = 0
-        if context_space is not None and hasattr(context_space, "shape"):
-            self._context_dim = int(np.prod(context_space.shape))
-            features_dim += self._context_dim
-        super().__init__(observation_space, features_dim)
-        self._M = int(M)
-        self._V = int(V)
-        self.vec_dim = int(V)
-        self.cnn = _PerAgentGridCNN(int(C), cnn_latent_dim)
-
-    def forward(self, observations):
-        grid = observations["grid"]
-        vec = observations["vec"]
-        B, M = grid.shape[0], self._M
-
-        grid_flat = grid.reshape(B * M, *grid.shape[2:])
-        cnn_out = self.cnn(grid_flat)
-        D = cnn_out.shape[1]
-        cnn_out = cnn_out.reshape(B, M, D)
-
-        agent_mask = observations.get("agent_mask", None)
-        if agent_mask is not None:
-            if agent_mask.dim() == 1:
-                agent_mask = agent_mask.unsqueeze(0)
-            agent_mask = agent_mask.float().unsqueeze(-1)
-            cnn_out = cnn_out * agent_mask
-            vec = vec * agent_mask
-
-        cnn_out = cnn_out.reshape(B, M * D)
-        vec_flat = vec.reshape(B, M * self._V)
-        out = torch.cat([cnn_out, vec_flat], dim=1)
-        if self._context_dim > 0 and "context" in observations:
-            ctx = observations["context"]
-            if ctx.dim() == 1:
-                ctx = ctx.unsqueeze(0)
-            ctx = ctx.float()
-            if ctx.shape[-1] != self._context_dim:
-                ctx = ctx.reshape(ctx.shape[0], -1)[:, : self._context_dim]
-            out = torch.cat([out, ctx], dim=1)
-        return out
-
-
 class TrainMode(str, Enum):
     FIXED_OPPONENT = "FIXED_OPPONENT"
     SELF_PLAY = "SELF_PLAY"
@@ -164,6 +73,7 @@ class PPOConfig:
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
     checkpoint_dir: str = "checkpoints_sb3"
+    load_path: Optional[str] = None
     run_tag: str = "ppo_cnn_2v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
@@ -206,6 +116,15 @@ class PPOConfig:
     kl_guardrail_consecutive: int = 3
     test_kl_zero_lr: bool = False
     gpu_native_env: bool = True
+
+    use_latent_strategy: bool = False
+    latent_k: int = 4
+    latent_z_embed_dim: int = 32
+    latent_vf_hidden: int = 128
+    latent_strategy_hidden: int = 128
+    latent_lam_h: float = 0.01
+    latent_lam_p: float = 0.0
+    latent_resample_every_n: int = 0
 
 
 class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
@@ -836,6 +755,23 @@ class MetricsCSVCallback(BaseCallback):
             print(f"[Metrics] Wrote {self._rows_written} rows to {path}")
 
 
+def _attach_latent_strategy_encoder(env, policy) -> None:
+    """Locate ``LatentStrategyVecEnvWrapper`` (under ``VecMonitor``) and attach ``policy.strategy_encoder``."""
+    from rl.latent_vec_env import LatentStrategyVecEnvWrapper
+
+    w = env
+    for _ in range(8):
+        if isinstance(w, LatentStrategyVecEnvWrapper):
+            enc = getattr(policy, "strategy_encoder", None)
+            if enc is None:
+                raise RuntimeError("Latent training requires LatentMaskedMultiInputPolicy (missing strategy_encoder).")
+            w.attach_strategy_encoder(enc)
+            return
+        if not hasattr(w, "venv"):
+            break
+        w = w.venv
+
+
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg = cfg or PPOConfig()
     set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
@@ -928,7 +864,24 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         seed=int(cfg.seed),
     )
     print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
-    venv = VecMonitor(GPUCTFVecEnv(gpu_cfg))
+    use_latent = bool(getattr(cfg, "use_latent_strategy", False))
+    base_pf = GPUCTFVecEnv(gpu_cfg)
+    if use_latent:
+        from rl.latent_vec_env import LatentStrategyVecEnvWrapper
+
+        lv = LatentStrategyVecEnvWrapper(
+            base_pf,
+            latent_k=int(getattr(cfg, "latent_k", 4)),
+            resample_every_n=int(getattr(cfg, "latent_resample_every_n", 0)),
+        )
+        print(
+            f"[PPO] Latent team strategy (CTDE): K={int(cfg.latent_k)}, "
+            f"resample_every_n={int(cfg.latent_resample_every_n)}, λ_H={float(cfg.latent_lam_h)}, "
+            f"global_state_dim={GLOBAL_STATE_DIM}"
+        )
+        venv = VecMonitor(lv)
+    else:
+        venv = VecMonitor(base_pf)
 
     try:
         venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
@@ -971,12 +924,6 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     except Exception as exc:
         print(f"[PPO] opponent_params sampling failed (using defaults): {exc}")
 
-    policy_kwargs = dict(
-        features_extractor_class=TokenizedCombinedExtractor,
-        features_extractor_kwargs=dict(cnn_output_dim=256, normalized_image=True),
-        net_arch=dict(pi=[], vf=[]),
-    )
-
     # Stable MARL PPO (Fix 4.1) or reduced aggressiveness
     learning_rate = float(cfg.learning_rate)
     ent_coef = float(cfg.ent_coef)
@@ -1017,26 +964,47 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print(f"[PPO] Adjusting batch_size for rollout size: {batch_size}->{adjusted_batch_size} (n_steps*n_envs={rollout_size})")
         batch_size = adjusted_batch_size
 
+    policy_cls = MaskedMultiInputPolicy
+    ppo_cls = PPO
+    extra_ppo_kwargs: Dict[str, Any] = {}
+    if use_latent:
+        from rl.latent_marl import LatentMaskedMultiInputPolicy, LatentStrategyPPO
+
+        policy_cls = LatentMaskedMultiInputPolicy
+        ppo_cls = LatentStrategyPPO
+        policy_kwargs = dict(
+            net_arch=dict(pi=[], vf=[]),
+            z_embed_dim=int(cfg.latent_z_embed_dim),
+            vf_hidden=int(cfg.latent_vf_hidden),
+            strategy_hidden=int(cfg.latent_strategy_hidden),
+        )
+        extra_ppo_kwargs = dict(latent_lam_h=float(cfg.latent_lam_h), latent_lam_p=float(cfg.latent_lam_p))
+    else:
+        policy_kwargs = dict(
+            features_extractor_class=TokenizedCombinedExtractor,
+            features_extractor_kwargs=dict(cnn_output_dim=256, normalized_image=True),
+            net_arch=dict(pi=[], vf=[]),
+        )
+
     # Optional resume from checkpoint: when cfg.load_path is set and the file exists, load PPO instead of creating a fresh model.
     load_path = getattr(cfg, "load_path", None)
     if load_path and os.path.isfile(load_path):
-        from stable_baselines3 import PPO as _PPO
         print(f"[PPO] Resuming from checkpoint: {load_path}")
-        model = _PPO.load(
+        model = ppo_cls.load(
             load_path,
             env=venv,
             device=cfg.device,
             custom_objects={
                 "observation_space": venv.observation_space,
                 "action_space": venv.action_space,
-                "policy_class": MaskedMultiInputPolicy,
+                "policy_class": policy_cls,
             },
         )
         # Ensure cfg/run_tag/checkpoint_dir are kept from current run, not from the checkpoint.
         model.cfg = cfg
     else:
-        model = PPO(
-            policy=MaskedMultiInputPolicy,
+        model = ppo_cls(
+            policy=policy_cls,
             env=venv,
             learning_rate=learning_rate,
             n_steps=int(cfg.n_steps),
@@ -1058,8 +1026,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             verbose=0,
             seed=cfg.seed,
             device=cfg.device,
+            **extra_ppo_kwargs,
         )
         model.cfg = cfg
+
+    if use_latent:
+        _attach_latent_strategy_encoder(venv, model.policy)
 
     if cfg.enable_tensorboard:
         model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
@@ -1135,19 +1107,28 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
 
     if cfg.enable_eval and mode != TrainMode.SELF_PLAY.value:
-        eval_env = VecMonitor(GPUCTFVecEnv(
-            GPUFieldConfig(
-                n_envs=1,
-                max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-                max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-                max_decision_steps=max(1, int(cfg.max_decision_steps)),
-                aquaticus_profile=True,
-                rules_profile="OURS",
-                device=str(cfg.device),
-                seed=int(cfg.seed),
+        eval_core_cfg = GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+            max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+            max_decision_steps=max(1, int(cfg.max_decision_steps)),
+            aquaticus_profile=True,
+            rules_profile="OURS",
+            device=str(cfg.device),
+            seed=int(cfg.seed),
+        )
+        eval_inner = GPUCTFVecEnv(eval_core_cfg)
+        if use_latent:
+            from rl.latent_vec_env import LatentStrategyVecEnvWrapper
+
+            eval_inner = LatentStrategyVecEnvWrapper(
+                eval_inner,
+                latent_k=int(getattr(cfg, "latent_k", 4)),
+                resample_every_n=0,
             )
-        ))
-        
+            eval_inner.set_z_deterministic(True)
+        eval_env = VecMonitor(eval_inner)
+
         # CRITICAL: Match training environment setup (stress schedule + phase)
         # This ensures eval environment matches training and viewer environments
         try:
@@ -1158,7 +1139,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             eval_env.env_method("set_phase", "OP3")  # EvalCallback always uses OP3
         except Exception:
             pass
-        
+
+        if use_latent:
+            _attach_latent_strategy_encoder(eval_env, model.policy)
+
         callbacks.append(
             EvalCallback(
                 eval_env,
@@ -1360,6 +1344,19 @@ if __name__ == "__main__":
         parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
         parser.add_argument("--verbose-training", action="store_true", help="Print each episode result and debug logs (slower; default is quiet for speed)")
         parser.add_argument("--device", type=str, default=None, help="Device for env and PPO: cuda, cuda:0, or cpu. Default: cuda if available else cpu.")
+        parser.add_argument(
+            "--latent-strategy",
+            action="store_true",
+            help="Enable latent team strategy (CTDE): q(z|global), pi(o,z), V(global,z); use with marl_latent run tag.",
+        )
+        parser.add_argument("--latent-k", type=int, default=None, help="Number of discrete strategies K (default: 4)")
+        parser.add_argument("--latent-lam-h", type=float, default=None, help="Coefficient for strategy entropy bonus −λ_H H(q) (default: 0.01)")
+        parser.add_argument(
+            "--latent-resample-n",
+            type=int,
+            default=None,
+            help="Resample z every N steps per env (0 = once per episode only)",
+        )
         args = parser.parse_args()
         cfg = PPOConfig()
         if args.mode is not None:
@@ -1403,6 +1400,14 @@ if __name__ == "__main__":
             cfg.verbose_training = True
         if getattr(args, "load", None) is not None:
             cfg.load_path = args.load
+        if getattr(args, "latent_strategy", False):
+            cfg.use_latent_strategy = True
+        if getattr(args, "latent_k", None) is not None:
+            cfg.latent_k = max(2, int(args.latent_k))
+        if getattr(args, "latent_lam_h", None) is not None:
+            cfg.latent_lam_h = float(args.latent_lam_h)
+        if getattr(args, "latent_resample_n", None) is not None:
+            cfg.latent_resample_every_n = max(0, int(args.latent_resample_n))
         if getattr(args, "device", None) is not None:
             cfg.device = str(args.device).strip().lower()
         else:

@@ -45,22 +45,26 @@ def _numpy_compat_shim() -> None:
         pass
 
 
-def ppo_load_custom_objects(env: Any) -> dict[str, Any]:
+def ppo_load_custom_objects(env: Any, policy_class: Any = None) -> dict[str, Any]:
     """``custom_objects`` for ``PPO.load`` when unpickling checkpoints saved with another Python.
 
     On Python 3.12, lambdas/schedules in older pickles can raise
     ``code() argument 13 must be str, not int``. Inference only needs weights; replacing
     ``clip_range``, ``lr_schedule``, and ``cfg`` avoids that without affecting ``predict``.
+
+    For latent MARL checkpoints, pass ``policy_class=LatentMaskedMultiInputPolicy`` and use a
+    ``LatentStrategyVecEnvWrapper`` observation space matching training.
     """
     from stable_baselines3.common.utils import FloatSchedule
 
     from rl.train_ppo import MaskedMultiInputPolicy, PPOConfig
 
     _cfg = PPOConfig()
+    pc = policy_class or MaskedMultiInputPolicy
     return {
         "observation_space": env.observation_space,
         "action_space": env.action_space,
-        "policy_class": MaskedMultiInputPolicy,
+        "policy_class": pc,
         "clip_range": float(_cfg.clip_range),
         "lr_schedule": FloatSchedule(_cfg.learning_rate),
         "cfg": _cfg,
