@@ -1,4 +1,4 @@
-"""Shared CNN feature extractor for CTF tokenized observations (used by PPO and latent MARL)."""
+"""SB3 feature extractor for CTF tokenized visual observations."""
 
 from __future__ import annotations
 
@@ -6,29 +6,7 @@ import numpy as np
 import torch
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
-
-class _PerAgentGridCNN(torch.nn.Module):
-    """Light CNN for small spatial maps (e.g. 20×20). SB3 ``NatureCNN`` is sized for Atari (~84×84)."""
-
-    def __init__(self, n_channels: int, features_dim: int):
-        super().__init__()
-        self.trunk = torch.nn.Sequential(
-            torch.nn.Conv2d(n_channels, 32, kernel_size=3, stride=1, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            torch.nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            torch.nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            torch.nn.AdaptiveAvgPool2d((1, 1)),
-            torch.nn.Flatten(start_dim=1),
-        )
-        self.proj = torch.nn.Linear(64, features_dim)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.proj(self.trunk(x))
+from rl.networks import CNNEncoder
 
 
 class TokenizedCombinedExtractor(BaseFeaturesExtractor):
@@ -39,7 +17,6 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
 
     def __init__(self, observation_space, cnn_output_dim: int = 256, normalized_image: bool = True):
         import gymnasium as gym
-        from gymnasium import spaces
 
         assert isinstance(observation_space, gym.Space) and hasattr(observation_space, "spaces")
         spaces_dict = observation_space.spaces
@@ -65,7 +42,7 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
         self._M = int(M)
         self._V = int(V)
         self.vec_dim = int(V)
-        self.cnn = _PerAgentGridCNN(int(C), cnn_latent_dim)
+        self.cnn = CNNEncoder((int(C), int(H), int(W)), feature_dim=cnn_latent_dim)
 
     def forward(self, observations):
         grid = observations["grid"]
@@ -97,3 +74,6 @@ class TokenizedCombinedExtractor(BaseFeaturesExtractor):
                 ctx = ctx.reshape(ctx.shape[0], -1)[:, : self._context_dim]
             out = torch.cat([out, ctx], dim=1)
         return out
+
+
+__all__ = ["CNNEncoder", "TokenizedCombinedExtractor"]

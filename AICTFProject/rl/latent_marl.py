@@ -24,8 +24,9 @@ from stable_baselines3.common.utils import explained_variance
 from stable_baselines3.ppo import PPO
 from torch import distributions as thd
 
-from rl.ctf_cnn_extractor import TokenizedCombinedExtractor, _PerAgentGridCNN
+from rl.ctf_cnn_extractor import TokenizedCombinedExtractor
 from rl.global_state import GLOBAL_STATE_DIM
+from rl.networks import CNNEncoder
 from rl.train_ppo import MaskedMultiInputPolicy
 
 
@@ -92,6 +93,8 @@ class LatentMaskedMultiInputPolicy(MaskedMultiInputPolicy):
         vec_shape = observation_space.spaces["vec"].shape
         self._n_agents = int(grid_shape[0])
         self._grid_channels = int(grid_shape[1])
+        self._grid_rows = int(grid_shape[2])
+        self._grid_cols = int(grid_shape[3])
         self._vec_dim = int(vec_shape[1])
 
         action_dims = [int(v) for v in getattr(action_space, "nvec", [])]
@@ -123,7 +126,10 @@ class LatentMaskedMultiInputPolicy(MaskedMultiInputPolicy):
 
         self.strategy_encoder = StrategyEncoder(self._global_state_dim, self._latent_k, hidden=int(strategy_hidden))
         self.strategy_embedding = nn.Embedding(self._latent_k, self._z_embed_dim)
-        self.local_grid_encoder = _PerAgentGridCNN(self._grid_channels, 256)
+        self.local_grid_encoder = CNNEncoder(
+            (self._grid_channels, self._grid_rows, self._grid_cols),
+            feature_dim=256,
+        )
 
         actor_input_dim = 256 + self._vec_dim + self._z_embed_dim
         self.agent_policy_net = nn.Sequential(

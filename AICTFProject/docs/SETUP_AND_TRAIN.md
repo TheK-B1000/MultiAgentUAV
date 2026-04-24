@@ -125,6 +125,22 @@ dir rl
 
 ---
 
+## Step 5b: Run unit tests (official test runner)
+
+This repository’s tests live in `AICTFProject/tests/` and are written for the **Python standard library `unittest`** (not `pytest`).
+
+**Official command** (from `AICTFProject`, same as training):
+
+```bash
+cd AICTFProject
+python -m unittest discover -v tests
+```
+
+- If you run `pytest` and see `No module named pytest`, that only means you have not installed `pytest`. The project does **not** require it unless you choose to add it.
+- **Optional:** `pip install pytest` works too; `pytest` can discover and run most `unittest`-style tests, but the supported workflow above is `unittest` only.
+
+---
+
 ## Step 6: Choose what to train and run
 
 All training commands are run **from `AICTFProject`** (Colab: after the `%cd` in Step 5; local: after `cd AICTFProject`).
@@ -209,6 +225,26 @@ Replace `!` with nothing on local PC.
 
 ---
 
+## Latent team strategy (ICRA): paper vs. this repository
+
+Use this as the **consistency check** between the abstract design and the code you ship. Wording in the paper should follow the *implementation* column, not a simplified sketch.
+
+| Topic | Paper-level idea | This codebase |
+| --- | --- | --- |
+| **Strategy `z`** | Discrete team intent, `z ∈ {1,…,K}` (or 0..K-1) | `K` is `--latent-k` ∈ `{4,6}`. `z_idx` / `z_onehot` in the dict obs. |
+| **Inference `q_φ(z \| s_g)`** | MLP: global features → logits | `StrategyEncoder` in `rl/latent_marl.py`: 128–128–`K` (ReLU), input dim `GLOBAL_STATE_DIM` (32), with **18** meaningful features + padding. See `rl/global_state.py` (`build_global_state_batch`). |
+| **What `s_g` contains** | Team geometry, flag distances, capture flags, motion stats, etc. | **18** structured scalars (means/stds, min flag distances, carry/capture flags, mean speeds, neighbor-distance stats), zero-padded to length 32 for a fixed input size. |
+| **Decentralized policy** | `π_θ(a_i \| o_i, z)` | Shared actor: **CNN** on each agent’s local `grid` (via `CNNEncoder` + vector `vec`) **concatenated** with `nn.Embedding(K, d_z)` (`d_z=16` default), then MLP → logits. The policy does **not** take raw `global_state` in the actor path. |
+| **Centralized critic (CTDE)** | `Q(s_g, a, z)` or value conditioned on joint action | MLP on `[global_state, joint_action_onehot, z_onehot]` → scalar; trained with PPO’s **MSE to Monte Carlo returns** (`rl/latent_marl.py` `q_mlp`, `LatentStrategyPPO`). It is *critic-style* and action-conditioned, implemented inside **PPO** (not a separate off-policy `Q` learner). |
+| **When `z` is sampled** | Once per episode and/or every `N` steps, not every timestep | `LatentStrategyVecEnvWrapper` (`rl/latent_vec_env.py`): `resample_every_n=0` → sample at episode start; `N≥2` → sparse refresh; `N=1` is **rejected** at init. |
+| **Training objective** | `L_MARL + λ_p L_persist + λ_H H(z)` (sign conventions as in your draft) | `LatentStrategyPPO`: PPO loss + `latent_lam_p *` persistence term + **minus** `latent_lam_h *` mean entropy of `Categorical(logits from strategy_encoder(global_state))`. |
+| **Persistence** | Penalize unnecessary switches | Implemented as a **differentiable** proxy `E[1 - p(z_{t-1} \| s_t)]` on resample steps (`expected_strategy_switch_penalty`), not a raw `1[z ≠ z']` through argmax. Describe that explicitly if reviewers ask. |
+| **What this is *not*** | Not options / hierarchical RL / scripted switches | Still true; see module docstring in `rl/latent_marl.py` and training flags. |
+
+**Abstract / contribution language:** You can use your one-sentence “strategy modulates coordination through task reward” framing as long as the method section points to: discrete `z`, global-state encoder, shared decentralized actor with `z` embedding, centralized action-conditioned value, PPO with entropy + persistence regularizers, and the **exact** global-state feature count (18 + pad) and CNN-based local encoder.
+
+---
+
 ## Quick reference
 
 | Step | Colab | Local PC |
@@ -218,6 +254,7 @@ Replace `!` with nothing on local PC.
 | 3 | `!pip install -q stable-baselines3==2.3.0 gymnasium==0.29.1 pygame==2.5.2` | `pip install ...` (same packages) |
 | 4 | `import torch` and print version/CUDA | Same in terminal with `python -c "..."` |
 | 5 | `%cd /content/MultiAgentUAV/AICTFProject`, `%env PYTHONPATH=...`, `!ls rl` | `cd AICTFProject`, `dir rl` |
+| 5b | `!python -m unittest discover -v tests` (from `AICTFProject`) | `python -m unittest discover -v tests` |
 | 6 | `!python rl/train_ppo.py --mode ... --max-blue-agents N --run-tag ...` | `python rl/train_ppo.py ...` (same args) |
 
 After training, checkpoints are in `checkpoints_sb3_2v2/`, `checkpoints_sb3_4v4/`, or `checkpoints_sb3_8v8/` (e.g. `final_ppo_league_2v2.zip`).
