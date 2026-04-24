@@ -70,7 +70,7 @@ def forward(self, global_state: torch.Tensor, extra: torch.Tensor | None = None)
     ...
 ```
 
-`extra` is reserved for future joint-action and strategy-conditioning inputs. The default global-state dimension is `14`, matching the ICRA handoff target. Phase 2 must still update the active environment global state, which currently reports a padded 32-dimensional vector with 18 used fields.
+`extra` is reserved for future joint-action and strategy-conditioning inputs. The default global-state dimension is `14`, matching the ICRA handoff target and the active environment `state()` contract.
 
 ## Active And Dormant Paths
 

@@ -21,23 +21,19 @@ import torch
 if TYPE_CHECKING:
     from game_field_gpu import BatchedCTFCore
 
-# Padded vector; first GLOBAL_STATE_USED entries are meaningful, rest zeros for future use.
-GLOBAL_STATE_DIM: int = 32
-GLOBAL_STATE_USED: int = 18
+GLOBAL_STATE_DIM: int = 14
+GLOBAL_STATE_USED: int = 14
 
 
 def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     """
-    Return (B, GLOBAL_STATE_DIM) float32 tensor on ``core.device``.
+    Return (B, 14) float32 tensor on ``core.device``.
 
     Features (normalized where noted):
       blue mean x,y; blue std x,y; red mean x,y; red std x,y;
       min alive-blue dist to red flag; min alive-red dist to blue flag;
       blue_flag_captured; red_flag_captured;
       mean blue speed; mean red speed;
-      mean blue-nearest-red dist; mean red-nearest-blue dist;
-      min blue-nearest-red dist; min red-nearest-blue dist;
-      padding to GLOBAL_STATE_DIM.
     """
     B = int(core.B)
     Nb = int(core.Nb)
@@ -108,39 +104,13 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     mean_b_sp = mean_b_sp / 3.0
     mean_r_sp = mean_r_sp / 3.0
 
-    dd = torch.sqrt(
-        torch.clamp((bx[:, :, None] - rx[:, None, :]) ** 2 + (by[:, :, None] - ry[:, None, :]) ** 2, min=0.0)
-    )
-    big = torch.full_like(dd, float("inf"))
-    blue_to_red = torch.where(ba[:, :, None] & ra[:, None, :], dd, big)
-    red_to_blue = blue_to_red.transpose(1, 2)
-    blue_nearest = blue_to_red.min(dim=2).values
-    red_nearest = red_to_blue.min(dim=2).values
-    blue_nearest = torch.where(torch.isfinite(blue_nearest), blue_nearest, torch.zeros_like(blue_nearest))
-    red_nearest = torch.where(torch.isfinite(red_nearest), red_nearest, torch.zeros_like(red_nearest))
-
-    mean_blue_enemy_prox = (blue_nearest * w_b).sum(dim=1) / cnt_b / diag
-    mean_red_enemy_prox = (red_nearest * w_r).sum(dim=1) / cnt_r / diag
-
-    min_blue_enemy_prox = blue_nearest.masked_fill(~ba, float("inf")).min(dim=1).values / diag
-    min_red_enemy_prox = red_nearest.masked_fill(~ra, float("inf")).min(dim=1).values / diag
-    min_blue_enemy_prox = torch.where(
-        torch.isfinite(min_blue_enemy_prox), min_blue_enemy_prox, torch.zeros_like(min_blue_enemy_prox)
-    )
-    min_red_enemy_prox = torch.where(
-        torch.isfinite(min_red_enemy_prox), min_red_enemy_prox, torch.zeros_like(min_red_enemy_prox)
-    )
-
     parts = [
         bmx, bmy, bsx, bsy,
         rmx, rmy, rsx, rsy,
         min_b_rf, min_r_bf,
         blue_flag_captured, red_flag_captured,
         mean_b_sp, mean_r_sp,
-        mean_blue_enemy_prox, mean_red_enemy_prox,
-        min_blue_enemy_prox, min_red_enemy_prox,
     ]
     used = torch.stack(parts, dim=1)
     assert used.shape[1] == GLOBAL_STATE_USED, (used.shape[1], GLOBAL_STATE_USED)
-    pad = torch.zeros((B, GLOBAL_STATE_DIM - GLOBAL_STATE_USED), device=dev, dtype=f32)
-    return torch.cat([used, pad], dim=1)
+    return used.to(dtype=f32)

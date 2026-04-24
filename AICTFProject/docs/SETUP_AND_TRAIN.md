@@ -262,8 +262,8 @@ Use this as the **consistency check** between the abstract design and the code y
 | Topic | Paper-level idea | This codebase |
 | --- | --- | --- |
 | **Strategy `z`** | Discrete team intent, `z ∈ {1,…,K}` (or 0..K-1) | `K` is `--latent-k` ∈ `{4,6}`. `z_idx` / `z_onehot` in the dict obs. |
-| **Inference `q_φ(z \| s_g)`** | MLP: global features → logits | `StrategyEncoder` in `rl/latent_marl.py`: 128–128–`K` (ReLU), input dim `GLOBAL_STATE_DIM` (32), with **18** meaningful features + padding. See `rl/global_state.py` (`build_global_state_batch`). |
-| **What `s_g` contains** | Team geometry, flag distances, capture flags, motion stats, etc. | **18** structured scalars (means/stds, min flag distances, carry/capture flags, mean speeds, neighbor-distance stats), zero-padded to length 32 for a fixed input size. |
+| **Inference `q_φ(z \| s_g)`** | MLP: global features → logits | `StrategyEncoder` in `rl/latent_marl.py`: 128–128–`K` (ReLU), input dim `GLOBAL_STATE_DIM` (14). See `rl/global_state.py` (`build_global_state_batch`). |
+| **What `s_g` contains** | Team geometry, flag distances, capture flags, motion stats, etc. | **14** structured scalars: blue/red mean positions, blue/red position std, min distances to enemy flags, flag captured indicators, and average team speeds. |
 | **Decentralized policy** | `π_θ(a_i \| o_i, z)` | Shared actor: **CNN** on each agent’s local `grid` (via `CNNEncoder` + vector `vec`) **concatenated** with `nn.Embedding(K, d_z)` (`d_z=16` default), then MLP → logits. The policy does **not** take raw `global_state` in the actor path. |
 | **Centralized critic (CTDE)** | `Q(s_g, a, z)` or value conditioned on joint action | MLP on `[global_state, joint_action_onehot, z_onehot]` → scalar; trained with PPO’s **MSE to Monte Carlo returns** (`rl/latent_marl.py` `q_mlp`, `LatentStrategyPPO`). It is *critic-style* and action-conditioned, implemented inside **PPO** (not a separate off-policy `Q` learner). |
 | **When `z` is sampled** | Once per episode and/or every `N` steps, not every timestep | `LatentStrategyVecEnvWrapper` (`rl/latent_vec_env.py`): `resample_every_n=0` → sample at episode start; `N≥2` → sparse refresh; `N=1` is **rejected** at init. |
@@ -271,7 +271,7 @@ Use this as the **consistency check** between the abstract design and the code y
 | **Persistence** | Penalize unnecessary switches | Implemented as a **differentiable** proxy `E[1 - p(z_{t-1} \| s_t)]` on resample steps (`expected_strategy_switch_penalty`), not a raw `1[z ≠ z']` through argmax. Describe that explicitly if reviewers ask. |
 | **What this is *not*** | Not options / hierarchical RL / scripted switches | Still true; see module docstring in `rl/latent_marl.py` and training flags. |
 
-**Abstract / contribution language:** You can use your one-sentence “strategy modulates coordination through task reward” framing as long as the method section points to: discrete `z`, global-state encoder, shared decentralized actor with `z` embedding, centralized action-conditioned value, PPO with entropy + persistence regularizers, and the **exact** global-state feature count (18 + pad) and CNN-based local encoder.
+**Abstract / contribution language:** You can use your one-sentence “strategy modulates coordination through task reward” framing as long as the method section points to: discrete `z`, global-state encoder, shared decentralized actor with `z` embedding, centralized action-conditioned value, PPO with entropy + persistence regularizers, and the **exact** 14-float global-state feature count and CNN-based local encoder.
 
 ---
 

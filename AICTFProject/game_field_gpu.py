@@ -28,7 +28,7 @@ except ImportError:
 
 from macro_actions import MacroAction
 from agents import AgentHandle
-from rl.global_state import build_global_state_batch
+from rl.global_state import GLOBAL_STATE_DIM, build_global_state_batch
 
 # Scoring and sparse reward values: single source of truth from game_manager.
 from game_manager import (
@@ -55,6 +55,7 @@ CNN_ROWS = 20
 NUM_CNN_CHANNELS = 7
 GLOBAL_STATE_CHANNELS = 8
 VEC_OBS_DIM = 18
+MAP_SET_SEED_OFFSETS = {"train": 0, "eval": 1_000_003}
 
 
 def _ensure_numpy_core_compat() -> None:
@@ -159,9 +160,11 @@ def _make_obs_action_spaces(n_agents: int, n_macros: int, n_targets: int):
 @dataclass
 class GPUFieldConfig:
     n_envs: int = 64
+    n_agents_per_team: Optional[int] = None
     # Aquaticus standard setup is 2v2.
     max_blue_agents: int = 2
     max_red_agents: int = 2
+    map_set: str = "train"
     map_rows: int = 20
     map_cols: int = 20
     # Paper-aligned timing (Table 3):
@@ -257,6 +260,16 @@ class GPUFieldConfig:
     device: str = "cpu"
     seed: int = 42
 
+    def __post_init__(self) -> None:
+        if self.n_agents_per_team is not None:
+            n = max(1, int(self.n_agents_per_team))
+            self.max_blue_agents = n
+            self.max_red_agents = n
+        self.map_set = str(self.map_set).lower()
+        if self.map_set not in MAP_SET_SEED_OFFSETS:
+            allowed = ", ".join(sorted(MAP_SET_SEED_OFFSETS))
+            raise ValueError(f"map_set must be one of {{{allowed}}}, got {self.map_set!r}")
+
 
 class BatchedCTFCore:
     """
@@ -296,9 +309,11 @@ class BatchedCTFCore:
         self.score_limit = int(cfg.score_limit)
         self.dt = float(cfg.decision_interval_seconds) * 0.99
         self.max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
+        self.map_set = str(cfg.map_set).lower()
+        self._map_seed_offset = int(MAP_SET_SEED_OFFSETS[self.map_set])
 
         self._rng = torch.Generator(device=self.device)
-        self._rng.manual_seed(int(cfg.seed))
+        self._rng.manual_seed(int(cfg.seed) + self._map_seed_offset)
 
         self._phase: List[str] = ["OP3"] * self.B
         self._league_mode = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
@@ -313,6 +328,10 @@ class BatchedCTFCore:
         self._build_macro_targets()
         self._alloc_state()
         self.reset_all()
+
+    def reseed(self, seed: int) -> None:
+        self.cfg.seed = int(seed)
+        self._rng.manual_seed(int(seed) + self._map_seed_offset)
 
     def _init_pickup_positions(self) -> None:
         """Set fixed spawn positions for mine pickups (2 per side on 20x20)."""
@@ -1854,13 +1873,18 @@ class BatchedCTFCore:
         red_score_allowed = ~self._phase_tensor_equals(("OP1", "OP2"))
 
         # Both flags can be taken at once: blue can grab red flag regardless of whether
-        # red has blue's flag, and vice versa. Each grab only updates that side's carrying state.
-        blue_grab_env = ((b_to_red <= grab_r) & (~self.blue_tagged)).any(dim=1)
-        red_grab_env = ((r_to_blue <= grab_r) & (~self.red_tagged)).any(dim=1)
+        # red has blue's flag, and vice versa. Already-carried flags are not new grab
+        # events; the flag position is just attached to the current carrier above.
+        blue_can_grab_flag = ~self.blue_carrying.any(dim=1)
+        red_can_grab_flag = ~self.red_carrying.any(dim=1)
+        blue_grab_candidates = (b_to_red <= grab_r) & (~self.blue_tagged) & blue_can_grab_flag[:, None]
+        red_grab_candidates = (r_to_blue <= grab_r) & (~self.red_tagged) & red_can_grab_flag[:, None]
+        blue_grab_env = blue_grab_candidates.any(dim=1)
+        red_grab_env = red_grab_candidates.any(dim=1)
 
         grab_delta = get_grab_score_delta(self.rules_profile)
         if blue_grab_env.any():
-            idx = torch.argmax(((b_to_red <= grab_r) & (~self.blue_tagged)).to(torch.int64), dim=1)
+            idx = torch.argmax(blue_grab_candidates.to(torch.int64), dim=1)
             env_idx = torch.where(blue_grab_env)[0]
             self.blue_carrying[env_idx] = False
             self.blue_carrying[env_idx, idx[env_idx]] = True
@@ -1874,7 +1898,7 @@ class BatchedCTFCore:
             )
 
         if red_grab_env.any():
-            idx = torch.argmax(((r_to_blue <= grab_r) & (~self.red_tagged)).to(torch.int64), dim=1)
+            idx = torch.argmax(red_grab_candidates.to(torch.int64), dim=1)
             env_idx = torch.where(red_grab_env)[0]
             self.red_carrying[env_idx] = False
             self.red_carrying[env_idx, idx[env_idx]] = True
@@ -2402,7 +2426,13 @@ class BatchedCTFCore:
         )
         reward = self._reward_total(rterm, roff, rpbrs, rteam, sparse_points, stalemate_trigger)
         obs_t = self.get_obs_tensors()
-        info = self._build_info(dense=rpbrs + rteam, sparse_points=sparse_points, stalemate=stalemate_trigger)
+        info = self._build_info(
+            dense=rpbrs + rteam,
+            sparse_points=sparse_points,
+            stalemate=stalemate_trigger,
+            terminated=terminated,
+            truncated=truncated,
+        )
         if tensor_obs:
             return obs_t, reward, terminated, truncated, info
         return (
@@ -2413,7 +2443,14 @@ class BatchedCTFCore:
             info,
         )
 
-    def _build_info(self, dense: torch.Tensor, sparse_points: torch.Tensor, stalemate: torch.Tensor) -> List[dict]:
+    def _build_info(
+        self,
+        dense: torch.Tensor,
+        sparse_points: torch.Tensor,
+        stalemate: torch.Tensor,
+        terminated: Optional[torch.Tensor] = None,
+        truncated: Optional[torch.Tensor] = None,
+    ) -> List[dict]:
         out: List[dict] = []
         bs = self.blue_score.detach().cpu().numpy()
         rs = self.red_score.detach().cpu().numpy()
@@ -2422,6 +2459,20 @@ class BatchedCTFCore:
         d_np = dense.detach().cpu().numpy()
         s_np = sparse_points.detach().cpu().numpy()
         st_np = stalemate.detach().cpu().numpy()
+        gs_np = build_global_state_batch(self).detach().cpu().numpy().astype(np.float32)
+        action_mask_np = self._build_action_mask(side="blue").detach().cpu().numpy().astype(np.float32)
+        blue_alive_np = self.blue_alive.detach().cpu().numpy().astype(np.bool_)
+        red_alive_np = self.red_alive.detach().cpu().numpy().astype(np.bool_)
+        term_np = (
+            terminated.detach().cpu().numpy().astype(np.bool_)
+            if terminated is not None
+            else np.zeros((self.B,), dtype=np.bool_)
+        )
+        trunc_np = (
+            truncated.detach().cpu().numpy().astype(np.bool_)
+            if truncated is not None
+            else np.zeros((self.B,), dtype=np.bool_)
+        )
         for i in range(self.B):
             out.append(
                 {
@@ -2434,9 +2485,17 @@ class BatchedCTFCore:
                     "opponent_kind": str(self._opponent_kind[i]).lower(),
                     "opponent_key": self._opponent_key[i],
                     "rules_profile": self.rules_profile,
+                    "map_set": self.map_set,
                     "dense_reward": float(d_np[i]),
                     "sparse_points": float(s_np[i]),
+                    "terminated": bool(term_np[i]),
+                    "truncated": bool(trunc_np[i]),
                     "stalemate_truncated": bool(st_np[i]),
+                    "action_mask": action_mask_np[i],
+                    "agent_alive": blue_alive_np[i],
+                    "blue_alive": blue_alive_np[i],
+                    "red_alive": red_alive_np[i],
+                    "global_state": gs_np[i],
                 }
             )
         return out
@@ -2680,19 +2739,54 @@ class BatchedCTFCore:
                 for k, v in self.get_obs_tensors(side=side).items()}
 
     def get_global_state_tensor(self) -> torch.Tensor:
-        """Global state grid as a flat GPU tensor [B, GLOBAL_STATE_CHANNELS*H*W]."""
-        g = torch.zeros((self.B, GLOBAL_STATE_CHANNELS, CNN_ROWS, CNN_COLS), dtype=torch.float32, device=self.device)
-        self._scatter_points(g, 0, self.blue_x, self.blue_y, self.blue_alive)
-        self._scatter_points(g, 1, self.red_x, self.red_y, self.red_alive)
-        self._scatter_points(g, 2, self.blue_mine_x, self.blue_mine_y, self.blue_mine_active)
-        self._scatter_points(g, 3, self.red_mine_x, self.red_mine_y, self.red_mine_active)
-        self._scatter_points(g, 4, self.pickup_x, self.pickup_y, self.pickup_active)
-        self._scatter_points(g, 6, self.blue_flag_pos[:, 0:1], self.blue_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
-        self._scatter_points(g, 7, self.red_flag_pos[:, 0:1], self.red_flag_pos[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
-        return g.reshape(self.B, -1)
+        """Structured CTDE global state tensor with shape ``(B, GLOBAL_STATE_DIM)``."""
+        return build_global_state_batch(self)
 
     def get_global_state(self) -> np.ndarray:
         return self.get_global_state_tensor().detach().cpu().numpy().astype(np.float32)
+
+    def state(self) -> np.ndarray:
+        """PettingZoo-style alias for the structured global state."""
+        return self.get_global_state()
+
+    def render_rgb_array(self, env_index: int = 0, cell_size: int = 8) -> np.ndarray:
+        """Render one vectorized environment as a uint8 RGB array."""
+        env_i = int(max(0, min(env_index, self.B - 1)))
+        cell = max(1, int(cell_size))
+        h = max(1, self.rows) * cell
+        w = max(1, self.cols) * cell
+        frame = np.full((h, w, 3), 238, dtype=np.uint8)
+        frame[:, : max(1, w // 2), :] = np.array([232, 242, 255], dtype=np.uint8)
+        frame[:, max(1, w // 2) :, :] = np.array([255, 235, 235], dtype=np.uint8)
+
+        def draw_point(x: float, y: float, color: tuple[int, int, int], radius: int = 2) -> None:
+            cx = int(round(float(x) / max(1.0, float(self.cols - 1)) * float(w - 1)))
+            cy = int(round(float(y) / max(1.0, float(self.rows - 1)) * float(h - 1)))
+            r = max(1, int(radius))
+            x0, x1 = max(0, cx - r), min(w, cx + r + 1)
+            y0, y1 = max(0, cy - r), min(h, cy + r + 1)
+            frame[y0:y1, x0:x1, :] = np.array(color, dtype=np.uint8)
+
+        bh = self.blue_flag_home[env_i].detach().cpu().numpy()
+        rh = self.red_flag_home[env_i].detach().cpu().numpy()
+        bf = self.blue_flag_pos[env_i].detach().cpu().numpy()
+        rf = self.red_flag_pos[env_i].detach().cpu().numpy()
+        draw_point(float(bh[0]), float(bh[1]), (35, 95, 220), radius=3)
+        draw_point(float(rh[0]), float(rh[1]), (210, 55, 55), radius=3)
+        draw_point(float(bf[0]), float(bf[1]), (50, 130, 255), radius=2)
+        draw_point(float(rf[0]), float(rf[1]), (255, 70, 70), radius=2)
+
+        blue_x = self.blue_x[env_i].detach().cpu().numpy()
+        blue_y = self.blue_y[env_i].detach().cpu().numpy()
+        blue_alive = self.blue_alive[env_i].detach().cpu().numpy()
+        red_x = self.red_x[env_i].detach().cpu().numpy()
+        red_y = self.red_y[env_i].detach().cpu().numpy()
+        red_alive = self.red_alive[env_i].detach().cpu().numpy()
+        for x, y, alive in zip(blue_x, blue_y, blue_alive):
+            draw_point(float(x), float(y), (20, 80, 210) if alive else (120, 150, 190), radius=2)
+        for x, y, alive in zip(red_x, red_y, red_alive):
+            draw_point(float(x), float(y), (200, 35, 35) if alive else (190, 130, 130), radius=2)
+        return frame
 
 
 # -------- Adapter for MAPPO/QMIX: GameField-like API over BatchedCTFCore(B=1) --------
@@ -2816,10 +2910,13 @@ class GPUEnvAdapter:
         return self._mask_for_agent(agent, macro_only=False)
 
     def get_global_state_dim(self) -> int:
-        return int(GLOBAL_STATE_CHANNELS * CNN_ROWS * CNN_COLS)
+        return int(GLOBAL_STATE_DIM)
 
     def get_global_state(self) -> np.ndarray:
         return self._core.get_global_state()[0]
+
+    def state(self) -> np.ndarray:
+        return self.get_global_state()
 
     def step(self, actions_flat: np.ndarray):
         """
@@ -2872,6 +2969,21 @@ class GPUCTFVecEnv(VecEnv):
     def reset(self) -> Dict[str, np.ndarray]:
         self.core.reset_all()
         return self.core.get_obs()
+
+    def seed(self, seed: Optional[int] = None) -> List[Optional[int]]:
+        if seed is not None:
+            self.core.reseed(int(seed))
+        return [seed for _ in range(self.num_envs)]
+
+    def state(self) -> np.ndarray:
+        return self.core.get_global_state()
+
+    def render(self, mode: str = "human"):
+        if mode == "rgb_array":
+            return self.core.render_rgb_array(env_index=0)
+        if mode == "human":
+            return self.core.render_rgb_array(env_index=0)
+        raise ValueError(f"Unsupported render mode {mode!r}")
 
     def step_async(self, actions: np.ndarray) -> None:
         self._pending_actions = np.asarray(actions, dtype=np.int64)
@@ -2961,7 +3073,7 @@ class GPUCTFVecEnv(VecEnv):
 
 
 class GPUCTFSingleEnv(gym.Env):
-    metadata = {"render_modes": []}
+    metadata = {"render_modes": ["rgb_array", "human"], "render_fps": 10}
 
     def __init__(self, cfg: Optional[GPUFieldConfig] = None):
         cfg = cfg or GPUFieldConfig(n_envs=1)
@@ -2971,17 +3083,24 @@ class GPUCTFSingleEnv(gym.Env):
         self.observation_space = self.vec.observation_space
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
+        super().reset(seed=seed)
         if seed is not None:
-            torch.manual_seed(int(seed))
+            self.vec.core.reseed(int(seed))
         obs = self.vec.reset()
         return {k: v[0] for k, v in obs.items()}, {}
 
     def step(self, action):
         self.vec.step_async(np.asarray(action, dtype=np.int64)[None, ...])
         obs, rew, done, infos = self.vec.step_wait()
-        terminated = bool(done[0])
-        truncated = bool(infos[0].get("decision_steps", 0) >= self.vec.core.max_steps or infos[0].get("stalemate_truncated", False))
+        terminated = bool(infos[0].get("terminated", bool(done[0])))
+        truncated = bool(infos[0].get("truncated", False))
         return {k: v[0] for k, v in obs.items()}, float(rew[0]), terminated, truncated, infos[0]
+
+    def state(self) -> np.ndarray:
+        return self.vec.state()[0]
+
+    def render(self, mode: str = "human"):
+        return self.vec.render(mode=mode)
 
     def close(self):
         self.vec.close()
