@@ -1,7 +1,7 @@
 # Setup and train (Colab or local PC)
 
-For the latent team-strategy paper configuration, use the latent strategy path in
-`rl/train_ppo.py`. That path is designed around:
+The default training path in `rl/train_ppo.py` is now the latent team-strategy
+paper configuration. That path is designed around:
 
 - discrete latent team strategy `z`
 - strategy inference from global state only
@@ -9,7 +9,7 @@ For the latent team-strategy paper configuration, use the latent strategy path i
 - sparse strategy resampling with persistence regularization
 
 The paper-aligned defaults are `K=4`, `z` sampled once per episode, `lambda_H=0.01`,
-and `lambda_P=0.02`.
+and `lambda_P=0.02`. A plain `python rl/train_ppo.py` run will use that latent path.
 
 Follow these steps to clone the repo, install dependencies, and start training — no prior knowledge assumed.
 
@@ -131,22 +131,23 @@ All training commands are run **from `AICTFProject`** (Colab: after the `%cd` in
 
 ### Paper-aligned latent strategy runs
 
-Recommended latent run:
+Recommended default latent run:
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_2v2 --latent-strategy --latent-k 4 --latent-lam-p 0.02
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_2v2 --latent-k 4 --latent-lam-p 0.02
 ```
 
 Sparse-refresh variant (only if you are explicitly studying strategy switching):
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_refresh_2v2 --latent-strategy --latent-k 4 --latent-lam-p 0.02 --latent-resample-n 20
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_refresh_2v2 --latent-k 4 --latent-lam-p 0.02 --latent-resample-n 20
 ```
 
 Paper note:
 
 - `--latent-k` is intentionally limited to `4` or `6`
 - `--latent-resample-n 1` is intentionally disallowed because per-timestep resampling is not paper-aligned
+- use `--no-latent-strategy` only when you intentionally want the vanilla PPO baseline
 - curriculum aliases still exist for older experiments, but they are not the intended configuration for the latent-strategy paper
 
 **Colab** — prefix the command with `!`:

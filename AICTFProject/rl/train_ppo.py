@@ -74,7 +74,7 @@ class PPOConfig:
 
     checkpoint_dir: str = "checkpoints_sb3"
     load_path: Optional[str] = None
-    run_tag: str = "ppo_cnn_2v2"
+    run_tag: str = "marl_latent_2v2"
     save_every_steps: int = 50_000
     eval_every_steps: int = 25_000
     eval_episodes: int = 6
@@ -117,7 +117,7 @@ class PPOConfig:
     test_kl_zero_lr: bool = False
     gpu_native_env: bool = True
 
-    use_latent_strategy: bool = False
+    use_latent_strategy: bool = True
     latent_k: int = 4
     latent_z_embed_dim: int = 16
     latent_vf_hidden: int = 128
@@ -906,6 +906,20 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         venv.env_method("set_phase", phase_name)
     except Exception:
         pass
+    try:
+        kind, key = default_opponent
+        venv.env_method("set_next_opponent", kind, key)
+        current_keys = venv.env_method("get_opponent_key")
+        if mode == TrainMode.FIXED_OPPONENT.value:
+            requested_key = str(key).upper()
+            actual_keys = [str(k).upper() for k in (current_keys or [])]
+            if actual_keys and any(k != requested_key for k in actual_keys):
+                print(
+                    f"[PPO] WARNING: FIXED_OPPONENT requested {requested_key}, but env reports {actual_keys}. "
+                    "Training may not be locked to the intended scripted opponent."
+                )
+    except Exception as exc:
+        print(f"[PPO] opponent initialization failed (falling back to existing env opponent): {exc}")
     # Initial scripted-opponent parameters (including deception and speed for red team).
     # Use actual phase/key (OP1=easier, OP2=medium, OP3=strong) so OP1/OP2 are not able to score easily.
     try:
@@ -1149,6 +1163,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             eval_env.env_method("set_phase", "OP3")  # EvalCallback always uses OP3
         except Exception:
             pass
+        try:
+            eval_env.env_method("set_next_opponent", "SCRIPTED", "OP3")
+        except Exception:
+            pass
 
         if use_latent:
             _attach_latent_strategy_encoder(eval_env, model.policy)
@@ -1309,15 +1327,22 @@ def _normalize_train_mode(mode: str) -> str:
     return aliases.get(raw, raw)
 
 
-def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 2) -> str:
-    """Return a unique default run_tag per mode and agent size so runs don't overwrite each other."""
+def _default_run_tag_for_mode(
+    mode: str,
+    fixed_opponent_tag: str = "OP3",
+    n_agents: int = 2,
+    *,
+    use_latent_strategy: bool = True,
+) -> str:
+    """Return a unique default run_tag per mode and agent size."""
     m = _normalize_train_mode(mode)
     suffix = _agents_suffix(n_agents)
+    prefix = "marl_latent" if use_latent_strategy else "ppo_cnn"
     if m == TrainMode.FIXED_OPPONENT.value:
-        return f"ppo_cnn_fixed_{fixed_opponent_tag.lower()}_{suffix}"
+        return f"{prefix}_fixed_{fixed_opponent_tag.lower()}_{suffix}"
     if m == TrainMode.SELF_PLAY.value:
-        return f"ppo_cnn_selfplay_{suffix}"
-    return f"ppo_cnn_{suffix}"
+        return f"{prefix}_selfplay_{suffix}"
+    return f"{prefix}_{suffix}"
 
 
 if __name__ == "__main__":
@@ -1337,7 +1362,7 @@ if __name__ == "__main__":
             "League/curriculum mode names are accepted but mapped to FIXED_OPPONENT.",
         )
         parser.add_argument("--run-tag", type=str, default=None,
-                            help="Run name for checkpoints (default: unique per mode)")
+                            help="Run name for checkpoints (default: latent paper run tag unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory for checkpoints/snapshots (e.g. /content/drive/MyDrive/ppo_checkpoints)")
         parser.add_argument("--load", type=str, default=None, help="Optional path to a .zip checkpoint to resume from")
@@ -1357,7 +1382,12 @@ if __name__ == "__main__":
         parser.add_argument(
             "--latent-strategy",
             action="store_true",
-            help="Enable paper-aligned latent team strategy: q(z|global), shared pi_i(o_i,z), centralized critic, and persistence regularization.",
+            help="Enable paper-aligned latent team strategy explicitly (already the default).",
+        )
+        parser.add_argument(
+            "--no-latent-strategy",
+            action="store_true",
+            help="Disable the default latent team strategy path and run the vanilla PPO baseline.",
         )
         parser.add_argument("--latent-k", type=int, choices=[4, 6], default=None, help="Number of discrete strategies K (paper-aligned choices: 4 or 6; default: 4)")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Coefficient for strategy entropy bonus -lambda_H H(q) (default: 0.01)")
@@ -1370,6 +1400,8 @@ if __name__ == "__main__":
         )
         args = parser.parse_args()
         cfg = PPOConfig()
+        if getattr(args, "no_latent_strategy", False):
+            cfg.use_latent_strategy = False
         if args.mode is not None:
             cfg.mode = _normalize_train_mode(args.mode)
         if args.max_blue_agents is not None:
@@ -1379,11 +1411,15 @@ if __name__ == "__main__":
             cfg.max_blue_agents = n
         elif getattr(args, "agents", None) is not None:
             cfg.max_blue_agents = int(args.agents)
-        if args.mode is not None:
-            if args.run_tag is not None:
-                cfg.run_tag = args.run_tag
-            else:
-                cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
+        if args.run_tag is not None:
+            cfg.run_tag = args.run_tag
+        else:
+            cfg.run_tag = _default_run_tag_for_mode(
+                cfg.mode,
+                args.fixed_opponent,
+                cfg.max_blue_agents,
+                use_latent_strategy=bool(cfg.use_latent_strategy),
+            )
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         # Separate checkpoint dir per team size. On Colab, save to Drive so runs persist (no 15h loss on disconnect).
         n_agents = cfg.max_blue_agents
@@ -1413,6 +1449,8 @@ if __name__ == "__main__":
             cfg.load_path = args.load
         if getattr(args, "latent_strategy", False):
             cfg.use_latent_strategy = True
+        if getattr(args, "no_latent_strategy", False):
+            cfg.use_latent_strategy = False
         if getattr(args, "latent_k", None) is not None:
             cfg.latent_k = max(2, int(args.latent_k))
         if getattr(args, "latent_lam_h", None) is not None:

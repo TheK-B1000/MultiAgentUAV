@@ -300,11 +300,11 @@ class BatchedCTFCore:
         self._rng = torch.Generator(device=self.device)
         self._rng.manual_seed(int(cfg.seed))
 
-        self._phase: List[str] = ["OP1"] * self.B
+        self._phase: List[str] = ["OP3"] * self.B
         self._league_mode = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
         self._stress_schedule: Optional[dict] = None
         self._opponent_kind: List[str] = ["SCRIPTED"] * self.B
-        self._opponent_key: List[str] = ["OP1"] * self.B
+        self._opponent_key: List[str] = ["OP3"] * self.B
         self._snapshot_policy_cache: Dict[str, Tuple[float, Optional[Any]]] = {}
         self.rules_profile = str(cfg.rules_profile).upper()
 
@@ -826,7 +826,7 @@ class BatchedCTFCore:
         """Return current red opponent key (OP1/OP2/OP3/OP4). For eval verification."""
         idx = self._normalize_env_indices(env_indices)
         if idx.numel() == 0:
-            return "OP1"
+            return "OP3"
         return str(self._opponent_key[int(idx[0].item())])
 
     def _apply_dynamics_tensor(
@@ -2704,7 +2704,7 @@ class _FakeGM:
     def __init__(self, core: BatchedCTFCore):
         assert core.B == 1, "FakeGM only supports single env"
         self._core = core
-        self._phase = "OP1"
+        self._phase = "OP3"
 
     @property
     def blue_score(self) -> int:
