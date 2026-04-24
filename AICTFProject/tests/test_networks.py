@@ -4,6 +4,7 @@ import unittest
 
 import torch
 
+from rl.global_state import GLOBAL_STATE_DIM
 from rl.networks import CNNEncoder, CentralizedCritic, PPOPolicy
 
 
@@ -28,13 +29,20 @@ class NetworkTests(unittest.TestCase):
         values = critic(global_state, extra=extra)
         self.assertEqual(tuple(values.shape), (4, 1))
 
+    def test_centralized_critic_matches_production_global_state_dim(self) -> None:
+        """Latent PPO path uses `GLOBAL_STATE_DIM` (32) for `global_state` / critic-side inputs."""
+        critic = CentralizedCritic(global_state_dim=GLOBAL_STATE_DIM, hidden_dim=32)
+        global_state = torch.rand(2, GLOBAL_STATE_DIM)
+        values = critic(global_state)
+        self.assertEqual(tuple(values.shape), (2, 1))
+
     def test_gradients_flow_through_networks(self) -> None:
         encoder = CNNEncoder((7, 20, 20), feature_dim=64)
         policy = PPOPolicy((7, 20, 20), action_dim=5, feature_dim=64)
-        critic = CentralizedCritic(global_state_dim=14, hidden_dim=32)
+        critic = CentralizedCritic(global_state_dim=GLOBAL_STATE_DIM, hidden_dim=32)
 
         obs = torch.rand(8, 7, 20, 20) + 0.1
-        global_state = torch.rand(8, 14) + 0.1
+        global_state = torch.rand(8, GLOBAL_STATE_DIM) + 0.1
         loss = encoder(obs).sum() + policy(obs).sum() + critic(global_state).sum()
         loss.backward()
 

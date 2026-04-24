@@ -117,7 +117,7 @@ class PPOConfig:
     test_kl_zero_lr: bool = False
     gpu_native_env: bool = True
 
-    use_latent_strategy: bool = True
+    use_latent_strategy: bool = False
     latent_k: int = 4
     latent_z_embed_dim: int = 16
     latent_vf_hidden: int = 128
@@ -885,8 +885,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
         print(
             f"[PPO] Latent team strategy (CTDE): K={int(cfg.latent_k)}, "
-            f"resample_every_n={int(cfg.latent_resample_every_n)}, λ_H={float(cfg.latent_lam_h)}, "
-            f"λ_P={float(cfg.latent_lam_p)}, z_embed_dim={int(cfg.latent_z_embed_dim)}, "
+            f"resample_every_n={int(cfg.latent_resample_every_n)}, lambda_H={float(cfg.latent_lam_h)}, "
+            f"lambda_P={float(cfg.latent_lam_p)}, z_embed_dim={int(cfg.latent_z_embed_dim)}, "
             f"global_state_dim={GLOBAL_STATE_DIM}"
         )
         venv = VecMonitor(lv)
@@ -1362,7 +1362,7 @@ if __name__ == "__main__":
             "League/curriculum mode names are accepted but mapped to FIXED_OPPONENT.",
         )
         parser.add_argument("--run-tag", type=str, default=None,
-                            help="Run name for checkpoints (default: latent paper run tag unique per mode)")
+                            help="Run name for checkpoints (default: vanilla PPO tag unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory for checkpoints/snapshots (e.g. /content/drive/MyDrive/ppo_checkpoints)")
         parser.add_argument("--load", type=str, default=None, help="Optional path to a .zip checkpoint to resume from")
@@ -1382,12 +1382,12 @@ if __name__ == "__main__":
         parser.add_argument(
             "--latent-strategy",
             action="store_true",
-            help="Enable paper-aligned latent team strategy explicitly (already the default).",
+            help="Enable the legacy latent team strategy path explicitly (off by default during the audit).",
         )
         parser.add_argument(
             "--no-latent-strategy",
             action="store_true",
-            help="Disable the default latent team strategy path and run the vanilla PPO baseline.",
+            help="Run the vanilla PPO baseline without latent strategy conditioning.",
         )
         parser.add_argument("--latent-k", type=int, choices=[4, 6], default=None, help="Number of discrete strategies K (paper-aligned choices: 4 or 6; default: 4)")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Coefficient for strategy entropy bonus -lambda_H H(q) (default: 0.01)")

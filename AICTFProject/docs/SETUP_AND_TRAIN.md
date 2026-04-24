@@ -1,7 +1,11 @@
 # Setup and train (Colab or local PC)
 
-The default training path in `rl/train_ppo.py` is now the latent team-strategy
-paper configuration. That path is designed around:
+During the audit/refactor, the default training path in `rl/train_ppo.py` is
+the vanilla PPO baseline. The latent team-strategy path remains available behind
+`--latent-strategy`, but it is intentionally dormant while the baseline
+interfaces are audited and hardened.
+
+The latent path is designed around:
 
 - discrete latent team strategy `z`
 - strategy inference from global state only
@@ -9,7 +13,9 @@ paper configuration. That path is designed around:
 - sparse strategy resampling with persistence regularization
 
 The paper-aligned defaults are `K=4`, `z` sampled once per episode, `lambda_H=0.01`,
-and `lambda_P=0.02`. A plain `python rl/train_ppo.py` run will use that latent path.
+and `lambda_P=0.02`. A plain `python rl/train_ppo.py` run now uses the vanilla
+baseline; pass `--latent-strategy` only when intentionally running the legacy
+latent implementation.
 
 Follow these steps to clone the repo, install dependencies, and start training — no prior knowledge assumed.
 
@@ -65,7 +71,16 @@ git pull origin cuda
 
 ## Step 3: Install Python libraries
 
-Use this install (no `[extra]` to avoid Atari/ale-py issues):
+**Recommended (pinned, matches CI):** from `AICTFProject`, install **PyTorch** for your machine (CPU or CUDA) using [pytorch.org](https://pytorch.org), then:
+
+```bash
+cd AICTFProject
+pip install -r requirements.txt
+```
+
+`requirements.txt` pins `gymnasium`, `stable-baselines3`, and support libraries; it does **not** pin `torch` (install that separately so you can pick CPU vs CUDA).
+
+**Legacy one-liner** (older versions; may diverge from CI):
 
 **Colab**:
 
@@ -136,8 +151,17 @@ cd AICTFProject
 python -m unittest discover -v tests
 ```
 
+**Quieter output (suppresses TensorFlow/oneDNN info lines from TensorBoard):** run the same suite via the helper (sets `TF_*` env vars before any imports):
+
+```bash
+cd AICTFProject
+python run_tests.py
+```
+
 - If you run `pytest` and see `No module named pytest`, that only means you have not installed `pytest`. The project does **not** require it unless you choose to add it.
 - **Optional:** `pip install pytest` works too; `pytest` can discover and run most `unittest`-style tests, but the supported workflow above is `unittest` only.
+
+**What runs in CI:** On every push/PR, GitHub Actions installs CPU PyTorch + `requirements.txt` and runs `python run_tests.py`, including two **short `train_ppo` smokes** (vanilla PPO and latent strategy) to catch integration breaks.
 
 ---
 
@@ -147,23 +171,29 @@ All training commands are run **from `AICTFProject`** (Colab: after the `%cd` in
 
 ### Paper-aligned latent strategy runs
 
-Recommended default latent run:
+Vanilla audit baseline:
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_2v2 --latent-k 4 --latent-lam-p 0.02
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag ppo_cnn_fixed_op3_2v2 --no-latent-strategy
+```
+
+Explicit latent run:
+
+```bash
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_2v2 --latent-strategy --latent-k 4 --latent-lam-p 0.02
 ```
 
 Sparse-refresh variant (only if you are explicitly studying strategy switching):
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_refresh_2v2 --latent-k 4 --latent-lam-p 0.02 --latent-resample-n 20
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --max-blue-agents 2 --run-tag marl_latent_refresh_2v2 --latent-strategy --latent-k 4 --latent-lam-p 0.02 --latent-resample-n 20
 ```
 
 Paper note:
 
 - `--latent-k` is intentionally limited to `4` or `6`
 - `--latent-resample-n 1` is intentionally disallowed because per-timestep resampling is not paper-aligned
-- use `--no-latent-strategy` only when you intentionally want the vanilla PPO baseline
+- use `--latent-strategy` only when you intentionally want the legacy latent path
 - curriculum aliases still exist for older experiments, but they are not the intended configuration for the latent-strategy paper
 
 **Colab** — prefix the command with `!`:
@@ -254,7 +284,7 @@ Use this as the **consistency check** between the abstract design and the code y
 | 3 | `!pip install -q stable-baselines3==2.3.0 gymnasium==0.29.1 pygame==2.5.2` | `pip install ...` (same packages) |
 | 4 | `import torch` and print version/CUDA | Same in terminal with `python -c "..."` |
 | 5 | `%cd /content/MultiAgentUAV/AICTFProject`, `%env PYTHONPATH=...`, `!ls rl` | `cd AICTFProject`, `dir rl` |
-| 5b | `!python -m unittest discover -v tests` (from `AICTFProject`) | `python -m unittest discover -v tests` |
+| 5b | `!python -m unittest discover -v tests` or `!python run_tests.py` | `python -m unittest discover -v tests` or `python run_tests.py` |
 | 6 | `!python rl/train_ppo.py --mode ... --max-blue-agents N --run-tag ...` | `python rl/train_ppo.py ...` (same args) |
 
 After training, checkpoints are in `checkpoints_sb3_2v2/`, `checkpoints_sb3_4v4/`, or `checkpoints_sb3_8v8/` (e.g. `final_ppo_league_2v2.zip`).

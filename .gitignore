@@ -24,6 +24,10 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Local smoke / temp training dirs
+AICTFProject/.test_runs/
+AICTFProject/checkpoints_sb3/test_runs/
+
 # Builds
 dist/
 build/
