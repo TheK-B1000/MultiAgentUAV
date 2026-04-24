@@ -1,8 +1,15 @@
 """
-Fixed-size global-state features for centralized training (CTDE critic + strategy encoder).
+Fixed-size global-state features for the latent team-strategy CTDE stack.
 
-Matches the implementation plan: summarize team geometry so ``state_dim`` is invariant
-across 2v2 / 4v4 / 6v6 (no per-agent concatenation in the encoder input).
+The paper-aligned encoder input is a compact, structured summary of:
+  - team geometry
+  - team dispersion
+  - proximity to flags and opponents
+  - flag capture status
+  - motion statistics
+
+The policy never consumes these features directly at execution time; they are
+only for the centralized critic and the latent strategy encoder.
 """
 
 from __future__ import annotations
@@ -26,10 +33,10 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     Features (normalized where noted):
       blue mean x,y; blue std x,y; red mean x,y; red std x,y;
       min alive-blue dist to red flag; min alive-red dist to blue flag;
-      any_blue_carrying; any_red_carrying;
-      blue_score, red_score (normalized by score_limit);
-      mean blue speed, mean red speed (alive-masked);
-      L2 norm of (blue_flag - blue_home) and (red_flag - red_home) / field_diag;
+      blue_flag_captured; red_flag_captured;
+      mean blue speed; mean red speed;
+      mean blue-nearest-red dist; mean red-nearest-blue dist;
+      min blue-nearest-red dist; min red-nearest-blue dist;
       padding to GLOBAL_STATE_DIM.
     """
     B = int(core.B)
@@ -42,8 +49,6 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     diag = float(core.max_dist)
     if diag <= eps:
         diag = 1.0
-    sl = max(1, int(core.score_limit))
-
     bx, by = core.blue_x, core.blue_y
     rx, ry = core.red_x, core.red_y
     ba, ra = core.blue_alive, core.red_alive
@@ -84,11 +89,14 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     min_b_rf = torch.where(torch.isfinite(min_b_rf), min_b_rf, torch.zeros_like(min_b_rf))
     min_r_bf = torch.where(torch.isfinite(min_r_bf), min_r_bf, torch.zeros_like(min_r_bf))
 
-    carry_b = core.blue_carrying.any(dim=1).to(f32)
-    carry_r = core.red_carrying.any(dim=1).to(f32)
-
-    bs = core.blue_score.to(f32) / float(sl)
-    rs = core.red_score.to(f32) / float(sl)
+    blue_flag_captured = (
+        core.red_carrying.any(dim=1)
+        | (torch.sqrt(torch.clamp(((bf - bh) ** 2).sum(dim=1), min=0.0)) > eps)
+    ).to(f32)
+    red_flag_captured = (
+        core.blue_carrying.any(dim=1)
+        | (torch.sqrt(torch.clamp(((rf - rh) ** 2).sum(dim=1), min=0.0)) > eps)
+    ).to(f32)
 
     w_b = ba.to(f32)
     cnt_b = torch.clamp(w_b.sum(dim=1), min=1.0)
@@ -100,17 +108,37 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     mean_b_sp = mean_b_sp / 3.0
     mean_r_sp = mean_r_sp / 3.0
 
-    d_home_b = torch.sqrt(((bf - bh) ** 2).sum(dim=1)) / diag
-    d_home_r = torch.sqrt(((rf - rh) ** 2).sum(dim=1)) / diag
+    dd = torch.sqrt(
+        torch.clamp((bx[:, :, None] - rx[:, None, :]) ** 2 + (by[:, :, None] - ry[:, None, :]) ** 2, min=0.0)
+    )
+    big = torch.full_like(dd, float("inf"))
+    blue_to_red = torch.where(ba[:, :, None] & ra[:, None, :], dd, big)
+    red_to_blue = blue_to_red.transpose(1, 2)
+    blue_nearest = blue_to_red.min(dim=2).values
+    red_nearest = red_to_blue.min(dim=2).values
+    blue_nearest = torch.where(torch.isfinite(blue_nearest), blue_nearest, torch.zeros_like(blue_nearest))
+    red_nearest = torch.where(torch.isfinite(red_nearest), red_nearest, torch.zeros_like(red_nearest))
+
+    mean_blue_enemy_prox = (blue_nearest * w_b).sum(dim=1) / cnt_b / diag
+    mean_red_enemy_prox = (red_nearest * w_r).sum(dim=1) / cnt_r / diag
+
+    min_blue_enemy_prox = blue_nearest.masked_fill(~ba, float("inf")).min(dim=1).values / diag
+    min_red_enemy_prox = red_nearest.masked_fill(~ra, float("inf")).min(dim=1).values / diag
+    min_blue_enemy_prox = torch.where(
+        torch.isfinite(min_blue_enemy_prox), min_blue_enemy_prox, torch.zeros_like(min_blue_enemy_prox)
+    )
+    min_red_enemy_prox = torch.where(
+        torch.isfinite(min_red_enemy_prox), min_red_enemy_prox, torch.zeros_like(min_red_enemy_prox)
+    )
 
     parts = [
         bmx, bmy, bsx, bsy,
         rmx, rmy, rsx, rsy,
         min_b_rf, min_r_bf,
-        carry_b, carry_r,
-        bs, rs,
+        blue_flag_captured, red_flag_captured,
         mean_b_sp, mean_r_sp,
-        d_home_b, d_home_r,
+        mean_blue_enemy_prox, mean_red_enemy_prox,
+        min_blue_enemy_prox, min_red_enemy_prox,
     ]
     used = torch.stack(parts, dim=1)
     assert used.shape[1] == GLOBAL_STATE_USED, (used.shape[1], GLOBAL_STATE_USED)

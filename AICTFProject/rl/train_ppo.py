@@ -119,11 +119,11 @@ class PPOConfig:
 
     use_latent_strategy: bool = False
     latent_k: int = 4
-    latent_z_embed_dim: int = 32
+    latent_z_embed_dim: int = 16
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
     latent_lam_h: float = 0.01
-    latent_lam_p: float = 0.0
+    latent_lam_p: float = 0.02
     latent_resample_every_n: int = 0
 
 
@@ -675,6 +675,8 @@ class MetricsCSVCallback(BaseCallback):
         "blue_score",
         "red_score",
         "opponent_switch_count",
+        "strategy_switch_count",
+        "strategy_resample_count",
         "vec_schema_version",
     ]
 
@@ -741,6 +743,8 @@ class MetricsCSVCallback(BaseCallback):
                 "blue_score": summary.blue_score,
                 "red_score": summary.red_score,
                 "opponent_switch_count": self._opponent_switch_count,
+                "strategy_switch_count": info.get("strategy_switch_count", ""),
+                "strategy_resample_count": info.get("strategy_resample_count", ""),
                 "vec_schema_version": summary.vec_schema_version,
             }
             try:
@@ -865,6 +869,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     )
     print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
     use_latent = bool(getattr(cfg, "use_latent_strategy", False))
+    if use_latent:
+        if int(getattr(cfg, "latent_k", 4)) not in (4, 6):
+            raise ValueError("Paper-aligned latent strategy requires latent_k to be either 4 or 6.")
+        if int(getattr(cfg, "latent_resample_every_n", 0)) == 1:
+            raise ValueError("Latent strategy resampling every timestep is not allowed; use 0 or >= 2.")
     base_pf = GPUCTFVecEnv(gpu_cfg)
     if use_latent:
         from rl.latent_vec_env import LatentStrategyVecEnvWrapper
@@ -877,6 +886,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print(
             f"[PPO] Latent team strategy (CTDE): K={int(cfg.latent_k)}, "
             f"resample_every_n={int(cfg.latent_resample_every_n)}, λ_H={float(cfg.latent_lam_h)}, "
+            f"λ_P={float(cfg.latent_lam_p)}, z_embed_dim={int(cfg.latent_z_embed_dim)}, "
             f"global_state_dim={GLOBAL_STATE_DIM}"
         )
         venv = VecMonitor(lv)
@@ -1347,15 +1357,16 @@ if __name__ == "__main__":
         parser.add_argument(
             "--latent-strategy",
             action="store_true",
-            help="Enable latent team strategy (CTDE): q(z|global), pi(o,z), V(global,z); use with marl_latent run tag.",
+            help="Enable paper-aligned latent team strategy: q(z|global), shared pi_i(o_i,z), centralized critic, and persistence regularization.",
         )
-        parser.add_argument("--latent-k", type=int, default=None, help="Number of discrete strategies K (default: 4)")
-        parser.add_argument("--latent-lam-h", type=float, default=None, help="Coefficient for strategy entropy bonus −λ_H H(q) (default: 0.01)")
+        parser.add_argument("--latent-k", type=int, choices=[4, 6], default=None, help="Number of discrete strategies K (paper-aligned choices: 4 or 6; default: 4)")
+        parser.add_argument("--latent-lam-h", type=float, default=None, help="Coefficient for strategy entropy bonus -lambda_H H(q) (default: 0.01)")
+        parser.add_argument("--latent-lam-p", type=float, default=None, help="Coefficient for sparse strategy persistence regularization (default: 0.02)")
         parser.add_argument(
             "--latent-resample-n",
             type=int,
             default=None,
-            help="Resample z every N steps per env (0 = once per episode only)",
+            help="Resample z every N steps per env (0 = once per episode only; do not use 1)",
         )
         args = parser.parse_args()
         cfg = PPOConfig()
@@ -1406,6 +1417,8 @@ if __name__ == "__main__":
             cfg.latent_k = max(2, int(args.latent_k))
         if getattr(args, "latent_lam_h", None) is not None:
             cfg.latent_lam_h = float(args.latent_lam_h)
+        if getattr(args, "latent_lam_p", None) is not None:
+            cfg.latent_lam_p = float(args.latent_lam_p)
         if getattr(args, "latent_resample_n", None) is not None:
             cfg.latent_resample_every_n = max(0, int(args.latent_resample_n))
         if getattr(args, "device", None) is not None:
