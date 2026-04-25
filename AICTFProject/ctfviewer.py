@@ -24,6 +24,7 @@ from game_field_gpu import (
     CNN_COLS,
     CNN_ROWS,
     NUM_CNN_CHANNELS,
+    VEC_OBS_DIM,
 )
 from rl.stress_schedule import STRESS_BY_PHASE
 from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
@@ -107,7 +108,7 @@ def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: in
     obs_space = spaces.Dict(
         {
             "grid": spaces.Box(low=0.0, high=1.0, shape=(n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-            "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 18), dtype=np.float32),
+            "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, VEC_OBS_DIM), dtype=np.float32),
             "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue,), dtype=np.float32),
             "mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue * (n_macros + n_targets),), dtype=np.float32),
         }

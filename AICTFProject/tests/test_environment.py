@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 import torch
 
-from game_field_gpu import GPUCTFSingleEnv, GPUCTFVecEnv, GPUFieldConfig
+from game_field_gpu import GPUCTFSingleEnv, GPUCTFVecEnv, GPUFieldConfig, VEC_OBS_DIM
 from macro_actions import MacroAction
 from rl.global_state import GLOBAL_STATE_DIM
 
@@ -86,7 +86,7 @@ class EnvironmentContractTests(unittest.TestCase):
                 try:
                     obs, _ = env.reset(seed=5)
                     self.assertEqual(obs["grid"].shape, (n_agents, 7, 20, 20))
-                    self.assertEqual(obs["vec"].shape, (n_agents, 18))
+                    self.assertEqual(obs["vec"].shape, (n_agents, VEC_OBS_DIM))
                     self.assertEqual(obs["agent_mask"].shape, (n_agents,))
                     self.assertEqual(obs["mask"].shape, (n_agents * (5 + 50),))
                     self.assertEqual(len(env.action_space.nvec), n_agents * 2)

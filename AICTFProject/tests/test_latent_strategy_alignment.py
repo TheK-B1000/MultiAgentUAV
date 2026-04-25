@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from gymnasium import spaces
 
+from game_field_gpu import VEC_OBS_DIM
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo import SharedActorCentralizedCritic
 from rl.latent_marl import (
@@ -24,15 +25,15 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
 
     def test_actor_is_decentralized_per_agent_given_shared_z(self):
         torch.manual_seed(7)
-        actor = LatentConditionedActor((7, 20, 20), vec_dim=18, latent_k=4, action_dim=55)
+        actor = LatentConditionedActor((7, 20, 20), vec_dim=VEC_OBS_DIM, latent_k=4, action_dim=55)
         actor.eval()
         grid = torch.rand(2, 7, 20, 20)
-        vec = torch.rand(2, 18)
+        vec = torch.rand(2, VEC_OBS_DIM)
         z_idx = torch.tensor([2, 2])
         changed_grid = grid.clone()
         changed_vec = vec.clone()
         changed_grid[1] = torch.rand(7, 20, 20)
-        changed_vec[1] = torch.rand(18)
+        changed_vec[1] = torch.rand(VEC_OBS_DIM)
 
         with torch.no_grad():
             logits_a = actor(grid, vec, z_idx)
@@ -57,7 +58,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         obs_space = spaces.Dict(
             {
                 "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
-                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, 18), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
                 "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
             }
@@ -66,7 +67,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=8)
         obs = {
             "grid": torch.rand(3, 2, 7, 20, 20),
-            "vec": torch.rand(3, 2, 18),
+            "vec": torch.rand(3, 2, VEC_OBS_DIM),
             "agent_mask": torch.ones(3, 2),
             "mask": torch.ones(3, 110),
         }

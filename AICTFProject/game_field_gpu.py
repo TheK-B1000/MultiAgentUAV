@@ -52,7 +52,7 @@ CNN_COLS = 20
 CNN_ROWS = 20
 NUM_CNN_CHANNELS = 7
 GLOBAL_STATE_CHANNELS = 8
-VEC_OBS_DIM = 18
+VEC_OBS_DIM = 20
 MAP_SET_SEED_OFFSETS = {"train": 0, "eval": 1_000_003}
 
 
@@ -2522,6 +2522,8 @@ class BatchedCTFCore:
           15: mine charge ratio in [0,1]
           16: nearest active pickup distance in [0,1]
           17: nearest friendly mine distance in [0,1]
+          18: own flag-capture score / score_limit in [0,1]
+          19: opponent flag-capture score / score_limit in [0,1]
         """
         side_t = self._side_tensors(side)
         own_x = side_t["own_x"]
@@ -2607,6 +2609,15 @@ class BatchedCTFCore:
             torch.full_like(mine_dist, float(self.max_dist)),
         )
         out[..., 17] = torch.clamp(torch.min(mine_dist, dim=2).values / max(1e-6, self.max_dist), 0.0, 1.0)
+        if side == "red":
+            own_score = self.red_score
+            opponent_score = self.blue_score
+        else:
+            own_score = self.blue_score
+            opponent_score = self.red_score
+        score_den = max(1.0, float(self.score_limit))
+        out[..., 18] = torch.clamp(own_score[:, None].to(torch.float32) / score_den, 0.0, 1.0)
+        out[..., 19] = torch.clamp(opponent_score[:, None].to(torch.float32) / score_den, 0.0, 1.0)
         out[..., 0] = out[..., 0] * own_alive.to(torch.float32)
         return out
 
@@ -2977,7 +2988,7 @@ class GPUCTFVecEnv(VecEnv):
                     "near_misses_per_episode": 0,
                     "zone_coverage": 0.0,
                     "decision_steps": int(infos[i].get("decision_steps", 0)),
-                    "vec_schema_version": 2,
+                    "vec_schema_version": 3,
                 }
             self.core.reset_indices(reset_mask)
             obs = self.core.get_obs()

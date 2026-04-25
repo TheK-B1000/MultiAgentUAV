@@ -17,7 +17,7 @@ if _PARENT_DIR not in sys.path:
 import numpy as np
 import torch
 
-from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig, VEC_OBS_DIM
 from opponent_params import sample_batched_opponent_params
 from rl.custom_ppo import CustomPPOTrainer
 from rl.global_state import GLOBAL_STATE_DIM
@@ -82,6 +82,7 @@ class PPOConfig:
     # Not in *Summer Implementation Plan.docx*; when True, overrides several PPO fields below for a legacy "stable" profile. Default False so explicit config matches the spec numbers.
     use_stable_marl_ppo: bool = False
     target_kl: Optional[float] = 0.02
+    actor_cnn_feature_dim: int = 128
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True
@@ -129,6 +130,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
     print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
+    print(f"[PPO] Actor CNN feature dim: {int(getattr(cfg, 'actor_cnn_feature_dim', 128))}")
     print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
     if bool(cfg.use_latent_strategy):
         interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
@@ -297,7 +299,9 @@ def run_test_vec_schema() -> None:
         vec = obs["vec"]
         state = env.state()
         assert vec.dtype == np.float32, f"vec.dtype {vec.dtype}, expected float32"
-        assert vec.ndim == 3 and vec.shape[2] == 18, f"vec.shape {vec.shape}, expected (B,N,18)"
+        assert vec.ndim == 3 and vec.shape[2] == VEC_OBS_DIM, (
+            f"vec.shape {vec.shape}, expected (B,N,{VEC_OBS_DIM})"
+        )
         assert np.all(np.isfinite(vec)), "vec has non-finite values"
         assert state.shape == (1, GLOBAL_STATE_DIM), f"state.shape {state.shape}"
         print("[test-vec-schema] obs vec and global state schemas OK.")

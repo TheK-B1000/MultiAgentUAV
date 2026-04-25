@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from gymnasium import spaces
 
+from game_field_gpu import VEC_OBS_DIM
 from rl.config_presets import paper_default_latent_config, paper_default_no_latent_config
 from rl.custom_ppo import SharedActorCentralizedCritic
 
@@ -17,7 +18,7 @@ def _spaces_2v2():
     obs_space = spaces.Dict(
         {
             "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
-            "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, 18), dtype=np.float32),
+            "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
             "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
             "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
         }

@@ -2,30 +2,30 @@
 
 ## Perception Contract
 
-The active Summer-plan trainer treats each agent observation as a flat local feature vector. The `grid` tensor still has channels-first spatial shape, but `SharedActorCentralizedCritic` flattens it and concatenates it with the per-agent `vec` features and, in latent mode, the shared strategy embedding.
+The active trainer treats each agent observation as mixed spatial-plus-scalar input. `SharedActorCentralizedCritic` encodes each per-agent `grid` tensor with a shared CNN, then concatenates that CNN embedding with the per-agent `vec` scalar features and, in latent mode, the shared strategy embedding.
 
-This matches the Word implementation sketch: `MLP(concat(local_observation_i, strategy_embedding(z)))`. The compact `global_state` is never fed to the actor; it is used only by `q_phi(z | s)` and the centralized critic.
+This is an intentional professor-approved departure from the earlier flat-only sketch: `MLP(concat(CNN(grid_i), scalar_vec_i, strategy_embedding(z)))`. The compact `global_state` is never fed to the actor; it is used only by `q_phi(z | s)` and the centralized critic.
 
 ## Local Actor Trunk
 
 Canonical active class: `AICTFProject/rl/custom_ppo.py::SharedActorCentralizedCritic`
 
 - Input: `grid` with shape `(B, N, C, H, W)` plus `vec` with shape `(B, N, V)`.
-- Per-agent flattening: `grid.reshape(B, N, C*H*W)`.
-- Concatenation: flattened grid + local vector features + optional shared `z` embedding.
+- Per-agent visual trunk: reshape to `(B*N, C, H, W)` and run a shared `CNNEncoder`.
+- Concatenation: CNN feature vector + local scalar vector features + optional shared `z` embedding.
 - Actor body: `Linear -> ReLU -> Linear -> ReLU -> Linear` with 256 hidden units.
 - Parameters are shared across agents.
 
-The active local PPO actor therefore uses an MLP, not a CNN:
+The active local PPO actor therefore uses CNN + MLP:
 
 ```text
 grid: (B, N, C, H, W)
           |
           v
-flatten to (B, N, C*H*W)
+shared CNNEncoder over (B*N, C, H, W)
           |
           v
-concat per-agent vector features
+concat per-agent scalar vector features
           |
           v
 concat shared z embedding (latent mode)
@@ -38,24 +38,21 @@ shared actor body + action heads
 
 The default training path is the local PPO/MAPPO-style trainer in `AICTFProject/rl/custom_ppo.py`.
 
-- Actor: shared per-agent MLP over flattened local `grid`, local `vec`, and the shared strategy embedding when latent mode is enabled.
+- Actor: shared per-agent CNN over local `grid`, followed by an MLP over CNN features, local `vec`, and the shared strategy embedding when latent mode is enabled.
 - Strategy encoder: `StrategyEncoder q_phi(z | s)` maps the 14-float global state to a categorical distribution over K team strategies.
 - Critic: centralized MLP over the 14-float `global_state`; in latent mode its `extra` input is joint-action one-hot plus `z_onehot`.
-- Trunks: the actor MLP and centralized critic MLP are separate, because the actor consumes local observations while the critic consumes structured CTDE state.
+- Trunks: the actor CNN/MLP and centralized critic MLP are separate, because the actor consumes local observations while the critic consumes structured CTDE state.
 - Output heads: linear categorical action heads for each macro/target component.
 
-The standalone `CNNEncoder` / `PPOPolicy` in `AICTFProject/rl/networks.py` remains available for experiments and unit coverage, but it is not the active Summer-plan training actor:
+The active trainer uses the reusable `CNNEncoder` from `AICTFProject/rl/networks.py` directly:
 
 ```python
-def forward(self, obs: torch.Tensor, extra: torch.Tensor | None = None) -> torch.Tensor:
-    features = self.cnn(obs)
-    if extra is not None:
-        features = torch.cat([features, extra], dim=-1)
-    logits = self.actor_head(features)
-    return logits
+cnn_features = self.actor_cnn(grid.reshape(batch * n_agents, c, h, w))
+actor_in = torch.cat([cnn_features, scalar_vec, z_emb], dim=-1)
+logits = self.actor_head(self.actor_body(actor_in))
 ```
 
-The active trainer implements strategy conditioning directly in `SharedActorCentralizedCritic`; `PPOPolicy.extra` remains a small reusable hook for experiments.
+`PPOPolicy.extra` remains a small reusable hook for experiments.
 
 ## Centralized Critic Hook
 
@@ -74,7 +71,7 @@ def forward(self, global_state: torch.Tensor, extra: torch.Tensor | None = None)
 
 The old SB3 PPO/policy/buffer path has been removed from the training stack. `rl.train_ppo.train_ppo` now uses `CustomPPOTrainer`, `TensorDictRolloutBuffer`, and local PPO loss/GAE code by default and exclusively.
 
-Latent strategy is now wired into the local PPO loop. `StrategyEncoder`, the strategy embedding path, the action-conditioned critic, sparse strategy refresh, persistence loss, and strategy entropy regularization all live in `rl/custom_ppo.py`. The pure `LatentConditionedActor` in `rl/latent_marl.py` remains as a small architecture test/reference. `CNNEncoder` remains a reusable visual-policy component, but the active plan-faithful path flattens the grid and uses an MLP.
+Latent strategy is wired into the local PPO loop. `StrategyEncoder`, the strategy embedding path, the action-conditioned critic, sparse strategy refresh, persistence loss, and strategy entropy regularization all live in `rl/custom_ppo.py`. The pure `LatentConditionedActor` in `rl/latent_marl.py` remains as a small flat-actor architecture test/reference.
 
 Strategy telemetry is also part of the active path: `CustomPPOInferencePolicy.strategy_info()` feeds evaluation/viewer CSVs, and `CustomPPOTrainer.last_stats` records rollout-level strategy occupancy and switching diagnostics.
 
@@ -87,10 +84,10 @@ Final experiment tooling sits outside the trainer: `plot/eval_checkpoint.py` eva
                   (B, N, C, H, W)
                          |
                          v
-                      flatten
+                  shared CNNEncoder
                          |
                          v
-         concat vec + optional z embedding
+         concat scalar vec + optional z embedding
                          |
                          v
               shared MLP actor + action heads

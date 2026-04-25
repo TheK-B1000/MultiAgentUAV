@@ -14,9 +14,11 @@ from gymnasium import spaces
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 
+from game_field_gpu import VEC_OBS_DIM
 from rl.config_presets import ablation_flag_resample_config, paper_default_latent_config
 from rl.custom_ppo import CustomPPOTrainer, SharedActorCentralizedCritic
 from rl.global_state import GLOBAL_STATE_DIM
+from rl.networks import CNNEncoder
 from rl.train_ppo import PPOConfig
 
 
@@ -24,7 +26,7 @@ def _min_obs_and_action_spaces():
     obs_space = spaces.Dict(
         {
             "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
-            "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, 18), dtype=np.float32),
+            "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
             "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
             "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
         }
@@ -46,29 +48,27 @@ class OperationalGapGuardsTests(unittest.TestCase):
         b = 2
         obs = {
             "grid": torch.rand(b, 2, 7, 20, 20),
-            "vec": torch.rand(b, 2, 18),
+            "vec": torch.rand(b, 2, VEC_OBS_DIM),
             "agent_mask": torch.ones(b, 2),
             "mask": torch.ones(b, 110),
         }
         z = torch.zeros((b,), dtype=torch.long)
         m.policy_logits(obs, z_idx=z)
 
-    def test_active_actor_matches_word_mlp_contract(self) -> None:
-        """Word doc implementation details: concat(local_obs, z_emb) -> 256-256 MLP logits."""
+    def test_active_actor_matches_cnn_plus_scalar_mlp_contract(self) -> None:
+        """Professor-approved implementation: CNN(grid), concat scalars/z, then 256-256 MLP logits."""
         obs_space, action_space = _min_obs_and_action_spaces()
         m = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=16)
 
-        self.assertFalse(
-            any(isinstance(module, nn.Conv2d) for module in m.modules()),
-            "Active Summer-plan actor must flatten local observations into an MLP, not use a CNN trunk.",
-        )
+        self.assertIsInstance(m.actor_cnn, CNNEncoder)
+        self.assertTrue(any(isinstance(module, nn.Conv2d) for module in m.actor_cnn.modules()))
         self.assertIsInstance(m.strategy_embedding, nn.Embedding)
         self.assertEqual(m.strategy_embedding.num_embeddings, 4)
         self.assertEqual(m.strategy_embedding.embedding_dim, 16)
 
         body = list(m.actor_body)
         self.assertEqual([type(layer) for layer in body], [nn.Linear, nn.ReLU, nn.Linear, nn.ReLU])
-        self.assertEqual(body[0].in_features, 7 * 20 * 20 + 18 + 16)
+        self.assertEqual(body[0].in_features, m.actor_cnn_feature_dim + VEC_OBS_DIM + 16)
         self.assertEqual(body[0].out_features, 256)
         self.assertEqual(body[2].in_features, 256)
         self.assertEqual(body[2].out_features, 256)

@@ -15,11 +15,11 @@ The active training environment is a lightweight custom vector env:
 Each blue-team policy observation is a `spaces.Dict`:
 
 - `grid`: `Box(0, 1, shape=(N, 7, 20, 20), dtype=float32)`
-- `vec`: `Box(-1, 1, shape=(N, 18), dtype=float32)`
+- `vec`: `Box(-1, 1, shape=(N, 20), dtype=float32)`
 - `agent_mask`: `Box(0, 1, shape=(N,), dtype=float32)`
 - `mask`: `Box(0, 1, shape=(N * 55,), dtype=float32)`
 
-`N` is `n_agents_per_team`. The spatial `grid` is built **per agent** in `BatchedCTFCore._build_grid_obs` (channel maps over a local field of view, not a dump of full-game state into the actor). With the Summer-plan policy path, that tensor is **flattened** and concatenated to `vec` and the strategy embedding; it is **not** the same as `global_state` (which is only for `q_\phi` and the centralized critic in CTDE). This preserves **decentralized execution** at the actor: per-agent local tensors + shared `z`, while global summaries stay in the critic/encoder only.
+`N` is `n_agents_per_team`. The spatial `grid` is built **per agent** in `BatchedCTFCore._build_grid_obs` (channel maps over a local field of view, not a dump of full-game state into the actor). The active policy encodes that tensor with a shared CNN, then concatenates the CNN output with `vec` and the strategy embedding. `vec` contains 18 local scalar features plus own/opponent normalized flag-capture score counts. `global_state` remains only for `q_\phi` and the centralized critic in CTDE.
 
 ## Action Spec
 

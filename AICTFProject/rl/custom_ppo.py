@@ -27,7 +27,7 @@ from rl.global_state import (
     coarse_game_phase_from_global_state,
 )
 from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator
-from rl.networks import CentralizedCritic
+from rl.networks import CNNEncoder, CentralizedCritic
 from rl.ppo_core import TensorDictRolloutBuffer, ppo_policy_loss, ppo_value_loss
 
 
@@ -257,14 +257,21 @@ class CustomPPOInferencePolicy:
 
 
 def _model_kwargs_from_cfg(cfg: Any) -> dict[str, int]:
-    if not isinstance(cfg, dict) or not bool(cfg.get("use_latent_strategy", False)):
+    if not isinstance(cfg, dict):
         return {}
-    return {
-        "latent_k": int(cfg.get("latent_k", 4)),
-        "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
-        "strategy_hidden_dim": int(cfg.get("latent_strategy_hidden", 128)),
-        "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
+    kwargs: dict[str, int] = {
+        "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
     }
+    if bool(cfg.get("use_latent_strategy", False)):
+        kwargs.update(
+            {
+                "latent_k": int(cfg.get("latent_k", 4)),
+                "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
+                "strategy_hidden_dim": int(cfg.get("latent_strategy_hidden", 128)),
+                "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
+            }
+        )
+    return kwargs
 
 
 # Intentional, stable split from ``PPOConfig.seed`` (E3 / trace §13). Do not “tweak” without a note.
@@ -344,6 +351,7 @@ class SharedActorCentralizedCritic(nn.Module):
         action_space,
         *,
         actor_hidden_dim: int = 256,
+        actor_cnn_feature_dim: int = 128,
         critic_hidden_dim: int = 128,
         latent_k: int = 0,
         z_embed_dim: int = 16,
@@ -360,7 +368,11 @@ class SharedActorCentralizedCritic(nn.Module):
         self.n_agents = int(grid_shape[0])
         self.vec_dim = int(vec_shape[1])
         c, h, w = int(grid_shape[1]), int(grid_shape[2]), int(grid_shape[3])
-        self._flat_per_agent = c * h * w + self.vec_dim
+        self.grid_shape = (c, h, w)
+        self.actor_cnn = CNNEncoder(self.grid_shape, feature_dim=int(actor_cnn_feature_dim))
+        self.actor_cnn_feature_dim = int(self.actor_cnn.feature_dim)
+        self._scalar_per_agent = self.vec_dim
+        self._local_actor_in_dim = self.actor_cnn_feature_dim + self._scalar_per_agent
         self.action_dims = tuple(int(v) for v in getattr(action_space, "nvec", []))
         if len(self.action_dims) % self.n_agents != 0:
             raise ValueError("MultiDiscrete action heads must divide evenly across agents.")
@@ -389,9 +401,9 @@ class SharedActorCentralizedCritic(nn.Module):
             self.strategy_encoder = None
             self.strategy_embedding = None
 
-        # Decentralized policy: MLP input width is **only** per-agent local features (+ z_emb), never `GLOBAL_STATE_DIM`.
+        # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
         self._decentralized_actor_in_dim = int(
-            self._flat_per_agent + (self.z_embed_dim if self.uses_latent_strategy else 0)
+            self._local_actor_in_dim + (self.z_embed_dim if self.uses_latent_strategy else 0)
         )
         actor_in = self._decentralized_actor_in_dim
         # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
@@ -466,17 +478,24 @@ class SharedActorCentralizedCritic(nn.Module):
         if vec.dim() != 3:
             raise ValueError(f"vec must have shape (B, N, V), got {tuple(vec.shape)}")
         batch = int(grid.shape[0])
-        # Paper-style flat local obs per agent: flatten the local grid tensor, concat vec.
-        gflat = grid.reshape(batch, self.n_agents, -1)
+        if int(grid.shape[1]) != self.n_agents or tuple(int(v) for v in grid.shape[2:]) != self.grid_shape:
+            raise ValueError(
+                f"grid must have shape (B, {self.n_agents}, {self.grid_shape[0]}, "
+                f"{self.grid_shape[1]}, {self.grid_shape[2]}), got {tuple(grid.shape)}"
+            )
+        if int(vec.shape[1]) != self.n_agents or int(vec.shape[2]) != self.vec_dim:
+            raise ValueError(f"vec must have shape (B, {self.n_agents}, {self.vec_dim}), got {tuple(vec.shape)}")
+        cnn_features = self.actor_cnn(grid.reshape(batch * self.n_agents, *self.grid_shape))
+        cnn_features = cnn_features.reshape(batch, self.n_agents, self.actor_cnn_feature_dim)
         vloc = vec.float()
         agent_mask = obs.get("agent_mask")
         if agent_mask is not None:
             if agent_mask.dim() == 1:
                 agent_mask = agent_mask.unsqueeze(0)
             mask = agent_mask.float().unsqueeze(-1)
-            gflat = gflat * mask
+            cnn_features = cnn_features * mask
             vloc = vloc * mask
-        local_obs = torch.cat([gflat, vloc], dim=-1)
+        local_obs = torch.cat([cnn_features, vloc], dim=-1)
         actor_inputs: list[torch.Tensor] = [local_obs]
         if self.uses_latent_strategy:
             if z_idx is None:
@@ -492,7 +511,8 @@ class SharedActorCentralizedCritic(nn.Module):
         d_in = int(actor_in.shape[-1])
         if d_in != self._decentralized_actor_in_dim:
             raise AssertionError(
-                f"decentralized actor expects concat width {self._decentralized_actor_in_dim} (local + z), got {d_in}"
+                f"decentralized actor expects concat width {self._decentralized_actor_in_dim} "
+                f"(cnn_features + scalars + z), got {d_in}"
             )
         if d_in == int(GLOBAL_STATE_DIM):
             raise AssertionError("actor input width equals GLOBAL_STATE_DIM; policy must not consume global state")
@@ -635,14 +655,18 @@ class CustomPPOTrainer:
         self.use_latent_strategy = bool(getattr(cfg, "use_latent_strategy", False))
         self.latent_k = int(getattr(cfg, "latent_k", 4)) if self.use_latent_strategy else 0
         self.latent_resample_every_n = max(0, int(getattr(cfg, "latent_resample_every_n", 0) or 0))
-        model_kwargs: dict[str, int] = {}
+        model_kwargs: dict[str, int] = {
+            "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
+        }
         if self.use_latent_strategy:
-            model_kwargs = {
-                "latent_k": self.latent_k,
-                "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
-                "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
-                "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
-            }
+            model_kwargs.update(
+                {
+                    "latent_k": self.latent_k,
+                    "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
+                    "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
+                    "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
+                }
+            )
         self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
         apply_deterministic_sampling_generators(
             self.model, int(getattr(cfg, "seed", 0) or 0), device=self.device
@@ -684,7 +708,7 @@ class CustomPPOTrainer:
         self._decentralized_actor_contract_logged: bool = False
 
     def _log_decentralized_actor_contract_once(self) -> None:
-        """One-time training log: policy MLP is local + optional z only (decentralized execution; not the 14-d global vector)."""
+        """One-time training log: policy actor is CNN(grid) + scalars + optional z, not global state."""
         if self._decentralized_actor_contract_logged:
             return
         m = self.model
@@ -692,13 +716,16 @@ class CustomPPOTrainer:
         if m.uses_latent_strategy:
             print(
                 "[PPO] Decentralized actor contract: per-agent MLP input dim = "
-                f"{m._decentralized_actor_in_dim} (local {m._flat_per_agent} + z_emb {m.z_embed_dim}); "
+                f"{m._decentralized_actor_in_dim} "
+                f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent} + z_emb {m.z_embed_dim}); "
                 f"global_state_dim={GLOBAL_STATE_DIM} is for q_phi/critic only."
             )
         else:
             print(
                 "[PPO] Decentralized actor contract: per-agent MLP input dim = "
-                f"{m._decentralized_actor_in_dim} (local only, no z); global_state_dim={GLOBAL_STATE_DIM} not used in policy."
+                f"{m._decentralized_actor_in_dim} "
+                f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent}, no z); "
+                f"global_state_dim={GLOBAL_STATE_DIM} not used in policy."
             )
         self._decentralized_actor_contract_logged = True
 

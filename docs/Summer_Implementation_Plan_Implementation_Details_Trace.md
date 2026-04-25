@@ -85,7 +85,8 @@ Code pointers are relative to the `AICTFProject/` root unless noted.
 
 | Plan text | Status |
 | --- | --- |
-| Sketch: `MLP(concat(flat_obs, z_emb))` with 256–256 ReLU, linear head. | <span style="color:#1e8449">`SharedActorCentralizedCritic` flattens each agent’s local `grid` to a vector, concatenates `vec` and (if latent) `z_emb`, then `Linear → 256 → ReLU → 256 → ReLU → head`. Same for reference `LatentConditionedActor` in `rl/latent_marl.py`.</span> |
+| Sketch: `MLP(concat(flat_obs, z_emb))` with 256–256 ReLU, linear head. | <span style="color:#2471a3">Original flat-obs sketch kept as the baseline reference; see the next row for the active professor-approved CNN + MLP implementation.</span> |
+| Professor-approved implementation change (2026-04-25): CNN + MLP. | <span style="color:#a93226">Tracked deviation from the original flat sketch: the active actor now runs each per-agent `grid` through `CNNEncoder`, concatenates that CNN output with scalar `vec` (including normalized flag-capture score counts) and optional `z_emb`, then feeds the 256-256 MLP/action head.</span> |
 | Shared parameters across blue agents. | <span style="color:#1e8449">One shared network; tokenized per-agent forward.</span> |
 
 ---
