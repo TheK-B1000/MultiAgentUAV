@@ -287,6 +287,62 @@ class CustomPPOTrainer:
         self.value_clip_range = float(value_clip_range if value_clip_range is not None else clip_range)
         self.global_step = 0
         self.last_stats: dict[str, float] = {}
+        self._ep_wins = 0
+        self._ep_losses = 0
+        self._ep_draws = 0
+        self._episodes_completed = 0
+
+    def _opponent_legend(self, info: dict[str, Any]) -> str:
+        """Compact opponent string for logging (scripted:OP3, snapshot:name, ...)."""
+        er = info.get("episode_result") or {}
+        kind = str(er.get("opponent_kind", info.get("opponent_kind", "scripted")) or "scripted").lower()
+        if kind == "scripted":
+            tag = str(er.get("scripted_tag") or info.get("opponent_key", getattr(self.cfg, "fixed_opponent_tag", "OP3")))
+            return f"SCRIPTED:{str(tag).upper()}"
+        if kind == "snapshot":
+            snap = str(er.get("opponent_snapshot", "") or info.get("opponent_key", ""))
+            return f"SNAPSHOT:{snap}" if snap else "SNAPSHOT:unknown"
+        return f"{kind.upper()}:?"
+
+    def _phase_legend(self, info: dict[str, Any]) -> str:
+        """Curriculum / scripted-difficulty label (e.g. OP3), not the train-mode name."""
+        er = info.get("episode_result") or {}
+        return str(
+            er.get("phase_name")
+            or info.get("phase")
+            or getattr(self.cfg, "fixed_opponent_tag", "OP3")
+        ).upper()
+
+    def _on_episode_done(self, info: dict[str, Any]) -> None:
+        er = info.get("episode_result")
+        if isinstance(er, dict):
+            bs = int(er.get("blue_score", 0))
+            rs = int(er.get("red_score", 0))
+        else:
+            bs = int(info.get("blue_score", 0))
+            rs = int(info.get("red_score", 0))
+        if bs > rs:
+            self._ep_wins += 1
+        elif bs < rs:
+            self._ep_losses += 1
+        else:
+            self._ep_draws += 1
+        self._episodes_completed += 1
+        every = int(getattr(self.cfg, "episode_log_every", 0) or 0)
+        if every > 0 and self._episodes_completed % every == 0:
+            self._print_episode_progress(info)
+
+    def _print_episode_progress(self, info: dict[str, Any]) -> None:
+        n = self._episodes_completed
+        w, l, d = self._ep_wins, self._ep_losses, self._ep_draws
+        wr = 100.0 * float(w) / float(max(1, w + l + d))
+        mode = str(getattr(self.cfg, "mode", "FIXED_OPPONENT"))
+        phase = self._phase_legend(info)
+        opp = self._opponent_legend(info)
+        print(
+            f"[PPO] ep={n} mode={mode} phase={phase} opp={opp} "
+            f"W={w} L={l} D={d} WR={wr:.1f}%"
+        )
 
     def _tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
         return {
@@ -341,6 +397,9 @@ class CustomPPOTrainer:
             actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
             self.env.step_async(actions_np)
             next_obs, rewards, dones, infos = self.env.step_wait()
+            for done_i, info in zip(dones, infos):
+                if bool(done_i):
+                    self._on_episode_done(dict(info))
             next_global_state = self.env.state().astype(np.float32)
             next_values_t = self._next_values(infos, next_global_state)
             terminated = np.asarray([bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)])

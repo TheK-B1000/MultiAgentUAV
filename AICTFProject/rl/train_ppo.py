@@ -64,6 +64,8 @@ class PPOConfig:
     run_tag: str = "ppo_custom_2v2"
     enable_progress_bar: bool = True
     verbose_training: bool = False
+    # After this many *completed* episodes, print W/L/D and win rate (0 = disabled).
+    episode_log_every: int = 1000
 
     max_decision_steps: int = 400
     mode: str = TrainMode.FIXED_OPPONENT.value
@@ -107,6 +109,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
     print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
+    elog = int(getattr(cfg, "episode_log_every", 0) or 0)
+    if elog > 0:
+        print(
+            f"[PPO] Episode stats: every {elog} completed episode(s) print W/L/D and WR "
+            f"(mode={cfg.mode}, scripted opponent tag={str(cfg.fixed_opponent_tag).upper()})."
+        )
+    else:
+        print("[PPO] Episode stats logging disabled (episode_log_every=0).")
 
     if max_agents == 6:
         cfg.n_envs = min(int(cfg.n_envs), 1)
@@ -304,6 +314,13 @@ if __name__ == "__main__":
             action="store_true",
             help="Reserved. Latent strategy training will be added to the local trainer in the implementation phase.",
         )
+        parser.add_argument(
+            "--episode-log-every",
+            type=int,
+            default=None,
+            metavar="N",
+            help="Log W/L/D every N completed episodes (0=off; default from PPOConfig).",
+        )
         args = parser.parse_args()
 
         cfg = PPOConfig()
@@ -327,6 +344,8 @@ if __name__ == "__main__":
             cfg.use_deterministic = True
         if args.verbose_training:
             cfg.verbose_training = True
+        if args.episode_log_every is not None:
+            cfg.episode_log_every = max(0, int(args.episode_log_every))
         if args.latent_strategy:
             cfg.use_latent_strategy = True
         train_ppo(cfg)

@@ -14,10 +14,15 @@ Changed:
 - Removed `stable-baselines3` from `requirements.txt`.
 - Converted viewer, snapshot-opponent, and evaluation rollout loading to the local custom PPO checkpoint format.
 - Added `docs/algorithm.md` and updated architecture/environment/setup docs to describe the local trainer.
+- **Training log semantics (local PPO):** `CustomPPOTrainer` prints cumulative W/L/D and win rate on a schedule. Fields mean:
+  - **`mode`** — `PPOConfig.mode` (e.g. `FIXED_OPPONENT` = train vs a scripted or configured opponent, not self-play).
+  - **`phase`** — Scripted difficulty / curriculum label (e.g. `OP3`), from `info["episode_result"]["phase_name"]` or `fixed_opponent_tag`, *not* a second copy of `mode`.
+  - **`opp`** — Who red is for that episode, e.g. `SCRIPTED:OP3` or `SNAPSHOT:name`.
+- Configure interval with `PPOConfig.episode_log_every` or CLI `--episode-log-every N` (`0` = off). Default: every 1000 completed episodes.
 
 Verified:
 
-- `python -m unittest discover -v tests` passes: 34 tests.
+- `python run_tests.py` or `python -m unittest discover -v tests` (see `AICTFProject/run_tests.py`).
 - Added `tests/test_ppo.py` for GAE, policy clipping, and value clipping.
 - Added `tests/test_rollout_buffer.py` for named field registration, future `z` storage, minibatch flattening, and return computation.
 - Added a checkpoint inference regression test for the local PPO loader.
