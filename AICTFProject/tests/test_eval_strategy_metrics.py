@@ -1,9 +1,19 @@
 import unittest
 
-from plot.eval_rollout import compute_aggregates
+from plot.eval_rollout import _strategy_phase_from_global_state, compute_aggregates
 
 
 class EvalStrategyMetricsTests(unittest.TestCase):
+    def test_strategy_phase_uses_global_state_flag_bits(self) -> None:
+        base = [0.0] * 14
+        self.assertEqual(_strategy_phase_from_global_state(base), "neutral")
+        blue_attack = base[:]
+        blue_attack[11] = 1.0
+        self.assertEqual(_strategy_phase_from_global_state(blue_attack), "blue_attack")
+        blue_defense = base[:]
+        blue_defense[10] = 1.0
+        self.assertEqual(_strategy_phase_from_global_state(blue_defense), "blue_defense")
+
     def test_compute_aggregates_includes_strategy_diagnostics(self) -> None:
         episodes = [
             {
@@ -21,6 +31,8 @@ class EvalStrategyMetricsTests(unittest.TestCase):
                 "strategy_entropy_mean": 0.7,
                 "strategy_occupancy_0": 1.0,
                 "strategy_occupancy_1": 0.0,
+                "strategy_phase_neutral_occupancy_0": 1.0,
+                "strategy_phase_neutral_occupancy_1": 0.0,
             },
             {
                 "success": 0,
@@ -37,6 +49,8 @@ class EvalStrategyMetricsTests(unittest.TestCase):
                 "strategy_entropy_mean": 0.9,
                 "strategy_occupancy_0": 0.25,
                 "strategy_occupancy_1": 0.75,
+                "strategy_phase_neutral_occupancy_0": 0.5,
+                "strategy_phase_neutral_occupancy_1": 0.5,
             },
         ]
 
@@ -48,6 +62,8 @@ class EvalStrategyMetricsTests(unittest.TestCase):
         self.assertAlmostEqual(agg["strategy_entropy_step_mean"], 0.8)
         self.assertAlmostEqual(agg["strategy_occupancy_0_mean"], 0.625)
         self.assertAlmostEqual(agg["strategy_occupancy_1_mean"], 0.375)
+        self.assertAlmostEqual(agg["strategy_phase_neutral_occupancy_0_mean"], 0.75)
+        self.assertAlmostEqual(agg["strategy_phase_neutral_occupancy_1_mean"], 0.25)
 
 
 if __name__ == "__main__":

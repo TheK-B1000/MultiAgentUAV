@@ -123,6 +123,7 @@ Latent checkpoints record rollout strategy diagnostics in checkpoint `last_stats
 - `strategy_unique_count`
 - `strategy_entropy_mean`
 - `strategy_occupancy_0...K`
+- `strategy_phase_<phase>_occupancy_0...K`
 
 Generate strategy plots from any episode-level training/eval CSV:
 
@@ -130,12 +131,12 @@ Generate strategy plots from any episode-level training/eval CSV:
 python plot/plot_metrics.py checkpoints/2v2/ppo_latent_fixed_op3_2v2_episodes.csv --window 10
 ```
 
-This writes `strategy_switch_rate_vs_episode.*` and `strategy_occupancy.*` under `figures/` when those columns are present.
+This writes `strategy_switch_rate_vs_episode.*`, `strategy_occupancy.*`, and `strategy_phase_occupancy.*` under `figures/` when those columns are present.
 
 Evaluate any single checkpoint, including ablations:
 
 ```bash
-python plot/eval_checkpoint.py --checkpoint checkpoints/2v2/final_ppo_latent_fixed_op3_2v2.zip --agents 2 --opponents OP3 OP4 --episodes 100
+python plot/eval_checkpoint.py --checkpoint checkpoints/2v2/final_ppo_latent_fixed_op3_2v2.zip --agents 2 --opponents OP3 OP4 --map-sets train eval --episodes 100
 ```
 
 ## Final Experiment Matrix
@@ -143,7 +144,7 @@ python plot/eval_checkpoint.py --checkpoint checkpoints/2v2/final_ppo_latent_fix
 Generate the final-phase command matrix without launching long jobs:
 
 ```bash
-python experiments/phase6_experiment_matrix.py --agents 2 4 6 --seeds 42 43 44 --steps 100000 --eval-episodes 100 --out csv/phase6_commands.csv
+python experiments/phase6_experiment_matrix.py --agents 2 4 6 --seeds 42 43 44 --steps 100000 --eval-episodes 100 --eval-map-sets train eval --out csv/phase6_commands.csv
 ```
 
-The matrix covers latent default, vanilla local PPO, no-persistence, lower-K, sparse-refresh, and OP2-trained comparison variants. Add `--execute` only when you are ready to run the long training/evaluation sequence.
+The matrix trains on the `train` map split and evaluates on both `train` and held-out `eval` map splits. It covers latent default, vanilla local PPO, no-persistence, lower-K, sparse-refresh, and OP2-trained comparison variants. Add `--execute` only when you are ready to run the long training/evaluation sequence.

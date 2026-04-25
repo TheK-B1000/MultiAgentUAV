@@ -23,6 +23,24 @@ def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
     return float(model.entropy(single_obs))
 
 
+def _strategy_phase_from_global_state(global_state: Any) -> str:
+    """Compact phase label from the 14-float global state flag-status bits."""
+    if global_state is None:
+        return "unknown"
+    arr = np.asarray(global_state, dtype=np.float32).reshape(-1)
+    if arr.size < 12:
+        return "unknown"
+    blue_flag_captured = bool(arr[10] > 0.5)
+    red_flag_captured = bool(arr[11] > 0.5)
+    if blue_flag_captured and red_flag_captured:
+        return "both_flags"
+    if red_flag_captured:
+        return "blue_attack"
+    if blue_flag_captured:
+        return "blue_defense"
+    return "neutral"
+
+
 def run_eval_episodes(
     model_path: str,
     env: Any,
@@ -94,6 +112,7 @@ def run_eval_episodes(
         strategy_steps = 0
         strategy_entropy_sum = 0.0
         strategy_k = 0
+        strategy_phase_counts: dict[str, dict[int, int]] = {}
         while True:
             single = {
                 k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
@@ -103,6 +122,7 @@ def run_eval_episodes(
                 single["global_state"] = env.state()[0]
             except Exception:
                 pass
+            strategy_phase = _strategy_phase_from_global_state(single.get("global_state"))
             if record_entropy and steps == 0:
                 try:
                     ep_entropy_first = _policy_entropy_first_step(model, single)
@@ -113,6 +133,8 @@ def run_eval_episodes(
             if "strategy" in strategy_info:
                 strategy = int(strategy_info["strategy"])
                 strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
+                phase_counts = strategy_phase_counts.setdefault(strategy_phase, {})
+                phase_counts[strategy] = phase_counts.get(strategy, 0) + 1
                 if strategy_prev is not None and strategy != strategy_prev:
                     strategy_switches += 1
                 strategy_prev = strategy
@@ -172,6 +194,12 @@ def run_eval_episodes(
                             row["strategy_dominant"] = dominant
                             for z_idx in range(strategy_k):
                                 row[f"strategy_occupancy_{z_idx}"] = float(strategy_counts.get(z_idx, 0)) / denom
+                            for phase, counts in sorted(strategy_phase_counts.items()):
+                                phase_denom = float(max(1, sum(counts.values())))
+                                for z_idx in range(strategy_k):
+                                    row[f"strategy_phase_{phase}_occupancy_{z_idx}"] = (
+                                        float(counts.get(z_idx, 0)) / phase_denom
+                                    )
                         episodes.append(row)
                         if progress_every > 0:
                             le = len(episodes)
@@ -360,7 +388,7 @@ def compute_aggregates(episodes: list[dict]) -> dict:
             key
             for episode in episodes
             for key in episode.keys()
-            if key.startswith("strategy_occupancy_")
+            if key.startswith("strategy_occupancy_") or key.startswith("strategy_phase_")
         }
     )
     for key in occupancy_keys:

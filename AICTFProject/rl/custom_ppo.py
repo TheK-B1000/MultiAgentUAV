@@ -506,6 +506,8 @@ class CustomPPOTrainer:
         self._episodes_completed = 0
         self.metrics_csv_path = str(getattr(cfg, "metrics_csv_path", "") or "")
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
+        self._last_obs: Optional[Dict[str, np.ndarray]] = None
+        self._last_global_state: Optional[np.ndarray] = None
         self._current_z: Optional[torch.Tensor] = None
         self._strategy_age = torch.zeros((int(env.num_envs),), dtype=torch.long, device=self.device)
         self._needs_strategy_sample = torch.ones((int(env.num_envs),), dtype=torch.bool, device=self.device)
@@ -527,6 +529,7 @@ class CustomPPOTrainer:
             "episode_id",
             "timesteps",
             "mode",
+            "map_set",
             "phase_name",
             "opponent",
             "success",
@@ -581,6 +584,7 @@ class CustomPPOTrainer:
             "episode_id": self._episodes_completed,
             "timesteps": int(timestep),
             "mode": str(getattr(self.cfg, "mode", "FIXED_OPPONENT")),
+            "map_set": str(info.get("map_set", getattr(self.cfg, "map_set", "train"))).lower(),
             "phase_name": self._phase_legend(info),
             "opponent": self._opponent_legend(info),
             "success": 1 if blue_score > red_score else 0,
@@ -847,9 +851,13 @@ class CustomPPOTrainer:
 
     def collect_rollout(self) -> TensorDictRolloutBuffer:
         """Collect one rollout and compute advantages/returns."""
-        obs = self.env.reset()
-        global_state = self.env.state().astype(np.float32)
-        self._reset_strategy_state()
+        if self._last_obs is None or self._last_global_state is None:
+            obs = self.env.reset()
+            global_state = self.env.state().astype(np.float32)
+            self._reset_strategy_state()
+        else:
+            obs = self._last_obs
+            global_state = self._last_global_state
         buffer = self._make_buffer(obs)
         for _ in range(int(self.cfg.n_steps)):
             obs_t = self._tensor_obs(obs)
@@ -906,6 +914,8 @@ class CustomPPOTrainer:
             gamma=float(self.cfg.gamma),
             gae_lambda=float(self.cfg.gae_lambda),
         )
+        self._last_obs = obs
+        self._last_global_state = global_state
         return buffer
 
     def update(self, buffer: TensorDictRolloutBuffer, *, total_timesteps: int) -> dict[str, float]:
@@ -1041,3 +1051,6 @@ class CustomPPOTrainer:
         self.global_step = int(payload.get("global_step", 0))
         self._updates_completed = int(payload.get("updates_completed", 0))
         self.last_stats = dict(payload.get("last_stats", {}))
+        self._last_obs = None
+        self._last_global_state = None
+        self._current_z = None

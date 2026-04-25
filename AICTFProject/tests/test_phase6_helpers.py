@@ -13,6 +13,7 @@ class Phase6HelperTests(unittest.TestCase):
             steps=100,
             eval_episodes=3,
             eval_opponents=["OP3", "OP4"],
+            eval_map_sets=["train", "eval"],
             device="cpu",
             checkpoint_root="checkpoints/phase6",
             python="python",
@@ -26,8 +27,10 @@ class Phase6HelperTests(unittest.TestCase):
         self.assertIn("no_persistence", variants)
         vanilla = next(row for row in rows if row["variant"] == "vanilla")
         self.assertIn("--no-latent-strategy", vanilla["train_command"])
+        self.assertIn("--map-set train", vanilla["train_command"])
         default = next(row for row in rows if row["variant"] == "latent_default")
         self.assertIn("plot/eval_checkpoint.py", default["eval_command"])
+        self.assertIn("--map-sets train eval", default["eval_command"])
 
     def test_eval_checkpoint_field_union_preserves_strategy_columns(self) -> None:
         fields = _union_fieldnames(

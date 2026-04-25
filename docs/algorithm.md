@@ -94,7 +94,7 @@ Advantages are normalized per minibatch. Entropy is computed from the masked cat
 The Summer Implementation Plan's latent strategy components are wired into `CustomPPOTrainer`:
 
 - `q_phi(z | s)`: reads the `global_state` rollout field.
-- Strategy sampling: defaults to episode/rollout start only. `latent_resample_every_n > 0` enables sparse refresh every N decision steps.
+- Strategy sampling: defaults to episode start only and persists across PPO rollout/update boundaries. `latent_resample_every_n > 0` enables sparse refresh every N decision steps.
 - Policy conditioning: pass `z` through a learned strategy embedding concatenated to each agent's actor features.
 - Critic conditioning: pass joint-action one-hot plus `z_onehot` through `CentralizedCritic.forward(global_state, extra=...)`.
 - Strategy PPO ratio: `q_phi(z | s_t)` log-prob for the active strategy is included in the old/new PPO ratio, while `z_resampled` records when a new discrete strategy was actually sampled.
@@ -115,6 +115,7 @@ Latent checkpoints expose the most recent `z` decision through `CustomPPOInferen
 - `strategy_unique_count`: number of distinct strategy ids used in the episode.
 - `strategy_entropy_mean`: mean categorical entropy from `q_phi(z | s)`.
 - `strategy_occupancy_0...K`: per-strategy episode occupancy.
+- `strategy_phase_<phase>_occupancy_0...K`: per-strategy occupancy conditioned on coarse flag-state phases (`neutral`, `blue_attack`, `blue_defense`, `both_flags`).
 
 Trainer checkpoints also persist rollout-level `last_stats` with strategy occupancy, dominant strategy, switch fraction, and resample fraction. These are diagnostics for collapse/specialization; they do not change the PPO objective.
 
@@ -125,4 +126,4 @@ Trainer checkpoints also persist rollout-level `last_stats` with strategy occupa
 - Per-update metrics: PPO losses, KL, entropy, rollout reward/return summaries, cumulative W/L/D, cumulative win rate, and strategy rollout diagnostics.
 - Per-episode metrics: score, success, decision steps, opponent/phase labels, and environment episode fields.
 
-`plot/eval_checkpoint.py` evaluates any single checkpoint against OP3/OP4 or another scripted opponent list and writes per-episode plus aggregate CSVs. `experiments/phase6_experiment_matrix.py` generates the reproducible final experiment commands for default latent, vanilla, persistence, K, sparse-refresh, and OP2-trained comparison variants.
+`plot/eval_checkpoint.py` evaluates any single checkpoint against OP3/OP4 or another scripted opponent list on one or more map splits and writes per-episode plus aggregate CSVs. `experiments/phase6_experiment_matrix.py` generates the reproducible final experiment commands for default latent, vanilla, persistence, K, sparse-refresh, OP2-trained comparison, and train-vs-held-out-map generalization variants.

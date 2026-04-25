@@ -8,6 +8,7 @@ The matrix covers the Summer-plan core comparisons:
 - smaller K ablation
 - sparse strategy refresh ablation
 - OP2-trained comparison evaluated on OP3/OP4
+- train-map vs held-out eval-map generalization
 
 The script prints commands by default and can also write them to CSV. It does
 not run long jobs unless ``--execute`` is set.
@@ -67,6 +68,8 @@ def _command_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                     "FIXED_OPPONENT",
                     "--fixed-opponent",
                     variant.fixed_opponent,
+                    "--map-set",
+                    "train",
                     "--agents",
                     str(int(agents)),
                     "--seed",
@@ -92,6 +95,8 @@ def _command_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                     str(int(agents)),
                     "--opponents",
                     *args.eval_opponents,
+                    "--map-sets",
+                    *args.eval_map_sets,
                     "--episodes",
                     str(int(args.eval_episodes)),
                     "--device",
@@ -120,6 +125,7 @@ def main() -> None:
     parser.add_argument("--steps", type=int, default=100_000, help="Training steps per run.")
     parser.add_argument("--eval-episodes", type=int, default=100)
     parser.add_argument("--eval-opponents", nargs="+", default=["OP3", "OP4"])
+    parser.add_argument("--eval-map-sets", nargs="+", default=["train", "eval"], choices=["train", "eval"])
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--checkpoint-root", type=str, default=os.path.join("checkpoints", "phase6"))
     parser.add_argument("--python", type=str, default=sys.executable or "python")

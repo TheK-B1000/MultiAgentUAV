@@ -19,6 +19,7 @@ Optionally, it may also contain:
     - phase_name
     - strategy_switch_rate
     - strategy_occupancy_0, strategy_occupancy_1, ...
+    - strategy_phase_neutral_occupancy_0, strategy_phase_blue_attack_occupancy_1, ...
 
 The script produces high-DPI PDF (and PNG) figures that can be included in LaTeX
 via \\includegraphics.
@@ -28,6 +29,7 @@ import argparse
 import csv
 import math
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -259,6 +261,63 @@ def plot_strategy_occupancy(csv_paths: List[Path], out_dir: Path) -> None:
     print(f"[plot_metrics] Wrote {out_pdf} and {out_png}")
 
 
+def plot_strategy_phase_occupancy(csv_paths: List[Path], out_dir: Path) -> None:
+    """Optional: plot strategy occupancy conditioned on coarse game phase."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    pattern = re.compile(r"^strategy_phase_(.+)_occupancy_(\d+)$")
+    phase_values: Dict[str, Dict[int, List[float]]] = {}
+
+    for csv_path in csv_paths:
+        data = _load_csv(csv_path)
+        matched = False
+        for key, values in data.items():
+            m = pattern.match(key)
+            if not m:
+                continue
+            matched = True
+            phase = m.group(1)
+            z_idx = int(m.group(2))
+            phase_values.setdefault(phase, {}).setdefault(z_idx, []).extend(
+                float(v) for v in values if _is_finite(v)
+            )
+        if not matched:
+            print(f"[plot_metrics] Skipping {csv_path} for phase occupancy (missing columns).")
+
+    if not phase_values:
+        return
+
+    phases = sorted(phase_values)
+    strategies = sorted({z for per_phase in phase_values.values() for z in per_phase})
+    if not strategies:
+        return
+
+    fig, ax = plt.subplots(figsize=(max(5.0, 1.2 * len(phases)), 3.2))
+    x = list(range(len(phases)))
+    bottoms = [0.0 for _ in phases]
+    for z_idx in strategies:
+        vals: List[float] = []
+        for phase in phases:
+            raw = phase_values.get(phase, {}).get(z_idx, [])
+            vals.append(sum(raw) / float(len(raw)) if raw else 0.0)
+        ax.bar(x, vals, bottom=bottoms, label=f"z={z_idx}", alpha=0.9)
+        bottoms = [b + v for b, v in zip(bottoms, vals)]
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(phases, rotation=25, ha="right")
+    ax.set_ylabel("Mean occupancy")
+    ax.set_ylim(0.0, 1.05)
+    ax.set_title("Latent strategy occupancy by game phase")
+    ax.legend(title="Strategy")
+
+    out_pdf = out_dir / "strategy_phase_occupancy.pdf"
+    out_png = out_dir / "strategy_phase_occupancy.png"
+    fig.tight_layout()
+    fig.savefig(out_pdf, bbox_inches="tight")
+    fig.savefig(out_png, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[plot_metrics] Wrote {out_pdf} and {out_png}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot custom PPO CTF metrics CSVs for LaTeX-ready figures.")
     parser.add_argument(
@@ -303,6 +362,7 @@ def main() -> None:
     if not args.no_strategy:
         plot_strategy_switches(csv_paths, out_dir, window=args.window)
         plot_strategy_occupancy(csv_paths, out_dir)
+        plot_strategy_phase_occupancy(csv_paths, out_dir)
 
 
 if __name__ == "__main__":

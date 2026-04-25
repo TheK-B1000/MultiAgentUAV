@@ -34,7 +34,7 @@ Changed:
 - Added `StrategyEncoder q_phi(z | s)` sampling over the true 14-float global state.
 - Added shared strategy embedding conditioning to the decentralized actor.
 - Added action-conditioned centralized critic inputs: joint-action one-hot plus `z_onehot`.
-- Added sparse strategy sampling support: default once at episode/rollout start, or every `latent_resample_every_n` decisions.
+- Added sparse strategy sampling support: default once at episode start, or every `latent_resample_every_n` decisions.
 - Added masked persistence and strategy entropy losses to the PPO update.
 - Updated checkpoint inference, viewer, and evaluation rollout code so latent checkpoints receive `global_state` during prediction.
 - Added CLI controls: `--no-latent-strategy`, `--latent-k`, `--latent-resample-every`, `--latent-lam-p`, `--latent-lam-h`, and `--latent-z-embed-dim`.
@@ -59,6 +59,7 @@ Changed:
 - Added per-episode strategy columns to shared evaluation rollouts and viewer evaluation CSVs.
 - Added aggregate strategy metrics to `plot_eval_metrics.py`, including CSV reload support for frozen tables.
 - Added `plot_metrics.py` strategy figures for switch-rate traces and mean occupancy bars.
+- Added strategy occupancy-by-phase columns/plots for post hoc interpretation by coarse flag-state phase.
 
 Verified:
 
@@ -78,6 +79,7 @@ Changed:
 - Added default training telemetry CSVs: per-update PPO/strategy stats and per-episode outcome rows.
 - Added `plot/eval_checkpoint.py` for evaluating any single checkpoint/ablation against OP3, OP4, or another scripted opponent list.
 - Added `experiments/phase6_experiment_matrix.py` to generate the final Summer-plan experiment commands for latent default, vanilla PPO, no-persistence, lower-K, sparse-refresh, and OP2-trained comparison runs.
+- Added train/eval map-set controls so the matrix trains on the training split and evaluates on held-out maps for the Summer-plan generalization experiment.
 - Added `--seed`, `--metrics-csv`, `--episode-csv`, and `--no-metrics-csv` training CLI controls.
 - Updated setup/algorithm docs with the telemetry and final experiment workflow.
 

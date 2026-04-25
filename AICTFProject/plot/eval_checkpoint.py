@@ -55,6 +55,7 @@ def main() -> None:
     parser.add_argument("--label", default=None, help="Short label used in CSVs/filenames")
     parser.add_argument("--agents", type=int, default=None, help="Agents per team; default reads checkpoint metadata")
     parser.add_argument("--opponents", nargs="+", default=["OP3", "OP4"], help="Scripted opponents to evaluate")
+    parser.add_argument("--map-sets", nargs="+", default=["train", "eval"], choices=["train", "eval"], help="Map splits to evaluate")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--seed", type=int, default=42)
@@ -78,70 +79,75 @@ def main() -> None:
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 
     aggregate_rows: list[dict[str, Any]] = []
-    for opp_idx, raw_opp in enumerate(args.opponents):
-        opponent = str(raw_opp).strip().upper()
-        cfg = GPUFieldConfig(
-            n_envs=1,
-            max_blue_agents=agents,
-            max_red_agents=agents,
-            max_decision_steps=400,
-            aquaticus_profile=True,
-            rules_profile="OURS",
-            device=args.device,
-            seed=int(args.seed) + opp_idx,
-        )
-        env = GPUCTFVecEnv(cfg)
-        try:
-            print(f"[eval_checkpoint] {label} {mode} vs {opponent}: {args.episodes} episode(s)")
-            episodes = run_eval_episodes(
-                checkpoint,
-                env,
-                int(args.episodes),
-                args.device,
-                opponent,
-                deterministic=bool(args.deterministic),
-                progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
+    for map_idx, raw_map_set in enumerate(args.map_sets):
+        map_set = str(raw_map_set).strip().lower()
+        for opp_idx, raw_opp in enumerate(args.opponents):
+            opponent = str(raw_opp).strip().upper()
+            cfg = GPUFieldConfig(
+                n_envs=1,
+                max_blue_agents=agents,
+                max_red_agents=agents,
+                map_set=map_set,
+                max_decision_steps=400,
+                aquaticus_profile=True,
+                rules_profile="OURS",
+                device=args.device,
+                seed=int(args.seed) + 1000 * map_idx + opp_idx,
             )
-        finally:
-            env.close()
+            env = GPUCTFVecEnv(cfg)
+            try:
+                print(f"[eval_checkpoint] {label} {mode} map={map_set} vs {opponent}: {args.episodes} episode(s)")
+                episodes = run_eval_episodes(
+                    checkpoint,
+                    env,
+                    int(args.episodes),
+                    args.device,
+                    opponent,
+                    deterministic=bool(args.deterministic),
+                    progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
+                )
+            finally:
+                env.close()
 
-        for idx, row in enumerate(episodes, start=1):
-            row["episode_id"] = idx
-            row["label"] = label
-            row["setting"] = mode
-            row["opponent"] = opponent
-            row["checkpoint"] = checkpoint
+            for idx, row in enumerate(episodes, start=1):
+                row["episode_id"] = idx
+                row["label"] = label
+                row["setting"] = mode
+                row["map_set"] = map_set
+                row["opponent"] = opponent
+                row["checkpoint"] = checkpoint
 
-        episode_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_{opponent}_{int(args.episodes)}ep.csv")
-        _write_rows(
-            episode_path,
-            episodes,
-            ["label", "setting", "opponent", "episode_id", "success", "blue_score", "red_score", "steps", "return"],
-        )
-        w, l, d = count_wld(episodes)
-        agg = compute_aggregates(episodes)
-        agg_row: dict[str, Any] = {
-            "label": label,
-            "setting": mode,
-            "opponent": opponent,
-            "checkpoint": checkpoint,
-            "episodes": len(episodes),
-            "wins": w,
-            "losses": l,
-            "draws": d,
-        }
-        agg_row.update(agg)
-        aggregate_rows.append(agg_row)
-        print(
-            f"  W={w} L={l} D={d} WR={100.0 * w / max(1, w + l + d):.1f}% | "
-            f"episodes: {episode_path}"
-        )
+            episode_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_{map_set}_{opponent}_{int(args.episodes)}ep.csv")
+            _write_rows(
+                episode_path,
+                episodes,
+                ["label", "setting", "map_set", "opponent", "episode_id", "success", "blue_score", "red_score", "steps", "return"],
+            )
+            w, l, d = count_wld(episodes)
+            agg = compute_aggregates(episodes)
+            agg_row: dict[str, Any] = {
+                "label": label,
+                "setting": mode,
+                "map_set": map_set,
+                "opponent": opponent,
+                "checkpoint": checkpoint,
+                "episodes": len(episodes),
+                "wins": w,
+                "losses": l,
+                "draws": d,
+            }
+            agg_row.update(agg)
+            aggregate_rows.append(agg_row)
+            print(
+                f"  W={w} L={l} D={d} WR={100.0 * w / max(1, w + l + d):.1f}% | "
+                f"episodes: {episode_path}"
+            )
 
     aggregate_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_aggregate.csv")
     _write_rows(
         aggregate_path,
         aggregate_rows,
-        ["label", "setting", "opponent", "episodes", "wins", "losses", "draws", "success_rate", "success_rate_std"],
+        ["label", "setting", "map_set", "opponent", "episodes", "wins", "losses", "draws", "success_rate", "success_rate_std"],
     )
     print(f"[eval_checkpoint] aggregate: {aggregate_path}")
 

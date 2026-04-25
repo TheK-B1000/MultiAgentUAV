@@ -115,7 +115,10 @@ def load_metrics_csv(csv_path: str) -> tuple[dict[str, dict[tuple[str, str], dic
             "strategy_entropy_step_std": _safe_float(row.get("strategy_entropy_step_std", 0)),
         }
         for key, value in row.items():
-            if key.startswith("strategy_occupancy_") and (key.endswith("_mean") or key.endswith("_std")):
+            if (
+                (key.startswith("strategy_occupancy_") or key.startswith("strategy_phase_"))
+                and (key.endswith("_mean") or key.endswith("_std"))
+            ):
                 agg[key] = _safe_float(value)
 
         if setting not in results_by_mode:
@@ -462,7 +465,10 @@ def main() -> None:
                 "strategy_entropy_step_std": r.get("strategy_entropy_step_std", 0),
             }
             for key, value in r.items():
-                if key.startswith("strategy_occupancy_") and (key.endswith("_mean") or key.endswith("_std")):
+                if (
+                    (key.startswith("strategy_occupancy_") or key.startswith("strategy_phase_"))
+                    and (key.endswith("_mean") or key.endswith("_std"))
+                ):
                     row[key] = value
             table_rows.append(row)
     # Print compact table to console

@@ -15,7 +15,7 @@ from pathlib import Path
 import torch
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
-from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
+from rl.custom_ppo import CustomPPOTrainer, load_custom_ppo_policy, read_custom_ppo_metadata
 from rl.train_ppo import PPOConfig, train_ppo
 
 
@@ -178,6 +178,38 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("success", ep_rows[0])
         finally:
             _cleanup_training_outputs(tag)
+
+    def test_latent_strategy_persists_across_rollout_boundaries(self) -> None:
+        cfg = _smoke_ppo_config(
+            run_tag="unittest_strategy_persistence_2v2",
+            checkpoint_dir=str(_WORKSPACE_TMP),
+        )
+        cfg.use_latent_strategy = True
+        cfg.n_steps = 1
+        cfg.batch_size = 1
+        cfg.max_decision_steps = 100
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=321))
+        try:
+            trainer = CustomPPOTrainer(
+                env,
+                cfg,
+                learning_rate=1e-4,
+                clip_range=0.2,
+                ent_coef=0.0,
+                n_epochs=1,
+                batch_size=1,
+                value_clip_range=0.2,
+            )
+            first = trainer.collect_rollout()
+            second = trainer.collect_rollout()
+            self.assertTrue(bool(first.fields["z_resampled"][0, 0].item()))
+            self.assertFalse(bool(second.fields["z_resampled"][0, 0].item()))
+            self.assertEqual(
+                int(first.fields["z"][0, 0].item()),
+                int(second.fields["z"][0, 0].item()),
+            )
+        finally:
+            env.close()
 
 
 if __name__ == "__main__":

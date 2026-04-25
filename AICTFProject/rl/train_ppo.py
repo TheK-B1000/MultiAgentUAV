@@ -71,6 +71,7 @@ class PPOConfig:
     episode_log_every: int = 1000
 
     max_decision_steps: int = 400
+    map_set: str = "train"
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     max_blue_agents: int = 2
@@ -86,7 +87,7 @@ class PPOConfig:
     latent_strategy_hidden: int = 128
     latent_lam_h: float = 0.005
     latent_lam_p: float = 0.02
-    # 0 means sample once at episode/rollout start; N>0 sparsely refreshes every N decisions.
+    # 0 means sample once at episode start; N>0 sparsely refreshes every N decisions.
     latent_resample_every_n: int = 0
 
 
@@ -107,9 +108,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
     print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
+    print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
     if bool(cfg.use_latent_strategy):
         interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
-        interval_label = "episode/rollout start" if interval <= 0 else f"every {interval} decision steps"
+        interval_label = "episode start" if interval <= 0 else f"every {interval} decision steps"
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, "
@@ -153,6 +155,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
         n_agents_per_team=max_agents,
+        map_set=str(getattr(cfg, "map_set", "train")).lower(),
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
         rules_profile="OURS",
@@ -335,6 +338,7 @@ if __name__ == "__main__":
         parser.add_argument("--no-metrics-csv", action="store_true", help="Disable training CSV telemetry.")
         parser.add_argument("--load", type=str, default=None)
         parser.add_argument("--fixed-opponent", type=str, default="OP3")
+        parser.add_argument("--map-set", type=str, choices=["train", "eval"], default=None)
         parser.add_argument("--agents", type=int, choices=[2, 4, 6, 8], default=None)
         parser.add_argument("--max-blue-agents", type=int, default=None)
         parser.add_argument("--device", type=str, default=None)
@@ -355,7 +359,7 @@ if __name__ == "__main__":
             "--latent-resample-every",
             type=int,
             default=None,
-            help="Sparse strategy refresh interval in decision steps; 0 samples at episode/rollout start only.",
+            help="Sparse strategy refresh interval in decision steps; 0 samples at episode start only.",
         )
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy bonus weight.")
@@ -384,6 +388,8 @@ if __name__ == "__main__":
         elif args.agents is not None:
             cfg.max_blue_agents = int(args.agents)
         cfg.fixed_opponent_tag = str(args.fixed_opponent).upper()
+        if args.map_set is not None:
+            cfg.map_set = str(args.map_set).lower()
         if args.latent_strategy:
             cfg.use_latent_strategy = True
         if args.no_latent_strategy:
