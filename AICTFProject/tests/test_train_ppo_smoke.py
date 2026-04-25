@@ -77,6 +77,23 @@ def _run_smoke_and_cleanup(*, tag: str) -> None:
 
 
 class TrainPpoSmokeTests(unittest.TestCase):
+    def test_csv_writer_rejects_existing_schema_mismatch(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        path = _WORKSPACE_TMP / "schema_mismatch_episodes.csv"
+        try:
+            path.write_text("episode_id,phase_name,opponent\n1,OP3,SCRIPTED:OP3\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "CSV schema mismatch"):
+                CustomPPOTrainer._write_csv_row(
+                    object(),
+                    str(path),
+                    ["episode_id", "opponent"],
+                    {"episode_id": 2, "opponent": "SCRIPTED:OP3"},
+                )
+        finally:
+            if path.exists():
+                path.unlink()
+
     def test_train_ppo_smoke_custom_few_steps(self) -> None:
         _run_smoke_and_cleanup(tag="unittest_smoke_custom_ppo_2v2")
 
@@ -175,6 +192,8 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 ep_rows = list(csv.DictReader(f))
             self.assertGreaterEqual(len(ep_rows), 1)
             self.assertIn("episode_id", ep_rows[0])
+            self.assertIn("opponent", ep_rows[0])
+            self.assertNotIn("phase_name", ep_rows[0])
             self.assertIn("success", ep_rows[0])
         finally:
             _cleanup_training_outputs(tag)

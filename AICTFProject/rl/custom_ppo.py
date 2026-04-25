@@ -719,6 +719,15 @@ class CustomPPOTrainer:
             return
         os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
         exists = os.path.isfile(path) and os.path.getsize(path) > 0
+        if exists:
+            with open(path, "r", newline="", encoding="utf-8") as f:
+                existing = next(csv.reader(f), [])
+            if existing != fieldnames:
+                raise ValueError(
+                    f"CSV schema mismatch for {path!r}: existing header {existing!r} "
+                    f"does not match expected header {fieldnames!r}. Use a new output path "
+                    "or migrate the existing CSV before appending."
+                )
         with open(path, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             if not exists:

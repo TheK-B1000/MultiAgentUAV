@@ -134,6 +134,6 @@ Trainer checkpoints also persist rollout-level `last_stats` with strategy occupa
 `train_ppo.py` writes two CSV streams unless `--no-metrics-csv` is passed:
 
 - Per-update metrics: PPO losses, KL, entropy, rollout reward/return summaries, cumulative W/L/D, cumulative win rate, and strategy rollout diagnostics.
-- Per-episode metrics: score, success, decision steps, opponent/phase labels, and environment episode fields.
+- Per-episode metrics: score, success, decision steps, opponent labels, and environment episode fields.
 
 `plot/eval_checkpoint.py` evaluates any single checkpoint against OP3/OP4 or another scripted opponent list on one or more map splits and writes per-episode plus aggregate CSVs. `experiments/phase6_experiment_matrix.py` generates the reproducible final experiment commands for default latent, vanilla, persistence, K, sparse-refresh, OP2-trained comparison, and train-vs-held-out-map generalization variants.
