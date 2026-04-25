@@ -1,8 +1,11 @@
 import unittest
 
+import numpy as np
 import torch
+from gymnasium import spaces
 
 from rl.global_state import GLOBAL_STATE_DIM
+from rl.custom_ppo import SharedActorCentralizedCritic
 from rl.latent_marl import (
     LatentConditionedActor,
     StrategyEncoder,
@@ -49,6 +52,41 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         penalty = expected_strategy_switch_penalty(logits, prev)
         self.assertEqual(tuple(penalty.shape), (2,))
         self.assertLess(float(penalty.max().item()), 0.01)
+
+    def test_custom_ppo_model_conditions_actor_and_critic_on_strategy(self):
+        obs_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, 18), dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
+            }
+        )
+        action_space = spaces.MultiDiscrete([5, 50, 5, 50])
+        model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=8)
+        obs = {
+            "grid": torch.rand(3, 2, 7, 20, 20),
+            "vec": torch.rand(3, 2, 18),
+            "agent_mask": torch.ones(3, 2),
+            "mask": torch.ones(3, 110),
+        }
+        global_state = torch.rand(3, GLOBAL_STATE_DIM)
+        z, z_log_prob, z_entropy, z_logits = model.sample_strategy(global_state)
+        actions, values, action_log_prob, action_entropy = model.act(obs, global_state, z_idx=z)
+
+        self.assertEqual(tuple(z.shape), (3,))
+        self.assertEqual(tuple(z_logits.shape), (3, 4))
+        self.assertEqual(tuple(z_log_prob.shape), (3,))
+        self.assertEqual(tuple(z_entropy.shape), (3,))
+        self.assertEqual(tuple(actions.shape), (3, 4))
+        self.assertEqual(tuple(values.shape), (3,))
+        self.assertEqual(tuple(action_log_prob.shape), (3,))
+        self.assertEqual(tuple(action_entropy.shape), (3,))
+
+        eval_values, eval_log_prob, _, aux = model.evaluate_actions(obs, global_state, actions, z_idx=z)
+        self.assertEqual(tuple(eval_values.shape), (3,))
+        self.assertEqual(tuple(eval_log_prob.shape), (3,))
+        self.assertIn("strategy_log_prob", aux)
 
 
 if __name__ == "__main__":

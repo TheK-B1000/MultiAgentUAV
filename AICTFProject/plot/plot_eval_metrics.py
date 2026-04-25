@@ -14,7 +14,7 @@ Runs 2v2, 3v3, 4v4, and 5v5 eval by default (8v8 is opt-in: ``--modes ... 8v8``)
 Usage:
   python plot_eval_metrics.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N]
   python plot_eval_metrics.py [--league-4v4 PATH] [--paper-4v4 PATH] [--selfplay-4v4 PATH]  # 4v4 checkpoints
-  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_custom_*_5v5.zip)
+  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_latent_*_5v5.zip)
   python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
   python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
   python plot_eval_metrics.py --modes 2v2 3v3 4v4 5v5 8v8   # include slow 8v8 eval
@@ -105,7 +105,18 @@ def load_metrics_csv(csv_path: str) -> tuple[dict[str, dict[tuple[str, str], dic
             "time_to_first_score_std": _safe_float(row.get("time_to_first_score_std", 0)),
             "mean_inter_robot_dist_mean": _safe_float(row.get("mean_inter_robot_dist_mean", "nan")),
             "mean_inter_robot_dist_std": _safe_float(row.get("mean_inter_robot_dist_std", 0)),
+            "strategy_switch_rate_mean": _safe_float(row.get("strategy_switch_rate_mean", "nan")),
+            "strategy_switch_rate_std": _safe_float(row.get("strategy_switch_rate_std", 0)),
+            "strategy_resample_rate_mean": _safe_float(row.get("strategy_resample_rate_mean", "nan")),
+            "strategy_resample_rate_std": _safe_float(row.get("strategy_resample_rate_std", 0)),
+            "strategy_unique_count_mean": _safe_float(row.get("strategy_unique_count_mean", "nan")),
+            "strategy_unique_count_std": _safe_float(row.get("strategy_unique_count_std", 0)),
+            "strategy_entropy_step_mean": _safe_float(row.get("strategy_entropy_step_mean", "nan")),
+            "strategy_entropy_step_std": _safe_float(row.get("strategy_entropy_step_std", 0)),
         }
+        for key, value in row.items():
+            if key.startswith("strategy_occupancy_") and (key.endswith("_mean") or key.endswith("_std")):
+                agg[key] = _safe_float(value)
 
         if setting not in results_by_mode:
             results_by_mode[setting] = {}
@@ -256,24 +267,24 @@ def main() -> None:
             p = p + ".zip"
         return os.path.abspath(p)
 
-    # Defaults: same naming as plot_2v2_winrate.py (final_ppo_custom_fixed_op3_*, op2 comparison, selfplay).
+    # Defaults: same naming as plot_2v2_winrate.py (final_ppo_latent_fixed_op3_*, op2 comparison, selfplay).
     # Checkpoints live under checkpoints/<NxN>/ (AICTFProject root), not under plot/.
     model_paths_2v2 = [
-        ("Ours", path_or_default(args.league, "final_ppo_custom_fixed_op3_2v2.zip", "2v2")),
-        ("Jacob et al.", path_or_default(args.paper, "final_ppo_custom_fixed_op2_2v2.zip", "2v2")),
-        ("Self-play", path_or_default(args.selfplay, "final_ppo_custom_selfplay_2v2.zip", "2v2")),
+        ("Ours", path_or_default(args.league, "final_ppo_latent_fixed_op3_2v2.zip", "2v2")),
+        ("Jacob et al.", path_or_default(args.paper, "final_ppo_latent_fixed_op2_2v2.zip", "2v2")),
+        ("Self-play", path_or_default(args.selfplay, "final_ppo_latent_selfplay_2v2.zip", "2v2")),
     ]
     # 3v3: matches plot_3v3_winrate.py
     model_paths_3v3 = [
-        ("Ours", path_or_default(args.league_3v3, "final_ppo_custom_fixed_op3_3v3.zip", "3v3")),
-        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_custom_fixed_op2_3v3.zip", "3v3")),
-        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_custom_selfplay_3v3.zip", "3v3")),
+        ("Ours", path_or_default(args.league_3v3, "final_ppo_latent_fixed_op3_3v3.zip", "3v3")),
+        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_latent_fixed_op2_3v3.zip", "3v3")),
+        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_latent_selfplay_3v3.zip", "3v3")),
     ]
     # 4v4: same defaults as (modern) plot_4v4_winrate.py
     model_paths_4v4 = [
-        ("Ours", path_or_default(args.league_4v4, "final_ppo_custom_fixed_op3_4v4.zip", "4v4")),
-        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_custom_fixed_op2_4v4.zip", "4v4")),
-        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_custom_selfplay_4v4.zip", "4v4")),
+        ("Ours", path_or_default(args.league_4v4, "final_ppo_latent_fixed_op3_4v4.zip", "4v4")),
+        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_latent_fixed_op2_4v4.zip", "4v4")),
+        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_latent_selfplay_4v4.zip", "4v4")),
     ]
     # 5v5: same fallbacks as plot_5v5_winrate.py (final -> resumed -> oom_save)
     model_paths_5v5 = [
@@ -282,9 +293,9 @@ def main() -> None:
             path_or_default_candidates(
                 args.league_5v5,
                 [
-                    "final_ppo_custom_fixed_op3_5v5.zip",
-                    "final_ppo_custom_fixed_op3_5v5_resumed_5v5.zip",
-                    "oom_save_ppo_custom_fixed_op3_5v5.zip",
+                    "final_ppo_latent_fixed_op3_5v5.zip",
+                    "final_ppo_latent_fixed_op3_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_latent_fixed_op3_5v5.zip",
                 ],
                 "5v5",
             ),
@@ -294,9 +305,9 @@ def main() -> None:
             path_or_default_candidates(
                 args.paper_5v5,
                 [
-                    "final_ppo_custom_fixed_op2_5v5.zip",
-                    "final_ppo_custom_fixed_op2_5v5_resumed_5v5.zip",
-                    "oom_save_ppo_custom_fixed_op2_5v5.zip",
+                    "final_ppo_latent_fixed_op2_5v5.zip",
+                    "final_ppo_latent_fixed_op2_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_latent_fixed_op2_5v5.zip",
                 ],
                 "5v5",
             ),
@@ -305,16 +316,16 @@ def main() -> None:
             "Self-play",
             path_or_default_candidates(
                 args.selfplay_5v5,
-                ["final_ppo_custom_selfplay_5v5.zip", "oom_save_ppo_custom_selfplay_5v5.zip"],
+                ["final_ppo_latent_selfplay_5v5.zip", "oom_save_ppo_latent_selfplay_5v5.zip"],
                 "5v5",
             ),
         ),
     ]
     # 8v8: matches plot_8v8_winrate.py
     model_paths_8v8 = [
-        ("Ours", path_or_default(args.league_8v8, "final_ppo_custom_fixed_op3_8v8.zip", "8v8")),
-        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_custom_fixed_op2_8v8.zip", "8v8")),
-        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_custom_selfplay_8v8.zip", "8v8")),
+        ("Ours", path_or_default(args.league_8v8, "final_ppo_latent_fixed_op3_8v8.zip", "8v8")),
+        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_latent_fixed_op2_8v8.zip", "8v8")),
+        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_latent_selfplay_8v8.zip", "8v8")),
     ]
     _full_mode_plan: list[tuple[str, int, list[tuple[str, str]]]] = [
         ("2v2", 2, model_paths_2v2),
@@ -421,7 +432,7 @@ def main() -> None:
         results = results_by_mode.get(mode, {})
         for label, _ in model_paths:
             r = results.get((label, table_opp), {})
-            table_rows.append({
+            row = {
                 "setting": mode,
                 "method": label,
                 "opponent": table_opp,
@@ -441,7 +452,19 @@ def main() -> None:
                 "time_to_first_score_std": r.get("time_to_first_score_std", 0),
                 "mean_inter_robot_dist_mean": r.get("mean_inter_robot_dist_mean", float("nan")),
                 "mean_inter_robot_dist_std": r.get("mean_inter_robot_dist_std", 0),
-            })
+                "strategy_switch_rate_mean": r.get("strategy_switch_rate_mean", float("nan")),
+                "strategy_switch_rate_std": r.get("strategy_switch_rate_std", 0),
+                "strategy_resample_rate_mean": r.get("strategy_resample_rate_mean", float("nan")),
+                "strategy_resample_rate_std": r.get("strategy_resample_rate_std", 0),
+                "strategy_unique_count_mean": r.get("strategy_unique_count_mean", float("nan")),
+                "strategy_unique_count_std": r.get("strategy_unique_count_std", 0),
+                "strategy_entropy_step_mean": r.get("strategy_entropy_step_mean", float("nan")),
+                "strategy_entropy_step_std": r.get("strategy_entropy_step_std", 0),
+            }
+            for key, value in r.items():
+                if key.startswith("strategy_occupancy_") and (key.endswith("_mean") or key.endswith("_std")):
+                    row[key] = value
+            table_rows.append(row)
     # Print compact table to console
     print("\n--- Paper-ready metrics (mean ± std over episodes, opponent=%s) ---" % table_opp)
     for mode in evaluated_mode_order:
@@ -463,9 +486,22 @@ def main() -> None:
             midist = row.get('mean_inter_robot_dist_mean', float('nan'))
             if midist is not None and (isinstance(midist, (int, float)) and np.isfinite(midist)):
                 print(f"      mean_inter_robot_dist: {midist:.3f} ± {row.get('mean_inter_robot_dist_std', 0):.3f} (higher = more spread)")
+            swr = row.get("strategy_switch_rate_mean", float("nan"))
+            if swr is not None and (isinstance(swr, (int, float)) and np.isfinite(swr)):
+                print(f"      strategy_switch_rate: {swr:.3f} +/- {row.get('strategy_switch_rate_std', 0):.3f}")
+            uniq = row.get("strategy_unique_count_mean", float("nan"))
+            if uniq is not None and (isinstance(uniq, (int, float)) and np.isfinite(uniq)):
+                print(f"      strategy_unique_count: {uniq:.2f} +/- {row.get('strategy_unique_count_std', 0):.2f}")
+            zent = row.get("strategy_entropy_step_mean", float("nan"))
+            if zent is not None and (isinstance(zent, (int, float)) and np.isfinite(zent)):
+                print(f"      strategy_entropy: {zent:.3f} +/- {row.get('strategy_entropy_step_std', 0):.3f}")
     if args.table_out and table_rows:
         import csv
         fieldnames = list(table_rows[0].keys())
+        for row in table_rows[1:]:
+            for key in row.keys():
+                if key not in fieldnames:
+                    fieldnames.append(key)
         with open(args.table_out, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()

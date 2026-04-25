@@ -1,8 +1,8 @@
 # Setup And Train
 
-The default training path is the local PPO/MAPPO-style implementation in `rl/train_ppo.py`. It no longer uses the old SB3 PPO policy, rollout buffer, or GAE path.
+The default training path is the local latent-strategy PPO/MAPPO-style implementation in `rl/train_ppo.py`. It no longer uses the old SB3 PPO policy, rollout buffer, or GAE path.
 
-Latent team strategy is reserved for the Summer/ICRA implementation phase. The pure PyTorch pieces are present in `rl/latent_marl.py`, but `--latent-strategy` intentionally raises until that mechanism is wired into `rl/custom_ppo.py`.
+Latent team strategy is enabled by default. Use `--no-latent-strategy` for vanilla local PPO ablations.
 
 ## Install
 
@@ -28,22 +28,28 @@ python -m unittest discover -v tests
 
 Run commands from `AICTFProject`.
 
-2v2 fixed-opponent baseline:
+2v2 fixed-opponent latent strategy run:
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --run-tag ppo_custom_fixed_op3_2v2
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --run-tag ppo_latent_fixed_op3_2v2
 ```
 
-4v4 fixed-opponent baseline:
+4v4 fixed-opponent latent strategy run:
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 4 --run-tag ppo_custom_fixed_op3_4v4
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 4 --run-tag ppo_latent_fixed_op3_4v4
 ```
 
-6v6 fixed-opponent baseline:
+6v6 fixed-opponent latent strategy run:
 
 ```bash
-python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 6 --run-tag ppo_custom_fixed_op3_6v6
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 6 --run-tag ppo_latent_fixed_op3_6v6
+```
+
+Vanilla local PPO ablation:
+
+```bash
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --no-latent-strategy --run-tag ppo_custom_fixed_op3_2v2
 ```
 
 Short smoke run:
@@ -52,37 +58,92 @@ Short smoke run:
 python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --total-steps 128 --checkpoint-dir checkpoints/smoke --run-tag smoke_2v2
 ```
 
-Checkpoints are torch checkpoints saved with the historical `.zip` suffix, for example `checkpoints/2v2/final_ppo_custom_fixed_op3_2v2.zip`.
+Checkpoints are torch checkpoints saved with the historical `.zip` suffix, for example `checkpoints/2v2/final_ppo_latent_fixed_op3_2v2.zip`.
+
+Training also writes CSV telemetry by default:
+
+- `<run_tag>_metrics.csv`: one row per PPO update with losses, KL, rollout reward/return stats, cumulative W/L/D, win rate, and strategy diagnostics.
+- `<run_tag>_episodes.csv`: one row per completed training episode with score/outcome fields for trend plots.
+
+Use `--no-metrics-csv` to disable this, or `--metrics-csv` / `--episode-csv` to choose explicit paths.
 
 ## Algorithm Defaults
 
 The local PPO path uses:
 
 - CNN actor over local per-agent `grid` observations.
-- Centralized critic over the 14-float `global_state`.
-- Named rollout buffer with `global_state`, `terminated`, and `truncated` fields.
+- Strategy encoder `q_phi(z | s)` over the 14-float `global_state`.
+- Shared strategy embedding concatenated to each agent actor.
+- Centralized critic over `global_state`, joint-action one-hot, and `z_onehot` in latent mode.
+- Named rollout buffer with `global_state`, `terminated`, `truncated`, and latent strategy fields.
 - GAE that bootstraps time-limit truncations but does not leak advantages across reset boundaries.
 - PPO clipped policy loss, clipped value loss, entropy bonus, minibatch advantage normalization, linear LR decay, and global-norm gradient clipping.
+- Strategy persistence and strategy entropy losses.
 
 See `docs/algorithm.md` for the full contract.
 
-## Latent Strategy Handoff
+## Latent Strategy Controls
 
-Paper-aligned design:
+Paper-aligned design status:
 
 | Topic | Current status |
 | --- | --- |
-| `StrategyEncoder q_phi(z | s)` | Implemented as a 128-128 MLP in `rl/latent_marl.py`. |
+| `StrategyEncoder q_phi(z | s)` | Implemented as a 128-128 MLP and wired into `CustomPPOTrainer`. |
 | Global state | True 14-float `GLOBAL_STATE_DIM` vector from `rl/global_state.py`. |
-| Decentralized policy conditioning | `LatentConditionedActor` provides the pure PyTorch actor pattern. |
-| Critic conditioning | Add joint-action one-hot and `z_onehot` through `CentralizedCritic.forward(..., extra=...)`. |
-| Persistence loss | `expected_strategy_switch_penalty` is implemented. |
-| Training integration | Deferred to the Summer/ICRA implementation phase inside `CustomPPOTrainer`. |
+| Decentralized policy conditioning | Shared strategy embedding is concatenated to each agent actor input. |
+| Critic conditioning | Joint-action one-hot and `z_onehot` flow through `CentralizedCritic.forward(..., extra=...)`. |
+| Persistence loss | Applied only on sparse non-initial strategy refreshes. |
+| Strategy entropy | Applied on strategy sampling steps to reduce collapse. |
 
-The training objective to add later is:
+The training objective is:
 
 ```text
 L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))
 ```
 
 Do not resample `z` every timestep. Use once-per-episode or sparse refresh intervals such as every 20 steps.
+
+Useful flags:
+
+```bash
+--latent-k 4
+--latent-resample-every 20
+--latent-lam-p 0.02
+--latent-lam-h 0.005
+--latent-z-embed-dim 16
+--no-latent-strategy
+```
+
+## Strategy Analysis
+
+Latent checkpoints record rollout strategy diagnostics in checkpoint `last_stats`, and evaluation CSVs include per-episode strategy fields when the policy is latent:
+
+- `strategy_switch_rate`
+- `strategy_resample_rate`
+- `strategy_unique_count`
+- `strategy_entropy_mean`
+- `strategy_occupancy_0...K`
+
+Generate strategy plots from any episode-level training/eval CSV:
+
+```bash
+python plot/plot_metrics.py checkpoints/2v2/ppo_latent_fixed_op3_2v2_episodes.csv --window 10
+```
+
+This writes `strategy_switch_rate_vs_episode.*` and `strategy_occupancy.*` under `figures/` when those columns are present.
+
+Evaluate any single checkpoint, including ablations:
+
+```bash
+python plot/eval_checkpoint.py --checkpoint checkpoints/2v2/final_ppo_latent_fixed_op3_2v2.zip --agents 2 --opponents OP3 OP4 --episodes 100
+```
+
+## Final Experiment Matrix
+
+Generate the final-phase command matrix without launching long jobs:
+
+```bash
+python experiments/phase6_experiment_matrix.py --agents 2 4 6 --seeds 42 43 44 --steps 100000 --eval-episodes 100 --out csv/phase6_commands.csv
+```
+
+The matrix covers latent default, vanilla local PPO, no-persistence, lower-K, sparse-refresh, and OP2-trained comparison variants. Add `--execute` only when you are ready to run the long training/evaluation sequence.

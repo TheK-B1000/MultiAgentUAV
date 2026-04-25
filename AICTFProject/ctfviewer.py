@@ -31,7 +31,7 @@ from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints/8v8/final_ppo_custom_fixed_op3_8v8.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints/8v8/final_ppo_latent_fixed_op3_8v8.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -78,18 +78,18 @@ def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[st
     candidates: List[str] = []
 
     # Replace both directory tag and filename suffix when the checkpoint follows the repo naming scheme.
-    for src_tag in ("2v2", "3v3", "4v4", "8v8"):
+    for src_tag in ("2v2", "3v3", "4v4", "6v6", "8v8"):
         dir_variant = raw.replace(f"\\{src_tag}\\", f"\\{team_tag}\\").replace(f"/{src_tag}/", f"/{team_tag}/")
         file_variant = os.path.join(os.path.dirname(dir_variant), os.path.basename(dir_variant).replace(src_tag, team_tag))
         candidates.append(file_variant)
 
     # Generic filename replacement for custom names that still embed the team tag.
-    for src_tag in ("2v2", "3v3", "4v4", "8v8"):
+    for src_tag in ("2v2", "3v3", "4v4", "6v6", "8v8"):
         if src_tag in stem:
             candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
 
-    # Final fallback: default custom PPO training run (FIXED_OPPONENT OP3).
-    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints", team_tag, f"final_ppo_custom_fixed_op3_{team_tag}{ext}"))
+    # Final fallback: default latent PPO training run (FIXED_OPPONENT OP3).
+    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints", team_tag, f"final_ppo_latent_fixed_op3_{team_tag}{ext}"))
 
     # Deduplicate while preserving order.
     seen = set()
@@ -187,6 +187,15 @@ class PPOController:
 
         act, _ = self.model.predict(obs, deterministic=self.deterministic)
         return np.asarray(act).reshape(-1).astype(np.int64)
+
+    def reset_strategy(self) -> None:
+        if self.model is not None and hasattr(self.model, "reset_strategy"):
+            self.model.reset_strategy()
+
+    def strategy_info(self) -> Dict[str, Any]:
+        if self.model is not None and hasattr(self.model, "strategy_info"):
+            return dict(self.model.strategy_info())
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +489,7 @@ class CTFViewer:
                 act_np = np.zeros((nb * 2,), dtype=np.int64)
                 return torch.as_tensor(act_np, dtype=torch.int64, device=self.core.device).unsqueeze(0)
             obs_np = self.core.get_obs()
+            obs_np["global_state"] = self.core.get_global_state()
             act_np = self.ppo.predict(obs_np)
         else:
             # DEMO: zeros; core uses scripted blue when blue_scripted=True
@@ -497,6 +507,7 @@ class CTFViewer:
         if any_done:
             # Full reset so flags and carrying state are clean (avoids wrong-flag-after-reset bug).
             self.core.reset_all()
+            self.ppo.reset_strategy()
         info = infos[0] if infos else {}
         self._last_info = info
         return info
@@ -528,12 +539,15 @@ class CTFViewer:
 
         for ep in range(num_episodes):
             self.core.reset_all()
+            self.ppo.reset_strategy()
             ep_reward = 0.0
             steps = 0
             max_steps = self.cfg.max_decision_steps
+            strategy_state = self._new_strategy_eval_state()
 
             for _ in range(max_steps):
                 action = self._get_action()
+                self._record_strategy_eval_step(strategy_state)
                 obs, rew, term, trunc, infos = self.core.step(action)
                 r = float(rew[0]) if isinstance(rew, np.ndarray) else float(rew[0].item())
                 ep_reward += r
@@ -551,23 +565,79 @@ class CTFViewer:
                     for event in pg.event.get():
                         if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
                             print(f"[Eval] Stopped early at episode {ep + 1}")
-                            episodes.append(self._episode_row(ep, steps, ep_reward))
+                            episodes.append(self._episode_row(ep, steps, ep_reward, strategy_state))
                             return self._summarize(episodes)
                     self._draw()
                     pg.display.flip()
                     self.clock.tick(60)
 
-            episodes.append(self._episode_row(ep, steps, ep_reward))
+            episodes.append(self._episode_row(ep, steps, ep_reward, strategy_state))
             if (ep + 1) % 10 == 0:
                 wins = sum(1 for e in episodes if e["success"])
                 print(f"[Eval] Ep {ep + 1}/{num_episodes} | WR {wins / len(episodes):.0%}")
 
         return self._summarize(episodes)
 
-    def _episode_row(self, ep: int, steps: int, ep_reward: float) -> Dict[str, Any]:
+    def _new_strategy_eval_state(self) -> Dict[str, Any]:
+        return {
+            "counts": {},
+            "prev": None,
+            "switches": 0,
+            "resamples": 0,
+            "steps": 0,
+            "entropy_sum": 0.0,
+            "k": 0,
+        }
+
+    def _record_strategy_eval_step(self, state: Dict[str, Any]) -> None:
+        if self.blue_mode != "PPO" or not self.ppo.model_loaded:
+            return
+        info = self.ppo.strategy_info()
+        if "strategy" not in info:
+            return
+        strategy = int(info["strategy"])
+        counts = state["counts"]
+        counts[strategy] = int(counts.get(strategy, 0)) + 1
+        prev = state.get("prev")
+        if prev is not None and int(prev) != strategy:
+            state["switches"] = int(state["switches"]) + 1
+        state["prev"] = strategy
+        if bool(info.get("strategy_resampled", False)):
+            state["resamples"] = int(state["resamples"]) + 1
+        state["steps"] = int(state["steps"]) + 1
+        state["entropy_sum"] = float(state["entropy_sum"]) + float(info.get("strategy_entropy", 0.0))
+        state["k"] = max(int(state.get("k", 0)), int(info.get("strategy_k", 0)))
+
+    def _strategy_episode_fields(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        strategy_steps = int(state.get("steps", 0) or 0)
+        if strategy_steps <= 0:
+            return {}
+        counts: Dict[int, int] = state["counts"]
+        denom = float(max(1, strategy_steps))
+        fields: Dict[str, Any] = {
+            "strategy_switches": int(state.get("switches", 0)),
+            "strategy_switch_rate": float(state.get("switches", 0)) / float(max(1, strategy_steps - 1)),
+            "strategy_resamples": int(state.get("resamples", 0)),
+            "strategy_resample_rate": float(state.get("resamples", 0)) / denom,
+            "strategy_unique_count": len(counts),
+            "strategy_entropy_mean": float(state.get("entropy_sum", 0.0)) / denom,
+        }
+        if counts:
+            fields["strategy_dominant"] = max(counts.items(), key=lambda kv: kv[1])[0]
+        for idx in range(int(state.get("k", 0) or 0)):
+            fields[f"strategy_occupancy_{idx}"] = float(counts.get(idx, 0)) / denom
+        return fields
+
+    def _episode_row(
+        self,
+        ep: int,
+        steps: int,
+        ep_reward: float,
+        strategy_state: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         bs = int(self.core.blue_score[0].item())
         rs = int(self.core.red_score[0].item())
-        return {
+        row = {
             "episode": ep + 1,
             "blue_score": bs,
             "red_score": rs,
@@ -576,6 +646,9 @@ class CTFViewer:
             "reward": ep_reward,
             "reward_per_step": ep_reward / max(1, steps),
         }
+        if strategy_state is not None:
+            row.update(self._strategy_episode_fields(strategy_state))
+        return row
 
     def _summarize(self, episodes: List[Dict]) -> Dict[str, Any]:
         if not episodes:

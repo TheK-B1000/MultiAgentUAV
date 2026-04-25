@@ -61,7 +61,10 @@ class PPOConfig:
 
     checkpoint_dir: str = "checkpoints"
     load_path: Optional[str] = None
-    run_tag: str = "ppo_custom_2v2"
+    run_tag: str = "ppo_latent_2v2"
+    enable_metrics_csv: bool = True
+    metrics_csv_path: Optional[str] = None
+    episode_csv_path: Optional[str] = None
     enable_progress_bar: bool = True
     verbose_training: bool = False
     # After this many *completed* episodes, print W/L/D and win rate (0 = disabled).
@@ -75,25 +78,21 @@ class PPOConfig:
     use_stable_marl_ppo: bool = True
     target_kl: Optional[float] = 0.02
 
-    # Reserved for the Summer/ICRA latent strategy implementation.
-    use_latent_strategy: bool = False
+    # Summer/ICRA latent team strategy is the default proposed algorithm.
+    use_latent_strategy: bool = True
     latent_k: int = 4
     latent_z_embed_dim: int = 16
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
-    latent_lam_h: float = 0.01
+    latent_lam_h: float = 0.005
     latent_lam_p: float = 0.02
+    # 0 means sample once at episode/rollout start; N>0 sparsely refreshes every N decisions.
     latent_resample_every_n: int = 0
 
 
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     """Run the default local PPO/MAPPO training path."""
     cfg = cfg or PPOConfig()
-    if bool(getattr(cfg, "use_latent_strategy", False)):
-        raise NotImplementedError(
-            "Latent strategy training is reserved for the local trainer follow-up phase. "
-            "Phase 4/7 should add it to rl.custom_ppo using the existing rollout fields."
-        )
 
     cfg.mode = _normalize_train_mode(cfg.mode)
     if cfg.mode != TrainMode.FIXED_OPPONENT.value:
@@ -108,7 +107,28 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
     print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
+    if bool(cfg.use_latent_strategy):
+        interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
+        interval_label = "episode/rollout start" if interval <= 0 else f"every {interval} decision steps"
+        print(
+            "[PPO] Latent team strategy: enabled "
+            f"(K={int(cfg.latent_k)}, sample={interval_label}, "
+            f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f})"
+        )
+    else:
+        print("[PPO] Latent team strategy: disabled (vanilla local PPO baseline).")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
+    if bool(getattr(cfg, "enable_metrics_csv", True)):
+        if not cfg.metrics_csv_path:
+            cfg.metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics.csv")
+        if not cfg.episode_csv_path:
+            cfg.episode_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_episodes.csv")
+        print(f"[PPO] Update metrics CSV: {cfg.metrics_csv_path}")
+        print(f"[PPO] Episode metrics CSV: {cfg.episode_csv_path}")
+    else:
+        cfg.metrics_csv_path = None
+        cfg.episode_csv_path = None
+        print("[PPO] Metrics CSV logging disabled.")
     elog = int(getattr(cfg, "episode_log_every", 0) or 0)
     if elog > 0:
         print(
@@ -282,11 +302,18 @@ def _normalize_train_mode(mode: str) -> str:
     return aliases.get(raw, raw)
 
 
-def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 2) -> str:
+def _default_run_tag_for_mode(
+    mode: str,
+    fixed_opponent_tag: str = "OP3",
+    n_agents: int = 2,
+    *,
+    latent: bool = True,
+) -> str:
     suffix = _agents_suffix(n_agents)
+    family = "ppo_latent" if latent else "ppo_custom"
     if _normalize_train_mode(mode) == TrainMode.FIXED_OPPONENT.value:
-        return f"ppo_custom_fixed_{fixed_opponent_tag.lower()}_{suffix}"
-    return f"ppo_custom_{suffix}"
+        return f"{family}_fixed_{fixed_opponent_tag.lower()}_{suffix}"
+    return f"{family}_{suffix}"
 
 
 if __name__ == "__main__":
@@ -298,10 +325,14 @@ if __name__ == "__main__":
         run_test_vec_schema()
     else:
         parser = argparse.ArgumentParser(description="Train custom PPO/MAPPO for CTF")
+        parser.add_argument("--seed", type=int, default=None)
         parser.add_argument("--mode", type=str, default=None)
         parser.add_argument("--run-tag", type=str, default=None)
         parser.add_argument("--total-steps", type=int, default=None)
         parser.add_argument("--checkpoint-dir", type=str, default=None)
+        parser.add_argument("--metrics-csv", type=str, default=None, help="Path for per-update training metrics CSV.")
+        parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")
+        parser.add_argument("--no-metrics-csv", action="store_true", help="Disable training CSV telemetry.")
         parser.add_argument("--load", type=str, default=None)
         parser.add_argument("--fixed-opponent", type=str, default="OP3")
         parser.add_argument("--agents", type=int, choices=[2, 4, 6, 8], default=None)
@@ -312,7 +343,27 @@ if __name__ == "__main__":
         parser.add_argument(
             "--latent-strategy",
             action="store_true",
-            help="Reserved. Latent strategy training will be added to the local trainer in the implementation phase.",
+            help="Enable latent team strategy training (default in PPOConfig).",
+        )
+        parser.add_argument(
+            "--no-latent-strategy",
+            action="store_true",
+            help="Disable latent team strategy for vanilla local PPO ablations.",
+        )
+        parser.add_argument("--latent-k", type=int, default=None, help="Number of discrete team strategies.")
+        parser.add_argument(
+            "--latent-resample-every",
+            type=int,
+            default=None,
+            help="Sparse strategy refresh interval in decision steps; 0 samples at episode/rollout start only.",
+        )
+        parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
+        parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy bonus weight.")
+        parser.add_argument(
+            "--latent-z-embed-dim",
+            type=int,
+            default=None,
+            help="Strategy embedding dimension used by the shared actor.",
         )
         parser.add_argument(
             "--episode-log-every",
@@ -326,14 +377,41 @@ if __name__ == "__main__":
         cfg = PPOConfig()
         if args.mode is not None:
             cfg.mode = _normalize_train_mode(args.mode)
+        if args.seed is not None:
+            cfg.seed = int(args.seed)
         if args.max_blue_agents is not None:
             cfg.max_blue_agents = max(1, min(int(args.max_blue_agents), 16))
         elif args.agents is not None:
             cfg.max_blue_agents = int(args.agents)
         cfg.fixed_opponent_tag = str(args.fixed_opponent).upper()
-        cfg.run_tag = args.run_tag or _default_run_tag_for_mode(cfg.mode, cfg.fixed_opponent_tag, cfg.max_blue_agents)
+        if args.latent_strategy:
+            cfg.use_latent_strategy = True
+        if args.no_latent_strategy:
+            cfg.use_latent_strategy = False
+        if args.latent_k is not None:
+            cfg.latent_k = max(2, int(args.latent_k))
+        if args.latent_resample_every is not None:
+            cfg.latent_resample_every_n = max(0, int(args.latent_resample_every))
+        if args.latent_lam_p is not None:
+            cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
+        if args.latent_lam_h is not None:
+            cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
+        if args.latent_z_embed_dim is not None:
+            cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
+        cfg.run_tag = args.run_tag or _default_run_tag_for_mode(
+            cfg.mode,
+            cfg.fixed_opponent_tag,
+            cfg.max_blue_agents,
+            latent=bool(cfg.use_latent_strategy),
+        )
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         cfg.checkpoint_dir = args.checkpoint_dir or os.path.join("checkpoints", _agents_suffix(cfg.max_blue_agents))
+        if args.no_metrics_csv:
+            cfg.enable_metrics_csv = False
+        if args.metrics_csv is not None:
+            cfg.metrics_csv_path = args.metrics_csv
+        if args.episode_csv is not None:
+            cfg.episode_csv_path = args.episode_csv
         if args.total_steps is not None:
             cfg.total_timesteps = int(args.total_steps)
         if args.load is not None:
@@ -346,6 +424,4 @@ if __name__ == "__main__":
             cfg.verbose_training = True
         if args.episode_log_every is not None:
             cfg.episode_log_every = max(0, int(args.episode_log_every))
-        if args.latent_strategy:
-            cfg.use_latent_strategy = True
         train_ppo(cfg)

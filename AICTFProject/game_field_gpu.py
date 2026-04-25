@@ -1948,6 +1948,7 @@ class BatchedCTFCore:
                 k: v.index_select(0, sub_idx).detach().cpu().numpy().astype(np.float32)
                 for k, v in obs_full.items()
             }
+            obs["global_state"] = self.get_global_state()[env_list]
             actions_np, _ = model.predict(obs, deterministic=True)
             actions = torch.as_tensor(actions_np, device=self.device, dtype=torch.int64).reshape(sub_idx.numel(), self.Nr, 2)
             red_macro[sub_idx] = torch.remainder(actions[..., 0], self.cfg.n_macros).long()

@@ -80,22 +80,47 @@ def run_eval_episodes(
 
     episodes: list[dict] = []
     obs = env.reset()
+    if hasattr(model, "reset_strategy"):
+        model.reset_strategy()
 
     for _ in range(n_episodes):
         ep_return = 0.0
         steps = 0
         ep_entropy_first = float("nan")
+        strategy_counts: dict[int, int] = {}
+        strategy_prev: int | None = None
+        strategy_switches = 0
+        strategy_resamples = 0
+        strategy_steps = 0
+        strategy_entropy_sum = 0.0
+        strategy_k = 0
         while True:
             single = {
                 k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
                 for k, v in obs.items()
             }
+            try:
+                single["global_state"] = env.state()[0]
+            except Exception:
+                pass
             if record_entropy and steps == 0:
                 try:
                     ep_entropy_first = _policy_entropy_first_step(model, single)
                 except Exception:
                     ep_entropy_first = float("nan")
             act, _ = model.predict(single, deterministic=deterministic)
+            strategy_info = model.strategy_info() if hasattr(model, "strategy_info") else {}
+            if "strategy" in strategy_info:
+                strategy = int(strategy_info["strategy"])
+                strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
+                if strategy_prev is not None and strategy != strategy_prev:
+                    strategy_switches += 1
+                strategy_prev = strategy
+                if bool(strategy_info.get("strategy_resampled", False)):
+                    strategy_resamples += 1
+                strategy_steps += 1
+                strategy_entropy_sum += float(strategy_info.get("strategy_entropy", 0.0))
+                strategy_k = max(strategy_k, int(strategy_info.get("strategy_k", 0)))
             env.step_async(act)
             obs, rew, done, infos = env.step_wait()
             steps += 1
@@ -135,12 +160,26 @@ def run_eval_episodes(
                         }
                         if record_entropy:
                             row["policy_entropy"] = ep_entropy_first
+                        if strategy_steps > 0:
+                            denom = float(max(1, strategy_steps))
+                            row["strategy_switches"] = strategy_switches
+                            row["strategy_switch_rate"] = float(strategy_switches) / float(max(1, strategy_steps - 1))
+                            row["strategy_resamples"] = strategy_resamples
+                            row["strategy_resample_rate"] = float(strategy_resamples) / denom
+                            row["strategy_unique_count"] = len(strategy_counts)
+                            row["strategy_entropy_mean"] = strategy_entropy_sum / denom
+                            dominant = max(strategy_counts.items(), key=lambda kv: kv[1])[0]
+                            row["strategy_dominant"] = dominant
+                            for z_idx in range(strategy_k):
+                                row[f"strategy_occupancy_{z_idx}"] = float(strategy_counts.get(z_idx, 0)) / denom
                         episodes.append(row)
                         if progress_every > 0:
                             le = len(episodes)
                             if le == 1 or le % progress_every == 0 or le == n_episodes:
                                 print(f"  episode {le}/{n_episodes}", flush=True)
                         ep_return = 0.0
+                if hasattr(model, "reset_strategy"):
+                    model.reset_strategy()
                 break
 
     return episodes
@@ -197,6 +236,14 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "mean_inter_robot_dist_std": 0.0,
         "policy_entropy_mean": float("nan"),
         "policy_entropy_std": 0.0,
+        "strategy_switch_rate_mean": float("nan"),
+        "strategy_switch_rate_std": 0.0,
+        "strategy_resample_rate_mean": float("nan"),
+        "strategy_resample_rate_std": 0.0,
+        "strategy_unique_count_mean": float("nan"),
+        "strategy_unique_count_std": 0.0,
+        "strategy_entropy_step_mean": float("nan"),
+        "strategy_entropy_step_std": 0.0,
     }
     if not episodes:
         return base
@@ -244,6 +291,22 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     else:
         policy_entropy_mean = float("nan")
         policy_entropy_std = 0.0
+
+    def _optional_mean_std(key: str) -> tuple[float, float]:
+        vals = [
+            float(e[key])
+            for e in episodes
+            if key in e and np.isfinite(float(e[key]))
+        ]
+        if not vals:
+            return float("nan"), 0.0
+        arr_v = np.array(vals, dtype=float)
+        return float(np.mean(arr_v)), float(np.std(arr_v, ddof=1)) if len(arr_v) > 1 else 0.0
+
+    strategy_switch_rate_mean, strategy_switch_rate_std = _optional_mean_std("strategy_switch_rate")
+    strategy_resample_rate_mean, strategy_resample_rate_std = _optional_mean_std("strategy_resample_rate")
+    strategy_unique_count_mean, strategy_unique_count_std = _optional_mean_std("strategy_unique_count")
+    strategy_entropy_step_mean, strategy_entropy_step_std = _optional_mean_std("strategy_entropy_mean")
     coverage_efficiency = float(np.mean(arr[:, 3])) * 100.0
     coverage_efficiency_std = float(np.std(arr[:, 3], ddof=ddof))
     collision_free_rate = float(np.mean(arr[:, 4])) * 100.0
@@ -258,7 +321,7 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     midist_valid = midist[np.isfinite(midist)]
     mean_inter_robot_dist_mean = float(np.mean(midist_valid)) if len(midist_valid) > 0 else np.nan
     mean_inter_robot_dist_std = float(np.std(midist_valid, ddof=1)) if len(midist_valid) > 1 else 0.0
-    return {
+    result = {
         "success_rate": success_rate,
         "success_rate_std": success_rate_std,
         "mean_steps": mean_steps,
@@ -283,4 +346,25 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "mean_inter_robot_dist_std": mean_inter_robot_dist_std,
         "policy_entropy_mean": policy_entropy_mean,
         "policy_entropy_std": policy_entropy_std,
+        "strategy_switch_rate_mean": strategy_switch_rate_mean,
+        "strategy_switch_rate_std": strategy_switch_rate_std,
+        "strategy_resample_rate_mean": strategy_resample_rate_mean,
+        "strategy_resample_rate_std": strategy_resample_rate_std,
+        "strategy_unique_count_mean": strategy_unique_count_mean,
+        "strategy_unique_count_std": strategy_unique_count_std,
+        "strategy_entropy_step_mean": strategy_entropy_step_mean,
+        "strategy_entropy_step_std": strategy_entropy_step_std,
     }
+    occupancy_keys = sorted(
+        {
+            key
+            for episode in episodes
+            for key in episode.keys()
+            if key.startswith("strategy_occupancy_")
+        }
+    )
+    for key in occupancy_keys:
+        mean_v, std_v = _optional_mean_std(key)
+        result[f"{key}_mean"] = mean_v
+        result[f"{key}_std"] = std_v
+    return result

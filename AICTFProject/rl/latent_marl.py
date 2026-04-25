@@ -37,7 +37,7 @@ class StrategyEncoder(nn.Module):
 
 
 class LatentConditionedActor(nn.Module):
-    """Shared per-agent actor ``pi_i(a_i | o_i, z)`` for future PPO integration."""
+    """Standalone shared per-agent actor reference ``pi_i(a_i | o_i, z)``."""
 
     def __init__(
         self,
