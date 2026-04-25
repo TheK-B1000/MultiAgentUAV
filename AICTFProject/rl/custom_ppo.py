@@ -94,10 +94,13 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
     if not isinstance(payload, dict) or "model_state_dict" not in payload:
         raise ValueError("Not a custom PPO checkpoint.")
     cfg = payload.get("cfg") or {}
+    fmt = str(payload.get("format", "custom_ppo_v2"))
     meta: dict[str, Any] = {
-        "format": payload.get("format", "custom_ppo_v2"),
+        "format": fmt,
         "model_path": path,
         "cfg": cfg,
+        "actor_arch": str(payload.get("actor_arch", "flat_mlp" if fmt.endswith("_v2") else "unknown")),
+        "vec_schema_version": int(payload.get("vec_schema_version", 2 if fmt.endswith("_v2") else 0)),
     }
     if isinstance(cfg, dict):
         if "max_blue_agents" in cfg:
@@ -105,6 +108,9 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
         elif "n_agents_per_team" in cfg:
             meta["n_blue"] = int(cfg["n_agents_per_team"])
         meta["use_latent_strategy"] = bool(cfg.get("use_latent_strategy", False))
+        meta["actor_cnn_feature_dim"] = int(
+            cfg.get("actor_cnn_feature_dim", payload.get("actor_cnn_feature_dim", 128))
+        )
         if "latent_k" in cfg:
             meta["latent_k"] = int(cfg["latent_k"])
     return meta
@@ -291,6 +297,11 @@ E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
     "switched",
     "game_phase",
 )
+
+CUSTOM_PPO_FORMAT = "custom_ppo_cnn_v1"
+CUSTOM_PPO_LATENT_FORMAT = "custom_ppo_latent_cnn_v1"
+CUSTOM_PPO_ACTOR_ARCH = "cnn_mlp"
+CUSTOM_PPO_VEC_SCHEMA_VERSION = 1
 
 
 def apply_deterministic_sampling_generators(
@@ -1387,7 +1398,10 @@ class CustomPPOTrainer:
                 "updates_completed": self._updates_completed,
                 "cfg": asdict(self.cfg),
                 "last_stats": self.last_stats,
-                "format": "custom_ppo_latent_v2" if self.use_latent_strategy else "custom_ppo_v2",
+                "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
+                "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
+                "actor_cnn_feature_dim": int(self.model.actor_cnn_feature_dim),
+                "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
             },
             path,
         )

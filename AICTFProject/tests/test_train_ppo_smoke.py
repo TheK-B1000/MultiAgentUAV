@@ -15,7 +15,15 @@ from pathlib import Path
 import torch
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
-from rl.custom_ppo import CustomPPOTrainer, load_custom_ppo_policy, read_custom_ppo_metadata
+from rl.custom_ppo import (
+    CUSTOM_PPO_ACTOR_ARCH,
+    CUSTOM_PPO_FORMAT,
+    CUSTOM_PPO_LATENT_FORMAT,
+    CUSTOM_PPO_VEC_SCHEMA_VERSION,
+    CustomPPOTrainer,
+    load_custom_ppo_policy,
+    read_custom_ppo_metadata,
+)
 from rl.train_ppo import PPOConfig, train_ppo
 
 
@@ -126,6 +134,10 @@ class TrainPpoSmokeTests(unittest.TestCase):
         try:
             train_ppo(cfg)
             meta = read_custom_ppo_metadata(str(final_zip))
+            self.assertEqual(meta["format"], CUSTOM_PPO_FORMAT)
+            self.assertEqual(meta["actor_arch"], CUSTOM_PPO_ACTOR_ARCH)
+            self.assertEqual(meta["actor_cnn_feature_dim"], cfg.actor_cnn_feature_dim)
+            self.assertEqual(meta["vec_schema_version"], CUSTOM_PPO_VEC_SCHEMA_VERSION)
             self.assertEqual(meta["n_blue"], 2)
             self.assertFalse(meta["use_latent_strategy"])
             env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=123))
@@ -150,6 +162,10 @@ class TrainPpoSmokeTests(unittest.TestCase):
         try:
             train_ppo(cfg)
             meta = read_custom_ppo_metadata(str(final_zip))
+            self.assertEqual(meta["format"], CUSTOM_PPO_LATENT_FORMAT)
+            self.assertEqual(meta["actor_arch"], CUSTOM_PPO_ACTOR_ARCH)
+            self.assertEqual(meta["actor_cnn_feature_dim"], cfg.actor_cnn_feature_dim)
+            self.assertEqual(meta["vec_schema_version"], CUSTOM_PPO_VEC_SCHEMA_VERSION)
             self.assertTrue(meta["use_latent_strategy"])
             self.assertEqual(meta["latent_k"], cfg.latent_k)
             env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=123))

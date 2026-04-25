@@ -2988,7 +2988,7 @@ class GPUCTFVecEnv(VecEnv):
                     "near_misses_per_episode": 0,
                     "zone_coverage": 0.0,
                     "decision_steps": int(infos[i].get("decision_steps", 0)),
-                    "vec_schema_version": 3,
+                    "vec_schema_version": 1,
                 }
             self.core.reset_indices(reset_mask)
             obs = self.core.get_obs()
