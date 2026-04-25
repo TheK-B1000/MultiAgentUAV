@@ -24,13 +24,12 @@ def path_to_snapshot_key(path: str) -> str:
 
 @dataclass
 class EpisodeSummary:
-    """Parsed episode result from info["episode_result"] (and info for phase)."""
+    """Parsed episode result from info["episode_result"]."""
 
     blue_score: int
     red_score: int
     success: int  # 1 if blue won, 0 otherwise
     win_by: int  # blue_score - red_score
-    phase_name: str
     opponent_kind: str
     opponent_snapshot: str
     species_tag: str
@@ -72,11 +71,6 @@ def parse_episode_result(info: Dict[str, Any]) -> Optional[EpisodeSummary]:
     if success != 0 and success != 1:
         success = 1 if blue_score > red_score else 0
 
-    # Phase: prefer top-level info["phase"] (canonical), else episode_result
-    phase_name = str(info.get("phase", ep.get("phase_name", "")) or "").strip() or str(
-        ep.get("phase_name", "")
-    ).strip()
-
     # Canonical: use collision_events_per_episode (no fallback to collisions_per_episode)
     collision_events = int(ep.get("collision_events_per_episode", 0))
     collision_free_episode = int(ep.get("collision_free_episode", 1 if collision_events == 0 else 0))
@@ -86,7 +80,6 @@ def parse_episode_result(info: Dict[str, Any]) -> Optional[EpisodeSummary]:
         red_score=red_score,
         success=success,
         win_by=blue_score - red_score,
-        phase_name=phase_name or "OP3",
         opponent_kind=str(ep.get("opponent_kind", "scripted") or "scripted"),
         opponent_snapshot=str(ep.get("opponent_snapshot", "") or ""),
         species_tag=str(ep.get("species_tag", "BALANCED") or "BALANCED"),

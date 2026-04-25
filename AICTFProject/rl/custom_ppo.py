@@ -776,7 +776,6 @@ class CustomPPOTrainer:
             "timesteps",
             "mode",
             "map_set",
-            "phase_name",
             "opponent",
             "success",
             "blue_score",
@@ -832,7 +831,6 @@ class CustomPPOTrainer:
             "timesteps": int(timestep),
             "mode": str(getattr(self.cfg, "mode", "FIXED_OPPONENT")),
             "map_set": str(info.get("map_set", getattr(self.cfg, "map_set", "train"))).lower(),
-            "phase_name": self._phase_legend(info),
             "opponent": self._opponent_legend(info),
             "success": 1 if blue_score > red_score else 0,
             "blue_score": int(blue_score),
@@ -880,15 +878,6 @@ class CustomPPOTrainer:
             return f"SNAPSHOT:{snap}" if snap else "SNAPSHOT:unknown"
         return f"{kind.upper()}:?"
 
-    def _phase_legend(self, info: dict[str, Any]) -> str:
-        """Curriculum / scripted-difficulty label (e.g. OP3), not the train-mode name."""
-        er = info.get("episode_result") or {}
-        return str(
-            er.get("phase_name")
-            or info.get("phase")
-            or getattr(self.cfg, "fixed_opponent_tag", "OP3")
-        ).upper()
-
     def _on_episode_done(self, info: dict[str, Any], *, timestep: Optional[int] = None) -> None:
         er = info.get("episode_result")
         if isinstance(er, dict):
@@ -914,10 +903,9 @@ class CustomPPOTrainer:
         w, l, d = self._ep_wins, self._ep_losses, self._ep_draws
         wr = 100.0 * float(w) / float(max(1, w + l + d))
         mode = str(getattr(self.cfg, "mode", "FIXED_OPPONENT"))
-        phase = self._phase_legend(info)
         opp = self._opponent_legend(info)
         print(
-            f"[PPO] ep={n} mode={mode} phase={phase} opp={opp} "
+            f"[PPO] ep={n} mode={mode} opp={opp} "
             f"W={w} L={l} D={d} WR={wr:.1f}%"
         )
 

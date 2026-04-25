@@ -16,7 +16,7 @@ The CSV must contain at least:
 Optionally, it may also contain:
     - collisions_per_episode
     - zone_coverage
-    - phase_name
+    - opponent
     - strategy_switch_rate
     - strategy_occupancy_0, strategy_occupancy_1, ...
     - strategy_phase_neutral_occupancy_0, strategy_phase_blue_attack_occupancy_1, ...
@@ -72,7 +72,7 @@ def _load_csv(path: Path) -> Dict[str, List[float]]:
                     try:
                         cols[k].append(float(v))
                     except ValueError:
-                        # Non-numeric (e.g. phase_name); store NaN so lengths match.
+                        # Non-numeric (e.g. opponent); store NaN so lengths match.
                         cols[k].append(float("nan"))
     return cols
 

@@ -2967,7 +2967,6 @@ class GPUCTFVecEnv(VecEnv):
                     "blue_score": bs,
                     "red_score": rs,
                     "success": 1 if bs > rs else 0,
-                    "phase_name": str(infos[i].get("phase", "OP3")),
                     "opponent_kind": okind,
                     "opponent_snapshot": osnap,
                     "scripted_tag": okey if okind == "scripted" else "",
