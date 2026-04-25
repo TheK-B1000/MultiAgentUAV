@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 def path_to_snapshot_key(path: str) -> str:
     """
     Convert a full snapshot path to a stable, machine-independent ID for Elo/logs.
-    Example: "checkpoints_sb3/snap_ep100.zip" -> "SNAPSHOT:snap_ep100"
+    Example: "checkpoints/snap_ep100.zip" -> "SNAPSHOT:snap_ep100"
     """
     if not (path or path.strip()):
         return "SNAPSHOT:unknown"

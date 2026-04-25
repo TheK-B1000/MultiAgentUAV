@@ -1,85 +1,18 @@
 """
 CTF Viewer -- renders a single BatchedCTFCore environment in pygame.
 
-Blue team is controlled by an SB3 PPO model (if found) or scripted DEMO.
+Blue team is controlled by a local custom PPO checkpoint (if found) or scripted DEMO.
 Red team uses the scripted bot built into the GPU core.
 
 No dependency on game_field.py, viewer_game_field.py, or policies.py.
 """
 
 import os
-import sys
 import csv
 import math
-import json
-import base64
-import zipfile
 from typing import Optional, Tuple, Any, List, Dict
 
 import numpy as np
-
-
-def _ensure_numpy_core_compat() -> None:
-    """Register numpy._core.* so models saved under NumPy 2.x load on NumPy 1.x (and vice versa)."""
-    try:
-        import types
-        # NumPy 1.x: create numpy._core and point numpy._core.* to numpy.core.*
-        if not hasattr(np, "_core"):
-            _core = types.ModuleType("numpy._core")
-            _core.__path__ = []
-            sys.modules["numpy._core"] = _core
-            for _name in ("numeric", "multiarray", "umath"):
-                try:
-                    _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
-                    setattr(_core, _name, _sub)
-                    sys.modules[f"numpy._core.{_name}"] = _sub
-                except Exception:
-                    pass
-        # Ensure numpy._core.numeric is always available (unpickle may need it)
-        if "numpy._core.numeric" not in sys.modules:
-            _sub = None
-            try:
-                _sub = __import__("numpy.core.numeric", fromlist=["numeric"])
-            except Exception:
-                pass
-            if _sub is not None:
-                sys.modules["numpy._core.numeric"] = _sub
-                if hasattr(np, "_core") and not hasattr(np._core, "numeric"):
-                    setattr(np._core, "numeric", _sub)
-    except Exception:
-        pass
-
-
-def _ensure_numpy_random_compat() -> None:
-    """Register numpy.random._pcg64 and patch unpickler so models saved with NumPy 2.x load."""
-    try:
-        # Ensure _pcg64 is importable (NumPy 1.17+ has it)
-        try:
-            import numpy.random._pcg64 as _pcg64
-            sys.modules["numpy.random._pcg64"] = _pcg64
-        except Exception:
-            import numpy.random
-            if hasattr(numpy.random, "_pcg64"):
-                sys.modules["numpy.random._pcg64"] = getattr(numpy.random, "_pcg64")
-
-        # Patch so BitGenerator *class* (from pickle) is accepted, not only string name
-        import numpy.random._pickle as _np_pickle
-        from numpy.random.bit_generator import BitGenerator
-        _orig_ctor = getattr(_np_pickle, "__bit_generator_ctor", None)
-        if _orig_ctor is not None:
-
-            def _bit_generator_ctor_patched(bit_generator):
-                if isinstance(bit_generator, type) and issubclass(bit_generator, BitGenerator):
-                    return bit_generator()
-                return _orig_ctor(bit_generator)
-
-            _np_pickle.__bit_generator_ctor = _bit_generator_ctor_patched
-    except Exception:
-        pass
-
-
-_ensure_numpy_core_compat()
-_ensure_numpy_random_compat()
 
 import torch
 import pygame as pg
@@ -93,12 +26,12 @@ from game_field_gpu import (
     NUM_CNN_CHANNELS,
 )
 from rl.stress_schedule import STRESS_BY_PHASE
-from opponent_params import sample_batched_opponent_params
+from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints_sb3/8v8/final_ppo_cnn_fixed_op3_8v8.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints/8v8/final_ppo_custom_fixed_op3_8v8.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -155,8 +88,8 @@ def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[st
         if src_tag in stem:
             candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
 
-    # Final fallback: default CNN training run (FIXED_OPPONENT OP3).
-    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints_sb3", team_tag, f"final_ppo_cnn_fixed_op3_{team_tag}{ext}"))
+    # Final fallback: default custom PPO training run (FIXED_OPPONENT OP3).
+    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints", team_tag, f"final_ppo_custom_fixed_op3_{team_tag}{ext}"))
 
     # Deduplicate while preserving order.
     seen = set()
@@ -170,11 +103,11 @@ def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[st
 
 
 def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: int = N_TARGETS):
-    """Build observation and action spaces for GPU CTF (so SB3 can load when saved ones fail to unpickle)."""
+    """Build observation and action spaces for GPU CTF custom PPO inference."""
     obs_space = spaces.Dict(
         {
             "grid": spaces.Box(low=0.0, high=1.0, shape=(n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
-        "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 18), dtype=np.float32),
+            "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, 18), dtype=np.float32),
             "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue,), dtype=np.float32),
             "mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue * (n_macros + n_targets),), dtype=np.float32),
         }
@@ -184,57 +117,25 @@ def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: in
 
 
 def _read_model_metadata(model_path: str) -> Dict[str, Any]:
-    """Read saved SB3 metadata so viewer/core shape matches the checkpoint."""
+    """Read saved custom PPO metadata so viewer/core shape matches the checkpoint."""
     resolved = _resolve_zip_path(model_path)
     if resolved is None:
         return {}
 
     meta: Dict[str, Any] = {"model_path": resolved}
     try:
-        import cloudpickle
-
-        with zipfile.ZipFile(resolved) as archive:
-            data = json.loads(archive.read("data").decode("utf-8"))
-        obs_entry = data.get("observation_space")
-        act_entry = data.get("action_space")
-        cfg_entry = data.get("cfg")
-
-        if isinstance(obs_entry, dict) and ":serialized:" in obs_entry:
-            try:
-                meta["observation_space"] = cloudpickle.loads(base64.b64decode(obs_entry[":serialized:"]))
-            except Exception:
-                pass
-        if isinstance(act_entry, dict) and ":serialized:" in act_entry:
-            try:
-                meta["action_space"] = cloudpickle.loads(base64.b64decode(act_entry[":serialized:"]))
-            except Exception:
-                pass
-        if isinstance(cfg_entry, dict) and ":serialized:" in cfg_entry:
-            try:
-                meta["cfg"] = cloudpickle.loads(base64.b64decode(cfg_entry[":serialized:"]))
-            except Exception:
-                pass
-
-        cfg = meta.get("cfg")
-        if cfg is not None and hasattr(cfg, "max_blue_agents"):
-            meta["n_blue"] = int(getattr(cfg, "max_blue_agents"))
-        elif "action_space" in meta and hasattr(meta["action_space"], "nvec"):
-            meta["n_blue"] = max(1, int(len(meta["action_space"].nvec) // 2))
-        elif "observation_space" in meta:
-            grid_space = meta["observation_space"].spaces.get("grid")
-            if grid_space is not None and getattr(grid_space, "shape", None):
-                meta["n_blue"] = int(grid_space.shape[0])
+        meta.update(read_custom_ppo_metadata(resolved))
         return meta
     except Exception:
         return meta
 
 
 # ---------------------------------------------------------------------------
-# PPO wrapper  (loads SB3 model, builds obs from core, returns flat action)
+# PPO wrapper  (loads custom model, builds obs from core, returns flat action)
 # ---------------------------------------------------------------------------
 class PPOController:
     """
-    Wraps an SB3 PPO model trained on GPUCTFVecEnv.  Given a
+    Wraps a local PPO model trained on GPUCTFVecEnv. Given a
     BatchedCTFCore (B=1), produces a flat int64 action tensor each tick.
     """
 
@@ -263,33 +164,13 @@ class PPOController:
             print(f"[PPO] Model not found: {model_path}")
             return
         try:
-            _ensure_numpy_core_compat()
-            _ensure_numpy_random_compat()
-            from stable_baselines3 import PPO as SB3PPO
-            # custom_objects: avoid unpickling policy/spaces/schedules from another Python/NumPy version.
-            obs_space = self.model_meta.get("observation_space")
-            action_space = self.model_meta.get("action_space")
-            if obs_space is None or action_space is None:
-                obs_space, action_space = _make_obs_action_spaces(self.n_blue, self.n_macros, self.n_targets)
-            custom_objects = {
-                "observation_space": obs_space,
-                "action_space": action_space,
-                "clip_range": 0.2,
-                "lr_schedule": lambda progress_remaining: 3e-4 * progress_remaining,
-                "cfg": None,
-            }
-            try:
-                from rl.train_ppo import MaskedMultiInputPolicy
-                custom_objects["policy_class"] = MaskedMultiInputPolicy
-            except Exception:
-                from stable_baselines3.common.policies import MultiInputActorCriticPolicy
-                custom_objects["policy_class"] = MultiInputActorCriticPolicy
-            self.model = SB3PPO.load(
+            obs_space, action_space = _make_obs_action_spaces(self.n_blue, self.n_macros, self.n_targets)
+            self.model = load_custom_ppo_policy(
                 self.model_path,
+                obs_space,
+                action_space,
                 device=self.device,
-                custom_objects=custom_objects,
             )
-            self.model.policy.set_training_mode(False)
             self.model_loaded = True
             print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
         except Exception as exc:
@@ -304,10 +185,7 @@ class PPOController:
             n_blue = obs["agent_mask"].shape[-1] if "agent_mask" in obs else 2
             return np.zeros((n_blue * 2,), dtype=np.int64)
 
-        # SB3 expects obs without the batch dim for single-env predict
-        single = {k: v[0] if v.ndim > 1 and v.shape[0] == 1 else v
-                  for k, v in obs.items()}
-        act, _ = self.model.predict(single, deterministic=self.deterministic)
+        act, _ = self.model.predict(obs, deterministic=self.deterministic)
         return np.asarray(act).reshape(-1).astype(np.int64)
 
 
@@ -424,7 +302,7 @@ class CoreRenderer:
 
     @staticmethod
     def _draw_mine_pickup(surface: pg.Surface, rect: pg.Rect, cw: float, ch: float, x: float, y: float) -> None:
-        """Draw a mine pickup spawn (diamond) so it’s distinct from placed mines."""
+        """Draw a mine pickup spawn (diamond) so it is distinct from placed mines."""
         cx = rect.left + (float(x) + 0.5) * cw
         cy = rect.top + (float(y) + 0.5) * ch
         s = int(0.4 * min(cw, ch))

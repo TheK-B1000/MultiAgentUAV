@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Plot 2v2 win rate: Ours (CNN vs OP3), comparison (CNN vs OP2), Self-play vs a scripted opponent (default OP3).
+Plot 2v2 win rate: Ours (custom PPO vs OP3), comparison (custom PPO vs OP2), Self-play vs a scripted opponent (default OP3).
 
 Use --opponent OP4 to evaluate vs a held-out opponent (OP4 is never used in training).
 
 Uses the same evaluation environment as training: GPUCTFVecEnv (game_field_gpu.py),
 i.e. the same BatchedCTFCore backend. ctfviewer.py is for visual playback only (pygame);
-training is done with rl/train_ppo.py (see default run_tags: ppo_cnn_fixed_op3_*, ppo_cnn_selfplay_*).
+training is done with rl/train_ppo.py (see default run_tags: ppo_custom_fixed_op3_*, ppo_custom_selfplay_*).
 
 Usage:
   python plot_2v2_winrate.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N] [--out plot.png]
 
-Defaults (under project checkpoints_sb3/2v2/; from ``final_<run_tag>.zip``):
-  --league   final_ppo_cnn_fixed_op3_2v2.zip   (Ours)
-  --paper    final_ppo_cnn_fixed_op2_2v2.zip   (comparison baseline)
-  --selfplay final_ppo_cnn_selfplay_2v2.zip
+Defaults (under project checkpoints/2v2/; from ``final_<run_tag>.zip``):
+  --league   final_ppo_custom_fixed_op3_2v2.zip   (Ours)
+  --paper    final_ppo_custom_fixed_op2_2v2.zip   (comparison baseline)
+  --selfplay final_ppo_custom_selfplay_2v2.zip
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ import warnings
 
 import numpy as np
 
-# Suppress SB3 warning about render_mode (our env does not define it; not needed for eval).
+# Suppress render_mode warnings; visual rendering is not needed for eval.
 warnings.filterwarnings("ignore", message=".*render_mode.*")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,19 +44,19 @@ def main():
         "--league",
         type=str,
         default=None,
-        help="Path to primary (Ours) checkpoint .zip (default: final_ppo_cnn_fixed_op3_2v2.zip)",
+        help="Path to primary (Ours) checkpoint .zip (default: final_ppo_custom_fixed_op3_2v2.zip)",
     )
     parser.add_argument(
         "--paper",
         type=str,
         default=None,
-        help="Path to comparison checkpoint .zip (default: final_ppo_cnn_fixed_op2_2v2.zip; train with --fixed-opponent OP2)",
+        help="Path to comparison checkpoint .zip (default: final_ppo_custom_fixed_op2_2v2.zip; train with --fixed-opponent OP2)",
     )
     parser.add_argument(
         "--selfplay",
         type=str,
         default=None,
-        help="Path to self-play checkpoint .zip (default: final_ppo_cnn_selfplay_2v2.zip)",
+        help="Path to self-play checkpoint .zip (default: final_ppo_custom_selfplay_2v2.zip)",
     )
     parser.add_argument("--episodes", type=int, default=100, help="Evaluation episodes per model")
     parser.add_argument(
@@ -89,16 +89,16 @@ def main():
         os.makedirs(figures_dir, exist_ok=True)
         args.out = os.path.join(figures_dir, os.path.basename(args.out))
 
-    default_dir = os.path.join(PROJECT_ROOT, "checkpoints_sb3", "2v2")
+    default_dir = os.path.join(PROJECT_ROOT, "checkpoints", "2v2")
     def path_or_default(name: str, default_name: str) -> str:
         p = name if name is not None else os.path.join(default_dir, default_name)
         if not p.endswith(".zip"):
             p = p + ".zip"
         return os.path.abspath(p)
 
-    league_path = path_or_default(args.league, "final_ppo_cnn_fixed_op3_2v2.zip")
-    paper_path = path_or_default(args.paper, "final_ppo_cnn_fixed_op2_2v2.zip")
-    selfplay_path = path_or_default(args.selfplay, "final_ppo_cnn_selfplay_2v2.zip")
+    league_path = path_or_default(args.league, "final_ppo_custom_fixed_op3_2v2.zip")
+    paper_path = path_or_default(args.paper, "final_ppo_custom_fixed_op2_2v2.zip")
+    selfplay_path = path_or_default(args.selfplay, "final_ppo_custom_selfplay_2v2.zip")
 
     for label, p in [("Ours", league_path), ("Jacob et al.", paper_path), ("Self-play", selfplay_path)]:
         if not os.path.isfile(p):

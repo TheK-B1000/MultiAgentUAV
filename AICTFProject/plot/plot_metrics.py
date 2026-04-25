@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 """
-Utility script to turn CSV metrics from PPO training/eval into LaTeX-ready plots.
+Utility script to turn CSV metrics from custom PPO training/eval into LaTeX-ready plots.
 
 Expected CSV format
 -------------------
 This script is designed for the episode-level CSVs written by the training/eval
-pipeline (e.g. files like `checkpoints_sb3/2v2/ppo_cnn_fixed_op3_2v2_metrics.csv` or the
+pipeline (e.g. files like `checkpoints/2v2/ppo_custom_fixed_op3_2v2_metrics.csv` or the
 `eval_*.csv` files produced by the viewer).
 
 The CSV must contain at least:
@@ -155,11 +155,11 @@ def plot_collisions(csv_paths: List[Path], out_dir: Path, window: int = 50) -> N
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot PPO CTF metrics CSVs for LaTeX-ready figures.")
+    parser = argparse.ArgumentParser(description="Plot custom PPO CTF metrics CSVs for LaTeX-ready figures.")
     parser.add_argument(
         "csv",
         nargs="+",
-        help="One or more metrics CSV files (e.g. checkpoints_sb3/2v2/ppo_cnn_fixed_op3_2v2_metrics.csv).",
+        help="One or more metrics CSV files (e.g. checkpoints/2v2/ppo_custom_fixed_op3_2v2_metrics.csv).",
     )
     parser.add_argument(
         "--out-dir",
@@ -194,4 +194,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

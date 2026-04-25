@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import inspect
 import os
-import sys
 import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -19,7 +18,6 @@ import gymnasium as gym
 import numpy as np
 import torch
 from gymnasium import spaces
-from stable_baselines3.common.vec_env import VecEnv
 
 try:
     from opponent_params import sample_batched_opponent_params
@@ -58,55 +56,24 @@ VEC_OBS_DIM = 18
 MAP_SET_SEED_OFFSETS = {"train": 0, "eval": 1_000_003}
 
 
-def _ensure_numpy_core_compat() -> None:
-    """Register numpy._core.* aliases so SB3 models load across NumPy versions."""
-    try:
-        import types
-        if not hasattr(np, "_core"):
-            _core = types.ModuleType("numpy._core")
-            _core.__path__ = []
-            sys.modules["numpy._core"] = _core
-            for _name in ("numeric", "multiarray", "umath"):
-                try:
-                    _sub = __import__(f"numpy.core.{_name}", fromlist=[_name])
-                    setattr(_core, _name, _sub)
-                    sys.modules[f"numpy._core.{_name}"] = _sub
-                except Exception:
-                    pass
-        if "numpy._core.numeric" not in sys.modules:
-            try:
-                _sub = __import__("numpy.core.numeric", fromlist=["numeric"])
-                sys.modules["numpy._core.numeric"] = _sub
-                if hasattr(np, "_core") and not hasattr(np._core, "numeric"):
-                    setattr(np._core, "numeric", _sub)
-            except Exception:
-                pass
-    except Exception:
-        pass
+class VecEnv:
+    """Minimal vector-env base used by the local PPO trainer."""
 
+    def __init__(self, num_envs: int, observation_space: spaces.Space, action_space: spaces.Space) -> None:
+        self.num_envs = int(num_envs)
+        self.observation_space = observation_space
+        self.action_space = action_space
 
-def _ensure_numpy_random_compat() -> None:
-    """Register NumPy random pickle aliases used by older/newer SB3 checkpoints."""
-    try:
-        try:
-            import numpy.random._pcg64 as _pcg64
-            sys.modules["numpy.random._pcg64"] = _pcg64
-        except Exception:
-            import numpy.random
-            if hasattr(numpy.random, "_pcg64"):
-                sys.modules["numpy.random._pcg64"] = getattr(numpy.random, "_pcg64")
+    def _get_indices(self, indices=None) -> List[int]:
+        if indices is None:
+            return list(range(self.num_envs))
+        if isinstance(indices, (int, np.integer)):
+            return [int(indices)]
+        return [int(i) for i in indices]
 
-        import numpy.random._pickle as _np_pickle
-        from numpy.random.bit_generator import BitGenerator
-        _orig_ctor = getattr(_np_pickle, "__bit_generator_ctor", None)
-        if _orig_ctor is not None:
-            def _bit_generator_ctor_patched(bit_generator):
-                if isinstance(bit_generator, type) and issubclass(bit_generator, BitGenerator):
-                    return bit_generator()
-                return _orig_ctor(bit_generator)
-            _np_pickle.__bit_generator_ctor = _bit_generator_ctor_patched
-    except Exception:
-        pass
+    def step(self, actions: np.ndarray):
+        self.step_async(actions)
+        return self.step_wait()
 
 
 def _try_paths(*candidates: str) -> Optional[str]:
@@ -573,35 +540,14 @@ class BatchedCTFCore:
             if abs(cached_mtime - mtime) < 1e-9:
                 return cached_model
         try:
-            _ensure_numpy_core_compat()
-            _ensure_numpy_random_compat()
-            from stable_baselines3 import PPO as SB3PPO
-            obs_space, action_space = _make_obs_action_spaces(self.Nr, int(self.cfg.n_macros), int(self.cfg.n_targets))
-            custom_objects = {
-                "observation_space": obs_space,
-                "action_space": action_space,
-                "clip_range": 0.2,
-                "lr_schedule": lambda progress_remaining: 3e-4 * progress_remaining,
-            }
-            try:
-                from rl.train_ppo import MaskedMultiInputPolicy
-                custom_objects["policy_class"] = MaskedMultiInputPolicy
-            except Exception:
-                from stable_baselines3.common.policies import MultiInputActorCriticPolicy
-                custom_objects["policy_class"] = MultiInputActorCriticPolicy
-            model = SB3PPO.load(
-                resolved,
-                device=str(self.device),
-                custom_objects=custom_objects,
-            )
-            model.policy.set_training_mode(False)
-            self._snapshot_policy_cache[resolved] = (mtime, model)
-            return model
-        except Exception as exc:
-            import warnings
-            self._snapshot_policy_cache[resolved] = (mtime, None)
-            warnings.warn(f"Failed to load snapshot opponent policy from {resolved}: {exc}")
-            return None
+            from rl.custom_ppo import load_custom_ppo_policy
+
+            obs_space, action_space = _make_obs_action_spaces(self.Nr, self.cfg.n_macros, self.cfg.n_targets)
+            model = load_custom_ppo_policy(resolved, obs_space, action_space, device=self.device)
+        except Exception:
+            model = None
+        self._snapshot_policy_cache[resolved] = (mtime, model)
+        return model
 
     def _respawn_side(self, blue: bool, env_mask: Optional[torch.Tensor] = None) -> None:
         if env_mask is None:
@@ -2946,7 +2892,7 @@ class GPUEnvAdapter:
 
 
 class GPUCTFVecEnv(VecEnv):
-    """SB3 VecEnv wrapper around BatchedCTFCore."""
+    """Local vector-env wrapper around BatchedCTFCore."""
 
     def __init__(self, cfg: GPUFieldConfig):
         self.core = BatchedCTFCore(cfg)

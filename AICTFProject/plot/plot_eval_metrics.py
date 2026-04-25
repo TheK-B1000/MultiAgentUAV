@@ -14,7 +14,7 @@ Runs 2v2, 3v3, 4v4, and 5v5 eval by default (8v8 is opt-in: ``--modes ... 8v8``)
 Usage:
   python plot_eval_metrics.py [--league PATH] [--paper PATH] [--selfplay PATH] [--episodes N]
   python plot_eval_metrics.py [--league-4v4 PATH] [--paper-4v4 PATH] [--selfplay-4v4 PATH]  # 4v4 checkpoints
-  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_cnn_*_5v5.zip)
+  python plot_eval_metrics.py [--league-5v5 PATH] [--paper-5v5 PATH] [--selfplay-5v5 PATH]  # 5v5 (defaults: final_ppo_custom_*_5v5.zip)
   python plot_eval_metrics.py   # default: OP3 + OP4 (all metrics + robustness)
   python plot_eval_metrics.py --opponents OP4 --episodes 50   # single opponent
   python plot_eval_metrics.py --modes 2v2 3v3 4v4 5v5 8v8   # include slow 8v8 eval
@@ -170,7 +170,7 @@ def main() -> None:
         default=None,
         metavar="MODE",
         help=(
-            "Team sizes to evaluate (default: 2v2 3v3 4v4 5v5 — 8v8 is not run unless listed here). "
+            "Team sizes to evaluate (default: 2v2 3v3 4v4 5v5 - 8v8 is not run unless listed here). "
             "Example: --modes 2v2 4v4 only, or add 8v8 for full grid."
         ),
     )
@@ -200,7 +200,7 @@ def main() -> None:
         "--device",
         type=str,
         default="cpu",
-        help="PPO load device. plot_*_winrate.py defaults to cuda — use the same device here or numbers diverge.",
+        help="PPO load device. plot_*_winrate.py defaults to cuda - use the same device here or numbers diverge.",
     )
     parser.add_argument("--training-csv", type=str, default=None, help="Optional training CSV for AUC learning curve")
     parser.add_argument(
@@ -229,7 +229,7 @@ def main() -> None:
         if name is not None:
             p = name
         else:
-            p = os.path.join(project_root, "checkpoints_sb3", subdir, default_name)
+            p = os.path.join(project_root, "checkpoints", subdir, default_name)
         if not p.endswith(".zip"):
             p = p + ".zip"
         return os.path.abspath(p)
@@ -239,7 +239,7 @@ def main() -> None:
         if name is not None:
             p = name
         else:
-            base = os.path.join(project_root, "checkpoints_sb3", subdir)
+            base = os.path.join(project_root, "checkpoints", subdir)
             chosen: str | None = None
             for cand in candidates:
                 bn = cand if cand.endswith(".zip") else cand + ".zip"
@@ -256,35 +256,35 @@ def main() -> None:
             p = p + ".zip"
         return os.path.abspath(p)
 
-    # Defaults: same naming as plot_2v2_winrate.py (final_ppo_cnn_fixed_op3_*, op2 comparison, selfplay).
-    # Checkpoints live under checkpoints_sb3/<NxN>/ (AICTFProject root), not under plot/.
+    # Defaults: same naming as plot_2v2_winrate.py (final_ppo_custom_fixed_op3_*, op2 comparison, selfplay).
+    # Checkpoints live under checkpoints/<NxN>/ (AICTFProject root), not under plot/.
     model_paths_2v2 = [
-        ("Ours", path_or_default(args.league, "final_ppo_cnn_fixed_op3_2v2.zip", "2v2")),
-        ("Jacob et al.", path_or_default(args.paper, "final_ppo_cnn_fixed_op2_2v2.zip", "2v2")),
-        ("Self-play", path_or_default(args.selfplay, "final_ppo_cnn_selfplay_2v2.zip", "2v2")),
+        ("Ours", path_or_default(args.league, "final_ppo_custom_fixed_op3_2v2.zip", "2v2")),
+        ("Jacob et al.", path_or_default(args.paper, "final_ppo_custom_fixed_op2_2v2.zip", "2v2")),
+        ("Self-play", path_or_default(args.selfplay, "final_ppo_custom_selfplay_2v2.zip", "2v2")),
     ]
     # 3v3: matches plot_3v3_winrate.py
     model_paths_3v3 = [
-        ("Ours", path_or_default(args.league_3v3, "final_ppo_cnn_fixed_op3_3v3.zip", "3v3")),
-        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_cnn_fixed_op2_3v3.zip", "3v3")),
-        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_cnn_selfplay_3v3.zip", "3v3")),
+        ("Ours", path_or_default(args.league_3v3, "final_ppo_custom_fixed_op3_3v3.zip", "3v3")),
+        ("Jacob et al.", path_or_default(args.paper_3v3, "final_ppo_custom_fixed_op2_3v3.zip", "3v3")),
+        ("Self-play", path_or_default(args.selfplay_3v3, "final_ppo_custom_selfplay_3v3.zip", "3v3")),
     ]
     # 4v4: same defaults as (modern) plot_4v4_winrate.py
     model_paths_4v4 = [
-        ("Ours", path_or_default(args.league_4v4, "final_ppo_cnn_fixed_op3_4v4.zip", "4v4")),
-        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_cnn_fixed_op2_4v4.zip", "4v4")),
-        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_cnn_selfplay_4v4.zip", "4v4")),
+        ("Ours", path_or_default(args.league_4v4, "final_ppo_custom_fixed_op3_4v4.zip", "4v4")),
+        ("Jacob et al.", path_or_default(args.paper_4v4, "final_ppo_custom_fixed_op2_4v4.zip", "4v4")),
+        ("Self-play", path_or_default(args.selfplay_4v4, "final_ppo_custom_selfplay_4v4.zip", "4v4")),
     ]
-    # 5v5: same fallbacks as plot_5v5_winrate.py (final → resumed → oom_save)
+    # 5v5: same fallbacks as plot_5v5_winrate.py (final -> resumed -> oom_save)
     model_paths_5v5 = [
         (
             "Ours",
             path_or_default_candidates(
                 args.league_5v5,
                 [
-                    "final_ppo_cnn_fixed_op3_5v5.zip",
-                    "final_ppo_cnn_fixed_op3_5v5_resumed_5v5.zip",
-                    "oom_save_ppo_cnn_fixed_op3_5v5.zip",
+                    "final_ppo_custom_fixed_op3_5v5.zip",
+                    "final_ppo_custom_fixed_op3_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_custom_fixed_op3_5v5.zip",
                 ],
                 "5v5",
             ),
@@ -294,9 +294,9 @@ def main() -> None:
             path_or_default_candidates(
                 args.paper_5v5,
                 [
-                    "final_ppo_cnn_fixed_op2_5v5.zip",
-                    "final_ppo_cnn_fixed_op2_5v5_resumed_5v5.zip",
-                    "oom_save_ppo_cnn_fixed_op2_5v5.zip",
+                    "final_ppo_custom_fixed_op2_5v5.zip",
+                    "final_ppo_custom_fixed_op2_5v5_resumed_5v5.zip",
+                    "oom_save_ppo_custom_fixed_op2_5v5.zip",
                 ],
                 "5v5",
             ),
@@ -305,16 +305,16 @@ def main() -> None:
             "Self-play",
             path_or_default_candidates(
                 args.selfplay_5v5,
-                ["final_ppo_cnn_selfplay_5v5.zip", "oom_save_ppo_cnn_selfplay_5v5.zip"],
+                ["final_ppo_custom_selfplay_5v5.zip", "oom_save_ppo_custom_selfplay_5v5.zip"],
                 "5v5",
             ),
         ),
     ]
     # 8v8: matches plot_8v8_winrate.py
     model_paths_8v8 = [
-        ("Ours", path_or_default(args.league_8v8, "final_ppo_cnn_fixed_op3_8v8.zip", "8v8")),
-        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_cnn_fixed_op2_8v8.zip", "8v8")),
-        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_cnn_selfplay_8v8.zip", "8v8")),
+        ("Ours", path_or_default(args.league_8v8, "final_ppo_custom_fixed_op3_8v8.zip", "8v8")),
+        ("Jacob et al.", path_or_default(args.paper_8v8, "final_ppo_custom_fixed_op2_8v8.zip", "8v8")),
+        ("Self-play", path_or_default(args.selfplay_8v8, "final_ppo_custom_selfplay_8v8.zip", "8v8")),
     ]
     _full_mode_plan: list[tuple[str, int, list[tuple[str, str]]]] = [
         ("2v2", 2, model_paths_2v2),
@@ -635,7 +635,7 @@ def main() -> None:
         return series, errs
 
     # PNGs: Performance, Win margin, Coordination, Robustness, Stability, Robotics
-    # (only team sizes in evaluated_mode_order — no placeholder zeros for skipped modes)
+    # (only team sizes in evaluated_mode_order - no placeholder zeros for skipped modes)
     _series, _errs = _series_for_metric("success_rate")
     _save_grouped_by_modes(
         "Performance",

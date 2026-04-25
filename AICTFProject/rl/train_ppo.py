@@ -1,59 +1,45 @@
+"""Train the CTF policy with the local PPO/MAPPO implementation."""
+
 from __future__ import annotations
 
-import csv
 import os
+import random
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional
 
-# Add parent directory to path so imports work regardless of where script is run from
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
 if _PARENT_DIR not in sys.path:
     sys.path.insert(0, _PARENT_DIR)
 
 import numpy as np
-
 import torch
-from stable_baselines3 import PPO
-from stable_baselines3.common.policies import MultiInputActorCriticPolicy
-from stable_baselines3.common.callbacks import BaseCallback, CallbackList, CheckpointCallback, EvalCallback
-from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import VecMonitor
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from opponent_params import sample_batched_opponent_params
-from rl.ctf_cnn_extractor import TokenizedCombinedExtractor
-from rl.episode_result import parse_episode_result
+from rl.custom_ppo import CustomPPOTrainer
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
 
 
 def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = False) -> None:
-    """
-    Set global RNG seeds for reproducibility.
-
-    This replaces the original implementation from rl.common so that
-    train_ppo.py can run without that module.
-    """
-    import random
-
-    random.seed(seed)
-    np.random.seed(seed)
-
+    """Set Python, NumPy, and Torch seeds."""
+    random.seed(int(seed))
+    np.random.seed(int(seed))
     if torch_seed:
-        torch.manual_seed(seed)
+        torch.manual_seed(int(seed))
         if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(seed)
+            torch.cuda.manual_seed_all(int(seed))
         if deterministic:
+            torch.use_deterministic_algorithms(True, warn_only=True)
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
 
 class TrainMode(str, Enum):
     FIXED_OPPONENT = "FIXED_OPPONENT"
-    SELF_PLAY = "SELF_PLAY"
 
 
 @dataclass
@@ -67,56 +53,27 @@ class PPOConfig:
     gamma: float = 0.995
     gae_lambda: float = 0.99
     clip_range: float = 0.2
+    clip_range_vf: Optional[float] = 0.2
     ent_coef: float = 0.01
     learning_rate: float = 3e-4
     max_grad_norm: float = 0.5
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
-    checkpoint_dir: str = "checkpoints_sb3"
+    checkpoint_dir: str = "checkpoints"
     load_path: Optional[str] = None
-    run_tag: str = "marl_latent_2v2"
-    save_every_steps: int = 50_000
-    eval_every_steps: int = 25_000
-    eval_episodes: int = 6
-    snapshot_every_episodes: int = 200
-    enable_tensorboard: bool = False
-    enable_checkpoints: bool = False
-    enable_eval: bool = False
-
-    verbose_training: bool = False
+    run_tag: str = "ppo_custom_2v2"
     enable_progress_bar: bool = True
+    verbose_training: bool = False
 
     max_decision_steps: int = 400
-
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
-    self_play_use_latest_snapshot: bool = False
-    self_play_latest_snapshot_prob: float = 0.35
-    self_play_snapshot_every_episodes: int = 200
-    self_play_max_snapshots: int = 3
-
-    action_flip_prob: float = 0.0
-    use_deterministic: bool = False
-
     max_blue_agents: int = 2
-    print_reset_shapes: bool = False
-    reward_mode: str = "TEAM_SUM"
-    use_obs_builder: bool = True
-    include_opponent_context: bool = False
-    obs_debug_validate_locality: bool = False
-    normalize_vec: bool = False
-
-    enable_opponent_tracking: bool = True
-    opponent_tracking_window: int = 100
-    species_rusher_bias: float = 0.5
-    use_reduced_aggressiveness: bool = False
+    use_deterministic: bool = False
     use_stable_marl_ppo: bool = True
     target_kl: Optional[float] = 0.02
-    approx_kl_threshold: float = 0.05
-    kl_guardrail_consecutive: int = 3
-    test_kl_zero_lr: bool = False
-    gpu_native_env: bool = True
 
+    # Reserved for the Summer/ICRA latent strategy implementation.
     use_latent_strategy: bool = False
     latent_k: int = 4
     latent_z_embed_dim: int = 16
@@ -127,1173 +84,176 @@ class PPOConfig:
     latent_resample_every_n: int = 0
 
 
-class MaskedMultiInputPolicy(MultiInputActorCriticPolicy):
-    """
-    Apply action masks to discrete macro + target logits (MultiDiscrete).
-    Mask layout: [macro0, targets0, macro1, targets1, ...] for 2 or max_blue_agents agents.
-    Supports tokenized (zero-shot) when action dims length is 2*max_blue_agents.
-    """
-
-    def _apply_action_mask(self, logits: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        if mask is None:
-            return logits
-        if mask.dim() == 1:
-            mask = mask.unsqueeze(0)
-        mask = mask.float()
-
-        if hasattr(self.action_dist, "action_dims"):
-            dims = list(self.action_dist.action_dims)
-        else:
-            dims = list(getattr(self.action_space, "nvec", []))
-        if not dims:
-            return logits
-
-        expected = sum(dims)
-        if mask.shape[1] < expected:
-            pad = torch.ones((mask.shape[0], expected - mask.shape[1]), device=mask.device)
-            mask = torch.cat([mask, pad], dim=1)
-
-        full_mask = []
-        offset = 0
-        for dim in dims:
-            d = int(dim)
-            sz = min(d, mask.shape[1] - offset)
-            if sz > 0:
-                chunk = mask[:, offset : offset + sz]
-                offset += sz
-                if chunk.shape[1] < d:
-                    chunk = torch.cat([chunk, torch.ones((mask.shape[0], d - chunk.shape[1]), device=mask.device)], dim=1)
-                full_mask.append(chunk)
-            else:
-                full_mask.append(torch.ones((mask.shape[0], d), device=mask.device))
-
-        mask_cat = torch.cat(full_mask, dim=1)
-        invalid = (mask_cat <= 0.0)
-        return logits.masked_fill(invalid, -1e8)
-
-    def get_distribution(self, obs: Dict[str, torch.Tensor]):
-        features = self.extract_features(obs)
-        latent_pi, _ = self.mlp_extractor(features)
-        logits = self.action_net(latent_pi)
-        if isinstance(obs, dict) and "mask" in obs:
-            logits = self._apply_action_mask(logits, obs["mask"])
-        return self.action_dist.proba_distribution(action_logits=logits)
-
-    def forward(self, obs: Dict[str, torch.Tensor], deterministic: bool = False):
-        # Same distribution for get_actions and log_prob (no clip after); SB3 stores as old_log_prob for PPO ratio.
-        features = self.extract_features(obs)
-        latent_pi, latent_vf = self.mlp_extractor(features)
-        logits = self.action_net(latent_pi)
-        if isinstance(obs, dict) and "mask" in obs:
-            logits = self._apply_action_mask(logits, obs["mask"])
-        distribution = self.action_dist.proba_distribution(action_logits=logits)
-        actions = distribution.get_actions(deterministic=deterministic)
-        log_prob = distribution.log_prob(actions)
-        values = self.value_net(latent_vf)
-        return actions, values, log_prob
-
-    def evaluate_actions(self, obs: Dict[str, torch.Tensor], actions: torch.Tensor):
-        # PPO training must use the same masked distribution as rollout collection,
-        # otherwise old_log_prob and new log_prob are computed from different policies.
-        features = self.extract_features(obs)
-        latent_pi, latent_vf = self.mlp_extractor(features)
-        logits = self.action_net(latent_pi)
-        if isinstance(obs, dict) and "mask" in obs:
-            logits = self._apply_action_mask(logits, obs["mask"])
-        distribution = self.action_dist.proba_distribution(action_logits=logits)
-        log_prob = distribution.log_prob(actions)
-        values = self.value_net(latent_vf)
-        entropy = distribution.entropy()
-        return values, log_prob, entropy
-
-
-def _tqdm_available() -> bool:
-    try:
-        import tqdm  # noqa: F401
-        return True
-    except ImportError:
-        return False
-
-
-def _log_line(message: str) -> None:
-    """
-    Write a message without losing it behind an active tqdm/rich progress bar.
-    """
-    text = str(message)
-    try:
-        from tqdm import tqdm
-        tqdm.write(text)
-    except Exception:
-        print(text, flush=True)
-
-
-class ProgressLogCallback(BaseCallback):
-    """Progress bar with ETA via tqdm; falls back to print every N steps if tqdm missing."""
-
-    def __init__(self, total_timesteps: int, interval: int = 50_000, use_tqdm: bool = True):
-        super().__init__(verbose=0)
-        self._total = int(total_timesteps)
-        self._interval = max(1, int(interval))
-        self._last_milestone = 0
-        self._last_n = 0
-        self._pbar = None
-        self._use_tqdm = bool(use_tqdm) and _tqdm_available()
-
-    def _init_callback(self) -> None:
-        if self._use_tqdm and self._total > 0:
-            try:
-                from tqdm import tqdm
-                self._pbar = tqdm(
-                    total=self._total,
-                    unit=" step",
-                    unit_scale=True,
-                    desc="PPO",
-                    dynamic_ncols=True,
-                    miniters=max(1, self._total // 500),
-                )
-            except Exception:
-                self._pbar = None
-                self._use_tqdm = False
-
-    def _on_step(self) -> bool:
-        if self._total <= 0:
-            return True
-        if self._pbar is not None:
-            n = min(self.num_timesteps, self._total)
-            delta = n - self._last_n
-            self._last_n = n
-            if delta > 0:
-                self._pbar.update(delta)
-            if n >= self._total:
-                self._pbar.close()
-                self._pbar = None
-            return True
-        milestone = self.num_timesteps // self._interval
-        if milestone > self._last_milestone:
-            self._last_milestone = milestone
-            pct = 100.0 * self.num_timesteps / self._total
-            _log_line(f"[PPO] Steps {self.num_timesteps:,}/{self._total:,} ({pct:.1f}%)")
-        return True
-
-    def _on_training_end(self) -> None:
-        if self._pbar is not None:
-            try:
-                self._pbar.close()
-            except Exception:
-                pass
-            self._pbar = None
-
-
-class SelfPlayCallback(BaseCallback):
-    """Self-play with rolling snapshot pool (paths on disk; no league/Elo)."""
-
-    def __init__(self, *, cfg: PPOConfig, snapshot_paths: List[str]) -> None:
-        _v = 1 if getattr(cfg, "verbose_training", False) else 0
-        super().__init__(verbose=_v)
-        self.cfg = cfg
-        self.snapshot_paths = snapshot_paths
-        self._rng = np.random.default_rng(int(cfg.seed) + 911)
-        self.episode_idx = 0
-        self.win_count = 0
-        self.loss_count = 0
-        self.draw_count = 0
-        self._max_snapshots = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
-        self._snapshot_roll_index = 0
-        self._total_snapshots_created = 0
-
-    def _choose_training_snapshot(self) -> Optional[str]:
-        if not self.snapshot_paths:
-            return None
-        latest = self.snapshot_paths[-1]
-        if bool(self.cfg.self_play_use_latest_snapshot):
-            return latest
-        latest_prob = max(0.0, min(1.0, float(getattr(self.cfg, "self_play_latest_snapshot_prob", 0.35))))
-        if len(self.snapshot_paths) > 1 and float(self._rng.random()) < latest_prob:
-            return latest
-        return str(self._rng.choice(self.snapshot_paths))
-
-    def _enforce_snapshot_limit(self) -> None:
-        if self._max_snapshots <= 0:
-            return
-        while len(self.snapshot_paths) > self._max_snapshots:
-            oldest = self.snapshot_paths.pop(0)
-            try:
-                if oldest and os.path.exists(oldest):
-                    os.remove(oldest)
-            except Exception as exc:
-                _log_line(f"[WARN] snapshot cleanup failed: {exc}")
-
-    def _on_step(self) -> bool:
-        infos = self.locals.get("infos", [])
-        dones = self.locals.get("dones", [])
-
-        for i, done in enumerate(dones):
-            if not done:
-                continue
-            info = infos[i] if i < len(infos) else {}
-            summary = parse_episode_result(info)
-            if summary is None:
-                continue
-
-            self.episode_idx += 1
-            blue_score = summary.blue_score
-            red_score = summary.red_score
-            if blue_score > red_score:
-                result = "WIN"
-                self.win_count += 1
-            elif blue_score < red_score:
-                result = "LOSS"
-                self.loss_count += 1
-            else:
-                result = "DRAW"
-                self.draw_count += 1
-
-            if (self.episode_idx % int(self.cfg.self_play_snapshot_every_episodes)) == 0:
-                self._enforce_snapshot_limit()
-                max_s = max(1, self._max_snapshots)
-                self._snapshot_roll_index = (self._snapshot_roll_index % max_s) + 1
-                slot = self._snapshot_roll_index
-                prefix = f"{self.cfg.run_tag}_selfplay_snapshot"
-                path = os.path.join(self.cfg.checkpoint_dir, f"{prefix}_slot{slot:03d}")
-                try:
-                    self.model.save(path)
-                except Exception as exc:
-                    _log_line(f"[WARN] snapshot save failed: {exc}")
-                else:
-                    self.snapshot_paths.append(os.path.abspath(path + ".zip"))
-                    self._enforce_snapshot_limit()
-                    self._total_snapshots_created += 1
-
-            if self.verbose:
-                _log_line(
-                    f"[PPO|SELF] ep={self.episode_idx} result={result} "
-                    f"score={blue_score}:{red_score} "
-                    f"snapshots={len(self.snapshot_paths)} total_created={self._total_snapshots_created} "
-                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
-                )
-
-            if self.episode_idx > 0 and self.episode_idx % 1000 == 0:
-                wr = (self.win_count / self.episode_idx) * 100
-                _log_line(f"[PPO] ep={self.episode_idx} mode=SELF_PLAY phase=SELF_PLAY opp=self W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
-
-            self.logger.record("self/episode", self.episode_idx)
-            self.logger.record("self/win_rate", self.win_count / max(1, self.episode_idx))
-            self.logger.record("self/draw_rate", self.draw_count / max(1, self.episode_idx))
-            self.logger.record("self/snapshots", float(len(self.snapshot_paths)))
-            self.logger.record("self/total_snapshots_created", float(self._total_snapshots_created))
-
-            next_snapshot = self._choose_training_snapshot()
-
-            if not self.snapshot_paths:
-                fallback_path = os.path.join(
-                    self.cfg.checkpoint_dir, f"{self.cfg.run_tag}_selfplay_init_fallback"
-                )
-                try:
-                    self.model.save(fallback_path)
-                except Exception as exc:
-                    _log_line(f"[WARN] self-play fallback save failed: {exc}")
-                else:
-                    self.snapshot_paths.append(os.path.abspath(fallback_path + ".zip"))
-                    self._enforce_snapshot_limit()
-                    next_snapshot = self.snapshot_paths[-1]
-
-            if next_snapshot:
-                env = self.model.get_env()
-                if env is not None:
-                    env.env_method("set_next_opponent", "SNAPSHOT", next_snapshot)
-
-        return True
-
-
-class FixedOpponentCallback(BaseCallback):
-    def __init__(self, *, cfg: PPOConfig) -> None:
-        _v = 1 if getattr(cfg, "verbose_training", False) else 0
-        super().__init__(verbose=_v)
-        self.cfg = cfg
-        self.episode_idx = 0
-        self.win_count = 0
-        self.loss_count = 0
-        self.draw_count = 0
-
-    def _on_step(self) -> bool:
-        infos = self.locals.get("infos", [])
-        dones = self.locals.get("dones", [])
-
-        for i, done in enumerate(dones):
-            if not done:
-                continue
-            info = infos[i] if i < len(infos) else {}
-            summary = parse_episode_result(info)
-            if summary is None:
-                continue
-
-            self.episode_idx += 1
-            blue_score = summary.blue_score
-            red_score = summary.red_score
-
-            if blue_score > red_score:
-                result = "WIN"
-                self.win_count += 1
-            elif blue_score < red_score:
-                result = "LOSS"
-                self.loss_count += 1
-            else:
-                result = "DRAW"
-                self.draw_count += 1
-
-            if self.verbose:
-                opp = str(summary.scripted_tag or self.cfg.fixed_opponent_tag).upper()
-                _log_line(
-                    f"[PPO|FIXED] ep={self.episode_idx} result={result} "
-                    f"score={blue_score}:{red_score} opp=SCRIPTED:{opp} "
-                    f"W={self.win_count} | L={self.loss_count} | D={self.draw_count}"
-                )
-
-            # Summary every 1000 episodes (always, not gated by verbose)
-            if self.episode_idx > 0 and self.episode_idx % 1000 == 0:
-                wr = (self.win_count / self.episode_idx) * 100
-                opp = str(summary.scripted_tag or self.cfg.fixed_opponent_tag).upper()
-                _log_line(f"[PPO] ep={self.episode_idx} mode=FIXED phase=FIXED opp=SCRIPTED:{opp} W={self.win_count} L={self.loss_count} D={self.draw_count} WR={wr:.1f}%")
-
-            self.logger.record("fixed/episode", self.episode_idx)
-            self.logger.record("fixed/win_rate", self.win_count / max(1, self.episode_idx))
-            self.logger.record("fixed/draw_rate", self.draw_count / max(1, self.episode_idx))
-
-        return True
-
-
-class KLGuardrailCallback(BaseCallback):
-    """Fix 4.2: Log approx_kl and auto-flag when it exceeds threshold repeatedly (over-updating)."""
-
-    def __init__(
-        self,
-        *,
-        threshold: float = 0.03,
-        consecutive: int = 3,
-        verbose: int = 1,
-    ):
-        super().__init__(verbose=verbose)
-        self.threshold = float(threshold)
-        self.consecutive = int(consecutive)
-        self._spike_count = 0
-        self._last_checked_update = -1
-
-    def _on_step(self) -> bool:
-        n_steps = getattr(self.model, "n_steps", 2048)
-        if n_steps <= 0 or self.n_calls <= 1:
-            return True
-        if (self.n_calls - 1) % n_steps != 0:
-            return True
-        update_id = (self.n_calls - 1) // n_steps
-        if update_id <= self._last_checked_update:
-            return True
-        is_first_check = self._last_checked_update == -1
-        self._last_checked_update = update_id
-
-        name_to_value = getattr(self.logger, "name_to_value", None) or {}
-        if "train/approx_kl" not in name_to_value:
-            if self.verbose and is_first_check:
-                print(
-                    f"[KLGuardrail] WARNING: 'train/approx_kl' not found in logger. "
-                    f"Guardrail may be inactive. Check that PPO is logging approx_kl."
-                )
-        approx_kl = float(name_to_value.get("train/approx_kl", 0.0))
-
-        if approx_kl > self.threshold:
-            self._spike_count += 1
-            if self.verbose:
-                self.logger.record("train/kl_guardrail_spike_count", self._spike_count)
-            if self._spike_count >= self.consecutive:
-                setattr(self.model, "_kl_guardrail_triggered", True)
-                if self.verbose:
-                    stable_enabled = bool(getattr(getattr(self.model, "cfg", None), "use_stable_marl_ppo", False))
-                    guidance = (
-                        "stable MARL PPO is already enabled; lower lr / n_epochs / clip_range, and use target_kl early stopping."
-                        if stable_enabled
-                        else "consider enabling use_stable_marl_ppo."
-                    )
-                    print(
-                        f"[KLGuardrail] approx_kl exceeded {self.threshold} for {self._spike_count} consecutive updates "
-                        f"(last approx_kl={approx_kl:.4f}). Set model._kl_guardrail_triggered=True; {guidance}"
-                    )
-        else:
-            self._spike_count = 0
-        return True
-
-
-class NoiseMetricsCSVCallback(BaseCallback):
-    """Track action execution noise (flip rates, streaks) and log to CSV per episode.
-    Uses per-env state so metrics are correct with vectorized envs (no mixing).
-    episode_idx is a global monotonic counter (never reset).
-    """
-
-    def __init__(self, csv_path: str, eps: float, run_id: str, verbose: int = 0):
-        super().__init__(verbose)
-        self.csv_path = str(csv_path)
-        self.eps = float(eps)
-        self.run_id = str(run_id)
-        self.episode_idx = 0
-        self.curr_streak = None
-        self.ep_steps = None
-        self.flip_count = None
-        self.macro_flip_count = None
-        self.target_flip_count = None
-        self.max_streak = None
-
-        os.makedirs(os.path.dirname(os.path.abspath(self.csv_path)) or ".", exist_ok=True)
-        self._ensure_header()
-
-    def _ensure_header(self):
-        if os.path.exists(self.csv_path) and os.path.getsize(self.csv_path) > 0:
-            return
-        headers = [
-            "run_id", "phase", "episode_idx", "steps", "agents", "eps",
-            "total_actions", "flip_count", "flip_rate",
-            "macro_flip_count", "macro_flip_rate",
-            "target_flip_count", "target_flip_rate",
-            "max_flip_streak",
-            "win", "score_for", "score_against",
-            "collisions", "coverage",
-            "mean_inter_robot_dist", "std_inter_robot_dist",
-        ]
-        with open(self.csv_path, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(headers)
-
-    def _on_training_start(self):
-        n_envs = getattr(self.training_env, "num_envs", 1)
-        n_envs = max(1, int(n_envs))
-        self.curr_streak = np.zeros(n_envs, dtype=np.int32)
-        self.ep_steps = np.zeros(n_envs, dtype=np.int64)
-        self.flip_count = np.zeros(n_envs, dtype=np.int64)
-        self.macro_flip_count = np.zeros(n_envs, dtype=np.int64)
-        self.target_flip_count = np.zeros(n_envs, dtype=np.int64)
-        self.max_streak = np.zeros(n_envs, dtype=np.int32)
-
-    def _reset_env_ep(self, env_i: int) -> None:
-        """Reset per-episode counters for a single env (after writing its row)."""
-        if self.ep_steps is None or env_i < 0 or env_i >= len(self.ep_steps):
-            return
-        self.ep_steps[env_i] = 0
-        self.flip_count[env_i] = 0
-        self.macro_flip_count[env_i] = 0
-        self.target_flip_count[env_i] = 0
-        self.curr_streak[env_i] = 0
-        self.max_streak[env_i] = 0
-
-    def _on_step(self) -> bool:
-        if self.ep_steps is None:
-            return True
-        infos = self.locals.get("infos", [])
-        dones = self.locals.get("dones", [])
-        n_envs = len(self.ep_steps)
-
-        for env_i, info in enumerate(infos):
-            if env_i >= n_envs:
-                break
-            self.ep_steps[env_i] += 1
-
-            flips = int(info.get("flip_count_step", 0))
-            macro_flips = int(info.get("macro_flip_count_step", 0))
-            target_flips = int(info.get("target_flip_count_step", 0))
-
-            self.flip_count[env_i] += flips
-            self.macro_flip_count[env_i] += macro_flips
-            self.target_flip_count[env_i] += target_flips
-
-            if flips > 0:
-                self.curr_streak[env_i] += 1
-                if self.curr_streak[env_i] > self.max_streak[env_i]:
-                    self.max_streak[env_i] = int(self.curr_streak[env_i])
-            else:
-                self.curr_streak[env_i] = 0
-
-            if env_i < len(dones) and bool(dones[env_i]):
-                summary = parse_episode_result(info)
-                if summary is None:
-                    self._reset_env_ep(env_i)
-                    continue
-
-                phase = summary.phase_name
-                agents = int(info.get("num_agents", 2))
-                action_components = int(info.get("action_components", 2))
-                steps_i = int(self.ep_steps[env_i])
-                total_actions = steps_i * agents * action_components
-
-                flip_rate = (self.flip_count[env_i] / total_actions) if total_actions > 0 else 0.0
-                macro_rate = (self.macro_flip_count[env_i] / total_actions) if total_actions > 0 else 0.0
-                target_rate = (self.target_flip_count[env_i] / total_actions) if total_actions > 0 else 0.0
-
-                win = summary.success
-                score_for = summary.blue_score
-                score_against = summary.red_score
-                collisions = summary.collisions_per_episode
-                coverage = summary.zone_coverage if summary.zone_coverage is not None else float("nan")
-                mean_dist = summary.mean_inter_robot_dist if summary.mean_inter_robot_dist is not None else float("nan")
-                std_dist = summary.std_inter_robot_dist if summary.std_inter_robot_dist is not None else float("nan")
-
-                row = [
-                    self.run_id, phase, self.episode_idx, steps_i, agents, self.eps,
-                    total_actions, int(self.flip_count[env_i]), flip_rate,
-                    int(self.macro_flip_count[env_i]), macro_rate,
-                    int(self.target_flip_count[env_i]), target_rate,
-                    int(self.max_streak[env_i]),
-                    win, score_for, score_against,
-                    collisions, coverage,
-                    mean_dist, std_dist,
-                ]
-
-                try:
-                    with open(self.csv_path, "a", newline="", encoding="utf-8") as f:
-                        csv.writer(f).writerow(row)
-                except Exception as exc:
-                    if self.verbose:
-                        print(f"[NoiseMetrics] CSV write failed: {exc}")
-
-                self.episode_idx += 1
-                self._reset_env_ep(env_i)
-
-        return True
-
-
-class MetricsCSVCallback(BaseCallback):
-    """Stream Top 5 IROS-style metrics per episode to CSV (one row per episode, no in-memory accumulation)."""
-
-    CSV_COLUMNS = [
-        "episode_id",
-        "success",
-        "time_to_first_score",
-        "time_to_game_over",
-        "collisions_per_episode",
-        "near_misses_per_episode",
-        "collision_free_episode",
-        "mean_inter_robot_dist",
-        "std_inter_robot_dist",
-        "zone_coverage",
-        "phase_name",
-        "opponent_kind",
-        "scripted_tag",
-        "blue_score",
-        "red_score",
-        "opponent_switch_count",
-        "strategy_switch_count",
-        "strategy_resample_count",
-        "vec_schema_version",
-    ]
-
-    def __init__(self, *, save_path: str) -> None:
-        super().__init__(verbose=0)
-        self.save_path = str(save_path)
-        self._header_written = False
-        self._episode_id = 0
-        self._opponent_switch_count = 0
-        self._last_opponent_key: Optional[str] = None
-        self._rows_written = 0
-
-    def _fmt(self, v: Any) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, float):
-            return f"{v:.6g}"
-        return str(v)
-
-    def _write_row(self, row: Dict[str, Any]) -> None:
-        path = self.save_path
-        if not path.lower().endswith(".csv"):
-            path = path + ".csv"
-        os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
-        mode = "w" if not self._header_written else "a"
-        with open(path, mode, newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=self.CSV_COLUMNS, extrasaction="ignore")
-            if not self._header_written:
-                w.writeheader()
-                self._header_written = True
-            w.writerow({k: self._fmt(row.get(k)) for k in self.CSV_COLUMNS})
-        self._rows_written += 1
-
-    def _on_step(self) -> bool:
-        infos = self.locals.get("infos", [])
-        dones = self.locals.get("dones", [])
-        for i, done in enumerate(dones):
-            if not done:
-                continue
-            info = infos[i] if i < len(infos) else {}
-            summary = parse_episode_result(info)
-            if summary is None:
-                continue
-            self._episode_id += 1
-            opp_key = summary.opponent_key()
-            if self._last_opponent_key is not None and opp_key != self._last_opponent_key:
-                self._opponent_switch_count += 1
-            self._last_opponent_key = opp_key
-
-            row = {
-                "episode_id": self._episode_id,
-                "success": summary.success,
-                "time_to_first_score": summary.time_to_first_score,
-                "time_to_game_over": summary.time_to_game_over,
-                "collisions_per_episode": summary.collisions_per_episode,
-                "near_misses_per_episode": summary.near_misses_per_episode,
-                "collision_free_episode": summary.collision_free_episode,
-                "mean_inter_robot_dist": summary.mean_inter_robot_dist,
-                "std_inter_robot_dist": summary.std_inter_robot_dist,
-                "zone_coverage": summary.zone_coverage,
-                "phase_name": summary.phase_name,
-                "opponent_kind": summary.opponent_kind,
-                "scripted_tag": summary.scripted_tag or "",
-                "blue_score": summary.blue_score,
-                "red_score": summary.red_score,
-                "opponent_switch_count": self._opponent_switch_count,
-                "strategy_switch_count": info.get("strategy_switch_count", ""),
-                "strategy_resample_count": info.get("strategy_resample_count", ""),
-                "vec_schema_version": summary.vec_schema_version,
-            }
-            try:
-                self._write_row(row)
-            except Exception as exc:
-                print(f"[WARN] Metrics CSV write failed: {exc}")
-        return True
-
-    def _on_training_end(self) -> None:
-        if self.verbose and self._rows_written > 0:
-            path = self.save_path if self.save_path.lower().endswith(".csv") else self.save_path + ".csv"
-            print(f"[Metrics] Wrote {self._rows_written} rows to {path}")
-
-
-def _attach_latent_strategy_encoder(env, policy) -> None:
-    """Locate ``LatentStrategyVecEnvWrapper`` (under ``VecMonitor``) and attach ``policy.strategy_encoder``."""
-    from rl.latent_vec_env import LatentStrategyVecEnvWrapper
-
-    w = env
-    for _ in range(8):
-        if isinstance(w, LatentStrategyVecEnvWrapper):
-            enc = getattr(policy, "strategy_encoder", None)
-            if enc is None:
-                raise RuntimeError("Latent training requires LatentMaskedMultiInputPolicy (missing strategy_encoder).")
-            w.attach_strategy_encoder(enc)
-            return
-        if not hasattr(w, "venv"):
-            break
-        w = w.venv
-
-
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
+    """Run the default local PPO/MAPPO training path."""
     cfg = cfg or PPOConfig()
-    set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
+    if bool(getattr(cfg, "use_latent_strategy", False)):
+        raise NotImplementedError(
+            "Latent strategy training is reserved for the local trainer follow-up phase. "
+            "Phase 4/7 should add it to rl.custom_ppo using the existing rollout fields."
+        )
 
+    cfg.mode = _normalize_train_mode(cfg.mode)
+    if cfg.mode != TrainMode.FIXED_OPPONENT.value:
+        raise ValueError("The local PPO trainer currently supports FIXED_OPPONENT training.")
+
+    set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
 
-    raw_mode = str(cfg.mode).upper().strip()
-    mode = _normalize_train_mode(cfg.mode)
-    cfg.mode = mode
-    max_agents = int(getattr(cfg, "max_blue_agents", 2))
+    max_agents = max(1, int(getattr(cfg, "max_blue_agents", 2)))
     team_size = _agents_suffix(max_agents)
-    print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
-    if raw_mode != mode:
-        print(f"[PPO] Mode alias normalized: {raw_mode} -> {mode}")
-    print(f"[PPO] Total timesteps: {cfg.total_timesteps:,}")
-    print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
+    print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={cfg.mode} | run_tag={cfg.run_tag!r}")
+    print("[PPO] Algorithm backend: custom local PPO")
+    print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
+    print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
-    if "/content/drive" in os.path.abspath(cfg.checkpoint_dir) or "MyDrive" in cfg.checkpoint_dir:
-        print("[PPO] Saving to Google Drive — progress will persist if runtime disconnects.")
-    if not getattr(cfg, "verbose_training", False):
-        print("[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.")
-    print("[PPO] Progress: steps every 50k timesteps; W/L/D summary every 1000 episodes.")
 
-    # Larger team sizes need smaller rollouts to keep memory reasonable; episode length matches
-    # PPOConfig default / win-rate eval (400 decision steps), not a shorter 250-step horizon.
     if max_agents == 6:
-        original_n_envs = int(getattr(cfg, "n_envs", 8))
-        original_n_steps = int(getattr(cfg, "n_steps", 2048))
-        original_max_decision_steps = int(getattr(cfg, "max_decision_steps", 400))
-        cap_steps = min(original_max_decision_steps, 400)
-        if original_n_envs > 1 or original_n_steps > 512 or original_max_decision_steps > 400:
-            print(
-                f"[PPO] {team_size}: using fast profile for wall-clock speed: "
-                f"n_envs {original_n_envs}->1, n_steps {original_n_steps}->512, "
-                f"max_decision_steps {original_max_decision_steps}->{cap_steps}"
-            )
-        cfg.n_envs = min(original_n_envs, 1)
-        cfg.n_steps = min(original_n_steps, 512)
-        cfg.max_decision_steps = cap_steps
-    elif max_agents > 6:
-        # 8v8 has a much larger observation tensor; keep rollout buffer size reasonable to avoid OOM.
-        original_n_envs = int(getattr(cfg, "n_envs", 4))
-        original_n_steps = int(getattr(cfg, "n_steps", 2048))
-        original_max_decision_steps = int(getattr(cfg, "max_decision_steps", 400))
-        cap_steps = min(original_max_decision_steps, 400)
-        if original_n_envs > 2 or original_n_steps > 1024 or original_max_decision_steps > 400:
-            print(
-                f"[PPO] {team_size}: reducing rollout/episode size for memory: "
-                f"n_envs {original_n_envs}->2, n_steps {original_n_steps}->1024, "
-                f"max_decision_steps {original_max_decision_steps}->{cap_steps}"
-            )
-        cfg.n_envs = min(original_n_envs, 2)
-        cfg.n_steps = min(original_n_steps, 1024)
-        cfg.max_decision_steps = cap_steps
+        cfg.n_envs = min(int(cfg.n_envs), 1)
+        cfg.n_steps = min(int(cfg.n_steps), 512)
+        cfg.max_decision_steps = min(int(cfg.max_decision_steps), 400)
 
-    snapshot_paths: List[str] = []
-    if mode == TrainMode.SELF_PLAY.value:
-        max_snaps = int(getattr(cfg, "self_play_max_snapshots", 0))
-        if max_snaps > 0:
-            print(f"[SelfPlay] {team_size}: rolling snapshot pool (max {max_snaps})")
-        else:
-            print(f"[SelfPlay] {team_size}: latest checkpoint only (self_play_max_snapshots=0)")
-
-    if mode == TrainMode.FIXED_OPPONENT.value:
-        default_opponent = ("SCRIPTED", str(cfg.fixed_opponent_tag).upper())
-        phase_name = str(cfg.fixed_opponent_tag).upper()
-    else:
-        default_opponent = ("SNAPSHOT", "__SELF_PLAY_BOOTSTRAP__")
-        phase_name = "SELF_PLAY"
-
-    # If using CUDA, check that this PyTorch build supports the GPU (e.g. RTX 50-series needs nightly/sm_120)
     if str(cfg.device).lower().startswith("cuda"):
         try:
             torch.zeros(1, device=cfg.device)
-        except RuntimeError as e:
-            err = str(e).lower()
-            if "no kernel image" in err or "not compatible" in err or "sm_" in err:
-                print(f"[PPO] GPU not supported by this PyTorch build ({e}). Falling back to CPU.")
-                print("[PPO] To use RTX 50-series (Blackwell), install PyTorch nightly: pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128")
-                cfg.device = "cpu"
+        except RuntimeError as exc:
+            print(f"[PPO] CUDA unavailable for this torch build ({exc}). Falling back to CPU.")
+            cfg.device = "cpu"
 
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
-        max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-        max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
+        n_agents_per_team=max_agents,
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
         rules_profile="OURS",
         device=str(cfg.device),
         seed=int(cfg.seed),
     )
-    print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
-    use_latent = bool(getattr(cfg, "use_latent_strategy", False))
-    if use_latent:
-        if int(getattr(cfg, "latent_k", 4)) not in (4, 6):
-            raise ValueError("Paper-aligned latent strategy requires latent_k to be either 4 or 6.")
-        if int(getattr(cfg, "latent_resample_every_n", 0)) == 1:
-            raise ValueError("Latent strategy resampling every timestep is not allowed; use 0 or >= 2.")
-    base_pf = GPUCTFVecEnv(gpu_cfg)
-    if use_latent:
-        from rl.latent_vec_env import LatentStrategyVecEnvWrapper
+    env = GPUCTFVecEnv(gpu_cfg)
+    try:
+        env.env_method("set_stress_schedule", STRESS_BY_PHASE)
+        env.env_method("set_dynamics_config", {"rules_profile": "OURS"})
+        env.env_method("set_phase", str(cfg.fixed_opponent_tag).upper())
+        env.env_method("set_next_opponent", "SCRIPTED", str(cfg.fixed_opponent_tag).upper())
+        _apply_initial_opponent_params(env, cfg, gpu_cfg)
 
-        lv = LatentStrategyVecEnvWrapper(
-            base_pf,
-            latent_k=int(getattr(cfg, "latent_k", 4)),
-            resample_every_n=int(getattr(cfg, "latent_resample_every_n", 0)),
-        )
-        print(
-            f"[PPO] Latent team strategy (CTDE): K={int(cfg.latent_k)}, "
-            f"resample_every_n={int(cfg.latent_resample_every_n)}, lambda_H={float(cfg.latent_lam_h)}, "
-            f"lambda_P={float(cfg.latent_lam_p)}, z_embed_dim={int(cfg.latent_z_embed_dim)}, "
-            f"global_state_dim={GLOBAL_STATE_DIM}"
-        )
-        venv = VecMonitor(lv)
-    else:
-        venv = VecMonitor(base_pf)
+        learning_rate = float(cfg.learning_rate)
+        ent_coef = float(cfg.ent_coef)
+        clip_range = float(cfg.clip_range)
+        n_epochs = int(cfg.n_epochs)
+        batch_size = int(cfg.batch_size)
 
+        if bool(getattr(cfg, "use_stable_marl_ppo", False)):
+            learning_rate = 1.5e-4
+            ent_coef = 0.005
+            clip_range = 0.10
+            n_epochs = 2
+            batch_size = 1024
+            print("[PPO] Stable MARL profile: lr=1.5e-4, n_epochs=2, clip=0.10, ent=0.005.")
+        if max_agents > 2:
+            learning_rate *= 0.75
+            print(f"[PPO] {team_size}: using lr={learning_rate:.2e} for stability.")
+
+        rollout_size = max(1, int(cfg.n_steps) * max(1, int(cfg.n_envs)))
+        if batch_size > rollout_size:
+            batch_size = rollout_size
+            print(f"[PPO] Adjusting batch_size to rollout size: {batch_size}.")
+
+        trainer = CustomPPOTrainer(
+            env,
+            cfg,
+            learning_rate=learning_rate,
+            clip_range=clip_range,
+            ent_coef=ent_coef,
+            n_epochs=n_epochs,
+            batch_size=batch_size,
+            value_clip_range=getattr(cfg, "clip_range_vf", clip_range),
+        )
+        if cfg.load_path and os.path.isfile(cfg.load_path):
+            print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
+            trainer.load(cfg.load_path)
+        stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
+        final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
+        trainer.save(final_path)
+        if stats:
+            print(
+                "[PPO] Final stats: "
+                f"policy_loss={stats.get('policy_loss', 0.0):.4f}, "
+                f"value_loss={stats.get('value_loss', 0.0):.4f}, "
+                f"approx_kl={stats.get('approx_kl', 0.0):.5f}"
+            )
+        print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
+    finally:
+        env.close()
+
+
+def _apply_initial_opponent_params(env: GPUCTFVecEnv, cfg: PPOConfig, gpu_cfg: GPUFieldConfig) -> None:
     try:
-        venv.env_method("set_stress_schedule", STRESS_BY_PHASE)
-    except Exception:
-        pass
-    try:
-        # Project default: enforce the repo's current OURS scoring/rules profile.
-        venv.env_method("set_dynamics_config", {"rules_profile": "OURS"})
-    except Exception:
-        pass
-    try:
-        venv.env_method("set_phase", phase_name)
-    except Exception:
-        pass
-    try:
-        kind, key = default_opponent
-        venv.env_method("set_next_opponent", kind, key)
-        current_keys = venv.env_method("get_opponent_key")
-        if mode == TrainMode.FIXED_OPPONENT.value:
-            requested_key = str(key).upper()
-            actual_keys = [str(k).upper() for k in (current_keys or [])]
-            if actual_keys and any(k != requested_key for k in actual_keys):
-                print(
-                    f"[PPO] WARNING: FIXED_OPPONENT requested {requested_key}, but env reports {actual_keys}. "
-                    "Training may not be locked to the intended scripted opponent."
-                )
-    except Exception as exc:
-        print(f"[PPO] opponent initialization failed (falling back to existing env opponent): {exc}")
-    # Initial scripted-opponent parameters (including deception and speed for red team).
-    # Use actual phase/key (OP1=easier, OP2=medium, OP3=strong) so OP1/OP2 are not able to score easily.
-    try:
-        kind, key = default_opponent
         opp_params = sample_batched_opponent_params(
-            kind=kind,
-            key=key,
-            phase=phase_name,
+            kind="SCRIPTED",
+            key=str(cfg.fixed_opponent_tag).upper(),
+            phase=str(cfg.fixed_opponent_tag).upper(),
             n_agents=gpu_cfg.max_red_agents,
             batch_size=gpu_cfg.n_envs,
             device=gpu_cfg.device,
         )
-        dyn_cfg: Dict[str, Any] = {}
-        if "deception_prob" in opp_params:
-            dyn_cfg["deception_prob"] = opp_params["deception_prob"]
-        if "speed_mult" in opp_params:
-            dyn_cfg["speed_mult"] = opp_params["speed_mult"]
-        if "attacker_style" in opp_params:
-            dyn_cfg["attacker_style"] = opp_params["attacker_style"]
-        if "defender_style" in opp_params:
-            dyn_cfg["defender_style"] = opp_params["defender_style"]
-        if "role_switch_prob" in opp_params:
-            dyn_cfg["role_switch_prob"] = opp_params["role_switch_prob"]
+        dyn_cfg: dict[str, object] = {
+            key: value
+            for key, value in opp_params.items()
+            if key in {"deception_prob", "speed_mult", "attacker_style", "defender_style", "role_switch_prob"}
+        }
         if dyn_cfg:
-            venv.env_method("set_dynamics_config", dyn_cfg)
+            env.env_method("set_dynamics_config", dyn_cfg)
     except Exception as exc:
-        print(f"[PPO] opponent_params sampling failed (using defaults): {exc}")
-
-    # Stable MARL PPO (Fix 4.1) or reduced aggressiveness
-    learning_rate = float(cfg.learning_rate)
-    ent_coef = float(cfg.ent_coef)
-    clip_range = float(cfg.clip_range)
-    n_epochs = int(cfg.n_epochs)
-    batch_size = int(cfg.batch_size)
-
-    if getattr(cfg, "use_stable_marl_ppo", False):
-        learning_rate = 1.5e-4
-        ent_coef = 0.005
-        clip_range = 0.10
-        n_epochs = 2
-        batch_size = 1024
-        print("[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=2, clip_range=0.10, ent_coef=0.005, batch_size=1024, target_kl=0.02")
-    elif getattr(cfg, "use_reduced_aggressiveness", False):
-        learning_rate = learning_rate * 0.67
-        ent_coef = ent_coef * 0.5
-        clip_range = clip_range * 0.75
-        print(f"[PPO] Using reduced aggressiveness: LR={learning_rate:.2e}, ent_coef={ent_coef:.3f}, clip_range={clip_range:.2f}")
-
-    # 4v4/8v8: gentler LR to reduce KL spikes and stabilize (scripted OP3 also scaled down in opponent_params)
-    if max_agents > 2:
-        learning_rate = learning_rate * 0.75
-        print(f"[PPO] {team_size}: using lr={learning_rate:.2e} for stability")
-
-    # KL sanity check: run with lr=0 and verify approx_kl ~ 0 in logs; if huge, logprob/action plumbing is broken
-    if getattr(cfg, "test_kl_zero_lr", False):
-        learning_rate = 0.0
-        print("[PPO] test_kl_zero_lr=True: learning_rate=0 — verify approx_kl ~ 0 in logs (if not, check old_logprob/action pairing)")
-    
-    rollout_size = max(1, int(cfg.n_steps) * max(1, int(cfg.n_envs)))
-    if batch_size > rollout_size:
-        adjusted_batch_size = rollout_size
-        for candidate in (1024, 512, 256, 128, 64, 32):
-            if candidate <= rollout_size and rollout_size % candidate == 0:
-                adjusted_batch_size = candidate
-                break
-        print(f"[PPO] Adjusting batch_size for rollout size: {batch_size}->{adjusted_batch_size} (n_steps*n_envs={rollout_size})")
-        batch_size = adjusted_batch_size
-
-    policy_cls = MaskedMultiInputPolicy
-    ppo_cls = PPO
-    extra_ppo_kwargs: Dict[str, Any] = {}
-    if use_latent:
-        from rl.latent_marl import LatentMaskedMultiInputPolicy, LatentStrategyPPO
-
-        policy_cls = LatentMaskedMultiInputPolicy
-        ppo_cls = LatentStrategyPPO
-        policy_kwargs = dict(
-            net_arch=dict(pi=[], vf=[]),
-            z_embed_dim=int(cfg.latent_z_embed_dim),
-            vf_hidden=int(cfg.latent_vf_hidden),
-            strategy_hidden=int(cfg.latent_strategy_hidden),
-        )
-        extra_ppo_kwargs = dict(latent_lam_h=float(cfg.latent_lam_h), latent_lam_p=float(cfg.latent_lam_p))
-    else:
-        policy_kwargs = dict(
-            features_extractor_class=TokenizedCombinedExtractor,
-            features_extractor_kwargs=dict(cnn_output_dim=256, normalized_image=True),
-            net_arch=dict(pi=[], vf=[]),
-        )
-
-    # Optional resume from checkpoint: when cfg.load_path is set and the file exists, load PPO instead of creating a fresh model.
-    load_path = getattr(cfg, "load_path", None)
-    if load_path and os.path.isfile(load_path):
-        print(f"[PPO] Resuming from checkpoint: {load_path}")
-        model = ppo_cls.load(
-            load_path,
-            env=venv,
-            device=cfg.device,
-            custom_objects={
-                "observation_space": venv.observation_space,
-                "action_space": venv.action_space,
-                "policy_class": policy_cls,
-            },
-        )
-        # Ensure cfg/run_tag/checkpoint_dir are kept from current run, not from the checkpoint.
-        model.cfg = cfg
-    else:
-        model = ppo_cls(
-            policy=policy_cls,
-            env=venv,
-            learning_rate=learning_rate,
-            n_steps=int(cfg.n_steps),
-            batch_size=batch_size,
-            n_epochs=n_epochs,
-            gamma=float(cfg.gamma),
-            gae_lambda=float(cfg.gae_lambda),
-            clip_range=clip_range,
-            ent_coef=ent_coef,
-            vf_coef=1.0,
-            max_grad_norm=float(cfg.max_grad_norm),
-            target_kl=float(cfg.target_kl) if getattr(cfg, "target_kl", None) is not None else None,
-            tensorboard_log=(
-                os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag)
-                if cfg.enable_tensorboard
-                else None
-            ),
-            policy_kwargs=policy_kwargs,
-            verbose=0,
-            seed=cfg.seed,
-            device=cfg.device,
-            **extra_ppo_kwargs,
-        )
-        model.cfg = cfg
-
-    if use_latent:
-        _attach_latent_strategy_encoder(venv, model.policy)
-
-    if cfg.enable_tensorboard:
-        model.set_logger(configure(os.path.join(cfg.checkpoint_dir, "tb", cfg.run_tag), ["tensorboard"]))
-    else:
-        model.set_logger(configure(None, []))
-
-    if mode == TrainMode.SELF_PLAY.value:
-        init_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_selfplay_init")
-        try:
-            model.save(init_path)
-        except Exception as exc:
-            print(f"[WARN] self-play init snapshot save failed: {exc}")
-        else:
-            snapshot_paths.append(os.path.abspath(init_path + ".zip"))
-            init_key = snapshot_paths[-1]
-            max_snaps = max(0, int(getattr(cfg, "self_play_max_snapshots", 0)))
-            if max_snaps > 0:
-                while len(snapshot_paths) > max_snaps:
-                    oldest = snapshot_paths.pop(0)
-                    try:
-                        if oldest and os.path.exists(oldest):
-                            os.remove(oldest)
-                    except Exception as exc:
-                        print(f"[WARN] snapshot cleanup failed: {exc}")
-            if init_key:
-                venv.env_method("set_next_opponent", "SNAPSHOT", init_key)
-                venv.reset()
-
-    callbacks = []
-    if mode == TrainMode.SELF_PLAY.value:
-        callbacks.append(SelfPlayCallback(cfg=cfg, snapshot_paths=snapshot_paths))
-    elif mode == TrainMode.FIXED_OPPONENT.value:
-        callbacks.append(FixedOpponentCallback(cfg=cfg))
-
-    # Top 5 IROS-style metrics: CSV at end of training (simple, publish-friendly)
-    metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics")
-    callbacks.append(MetricsCSVCallback(save_path=metrics_csv_path))
-
-    # Progress:
-    # - If SB3's built-in progress bar is enabled (cfg.enable_progress_bar), let SB3 handle tqdm/rich.
-    # - Otherwise, fall back to our simple ProgressLogCallback (prints every 50k steps).
-    if not getattr(cfg, "enable_progress_bar", False):
-        callbacks.append(ProgressLogCallback(total_timesteps=int(cfg.total_timesteps), interval=50_000))
-
-    # Fix 4.2: KL guardrail – log approx_kl and set model._kl_guardrail_triggered if spikes repeatedly
-    if getattr(cfg, "approx_kl_threshold", 0) > 0 and getattr(cfg, "kl_guardrail_consecutive", 0) > 0:
-        callbacks.append(
-            KLGuardrailCallback(
-                threshold=float(cfg.approx_kl_threshold),
-                consecutive=int(cfg.kl_guardrail_consecutive),
-                verbose=1,
-            )
-        )
-
-    if getattr(cfg, "action_flip_prob", 0.0) > 0.0:
-        noise_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_noise_metrics")
-        callbacks.append(
-            NoiseMetricsCSVCallback(
-                csv_path=noise_csv_path,
-                eps=float(cfg.action_flip_prob),
-                run_id=str(cfg.run_tag),
-                verbose=0,
-            )
-        )
-
-    if cfg.enable_checkpoints:
-        callbacks.append(
-            CheckpointCallback(
-                save_freq=int(cfg.save_every_steps),
-                save_path=cfg.checkpoint_dir,
-                name_prefix=f"ckpt_{cfg.run_tag}",
-            )
-        )
-
-    if cfg.enable_eval and mode != TrainMode.SELF_PLAY.value:
-        eval_core_cfg = GPUFieldConfig(
-            n_envs=1,
-            max_blue_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-            max_red_agents=max(1, int(getattr(cfg, "max_blue_agents", 2))),
-            max_decision_steps=max(1, int(cfg.max_decision_steps)),
-            aquaticus_profile=True,
-            rules_profile="OURS",
-            device=str(cfg.device),
-            seed=int(cfg.seed),
-        )
-        eval_inner = GPUCTFVecEnv(eval_core_cfg)
-        if use_latent:
-            from rl.latent_vec_env import LatentStrategyVecEnvWrapper
-
-            eval_inner = LatentStrategyVecEnvWrapper(
-                eval_inner,
-                latent_k=int(getattr(cfg, "latent_k", 4)),
-                resample_every_n=0,
-            )
-            eval_inner.set_z_deterministic(True)
-        eval_env = VecMonitor(eval_inner)
-
-        # CRITICAL: Match training environment setup (stress schedule + phase)
-        # This ensures eval environment matches training and viewer environments
-        try:
-            eval_env.env_method("set_stress_schedule", STRESS_BY_PHASE)
-        except Exception:
-            pass
-        try:
-            eval_env.env_method("set_phase", "OP3")  # EvalCallback always uses OP3
-        except Exception:
-            pass
-        try:
-            eval_env.env_method("set_next_opponent", "SCRIPTED", "OP3")
-        except Exception:
-            pass
-
-        if use_latent:
-            _attach_latent_strategy_encoder(eval_env, model.policy)
-
-        callbacks.append(
-            EvalCallback(
-                eval_env,
-                n_eval_episodes=int(cfg.eval_episodes),
-                eval_freq=int(cfg.eval_every_steps),
-                deterministic=True,
-                best_model_save_path=cfg.checkpoint_dir,
-            )
-        )
-
-    callbacks = CallbackList(callbacks)
-
-    # Optional TQDM progress bar for ETA (if supported by this SB3 version).
-    learn_kwargs: Dict[str, Any] = {}
-    if getattr(cfg, "enable_progress_bar", False):
-        learn_kwargs["progress_bar"] = True
-
-    try:
-        try:
-            model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks, **learn_kwargs)
-        except (TypeError, ImportError) as prog_exc:
-            # Older SB3 may not accept progress_bar; or tqdm/rich missing (SB3 adds ProgressBarCallback).
-            if learn_kwargs.get("progress_bar") and ("progress_bar" in str(prog_exc) or "tqdm" in str(prog_exc).lower() or "rich" in str(prog_exc).lower()):
-                model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
-            else:
-                raise
-    except (MemoryError, torch.cuda.OutOfMemoryError, RuntimeError) as exc:
-        # Treat both CUDA OOM and CPU/NumPy memory errors (e.g. ArrayMemoryError) as OOM so we always try to save.
-        _exc_name_lower = type(exc).__name__.lower()
-        _msg_lower = str(exc).lower()
-        is_oom = (
-            isinstance(exc, (MemoryError, torch.cuda.OutOfMemoryError))
-            or "out of memory" in _msg_lower
-            or "arraymemoryerror" in _exc_name_lower
-        )
-        if is_oom:
-            crash_path = os.path.join(cfg.checkpoint_dir, f"oom_save_{cfg.run_tag}")
-            try:
-                model.save(crash_path)
-                print(f"[PPO] OOM. Model saved to: {crash_path}.zip")
-            except Exception as save_exc:
-                crash_path = os.path.join(cfg.checkpoint_dir, f"crash_save_{cfg.run_tag}")
-                try:
-                    model.save(crash_path)
-                    print(f"[PPO] OOM. Model saved to: {crash_path}.zip")
-                except Exception as save_exc2:
-                    print(f"[WARN] Could not save model on OOM: {save_exc2}")
-            print("[PPO] To continue: restart with lower memory (e.g. --device cpu, or reduce n_envs/n_steps in code for 8v8). Load the saved .zip and train with remaining steps if your setup supports resume.")
-        raise
-    except Exception as exc:
-        # Save current model on any other failure so progress is not lost
-        crash_path = os.path.join(cfg.checkpoint_dir, f"crash_save_{cfg.run_tag}")
-        try:
-            model.save(crash_path)
-            print(f"[PPO] Training failed. Model saved to: {crash_path}.zip")
-        except Exception as save_exc:
-            print(f"[WARN] Could not save model on crash: {save_exc}")
-        raise
-
-    # run_tag already includes _2v2/_4v4/_8v8 so final/checkpoints/snapshots are distinct per agent size
-    final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}")
-    model.save(final_path)
-    print(f"[PPO] Training complete. Final model saved to: {final_path}.zip")
+        print(f"[PPO] opponent_params sampling failed; using defaults: {exc}")
 
 
 def run_verify_4v4(num_episodes: int = 10) -> None:
-    """Run N random-action episodes at 4v4 on GPU env, print shapes on reset."""
-    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+    """Run random-action verification episodes at 4v4."""
     set_global_seed(42)
-    cfg = GPUFieldConfig(
-        n_envs=1,
-        max_blue_agents=4,
-        max_red_agents=4,
-        max_decision_steps=400,
-        aquaticus_profile=True,
-        rules_profile="OURS",
-        device="cpu",
-        seed=42,
-    )
-    venv = GPUCTFVecEnv(cfg)
-    for ep in range(num_episodes):
-        obs = venv.reset()
-        done = False
-        steps = 0
-        while not done and steps < 800:
-            action = venv.action_space.sample()
-            obs, reward, done_arr, infos = venv.step(action)
-            done = bool(done_arr[0])
-            steps += 1
-        print(f"[Verify-4v4] episode {ep + 1}/{num_episodes} steps={steps} done={done}")
-    venv.close()
-    print(f"[Verify-4v4] Done. {num_episodes} random-action 4v4 episodes completed.")
+    cfg = GPUFieldConfig(n_envs=1, n_agents_per_team=4, max_decision_steps=400, device="cpu", seed=42)
+    env = GPUCTFVecEnv(cfg)
+    try:
+        for ep in range(num_episodes):
+            env.reset()
+            done = False
+            steps = 0
+            while not done and steps < 800:
+                env.step_async(np.asarray(env.action_space.sample(), dtype=np.int64)[None, :])
+                _, _, done_arr, _ = env.step_wait()
+                done = bool(done_arr[0])
+                steps += 1
+            print(f"[Verify-4v4] episode {ep + 1}/{num_episodes} steps={steps} done={done}")
+    finally:
+        env.close()
 
 
 def run_test_vec_schema() -> None:
-    """Verify GPU core obs: vec has shape (B, N, 18), float32, finite, in bounds."""
-    from game_field_gpu import BatchedCTFCore, GPUFieldConfig
-    cfg = GPUFieldConfig(n_envs=1, max_blue_agents=2, max_red_agents=2, device="cpu", seed=42)
-    core = BatchedCTFCore(cfg)
-    core.reset_all()
-    obs = core.get_obs()
-    vec = obs["vec"]
-    assert vec.dtype == np.float32, f"vec.dtype {vec.dtype}, expected float32"
-    assert vec.ndim == 3 and vec.shape[2] == 18, f"vec.shape {vec.shape}, expected (B, N, 18)"
-    assert np.all(np.isfinite(vec)), "vec has non-finite values"
-    assert np.all(vec >= -1.1) and np.all(vec <= 1.1), (
-        f"vec outside [-1.1, 1.1]: min={vec.min():.4f} max={vec.max():.4f}"
-    )
-    print("[test-vec-schema] GPU core get_obs() vec: dtype=float32, shape=(B,N,18), finite, in bounds. OK.")
+    """Verify GPU core observation and global-state schemas."""
+    cfg = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=42)
+    env = GPUCTFVecEnv(cfg)
+    try:
+        obs = env.reset()
+        vec = obs["vec"]
+        state = env.state()
+        assert vec.dtype == np.float32, f"vec.dtype {vec.dtype}, expected float32"
+        assert vec.ndim == 3 and vec.shape[2] == 18, f"vec.shape {vec.shape}, expected (B,N,18)"
+        assert np.all(np.isfinite(vec)), "vec has non-finite values"
+        assert state.shape == (1, GLOBAL_STATE_DIM), f"state.shape {state.shape}"
+        print("[test-vec-schema] obs vec and global state schemas OK.")
+    finally:
+        env.close()
 
 
 def _agents_suffix(n_agents: int) -> str:
-    """Return agent-size suffix for filenames: 2v2, 4v4, 8v8, or NvN."""
     n = max(1, min(int(n_agents), 16))
     return f"{n}v{n}"
 
 
 def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
-    """Ensure run_tag ends with _2v2, _4v4, _8v8 (or _NvN) so saves/snapshots are distinct per agent size."""
     suffix = _agents_suffix(n_agents)
     tag_suffix = f"_{suffix}"
-    # Strip any existing agent suffix so we don't get ppo_cnn_4v4_2v2
-    for existing in ("_2v2", "_4v4", "_8v8"):
+    for existing in ("_2v2", "_4v4", "_6v6", "_8v8"):
         if run_tag.endswith(existing):
             run_tag = run_tag[: -len(existing)]
             break
@@ -1303,167 +263,70 @@ def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
 
 
 def _normalize_train_mode(mode: str) -> str:
-    """Accept friendly CLI aliases and map them to the internal canonical mode names."""
     raw = str(mode).upper().strip()
-    removed = frozenset(
-        {
-            "LEAGUE",
-            "CURRICULUM_LEAGUE",
-            "PAPER",
-            "NO_LEAGUE",
-            "CURRICULUM_NO_LEAGUE",
-        }
-    )
+    aliases = {"FIXED": TrainMode.FIXED_OPPONENT.value, "FIXED_OPPONENT": TrainMode.FIXED_OPPONENT.value}
+    removed = {"LEAGUE", "CURRICULUM_LEAGUE", "PAPER", "NO_LEAGUE", "CURRICULUM_NO_LEAGUE", "SELF_PLAY"}
     if raw in removed:
-        print(f"[PPO] Train mode {raw!r} was removed; using FIXED_OPPONENT (set --fixed-opponent / fixed_opponent_tag).")
+        print(f"[PPO] Train mode {raw!r} is not in the local PPO audit path; using FIXED_OPPONENT.")
         return TrainMode.FIXED_OPPONENT.value
-    aliases = {
-        "FIXED": TrainMode.FIXED_OPPONENT.value,
-        "FIXED_OPPONENT": TrainMode.FIXED_OPPONENT.value,
-        "SELFPLAY": TrainMode.SELF_PLAY.value,
-        "SELF-PLAY": TrainMode.SELF_PLAY.value,
-        "SELF_PLAY": TrainMode.SELF_PLAY.value,
-    }
     return aliases.get(raw, raw)
 
 
-def _default_run_tag_for_mode(
-    mode: str,
-    fixed_opponent_tag: str = "OP3",
-    n_agents: int = 2,
-    *,
-    use_latent_strategy: bool = True,
-) -> str:
-    """Return a unique default run_tag per mode and agent size."""
-    m = _normalize_train_mode(mode)
+def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 2) -> str:
     suffix = _agents_suffix(n_agents)
-    prefix = "marl_latent" if use_latent_strategy else "ppo_cnn"
-    if m == TrainMode.FIXED_OPPONENT.value:
-        return f"{prefix}_fixed_{fixed_opponent_tag.lower()}_{suffix}"
-    if m == TrainMode.SELF_PLAY.value:
-        return f"{prefix}_selfplay_{suffix}"
-    return f"{prefix}_{suffix}"
+    if _normalize_train_mode(mode) == TrainMode.FIXED_OPPONENT.value:
+        return f"ppo_custom_fixed_{fixed_opponent_tag.lower()}_{suffix}"
+    return f"ppo_custom_{suffix}"
 
 
 if __name__ == "__main__":
     import argparse
-    import sys
+
     if "--verify-4v4" in sys.argv:
         run_verify_4v4(num_episodes=10)
     elif "--test-vec-schema" in sys.argv:
         run_test_vec_schema()
     else:
-        parser = argparse.ArgumentParser(description="Train PPO (CTF)")
-        parser.add_argument(
-            "--mode",
-            type=str,
-            default=None,
-            help="Train mode: FIXED_OPPONENT (scripted red) or SELF_PLAY (vs own snapshots). "
-            "League/curriculum mode names are accepted but mapped to FIXED_OPPONENT.",
-        )
-        parser.add_argument("--run-tag", type=str, default=None,
-                            help="Run name for checkpoints (default: vanilla PPO tag unique per mode)")
-        parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
-        parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory for checkpoints/snapshots (e.g. /content/drive/MyDrive/ppo_checkpoints)")
-        parser.add_argument("--load", type=str, default=None, help="Optional path to a .zip checkpoint to resume from")
-        parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
-        parser.add_argument(
-            "--agents",
-            type=int,
-            default=None,
-            choices=[2, 4, 6, 8],
-            help="Team size: 2=2v2, 4=4v4, 6=6v6, 8=8v8 (sets --max-blue-agents)",
-        )
-        parser.add_argument("--max-blue-agents", type=int, default=None, help="Agents per team (1-16). Use 2/4/8 for 2v2/4v4/8v8; overrides --agents if set.")
-        parser.add_argument("--gpu-native-env", action="store_true", help="Deprecated flag; training always uses game_field_gpu.")
-        parser.add_argument("--test-kl-zero-lr", action="store_true", help="Set lr=0 to verify approx_kl ~ 0 (sanity check for logprob/action plumbing)")
-        parser.add_argument("--verbose-training", action="store_true", help="Print each episode result and debug logs (slower; default is quiet for speed)")
-        parser.add_argument("--device", type=str, default=None, help="Device for env and PPO: cuda, cuda:0, or cpu. Default: cuda if available else cpu.")
+        parser = argparse.ArgumentParser(description="Train custom PPO/MAPPO for CTF")
+        parser.add_argument("--mode", type=str, default=None)
+        parser.add_argument("--run-tag", type=str, default=None)
+        parser.add_argument("--total-steps", type=int, default=None)
+        parser.add_argument("--checkpoint-dir", type=str, default=None)
+        parser.add_argument("--load", type=str, default=None)
+        parser.add_argument("--fixed-opponent", type=str, default="OP3")
+        parser.add_argument("--agents", type=int, choices=[2, 4, 6, 8], default=None)
+        parser.add_argument("--max-blue-agents", type=int, default=None)
+        parser.add_argument("--device", type=str, default=None)
+        parser.add_argument("--deterministic", action="store_true")
+        parser.add_argument("--verbose-training", action="store_true")
         parser.add_argument(
             "--latent-strategy",
             action="store_true",
-            help="Enable the legacy latent team strategy path explicitly (off by default during the audit).",
-        )
-        parser.add_argument(
-            "--no-latent-strategy",
-            action="store_true",
-            help="Run the vanilla PPO baseline without latent strategy conditioning.",
-        )
-        parser.add_argument("--latent-k", type=int, choices=[4, 6], default=None, help="Number of discrete strategies K (paper-aligned choices: 4 or 6; default: 4)")
-        parser.add_argument("--latent-lam-h", type=float, default=None, help="Coefficient for strategy entropy bonus -lambda_H H(q) (default: 0.01)")
-        parser.add_argument("--latent-lam-p", type=float, default=None, help="Coefficient for sparse strategy persistence regularization (default: 0.02)")
-        parser.add_argument(
-            "--latent-resample-n",
-            type=int,
-            default=None,
-            help="Resample z every N steps per env (0 = once per episode only; do not use 1)",
+            help="Reserved. Latent strategy training will be added to the local trainer in the implementation phase.",
         )
         args = parser.parse_args()
+
         cfg = PPOConfig()
-        if getattr(args, "no_latent_strategy", False):
-            cfg.use_latent_strategy = False
         if args.mode is not None:
             cfg.mode = _normalize_train_mode(args.mode)
         if args.max_blue_agents is not None:
-            n = max(1, min(int(args.max_blue_agents), 16))
-            if n != int(args.max_blue_agents):
-                print(f"[PPO] --max-blue-agents {args.max_blue_agents} out of range; clamped to {n} (max 16).")
-            cfg.max_blue_agents = n
-        elif getattr(args, "agents", None) is not None:
+            cfg.max_blue_agents = max(1, min(int(args.max_blue_agents), 16))
+        elif args.agents is not None:
             cfg.max_blue_agents = int(args.agents)
-        if args.run_tag is not None:
-            cfg.run_tag = args.run_tag
-        else:
-            cfg.run_tag = _default_run_tag_for_mode(
-                cfg.mode,
-                args.fixed_opponent,
-                cfg.max_blue_agents,
-                use_latent_strategy=bool(cfg.use_latent_strategy),
-            )
+        cfg.fixed_opponent_tag = str(args.fixed_opponent).upper()
+        cfg.run_tag = args.run_tag or _default_run_tag_for_mode(cfg.mode, cfg.fixed_opponent_tag, cfg.max_blue_agents)
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
-        # Separate checkpoint dir per team size. On Colab, save to Drive so runs persist (no 15h loss on disconnect).
-        n_agents = cfg.max_blue_agents
-        suffix = _agents_suffix(n_agents)
-        if os.path.exists("/content/drive/MyDrive"):
-            # Colab with Drive mounted: all runs save to Drive
-            base = "/content/drive/MyDrive/CTF_models"
-            cfg.checkpoint_dir = os.path.join(base, suffix)
-        else:
-            # Local PC: save under project (checkpoints_sb3/2v2, 3v3, 4v4)
-            cfg.checkpoint_dir = os.path.join("checkpoints_sb3", suffix)
+        cfg.checkpoint_dir = args.checkpoint_dir or os.path.join("checkpoints", _agents_suffix(cfg.max_blue_agents))
         if args.total_steps is not None:
-            cfg.total_timesteps = args.total_steps
-        else:
-            # Default total timesteps (tuned for this project):
-            # All team sizes (2v2, 3v3, 4v4, 8v8) use 1.0M steps by default.
-            cfg.total_timesteps = 1_000_000
-        if getattr(args, "checkpoint_dir", None) is not None:
-            cfg.checkpoint_dir = args.checkpoint_dir
-        if getattr(args, "fixed_opponent", None) is not None and cfg.mode == TrainMode.FIXED_OPPONENT.value:
-            cfg.fixed_opponent_tag = args.fixed_opponent.upper()
-        if getattr(args, "test_kl_zero_lr", False):
-            cfg.test_kl_zero_lr = True
-        if getattr(args, "verbose_training", False):
-            cfg.verbose_training = True
-        if getattr(args, "load", None) is not None:
+            cfg.total_timesteps = int(args.total_steps)
+        if args.load is not None:
             cfg.load_path = args.load
-        if getattr(args, "latent_strategy", False):
-            cfg.use_latent_strategy = True
-        if getattr(args, "no_latent_strategy", False):
-            cfg.use_latent_strategy = False
-        if getattr(args, "latent_k", None) is not None:
-            cfg.latent_k = max(2, int(args.latent_k))
-        if getattr(args, "latent_lam_h", None) is not None:
-            cfg.latent_lam_h = float(args.latent_lam_h)
-        if getattr(args, "latent_lam_p", None) is not None:
-            cfg.latent_lam_p = float(args.latent_lam_p)
-        if getattr(args, "latent_resample_n", None) is not None:
-            cfg.latent_resample_every_n = max(0, int(args.latent_resample_n))
-        if getattr(args, "device", None) is not None:
+        if args.device is not None:
             cfg.device = str(args.device).strip().lower()
-        else:
-            # Prefer CUDA when available (default pip torch is sometimes CPU-only; user may have installed cu118/cu121)
-            if torch.cuda.is_available():
-                cfg.device = "cuda"
-        cfg.gpu_native_env = True  # All training uses game_field_gpu
+        if args.deterministic:
+            cfg.use_deterministic = True
+        if args.verbose_training:
+            cfg.verbose_training = True
+        if args.latent_strategy:
+            cfg.use_latent_strategy = True
         train_ppo(cfg)

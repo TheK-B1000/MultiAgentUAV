@@ -2,7 +2,7 @@
 
 ## Perception Contract
 
-The agent reads the field as a 2D scene. Any observation tensor that carries game-field spatial structure must enter the policy through `CNNEncoder`, which consumes channels-first tensors with shape `(B, C, H, W)` and returns `(B, feature_dim)`.
+The agent reads the field as a 2D scene. Any observation tensor carrying game-field spatial structure enters the actor through `CNNEncoder`, which consumes channels-first tensors with shape `(B, C, H, W)` and returns `(B, feature_dim)`.
 
 Linear layers after the CNN are output projections: they turn visual features into logits or values. They are not substitutes for visual perception.
 
@@ -17,36 +17,37 @@ Canonical class: `AICTFProject/rl/networks.py::CNNEncoder`
 - Default feature dim: `512`.
 - Initialization: orthogonal weights with gain `sqrt(2)`, zero biases.
 
-The SB3 adapter `AICTFProject/rl/ctf_cnn_extractor.py::TokenizedCombinedExtractor` applies one shared `CNNEncoder` to every agent-local grid in a tokenized observation:
+The active local PPO actor in `AICTFProject/rl/custom_ppo.py::SharedActorCentralizedCritic` applies one shared `CNNEncoder` to every agent-local grid:
 
 ```text
-grid: (B, M, C, H, W)
+grid: (B, N, C, H, W)
           |
           v
-reshape to (B*M, C, H, W)
+reshape to (B*N, C, H, W)
           |
           v
 CNNEncoder
           |
           v
-reshape to (B, M, D)
+reshape to (B, N, D)
           |
           v
 concat per-agent vector features
           |
           v
-SB3 PPO output heads
+shared actor body + action heads
 ```
 
 ## Actor And Critic Topology
 
-Current vanilla PPO training uses the SB3 `MaskedMultiInputPolicy` adapter in `AICTFProject/rl/train_ppo.py`. For this baseline, the visual trunk is shared by the policy and value paths through SB3's shared feature extractor. This is the explicit Phase 1 choice:
+The default training path is the local PPO/MAPPO-style trainer in `AICTFProject/rl/custom_ppo.py`.
 
-- Shared trunk: lower memory and aligns with the existing SB3 path.
-- Actor head: linear action projection after the shared feature extractor.
-- Value head: linear value projection after the shared feature extractor.
+- Actor: shared per-agent CNN policy over local `grid` and local `vec`.
+- Critic: centralized MLP over the 14-float `global_state`.
+- Trunks: the actor CNN and centralized critic MLP are separate, because the critic consumes structured CTDE state rather than spatial observations.
+- Output heads: linear categorical action heads for each macro/target component.
 
-The standalone `PPOPolicy` in `AICTFProject/rl/networks.py` documents and tests the forward interface required by the upcoming ICRA work:
+The standalone `PPOPolicy` in `AICTFProject/rl/networks.py` keeps the future strategy-conditioning interface:
 
 ```python
 def forward(self, obs: torch.Tensor, extra: torch.Tensor | None = None) -> torch.Tensor:
@@ -74,25 +75,27 @@ def forward(self, global_state: torch.Tensor, extra: torch.Tensor | None = None)
 
 ## Active And Dormant Paths
 
-Vanilla PPO is the default training path during the audit. The existing latent-strategy code remains importable behind `--latent-strategy`, but it is no longer the default. This keeps the audit baseline clean while preserving the current research implementation until the archive/delete decision is made.
+The old SB3 PPO/policy/buffer path has been removed from the training stack. `rl.train_ppo.train_ppo` now uses `CustomPPOTrainer`, `TensorDictRolloutBuffer`, and local PPO loss/GAE code by default and exclusively.
+
+The latent-strategy module is pure PyTorch scaffolding only during the audit: `StrategyEncoder`, `LatentConditionedActor`, and the differentiable persistence proxy remain available for the Summer/ICRA implementation, but latent training is intentionally not wired into the PPO loop yet.
 
 ## Diagram
 
 ```text
                    local visual field
-                    (B, C, H, W)
+                  (B, N, C, H, W)
                          |
                          v
                     CNNEncoder
                          |
                          v
-                  visual features
+                per-agent visual features
                          |
-             +-----------+-----------+
-             |                       |
-             v                       v
-      actor output head       value output head
-       action logits             scalar value
+                         v
+             shared actor body + action heads
+                         |
+                         v
+                  macro/target logits
 
 
              structured global state (B, 14)
@@ -104,6 +107,6 @@ Vanilla PPO is the default training path during the audit. The existing latent-s
                  centralized value
 
 Future ICRA additions:
-  z embedding -> PPOPolicy.forward(..., extra=z_emb)
+  z embedding -> actor extra/embedding path
   joint actions + z -> CentralizedCritic.forward(..., extra=critic_extra)
 ```

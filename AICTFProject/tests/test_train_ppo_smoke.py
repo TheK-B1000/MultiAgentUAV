@@ -1,4 +1,4 @@
-"""End-to-end smoke: GPU batched env → VecEnv (optional latent) → PPO update path."""
+"""End-to-end smoke: GPU batched env -> local PPO update path."""
 
 from __future__ import annotations
 
@@ -11,13 +11,15 @@ os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 import unittest
 from pathlib import Path
 
+from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 from rl.train_ppo import PPOConfig, train_ppo
 
 
-_WORKSPACE_TMP = Path(__file__).resolve().parents[1] / "checkpoints_sb3" / "2v2"
+_WORKSPACE_TMP = Path(__file__).resolve().parents[1] / ".test_runs" / "train_ppo_smoke"
 
 
-def _smoke_ppo_config(*, use_latent_strategy: bool, run_tag: str, checkpoint_dir: str) -> PPOConfig:
+def _smoke_ppo_config(*, run_tag: str, checkpoint_dir: str) -> PPOConfig:
     cfg = PPOConfig()
     cfg.seed = 0
     cfg.total_timesteps = 8
@@ -39,17 +41,12 @@ def _smoke_ppo_config(*, use_latent_strategy: bool, run_tag: str, checkpoint_dir
     cfg.gpu_native_env = True
     cfg.run_tag = run_tag
     cfg.checkpoint_dir = checkpoint_dir
-    cfg.use_latent_strategy = use_latent_strategy
-    if use_latent_strategy:
-        cfg.latent_k = 4
-        cfg.latent_resample_every_n = 0
     return cfg
 
 
-def _run_smoke_and_cleanup(*, use_latent_strategy: bool, tag: str) -> None:
+def _run_smoke_and_cleanup(*, tag: str) -> None:
     _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
     cfg = _smoke_ppo_config(
-        use_latent_strategy=use_latent_strategy,
         run_tag=tag,
         checkpoint_dir=str(_WORKSPACE_TMP),
     )
@@ -63,17 +60,35 @@ def _run_smoke_and_cleanup(*, use_latent_strategy: bool, tag: str) -> None:
 
 
 class TrainPpoSmokeTests(unittest.TestCase):
-    def test_train_ppo_smoke_vanilla_ppo_few_steps(self) -> None:
-        _run_smoke_and_cleanup(
-            use_latent_strategy=False,
-            tag="unittest_smoke_ppo_cnn_2v2",
-        )
+    def test_train_ppo_smoke_custom_few_steps(self) -> None:
+        _run_smoke_and_cleanup(tag="unittest_smoke_custom_ppo_2v2")
 
-    def test_train_ppo_smoke_latent_strategy_few_steps(self) -> None:
-        _run_smoke_and_cleanup(
-            use_latent_strategy=True,
-            tag="unittest_smoke_latent_2v2",
-        )
+    def test_latent_training_is_reserved_for_followup_phase(self) -> None:
+        cfg = _smoke_ppo_config(run_tag="unittest_reserved_latent_2v2", checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.use_latent_strategy = True
+        with self.assertRaises(NotImplementedError):
+            train_ppo(cfg)
+
+    def test_saved_checkpoint_loads_for_local_inference(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_inference_custom_ppo_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        final_zip = _WORKSPACE_TMP / f"final_{tag}.zip"
+        env = None
+        try:
+            train_ppo(cfg)
+            meta = read_custom_ppo_metadata(str(final_zip))
+            self.assertEqual(meta["n_blue"], 2)
+            env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=123))
+            obs = env.reset()
+            policy = load_custom_ppo_policy(str(final_zip), env.observation_space, env.action_space, device="cpu")
+            actions, _ = policy.predict(obs, deterministic=True)
+            self.assertEqual(actions.shape, (4,))
+        finally:
+            if env is not None:
+                env.close()
+            if final_zip.exists():
+                final_zip.unlink()
 
 
 if __name__ == "__main__":

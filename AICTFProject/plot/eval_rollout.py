@@ -1,5 +1,5 @@
 """
-Shared PPO rollout for win-rate scripts and plot_eval_metrics.py.
+Shared custom PPO rollout for win-rate scripts and plot_eval_metrics.py.
 
 Keeps episode stepping, opponent setup, and aggregates identical so
 success_rate (eval table) matches W/L/D win rate (wins / n_episodes).
@@ -18,69 +18,9 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 
-def _numpy_compat_shim() -> None:
-    if "numpy._core.numeric" not in sys.modules:
-        try:
-            import numpy.core as _core
-            import numpy.core.numeric
-            import numpy.core.multiarray
-            import numpy.core.umath
-            sys.modules["numpy._core"] = _core
-            sys.modules["numpy._core.numeric"] = _core.numeric
-            sys.modules["numpy._core.multiarray"] = _core.multiarray
-            sys.modules["numpy._core.umath"] = _core.umath
-        except Exception:
-            pass
-    try:
-        import numpy.random._pickle as _np_pickle
-        _orig_bg_ctor = _np_pickle.__bit_generator_ctor
-
-        def _patched_bg_ctor(bit_generator_name: Any = "MT19937") -> Any:
-            if isinstance(bit_generator_name, type):
-                bit_generator_name = bit_generator_name.__name__
-            return _orig_bg_ctor(bit_generator_name)
-
-        _np_pickle.__bit_generator_ctor = _patched_bg_ctor
-    except Exception:
-        pass
-
-
-def ppo_load_custom_objects(env: Any, policy_class: Any = None) -> dict[str, Any]:
-    """``custom_objects`` for ``PPO.load`` when unpickling checkpoints saved with another Python.
-
-    On Python 3.12, lambdas/schedules in older pickles can raise
-    ``code() argument 13 must be str, not int``. Inference only needs weights; replacing
-    ``clip_range``, ``lr_schedule``, and ``cfg`` avoids that without affecting ``predict``.
-
-    For latent MARL checkpoints, pass ``policy_class=LatentMaskedMultiInputPolicy`` and use a
-    ``LatentStrategyVecEnvWrapper`` observation space matching training.
-    """
-    from stable_baselines3.common.utils import FloatSchedule
-
-    from rl.train_ppo import MaskedMultiInputPolicy, PPOConfig
-
-    _cfg = PPOConfig()
-    pc = policy_class or MaskedMultiInputPolicy
-    return {
-        "observation_space": env.observation_space,
-        "action_space": env.action_space,
-        "policy_class": pc,
-        "clip_range": float(_cfg.clip_range),
-        "lr_schedule": FloatSchedule(_cfg.learning_rate),
-        "cfg": _cfg,
-    }
-
-
 def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
     """Mean policy entropy at one observation (stochastic policy, eval mode)."""
-    import torch
-
-    with torch.no_grad():
-        packed = model.policy.obs_to_tensor(single_obs)
-        obs_tensor = packed[0] if isinstance(packed, tuple) else packed
-        dist = model.policy.get_distribution(obs_tensor)
-        ent = dist.entropy()
-        return float(torch.mean(ent).item())
+    return float(model.entropy(single_obs))
 
 
 def run_eval_episodes(
@@ -101,11 +41,9 @@ def run_eval_episodes(
     If progress_every > 0, prints after episode 1, then every progress_every episodes, and on the last
     (flush=True) so long 8v8 runs do not look hung.
     """
-    from stable_baselines3 import PPO
+    from rl.custom_ppo import load_custom_ppo_policy
 
-    _numpy_compat_shim()
-    model = PPO.load(model_path, device=device, custom_objects=ppo_load_custom_objects(env))
-    model.policy.set_training_mode(False)
+    model = load_custom_ppo_policy(model_path, env.observation_space, env.action_space, device=device)
     if progress_every > 0:
         print(
             f"  checkpoint loaded; {n_episodes} episodes (first result prints after ep 1; 8v8 is slow)",
@@ -137,7 +75,7 @@ def run_eval_episodes(
 
         warnings.warn(
             f"Failed to set opponent to {opponent!r}: {e}. "
-            "Red team may still be using the previous opponent — OP3 vs OP4 results can look identical."
+            "Red team may still be using the previous opponent - OP3 vs OP4 results can look identical."
         )
 
     episodes: list[dict] = []

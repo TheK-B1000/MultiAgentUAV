@@ -4,10 +4,7 @@
 #
 # Then: pip install -r requirements.txt
 #
-# gymnasium + SB3: see https://github.com/DLR-RM/stable-baselines3/blob/master/docs/guide/install.rst
-
 gymnasium==1.2.3
-stable-baselines3==2.7.1
 numpy>=1.24,<3
 pygame>=2.5,<3
 matplotlib>=3.8,<4

@@ -2,13 +2,13 @@
 
 ## API Flavor
 
-The active training environment is a custom Stable-Baselines3 `VecEnv`:
+The active training environment is a lightweight custom vector env:
 
 - `GPUCTFVecEnv` wraps `BatchedCTFCore` for batched training.
 - `GPUCTFSingleEnv` is a Gymnasium-compatible single-env adapter for tests and simple evaluation.
 - The environment is not currently PettingZoo.
 
-`GPUCTFSingleEnv.reset(seed=...)` returns `(obs, info)`. `step(action)` returns `(obs, reward, terminated, truncated, info)`. `GPUCTFVecEnv` follows SB3's `VecEnv` API and collapses `terminated or truncated` to `done`, while preserving separate `terminated` and `truncated` booleans in each `info` dict.
+`GPUCTFSingleEnv.reset(seed=...)` returns `(obs, info)`. `step(action)` returns `(obs, reward, terminated, truncated, info)`. `GPUCTFVecEnv` follows the project's local vector-env API and collapses `terminated or truncated` to `done`, while preserving separate `terminated` and `truncated` booleans in each `info` dict.
 
 ## Observation Spec
 
@@ -28,7 +28,7 @@ The action space is `MultiDiscrete([5, 50] * N)`:
 - 5 macro actions: `GO_TO`, `GRAB_MINE`, `GET_FLAG`, `PLACE_MINE`, `GO_HOME`
 - 50 fixed macro targets
 
-Illegal actions are exposed via the flattened action mask. The observation key remains `mask` for SB3 policy compatibility. The same mask is also available in `info["action_mask"]` on every step.
+Illegal actions are exposed via the flattened action mask. The observation key is `mask`; the same mask is also available in `info["action_mask"]` on every step.
 
 ## Info Dict Schema
 
@@ -44,7 +44,7 @@ Each `info` dict contains stable keys:
 - `agent_alive`, `blue_alive`, `red_alive`
 - `global_state`
 
-Terminal SB3 infos additionally include `terminal_observation` and `episode_result`.
+Terminal vector-env infos additionally include `terminal_observation` and `episode_result`.
 
 ## Reward Table
 
@@ -64,7 +64,7 @@ Rewards are deterministic functions of state/action and are bounded by `tanh(raw
 | Team coordination | positive | `0.02` to `0.03` defaults | Defense presence, escort, intercept shaping. |
 | Spin/idle/stalemate penalties | negative | small coefficients | Low-progress or unstable behavior. |
 
-Credit assignment is currently team-level from the SB3 environment perspective: the reward returned by the env is one scalar per parallel environment for the blue team.
+Credit assignment is currently team-level from the trainer perspective: the reward returned by the env is one scalar per parallel environment for the blue team.
 
 ## Termination And Truncation
 
@@ -76,7 +76,7 @@ Credit assignment is currently team-level from the SB3 environment perspective: 
 - simulation step limit
 - stalemate trigger
 
-The single-env Gymnasium adapter returns these separately. The SB3 vec env returns `done = terminated or truncated` and stores both booleans in `info`.
+The single-env Gymnasium adapter returns these separately. The vector env returns `done = terminated or truncated` and stores both booleans in `info`.
 
 ## Global State Spec
 

@@ -118,7 +118,7 @@ class GameManager:
       - Flag state is always consistent after each tick (carrier/taken/pos align).
       - PBRS uses gamma-correct shaping: coef * (gamma * Phi(s') - Phi(s)).
       - Supports optional episode-sticky dynamics configuration (speed, drift, etc.)
-        via set_dynamics_config() for SubprocVecEnv env_method compatibility.
+        via set_dynamics_config() for vector-env compatibility.
     """
 
     cols: int
@@ -253,13 +253,13 @@ class GameManager:
             raise ValueError(f"gamma must be in [0,1], got {gamma}")
         self.shaping_gamma = g
 
-    # ---- dynamics config (SB3 SubprocVecEnv env_method compatibility) ----
+    # ---- dynamics config (vector-env env_method compatibility) ----
 
     def set_dynamics_config(self, cfg: Optional[Dict[str, Any]]) -> None:
         """
         Store episode-sticky dynamics configuration.
 
-        This exists primarily to avoid SubprocVecEnv crashes when training calls:
+        This exists primarily to keep vectorized training calls stable:
             venv.env_method("set_dynamics_config", cfg)
 
         Config is not applied automatically here; it is a central, consistent
@@ -969,7 +969,7 @@ class GameManager:
         Uses float positions provided by the env/agent.
 
         IMPORTANT:
-          Ensure set_shaping_gamma() is called from the SB3 wrapper / trainer
+          Ensure set_shaping_gamma() is called from the env wrapper / trainer
           with the same gamma as PPO uses.
         """
         side = str(getattr(agent, "side", "")).lower().strip()
