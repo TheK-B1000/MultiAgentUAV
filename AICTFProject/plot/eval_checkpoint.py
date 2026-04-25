@@ -60,6 +60,7 @@ def main() -> None:
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out-dir", type=str, default=None, help="CSV output dir (default: AICTFProject/csv)")
+    # Default True: argmax / greedy match paper-style *evaluation* (stochastic is for ablations / debugging).
     parser.add_argument("--deterministic", action="store_true", default=True)
     parser.add_argument("--stochastic", action="store_false", dest="deterministic")
     args = parser.parse_args()

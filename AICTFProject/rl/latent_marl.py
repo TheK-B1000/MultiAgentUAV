@@ -1,23 +1,36 @@
-"""Pure PyTorch latent-strategy building blocks for the Summer/ICRA implementation."""
+"""Pure PyTorch latent-strategy building blocks for the Summer/ICRA implementation.
+
+The authoritative list of how this module relates to the Word spec *Implementation details*
+is ``docs/Summer_Implementation_Plan_Implementation_Details_Trace.md`` (and ``docs/rollout_semantics.md`` for the vectorized rollout note).
+"""
 
 from __future__ import annotations
 
 import torch
 import torch.nn as nn
 
-from rl.networks import CNNEncoder, orthogonal_init
-
 
 def expected_strategy_switch_penalty(logits: torch.Tensor, prev_z_idx: torch.Tensor) -> torch.Tensor:
-    """Return the differentiable proxy ``E[1(z_t != z_{t-1})]``."""
+    """Legacy differentiable proxy (tests only; trainer uses :func:`paper_strategy_switch_indicator`)."""
     probs = torch.softmax(logits, dim=-1)
     prev = prev_z_idx.long().clamp(min=0, max=probs.shape[-1] - 1).reshape(-1, 1)
     stay_prob = probs.gather(-1, prev).squeeze(-1)
     return 1.0 - stay_prob
 
 
+def paper_strategy_switch_indicator(z_idx: torch.Tensor, prev_z_idx: torch.Tensor) -> torch.Tensor:
+    """``1[z != z_prev]`` as float, same shape as ``z_idx`` (no grad through discrete compare)."""
+    z = z_idx.long()
+    p = prev_z_idx.long()
+    return (z != p).to(dtype=torch.float32)
+
+
 class StrategyEncoder(nn.Module):
-    """Global-state encoder ``q_phi(z | s)`` with the locked 128-128 MLP."""
+    """
+    ``q_\\phi(z | s)`` as in *Summer Implementation Plan.docx* IMPLEMENTATION §4: only
+    ``Linear → ReLU → Linear → ReLU → Linear (logits)`` — no custom init in the spec;
+    use PyTorch default ``Linear``/``Module`` initialization.
+    """
 
     def __init__(self, state_dim: int, latent_k: int, hidden: int = 128) -> None:
         super().__init__()
@@ -28,8 +41,6 @@ class StrategyEncoder(nn.Module):
             nn.ReLU(),
             nn.Linear(int(hidden), int(latent_k)),
         )
-        self.net.apply(orthogonal_init)
-        orthogonal_init(self.net[-1], gain=0.01)
 
     def forward(self, global_state: torch.Tensor) -> torch.Tensor:
         """Return strategy logits with shape ``(B, K)``."""
@@ -37,7 +48,10 @@ class StrategyEncoder(nn.Module):
 
 
 class LatentConditionedActor(nn.Module):
-    """Standalone shared per-agent actor reference ``pi_i(a_i | o_i, z)``."""
+    """
+    Word doc IMPLEMENTATION §7: ``concat(local_obs, z_emb)`` then 256–256 ReLU MLP to logits.
+    No custom init in the spec (default ``Linear`` weights).
+    """
 
     def __init__(
         self,
@@ -47,21 +61,20 @@ class LatentConditionedActor(nn.Module):
         action_dim: int,
         *,
         z_embed_dim: int = 16,
-        feature_dim: int = 256,
         hidden_dim: int = 256,
     ) -> None:
         super().__init__()
-        self.cnn = CNNEncoder(obs_shape, feature_dim=int(feature_dim))
+        c, h, w = (int(x) for x in obs_shape)
+        self._flat_dim = c * h * w
         self.strategy_embedding = nn.Embedding(int(latent_k), int(z_embed_dim))
+        in_dim = self._flat_dim + int(vec_dim) + int(z_embed_dim)
         self.body = nn.Sequential(
-            nn.Linear(int(feature_dim) + int(vec_dim) + int(z_embed_dim), int(hidden_dim)),
+            nn.Linear(in_dim, int(hidden_dim)),
             nn.ReLU(),
             nn.Linear(int(hidden_dim), int(hidden_dim)),
             nn.ReLU(),
         )
         self.action_head = nn.Linear(int(hidden_dim), int(action_dim))
-        self.body.apply(orthogonal_init)
-        orthogonal_init(self.action_head, gain=0.01)
 
     def forward(self, grid: torch.Tensor, vec: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
         """Return per-agent logits from local observations and shared strategy indices."""
@@ -71,8 +84,13 @@ class LatentConditionedActor(nn.Module):
             raise ValueError(f"vec must be (B, V), got {tuple(vec.shape)}")
         z = z_idx.long().reshape(-1).clamp(min=0, max=self.strategy_embedding.num_embeddings - 1)
         z_emb = self.strategy_embedding(z)
-        features = self.cnn(grid.float())
-        return self.action_head(self.body(torch.cat([features, vec.float(), z_emb], dim=-1)))
+        flat = grid.float().reshape(grid.shape[0], -1)
+        return self.action_head(self.body(torch.cat([flat, vec.float(), z_emb], dim=-1)))
 
 
-__all__ = ["StrategyEncoder", "LatentConditionedActor", "expected_strategy_switch_penalty"]
+__all__ = [
+    "StrategyEncoder",
+    "LatentConditionedActor",
+    "expected_strategy_switch_penalty",
+    "paper_strategy_switch_indicator",
+]

@@ -12,6 +12,8 @@ from typing import Any
 
 import numpy as np
 
+from rl.global_state import coarse_game_phase_from_global_state
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 if PROJECT_ROOT not in sys.path:
@@ -27,18 +29,7 @@ def _strategy_phase_from_global_state(global_state: Any) -> str:
     """Compact phase label from the 14-float global state flag-status bits."""
     if global_state is None:
         return "unknown"
-    arr = np.asarray(global_state, dtype=np.float32).reshape(-1)
-    if arr.size < 12:
-        return "unknown"
-    blue_flag_captured = bool(arr[10] > 0.5)
-    red_flag_captured = bool(arr[11] > 0.5)
-    if blue_flag_captured and red_flag_captured:
-        return "both_flags"
-    if red_flag_captured:
-        return "blue_attack"
-    if blue_flag_captured:
-        return "blue_defense"
-    return "neutral"
+    return coarse_game_phase_from_global_state(global_state)
 
 
 def run_eval_episodes(

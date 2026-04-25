@@ -1,6 +1,9 @@
 """
 Fixed-size global-state features for the latent team-strategy CTDE stack.
 
+Feature *order and semantics* follow *Summer Implementation Plan.docx* (IMPLEMENTATION DETAILS §3,
+``global_features`` list). The policy does not consume this at execution time.
+
 The paper-aligned encoder input is a compact, structured summary of:
   - team geometry
   - team dispersion
@@ -16,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 
 if TYPE_CHECKING:
@@ -24,16 +28,36 @@ if TYPE_CHECKING:
 GLOBAL_STATE_DIM: int = 14
 GLOBAL_STATE_USED: int = 14
 
+# Order matches the plan’s “global summary” (team geometry + dispersion, flag proximity, captures, motion).
+GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
+    "blue_mean_x",
+    "blue_mean_y",
+    "blue_std_x",
+    "blue_std_y",
+    "red_mean_x",
+    "red_mean_y",
+    "red_std_x",
+    "red_std_y",
+    "min_alive_blue_to_red_flag",
+    "min_alive_red_to_blue_flag",
+    "blue_flag_captured",
+    "red_flag_captured",
+    "mean_blue_speed",
+    "mean_red_speed",
+)
+assert len(GLOBAL_STATE_FIELD_NAMES) == GLOBAL_STATE_DIM, len(GLOBAL_STATE_FIELD_NAMES)
+
+# Slices [8:12] are “territory / flag” features for optional event-based resampling (min distances + capture bits).
+GLOBAL_STATE_FLAG_TERRITORY_SLICE = slice(8, 12)
+
 
 def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     """
     Return (B, 14) float32 tensor on ``core.device``.
 
-    Features (normalized where noted):
-      blue mean x,y; blue std x,y; red mean x,y; red std x,y;
-      min alive-blue dist to red flag; min alive-red dist to blue flag;
-      blue_flag_captured; red_flag_captured;
-      mean blue speed; mean red speed;
+    Features (see ``GLOBAL_STATE_FIELD_NAMES``), normalized where noted:
+      0–3 blue mean/std; 4–7 red mean/std; 8–9 min alive dist to enemy flags;
+      10–11 capture indicators; 12–13 mean team speeds.
     """
     B = int(core.B)
     Nb = int(core.Nb)
@@ -114,3 +138,24 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     used = torch.stack(parts, dim=1)
     assert used.shape[1] == GLOBAL_STATE_USED, (used.shape[1], GLOBAL_STATE_USED)
     return used.to(dtype=f32)
+
+
+def coarse_game_phase_from_global_state(state: object) -> str:
+    """
+    Coarse game-phase label from the 14-d global state (flag bits).
+
+    Shared by E3 step telemetry in ``rl.custom_ppo`` and eval scripts (kept in sync
+    with the former ``plot.eval_rollout._strategy_phase_from_global_state``).
+    """
+    arr = np.asarray(state, dtype=np.float32).reshape(-1)
+    if arr.size < 12:
+        return "unknown"
+    blue_flag_captured = bool(arr[10] > 0.5)
+    red_flag_captured = bool(arr[11] > 0.5)
+    if blue_flag_captured and red_flag_captured:
+        return "both_flags"
+    if red_flag_captured:
+        return "blue_attack"
+    if blue_flag_captured:
+        return "blue_defense"
+    return "neutral"

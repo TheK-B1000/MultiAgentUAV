@@ -100,7 +100,13 @@ class PPOPolicy(nn.Module):
 
 
 class CentralizedCritic(nn.Module):
-    """MLP critic over the structured global state with optional extra inputs."""
+    """
+    Centralized **value function** for PPO/GAE: we instantiate the plan's centralized critic
+    (paper §3.4, abstractly written as :math:`Q(s,\\mathbf a, z)`) as
+    :math:`V_\\phi(s, \\mathbf a, z)` — a scalar head conditioned on global state, joint action
+    features, and :math:`z`, consistent with clipped PPO and bootstrapping (not a full
+    :math:`Q` over counterfactual joint action tuples).
+    """
 
     def __init__(
         self,
@@ -112,6 +118,7 @@ class CentralizedCritic(nn.Module):
         self.global_state_dim = int(global_state_dim)
         self.extra_dim = int(extra_dim)
         input_dim = self.global_state_dim + self.extra_dim
+        # 128–128 MLP to a scalar; Word spec names ``critic_input``; no custom init in the spec.
         self.net = nn.Sequential(
             nn.Linear(input_dim, int(hidden_dim)),
             nn.ReLU(),
@@ -119,8 +126,6 @@ class CentralizedCritic(nn.Module):
             nn.ReLU(),
             nn.Linear(int(hidden_dim), 1),
         )
-        self.net.apply(orthogonal_init)
-        orthogonal_init(self.net[-1], gain=1.0)
 
     def _combine(self, global_state: torch.Tensor, extra: torch.Tensor | None) -> torch.Tensor:
         if global_state.dim() != 2 or global_state.shape[1] != self.global_state_dim:
@@ -144,7 +149,7 @@ class CentralizedCritic(nn.Module):
         return torch.cat([global_state.float(), extra.to(global_state.dtype)], dim=-1)
 
     def forward(self, global_state: torch.Tensor, extra: torch.Tensor | None = None) -> torch.Tensor:
-        """Return centralized state value estimates with shape ``(B, 1)``."""
+        """Return scalar :math:`V(s,\\mathbf{a},z)` with shape ``(B, 1)``."""
         return self.net(self._combine(global_state, extra))
 
 

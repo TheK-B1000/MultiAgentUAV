@@ -1,4 +1,10 @@
-"""Local PPO/MAPPO-style trainer with optional latent team strategy."""
+"""Local PPO/MAPPO-style trainer with optional latent team strategy.
+
+Invariant (no z supervision from opponents): strategy indices are learned only from task
+reward and the plan's entropy / persistence (and optional §12 terms). Opponent kind,
+curriculum phase, and scripted tag strings never feed :class:`StrategyEncoder` or
+``nn.Embedding`` for ``z`` as targets.
+"""
 
 from __future__ import annotations
 
@@ -13,9 +19,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from rl.global_state import GLOBAL_STATE_DIM
-from rl.latent_marl import StrategyEncoder, expected_strategy_switch_penalty
-from rl.networks import CNNEncoder, CentralizedCritic, orthogonal_init
+from rl.global_state import (
+    GLOBAL_STATE_DIM,
+    GLOBAL_STATE_FLAG_TERRITORY_SLICE,
+    coarse_game_phase_from_global_state,
+)
+from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator
+from rl.networks import CentralizedCritic
 from rl.ppo_core import TensorDictRolloutBuffer, ppo_policy_loss, ppo_value_loss
 
 
@@ -33,7 +43,7 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
         raise ValueError("Not a custom PPO checkpoint.")
     cfg = payload.get("cfg") or {}
     meta: dict[str, Any] = {
-        "format": payload.get("format", "custom_ppo_v1"),
+        "format": payload.get("format", "custom_ppo_v2"),
         "model_path": path,
         "cfg": cfg,
     }
@@ -130,14 +140,15 @@ class CustomPPOInferencePolicy:
                     or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
                 )
                 if needs_strategy:
-                    z_idx = torch.argmax(z_logits, dim=-1) if deterministic else z_dist.sample()
+                    z_idx, _, z_ent, _ = self.model.sample_strategy(global_state, deterministic=deterministic)
                     self._prev_z = z_idx.detach()
                     self._strategy_age = 0
                 else:
                     z_idx = self._prev_z.to(self.device)
+                    z_ent = z_dist.entropy()
                 self._last_strategy_z = z_idx.detach().cpu()
                 self._last_strategy_probs = torch.softmax(z_logits, dim=-1).detach().cpu()
-                self._last_strategy_entropy = z_dist.entropy().detach().cpu()
+                self._last_strategy_entropy = z_ent.detach().cpu()
                 self._last_strategy_resampled = bool(needs_strategy)
                 action_tensor, _, _, _ = self.model.act(
                     obs_t,
@@ -147,11 +158,11 @@ class CustomPPOInferencePolicy:
                 )
                 self._strategy_age += 1
             else:
-                logits = self.model._mask_logits(self.model.policy_logits(obs_t), obs_t.get("mask"))
-                actions = []
-                for dist in self.model._categoricals(logits):
-                    actions.append(torch.argmax(dist.logits, dim=-1) if deterministic else dist.sample())
-                action_tensor = torch.stack(actions, dim=1)
+                batch = int(obs_t["grid"].shape[0])
+                global_state = self._global_state_tensor(batched, batch)
+                action_tensor, _, _, _ = self.model.act(
+                    obs_t, global_state, deterministic=deterministic, z_idx=None
+                )
         actions_np = action_tensor.detach().cpu().numpy().astype(np.int64)
         if actions_np.shape[0] == 1:
             return actions_np[0], None
@@ -204,6 +215,50 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, int]:
     }
 
 
+# Intentional, stable split from ``PPOConfig.seed`` (E3 / trace §13). Do not “tweak” without a note.
+# Decimal: 268435469 (strategy) and 536870955 (action); masked with ``& 0xFFFF_FFFF``.
+STRATEGY_GENERATOR_SEED_OFFSET = 0x1_0000_00D
+ACTION_GENERATOR_SEED_OFFSET = 0x2_0000_02B
+
+
+E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
+    "update",
+    "rollout_step",
+    "env_id",
+    "global_step",
+    "z_t",
+    "q_phi_entropy",
+    "q_phi_argmax",
+    "switched",
+    "game_phase",
+)
+
+
+def apply_deterministic_sampling_generators(
+    model: "SharedActorCentralizedCritic",
+    seed: int,
+    *,
+    device: torch.device | str,
+) -> None:
+    """Attach separate :class:`torch.Generator` copies for team-strategy vs per-head action sampling.
+
+    Extra strategy draws for ``z`` would otherwise advance the *same* default RNG that drives
+    action samples. Fixed sub-seeds derived from ``seed`` keep the two streams independent
+    (E3 fairness: action RNG order not stolen by ``q_phi(z|s)`` when latent is on).
+
+    Sub-seed protocol (intentional and stable)::
+
+        strategy: (int(seed) + STRATEGY_GENERATOR_SEED_OFFSET) & 0xFFFF_FFFF
+        action:   (int(seed) + ACTION_GENERATOR_SEED_OFFSET) & 0xFFFF_FFFF
+    """
+    dev = torch.device(device)
+    g_s = torch.Generator(device=dev)
+    g_s.manual_seed((int(seed) + STRATEGY_GENERATOR_SEED_OFFSET) & 0xFFFF_FFFF)
+    g_a = torch.Generator(device=dev)
+    g_a.manual_seed((int(seed) + ACTION_GENERATOR_SEED_OFFSET) & 0xFFFF_FFFF)
+    model.set_sampling_generators(strategy=g_s, action=g_a)
+
+
 def load_custom_ppo_policy(
     path: str,
     observation_space,
@@ -222,7 +277,10 @@ def load_custom_ppo_policy(
         **_model_kwargs_from_cfg(payload.get("cfg") or {}),
     ).to(device_t)
     model.load_state_dict(payload["model_state_dict"])
-    return CustomPPOInferencePolicy(model, device=device_t, cfg=payload.get("cfg") or {})
+    ckpt_cfg = payload.get("cfg") or {}
+    if isinstance(ckpt_cfg, dict) and "seed" in ckpt_cfg:
+        apply_deterministic_sampling_generators(model, int(ckpt_cfg["seed"]), device=device_t)
+    return CustomPPOInferencePolicy(model, device=device_t, cfg=ckpt_cfg)
 
 
 class SharedActorCentralizedCritic(nn.Module):
@@ -233,7 +291,6 @@ class SharedActorCentralizedCritic(nn.Module):
         observation_space,
         action_space,
         *,
-        actor_feature_dim: int = 256,
         actor_hidden_dim: int = 256,
         critic_hidden_dim: int = 128,
         latent_k: int = 0,
@@ -250,6 +307,8 @@ class SharedActorCentralizedCritic(nn.Module):
 
         self.n_agents = int(grid_shape[0])
         self.vec_dim = int(vec_shape[1])
+        c, h, w = int(grid_shape[1]), int(grid_shape[2]), int(grid_shape[3])
+        self._flat_per_agent = c * h * w + self.vec_dim
         self.action_dims = tuple(int(v) for v in getattr(action_space, "nvec", []))
         if len(self.action_dims) % self.n_agents != 0:
             raise ValueError("MultiDiscrete action heads must divide evenly across agents.")
@@ -266,21 +325,26 @@ class SharedActorCentralizedCritic(nn.Module):
         self.uses_latent_strategy = self.latent_k > 0
         self.z_embed_dim = int(z_embed_dim) if self.uses_latent_strategy else 0
 
-        self.cnn = CNNEncoder(grid_shape[1:], feature_dim=int(actor_feature_dim))
         if self.uses_latent_strategy:
             self.strategy_encoder = StrategyEncoder(
                 state_dim=GLOBAL_STATE_DIM,
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
             )
+            # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
             self.strategy_embedding = nn.Embedding(self.latent_k, self.z_embed_dim)
-            nn.init.orthogonal_(self.strategy_embedding.weight, gain=1.0)
         else:
             self.strategy_encoder = None
             self.strategy_embedding = None
 
+        # Decentralized policy: MLP input width is **only** per-agent local features (+ z_emb), never `GLOBAL_STATE_DIM`.
+        self._decentralized_actor_in_dim = int(
+            self._flat_per_agent + (self.z_embed_dim if self.uses_latent_strategy else 0)
+        )
+        actor_in = self._decentralized_actor_in_dim
+        # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
         self.actor_body = nn.Sequential(
-            nn.Linear(int(actor_feature_dim) + self.vec_dim + self.z_embed_dim, int(actor_hidden_dim)),
+            nn.Linear(int(actor_in), int(actor_hidden_dim)),
             nn.ReLU(),
             nn.Linear(int(actor_hidden_dim), int(actor_hidden_dim)),
             nn.ReLU(),
@@ -292,9 +356,34 @@ class SharedActorCentralizedCritic(nn.Module):
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
         )
+        # Optional: separate ``torch.Generator`` streams so q_\phi(z|s) sampling does not advance
+        # the same RNG as per-head action Categoricals (fairer E3 vs no-latent; see docs).
+        self._sampling_gen_strategy: Optional[torch.Generator] = None
+        self._sampling_gen_action: Optional[torch.Generator] = None
 
-        self.actor_body.apply(orthogonal_init)
-        orthogonal_init(self.actor_head, gain=0.01)
+    def set_sampling_generators(
+        self,
+        *,
+        strategy: Optional[torch.Generator] = None,
+        action: Optional[torch.Generator] = None,
+    ) -> None:
+        """Set dedicated RNGs for strategy vs. action sampling. ``None`` = PyTorch default (shared global) for that stream."""
+        self._sampling_gen_strategy = strategy
+        self._sampling_gen_action = action
+
+    @staticmethod
+    def _categorical_argmax_or_sample(
+        dist: Categorical, *, deterministic: bool, generator: Optional[torch.Generator]
+    ) -> torch.Tensor:
+        if deterministic:
+            return torch.argmax(dist.logits, dim=-1)
+        if generator is not None:
+            # ``Categorical.sample(generator=)`` is not available in all supported PyTorch versions;
+            # ``torch.multinomial`` matches the same distribution and honors ``generator``.
+            logits = dist.logits
+            probs = torch.softmax(logits, dim=-1)
+            return torch.multinomial(probs, 1, replacement=True, generator=generator).squeeze(-1)
+        return dist.sample()
 
     def strategy_logits(self, global_state: torch.Tensor) -> torch.Tensor:
         """Return ``q_phi(z | s)`` logits for latent strategy mode."""
@@ -311,7 +400,9 @@ class SharedActorCentralizedCritic(nn.Module):
         """Sample or greedily choose team strategy indices from ``q_phi(z | s)``."""
         logits = self.strategy_logits(global_state)
         dist = Categorical(logits=logits)
-        z_idx = torch.argmax(logits, dim=-1) if deterministic else dist.sample()
+        z_idx = self._categorical_argmax_or_sample(
+            dist, deterministic=deterministic, generator=self._sampling_gen_strategy
+        )
         return z_idx.long(), dist.log_prob(z_idx), dist.entropy(), logits
 
     def policy_logits(self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None) -> torch.Tensor:
@@ -323,18 +414,18 @@ class SharedActorCentralizedCritic(nn.Module):
         if vec.dim() != 3:
             raise ValueError(f"vec must have shape (B, N, V), got {tuple(vec.shape)}")
         batch = int(grid.shape[0])
-        grid_flat = grid.reshape(batch * self.n_agents, *grid.shape[2:])
-        grid_features = self.cnn(grid_flat).reshape(batch, self.n_agents, -1)
-
+        # Paper-style flat local obs per agent: flatten CNN-grid tensor, concat vec.
+        gflat = grid.reshape(batch, self.n_agents, -1)
+        vloc = vec.float()
         agent_mask = obs.get("agent_mask")
         if agent_mask is not None:
             if agent_mask.dim() == 1:
                 agent_mask = agent_mask.unsqueeze(0)
             mask = agent_mask.float().unsqueeze(-1)
-            grid_features = grid_features * mask
-            vec = vec * mask
-
-        actor_inputs = [grid_features, vec]
+            gflat = gflat * mask
+            vloc = vloc * mask
+        local_obs = torch.cat([gflat, vloc], dim=-1)
+        actor_inputs: list[torch.Tensor] = [local_obs]
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
@@ -346,6 +437,13 @@ class SharedActorCentralizedCritic(nn.Module):
             actor_inputs.append(z_emb)
 
         actor_in = torch.cat(actor_inputs, dim=-1)
+        d_in = int(actor_in.shape[-1])
+        if d_in != self._decentralized_actor_in_dim:
+            raise AssertionError(
+                f"decentralized actor expects concat width {self._decentralized_actor_in_dim} (local + z), got {d_in}"
+            )
+        if d_in == int(GLOBAL_STATE_DIM):
+            raise AssertionError("actor input width equals GLOBAL_STATE_DIM; policy must not consume global state")
         hidden = self.actor_body(actor_in.reshape(batch * self.n_agents, -1))
         per_agent_logits = self.actor_head(hidden).reshape(batch, self.n_agents, self.per_agent_logits)
         return per_agent_logits.reshape(batch, self.n_agents * self.per_agent_logits)
@@ -375,7 +473,7 @@ class SharedActorCentralizedCritic(nn.Module):
         actions: Optional[torch.Tensor] = None,
         z_idx: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Return centralized value estimates with shape ``(B,)``."""
+        """Return :math:`V(s,\\mathbf{a},z)` (plan notation :math:`Q(s,\\mathbf{a},z)`) with shape ``(B,)``."""
         return self.critic(global_state.float(), extra=self._critic_extra(actions, z_idx)).squeeze(-1)
 
     def _mask_logits(self, logits: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
@@ -427,8 +525,13 @@ class SharedActorCentralizedCritic(nn.Module):
             z_idx, _, _, _ = self.sample_strategy(global_state, deterministic=deterministic)
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         actions = []
+        g_act = self._sampling_gen_action
         for dist in self._categoricals(logits):
-            actions.append(torch.argmax(dist.logits, dim=-1) if deterministic else dist.sample())
+            actions.append(
+                self._categorical_argmax_or_sample(
+                    dist, deterministic=deterministic, generator=g_act
+                )
+            )
         action_tensor = torch.stack(actions, dim=1)
         log_prob, entropy = self._log_prob_entropy(logits, action_tensor)
         values = self.values(global_state, actions=action_tensor, z_idx=z_idx)
@@ -489,6 +592,9 @@ class CustomPPOTrainer:
                 "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
             }
         self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
+        apply_deterministic_sampling_generators(
+            self.model, int(getattr(cfg, "seed", 0) or 0), device=self.device
+        )
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=float(learning_rate), eps=1e-5)
         self.base_learning_rate = float(learning_rate)
         self.clip_range = float(clip_range)
@@ -506,11 +612,52 @@ class CustomPPOTrainer:
         self._episodes_completed = 0
         self.metrics_csv_path = str(getattr(cfg, "metrics_csv_path", "") or "")
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
+        # Optional E3: per-env-step z / q_phi / phase rows (set before long E3 runs; see E3_STEP_TELEMETRY_FIELDS).
+        self._e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
         self._last_obs: Optional[Dict[str, np.ndarray]] = None
         self._last_global_state: Optional[np.ndarray] = None
         self._current_z: Optional[torch.Tensor] = None
         self._strategy_age = torch.zeros((int(env.num_envs),), dtype=torch.long, device=self.device)
         self._needs_strategy_sample = torch.ones((int(env.num_envs),), dtype=torch.bool, device=self.device)
+        self.latent_resample_on_flag = bool(getattr(cfg, "latent_resample_on_flag", False)) and self.use_latent_strategy
+        self.latent_kl_consecutive = (
+            max(0.0, float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0))
+            if self.use_latent_strategy
+            else 0.0
+        )
+        self._z_kl_first_in_ep: Optional[torch.Tensor] = None
+        self._prev_z_logits: Optional[torch.Tensor] = None
+        self._decentralized_actor_contract_logged: bool = False
+
+    def _log_decentralized_actor_contract_once(self) -> None:
+        """One-time training log: policy MLP is local + optional z only (decentralized execution; not the 14-d global vector)."""
+        if self._decentralized_actor_contract_logged:
+            return
+        m = self.model
+        assert isinstance(m, SharedActorCentralizedCritic)
+        if m.uses_latent_strategy:
+            print(
+                "[PPO] Decentralized actor contract: per-agent MLP input dim = "
+                f"{m._decentralized_actor_in_dim} (local {m._flat_per_agent} + z_emb {m.z_embed_dim}); "
+                f"global_state_dim={GLOBAL_STATE_DIM} is for q_phi/critic only."
+            )
+        else:
+            print(
+                "[PPO] Decentralized actor contract: per-agent MLP input dim = "
+                f"{m._decentralized_actor_in_dim} (local only, no z); global_state_dim={GLOBAL_STATE_DIM} not used in policy."
+            )
+        self._decentralized_actor_contract_logged = True
+
+    @staticmethod
+    def _flag_territory_features_changed(
+        pre: torch.Tensor, post: torch.Tensor, *, eps: float = 1e-4
+    ) -> torch.Tensor:
+        """(B, 4) pre/post flag-sector slice; return (B,) bool: min distances or capture flags changed."""
+        d0 = (pre[:, 0:2] - post[:, 0:2]).abs() > float(eps)
+        ch_float = d0.any(dim=-1)
+        ch_cap = (pre[:, 2:4] - post[:, 2:4]).abs() > 0.5
+        ch_capt = ch_cap.any(dim=-1)
+        return ch_float | ch_capt
 
     def _write_csv_row(self, path: str, fieldnames: list[str], row: dict[str, Any]) -> None:
         """Append one row with a stable header; used for long-run audit telemetry."""
@@ -523,6 +670,51 @@ class CustomPPOTrainer:
             if not exists:
                 writer.writeheader()
             writer.writerow({key: row.get(key, "") for key in fieldnames})
+
+    def _append_e3_step_telemetry(
+        self,
+        *,
+        rollout_step: int,
+        global_step_at_step_end: int,
+        decision_global_state_np: np.ndarray,
+        z_t: torch.Tensor,
+        prev_z: torch.Tensor,
+        strategy_aux: dict[str, torch.Tensor],
+    ) -> None:
+        """One row per env for this PPO step (optional E3 / §6.3 style histograms)."""
+        if not self._e3_step_telemetry_path or not self.use_latent_strategy:
+            return
+        path = self._e3_step_telemetry_path
+        d = os.path.dirname(os.path.abspath(path)) or "."
+        os.makedirs(d, exist_ok=True)
+        zt = z_t.detach().cpu().numpy()
+        pz = prev_z.detach().cpu().numpy()
+        zH = strategy_aux["z_entropy"].detach().cpu().numpy()
+        zlog = strategy_aux["z_logits"].detach().cpu().numpy()
+        am = zlog.argmax(axis=-1)
+        n_e = int(zt.shape[0])
+        assert int(decision_global_state_np.shape[0]) == n_e, (decision_global_state_np.shape, n_e)
+        fields = E3_STEP_TELEMETRY_FIELDS
+        exists = os.path.isfile(path) and os.path.getsize(path) > 0
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+            if not exists:
+                w.writeheader()
+            upd = int(self._updates_completed)
+            for e in range(n_e):
+                w.writerow(
+                    {
+                        "update": upd,
+                        "rollout_step": int(rollout_step),
+                        "env_id": e,
+                        "global_step": int(global_step_at_step_end),
+                        "z_t": int(zt[e]),
+                        "q_phi_entropy": float(zH[e]),
+                        "q_phi_argmax": int(am[e]),
+                        "switched": int(bool(int(zt[e]) != int(pz[e]))),
+                        "game_phase": coarse_game_phase_from_global_state(decision_global_state_np[e]),
+                    }
+                )
 
     def _episode_fieldnames(self) -> list[str]:
         return [
@@ -573,6 +765,7 @@ class CustomPPOTrainer:
             "strategy_resample_fraction_rollout",
         ]
         if self.use_latent_strategy:
+            fields.append("strategy_kl")
             fields.extend(f"strategy_occupancy_{idx}" for idx in range(self.latent_k))
         return fields
 
@@ -689,6 +882,12 @@ class CustomPPOTrainer:
         self._current_z = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
         self._strategy_age = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
         self._needs_strategy_sample = torch.ones((n_envs,), dtype=torch.bool, device=self.device)
+        if self.latent_kl_consecutive > 0.0:
+            self._z_kl_first_in_ep = torch.ones((n_envs,), dtype=torch.bool, device=self.device)
+            self._prev_z_logits = None
+        else:
+            self._z_kl_first_in_ep = None
+            self._prev_z_logits = None
 
     def _strategy_for_step(
         self,
@@ -809,6 +1008,9 @@ class CustomPPOTrainer:
             buffer.register_field("z_logits", (self.latent_k,))
             buffer.register_field("z_resampled", dtype=torch.bool)
             buffer.register_field("z_persist_mask", dtype=torch.bool)
+            if self.latent_kl_consecutive > 0.0:
+                buffer.register_field("z_logits_prev", (self.latent_k,))
+                buffer.register_field("z_kl_prev_valid")
         return buffer
 
     def _next_values(
@@ -851,6 +1053,7 @@ class CustomPPOTrainer:
 
     def collect_rollout(self) -> TensorDictRolloutBuffer:
         """Collect one rollout and compute advantages/returns."""
+        self._log_decentralized_actor_contract_once()
         if self._last_obs is None or self._last_global_state is None:
             obs = self.env.reset()
             global_state = self.env.state().astype(np.float32)
@@ -859,16 +1062,15 @@ class CustomPPOTrainer:
             obs = self._last_obs
             global_state = self._last_global_state
         buffer = self._make_buffer(obs)
-        for _ in range(int(self.cfg.n_steps)):
+        for step_idx in range(int(self.cfg.n_steps)):
+            decision_global_state_np = np.asarray(global_state, dtype=np.float32)
             obs_t = self._tensor_obs(obs)
             gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 z_t, prev_z_t, strategy_aux = self._strategy_for_step(gs_t)
                 actions_t, values_t, action_log_probs_t, _ = self.model.act(obs_t, gs_t, z_idx=z_t)
-                if self.use_latent_strategy:
-                    log_probs_t = action_log_probs_t + strategy_aux["z_log_prob"]
-                else:
-                    log_probs_t = action_log_probs_t
+                # PPO importance ratio uses **action** log-probs only (paper sketch; q_phi trained via entropy + persist).
+                log_probs_t = action_log_probs_t
             actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
             self.env.step_async(actions_np)
             next_obs, rewards, dones, infos = self.env.step_wait()
@@ -904,11 +1106,39 @@ class CustomPPOTrainer:
                     z_resampled=strategy_aux["z_resampled"],
                     z_persist_mask=strategy_aux["z_persist_mask"],
                 )
+                if self.latent_kl_consecutive > 0.0 and self._z_kl_first_in_ep is not None:
+                    z_logits_cur = strategy_aux["z_logits"]
+                    zlp = self._prev_z_logits
+                    if zlp is None:
+                        zlp = torch.zeros_like(z_logits_cur)
+                    add_items["z_logits_prev"] = zlp
+                    add_items["z_kl_prev_valid"] = (~self._z_kl_first_in_ep).to(dtype=torch.float32)
             buffer.add(**add_items)
             obs = next_obs
             global_state = next_global_state
             self.global_step += int(self.env.num_envs)
+            if self.latent_resample_on_flag:
+                prev_sec = gs_t[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
+                nxt_sec = torch.as_tensor(
+                    next_global_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE],
+                    dtype=torch.float32,
+                    device=self.device,
+                )
+                chg = self._flag_territory_features_changed(prev_sec, nxt_sec)
+                self._needs_strategy_sample[chg] = True
+            if self.use_latent_strategy and self.latent_kl_consecutive > 0.0 and self._z_kl_first_in_ep is not None:
+                self._prev_z_logits = strategy_aux["z_logits"].detach().clone()
+                self._z_kl_first_in_ep = torch.as_tensor(dones, dtype=torch.bool, device=self.device)
             self._mark_strategy_step_done(dones)
+            if self._e3_step_telemetry_path and self.use_latent_strategy and z_t is not None and prev_z_t is not None:
+                self._append_e3_step_telemetry(
+                    rollout_step=step_idx,
+                    global_step_at_step_end=int(self.global_step),
+                    decision_global_state_np=decision_global_state_np,
+                    z_t=z_t,
+                    prev_z=prev_z_t,
+                    strategy_aux=strategy_aux,
+                )
 
         buffer.compute_returns_and_advantages(
             gamma=float(self.cfg.gamma),
@@ -935,6 +1165,7 @@ class CustomPPOTrainer:
             "strategy_entropy": [],
             "strategy_persist_loss": [],
             "strategy_resample_fraction": [],
+            "strategy_kl": [],
         }
         for _ in range(self.n_epochs):
             for batch in buffer.iter_minibatches(self.batch_size, shuffle=True):
@@ -954,22 +1185,39 @@ class CustomPPOTrainer:
                 if self.use_latent_strategy:
                     resample = batch["z_resampled"].bool()
                     persist_mask = batch["z_persist_mask"].bool()
-                    strategy_log_prob = aux["strategy_log_prob"]
-                    log_prob = action_log_prob + strategy_log_prob
+                    log_prob = action_log_prob
                     strategy_entropy = aux["strategy_entropy"]
+                    # Maximize H(z) under the plan ⇔ add +λ_H H to the objective to maximize, i.e. subtract λ_H H in a minimization: L = L_PPO + λ_p L_persist - λ_H H(z) (+ action terms elsewhere).
                     strategy_entropy_loss = -float(getattr(self.cfg, "latent_lam_h", 0.0)) * strategy_entropy.mean()
-                    switch_penalty = expected_strategy_switch_penalty(aux["strategy_logits"], batch["prev_z"])
+                    switch = paper_strategy_switch_indicator(batch["z"], batch["prev_z"])
                     if bool(persist_mask.any().item()):
-                        persist_loss = switch_penalty[persist_mask].mean()
+                        persist_loss = switch[persist_mask].mean()
                     else:
                         persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    if self.latent_resample_every_n == 0 and not self.latent_resample_on_flag:
+                        assert persist_loss.item() == 0.0, (
+                            "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off)"
+                        )
                     latent_loss = float(getattr(self.cfg, "latent_lam_p", 0.0)) * persist_loss + strategy_entropy_loss
+                    if self.latent_kl_consecutive > 0.0:
+                        v = batch["z_kl_prev_valid"].float()
+                        log_p = F.log_softmax(batch["z_logits"], -1)
+                        log_q = F.log_softmax(batch["z_logits_prev"].detach(), -1)
+                        p = log_p.exp()
+                        kl = (p * (log_p - log_q)).sum(-1)
+                        denom = v.sum().clamp_min(1.0)
+                        kl_m = (kl * v).sum() / denom
+                        latent_loss = latent_loss + float(self.latent_kl_consecutive) * kl_m
+                        stats["strategy_kl"].append(float(kl_m.detach().cpu().item()))
+                    else:
+                        stats["strategy_kl"].append(0.0)
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)
                     persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                     latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                     resample = torch.zeros_like(entropy, dtype=torch.bool)
+                    stats["strategy_kl"].append(0.0)
 
                 advantages = batch["advantages"]
                 if advantages.numel() > 1:
@@ -1038,7 +1286,7 @@ class CustomPPOTrainer:
                 "updates_completed": self._updates_completed,
                 "cfg": asdict(self.cfg),
                 "last_stats": self.last_stats,
-                "format": "custom_ppo_latent_v1" if self.use_latent_strategy else "custom_ppo_v1",
+                "format": "custom_ppo_latent_v2" if self.use_latent_strategy else "custom_ppo_v2",
             },
             path,
         )
@@ -1054,3 +1302,5 @@ class CustomPPOTrainer:
         self._last_obs = None
         self._last_global_state = None
         self._current_z = None
+        if self.use_latent_strategy:
+            self._reset_strategy_state()

@@ -1,10 +1,14 @@
 # Algorithm
 
+**Canonical spec** for the locked **IMPLEMENTATION DETAILS** (feature list, strategy encoder, resampling, losses, and optional §12) is the Word document *Summer Implementation Plan.docx* on the author’s machine (e.g. `c:\Users\K-B\Desktop\Summer Implementation Plan.docx`). The repository does not replace that file; it implements it. Any intentional departure must be updated in the trace, not left undocumented.
+
+**Spec↔code trace:** [`Summer_Implementation_Plan_Implementation_Details_Trace.md`](Summer_Implementation_Plan_Implementation_Details_Trace.md). Vectorized vs nested training loops: [`rollout_semantics.md`](rollout_semantics.md).
+
 ## Active Variant
 
 The default audit training path is now a local latent-strategy PPO/MAPPO-style implementation:
 
-- Shared decentralized actor: one CNN-based actor is shared across blue agents and consumes each agent's local `grid`, local `vec`, and the shared latent strategy embedding `z`.
+- Shared decentralized actor: one **MLP** (paper 256–256) on **flattened** per-agent `grid` + `vec` + shared latent embedding `z` (no CNN in the policy body; the grid is a flat local observation tensor).
 - Strategy encoder: `q_phi(z | s)` is a 128-128 MLP over the structured 14-float `global_state`.
 - Centralized critic: `CentralizedCritic` consumes the structured 14-float `global_state` plus joint-action one-hot features and `z_onehot` when latent strategy is enabled.
 - Team reward: the environment returns one blue-team scalar reward per parallel env.
@@ -33,8 +37,8 @@ This is MAPPO-style because the critic is centralized during training while the 
 | `truncated` | `(T, B)` | Time-limit/reset flag. |
 | `z` | `(T, B)` | Shared latent strategy index when enabled. |
 | `prev_z` | `(T, B)` | Previous strategy used for persistence loss. |
-| `z_log_probs` | `(T, B)` | Old `q_phi(z | s_t)` log-prob for PPO ratios while a strategy is active. |
-| `z_logits` | `(T, B, K)` | Stored rollout-time strategy logits for diagnostics. |
+| `z_log_probs` | `(T, B)` | Rollout-time `q_phi(z \| s_t)` log-prob for the chosen `z` (diagnostics; **not** used in the clipped PPO policy ratio). |
+| `z_logits` | `(T, B, K)` | Rollout-time strategy logits (diagnostics, persistence/entropy, optional consecutive KL). |
 | `z_resampled` | `(T, B)` | True when `z` was sampled from `q_phi` on that transition. |
 | `z_persist_mask` | `(T, B)` | True only for non-initial strategy refreshes that should pay persistence loss. |
 | `advantages` | `(T, B)` | Computed by GAE. |
@@ -57,6 +61,8 @@ return_t = adv_t + V(s_t)
 The important distinction is that time-limit truncations still bootstrap through `V(next_t)`, but they do not leak the recursive advantage across the auto-reset boundary.
 
 ## PPO Update
+
+`PPOConfig` defaults below are the training numbers unless you set `use_stable_marl_ppo=True` (legacy override **not** in *Summer Implementation Plan.docx*; use CLI `--stable-marl` to enable).
 
 Defaults:
 
@@ -93,18 +99,22 @@ Advantages are normalized per minibatch. Entropy is computed from the masked cat
 
 The Summer Implementation Plan's latent strategy components are wired into `CustomPPOTrainer`:
 
-- `q_phi(z | s)`: reads the `global_state` rollout field.
-- Strategy sampling: defaults to episode start only and persists across PPO rollout/update boundaries. `latent_resample_every_n > 0` enables sparse refresh every N decision steps.
-- Policy conditioning: pass `z` through a learned strategy embedding concatenated to each agent's actor features.
-- Critic conditioning: pass joint-action one-hot plus `z_onehot` through `CentralizedCritic.forward(global_state, extra=...)`.
-- Strategy PPO ratio: `q_phi(z | s_t)` log-prob for the active strategy is included in the old/new PPO ratio, while `z_resampled` records when a new discrete strategy was actually sampled.
-- Persistence and strategy entropy losses are added to the PPO loss block:
+- `q_phi(z | s)`: reads the `global_state` rollout field, matching the plan’s **compact global feature vector** (see `rl/global_state.py` and the Word doc’s `global_features` list order).
+- Strategy sampling: defaults to **once per episode** (plan Option A), with `latent_resample_every_n > 0` for sparse refresh every N steps (Option B), `latent_resample_on_flag` for optional event-based resampling (plan §12), and **`latent_resample_every_n == 1` disallowed** (plan: do not resample every decision).
+- Policy conditioning: `nn.Embedding(K, d_z)` (`d_z` in {8, 16} per plan) concatenated to flattened per-agent local features; shared parameters across blue agents.
+- Critic: the plan’s **notation** is often $Q(s,\mathbf a, z)$; the implementation is a **scalar, joint-action– and $z$–conditioned PPO value baseline** (same inputs, not a full tabular $Q$ over counterfactual actions).
+- Decentralized execution: the actor only sees per-agent `grid` / `vec` and $z$ — not `global_state` (see `docs/environment.md` on how the grid is built per agent).
+- **PPO clipped ratio uses action log-probs only**; `q_phi` is trained through **strategy entropy** and **persistence** (and optional consecutive KL from plan §12), not through the action PPO ratio—consistent with the plan’s **total** loss in §4 and IMPLEMENTATION §6.
+- `z_resampled` records when a new discrete strategy was drawn from `q_phi`; persistence uses `1[z ≠ z_prev]` on non-initial refreshes.
+- Persistence and strategy entropy are added to the PPO loss block (plan IMPLEMENTATION §6 form):
 
 ```text
 L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))
 ```
 
-`L_persist` is masked off for the initial strategy sample and applies only to later refreshes. This keeps the default once-per-episode strategy stable while still allowing sparse switching experiments.
+`L_persist` is masked off for the initial strategy sample and applies only to later refreshes. With `latent_resample_every_n = 0` and no event-based resampling, there are no later refreshes in an episode, so the persistence term is **zero** (as expected). **Minimization** of `L` with a **negative** `lambda_H * H` term on strategy entropy is equivalent to **rewarding** higher strategy entropy, matching the plan’s sign convention.
+
+**Experiments (paper E3 / controls):** the decisive latent-vs-non-latent comparison should be **identical** PPO and environment settings with **only** latent strategy on vs off (`--no-latent-strategy`). Opponent tags and phases are **not** supervision targets for $z$.
 
 ## Strategy Diagnostics
 

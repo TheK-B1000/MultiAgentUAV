@@ -19,7 +19,7 @@ Each blue-team policy observation is a `spaces.Dict`:
 - `agent_mask`: `Box(0, 1, shape=(N,), dtype=float32)`
 - `mask`: `Box(0, 1, shape=(N * 55,), dtype=float32)`
 
-`N` is `n_agents_per_team`. The spatial `grid` is the policy's visual field and is consumed by `CNNEncoder`.
+`N` is `n_agents_per_team`. The spatial `grid` is built **per agent** in `BatchedCTFCore._build_grid_obs` (channel maps over a local field of view, not a dump of full-game state into the actor). With the Summer-plan policy path, that tensor is **flattened** and concatenated to `vec` and the strategy embedding; it is **not** the same as `global_state` (which is only for `q_\phi` and the centralized critic in CTDE). This preserves **decentralized execution** at the actor: per-agent local tensors + shared `z`, while global summaries stay in the critic/encoder only.
 
 ## Action Spec
 

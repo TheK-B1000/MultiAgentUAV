@@ -65,6 +65,8 @@ class PPOConfig:
     enable_metrics_csv: bool = True
     metrics_csv_path: Optional[str] = None
     episode_csv_path: Optional[str] = None
+    # E3: optional per-step CSV (z, H(q), argmax, switch, phase). See `rl.custom_ppo.E3_STEP_TELEMETRY_FIELDS`.
+    e3_step_telemetry_path: Optional[str] = None
     enable_progress_bar: bool = True
     verbose_training: bool = False
     # After this many *completed* episodes, print W/L/D and win rate (0 = disabled).
@@ -76,7 +78,8 @@ class PPOConfig:
     fixed_opponent_tag: str = "OP3"
     max_blue_agents: int = 2
     use_deterministic: bool = False
-    use_stable_marl_ppo: bool = True
+    # Not in *Summer Implementation Plan.docx*; when True, overrides several PPO fields below for a legacy "stable" profile. Default False so explicit config matches the spec numbers.
+    use_stable_marl_ppo: bool = False
     target_kl: Optional[float] = 0.02
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
@@ -85,10 +88,16 @@ class PPOConfig:
     latent_z_embed_dim: int = 16
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
+    # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
     latent_lam_h: float = 0.005
     latent_lam_p: float = 0.02
-    # 0 means sample once at episode start; N>0 sparsely refreshes every N decisions.
+    # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
+    # **Ablation / plan §12 only** — not combined with the main “episode-start z” story by default.
+    # Use ``rl.config_presets.ablation_flag_resample_config`` for an explicit run.
+    latent_resample_on_flag: bool = False
+    # Optional §12: KL( q_\phi(s_t) || q_\phi(s_{t-1}) ) on consecutive time steps; 0 = off (ablation only).
+    latent_kl_consecutive: float = 0.0
 
 
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
@@ -98,6 +107,17 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg.mode = _normalize_train_mode(cfg.mode)
     if cfg.mode != TrainMode.FIXED_OPPONENT.value:
         raise ValueError("The local PPO trainer currently supports FIXED_OPPONENT training.")
+
+    if bool(getattr(cfg, "use_latent_strategy", False)):
+        k = int(getattr(cfg, "latent_k", 4))
+        if k not in (4, 6):
+            raise ValueError("latent_k must be 4 or 6 (Summer Implementation Plan: fixed K for all experiments).")
+        res_n = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
+        if res_n == 1:
+            raise ValueError(
+                "latent_resample_every_n=1 is disallowed (do not resample z every decision step). "
+                "Use 0 (sample at episode start) or N>=2 (sparse refresh)."
+            )
 
     set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
@@ -112,10 +132,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     if bool(cfg.use_latent_strategy):
         interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
         interval_label = "episode start" if interval <= 0 else f"every {interval} decision steps"
+        on_flag = bool(getattr(cfg, "latent_resample_on_flag", False))
+        lam_kl = float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
         print(
             "[PPO] Latent team strategy: enabled "
-            f"(K={int(cfg.latent_k)}, sample={interval_label}, "
-            f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f})"
+            f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
+            f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f}, "
+            f"lambda_KL={lam_kl:.4f})"
         )
     else:
         print("[PPO] Latent team strategy: disabled (vanilla local PPO baseline).")
@@ -182,7 +205,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             clip_range = 0.10
             n_epochs = 2
             batch_size = 1024
-            print("[PPO] Stable MARL profile: lr=1.5e-4, n_epochs=2, clip=0.10, ent=0.005.")
+            print(
+                "[PPO] Optional stable-MARL override (use_stable_marl_ppo=True; not in Word spec): "
+                "lr=1.5e-4, n_epochs=2, clip=0.10, ent=0.005, batch_size=1024."
+            )
         if max_agents > 2:
             learning_rate *= 0.75
             print(f"[PPO] {team_size}: using lr={learning_rate:.2e} for stability.")
@@ -345,6 +371,11 @@ if __name__ == "__main__":
         parser.add_argument("--deterministic", action="store_true")
         parser.add_argument("--verbose-training", action="store_true")
         parser.add_argument(
+            "--stable-marl",
+            action="store_true",
+            help="Enable stable-MARL PPO hyperparameter override (not defined in Summer Implementation Plan.docx).",
+        )
+        parser.add_argument(
             "--latent-strategy",
             action="store_true",
             help="Enable latent team strategy training (default in PPOConfig).",
@@ -363,6 +394,17 @@ if __name__ == "__main__":
         )
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy bonus weight.")
+        parser.add_argument(
+            "--latent-resample-on-flag",
+            action="store_true",
+            help="Resample z when the global-state flag/territory features change (optional plan §12).",
+        )
+        parser.add_argument(
+            "--latent-kl-consecutive",
+            type=float,
+            default=None,
+            help="Weight for consecutive-step KL on q_phi logits (0=off; optional plan §12).",
+        )
         parser.add_argument(
             "--latent-z-embed-dim",
             type=int,
@@ -402,6 +444,10 @@ if __name__ == "__main__":
             cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
         if args.latent_lam_h is not None:
             cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
+        if args.latent_resample_on_flag:
+            cfg.latent_resample_on_flag = True
+        if args.latent_kl_consecutive is not None:
+            cfg.latent_kl_consecutive = max(0.0, float(args.latent_kl_consecutive))
         if args.latent_z_embed_dim is not None:
             cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
         cfg.run_tag = args.run_tag or _default_run_tag_for_mode(
@@ -428,6 +474,8 @@ if __name__ == "__main__":
             cfg.use_deterministic = True
         if args.verbose_training:
             cfg.verbose_training = True
+        if args.stable_marl:
+            cfg.use_stable_marl_ppo = True
         if args.episode_log_every is not None:
             cfg.episode_log_every = max(0, int(args.episode_log_every))
         train_ppo(cfg)
