@@ -466,7 +466,7 @@ class SharedActorCentralizedCritic(nn.Module):
         if vec.dim() != 3:
             raise ValueError(f"vec must have shape (B, N, V), got {tuple(vec.shape)}")
         batch = int(grid.shape[0])
-        # Paper-style flat local obs per agent: flatten CNN-grid tensor, concat vec.
+        # Paper-style flat local obs per agent: flatten the local grid tensor, concat vec.
         gflat = grid.reshape(batch, self.n_agents, -1)
         vloc = vec.float()
         agent_mask = obs.get("agent_mask")

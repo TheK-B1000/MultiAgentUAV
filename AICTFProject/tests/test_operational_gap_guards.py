@@ -9,6 +9,7 @@ from argparse import ArgumentParser
 
 import numpy as np
 import torch
+import torch.nn as nn
 from gymnasium import spaces
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -52,6 +53,27 @@ class OperationalGapGuardsTests(unittest.TestCase):
         z = torch.zeros((b,), dtype=torch.long)
         m.policy_logits(obs, z_idx=z)
 
+    def test_active_actor_matches_word_mlp_contract(self) -> None:
+        """Word doc implementation details: concat(local_obs, z_emb) -> 256-256 MLP logits."""
+        obs_space, action_space = _min_obs_and_action_spaces()
+        m = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=16)
+
+        self.assertFalse(
+            any(isinstance(module, nn.Conv2d) for module in m.modules()),
+            "Active Summer-plan actor must flatten local observations into an MLP, not use a CNN trunk.",
+        )
+        self.assertIsInstance(m.strategy_embedding, nn.Embedding)
+        self.assertEqual(m.strategy_embedding.num_embeddings, 4)
+        self.assertEqual(m.strategy_embedding.embedding_dim, 16)
+
+        body = list(m.actor_body)
+        self.assertEqual([type(layer) for layer in body], [nn.Linear, nn.ReLU, nn.Linear, nn.ReLU])
+        self.assertEqual(body[0].in_features, 7 * 20 * 20 + 18 + 16)
+        self.assertEqual(body[0].out_features, 256)
+        self.assertEqual(body[2].in_features, 256)
+        self.assertEqual(body[2].out_features, 256)
+        self.assertIsInstance(m.actor_head, nn.Linear)
+
     def test_paper_default_latent_config_is_episode_start_only(self) -> None:
         c = paper_default_latent_config()
         self.assertTrue(c.use_latent_strategy)
@@ -65,7 +87,8 @@ class OperationalGapGuardsTests(unittest.TestCase):
         here = os.path.join(os.path.dirname(__file__), "..", "rl")
         for name in ("custom_ppo.py", "latent_marl.py", "config_presets.py"):
             path = os.path.abspath(os.path.join(here, name))
-            text = open(path, encoding="utf-8").read()
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
             for tag in ("RUSHER", "CAMPER", "Species"):
                 self.assertNotIn(
                     tag,

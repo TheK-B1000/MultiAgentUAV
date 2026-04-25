@@ -23,7 +23,7 @@ This is MAPPO-style because the critic is centralized during training while the 
 
 | Field | Shape | Purpose |
 | --- | --- | --- |
-| `obs_grid` | `(T, B, N, 7, 20, 20)` | CNN local visual observations. |
+| `obs_grid` | `(T, B, N, 7, 20, 20)` | Local grid observations, flattened by the active actor MLP. |
 | `obs_vec` | `(T, B, N, 18)` | Per-agent local vector features. |
 | `obs_agent_mask` | `(T, B, N)` | Alive/active agent mask. |
 | `obs_mask` | `(T, B, N * 55)` | Flattened action mask. |
