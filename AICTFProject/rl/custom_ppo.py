@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
+import warnings
 from dataclasses import asdict
 from typing import Any, Dict, Iterable, Optional
 
@@ -27,6 +29,56 @@ from rl.global_state import (
 from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator
 from rl.networks import CentralizedCritic
 from rl.ppo_core import TensorDictRolloutBuffer, ppo_policy_loss, ppo_value_loss
+
+
+def _tqdm_for_sb3_progress() -> Any:
+    """Match Stable-Baselines3 ``ProgressBarCallback``: prefer ``tqdm.rich.tqdm`` when available."""
+    try:
+        from tqdm import TqdmExperimentalWarning
+
+        warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
+    except Exception:
+        pass
+    try:
+        from tqdm.rich import tqdm  # type: ignore[import-not-found]
+    except ImportError:
+        from tqdm import tqdm  # type: ignore[import-not-found]
+    return tqdm
+
+
+def _open_sb3_style_progress(
+    cfg: Any,
+    *,
+    total_timesteps: int,
+    current_num_timesteps: int,
+) -> Any:
+    """
+    Port of :class:`stable_baselines3.common.callbacks.ProgressBarCallback`.
+
+    Bar ``total`` = remaining wall-clock budget in environment transitions (``total_timesteps`` minus
+    progress so far, same as ``.learn`` when ``num_timesteps`` is already advanced).  Each
+    vectorized step advances by ``n_envs`` (``ProgressBarCallback._on_step``), which feeds tqdm's
+    rate/ETA (hours/minutes) while rollout collection runs.
+    """
+    if not bool(getattr(cfg, "enable_progress_bar", True)):
+        return None
+    rem = int(total_timesteps) - int(current_num_timesteps)
+    if rem <= 0:
+        return None
+    try:
+        tqdm = _tqdm_for_sb3_progress()
+    except ImportError:
+        print(
+            "[PPO] Install tqdm and rich for the SB3-style bar:  pip install tqdm rich",
+            file=sys.stderr,
+        )
+        return None
+    return tqdm(
+        total=rem,
+        dynamic_ncols=True,
+        file=sys.stderr,
+        mininterval=0.2,
+    )
 
 
 def _torch_load_checkpoint(path: str, *, map_location: str | torch.device):
@@ -614,6 +666,8 @@ class CustomPPOTrainer:
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
         # Optional E3: per-env-step z / q_phi / phase rows (set before long E3 runs; see E3_STEP_TELEMETRY_FIELDS).
         self._e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
+        # SB3-style: ``tqdm`` bar updated every ``n_envs`` sim steps during ``collect_rollout`` only.
+        self._sb3_rollout_pbar: Any = None
         self._last_obs: Optional[Dict[str, np.ndarray]] = None
         self._last_global_state: Optional[np.ndarray] = None
         self._current_z: Optional[torch.Tensor] = None
@@ -935,6 +989,19 @@ class CustomPPOTrainer:
         }
         return z_idx, prev_z, aux
 
+    def _on_sb3_rollout_env_step(self) -> None:
+        """After ``global_step`` += ``n_envs``: mirror :meth:`ProgressBarCallback._on_step` (``update(num_envs)``)."""
+        p = self._sb3_rollout_pbar
+        if p is None:
+            return
+        nenv = int(self.env.num_envs)
+        try:
+            rest = int(p.total) - int(p.n)  # type: ignore[attr-defined]
+        except Exception:
+            p.update(nenv)  # type: ignore[call-arg]
+            return
+        p.update(int(min(nenv, max(0, rest))))  # type: ignore[call-arg]
+
     def _mark_strategy_step_done(self, dones: np.ndarray) -> None:
         if not self.use_latent_strategy:
             return
@@ -1117,6 +1184,7 @@ class CustomPPOTrainer:
             obs = next_obs
             global_state = next_global_state
             self.global_step += int(self.env.num_envs)
+            self._on_sb3_rollout_env_step()
             if self.latent_resample_on_flag:
                 prev_sec = gs_t[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
                 nxt_sec = torch.as_tensor(
@@ -1255,24 +1323,33 @@ class CustomPPOTrainer:
     def learn(self, total_timesteps: int) -> dict[str, float]:
         """Train until at least ``total_timesteps`` environment transitions have been collected."""
         total = int(total_timesteps)
-        while self.global_step < total:
-            rollout = self.collect_rollout()
-            stats = self.update(rollout, total_timesteps=total)
-            self._updates_completed += 1
-            self._write_update_metrics(stats, rollout)
-            if bool(getattr(self.cfg, "verbose_training", False)):
-                latent_bits = ""
-                if self.use_latent_strategy:
-                    latent_bits = (
-                        f" z_entropy={stats.get('strategy_entropy', 0.0):.4f} "
-                        f"z_persist={stats.get('strategy_persist_loss', 0.0):.4f}"
+        self._sb3_rollout_pbar = _open_sb3_style_progress(
+            self.cfg, total_timesteps=total, current_num_timesteps=self.global_step
+        )
+        try:
+            while self.global_step < total:
+                rollout = self.collect_rollout()
+                stats = self.update(rollout, total_timesteps=total)
+                self._updates_completed += 1
+                self._write_update_metrics(stats, rollout)
+                if bool(getattr(self.cfg, "verbose_training", False)):
+                    latent_bits = ""
+                    if self.use_latent_strategy:
+                        latent_bits = (
+                            f" z_entropy={stats.get('strategy_entropy', 0.0):.4f} "
+                            f"z_persist={stats.get('strategy_persist_loss', 0.0):.4f}"
+                        )
+                    print(
+                        "[PPO|custom] "
+                        f"steps={self.global_step} policy_loss={stats['policy_loss']:.4f} "
+                        f"value_loss={stats['value_loss']:.4f} approx_kl={stats['approx_kl']:.5f}"
+                        f"{latent_bits}"
                     )
-                print(
-                    "[PPO|custom] "
-                    f"steps={self.global_step} policy_loss={stats['policy_loss']:.4f} "
-                    f"value_loss={stats['value_loss']:.4f} approx_kl={stats['approx_kl']:.5f}"
-                    f"{latent_bits}"
-                )
+        finally:
+            if self._sb3_rollout_pbar is not None:
+                self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]
+                self._sb3_rollout_pbar.close()  # type: ignore[union-attr]
+                self._sb3_rollout_pbar = None
         return self.last_stats
 
     def save(self, path: str) -> None:

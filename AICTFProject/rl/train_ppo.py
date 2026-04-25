@@ -67,6 +67,7 @@ class PPOConfig:
     episode_csv_path: Optional[str] = None
     # E3: optional per-step CSV (z, H(q), argmax, switch, phase). See `rl.custom_ppo.E3_STEP_TELEMETRY_FIELDS`.
     e3_step_telemetry_path: Optional[str] = None
+    # SB3-compatible: ``tqdm`` (prefer ``tqdm.rich``) during rollout, ``total=remaining`` timesteps, ``update(n_envs)`` / step.
     enable_progress_bar: bool = True
     verbose_training: bool = False
     # After this many *completed* episodes, print W/L/D and win rate (0 = disabled).
@@ -418,6 +419,11 @@ if __name__ == "__main__":
             metavar="N",
             help="Log W/L/D every N completed episodes (0=off; default from PPOConfig).",
         )
+        parser.add_argument(
+            "--no-progress-bar",
+            action="store_true",
+            help="Disable the SB3-style tqdm rollout bar (default: on; uses tqdm.rich if installed).",
+        )
         args = parser.parse_args()
 
         cfg = PPOConfig()
@@ -478,4 +484,6 @@ if __name__ == "__main__":
             cfg.use_stable_marl_ppo = True
         if args.episode_log_every is not None:
             cfg.episode_log_every = max(0, int(args.episode_log_every))
+        if args.no_progress_bar:
+            cfg.enable_progress_bar = False
         train_ppo(cfg)

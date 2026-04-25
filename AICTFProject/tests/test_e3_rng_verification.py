@@ -36,7 +36,6 @@ def _base_cfg(*, run_tag: str) -> PPOConfig:
     cfg.n_epochs = 1
     cfg.use_stable_marl_ppo = False
     cfg.device = "cpu"
-    cfg.enable_progress_bar = False
     cfg.enable_tensorboard = False
     cfg.enable_checkpoints = False
     cfg.enable_eval = False
@@ -47,6 +46,7 @@ def _base_cfg(*, run_tag: str) -> PPOConfig:
     cfg.gpu_native_env = True
     cfg.run_tag = run_tag
     cfg.checkpoint_dir = str(_WORK)
+    cfg.enable_progress_bar = False
     return cfg
 
 

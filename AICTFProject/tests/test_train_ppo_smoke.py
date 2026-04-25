@@ -47,7 +47,6 @@ def _smoke_ppo_config(*, run_tag: str, checkpoint_dir: str) -> PPOConfig:
     # Avoid stable-MARL override (n_epochs=2, large default batch) so the smoke stays tiny and predictable.
     cfg.use_stable_marl_ppo = False
     cfg.device = "cpu"
-    cfg.enable_progress_bar = False
     cfg.enable_tensorboard = False
     cfg.enable_checkpoints = False
     cfg.enable_eval = False
@@ -59,6 +58,7 @@ def _smoke_ppo_config(*, run_tag: str, checkpoint_dir: str) -> PPOConfig:
     cfg.gpu_native_env = True
     cfg.run_tag = run_tag
     cfg.checkpoint_dir = checkpoint_dir
+    cfg.enable_progress_bar = False
     return cfg
 
 
