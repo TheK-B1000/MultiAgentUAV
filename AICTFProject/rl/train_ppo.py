@@ -95,6 +95,10 @@ class PPOConfig:
     latent_lam_p: float = 0.02
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
+    # Baseline: keep latent actor/critic plumbing, but clamp every rollout to one strategy ID.
+    # This tests whether learned/multiple strategy selection matters beyond a single learned z embedding.
+    fixed_latent_strategy: bool = False
+    fixed_latent_strategy_id: int = 0
     # **Ablation / plan §12 only** — not combined with the main “episode-start z” story by default.
     # Use ``rl.config_presets.ablation_flag_resample_config`` for an explicit run.
     latent_resample_on_flag: bool = False
@@ -114,12 +118,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         k = int(getattr(cfg, "latent_k", 4))
         if k not in (4, 6):
             raise ValueError("latent_k must be 4 or 6 (Summer Implementation Plan: fixed K for all experiments).")
+        if bool(getattr(cfg, "fixed_latent_strategy", False)):
+            fixed_id = int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0)
+            if fixed_id < 0 or fixed_id >= k:
+                raise ValueError(f"fixed_latent_strategy_id must be in [0, {k - 1}] when latent_k={k}.")
         res_n = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
         if res_n == 1:
             raise ValueError(
                 "latent_resample_every_n=1 is disallowed (do not resample z every decision step). "
                 "Use 0 (sample at episode start) or N>=2 (sparse refresh)."
             )
+    elif bool(getattr(cfg, "fixed_latent_strategy", False)):
+        raise ValueError("fixed_latent_strategy requires use_latent_strategy=True.")
 
     set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
@@ -134,15 +144,19 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
     if bool(cfg.use_latent_strategy):
         interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
-        interval_label = "episode start" if interval <= 0 else f"every {interval} decision steps"
-        on_flag = bool(getattr(cfg, "latent_resample_on_flag", False))
-        lam_kl = float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
+        fixed = bool(getattr(cfg, "fixed_latent_strategy", False))
+        interval_label = "fixed" if fixed else ("episode start" if interval <= 0 else f"every {interval} decision steps")
+        on_flag = bool(getattr(cfg, "latent_resample_on_flag", False)) and not fixed
+        lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
+        fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
             f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f}, "
-            f"lambda_KL={lam_kl:.4f})"
+            f"lambda_KL={lam_kl:.4f}{fixed_label})"
         )
+        if fixed:
+            print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
     else:
         print("[PPO] Latent team strategy: disabled (vanilla local PPO baseline).")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
@@ -397,6 +411,17 @@ if __name__ == "__main__":
             default=None,
             help="Sparse strategy refresh interval in decision steps; 0 samples at episode start only.",
         )
+        parser.add_argument(
+            "--fixed-latent-strategy",
+            action="store_true",
+            help="Baseline: keep latent actor/critic inputs but clamp all rollouts to one fixed z ID.",
+        )
+        parser.add_argument(
+            "--fixed-latent-id",
+            type=int,
+            default=None,
+            help="Strategy ID used by --fixed-latent-strategy (default: 0). Supplying this implies fixed latent.",
+        )
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy bonus weight.")
         parser.add_argument(
@@ -450,6 +475,11 @@ if __name__ == "__main__":
             cfg.latent_k = max(2, int(args.latent_k))
         if args.latent_resample_every is not None:
             cfg.latent_resample_every_n = max(0, int(args.latent_resample_every))
+        if args.fixed_latent_strategy:
+            cfg.fixed_latent_strategy = True
+        if args.fixed_latent_id is not None:
+            cfg.fixed_latent_strategy = True
+            cfg.fixed_latent_strategy_id = max(0, int(args.fixed_latent_id))
         if args.latent_lam_p is not None:
             cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
         if args.latent_lam_h is not None:

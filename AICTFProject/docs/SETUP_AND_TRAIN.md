@@ -52,6 +52,19 @@ Vanilla local PPO ablation:
 python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --no-latent-strategy --run-tag ppo_custom_fixed_op3_2v2
 ```
 
+Must-have paper baselines:
+
+```bash
+# Flat/no-latent PPO-MARL: proves whether the latent strategy path helps.
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --no-latent-strategy --run-tag baseline_flat_ppo_marl_2v2
+
+# Latent PPO without persistence: compare against sparse refresh with persistence enabled.
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --latent-resample-every 20 --latent-lam-p 0.0 --run-tag baseline_latent_no_persistence_2v2
+
+# Fixed-latent PPO: latent actor/critic receive one constant z ID.
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --fixed-latent-strategy --fixed-latent-id 0 --run-tag baseline_fixed_latent_2v2
+```
+
 Short smoke run:
 
 ```bash
@@ -111,6 +124,7 @@ Useful flags:
 --latent-lam-p 0.02
 --latent-lam-h 0.005
 --latent-z-embed-dim 16
+--fixed-latent-strategy --fixed-latent-id 0
 --no-latent-strategy
 ```
 
@@ -147,4 +161,4 @@ Generate the final-phase command matrix without launching long jobs:
 python experiments/phase6_experiment_matrix.py --agents 2 4 6 --seeds 42 43 44 --steps 100000 --eval-episodes 100 --eval-map-sets train eval --out csv/phase6_commands.csv
 ```
 
-The matrix trains on the `train` map split and evaluates on both `train` and held-out `eval` map splits. It covers latent default, vanilla local PPO, no-persistence, lower-K, sparse-refresh, and OP2-trained comparison variants. Add `--execute` only when you are ready to run the long training/evaluation sequence.
+The matrix trains on the `train` map split and evaluates on both `train` and held-out `eval` map splits. It covers latent default, flat/no-latent PPO-MARL, latent no-persistence, fixed-latent, K=6, sparse-refresh, and OP2-trained comparison variants. Add `--execute` only when you are ready to run the long training/evaluation sequence.

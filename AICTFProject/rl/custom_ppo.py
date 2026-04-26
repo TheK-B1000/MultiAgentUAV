@@ -108,6 +108,8 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
         elif "n_agents_per_team" in cfg:
             meta["n_blue"] = int(cfg["n_agents_per_team"])
         meta["use_latent_strategy"] = bool(cfg.get("use_latent_strategy", False))
+        meta["fixed_latent_strategy"] = bool(cfg.get("fixed_latent_strategy", False))
+        meta["fixed_latent_strategy_id"] = int(cfg.get("fixed_latent_strategy_id", 0) or 0)
         meta["actor_cnn_feature_dim"] = int(
             cfg.get("actor_cnn_feature_dim", payload.get("actor_cnn_feature_dim", 128))
         )
@@ -133,11 +135,26 @@ class CustomPPOInferencePolicy:
         self._prev_z: Optional[torch.Tensor] = None
         cfg = cfg or {}
         self.strategy_interval = max(0, int(cfg.get("latent_resample_every_n", 0) or 0))
+        self.fixed_latent_strategy = bool(cfg.get("fixed_latent_strategy", False))
+        self.fixed_latent_strategy_id = max(0, int(cfg.get("fixed_latent_strategy_id", 0) or 0))
         self._strategy_age = 0
         self._last_strategy_z: Optional[torch.Tensor] = None
         self._last_strategy_probs: Optional[torch.Tensor] = None
         self._last_strategy_entropy: Optional[torch.Tensor] = None
         self._last_strategy_resampled = False
+
+    def _fixed_strategy_id(self) -> int:
+        if not self.model.uses_latent_strategy:
+            return 0
+        return min(self.fixed_latent_strategy_id, max(0, int(self.model.latent_k) - 1))
+
+    def _fixed_strategy_tensor(self, batch: int) -> torch.Tensor:
+        return torch.full((int(batch),), self._fixed_strategy_id(), dtype=torch.long, device=self.device)
+
+    def _fixed_strategy_probs(self, batch: int) -> torch.Tensor:
+        probs = torch.zeros((int(batch), int(self.model.latent_k)), dtype=torch.float32, device=self.device)
+        probs[:, self._fixed_strategy_id()] = 1.0
+        return probs
 
     def reset_strategy(self) -> None:
         """Forget the persisted inference strategy, typically at episode reset."""
@@ -190,22 +207,30 @@ class CustomPPOInferencePolicy:
             if self.model.uses_latent_strategy:
                 batch = int(obs_t["grid"].shape[0])
                 global_state = self._global_state_tensor(batched, batch)
-                z_logits = self.model.strategy_logits(global_state)
-                z_dist = Categorical(logits=z_logits)
-                needs_strategy = (
-                    self._prev_z is None
-                    or int(self._prev_z.numel()) != batch
-                    or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
-                )
-                if needs_strategy:
-                    z_idx, _, z_ent, _ = self.model.sample_strategy(global_state, deterministic=deterministic)
+                if self.fixed_latent_strategy:
+                    z_idx = self._fixed_strategy_tensor(batch)
                     self._prev_z = z_idx.detach()
-                    self._strategy_age = 0
+                    z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
+                    z_probs = self._fixed_strategy_probs(batch)
+                    needs_strategy = False
                 else:
-                    z_idx = self._prev_z.to(self.device)
-                    z_ent = z_dist.entropy()
+                    z_logits = self.model.strategy_logits(global_state)
+                    z_dist = Categorical(logits=z_logits)
+                    needs_strategy = (
+                        self._prev_z is None
+                        or int(self._prev_z.numel()) != batch
+                        or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
+                    )
+                    if needs_strategy:
+                        z_idx, _, z_ent, _ = self.model.sample_strategy(global_state, deterministic=deterministic)
+                        self._prev_z = z_idx.detach()
+                        self._strategy_age = 0
+                    else:
+                        z_idx = self._prev_z.to(self.device)
+                        z_ent = z_dist.entropy()
+                    z_probs = torch.softmax(z_logits, dim=-1)
                 self._last_strategy_z = z_idx.detach().cpu()
-                self._last_strategy_probs = torch.softmax(z_logits, dim=-1).detach().cpu()
+                self._last_strategy_probs = z_probs.detach().cpu()
                 self._last_strategy_entropy = z_ent.detach().cpu()
                 self._last_strategy_resampled = bool(needs_strategy)
                 action_tensor, _, _, _ = self.model.act(
@@ -234,8 +259,12 @@ class CustomPPOInferencePolicy:
             z_idx = None
             z_entropy = torch.zeros((obs_t["grid"].shape[0],), device=self.device)
             if self.model.uses_latent_strategy:
-                global_state = self._global_state_tensor(batched, int(obs_t["grid"].shape[0]))
-                z_idx, _, z_entropy, _ = self.model.sample_strategy(global_state, deterministic=True)
+                batch = int(obs_t["grid"].shape[0])
+                if self.fixed_latent_strategy:
+                    z_idx = self._fixed_strategy_tensor(batch)
+                else:
+                    global_state = self._global_state_tensor(batched, batch)
+                    z_idx, _, z_entropy, _ = self.model.sample_strategy(global_state, deterministic=True)
             logits = self.model._mask_logits(self.model.policy_logits(obs_t, z_idx=z_idx), obs_t.get("mask"))
             entropy = torch.stack([dist.entropy() for dist in self.model._categoricals(logits)], dim=0).sum(dim=0)
         return float((entropy + z_entropy).mean().detach().cpu().item())
@@ -252,6 +281,8 @@ class CustomPPOInferencePolicy:
             "strategy_batch": [int(v) for v in z.tolist()],
             "strategy_resampled": bool(self._last_strategy_resampled),
         }
+        if self.fixed_latent_strategy:
+            out["strategy_fixed"] = True
         if probs is not None and probs.numel() > 0:
             p0 = probs.reshape(probs.shape[0], -1)[0]
             out["strategy_k"] = int(p0.numel())
@@ -666,6 +697,14 @@ class CustomPPOTrainer:
         self.use_latent_strategy = bool(getattr(cfg, "use_latent_strategy", False))
         self.latent_k = int(getattr(cfg, "latent_k", 4)) if self.use_latent_strategy else 0
         self.latent_resample_every_n = max(0, int(getattr(cfg, "latent_resample_every_n", 0) or 0))
+        self.fixed_latent_strategy = self.use_latent_strategy and bool(
+            getattr(cfg, "fixed_latent_strategy", False)
+        )
+        self.fixed_latent_strategy_id = (
+            max(0, min(int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0), self.latent_k - 1))
+            if self.use_latent_strategy
+            else 0
+        )
         model_kwargs: dict[str, int] = {
             "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
         }
@@ -708,10 +747,14 @@ class CustomPPOTrainer:
         self._current_z: Optional[torch.Tensor] = None
         self._strategy_age = torch.zeros((int(env.num_envs),), dtype=torch.long, device=self.device)
         self._needs_strategy_sample = torch.ones((int(env.num_envs),), dtype=torch.bool, device=self.device)
-        self.latent_resample_on_flag = bool(getattr(cfg, "latent_resample_on_flag", False)) and self.use_latent_strategy
+        self.latent_resample_on_flag = (
+            bool(getattr(cfg, "latent_resample_on_flag", False))
+            and self.use_latent_strategy
+            and not self.fixed_latent_strategy
+        )
         self.latent_kl_consecutive = (
             max(0.0, float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0))
-            if self.use_latent_strategy
+            if self.use_latent_strategy and not self.fixed_latent_strategy
             else 0.0
         )
         self._z_kl_first_in_ep: Optional[torch.Tensor] = None
@@ -968,9 +1011,12 @@ class CustomPPOTrainer:
         if not self.use_latent_strategy:
             return
         n_envs = int(self.env.num_envs)
-        self._current_z = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
+        z0 = self.fixed_latent_strategy_id if self.fixed_latent_strategy else 0
+        self._current_z = torch.full((n_envs,), int(z0), dtype=torch.long, device=self.device)
         self._strategy_age = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
-        self._needs_strategy_sample = torch.ones((n_envs,), dtype=torch.bool, device=self.device)
+        self._needs_strategy_sample = torch.full(
+            (n_envs,), not self.fixed_latent_strategy, dtype=torch.bool, device=self.device
+        )
         if self.latent_kl_consecutive > 0.0:
             self._z_kl_first_in_ep = torch.ones((n_envs,), dtype=torch.bool, device=self.device)
             self._prev_z_logits = None
@@ -988,6 +1034,29 @@ class CustomPPOTrainer:
         if self._current_z is None:
             self._reset_strategy_state()
         assert self._current_z is not None
+
+        if self.fixed_latent_strategy:
+            batch = int(global_state.shape[0])
+            z_idx = torch.full(
+                (batch,), self.fixed_latent_strategy_id, dtype=torch.long, device=self.device
+            )
+            prev_z = self._current_z.clone()
+            self._current_z = z_idx.clone()
+            fixed_logits = torch.full(
+                (batch, self.latent_k), -1.0e8, dtype=torch.float32, device=self.device
+            )
+            fixed_logits[:, self.fixed_latent_strategy_id] = 0.0
+            false_mask = torch.zeros((batch,), dtype=torch.bool, device=self.device)
+            aux = {
+                "z": z_idx,
+                "prev_z": prev_z,
+                "z_log_prob": torch.zeros((batch,), dtype=torch.float32, device=self.device),
+                "z_entropy": torch.zeros((batch,), dtype=torch.float32, device=self.device),
+                "z_logits": fixed_logits,
+                "z_resampled": false_mask,
+                "z_persist_mask": false_mask,
+            }
+            return z_idx, prev_z, aux
 
         resample_mask = self._needs_strategy_sample.clone()
         if self.latent_resample_every_n > 0:
@@ -1044,7 +1113,7 @@ class CustomPPOTrainer:
         self._strategy_age += 1
         if bool(done_t.any().item()):
             self._strategy_age[done_t] = 0
-            self._needs_strategy_sample[done_t] = True
+            self._needs_strategy_sample[done_t] = not self.fixed_latent_strategy
 
     def _obs_rows_from_next(
         self,
@@ -1314,6 +1383,10 @@ class CustomPPOTrainer:
                         stats["strategy_kl"].append(float(kl_m.detach().cpu().item()))
                     else:
                         stats["strategy_kl"].append(0.0)
+                    if self.fixed_latent_strategy:
+                        strategy_entropy = torch.zeros_like(entropy)
+                        persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                        latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)

@@ -114,6 +114,13 @@ L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))
 
 **Experiments (paper E3 / controls):** the decisive latent-vs-non-latent comparison should be identical PPO and environment settings with only latent strategy on vs off (`--no-latent-strategy`). Opponent tags and phases are not supervision targets for `z`.
 
+Must-have baselines are:
+
+- `flat_ppo_marl`: disables the latent strategy path with `--no-latent-strategy`.
+- `latent_no_persistence`: keeps latent strategy refreshes but uses `--latent-lam-p 0.0`; the phase 6 matrix pairs this with `--latent-resample-every 20` so the persistence term is actually exercised.
+- `fixed_latent`: keeps latent actor/critic conditioning but clamps all decisions to one fixed strategy ID with `--fixed-latent-strategy --fixed-latent-id 0`, bypassing `q_phi` sampling/losses.
+- `k6`: the supported higher-cardinality ablation, replacing the older invalid `K=2` row because the trainer validates `latent_k in {4, 6}`.
+
 ## Strategy Diagnostics
 
 Latent checkpoints expose the most recent `z` decision through `CustomPPOInferencePolicy.strategy_info()`. Evaluation rollouts and viewer headless evals aggregate that into per-episode columns:

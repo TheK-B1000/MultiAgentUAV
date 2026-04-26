@@ -21,6 +21,7 @@ from rl.custom_ppo import (
     CUSTOM_PPO_LATENT_FORMAT,
     CUSTOM_PPO_VEC_SCHEMA_VERSION,
     CustomPPOTrainer,
+    SharedActorCentralizedCritic,
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
@@ -244,6 +245,49 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 int(second.fields["z"][0, 0].item()),
             )
         finally:
+            env.close()
+
+    def test_fixed_latent_strategy_clamps_z_without_sampling(self) -> None:
+        cfg = _smoke_ppo_config(
+            run_tag="unittest_fixed_latent_2v2",
+            checkpoint_dir=str(_WORKSPACE_TMP),
+        )
+        cfg.use_latent_strategy = True
+        cfg.fixed_latent_strategy = True
+        cfg.fixed_latent_strategy_id = 2
+        cfg.n_steps = 4
+        cfg.batch_size = 4
+        cfg.max_decision_steps = 100
+        sample_calls: list[int] = []
+        original = SharedActorCentralizedCritic.sample_strategy
+
+        def _track(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            sample_calls.append(1)
+            return original(self, *args, **kwargs)
+
+        SharedActorCentralizedCritic.sample_strategy = _track  # type: ignore[assignment]
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=654))
+        try:
+            trainer = CustomPPOTrainer(
+                env,
+                cfg,
+                learning_rate=1e-4,
+                clip_range=0.2,
+                ent_coef=0.0,
+                n_epochs=1,
+                batch_size=4,
+                value_clip_range=0.2,
+            )
+            rollout = trainer.collect_rollout()
+            self.assertTrue(torch.all(rollout.fields["z"][: rollout.pos] == 2).item())
+            self.assertFalse(bool(rollout.fields["z_resampled"][: rollout.pos].any().item()))
+            self.assertFalse(bool(rollout.fields["z_persist_mask"][: rollout.pos].any().item()))
+            stats = trainer.update(rollout, total_timesteps=4)
+            self.assertEqual(stats["strategy_entropy"], 0.0)
+            self.assertEqual(stats["strategy_persist_loss"], 0.0)
+            self.assertEqual(sample_calls, [])
+        finally:
+            SharedActorCentralizedCritic.sample_strategy = original  # type: ignore[assignment]
             env.close()
 
 

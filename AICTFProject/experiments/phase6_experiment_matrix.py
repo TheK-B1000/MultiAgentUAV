@@ -3,9 +3,10 @@
 
 The matrix covers the Summer-plan core comparisons:
 
-- latent default vs vanilla local PPO
-- no-persistence ablation
-- smaller K ablation
+- latent default vs flat/no-latent PPO-MARL
+- latent no-persistence ablation
+- fixed-latent ablation
+- higher K ablation
 - sparse strategy refresh ablation
 - OP2-trained comparison evaluated on OP3/OP4
 - train-map vs held-out eval-map generalization
@@ -34,11 +35,32 @@ class Variant:
 
 
 VARIANTS: tuple[Variant, ...] = (
-    Variant("latent_default", "OP3", (), "Default latent team strategy, K=4, persistence enabled."),
-    Variant("vanilla", "OP3", ("--no-latent-strategy",), "Local PPO ablation with no latent strategy."),
-    Variant("no_persistence", "OP3", ("--latent-lam-p", "0.0"), "Latent strategy without persistence penalty."),
-    Variant("k2", "OP3", ("--latent-k", "2"), "Lower-cardinality latent strategy ablation."),
-    Variant("sparse20", "OP3", ("--latent-resample-every", "20"), "Sparse strategy refresh every 20 decisions."),
+    Variant("latent_default", "OP3", (), "Default latent team strategy, K=4, episode-start z."),
+    Variant(
+        "flat_ppo_marl",
+        "OP3",
+        ("--no-latent-strategy",),
+        "Flat/no-latent PPO-MARL baseline; only the latent strategy path is disabled.",
+    ),
+    Variant(
+        "latent_no_persistence",
+        "OP3",
+        ("--latent-resample-every", "20", "--latent-lam-p", "0.0"),
+        "Latent PPO with sparse strategy refresh but no persistence penalty.",
+    ),
+    Variant(
+        "fixed_latent",
+        "OP3",
+        ("--fixed-latent-strategy", "--fixed-latent-id", "0"),
+        "Latent actor/critic with z clamped to one fixed strategy ID.",
+    ),
+    Variant("k6", "OP3", ("--latent-k", "6"), "Higher-cardinality latent strategy ablation."),
+    Variant(
+        "sparse20",
+        "OP3",
+        ("--latent-resample-every", "20"),
+        "Sparse strategy refresh every 20 decisions with persistence enabled.",
+    ),
     Variant("op2_comparison", "OP2", (), "OP2-trained comparison checkpoint for held-out generalization tables."),
 )
 
