@@ -32,7 +32,9 @@ from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-DEFAULT_PPO_MODEL_PATH = "checkpoints/8v8/final_ppo_latent_fixed_op3_8v8.zip"
+# Default matches a typical local PPO run: `python -m rl.train_ppo --agents 2 --run-tag my_smoke_2v2`
+# (override with: python ctfviewer.py --ppo-model checkpoints/2v2/your_run.zip)
+DEFAULT_PPO_MODEL_PATH = "checkpoints/2v2/final_my_smoke_2v2_updates.zip"
 N_MACROS = 5
 N_TARGETS = 50
 
@@ -89,7 +91,8 @@ def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[st
         if src_tag in stem:
             candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
 
-    # Final fallback: default latent PPO training run (FIXED_OPPONENT OP3).
+    # Final fallbacks: common local training outputs (FIXED_OPPONENT / smoke runs).
+    candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints", team_tag, f"final_my_smoke_{team_tag}.zip"))
     candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints", team_tag, f"final_ppo_latent_fixed_op3_{team_tag}{ext}"))
 
     # Deduplicate while preserving order.
