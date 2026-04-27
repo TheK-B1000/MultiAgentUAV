@@ -12,6 +12,23 @@ except ImportError:
     sample_batched_opponent_params = None
 
 
+def align_speed_cap_to_speed(speed: torch.Tensor, speed_cap: torch.Tensor) -> torch.Tensor:
+    """Ensure speed_cap matches speed's (B, N) layout for torch.minimum / arithmetic."""
+    cap = torch.clamp(speed_cap.to(dtype=speed.dtype, device=speed.device), min=0.0)
+    if cap.shape == speed.shape:
+        return cap
+    if cap.dim() == 1 and cap.shape[0] == speed.shape[0]:
+        return cap[:, None].expand_as(speed)
+    if cap.numel() == 1:
+        return cap.view(1, 1).expand_as(speed)
+    if cap.numel() == speed.numel():
+        return cap.reshape(speed.shape)
+    raise RuntimeError(
+        f"speed_cap shape {tuple(cap.shape)} / numel={cap.numel()} incompatible with "
+        f"speed {tuple(speed.shape)} / numel={speed.numel()}"
+    )
+
+
 class _DynamicsMixin:
     def _apply_dynamics_tensor(
         self,
@@ -132,20 +149,7 @@ class _DynamicsMixin:
                 self.red_role_switch_prob[sub_idx] = opp_params["role_switch_prob"].to(device=self.device, dtype=self.red_role_switch_prob.dtype)
 
     def _align_speed_cap_to_speed(self, speed: torch.Tensor, speed_cap: torch.Tensor) -> torch.Tensor:
-        """Ensure speed_cap matches speed's (B, N) layout for torch.minimum / arithmetic."""
-        cap = torch.clamp(speed_cap.to(dtype=speed.dtype, device=speed.device), min=0.0)
-        if cap.shape == speed.shape:
-            return cap
-        if cap.dim() == 1 and cap.shape[0] == speed.shape[0]:
-            return cap[:, None].expand_as(speed)
-        if cap.numel() == 1:
-            return cap.view(1, 1).expand_as(speed)
-        if cap.numel() == speed.numel():
-            return cap.reshape(speed.shape)
-        raise RuntimeError(
-            f"speed_cap shape {tuple(cap.shape)} / numel={cap.numel()} incompatible with "
-            f"speed {tuple(speed.shape)} / numel={speed.numel()}"
-        )
+        return align_speed_cap_to_speed(speed, speed_cap)
 
     def _integrate_side(
         self,

@@ -86,6 +86,14 @@ class _StateMixin:
         dev = self.device
         f32 = torch.float32
 
+        self._alloc_episode_state(B, Nb, Nr, dev)
+        self._alloc_agent_state(B, Nb, Nr, dev, f32)
+        self._alloc_flags_and_scores(B, dev, f32)
+        self._alloc_runtime_buffers(B, Nb, Nr, dev, f32)
+        self._alloc_mine_state(B, Nb, Nr, dev, f32)
+        self._alloc_metric_buffers(B, dev, f32)
+
+    def _alloc_episode_state(self, B: int, Nb: int, Nr: int, dev: torch.device) -> None:
         self.step_count = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.sim_step_count = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.done = torch.zeros((B,), dtype=torch.bool, device=dev)
@@ -100,6 +108,7 @@ class _StateMixin:
         self.red_commit_ticks_left = torch.zeros((B, Nr), dtype=torch.int32, device=dev)
         self.red_commit_success = torch.zeros((B, Nr), dtype=torch.bool, device=dev)
 
+    def _alloc_agent_state(self, B: int, Nb: int, Nr: int, dev: torch.device, f32: torch.dtype) -> None:
         self.blue_x = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.blue_y = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.blue_heading = torch.zeros((B, Nb), dtype=f32, device=dev)
@@ -118,6 +127,7 @@ class _StateMixin:
         self.red_carrying = torch.zeros((B, Nr), dtype=torch.bool, device=dev)
         self.red_respawn = torch.zeros((B, Nr), dtype=f32, device=dev)
 
+    def _alloc_flags_and_scores(self, B: int, dev: torch.device, f32: torch.dtype) -> None:
         self.blue_score = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.red_score = torch.zeros((B,), dtype=torch.int32, device=dev)
 
@@ -143,6 +153,7 @@ class _StateMixin:
         self.blue_flag_pos = self.blue_flag_home.clone()
         self.red_flag_pos = self.red_flag_home.clone()
 
+    def _alloc_runtime_buffers(self, B: int, Nb: int, Nr: int, dev: torch.device, f32: torch.dtype) -> None:
         self.rt_current_strength_cps = torch.full((B,), float(self.cfg.current_strength_cps), dtype=f32, device=dev)
         self.rt_drift_sigma_cells = torch.full((B,), float(self.cfg.drift_sigma_cells), dtype=f32, device=dev)
         self._last_dense_progress = torch.zeros((B,), dtype=f32, device=dev)
@@ -165,6 +176,7 @@ class _StateMixin:
         self.red_tag_pressure_time = torch.zeros((B, Nr), dtype=f32, device=dev)
         self.blue_tag_pressure_time = torch.zeros((B, Nb), dtype=f32, device=dev)
 
+    def _alloc_mine_state(self, B: int, Nb: int, Nr: int, dev: torch.device, f32: torch.dtype) -> None:
         # Mines: each team has max_mines_per_team slots. Agents get charges by GRAB_MINE at pickups, place with PLACE_MINE.
         Nm = int(self.cfg.max_mines_per_team)
         self.Nm = Nm
@@ -185,6 +197,7 @@ class _StateMixin:
         self.pickup_respawn = torch.zeros((B, Np), dtype=torch.int32, device=dev)
         self._init_pickup_positions()
 
+    def _alloc_metric_buffers(self, B: int, dev: torch.device, f32: torch.dtype) -> None:
         # Per-episode telemetry. These are reset with each env instance and
         # summarized into info["episode_result"] at terminal time.
         self.metric_time_to_first_score = torch.full((B,), -1.0, dtype=f32, device=dev)

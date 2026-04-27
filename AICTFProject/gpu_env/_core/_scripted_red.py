@@ -11,6 +11,23 @@ from macro_actions import MacroAction
 from .._paths import _resolve_snapshot_path
 
 
+def macro_commit_ticks(
+    macro: torch.Tensor,
+    *,
+    go_to_ticks: int,
+    grab_ticks: int,
+    get_flag_ticks: int,
+    place_ticks: int,
+    go_home_ticks: int,
+) -> torch.Tensor:
+    ticks = torch.full_like(macro, int(go_to_ticks), dtype=torch.int32)
+    ticks = torch.where(macro == int(MacroAction.GRAB_MINE), torch.full_like(ticks, int(grab_ticks)), ticks)
+    ticks = torch.where(macro == int(MacroAction.GET_FLAG), torch.full_like(ticks, int(get_flag_ticks)), ticks)
+    ticks = torch.where(macro == int(MacroAction.PLACE_MINE), torch.full_like(ticks, int(place_ticks)), ticks)
+    ticks = torch.where(macro == int(MacroAction.GO_HOME), torch.full_like(ticks, int(go_home_ticks)), ticks)
+    return torch.clamp(ticks, min=1)
+
+
 class _ScriptedRedMixin:
     def _decode_targets(self, target_idx: torch.Tensor, side: str = "blue") -> torch.Tensor:
         tidx = torch.remainder(target_idx, self.cfg.n_targets).long()
@@ -22,12 +39,14 @@ class _ScriptedRedMixin:
         return out
 
     def _macro_commit_ticks(self, macro: torch.Tensor) -> torch.Tensor:
-        ticks = torch.full_like(macro, int(self.cfg.macro_commit_go_to_ticks), dtype=torch.int32)
-        ticks = torch.where(macro == int(MacroAction.GRAB_MINE), torch.full_like(ticks, int(self.cfg.macro_commit_grab_ticks)), ticks)
-        ticks = torch.where(macro == int(MacroAction.GET_FLAG), torch.full_like(ticks, int(self.cfg.macro_commit_get_flag_ticks)), ticks)
-        ticks = torch.where(macro == int(MacroAction.PLACE_MINE), torch.full_like(ticks, int(self.cfg.macro_commit_place_ticks)), ticks)
-        ticks = torch.where(macro == int(MacroAction.GO_HOME), torch.full_like(ticks, int(self.cfg.macro_commit_go_home_ticks)), ticks)
-        return torch.clamp(ticks, min=1)
+        return macro_commit_ticks(
+            macro,
+            go_to_ticks=int(self.cfg.macro_commit_go_to_ticks),
+            grab_ticks=int(self.cfg.macro_commit_grab_ticks),
+            get_flag_ticks=int(self.cfg.macro_commit_get_flag_ticks),
+            place_ticks=int(self.cfg.macro_commit_place_ticks),
+            go_home_ticks=int(self.cfg.macro_commit_go_home_ticks),
+        )
 
     # ------------------------------------------------------------------
     # Carrier evasion: multi-threat tangent routing toward home
@@ -97,6 +116,9 @@ class _ScriptedRedMixin:
     # Unified NPC brain for both sides
     # ------------------------------------------------------------------
     def _get_scripted_targets(self, side: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        return self._assign_scripted_targets_by_role(side)
+
+    def _assign_scripted_targets_by_role(self, side: str) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Consolidated NPC brain usable for both "blue" and "red".
 
