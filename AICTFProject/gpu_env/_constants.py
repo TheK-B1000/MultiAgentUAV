@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+CNN_COLS = 20
+CNN_ROWS = 20
+NUM_CNN_CHANNELS = 7
+GLOBAL_STATE_CHANNELS = 8
+VEC_OBS_DIM = 20
+MAP_SET_SEED_OFFSETS = {"train": 0, "eval": 1_000_003}
+METRIC_ZONE_ROWS = 5
+METRIC_ZONE_COLS = 5
+
+
+__all__ = [
+    "CNN_COLS",
+    "CNN_ROWS",
+    "NUM_CNN_CHANNELS",
+    "GLOBAL_STATE_CHANNELS",
+    "VEC_OBS_DIM",
+    "MAP_SET_SEED_OFFSETS",
+    "METRIC_ZONE_ROWS",
+    "METRIC_ZONE_COLS",
+]
