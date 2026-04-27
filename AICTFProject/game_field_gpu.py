@@ -11,7 +11,7 @@ from __future__ import annotations
 import inspect
 import os
 import math
-from dataclasses import dataclass, fields as dataclass_fields
+from dataclasses import MISSING, dataclass, fields as dataclass_fields, replace as dataclass_replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import gymnasium as gym
@@ -144,12 +144,12 @@ class RewardConfig:
     pbrs_gamma: float = 0.995
     pbrs_attack_coef: float = 1.0
     pbrs_return_coef: float = 1.0
-    pbrs_defense_coef: float = 0.5
+    pbrs_defense_coef: float = 1.0
     team_defense_presence_reward: float = 0.03
     team_escort_reward: float = 0.02
     team_intercept_reward: float = 0.02
     sparse_weight: float = 1.0
-    dense_weight: float = 0.2
+    dense_weight: float = 0.5
     reward_scale: float = 2.0
     reward_clip: float = 1.0
     stalemate_max_steps: int = 120
@@ -165,9 +165,10 @@ class RewardConfig:
 
 # Historical name for papers/experiment configs that call this a "profile".
 RewardProfile = RewardConfig
+REWARD_FIELD_NAMES = frozenset(f.name for f in dataclass_fields(RewardConfig))
 
 
-@dataclass
+@dataclass(init=False)
 class GPUFieldConfig:
     n_envs: int = 64
     n_agents_per_team: Optional[int] = None
@@ -216,21 +217,6 @@ class GPUFieldConfig:
     mine_pickup_radius_cells: float = 1.2
     mine_pickup_respawn_steps: int = 0   # 0 => no respawn; pickups are single-use
     n_mine_pickups: int = 4
-    enabled_mine_reward: float = 0.2
-    flag_pickup_reward: float = FLAG_PICKUP_REWARD
-    flag_carry_home_reward: float = FLAG_CARRY_HOME_REWARD
-    enemy_mav_kill_reward: float = ENEMY_MAV_KILL_REWARD
-    action_failed_punishment: float = ACTION_FAILED_PUNISHMENT
-    win_team_reward: float = WIN_TEAM_REWARD
-    lose_team_punish: float = LOSE_TEAM_PUNISH
-    draw_team_penalty: float = DRAW_TEAM_PENALTY
-    pbrs_gamma: float = 0.995
-    pbrs_attack_coef: float = 1.0
-    pbrs_return_coef: float = 1.0
-    pbrs_defense_coef: float = 0.5
-    team_defense_presence_reward: float = 0.03
-    team_escort_reward: float = 0.02
-    team_intercept_reward: float = 0.02
     macro_commit_go_to_ticks: int = 4
     macro_commit_grab_ticks: int = 3
     macro_commit_get_flag_ticks: int = 4
@@ -245,10 +231,6 @@ class GPUFieldConfig:
     # Profile and reward controls
     aquaticus_profile: bool = False
     rules_profile: str = "OURS"
-    sparse_weight: float = 1.0
-    dense_weight: float = 0.2
-    reward_scale: float = 2.0
-    reward_clip: float = 1.0
 
     # Viewer-only convenience: when True, newly tagged agents are snapped back
     # to their home flag position instead of returning under their own motion.
@@ -261,20 +243,61 @@ class GPUFieldConfig:
     score_grace_steps: int = 10
 
     # PPO stability
-    stalemate_max_steps: int = 120
-    stalemate_progress_eps: float = 0.002
-    stalemate_penalty: float = -0.15
-    spin_penalty_coef: float = 0.05
-    idle_penalty_coef: float = 0.03
 
     reward_config: Optional[RewardConfig] = None
     device: str = "cpu"
     seed: int = 42
 
+    def __init__(self, **kwargs: Any) -> None:
+        reward_kwargs = {
+            name: kwargs.pop(name)
+            for name in list(kwargs)
+            if name in REWARD_FIELD_NAMES
+        }
+        reward_config = kwargs.pop("reward_config", None)
+        config_fields = [f for f in dataclass_fields(type(self)) if f.name != "reward_config"]
+        config_field_names = {f.name for f in config_fields}
+        unknown = sorted(set(kwargs) - config_field_names)
+        if unknown:
+            unexpected = unknown[0]
+            raise TypeError(f"GPUFieldConfig.__init__() got an unexpected keyword argument {unexpected!r}")
+
+        for f in config_fields:
+            if f.name in kwargs:
+                value = kwargs.pop(f.name)
+            elif f.default is not MISSING:
+                value = f.default
+            elif f.default_factory is not MISSING:  # type: ignore[attr-defined]
+                value = f.default_factory()  # type: ignore[misc]
+            else:
+                raise TypeError(f"GPUFieldConfig.__init__() missing required keyword argument {f.name!r}")
+            object.__setattr__(self, f.name, value)
+
+        if reward_config is None:
+            reward_config = RewardConfig(**reward_kwargs)
+        object.__setattr__(self, "reward_config", reward_config)
+        self.__post_init__()
+
+    def __getattr__(self, name: str) -> Any:
+        if name in REWARD_FIELD_NAMES:
+            reward_config = self.__dict__.get("reward_config")
+            if reward_config is None:
+                reward_config = RewardConfig()
+                object.__setattr__(self, "reward_config", reward_config)
+            return getattr(reward_config, name)
+        raise AttributeError(f"{type(self).__name__!s} object has no attribute {name!r}")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in REWARD_FIELD_NAMES:
+            reward_config = self.__dict__.get("reward_config") or RewardConfig()
+            object.__setattr__(self, "reward_config", dataclass_replace(reward_config, **{name: value}))
+            return
+        object.__setattr__(self, name, value)
+
+    def __dir__(self) -> List[str]:
+        return sorted(set(super().__dir__()) | REWARD_FIELD_NAMES)
+
     def __post_init__(self) -> None:
-        if self.reward_config is not None:
-            for f in dataclass_fields(RewardConfig):
-                setattr(self, f.name, getattr(self.reward_config, f.name))
         self.reward_config = RewardConfig.from_object(self)
 
         if self.n_agents_per_team is not None:
@@ -285,6 +308,44 @@ class GPUFieldConfig:
         if self.map_set not in MAP_SET_SEED_OFFSETS:
             allowed = ", ".join(sorted(MAP_SET_SEED_OFFSETS))
             raise ValueError(f"map_set must be one of {{{allowed}}}, got {self.map_set!r}")
+
+
+assert REWARD_FIELD_NAMES <= set(dir(GPUFieldConfig()))
+
+
+def _build_episode_result_payload(info: dict) -> dict:
+    """Build the terminal episode summary consumed by training callbacks."""
+    bs = int(info["blue_score"])
+    rs = int(info["red_score"])
+    okind = str(info["opponent_kind"]).lower()
+    okey = str(info["opponent_key"] or "")
+    osnap = okey if okind == "snapshot" else ""
+    return {
+        "blue_score": bs,
+        "red_score": rs,
+        "success": 1 if bs > rs else 0,
+        "opponent_kind": okind,
+        "opponent_snapshot": osnap,
+        "scripted_tag": okey if okind == "scripted" else "",
+        "species_tag": "BALANCED",
+        "collisions_per_episode": int(info["collision_events_per_episode"]),
+        "collision_events_per_episode": int(info["collision_events_per_episode"]),
+        "collision_free_episode": int(info["collision_free_episode"]),
+        "near_misses_per_episode": int(info["near_misses_per_episode"]),
+        "zone_coverage": float(info["zone_coverage"]),
+        "time_to_first_score": info["time_to_first_score"],
+        "mean_inter_robot_dist": info["mean_inter_robot_dist"],
+        "reward_terminal": float(info["reward_terminal"]),
+        "reward_offense": float(info["reward_offense"]),
+        "reward_pbrs": float(info["reward_pbrs"]),
+        "reward_team": float(info["reward_team"]),
+        "reward_sparse": float(info["reward_sparse"]),
+        "reward_failure": float(info["reward_failure"]),
+        "reward_sparse_points": float(info["reward_sparse_points"]),
+        "reward_total": float(info["reward_total"]),
+        "decision_steps": int(info["decision_steps"]),
+        "vec_schema_version": 1,
+    }
 
 
 class BatchedCTFCore:
@@ -336,6 +397,9 @@ class BatchedCTFCore:
         self._stress_schedule: Optional[dict] = None
         self._opponent_kind: List[str] = ["SCRIPTED"] * self.B
         self._opponent_key: List[str] = ["OP3"] * self.B
+        self._phase_tensor_cache: Dict[Tuple[str, ...], torch.Tensor] = {}
+        self._red_control_mask: Optional[torch.Tensor] = None
+        self._red_control_mask_dirty = True
         self._snapshot_policy_cache: Dict[str, Tuple[float, Optional[Any]]] = {}
         self.rules_profile = str(cfg.rules_profile).upper()
 
@@ -641,6 +705,8 @@ class BatchedCTFCore:
             self.red_respawn[idx].zero_()
 
     def reset_all(self) -> None:
+        self._phase_tensor_cache.clear()
+        self._red_control_mask_dirty = True
         mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
         self.reset_indices(mask)
 
@@ -656,11 +722,31 @@ class BatchedCTFCore:
         return torch.clamp(idx, 0, max(0, self.B - 1))
 
     def _phase_tensor_equals(self, phases: Sequence[str]) -> torch.Tensor:
-        return torch.as_tensor(
-            [str(p).upper() in phases for p in self._phase],
-            device=self.device,
-            dtype=torch.bool,
-        )
+        key = tuple(sorted(str(p).upper() for p in phases))
+        cached = self._phase_tensor_cache.get(key)
+        if cached is None:
+            phase_set = set(key)
+            cached = torch.as_tensor(
+                [str(p).upper() in phase_set for p in self._phase],
+                device=self.device,
+                dtype=torch.bool,
+            )
+            self._phase_tensor_cache[key] = cached
+        return cached
+
+    def _get_red_control_mask(self) -> torch.Tensor:
+        if self._red_control_mask_dirty or self._red_control_mask is None:
+            self._red_control_mask = torch.as_tensor(
+                [
+                    str(self._opponent_kind[i]).upper() == "SNAPSHOT"
+                    and _resolve_snapshot_path(self._opponent_key[i]) is not None
+                    for i in range(self.B)
+                ],
+                device=self.device,
+                dtype=torch.bool,
+            )
+            self._red_control_mask_dirty = False
+        return self._red_control_mask
 
     def _apply_neutral_red_params(self, env_mask: torch.Tensor) -> None:
         idx = torch.where(env_mask)[0]
@@ -734,6 +820,8 @@ class BatchedCTFCore:
                 self.red_role_switch_prob[sub_idx] = opp_params["role_switch_prob"].to(device=self.device, dtype=self.red_role_switch_prob.dtype)
 
     def reset_indices(self, env_mask: torch.Tensor) -> None:
+        self._phase_tensor_cache.clear()
+        self._red_control_mask_dirty = True
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
             return
@@ -827,6 +915,8 @@ class BatchedCTFCore:
         phase_s = str(phase).upper()
         for env_i in self._normalize_env_indices(env_indices).detach().cpu().tolist():
             self._phase[env_i] = phase_s
+        self._phase_tensor_cache.clear()
+        self._red_control_mask_dirty = True
 
     def set_league_mode(self, league_mode: bool, env_indices: Optional[Sequence[int]] = None) -> None:
         idx = self._normalize_env_indices(env_indices)
@@ -843,6 +933,7 @@ class BatchedCTFCore:
         for env_i in idx.detach().cpu().tolist():
             self._opponent_kind[env_i] = kind_s
             self._opponent_key[env_i] = key_s
+        self._red_control_mask_dirty = True
         try:
             mask = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
             if idx.numel() > 0:
@@ -1564,122 +1655,123 @@ class BatchedCTFCore:
 
         return blue_mine_tags, red_mine_tags
 
-    def _apply_mine_pickups(self, macro_blue: torch.Tensor, macro_red: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Respawn pickups; then blue grabs with GRAB_MINE or auto-grab when scripted; red grabs when near (scripted).
-        """
+    def _apply_mine_pickups_side(
+        self,
+        side: str,
+        macro: Optional[torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Apply mine pickup rules for one side and return per-env/agent pickup counts."""
         B, device = self.B, self.device
         Np = self.Np
         radius = float(getattr(self.cfg, "mine_pickup_radius_cells", 1.2))
         respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 0))
         max_charge = int(getattr(self.cfg, "max_mine_charges_per_agent", 2))
-        blue_pickups = torch.zeros((B,), dtype=torch.float32, device=device)
-        blue_pickup_agents = torch.zeros((B, self.Nb), dtype=torch.bool, device=device)
+        side_t = self._side_tensors(side)
+        own_x = side_t["own_x"]
+        own_y = side_t["own_y"]
+        charges = side_t["own_mine_charges"]
+        n_agents = self.Nr if side == "red" else self.Nb
+        pickups = torch.zeros((B,), dtype=torch.float32, device=device)
+        pickup_agents = torch.zeros((B, n_agents), dtype=torch.bool, device=device)
 
-        # If respawn_delay > 0, pickups will respawn after a cooldown; when <= 0, pickups are single-use.
+        if macro is None:
+            grab = charges < max_charge
+        else:
+            grab = (macro == int(MacroAction.GRAB_MINE)) & (charges < max_charge)
+        if side == "blue" and self.blue_scripted:
+            grab = grab | (charges < max_charge)
+
+        for i in range(n_agents):
+            dx = own_x[:, i : i + 1] - self.pickup_x[:, :]
+            dy = own_y[:, i : i + 1] - self.pickup_y[:, :]
+            dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+            near = (dist <= radius) & self.pickup_active & grab[:, i : i + 1]
+            took = torch.zeros((B,), dtype=torch.bool, device=device)
+            for k in range(Np):
+                take = near[:, k] & (~took)
+                pickups += take.to(torch.float32)
+                pickup_agents[:, i] = pickup_agents[:, i] | take
+                charges[:, i] = torch.where(
+                    take,
+                    torch.clamp(charges[:, i] + 1, max=max_charge),
+                    charges[:, i],
+                )
+                self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
+                self.pickup_respawn[:, k] = torch.where(
+                    take,
+                    torch.full_like(self.pickup_respawn[:, k], respawn_delay),
+                    self.pickup_respawn[:, k],
+                )
+                took = took | take
+        return pickups, pickup_agents
+
+    def _apply_mine_pickups(self, macro_blue: torch.Tensor, macro_red: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Respawn pickups; then blue grabs with GRAB_MINE or auto-grab when scripted; red grabs when near (scripted).
+        """
+        respawn_delay = int(getattr(self.cfg, "mine_pickup_respawn_steps", 0))
         if respawn_delay > 0:
             self.pickup_respawn = torch.clamp(self.pickup_respawn - 1, min=0)
             self.pickup_active = self.pickup_active | ((self.pickup_respawn <= 0) & (~self.pickup_active))
 
-        # Blue: (GRAB_MINE or scripted) and near an active pickup and under max charge
-        grab_blue = ((macro_blue == MacroAction.GRAB_MINE) | self.blue_scripted) & (self.blue_mine_charges < max_charge)
-        for i in range(self.Nb):
-            dx = self.blue_x[:, i : i + 1] - self.pickup_x[:, :]
-            dy = self.blue_y[:, i : i + 1] - self.pickup_y[:, :]
-            dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
-            near = (dist <= radius) & self.pickup_active
-            for k in range(Np):
-                take = grab_blue[:, i] & near[:, k]
-                if take.any():
-                    blue_pickups += take.to(torch.float32)
-                    blue_pickup_agents[:, i] = blue_pickup_agents[:, i] | take
-                    self.blue_mine_charges[:, i] = torch.where(
-                        take,
-                        torch.clamp(self.blue_mine_charges[:, i] + 1, max=max_charge),
-                        self.blue_mine_charges[:, i],
-                    )
-                    self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
-                    self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
-                    break
-
-        # Red: snapshot opponents use GRAB_MINE; scripted opponents auto-grab when near.
-        for i in range(self.Nr):
-            under = self.red_mine_charges[:, i] < max_charge
-            dx = self.red_x[:, i : i + 1] - self.pickup_x[:, :]
-            dy = self.red_y[:, i : i + 1] - self.pickup_y[:, :]
-            dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
-            near = (dist <= radius) & self.pickup_active & under[:, None]
-            if macro_red is not None:
-                near = near & (macro_red[:, i : i + 1] == int(MacroAction.GRAB_MINE))
-            for k in range(Np):
-                take = near[:, k]
-                if take.any():
-                    self.red_mine_charges[:, i] = torch.where(
-                        take,
-                        torch.clamp(self.red_mine_charges[:, i] + 1, max=max_charge),
-                        self.red_mine_charges[:, i],
-                    )
-                    self.pickup_active[:, k] = self.pickup_active[:, k] & (~take)
-                    self.pickup_respawn[:, k] = torch.where(take, torch.full_like(self.pickup_respawn[:, k], respawn_delay), self.pickup_respawn[:, k])
-                    break
+        blue_pickups, blue_pickup_agents = self._apply_mine_pickups_side("blue", macro_blue)
+        self._apply_mine_pickups_side("red", macro_red)
         return blue_pickups, blue_pickup_agents
+
+    def _apply_mine_placement_side(
+        self,
+        side: str,
+        macro: Optional[torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Apply mine placement rules for one side and return per-env/agent placement counts."""
+        B, device = self.B, self.device
+        Nm = self.Nm
+        side_t = self._side_tensors(side)
+        own_x = side_t["own_x"]
+        own_y = side_t["own_y"]
+        active = side_t["own_mine_active"]
+        mine_x = side_t["own_mine_x"]
+        mine_y = side_t["own_mine_y"]
+        charges = side_t["own_mine_charges"]
+        n_agents = self.Nr if side == "red" else self.Nb
+        placements = torch.zeros((B,), dtype=torch.float32, device=device)
+        placement_agents = torch.zeros((B, n_agents), dtype=torch.bool, device=device)
+        step_50 = (self.sim_step_count % 50) == 0
+
+        if macro is None:
+            place = torch.zeros((B, n_agents), dtype=torch.bool, device=device)
+            place[:, 0] = (charges[:, 0] > 0) & step_50
+        else:
+            place = (macro == int(MacroAction.PLACE_MINE)) & (charges > 0)
+        if side == "blue" and self.blue_scripted:
+            scripted_mask = torch.zeros((B, n_agents), dtype=torch.bool, device=device)
+            scripted_mask[:, 0] = step_50
+            place = (place | scripted_mask) & (charges > 0)
+
+        for i in range(n_agents):
+            placed = torch.zeros((B,), dtype=torch.bool, device=device)
+            for slot in range(Nm):
+                can = place[:, i] & (~active[:, slot]) & (~placed)
+                placements += can.to(torch.float32)
+                placement_agents[:, i] = placement_agents[:, i] | can
+                mine_x[can, slot] = own_x[can, i]
+                mine_y[can, slot] = own_y[can, i]
+                active[can, slot] = True
+                charges[:, i] = torch.where(
+                    can,
+                    torch.clamp(charges[:, i] - 1, min=0),
+                    charges[:, i],
+                )
+                placed = placed | can
+        return placements, placement_agents
 
     def _apply_mine_placement(self, macro_blue: torch.Tensor, macro_red: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Blue: PLACE_MINE or scripted (defender every 50 steps) places at current position if charge > 0.
         Red: scripted placement when has charge (e.g. defender places every 50 steps).
         """
-        B, device = self.B, self.device
-        Nm = self.Nm
-        blue_placements = torch.zeros((B,), dtype=torch.float32, device=device)
-        blue_placement_agents = torch.zeros((B, self.Nb), dtype=torch.bool, device=device)
-
-        # Blue: (PLACE_MINE or scripted defender) and charge > 0 -> place at (blue_x, blue_y) in first free slot.
-        # Use an explicit defender mask with the same (B, Nb) shape as macro_blue to avoid
-        # shape/broadcast issues when Nb != B (e.g. 2v2 with n_envs=4 on Colab).
-        scripted_mask: torch.Tensor
-        if self.blue_scripted and (self.sim_step_count % 50) == 0:
-            scripted_mask = torch.zeros_like(macro_blue, dtype=torch.bool, device=device)
-            # Defender is agent index 0 for each env
-            scripted_mask[:, 0] = True
-        else:
-            scripted_mask = torch.zeros_like(macro_blue, dtype=torch.bool, device=device)
-
-        place_blue = ((macro_blue == MacroAction.PLACE_MINE) | scripted_mask) & (self.blue_mine_charges > 0)
-        for i in range(self.Nb):
-            for slot in range(Nm):
-                can = place_blue[:, i] & (~self.blue_mine_active[:, slot])
-                if can.any():
-                    blue_placements += can.to(torch.float32)
-                    blue_placement_agents[:, i] = blue_placement_agents[:, i] | can
-                    self.blue_mine_x[can, slot] = self.blue_x[can, i]
-                    self.blue_mine_y[can, slot] = self.blue_y[can, i]
-                    self.blue_mine_active[can, slot] = True
-                    self.blue_mine_charges[:, i] = torch.where(can, torch.clamp(self.blue_mine_charges[:, i] - 1, min=0), self.blue_mine_charges[:, i])
-                    break
-
-        if macro_red is None:
-            # Red: scripted place when defender (agent 0) has charge, every 50 steps
-            place_red = (self.red_mine_charges[:, 0] > 0) & ((self.sim_step_count % 50) == 0)
-            for slot in range(Nm):
-                can = place_red & (~self.red_mine_active[:, slot])
-                if can.any():
-                    self.red_mine_x[can, slot] = self.red_x[can, 0]
-                    self.red_mine_y[can, slot] = self.red_y[can, 0]
-                    self.red_mine_active[can, slot] = True
-                    self.red_mine_charges[:, 0] = torch.where(can, torch.clamp(self.red_mine_charges[:, 0] - 1, min=0), self.red_mine_charges[:, 0])
-                    break
-        else:
-            place_red = (macro_red == int(MacroAction.PLACE_MINE)) & (self.red_mine_charges > 0)
-            for i in range(self.Nr):
-                for slot in range(Nm):
-                    can = place_red[:, i] & (~self.red_mine_active[:, slot])
-                    if can.any():
-                        self.red_mine_x[can, slot] = self.red_x[can, i]
-                        self.red_mine_y[can, slot] = self.red_y[can, i]
-                        self.red_mine_active[can, slot] = True
-                        self.red_mine_charges[:, i] = torch.where(can, torch.clamp(self.red_mine_charges[:, i] - 1, min=0), self.red_mine_charges[:, i])
-                        break
+        blue_placements, blue_placement_agents = self._apply_mine_placement_side("blue", macro_blue)
+        self._apply_mine_placement_side("red", macro_red)
         return blue_placements, blue_placement_agents
 
     def _apply_aquaticus_tag_rules(
@@ -1989,9 +2081,6 @@ class BatchedCTFCore:
         ty = torch.where(own_carrying, own_flag_home[:, None, 1], ty)
         return tx, ty
 
-    def _build_blue_targets_from_action(self, macro: torch.Tensor, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        return self._build_targets_from_action(macro, target, side="blue")
-
     def _get_red_snapshot_actions(self, env_mask: torch.Tensor) -> Optional[Tuple[torch.Tensor, torch.Tensor]]:
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
@@ -2234,11 +2323,56 @@ class BatchedCTFCore:
             METRIC_ZONE_ROWS - 1,
         )
         zone_idx = zy * METRIC_ZONE_COLS + zx
-        env_idx = torch.arange(self.B, device=self.device)
-        for agent_i in range(self.Nb):
-            live = self.blue_alive[:, agent_i]
-            if bool(live.any().item()):
-                self.metric_blue_zone_visited[env_idx[live], zone_idx[live, agent_i]] = True
+        env_idx = torch.arange(self.B, device=self.device).view(self.B, 1).expand(self.B, self.Nb)
+        live = self.blue_alive
+        self.metric_blue_zone_visited[env_idx[live], zone_idx[live]] = True
+
+    def _apply_red_action_commit(
+        self,
+        red_action_flat: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        if red_action_flat.device != self.device:
+            red_action_flat = red_action_flat.to(self.device)
+        n_red_exp = int(self.B * self.Nr * 2)
+        if int(red_action_flat.numel()) != n_red_exp:
+            raise ValueError(
+                f"BatchedCTFCore.step: expected {n_red_exp} red action ints (B={self.B}, Nr={self.Nr}), "
+                f"got numel={int(red_action_flat.numel())} shape={tuple(red_action_flat.shape)}"
+            )
+        red_a = red_action_flat.reshape(self.B, self.Nr, 2)
+        red_requested_macro = torch.remainder(red_a[..., 0].long(), self.cfg.n_macros)
+        red_requested_targ = torch.remainder(red_a[..., 1].long(), self.cfg.n_targets)
+        red_control_mask = torch.ones((self.B,), device=self.device, dtype=torch.bool)
+        external_red_mask = red_control_mask[:, None]
+        new_red_commit = external_red_mask & (self.red_commit_ticks_left <= 0)
+        self.red_commit_macro = torch.where(new_red_commit, red_requested_macro, self.red_commit_macro)
+        self.red_commit_target = torch.where(new_red_commit, red_requested_targ, self.red_commit_target)
+        self.red_commit_ticks_left = torch.where(
+            new_red_commit,
+            self._macro_commit_ticks(red_requested_macro),
+            self.red_commit_ticks_left,
+        )
+        self.red_commit_success = torch.where(
+            new_red_commit,
+            torch.zeros_like(self.red_commit_success),
+            self.red_commit_success,
+        )
+        red_macro = self.red_commit_macro
+        rtx, rty = self._build_targets_from_action(red_macro, self.red_commit_target, side="red")
+        return rtx, rty, red_macro, red_control_mask
+
+    def _redirect_tagged_to_home(
+        self,
+        btx: torch.Tensor,
+        bty: torch.Tensor,
+        rtx: torch.Tensor,
+        rty: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        btx = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 0], btx)
+        bty = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 1], bty)
+        rtx = torch.where(self.red_tagged, self.red_flag_home[:, None, 0], rtx)
+        rty = torch.where(self.red_tagged, self.red_flag_home[:, None, 1], rty)
+        return btx, bty, rtx, rty
 
     def step(
         self,
@@ -2286,44 +2420,9 @@ class BatchedCTFCore:
         red_macro: Optional[torch.Tensor] = None
         rtx, rty = self._red_scripted_actions()
         if red_action_flat is not None:
-            if red_action_flat.device != self.device:
-                red_action_flat = red_action_flat.to(self.device)
-            n_red_exp = int(self.B * self.Nr * 2)
-            if int(red_action_flat.numel()) != n_red_exp:
-                raise ValueError(
-                    f"BatchedCTFCore.step: expected {n_red_exp} red action ints (B={self.B}, Nr={self.Nr}), "
-                    f"got numel={int(red_action_flat.numel())} shape={tuple(red_action_flat.shape)}"
-                )
-            red_a = red_action_flat.reshape(self.B, self.Nr, 2)
-            red_requested_macro = torch.remainder(red_a[..., 0].long(), self.cfg.n_macros)
-            red_requested_targ = torch.remainder(red_a[..., 1].long(), self.cfg.n_targets)
-            red_control_mask = torch.ones((self.B,), device=self.device, dtype=torch.bool)
-            external_red_mask = red_control_mask[:, None]
-            new_red_commit = external_red_mask & (self.red_commit_ticks_left <= 0)
-            self.red_commit_macro = torch.where(new_red_commit, red_requested_macro, self.red_commit_macro)
-            self.red_commit_target = torch.where(new_red_commit, red_requested_targ, self.red_commit_target)
-            self.red_commit_ticks_left = torch.where(
-                new_red_commit,
-                self._macro_commit_ticks(red_requested_macro),
-                self.red_commit_ticks_left,
-            )
-            self.red_commit_success = torch.where(
-                new_red_commit,
-                torch.zeros_like(self.red_commit_success),
-                self.red_commit_success,
-            )
-            red_macro = self.red_commit_macro
-            red_targ = self.red_commit_target
-            rtx, rty = self._build_targets_from_action(red_macro, red_targ, side="red")
+            rtx, rty, red_macro, red_control_mask = self._apply_red_action_commit(red_action_flat)
         else:
-            red_control_mask = torch.as_tensor(
-                [
-                    str(self._opponent_kind[i]).upper() == "SNAPSHOT" and _resolve_snapshot_path(self._opponent_key[i]) is not None
-                    for i in range(self.B)
-                ],
-                device=self.device,
-                dtype=torch.bool,
-            )
+            red_control_mask = self._get_red_control_mask()
             if red_control_mask.any():
                 red_policy_actions = self._get_red_snapshot_actions(red_control_mask)
                 if red_policy_actions is not None:
@@ -2349,12 +2448,7 @@ class BatchedCTFCore:
                     rty = torch.where(snapshot_agent_mask, red_snapshot_ty, rty)
 
         # Tagged agents: OpRegion-like forced safe return to home region.
-        if bool(self.blue_tagged.any().item()):
-            btx = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 0], btx)
-            bty = torch.where(self.blue_tagged, self.blue_flag_home[:, None, 1], bty)
-        if bool(self.red_tagged.any().item()):
-            rtx = torch.where(self.red_tagged, self.red_flag_home[:, None, 0], rtx)
-            rty = torch.where(self.red_tagged, self.red_flag_home[:, None, 1], rty)
+        btx, bty, rtx, rty = self._redirect_tagged_to_home(btx, bty, rtx, rty)
         # Use normal speed for all blue agents. Red speed is modulated by the opponent
         # speed multiplier (scripted difficulty) on a per-env basis.
         blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps))
@@ -2419,7 +2513,7 @@ class BatchedCTFCore:
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.PLACE_MINE)) & blue_mine_placement_agents)
         action_success = action_success | ((self.blue_commit_macro == int(MacroAction.GO_HOME)) & blue_cap_agents)
         self.blue_commit_success = self.blue_commit_success | action_success
-        if bool(red_control_mask.any().item()) and red_macro is not None:
+        if red_macro is not None:
             red_commit_target_xy = self._decode_targets(self.red_commit_target, side="red")
             red_commit_dist = torch.sqrt(
                 (self.red_x - red_commit_target_xy[..., 0]) ** 2
@@ -2465,7 +2559,7 @@ class BatchedCTFCore:
         rfail = float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
         self.blue_commit_ticks_left = torch.where(ended_commit, torch.zeros_like(self.blue_commit_ticks_left), self.blue_commit_ticks_left)
         self.blue_commit_success = torch.where(ended_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
-        if bool(red_control_mask.any().item()) and red_macro is not None:
+        if red_macro is not None:
             self.red_commit_ticks_left = torch.clamp(self.red_commit_ticks_left - 1, min=0)
             ended_red_commit = (
                 self.red_commit_success | (self.red_commit_ticks_left <= 0) | (~self.red_alive) | self.red_tagged
@@ -2564,70 +2658,73 @@ class BatchedCTFCore:
         truncated: Optional[torch.Tensor] = None,
     ) -> List[dict]:
         out: List[dict] = []
-        bs = self.blue_score.detach().cpu().numpy()
-        rs = self.red_score.detach().cpu().numpy()
-        steps = self.step_count.detach().cpu().numpy()
-        sim_steps = self.sim_step_count.detach().cpu().numpy()
-        first_score = self.metric_time_to_first_score.detach().cpu().numpy()
-        dist_sum = self.metric_inter_robot_dist_sum.detach().cpu().numpy()
-        dist_count = self.metric_inter_robot_dist_count.detach().cpu().numpy()
-        collision_events = self.metric_collision_events.detach().cpu().numpy()
-        near_misses = self.metric_near_misses.detach().cpu().numpy()
-        zone_coverage = (
-            self.metric_blue_zone_visited.to(torch.float32).mean(dim=1).detach().cpu().numpy()
-        )
-        d_np = dense.detach().cpu().numpy()
-        s_np = sparse_points.detach().cpu().numpy()
-        st_np = stalemate.detach().cpu().numpy()
-        rt_np = (
-            reward_terminal.detach().cpu().numpy()
-            if reward_terminal is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
-        ro_np = (
-            reward_offense.detach().cpu().numpy()
-            if reward_offense is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
-        rp_np = (
-            reward_pbrs.detach().cpu().numpy()
-            if reward_pbrs is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
-        rteam_np = (
-            reward_team.detach().cpu().numpy()
-            if reward_team is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
-        rsp_np = (
-            reward_sparse.detach().cpu().numpy()
-            if reward_sparse is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
-        rf_np = (
-            reward_failure.detach().cpu().numpy()
-            if reward_failure is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
-        rtot_np = (
-            reward_total.detach().cpu().numpy()
-            if reward_total is not None
-            else np.zeros((self.B,), dtype=np.float32)
-        )
+        zero = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        scalars = torch.stack(
+            [
+                self.blue_score.to(torch.float32),
+                self.red_score.to(torch.float32),
+                self.step_count.to(torch.float32),
+                self.sim_step_count.to(torch.float32),
+                self.metric_time_to_first_score,
+                self.metric_inter_robot_dist_sum,
+                self.metric_inter_robot_dist_count.to(torch.float32),
+                self.metric_collision_events.to(torch.float32),
+                self.metric_near_misses.to(torch.float32),
+                self.metric_blue_zone_visited.to(torch.float32).mean(dim=1),
+                dense.to(torch.float32),
+                sparse_points.to(torch.float32),
+                (reward_terminal if reward_terminal is not None else zero).to(torch.float32),
+                (reward_offense if reward_offense is not None else zero).to(torch.float32),
+                (reward_pbrs if reward_pbrs is not None else zero).to(torch.float32),
+                (reward_team if reward_team is not None else zero).to(torch.float32),
+                (reward_sparse if reward_sparse is not None else zero).to(torch.float32),
+                (reward_failure if reward_failure is not None else zero).to(torch.float32),
+                (reward_total if reward_total is not None else zero).to(torch.float32),
+            ],
+            dim=1,
+        ).detach().cpu().numpy()
+        term_t = terminated if terminated is not None else torch.zeros((self.B,), dtype=torch.bool, device=self.device)
+        trunc_t = truncated if truncated is not None else torch.zeros((self.B,), dtype=torch.bool, device=self.device)
+        bools = torch.cat(
+            [
+                self._league_mode[:, None],
+                stalemate[:, None].to(torch.bool),
+                term_t[:, None].to(torch.bool),
+                trunc_t[:, None].to(torch.bool),
+                self.blue_alive,
+                self.red_alive,
+            ],
+            dim=1,
+        ).detach().cpu().numpy().astype(np.bool_)
+        (
+            bs,
+            rs,
+            steps,
+            sim_steps,
+            first_score,
+            dist_sum,
+            dist_count,
+            collision_events,
+            near_misses,
+            zone_coverage,
+            d_np,
+            s_np,
+            rt_np,
+            ro_np,
+            rp_np,
+            rteam_np,
+            rsp_np,
+            rf_np,
+            rtot_np,
+        ) = (scalars[:, col] for col in range(scalars.shape[1]))
+        league_np = bools[:, 0]
+        st_np = bools[:, 1]
+        term_np = bools[:, 2]
+        trunc_np = bools[:, 3]
+        blue_alive_np = bools[:, 4 : 4 + self.Nb]
+        red_alive_np = bools[:, 4 + self.Nb : 4 + self.Nb + self.Nr]
         gs_np = build_global_state_batch(self).detach().cpu().numpy().astype(np.float32)
         action_mask_np = self._build_action_mask(side="blue").detach().cpu().numpy().astype(np.float32)
-        blue_alive_np = self.blue_alive.detach().cpu().numpy().astype(np.bool_)
-        red_alive_np = self.red_alive.detach().cpu().numpy().astype(np.bool_)
-        term_np = (
-            terminated.detach().cpu().numpy().astype(np.bool_)
-            if terminated is not None
-            else np.zeros((self.B,), dtype=np.bool_)
-        )
-        trunc_np = (
-            truncated.detach().cpu().numpy().astype(np.bool_)
-            if truncated is not None
-            else np.zeros((self.B,), dtype=np.bool_)
-        )
         for i in range(self.B):
             mean_dist = None
             if int(dist_count[i]) > 0:
@@ -2640,7 +2737,7 @@ class BatchedCTFCore:
                     "decision_steps": int(steps[i]),
                     "sim_steps": int(sim_steps[i]),
                     "phase": self._phase[i],
-                    "league_mode": bool(self._league_mode[i].item()),
+                    "league_mode": bool(league_np[i]),
                     "opponent_kind": str(self._opponent_kind[i]).lower(),
                     "opponent_key": self._opponent_key[i],
                     "rules_profile": self.rules_profile,
@@ -3194,38 +3291,7 @@ class GPUCTFVecEnv(VecEnv):
                 tobs["global_state"] = gs_terminal[i].copy()
                 infos[i]["terminal_observation"] = tobs
                 # So training callbacks (parse_episode_result) get a single episode_result dict.
-                bs = int(infos[i].get("blue_score", 0))
-                rs = int(infos[i].get("red_score", 0))
-                okind = str(infos[i].get("opponent_kind", "scripted")).lower()
-                okey = str(infos[i].get("opponent_key", "OP3") or "")
-                # When red is a snapshot, pass key so callbacks get SNAPSHOT:name instead of SNAPSHOT:unknown
-                osnap = okey if okind == "snapshot" else ""
-                infos[i]["episode_result"] = {
-                    "blue_score": bs,
-                    "red_score": rs,
-                    "success": 1 if bs > rs else 0,
-                    "opponent_kind": okind,
-                    "opponent_snapshot": osnap,
-                    "scripted_tag": okey if okind == "scripted" else "",
-                    "species_tag": "BALANCED",
-                    "collisions_per_episode": int(infos[i].get("collision_events_per_episode", 0)),
-                    "collision_events_per_episode": int(infos[i].get("collision_events_per_episode", 0)),
-                    "collision_free_episode": int(infos[i].get("collision_free_episode", 1)),
-                    "near_misses_per_episode": int(infos[i].get("near_misses_per_episode", 0)),
-                    "zone_coverage": float(infos[i].get("zone_coverage", 0.0)),
-                    "time_to_first_score": infos[i].get("time_to_first_score"),
-                    "mean_inter_robot_dist": infos[i].get("mean_inter_robot_dist"),
-                    "reward_terminal": float(infos[i].get("reward_terminal", 0.0)),
-                    "reward_offense": float(infos[i].get("reward_offense", 0.0)),
-                    "reward_pbrs": float(infos[i].get("reward_pbrs", 0.0)),
-                    "reward_team": float(infos[i].get("reward_team", 0.0)),
-                    "reward_sparse": float(infos[i].get("reward_sparse", 0.0)),
-                    "reward_failure": float(infos[i].get("reward_failure", 0.0)),
-                    "reward_sparse_points": float(infos[i].get("reward_sparse_points", 0.0)),
-                    "reward_total": float(infos[i].get("reward_total", 0.0)),
-                    "decision_steps": int(infos[i].get("decision_steps", 0)),
-                    "vec_schema_version": 1,
-                }
+                infos[i]["episode_result"] = _build_episode_result_payload(infos[i])
             self.core.reset_indices(reset_mask)
             obs = self.core.get_obs()
         self._pending_actions = None

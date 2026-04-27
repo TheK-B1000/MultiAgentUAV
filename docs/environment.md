@@ -56,7 +56,7 @@ The GPU training reward is:
 raw = terminal + offense + failure + dense_weight * (PBRS + team shaping) + sparse_weight * (sparse_points / 100)
 ```
 
-where `dense_weight=0.2` and `sparse_weight=1.0` by default. The active GPU reward knobs are normalized through `RewardConfig` / `RewardProfile`, while `GPUFieldConfig` keeps flat fields for legacy callers. Training logs expose the components separately as `reward_terminal`, `reward_offense`, `reward_pbrs`, `reward_team`, `reward_sparse`, `reward_sparse_points`, `reward_failure`, and `reward_total`.
+where `dense_weight=0.5` and `sparse_weight=1.0` by default. Defensive PBRS uses `pbrs_defense_coef=1.0` so denial/protection is not drowned out by event throughput. The active GPU reward knobs are normalized through `RewardConfig` / `RewardProfile`, while `GPUFieldConfig` keeps flat fields for legacy callers. Training logs expose the components separately as `reward_terminal`, `reward_offense`, `reward_pbrs`, `reward_team`, `reward_sparse`, `reward_sparse_points`, `reward_failure`, and `reward_total`.
 
 Sparse points account for flag captures, tags, mine tags, and blue out-of-bounds events. Flag grabs are handled by the smaller offense pickup reward instead of a second zero-valued sparse hook. PBRS potentials are positive closeness scores, so progress toward the active objective produces positive shaping and regression produces negative shaping.
 
@@ -75,6 +75,14 @@ Sparse points account for flag captures, tags, mine tags, and blue out-of-bounds
 | Spin/idle/stalemate penalties | negative | small coefficients | Low-progress or unstable behavior. |
 
 Credit assignment is currently team-level from the trainer perspective: the reward returned by the env is one scalar per parallel environment for the blue team.
+
+To compare the first policy step without adding a new reward term prematurely:
+
+```powershell
+python plot/compare_reward_updates.py checkpoints/2v2/<run>_metrics.csv --before-policy-update 0 --after-policy-update 1
+```
+
+That report uses `reward_offense_mean`, `reward_pbrs_mean`, `reward_team_mean`, `reward_sparse_mean`, `reward_failure_mean`, `rollout_blue_score_mean`, and `rollout_red_score_mean`. Add a separate red-score penalty only if this breakdown shows red scoring stays too cheap after the denser defensive PBRS setting.
 
 ## Termination And Truncation
 

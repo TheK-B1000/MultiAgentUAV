@@ -15,6 +15,7 @@ from pathlib import Path
 import torch
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+from plot.compare_reward_updates import COMPARISON_COLUMNS, compare_policy_updates, format_markdown_table
 from rl.custom_ppo import (
     CUSTOM_PPO_ACTOR_ARCH,
     CUSTOM_PPO_FORMAT,
@@ -211,6 +212,9 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("reward_failure_mean", rows[0])
             self.assertIn("strategy_occupancy_0", rows[0])
             self.assertIn("episode_z_0_red_score_mean", rows[0])
+            comparisons = compare_policy_updates(metrics_csv, before_policy_update=0, after_policy_update=1)
+            self.assertEqual([item.column for item in comparisons], list(COMPARISON_COLUMNS))
+            self.assertIn("rollout_red_score_mean", format_markdown_table(comparisons))
             with episode_csv.open(newline="", encoding="utf-8") as f:
                 ep_rows = list(csv.DictReader(f))
             self.assertGreaterEqual(len(ep_rows), 1)
