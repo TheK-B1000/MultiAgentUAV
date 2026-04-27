@@ -109,6 +109,24 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_terminal_episode_result_reports_real_trajectory_metrics(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=1, device="cpu", seed=31)
+        )
+        try:
+            env.reset()
+            action = np.zeros((1, 4), dtype=np.int64)
+            env.step_async(action)
+            _, _, done, infos = env.step_wait()
+            self.assertTrue(bool(done[0]))
+            episode_result = infos[0]["episode_result"]
+            self.assertGreater(float(episode_result["zone_coverage"]), 0.0)
+            self.assertIsNotNone(episode_result["mean_inter_robot_dist"])
+            self.assertIn("collision_events_per_episode", episode_result)
+            self.assertIn("near_misses_per_episode", episode_result)
+        finally:
+            env.close()
+
     def test_render_rgb_array_contract(self) -> None:
         env = GPUCTFSingleEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=9))
         try:

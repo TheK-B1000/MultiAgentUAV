@@ -54,6 +54,8 @@ NUM_CNN_CHANNELS = 7
 GLOBAL_STATE_CHANNELS = 8
 VEC_OBS_DIM = 20
 MAP_SET_SEED_OFFSETS = {"train": 0, "eval": 1_000_003}
+METRIC_ZONE_ROWS = 5
+METRIC_ZONE_COLS = 5
 
 
 class VecEnv:
@@ -420,6 +422,19 @@ class BatchedCTFCore:
         self.pickup_respawn = torch.zeros((B, Np), dtype=torch.int32, device=dev)
         self._init_pickup_positions()
 
+        # Per-episode telemetry. These are reset with each env instance and
+        # summarized into info["episode_result"] at terminal time.
+        self.metric_time_to_first_score = torch.full((B,), -1.0, dtype=f32, device=dev)
+        self.metric_inter_robot_dist_sum = torch.zeros((B,), dtype=f32, device=dev)
+        self.metric_inter_robot_dist_count = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_collision_events = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_near_misses = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_zone_visited = torch.zeros(
+            (B, METRIC_ZONE_ROWS * METRIC_ZONE_COLS),
+            dtype=torch.bool,
+            device=dev,
+        )
+
     def _build_macro_targets(self) -> None:
         """
         Build a fixed set of 2D macro targets for GoTo/PlaceMine.
@@ -750,6 +765,12 @@ class BatchedCTFCore:
         # Reset tagging channel timers.
         self.red_tag_pressure_time[idx] = 0.0
         self.blue_tag_pressure_time[idx] = 0.0
+        self.metric_time_to_first_score[idx] = -1.0
+        self.metric_inter_robot_dist_sum[idx] = 0.0
+        self.metric_inter_robot_dist_count[idx] = 0
+        self.metric_collision_events[idx] = 0
+        self.metric_near_misses[idx] = 0
+        self.metric_blue_zone_visited[idx] = False
         self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
@@ -2097,6 +2118,57 @@ class BatchedCTFCore:
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
 
+    def _update_episode_metrics(self, first_score_mask: torch.Tensor) -> None:
+        """Accumulate outcome-neutral episode telemetry from current positions."""
+        step_index = self.step_count.to(torch.float32) + 1.0
+        self.metric_time_to_first_score = torch.where(
+            first_score_mask & (self.metric_time_to_first_score < 0.0),
+            step_index,
+            self.metric_time_to_first_score,
+        )
+
+        pair_live = self.blue_alive[:, :, None] & self.red_alive[:, None, :]
+        pair_dist = torch.sqrt(
+            (self.blue_x[:, :, None] - self.red_x[:, None, :]) ** 2
+            + (self.blue_y[:, :, None] - self.red_y[:, None, :]) ** 2
+            + 1e-8
+        )
+        pair_count = pair_live.sum(dim=(1, 2))
+        pair_dist_sum = torch.where(pair_live, pair_dist, torch.zeros_like(pair_dist)).sum(dim=(1, 2))
+        has_pairs = pair_count > 0
+        step_mean_dist = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        step_mean_dist = torch.where(
+            has_pairs,
+            pair_dist_sum / torch.clamp(pair_count.to(torch.float32), min=1.0),
+            step_mean_dist,
+        )
+        self.metric_inter_robot_dist_sum += torch.where(has_pairs, step_mean_dist, torch.zeros_like(step_mean_dist))
+        self.metric_inter_robot_dist_count += has_pairs.to(torch.int32)
+
+        collision_radius = max(0.0, float(self.cfg.avoid_collision_radius_cells))
+        near_miss_radius = max(collision_radius, collision_radius * 2.0)
+        collision_pairs = pair_live & (pair_dist <= collision_radius)
+        near_miss_pairs = pair_live & (pair_dist > collision_radius) & (pair_dist <= near_miss_radius)
+        self.metric_collision_events += collision_pairs.sum(dim=(1, 2)).to(torch.int32)
+        self.metric_near_misses += near_miss_pairs.sum(dim=(1, 2)).to(torch.int32)
+
+        zx = torch.clamp(
+            (self.blue_x / max(1.0, float(self.cols)) * float(METRIC_ZONE_COLS)).to(torch.int64),
+            0,
+            METRIC_ZONE_COLS - 1,
+        )
+        zy = torch.clamp(
+            (self.blue_y / max(1.0, float(self.rows)) * float(METRIC_ZONE_ROWS)).to(torch.int64),
+            0,
+            METRIC_ZONE_ROWS - 1,
+        )
+        zone_idx = zy * METRIC_ZONE_COLS + zx
+        env_idx = torch.arange(self.B, device=self.device)
+        for agent_i in range(self.Nb):
+            live = self.blue_alive[:, agent_i]
+            if bool(live.any().item()):
+                self.metric_blue_zone_visited[env_idx[live], zone_idx[live, agent_i]] = True
+
     def step(
         self,
         blue_action_flat: torch.Tensor,
@@ -2133,6 +2205,8 @@ class BatchedCTFCore:
         prev_blue_carrying = self.blue_carrying.clone()
         prev_red_carrying = self.red_carrying.clone()
         prev_red_mine_charges = self.red_mine_charges.clone()
+        prev_blue_score = self.blue_score.clone()
+        prev_red_score = self.red_score.clone()
 
         if self.blue_scripted:
             btx, bty = self._get_scripted_targets("blue")
@@ -2253,6 +2327,8 @@ class BatchedCTFCore:
         self._untag_if_home()
 
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()
+        first_score_mask = (self.blue_score > prev_blue_score) | (self.red_score > prev_red_score)
+        self._update_episode_metrics(first_score_mask)
         blue_grab_agents = self.blue_carrying & (~prev_blue_carrying)
         blue_cap_agents = prev_blue_carrying & (~self.blue_carrying) & blue_cap_env[:, None]
         red_grab_agents = self.red_carrying & (~prev_red_carrying)
@@ -2403,6 +2479,14 @@ class BatchedCTFCore:
         rs = self.red_score.detach().cpu().numpy()
         steps = self.step_count.detach().cpu().numpy()
         sim_steps = self.sim_step_count.detach().cpu().numpy()
+        first_score = self.metric_time_to_first_score.detach().cpu().numpy()
+        dist_sum = self.metric_inter_robot_dist_sum.detach().cpu().numpy()
+        dist_count = self.metric_inter_robot_dist_count.detach().cpu().numpy()
+        collision_events = self.metric_collision_events.detach().cpu().numpy()
+        near_misses = self.metric_near_misses.detach().cpu().numpy()
+        zone_coverage = (
+            self.metric_blue_zone_visited.to(torch.float32).mean(dim=1).detach().cpu().numpy()
+        )
         d_np = dense.detach().cpu().numpy()
         s_np = sparse_points.detach().cpu().numpy()
         st_np = stalemate.detach().cpu().numpy()
@@ -2421,6 +2505,10 @@ class BatchedCTFCore:
             else np.zeros((self.B,), dtype=np.bool_)
         )
         for i in range(self.B):
+            mean_dist = None
+            if int(dist_count[i]) > 0:
+                mean_dist = float(dist_sum[i]) / float(dist_count[i])
+            ttfs = None if float(first_score[i]) < 0.0 else float(first_score[i])
             out.append(
                 {
                     "blue_score": int(bs[i]),
@@ -2435,6 +2523,12 @@ class BatchedCTFCore:
                     "map_set": self.map_set,
                     "dense_reward": float(d_np[i]),
                     "sparse_points": float(s_np[i]),
+                    "time_to_first_score": ttfs,
+                    "collision_events_per_episode": int(collision_events[i]),
+                    "collision_free_episode": 1 if int(collision_events[i]) == 0 else 0,
+                    "near_misses_per_episode": int(near_misses[i]),
+                    "mean_inter_robot_dist": mean_dist,
+                    "zone_coverage": float(zone_coverage[i]),
                     "terminated": bool(term_np[i]),
                     "truncated": bool(trunc_np[i]),
                     "stalemate_truncated": bool(st_np[i]),
@@ -2982,11 +3076,13 @@ class GPUCTFVecEnv(VecEnv):
                     "opponent_snapshot": osnap,
                     "scripted_tag": okey if okind == "scripted" else "",
                     "species_tag": "BALANCED",
-                    "collisions_per_episode": 0,
-                    "collision_events_per_episode": 0,
-                    "collision_free_episode": 1,
-                    "near_misses_per_episode": 0,
-                    "zone_coverage": 0.0,
+                    "collisions_per_episode": int(infos[i].get("collision_events_per_episode", 0)),
+                    "collision_events_per_episode": int(infos[i].get("collision_events_per_episode", 0)),
+                    "collision_free_episode": int(infos[i].get("collision_free_episode", 1)),
+                    "near_misses_per_episode": int(infos[i].get("near_misses_per_episode", 0)),
+                    "zone_coverage": float(infos[i].get("zone_coverage", 0.0)),
+                    "time_to_first_score": infos[i].get("time_to_first_score"),
+                    "mean_inter_robot_dist": infos[i].get("mean_inter_robot_dist"),
                     "decision_steps": int(infos[i].get("decision_steps", 0)),
                     "vec_schema_version": 1,
                 }

@@ -874,6 +874,8 @@ class CustomPPOTrainer:
             "decision_steps",
             "zone_coverage",
             "collision_free_episode",
+            "collision_events_per_episode",
+            "near_misses_per_episode",
             "time_to_first_score",
             "mean_inter_robot_dist",
         ]
@@ -929,6 +931,8 @@ class CustomPPOTrainer:
             "decision_steps": int(er.get("decision_steps", info.get("decision_steps", 0)) or 0),
             "zone_coverage": float(er.get("zone_coverage", 0.0) or 0.0),
             "collision_free_episode": int(er.get("collision_free_episode", 1) or 0),
+            "collision_events_per_episode": int(er.get("collision_events_per_episode", 0) or 0),
+            "near_misses_per_episode": int(er.get("near_misses_per_episode", 0) or 0),
             "time_to_first_score": er.get("time_to_first_score", ""),
             "mean_inter_robot_dist": er.get("mean_inter_robot_dist", ""),
         }
