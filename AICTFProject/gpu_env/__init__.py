@@ -10,14 +10,12 @@ from ._constants import (
     NUM_CNN_CHANNELS,
     VEC_OBS_DIM,
 )
+from ._config import GPUFieldConfig, RewardConfig, RewardProfile
 from ._monolith import (
     BatchedCTFCore,
     GPUCTFSingleEnv,
     GPUCTFVecEnv,
     GPUEnvAdapter,
-    GPUFieldConfig,
-    RewardConfig,
-    RewardProfile,
 )
 
 
