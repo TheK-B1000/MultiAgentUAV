@@ -11,12 +11,9 @@ from ._constants import (
     VEC_OBS_DIM,
 )
 from ._config import GPUFieldConfig, RewardConfig, RewardProfile
-from ._monolith import (
-    BatchedCTFCore,
-    GPUCTFSingleEnv,
-    GPUCTFVecEnv,
-    GPUEnvAdapter,
-)
+from ._core_class import BatchedCTFCore
+from ._adapter import GPUEnvAdapter
+from ._envs import GPUCTFSingleEnv, GPUCTFVecEnv
 
 
 __all__ = [
