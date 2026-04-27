@@ -46,22 +46,6 @@ PROGRESS_TO_FLAG_COEF = 0.08
 PROGRESS_TO_HOME_COEF = 0.08
 PROGRESS_REWARD_THRESHOLD = 0.1  # Minimum distance change to trigger reward
 
-# Teamwork and coordination (extra shaping).
-# For a paper-style, low-noise setup, keep these at 0.0 so PBRS + sparse events dominate.
-EXPLORATION_REWARD = 0.0
-COORDINATION_BONUS = 0.0
-DEFENSE_INTERCEPT_BONUS = 0.0
-DEFENSE_MINE_REWARD = 0.0
-OFFENSE_MINE_REWARD = 0.0
-MINE_PICKUP_REWARD = 0.0
-MINE_KILL_BONUS = 0.0
-TEAM_SUPPRESSION_BONUS = 0.0
-SUPPRESSION_SETUP_BONUS = 0.0
-MINE_AVOID_PENALTY = 0.0
-MINE_AVOID_RADIUS_CELLS = 1.5
-# Offense: reward pushing into enemy half and bringing flag back (disabled for simpler shaping)
-OFFENSE_CROSS_MIDLINE_REWARD = 0.0
-CARRY_CROSS_MIDLINE_REWARD = 0.0
 STALL_PENALTY = -0.1
 STALL_INTERVAL_SECONDS = 30.0
 TEAM_FLAG_TAKEN_PENALTY = -0.2
@@ -81,7 +65,6 @@ PHASE_DRAW_TIMEOUT_PENALTY: Dict[str, float] = {
 # Neutral names; values define OURS sparse event scaling.
 SPARSE_TAG_NO_FLAG_POINTS = 100.0
 SPARSE_TAG_WITH_FLAG_POINTS = 50.0
-SPARSE_FLAG_GRAB_POINTS = 0.0
 SPARSE_FLAG_CAPTURE_POINTS = 100.0
 SPARSE_OOB_POINTS = -100.0
 SPARSE_MINE_TAG_POINTS = 100.0
@@ -178,10 +161,6 @@ class GameManager:
     blue_inter_robot_distances: List[float] = field(default_factory=list)
     blue_zone_visited_cells: Set[Cell] = field(default_factory=set)
     total_blue_zone_cells: int = 0  # set by game_field for coverage denominator
-
-    # --- exploration memory (team-level) ---
-    blue_visited_cells: Set[Cell] = field(default_factory=set)
-    red_visited_cells: Set[Cell] = field(default_factory=set)
 
     # --- routing memory (ids seen) ---
     blue_agent_ids_seen: Set[str] = field(default_factory=set)
@@ -540,9 +519,6 @@ class GameManager:
         self.blue_zone_visited_cells.clear()
         self.total_blue_zone_cells = 0
 
-        self.blue_visited_cells.clear()
-        self.red_visited_cells.clear()
-
         self.blue_agent_ids_seen.clear()
         self.red_agent_ids_seen.clear()
 
@@ -767,8 +743,6 @@ class GameManager:
 
         self.add_agent_reward(agent, self._flag_pickup_reward())
 
-        if self._teammate_near(agent):
-            self.add_agent_reward(agent, COORDINATION_BONUS)
         if side == "blue":
             self.add_team_reward("red", TEAM_FLAG_TAKEN_PENALTY)
         else:
@@ -800,9 +774,6 @@ class GameManager:
                 self.add_agent_reward(agent, cap_reward)
                 self.add_team_reward("blue", cap_reward * 0.5, exclude_agent=agent)
                 self.add_team_reward("red", TEAM_FLAG_SCORED_PENALTY)
-
-                if self._teammate_near(agent):
-                    self.add_agent_reward(agent, COORDINATION_BONUS)
 
                 # Per-agent capture count for eval (coordination / variance)
                 if self.game_field is not None:
@@ -837,9 +808,6 @@ class GameManager:
                 self.add_team_reward("red", cap_reward * 0.5, exclude_agent=agent)
                 # Concede: team-wide negative so Blue learns to defend (block/intercept/deny)
                 self.add_team_reward("blue", TEAM_FLAG_SCORED_PENALTY)
-
-                if self._teammate_near(agent):
-                    self.add_agent_reward(agent, COORDINATION_BONUS)
 
                 return True
 
@@ -910,55 +878,7 @@ class GameManager:
                 agent.setCarryingFlag(False, scored=False)
 
     # -------------------------
-    # teammate proximity
-    # -------------------------
-
-    def _teammate_near(self, agent: Any, radius_cells: float = 5.0) -> bool:
-        gf = getattr(agent, "game_field", None) or self.game_field
-        if gf is None:
-            return False
-
-        side = str(getattr(agent, "side", "")).lower().strip()
-        if side not in ("blue", "red"):
-            return False
-
-        team = gf.blue_agents if side == "blue" else gf.red_agents
-        ax, ay = self._agent_float(agent)
-
-        for other in team:
-            if other is agent:
-                continue
-            if hasattr(other, "isEnabled") and not other.isEnabled():
-                continue
-            ox, oy = self._agent_float(other)
-            if math.hypot(ox - ax, oy - ay) <= float(radius_cells):
-                return True
-        return False
-
-    def _teammates_within(self, agent: Any, radius_cells: float) -> List[Any]:
-        gf = getattr(agent, "game_field", None) or self.game_field
-        if gf is None:
-            return []
-        side = str(getattr(agent, "side", "")).lower().strip()
-        if side not in ("blue", "red"):
-            return []
-        team = gf.blue_agents if side == "blue" else gf.red_agents
-        ax, ay = self._agent_float(agent)
-        close: List[Any] = []
-        for other in team:
-            if other is agent:
-                continue
-            if other is None:
-                continue
-            if hasattr(other, "isEnabled") and not other.isEnabled():
-                continue
-            ox, oy = self._agent_float(other)
-            if math.hypot(ox - ax, oy - ay) <= float(radius_cells):
-                close.append(other)
-        return close
-
-    # -------------------------
-    # Gamma-correct PBRS + exploration
+    # Gamma-correct PBRS + progress shaping
     # -------------------------
 
     def reward_potential_shaping(self, agent: Any, start_pos: FloatPos, end_pos: FloatPos) -> None:
@@ -1036,94 +956,23 @@ class GameManager:
             if progress > 0.0:
                 self.add_agent_reward(agent, float(DEFENSE_CARRIER_PROGRESS_COEF) * float(progress))
 
-        # Exploration: per-team visited set
-        cell = self._clamp_cell(int(round(ex)), int(round(ey)))
-        visited = self.blue_visited_cells if side == "blue" else self.red_visited_cells
-
-        if cell not in visited:
-            visited.add(cell)
-            self.add_agent_reward(agent, EXPLORATION_REWARD)
-
         # Sprint A: Minimal shaping rewards for progress-to-flag/home
         self._apply_progress_rewards(agent, start_pos, end_pos, side, i_am_carrier, enemy_has_our_flag, carrier)
-        
-        # Offense: reward crossing midline (once per side transition)
-        mid_x = float(self.cols) * 0.5
-        in_enemy_half = (ex > mid_x) if side == "blue" else (ex < mid_x)
-        in_own_half = (ex <= mid_x) if side == "blue" else (ex >= mid_x)
 
-        crossed_key = "_crossed_midline_once"
-        crossed_flag_key = "_crossed_midline_with_flag"
+        ax2, ay2 = float(end_pos[0]), float(end_pos[1])
 
-        if in_own_half:
-            try:
-                setattr(agent, crossed_key, False)
-                setattr(agent, crossed_flag_key, False)
-            except Exception:
-                pass
+        # Teamwork: defense presence — reward staying near our flag when enemy has it.
+        if enemy_has_our_flag and (not i_am_carrier):
+            home = self.blue_flag_home if side == "blue" else self.red_flag_home
+            dist_home = math.hypot(ax2 - float(home[0]), ay2 - float(home[1]))
+            if dist_home <= float(DEFENSE_PRESENCE_RADIUS):
+                self.add_agent_reward(agent, DEFENSE_PRESENCE_REWARD)
 
-        if in_enemy_half:
-            crossed = bool(getattr(agent, crossed_key, False))
-            if not crossed:
-                self.add_agent_reward(agent, OFFENSE_CROSS_MIDLINE_REWARD)
-                try:
-                    setattr(agent, crossed_key, True)
-                except Exception:
-                    pass
-
-            if i_am_carrier:
-                crossed_flag = bool(getattr(agent, crossed_flag_key, False))
-                if not crossed_flag:
-                    self.add_agent_reward(agent, CARRY_CROSS_MIDLINE_REWARD)
-                    try:
-                        setattr(agent, crossed_flag_key, True)
-                    except Exception:
-                        pass
-
-        # Mine avoidance (small penalty when too close to enemy mines)
-        gf = getattr(agent, "game_field", None) or self.game_field
-        if gf is not None:
-            ax2, ay2 = float(end_pos[0]), float(end_pos[1])
-            for m in getattr(gf, "mines", []):
-                owner = str(getattr(m, "owner_side", "")).lower()
-                if owner == side:
-                    continue
-                dist = math.hypot(float(m.x) - ax2, float(m.y) - ay2)
-                if dist <= float(MINE_AVOID_RADIUS_CELLS):
-                    self.add_agent_reward(agent, MINE_AVOID_PENALTY)
-                    break
-
-            # Suppression setup bonus: be near an enemy with teammate
-            sup = float(getattr(gf, "suppression_range_cells", 2.0))
-            if sup > 0.0:
-                team = gf.blue_agents if side == "blue" else gf.red_agents
-                enemies = gf.red_agents if side == "blue" else gf.blue_agents
-                for e in enemies:
-                    if e is None or (hasattr(e, "isEnabled") and not e.isEnabled()):
-                        continue
-                    ex2, ey2 = self._agent_float(e)
-                    if math.hypot(ex2 - ax2, ey2 - ay2) <= sup:
-                        for t in team:
-                            if t is agent or t is None or (hasattr(t, "isEnabled") and not t.isEnabled()):
-                                continue
-                            tx, ty = self._agent_float(t)
-                            if math.hypot(ex2 - tx, ey2 - ty) <= sup:
-                                self.add_agent_reward(agent, SUPPRESSION_SETUP_BONUS)
-                                break
-                        break
-
-            # Teamwork: defense presence — reward staying near our flag when enemy has it
-            if enemy_has_our_flag and (not i_am_carrier):
-                home = self.blue_flag_home if side == "blue" else self.red_flag_home
-                dist_home = math.hypot(ax2 - float(home[0]), ay2 - float(home[1]))
-                if dist_home <= float(DEFENSE_PRESENCE_RADIUS):
-                    self.add_agent_reward(agent, DEFENSE_PRESENCE_REWARD)
-
-            # Teamwork: escort — reward being near our carrier when we have the flag
-            if (i_am_carrier or teammate_is_carrier) and (not i_am_carrier) and enemy_carrier is not None:
-                cx, cy = self._agent_float(enemy_carrier)
-                if math.hypot(ax2 - cx, ay2 - cy) <= float(ESCORT_CARRIER_RADIUS):
-                    self.add_agent_reward(agent, ESCORT_CARRIER_REWARD)
+        # Teamwork: escort — reward being near our carrier when we have the flag.
+        if (i_am_carrier or teammate_is_carrier) and (not i_am_carrier) and enemy_carrier is not None:
+            cx, cy = self._agent_float(enemy_carrier)
+            if math.hypot(ax2 - cx, ay2 - cy) <= float(ESCORT_CARRIER_RADIUS):
+                self.add_agent_reward(agent, ESCORT_CARRIER_REWARD)
 
     # -------------------------
     # Mine/combat hooks (minimal)
@@ -1140,21 +989,12 @@ class GameManager:
         if side == "blue":
             if x > (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
-                self.add_agent_reward(agent, OFFENSE_MINE_REWARD)
-            # Reward defensive placement near our flag
-            if math.hypot(x - float(self.blue_flag_home[0]), y - float(self.blue_flag_home[1])) <= 4.0:
-                self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
         else:
             if x < (self.cols * 0.5):
                 self.mines_placed_in_enemy_half_this_episode += 1
-                self.add_agent_reward(agent, OFFENSE_MINE_REWARD)
-            if math.hypot(x - float(self.red_flag_home[0]), y - float(self.red_flag_home[1])) <= 4.0:
-                self.add_agent_reward(agent, DEFENSE_MINE_REWARD)
 
     def reward_mine_picked_up(self, agent: Any, prev_charges: int = 0) -> None:
-        if agent is None:
-            return
-        self.add_agent_reward(agent, MINE_PICKUP_REWARD)
+        return
 
     def reward_enemy_killed(
         self,
@@ -1173,30 +1013,13 @@ class GameManager:
                 self.blue_mine_kills_this_episode += 1
             elif kside == "red":
                 self.red_mine_kills_this_episode += 1
-            self.add_agent_reward(killer_agent, MINE_KILL_BONUS)
 
-        # OURS default: single consistent kill reward (plus optional mine bonus above).
+        # OURS default: single consistent kill reward; mine kills are telemetry only.
         self.add_agent_reward(killer_agent, ENEMY_MAV_KILL_REWARD)
 
         # Optional team share for mine kills (explicit, excludes killer)
         if kside in ("blue", "red") and cause == "mine":
             self.add_team_reward(kside, ENEMY_MAV_KILL_REWARD * 0.5, exclude_agent=killer_agent)
-
-        # Coordination bonus for suppression kills (teammates near victim)
-        if cause == "suppression" and victim_agent is not None:
-            gf = self.game_field
-            if gf is not None:
-                sup = float(getattr(gf, "suppression_range_cells", 2.0))
-                close = self._teammates_within(killer_agent, radius_cells=sup * 1.25)
-                for t in close:
-                    self.add_agent_reward(t, TEAM_SUPPRESSION_BONUS)
-
-        # Extra reward for stopping enemy flag carrier
-        if victim_agent is not None:
-            if kside == "blue" and self.blue_flag_carrier is victim_agent:
-                self.add_agent_reward(killer_agent, DEFENSE_INTERCEPT_BONUS)
-            if kside == "red" and self.red_flag_carrier is victim_agent:
-                self.add_agent_reward(killer_agent, DEFENSE_INTERCEPT_BONUS)
 
     def record_mine_triggered_by_red(self) -> None:
         self.mines_triggered_by_red_this_episode += 1

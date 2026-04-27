@@ -50,16 +50,26 @@ Terminal vector-env infos additionally include `terminal_observation` and `episo
 
 Rewards are deterministic functions of state/action and are bounded by `tanh(raw / reward_scale)` followed by clipping to `[-reward_clip, reward_clip]`; defaults are `reward_scale=2.0`, `reward_clip=1.0`.
 
+The GPU training reward is:
+
+```text
+raw = terminal + offense + failure + dense_weight * (PBRS + team shaping) + sparse_weight * (sparse_points / 100)
+```
+
+where `dense_weight=0.2` and `sparse_weight=1.0` by default. The active GPU reward knobs are normalized through `RewardConfig` / `RewardProfile`, while `GPUFieldConfig` keeps flat fields for legacy callers. Training logs expose the components separately as `reward_terminal`, `reward_offense`, `reward_pbrs`, `reward_team`, `reward_sparse`, `reward_sparse_points`, `reward_failure`, and `reward_total`.
+
+Sparse points account for flag captures, tags, mine tags, and blue out-of-bounds events. Flag grabs are handled by the smaller offense pickup reward instead of a second zero-valued sparse hook. PBRS potentials are positive closeness scores, so progress toward the active objective produces positive shaping and regression produces negative shaping.
+
 | Term | Sign | Default magnitude | Trigger |
 | --- | --- | --- | --- |
 | Win terminal reward | positive | `+1.0` before final scaling | Blue score exceeds red score at done. |
 | Loss terminal penalty | negative | `-1.0` before final scaling | Red score exceeds blue score at done. |
 | Draw terminal penalty | negative | `-0.5` before final scaling | Scores tied at done. |
-| Flag pickup reward | positive | `+0.1` | Blue grabs red flag. |
-| Flag carry-home reward | positive | `+0.5` | Blue captures red flag. |
-| Enemy kill reward | positive | `+0.5` | Blue tags/eliminates red. |
+| Flag pickup reward | mixed | `+0.1` / `-0.1` | Blue grabs red flag / red grabs blue flag. |
+| Flag carry-home reward | mixed | `+0.5` / `-0.5` | Blue captures red flag / red captures blue flag. |
+| Enemy kill reward | mixed | `+0.5` / `-0.5` | Blue tags/eliminates red / red tags/eliminates blue. |
 | Mine placement reward | positive | `+0.2` | Blue places a mine. |
-| Sparse tag/capture points | mixed | `+/-100` point scale before `/100` sparse normalization | Aquaticus-style events. |
+| Sparse tag/capture/mine/OOB points | mixed | `+/-100` point scale before `/100` sparse normalization | Aquaticus-style events. |
 | PBRS progress | mixed | coefficient driven | Potential-based progress toward attack/return/defense objectives. |
 | Team coordination | positive | `0.02` to `0.03` defaults | Defense presence, escort, intercept shaping. |
 | Spin/idle/stalemate penalties | negative | small coefficients | Low-progress or unstable behavior. |

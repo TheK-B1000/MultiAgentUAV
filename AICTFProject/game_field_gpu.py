@@ -11,7 +11,7 @@ from __future__ import annotations
 import inspect
 import os
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, fields as dataclass_fields
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import gymnasium as gym
@@ -34,7 +34,6 @@ from game_manager import (
     get_capture_score_delta,
     SPARSE_TAG_NO_FLAG_POINTS,
     SPARSE_TAG_WITH_FLAG_POINTS,
-    SPARSE_FLAG_GRAB_POINTS,
     SPARSE_FLAG_CAPTURE_POINTS,
     SPARSE_OOB_POINTS,
     SPARSE_MINE_TAG_POINTS,
@@ -124,6 +123,48 @@ def _make_obs_action_spaces(n_agents: int, n_macros: int, n_targets: int):
     )
     action_space = spaces.MultiDiscrete([n_macros, n_targets] * n_agents)
     return obs_space, action_space
+
+
+@dataclass(frozen=True)
+class RewardConfig:
+    """Paper-facing reward profile for GPU PPO training.
+
+    `GPUFieldConfig` keeps flat fields for backward compatibility, but normalizes
+    them through this object during `__post_init__`.
+    """
+
+    enabled_mine_reward: float = 0.2
+    flag_pickup_reward: float = FLAG_PICKUP_REWARD
+    flag_carry_home_reward: float = FLAG_CARRY_HOME_REWARD
+    enemy_mav_kill_reward: float = ENEMY_MAV_KILL_REWARD
+    action_failed_punishment: float = ACTION_FAILED_PUNISHMENT
+    win_team_reward: float = WIN_TEAM_REWARD
+    lose_team_punish: float = LOSE_TEAM_PUNISH
+    draw_team_penalty: float = DRAW_TEAM_PENALTY
+    pbrs_gamma: float = 0.995
+    pbrs_attack_coef: float = 1.0
+    pbrs_return_coef: float = 1.0
+    pbrs_defense_coef: float = 0.5
+    team_defense_presence_reward: float = 0.03
+    team_escort_reward: float = 0.02
+    team_intercept_reward: float = 0.02
+    sparse_weight: float = 1.0
+    dense_weight: float = 0.2
+    reward_scale: float = 2.0
+    reward_clip: float = 1.0
+    stalemate_max_steps: int = 120
+    stalemate_progress_eps: float = 0.002
+    stalemate_penalty: float = -0.15
+    spin_penalty_coef: float = 0.05
+    idle_penalty_coef: float = 0.03
+
+    @classmethod
+    def from_object(cls, obj: Any) -> "RewardConfig":
+        return cls(**{f.name: getattr(obj, f.name) for f in dataclass_fields(cls)})
+
+
+# Historical name for papers/experiment configs that call this a "profile".
+RewardProfile = RewardConfig
 
 
 @dataclass
@@ -226,10 +267,16 @@ class GPUFieldConfig:
     spin_penalty_coef: float = 0.05
     idle_penalty_coef: float = 0.03
 
+    reward_config: Optional[RewardConfig] = None
     device: str = "cpu"
     seed: int = 42
 
     def __post_init__(self) -> None:
+        if self.reward_config is not None:
+            for f in dataclass_fields(RewardConfig):
+                setattr(self, f.name, getattr(self.reward_config, f.name))
+        self.reward_config = RewardConfig.from_object(self)
+
         if self.n_agents_per_team is not None:
             n = max(1, int(self.n_agents_per_team))
             self.max_blue_agents = n
@@ -248,7 +295,7 @@ class BatchedCTFCore:
         R_sparse_raw = sum(Aquaticus-style event rewards)
         R_sparse = R_sparse_raw / 100
         R_dense = progress + defense_presence + escort - spin_penalty - idle_penalty
-        R_total_raw = w_s * R_sparse + w_d * R_dense
+        R_total_raw = terminal + offense + failure + w_s * R_sparse + w_d * R_dense
         R_total = clip(tanh(R_total_raw / reward_scale), -reward_clip, reward_clip)
 
     The tanh+clip stage reduces reward variance for PPO and keeps value targets bounded.
@@ -1985,13 +2032,18 @@ class BatchedCTFCore:
         blue_carrying: torch.Tensor,
         red_carrying: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        max_dist = max(1e-6, self.max_dist)
+
+        def closeness(dist: torch.Tensor) -> torch.Tensor:
+            return 1.0 - torch.clamp(dist / max_dist, min=0.0, max=1.0)
+
         attack_dx = self.red_flag_pos[:, None, 0] - blue_x
         attack_dy = self.red_flag_pos[:, None, 1] - blue_y
         attack_dist = torch.sqrt(attack_dx * attack_dx + attack_dy * attack_dy + 1e-8)
         attack_phi = torch.where(
             blue_carrying,
             torch.zeros_like(attack_dist),
-            -attack_dist / max(1e-6, self.max_dist),
+            closeness(attack_dist),
         ).mean(dim=1)
 
         return_dx = self.blue_flag_home[:, None, 0] - blue_x
@@ -1999,7 +2051,7 @@ class BatchedCTFCore:
         return_dist = torch.sqrt(return_dx * return_dx + return_dy * return_dy + 1e-8)
         return_phi = torch.where(
             blue_carrying,
-            -return_dist / max(1e-6, self.max_dist),
+            closeness(return_dist),
             torch.zeros_like(return_dist),
         ).mean(dim=1)
 
@@ -2012,7 +2064,7 @@ class BatchedCTFCore:
         defend_dist = torch.sqrt(defend_dx * defend_dx + defend_dy * defend_dy + 1e-8)
         defend_phi = torch.where(
             red_has_flag[:, None],
-            -defend_dist / max(1e-6, self.max_dist),
+            closeness(defend_dist),
             torch.zeros_like(defend_dist),
         ).mean(dim=1)
         return attack_phi, return_phi, defend_phi
@@ -2035,7 +2087,7 @@ class BatchedCTFCore:
             + float(self.cfg.pbrs_return_coef) * (gamma * cur_return - prev_return)
             + float(self.cfg.pbrs_defense_coef) * (gamma * cur_defend - prev_defend)
         )
-        self._last_dense_progress = gamma * cur_attack - prev_attack
+        self._last_dense_progress = cur_attack - prev_attack
         return rpbrs
 
     def _team_coordination_reward(
@@ -2087,8 +2139,6 @@ class BatchedCTFCore:
 
     def _sparse_reward_points(
         self,
-        blue_grab_env: torch.Tensor,
-        red_grab_env: torch.Tensor,
         blue_cap_env: torch.Tensor,
         red_cap_env: torch.Tensor,
         blue_tag_noflag: torch.Tensor,
@@ -2100,6 +2150,15 @@ class BatchedCTFCore:
     ) -> torch.Tensor:
         # Values from game_manager (sparse event points) so scoring/rewards stay aligned.
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        r += float(SPARSE_FLAG_CAPTURE_POINTS) * blue_cap_env.to(torch.float32)
+        r -= float(SPARSE_FLAG_CAPTURE_POINTS) * red_cap_env.to(torch.float32)
+        r += float(SPARSE_TAG_NO_FLAG_POINTS) * blue_tag_noflag.to(torch.float32)
+        r += float(SPARSE_TAG_WITH_FLAG_POINTS) * blue_tag_withflag.to(torch.float32)
+        r -= float(SPARSE_TAG_NO_FLAG_POINTS) * red_tag_total.to(torch.float32)
+        if blue_mine_tags is not None:
+            r += float(SPARSE_MINE_TAG_POINTS) * blue_mine_tags.to(torch.float32)
+        if red_mine_tags is not None:
+            r -= float(SPARSE_MINE_TAG_POINTS) * red_mine_tags.to(torch.float32)
         r += float(SPARSE_OOB_POINTS) * blue_oob.sum(dim=1).to(torch.float32)
         return r
 
@@ -2110,11 +2169,23 @@ class BatchedCTFCore:
         rpbrs: torch.Tensor,
         rteam: torch.Tensor,
         sparse_points: torch.Tensor,
+        rfail: torch.Tensor,
         stalemate_trigger: torch.Tensor,
     ) -> torch.Tensor:
         sparse_norm = sparse_points / 100.0
-        raw = rterm + roff + rpbrs + rteam + self.cfg.sparse_weight * sparse_norm
-        raw = raw + torch.where(stalemate_trigger, torch.tensor(float(self.cfg.stalemate_penalty), device=self.device), torch.tensor(0.0, device=self.device))
+        dense = rpbrs + rteam
+        raw = (
+            rterm
+            + roff
+            + rfail
+            + float(self.cfg.dense_weight) * dense
+            + float(self.cfg.sparse_weight) * sparse_norm
+        )
+        raw = raw + torch.where(
+            stalemate_trigger,
+            torch.tensor(float(self.cfg.stalemate_penalty), device=self.device),
+            torch.tensor(0.0, device=self.device),
+        )
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
 
@@ -2375,8 +2446,7 @@ class BatchedCTFCore:
             self.red_commit_success = self.red_commit_success | (red_action_success & red_control_mask[:, None])
 
         sparse_points = self._sparse_reward_points(
-            blue_grab_env, red_grab_env, blue_cap_env, red_cap_env,
-            blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob,
+            blue_cap_env, red_cap_env, blue_tag_noflag, blue_tag_withflag, red_tag_total, blue_oob,
             blue_mine_tags=blue_mine_tags, red_mine_tags=red_mine_tags,
         )
         blue_kill_count = blue_tag_noflag + blue_tag_withflag + blue_mine_tags
@@ -2385,10 +2455,14 @@ class BatchedCTFCore:
         roff += float(self.cfg.flag_carry_home_reward) * blue_cap_agents.sum(dim=1).to(torch.float32)
         roff += float(self.cfg.enabled_mine_reward) * blue_mine_placement_agents.sum(dim=1).to(torch.float32)
         roff += float(self.cfg.enemy_mav_kill_reward) * blue_kill_count
+        red_kill_count = red_tag_total + red_mine_tags
+        roff -= float(self.cfg.flag_pickup_reward) * red_grab_agents.sum(dim=1).to(torch.float32)
+        roff -= float(self.cfg.flag_carry_home_reward) * red_cap_agents.sum(dim=1).to(torch.float32)
+        roff -= float(self.cfg.enemy_mav_kill_reward) * red_kill_count
         self.blue_commit_ticks_left = torch.clamp(self.blue_commit_ticks_left - 1, min=0)
         ended_commit = self.blue_commit_success | (self.blue_commit_ticks_left <= 0) | (~self.blue_alive) | self.blue_tagged
         failed_commit = ended_commit & (~self.blue_commit_success) & prev_blue_alive
-        roff += float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
+        rfail = float(self.cfg.action_failed_punishment) * failed_commit.sum(dim=1).to(torch.float32)
         self.blue_commit_ticks_left = torch.where(ended_commit, torch.zeros_like(self.blue_commit_ticks_left), self.blue_commit_ticks_left)
         self.blue_commit_success = torch.where(ended_commit, torch.zeros_like(self.blue_commit_success), self.blue_commit_success)
         if bool(red_control_mask.any().item()) and red_macro is not None:
@@ -2447,12 +2521,20 @@ class BatchedCTFCore:
             torch.full_like(rterm, float(self.cfg.draw_team_penalty)),
             rterm,
         )
-        reward = self._reward_total(rterm, roff, rpbrs, rteam, sparse_points, stalemate_trigger)
+        reward = self._reward_total(rterm, roff, rpbrs, rteam, sparse_points, rfail, stalemate_trigger)
         obs_t = self.get_obs_tensors()
+        reward_sparse = float(self.cfg.sparse_weight) * (sparse_points / 100.0)
         info = self._build_info(
             dense=rpbrs + rteam,
             sparse_points=sparse_points,
             stalemate=stalemate_trigger,
+            reward_terminal=rterm,
+            reward_offense=roff,
+            reward_pbrs=rpbrs,
+            reward_team=rteam,
+            reward_sparse=reward_sparse,
+            reward_failure=rfail,
+            reward_total=reward,
             terminated=terminated,
             truncated=truncated,
         )
@@ -2471,6 +2553,13 @@ class BatchedCTFCore:
         dense: torch.Tensor,
         sparse_points: torch.Tensor,
         stalemate: torch.Tensor,
+        reward_terminal: Optional[torch.Tensor] = None,
+        reward_offense: Optional[torch.Tensor] = None,
+        reward_pbrs: Optional[torch.Tensor] = None,
+        reward_team: Optional[torch.Tensor] = None,
+        reward_sparse: Optional[torch.Tensor] = None,
+        reward_failure: Optional[torch.Tensor] = None,
+        reward_total: Optional[torch.Tensor] = None,
         terminated: Optional[torch.Tensor] = None,
         truncated: Optional[torch.Tensor] = None,
     ) -> List[dict]:
@@ -2490,6 +2579,41 @@ class BatchedCTFCore:
         d_np = dense.detach().cpu().numpy()
         s_np = sparse_points.detach().cpu().numpy()
         st_np = stalemate.detach().cpu().numpy()
+        rt_np = (
+            reward_terminal.detach().cpu().numpy()
+            if reward_terminal is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
+        ro_np = (
+            reward_offense.detach().cpu().numpy()
+            if reward_offense is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
+        rp_np = (
+            reward_pbrs.detach().cpu().numpy()
+            if reward_pbrs is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
+        rteam_np = (
+            reward_team.detach().cpu().numpy()
+            if reward_team is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
+        rsp_np = (
+            reward_sparse.detach().cpu().numpy()
+            if reward_sparse is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
+        rf_np = (
+            reward_failure.detach().cpu().numpy()
+            if reward_failure is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
+        rtot_np = (
+            reward_total.detach().cpu().numpy()
+            if reward_total is not None
+            else np.zeros((self.B,), dtype=np.float32)
+        )
         gs_np = build_global_state_batch(self).detach().cpu().numpy().astype(np.float32)
         action_mask_np = self._build_action_mask(side="blue").detach().cpu().numpy().astype(np.float32)
         blue_alive_np = self.blue_alive.detach().cpu().numpy().astype(np.bool_)
@@ -2523,6 +2647,14 @@ class BatchedCTFCore:
                     "map_set": self.map_set,
                     "dense_reward": float(d_np[i]),
                     "sparse_points": float(s_np[i]),
+                    "reward_terminal": float(rt_np[i]),
+                    "reward_offense": float(ro_np[i]),
+                    "reward_pbrs": float(rp_np[i]),
+                    "reward_team": float(rteam_np[i]),
+                    "reward_sparse": float(rsp_np[i]),
+                    "reward_failure": float(rf_np[i]),
+                    "reward_sparse_points": float(s_np[i]),
+                    "reward_total": float(rtot_np[i]),
                     "time_to_first_score": ttfs,
                     "collision_events_per_episode": int(collision_events[i]),
                     "collision_free_episode": 1 if int(collision_events[i]) == 0 else 0,
@@ -3083,6 +3215,14 @@ class GPUCTFVecEnv(VecEnv):
                     "zone_coverage": float(infos[i].get("zone_coverage", 0.0)),
                     "time_to_first_score": infos[i].get("time_to_first_score"),
                     "mean_inter_robot_dist": infos[i].get("mean_inter_robot_dist"),
+                    "reward_terminal": float(infos[i].get("reward_terminal", 0.0)),
+                    "reward_offense": float(infos[i].get("reward_offense", 0.0)),
+                    "reward_pbrs": float(infos[i].get("reward_pbrs", 0.0)),
+                    "reward_team": float(infos[i].get("reward_team", 0.0)),
+                    "reward_sparse": float(infos[i].get("reward_sparse", 0.0)),
+                    "reward_failure": float(infos[i].get("reward_failure", 0.0)),
+                    "reward_sparse_points": float(infos[i].get("reward_sparse_points", 0.0)),
+                    "reward_total": float(infos[i].get("reward_total", 0.0)),
                     "decision_steps": int(infos[i].get("decision_steps", 0)),
                     "vec_schema_version": 1,
                 }

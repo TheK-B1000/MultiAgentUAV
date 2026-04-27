@@ -5,7 +5,14 @@ import unittest
 import numpy as np
 import torch
 
-from game_field_gpu import GPUCTFSingleEnv, GPUCTFVecEnv, GPUFieldConfig, VEC_OBS_DIM
+from game_field_gpu import GPUCTFSingleEnv, GPUCTFVecEnv, GPUFieldConfig, RewardConfig, VEC_OBS_DIM
+from game_manager import (
+    SPARSE_FLAG_CAPTURE_POINTS,
+    SPARSE_MINE_TAG_POINTS,
+    SPARSE_OOB_POINTS,
+    SPARSE_TAG_NO_FLAG_POINTS,
+    SPARSE_TAG_WITH_FLAG_POINTS,
+)
 from macro_actions import MacroAction
 from rl.global_state import GLOBAL_STATE_DIM
 
@@ -30,6 +37,18 @@ class EnvironmentContractTests(unittest.TestCase):
             self.assertEqual(info["global_state"].shape, (GLOBAL_STATE_DIM,))
             self.assertEqual(info["global_state"].dtype, np.float32)
             self.assertEqual(info["map_set"], "train")
+            for key in (
+                "reward_terminal",
+                "reward_offense",
+                "reward_pbrs",
+                "reward_team",
+                "reward_sparse",
+                "reward_sparse_points",
+                "reward_failure",
+                "reward_total",
+            ):
+                self.assertIn(key, info)
+                self.assertIsInstance(info[key], float)
         finally:
             env.close()
 
@@ -124,6 +143,18 @@ class EnvironmentContractTests(unittest.TestCase):
             self.assertIsNotNone(episode_result["mean_inter_robot_dist"])
             self.assertIn("collision_events_per_episode", episode_result)
             self.assertIn("near_misses_per_episode", episode_result)
+            for key in (
+                "reward_terminal",
+                "reward_offense",
+                "reward_pbrs",
+                "reward_team",
+                "reward_sparse",
+                "reward_sparse_points",
+                "reward_failure",
+                "reward_total",
+            ):
+                self.assertIn(key, episode_result)
+                self.assertIsInstance(episode_result[key], float)
         finally:
             env.close()
 
@@ -211,6 +242,113 @@ class EnvironmentContractTests(unittest.TestCase):
             self.assertEqual(float(blue_tag_noflag_2[0].item()), 0.0)
             self.assertEqual(float(blue_tag_withflag_2[0].item()), 0.0)
             self.assertEqual(float(red_tag_total_2[0].item()), 0.0)
+        finally:
+            env.close()
+
+    def test_sparse_reward_points_account_nonzero_event_families(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=23))
+        try:
+            core = env.core
+            b = torch.tensor([True], device=core.device)
+            f = torch.tensor([False], device=core.device)
+            blue_oob = torch.tensor([[True, False]], device=core.device)
+            points = core._sparse_reward_points(
+                blue_cap_env=b,
+                red_cap_env=f,
+                blue_tag_noflag=torch.tensor([1.0], device=core.device),
+                blue_tag_withflag=torch.tensor([1.0], device=core.device),
+                red_tag_total=torch.tensor([1.0], device=core.device),
+                blue_oob=blue_oob,
+                blue_mine_tags=torch.tensor([1.0], device=core.device),
+                red_mine_tags=torch.tensor([0.0], device=core.device),
+            )
+            expected = (
+                SPARSE_FLAG_CAPTURE_POINTS
+                + SPARSE_TAG_NO_FLAG_POINTS
+                + SPARSE_TAG_WITH_FLAG_POINTS
+                - SPARSE_TAG_NO_FLAG_POINTS
+                + SPARSE_MINE_TAG_POINTS
+                + SPARSE_OOB_POINTS
+            )
+            self.assertAlmostEqual(float(points[0].item()), float(expected))
+        finally:
+            env.close()
+
+    def test_reward_total_uses_dense_and_sparse_weights(self) -> None:
+        cfg = GPUFieldConfig(
+            n_envs=1,
+            n_agents_per_team=2,
+            device="cpu",
+            seed=24,
+            dense_weight=0.25,
+            sparse_weight=0.5,
+            reward_scale=2.0,
+            reward_clip=1.0,
+        )
+        env = GPUCTFVecEnv(cfg)
+        try:
+            core = env.core
+            rterm = torch.tensor([1.0], device=core.device)
+            roff = torch.tensor([0.5], device=core.device)
+            rpbrs = torch.tensor([2.0], device=core.device)
+            rteam = torch.tensor([1.0], device=core.device)
+            sparse_points = torch.tensor([100.0], device=core.device)
+            rfail = torch.tensor([-0.25], device=core.device)
+            reward = core._reward_total(
+                rterm,
+                roff,
+                rpbrs,
+                rteam,
+                sparse_points,
+                rfail,
+                torch.tensor([False], device=core.device),
+            )
+            raw = 1.0 + 0.5 - 0.25 + 0.25 * (2.0 + 1.0) + 0.5 * (100.0 / 100.0)
+            expected = torch.tanh(torch.tensor(raw / 2.0)).item()
+            self.assertAlmostEqual(float(reward[0].item()), float(expected), places=6)
+        finally:
+            env.close()
+
+    def test_reward_config_overrides_legacy_flat_fields(self) -> None:
+        profile = RewardConfig(
+            flag_pickup_reward=0.25,
+            dense_weight=0.4,
+            sparse_weight=0.7,
+            action_failed_punishment=-0.05,
+        )
+        cfg = GPUFieldConfig(
+            n_envs=1,
+            n_agents_per_team=2,
+            flag_pickup_reward=99.0,
+            dense_weight=99.0,
+            reward_config=profile,
+        )
+        self.assertEqual(cfg.flag_pickup_reward, 0.25)
+        self.assertEqual(cfg.dense_weight, 0.4)
+        self.assertEqual(cfg.sparse_weight, 0.7)
+        self.assertEqual(cfg.action_failed_punishment, -0.05)
+        self.assertEqual(cfg.reward_config, profile)
+
+    def test_pbrs_closeness_potential_increases_when_agents_approach_flag(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=25))
+        try:
+            core = env.core
+            core.reset_all()
+            core.red_flag_pos[0] = torch.tensor([18.0, 10.0], device=core.device)
+            core.blue_carrying.zero_()
+            core.red_carrying.zero_()
+
+            far_x = torch.tensor([[2.0, 2.0]], device=core.device)
+            near_x = torch.tensor([[10.0, 10.0]], device=core.device)
+            y = torch.tensor([[10.0, 10.0]], device=core.device)
+            far_attack, _, _ = core._compute_potentials(far_x, y, core.blue_carrying, core.red_carrying)
+            near_attack, _, _ = core._compute_potentials(near_x, y, core.blue_carrying, core.red_carrying)
+
+            self.assertGreater(float(near_attack[0].item()), float(far_attack[0].item()))
+            core.blue_x = near_x.clone()
+            core.blue_y = y.clone()
+            shaped = core._pbrs_reward(far_x, y, core.blue_carrying)
+            self.assertGreater(float(shaped[0].item()), 0.0)
         finally:
             env.close()
 

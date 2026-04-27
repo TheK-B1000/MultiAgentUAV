@@ -736,6 +736,7 @@ class CustomPPOTrainer:
         self._ep_losses = 0
         self._ep_draws = 0
         self._episodes_completed = 0
+        self._rollout_episode_records: list[dict[str, Any]] = []
         self.metrics_csv_path = str(getattr(cfg, "metrics_csv_path", "") or "")
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
         # Optional E3: per-env-step z / q_phi / phase rows (set before long E3 runs; see E3_STEP_TELEMETRY_FIELDS).
@@ -864,6 +865,9 @@ class CustomPPOTrainer:
         return [
             "episode_id",
             "timesteps",
+            "policy_update",
+            "rollout_step",
+            "latent_z",
             "mode",
             "map_set",
             "opponent",
@@ -878,6 +882,14 @@ class CustomPPOTrainer:
             "near_misses_per_episode",
             "time_to_first_score",
             "mean_inter_robot_dist",
+            "reward_terminal",
+            "reward_offense",
+            "reward_pbrs",
+            "reward_team",
+            "reward_sparse",
+            "reward_sparse_points",
+            "reward_failure",
+            "reward_total",
         ]
 
     def _update_fieldnames(self) -> list[str]:
@@ -893,6 +905,23 @@ class CustomPPOTrainer:
             "rollout_reward_std",
             "rollout_return_mean",
             "rollout_return_std",
+            "rollout_episodes",
+            "rollout_wins",
+            "rollout_losses",
+            "rollout_draws",
+            "rollout_win_rate",
+            "rollout_win_margin_mean",
+            "rollout_blue_score_mean",
+            "rollout_red_score_mean",
+            "explained_variance",
+            "reward_terminal_mean",
+            "reward_offense_mean",
+            "reward_pbrs_mean",
+            "reward_team_mean",
+            "reward_sparse_mean",
+            "reward_sparse_points_mean",
+            "reward_failure_mean",
+            "reward_total_mean",
             "policy_loss",
             "value_loss",
             "entropy",
@@ -912,15 +941,37 @@ class CustomPPOTrainer:
         if self.use_latent_strategy:
             fields.append("strategy_kl")
             fields.extend(f"strategy_occupancy_{idx}" for idx in range(self.latent_k))
+            for idx in range(self.latent_k):
+                fields.extend(
+                    [
+                        f"episode_z_{idx}_count",
+                        f"episode_z_{idx}_win_rate",
+                        f"episode_z_{idx}_blue_score_mean",
+                        f"episode_z_{idx}_red_score_mean",
+                        f"episode_z_{idx}_win_margin_mean",
+                    ]
+                )
         return fields
 
-    def _write_episode_metrics(self, info: dict[str, Any], *, blue_score: int, red_score: int, timestep: int) -> None:
+    def _write_episode_metrics(
+        self,
+        info: dict[str, Any],
+        *,
+        blue_score: int,
+        red_score: int,
+        timestep: int,
+        rollout_step: Optional[int] = None,
+        latent_z: Optional[int] = None,
+    ) -> None:
         if not self.episode_csv_path:
             return
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         row = {
             "episode_id": self._episodes_completed,
             "timesteps": int(timestep),
+            "policy_update": int(self._updates_completed),
+            "rollout_step": "" if rollout_step is None else int(rollout_step),
+            "latent_z": "" if latent_z is None else int(latent_z),
             "mode": str(getattr(self.cfg, "mode", "FIXED_OPPONENT")),
             "map_set": str(info.get("map_set", getattr(self.cfg, "map_set", "train"))).lower(),
             "opponent": self._opponent_legend(info),
@@ -935,14 +986,83 @@ class CustomPPOTrainer:
             "near_misses_per_episode": int(er.get("near_misses_per_episode", 0) or 0),
             "time_to_first_score": er.get("time_to_first_score", ""),
             "mean_inter_robot_dist": er.get("mean_inter_robot_dist", ""),
+            "reward_terminal": float(er.get("reward_terminal", info.get("reward_terminal", 0.0)) or 0.0),
+            "reward_offense": float(er.get("reward_offense", info.get("reward_offense", 0.0)) or 0.0),
+            "reward_pbrs": float(er.get("reward_pbrs", info.get("reward_pbrs", 0.0)) or 0.0),
+            "reward_team": float(er.get("reward_team", info.get("reward_team", 0.0)) or 0.0),
+            "reward_sparse": float(er.get("reward_sparse", info.get("reward_sparse", 0.0)) or 0.0),
+            "reward_sparse_points": float(
+                er.get("reward_sparse_points", info.get("reward_sparse_points", info.get("sparse_points", 0.0))) or 0.0
+            ),
+            "reward_failure": float(er.get("reward_failure", info.get("reward_failure", 0.0)) or 0.0),
+            "reward_total": float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0),
         }
         self._write_csv_row(self.episode_csv_path, self._episode_fieldnames(), row)
+
+    @staticmethod
+    def _explained_variance(values: torch.Tensor, returns: torch.Tensor) -> float:
+        y_pred = values.detach().float().reshape(-1)
+        y_true = returns.detach().float().reshape(-1)
+        if y_true.numel() <= 1:
+            return 0.0
+        var_y = torch.var(y_true, unbiased=False)
+        if float(var_y.detach().cpu().item()) <= 1e-12:
+            return 0.0
+        ev = 1.0 - torch.var(y_true - y_pred, unbiased=False) / var_y
+        return float(ev.detach().cpu().item())
+
+    def _rollout_episode_summary(self) -> dict[str, Any]:
+        records = list(self._rollout_episode_records)
+        n = len(records)
+        if n <= 0:
+            base: dict[str, Any] = {
+                "rollout_episodes": 0,
+                "rollout_wins": 0,
+                "rollout_losses": 0,
+                "rollout_draws": 0,
+                "rollout_win_rate": 0.0,
+                "rollout_win_margin_mean": 0.0,
+                "rollout_blue_score_mean": 0.0,
+                "rollout_red_score_mean": 0.0,
+            }
+        else:
+            wins = sum(int(r["success"]) for r in records)
+            margins = [int(r["win_margin"]) for r in records]
+            losses = sum(1 for m in margins if m < 0)
+            draws = sum(1 for m in margins if m == 0)
+            base = {
+                "rollout_episodes": n,
+                "rollout_wins": wins,
+                "rollout_losses": losses,
+                "rollout_draws": draws,
+                "rollout_win_rate": float(wins) / float(n),
+                "rollout_win_margin_mean": float(np.mean(margins)),
+                "rollout_blue_score_mean": float(np.mean([int(r["blue_score"]) for r in records])),
+                "rollout_red_score_mean": float(np.mean([int(r["red_score"]) for r in records])),
+            }
+        if self.use_latent_strategy:
+            for z_idx in range(self.latent_k):
+                z_records = [r for r in records if r.get("latent_z") == z_idx]
+                zn = len(z_records)
+                base[f"episode_z_{z_idx}_count"] = zn
+                if zn <= 0:
+                    base[f"episode_z_{z_idx}_win_rate"] = ""
+                    base[f"episode_z_{z_idx}_blue_score_mean"] = ""
+                    base[f"episode_z_{z_idx}_red_score_mean"] = ""
+                    base[f"episode_z_{z_idx}_win_margin_mean"] = ""
+                else:
+                    base[f"episode_z_{z_idx}_win_rate"] = float(sum(int(r["success"]) for r in z_records)) / float(zn)
+                    base[f"episode_z_{z_idx}_blue_score_mean"] = float(np.mean([int(r["blue_score"]) for r in z_records]))
+                    base[f"episode_z_{z_idx}_red_score_mean"] = float(np.mean([int(r["red_score"]) for r in z_records]))
+                    base[f"episode_z_{z_idx}_win_margin_mean"] = float(np.mean([int(r["win_margin"]) for r in z_records]))
+        return base
 
     def _write_update_metrics(self, stats: dict[str, float], buffer: TensorDictRolloutBuffer) -> None:
         if not self.metrics_csv_path:
             return
         rewards = buffer.fields["rewards"][: int(buffer.pos)].detach().float().reshape(-1)
         returns = buffer.fields["returns"][: int(buffer.pos)].detach().float().reshape(-1)
+        values = buffer.fields["values"][: int(buffer.pos)].detach().float().reshape(-1)
         games = self._ep_wins + self._ep_losses + self._ep_draws
         row: dict[str, Any] = {
             "update": self._updates_completed,
@@ -956,7 +1076,21 @@ class CustomPPOTrainer:
             "rollout_reward_std": float(rewards.std(unbiased=False).detach().cpu().item()) if rewards.numel() > 1 else 0.0,
             "rollout_return_mean": float(returns.mean().detach().cpu().item()) if returns.numel() > 0 else 0.0,
             "rollout_return_std": float(returns.std(unbiased=False).detach().cpu().item()) if returns.numel() > 1 else 0.0,
+            "explained_variance": self._explained_variance(values, returns),
         }
+        row.update(self._rollout_episode_summary())
+        for key in (
+            "reward_terminal",
+            "reward_offense",
+            "reward_pbrs",
+            "reward_team",
+            "reward_sparse",
+            "reward_sparse_points",
+            "reward_failure",
+            "reward_total",
+        ):
+            vals = buffer.fields[key][: int(buffer.pos)].detach().float().reshape(-1)
+            row[f"{key}_mean"] = float(vals.mean().detach().cpu().item()) if vals.numel() > 0 else 0.0
         row.update(stats)
         self._write_csv_row(self.metrics_csv_path, self._update_fieldnames(), row)
 
@@ -972,7 +1106,14 @@ class CustomPPOTrainer:
             return f"SNAPSHOT:{snap}" if snap else "SNAPSHOT:unknown"
         return f"{kind.upper()}:?"
 
-    def _on_episode_done(self, info: dict[str, Any], *, timestep: Optional[int] = None) -> None:
+    def _on_episode_done(
+        self,
+        info: dict[str, Any],
+        *,
+        timestep: Optional[int] = None,
+        rollout_step: Optional[int] = None,
+        latent_z: Optional[int] = None,
+    ) -> None:
         er = info.get("episode_result")
         if isinstance(er, dict):
             bs = int(er.get("blue_score", 0))
@@ -987,7 +1128,23 @@ class CustomPPOTrainer:
         else:
             self._ep_draws += 1
         self._episodes_completed += 1
-        self._write_episode_metrics(info, blue_score=bs, red_score=rs, timestep=int(timestep or self.global_step))
+        self._rollout_episode_records.append(
+            {
+                "blue_score": int(bs),
+                "red_score": int(rs),
+                "win_margin": int(bs) - int(rs),
+                "success": 1 if bs > rs else 0,
+                "latent_z": latent_z,
+            }
+        )
+        self._write_episode_metrics(
+            info,
+            blue_score=bs,
+            red_score=rs,
+            timestep=int(timestep or self.global_step),
+            rollout_step=rollout_step,
+            latent_z=latent_z,
+        )
         every = int(getattr(self.cfg, "episode_log_every", 0) or 0)
         if every > 0 and self._episodes_completed % every == 0:
             self._print_episode_progress(info)
@@ -1174,6 +1331,14 @@ class CustomPPOTrainer:
         buffer.register_field("values")
         buffer.register_field("next_values")
         buffer.register_field("rewards")
+        buffer.register_field("reward_terminal")
+        buffer.register_field("reward_offense")
+        buffer.register_field("reward_pbrs")
+        buffer.register_field("reward_team")
+        buffer.register_field("reward_sparse")
+        buffer.register_field("reward_sparse_points")
+        buffer.register_field("reward_failure")
+        buffer.register_field("reward_total")
         buffer.register_field("terminated", dtype=torch.bool)
         buffer.register_field("truncated", dtype=torch.bool)
         if self.use_latent_strategy:
@@ -1229,6 +1394,7 @@ class CustomPPOTrainer:
     def collect_rollout(self) -> TensorDictRolloutBuffer:
         """Collect one rollout and compute advantages/returns."""
         self._log_decentralized_actor_contract_once()
+        self._rollout_episode_records = []
         if self._last_obs is None or self._last_global_state is None:
             obs = self.env.reset()
             global_state = self.env.state().astype(np.float32)
@@ -1250,13 +1416,37 @@ class CustomPPOTrainer:
             self.env.step_async(actions_np)
             next_obs, rewards, dones, infos = self.env.step_wait()
             step_after = self.global_step + int(self.env.num_envs)
-            for done_i, info in zip(dones, infos):
+            z_np = z_t.detach().cpu().numpy() if z_t is not None else None
+            for env_i, (done_i, info) in enumerate(zip(dones, infos)):
                 if bool(done_i):
-                    self._on_episode_done(dict(info), timestep=step_after)
+                    latent_z = int(z_np[env_i]) if z_np is not None else None
+                    self._on_episode_done(
+                        dict(info),
+                        timestep=step_after,
+                        rollout_step=step_idx + 1,
+                        latent_z=latent_z,
+                    )
             next_global_state = self.env.state().astype(np.float32)
             next_values_t = self._next_values(infos, next_global_state, next_obs=next_obs, prev_z=z_t)
             terminated = np.asarray([bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)])
             truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
+            reward_component = {
+                key: torch.as_tensor(
+                    [float(info.get(key, 0.0) or 0.0) for info in infos],
+                    dtype=torch.float32,
+                    device=self.device,
+                )
+                for key in (
+                    "reward_terminal",
+                    "reward_offense",
+                    "reward_pbrs",
+                    "reward_team",
+                    "reward_sparse",
+                    "reward_sparse_points",
+                    "reward_failure",
+                    "reward_total",
+                )
+            }
 
             add_items: dict[str, torch.Tensor] = dict(
                 obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=self.device),
@@ -1269,6 +1459,14 @@ class CustomPPOTrainer:
                 values=values_t,
                 next_values=next_values_t,
                 rewards=torch.as_tensor(rewards, dtype=torch.float32, device=self.device),
+                reward_terminal=reward_component["reward_terminal"],
+                reward_offense=reward_component["reward_offense"],
+                reward_pbrs=reward_component["reward_pbrs"],
+                reward_team=reward_component["reward_team"],
+                reward_sparse=reward_component["reward_sparse"],
+                reward_sparse_points=reward_component["reward_sparse_points"],
+                reward_failure=reward_component["reward_failure"],
+                reward_total=reward_component["reward_total"],
                 terminated=torch.as_tensor(terminated, dtype=torch.bool, device=self.device),
                 truncated=torch.as_tensor(truncated, dtype=torch.bool, device=self.device),
             )
