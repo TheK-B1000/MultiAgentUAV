@@ -359,6 +359,81 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_pbrs_does_not_punish_flag_pickup_phase_switch(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=26))
+        try:
+            core = env.core
+            core.reset_all()
+            core.red_flag_pos[0] = torch.tensor([18.0, 10.0], device=core.device)
+            core.blue_flag_home[0] = torch.tensor([2.0, 10.0], device=core.device)
+            prev_x = core.blue_x.clone()
+            prev_y = core.blue_y.clone()
+            prev_carrying = core.blue_carrying.clone()
+            prev_x[0, 0] = 18.0
+            prev_y[0, 0] = 10.0
+            prev_carrying[0, 0] = False
+            core.blue_x[0, 0] = 18.0
+            core.blue_y[0, 0] = 10.0
+            core.blue_carrying[0, 0] = True
+
+            shaped = core._pbrs_reward(prev_x, prev_y, prev_carrying)
+
+            self.assertGreater(float(shaped[0].item()), -0.05)
+        finally:
+            env.close()
+
+    def test_stalemate_progress_tracks_return_progress(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=27))
+        try:
+            core = env.core
+            core.reset_all()
+            core.blue_flag_home[0] = torch.tensor([2.0, 10.0], device=core.device)
+            core.blue_carrying[0, 0] = True
+            prev_x = core.blue_x.clone()
+            prev_y = core.blue_y.clone()
+            prev_carrying = core.blue_carrying.clone()
+            prev_x[0, 0] = 18.0
+            prev_y[0, 0] = 10.0
+            core.blue_x[0, 0] = 14.0
+            core.blue_y[0, 0] = 10.0
+
+            shaped = core._pbrs_reward(prev_x, prev_y, prev_carrying)
+
+            self.assertGreater(float(shaped[0].item()), 0.0)
+            self.assertGreater(float(core._last_dense_progress[0].item()), 0.0)
+        finally:
+            env.close()
+
+    def test_escort_reward_requires_noncarrier_teammate(self) -> None:
+        cfg = GPUFieldConfig(
+            n_envs=1,
+            n_agents_per_team=2,
+            device="cpu",
+            seed=28,
+            idle_penalty_coef=0.0,
+            spin_penalty_coef=0.0,
+        )
+        env = GPUCTFVecEnv(cfg)
+        try:
+            core = env.core
+            core.reset_all()
+            yaw = torch.zeros_like(core.blue_x)
+            prev_x = core.blue_x.clone()
+            prev_y = core.blue_y.clone()
+            core.blue_carrying[0] = torch.tensor([True, False], device=core.device)
+            core.blue_x[0] = torch.tensor([10.0, 2.0], device=core.device)
+            core.blue_y[0] = torch.tensor([10.0, 2.0], device=core.device)
+
+            no_escort = core._team_coordination_reward(prev_x, prev_y, yaw)
+            core.blue_x[0, 1] = 12.0
+            core.blue_y[0, 1] = 10.0
+            escorted = core._team_coordination_reward(prev_x, prev_y, yaw)
+
+            self.assertAlmostEqual(float(no_escort[0].item()), 0.0, places=6)
+            self.assertGreater(float(escorted[0].item()), 0.0)
+        finally:
+            env.close()
+
     def test_respawn_timing_and_location_are_seed_deterministic(self) -> None:
         cfg1 = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=31, rules_profile="LEGACY")
         cfg2 = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=31, rules_profile="LEGACY")

@@ -2163,20 +2163,89 @@ class BatchedCTFCore:
         prev_blue_x: torch.Tensor,
         prev_blue_y: torch.Tensor,
         prev_blue_carrying: torch.Tensor,
+        prev_red_x: Optional[torch.Tensor] = None,
+        prev_red_y: Optional[torch.Tensor] = None,
+        prev_red_carrying: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        prev_attack, prev_return, prev_defend = self._compute_potentials(
-            prev_blue_x, prev_blue_y, prev_blue_carrying, self.red_carrying
+        max_dist = max(1e-6, self.max_dist)
+
+        def closeness(dist: torch.Tensor) -> torch.Tensor:
+            return 1.0 - torch.clamp(dist / max_dist, min=0.0, max=1.0)
+
+        def masked_mean(dist: torch.Tensor, active: torch.Tensor) -> torch.Tensor:
+            return torch.where(active, closeness(dist), torch.zeros_like(dist)).mean(dim=1)
+
+        # PBRS terms should not punish event transitions. For example, a pickup
+        # turns off the attack objective and turns on the return objective; the
+        # event reward handles that step, while shaping resumes on stable phases.
+        attack_active = (~prev_blue_carrying) & (~self.blue_carrying)
+        prev_attack_dist = torch.sqrt(
+            (self.red_flag_pos[:, None, 0] - prev_blue_x) ** 2
+            + (self.red_flag_pos[:, None, 1] - prev_blue_y) ** 2
+            + 1e-8
         )
-        cur_attack, cur_return, cur_defend = self._compute_potentials(
-            self.blue_x, self.blue_y, self.blue_carrying, self.red_carrying
+        cur_attack_dist = torch.sqrt(
+            (self.red_flag_pos[:, None, 0] - self.blue_x) ** 2
+            + (self.red_flag_pos[:, None, 1] - self.blue_y) ** 2
+            + 1e-8
         )
+        prev_attack = masked_mean(prev_attack_dist, attack_active)
+        cur_attack = masked_mean(cur_attack_dist, attack_active)
+
+        return_active = prev_blue_carrying & self.blue_carrying
+        prev_return_dist = torch.sqrt(
+            (self.blue_flag_home[:, None, 0] - prev_blue_x) ** 2
+            + (self.blue_flag_home[:, None, 1] - prev_blue_y) ** 2
+            + 1e-8
+        )
+        cur_return_dist = torch.sqrt(
+            (self.blue_flag_home[:, None, 0] - self.blue_x) ** 2
+            + (self.blue_flag_home[:, None, 1] - self.blue_y) ** 2
+            + 1e-8
+        )
+        prev_return = masked_mean(prev_return_dist, return_active)
+        cur_return = masked_mean(cur_return_dist, return_active)
+
+        if prev_red_x is None:
+            prev_red_x = self.red_x
+        if prev_red_y is None:
+            prev_red_y = self.red_y
+        if prev_red_carrying is None:
+            prev_red_carrying = self.red_carrying
+        env_idx = torch.arange(self.B, device=self.device)
+        prev_red_has_flag = prev_red_carrying.any(dim=1)
+        cur_red_has_flag = self.red_carrying.any(dim=1)
+        defense_active = (prev_red_has_flag & cur_red_has_flag)[:, None].expand_as(prev_blue_x)
+        prev_red_carrier_idx = torch.argmax(prev_red_carrying.to(torch.int64), dim=1)
+        cur_red_carrier_idx = torch.argmax(self.red_carrying.to(torch.int64), dim=1)
+        prev_red_carrier_x = prev_red_x[env_idx, prev_red_carrier_idx]
+        prev_red_carrier_y = prev_red_y[env_idx, prev_red_carrier_idx]
+        cur_red_carrier_x = self.red_x[env_idx, cur_red_carrier_idx]
+        cur_red_carrier_y = self.red_y[env_idx, cur_red_carrier_idx]
+        prev_defend_dist = torch.sqrt(
+            (prev_red_carrier_x[:, None] - prev_blue_x) ** 2
+            + (prev_red_carrier_y[:, None] - prev_blue_y) ** 2
+            + 1e-8
+        )
+        cur_defend_dist = torch.sqrt(
+            (cur_red_carrier_x[:, None] - self.blue_x) ** 2
+            + (cur_red_carrier_y[:, None] - self.blue_y) ** 2
+            + 1e-8
+        )
+        prev_defend = masked_mean(prev_defend_dist, defense_active)
+        cur_defend = masked_mean(cur_defend_dist, defense_active)
+
         gamma = float(self.cfg.pbrs_gamma)
         rpbrs = (
             float(self.cfg.pbrs_attack_coef) * (gamma * cur_attack - prev_attack)
             + float(self.cfg.pbrs_return_coef) * (gamma * cur_return - prev_return)
             + float(self.cfg.pbrs_defense_coef) * (gamma * cur_defend - prev_defend)
         )
-        self._last_dense_progress = cur_attack - prev_attack
+        self._last_dense_progress = (
+            float(self.cfg.pbrs_attack_coef) * (cur_attack - prev_attack)
+            + float(self.cfg.pbrs_return_coef) * (cur_return - prev_return)
+            + float(self.cfg.pbrs_defense_coef) * (cur_defend - prev_defend)
+        )
         return rpbrs
 
     def _team_coordination_reward(
@@ -2201,7 +2270,11 @@ class BatchedCTFCore:
         carrier_y = self.blue_y[torch.arange(self.B, device=self.device), carrier_idx]
         edx = self.blue_x - carrier_x[:, None]
         edy = self.blue_y - carrier_y[:, None]
-        escort = (torch.sqrt(edx * edx + edy * edy + 1e-8) <= 5.0).to(torch.float32).mean(dim=1)
+        escorting_teammate = (~self.blue_carrying) & (
+            torch.sqrt(edx * edx + edy * edy + 1e-8) <= 5.0
+        )
+        escort_den = (~self.blue_carrying).to(torch.float32).sum(dim=1).clamp_min(1.0)
+        escort = escorting_teammate.to(torch.float32).sum(dim=1) / escort_den
         escort_bonus = torch.where(
             blue_has_flag,
             float(self.cfg.team_escort_reward) * escort,
@@ -2574,7 +2647,14 @@ class BatchedCTFCore:
                 torch.zeros_like(self.red_commit_success),
                 self.red_commit_success,
             )
-        rpbrs = self._pbrs_reward(prev_blue_x, prev_blue_y, prev_blue_carrying)
+        rpbrs = self._pbrs_reward(
+            prev_blue_x,
+            prev_blue_y,
+            prev_blue_carrying,
+            prev_red_x=prev_red_x,
+            prev_red_y=prev_red_y,
+            prev_red_carrying=prev_red_carrying,
+        )
         rteam = self._team_coordination_reward(prev_blue_x, prev_blue_y, yaw_cmd_blue)
 
         self.step_count += 1
