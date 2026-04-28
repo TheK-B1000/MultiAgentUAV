@@ -7,7 +7,7 @@ import random
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
@@ -95,6 +95,10 @@ class PPOConfig:
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
+    # ``maximize`` matches the plan (encourage exploratory / diverse q_phi). ``minimize`` adds +λ_H·H to the
+    # minimized loss and sharpens q_phi (recommended when telemetry shows strategy_entropy≈ln K with no persistence grad).
+    # ``none`` removes the H term (strategy_encoder receives no gradient from λ_H when λ_p/KL are also inactive).
+    latent_entropy_objective: Literal["maximize", "minimize", "none"] = "maximize"
     latent_lam_h: float = 0.005
     latent_lam_p: float = 0.02
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
@@ -186,10 +190,12 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         on_flag = bool(getattr(cfg, "latent_resample_on_flag", False)) and not fixed
         lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
         fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
+        h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
-            f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f}, "
+            f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f} "
+            f"(H:{h_obj}), "
             f"lambda_KL={lam_kl:.4f}{fixed_label})"
         )
         if fixed:
@@ -487,7 +493,14 @@ if __name__ == "__main__":
             help="Strategy ID used by --fixed-latent-strategy (default: 0). Supplying this implies fixed latent.",
         )
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
-        parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy bonus weight.")
+        parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy weight (see --latent-entropy-objective).")
+        parser.add_argument(
+            "--latent-entropy-objective",
+            type=str,
+            choices=("maximize", "minimize", "none"),
+            default=None,
+            help="How λ_H shapes H(q_phi): maximize=paper bonus on entropy; minimize=penalty (sharper z); none=off.",
+        )
         parser.add_argument(
             "--latent-resample-on-flag",
             action="store_true",
@@ -548,6 +561,8 @@ if __name__ == "__main__":
             cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
         if args.latent_lam_h is not None:
             cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
+        if args.latent_entropy_objective is not None:
+            cfg.latent_entropy_objective = args.latent_entropy_objective  # type: ignore[assignment]
         if args.latent_resample_on_flag:
             cfg.latent_resample_on_flag = True
         if args.latent_kl_consecutive is not None:

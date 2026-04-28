@@ -1635,8 +1635,16 @@ class CustomPPOTrainer:
                     persist_mask = batch["z_persist_mask"].bool()
                     log_prob = action_log_prob
                     strategy_entropy = aux["strategy_entropy"]
-                    # Maximize H(z) under the plan ⇔ add +λ_H H to the objective to maximize, i.e. subtract λ_H H in a minimization: L = L_PPO + λ_p L_persist - λ_H H(z) (+ action terms elsewhere).
-                    strategy_entropy_loss = -latent_lam_h * strategy_entropy.mean()
+                    # Paper default: maximize H(z)  ⇔ L += -λ_H * H(z) (minimized loss decreases as H rises).
+                    # ``latent_entropy_objective=minimize`` flips sign (L += +λ_H * H(z)) so q_phi trains toward sharper z.
+                    h_mean = strategy_entropy.mean()
+                    h_goal = str(getattr(self.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
+                    if h_goal == "none" or latent_lam_h <= 0.0:
+                        strategy_entropy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    elif h_goal == "minimize":
+                        strategy_entropy_loss = latent_lam_h * h_mean
+                    else:
+                        strategy_entropy_loss = -latent_lam_h * h_mean
                     switch = paper_strategy_switch_indicator(batch["z"], batch["prev_z"])
                     if bool(persist_mask.any().item()):
                         persist_loss = switch[persist_mask].mean()
