@@ -149,6 +149,24 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             _cleanup_training_outputs(tag)
 
+    def test_default_latent_stays_on_fixed_opponent(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_default_latent_fixed_opponent_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.use_latent_strategy = True
+        cfg.n_steps = 1
+        cfg.total_timesteps = 1
+        cfg.max_decision_steps = 1
+        episode_csv = _WORKSPACE_TMP / f"{tag}_episodes.csv"
+        try:
+            train_ppo(cfg)
+            with episode_csv.open(newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertGreaterEqual(len(rows), 1)
+            self.assertEqual(rows[0]["opponent"], "SCRIPTED:OP3")
+        finally:
+            _cleanup_training_outputs(tag)
+
     def test_saved_checkpoint_loads_for_local_inference(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
         tag = "unittest_inference_custom_ppo_2v2"
@@ -228,6 +246,8 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(len(rows), 1)
             self.assertIn("timesteps", rows[0])
             self.assertIn("rollout_win_rate", rows[0])
+            self.assertIn("rolling_win_rate_50ep", rows[0])
+            self.assertIn("rolling_win_rate_200ep", rows[0])
             self.assertIn("explained_variance", rows[0])
             self.assertIn("reward_offense_mean", rows[0])
             self.assertIn("reward_sparse_mean", rows[0])

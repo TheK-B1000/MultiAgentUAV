@@ -52,14 +52,14 @@ class PPOConfig:
     total_timesteps: int = 1_000_000
     n_envs: int = 8
     n_steps: int = 2048
-    batch_size: int = 512
-    n_epochs: int = 10
+    batch_size: int = 1024
+    n_epochs: int = 6
     gamma: float = 0.995
     gae_lambda: float = 0.99
-    clip_range: float = 0.2
+    clip_range: float = 0.25
     clip_range_vf: Optional[float] = 0.2
     ent_coef: float = 0.01
-    learning_rate: float = 3e-4
+    learning_rate: float = 5e-4
     max_grad_norm: float = 0.5
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 

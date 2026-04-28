@@ -12,6 +12,7 @@ import csv
 import os
 import sys
 import warnings
+from collections import deque
 from dataclasses import asdict
 from typing import Any, Dict, Iterable, Optional
 
@@ -739,6 +740,7 @@ class CustomPPOTrainer:
         self._ep_draws = 0
         self._episodes_completed = 0
         self._rollout_episode_records: list[dict[str, Any]] = []
+        self._recent_episode_successes = deque(maxlen=200)
         self.metrics_csv_path = str(getattr(cfg, "metrics_csv_path", "") or "")
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
         # Optional E3: per-env-step z / q_phi / phase rows (set before long E3 runs; see E3_STEP_TELEMETRY_FIELDS).
@@ -904,6 +906,8 @@ class CustomPPOTrainer:
             "losses",
             "draws",
             "win_rate",
+            "rolling_win_rate_50ep",
+            "rolling_win_rate_200ep",
             "rollout_reward_mean",
             "rollout_reward_std",
             "rollout_return_mean",
@@ -1065,6 +1069,12 @@ class CustomPPOTrainer:
                     base[f"episode_z_{z_idx}_win_margin_mean"] = float(np.mean([int(r["win_margin"]) for r in z_records]))
         return base
 
+    def _rolling_win_rate(self, window: int) -> float:
+        recent = list(self._recent_episode_successes)[-max(1, int(window)):]
+        if not recent:
+            return 0.0
+        return float(sum(recent)) / float(len(recent))
+
     def _write_update_metrics(self, stats: dict[str, float], buffer: TensorDictRolloutBuffer) -> None:
         if not self.metrics_csv_path:
             return
@@ -1080,6 +1090,8 @@ class CustomPPOTrainer:
             "losses": int(self._ep_losses),
             "draws": int(self._ep_draws),
             "win_rate": float(self._ep_wins) / float(max(1, games)),
+            "rolling_win_rate_50ep": self._rolling_win_rate(50),
+            "rolling_win_rate_200ep": self._rolling_win_rate(200),
             "rollout_reward_mean": float(rewards.mean().detach().cpu().item()) if rewards.numel() > 0 else 0.0,
             "rollout_reward_std": float(rewards.std(unbiased=False).detach().cpu().item()) if rewards.numel() > 1 else 0.0,
             "rollout_return_mean": float(returns.mean().detach().cpu().item()) if returns.numel() > 0 else 0.0,
@@ -1172,6 +1184,7 @@ class CustomPPOTrainer:
         else:
             bs = int(info.get("blue_score", 0))
             rs = int(info.get("red_score", 0))
+        success = 1 if bs > rs else 0
         if bs > rs:
             self._ep_wins += 1
         elif bs < rs:
@@ -1184,10 +1197,11 @@ class CustomPPOTrainer:
                 "blue_score": int(bs),
                 "red_score": int(rs),
                 "win_margin": int(bs) - int(rs),
-                "success": 1 if bs > rs else 0,
+                "success": success,
                 "latent_z": latent_z,
             }
         )
+        self._recent_episode_successes.append(success)
         self._write_episode_metrics(
             info,
             blue_score=bs,
@@ -1582,6 +1596,10 @@ class CustomPPOTrainer:
         lr = self.base_learning_rate * progress_remaining
         for group in self.optimizer.param_groups:
             group["lr"] = lr
+        ent_coef = self.ent_coef if progress_remaining > 0.75 else 0.5 * self.ent_coef
+        latent_lam_h_start = max(0.0, float(getattr(self.cfg, "latent_lam_h", 0.0) or 0.0))
+        latent_lam_h_end = min(latent_lam_h_start, 0.001)
+        latent_lam_h = latent_lam_h_end + (latent_lam_h_start - latent_lam_h_end) * progress_remaining
 
         stats: dict[str, list[float]] = {
             "policy_loss": [],
@@ -1595,6 +1613,8 @@ class CustomPPOTrainer:
             "strategy_resample_fraction": [],
             "strategy_kl": [],
         }
+        stop_update = False
+        target_kl = getattr(self.cfg, "target_kl", None)
         for _ in range(self.n_epochs):
             for batch in buffer.iter_minibatches(self.batch_size, shuffle=True):
                 obs_batch = {
@@ -1616,7 +1636,7 @@ class CustomPPOTrainer:
                     log_prob = action_log_prob
                     strategy_entropy = aux["strategy_entropy"]
                     # Maximize H(z) under the plan ⇔ add +λ_H H to the objective to maximize, i.e. subtract λ_H H in a minimization: L = L_PPO + λ_p L_persist - λ_H H(z) (+ action terms elsewhere).
-                    strategy_entropy_loss = -float(getattr(self.cfg, "latent_lam_h", 0.0)) * strategy_entropy.mean()
+                    strategy_entropy_loss = -latent_lam_h * strategy_entropy.mean()
                     switch = paper_strategy_switch_indicator(batch["z"], batch["prev_z"])
                     if bool(persist_mask.any().item()):
                         persist_loss = switch[persist_mask].mean()
@@ -1662,22 +1682,28 @@ class CustomPPOTrainer:
                 )
                 value_loss = ppo_value_loss(values, batch["values"], batch["returns"], self.value_clip_range)
                 entropy_loss = -entropy.mean()
-                loss = policy_loss + self.vf_coef * value_loss + self.ent_coef * entropy_loss + latent_loss
+                loss = policy_loss + self.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
 
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), float(self.cfg.max_grad_norm))
                 self.optimizer.step()
 
+                approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
                 stats["policy_loss"].append(float(policy_loss.detach().cpu().item()))
                 stats["value_loss"].append(float(value_loss.detach().cpu().item()))
                 stats["entropy"].append(float(entropy.mean().detach().cpu().item()))
-                stats["approx_kl"].append(float(ppo_stats["approx_kl"].detach().cpu().item()))
+                stats["approx_kl"].append(approx_kl_value)
                 stats["clip_fraction"].append(float(ppo_stats["clip_fraction"].detach().cpu().item()))
                 stats["grad_norm"].append(float(torch.as_tensor(grad_norm).detach().cpu().item()))
                 stats["strategy_entropy"].append(float(strategy_entropy.mean().detach().cpu().item()))
                 stats["strategy_persist_loss"].append(float(persist_loss.detach().cpu().item()))
                 stats["strategy_resample_fraction"].append(float(resample.float().mean().detach().cpu().item()))
+                if target_kl is not None and approx_kl_value > 1.5 * float(target_kl):
+                    stop_update = True
+                    break
+            if stop_update:
+                break
 
         self.last_stats = {name: float(np.mean(values)) if values else 0.0 for name, values in stats.items()}
         self.last_stats["learning_rate"] = float(lr)

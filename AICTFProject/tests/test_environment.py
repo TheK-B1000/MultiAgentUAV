@@ -329,12 +329,12 @@ class EnvironmentContractTests(unittest.TestCase):
         self.assertEqual(cfg.action_failed_punishment, -0.05)
         self.assertEqual(cfg.reward_config, profile)
 
-    def test_reward_profile_defaults_emphasize_defensive_dense_shaping(self) -> None:
+    def test_reward_profile_defaults_reduce_dense_shaping_drift(self) -> None:
         cfg = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu")
-        self.assertEqual(cfg.dense_weight, 0.5)
-        self.assertEqual(cfg.pbrs_defense_coef, 1.0)
-        self.assertEqual(cfg.reward_config.dense_weight, 0.5)
-        self.assertEqual(cfg.reward_config.pbrs_defense_coef, 1.0)
+        self.assertEqual(cfg.dense_weight, 0.25)
+        self.assertEqual(cfg.pbrs_defense_coef, 0.5)
+        self.assertEqual(cfg.reward_config.dense_weight, 0.25)
+        self.assertEqual(cfg.reward_config.pbrs_defense_coef, 0.5)
 
     def test_pbrs_closeness_potential_increases_when_agents_approach_flag(self) -> None:
         env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=25))

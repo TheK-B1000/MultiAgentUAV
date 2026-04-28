@@ -34,19 +34,19 @@ class RewardConfig:
     lose_team_punish: float = LOSE_TEAM_PUNISH
     draw_team_penalty: float = DRAW_TEAM_PENALTY
     pbrs_gamma: float = 0.995
-    pbrs_attack_coef: float = 1.0
-    pbrs_return_coef: float = 1.0
-    pbrs_defense_coef: float = 1.0
+    pbrs_attack_coef: float = 0.5
+    pbrs_return_coef: float = 0.5
+    pbrs_defense_coef: float = 0.5
     team_defense_presence_reward: float = 0.03
     team_escort_reward: float = 0.02
     team_intercept_reward: float = 0.02
     sparse_weight: float = 1.0
-    dense_weight: float = 0.5
-    reward_scale: float = 2.0
+    dense_weight: float = 0.25
+    reward_scale: float = 4.0
     reward_clip: float = 1.0
     stalemate_max_steps: int = 120
     stalemate_progress_eps: float = 0.002
-    stalemate_penalty: float = -0.15
+    stalemate_penalty: float = -0.08
     spin_penalty_coef: float = 0.05
     idle_penalty_coef: float = 0.03
 
