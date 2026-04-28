@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """Generate final-phase training and evaluation commands.
 
-The matrix covers the Summer-plan core comparisons:
+The matrix covers the professor-requested core comparisons:
 
-- latent default vs flat/no-latent PPO-MARL
-- latent no-persistence ablation
-- fixed-latent ablation
-- higher K ablation
-- sparse strategy refresh ablation
-- OP2-trained comparison evaluated on OP3/OP4
+- Summer latent default trained against fixed OP3
+- curriculum baseline with no latent strategy and the OP1 -> OP2 -> OP3 schedule
+- no-latent baseline from the Summer default fixed-OP3 setting
 - train-map vs held-out eval-map generalization
 
 The script prints commands by default and can also write them to CSV. It does
@@ -29,39 +26,34 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Variant:
     name: str
-    fixed_opponent: str
+    mode: str
+    fixed_opponent: str | None
     train_flags: tuple[str, ...]
     description: str
 
 
 VARIANTS: tuple[Variant, ...] = (
-    Variant("latent_default", "OP3", (), "Default latent team strategy, K=4, episode-start z."),
     Variant(
-        "flat_ppo_marl",
+        "latent_default",
+        "FIXED_OPPONENT",
+        "OP3",
+        (),
+        "Summer latent team strategy default, K=4, episode-start z, fixed OP3.",
+    ),
+    Variant(
+        "curriculum",
+        "CURRICULUM",
+        None,
+        ("--no-latent-strategy",),
+        "Curriculum baseline: no latent strategy, OP1->OP2->OP3.",
+    ),
+    Variant(
+        "no_latent",
+        "FIXED_OPPONENT",
         "OP3",
         ("--no-latent-strategy",),
-        "Flat/no-latent PPO-MARL baseline; only the latent strategy path is disabled.",
+        "No-latent PPO baseline under the Summer default fixed-OP3 setting.",
     ),
-    Variant(
-        "latent_no_persistence",
-        "OP3",
-        ("--latent-resample-every", "20", "--latent-lam-p", "0.0"),
-        "Latent PPO with sparse strategy refresh but no persistence penalty.",
-    ),
-    Variant(
-        "fixed_latent",
-        "OP3",
-        ("--fixed-latent-strategy", "--fixed-latent-id", "0"),
-        "Latent actor/critic with z clamped to one fixed strategy ID.",
-    ),
-    Variant("k6", "OP3", ("--latent-k", "6"), "Higher-cardinality latent strategy ablation."),
-    Variant(
-        "sparse20",
-        "OP3",
-        ("--latent-resample-every", "20"),
-        "Sparse strategy refresh every 20 decisions with persistence enabled.",
-    ),
-    Variant("op2_comparison", "OP2", (), "OP2-trained comparison checkpoint for held-out generalization tables."),
 )
 
 
@@ -81,15 +73,14 @@ def _command_rows(args: argparse.Namespace) -> list[dict[str, str]]:
         checkpoint_dir = os.path.join(args.checkpoint_root, team)
         for seed in args.seeds:
             for variant in VARIANTS:
-                run_tag = f"phase6_{variant.name}_{variant.fixed_opponent.lower()}_seed{int(seed)}_{team}"
+                opponent_tag = str(variant.fixed_opponent or "op123").lower()
+                run_tag = f"phase6_{variant.name}_{opponent_tag}_seed{int(seed)}_{team}"
                 checkpoint = os.path.join(checkpoint_dir, f"final_{run_tag}.zip")
                 train_parts = [
                     args.python,
                     "rl/train_ppo.py",
                     "--mode",
-                    "FIXED_OPPONENT",
-                    "--fixed-opponent",
-                    variant.fixed_opponent,
+                    variant.mode,
                     "--map-set",
                     "train",
                     "--agents",
@@ -106,6 +97,8 @@ def _command_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                     args.device,
                     *variant.train_flags,
                 ]
+                if variant.fixed_opponent is not None:
+                    train_parts.extend(["--fixed-opponent", variant.fixed_opponent])
                 eval_parts = [
                     args.python,
                     "plot/eval_checkpoint.py",

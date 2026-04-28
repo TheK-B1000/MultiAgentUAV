@@ -4,11 +4,11 @@
 (``latent_resample_every_n=0``, ``latent_resample_on_flag=False``, ``latent_kl_consecutive=0``).
 
 **E3 baseline (fair comparison):** :func:`paper_default_no_latent_config` is
-``replace(paper_default_latent_config(), use_latent_strategy=False)`` so every PPO / env
-hyperparameter matches; only the latent path is off.
+``replace(paper_default_latent_config(), use_latent_strategy=False)`` so the
+Summer default opponent/training setup is held fixed while the latent path is off.
 
-Must-have baselines are also exposed below: flat/no-latent PPO-MARL, latent PPO
-without persistence, and fixed-latent PPO.
+Professor-requested baselines are exposed below: curriculum and no-latent PPO.
+The no-persistence ablation is retained as an optional new-method ablation.
 
 Use a separate run / config when ablating flag-triggered resampling (plan §12).
 """
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from rl.train_ppo import PPOConfig
+from rl.train_ppo import PPOConfig, TrainMode
 
 
 def paper_default_latent_config() -> PPOConfig:
@@ -36,12 +36,36 @@ def paper_default_no_latent_config() -> PPOConfig:
 
 
 def flat_ppo_marl_baseline_config() -> PPOConfig:
-    """Must-have baseline: flat/no-latent PPO-MARL; proves whether latent strategy helps."""
+    """Backward-compatible alias for the fixed-OP3 no-latent baseline."""
     return paper_default_no_latent_config()
 
 
+def curriculum_baseline_config() -> PPOConfig:
+    """Professor-requested baseline: Jacob-style OP1->OP2->OP3 curriculum with latent strategy off."""
+    return replace(
+        paper_default_latent_config(),
+        mode=TrainMode.CURRICULUM.value,
+        use_latent_strategy=False,
+    )
+
+
+def no_latent_baseline_config() -> PPOConfig:
+    """Professor-requested baseline: no-latent PPO under the Summer default fixed-OP3 setting."""
+    return paper_default_no_latent_config()
+
+
+def fixed_opponent_no_latent_config() -> PPOConfig:
+    """Backward-compatible alias for :func:`no_latent_baseline_config`."""
+    return no_latent_baseline_config()
+
+
+def jacob_original_baseline_config() -> PPOConfig:
+    """Legacy Jacob-style control: OP1->OP2->OP3 curriculum with latent strategy disabled."""
+    return curriculum_baseline_config()
+
+
 def latent_no_persistence_baseline_config(*, resample_every: int = 20) -> PPOConfig:
-    """Must-have baseline: latent PPO with refreshes but no persistence penalty."""
+    """Optional new-method ablation: sparse strategy refresh without persistence penalty."""
     return replace(
         paper_default_latent_config(),
         latent_resample_every_n=max(2, int(resample_every)),
@@ -50,7 +74,7 @@ def latent_no_persistence_baseline_config(*, resample_every: int = 20) -> PPOCon
 
 
 def fixed_latent_baseline_config(*, strategy_id: int = 0) -> PPOConfig:
-    """Must-have baseline: latent actor/critic receive one fixed z ID for the whole run."""
+    """Older optional ablation: latent actor/critic receive one fixed z ID for the whole run."""
     return replace(
         paper_default_latent_config(),
         fixed_latent_strategy=True,

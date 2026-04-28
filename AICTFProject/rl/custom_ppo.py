@@ -690,9 +690,11 @@ class CustomPPOTrainer:
         n_epochs: int,
         batch_size: int,
         value_clip_range: Optional[float] = None,
+        curriculum: Optional[Any] = None,
     ) -> None:
         self.env = env
         self.cfg = cfg
+        self.curriculum = curriculum
         self.device = torch.device(str(cfg.device))
         self.use_latent_strategy = bool(getattr(cfg, "use_latent_strategy", False))
         self.latent_k = int(getattr(cfg, "latent_k", 4)) if self.use_latent_strategy else 0
@@ -868,6 +870,7 @@ class CustomPPOTrainer:
             "policy_update",
             "rollout_step",
             "latent_z",
+            "curriculum_phase",
             "mode",
             "map_set",
             "opponent",
@@ -937,6 +940,10 @@ class CustomPPOTrainer:
             "strategy_switch_count",
             "strategy_switch_fraction",
             "strategy_resample_fraction_rollout",
+            "curriculum_phase",
+            "curriculum_phase_idx",
+            "curriculum_phase_episodes",
+            "curriculum_phase_win_rate",
         ]
         if self.use_latent_strategy:
             fields.append("strategy_kl")
@@ -972,6 +979,7 @@ class CustomPPOTrainer:
             "policy_update": int(self._updates_completed),
             "rollout_step": "" if rollout_step is None else int(rollout_step),
             "latent_z": "" if latent_z is None else int(latent_z),
+            "curriculum_phase": str(info.get("phase", "")),
             "mode": str(getattr(self.cfg, "mode", "FIXED_OPPONENT")),
             "map_set": str(info.get("map_set", getattr(self.cfg, "map_set", "train"))).lower(),
             "opponent": self._opponent_legend(info),
@@ -1079,6 +1087,15 @@ class CustomPPOTrainer:
             "explained_variance": self._explained_variance(values, returns),
         }
         row.update(self._rollout_episode_summary())
+        if self.curriculum is not None:
+            row.update(
+                {
+                    "curriculum_phase": str(self.curriculum.phase),
+                    "curriculum_phase_idx": int(self.curriculum.phase_idx),
+                    "curriculum_phase_episodes": int(self.curriculum.phase_episode_count),
+                    "curriculum_phase_win_rate": float(self.curriculum.phase_winrate()),
+                }
+            )
         for key in (
             "reward_terminal",
             "reward_offense",
@@ -1106,6 +1123,39 @@ class CustomPPOTrainer:
             return f"SNAPSHOT:{snap}" if snap else "SNAPSHOT:unknown"
         return f"{kind.upper()}:?"
 
+    def _set_curriculum_opponent(self, phase: str, env_index: Optional[int] = None) -> None:
+        phase_s = str(phase).upper()
+        indices = None if env_index is None else [int(env_index)]
+        try:
+            self.env.env_method("set_next_opponent", "SCRIPTED", phase_s, indices=indices)
+            self.env.env_method("set_phase", phase_s, indices=indices)
+        except Exception:
+            if indices is not None:
+                self.env.env_method("set_next_opponent", "SCRIPTED", phase_s)
+                self.env.env_method("set_phase", phase_s)
+
+    def _update_curriculum_after_episode(self, *, info: dict[str, Any], blue_score: int, red_score: int, env_index: Optional[int]) -> None:
+        if self.curriculum is None:
+            return
+        episode_phase = str(info.get("phase", self.curriculum.phase)).upper()
+        old_phase = str(self.curriculum.phase).upper()
+        win_value = 1.0 if int(blue_score) > int(red_score) else 0.0
+        if episode_phase != old_phase:
+            self.curriculum.record_result(episode_phase, win_value)
+            self._set_curriculum_opponent(old_phase, env_index)
+            return
+        self.curriculum.phase_episode_count += 1
+        self.curriculum.record_result(old_phase, win_value)
+        advanced = self.curriculum.advance_if_ready(win_by=int(blue_score) - int(red_score))
+        new_phase = str(self.curriculum.phase).upper()
+        if advanced:
+            wr = 100.0 * float(self.curriculum.phase_winrate(old_phase))
+            print(
+                f"[PPO] Curriculum advanced: {old_phase} -> {new_phase} "
+                f"after episode {self._episodes_completed} (gate_wr={wr:.1f}%)."
+            )
+        self._set_curriculum_opponent(new_phase, env_index)
+
     def _on_episode_done(
         self,
         info: dict[str, Any],
@@ -1113,6 +1163,7 @@ class CustomPPOTrainer:
         timestep: Optional[int] = None,
         rollout_step: Optional[int] = None,
         latent_z: Optional[int] = None,
+        env_index: Optional[int] = None,
     ) -> None:
         er = info.get("episode_result")
         if isinstance(er, dict):
@@ -1145,6 +1196,7 @@ class CustomPPOTrainer:
             rollout_step=rollout_step,
             latent_z=latent_z,
         )
+        self._update_curriculum_after_episode(info=info, blue_score=bs, red_score=rs, env_index=env_index)
         every = int(getattr(self.cfg, "episode_log_every", 0) or 0)
         if every > 0 and self._episodes_completed % every == 0:
             self._print_episode_progress(info)
@@ -1158,6 +1210,7 @@ class CustomPPOTrainer:
         print(
             f"[PPO] ep={n} mode={mode} opp={opp} "
             f"W={w} L={l} D={d} WR={wr:.1f}%"
+            + (f" phase={self.curriculum.phase}" if self.curriculum is not None else "")
         )
 
     def _tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
@@ -1425,6 +1478,7 @@ class CustomPPOTrainer:
                         timestep=step_after,
                         rollout_step=step_idx + 1,
                         latent_z=latent_z,
+                        env_index=env_i,
                     )
             next_global_state = self.env.state().astype(np.float32)
             next_values_t = self._next_values(infos, next_global_state, next_obs=next_obs, prev_z=z_t)

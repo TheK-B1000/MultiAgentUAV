@@ -112,14 +112,12 @@ L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))
 
 `L_persist` is masked off for the initial strategy sample and applies only to later refreshes. With `latent_resample_every_n = 0` and no event-based resampling, there are no later refreshes in an episode, so the persistence term is zero. Minimization of `L` with a negative `lambda_H * H` term on strategy entropy is equivalent to rewarding higher strategy entropy.
 
-**Experiments (paper E3 / controls):** the decisive latent-vs-non-latent comparison should be identical PPO and environment settings with only latent strategy on vs off (`--no-latent-strategy`). Opponent tags and phases are not supervision targets for `z`.
+**Experiments (paper E3 / controls):** the default run is the Summer latent implementation under `--mode FIXED_OPPONENT --fixed-opponent OP3`: latent strategy enabled, episode-start `z`, and no optional Section 12 extras. The curriculum baseline uses `--mode CURRICULUM` so training follows Jacob et al.'s OP1/OP2/OP3 scripted-opponent progression; curriculum mode always disables latent strategy. Opponent tags and phases are not supervision targets for `z`.
 
-Must-have baselines are:
+Professor-requested baselines are:
 
-- `flat_ppo_marl`: disables the latent strategy path with `--no-latent-strategy`.
-- `latent_no_persistence`: keeps latent strategy refreshes but uses `--latent-lam-p 0.0`; the phase 6 matrix pairs this with `--latent-resample-every 20` so the persistence term is actually exercised.
-- `fixed_latent`: keeps latent actor/critic conditioning but clamps all decisions to one fixed strategy ID with `--fixed-latent-strategy --fixed-latent-id 0`, bypassing `q_phi` sampling/losses.
-- `k6`: the supported higher-cardinality ablation, replacing the older invalid `K=2` row because the trainer validates `latent_k in {4, 6}`.
+- `curriculum`: disables latent strategy and trains with the OP1/OP2/OP3 curriculum.
+- `no_latent`: disables the latent strategy path with `--no-latent-strategy` while keeping the Summer default fixed-OP3 opponent setting.
 
 ## Strategy Diagnostics
 
@@ -141,4 +139,4 @@ Trainer checkpoints also persist rollout-level `last_stats` with strategy occupa
 - Per-update metrics: PPO losses, KL, entropy, rollout reward/return summaries, cumulative W/L/D, cumulative win rate, and strategy rollout diagnostics.
 - Per-episode metrics: score, success, decision steps, opponent labels, and environment episode fields.
 
-`plot/eval_checkpoint.py` evaluates any single checkpoint against OP3/OP4 or another scripted opponent list on one or more map splits and writes per-episode plus aggregate CSVs. `experiments/phase6_experiment_matrix.py` generates the reproducible final experiment commands for default latent, vanilla, persistence, K, sparse-refresh, OP2-trained comparison, and train-vs-held-out-map generalization variants.
+`plot/eval_checkpoint.py` evaluates any single checkpoint against OP3/OP4 or another scripted opponent list on one or more map splits and writes per-episode plus aggregate CSVs. `experiments/phase6_experiment_matrix.py` generates the reproducible final experiment commands for default latent, curriculum, no-latent, and train-vs-held-out-map generalization variants.

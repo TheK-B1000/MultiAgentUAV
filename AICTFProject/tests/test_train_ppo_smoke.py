@@ -107,6 +107,28 @@ class TrainPpoSmokeTests(unittest.TestCase):
     def test_train_ppo_smoke_custom_few_steps(self) -> None:
         _run_smoke_and_cleanup(tag="unittest_smoke_custom_ppo_2v2")
 
+    def test_train_ppo_curriculum_starts_at_op1(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_curriculum_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.mode = "CURRICULUM"
+        cfg.use_latent_strategy = False
+        cfg.n_steps = 4
+        cfg.total_timesteps = 4
+        cfg.max_decision_steps = 1
+        final_zip = _WORKSPACE_TMP / f"final_{tag}.zip"
+        episode_csv = _WORKSPACE_TMP / f"{tag}_episodes.csv"
+        try:
+            train_ppo(cfg)
+            self.assertTrue(final_zip.is_file())
+            with episode_csv.open(newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertGreaterEqual(len(rows), 1)
+            self.assertEqual(rows[0]["opponent"], "SCRIPTED:OP1")
+            self.assertEqual(rows[0]["curriculum_phase"], "OP1")
+        finally:
+            _cleanup_training_outputs(tag)
+
     def test_train_ppo_smoke_latent_strategy(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
         tag = "unittest_smoke_latent_ppo_2v2"

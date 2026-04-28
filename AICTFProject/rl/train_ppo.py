@@ -20,6 +20,7 @@ import torch
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig, VEC_OBS_DIM
 from opponent_params import sample_batched_opponent_params
 from rl.custom_ppo import CustomPPOTrainer
+from rl.curriculum import CurriculumState, jacob_paper_curriculum_state, phase_from_tag
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
 
@@ -40,6 +41,9 @@ def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = Fa
 
 class TrainMode(str, Enum):
     FIXED_OPPONENT = "FIXED_OPPONENT"
+    CURRICULUM = "CURRICULUM"
+    # Backward-compatible alias for old configs/commands.
+    CURRICULUM_NO_LEAGUE = "CURRICULUM"
 
 
 @dataclass
@@ -111,8 +115,17 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg = cfg or PPOConfig()
 
     cfg.mode = _normalize_train_mode(cfg.mode)
-    if cfg.mode != TrainMode.FIXED_OPPONENT.value:
-        raise ValueError("The local PPO trainer currently supports FIXED_OPPONENT training.")
+    supported_modes = {TrainMode.FIXED_OPPONENT.value, TrainMode.CURRICULUM.value}
+    if cfg.mode not in supported_modes:
+        raise ValueError(
+            "The local PPO trainer currently supports FIXED_OPPONENT and "
+            "CURRICULUM training."
+        )
+    if cfg.mode == TrainMode.CURRICULUM.value:
+        if bool(getattr(cfg, "use_latent_strategy", False)) or bool(getattr(cfg, "fixed_latent_strategy", False)):
+            print("[PPO] Curriculum mode is the Jacob paper baseline; forcing latent strategy OFF.")
+        cfg.use_latent_strategy = False
+        cfg.fixed_latent_strategy = False
 
     if bool(getattr(cfg, "use_latent_strategy", False)):
         k = int(getattr(cfg, "latent_k", 4))
@@ -136,12 +149,36 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     max_agents = max(1, int(getattr(cfg, "max_blue_agents", 2)))
     team_size = _agents_suffix(max_agents)
+    curriculum: CurriculumState | None = None
+    initial_opponent_tag = str(cfg.fixed_opponent_tag).upper()
+    initial_phase = phase_from_tag(initial_opponent_tag)
+    if cfg.mode == TrainMode.CURRICULUM.value:
+        curriculum = jacob_paper_curriculum_state(max_agents)
+        initial_opponent_tag = curriculum.phase
+        initial_phase = curriculum.phase
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={cfg.mode} | run_tag={cfg.run_tag!r}")
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
     print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
     print(f"[PPO] Actor CNN feature dim: {int(getattr(cfg, 'actor_cnn_feature_dim', 128))}")
     print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
+    if curriculum is not None:
+        print("[PPO] Training profile: curriculum baseline")
+    elif bool(getattr(cfg, "use_latent_strategy", False)):
+        print("[PPO] Training profile: default latent (Summer implementation)")
+    else:
+        print("[PPO] Training profile: no-latent baseline")
+    if curriculum is not None:
+        print(
+            "[PPO] Jacob paper curriculum: enabled "
+            "(SCRIPTED:OP1 -> SCRIPTED:OP2 -> SCRIPTED:OP3; scripted-only curriculum)."
+        )
+        print(
+            "[PPO] Curriculum gates: "
+            f"min_episodes={curriculum.config.min_episodes}, "
+            f"min_winrate={curriculum.config.min_winrate}, "
+            f"windows={curriculum.config.winrate_window_by_phase}."
+        )
     if bool(cfg.use_latent_strategy):
         interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
         fixed = bool(getattr(cfg, "fixed_latent_strategy", False))
@@ -173,9 +210,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[PPO] Metrics CSV logging disabled.")
     elog = int(getattr(cfg, "episode_log_every", 0) or 0)
     if elog > 0:
+        mode_label = "curriculum phase" if curriculum is not None else "scripted opponent tag"
+        tag_label = initial_opponent_tag if curriculum is not None else str(cfg.fixed_opponent_tag).upper()
         print(
             f"[PPO] Episode stats: every {elog} completed episode(s) print W/L/D and WR "
-            f"(mode={cfg.mode}, scripted opponent tag={str(cfg.fixed_opponent_tag).upper()})."
+            f"(mode={cfg.mode}, {mode_label}={tag_label})."
         )
     else:
         print("[PPO] Episode stats logging disabled (episode_log_every=0).")
@@ -206,9 +245,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     try:
         env.env_method("set_stress_schedule", STRESS_BY_PHASE)
         env.env_method("set_dynamics_config", {"rules_profile": "OURS"})
-        env.env_method("set_phase", str(cfg.fixed_opponent_tag).upper())
-        env.env_method("set_next_opponent", "SCRIPTED", str(cfg.fixed_opponent_tag).upper())
-        _apply_initial_opponent_params(env, cfg, gpu_cfg)
+        env.env_method("set_phase", initial_phase)
+        env.env_method("set_next_opponent", "SCRIPTED", initial_opponent_tag)
+        _apply_initial_opponent_params(env, cfg, gpu_cfg, opponent_tag=initial_opponent_tag, phase=initial_phase)
 
         learning_rate = float(cfg.learning_rate)
         ent_coef = float(cfg.ent_coef)
@@ -244,6 +283,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             n_epochs=n_epochs,
             batch_size=batch_size,
             value_clip_range=getattr(cfg, "clip_range_vf", clip_range),
+            curriculum=curriculum,
         )
         if cfg.load_path and os.path.isfile(cfg.load_path):
             print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
@@ -263,12 +303,21 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         env.close()
 
 
-def _apply_initial_opponent_params(env: GPUCTFVecEnv, cfg: PPOConfig, gpu_cfg: GPUFieldConfig) -> None:
+def _apply_initial_opponent_params(
+    env: GPUCTFVecEnv,
+    cfg: PPOConfig,
+    gpu_cfg: GPUFieldConfig,
+    *,
+    opponent_tag: str | None = None,
+    phase: str | None = None,
+) -> None:
     try:
+        key = str(opponent_tag or cfg.fixed_opponent_tag).upper()
+        phase_key = str(phase or phase_from_tag(key)).upper()
         opp_params = sample_batched_opponent_params(
             kind="SCRIPTED",
-            key=str(cfg.fixed_opponent_tag).upper(),
-            phase=str(cfg.fixed_opponent_tag).upper(),
+            key=key,
+            phase=phase_key,
             n_agents=gpu_cfg.max_red_agents,
             batch_size=gpu_cfg.n_envs,
             device=gpu_cfg.device,
@@ -342,8 +391,16 @@ def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
 
 def _normalize_train_mode(mode: str) -> str:
     raw = str(mode).upper().strip()
-    aliases = {"FIXED": TrainMode.FIXED_OPPONENT.value, "FIXED_OPPONENT": TrainMode.FIXED_OPPONENT.value}
-    removed = {"LEAGUE", "CURRICULUM_LEAGUE", "PAPER", "NO_LEAGUE", "CURRICULUM_NO_LEAGUE", "SELF_PLAY"}
+    aliases = {
+        "FIXED": TrainMode.FIXED_OPPONENT.value,
+        "FIXED_OPPONENT": TrainMode.FIXED_OPPONENT.value,
+        "PAPER": TrainMode.CURRICULUM.value,
+        "NO_LEAGUE": TrainMode.CURRICULUM.value,
+        "CURRICULUM": TrainMode.CURRICULUM.value,
+        "CURRICULUM_NO_LEAGUE": TrainMode.CURRICULUM.value,
+        "JACOB": TrainMode.CURRICULUM.value,
+    }
+    removed = {"LEAGUE", "CURRICULUM_LEAGUE", "SELF_PLAY"}
     if raw in removed:
         print(f"[PPO] Train mode {raw!r} is not in the local PPO audit path; using FIXED_OPPONENT.")
         return TrainMode.FIXED_OPPONENT.value
@@ -359,6 +416,8 @@ def _default_run_tag_for_mode(
 ) -> str:
     suffix = _agents_suffix(n_agents)
     family = "ppo_latent" if latent else "ppo_custom"
+    if _normalize_train_mode(mode) == TrainMode.CURRICULUM.value:
+        return f"{family}_curriculum_{suffix}"
     if _normalize_train_mode(mode) == TrainMode.FIXED_OPPONENT.value:
         return f"{family}_fixed_{fixed_opponent_tag.lower()}_{suffix}"
     return f"{family}_{suffix}"
@@ -374,7 +433,12 @@ if __name__ == "__main__":
     else:
         parser = argparse.ArgumentParser(description="Train custom PPO/MAPPO for CTF")
         parser.add_argument("--seed", type=int, default=None)
-        parser.add_argument("--mode", type=str, default=None)
+        parser.add_argument(
+            "--mode",
+            type=str,
+            default=None,
+            help="Training mode: FIXED_OPPONENT, or CURRICULUM for OP1->OP2->OP3.",
+        )
         parser.add_argument("--run-tag", type=str, default=None)
         parser.add_argument("--total-steps", type=int, default=None)
         parser.add_argument("--checkpoint-dir", type=str, default=None)

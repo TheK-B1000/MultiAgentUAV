@@ -15,28 +15,28 @@ def _variant(name: str):
 
 
 class Phase6ExperimentMatrixTests(unittest.TestCase):
-    def test_must_have_baselines_are_named_explicitly(self) -> None:
+    def test_professor_requested_baselines_are_named_explicitly(self) -> None:
         names = {variant.name for variant in VARIANTS}
-        self.assertIn("flat_ppo_marl", names)
-        self.assertIn("latent_no_persistence", names)
-        self.assertIn("fixed_latent", names)
+        self.assertIn("curriculum", names)
+        self.assertIn("no_latent", names)
 
-        self.assertEqual(_variant("flat_ppo_marl").train_flags, ("--no-latent-strategy",))
-        self.assertEqual(
-            _variant("latent_no_persistence").train_flags,
-            ("--latent-resample-every", "20", "--latent-lam-p", "0.0"),
-        )
-        self.assertEqual(
-            _variant("fixed_latent").train_flags,
-            ("--fixed-latent-strategy", "--fixed-latent-id", "0"),
-        )
+        self.assertEqual(_variant("latent_default").mode, "FIXED_OPPONENT")
+        self.assertEqual(_variant("latent_default").fixed_opponent, "OP3")
+        self.assertEqual(_variant("latent_default").train_flags, ())
+        self.assertEqual(_variant("curriculum").mode, "CURRICULUM")
+        self.assertEqual(_variant("curriculum").train_flags, ("--no-latent-strategy",))
+        self.assertEqual(_variant("no_latent").mode, "FIXED_OPPONENT")
+        self.assertEqual(_variant("no_latent").fixed_opponent, "OP3")
+        self.assertEqual(_variant("no_latent").train_flags, ("--no-latent-strategy",))
 
-    def test_k_ablation_matches_trainer_validation(self) -> None:
+    def test_removed_extra_ablations_stay_out_of_final_matrix(self) -> None:
         flags = [flag for variant in VARIANTS for flag in variant.train_flags]
-        self.assertNotIn("2", _variant("k6").train_flags)
-        self.assertNotIn("k2", {variant.name for variant in VARIANTS})
-        self.assertNotEqual(flags[flags.index("--latent-k") + 1], "2")
-        self.assertEqual(_variant("k6").train_flags, ("--latent-k", "6"))
+        names = {variant.name for variant in VARIANTS}
+        self.assertNotIn("fixed_latent", names)
+        self.assertNotIn("k6", names)
+        self.assertNotIn("sparse20", names)
+        self.assertNotIn("latent_no_persistence", names)
+        self.assertNotIn("--latent-k", flags)
 
 
 if __name__ == "__main__":
