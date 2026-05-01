@@ -70,6 +70,24 @@ Short smoke run:
 python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --total-steps 128 --checkpoint-dir checkpoints/smoke --run-tag smoke_2v2
 ```
 
+Domain-randomization sanity run:
+
+```bash
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --total-steps 200000 --domain-randomization --run-tag dr_sanity_2v2
+```
+
+Domain randomization is episode-level and training-only by default. Current knobs sample enemy-observation position noise, enemy-detection dropout, and a blue-team speed scale from `U(1-jitter, 1)` on each reset. The speed randomization is intentionally slowdown-only because the integrator still enforces the marine speed cap. It is also asymmetric: perturbations apply to the learning blue policy, while the scripted OP3 opponent is left unperturbed. Note this as "learning-agent DR only"; symmetric DR is a future variant, not part of the current minimal implementation.
+
+Full protocol (trajectory interpretation, `q_phi` under DR, critic expectations, no-latent stress test): **`docs/METHODOLOGY_DOMAIN_RANDOMIZATION.md`**.
+
+Before a long DR run, use a 200k sanity check. If rollout WR is above roughly 50% and still climbing, keep the defaults (`noise=0.12`, `dropout=0.08`, `speed jitter=0.12`). If WR collapses near 40% and stays there, halve the DR knobs. If it matches the non-DR curve too closely, the defaults are probably too weak.
+
+After a 1M DR checkpoint, compare robustness curves for the non-DR and DR checkpoints by sweeping noise/dropout/jitter. Keep eval-time DR off for clean baseline comparisons, then run explicit perturbation sweeps to show where each policy's WR cliff occurs. Also train a no-latent PPO with the same DR settings as an early baseline:
+
+```bash
+python rl/train_ppo.py --mode FIXED_OPPONENT --fixed-opponent OP3 --agents 2 --total-steps 200000 --domain-randomization --no-latent-strategy --run-tag dr_no_latent_sanity_2v2
+```
+
 Checkpoints are torch checkpoints saved with the historical `.zip` suffix, for example `checkpoints/2v2/final_ppo_latent_fixed_op3_2v2.zip`.
 
 Training also writes CSV telemetry by default:

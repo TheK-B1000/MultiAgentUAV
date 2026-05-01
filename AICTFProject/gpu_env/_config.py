@@ -87,6 +87,15 @@ class GPUFieldConfig:
     sensor_range_cells: float = 9999.0
     sensor_noise_sigma_cells: float = 0.0
     sensor_dropout_prob: float = 0.0
+    # Episode-level domain randomization (training). When True, per-env runtime tensors
+    # are resampled on each reset; eval / benchmarking should leave this False.
+    train_domain_randomization: bool = False
+    # Uniform [0, max] per episode for enemy-position noise in grid obs (map cells).
+    dr_sensor_noise_sigma_max: float = 0.12
+    # Uniform [0, max] dropout probability for in-range enemy detections.
+    dr_sensor_dropout_max: float = 0.08
+    # Uniform [1-jitter, 1] blue-team speed cap multiplier vs cfg.max_speed_cps (marine cap still applies).
+    dr_blue_speed_jitter: float = 0.12
     suppression_range_cells: float = 2.0
     # Local tag radius (in map cells) used by Aquaticus-style tagging.
     tag_range_cells: float = 2.5

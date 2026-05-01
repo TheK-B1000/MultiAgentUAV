@@ -122,6 +122,13 @@ class PPOConfig:
     # Optional §12: KL( q_\phi(s_t) || q_\phi(s_{t-1}) ) on consecutive time steps; 0 = off (ablation only).
     latent_kl_consecutive: float = 0.0
 
+    # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
+    # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.
+    train_domain_randomization: bool = False
+    dr_sensor_noise_sigma_max: float = 0.12
+    dr_sensor_dropout_max: float = 0.08
+    dr_blue_speed_jitter: float = 0.12
+
 
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     """Run the default local PPO/MAPPO training path."""
@@ -175,6 +182,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
     print(f"[PPO] Actor CNN feature dim: {int(getattr(cfg, 'actor_cnn_feature_dim', 128))}")
     print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
+    if bool(getattr(cfg, "train_domain_randomization", False)):
+        print(
+            "[PPO] Domain randomization: ON "
+            f"(sensor_noise_sigma max={float(getattr(cfg, 'dr_sensor_noise_sigma_max', 0.0)):.3f}, "
+            f"sensor_dropout max={float(getattr(cfg, 'dr_sensor_dropout_max', 0.0)):.3f}, "
+            f"blue_speed_jitter={float(getattr(cfg, 'dr_blue_speed_jitter', 0.0)):.3f}; "
+            "blue-policy side only, slowdown-only speed scale)"
+        )
     if curriculum is not None:
         print("[PPO] Training profile: curriculum baseline")
     elif bool(getattr(cfg, "use_latent_strategy", False)):
@@ -260,6 +275,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         rules_profile="OURS",
         device=str(cfg.device),
         seed=int(cfg.seed),
+        train_domain_randomization=bool(getattr(cfg, "train_domain_randomization", False)),
+        dr_sensor_noise_sigma_max=float(getattr(cfg, "dr_sensor_noise_sigma_max", 0.12)),
+        dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
+        dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
     )
     env = GPUCTFVecEnv(gpu_cfg)
     try:
@@ -571,6 +590,29 @@ if __name__ == "__main__":
             help="Weight for consecutive-step KL on q_phi logits (0=off; optional plan §12).",
         )
         parser.add_argument(
+            "--domain-randomization",
+            action="store_true",
+            help="Enable episode-level domain randomization (obs noise/dropout, blue speed jitter).",
+        )
+        parser.add_argument(
+            "--dr-sensor-noise-max",
+            type=float,
+            default=None,
+            help="Max enemy obs position noise (map cells) per episode when domain randomization is on.",
+        )
+        parser.add_argument(
+            "--dr-sensor-dropout-max",
+            type=float,
+            default=None,
+            help="Max in-range enemy dropout probability per episode when domain randomization is on.",
+        )
+        parser.add_argument(
+            "--dr-blue-speed-jitter",
+            type=float,
+            default=None,
+            help="Blue max-speed scale draws from U(1-j,1) per episode (slowdown-only; marine speed cap unchanged).",
+        )
+        parser.add_argument(
             "--latent-z-embed-dim",
             type=int,
             default=None,
@@ -639,6 +681,14 @@ if __name__ == "__main__":
             cfg.latent_resample_on_flag = True
         if args.latent_kl_consecutive is not None:
             cfg.latent_kl_consecutive = max(0.0, float(args.latent_kl_consecutive))
+        if args.domain_randomization:
+            cfg.train_domain_randomization = True
+        if args.dr_sensor_noise_max is not None:
+            cfg.dr_sensor_noise_sigma_max = max(0.0, float(args.dr_sensor_noise_max))
+        if args.dr_sensor_dropout_max is not None:
+            cfg.dr_sensor_dropout_max = max(0.0, min(1.0, float(args.dr_sensor_dropout_max)))
+        if args.dr_blue_speed_jitter is not None:
+            cfg.dr_blue_speed_jitter = max(0.0, min(0.75, float(args.dr_blue_speed_jitter)))
         if args.latent_z_embed_dim is not None:
             cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
         if args.latent_vf_hidden is not None:

@@ -107,7 +107,8 @@ class _StepMixin:
         return {"btx": btx, "bty": bty, "rtx": rtx, "rty": rty, "red_macro": red_macro, "red_control_mask": red_control_mask}
 
     def _advance_dynamics_phase(self, targets: Dict[str, torch.Tensor], snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps))
+        bscale = self.rt_blue_speed_scale.reshape(self.B, 1).expand_as(self.blue_speed)
+        blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps)) * bscale
         B = self.B
         rm = self.red_speed_mult.reshape(-1).to(device=self.red_speed.device, dtype=self.red_speed.dtype)
         if rm.numel() < B:

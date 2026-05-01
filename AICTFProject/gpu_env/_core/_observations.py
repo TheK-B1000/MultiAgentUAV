@@ -76,13 +76,25 @@ class _ObservationsMixin:
                 dy = enemy_y - own_y[:, i : i + 1]
                 dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
                 in_range = dist <= float(self.cfg.sensor_range_cells)
-                if self.cfg.sensor_dropout_prob > 0.0:
-                    drop = torch.rand(in_range.shape, generator=self._rng, device=self.device) < float(self.cfg.sensor_dropout_prob)
+                p_drop = self.rt_sensor_dropout_prob[:, None]
+                if float(self.rt_sensor_dropout_prob.max().item()) > 0.0:
+                    drop = torch.rand(in_range.shape, generator=self._rng, device=self.device) < p_drop
                     in_range = in_range & (~drop)
                 elive = elive & in_range
-                if self.cfg.sensor_noise_sigma_cells > 0.0:
-                    ex = torch.clamp(ex + self._randn(ex.shape) * float(self.cfg.sensor_noise_sigma_cells), 0.0, float(max(0, self.cols - 1)))
-                    ey = torch.clamp(ey + self._randn(ey.shape) * float(self.cfg.sensor_noise_sigma_cells), 0.0, float(max(0, self.rows - 1)))
+                sigma = self.rt_sensor_noise_sigma_cells[:, None]
+                if float(self.rt_sensor_noise_sigma_cells.max().item()) > 0.0:
+                    ex = torch.clamp(ex + self._randn(ex.shape) * sigma, 0.0, float(max(0, self.cols - 1)))
+                    ey = torch.clamp(ey + self._randn(ey.shape) * sigma, 0.0, float(max(0, self.rows - 1)))
+            else:
+                # Unlimited range (typical training): still apply per-episode obs jitter when sampled.
+                p_drop = self.rt_sensor_dropout_prob[:, None]
+                if float(self.rt_sensor_dropout_prob.max().item()) > 0.0:
+                    drop = torch.rand(elive.shape, generator=self._rng, device=self.device) < p_drop
+                    elive = elive & (~drop)
+                sigma = self.rt_sensor_noise_sigma_cells[:, None]
+                if float(self.rt_sensor_noise_sigma_cells.max().item()) > 0.0:
+                    ex = torch.clamp(ex + self._randn(ex.shape) * sigma, 0.0, float(max(0, self.cols - 1)))
+                    ey = torch.clamp(ey + self._randn(ey.shape) * sigma, 0.0, float(max(0, self.rows - 1)))
             self._scatter_points(grid[:, i], 2, ex, ey, elive)
             self._scatter_points(grid[:, i], 3, own_mine_x_obs, own_mine_y, own_mine_active)
             self._scatter_points(grid[:, i], 4, pickup_x_obs, self.pickup_y, self.pickup_active)

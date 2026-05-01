@@ -156,6 +156,9 @@ class _StateMixin:
     def _alloc_runtime_buffers(self, B: int, Nb: int, Nr: int, dev: torch.device, f32: torch.dtype) -> None:
         self.rt_current_strength_cps = torch.full((B,), float(self.cfg.current_strength_cps), dtype=f32, device=dev)
         self.rt_drift_sigma_cells = torch.full((B,), float(self.cfg.drift_sigma_cells), dtype=f32, device=dev)
+        self.rt_sensor_noise_sigma_cells = torch.full((B,), float(self.cfg.sensor_noise_sigma_cells), dtype=f32, device=dev)
+        self.rt_sensor_dropout_prob = torch.full((B,), float(self.cfg.sensor_dropout_prob), dtype=f32, device=dev)
+        self.rt_blue_speed_scale = torch.ones((B,), dtype=f32, device=dev)
         self._last_dense_progress = torch.zeros((B,), dtype=f32, device=dev)
         # Scripted-opponent behavior knobs (batched).
         self.red_deception_prob = torch.zeros((B,), dtype=f32, device=dev)
@@ -377,6 +380,27 @@ class _StateMixin:
         self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
+        self._apply_train_domain_randomization(env_mask)
+
+    def _apply_train_domain_randomization(self, env_mask: torch.Tensor) -> None:
+        """Resample per-episode sim/observation jitter for masked env rows."""
+        idx = torch.where(env_mask)[0]
+        if idx.numel() == 0:
+            return
+        if bool(getattr(self.cfg, "train_domain_randomization", False)):
+            hi_n = max(0.0, float(getattr(self.cfg, "dr_sensor_noise_sigma_max", 0.0)))
+            hi_d = max(0.0, min(1.0, float(getattr(self.cfg, "dr_sensor_dropout_max", 0.0))))
+            jit = max(0.0, min(0.75, float(getattr(self.cfg, "dr_blue_speed_jitter", 0.0))))
+            self.rt_sensor_noise_sigma_cells[idx] = self._rand_uniform((idx.numel(),), 0.0, hi_n)
+            self.rt_sensor_dropout_prob[idx] = self._rand_uniform((idx.numel(),), 0.0, hi_d)
+            lo_s = max(0.5, 1.0 - jit)
+            hi_s = 1.0
+            self.rt_blue_speed_scale[idx] = self._rand_uniform((idx.numel(),), lo_s, hi_s)
+            return
+        # Eval / default: follow static cfg fields (and disable speed jitter).
+        self.rt_sensor_noise_sigma_cells[idx] = float(self.cfg.sensor_noise_sigma_cells)
+        self.rt_sensor_dropout_prob[idx] = float(self.cfg.sensor_dropout_prob)
+        self.rt_blue_speed_scale[idx] = 1.0
 
     # env_method-compatible setters
     def _normalize_env_indices(self, env_indices: Optional[Sequence[int]] = None) -> torch.Tensor:
