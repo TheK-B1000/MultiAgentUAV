@@ -58,8 +58,11 @@ class PPOConfig:
     gae_lambda: float = 0.99
     clip_range: float = 0.25
     clip_range_vf: Optional[float] = 0.2
+    vf_coef: float = 1.0
+    normalize_returns: bool = False
     ent_coef: float = 0.01
     learning_rate: float = 5e-4
+    lr_floor_frac: float = 0.1
     max_grad_norm: float = 0.5
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -101,6 +104,12 @@ class PPOConfig:
     latent_entropy_objective: Literal["maximize", "minimize", "none"] = "maximize"
     latent_lam_h: float = 0.005
     latent_lam_p: float = 0.02
+    # A1: clipped PPO/REINFORCE-style update for sampled z. Kept low because z operates at episode cadence.
+    latent_strategy_ppo_coef: float = 0.1
+    # A2 (opt-in): train q_phi from normalized episode/rollout returns through a small Q head.
+    latent_strategy_q_head: bool = False
+    latent_strategy_q_coef: float = 1.0
+    latent_strategy_tau: float = 1.0
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
     # Baseline: keep latent actor/critic plumbing, but clamp every rollout to one strategy ID.
@@ -172,6 +181,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[PPO] Training profile: default latent (Summer implementation)")
     else:
         print("[PPO] Training profile: no-latent baseline")
+    if bool(getattr(cfg, "normalize_returns", False)):
+        print("[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.")
     if curriculum is not None:
         print(
             "[PPO] Jacob paper curriculum: enabled "
@@ -191,12 +202,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
         fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
         h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
+        q_head = bool(getattr(cfg, "latent_strategy_q_head", False))
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
             f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f} "
             f"(H:{h_obj}), "
-            f"lambda_KL={lam_kl:.4f}{fixed_label})"
+            f"lambda_KL={lam_kl:.4f}, strategy_ppo_coef={float(cfg.latent_strategy_ppo_coef):.3f}, "
+            f"q_head={q_head}, q_coef={float(cfg.latent_strategy_q_coef):.3f}, "
+            f"tau={float(cfg.latent_strategy_tau):.3f}{fixed_label})"
         )
         if fixed:
             print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
@@ -452,6 +466,27 @@ if __name__ == "__main__":
         parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")
         parser.add_argument("--no-metrics-csv", action="store_true", help="Disable training CSV telemetry.")
         parser.add_argument("--load", type=str, default=None)
+        parser.add_argument("--learning-rate", type=float, default=None, help="PPO learning rate.")
+        parser.add_argument(
+            "--lr-floor-frac",
+            type=float,
+            default=None,
+            help="Minimum fraction of the base learning rate used by the linear schedule.",
+        )
+        parser.add_argument("--target-kl", type=float, default=None, help="PPO target KL; negative disables early stopping.")
+        parser.add_argument("--n-epochs", type=int, default=None, help="Number of PPO optimization epochs per rollout.")
+        parser.add_argument(
+            "--clip-range-vf",
+            type=float,
+            default=None,
+            help="Value-function clip range; negative disables value clipping.",
+        )
+        parser.add_argument("--vf-coef", type=float, default=None, help="Value-function loss coefficient.")
+        parser.add_argument(
+            "--return-normalization",
+            action="store_true",
+            help="Train critic on normalized returns while denormalizing values for GAE/advantages.",
+        )
         parser.add_argument("--fixed-opponent", type=str, default="OP3")
         parser.add_argument("--map-set", type=str, choices=["train", "eval"], default=None)
         parser.add_argument("--agents", type=int, choices=[2, 4, 6, 8], default=None)
@@ -495,6 +530,29 @@ if __name__ == "__main__":
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy weight (see --latent-entropy-objective).")
         parser.add_argument(
+            "--latent-strategy-ppo-coef",
+            type=float,
+            default=None,
+            help="Coefficient for the sampled-z clipped PPO strategy loss.",
+        )
+        parser.add_argument(
+            "--latent-strategy-q-head",
+            action="store_true",
+            help="Enable A2 Q-head supervision for q_phi using normalized sampled-strategy returns.",
+        )
+        parser.add_argument(
+            "--latent-strategy-q-coef",
+            type=float,
+            default=None,
+            help="Coefficient for the A2 sampled-strategy Q-head MSE loss.",
+        )
+        parser.add_argument(
+            "--latent-strategy-tau",
+            type=float,
+            default=None,
+            help="Softmax temperature for Q-head strategy logits.",
+        )
+        parser.add_argument(
             "--latent-entropy-objective",
             type=str,
             choices=("maximize", "minimize", "none"),
@@ -517,6 +575,12 @@ if __name__ == "__main__":
             type=int,
             default=None,
             help="Strategy embedding dimension used by the shared actor.",
+        )
+        parser.add_argument(
+            "--latent-vf-hidden",
+            type=int,
+            default=None,
+            help="Hidden width for the centralized latent critic.",
         )
         parser.add_argument(
             "--episode-log-every",
@@ -561,6 +625,14 @@ if __name__ == "__main__":
             cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
         if args.latent_lam_h is not None:
             cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
+        if args.latent_strategy_ppo_coef is not None:
+            cfg.latent_strategy_ppo_coef = max(0.0, float(args.latent_strategy_ppo_coef))
+        if args.latent_strategy_q_head:
+            cfg.latent_strategy_q_head = True
+        if args.latent_strategy_q_coef is not None:
+            cfg.latent_strategy_q_coef = max(0.0, float(args.latent_strategy_q_coef))
+        if args.latent_strategy_tau is not None:
+            cfg.latent_strategy_tau = max(1e-3, float(args.latent_strategy_tau))
         if args.latent_entropy_objective is not None:
             cfg.latent_entropy_objective = args.latent_entropy_objective  # type: ignore[assignment]
         if args.latent_resample_on_flag:
@@ -569,6 +641,8 @@ if __name__ == "__main__":
             cfg.latent_kl_consecutive = max(0.0, float(args.latent_kl_consecutive))
         if args.latent_z_embed_dim is not None:
             cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
+        if args.latent_vf_hidden is not None:
+            cfg.latent_vf_hidden = max(1, int(args.latent_vf_hidden))
         cfg.run_tag = args.run_tag or _default_run_tag_for_mode(
             cfg.mode,
             cfg.fixed_opponent_tag,
@@ -587,6 +661,20 @@ if __name__ == "__main__":
             cfg.total_timesteps = int(args.total_steps)
         if args.load is not None:
             cfg.load_path = args.load
+        if args.learning_rate is not None:
+            cfg.learning_rate = max(0.0, float(args.learning_rate))
+        if args.lr_floor_frac is not None:
+            cfg.lr_floor_frac = max(0.0, min(float(args.lr_floor_frac), 1.0))
+        if args.target_kl is not None:
+            cfg.target_kl = None if float(args.target_kl) < 0.0 else max(0.0, float(args.target_kl))
+        if args.n_epochs is not None:
+            cfg.n_epochs = max(1, int(args.n_epochs))
+        if args.clip_range_vf is not None:
+            cfg.clip_range_vf = None if float(args.clip_range_vf) < 0.0 else max(0.0, float(args.clip_range_vf))
+        if args.vf_coef is not None:
+            cfg.vf_coef = max(0.0, float(args.vf_coef))
+        if args.return_normalization:
+            cfg.normalize_returns = True
         if args.device is not None:
             cfg.device = str(args.device).strip().lower()
         if args.deterministic:

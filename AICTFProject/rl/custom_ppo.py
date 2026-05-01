@@ -294,10 +294,10 @@ class CustomPPOInferencePolicy:
         return out
 
 
-def _model_kwargs_from_cfg(cfg: Any) -> dict[str, int]:
+def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
     if not isinstance(cfg, dict):
         return {}
-    kwargs: dict[str, int] = {
+    kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
     }
     if bool(cfg.get("use_latent_strategy", False)):
@@ -307,6 +307,8 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, int]:
                 "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
                 "strategy_hidden_dim": int(cfg.get("latent_strategy_hidden", 128)),
                 "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
+                "use_strategy_q_head": bool(cfg.get("latent_strategy_q_head", False)),
+                "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
             }
         )
     return kwargs
@@ -399,6 +401,8 @@ class SharedActorCentralizedCritic(nn.Module):
         latent_k: int = 0,
         z_embed_dim: int = 16,
         strategy_hidden_dim: int = 128,
+        use_strategy_q_head: bool = False,
+        strategy_tau: float = 1.0,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -431,17 +435,26 @@ class SharedActorCentralizedCritic(nn.Module):
         self.latent_k = max(0, int(latent_k))
         self.uses_latent_strategy = self.latent_k > 0
         self.z_embed_dim = int(z_embed_dim) if self.uses_latent_strategy else 0
+        self.use_strategy_q_head = bool(use_strategy_q_head) and self.uses_latent_strategy
+        self.strategy_tau = max(1e-3, float(strategy_tau))
 
         if self.uses_latent_strategy:
-            self.strategy_encoder = StrategyEncoder(
+            strategy_net = StrategyEncoder(
                 state_dim=GLOBAL_STATE_DIM,
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
             )
+            if self.use_strategy_q_head:
+                self.strategy_q_head = strategy_net
+                self.strategy_encoder = None
+            else:
+                self.strategy_encoder = strategy_net
+                self.strategy_q_head = None
             # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
             self.strategy_embedding = nn.Embedding(self.latent_k, self.z_embed_dim)
         else:
             self.strategy_encoder = None
+            self.strategy_q_head = None
             self.strategy_embedding = None
 
         # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
@@ -494,9 +507,19 @@ class SharedActorCentralizedCritic(nn.Module):
 
     def strategy_logits(self, global_state: torch.Tensor) -> torch.Tensor:
         """Return ``q_phi(z | s)`` logits for latent strategy mode."""
-        if not self.uses_latent_strategy or self.strategy_encoder is None:
+        if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
+        if self.use_strategy_q_head:
+            return self.strategy_q_values(global_state) / self.strategy_tau
+        if self.strategy_encoder is None:
+            raise RuntimeError("strategy encoder is not initialized.")
         return self.strategy_encoder(global_state.float())
+
+    def strategy_q_values(self, global_state: torch.Tensor) -> torch.Tensor:
+        """Return A2 Q_phi(s) values with shape ``(B, K)`` before temperature scaling."""
+        if not self.uses_latent_strategy or self.strategy_q_head is None:
+            raise RuntimeError("strategy_q_values is only available when the A2 Q-head is enabled.")
+        return self.strategy_q_head(global_state.float())
 
     def sample_strategy(
         self,
@@ -708,7 +731,7 @@ class CustomPPOTrainer:
             if self.use_latent_strategy
             else 0
         )
-        model_kwargs: dict[str, int] = {
+        model_kwargs: dict[str, Any] = {
             "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
         }
         if self.use_latent_strategy:
@@ -718,6 +741,8 @@ class CustomPPOTrainer:
                     "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
                     "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
                     "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
+                    "use_strategy_q_head": bool(getattr(cfg, "latent_strategy_q_head", False)),
+                    "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
                 }
             )
         self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
@@ -728,10 +753,22 @@ class CustomPPOTrainer:
         self.base_learning_rate = float(learning_rate)
         self.clip_range = float(clip_range)
         self.ent_coef = float(ent_coef)
-        self.vf_coef = 1.0
+        self.vf_coef = max(0.0, float(getattr(cfg, "vf_coef", 1.0) or 0.0))
         self.n_epochs = int(n_epochs)
         self.batch_size = int(batch_size)
-        self.value_clip_range = float(value_clip_range if value_clip_range is not None else clip_range)
+        self.value_clip_range = None if value_clip_range is None else float(value_clip_range)
+        self.normalize_returns = bool(getattr(cfg, "normalize_returns", False))
+        self._return_norm_mean = 0.0
+        self._return_norm_var = 1.0
+        self._return_norm_count = 1e-4
+        self.latent_strategy_ppo_coef = max(0.0, float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0))
+        self.latent_strategy_q_coef = max(0.0, float(getattr(cfg, "latent_strategy_q_coef", 1.0) or 0.0))
+        self.latent_strategy_q_head = self.use_latent_strategy and bool(
+            getattr(cfg, "latent_strategy_q_head", False)
+        )
+        self._strategy_return_mean = 0.0
+        self._strategy_return_var = 1.0
+        self._strategy_return_count = 1e-4
         self.global_step = 0
         self.last_stats: dict[str, float] = {}
         self._updates_completed = 0
@@ -931,13 +968,28 @@ class CustomPPOTrainer:
             "reward_total_mean",
             "policy_loss",
             "value_loss",
+            "value_loss_min",
+            "value_loss_std",
+            "value_loss_p10",
+            "value_loss_p50",
+            "value_loss_p90",
+            "value_loss_max",
+            "return_norm_mean",
+            "return_norm_std",
+            "return_norm_count",
             "entropy",
             "approx_kl",
             "clip_fraction",
             "grad_norm",
             "learning_rate",
             "strategy_entropy",
+            "strategy_policy_loss",
+            "strategy_approx_kl",
+            "strategy_clip_fraction",
+            "strategy_ratio_std",
+            "strategy_q_loss",
             "strategy_persist_loss",
+            "strategy_grad_norm",
             "strategy_resample_fraction",
             "strategy_unique_count",
             "strategy_dominant",
@@ -1384,6 +1436,81 @@ class CustomPPOTrainer:
             out[f"strategy_occupancy_{idx}"] = float(value)
         return out
 
+    def _strategy_encoder_grad_norm(self) -> float:
+        """Return the current q_phi gradient norm before global clipping."""
+        strategy_module = getattr(self.model, "strategy_q_head", None) or getattr(self.model, "strategy_encoder", None)
+        if strategy_module is None:
+            return 0.0
+        total = torch.zeros((), dtype=torch.float32, device=self.device)
+        for param in strategy_module.parameters():
+            if param.grad is None:
+                continue
+            grad = param.grad.detach().float()
+            total = total + grad.pow(2).sum()
+        return float(torch.sqrt(total).detach().cpu().item())
+
+    def _update_strategy_return_stats(self, buffer: TensorDictRolloutBuffer) -> None:
+        """Update running return normalization stats for sampled z targets."""
+        if not self.latent_strategy_q_head or "z_resampled" not in buffer.fields:
+            return
+        sampled = buffer.fields["z_resampled"][: int(buffer.pos)].reshape(-1).bool()
+        returns = buffer.fields["returns"][: int(buffer.pos)].reshape(-1).detach().float()
+        if not bool(sampled.any().item()):
+            return
+        values = returns[sampled]
+        batch_count = float(values.numel())
+        batch_mean = float(values.mean().detach().cpu().item())
+        batch_var = float(values.var(unbiased=False).detach().cpu().item()) if values.numel() > 1 else 0.0
+
+        count = float(self._strategy_return_count)
+        delta = batch_mean - float(self._strategy_return_mean)
+        total_count = count + batch_count
+        new_mean = float(self._strategy_return_mean) + delta * batch_count / max(1e-6, total_count)
+        m_a = float(self._strategy_return_var) * count
+        m_b = batch_var * batch_count
+        m2 = m_a + m_b + delta * delta * count * batch_count / max(1e-6, total_count)
+        self._strategy_return_mean = new_mean
+        self._strategy_return_var = max(1e-6, m2 / max(1e-6, total_count))
+        self._strategy_return_count = total_count
+
+    def _normalize_strategy_returns(self, returns: torch.Tensor) -> torch.Tensor:
+        std = max(1e-3, float(self._strategy_return_var) ** 0.5)
+        return (returns.detach().float() - float(self._strategy_return_mean)) / std
+
+    def _return_norm_std(self) -> float:
+        return max(1e-3, float(self._return_norm_var) ** 0.5)
+
+    def _normalize_value_targets(self, returns: torch.Tensor) -> torch.Tensor:
+        if not self.normalize_returns:
+            return returns.float()
+        return (returns.float() - float(self._return_norm_mean)) / self._return_norm_std()
+
+    def _denormalize_values(self, values: torch.Tensor) -> torch.Tensor:
+        if not self.normalize_returns:
+            return values.float()
+        return values.float() * self._return_norm_std() + float(self._return_norm_mean)
+
+    def _update_return_norm_stats(self, returns: torch.Tensor) -> None:
+        if not self.normalize_returns:
+            return
+        values = returns.detach().float().reshape(-1)
+        if values.numel() <= 0:
+            return
+        batch_count = float(values.numel())
+        batch_mean = float(values.mean().detach().cpu().item())
+        batch_var = float(values.var(unbiased=False).detach().cpu().item()) if values.numel() > 1 else 0.0
+
+        count = float(self._return_norm_count)
+        delta = batch_mean - float(self._return_norm_mean)
+        total_count = count + batch_count
+        new_mean = float(self._return_norm_mean) + delta * batch_count / max(1e-6, total_count)
+        m_a = float(self._return_norm_var) * count
+        m_b = batch_var * batch_count
+        m2 = m_a + m_b + delta * delta * count * batch_count / max(1e-6, total_count)
+        self._return_norm_mean = new_mean
+        self._return_norm_var = max(1e-6, m2 / max(1e-6, total_count))
+        self._return_norm_count = total_count
+
     def _make_buffer(self, obs: Dict[str, np.ndarray]) -> TensorDictRolloutBuffer:
         n_steps = int(self.cfg.n_steps)
         n_envs = int(self.env.num_envs)
@@ -1396,6 +1523,7 @@ class CustomPPOTrainer:
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
         buffer.register_field("values")
+        buffer.register_field("values_norm")
         buffer.register_field("next_values")
         buffer.register_field("rewards")
         buffer.register_field("reward_terminal")
@@ -1439,7 +1567,7 @@ class CustomPPOTrainer:
         gs = torch.as_tensor(np.stack(rows, axis=0), dtype=torch.float32, device=self.device)
         with torch.no_grad():
             if not self.use_latent_strategy:
-                return self.model.values(gs)
+                return self._denormalize_values(self.model.values(gs))
             if next_obs is None or prev_z is None:
                 raise ValueError("latent next value bootstrap requires next_obs and prev_z.")
             obs_rows = self._obs_rows_from_next(next_obs, infos)
@@ -1451,6 +1579,7 @@ class CustomPPOTrainer:
                 deterministic=True,
                 z_idx=next_z,
             )
+            next_values = self._denormalize_values(next_values)
             terminated = torch.as_tensor(
                 [bool(info.get("terminated", False)) for info in infos],
                 dtype=torch.bool,
@@ -1476,8 +1605,10 @@ class CustomPPOTrainer:
             gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 z_t, prev_z_t, strategy_aux = self._strategy_for_step(gs_t)
-                actions_t, values_t, action_log_probs_t, _ = self.model.act(obs_t, gs_t, z_idx=z_t)
-                # PPO importance ratio uses **action** log-probs only (paper sketch; q_phi trained via entropy + persist).
+                actions_t, values_norm_t, action_log_probs_t, _ = self.model.act(obs_t, gs_t, z_idx=z_t)
+                values_t = self._denormalize_values(values_norm_t)
+                # Action PPO uses action log-probs only; q_phi is trained separately
+                # at actual z-sampling points in update().
                 log_probs_t = action_log_probs_t
             actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
             self.env.step_async(actions_np)
@@ -1525,6 +1656,7 @@ class CustomPPOTrainer:
                 actions=actions_t,
                 log_probs=log_probs_t,
                 values=values_t,
+                values_norm=values_norm_t,
                 next_values=next_values_t,
                 rewards=torch.as_tensor(rewards, dtype=torch.float32, device=self.device),
                 reward_terminal=reward_component["reward_terminal"],
@@ -1586,6 +1718,7 @@ class CustomPPOTrainer:
             gamma=float(self.cfg.gamma),
             gae_lambda=float(self.cfg.gae_lambda),
         )
+        self._update_return_norm_stats(buffer.fields["returns"][: int(buffer.pos)])
         self._last_obs = obs
         self._last_global_state = global_state
         return buffer
@@ -1593,13 +1726,15 @@ class CustomPPOTrainer:
     def update(self, buffer: TensorDictRolloutBuffer, *, total_timesteps: int) -> dict[str, float]:
         """Run PPO epochs over one rollout."""
         progress_remaining = max(0.0, 1.0 - float(self.global_step) / max(1.0, float(total_timesteps)))
-        lr = self.base_learning_rate * progress_remaining
+        lr_floor_frac = max(0.0, min(float(getattr(self.cfg, "lr_floor_frac", 0.1) or 0.0), 1.0))
+        lr = self.base_learning_rate * max(progress_remaining, lr_floor_frac)
         for group in self.optimizer.param_groups:
             group["lr"] = lr
         ent_coef = self.ent_coef if progress_remaining > 0.75 else 0.5 * self.ent_coef
         latent_lam_h_start = max(0.0, float(getattr(self.cfg, "latent_lam_h", 0.0) or 0.0))
         latent_lam_h_end = min(latent_lam_h_start, 0.001)
         latent_lam_h = latent_lam_h_end + (latent_lam_h_start - latent_lam_h_end) * progress_remaining
+        self._update_strategy_return_stats(buffer)
 
         stats: dict[str, list[float]] = {
             "policy_loss": [],
@@ -1609,7 +1744,13 @@ class CustomPPOTrainer:
             "clip_fraction": [],
             "grad_norm": [],
             "strategy_entropy": [],
+            "strategy_policy_loss": [],
+            "strategy_approx_kl": [],
+            "strategy_clip_fraction": [],
+            "strategy_ratio_std": [],
+            "strategy_q_loss": [],
             "strategy_persist_loss": [],
+            "strategy_grad_norm": [],
             "strategy_resample_fraction": [],
             "strategy_kl": [],
         }
@@ -1624,7 +1765,7 @@ class CustomPPOTrainer:
                     "mask": batch["obs_mask"],
                 }
                 z_idx = batch["z"] if self.use_latent_strategy else None
-                values, action_log_prob, entropy, aux = self.model.evaluate_actions(
+                values_norm, action_log_prob, entropy, aux = self.model.evaluate_actions(
                     obs_batch,
                     batch["global_state"],
                     batch["actions"],
@@ -1634,10 +1775,14 @@ class CustomPPOTrainer:
                     resample = batch["z_resampled"].bool()
                     persist_mask = batch["z_persist_mask"].bool()
                     log_prob = action_log_prob
+                    strategy_log_prob = aux["strategy_log_prob"]
                     strategy_entropy = aux["strategy_entropy"]
                     # Paper default: maximize H(z)  ⇔ L += -λ_H * H(z) (minimized loss decreases as H rises).
                     # ``latent_entropy_objective=minimize`` flips sign (L += +λ_H * H(z)) so q_phi trains toward sharper z.
-                    h_mean = strategy_entropy.mean()
+                    if bool(resample.any().item()):
+                        h_mean = strategy_entropy[resample].mean()
+                    else:
+                        h_mean = torch.zeros((), dtype=torch.float32, device=self.device)
                     h_goal = str(getattr(self.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
                     if h_goal == "none" or latent_lam_h <= 0.0:
                         strategy_entropy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
@@ -1682,18 +1827,56 @@ class CustomPPOTrainer:
                 advantages = batch["advantages"]
                 if advantages.numel() > 1:
                     advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
+                if self.use_latent_strategy and not self.fixed_latent_strategy:
+                    strategy_policy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    strategy_q_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    strategy_ppo_stats = {
+                        "approx_kl": torch.zeros((), dtype=torch.float32, device=self.device),
+                        "clip_fraction": torch.zeros((), dtype=torch.float32, device=self.device),
+                        "ratio": torch.ones((1,), dtype=torch.float32, device=self.device),
+                    }
+                    if bool(resample.any().item()):
+                        strategy_adv = advantages[resample].detach()
+                        if strategy_adv.numel() > 1:
+                            strategy_adv = (
+                                strategy_adv - strategy_adv.mean()
+                            ) / (strategy_adv.std(unbiased=False) + 1e-8)
+                        strategy_policy_loss, strategy_ppo_stats = ppo_policy_loss(
+                            strategy_log_prob[resample],
+                            batch["z_log_probs"][resample],
+                            strategy_adv,
+                            self.clip_range,
+                        )
+                        latent_loss = latent_loss + self.latent_strategy_ppo_coef * strategy_policy_loss
+                        if self.latent_strategy_q_head and self.latent_strategy_q_coef > 0.0:
+                            q_values = self.model.strategy_q_values(batch["global_state"])
+                            z_sel = batch["z"][resample].long().clamp(min=0, max=self.latent_k - 1)
+                            q_selected = q_values[resample].gather(1, z_sel.reshape(-1, 1)).squeeze(1)
+                            q_target = self._normalize_strategy_returns(batch["returns"][resample])
+                            strategy_q_loss = F.mse_loss(q_selected, q_target)
+                            latent_loss = latent_loss + self.latent_strategy_q_coef * strategy_q_loss
+                else:
+                    strategy_policy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    strategy_q_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    strategy_ppo_stats = {
+                        "approx_kl": torch.zeros((), dtype=torch.float32, device=self.device),
+                        "clip_fraction": torch.zeros((), dtype=torch.float32, device=self.device),
+                        "ratio": torch.ones((1,), dtype=torch.float32, device=self.device),
+                    }
                 policy_loss, ppo_stats = ppo_policy_loss(
                     log_prob,
                     batch["log_probs"],
                     advantages,
                     self.clip_range,
                 )
-                value_loss = ppo_value_loss(values, batch["values"], batch["returns"], self.value_clip_range)
+                value_targets = self._normalize_value_targets(batch["returns"])
+                value_loss = ppo_value_loss(values_norm, batch["values_norm"], value_targets, self.value_clip_range)
                 entropy_loss = -entropy.mean()
                 loss = policy_loss + self.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
 
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
+                strategy_grad_norm = self._strategy_encoder_grad_norm()
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), float(self.cfg.max_grad_norm))
                 self.optimizer.step()
 
@@ -1705,7 +1888,18 @@ class CustomPPOTrainer:
                 stats["clip_fraction"].append(float(ppo_stats["clip_fraction"].detach().cpu().item()))
                 stats["grad_norm"].append(float(torch.as_tensor(grad_norm).detach().cpu().item()))
                 stats["strategy_entropy"].append(float(strategy_entropy.mean().detach().cpu().item()))
+                stats["strategy_policy_loss"].append(float(strategy_policy_loss.detach().cpu().item()))
+                stats["strategy_approx_kl"].append(float(strategy_ppo_stats["approx_kl"].detach().cpu().item()))
+                stats["strategy_clip_fraction"].append(
+                    float(strategy_ppo_stats["clip_fraction"].detach().cpu().item())
+                )
+                ratio_z = strategy_ppo_stats["ratio"].detach().float()
+                stats["strategy_ratio_std"].append(
+                    float(ratio_z.std(unbiased=False).detach().cpu().item()) if ratio_z.numel() > 1 else 0.0
+                )
+                stats["strategy_q_loss"].append(float(strategy_q_loss.detach().cpu().item()))
                 stats["strategy_persist_loss"].append(float(persist_loss.detach().cpu().item()))
+                stats["strategy_grad_norm"].append(strategy_grad_norm)
                 stats["strategy_resample_fraction"].append(float(resample.float().mean().detach().cpu().item()))
                 if target_kl is not None and approx_kl_value > 1.5 * float(target_kl):
                     stop_update = True
@@ -1714,7 +1908,33 @@ class CustomPPOTrainer:
                 break
 
         self.last_stats = {name: float(np.mean(values)) if values else 0.0 for name, values in stats.items()}
+        value_losses = np.asarray(stats["value_loss"], dtype=np.float32)
+        if value_losses.size > 0:
+            self.last_stats.update(
+                {
+                    "value_loss_min": float(np.min(value_losses)),
+                    "value_loss_std": float(np.std(value_losses)),
+                    "value_loss_p10": float(np.percentile(value_losses, 10)),
+                    "value_loss_p50": float(np.percentile(value_losses, 50)),
+                    "value_loss_p90": float(np.percentile(value_losses, 90)),
+                    "value_loss_max": float(np.max(value_losses)),
+                }
+            )
+        else:
+            self.last_stats.update(
+                {
+                    "value_loss_min": 0.0,
+                    "value_loss_std": 0.0,
+                    "value_loss_p10": 0.0,
+                    "value_loss_p50": 0.0,
+                    "value_loss_p90": 0.0,
+                    "value_loss_max": 0.0,
+                }
+            )
         self.last_stats["learning_rate"] = float(lr)
+        self.last_stats["return_norm_mean"] = float(self._return_norm_mean) if self.normalize_returns else 0.0
+        self.last_stats["return_norm_std"] = float(self._return_norm_std()) if self.normalize_returns else 0.0
+        self.last_stats["return_norm_count"] = float(self._return_norm_count) if self.normalize_returns else 0.0
         self.last_stats.update(self._latent_rollout_stats(buffer))
         return self.last_stats
 
@@ -1730,6 +1950,14 @@ class CustomPPOTrainer:
                 stats = self.update(rollout, total_timesteps=total)
                 self._updates_completed += 1
                 self._write_update_metrics(stats, rollout)
+                if self.normalize_returns:
+                    print(
+                        "[PPO|return_norm] "
+                        f"update={self._updates_completed} "
+                        f"mean={stats.get('return_norm_mean', 0.0):.4f} "
+                        f"std={stats.get('return_norm_std', 0.0):.4f} "
+                        f"count={stats.get('return_norm_count', 0.0):.0f}"
+                    )
                 if bool(getattr(self.cfg, "verbose_training", False)):
                     latent_bits = ""
                     if self.use_latent_strategy:
@@ -1759,6 +1987,9 @@ class CustomPPOTrainer:
                 "optimizer_state_dict": self.optimizer.state_dict(),
                 "global_step": self.global_step,
                 "updates_completed": self._updates_completed,
+                "return_norm_mean": float(self._return_norm_mean),
+                "return_norm_var": float(self._return_norm_var),
+                "return_norm_count": float(self._return_norm_count),
                 "cfg": asdict(self.cfg),
                 "last_stats": self.last_stats,
                 "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
@@ -1776,6 +2007,9 @@ class CustomPPOTrainer:
         self.optimizer.load_state_dict(payload["optimizer_state_dict"])
         self.global_step = int(payload.get("global_step", 0))
         self._updates_completed = int(payload.get("updates_completed", 0))
+        self._return_norm_mean = float(payload.get("return_norm_mean", 0.0))
+        self._return_norm_var = float(payload.get("return_norm_var", 1.0))
+        self._return_norm_count = float(payload.get("return_norm_count", 1e-4))
         self.last_stats = dict(payload.get("last_stats", {}))
         self._last_obs = None
         self._last_global_state = None

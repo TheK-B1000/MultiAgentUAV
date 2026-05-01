@@ -55,7 +55,7 @@ def run_eval_episodes(
     model = load_custom_ppo_policy(model_path, env.observation_space, env.action_space, device=device)
     if progress_every > 0:
         print(
-            f"  checkpoint loaded; {n_episodes} episodes (first result prints after ep 1; 8v8 is slow)",
+            f"  checkpoint loaded; {n_episodes} episodes",
             flush=True,
         )
 
