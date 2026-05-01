@@ -112,6 +112,10 @@ class PPOConfig:
     latent_strategy_tau: float = 1.0
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
+    # Mid-episode z changes make V(s,z) discontinuous; optionally break GAE carry across z[t]!=z[t+1].
+    latent_gae_reset_on_z_change: bool = True
+    # Use argmax z from q_phi(s') when bootstrapping V(s') so peek matches no duplicate stochastic z draw.
+    latent_bootstrap_z_deterministic: bool = True
     # Baseline: keep latent actor/critic plumbing, but clamp every rollout to one strategy ID.
     # This tests whether learned/multiple strategy selection matters beyond a single learned z embedding.
     fixed_latent_strategy: bool = False
@@ -225,7 +229,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             f"(H:{h_obj}), "
             f"lambda_KL={lam_kl:.4f}, strategy_ppo_coef={float(cfg.latent_strategy_ppo_coef):.3f}, "
             f"q_head={q_head}, q_coef={float(cfg.latent_strategy_q_coef):.3f}, "
-            f"tau={float(cfg.latent_strategy_tau):.3f}{fixed_label})"
+            f"tau={float(cfg.latent_strategy_tau):.3f}, "
+            f"GAE_reset_on_z_change={bool(getattr(cfg, 'latent_gae_reset_on_z_change', True))}, "
+            f"bootstrap_z_deterministic={bool(getattr(cfg, 'latent_bootstrap_z_deterministic', True))}"
+            f"{fixed_label})"
         )
         if fixed:
             print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
@@ -590,6 +597,16 @@ if __name__ == "__main__":
             help="Weight for consecutive-step KL on q_phi logits (0=off; optional plan §12).",
         )
         parser.add_argument(
+            "--no-latent-gae-z-reset",
+            action="store_true",
+            help="Keep legacy GAE: carry λ-returns across z switches (can smear credit when V(s,z) jumps).",
+        )
+        parser.add_argument(
+            "--latent-bootstrap-z-stochastic",
+            action="store_true",
+            help="Sample z for V(s') bootstrap; default argmax to avoid RNG mismatch with the next step.",
+        )
+        parser.add_argument(
             "--domain-randomization",
             action="store_true",
             help="Enable episode-level domain randomization (obs noise/dropout, blue speed jitter).",
@@ -681,6 +698,10 @@ if __name__ == "__main__":
             cfg.latent_resample_on_flag = True
         if args.latent_kl_consecutive is not None:
             cfg.latent_kl_consecutive = max(0.0, float(args.latent_kl_consecutive))
+        if args.no_latent_gae_z_reset:
+            cfg.latent_gae_reset_on_z_change = False
+        if args.latent_bootstrap_z_stochastic:
+            cfg.latent_bootstrap_z_deterministic = False
         if args.domain_randomization:
             cfg.train_domain_randomization = True
         if args.dr_sensor_noise_max is not None:

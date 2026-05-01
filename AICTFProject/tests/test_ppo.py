@@ -41,6 +41,41 @@ class PPOCoreTests(unittest.TestCase):
         self.assertAlmostEqual(float(advantages[0, 0]), 1.5, places=6)
         self.assertAlmostEqual(float(returns[0, 0]), 2.0, places=6)
 
+    def test_gae_resets_carry_across_latent_z_change(self) -> None:
+        rewards = torch.zeros((2, 1))
+        values = torch.ones((2, 1))
+        next_values = torch.ones((2, 1))
+        terminated = torch.zeros((2, 1), dtype=torch.bool)
+        latent_z = torch.tensor([[0], [1]], dtype=torch.long)
+
+        adv_reset, _ = compute_gae(
+            rewards,
+            values,
+            next_values,
+            terminated,
+            gamma=0.9,
+            gae_lambda=0.95,
+            latent_z=latent_z,
+            reset_gae_on_z_change=True,
+        )
+        adv_cont, _ = compute_gae(
+            rewards,
+            values,
+            next_values,
+            terminated,
+            gamma=0.9,
+            gae_lambda=0.95,
+            latent_z=latent_z,
+            reset_gae_on_z_change=False,
+        )
+        d = 0.9 * 1.0 - 1.0
+        self.assertAlmostEqual(float(adv_reset[1, 0]), float(d), places=5)
+        self.assertAlmostEqual(float(adv_reset[0, 0]), float(d), places=5)
+        self.assertAlmostEqual(float(adv_cont[1, 0]), float(d), places=5)
+        carry = 0.9 * 0.95 * float(d)
+        self.assertAlmostEqual(float(adv_cont[0, 0]), float(d + carry), places=5)
+        self.assertGreater(abs(float(adv_cont[0, 0])), abs(float(adv_reset[0, 0])))
+
     def test_policy_clip_objective_ratio_clip_and_sign(self) -> None:
         old_log_prob = torch.zeros(2)
         new_log_prob = torch.log(torch.tensor([1.3, 0.7]))

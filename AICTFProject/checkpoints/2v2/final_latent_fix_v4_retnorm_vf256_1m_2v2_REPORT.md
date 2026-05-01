@@ -2,6 +2,8 @@
 
 Latent v4 stack (return normalization, `clip_range_vf=None`, `latent_vf_hidden=256`, entropy objective **minimize**, λ_H=0.001, λ_p=0.05), fixed scripted **OP3**, 2v2, **train** maps during learning. Training resumed from `final_latent_fix_v4_retnorm_vf256_2v2.zip` (~213k env steps) to **1M** total env steps.
 
+**What this result is and isn’t.** Latent-strategy PPO trained on fixed-opponent CTF in sim achieves **~77% WR** on held-out **eval** maps against the **training opponent (OP3)** under the greedy `eval_checkpoint.py` protocol (100 episodes per cell, see table below). That validates the training methodology and latent specialization in this environment; it does **not** characterize transfer to varied opponents, domain-randomized or perturbed dynamics, or real platforms. Robustness curves, sim-to-sim transfer, and hardware-relevant execution models are required before drawing transfer-relevant conclusions.
+
 ---
 
 ## Final training stats (end of `train_ppo` run)

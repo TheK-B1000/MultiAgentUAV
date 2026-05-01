@@ -104,6 +104,27 @@ class TrainPpoSmokeTests(unittest.TestCase):
             if path.exists():
                 path.unlink()
 
+    def test_csv_writer_migrates_additive_columns(self) -> None:
+        """Older metrics CSVs missing newly added telemetry columns rewrite in place then append."""
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        path = _WORKSPACE_TMP / "schema_additive_metrics.csv"
+        try:
+            path.write_text("a,b\n1,2\n", encoding="utf-8")
+            CustomPPOTrainer._write_csv_row(
+                object(),
+                str(path),
+                ["a", "x", "b"],
+                {"a": "3", "x": "99", "b": "4"},
+            )
+            with path.open(newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0], {"a": "1", "x": "", "b": "2"})
+            self.assertEqual(rows[1], {"a": "3", "x": "99", "b": "4"})
+        finally:
+            if path.exists():
+                path.unlink()
+
     def test_train_ppo_smoke_custom_few_steps(self) -> None:
         _run_smoke_and_cleanup(tag="unittest_smoke_custom_ppo_2v2")
 

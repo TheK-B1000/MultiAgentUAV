@@ -726,6 +726,10 @@ class CustomPPOTrainer:
         self.fixed_latent_strategy = self.use_latent_strategy and bool(
             getattr(cfg, "fixed_latent_strategy", False)
         )
+        self.latent_gae_reset_on_z_change = bool(
+            getattr(cfg, "latent_gae_reset_on_z_change", True)
+        ) and (self.use_latent_strategy and not self.fixed_latent_strategy)
+        self.latent_bootstrap_z_deterministic = bool(getattr(cfg, "latent_bootstrap_z_deterministic", True))
         self.fixed_latent_strategy_id = (
             max(0, min(int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0), self.latent_k - 1))
             if self.use_latent_strategy
@@ -841,19 +845,36 @@ class CustomPPOTrainer:
         if not path:
             return
         os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
-        exists = os.path.isfile(path) and os.path.getsize(path) > 0
-        if exists:
+        nonempty = os.path.isfile(path) and os.path.getsize(path) > 0
+        if nonempty:
             with open(path, "r", newline="", encoding="utf-8") as f:
-                existing = next(csv.reader(f), [])
-            if existing != fieldnames:
-                raise ValueError(
-                    f"CSV schema mismatch for {path!r}: existing header {existing!r} "
-                    f"does not match expected header {fieldnames!r}. Use a new output path "
-                    "or migrate the existing CSV before appending."
+                reader = csv.DictReader(f)
+                old_fields = reader.fieldnames
+                if old_fields is None:
+                    raise ValueError(f"CSV schema mismatch for {path!r}: empty or invalid header.")
+                old_list = list(old_fields)
+                old_rows = list(reader)
+            if old_list != fieldnames:
+                dropped = [c for c in old_list if c not in fieldnames]
+                if dropped:
+                    raise ValueError(
+                        f"CSV schema mismatch for {path!r}: existing columns dropped or renamed "
+                        f"{dropped!r}; existing header {old_list!r} vs expected {fieldnames!r}. "
+                        "Use a new output path or migrate manually."
+                    )
+                print(
+                    f"[PPO] Migrating CSV (additive columns): {path}\n"
+                    f"      was {len(old_list)} cols → now {len(fieldnames)} cols; "
+                    f"rewriting {len(old_rows)} row(s)."
                 )
+                with open(path, "w", newline="", encoding="utf-8") as wf:
+                    writer = csv.DictWriter(wf, fieldnames=fieldnames, extrasaction="ignore")
+                    writer.writeheader()
+                    for r in old_rows:
+                        writer.writerow({k: r.get(k, "") for k in fieldnames})
         with open(path, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-            if not exists:
+            if not nonempty:
                 writer.writeheader()
             writer.writerow({key: row.get(key, "") for key in fieldnames})
 
@@ -996,6 +1017,9 @@ class CustomPPOTrainer:
             "strategy_switch_count",
             "strategy_switch_fraction",
             "strategy_resample_fraction_rollout",
+            "rollout_adv_std",
+            "rollout_adv_std_at_z_switch",
+            "rollout_adv_std_not_z_switch",
             "curriculum_phase",
             "curriculum_phase_idx",
             "curriculum_phase_episodes",
@@ -1012,6 +1036,14 @@ class CustomPPOTrainer:
                         f"episode_z_{idx}_blue_score_mean",
                         f"episode_z_{idx}_red_score_mean",
                         f"episode_z_{idx}_win_margin_mean",
+                    ]
+                )
+            for idx in range(self.latent_k):
+                fields.extend(
+                    [
+                        f"strategy_resample_adv_mean_z{idx}",
+                        f"strategy_resample_adv_std_z{idx}",
+                        f"strategy_resample_adv_n_z{idx}",
                     ]
                 )
         return fields
@@ -1436,6 +1468,66 @@ class CustomPPOTrainer:
             out[f"strategy_occupancy_{idx}"] = float(value)
         return out
 
+    def _strategy_resample_advantage_stats(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
+        """Per-z mean/std of raw GAE advantages at z-resample steps (pre-minibatch normalization)."""
+        if not self.use_latent_strategy or self.fixed_latent_strategy:
+            return {}
+        length = int(buffer.pos)
+        if length <= 0 or "advantages" not in buffer.fields or "z" not in buffer.fields:
+            return {}
+        adv = buffer.fields["advantages"][:length]
+        z = buffer.fields["z"][:length].long()
+        rs = buffer.fields["z_resampled"][:length].bool()
+        flat_adv = adv.reshape(-1).float()
+        flat_z = z.reshape(-1)
+        flat_rs = rs.reshape(-1)
+        mask = flat_rs
+        out: dict[str, float] = {}
+        K = int(self.latent_k)
+        for k in range(K):
+            m = mask & (flat_z == k)
+            n = int(m.sum().item())
+            out[f"strategy_resample_adv_n_z{k}"] = float(n)
+            if n > 0:
+                vals = flat_adv[m]
+                out[f"strategy_resample_adv_mean_z{k}"] = float(vals.mean().item())
+                out[f"strategy_resample_adv_std_z{k}"] = (
+                    float(vals.std(unbiased=False).item()) if n > 1 else 0.0
+                )
+            else:
+                out[f"strategy_resample_adv_mean_z{k}"] = 0.0
+                out[f"strategy_resample_adv_std_z{k}"] = 0.0
+        return out
+
+    def _rollout_advantage_diagnostics(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
+        """Raw GAE advantage scale and split at latent z-segment starts (t>0, z[t]!=z[t-1])."""
+        length = int(buffer.pos)
+        if length <= 0 or "advantages" not in buffer.fields:
+            return {}
+        adv = buffer.fields["advantages"][:length].detach().float()
+        flat = adv.reshape(-1)
+        out: dict[str, float] = {
+            "rollout_adv_std": float(flat.std(unbiased=False).item()) if flat.numel() > 1 else 0.0,
+        }
+        if (
+            not self.use_latent_strategy
+            or self.fixed_latent_strategy
+            or "z" not in buffer.fields
+            or length < 2
+        ):
+            return out
+        z = buffer.fields["z"][:length].long()
+        z_switch = torch.zeros((length, z.shape[1]), dtype=torch.bool, device=z.device)
+        z_switch[1:] = z[1:] != z[:-1]
+        flat_sw = z_switch.reshape(-1)
+        if flat_sw.any() and (~flat_sw).any():
+            out["rollout_adv_std_at_z_switch"] = float(flat[flat_sw].std(unbiased=False).item())
+            out["rollout_adv_std_not_z_switch"] = float(flat[~flat_sw].std(unbiased=False).item())
+        else:
+            out["rollout_adv_std_at_z_switch"] = float(out["rollout_adv_std"])
+            out["rollout_adv_std_not_z_switch"] = float(out["rollout_adv_std"])
+        return out
+
     def _strategy_encoder_grad_norm(self) -> float:
         """Return the current q_phi gradient norm before global clipping."""
         strategy_module = getattr(self.model, "strategy_q_head", None) or getattr(self.model, "strategy_encoder", None)
@@ -1548,12 +1640,57 @@ class CustomPPOTrainer:
                 buffer.register_field("z_kl_prev_valid")
         return buffer
 
+    def _z_for_bootstrap(
+        self,
+        next_global_state_np: np.ndarray,
+        z_t: torch.Tensor,
+        dones: np.ndarray,
+    ) -> torch.Tensor:
+        """Strategy index for V(s', z') bootstrapping to match the start of the *next* decision.
+
+        Mirrors `_strategy_for_step` resample rules using counters *after* this env step
+        (same as `_mark_strategy_step_done` would apply before the next `_strategy_for_step`).
+        """
+        if not self.use_latent_strategy:
+            raise RuntimeError("_z_for_bootstrap requires latent strategy mode.")
+        if self.fixed_latent_strategy:
+            return torch.full_like(z_t, int(self.fixed_latent_strategy_id), dtype=torch.long)
+        batch = int(z_t.shape[0])
+        device = self.device
+        done_t = torch.as_tensor(dones, dtype=torch.bool, device=device)
+        age_next = self._strategy_age + 1
+        age_next = torch.where(done_t, torch.zeros_like(age_next), age_next)
+        needs_next = self._needs_strategy_sample.clone()
+        if bool(done_t.any().item()):
+            needs_next = needs_next.clone()
+            needs_next[done_t] = bool(not self.fixed_latent_strategy)
+        resample_next = needs_next.clone()
+        if self.latent_resample_every_n > 0:
+            resample_next = resample_next | (age_next >= int(self.latent_resample_every_n))
+        resample_next = resample_next & (~done_t)
+        z_next = z_t.long().clone()
+        if bool(resample_next.any().item()):
+            idx = torch.where(resample_next)[0]
+            gs = torch.as_tensor(
+                np.asarray(next_global_state_np, dtype=np.float32),
+                dtype=torch.float32,
+                device=device,
+            )
+            gs_sub = gs.index_select(0, idx)
+            sampled_z, _, _, _ = self.model.sample_strategy(
+                gs_sub,
+                deterministic=bool(self.latent_bootstrap_z_deterministic),
+            )
+            z_next[idx] = sampled_z.long()
+        return z_next
+
     def _next_values(
         self,
         infos: list[dict],
         next_global_state: np.ndarray,
         next_obs: Optional[Dict[str, np.ndarray]] = None,
         prev_z: Optional[torch.Tensor] = None,
+        dones: Optional[np.ndarray] = None,
     ) -> torch.Tensor:
         rows = []
         for env_i, info in enumerate(infos):
@@ -1572,7 +1709,13 @@ class CustomPPOTrainer:
                 raise ValueError("latent next value bootstrap requires next_obs and prev_z.")
             obs_rows = self._obs_rows_from_next(next_obs, infos)
             next_obs_t = self._tensor_obs(obs_rows)
-            next_z = prev_z.long().reshape(-1)
+            if dones is None:
+                raise ValueError("latent next value bootstrap requires dones for z lookahead.")
+            next_z = self._z_for_bootstrap(
+                next_global_state,
+                prev_z.long().reshape(-1),
+                dones,
+            )
             _, next_values, _, _ = self.model.act(
                 next_obs_t,
                 gs,
@@ -1626,7 +1769,7 @@ class CustomPPOTrainer:
                         env_index=env_i,
                     )
             next_global_state = self.env.state().astype(np.float32)
-            next_values_t = self._next_values(infos, next_global_state, next_obs=next_obs, prev_z=z_t)
+            next_values_t = self._next_values(infos, next_global_state, next_obs=next_obs, prev_z=z_t, dones=dones)
             terminated = np.asarray([bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)])
             truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
             reward_component = {
@@ -1687,6 +1830,22 @@ class CustomPPOTrainer:
                     add_items["z_logits_prev"] = zlp
                     add_items["z_kl_prev_valid"] = (~self._z_kl_first_in_ep).to(dtype=torch.float32)
             buffer.add(**add_items)
+            probe_rows = getattr(self, "_global_state_probe_rows", None)
+            if probe_rows is not None:
+                score_lim = max(1, int(getattr(self.env.cfg, "score_limit", 1)))
+                max_dec = max(1, int(getattr(self.env.cfg, "max_decision_steps", 400)))
+                gs_np = decision_global_state_np
+                for i, info in enumerate(infos):
+                    bs = int(info.get("blue_score", 0) or 0)
+                    rs = int(info.get("red_score", 0) or 0)
+                    ds = int(info.get("decision_steps", 0) or 0)
+                    probe_rows.append(
+                        {
+                            "global_state": np.asarray(gs_np[i], dtype=np.float32).copy(),
+                            "score_diff": float(bs - rs) / float(score_lim),
+                            "time_frac": float(ds) / float(max_dec),
+                        }
+                    )
             obs = next_obs
             global_state = next_global_state
             self.global_step += int(self.env.num_envs)
@@ -1714,10 +1873,14 @@ class CustomPPOTrainer:
                     strategy_aux=strategy_aux,
                 )
 
-        buffer.compute_returns_and_advantages(
+        gae_kw: dict[str, Any] = dict(
             gamma=float(self.cfg.gamma),
             gae_lambda=float(self.cfg.gae_lambda),
         )
+        if self.latent_gae_reset_on_z_change:
+            gae_kw["latent_z_field"] = "z"
+            gae_kw["reset_gae_on_z_change"] = True
+        buffer.compute_returns_and_advantages(**gae_kw)
         self._update_return_norm_stats(buffer.fields["returns"][: int(buffer.pos)])
         self._last_obs = obs
         self._last_global_state = global_state
@@ -1935,6 +2098,8 @@ class CustomPPOTrainer:
         self.last_stats["return_norm_mean"] = float(self._return_norm_mean) if self.normalize_returns else 0.0
         self.last_stats["return_norm_std"] = float(self._return_norm_std()) if self.normalize_returns else 0.0
         self.last_stats["return_norm_count"] = float(self._return_norm_count) if self.normalize_returns else 0.0
+        self.last_stats.update(self._strategy_resample_advantage_stats(buffer))
+        self.last_stats.update(self._rollout_advantage_diagnostics(buffer))
         self.last_stats.update(self._latent_rollout_stats(buffer))
         return self.last_stats
 

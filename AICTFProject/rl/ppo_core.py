@@ -18,6 +18,8 @@ def compute_gae(
     *,
     gamma: float = 0.99,
     gae_lambda: float = 0.95,
+    latent_z: Optional[torch.Tensor] = None,
+    reset_gae_on_z_change: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute GAE while bootstrapping time-limit truncations.
 
@@ -31,6 +33,11 @@ def compute_gae(
         truncated: Time-limit/reset flags with shape ``(T, B)``.
         gamma: Discount factor.
         gae_lambda: GAE lambda.
+        latent_z: Optional strategy index per transition ``(T, B)`` (integral). When
+            ``reset_gae_on_z_change`` is True, GAE carry from step ``t+1`` back into ``t``
+            is zeroed if ``z[t] != z[t+1]``, so a discontinuous :math:`V(s,z)` across
+            mid-episode strategy switches does not smear credit across the boundary.
+        reset_gae_on_z_change: Only used when ``latent_z`` is provided.
 
     Returns:
         ``(advantages, returns)`` tensors with shape ``(T, B)``.
@@ -55,9 +62,17 @@ def compute_gae(
     gamma_f = float(gamma)
     lambda_f = float(gae_lambda)
 
+    z_use = latent_z
+    if z_use is not None and z_use.shape != rewards.shape:
+        raise ValueError("latent_z must match rewards shape when provided.")
     for step in reversed(range(rewards.shape[0])):
         bootstrap_non_terminal = (~terminated[step]).float()
         same_episode_next = (~(terminated[step] | truncated[step])).float()
+        if bool(reset_gae_on_z_change) and z_use is not None and step + 1 < int(rewards.shape[0]):
+            same_z = (z_use[step].long() == z_use[step + 1].long()).float()
+        else:
+            same_z = torch.ones_like(same_episode_next)
+        same_episode_next = same_episode_next * same_z
         delta = rewards[step] + gamma_f * next_values[step] * bootstrap_non_terminal - values[step]
         last_gae = delta + gamma_f * lambda_f * same_episode_next * last_gae
         advantages[step] = last_gae
@@ -172,11 +187,16 @@ class TensorDictRolloutBuffer:
         next_value_field: str = "next_values",
         terminated_field: str = "terminated",
         truncated_field: str = "truncated",
+        latent_z_field: Optional[str] = None,
+        reset_gae_on_z_change: bool = False,
     ) -> None:
         """Populate ``advantages`` and ``returns`` from registered transition fields."""
         length = self.pos
         if length != self.buffer_size:
             raise RuntimeError(f"Rollout buffer must be full before GAE; got {length}/{self.buffer_size}.")
+        latent_z_tensor: Optional[torch.Tensor] = None
+        if latent_z_field:
+            latent_z_tensor = self.fields[str(latent_z_field)].long()
         advantages, returns = compute_gae(
             self.fields[reward_field],
             self.fields[value_field],
@@ -185,6 +205,8 @@ class TensorDictRolloutBuffer:
             self.fields[truncated_field].bool(),
             gamma=gamma,
             gae_lambda=gae_lambda,
+            latent_z=latent_z_tensor,
+            reset_gae_on_z_change=bool(reset_gae_on_z_change),
         )
         for name, tensor in (("advantages", advantages), ("returns", returns)):
             if name not in self.fields:

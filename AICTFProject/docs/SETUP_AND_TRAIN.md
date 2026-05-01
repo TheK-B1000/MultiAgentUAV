@@ -80,6 +80,8 @@ Domain randomization is episode-level and training-only by default. Current knob
 
 Full protocol (trajectory interpretation, `q_phi` under DR, critic expectations, no-latent stress test): **`docs/METHODOLOGY_DOMAIN_RANDOMIZATION.md`**.
 
+Longer arc toward real boats (phases, artifacts, gap filter): **`docs/ROADMAP_BOATS.md`**.
+
 Before a long DR run, use a 200k sanity check. If rollout WR is above roughly 50% and still climbing, keep the defaults (`noise=0.12`, `dropout=0.08`, `speed jitter=0.12`). If WR collapses near 40% and stays there, halve the DR knobs. If it matches the non-DR curve too closely, the defaults are probably too weak.
 
 After a 1M DR checkpoint, compare robustness curves for the non-DR and DR checkpoints by sweeping noise/dropout/jitter. Keep eval-time DR off for clean baseline comparisons, then run explicit perturbation sweeps to show where each policy's WR cliff occurs. Also train a no-latent PPO with the same DR settings as an early baseline:
