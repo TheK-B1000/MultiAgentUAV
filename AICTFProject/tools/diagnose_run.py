@@ -26,6 +26,22 @@ def _last_mean(rows: list[dict[str, str]], key: str, window: int) -> float:
     return statistics.fmean(vals) if vals else 0.0
 
 
+def _last_mean_optional(rows: list[dict[str, str]], key: str, window: int) -> float | None:
+    vals: list[float] = []
+    for row in rows[-window:]:
+        value = row.get(key, "")
+        if value == "":
+            continue
+        vals.append(float(value))
+    return statistics.fmean(vals) if vals else None
+
+
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    if denominator <= 0.0:
+        return 0.0 if numerator <= 0.0 else math.inf
+    return numerator / denominator
+
+
 def _infer_latent_k(rows: list[dict[str, str]]) -> int:
     occupancy_fields = [
         key
@@ -44,6 +60,15 @@ def main() -> int:
     parser.add_argument("--max-clip-fraction", type=float, default=0.6)
     parser.add_argument("--min-explained-variance", type=float, default=0.4)
     parser.add_argument("--min-win-rate-gain", type=float, default=0.1)
+    parser.add_argument(
+        "--max-z-switch-adv-std-ratio",
+        type=float,
+        default=1.5,
+        help=(
+            "Maximum final-window ratio of rollout_adv_std_at_z_switch "
+            "to rollout_adv_std_not_z_switch."
+        ),
+    )
     args = parser.parse_args()
 
     with args.metrics_csv.open(newline="") as f:
@@ -62,6 +87,8 @@ def main() -> int:
     last_persist_loss = _last_mean(rows, "strategy_persist_loss", window)
     last_clip_fraction = _float(rows[-1], "clip_fraction")
     last_explained_variance = _float(rows[-1], "explained_variance")
+    last_z_switch_adv_std = _last_mean_optional(rows, "rollout_adv_std_at_z_switch", window)
+    last_not_z_switch_adv_std = _last_mean_optional(rows, "rollout_adv_std_not_z_switch", window)
     rollout_wr_gain = last_rollout_wr - first_rollout_wr
 
     checks = [
@@ -91,6 +118,26 @@ def main() -> int:
             f"{rollout_wr_gain:.4f} > {float(args.min_win_rate_gain):.4f}",
         ),
     ]
+    skipped_checks: list[tuple[str, str]] = []
+    if last_z_switch_adv_std is None or last_not_z_switch_adv_std is None:
+        skipped_checks.append(
+            (
+                "z_switch_adv_std_ratio",
+                "missing rollout_adv_std_at_z_switch/rollout_adv_std_not_z_switch",
+            )
+        )
+    else:
+        z_switch_adv_std_ratio = _safe_ratio(last_z_switch_adv_std, last_not_z_switch_adv_std)
+        checks.append(
+            (
+                "z_switch_adv_std_ratio",
+                z_switch_adv_std_ratio <= float(args.max_z_switch_adv_std_ratio),
+                (
+                    f"{z_switch_adv_std_ratio:.4f} <= {float(args.max_z_switch_adv_std_ratio):.4f} "
+                    f"({last_z_switch_adv_std:.4f} / {last_not_z_switch_adv_std:.4f})"
+                ),
+            )
+        )
 
     print(f"metrics: {args.metrics_csv}")
     print(f"rows: {len(rows)} | final-window: {window} | latent_k: {latent_k}")
@@ -99,6 +146,8 @@ def main() -> int:
     for name, ok, detail in checks:
         status = "PASS" if ok else "FAIL"
         print(f"{status}: {name}: {detail}")
+    for name, detail in skipped_checks:
+        print(f"SKIP: {name}: {detail}")
 
     return 0 if all(ok for _, ok, _ in checks) else 1
 

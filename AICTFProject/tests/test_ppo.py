@@ -5,7 +5,12 @@ import unittest
 
 import torch
 
-from rl.ppo_core import compute_gae, ppo_policy_loss, ppo_value_loss
+from rl.ppo_core import (
+    align_next_values_to_rollout_actions,
+    compute_gae,
+    ppo_policy_loss,
+    ppo_value_loss,
+)
 
 
 class PPOCoreTests(unittest.TestCase):
@@ -75,6 +80,47 @@ class PPOCoreTests(unittest.TestCase):
         carry = 0.9 * 0.95 * float(d)
         self.assertAlmostEqual(float(adv_cont[0, 0]), float(d + carry), places=5)
         self.assertGreater(abs(float(adv_cont[0, 0])), abs(float(adv_reset[0, 0])))
+
+    def test_next_values_align_to_collected_rollout_actions_for_continuations(self) -> None:
+        values = torch.tensor(
+            [
+                [1.0, 10.0],
+                [2.0, 20.0],
+                [3.0, 30.0],
+            ]
+        )
+        bootstraps = torch.tensor(
+            [
+                [100.0, 1000.0],
+                [200.0, 2000.0],
+                [300.0, 3000.0],
+            ]
+        )
+        terminated = torch.tensor(
+            [
+                [False, True],
+                [False, False],
+                [False, False],
+            ]
+        )
+        truncated = torch.tensor(
+            [
+                [False, False],
+                [True, False],
+                [False, False],
+            ]
+        )
+
+        aligned = align_next_values_to_rollout_actions(values, bootstraps, terminated, truncated)
+
+        expected = torch.tensor(
+            [
+                [2.0, 1000.0],
+                [200.0, 30.0],
+                [300.0, 3000.0],
+            ]
+        )
+        self.assertTrue(torch.allclose(aligned, expected))
 
     def test_policy_clip_objective_ratio_clip_and_sign(self) -> None:
         old_log_prob = torch.zeros(2)

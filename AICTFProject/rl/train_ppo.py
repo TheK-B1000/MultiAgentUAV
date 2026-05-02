@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import random
 import sys
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal, Optional
@@ -23,6 +24,19 @@ from rl.custom_ppo import CustomPPOTrainer
 from rl.curriculum import CurriculumState, jacob_paper_curriculum_state, phase_from_tag
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
+
+
+def _metrics_csv_nonempty(path: Optional[str]) -> bool:
+    return bool(path and os.path.isfile(path) and os.path.getsize(path) > 0)
+
+
+def _rotate_csv_aside(path: Optional[str], *, label: str) -> None:
+    if not _metrics_csv_nonempty(path):
+        return
+    assert path is not None
+    bak = f"{path}.bak.{int(time.time())}"
+    os.replace(path, bak)
+    print(f"[PPO] Rotated existing {label} CSV aside: {bak!r} (--fresh-metrics-csv).")
 
 
 def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = False) -> None:
@@ -72,6 +86,9 @@ class PPOConfig:
     enable_metrics_csv: bool = True
     metrics_csv_path: Optional[str] = None
     episode_csv_path: Optional[str] = None
+    # If True before training, existing non-empty metrics/episode CSVs are rotated aside so a new run
+    # does not append duplicate timesteps under the same --run-tag.
+    fresh_metrics_csv: bool = False
     # E3: optional per-step CSV (z, H(q), argmax, switch, phase). See `rl.custom_ppo.E3_STEP_TELEMETRY_FIELDS`.
     e3_step_telemetry_path: Optional[str] = None
     # SB3-compatible: ``tqdm`` (prefer ``tqdm.rich``) during rollout, ``total=remaining`` timesteps, ``update(n_envs)`` / step.
@@ -246,6 +263,17 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             cfg.episode_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_episodes.csv")
         print(f"[PPO] Update metrics CSV: {cfg.metrics_csv_path}")
         print(f"[PPO] Episode metrics CSV: {cfg.episode_csv_path}")
+        if cfg.fresh_metrics_csv:
+            _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
+            _rotate_csv_aside(cfg.episode_csv_path, label="episode")
+        elif not cfg.load_path and (
+            _metrics_csv_nonempty(cfg.metrics_csv_path) or _metrics_csv_nonempty(cfg.episode_csv_path)
+        ):
+            print(
+                "[PPO] WARNING: metrics/episode CSV already exists; this run will APPEND. "
+                "That duplicates `timestep`/update indices if you reused --run-tag. "
+                "Use --fresh-metrics-csv (rotates old files aside) or a new --run-tag."
+            )
     else:
         cfg.metrics_csv_path = None
         cfg.episode_csv_path = None
@@ -491,6 +519,11 @@ if __name__ == "__main__":
         parser.add_argument("--metrics-csv", type=str, default=None, help="Path for per-update training metrics CSV.")
         parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")
         parser.add_argument("--no-metrics-csv", action="store_true", help="Disable training CSV telemetry.")
+        parser.add_argument(
+            "--fresh-metrics-csv",
+            action="store_true",
+            help="Rotate aside existing metrics/episode CSVs for this run_tag so telemetry is not appended.",
+        )
         parser.add_argument("--load", type=str, default=None)
         parser.add_argument("--learning-rate", type=float, default=None, help="PPO learning rate.")
         parser.add_argument(
@@ -722,6 +755,8 @@ if __name__ == "__main__":
         )
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         cfg.checkpoint_dir = args.checkpoint_dir or os.path.join("checkpoints", _agents_suffix(cfg.max_blue_agents))
+        if args.fresh_metrics_csv:
+            cfg.fresh_metrics_csv = True
         if args.no_metrics_csv:
             cfg.enable_metrics_csv = False
         if args.metrics_csv is not None:

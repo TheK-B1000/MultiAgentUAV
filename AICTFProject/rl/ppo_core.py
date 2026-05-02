@@ -79,6 +79,37 @@ def compute_gae(
     return advantages, advantages + values
 
 
+def align_next_values_to_rollout_actions(
+    values: torch.Tensor,
+    next_values: torch.Tensor,
+    terminated: torch.Tensor,
+    truncated: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Use collected ``V/Q`` rows as next values for in-rollout continuations.
+
+    The trainer's centralized critic can be action-conditioned. For transition
+    ``t`` inside the same rollout and episode, the actual next action/value is
+    collected at row ``t + 1``; using that row avoids bootstrapping from a
+    synthetic deterministic action. Final rollout rows and episode boundaries
+    keep their already-computed bootstrap values.
+    """
+    if values.shape != next_values.shape:
+        raise ValueError("values and next_values must have matching (T, B) shapes.")
+    if values.shape != terminated.shape:
+        raise ValueError("terminated must match values shape.")
+    if truncated is None:
+        truncated = torch.zeros_like(terminated, dtype=torch.bool)
+    if truncated.shape != values.shape:
+        raise ValueError("truncated must match values shape.")
+
+    aligned = next_values.float().clone()
+    if int(values.shape[0]) <= 1:
+        return aligned
+    continuation = ~(terminated[:-1].bool() | truncated[:-1].bool())
+    aligned[:-1] = torch.where(continuation, values[1:].float(), aligned[:-1])
+    return aligned
+
+
 def ppo_policy_loss(
     new_log_prob: torch.Tensor,
     old_log_prob: torch.Tensor,

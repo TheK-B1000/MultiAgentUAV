@@ -29,7 +29,12 @@ from rl.global_state import (
 )
 from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator
 from rl.networks import CNNEncoder, CentralizedCritic
-from rl.ppo_core import TensorDictRolloutBuffer, ppo_policy_loss, ppo_value_loss
+from rl.ppo_core import (
+    TensorDictRolloutBuffer,
+    align_next_values_to_rollout_actions,
+    ppo_policy_loss,
+    ppo_value_loss,
+)
 
 
 def _tqdm_for_sb3_progress() -> Any:
@@ -102,6 +107,7 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
         "cfg": cfg,
         "actor_arch": str(payload.get("actor_arch", "flat_mlp" if fmt.endswith("_v2") else "unknown")),
         "vec_schema_version": int(payload.get("vec_schema_version", 2 if fmt.endswith("_v2") else 0)),
+        "global_state_dim": int(payload.get("global_state_dim", GLOBAL_STATE_DIM)),
     }
     if isinstance(cfg, dict):
         if "max_blue_agents" in cfg:
@@ -1011,6 +1017,7 @@ class CustomPPOTrainer:
             "strategy_q_loss",
             "strategy_persist_loss",
             "strategy_grad_norm",
+            "strategy_resample_count",
             "strategy_resample_fraction",
             "strategy_unique_count",
             "strategy_dominant",
@@ -1462,6 +1469,7 @@ class CustomPPOTrainer:
             "strategy_switch_fraction": float(
                 (switched.float().sum() / persist_mask.float().sum().clamp_min(1.0)).detach().cpu().item()
             ),
+            "strategy_resample_count": float(resampled.sum().detach().cpu().item()),
             "strategy_resample_fraction_rollout": float(resampled.float().mean().detach().cpu().item()),
         }
         for idx, value in enumerate(occupancy.detach().cpu().tolist()):
@@ -1873,6 +1881,14 @@ class CustomPPOTrainer:
                     strategy_aux=strategy_aux,
                 )
 
+        buffer.fields["next_values"][: int(buffer.pos)].copy_(
+            align_next_values_to_rollout_actions(
+                buffer.fields["values"][: int(buffer.pos)],
+                buffer.fields["next_values"][: int(buffer.pos)],
+                buffer.fields["terminated"][: int(buffer.pos)].bool(),
+                buffer.fields["truncated"][: int(buffer.pos)].bool(),
+            )
+        )
         gae_kw: dict[str, Any] = dict(
             gamma=float(self.cfg.gamma),
             gae_lambda=float(self.cfg.gae_lambda),
@@ -2160,6 +2176,7 @@ class CustomPPOTrainer:
                 "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
                 "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
                 "actor_cnn_feature_dim": int(self.model.actor_cnn_feature_dim),
+                "global_state_dim": int(GLOBAL_STATE_DIM),
                 "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
             },
             path,
