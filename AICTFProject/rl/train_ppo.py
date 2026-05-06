@@ -151,6 +151,83 @@ class PPOConfig:
     dr_blue_speed_jitter: float = 0.12
 
 
+def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
+    """Apply named high-level presets for repeatable training recipes."""
+    key = str(preset).strip().lower()
+    if not key:
+        return cfg
+    if key in {"latent_op3_push80_1m", "latent_push80_1m"}:
+        # Tuned for faster 2v2 OP3 gains by 1M steps:
+        # - sharpen latent strategy usage (lower strategy entropy, stronger persistence)
+        # - increase on-policy update pressure per rollout while keeping PPO stable
+        cfg.use_latent_strategy = True
+        cfg.total_timesteps = 1_000_000
+        cfg.mode = TrainMode.FIXED_OPPONENT.value
+        cfg.fixed_opponent_tag = "OP3"
+        cfg.normalize_returns = True
+        cfg.clip_range_vf = 0.15
+        cfg.vf_coef = 0.8
+        cfg.learning_rate = 3e-4
+        cfg.lr_floor_frac = 0.05
+        cfg.target_kl = 0.03
+        cfg.n_steps = 2048
+        cfg.batch_size = 512
+        cfg.n_epochs = 8
+        cfg.ent_coef = 0.003
+        cfg.latent_entropy_objective = "minimize"
+        cfg.latent_lam_h = 0.01
+        cfg.latent_lam_p = 0.04
+        cfg.latent_strategy_ppo_coef = 0.2
+        cfg.latent_resample_every_n = 0
+        cfg.latent_resample_on_flag = False
+        cfg.latent_kl_consecutive = 0.0
+        cfg.latent_gae_reset_on_z_change = True
+        cfg.latent_bootstrap_z_deterministic = True
+        cfg.run_tag = "latent_op3_push80_1m_2v2"
+        return cfg
+    if key in {"latent_train80_op3_1m", "latent_op3_train80_1m"}:
+        # Training-winrate-first profile (2v2, fixed OP3):
+        # prioritize fast in-run WR improvements over broad exploration.
+        cfg.use_latent_strategy = True
+        cfg.total_timesteps = 1_000_000
+        cfg.mode = TrainMode.FIXED_OPPONENT.value
+        cfg.fixed_opponent_tag = "OP3"
+        cfg.normalize_returns = True
+        cfg.clip_range_vf = 0.12
+        cfg.vf_coef = 0.7
+        cfg.learning_rate = 2.5e-4
+        cfg.lr_floor_frac = 0.05
+        cfg.target_kl = 0.025
+        cfg.n_steps = 2048
+        cfg.batch_size = 512
+        cfg.n_epochs = 10
+        cfg.ent_coef = 0.001
+        cfg.latent_entropy_objective = "minimize"
+        cfg.latent_lam_h = 0.02
+        cfg.latent_lam_p = 0.06
+        cfg.latent_strategy_ppo_coef = 0.30
+        cfg.latent_resample_every_n = 0
+        cfg.latent_resample_on_flag = False
+        cfg.latent_kl_consecutive = 0.0
+        cfg.latent_gae_reset_on_z_change = True
+        cfg.latent_bootstrap_z_deterministic = True
+        # Optional warm-start if a strong latent OP3 checkpoint is already present.
+        warm_ckpt = os.path.join(
+            "checkpoints",
+            "2v2",
+            "final_latent_fix_v4_retnorm_vf256_1m_2v2.zip",
+        )
+        if os.path.isfile(warm_ckpt):
+            cfg.load_path = warm_ckpt
+        cfg.run_tag = "latent_train80_op3_1m_2v2"
+        return cfg
+    raise ValueError(
+        f"Unknown preset {preset!r}. Supported presets: "
+        "'latent_op3_push80_1m', 'latent_push80_1m', "
+        "'latent_train80_op3_1m', 'latent_op3_train80_1m'."
+    )
+
+
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     """Run the default local PPO/MAPPO training path."""
     cfg = cfg or PPOConfig()
@@ -508,6 +585,15 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Train custom PPO/MAPPO for CTF")
         parser.add_argument("--seed", type=int, default=None)
         parser.add_argument(
+            "--preset",
+            type=str,
+            default=None,
+            help=(
+                "Apply a named training preset before other CLI overrides. "
+                "Examples: latent_op3_push80_1m"
+            ),
+        )
+        parser.add_argument(
             "--mode",
             type=str,
             default=None,
@@ -689,6 +775,8 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         cfg = PPOConfig()
+        if args.preset is not None:
+            cfg = _apply_training_preset(cfg, args.preset)
         if args.mode is not None:
             cfg.mode = _normalize_train_mode(args.mode)
         if args.seed is not None:

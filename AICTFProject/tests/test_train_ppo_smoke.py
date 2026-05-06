@@ -26,7 +26,7 @@ from rl.custom_ppo import (
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
-from rl.train_ppo import PPOConfig, train_ppo
+from rl.train_ppo import PPOConfig, _apply_training_preset, train_ppo
 
 
 _WORKSPACE_TMP = Path(__file__).resolve().parents[1] / ".test_runs" / "train_ppo_smoke"
@@ -87,6 +87,30 @@ def _run_smoke_and_cleanup(*, tag: str) -> None:
 
 
 class TrainPpoSmokeTests(unittest.TestCase):
+    def test_push80_preset_applies_expected_knobs(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "latent_op3_push80_1m")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.fixed_opponent_tag, "OP3")
+        self.assertTrue(cfg.normalize_returns)
+        self.assertEqual(cfg.latent_entropy_objective, "minimize")
+        self.assertAlmostEqual(cfg.latent_lam_h, 0.01)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.04)
+        self.assertEqual(cfg.n_epochs, 8)
+        self.assertEqual(cfg.batch_size, 512)
+
+    def test_train80_preset_applies_expected_knobs(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "latent_train80_op3_1m")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.fixed_opponent_tag, "OP3")
+        self.assertEqual(cfg.mode, "FIXED_OPPONENT")
+        self.assertTrue(cfg.normalize_returns)
+        self.assertEqual(cfg.latent_entropy_objective, "minimize")
+        self.assertAlmostEqual(cfg.ent_coef, 0.001)
+        self.assertAlmostEqual(cfg.latent_lam_h, 0.02)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.06)
+        self.assertEqual(cfg.n_epochs, 10)
+        self.assertEqual(cfg.batch_size, 512)
+
     def test_csv_writer_rejects_existing_schema_mismatch(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
         path = _WORKSPACE_TMP / "schema_mismatch_episodes.csv"
