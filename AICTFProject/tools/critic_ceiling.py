@@ -2,7 +2,7 @@
 
 This collects one or more frozen PPO rollouts, then fits fresh supervised
 regressors from ``global_state -> return`` with a held-out split. The held-out
-R^2 is an empirical ceiling for any critic that only sees the 14-d global state.
+R^2 is an empirical ceiling for any critic that only sees the structured global state.
 
 Example:
     python tools/critic_ceiling.py checkpoints/2v2/final_latent_fix_v4_retnorm_vf256_2v2.zip

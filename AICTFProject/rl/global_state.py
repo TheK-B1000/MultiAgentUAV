@@ -4,12 +4,13 @@ Fixed-size global-state features for the latent team-strategy CTDE stack.
 Feature *order and semantics* follow *Summer Implementation Plan.docx* (IMPLEMENTATION DETAILS §3,
 ``global_features`` list). The policy does not consume this at execution time.
 
-The paper-aligned encoder input is a compact, structured summary of:
+The CTDE encoder input is a compact, structured summary of:
   - team geometry
   - team dispersion
   - proximity to flags and opponents
   - flag capture status
   - motion statistics
+  - score and clock pressure
 
 The policy never consumes these features directly at execution time; they are
 only for the centralized critic and the latent strategy encoder.
@@ -25,10 +26,12 @@ import torch
 if TYPE_CHECKING:
     from game_field_gpu import BatchedCTFCore
 
-GLOBAL_STATE_DIM: int = 14
-GLOBAL_STATE_USED: int = 14
+GLOBAL_STATE_DIM: int = 19
+GLOBAL_STATE_USED: int = 19
 
 # Order matches the plan’s “global summary” (team geometry + dispersion, flag proximity, captures, motion).
+# The first 14 fields preserve the original plan global-summary order.
+# Score and clock pressure are appended for critic/q_phi predictability.
 GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
     "blue_mean_x",
     "blue_mean_y",
@@ -44,6 +47,11 @@ GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
     "red_flag_captured",
     "mean_blue_speed",
     "mean_red_speed",
+    "blue_score_norm",
+    "red_score_norm",
+    "score_diff_norm",
+    "decision_frac",
+    "sim_time_frac",
 )
 assert len(GLOBAL_STATE_FIELD_NAMES) == GLOBAL_STATE_DIM, len(GLOBAL_STATE_FIELD_NAMES)
 
@@ -53,11 +61,13 @@ GLOBAL_STATE_FLAG_TERRITORY_SLICE = slice(8, 12)
 
 def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     """
-    Return (B, 14) float32 tensor on ``core.device``.
+    Return (B, GLOBAL_STATE_DIM) float32 tensor on ``core.device``.
 
     Features (see ``GLOBAL_STATE_FIELD_NAMES``), normalized where noted:
+      the first 14 entries preserve the original global summary; entries 14-18
+      append score and clock pressure for critic/q_phi predictability.
       0–3 blue mean/std; 4–7 red mean/std; 8–9 min alive dist to enemy flags;
-      10–11 capture indicators; 12–13 mean team speeds.
+      10-11 capture indicators; 12-13 mean team speeds; 14-18 score/clock pressure.
     """
     B = int(core.B)
     Nb = int(core.Nb)
@@ -128,12 +138,33 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     mean_b_sp = mean_b_sp / 3.0
     mean_r_sp = mean_r_sp / 3.0
 
+    score_den = max(1.0, float(getattr(core, "score_limit", 1)))
+    blue_score_norm = torch.clamp(core.blue_score.to(f32) / score_den, 0.0, 1.0)
+    red_score_norm = torch.clamp(core.red_score.to(f32) / score_den, 0.0, 1.0)
+    score_diff_norm = torch.clamp(
+        (core.blue_score.to(f32) - core.red_score.to(f32)) / score_den,
+        -1.0,
+        1.0,
+    )
+    decision_frac = torch.clamp(
+        core.step_count.to(f32) / max(1.0, float(getattr(core, "max_steps", 1))),
+        0.0,
+        1.0,
+    )
+    sim_time_frac = torch.clamp(
+        core.sim_step_count.to(f32) / max(1.0, float(getattr(core, "max_sim_steps", 1))),
+        0.0,
+        1.0,
+    )
+
     parts = [
         bmx, bmy, bsx, bsy,
         rmx, rmy, rsx, rsy,
         min_b_rf, min_r_bf,
         blue_flag_captured, red_flag_captured,
         mean_b_sp, mean_r_sp,
+        blue_score_norm, red_score_norm, score_diff_norm,
+        decision_frac, sim_time_frac,
     ]
     used = torch.stack(parts, dim=1)
     assert used.shape[1] == GLOBAL_STATE_USED, (used.shape[1], GLOBAL_STATE_USED)
@@ -142,7 +173,7 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
 
 def coarse_game_phase_from_global_state(state: object) -> str:
     """
-    Coarse game-phase label from the 14-d global state (flag bits).
+    Coarse game-phase label from the global state flag bits.
 
     Shared by E3 step telemetry in ``rl.custom_ppo`` and eval scripts (kept in sync
     with the former ``plot.eval_rollout._strategy_phase_from_global_state``).

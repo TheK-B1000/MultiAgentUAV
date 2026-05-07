@@ -26,7 +26,7 @@ def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
 
 
 def _strategy_phase_from_global_state(global_state: Any) -> str:
-    """Compact phase label from the 14-float global state flag-status bits."""
+    """Compact phase label from the global state flag-status bits."""
     if global_state is None:
         return "unknown"
     return coarse_game_phase_from_global_state(global_state)

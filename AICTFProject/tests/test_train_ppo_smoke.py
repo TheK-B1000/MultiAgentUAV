@@ -26,7 +26,7 @@ from rl.custom_ppo import (
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
-from rl.train_ppo import PPOConfig, _apply_training_preset, train_ppo
+from rl.train_ppo import PPOConfig, _apply_training_preset, _gpu_env_reward_kwargs, train_ppo
 
 
 _WORKSPACE_TMP = Path(__file__).resolve().parents[1] / ".test_runs" / "train_ppo_smoke"
@@ -110,6 +110,42 @@ class TrainPpoSmokeTests(unittest.TestCase):
         self.assertAlmostEqual(cfg.latent_lam_p, 0.06)
         self.assertEqual(cfg.n_epochs, 10)
         self.assertEqual(cfg.batch_size, 512)
+        self.assertTrue(cfg.latent_strategy_q_head)
+        self.assertAlmostEqual(cfg.latent_strategy_q_coef, 0.75)
+
+    def test_wrmax_preset_applies_expected_knobs(self) -> None:
+        for preset in ("latent_op3_wrmax_2m", "latent_op3_wrmax_1m"):
+            cfg = _apply_training_preset(PPOConfig(), preset)
+            self.assertEqual(cfg.total_timesteps, 1_000_000, msg=preset)
+            self.assertEqual(cfg.run_tag, "latent_op3_wrmax_1m_2v2", msg=preset)
+            self.assertTrue(cfg.latent_strategy_q_head)
+            self.assertAlmostEqual(cfg.vf_coef, 1.1)
+            self.assertEqual(cfg.latent_resample_every_n, 20)
+            self.assertEqual(cfg.latent_vf_hidden, 256)
+            self.assertAlmostEqual(cfg.latent_strategy_q_coef, 1.2)
+            self.assertAlmostEqual(cfg.latent_strategy_tau, 0.7)
+            self.assertAlmostEqual(cfg.env_win_team_reward, 1.5)
+            self.assertAlmostEqual(cfg.env_lose_team_punish, -1.2)
+            self.assertAlmostEqual(cfg.env_draw_team_penalty, -0.7)
+            self.assertAlmostEqual(cfg.env_action_failed_punishment, -0.02)
+            self.assertAlmostEqual(cfg.env_dense_weight, 0.08)
+            self.assertEqual(cfg.env_stalemate_max_steps, 120)
+
+    def test_wrmax_train_2m_preset(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "latent_op3_wrmax_train_2m")
+        self.assertEqual(cfg.total_timesteps, 2_000_000)
+        self.assertEqual(cfg.run_tag, "latent_op3_wrmax_train_2m_2v2")
+
+    def test_gpu_env_reward_kwargs_skips_unset_fields(self) -> None:
+        cfg = PPOConfig()
+        self.assertEqual(_gpu_env_reward_kwargs(cfg), {})
+        cfg.env_win_team_reward = 1.7
+        self.assertEqual(_gpu_env_reward_kwargs(cfg), {"win_team_reward": 1.7})
+        cfg.env_action_failed_punishment = -0.02
+        self.assertEqual(
+            _gpu_env_reward_kwargs(cfg),
+            {"win_team_reward": 1.7, "action_failed_punishment": -0.02},
+        )
 
     def test_csv_writer_rejects_existing_schema_mismatch(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
@@ -297,6 +333,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("reward_offense_mean", rows[0])
             self.assertIn("reward_sparse_mean", rows[0])
             self.assertIn("reward_failure_mean", rows[0])
+            self.assertIn("reward_failure_to_outcome_abs", rows[0])
             self.assertIn("strategy_occupancy_0", rows[0])
             self.assertIn("episode_z_0_red_score_mean", rows[0])
             comparisons = compare_policy_updates(metrics_csv, before_policy_update=0, after_policy_update=1)

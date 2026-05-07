@@ -30,7 +30,7 @@ class NetworkTests(unittest.TestCase):
         self.assertEqual(tuple(values.shape), (4, 1))
 
     def test_centralized_critic_matches_production_global_state_dim(self) -> None:
-        """The CTDE critic hook uses the documented 14-float global state."""
+        """The CTDE critic hook uses the documented production global state."""
         critic = CentralizedCritic(global_state_dim=GLOBAL_STATE_DIM, hidden_dim=32)
         global_state = torch.rand(2, GLOBAL_STATE_DIM)
         values = critic(global_state)

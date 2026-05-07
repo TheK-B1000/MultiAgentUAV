@@ -57,10 +57,10 @@ Reasonable outcomes:
 
 ## Critic and supervised ceiling under DR
 
-Under DR, returns are **noisier** for the same 14-d `global_state`, so:
+Under DR, returns are **noisier** for the same structured `global_state`, so:
 
-- **Rollout explained variance (EV)** will often **drop** vs non-DR (e.g. into a **~0.05–0.10** band) once the run is long enough or the critic is pinning diverse returns. On a **short early horizon**, EV may look **similar** to non-DR if the 14-d ceiling was already low—added outcome variance can sit under the same noise floor—or if DR mostly perturbs **per-step** observations without shifting **episode return** predictability much yet. Treat EV together with `value_loss` and later `critic_ceiling` reruns; a sustained drop is **expected** at longer horizons, not automatically a trainer regression.
-- Re-running `tools/critic_ceiling.py` on rollouts from a **DR-trained** policy may show **held-out R² around ~0.10–0.18** (vs ~0.2–0.25 in a cleaner sim). That means the **information ceiling is binding harder**; large WR gains after DR will eventually push toward **richer critic inputs**, not more critic tuning on 14-d alone.
+- **Rollout explained variance (EV)** will often **drop** vs non-DR (e.g. into a **~0.05–0.10** band) once the run is long enough or the critic is pinning diverse returns. On a **short early horizon**, EV may look **similar** to non-DR if the current global-state ceiling was already low—added outcome variance can sit under the same noise floor—or if DR mostly perturbs **per-step** observations without shifting **episode return** predictability much yet. Treat EV together with `value_loss` and later `critic_ceiling` reruns; a sustained drop is **expected** at longer horizons, not automatically a trainer regression.
+- Re-running `tools/critic_ceiling.py` on rollouts from a **DR-trained** policy may show **held-out R² around ~0.10–0.18** (vs ~0.2–0.25 in a cleaner sim). That means the **information ceiling is binding harder**; large WR gains after DR will eventually push toward **richer critic inputs**, not only critic tuning.
 
 ## No-latent DR baseline (system stress test)
 

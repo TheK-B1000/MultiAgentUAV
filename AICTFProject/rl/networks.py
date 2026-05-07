@@ -110,7 +110,7 @@ class CentralizedCritic(nn.Module):
 
     def __init__(
         self,
-        global_state_dim: int = 14,
+        global_state_dim: int = 19,
         hidden_dim: int = 128,
         extra_dim: int = 0,
     ) -> None:

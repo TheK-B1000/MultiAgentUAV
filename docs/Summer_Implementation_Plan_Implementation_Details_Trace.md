@@ -37,7 +37,7 @@ Code pointers are relative to the `AICTFProject/` root unless noted.
 | Plan text | Status |
 | --- | --- |
 | Strategy is inferred from **global** information; **policy at execution** does not take raw global features—only $z$ (or its embedding). | <span style="color:#1e8449">`SharedActorCentralizedCritic` actor path uses per-agent `grid`/`vec` + `z_emb`; it does not concatenate `global_state` into actor inputs. `global_state` feeds `StrategyEncoder` and the centralized critic (CTDE). See `rl/custom_ppo.py` `policy_logits` / `values`.</span> |
-| The doc’s **illustrative** `global_features` list (team geometry, relative distances, game phase, motion stats). | <span style="color:#1e8449">**Faithful order:** 14 floats in the same *semantic* order as the doc’s list — `mean_position_blue` (x,y) → `std_position_blue` (x,y) → `mean_position_red` (x,y) → `std_position_red` (x,y) → `min_blue_to_red_flag` → `min_red_to_blue_flag` → `blue_flag_captured` → `red_flag_captured` → `avg_blue_speed` → `avg_red_speed`. Implemented in `rl/global_state.py` as `GLOBAL_STATE_FIELD_NAMES` and `build_global_state_batch`.</span> |
+| The doc’s **illustrative** `global_features` list (team geometry, relative distances, game phase, motion stats). | <span style="color:#1e8449">**Faithful order:** the first 14 floats keep the same *semantic* order as the doc’s list — `mean_position_blue` (x,y) → `std_position_blue` (x,y) → `mean_position_red` (x,y) → `std_position_red` (x,y) → `min_blue_to_red_flag` → `min_red_to_blue_flag` → `blue_flag_captured` → `red_flag_captured` → `avg_blue_speed` → `avg_red_speed`. The active `GLOBAL_STATE_DIM` is 19 because score and clock pressure are appended for critic/q_phi predictability. Implemented in `rl/global_state.py` as `GLOBAL_STATE_FIELD_NAMES` and `build_global_state_batch`.</span> |
 
 ---
 
@@ -45,7 +45,7 @@ Code pointers are relative to the `AICTFProject/` root unless noted.
 
 | Plan text | Status |
 | --- | --- |
-| MLP: `Linear(state_dim, 128) → ReLU → 128 → ReLU → Linear(128, K)` logits. | <span style="color:#1e8449">`StrategyEncoder` in `rl/latent_marl.py` matches the **128–128–K** trunk; `state_dim` is `GLOBAL_STATE_DIM` (14).</span> |
+| MLP: `Linear(state_dim, 128) → ReLU → 128 → ReLU → Linear(128, K)` logits. | <span style="color:#1e8449">`StrategyEncoder` in `rl/latent_marl.py` matches the **128–128–K** trunk; `state_dim` is `GLOBAL_STATE_DIM` (19). The first 14 fields preserve the original global summary; score and clock pressure are appended for critic/q_phi predictability.</span> |
 | Initialization (doc code block has none) | <span style="color:#1e8449">`StrategyEncoder` uses default `nn.Linear` initialization to match the Word listing **verbatim**.</span> |
 
 ---
@@ -133,7 +133,7 @@ Code pointers are relative to the `AICTFProject/` root unless noted.
 
 | Topic | In-repo position |
 | --- | --- |
-| **Local vs global in the actor** | The actor does **not** take `global_state`. Per-agent `grid` / `vec` are **local** observations from `BatchedCTFCore._build_grid_obs` (see `docs/environment.md`); they are not a concatenated dump of the 14-d global feature vector. |
+| **Local vs global in the actor** | The actor does **not** take `global_state`. Per-agent `grid` / `vec` are **local** observations from `BatchedCTFCore._build_grid_obs` (see `docs/environment.md`); they are not a concatenated dump of the 19-d global feature vector. |
 | **Scripted OP / phase / baselines** | May appear as **opponents** or **evaluation** settings. They are **not** labels or targets for $z$; $z$ is learned only from task-level reward and the plan’s inductive terms. |
 | **E3-style ablation (prove latent helps)** | Not enforced in code, but the intended comparison is **identical** PPO+env+budget+seeds with **only** $z$ removed (`--no-latent-strategy` or `use_latent_strategy=False`); all else fixed. This is **config + interface** parity, not a guarantee of **bit-identical** training trajectories: architecture (parameter counts, optimizer state, init draws) still differs, so win-rate gaps are a fair *experimental* result, not a replay test. For paper wording, the no-latent baseline **omits** the strategy embedding and related heads (rather than **zeroing** a dead embedding) so the comparison is not confounded by unused parameters still eating optimizer state. |
 | **Professor-requested baselines** | `experiments/phase6_experiment_matrix.py` now keeps the main/default row as the Summer latent implementation (`--mode FIXED_OPPONENT --fixed-opponent OP3`) and names the two controls explicitly: `curriculum` (`--mode CURRICULUM --no-latent-strategy`) and `no_latent` (`--mode FIXED_OPPONENT --fixed-opponent OP3 --no-latent-strategy`). `train_ppo.py` also forces latent off whenever `mode=CURRICULUM`, so old commands cannot accidentally run latent curriculum. The extra fixed-latent/K/sparse-refresh/no-persistence rows are retained only as optional config helpers, not final matrix defaults. |

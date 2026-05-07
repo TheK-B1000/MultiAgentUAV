@@ -15,12 +15,19 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 
+OPTIONAL_COMPARISON_COLUMNS: tuple[str, ...] = (
+    "reward_outcome_mean",
+    "reward_shaping_mean",
+    "reward_failure_to_outcome_abs",
+)
+
 COMPARISON_COLUMNS: tuple[str, ...] = (
     "reward_offense_mean",
     "reward_pbrs_mean",
     "reward_team_mean",
     "reward_sparse_mean",
     "reward_failure_mean",
+    *OPTIONAL_COMPARISON_COLUMNS,
     "rollout_blue_score_mean",
     "rollout_red_score_mean",
 )
@@ -83,6 +90,13 @@ def compare_policy_updates(
     after_trainer_update = int(after_policy_update) + 1
     before_row = _row_by_trainer_update(rows, before_trainer_update)
     after_row = _row_by_trainer_update(rows, after_trainer_update)
+    if tuple(columns) == COMPARISON_COLUMNS:
+        columns = tuple(
+            column
+            for column in columns
+            if (column in before_row and column in after_row)
+            or column not in OPTIONAL_COMPARISON_COLUMNS
+        )
     return [
         UpdateComparison(
             column=column,

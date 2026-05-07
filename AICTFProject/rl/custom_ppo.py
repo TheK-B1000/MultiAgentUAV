@@ -94,6 +94,18 @@ def _torch_load_checkpoint(path: str, *, map_location: str | torch.device):
         return torch.load(path, map_location=map_location)
 
 
+def _assert_compatible_global_state_dim(payload: dict[str, Any], path: str) -> None:
+    ckpt_dim = payload.get("global_state_dim")
+    if ckpt_dim is None:
+        return
+    if int(ckpt_dim) != int(GLOBAL_STATE_DIM):
+        raise ValueError(
+            f"Checkpoint {path!r} was saved with global_state_dim={int(ckpt_dim)}, "
+            f"but this code expects {GLOBAL_STATE_DIM}. Start a fresh run or load a "
+            "checkpoint trained after the global-state expansion."
+        )
+
+
 def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
     """Read lightweight metadata from a local PPO checkpoint."""
     payload = _torch_load_checkpoint(path, map_location="cpu")
@@ -381,6 +393,7 @@ def load_custom_ppo_policy(
     payload = _torch_load_checkpoint(path, map_location=device_t)
     if not isinstance(payload, dict) or "model_state_dict" not in payload:
         raise ValueError("Not a custom PPO checkpoint.")
+    _assert_compatible_global_state_dim(payload, path)
     model = SharedActorCentralizedCritic(
         observation_space,
         action_space,
@@ -776,6 +789,13 @@ class CustomPPOTrainer:
         self.latent_strategy_q_head = self.use_latent_strategy and bool(
             getattr(cfg, "latent_strategy_q_head", False)
         )
+        self.reward_shaping_coef_start = float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0)
+        self.reward_shaping_coef_end = float(getattr(cfg, "reward_shaping_coef_end", self.reward_shaping_coef_start))
+        self.reward_shaping_decay_steps = max(0, int(getattr(cfg, "reward_shaping_decay_steps", 0) or 0))
+        self.periodic_checkpoint_steps = max(0, int(getattr(cfg, "periodic_checkpoint_steps", 0) or 0))
+        self._next_periodic_checkpoint_step = (
+            self.periodic_checkpoint_steps if self.periodic_checkpoint_steps > 0 else 0
+        )
         self._strategy_return_mean = 0.0
         self._strategy_return_var = 1.0
         self._strategy_return_count = 1e-4
@@ -812,6 +832,12 @@ class CustomPPOTrainer:
         self._z_kl_first_in_ep: Optional[torch.Tensor] = None
         self._prev_z_logits: Optional[torch.Tensor] = None
         self._decentralized_actor_contract_logged: bool = False
+
+    def _reward_shaping_coef(self) -> float:
+        if self.reward_shaping_decay_steps <= 0:
+            return float(self.reward_shaping_coef_start)
+        frac = min(1.0, max(0.0, float(self.global_step) / float(self.reward_shaping_decay_steps)))
+        return float(self.reward_shaping_coef_start + frac * (self.reward_shaping_coef_end - self.reward_shaping_coef_start))
 
     def _log_decentralized_actor_contract_once(self) -> None:
         """One-time training log: policy actor is CNN(grid) + scalars + optional z, not global state."""
@@ -993,6 +1019,11 @@ class CustomPPOTrainer:
             "reward_sparse_points_mean",
             "reward_failure_mean",
             "reward_total_mean",
+            "reward_outcome_mean",
+            "reward_shaping_mean",
+            "reward_shaping_to_outcome_abs_ratio",
+            "reward_shaping_coef",
+            "reward_failure_to_outcome_abs",
             "policy_loss",
             "value_loss",
             "value_loss_min",
@@ -1166,9 +1197,9 @@ class CustomPPOTrainer:
             return 0.0
         return float(sum(recent)) / float(len(recent))
 
-    def _write_update_metrics(self, stats: dict[str, float], buffer: TensorDictRolloutBuffer) -> None:
+    def _write_update_metrics(self, stats: dict[str, float], buffer: TensorDictRolloutBuffer) -> dict[str, Any]:
         if not self.metrics_csv_path:
-            return
+            return {}
         rewards = buffer.fields["rewards"][: int(buffer.pos)].detach().float().reshape(-1)
         returns = buffer.fields["returns"][: int(buffer.pos)].detach().float().reshape(-1)
         values = buffer.fields["values"][: int(buffer.pos)].detach().float().reshape(-1)
@@ -1211,8 +1242,21 @@ class CustomPPOTrainer:
         ):
             vals = buffer.fields[key][: int(buffer.pos)].detach().float().reshape(-1)
             row[f"{key}_mean"] = float(vals.mean().detach().cpu().item()) if vals.numel() > 0 else 0.0
+        reward_outcome = float(row.get("reward_terminal_mean", 0.0)) + float(row.get("reward_sparse_mean", 0.0))
+        reward_shaping = (
+            float(row.get("reward_offense_mean", 0.0))
+            + float(row.get("reward_pbrs_mean", 0.0))
+            + float(row.get("reward_team_mean", 0.0))
+        )
+        reward_failure = float(row.get("reward_failure_mean", 0.0))
+        row["reward_outcome_mean"] = reward_outcome
+        row["reward_shaping_mean"] = reward_shaping
+        row["reward_shaping_to_outcome_abs_ratio"] = abs(reward_shaping) / (abs(reward_outcome) + 1e-6)
+        row["reward_shaping_coef"] = float(self._reward_shaping_coef())
+        row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
         row.update(stats)
         self._write_csv_row(self.metrics_csv_path, self._update_fieldnames(), row)
+        return row
 
     def _opponent_legend(self, info: dict[str, Any]) -> str:
         """Compact opponent string for logging (scripted:OP3, snapshot:name, ...)."""
@@ -1797,6 +1841,19 @@ class CustomPPOTrainer:
                     "reward_total",
                 )
             }
+            shaping_coef = float(self._reward_shaping_coef())
+            if abs(shaping_coef - 1.0) > 1e-9:
+                reward_component["reward_offense"] = reward_component["reward_offense"] * shaping_coef
+                reward_component["reward_pbrs"] = reward_component["reward_pbrs"] * shaping_coef
+                reward_component["reward_team"] = reward_component["reward_team"] * shaping_coef
+            reward_component["reward_total"] = (
+                reward_component["reward_terminal"]
+                + reward_component["reward_sparse"]
+                + reward_component["reward_failure"]
+                + reward_component["reward_offense"]
+                + reward_component["reward_pbrs"]
+                + reward_component["reward_team"]
+            )
 
             add_items: dict[str, torch.Tensor] = dict(
                 obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=self.device),
@@ -1809,7 +1866,7 @@ class CustomPPOTrainer:
                 values=values_t,
                 values_norm=values_norm_t,
                 next_values=next_values_t,
-                rewards=torch.as_tensor(rewards, dtype=torch.float32, device=self.device),
+                rewards=reward_component["reward_total"],
                 reward_terminal=reward_component["reward_terminal"],
                 reward_offense=reward_component["reward_offense"],
                 reward_pbrs=reward_component["reward_pbrs"],
@@ -2119,6 +2176,16 @@ class CustomPPOTrainer:
         self.last_stats.update(self._latent_rollout_stats(buffer))
         return self.last_stats
 
+    def _save_periodic_checkpoint(self) -> None:
+        if self.periodic_checkpoint_steps <= 0:
+            return
+        while self.global_step >= self._next_periodic_checkpoint_step:
+            ckpt_name = f"ckpt_{str(getattr(self.cfg, 'run_tag', 'ppo'))}_{int(self._next_periodic_checkpoint_step)}.zip"
+            ckpt_path = os.path.join(str(getattr(self.cfg, "checkpoint_dir", "checkpoints")), ckpt_name)
+            self.save(ckpt_path)
+            print(f"[PPO] Periodic checkpoint saved: {ckpt_path}")
+            self._next_periodic_checkpoint_step += self.periodic_checkpoint_steps
+
     def learn(self, total_timesteps: int) -> dict[str, float]:
         """Train until at least ``total_timesteps`` environment transitions have been collected."""
         total = int(total_timesteps)
@@ -2130,7 +2197,27 @@ class CustomPPOTrainer:
                 rollout = self.collect_rollout()
                 stats = self.update(rollout, total_timesteps=total)
                 self._updates_completed += 1
-                self._write_update_metrics(stats, rollout)
+                row = self._write_update_metrics(stats, rollout)
+                self._save_periodic_checkpoint()
+                if row:
+                    z_wr_parts: list[str] = []
+                    z_occ_parts: list[str] = []
+                    if self.use_latent_strategy:
+                        for i in range(self.latent_k):
+                            wr = row.get(f"episode_z_{i}_win_rate", "")
+                            occ = row.get(f"strategy_occupancy_{i}", "")
+                            z_wr_parts.append("-" if wr == "" else f"{float(wr):.3f}")
+                            z_occ_parts.append("-" if occ == "" else f"{float(occ):.3f}")
+                    print(
+                        "[PPO|diag] "
+                        f"steps={int(row.get('timesteps', self.global_step))} "
+                        f"ev={float(row.get('explained_variance', 0.0)):.3f} "
+                        f"v_loss={float(row.get('value_loss', 0.0)):.3f} "
+                        f"shape/out={float(row.get('reward_shaping_to_outcome_abs_ratio', 0.0)):.3f} "
+                        f"qphi_grad={float(row.get('strategy_grad_norm', 0.0)):.3f} "
+                        f"z_occ=[{','.join(z_occ_parts)}] "
+                        f"z_wr=[{','.join(z_wr_parts)}]"
+                    )
                 if self.normalize_returns:
                     print(
                         "[PPO|return_norm] "
@@ -2185,6 +2272,7 @@ class CustomPPOTrainer:
     def load(self, path: str) -> None:
         """Restore a checkpoint produced by :meth:`save`."""
         payload = _torch_load_checkpoint(path, map_location=self.device)
+        _assert_compatible_global_state_dim(payload, path)
         self.model.load_state_dict(payload["model_state_dict"])
         self.optimizer.load_state_dict(payload["optimizer_state_dict"])
         self.global_step = int(payload.get("global_step", 0))

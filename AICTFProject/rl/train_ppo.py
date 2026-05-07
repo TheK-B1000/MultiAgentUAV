@@ -8,7 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
@@ -37,6 +37,47 @@ def _rotate_csv_aside(path: Optional[str], *, label: str) -> None:
     bak = f"{path}.bak.{int(time.time())}"
     os.replace(path, bak)
     print(f"[PPO] Rotated existing {label} CSV aside: {bak!r} (--fresh-metrics-csv).")
+
+
+def _gpu_env_reward_kwargs(cfg: PPOConfig) -> dict[str, Any]:
+    """Map optional ``PPOConfig`` reward knobs onto ``GPUFieldConfig`` / ``RewardConfig`` field names."""
+    pairs = (
+        ("win_team_reward", getattr(cfg, "env_win_team_reward", None)),
+        ("draw_team_penalty", getattr(cfg, "env_draw_team_penalty", None)),
+        ("lose_team_punish", getattr(cfg, "env_lose_team_punish", None)),
+        ("action_failed_punishment", getattr(cfg, "env_action_failed_punishment", None)),
+        ("dense_weight", getattr(cfg, "env_dense_weight", None)),
+        ("sparse_weight", getattr(cfg, "env_sparse_weight", None)),
+        ("reward_scale", getattr(cfg, "env_reward_scale", None)),
+        ("reward_clip", getattr(cfg, "env_reward_clip", None)),
+        ("stalemate_penalty", getattr(cfg, "env_stalemate_penalty", None)),
+        ("stalemate_max_steps", getattr(cfg, "env_stalemate_max_steps", None)),
+    )
+    out: dict[str, Any] = {}
+    for name, raw in pairs:
+        if raw is None:
+            continue
+        if name == "stalemate_max_steps":
+            out[name] = max(1, int(raw))
+        else:
+            out[name] = float(raw)
+    return out
+
+
+def _resolve_2v2_checkpoint(filename: str) -> Optional[str]:
+    """Find ``checkpoints/2v2/<filename>`` whether cwd is repo root or ``AICTFProject``."""
+    cwd = os.getcwd()
+    candidates = (
+        os.path.join(_PARENT_DIR, "checkpoints", "2v2", filename),
+        os.path.join(cwd, "checkpoints", "2v2", filename),
+        os.path.join(cwd, "AICTFProject", "checkpoints", "2v2", filename),
+        os.path.join(os.path.dirname(_PARENT_DIR), "AICTFProject", "checkpoints", "2v2", filename),
+    )
+    for raw in candidates:
+        path = os.path.normpath(raw)
+        if os.path.isfile(path):
+            return path
+    return None
 
 
 def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = False) -> None:
@@ -150,6 +191,24 @@ class PPOConfig:
     dr_sensor_dropout_max: float = 0.08
     dr_blue_speed_jitter: float = 0.12
 
+    # Optional overrides forwarded to ``GPUFieldConfig`` reward shaping (None = env defaults).
+    # Useful for training-winrate recipes: stronger W/D contrast and less dense dilution of terminals.
+    env_win_team_reward: Optional[float] = None
+    env_draw_team_penalty: Optional[float] = None
+    env_lose_team_punish: Optional[float] = None
+    env_action_failed_punishment: Optional[float] = None
+    env_dense_weight: Optional[float] = None
+    env_sparse_weight: Optional[float] = None
+    env_reward_scale: Optional[float] = None
+    env_reward_clip: Optional[float] = None
+    env_stalemate_penalty: Optional[float] = None
+    env_stalemate_max_steps: Optional[int] = None
+    # Optional trainer-side reward shaping decay: scales (offense+pbrs+team) contribution seen by PPO.
+    reward_shaping_coef_start: float = 1.0
+    reward_shaping_coef_end: float = 1.0
+    reward_shaping_decay_steps: int = 0
+    periodic_checkpoint_steps: int = 50_000
+
 
 def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
     """Apply named high-level presets for repeatable training recipes."""
@@ -183,6 +242,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_kl_consecutive = 0.0
         cfg.latent_gae_reset_on_z_change = True
         cfg.latent_bootstrap_z_deterministic = True
+        warm = _resolve_2v2_checkpoint("final_latent_fix_v4_retnorm_vf256_1m_2v2.zip")
+        if warm is not None:
+            cfg.load_path = warm
         cfg.run_tag = "latent_op3_push80_1m_2v2"
         return cfg
     if key in {"latent_train80_op3_1m", "latent_op3_train80_1m"}:
@@ -211,20 +273,83 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_kl_consecutive = 0.0
         cfg.latent_gae_reset_on_z_change = True
         cfg.latent_bootstrap_z_deterministic = True
-        # Optional warm-start if a strong latent OP3 checkpoint is already present.
-        warm_ckpt = os.path.join(
-            "checkpoints",
-            "2v2",
-            "final_latent_fix_v4_retnorm_vf256_1m_2v2.zip",
-        )
-        if os.path.isfile(warm_ckpt):
-            cfg.load_path = warm_ckpt
+        # Q-head gives q_phi a direct supervised signal from sampled-z returns (helps escape ~55–60% WR plateaus).
+        cfg.latent_strategy_q_head = True
+        cfg.latent_strategy_q_coef = 0.75
+        cfg.latent_strategy_tau = 1.0
+        warm = _resolve_2v2_checkpoint("final_latent_fix_v4_retnorm_vf256_1m_2v2.zip")
+        if warm is not None:
+            cfg.load_path = warm
         cfg.run_tag = "latent_train80_op3_1m_2v2"
+        return cfg
+    if key in {
+        "latent_op3_wrmax_1m",
+        "latent_wrmax_op3_1m",
+        # Kept for backward compatibility: same recipe as wrmax_1m (1M steps), not 2M.
+        "latent_op3_wrmax_2m",
+        "latent_wrmax_op3_2m",
+    }:
+        # Hard-target training WR vs fixed OP3: amplify terminal win vs draw, trim dense PBRS vs outcome,
+        # enable q_phi Q-head. Default budget 1M; use preset ``latent_op3_wrmax_train_2m`` for 2M steps.
+        cfg.use_latent_strategy = True
+        cfg.total_timesteps = 1_000_000
+        cfg.mode = TrainMode.FIXED_OPPONENT.value
+        cfg.fixed_opponent_tag = "OP3"
+        cfg.normalize_returns = True
+        cfg.clip_range = 0.18
+        cfg.clip_range_vf = 0.2
+        cfg.vf_coef = 1.1
+        cfg.learning_rate = 1.8e-4
+        cfg.lr_floor_frac = 0.05
+        cfg.target_kl = 0.02
+        cfg.n_steps = 2048
+        cfg.batch_size = 512
+        cfg.n_epochs = 8
+        cfg.ent_coef = 0.0015
+        cfg.latent_entropy_objective = "minimize"
+        cfg.latent_lam_h = 0.06
+        cfg.latent_lam_p = 0.04
+        cfg.latent_strategy_ppo_coef = 0.45
+        cfg.latent_strategy_q_head = True
+        cfg.latent_strategy_q_coef = 1.2
+        cfg.latent_strategy_tau = 0.7
+        # Make persistence loss active and let q_phi specialize via sparse mid-episode switches.
+        cfg.latent_resample_every_n = 20
+        cfg.latent_resample_on_flag = False
+        cfg.latent_kl_consecutive = 0.0
+        cfg.latent_gae_reset_on_z_change = True
+        cfg.latent_bootstrap_z_deterministic = True
+        cfg.latent_vf_hidden = 256
+        cfg.env_win_team_reward = 1.5
+        cfg.env_lose_team_punish = -1.2
+        cfg.env_draw_team_penalty = -0.7
+        cfg.env_action_failed_punishment = -0.02
+        cfg.env_dense_weight = 0.08
+        cfg.env_sparse_weight = 1.0
+        cfg.env_reward_scale = 4.5
+        cfg.env_stalemate_penalty = -0.08
+        cfg.env_stalemate_max_steps = 120
+        cfg.reward_shaping_coef_start = 1.0
+        cfg.reward_shaping_coef_end = 0.3
+        cfg.reward_shaping_decay_steps = 500_000
+        cfg.periodic_checkpoint_steps = 50_000
+        warm = _resolve_2v2_checkpoint("final_latent_fix_v4_retnorm_vf256_1m_2v2.zip")
+        if warm is not None:
+            cfg.load_path = warm
+        cfg.run_tag = "latent_op3_wrmax_1m_2v2"
+        return cfg
+    if key in {"latent_op3_wrmax_train_2m", "latent_wrmax_op3_train_2m"}:
+        cfg = _apply_training_preset(cfg, "latent_op3_wrmax_1m")
+        cfg.total_timesteps = 2_000_000
+        cfg.run_tag = "latent_op3_wrmax_train_2m_2v2"
         return cfg
     raise ValueError(
         f"Unknown preset {preset!r}. Supported presets: "
         "'latent_op3_push80_1m', 'latent_push80_1m', "
-        "'latent_train80_op3_1m', 'latent_op3_train80_1m'."
+        "'latent_train80_op3_1m', 'latent_op3_train80_1m', "
+        "'latent_op3_wrmax_1m', 'latent_wrmax_op3_1m', "
+        "'latent_op3_wrmax_2m', 'latent_wrmax_op3_2m' (aliases for wrmax 1M), "
+        "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m'."
     )
 
 
@@ -296,6 +421,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print("[PPO] Training profile: no-latent baseline")
     if bool(getattr(cfg, "normalize_returns", False)):
         print("[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.")
+    decay_steps = max(0, int(getattr(cfg, "reward_shaping_decay_steps", 0) or 0))
+    if decay_steps > 0:
+        print(
+            "[PPO] Reward shaping decay: "
+            f"coef {float(getattr(cfg, 'reward_shaping_coef_start', 1.0)):.3f} -> "
+            f"{float(getattr(cfg, 'reward_shaping_coef_end', 1.0)):.3f} "
+            f"over {decay_steps:,} steps (affects offense+pbrs+team in trainer target rewards)."
+        )
     if curriculum is not None:
         print(
             "[PPO] Jacob paper curriculum: enabled "
@@ -328,6 +461,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             f"bootstrap_z_deterministic={bool(getattr(cfg, 'latent_bootstrap_z_deterministic', True))}"
             f"{fixed_label})"
         )
+        if (not fixed) and interval <= 0 and float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0:
+            print(
+                "[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; "
+                "with sample=episode start it has near-zero training effect."
+            )
         if fixed:
             print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
     else:
@@ -378,6 +516,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             print(f"[PPO] CUDA unavailable for this torch build ({exc}). Falling back to CPU.")
             cfg.device = "cpu"
 
+    reward_kw = _gpu_env_reward_kwargs(cfg)
+    if reward_kw:
+        parts = [f"{k}={v}" for k, v in sorted(reward_kw.items())]
+        print("[PPO] GPU env reward overrides: " + ", ".join(parts))
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
         n_agents_per_team=max_agents,
@@ -391,6 +533,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         dr_sensor_noise_sigma_max=float(getattr(cfg, "dr_sensor_noise_sigma_max", 0.12)),
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
+        **reward_kw,
     )
     env = GPUCTFVecEnv(gpu_cfg)
     try:
@@ -439,7 +582,16 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         if cfg.load_path and os.path.isfile(cfg.load_path):
             print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
             trainer.load(cfg.load_path)
-        stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
+        try:
+            stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
+        except KeyboardInterrupt:
+            interrupt_path = os.path.join(
+                cfg.checkpoint_dir,
+                f"interrupt_{cfg.run_tag}_{int(getattr(trainer, 'global_step', 0))}.zip",
+            )
+            trainer.save(interrupt_path)
+            print(f"[PPO] KeyboardInterrupt: emergency checkpoint saved to: {interrupt_path}")
+            raise
         final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
         trainer.save(final_path)
         if stats:
@@ -590,7 +742,7 @@ if __name__ == "__main__":
             default=None,
             help=(
                 "Apply a named training preset before other CLI overrides. "
-                "Examples: latent_op3_push80_1m"
+                "Examples: latent_train80_op3_1m, latent_op3_wrmax_2m (1M wrmax recipe)"
             ),
         )
         parser.add_argument(
@@ -768,6 +920,90 @@ if __name__ == "__main__":
             help="Log W/L/D every N completed episodes (0=off; default from PPOConfig).",
         )
         parser.add_argument(
+            "--env-win-reward",
+            type=float,
+            default=None,
+            help="Override GPU env terminal win_team_reward (training-only shaping).",
+        )
+        parser.add_argument(
+            "--env-draw-penalty",
+            type=float,
+            default=None,
+            help="Override GPU env terminal draw_team_penalty.",
+        )
+        parser.add_argument(
+            "--env-lose-penalty",
+            type=float,
+            default=None,
+            help="Override GPU env terminal lose_team_punish.",
+        )
+        parser.add_argument(
+            "--env-action-failed-penalty",
+            type=float,
+            default=None,
+            help="Override GPU env action_failed_punishment; useful when macro failure noise dominates outcomes.",
+        )
+        parser.add_argument(
+            "--env-dense-weight",
+            type=float,
+            default=None,
+            help="Scale dense PBRS/team shaping vs sparse/terminal (GPU RewardConfig.dense_weight).",
+        )
+        parser.add_argument(
+            "--env-sparse-weight",
+            type=float,
+            default=None,
+            help="Sparse event weight before /100 normalization (GPU RewardConfig.sparse_weight).",
+        )
+        parser.add_argument(
+            "--env-reward-scale",
+            type=float,
+            default=None,
+            help="Denominator inside tanh(raw/scale) before reward_clip (GPU RewardConfig.reward_scale).",
+        )
+        parser.add_argument(
+            "--env-reward-clip",
+            type=float,
+            default=None,
+            help="Clamp bound on scaled per-step reward (GPU RewardConfig.reward_clip).",
+        )
+        parser.add_argument(
+            "--env-stalemate-penalty",
+            type=float,
+            default=None,
+            help="Extra penalty when stalemate truncation fires.",
+        )
+        parser.add_argument(
+            "--env-stalemate-max-steps",
+            type=int,
+            default=None,
+            help="Consecutive low-progress steps before stalemate truncation (per env).",
+        )
+        parser.add_argument(
+            "--reward-shaping-coef-start",
+            type=float,
+            default=None,
+            help="Initial multiplier applied to (offense+pbrs+team) in PPO training rewards.",
+        )
+        parser.add_argument(
+            "--reward-shaping-coef-end",
+            type=float,
+            default=None,
+            help="Final multiplier after --reward-shaping-decay-steps.",
+        )
+        parser.add_argument(
+            "--reward-shaping-decay-steps",
+            type=int,
+            default=None,
+            help="Linear decay horizon for reward shaping coefficient; 0 disables.",
+        )
+        parser.add_argument(
+            "--periodic-checkpoint-steps",
+            type=int,
+            default=None,
+            help="Save checkpoint every N env steps during training (0 disables).",
+        )
+        parser.add_argument(
             "--no-progress-bar",
             action="store_true",
             help="Disable the SB3-style tqdm rollout bar (default: on; uses tqdm.rich if installed).",
@@ -835,12 +1071,16 @@ if __name__ == "__main__":
             cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
         if args.latent_vf_hidden is not None:
             cfg.latent_vf_hidden = max(1, int(args.latent_vf_hidden))
-        cfg.run_tag = args.run_tag or _default_run_tag_for_mode(
-            cfg.mode,
-            cfg.fixed_opponent_tag,
-            cfg.max_blue_agents,
-            latent=bool(cfg.use_latent_strategy),
-        )
+        # Presets set ``cfg.run_tag``; do not overwrite with the default tag unless no preset.
+        if args.run_tag is not None:
+            cfg.run_tag = args.run_tag
+        elif args.preset is None:
+            cfg.run_tag = _default_run_tag_for_mode(
+                cfg.mode,
+                cfg.fixed_opponent_tag,
+                cfg.max_blue_agents,
+                latent=bool(cfg.use_latent_strategy),
+            )
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         cfg.checkpoint_dir = args.checkpoint_dir or os.path.join("checkpoints", _agents_suffix(cfg.max_blue_agents))
         if args.fresh_metrics_csv:
@@ -879,6 +1119,38 @@ if __name__ == "__main__":
             cfg.use_stable_marl_ppo = True
         if args.episode_log_every is not None:
             cfg.episode_log_every = max(0, int(args.episode_log_every))
+        if args.env_win_reward is not None:
+            cfg.env_win_team_reward = float(args.env_win_reward)
+        if args.env_draw_penalty is not None:
+            cfg.env_draw_team_penalty = float(args.env_draw_penalty)
+        if args.env_lose_penalty is not None:
+            cfg.env_lose_team_punish = float(args.env_lose_penalty)
+        if args.env_action_failed_penalty is not None:
+            cfg.env_action_failed_punishment = float(args.env_action_failed_penalty)
+        if args.env_dense_weight is not None:
+            cfg.env_dense_weight = max(0.0, float(args.env_dense_weight))
+        if args.env_sparse_weight is not None:
+            cfg.env_sparse_weight = max(0.0, float(args.env_sparse_weight))
+        if args.env_reward_scale is not None:
+            cfg.env_reward_scale = max(1e-6, float(args.env_reward_scale))
+        if args.env_reward_clip is not None:
+            cfg.env_reward_clip = max(1e-6, float(args.env_reward_clip))
+        if args.env_stalemate_penalty is not None:
+            cfg.env_stalemate_penalty = float(args.env_stalemate_penalty)
+        if args.env_stalemate_max_steps is not None:
+            cfg.env_stalemate_max_steps = max(1, int(args.env_stalemate_max_steps))
+        if args.reward_shaping_coef_start is not None:
+            cfg.reward_shaping_coef_start = float(args.reward_shaping_coef_start)
+        if args.reward_shaping_coef_end is not None:
+            cfg.reward_shaping_coef_end = float(args.reward_shaping_coef_end)
+        if args.reward_shaping_decay_steps is not None:
+            cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
+        if args.periodic_checkpoint_steps is not None:
+            cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
         if args.no_progress_bar:
             cfg.enable_progress_bar = False
+        if args.preset:
+            print(f"[PPO] Training preset: {str(args.preset).strip()!r}")
+            if cfg.load_path:
+                print(f"[PPO] Warm-start checkpoint: {cfg.load_path}")
         train_ppo(cfg)

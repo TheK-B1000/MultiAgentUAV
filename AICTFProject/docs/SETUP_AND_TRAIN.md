@@ -104,7 +104,7 @@ Use `--no-metrics-csv` to disable this, or `--metrics-csv` / `--episode-csv` to 
 The local PPO path uses:
 
 - CNN actor over local per-agent `grid` observations.
-- Strategy encoder `q_phi(z | s)` over the 14-float `global_state`.
+- Strategy encoder `q_phi(z | s)` over the 19-float `global_state`.
 - Shared strategy embedding concatenated to each agent actor.
 - Centralized critic over `global_state`, joint-action one-hot, and `z_onehot` in latent mode.
 - Named rollout buffer with `global_state`, `terminated`, `truncated`, and latent strategy fields.
@@ -121,13 +121,15 @@ Paper-aligned design status:
 | Topic | Current status |
 | --- | --- |
 | `StrategyEncoder q_phi(z | s)` | Implemented as a 128-128 MLP and wired into `CustomPPOTrainer`. |
-| Global state | True 14-float `GLOBAL_STATE_DIM` vector from `rl/global_state.py`. |
+| Global state | True 19-float `GLOBAL_STATE_DIM` vector from `rl/global_state.py`. |
 | Decentralized policy conditioning | Shared strategy embedding is concatenated to each agent actor input. |
 | Critic conditioning | Joint-action one-hot and `z_onehot` flow through `CentralizedCritic.forward(..., extra=...)`. |
 | Persistence loss | Applied only on sparse non-initial strategy refreshes. |
 | Strategy entropy | Applied on strategy sampling steps to reduce collapse. |
 
 The training objective is:
+
+Checkpoints saved before the 19-float global-state expansion are intentionally not load-compatible with the current critic/q_phi input shape. Start a fresh run or load a checkpoint trained after that change.
 
 ```text
 L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))

@@ -48,7 +48,7 @@ Terminal vector-env infos additionally include `terminal_observation` and `episo
 
 ## Reward Table
 
-Rewards are deterministic functions of state/action and are bounded by `tanh(raw / reward_scale)` followed by clipping to `[-reward_clip, reward_clip]`; defaults are `reward_scale=2.0`, `reward_clip=1.0`.
+Rewards are deterministic functions of state/action and are bounded by `tanh(raw / reward_scale)` followed by clipping to `[-reward_clip, reward_clip]`; defaults are `reward_scale=4.0`, `reward_clip=1.0`.
 
 The GPU training reward is:
 
@@ -56,7 +56,7 @@ The GPU training reward is:
 raw = terminal + offense + failure + dense_weight * (PBRS + team shaping) + sparse_weight * (sparse_points / 100)
 ```
 
-where `dense_weight=0.5` and `sparse_weight=1.0` by default. Defensive PBRS uses `pbrs_defense_coef=1.0` so denial/protection is not drowned out by event throughput. The active GPU reward knobs are normalized through `RewardConfig` / `RewardProfile`, while `GPUFieldConfig` keeps flat fields for legacy callers. Training logs expose the components separately as `reward_terminal`, `reward_offense`, `reward_pbrs`, `reward_team`, `reward_sparse`, `reward_sparse_points`, `reward_failure`, and `reward_total`.
+where `dense_weight=0.25` and `sparse_weight=1.0` by default. Defensive PBRS uses `pbrs_defense_coef=0.5` so denial/protection is present without drowning out event throughput. The active GPU reward knobs are normalized through `RewardConfig` / `RewardProfile`, while `GPUFieldConfig` keeps flat fields for legacy callers. Training logs expose the components separately as `reward_terminal`, `reward_offense`, `reward_pbrs`, `reward_team`, `reward_sparse`, `reward_sparse_points`, `reward_failure`, and `reward_total`, plus audit aggregates `reward_outcome_mean`, `reward_shaping_mean`, and `reward_failure_to_outcome_abs`.
 
 Sparse points account for flag captures, tags, mine tags, and blue out-of-bounds events. Flag grabs are handled by the smaller offense pickup reward instead of a second zero-valued sparse hook. PBRS potentials are positive closeness scores, so progress toward the active objective produces positive shaping and regression produces negative shaping.
 
@@ -72,7 +72,7 @@ Sparse points account for flag captures, tags, mine tags, and blue out-of-bounds
 | Sparse tag/capture/mine/OOB points | mixed | `+/-100` point scale before `/100` sparse normalization | Aquaticus-style events. |
 | PBRS progress | mixed | coefficient driven | Potential-based progress toward attack/return/defense objectives. |
 | Team coordination | positive | `0.02` to `0.03` defaults | Defense presence, escort, intercept shaping. |
-| Spin/idle/stalemate penalties | negative | small coefficients | Low-progress or unstable behavior. |
+| Action failure / spin / idle / stalemate penalties | negative | small coefficients | Failed macro commitments, low-progress, or unstable behavior. |
 
 Credit assignment is currently team-level from the trainer perspective: the reward returned by the env is one scalar per parallel environment for the blue team.
 
@@ -82,7 +82,7 @@ To compare the first policy step without adding a new reward term prematurely:
 python plot/compare_reward_updates.py checkpoints/2v2/<run>_metrics.csv --before-policy-update 0 --after-policy-update 1
 ```
 
-That report uses `reward_offense_mean`, `reward_pbrs_mean`, `reward_team_mean`, `reward_sparse_mean`, `reward_failure_mean`, `rollout_blue_score_mean`, and `rollout_red_score_mean`. Add a separate red-score penalty only if this breakdown shows red scoring stays too cheap after the denser defensive PBRS setting.
+That report uses `reward_offense_mean`, `reward_pbrs_mean`, `reward_team_mean`, `reward_sparse_mean`, `reward_failure_mean`, the outcome/shaping audit aggregates, `rollout_blue_score_mean`, and `rollout_red_score_mean`. Add a separate red-score penalty only if this breakdown shows red scoring stays too cheap after the denser defensive PBRS setting.
 
 ## Termination And Truncation
 
@@ -98,7 +98,7 @@ The single-env Gymnasium adapter returns these separately. The vector env return
 
 ## Global State Spec
 
-`env.state()` and `info["global_state"]` return a compact structured `np.float32` vector of shape `(14,)` for single envs and `(B, 14)` for vector envs.
+`env.state()` and `info["global_state"]` return a compact structured `np.float32` vector of shape `(19,)` for single envs and `(B, 19)` for vector envs.
 
 Field order is locked:
 
@@ -116,6 +116,11 @@ Field order is locked:
 12. `red_flag_captured`
 13. `avg_blue_speed`
 14. `avg_red_speed`
+15. `blue_score_norm`
+16. `red_score_norm`
+17. `score_diff_norm`
+18. `decision_frac`
+19. `sim_time_frac`
 
 This vector is the CTDE input for the strategy inference network and centralized critic. It is intentionally an MLP input, not a visual CNN input.
 

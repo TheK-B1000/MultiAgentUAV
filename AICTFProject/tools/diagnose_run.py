@@ -85,6 +85,8 @@ def main() -> int:
     last_rollout_wr = _float(rows[-1], "rollout_win_rate")
     last_strategy_entropy = _last_mean(rows, "strategy_entropy", window)
     last_persist_loss = _last_mean(rows, "strategy_persist_loss", window)
+    last_resample_count = _last_mean_optional(rows, "strategy_resample_count", window)
+    last_rollout_episodes = _last_mean_optional(rows, "rollout_episodes", window)
     last_clip_fraction = _float(rows[-1], "clip_fraction")
     last_explained_variance = _float(rows[-1], "explained_variance")
     last_z_switch_adv_std = _last_mean_optional(rows, "rollout_adv_std_at_z_switch", window)
@@ -96,11 +98,6 @@ def main() -> int:
             "strategy_entropy",
             last_strategy_entropy < entropy_limit,
             f"{last_strategy_entropy:.4f} < {entropy_limit:.4f}",
-        ),
-        (
-            "strategy_persist_loss",
-            last_persist_loss > 0.0,
-            f"{last_persist_loss:.4f} > 0",
         ),
         (
             "clip_fraction",
@@ -119,6 +116,28 @@ def main() -> int:
         ),
     ]
     skipped_checks: list[tuple[str, str]] = []
+    if (
+        last_resample_count is not None
+        and last_rollout_episodes is not None
+        and last_resample_count <= last_rollout_episodes * 1.05 + 1.0
+    ):
+        skipped_checks.append(
+            (
+                "strategy_persist_loss",
+                (
+                    "no meaningful non-initial z refreshes "
+                    f"({last_resample_count:.1f} resamples / {last_rollout_episodes:.1f} episodes)"
+                ),
+            )
+        )
+    else:
+        checks.append(
+            (
+                "strategy_persist_loss",
+                last_persist_loss > 0.0,
+                f"{last_persist_loss:.4f} > 0",
+            )
+        )
     if last_z_switch_adv_std is None or last_not_z_switch_adv_std is None:
         skipped_checks.append(
             (

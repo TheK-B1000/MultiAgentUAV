@@ -9,8 +9,8 @@
 The default audit training path is now a local latent-strategy PPO/MAPPO-style implementation:
 
 - Shared decentralized actor: a shared per-agent **CNN** over `grid`, followed by a 256-256 **MLP** on `CNN(grid)` + scalar `vec` + shared latent embedding `z`.
-- Strategy encoder: `q_phi(z | s)` is a 128-128 MLP over the structured 14-float `global_state`.
-- Centralized critic: `CentralizedCritic` consumes the structured 14-float `global_state` plus joint-action one-hot features and `z_onehot` when latent strategy is enabled.
+- Strategy encoder: `q_phi(z | s)` is a 128-128 MLP over the structured 19-float `global_state`.
+- Centralized critic: `CentralizedCritic` consumes the structured 19-float `global_state` plus joint-action one-hot features and `z_onehot` when latent strategy is enabled.
 - Team reward: the environment returns one blue-team scalar reward per parallel env.
 - Action space: independent categorical heads for `MultiDiscrete([5, 50] * N)`.
 - Action masking: invalid logits are set to a large negative value before sampling, log-prob, and entropy.
@@ -27,7 +27,7 @@ This is MAPPO-style because the critic is centralized during training while the 
 | `obs_vec` | `(T, B, N, 20)` | Per-agent scalar vector features, including normalized own/opponent flag-capture score counts. |
 | `obs_agent_mask` | `(T, B, N)` | Alive/active agent mask. |
 | `obs_mask` | `(T, B, N * 55)` | Flattened action mask. |
-| `global_state` | `(T, B, 14)` | CTDE global state for critic and `q_phi(z | s)`. |
+| `global_state` | `(T, B, 19)` | CTDE global state for critic and `q_phi(z | s)`. |
 | `actions` | `(T, B, 2 * N)` | Macro/target action pairs. |
 | `log_probs` | `(T, B)` | Old policy log-probs for PPO ratios. |
 | `values` | `(T, B)` | Old value estimates. |

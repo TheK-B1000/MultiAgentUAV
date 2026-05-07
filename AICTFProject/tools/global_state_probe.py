@@ -1,4 +1,4 @@
-"""Freeze-and-probe: how well does the 14-d CTDE global_state predict strategy-relevant scalars?
+"""Freeze-and-probe: how well does the CTDE global_state predict strategy-relevant scalars?
 
 Uses a frozen checkpoint and on-policy rollouts (same as ``critic_ceiling``). For each
 decision, logs ``global_state`` (pre-action) with targets derived from post-step ``info``:
@@ -6,8 +6,8 @@ decision, logs ``global_state`` (pre-action) with targets derived from post-step
 - ``score_diff``: (blue_score - red_score) / score_limit
 - ``time_frac``: decision_steps / max_decision_steps
 
-High held-out R² means the summary already encodes score pressure and clock — adding those
-scalars is mostly sample-efficiency; low R² supports expanding ``GLOBAL_STATE_DIM``.
+High held-out R² means the summary exposes score pressure and clock well enough for
+linear/nonlinear probes; low R² still points to an information bottleneck.
 
 Temporal alignment: each row pairs **pre-action** ``global_state`` (same as the rollout buffer)
 with **post-step** ``info`` targets. That is usually fine for slowly changing targets like

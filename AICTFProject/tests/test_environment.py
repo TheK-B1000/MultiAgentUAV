@@ -14,7 +14,7 @@ from game_manager import (
     SPARSE_TAG_WITH_FLAG_POINTS,
 )
 from macro_actions import MacroAction
-from rl.global_state import GLOBAL_STATE_DIM
+from rl.global_state import GLOBAL_STATE_DIM, GLOBAL_STATE_FIELD_NAMES
 
 
 class EnvironmentContractTests(unittest.TestCase):
@@ -52,19 +52,37 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
-    def test_global_state_is_documented_14_float_vector(self) -> None:
+    def test_global_state_is_documented_structured_vector(self) -> None:
         env = GPUCTFVecEnv(GPUFieldConfig(n_envs=2, n_agents_per_team=2, device="cpu", seed=11))
         try:
             env.reset()
             state = env.state()
-            self.assertEqual(state.shape, (2, 14))
+            self.assertEqual(state.shape, (2, GLOBAL_STATE_DIM))
             self.assertEqual(state.dtype, np.float32)
             self.assertTrue(np.isfinite(state).all())
+
+            core = env.core
+            core.blue_score[0] = 2
+            core.red_score[0] = 1
+            scored_state = env.state()[0]
+            score_den = float(core.score_limit)
+            self.assertAlmostEqual(
+                float(scored_state[GLOBAL_STATE_FIELD_NAMES.index("blue_score_norm")]),
+                2.0 / score_den,
+            )
+            self.assertAlmostEqual(
+                float(scored_state[GLOBAL_STATE_FIELD_NAMES.index("red_score_norm")]),
+                1.0 / score_den,
+            )
+            self.assertAlmostEqual(
+                float(scored_state[GLOBAL_STATE_FIELD_NAMES.index("score_diff_norm")]),
+                1.0 / score_den,
+            )
 
             env.step_async(np.zeros((2, 4), dtype=np.int64))
             _, _, _, infos = env.step_wait()
             for info in infos:
-                self.assertEqual(info["global_state"].shape, (14,))
+                self.assertEqual(info["global_state"].shape, (GLOBAL_STATE_DIM,))
                 self.assertEqual(info["global_state"].dtype, np.float32)
         finally:
             env.close()
@@ -109,7 +127,7 @@ class EnvironmentContractTests(unittest.TestCase):
                     self.assertEqual(obs["agent_mask"].shape, (n_agents,))
                     self.assertEqual(obs["mask"].shape, (n_agents * (5 + 50),))
                     self.assertEqual(len(env.action_space.nvec), n_agents * 2)
-                    self.assertEqual(env.state().shape, (14,))
+                    self.assertEqual(env.state().shape, (GLOBAL_STATE_DIM,))
                 finally:
                     env.close()
 

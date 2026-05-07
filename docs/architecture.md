@@ -39,8 +39,8 @@ shared actor body + action heads
 The default training path is the local PPO/MAPPO-style trainer in `AICTFProject/rl/custom_ppo.py`.
 
 - Actor: shared per-agent CNN over local `grid`, followed by an MLP over CNN features, local `vec`, and the shared strategy embedding when latent mode is enabled.
-- Strategy encoder: `StrategyEncoder q_phi(z | s)` maps the 14-float global state to a categorical distribution over K team strategies.
-- Critic: centralized MLP over the 14-float `global_state`; in latent mode its `extra` input is joint-action one-hot plus `z_onehot`.
+- Strategy encoder: `StrategyEncoder q_phi(z | s)` maps the 19-float global state to a categorical distribution over K team strategies.
+- Critic: centralized MLP over the 19-float `global_state`; in latent mode its `extra` input is joint-action one-hot plus `z_onehot`.
 - Trunks: the actor CNN/MLP and centralized critic MLP are separate, because the actor consumes local observations while the critic consumes structured CTDE state.
 - Output heads: linear categorical action heads for each macro/target component.
 
@@ -65,7 +65,7 @@ def forward(self, global_state: torch.Tensor, extra: torch.Tensor | None = None)
     ...
 ```
 
-`extra` carries joint-action and strategy-conditioning inputs in latent mode. The default global-state dimension is `14`, matching the ICRA handoff target and the active environment `state()` contract.
+`extra` carries joint-action and strategy-conditioning inputs in latent mode. The default global-state dimension is `19`, preserving the original handoff fields and appending score/clock pressure for CTDE value prediction.
 
 ## Active And Dormant Paths
 
@@ -96,7 +96,7 @@ Final experiment tooling sits outside the trainer: `plot/eval_checkpoint.py` eva
                   macro/target logits
 
 
-             structured global state (B, 14)
+             structured global state (B, 19)
                          |
                          v
         StrategyEncoder q_phi(z | s)
