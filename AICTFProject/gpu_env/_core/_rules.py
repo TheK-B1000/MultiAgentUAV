@@ -215,17 +215,19 @@ class _RulesMixin:
     def _apply_flag_rules(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Attach flags smoothly to their carriers when being carried, so the flag
         # position in observations and scoring is spatially consistent.
-        if self.blue_carrying.any():
+        blue_has_carrier = self.blue_carrying.any(dim=1)
+        if blue_has_carrier.any():
             idx = torch.argmax(self.blue_carrying.to(torch.int64), dim=1)
-            env = torch.arange(self.B, device=self.device)
+            env = torch.where(blue_has_carrier)[0]
             self.red_flag_pos[env] = torch.stack(
-                [self.blue_x[env, idx], self.blue_y[env, idx]], dim=1
+                [self.blue_x[env, idx[env]], self.blue_y[env, idx[env]]], dim=1
             )
-        if self.red_carrying.any():
+        red_has_carrier = self.red_carrying.any(dim=1)
+        if red_has_carrier.any():
             idx = torch.argmax(self.red_carrying.to(torch.int64), dim=1)
-            env = torch.arange(self.B, device=self.device)
+            env = torch.where(red_has_carrier)[0]
             self.blue_flag_pos[env] = torch.stack(
-                [self.red_x[env, idx], self.red_y[env, idx]], dim=1
+                [self.red_x[env, idx[env]], self.red_y[env, idx[env]]], dim=1
             )
 
         b_to_red = torch.sqrt(
@@ -251,8 +253,18 @@ class _RulesMixin:
         # events; the flag position is just attached to the current carrier above.
         blue_can_grab_flag = ~self.blue_carrying.any(dim=1)
         red_can_grab_flag = ~self.red_carrying.any(dim=1)
-        blue_grab_candidates = (b_to_red <= grab_r) & (~self.blue_tagged) & blue_can_grab_flag[:, None]
-        red_grab_candidates = (r_to_blue <= grab_r) & (~self.red_tagged) & red_can_grab_flag[:, None]
+        blue_grab_candidates = (
+            (b_to_red <= grab_r)
+            & self.blue_alive
+            & (~self.blue_tagged)
+            & blue_can_grab_flag[:, None]
+        )
+        red_grab_candidates = (
+            (r_to_blue <= grab_r)
+            & self.red_alive
+            & (~self.red_tagged)
+            & red_can_grab_flag[:, None]
+        )
         blue_grab_env = blue_grab_candidates.any(dim=1)
         red_grab_env = red_grab_candidates.any(dim=1)
 

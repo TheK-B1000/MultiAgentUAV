@@ -9,6 +9,7 @@ curriculum phase, and scripted tag strings never feed :class:`StrategyEncoder` o
 from __future__ import annotations
 
 import csv
+import math
 import os
 import sys
 import warnings
@@ -85,6 +86,43 @@ def _open_sb3_style_progress(
         file=sys.stderr,
         mininterval=0.2,
     )
+
+
+def _compose_training_reward_components(
+    reward_component: dict[str, torch.Tensor],
+    *,
+    dense_weight: float,
+    reward_scale: float,
+    reward_clip: float,
+    shaping_coef: float,
+    stalemate: Optional[torch.Tensor] = None,
+    stalemate_penalty: float = 0.0,
+) -> dict[str, torch.Tensor]:
+    """Mirror GPU reward scaling for PPO targets after optional shaping decay."""
+    out = dict(reward_component)
+    coef = float(shaping_coef)
+    if abs(coef - 1.0) > 1e-9:
+        out["reward_offense"] = out["reward_offense"] * coef
+        out["reward_pbrs"] = out["reward_pbrs"] * coef
+        out["reward_team"] = out["reward_team"] * coef
+
+    dense = out["reward_pbrs"] + out["reward_team"]
+    raw = (
+        out["reward_terminal"]
+        + out["reward_sparse"]
+        + out["reward_failure"]
+        + out["reward_offense"]
+        + float(dense_weight) * dense
+    )
+    if stalemate is not None:
+        raw = raw + torch.where(
+            stalemate.bool(),
+            torch.full_like(raw, float(stalemate_penalty)),
+            torch.zeros_like(raw),
+        )
+    scaled = torch.tanh(raw / max(1e-6, float(reward_scale)))
+    out["reward_total"] = torch.clamp(scaled, -float(reward_clip), float(reward_clip))
+    return out
 
 
 def _torch_load_checkpoint(path: str, *, map_location: str | torch.device):
@@ -792,6 +830,11 @@ class CustomPPOTrainer:
         self.reward_shaping_coef_start = float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0)
         self.reward_shaping_coef_end = float(getattr(cfg, "reward_shaping_coef_end", self.reward_shaping_coef_start))
         self.reward_shaping_decay_steps = max(0, int(getattr(cfg, "reward_shaping_decay_steps", 0) or 0))
+        env_cfg = getattr(env, "cfg", None)
+        self.reward_dense_weight = max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0))
+        self.reward_scale = max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0))
+        self.reward_clip = max(1e-6, float(getattr(env_cfg, "reward_clip", 1.0) or 1.0))
+        self.reward_stalemate_penalty = float(getattr(env_cfg, "stalemate_penalty", 0.0) or 0.0)
         self.periodic_checkpoint_steps = max(0, int(getattr(cfg, "periodic_checkpoint_steps", 0) or 0))
         self._next_periodic_checkpoint_step = (
             self.periodic_checkpoint_steps if self.periodic_checkpoint_steps > 0 else 0
@@ -801,6 +844,8 @@ class CustomPPOTrainer:
         self._strategy_return_count = 1e-4
         self.global_step = 0
         self.last_stats: dict[str, float] = {}
+        self.run_id = str(getattr(cfg, "run_id", "") or "")
+        self.run_pid = int(getattr(cfg, "run_pid", os.getpid()) or os.getpid())
         self._updates_completed = 0
         self._ep_wins = 0
         self._ep_losses = 0
@@ -958,6 +1003,8 @@ class CustomPPOTrainer:
     def _episode_fieldnames(self) -> list[str]:
         return [
             "episode_id",
+            "run_id",
+            "run_pid",
             "timesteps",
             "policy_update",
             "rollout_step",
@@ -990,6 +1037,8 @@ class CustomPPOTrainer:
     def _update_fieldnames(self) -> list[str]:
         fields = [
             "update",
+            "run_id",
+            "run_pid",
             "timesteps",
             "episodes_completed",
             "wins",
@@ -1041,6 +1090,7 @@ class CustomPPOTrainer:
             "grad_norm",
             "learning_rate",
             "strategy_entropy",
+            "strategy_entropy_frac",
             "strategy_policy_loss",
             "strategy_approx_kl",
             "strategy_clip_fraction",
@@ -1054,6 +1104,7 @@ class CustomPPOTrainer:
             "strategy_dominant",
             "strategy_switch_count",
             "strategy_switch_fraction",
+            "strategy_wr_spread",
             "strategy_resample_fraction_rollout",
             "rollout_adv_std",
             "rollout_adv_std_at_z_switch",
@@ -1101,6 +1152,8 @@ class CustomPPOTrainer:
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         row = {
             "episode_id": self._episodes_completed,
+            "run_id": self.run_id,
+            "run_pid": self.run_pid,
             "timesteps": int(timestep),
             "policy_update": int(self._updates_completed),
             "rollout_step": "" if rollout_step is None else int(rollout_step),
@@ -1206,6 +1259,8 @@ class CustomPPOTrainer:
         games = self._ep_wins + self._ep_losses + self._ep_draws
         row: dict[str, Any] = {
             "update": self._updates_completed,
+            "run_id": self.run_id,
+            "run_pid": self.run_pid,
             "timesteps": int(self.global_step),
             "episodes_completed": int(self._episodes_completed),
             "wins": int(self._ep_wins),
@@ -1245,8 +1300,8 @@ class CustomPPOTrainer:
         reward_outcome = float(row.get("reward_terminal_mean", 0.0)) + float(row.get("reward_sparse_mean", 0.0))
         reward_shaping = (
             float(row.get("reward_offense_mean", 0.0))
-            + float(row.get("reward_pbrs_mean", 0.0))
-            + float(row.get("reward_team_mean", 0.0))
+            + self.reward_dense_weight
+            * (float(row.get("reward_pbrs_mean", 0.0)) + float(row.get("reward_team_mean", 0.0)))
         )
         reward_failure = float(row.get("reward_failure_mean", 0.0))
         row["reward_outcome_mean"] = reward_outcome
@@ -1255,6 +1310,21 @@ class CustomPPOTrainer:
         row["reward_shaping_coef"] = float(self._reward_shaping_coef())
         row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
         row.update(stats)
+        if self.use_latent_strategy:
+            entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
+            row["strategy_entropy_frac"] = entropy / max(1e-6, math.log(max(2, int(self.latent_k))))
+            z_win_rates: list[float] = []
+            for z_idx in range(self.latent_k):
+                value = row.get(f"episode_z_{z_idx}_win_rate", "")
+                if value == "":
+                    continue
+                z_win_rates.append(float(value))
+            row["strategy_wr_spread"] = (
+                float(max(z_win_rates) - min(z_win_rates)) if len(z_win_rates) >= 2 else 0.0
+            )
+        else:
+            row["strategy_entropy_frac"] = 0.0
+            row["strategy_wr_spread"] = 0.0
         self._write_csv_row(self.metrics_csv_path, self._update_fieldnames(), row)
         return row
 
@@ -1842,17 +1912,19 @@ class CustomPPOTrainer:
                 )
             }
             shaping_coef = float(self._reward_shaping_coef())
-            if abs(shaping_coef - 1.0) > 1e-9:
-                reward_component["reward_offense"] = reward_component["reward_offense"] * shaping_coef
-                reward_component["reward_pbrs"] = reward_component["reward_pbrs"] * shaping_coef
-                reward_component["reward_team"] = reward_component["reward_team"] * shaping_coef
-            reward_component["reward_total"] = (
-                reward_component["reward_terminal"]
-                + reward_component["reward_sparse"]
-                + reward_component["reward_failure"]
-                + reward_component["reward_offense"]
-                + reward_component["reward_pbrs"]
-                + reward_component["reward_team"]
+            stalemate = torch.as_tensor(
+                [bool(info.get("stalemate_truncated", False)) for info in infos],
+                dtype=torch.bool,
+                device=self.device,
+            )
+            reward_component = _compose_training_reward_components(
+                reward_component,
+                dense_weight=self.reward_dense_weight,
+                reward_scale=self.reward_scale,
+                reward_clip=self.reward_clip,
+                shaping_coef=shaping_coef,
+                stalemate=stalemate,
+                stalemate_penalty=self.reward_stalemate_penalty,
             )
 
             add_items: dict[str, torch.Tensor] = dict(
@@ -2208,6 +2280,9 @@ class CustomPPOTrainer:
                             occ = row.get(f"strategy_occupancy_{i}", "")
                             z_wr_parts.append("-" if wr == "" else f"{float(wr):.3f}")
                             z_occ_parts.append("-" if occ == "" else f"{float(occ):.3f}")
+                    z_entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
+                    z_entropy_frac = float(row.get("strategy_entropy_frac", 0.0) or 0.0)
+                    z_wr_spread = float(row.get("strategy_wr_spread", 0.0) or 0.0)
                     print(
                         "[PPO|diag] "
                         f"steps={int(row.get('timesteps', self.global_step))} "
@@ -2215,6 +2290,11 @@ class CustomPPOTrainer:
                         f"v_loss={float(row.get('value_loss', 0.0)):.3f} "
                         f"shape/out={float(row.get('reward_shaping_to_outcome_abs_ratio', 0.0)):.3f} "
                         f"qphi_grad={float(row.get('strategy_grad_norm', 0.0)):.3f} "
+                        f"zH={z_entropy:.3f}({z_entropy_frac:.2f}) "
+                        f"z_wr_spread={z_wr_spread:.3f} "
+                        f"z_q={float(row.get('strategy_q_loss', 0.0)):.3f} "
+                        f"z_pi={float(row.get('strategy_policy_loss', 0.0)):.3f} "
+                        f"z_ratio={float(row.get('strategy_ratio_std', 0.0)):.3f} "
                         f"z_occ=[{','.join(z_occ_parts)}] "
                         f"z_wr=[{','.join(z_wr_parts)}]"
                     )
@@ -2258,6 +2338,9 @@ class CustomPPOTrainer:
                 "return_norm_mean": float(self._return_norm_mean),
                 "return_norm_var": float(self._return_norm_var),
                 "return_norm_count": float(self._return_norm_count),
+                "strategy_return_mean": float(self._strategy_return_mean),
+                "strategy_return_var": float(self._strategy_return_var),
+                "strategy_return_count": float(self._strategy_return_count),
                 "cfg": asdict(self.cfg),
                 "last_stats": self.last_stats,
                 "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
@@ -2280,6 +2363,9 @@ class CustomPPOTrainer:
         self._return_norm_mean = float(payload.get("return_norm_mean", 0.0))
         self._return_norm_var = float(payload.get("return_norm_var", 1.0))
         self._return_norm_count = float(payload.get("return_norm_count", 1e-4))
+        self._strategy_return_mean = float(payload.get("strategy_return_mean", 0.0))
+        self._strategy_return_var = float(payload.get("strategy_return_var", 1.0))
+        self._strategy_return_count = float(payload.get("strategy_return_count", 1e-4))
         self.last_stats = dict(payload.get("last_stats", {}))
         self._last_obs = None
         self._last_global_state = None

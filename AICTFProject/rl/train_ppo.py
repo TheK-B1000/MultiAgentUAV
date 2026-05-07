@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import atexit
+import json
 import os
 import random
 import sys
@@ -37,6 +39,108 @@ def _rotate_csv_aside(path: Optional[str], *, label: str) -> None:
     bak = f"{path}.bak.{int(time.time())}"
     os.replace(path, bak)
     print(f"[PPO] Rotated existing {label} CSV aside: {bak!r} (--fresh-metrics-csv).")
+
+
+@dataclass
+class _RunLock:
+    path: str
+    token: str
+    released: bool = False
+
+    def release(self) -> None:
+        if self.released:
+            return
+        self.released = True
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            if payload.get("token") != self.token:
+                return
+            os.unlink(self.path)
+            print(f"[PPO] Run lock released: {self.path}")
+        except FileNotFoundError:
+            return
+        except Exception as exc:
+            print(f"[PPO] WARNING: failed to release run lock {self.path!r}: {exc}")
+
+
+def _pid_is_running(pid: int) -> bool:
+    pid = int(pid)
+    if pid <= 0:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            kernel32 = ctypes.windll.kernel32
+            process_query_limited_information = 0x1000
+            still_active = 259
+            handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
+            if not handle:
+                return False
+            exit_code = ctypes.c_ulong()
+            ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+            kernel32.CloseHandle(handle)
+            return bool(ok) and int(exit_code.value) == still_active
+        except Exception:
+            return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _read_run_lock(path: str) -> dict[str, Any]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        return payload if isinstance(payload, dict) else {}
+    except Exception:
+        return {}
+
+
+def _acquire_run_lock(cfg: PPOConfig) -> _RunLock:
+    """Prevent duplicate trainers from sharing checkpoint/CSV artifacts for one run tag."""
+    os.makedirs(cfg.checkpoint_dir, exist_ok=True)
+    lock_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}.run.lock")
+    token = f"{os.getpid()}-{time.time_ns()}"
+    payload = {
+        "pid": os.getpid(),
+        "token": token,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "run_tag": str(cfg.run_tag),
+        "argv": sys.argv,
+        "metrics_csv_path": str(getattr(cfg, "metrics_csv_path", "") or ""),
+        "episode_csv_path": str(getattr(cfg, "episode_csv_path", "") or ""),
+    }
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError as exc:
+            existing = _read_run_lock(lock_path)
+            pid = int(existing.get("pid", 0) or 0)
+            if pid > 0 and _pid_is_running(pid):
+                raise RuntimeError(
+                    f"Active PPO run lock exists for run_tag={cfg.run_tag!r}: {lock_path!r} "
+                    f"(pid={pid}). Stop that trainer or use a different --run-tag before starting another run."
+                ) from exc
+            stale_path = f"{lock_path}.stale.{int(time.time())}"
+            os.replace(lock_path, stale_path)
+            print(f"[PPO] Rotated stale run lock aside: {stale_path!r}")
+            continue
+
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+            f.write("\n")
+        setattr(cfg, "run_id", token)
+        setattr(cfg, "run_pid", os.getpid())
+        lock = _RunLock(lock_path, token)
+        atexit.register(lock.release)
+        print(f"[PPO] Run lock acquired: {lock_path}")
+        return lock
 
 
 def _gpu_env_reward_kwargs(cfg: PPOConfig) -> dict[str, Any]:
@@ -307,14 +411,15 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.n_epochs = 8
         cfg.ent_coef = 0.0015
         cfg.latent_entropy_objective = "minimize"
-        cfg.latent_lam_h = 0.06
-        cfg.latent_lam_p = 0.04
-        cfg.latent_strategy_ppo_coef = 0.45
+        cfg.latent_lam_h = 0.02
+        cfg.latent_lam_p = 0.0
+        cfg.latent_strategy_ppo_coef = 0.30
         cfg.latent_strategy_q_head = True
         cfg.latent_strategy_q_coef = 1.2
         cfg.latent_strategy_tau = 0.7
-        # Make persistence loss active and let q_phi specialize via sparse mid-episode switches.
-        cfg.latent_resample_every_n = 20
+        # Episode-start z is the stable paper-default path; mid-episode refreshes were churning
+        # q_phi without producing persistent per-z win-rate separation by the 200k gate.
+        cfg.latent_resample_every_n = 0
         cfg.latent_resample_on_flag = False
         cfg.latent_kl_consecutive = 0.0
         cfg.latent_gae_reset_on_z_change = True
@@ -427,7 +532,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             "[PPO] Reward shaping decay: "
             f"coef {float(getattr(cfg, 'reward_shaping_coef_start', 1.0)):.3f} -> "
             f"{float(getattr(cfg, 'reward_shaping_coef_end', 1.0)):.3f} "
-            f"over {decay_steps:,} steps (affects offense+pbrs+team in trainer target rewards)."
+            f"over {decay_steps:,} steps before RewardConfig weighting/scaling."
         )
     if curriculum is not None:
         print(
@@ -478,10 +583,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             cfg.episode_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_episodes.csv")
         print(f"[PPO] Update metrics CSV: {cfg.metrics_csv_path}")
         print(f"[PPO] Episode metrics CSV: {cfg.episode_csv_path}")
-        if cfg.fresh_metrics_csv:
-            _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
-            _rotate_csv_aside(cfg.episode_csv_path, label="episode")
-        elif not cfg.load_path and (
+        if (not cfg.fresh_metrics_csv) and (not cfg.load_path) and (
             _metrics_csv_nonempty(cfg.metrics_csv_path) or _metrics_csv_nonempty(cfg.episode_csv_path)
         ):
             print(
@@ -493,6 +595,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         cfg.metrics_csv_path = None
         cfg.episode_csv_path = None
         print("[PPO] Metrics CSV logging disabled.")
+    run_lock = _acquire_run_lock(cfg)
+    if bool(getattr(cfg, "enable_metrics_csv", True)) and cfg.fresh_metrics_csv:
+        _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
+        _rotate_csv_aside(cfg.episode_csv_path, label="episode")
     elog = int(getattr(cfg, "episode_log_every", 0) or 0)
     if elog > 0:
         mode_label = "curriculum phase" if curriculum is not None else "scripted opponent tag"
@@ -534,6 +640,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
         **reward_kw,
+    )
+    print(
+        "[PPO] Trainer reward target mirrors GPU RewardConfig: "
+        f"dense_weight={float(gpu_cfg.dense_weight):.3f}, "
+        f"reward_scale={float(gpu_cfg.reward_scale):.3f}, "
+        f"reward_clip={float(gpu_cfg.reward_clip):.3f}, "
+        f"stalemate_penalty={float(gpu_cfg.stalemate_penalty):.3f}."
     )
     env = GPUCTFVecEnv(gpu_cfg)
     try:
@@ -604,6 +717,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
     finally:
         env.close()
+        run_lock.release()
 
 
 def _apply_initial_opponent_params(

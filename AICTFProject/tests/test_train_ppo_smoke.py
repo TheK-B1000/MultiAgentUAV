@@ -26,7 +26,7 @@ from rl.custom_ppo import (
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
-from rl.train_ppo import PPOConfig, _apply_training_preset, _gpu_env_reward_kwargs, train_ppo
+from rl.train_ppo import PPOConfig, _acquire_run_lock, _apply_training_preset, _gpu_env_reward_kwargs, train_ppo
 
 
 _WORKSPACE_TMP = Path(__file__).resolve().parents[1] / ".test_runs" / "train_ppo_smoke"
@@ -120,8 +120,11 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertEqual(cfg.run_tag, "latent_op3_wrmax_1m_2v2", msg=preset)
             self.assertTrue(cfg.latent_strategy_q_head)
             self.assertAlmostEqual(cfg.vf_coef, 1.1)
-            self.assertEqual(cfg.latent_resample_every_n, 20)
+            self.assertEqual(cfg.latent_resample_every_n, 0)
             self.assertEqual(cfg.latent_vf_hidden, 256)
+            self.assertAlmostEqual(cfg.latent_lam_h, 0.02)
+            self.assertAlmostEqual(cfg.latent_lam_p, 0.0)
+            self.assertAlmostEqual(cfg.latent_strategy_ppo_coef, 0.30)
             self.assertAlmostEqual(cfg.latent_strategy_q_coef, 1.2)
             self.assertAlmostEqual(cfg.latent_strategy_tau, 0.7)
             self.assertAlmostEqual(cfg.env_win_team_reward, 1.5)
@@ -184,6 +187,19 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             if path.exists():
                 path.unlink()
+
+    def test_run_lock_blocks_duplicate_run_tag(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        cfg = PPOConfig()
+        cfg.checkpoint_dir = str(_WORKSPACE_TMP)
+        cfg.run_tag = "unittest_lock_2v2"
+        lock = _acquire_run_lock(cfg)
+        try:
+            with self.assertRaisesRegex(RuntimeError, "Active PPO run lock"):
+                _acquire_run_lock(cfg)
+        finally:
+            lock.release()
+        self.assertFalse((_WORKSPACE_TMP / f"{cfg.run_tag}.run.lock").exists())
 
     def test_train_ppo_smoke_custom_few_steps(self) -> None:
         _run_smoke_and_cleanup(tag="unittest_smoke_custom_ppo_2v2")
@@ -325,6 +341,9 @@ class TrainPpoSmokeTests(unittest.TestCase):
             with metrics_csv.open(newline="", encoding="utf-8") as f:
                 rows = list(csv.DictReader(f))
             self.assertGreaterEqual(len(rows), 1)
+            self.assertIn("run_id", rows[0])
+            self.assertIn("run_pid", rows[0])
+            self.assertNotEqual(rows[0]["run_id"], "")
             self.assertIn("timesteps", rows[0])
             self.assertIn("rollout_win_rate", rows[0])
             self.assertIn("rolling_win_rate_50ep", rows[0])
@@ -334,6 +353,8 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("reward_sparse_mean", rows[0])
             self.assertIn("reward_failure_mean", rows[0])
             self.assertIn("reward_failure_to_outcome_abs", rows[0])
+            self.assertIn("strategy_entropy_frac", rows[0])
+            self.assertIn("strategy_wr_spread", rows[0])
             self.assertIn("strategy_occupancy_0", rows[0])
             self.assertIn("episode_z_0_red_score_mean", rows[0])
             comparisons = compare_policy_updates(metrics_csv, before_policy_update=0, after_policy_update=1)
@@ -343,6 +364,8 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 ep_rows = list(csv.DictReader(f))
             self.assertGreaterEqual(len(ep_rows), 1)
             self.assertIn("episode_id", ep_rows[0])
+            self.assertIn("run_id", ep_rows[0])
+            self.assertIn("run_pid", ep_rows[0])
             self.assertIn("policy_update", ep_rows[0])
             self.assertIn("rollout_step", ep_rows[0])
             self.assertIn("latent_z", ep_rows[0])
@@ -428,6 +451,54 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             SharedActorCentralizedCritic.sample_strategy = original  # type: ignore[assignment]
             env.close()
+
+    def test_checkpoint_preserves_strategy_return_normalizer(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        cfg = _smoke_ppo_config(
+            run_tag="unittest_strategy_return_norm_2v2",
+            checkpoint_dir=str(_WORKSPACE_TMP),
+        )
+        cfg.use_latent_strategy = True
+        cfg.latent_strategy_q_head = True
+        path = _WORKSPACE_TMP / "strategy_return_norm.zip"
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=655))
+        env2 = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=656))
+        try:
+            trainer = CustomPPOTrainer(
+                env,
+                cfg,
+                learning_rate=1e-4,
+                clip_range=0.2,
+                ent_coef=0.0,
+                n_epochs=1,
+                batch_size=1,
+                value_clip_range=0.2,
+            )
+            trainer._strategy_return_mean = 1.25
+            trainer._strategy_return_var = 0.5
+            trainer._strategy_return_count = 123.0
+            trainer.save(str(path))
+
+            restored = CustomPPOTrainer(
+                env2,
+                cfg,
+                learning_rate=1e-4,
+                clip_range=0.2,
+                ent_coef=0.0,
+                n_epochs=1,
+                batch_size=1,
+                value_clip_range=0.2,
+            )
+            restored.load(str(path))
+
+            self.assertAlmostEqual(restored._strategy_return_mean, 1.25)
+            self.assertAlmostEqual(restored._strategy_return_var, 0.5)
+            self.assertAlmostEqual(restored._strategy_return_count, 123.0)
+        finally:
+            if path.exists():
+                path.unlink()
+            env.close()
+            env2.close()
 
 
 if __name__ == "__main__":

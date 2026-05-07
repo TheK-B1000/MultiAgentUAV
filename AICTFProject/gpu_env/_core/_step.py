@@ -296,6 +296,8 @@ class _StepMixin:
             | (combat["blue_tag_noflag"] > 0.0)
             | (combat["blue_tag_withflag"] > 0.0)
             | (combat["red_tag_total"] > 0.0)
+            | (torch.abs(rewards["sparse_points"]) > 0.0)
+            | (torch.abs(rewards["roff"]) > 0.0)
         )
         low_progress = torch.abs(self._last_dense_progress) < float(self.cfg.stalemate_progress_eps)
         no_event = ~event_happened

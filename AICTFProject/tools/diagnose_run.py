@@ -51,15 +51,50 @@ def _infer_latent_k(rows: list[dict[str, str]]) -> int:
     return max(1, len(occupancy_fields))
 
 
+def _latest_run_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """When metrics include run IDs, ignore older interleaved/rotated rows from prior processes."""
+    if not rows:
+        return rows
+    latest_run_id = rows[-1].get("run_id", "")
+    if latest_run_id == "":
+        return rows
+    selected = [row for row in rows if row.get("run_id", "") == latest_run_id]
+    return selected or rows
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Diagnose latent PPO training metrics.")
     parser.add_argument("metrics_csv", type=Path)
     parser.add_argument("--window", type=int, default=10, help="Number of final updates to average.")
     parser.add_argument("--latent-k", type=int, default=None, help="Override latent strategy count.")
     parser.add_argument("--entropy-frac", type=float, default=0.95)
+    parser.add_argument(
+        "--min-strategy-wr-spread",
+        type=float,
+        default=0.13,
+        help="Minimum final-window spread between non-empty per-z rollout episode win rates.",
+    )
     parser.add_argument("--max-clip-fraction", type=float, default=0.6)
     parser.add_argument("--min-explained-variance", type=float, default=0.4)
     parser.add_argument("--min-win-rate-gain", type=float, default=0.1)
+    parser.add_argument(
+        "--max-rollout-reward-std",
+        type=float,
+        default=0.75,
+        help="Maximum final-window rollout reward std; high values can hide latent-strategy signal.",
+    )
+    parser.add_argument(
+        "--max-reward-shaping-to-outcome-ratio",
+        type=float,
+        default=1.0,
+        help="Maximum |weighted shaping| / |outcome| ratio from trainer metrics.",
+    )
+    parser.add_argument(
+        "--max-reward-failure-to-outcome-ratio",
+        type=float,
+        default=0.5,
+        help="Maximum |failed-action penalty| / |outcome| ratio from trainer metrics.",
+    )
     parser.add_argument(
         "--max-z-switch-adv-std-ratio",
         type=float,
@@ -72,7 +107,8 @@ def main() -> int:
     args = parser.parse_args()
 
     with args.metrics_csv.open(newline="") as f:
-        rows = list(csv.DictReader(f))
+        all_rows = list(csv.DictReader(f))
+    rows = _latest_run_rows(all_rows)
     if not rows:
         print(f"FAIL: no metrics rows in {args.metrics_csv}", file=sys.stderr)
         return 2
@@ -84,6 +120,7 @@ def main() -> int:
     first_rollout_wr = _float(rows[0], "rollout_win_rate")
     last_rollout_wr = _float(rows[-1], "rollout_win_rate")
     last_strategy_entropy = _last_mean(rows, "strategy_entropy", window)
+    last_strategy_wr_spread = _last_mean_optional(rows, "strategy_wr_spread", window)
     last_persist_loss = _last_mean(rows, "strategy_persist_loss", window)
     last_resample_count = _last_mean_optional(rows, "strategy_resample_count", window)
     last_rollout_episodes = _last_mean_optional(rows, "rollout_episodes", window)
@@ -91,6 +128,9 @@ def main() -> int:
     last_explained_variance = _float(rows[-1], "explained_variance")
     last_z_switch_adv_std = _last_mean_optional(rows, "rollout_adv_std_at_z_switch", window)
     last_not_z_switch_adv_std = _last_mean_optional(rows, "rollout_adv_std_not_z_switch", window)
+    last_reward_std = _last_mean_optional(rows, "rollout_reward_std", window)
+    last_shaping_to_outcome = _last_mean_optional(rows, "reward_shaping_to_outcome_abs_ratio", window)
+    last_failure_to_outcome = _last_mean_optional(rows, "reward_failure_to_outcome_abs", window)
     rollout_wr_gain = last_rollout_wr - first_rollout_wr
 
     checks = [
@@ -157,9 +197,71 @@ def main() -> int:
                 ),
             )
         )
+    if last_strategy_wr_spread is None:
+        skipped_checks.append(("strategy_wr_spread", "missing strategy_wr_spread"))
+    else:
+        checks.append(
+            (
+                "strategy_wr_spread",
+                last_strategy_wr_spread >= float(args.min_strategy_wr_spread),
+                f"{last_strategy_wr_spread:.4f} >= {float(args.min_strategy_wr_spread):.4f}",
+            )
+        )
+    if last_reward_std is None:
+        skipped_checks.append(("rollout_reward_std", "missing rollout_reward_std"))
+    else:
+        checks.append(
+            (
+                "rollout_reward_std",
+                last_reward_std <= float(args.max_rollout_reward_std),
+                f"{last_reward_std:.4f} <= {float(args.max_rollout_reward_std):.4f}",
+            )
+        )
+    if last_shaping_to_outcome is None:
+        skipped_checks.append(
+            (
+                "reward_shaping_to_outcome_abs_ratio",
+                "missing reward_shaping_to_outcome_abs_ratio",
+            )
+        )
+    else:
+        checks.append(
+            (
+                "reward_shaping_to_outcome_abs_ratio",
+                last_shaping_to_outcome <= float(args.max_reward_shaping_to_outcome_ratio),
+                (
+                    f"{last_shaping_to_outcome:.4f} <= "
+                    f"{float(args.max_reward_shaping_to_outcome_ratio):.4f}"
+                ),
+            )
+        )
+    if last_failure_to_outcome is None:
+        skipped_checks.append(
+            (
+                "reward_failure_to_outcome_abs",
+                "missing reward_failure_to_outcome_abs",
+            )
+        )
+    else:
+        checks.append(
+            (
+                "reward_failure_to_outcome_abs",
+                last_failure_to_outcome <= float(args.max_reward_failure_to_outcome_ratio),
+                (
+                    f"{last_failure_to_outcome:.4f} <= "
+                    f"{float(args.max_reward_failure_to_outcome_ratio):.4f}"
+                ),
+            )
+        )
 
     print(f"metrics: {args.metrics_csv}")
-    print(f"rows: {len(rows)} | final-window: {window} | latent_k: {latent_k}")
+    if len(rows) == len(all_rows):
+        print(f"rows: {len(rows)} | final-window: {window} | latent_k: {latent_k}")
+    else:
+        print(
+            f"rows: {len(rows)} current-run / {len(all_rows)} total | "
+            f"final-window: {window} | latent_k: {latent_k}"
+        )
     print(f"first rollout WR: {first_rollout_wr:.4f}")
     print(f"last rollout WR:  {last_rollout_wr:.4f}")
     for name, ok, detail in checks:

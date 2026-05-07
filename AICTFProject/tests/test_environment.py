@@ -400,6 +400,87 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_carried_flag_position_update_is_per_env_not_global(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=2, n_agents_per_team=2, device="cpu", seed=261))
+        try:
+            core = env.core
+            core.reset_all()
+            core.blue_carrying.zero_()
+            core.red_carrying.zero_()
+            core.red_flag_pos[0] = torch.tensor([9.0, 9.0], device=core.device)
+            core.red_flag_pos[1] = torch.tensor([18.0, 18.0], device=core.device)
+            core.blue_flag_pos[0] = torch.tensor([1.0, 18.0], device=core.device)
+            core.blue_flag_pos[1] = torch.tensor([2.0, 18.0], device=core.device)
+            red_flag_env1_before = core.red_flag_pos[1].clone()
+            blue_flag_env0_before = core.blue_flag_pos[0].clone()
+
+            core.blue_x[0, 1] = 7.0
+            core.blue_y[0, 1] = 8.0
+            core.blue_carrying[0, 1] = True
+            core.red_x[1, 0] = 12.0
+            core.red_y[1, 0] = 13.0
+            core.red_carrying[1, 0] = True
+
+            core._apply_flag_rules()
+
+            self.assertTrue(torch.allclose(core.red_flag_pos[0], torch.tensor([7.0, 8.0], device=core.device)))
+            self.assertTrue(torch.allclose(core.blue_flag_pos[1], torch.tensor([12.0, 13.0], device=core.device)))
+            self.assertTrue(torch.allclose(core.red_flag_pos[1], red_flag_env1_before))
+            self.assertTrue(torch.allclose(core.blue_flag_pos[0], blue_flag_env0_before))
+        finally:
+            env.close()
+
+    def test_dead_agents_cannot_grab_flags(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=262))
+        try:
+            core = env.core
+            core.reset_all()
+            core.blue_alive[0, 0] = False
+            core.blue_tagged[0, 0] = False
+            core.blue_x[0, 0] = core.red_flag_pos[0, 0]
+            core.blue_y[0, 0] = core.red_flag_pos[0, 1]
+
+            blue_grab_env, _, _, _ = core._apply_flag_rules()
+
+            self.assertFalse(bool(blue_grab_env[0].item()))
+            self.assertFalse(bool(core.blue_carrying[0].any().item()))
+        finally:
+            env.close()
+
+    def test_sparse_reward_event_resets_stalemate_counter(self) -> None:
+        cfg = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=263, stalemate_max_steps=2)
+        env = GPUCTFVecEnv(cfg)
+        try:
+            core = env.core
+            core.reset_all()
+            core.stalemate_steps[0] = 1
+            core._last_dense_progress[0] = 0.0
+            flags = {
+                "blue_grab_env": torch.tensor([False], device=core.device),
+                "red_grab_env": torch.tensor([False], device=core.device),
+                "blue_cap_env": torch.tensor([False], device=core.device),
+                "red_cap_env": torch.tensor([False], device=core.device),
+            }
+            combat = {
+                "blue_tag_noflag": torch.tensor([0.0], device=core.device),
+                "blue_tag_withflag": torch.tensor([0.0], device=core.device),
+                "red_tag_total": torch.tensor([0.0], device=core.device),
+            }
+            rewards = {
+                "sparse_points": torch.tensor([100.0], device=core.device),
+                "roff": torch.tensor([0.0], device=core.device),
+                "rpbrs": torch.tensor([0.0], device=core.device),
+                "rteam": torch.tensor([0.0], device=core.device),
+                "rfail": torch.tensor([0.0], device=core.device),
+            }
+
+            terminal = core._advance_episode_end(flags, combat, rewards)
+
+            self.assertFalse(bool(terminal["truncated"][0].item()))
+            self.assertEqual(int(core.stalemate_steps[0].item()), 0)
+        finally:
+            env.close()
+
     def test_stalemate_progress_tracks_return_progress(self) -> None:
         env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=27))
         try:
