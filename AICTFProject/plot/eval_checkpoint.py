@@ -23,12 +23,26 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 from eval_rollout import compute_aggregates, count_wld, run_eval_episodes
+from opponent_params import OP5_RUSHER_TUNING_TAG
 from rl.custom_ppo import read_custom_ppo_metadata
 
 
 def _slug(text: str) -> str:
     clean = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(text).strip())
     return clean.strip("_") or "checkpoint"
+
+
+def _label_append_op5_tuning_tag(label: str, opponents: list[str], *, no_suffix: bool) -> str:
+    """Ensure CSV labels encode the OP5 scripted tuning revision when OP5 is evaluated."""
+    if no_suffix or not OP5_RUSHER_TUNING_TAG:
+        return label
+    tags = {str(o).strip().upper() for o in opponents}
+    if "OP5" not in tags and "OP5_RUSHER" not in tags:
+        return label
+    tail = f"_op5_{OP5_RUSHER_TUNING_TAG}"
+    if label.rstrip().endswith(tail):
+        return label
+    return f"{label.rstrip()}{tail}"
 
 
 def _union_fieldnames(rows: list[dict[str, Any]], preferred: list[str]) -> list[str]:
@@ -53,12 +67,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate one local PPO checkpoint and write ablation CSVs.")
     parser.add_argument("--checkpoint", required=True, help="Path to custom PPO checkpoint .zip")
     parser.add_argument("--label", default=None, help="Short label used in CSVs/filenames")
+    parser.add_argument(
+        "--no-op5-tuning-suffix",
+        action="store_true",
+        help=(
+            "Do not append _op5_<tuning_tag> to --label when OP5/OP5_RUSHER is in --opponents "
+            f"(default tag from opponent_params: {OP5_RUSHER_TUNING_TAG!r})."
+        ),
+    )
     parser.add_argument("--agents", type=int, default=None, help="Agents per team; default reads checkpoint metadata")
-    parser.add_argument("--opponents", nargs="+", default=["OP3", "OP4"], help="Scripted opponents to evaluate")
+    parser.add_argument("--opponents", nargs="+", default=["OP3", "OP4", "OP5_RUSHER"], help="Scripted opponents to evaluate")
     parser.add_argument("--map-sets", nargs="+", default=["train", "eval"], choices=["train", "eval"], help="Map splits to evaluate")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--no-coordination-metrics",
+        action="store_true",
+        help="Disable per-episode coord_* fields (macro trajectory agreement / correlation).",
+    )
     parser.add_argument("--out-dir", type=str, default=None, help="CSV output dir (default: AICTFProject/csv)")
     # Default True: argmax / greedy match paper-style *evaluation* (stochastic is for ablations / debugging).
     parser.add_argument("--deterministic", action="store_true", default=True)
@@ -72,6 +99,7 @@ def main() -> None:
     meta = read_custom_ppo_metadata(checkpoint)
     agents = int(args.agents or meta.get("n_blue", 2))
     label = args.label or os.path.splitext(os.path.basename(checkpoint))[0]
+    label = _label_append_op5_tuning_tag(label, list(args.opponents), no_suffix=bool(args.no_op5_tuning_suffix))
     label_slug = _slug(label)
     mode = f"{agents}v{agents}"
     out_dir = os.path.abspath(args.out_dir or os.path.join(PROJECT_ROOT, "csv"))
@@ -105,6 +133,7 @@ def main() -> None:
                     args.device,
                     opponent,
                     deterministic=bool(args.deterministic),
+                    coordination_metrics=not bool(args.no_coordination_metrics),
                     progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
                 )
             finally:

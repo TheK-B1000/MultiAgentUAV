@@ -203,6 +203,21 @@ class _ScriptedRedMixin:
             enemy_on_own = enemy_alive & (enemy_x > midline)
         any_intruder = enemy_on_own.any(dim=1)
 
+        if not is_blue:
+            win_u = torch.clamp(self.red_attack_sync_window, 0, 64)
+            need_refresh = self.red_coordinated_attack & (self.red_coord_ticks_left <= 0)
+            if need_refresh.any():
+                ei = torch.where(need_refresh)[0]
+                has_c = enemy_carrier_exists[ei]
+                ci = torch.argmax(enemy_carrying[ei].to(torch.int64), dim=1)
+                qx = torch.where(has_c, enemy_x[ei, ci], enemy_flag_pos[ei, 0])
+                qy = torch.where(has_c, enemy_y[ei, ci], enemy_flag_pos[ei, 1])
+                self.red_coord_aim_x[ei] = qx
+                self.red_coord_aim_y[ei] = qy
+                self.red_coord_ticks_left[ei] = torch.maximum(
+                    win_u[ei], torch.ones_like(win_u[ei], dtype=torch.int32)
+                )
+
         guardian_out = own_tagged[idx_env, guardian_idx_t] if N > 0 else torch.zeros((B,), dtype=torch.bool, device=device)
         role_coin = torch.rand((B,), generator=self._rng, device=device) < torch.clamp(role_switch_prob, 0.0, 1.0)
         striker_pivot = guardian_out & (enemy_carrier_exists | any_intruder) & role_coin
@@ -409,6 +424,24 @@ class _ScriptedRedMixin:
                     not_carry = ~own_carrying[env_idx, j]
                     target[env_idx, j, 0] = torch.where(not_carry, tx, target[env_idx, j, 0])
                     target[env_idx, j, 1] = torch.where(not_carry, ty, target[env_idx, j, 1])
+
+        if not is_blue:
+            own_carry_any = own_carrying.any(dim=1)
+            hold = self.red_coordinated_attack & (self.red_coord_ticks_left > 0)
+            if hold.any():
+                ax = self.red_coord_aim_x
+                ay = self.red_coord_aim_y
+                for j in range(N):
+                    not_g = guardian_idx_t != j
+                    m = hold & not_g & (~own_carrying[:, j]) & (~own_carry_any)
+                    target[:, j, 0] = torch.where(m, ax, target[:, j, 0])
+                    target[:, j, 1] = torch.where(m, ay, target[:, j, 1])
+            c = self.red_coordinated_attack
+            self.red_coord_ticks_left = torch.where(
+                c,
+                torch.clamp(self.red_coord_ticks_left - 1, min=0),
+                self.red_coord_ticks_left,
+            )
 
         return target[..., 0], target[..., 1]
 

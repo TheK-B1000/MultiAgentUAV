@@ -166,6 +166,12 @@ class _StateMixin:
         self.red_attacker_style = torch.zeros((B,), dtype=torch.int32, device=dev)  # 0 easy, 1 medium
         self.red_defender_style = torch.zeros((B,), dtype=torch.int32, device=dev)  # 0 easy, 1 medium
         self.red_role_switch_prob = torch.zeros((B,), dtype=f32, device=dev)
+        # OP5-style coordinated rush: shared aim + short commitment window (decision steps).
+        self.red_coordinated_attack = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.red_attack_sync_window = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.red_coord_ticks_left = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.red_coord_aim_x = torch.zeros((B,), dtype=f32, device=dev)
+        self.red_coord_aim_y = torch.zeros((B,), dtype=f32, device=dev)
         # Per-episode scripted-policy randomization so agents cannot overfit to one fixed NPC pattern.
         self.red_script_role_flip = torch.zeros((B,), dtype=torch.bool, device=dev)
         self.red_script_lane_sign = torch.ones((B,), dtype=f32, device=dev)
@@ -315,6 +321,7 @@ class _StateMixin:
         self.red_attacker_style[idx] = 0
         self.red_defender_style[idx] = 0
         self.red_role_switch_prob[idx] = 0.0
+        self.red_coord_ticks_left[idx] = 0
         red_is_op4 = torch.as_tensor(
             [
                 str(self._opponent_kind[i]).upper() == "SCRIPTED" and str(self._opponent_key[i]).upper() == "OP4"
@@ -477,7 +484,7 @@ class _StateMixin:
             )
 
     def get_opponent_key(self, env_indices: Optional[Sequence[int]] = None) -> str:
-        """Return current red opponent key (OP1/OP2/OP3/OP4). For eval verification."""
+        """Return current red opponent key (OP1/OP2/OP3/OP4/OP5_RUSHER). For eval verification."""
         idx = self._normalize_env_indices(env_indices)
         if idx.numel() == 0:
             return "OP3"
@@ -508,6 +515,22 @@ class _StateMixin:
         self._apply_dynamics_tensor(cfg, "attacker_style", "red_attacker_style", 0, 1, torch.int32)
         self._apply_dynamics_tensor(cfg, "defender_style", "red_defender_style", 0, 1, torch.int32)
         self._apply_dynamics_tensor(cfg, "role_switch_prob", "red_role_switch_prob", 0.0, 1.0)
+        self._apply_dynamics_bool(cfg, "coordinated_attack", "red_coordinated_attack")
+        self._apply_dynamics_tensor(cfg, "attack_sync_window", "red_attack_sync_window", 0, 32, torch.int32)
+
+    def _apply_dynamics_bool(self, cfg: Dict[str, Any], key: str, attr: str) -> None:
+        if key not in cfg:
+            return
+        val = cfg[key]
+        tensor = getattr(self, attr)
+        if isinstance(val, torch.Tensor):
+            t = val.to(device=self.device, dtype=torch.bool).reshape(-1)
+            if t.numel() == self.B:
+                tensor.copy_(t)
+            else:
+                tensor.fill_(bool(t.reshape(-1)[0].item()))
+        else:
+            tensor.fill_(bool(val))
 
     def _rand_uniform(self, shape: Sequence[int], lo: float, hi: float) -> torch.Tensor:
         t = torch.rand(tuple(shape), generator=self._rng, device=self.device)

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 import torch
 
@@ -86,11 +86,14 @@ class _DynamicsMixin:
         self.red_attacker_style[idx] = 0
         self.red_defender_style[idx] = 0
         self.red_role_switch_prob[idx] = 0.0
+        self.red_coordinated_attack[idx] = False
+        self.red_attack_sync_window[idx] = 0
+        self.red_coord_ticks_left[idx] = 0
 
     def _apply_opponent_params_for_mask(self, env_mask: torch.Tensor) -> None:
         if sample_batched_opponent_params is None:
             return
-        # Only SCRIPTED with OP1/OP2/OP3/OP4 have defined params.
+        # Only SCRIPTED with OP1/OP2/OP3/OP4/OP5_RUSHER have defined params.
         # SNAPSHOT opponents should keep neutral/default red dynamics so they behave
         # like true self-play rather than inheriting scripted-opponent boosts.
         idx = torch.where(env_mask)[0]
@@ -111,7 +114,7 @@ class _DynamicsMixin:
             use_key = str(self._opponent_key[env_i]).upper()
             if use_kind == "SNAPSHOT":
                 continue
-            if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4"):
+            if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4", "OP5_RUSHER", "OP5"):
                 if use_kind == "SPECIES":
                     use_kind = "SCRIPTED"
                     use_key = "OP3"
@@ -147,6 +150,25 @@ class _DynamicsMixin:
                 self.red_defender_style[sub_idx] = opp_params["defender_style"].to(device=self.device, dtype=self.red_defender_style.dtype)
             if "role_switch_prob" in opp_params:
                 self.red_role_switch_prob[sub_idx] = opp_params["role_switch_prob"].to(device=self.device, dtype=self.red_role_switch_prob.dtype)
+            if "coordinated_attack" in opp_params:
+                ca = opp_params["coordinated_attack"].to(device=self.device).reshape(-1).to(torch.bool)
+                n_sub = int(sub_idx.numel())
+                if ca.numel() == n_sub:
+                    self.red_coordinated_attack[sub_idx] = ca
+                elif ca.numel() == 1:
+                    self.red_coordinated_attack[sub_idx] = bool(ca[0].item())
+                else:
+                    self.red_coordinated_attack[sub_idx] = ca[:n_sub]
+            if "attack_sync_window" in opp_params:
+                sw = opp_params["attack_sync_window"].to(device=self.device, dtype=self.red_attack_sync_window.dtype).reshape(-1)
+                n_sub = int(sub_idx.numel())
+                if sw.numel() == n_sub:
+                    self.red_attack_sync_window[sub_idx] = sw
+                elif sw.numel() == 1:
+                    self.red_attack_sync_window[sub_idx] = int(sw[0].item())
+                else:
+                    self.red_attack_sync_window[sub_idx] = sw[:n_sub]
+            self.red_coord_ticks_left[sub_idx] = 0
 
     def _align_speed_cap_to_speed(self, speed: torch.Tensor, speed_cap: torch.Tensor) -> torch.Tensor:
         return align_speed_cap_to_speed(speed, speed_cap)

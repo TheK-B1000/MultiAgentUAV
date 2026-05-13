@@ -31,7 +31,7 @@ class OpponentParamsTests(unittest.TestCase):
             self.assertTrue(torch.isfinite(params["speed_mult"]).all().item())
             self.assertTrue(torch.isfinite(params["deception_prob"]).all().item())
             self.assertTrue(torch.isfinite(params["noise_sigma"]).all().item())
-            self.assertTrue(((params["speed_mult"] >= 0.60) & (params["speed_mult"] <= 1.30)).all().item())
+            self.assertTrue(((params["speed_mult"] >= 0.60) & (params["speed_mult"] <= 1.45)).all().item())
             self.assertTrue(((params["deception_prob"] >= 0.0) & (params["deception_prob"] <= 0.60)).all().item())
             self.assertTrue(((params["role_switch_prob"] >= 0.0) & (params["role_switch_prob"] <= 0.90)).all().item())
             self.assertTrue(((params["noise_sigma"] >= 0.0) & (params["noise_sigma"] <= 0.10)).all().item())
@@ -73,21 +73,25 @@ class OpponentParamsTests(unittest.TestCase):
             generator=_make_generator(19),
         )
 
-        fast_pressure = (params["speed_mult"] > 1.0) & (params["role_switch_prob"] > 0.45)
-        slow_counter = (params["speed_mult"] < 0.90) & (params["deception_prob"] > 0.25) & (params["role_switch_prob"] < 0.16)
-        steady_balanced = (
-            (params["speed_mult"] >= 0.88)
-            & (params["speed_mult"] <= 1.04)
-            & (params["deception_prob"] >= 0.14)
-            & (params["role_switch_prob"] >= 0.18)
-            & (params["role_switch_prob"] <= 0.36)
+        # OP4 is a held-out style mixture (blitz / anchor-trap / volatile pivot / yolo), not OP3 + ε.
+        committed_blitz = (
+            (params["speed_mult"] > 1.02)
+            & (params["role_switch_prob"] < 0.23)
+            & (params["attacker_style"] == 1)
+            & (params["defender_style"] == 0)
         )
-        chaotic = (params["role_switch_prob"] > 0.58) & (params["deception_prob"] > 0.22)
+        anchor_trap = (params["speed_mult"] < 0.88) & (params["deception_prob"] > 0.26)
+        volatile_dual = (
+            (params["attacker_style"] == 1)
+            & (params["defender_style"] == 1)
+            & (params["role_switch_prob"] > 0.50)
+        )
+        yolo = (params["speed_mult"] > 1.00) & (params["role_switch_prob"] > 0.60)
 
-        self.assertTrue(fast_pressure.any().item())
-        self.assertTrue(slow_counter.any().item())
-        self.assertTrue(steady_balanced.any().item())
-        self.assertTrue(chaotic.any().item())
+        self.assertTrue(committed_blitz.any().item())
+        self.assertTrue(anchor_trap.any().item())
+        self.assertTrue(volatile_dual.any().item())
+        self.assertTrue(yolo.any().item())
 
 
 if __name__ == "__main__":

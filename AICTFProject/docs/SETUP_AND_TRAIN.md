@@ -6,6 +6,8 @@ Latent team strategy is enabled by default. Use `--no-latent-strategy` for vanil
 
 The default run is the Summer latent implementation: `--mode FIXED_OPPONENT --fixed-opponent OP3` with latent strategy enabled. `--mode CURRICULUM` is the Jacob-style OP1 -> OP2 -> OP3 scripted-opponent curriculum baseline; it always disables latent strategy.
 
+For **paper / ICRA alignment** (centralized value critic **V** vs **Q** wording, event-masked λ_p / λ_H, q_phi inputs, frozen eval matrix, team sizes), see `docs/Paper_experiment_alignment.md`.
+
 ## Install
 
 Install PyTorch for your platform first from `https://pytorch.org`, then install project dependencies from `AICTFProject`:

@@ -38,6 +38,9 @@ class GPUCTFVecEnv(VecEnv):
         action_space = spaces.MultiDiscrete([self._n_macros, self._n_targets] * self._n_blue)
         super().__init__(cfg.n_envs, obs_space, action_space)
         self._pending_actions: Optional[np.ndarray] = None
+        # Optional (trainer-owned): called after terminal payloads are built but before ``reset_indices``,
+        # so per-env scripted opponent changes apply to the upcoming episode (correct OP4 guard layout, etc.).
+        self._before_reset_indices_hook: Optional[Any] = None
 
     def reset(self) -> Dict[str, np.ndarray]:
         self.core.reset_all()
@@ -84,6 +87,9 @@ class GPUCTFVecEnv(VecEnv):
                 infos[i]["terminal_observation"] = tobs
                 # So training callbacks (parse_episode_result) get a single episode_result dict.
                 infos[i]["episode_result"] = _build_episode_result_payload(infos[i])
+            hook = getattr(self, "_before_reset_indices_hook", None)
+            if callable(hook):
+                hook(done, infos)
             self.core.reset_indices(reset_mask)
             obs = self.core.get_obs()
         self._pending_actions = None

@@ -164,6 +164,8 @@ class _MetricsMixin:
         red_alive_np = bools[:, 4 + self.Nb : 4 + self.Nb + self.Nr]
         gs_np = build_global_state_batch(self).detach().cpu().numpy().astype(np.float32)
         action_mask_np = self._build_action_mask(side="blue").detach().cpu().numpy().astype(np.float32)
+        max_stale = max(1, int(self.cfg.stalemate_max_steps))
+        stalemate_frac_np = (self.stalemate_steps.detach().float() / float(max_stale)).detach().cpu().numpy()
         for i in range(self.B):
             mean_dist = None
             if int(dist_count[i]) > 0:
@@ -200,6 +202,7 @@ class _MetricsMixin:
                     "terminated": bool(term_np[i]),
                     "truncated": bool(trunc_np[i]),
                     "stalemate_truncated": bool(st_np[i]),
+                    "stalemate_frac": float(stalemate_frac_np[i]),
                     "action_mask": action_mask_np[i],
                     "agent_alive": blue_alive_np[i],
                     "blue_alive": blue_alive_np[i],

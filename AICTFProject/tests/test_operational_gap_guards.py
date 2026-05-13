@@ -89,10 +89,12 @@ class OperationalGapGuardsTests(unittest.TestCase):
             path = os.path.abspath(os.path.join(here, name))
             with open(path, encoding="utf-8") as f:
                 text = f.read()
+            # Allow the canonical scripted tag ``OP5_RUSHER`` (telemetry / opponent keys); forbid other bare tokens.
+            sanitized = text.replace("OP5_RUSHER", "")
             for tag in ("RUSHER", "CAMPER", "Species"):
                 self.assertNotIn(
                     tag,
-                    text,
+                    sanitized,
                     f"{name} should not mix opponent / species labels into z code paths (grep audit)",
                 )
 

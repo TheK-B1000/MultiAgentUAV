@@ -2,20 +2,45 @@
 OpponentParams: Batched per-episode adversarial style (speed, deception, coordinated attack).
 Each style maps to a distribution over these params and returns GPU tensors for BatchedCTFCore.
 
+**Environment wiring (read before tuning OP5 / OP3):**
+
+- The GPU core applies from ``sample_batched_opponent_params``:
+  ``deception_prob``, ``speed_mult``, ``attacker_style``, ``defender_style``, ``role_switch_prob``,
+  plus ``coordinated_attack`` and ``attack_sync_window`` (see
+  ``gpu_env/_core/_dynamics.py::_apply_opponent_params_for_mask`` and
+  ``rl/train_ppo.py::_apply_initial_opponent_params``).
+- **Not applied in sim today:** ``noise_sigma`` (sampled but unused in scripted red / dynamics).
+- **``speed_mult`` headroom:** red speed cap is ``cfg.max_speed_cps * speed_mult`` per step, but
+  ``_integrate_side`` sets chase ``desired_speed = min(min(2.2, max_speed_cps), cap)``. With default
+  ``max_speed_cps == 2.2``, any ``speed_mult >= 1`` yields the **same** top chase speed as ``1.0``;
+  multipliers **above 1** mostly do **not** make red faster. Tuning OP5 by pushing ``s_high`` past
+  ~``2.2 / max_speed_cps`` is largely ineffective until integrator / cap semantics change.
+
 OP3 vs OP4 (must be clearly different for held-out eval):
-  - OP3: Used in training. Medium attacker + medium defender (defender_style=1), moderate
-    role switching (0.35), moderate deception and speed. Balanced play.
-  - OP4: Held-out; never used in training. High-variance opponent that samples across several
-    plausible scripted styles each episode. It is intentionally broader and less predictable
-    than OP3 so robustness matters more than narrow specialization.
+  - OP3: Training workhorse. Fixed medium attacker + medium defender, moderate role switching (~0.35),
+    moderate deception/coord on 2v2; larger teams mostly get a slower balanced speed band.
+  - OP4: Held-out **style mixture**, not ``OP3 + noise``. Each episode draws one of four archetypes:
+    committed blitz (striker-heavy, low role churn), slow anchor with heavy deception,
+    volatile ``(medium, medium)`` with **much** higher role + deception than OP3's fixed pivot rate,
+    or high-entropy yolo / randomized styles. Goal: different *behavior regime* than OP3, not only strength.
+  - OP5_RUSHER: Trainable stress-test. High sustained speed, striker-heavy red (attacker=1,
+    defender=0), **high coordination** and **very low** role churn so red commits to flag
+    pressure. Target: strong flat policies **~70–85%** WR vs OP5 on train maps (OP3 often
+    still ~95–99%); tune 2v2 speed / c_prob in small steps if OP5 stays mild (~95%+ flat WR).
+
   The core uses: red_attacker_style, red_defender_style, red_deception_prob, red_speed_mult,
-  red_role_switch_prob, so OP3 vs OP4 produce different red behavior.
+  red_role_switch_prob, red_coordinated_attack, red_attack_sync_window, so OP3 vs OP4 vs
+  OP5_RUSHER produce different red behavior.
 """
 from __future__ import annotations
 
 from typing import Dict, Optional, Tuple, Union
 
 import torch
+
+# Bump this string whenever OP5_RUSHER / OP5 scripted tuning changes so eval CSV filenames
+# match the code path (see ``plot/eval_checkpoint.py``).
+OP5_RUSHER_TUNING_TAG = "bite_v3"
 
 
 def _sample_uniform(
@@ -51,26 +76,34 @@ def _sample_int(
 
 
 def _op4_profile_ranges(n_agents: int) -> Dict[int, Dict[str, Tuple[float, float] | Tuple[int, int] | float | int]]:
-    """Return team-size-aware OP4 archetype ranges."""
+    """Return team-size-aware OP4 archetype ranges (contrasts vs fixed OP3, not ``OP3 + ε``).
+
+    Archetypes (indices 0..3):
+      0 — Committed blitz: striker-heavy, high speed, low role-switching (different from OP3's 0.35 pivot).
+      1 — Anchor + mindgames: slow line, **high deception**, sticky roles (OP3 rarely sits this slow/deep).
+      2 — Volatile pivot: still (1,1) like OP3's labels but **much** higher stochastic role + deception
+          (OP3 uses a single moderate pivot rate; this mode churns commitments).
+      3 — Yolo / max entropy: aggressive speed + very high role volatility; optional random style bits.
+    """
     if n_agents >= 8:
         return {
-            0: {"speed": (0.88, 1.04), "deception": (0.02, 0.10), "role": (0.34, 0.52), "coord": 0.10, "sync_coord": (1, 3), "sync_noncoord": (1, 2), "noise": (0.00, 0.02), "attacker": 1, "defender": 0},
-            1: {"speed": (0.70, 0.84), "deception": (0.18, 0.34), "role": (0.02, 0.10), "coord": 0.08, "sync_coord": (1, 2), "sync_noncoord": (1, 2), "noise": (0.00, 0.02), "attacker": 0, "defender": 1},
-            2: {"speed": (0.78, 0.92), "deception": (0.10, 0.22), "role": (0.14, 0.28), "coord": 0.14, "sync_coord": (1, 3), "sync_noncoord": (1, 2), "noise": (0.00, 0.025), "attacker": 1, "defender": 1},
-            3: {"speed": (0.80, 0.96), "deception": (0.16, 0.30), "role": (0.42, 0.64), "coord": 0.12, "sync_coord": (1, 3), "sync_noncoord": (1, 2), "noise": (0.00, 0.03), "attacker": -1, "defender": -1},
+            0: {"speed": (0.90, 1.06), "deception": (0.04, 0.14), "role": (0.07, 0.22), "coord": 0.38, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.03), "attacker": 1, "defender": 0},
+            1: {"speed": (0.66, 0.80), "deception": (0.20, 0.36), "role": (0.04, 0.12), "coord": 0.10, "sync_coord": (1, 3), "sync_noncoord": (1, 2), "noise": (0.02, 0.05), "attacker": 0, "defender": 1},
+            2: {"speed": (0.76, 0.90), "deception": (0.16, 0.30), "role": (0.46, 0.74), "coord": 0.20, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.01, 0.04), "attacker": 1, "defender": 1},
+            3: {"speed": (0.86, 1.02), "deception": (0.12, 0.28), "role": (0.56, 0.82), "coord": 0.40, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.01, 0.04), "attacker": -1, "defender": -1},
         }
     if n_agents >= 4:
         return {
-            0: {"speed": (0.94, 1.10), "deception": (0.02, 0.14), "role": (0.40, 0.60), "coord": 0.16, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.03), "attacker": 1, "defender": 0},
-            1: {"speed": (0.76, 0.90), "deception": (0.24, 0.40), "role": (0.03, 0.12), "coord": 0.10, "sync_coord": (1, 3), "sync_noncoord": (1, 3), "noise": (0.00, 0.03), "attacker": 0, "defender": 1},
-            2: {"speed": (0.84, 0.98), "deception": (0.12, 0.28), "role": (0.16, 0.32), "coord": 0.18, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.04), "attacker": 1, "defender": 1},
-            3: {"speed": (0.86, 1.02), "deception": (0.20, 0.36), "role": (0.48, 0.72), "coord": 0.16, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.04), "attacker": -1, "defender": -1},
+            0: {"speed": (0.96, 1.12), "deception": (0.05, 0.18), "role": (0.08, 0.24), "coord": 0.40, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.04), "attacker": 1, "defender": 0},
+            1: {"speed": (0.62, 0.78), "deception": (0.22, 0.38), "role": (0.04, 0.12), "coord": 0.10, "sync_coord": (1, 3), "sync_noncoord": (1, 2), "noise": (0.02, 0.05), "attacker": 0, "defender": 1},
+            2: {"speed": (0.78, 0.94), "deception": (0.18, 0.34), "role": (0.48, 0.78), "coord": 0.22, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.01, 0.04), "attacker": 1, "defender": 1},
+            3: {"speed": (0.88, 1.06), "deception": (0.14, 0.30), "role": (0.58, 0.85), "coord": 0.42, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.01, 0.04), "attacker": -1, "defender": -1},
         }
     return {
-        0: {"speed": (1.00, 1.16), "deception": (0.03, 0.18), "role": (0.48, 0.70), "coord": 0.24, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.00, 0.04), "attacker": 1, "defender": 0},
-        1: {"speed": (0.76, 0.92), "deception": (0.28, 0.46), "role": (0.03, 0.14), "coord": 0.12, "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.04), "attacker": 0, "defender": 1},
-        2: {"speed": (0.88, 1.04), "deception": (0.14, 0.32), "role": (0.18, 0.36), "coord": 0.22, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.00, 0.05), "attacker": 1, "defender": 1},
-        3: {"speed": (0.90, 1.08), "deception": (0.22, 0.42), "role": (0.58, 0.82), "coord": 0.20, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.00, 0.05), "attacker": -1, "defender": -1},
+        0: {"speed": (1.06, 1.22), "deception": (0.03, 0.14), "role": (0.06, 0.22), "coord": 0.44, "sync_coord": (2, 4), "sync_noncoord": (1, 3), "noise": (0.00, 0.04), "attacker": 1, "defender": 0},
+        1: {"speed": (0.68, 0.86), "deception": (0.28, 0.48), "role": (0.04, 0.14), "coord": 0.12, "sync_coord": (1, 3), "sync_noncoord": (1, 3), "noise": (0.02, 0.06), "attacker": 0, "defender": 1},
+        2: {"speed": (0.92, 1.10), "deception": (0.22, 0.40), "role": (0.52, 0.82), "coord": 0.26, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.01, 0.05), "attacker": 1, "defender": 1},
+        3: {"speed": (1.02, 1.20), "deception": (0.18, 0.36), "role": (0.62, 0.88), "coord": 0.50, "sync_coord": (2, 5), "sync_noncoord": (1, 4), "noise": (0.01, 0.05), "attacker": -1, "defender": -1},
     }
 
 
@@ -179,6 +212,26 @@ def sample_batched_opponent_params(
                 sync_c_low, sync_c_high = 3, 8
                 sync_nc_low, sync_nc_high = 3, 6
                 n_low, n_high = 0.0, 0.08
+        elif key in ("OP5_RUSHER", "OP5"):
+            # Fast coordinated flag pressure (2v2: bite_v2 — stronger stress axis vs bite_v1, still orderly).
+            attacker_style = 1
+            defender_style = 0
+            role_switch_prob = 0.03
+            d_low, d_high = 0.0, 0.06
+            n_low, n_high = 0.0, 0.03
+            c_prob = 0.90
+            sync_c_low, sync_c_high = 2, 6
+            sync_nc_low, sync_nc_high = 2, 5
+            if n_agents >= 8:
+                s_low, s_high = 0.88, 1.06
+                c_prob = 0.52
+                sync_c_low, sync_c_high = 1, 5
+                sync_nc_low, sync_nc_high = 1, 4
+            elif n_agents >= 4:
+                s_low, s_high = 1.00, 1.24
+            else:
+                # 2v2 bite_v1: 1.15–1.35, c=0.78, role=0.04 → ~95% flat WR vs OP5; bite_v2 pushes harder.
+                s_low, s_high = 1.20, 1.43
         elif key == "OP4":
             # Held-out eval opponent: never used in training. Make it deliberately broad and
             # stochastic so robustness matters more than memorizing one scripted style.
@@ -352,7 +405,7 @@ def sample_batched_opponent_params(
         defender_style_t = torch.full((batch_size,), int(defender_style), dtype=torch.int32, device=device)
         role_switch_prob_t = torch.full((batch_size,), float(role_switch_prob), dtype=torch.float32, device=device)
 
-    speed_mult = torch.clamp(speed_mult, 0.60, 1.30)
+    speed_mult = torch.clamp(speed_mult, 0.60, 1.45)
     deception_prob = torch.clamp(deception_prob, 0.0, 0.60)
     noise_sigma = torch.clamp(noise_sigma, 0.0, 0.10)
     attack_sync_window = torch.clamp(attack_sync_window, 0, 8)

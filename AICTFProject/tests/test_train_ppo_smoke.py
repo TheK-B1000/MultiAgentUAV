@@ -23,10 +23,19 @@ from rl.custom_ppo import (
     CUSTOM_PPO_VEC_SCHEMA_VERSION,
     CustomPPOTrainer,
     SharedActorCentralizedCritic,
+    _METRICS_CSV_LEGACY_COLUMN_FILL,
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
-from rl.train_ppo import PPOConfig, _acquire_run_lock, _apply_training_preset, _gpu_env_reward_kwargs, train_ppo
+from rl.train_ppo import (
+    PPOConfig,
+    TrainMode,
+    _acquire_run_lock,
+    _apply_training_preset,
+    _gpu_env_reward_kwargs,
+    _strip_eval_only_opponents_from_training_pool,
+    train_ppo,
+)
 
 
 _WORKSPACE_TMP = Path(__file__).resolve().parents[1] / ".test_runs" / "train_ppo_smoke"
@@ -110,22 +119,23 @@ class TrainPpoSmokeTests(unittest.TestCase):
         self.assertAlmostEqual(cfg.latent_lam_p, 0.06)
         self.assertEqual(cfg.n_epochs, 10)
         self.assertEqual(cfg.batch_size, 512)
-        self.assertTrue(cfg.latent_strategy_q_head)
-        self.assertAlmostEqual(cfg.latent_strategy_q_coef, 0.75)
+        self.assertTrue(cfg.latent_strategy_aux_return_head)
+        self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.75)
 
     def test_wrmax_preset_applies_expected_knobs(self) -> None:
         for preset in ("latent_op3_wrmax_2m", "latent_op3_wrmax_1m"):
             cfg = _apply_training_preset(PPOConfig(), preset)
             self.assertEqual(cfg.total_timesteps, 1_000_000, msg=preset)
             self.assertEqual(cfg.run_tag, "latent_op3_wrmax_1m_2v2", msg=preset)
-            self.assertTrue(cfg.latent_strategy_q_head)
+            self.assertTrue(cfg.latent_strategy_aux_return_head)
+            self.assertEqual(cfg.latent_entropy_objective, "minimize")
             self.assertAlmostEqual(cfg.vf_coef, 1.1)
             self.assertEqual(cfg.latent_resample_every_n, 0)
             self.assertEqual(cfg.latent_vf_hidden, 256)
             self.assertAlmostEqual(cfg.latent_lam_h, 0.02)
             self.assertAlmostEqual(cfg.latent_lam_p, 0.0)
             self.assertAlmostEqual(cfg.latent_strategy_ppo_coef, 0.30)
-            self.assertAlmostEqual(cfg.latent_strategy_q_coef, 1.2)
+            self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 1.2)
             self.assertAlmostEqual(cfg.latent_strategy_tau, 0.7)
             self.assertAlmostEqual(cfg.env_win_team_reward, 1.5)
             self.assertAlmostEqual(cfg.env_lose_team_punish, -1.2)
@@ -133,6 +143,89 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertAlmostEqual(cfg.env_action_failed_punishment, -0.02)
             self.assertAlmostEqual(cfg.env_dense_weight, 0.08)
             self.assertEqual(cfg.env_stalemate_max_steps, 120)
+
+    def test_plan_option_a_matches_latent_a1_plan_faithful(self) -> None:
+        a = _apply_training_preset(PPOConfig(), "plan_option_a")
+        b = _apply_training_preset(PPOConfig(), "latent_a1_plan_faithful")
+        self.assertEqual(a.run_tag, b.run_tag)
+        self.assertEqual(a.latent_resample_every_n, b.latent_resample_every_n)
+        self.assertAlmostEqual(a.latent_lam_p, b.latent_lam_p)
+
+    def test_plan_option_b_lamp_sparse_refresh_and_lam_p(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "plan_option_b_lamp")
+        self.assertEqual(cfg.latent_resample_every_n, 20)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.02)
+        self.assertEqual(cfg.run_tag, "plan_option_b_lamp_1m_2v2")
+        self.assertTrue(cfg.use_latent_strategy)
+
+    def test_hypothesis_presets_enable_opponent_randomize(self) -> None:
+        flat_c = _apply_training_preset(PPOConfig(), "hypothesis_flat_opprand")
+        self.assertEqual(flat_c.mode, TrainMode.OPPONENT_POOL.value)
+        self.assertTrue(flat_c.opponent_randomize)
+        self.assertFalse(flat_c.use_latent_strategy)
+        self.assertEqual(flat_c.opponent_pool, ("OP1", "OP2", "OP3"))
+        lat_a = _apply_training_preset(PPOConfig(), "hypothesis_latent_opprand_optiona")
+        self.assertEqual(lat_a.mode, TrainMode.OPPONENT_POOL.value)
+        self.assertTrue(lat_a.opponent_randomize)
+        self.assertTrue(lat_a.use_latent_strategy)
+        self.assertEqual(lat_a.opponent_pool, ("OP1", "OP2", "OP3"))
+        lat_b = _apply_training_preset(PPOConfig(), "hypothesis_latent_opprand_optionb_lamp_coef05")
+        self.assertEqual(lat_b.mode, TrainMode.OPPONENT_POOL.value)
+        self.assertTrue(lat_b.opponent_randomize)
+        self.assertEqual(lat_b.opponent_pool, ("OP1", "OP2", "OP3"))
+        self.assertEqual(lat_b.latent_resample_every_n, 20)
+        self.assertAlmostEqual(lat_b.latent_strategy_ppo_coef, 0.5)
+        no_lamp = _apply_training_preset(PPOConfig(), "hypothesis_latent_opprand_optionb_no_lamp")
+        self.assertAlmostEqual(no_lamp.latent_lam_p, 0.0)
+        self.assertAlmostEqual(no_lamp.latent_strategy_ppo_coef, 0.5)
+        c03 = _apply_training_preset(PPOConfig(), "hypothesis_latent_opprand_optionb_coef03")
+        self.assertAlmostEqual(c03.latent_strategy_ppo_coef, 0.3)
+
+    def test_opponent_pool_strips_op4_for_training_by_default(self) -> None:
+        cfg = PPOConfig()
+        cfg.opponent_pool = ("OP1", "OP2", "OP3", "OP4")
+        cfg.allow_op4_in_training_pool = False
+        _strip_eval_only_opponents_from_training_pool(cfg)
+        self.assertEqual(cfg.opponent_pool, ("OP1", "OP2", "OP3"))
+
+    def test_opponent_pool_keeps_op4_when_allowed(self) -> None:
+        cfg = PPOConfig()
+        cfg.opponent_pool = ("OP1", "OP4")
+        cfg.allow_op4_in_training_pool = True
+        _strip_eval_only_opponents_from_training_pool(cfg)
+        self.assertEqual(cfg.opponent_pool, ("OP1", "OP4"))
+
+    def test_opponent_randomize_rejected_with_curriculum(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_opp_rand_curriculum_conflict_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.mode = "CURRICULUM"
+        cfg.use_latent_strategy = False
+        cfg.opponent_randomize = True
+        try:
+            with self.assertRaisesRegex(ValueError, "opponent_randomize=True is incompatible"):
+                train_ppo(cfg)
+        finally:
+            _cleanup_training_outputs(tag)
+
+    def test_plan_faithful_a1_preset_applies_expected_knobs(self) -> None:
+        for preset in ("latent_a1_plan_faithful", "latent_op3_a1_plan_faithful"):
+            cfg = _apply_training_preset(PPOConfig(), preset)
+            self.assertEqual(cfg.total_timesteps, 1_000_000, msg=preset)
+            self.assertEqual(cfg.run_tag, "latent_a1_plan_faithful_1m_2v2", msg=preset)
+            self.assertIsNone(cfg.load_path, msg=preset)
+            self.assertFalse(cfg.latent_strategy_aux_return_head)
+            self.assertEqual(cfg.latent_entropy_objective, "maximize")
+            self.assertAlmostEqual(cfg.latent_lam_h, 0.005)
+            self.assertAlmostEqual(cfg.latent_lam_p, 0.02)
+            self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.0)
+            self.assertAlmostEqual(cfg.latent_strategy_tau, 1.0)
+            self.assertEqual(cfg.latent_resample_every_n, 0)
+            self.assertEqual(cfg.latent_vf_hidden, 128)
+            self.assertEqual(cfg.reward_shaping_coef_end, 1.0)
+            self.assertEqual(cfg.reward_shaping_decay_steps, 0)
+            self.assertIsNone(cfg.env_win_team_reward, msg=preset)
+            self.assertIsNone(cfg.env_dense_weight, msg=preset)
 
     def test_wrmax_train_2m_preset(self) -> None:
         cfg = _apply_training_preset(PPOConfig(), "latent_op3_wrmax_train_2m")
@@ -188,6 +281,28 @@ class TrainPpoSmokeTests(unittest.TestCase):
             if path.exists():
                 path.unlink()
 
+    def test_csv_writer_migrates_renamed_strategy_aux_return_loss_column(self) -> None:
+        """Metrics CSVs using legacy ``strategy_q_loss`` migrate to ``strategy_aux_return_loss``."""
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        path = _WORKSPACE_TMP / "schema_rename_metrics_aux_return.csv"
+        try:
+            path.write_text("a,strategy_q_loss,b\n1,0.5,2\n", encoding="utf-8")
+            CustomPPOTrainer._write_csv_row(
+                object(),
+                str(path),
+                ["a", "strategy_aux_return_loss", "b"],
+                {"a": "3", "strategy_aux_return_loss": "0.25", "b": "4"},
+                legacy_column_fill=_METRICS_CSV_LEGACY_COLUMN_FILL,
+            )
+            with path.open(newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0], {"a": "1", "strategy_aux_return_loss": "0.5", "b": "2"})
+            self.assertEqual(rows[1], {"a": "3", "strategy_aux_return_loss": "0.25", "b": "4"})
+        finally:
+            if path.exists():
+                path.unlink()
+
     def test_run_lock_blocks_duplicate_run_tag(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
         cfg = PPOConfig()
@@ -222,6 +337,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 rows = list(csv.DictReader(f))
             self.assertGreaterEqual(len(rows), 1)
             self.assertEqual(rows[0]["opponent"], "SCRIPTED:OP1")
+            self.assertEqual(rows[0].get("opponent_id", ""), "0")
             self.assertEqual(rows[0]["curriculum_phase"], "OP1")
         finally:
             _cleanup_training_outputs(tag)
@@ -261,6 +377,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 rows = list(csv.DictReader(f))
             self.assertGreaterEqual(len(rows), 1)
             self.assertEqual(rows[0]["opponent"], "SCRIPTED:OP3")
+            self.assertEqual(rows[0].get("opponent_id", ""), "2")
         finally:
             _cleanup_training_outputs(tag)
 
@@ -356,6 +473,11 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("strategy_entropy_frac", rows[0])
             self.assertIn("strategy_wr_spread", rows[0])
             self.assertIn("strategy_occupancy_0", rows[0])
+            self.assertIn("latent_mi_z_opponent_nats", rows[0])
+            self.assertIn("latent_mi_z_phase_nats", rows[0])
+            self.assertIn("latent_mi_z_outcome_nats", rows[0])
+            self.assertIn("strategy_occupancy_op0_z0", rows[0])
+            self.assertIn("episode_opp0_z0_count", rows[0])
             self.assertIn("episode_z_0_red_score_mean", rows[0])
             comparisons = compare_policy_updates(metrics_csv, before_policy_update=0, after_policy_update=1)
             self.assertEqual([item.column for item in comparisons], list(COMPARISON_COLUMNS))
@@ -370,6 +492,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("rollout_step", ep_rows[0])
             self.assertIn("latent_z", ep_rows[0])
             self.assertIn("opponent", ep_rows[0])
+            self.assertIn("opponent_id", ep_rows[0])
             self.assertIn("reward_sparse", ep_rows[0])
             self.assertIn("reward_failure", ep_rows[0])
             self.assertNotIn("phase_name", ep_rows[0])
@@ -459,7 +582,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
             checkpoint_dir=str(_WORKSPACE_TMP),
         )
         cfg.use_latent_strategy = True
-        cfg.latent_strategy_q_head = True
+        cfg.latent_strategy_aux_return_head = True
         path = _WORKSPACE_TMP / "strategy_return_norm.zip"
         env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=655))
         env2 = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=656))

@@ -1,7 +1,0 @@
-setting,method,opponent,success_rate_mean,success_rate_std,mean_steps_mean,mean_steps_std,collision_free_mean,collision_free_std,return_variance_mean,return_variance_std,coverage_efficiency_mean,coverage_efficiency_std
-2v2,Ours,OP4,88.0,33.166247903553995,400.0,0.0,100.0,0.0,280.8055049919348,0.0,0.0,0.0
-2v2,Jacob et al.,OP4,28.000000000000004,45.825756949558404,400.0,0.0,100.0,0.0,471.92976863193445,0.0,0.0,0.0
-2v2,Self-play,OP4,88.0,33.166247903553995,396.92,15.4,100.0,0.0,275.758383605803,0.0,0.0,0.0
-4v4,Ours,OP4,92.0,27.688746209726915,397.6,12.0,100.0,0.0,117.45666474346977,0.0,0.0,0.0
-4v4,Jacob et al.,OP4,100.0,0.0,400.0,0.0,100.0,0.0,81.02316935218879,0.0,0.0,0.0
-4v4,Self-play,OP4,88.0,33.166247903553995,400.0,0.0,100.0,0.0,191.70940370037056,0.0,0.0,0.0

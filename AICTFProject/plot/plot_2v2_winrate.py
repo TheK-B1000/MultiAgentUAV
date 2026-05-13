@@ -63,7 +63,7 @@ def main():
         "--opponent",
         type=str,
         default="OP3",
-        help="Scripted opponent (OP1, OP2, OP3, OP4). Use OP4 for held-out eval (never in training) to compare checkpoints.",
+        help="Scripted opponent (OP1–OP4, OP5_RUSHER). OP4 is held-out eval default; OP5_RUSHER is a trainable rush stress test.",
     )
     parser.add_argument("--seed", type=int, default=42, help="Base random seed for eval env (OP4 uses seed+1 to avoid identical streams).")
     parser.add_argument("--match-eval", action="store_true", help="Use OP4, 100 episodes, seed=42 to match plot_eval_metrics paper numbers.")

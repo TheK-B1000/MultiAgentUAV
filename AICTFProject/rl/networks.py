@@ -101,11 +101,13 @@ class PPOPolicy(nn.Module):
 
 class CentralizedCritic(nn.Module):
     """
-    Centralized **value function** for PPO/GAE: we instantiate the plan's centralized critic
-    (paper §3.4, abstractly written as :math:`Q(s,\\mathbf a, z)`) as
-    :math:`V_\\phi(s, \\mathbf a, z)` — a scalar head conditioned on global state, joint action
-    features, and :math:`z`, consistent with clipped PPO and bootstrapping (not a full
-    :math:`Q` over counterfactual joint action tuples).
+    Centralized **scalar value function** :math:`V_\\phi(s, \\mathbf{a}, z)` for clipped PPO / GAE.
+
+    Inputs are global summary :math:`s`, a one-hot encoding of the **realized** joint team action
+    :math:`\\mathbf{a}`, and the discrete strategy :math:`z`. This is **not** a full
+    action-value function :math:`Q(s, \\mathbf{a}, z)` over counterfactual joint actions (no
+    max over alternative :math:`\\mathbf{a}'`); it regresses the return target for the joint
+    action that was executed, consistent with CTDE value regression in MAPPO-style training.
     """
 
     def __init__(

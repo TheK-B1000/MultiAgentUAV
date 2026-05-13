@@ -3,9 +3,14 @@ Shared custom PPO rollout for win-rate scripts and plot_eval_metrics.py.
 
 Keeps episode stepping, opponent setup, and aggregates identical so
 success_rate (eval table) matches W/L/D win rate (wins / n_episodes).
+
+Per-episode **coordination** summaries (``coord_*``) summarize blue-team
+macro trajectories: pairwise agreement and Pearson correlation on the first
+action head (macro index), plus full MultiDiscrete-vector agreement.
 """
 from __future__ import annotations
 
+import math
 import os
 import sys
 from typing import Any
@@ -18,6 +23,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 
 
 def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
@@ -32,6 +39,68 @@ def _strategy_phase_from_global_state(global_state: Any) -> str:
     return coarse_game_phase_from_global_state(global_state)
 
 
+def _safe_pearson(x: np.ndarray, y: np.ndarray) -> float:
+    """Pearson r; NaN if undefined (constant series or too short)."""
+    if x.size < 2 or y.size < 2:
+        return float("nan")
+    xf = x.astype(np.float64).reshape(-1)
+    yf = y.astype(np.float64).reshape(-1)
+    if xf.size != yf.size:
+        return float("nan")
+    sx = float(xf.std())
+    sy = float(yf.std())
+    if sx < 1e-12 or sy < 1e-12:
+        return float("nan")
+    return float(np.corrcoef(xf, yf)[0, 1])
+
+
+def compute_episode_coordination_metrics(traj: np.ndarray) -> dict[str, float]:
+    """Summarize blue-team coordination from discrete action trajectories.
+
+    Parameters
+    ----------
+    traj
+        Shape ``(T, n_blue_agents, n_heads)`` integer actions (one row per
+        env step after ``predict``).
+
+    Returns
+    -------
+    dict
+        ``coord_pairwise_head0_pearson_mean`` — mean Pearson r between each pair's
+        first-head (macro) time series.
+        ``coord_head0_team_agreement_rate`` — fraction of steps where all agents
+        share the same macro index.
+        ``coord_full_action_team_agreement_rate`` — fraction of steps where full
+        per-agent action vectors match across all agents.
+        ``coord_trajectory_steps`` — ``T`` (for sanity checks).
+    """
+    out: dict[str, float] = {
+        "coord_pairwise_head0_pearson_mean": float("nan"),
+        "coord_head0_team_agreement_rate": float("nan"),
+        "coord_full_action_team_agreement_rate": float("nan"),
+        "coord_trajectory_steps": float(traj.shape[0]),
+    }
+    if traj.ndim != 3 or traj.shape[0] < 1 or traj.shape[1] < 2:
+        return out
+    t, a, _h = traj.shape
+    out["coord_trajectory_steps"] = float(t)
+    h0 = traj[:, :, 0]
+    out["coord_head0_team_agreement_rate"] = float(np.mean(np.all(h0 == h0[:, 0:1], axis=1)))
+    full_same = np.all(traj == traj[:, 0:1, :], axis=(1, 2))
+    out["coord_full_action_team_agreement_rate"] = float(np.mean(full_same))
+    if t < 2:
+        return out
+    h0f = h0.astype(np.float64)
+    corrs: list[float] = []
+    for i in range(a):
+        for j in range(i + 1, a):
+            c = _safe_pearson(h0f[:, i], h0f[:, j])
+            if math.isfinite(c):
+                corrs.append(c)
+    out["coord_pairwise_head0_pearson_mean"] = float(sum(corrs) / len(corrs)) if corrs else float("nan")
+    return out
+
+
 def run_eval_episodes(
     model_path: str,
     env: Any,
@@ -41,12 +110,15 @@ def run_eval_episodes(
     *,
     deterministic: bool = True,
     record_entropy: bool = False,
+    coordination_metrics: bool = True,
     progress_every: int = 0,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
     If deterministic is False, uses stochastic policy actions (sampled); default True matches greedy argmax.
     If record_entropy is True, each episode dict includes policy_entropy (first-step mean entropy).
+    If coordination_metrics is True (default), each episode includes ``coord_*`` fields from blue-team
+    macro trajectories (pairwise Pearson on head 0, team agreement rates).
     If progress_every > 0, prints after episode 1, then every progress_every episodes, and on the last
     (flush=True) so long 8v8 runs do not look hung.
     """
@@ -87,6 +159,17 @@ def run_eval_episodes(
             "Red team may still be using the previous opponent - OP3 vs OP4 results can look identical."
         )
 
+    n_agents = 1
+    heads_per_agent = 1
+    try:
+        core = getattr(model, "model", None)
+        if core is not None:
+            n_agents = int(getattr(core, "n_agents", 1))
+            heads_per_agent = int(getattr(core, "heads_per_agent", 1))
+    except Exception:
+        n_agents, heads_per_agent = 1, 1
+    expected_flat = max(1, n_agents * heads_per_agent)
+
     episodes: list[dict] = []
     obs = env.reset()
     if hasattr(model, "reset_strategy"):
@@ -95,6 +178,7 @@ def run_eval_episodes(
     for _ in range(n_episodes):
         ep_return = 0.0
         steps = 0
+        blue_traj: list[np.ndarray] = []
         ep_entropy_first = float("nan")
         strategy_counts: dict[int, int] = {}
         strategy_prev: int | None = None
@@ -120,6 +204,11 @@ def run_eval_episodes(
                 except Exception:
                     ep_entropy_first = float("nan")
             act, _ = model.predict(single, deterministic=deterministic)
+            if coordination_metrics and n_agents >= 2:
+                flat = np.asarray(act, dtype=np.int64).reshape(-1)
+                if flat.size == expected_flat:
+                    step_mat = flat.reshape(n_agents, heads_per_agent)
+                    blue_traj.append(step_mat.copy())
             strategy_info = model.strategy_info() if hasattr(model, "strategy_info") else {}
             if "strategy" in strategy_info:
                 strategy = int(strategy_info["strategy"])
@@ -173,6 +262,20 @@ def run_eval_episodes(
                         }
                         if record_entropy:
                             row["policy_entropy"] = ep_entropy_first
+                        if coordination_metrics:
+                            if blue_traj:
+                                row.update(
+                                    compute_episode_coordination_metrics(np.stack(blue_traj, axis=0))
+                                )
+                            else:
+                                row.update(
+                                    {
+                                        "coord_pairwise_head0_pearson_mean": float("nan"),
+                                        "coord_head0_team_agreement_rate": float("nan"),
+                                        "coord_full_action_team_agreement_rate": float("nan"),
+                                        "coord_trajectory_steps": 0.0,
+                                    }
+                                )
                         if strategy_steps > 0:
                             denom = float(max(1, strategy_steps))
                             row["strategy_switches"] = strategy_switches
@@ -383,6 +486,13 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         }
     )
     for key in occupancy_keys:
+        mean_v, std_v = _optional_mean_std(key)
+        result[f"{key}_mean"] = mean_v
+        result[f"{key}_std"] = std_v
+    coord_keys = sorted(
+        {key for episode in episodes for key in episode.keys() if key.startswith("coord_")}
+    )
+    for key in coord_keys:
         mean_v, std_v = _optional_mean_std(key)
         result[f"{key}_mean"] = mean_v
         result[f"{key}_std"] = std_v

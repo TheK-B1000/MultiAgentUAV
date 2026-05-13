@@ -6,9 +6,11 @@ import atexit
 import json
 import os
 import random
+import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
@@ -26,6 +28,105 @@ from rl.custom_ppo import CustomPPOTrainer
 from rl.curriculum import CurriculumState, jacob_paper_curriculum_state, phase_from_tag
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
+
+
+def _find_git_root() -> str:
+    """Walk upward from this file to find a directory containing ``.git``; else ``cwd``."""
+    p = os.path.abspath(_SCRIPT_DIR)
+    for _ in range(8):
+        if os.path.isdir(os.path.join(p, ".git")):
+            return p
+        parent = os.path.dirname(p)
+        if parent == p:
+            break
+        p = parent
+    return os.getcwd()
+
+
+def _git_metadata() -> dict[str, Optional[str]]:
+    """Best-effort ``git rev-parse`` / ``git describe`` from the repo root."""
+    root = _find_git_root()
+    meta: dict[str, Optional[str]] = {
+        "git_sha": None,
+        "git_describe": None,
+        "git_root": root,
+        "git_error": None,
+    }
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        if sha.returncode == 0 and sha.stdout.strip():
+            meta["git_sha"] = sha.stdout.strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        meta["git_error"] = str(exc)
+    try:
+        desc = subprocess.run(
+            ["git", "describe", "--tags", "--always", "--dirty"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        if desc.returncode == 0 and desc.stdout.strip():
+            meta["git_describe"] = desc.stdout.strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        meta["git_error"] = meta["git_error"] or str(exc)
+    return meta
+
+
+def _json_safe(obj: Any) -> Any:
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(x) for x in obj]
+    if isinstance(obj, dict):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    return str(obj)
+
+
+def _run_config_json_path(cfg: PPOConfig) -> str:
+    base_dir = cfg.checkpoint_dir
+    if getattr(cfg, "metrics_csv_path", None):
+        d = os.path.dirname(str(cfg.metrics_csv_path))
+        if d:
+            base_dir = d
+    os.makedirs(base_dir, exist_ok=True)
+    return os.path.join(base_dir, f"{cfg.run_tag}_run_config.json")
+
+
+def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None) -> str:
+    """Write reproducibility sidecar JSON next to metrics CSV (or under ``checkpoint_dir``)."""
+    path = _run_config_json_path(cfg)
+    argv_list = list(sys.argv) if argv is None else list(argv)
+    git_meta = _git_metadata()
+    payload: dict[str, Any] = {
+        "utc_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "argv": argv_list,
+        "working_directory": os.getcwd(),
+        "python_executable": sys.executable,
+        **git_meta,
+        "run_tag": str(cfg.run_tag),
+        "checkpoint_dir": str(cfg.checkpoint_dir),
+        "total_timesteps": int(cfg.total_timesteps),
+        "metrics_csv_path": cfg.metrics_csv_path,
+        "episode_csv_path": cfg.episode_csv_path,
+        "load_path": cfg.load_path,
+        "cli_preset": getattr(cfg, "cli_preset", None),
+        "resolved_ppo_config": _json_safe(asdict(cfg)),
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+    return path
 
 
 def _metrics_csv_nonempty(path: Optional[str]) -> bool:
@@ -200,9 +301,38 @@ def set_global_seed(seed: int, torch_seed: bool = True, deterministic: bool = Fa
 
 class TrainMode(str, Enum):
     FIXED_OPPONENT = "FIXED_OPPONENT"
+    # Uniform random scripted opponent each episode (same hook as opponent_randomize; explicit mode).
+    OPPONENT_POOL = "OPPONENT_POOL"
     CURRICULUM = "CURRICULUM"
     # Backward-compatible alias for old configs/commands.
     CURRICULUM_NO_LEAGUE = "CURRICULUM"
+
+
+# Scripted tags dropped from training pools unless ``allow_op4_in_training_pool`` (eval / zero-shot default).
+EVAL_ONLY_TRAINING_OPPONENT_TAGS: frozenset[str] = frozenset({"OP4"})
+
+
+def _strip_eval_only_opponents_from_training_pool(cfg: PPOConfig) -> None:
+    """Remove eval-only scripted opponents from ``cfg.opponent_pool`` when training samples that pool."""
+    if bool(getattr(cfg, "allow_op4_in_training_pool", False)):
+        return
+    pool = tuple(str(x).strip().upper() for x in getattr(cfg, "opponent_pool", ()) if str(x).strip())
+    banned = EVAL_ONLY_TRAINING_OPPONENT_TAGS
+    filt = tuple(x for x in pool if x not in banned)
+    if not filt:
+        raise ValueError(
+            "opponent_pool is empty after removing eval-only scripted tags "
+            f"{sorted(banned)}. Use OP1–OP3 or OP5_RUSHER for training, or pass "
+            "--allow-op4-in-training-pool together with OP4 in --opponent-pool."
+        )
+    removed = sorted(set(pool) - set(filt))
+    if removed:
+        print(
+            "[PPO] opponent_pool excludes "
+            f"{removed} (eval-only by default). "
+            "Pass --allow-op4-in-training-pool to include those tags in training."
+        )
+        cfg.opponent_pool = filt
 
 
 @dataclass
@@ -234,6 +364,8 @@ class PPOConfig:
     # If True before training, existing non-empty metrics/episode CSVs are rotated aside so a new run
     # does not append duplicate timesteps under the same --run-tag.
     fresh_metrics_csv: bool = False
+    # Set from CLI ``--preset`` only (reproducibility / run_config.json); behavior is already merged into fields below.
+    cli_preset: Optional[str] = None
     # E3: optional per-step CSV (z, H(q), argmax, switch, phase). See `rl.custom_ppo.E3_STEP_TELEMETRY_FIELDS`.
     e3_step_telemetry_path: Optional[str] = None
     # SB3-compatible: ``tqdm`` (prefer ``tqdm.rich``) during rollout, ``total=remaining`` timesteps, ``update(n_envs)`` / step.
@@ -246,6 +378,12 @@ class PPOConfig:
     map_set: str = "train"
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
+    # Uniform random scripted opponent per episode: either mode=OPPONENT_POOL or FIXED_OPPONENT + True.
+    # Uses GPUCTFVecEnv pre-reset hook so the next episode matches sampled opponents from opponent_pool.
+    # Default excludes OP4 (reserved for zero-shot eval). Use ``--allow-op4-in-training-pool`` to train vs OP4.
+    opponent_randomize: bool = False
+    opponent_pool: tuple[str, ...] = field(default_factory=lambda: ("OP1", "OP2", "OP3"))
+    allow_op4_in_training_pool: bool = False
     max_blue_agents: int = 2
     use_deterministic: bool = False
     # Not in *Summer Implementation Plan.docx*; when True, overrides several PPO fields below for a legacy "stable" profile. Default False so explicit config matches the spec numbers.
@@ -268,9 +406,10 @@ class PPOConfig:
     latent_lam_p: float = 0.02
     # A1: clipped PPO/REINFORCE-style update for sampled z. Kept low because z operates at episode cadence.
     latent_strategy_ppo_coef: float = 0.1
-    # A2 (opt-in): train q_phi from normalized episode/rollout returns through a small Q head.
-    latent_strategy_q_head: bool = False
-    latent_strategy_q_coef: float = 1.0
+    # A2 (opt-in): auxiliary MSE on the shared q_phi trunk predicting per-z returns from the **sampled** z only.
+    # Not a full Q(s,a,z) critic and not off-policy Q-learning; MAPPO value remains V_phi(s, a, z).
+    latent_strategy_aux_return_head: bool = False
+    latent_strategy_aux_return_coef: float = 1.0
     latent_strategy_tau: float = 1.0
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
@@ -314,10 +453,77 @@ class PPOConfig:
     periodic_checkpoint_steps: int = 50_000
 
 
+# Default ``python rl/train_ppo.py`` recipe when ``--preset`` is omitted: plan-faithful A1
+# (env defaults, no auxiliary return head / warm start, episode-start z). Pass ``--preset none`` to skip.
+DEFAULT_CLI_TRAINING_PRESET = "latent_a1_plan_faithful"
+
+
 def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
     """Apply named high-level presets for repeatable training recipes."""
     key = str(preset).strip().lower()
     if not key:
+        return cfg
+    # Paper plan naming (Summer Implementation Plan): Option A = episodic z; Option B = sparse refresh + active λ_p.
+    if key == "plan_option_a":
+        return _apply_training_preset(cfg, "latent_a1_plan_faithful")
+    if key in {"plan_option_b_lamp", "plan_option_b"}:
+        cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
+        cfg.latent_resample_every_n = 20
+        cfg.latent_lam_p = 0.02
+        cfg.run_tag = "plan_option_b_lamp_1m_2v2"
+        return cfg
+    # Hypothesis-line presets (opponent-randomized training). Seed/run-tag via CLI as usual.
+    if key == "hypothesis_flat_opprand":
+        cfg = _apply_training_preset(cfg, "plan_option_a")
+        cfg.use_latent_strategy = False
+        cfg.fixed_latent_strategy = False
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP1", "OP2", "OP3")
+        cfg.run_tag = "hypothesis_flat_opprand_1m_2v2"
+        return cfg
+    if key == "hypothesis_latent_opprand_optiona":
+        cfg = _apply_training_preset(cfg, "plan_option_a")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP1", "OP2", "OP3")
+        cfg.run_tag = "hypothesis_latent_opprand_optiona_1m_2v2"
+        return cfg
+    if key == "hypothesis_latent_opprand_optionb_lamp_coef05":
+        cfg = _apply_training_preset(cfg, "plan_option_b_lamp")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP1", "OP2", "OP3")
+        cfg.latent_strategy_ppo_coef = 0.5
+        cfg.run_tag = "hypothesis_latent_opprand_optionb_lamp_coef05_1m_2v2"
+        return cfg
+    if key == "hypothesis_latent_opprand_optionb_no_lamp":
+        cfg = _apply_training_preset(cfg, "plan_option_b_lamp")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP1", "OP2", "OP3")
+        cfg.latent_lam_p = 0.0
+        cfg.latent_strategy_ppo_coef = 0.5
+        cfg.run_tag = "hypothesis_latent_opprand_optionb_no_lamp_coef05_1m_2v2"
+        return cfg
+    if key == "hypothesis_latent_opprand_optionb_coef03":
+        cfg = _apply_training_preset(cfg, "plan_option_b_lamp")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP1", "OP2", "OP3")
+        cfg.latent_strategy_ppo_coef = 0.3
+        cfg.run_tag = "hypothesis_latent_opprand_optionb_lamp_coef03_1m_2v2"
+        return cfg
+    if key == "hypothesis_flat_opprand_op35":
+        # Pressure pool: balanced OP3 + fast OP5_RUSHER (skip OP1/OP2 comfort food).
+        cfg = _apply_training_preset(cfg, "hypothesis_flat_opprand")
+        cfg.opponent_pool = ("OP3", "OP5_RUSHER")
+        cfg.run_tag = "hypothesis_flat_opprand_op35_1m_2v2"
+        return cfg
+    if key == "hypothesis_latent_opprand_optionb_lamp_coef05_op35":
+        cfg = _apply_training_preset(cfg, "hypothesis_latent_opprand_optionb_lamp_coef05")
+        cfg.opponent_pool = ("OP3", "OP5_RUSHER")
+        cfg.run_tag = "hypothesis_latent_opprand_optionb_lamp_coef05_op35_1m_2v2"
         return cfg
     if key in {"latent_op3_push80_1m", "latent_push80_1m"}:
         # Tuned for faster 2v2 OP3 gains by 1M steps:
@@ -377,9 +583,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_kl_consecutive = 0.0
         cfg.latent_gae_reset_on_z_change = True
         cfg.latent_bootstrap_z_deterministic = True
-        # Q-head gives q_phi a direct supervised signal from sampled-z returns (helps escape ~55–60% WR plateaus).
-        cfg.latent_strategy_q_head = True
-        cfg.latent_strategy_q_coef = 0.75
+        # Auxiliary return head gives q_phi a direct supervised signal from sampled-z returns (helps escape ~55–60% WR plateaus).
+        cfg.latent_strategy_aux_return_head = True
+        cfg.latent_strategy_aux_return_coef = 0.75
         cfg.latent_strategy_tau = 1.0
         warm = _resolve_2v2_checkpoint("final_latent_fix_v4_retnorm_vf256_1m_2v2.zip")
         if warm is not None:
@@ -393,8 +599,8 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "latent_op3_wrmax_2m",
         "latent_wrmax_op3_2m",
     }:
-        # Hard-target training WR vs fixed OP3: amplify terminal win vs draw, trim dense PBRS vs outcome,
-        # enable q_phi Q-head. Default budget 1M; use preset ``latent_op3_wrmax_train_2m`` for 2M steps.
+        # High-WR "drift" recipe vs OP3 (~89.7% reference run): strong terminal contrast, trimmed dense PBRS,
+        # reward-shaping decay, auxiliary return head, VF hidden 256. 1M default; aliases treat wrmax_2m as 1M.
         cfg.use_latent_strategy = True
         cfg.total_timesteps = 1_000_000
         cfg.mode = TrainMode.FIXED_OPPONENT.value
@@ -414,11 +620,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_lam_h = 0.02
         cfg.latent_lam_p = 0.0
         cfg.latent_strategy_ppo_coef = 0.30
-        cfg.latent_strategy_q_head = True
-        cfg.latent_strategy_q_coef = 1.2
+        cfg.latent_strategy_aux_return_head = True
+        cfg.latent_strategy_aux_return_coef = 1.2
         cfg.latent_strategy_tau = 0.7
-        # Episode-start z is the stable paper-default path; mid-episode refreshes were churning
-        # q_phi without producing persistent per-z win-rate separation by the 200k gate.
         cfg.latent_resample_every_n = 0
         cfg.latent_resample_on_flag = False
         cfg.latent_kl_consecutive = 0.0
@@ -443,6 +647,53 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             cfg.load_path = warm
         cfg.run_tag = "latent_op3_wrmax_1m_2v2"
         return cfg
+    if key in {"latent_a1_plan_faithful", "latent_op3_a1_plan_faithful"}:
+        # Paper plan–faithful latent (A1): 1M steps, episode-start z, λ_p / λ_H, no A2 auxiliary return head, env defaults, no warm start.
+        cfg.use_latent_strategy = True
+        cfg.total_timesteps = 1_000_000
+        cfg.mode = TrainMode.FIXED_OPPONENT.value
+        cfg.fixed_opponent_tag = "OP3"
+        cfg.normalize_returns = True
+        cfg.clip_range = 0.18
+        cfg.clip_range_vf = 0.2
+        cfg.vf_coef = 1.1
+        cfg.learning_rate = 1.8e-4
+        cfg.lr_floor_frac = 0.05
+        cfg.target_kl = 0.02
+        cfg.n_steps = 2048
+        cfg.batch_size = 512
+        cfg.n_epochs = 8
+        cfg.ent_coef = 0.0015
+        cfg.latent_entropy_objective = "maximize"
+        cfg.latent_lam_h = 0.005
+        cfg.latent_lam_p = 0.02
+        cfg.latent_strategy_ppo_coef = 0.30
+        cfg.latent_strategy_aux_return_head = False
+        cfg.latent_strategy_aux_return_coef = 0.0
+        cfg.latent_strategy_tau = 1.0
+        cfg.latent_resample_every_n = 0
+        cfg.latent_resample_on_flag = False
+        cfg.latent_kl_consecutive = 0.0
+        cfg.latent_gae_reset_on_z_change = True
+        cfg.latent_bootstrap_z_deterministic = True
+        cfg.latent_vf_hidden = 128
+        cfg.env_win_team_reward = None
+        cfg.env_draw_team_penalty = None
+        cfg.env_lose_team_punish = None
+        cfg.env_action_failed_punishment = None
+        cfg.env_dense_weight = None
+        cfg.env_sparse_weight = None
+        cfg.env_reward_scale = None
+        cfg.env_reward_clip = None
+        cfg.env_stalemate_penalty = None
+        cfg.env_stalemate_max_steps = None
+        cfg.reward_shaping_coef_start = 1.0
+        cfg.reward_shaping_coef_end = 1.0
+        cfg.reward_shaping_decay_steps = 0
+        cfg.periodic_checkpoint_steps = 50_000
+        cfg.load_path = None
+        cfg.run_tag = "latent_a1_plan_faithful_1m_2v2"
+        return cfg
     if key in {"latent_op3_wrmax_train_2m", "latent_wrmax_op3_train_2m"}:
         cfg = _apply_training_preset(cfg, "latent_op3_wrmax_1m")
         cfg.total_timesteps = 2_000_000
@@ -450,11 +701,17 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         return cfg
     raise ValueError(
         f"Unknown preset {preset!r}. Supported presets: "
+        "'plan_option_a', 'plan_option_b_lamp', 'plan_option_b', "
+        "'hypothesis_flat_opprand', 'hypothesis_latent_opprand_optiona', "
+        "'hypothesis_latent_opprand_optionb_lamp_coef05', 'hypothesis_latent_opprand_optionb_no_lamp', "
+        "'hypothesis_latent_opprand_optionb_coef03', "
+        "'hypothesis_flat_opprand_op35', 'hypothesis_latent_opprand_optionb_lamp_coef05_op35', "
         "'latent_op3_push80_1m', 'latent_push80_1m', "
         "'latent_train80_op3_1m', 'latent_op3_train80_1m', "
         "'latent_op3_wrmax_1m', 'latent_wrmax_op3_1m', "
         "'latent_op3_wrmax_2m', 'latent_wrmax_op3_2m' (aliases for wrmax 1M), "
-        "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m'."
+        "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m', "
+        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful'."
     )
 
 
@@ -463,10 +720,16 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     cfg = cfg or PPOConfig()
 
     cfg.mode = _normalize_train_mode(cfg.mode)
-    supported_modes = {TrainMode.FIXED_OPPONENT.value, TrainMode.CURRICULUM.value}
+    if cfg.mode == TrainMode.OPPONENT_POOL.value:
+        cfg.opponent_randomize = True
+    supported_modes = {
+        TrainMode.FIXED_OPPONENT.value,
+        TrainMode.OPPONENT_POOL.value,
+        TrainMode.CURRICULUM.value,
+    }
     if cfg.mode not in supported_modes:
         raise ValueError(
-            "The local PPO trainer currently supports FIXED_OPPONENT and "
+            "The local PPO trainer currently supports FIXED_OPPONENT, OPPONENT_POOL, and "
             "CURRICULUM training."
         )
     if cfg.mode == TrainMode.CURRICULUM.value:
@@ -474,6 +737,21 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             print("[PPO] Curriculum mode is the Jacob paper baseline; forcing latent strategy OFF.")
         cfg.use_latent_strategy = False
         cfg.fixed_latent_strategy = False
+
+    if bool(getattr(cfg, "opponent_randomize", False)):
+        if cfg.mode == TrainMode.CURRICULUM.value:
+            raise ValueError(
+                "opponent_randomize=True is incompatible with CURRICULUM mode "
+                "(curriculum already sequences scripted opponents). "
+                "Use mode=FIXED_OPPONENT or OPPONENT_POOL with opponent_randomize, or turn opponent_randomize off."
+            )
+        pool = tuple(str(x).strip().upper() for x in getattr(cfg, "opponent_pool", ()) if str(x).strip())
+        allowed = {"OP1", "OP2", "OP3", "OP4", "OP5_RUSHER", "OP5"}
+        pool = tuple(x for x in pool if x in allowed)
+        if not pool:
+            raise ValueError(f"opponent_pool must contain at least one of {sorted(allowed)}; got {getattr(cfg, 'opponent_pool', ())!r}.")
+        cfg.opponent_pool = pool
+        _strip_eval_only_opponents_from_training_pool(cfg)
 
     if bool(getattr(cfg, "use_latent_strategy", False)):
         k = int(getattr(cfg, "latent_k", 4))
@@ -534,6 +812,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             f"{float(getattr(cfg, 'reward_shaping_coef_end', 1.0)):.3f} "
             f"over {decay_steps:,} steps before RewardConfig weighting/scaling."
         )
+    if cfg.mode == TrainMode.OPPONENT_POOL.value or bool(getattr(cfg, "opponent_randomize", False)):
+        label = "OPPONENT_POOL mode" if cfg.mode == TrainMode.OPPONENT_POOL.value else "opponent_randomize flag"
+        print(
+            "[PPO] Opponent randomization: enabled "
+            f"({label}; uniform per completed episode over pool={list(cfg.opponent_pool)}; "
+            "pre-reset hook — opponent logged for each episode is the one played during that episode)."
+        )
     if curriculum is not None:
         print(
             "[PPO] Jacob paper curriculum: enabled "
@@ -553,14 +838,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
         fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
         h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
-        q_head = bool(getattr(cfg, "latent_strategy_q_head", False))
+        aux_head = bool(getattr(cfg, "latent_strategy_aux_return_head", False))
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
             f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f} "
             f"(H:{h_obj}), "
             f"lambda_KL={lam_kl:.4f}, strategy_ppo_coef={float(cfg.latent_strategy_ppo_coef):.3f}, "
-            f"q_head={q_head}, q_coef={float(cfg.latent_strategy_q_coef):.3f}, "
+            f"aux_return_head={aux_head}, aux_return_coef={float(cfg.latent_strategy_aux_return_coef):.3f}, "
             f"tau={float(cfg.latent_strategy_tau):.3f}, "
             f"GAE_reset_on_z_change={bool(getattr(cfg, 'latent_gae_reset_on_z_change', True))}, "
             f"bootstrap_z_deterministic={bool(getattr(cfg, 'latent_bootstrap_z_deterministic', True))}"
@@ -583,6 +868,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             cfg.episode_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_episodes.csv")
         print(f"[PPO] Update metrics CSV: {cfg.metrics_csv_path}")
         print(f"[PPO] Episode metrics CSV: {cfg.episode_csv_path}")
+        _e3p = str(getattr(cfg, "e3_step_telemetry_path", "") or "").strip()
+        if _e3p:
+            print(f"[PPO] E3 step telemetry CSV (per-step z, team_phase, behavior telemetry, buckets, MI-related fields): {_e3p}")
         if (not cfg.fresh_metrics_csv) and (not cfg.load_path) and (
             _metrics_csv_nonempty(cfg.metrics_csv_path) or _metrics_csv_nonempty(cfg.episode_csv_path)
         ):
@@ -599,10 +887,20 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     if bool(getattr(cfg, "enable_metrics_csv", True)) and cfg.fresh_metrics_csv:
         _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
         _rotate_csv_aside(cfg.episode_csv_path, label="episode")
+    try:
+        rc_path = write_run_config_json(cfg)
+        print(f"[PPO] Run config written: {rc_path}")
+    except Exception as exc:
+        print(f"[PPO] WARNING: could not write run config JSON: {exc}")
     elog = int(getattr(cfg, "episode_log_every", 0) or 0)
     if elog > 0:
         mode_label = "curriculum phase" if curriculum is not None else "scripted opponent tag"
-        tag_label = initial_opponent_tag if curriculum is not None else str(cfg.fixed_opponent_tag).upper()
+        if curriculum is not None:
+            tag_label = initial_opponent_tag
+        elif cfg.mode == TrainMode.OPPONENT_POOL.value or bool(getattr(cfg, "opponent_randomize", False)):
+            tag_label = f"randomized pool {list(cfg.opponent_pool)}"
+        else:
+            tag_label = str(cfg.fixed_opponent_tag).upper()
         print(
             f"[PPO] Episode stats: every {elog} completed episode(s) print W/L/D and WR "
             f"(mode={cfg.mode}, {mode_label}={tag_label})."
@@ -742,7 +1040,16 @@ def _apply_initial_opponent_params(
         dyn_cfg: dict[str, object] = {
             key: value
             for key, value in opp_params.items()
-            if key in {"deception_prob", "speed_mult", "attacker_style", "defender_style", "role_switch_prob"}
+            if key
+            in {
+                "deception_prob",
+                "speed_mult",
+                "attacker_style",
+                "defender_style",
+                "role_switch_prob",
+                "coordinated_attack",
+                "attack_sync_window",
+            }
         }
         if dyn_cfg:
             env.env_method("set_dynamics_config", dyn_cfg)
@@ -811,6 +1118,10 @@ def _normalize_train_mode(mode: str) -> str:
     aliases = {
         "FIXED": TrainMode.FIXED_OPPONENT.value,
         "FIXED_OPPONENT": TrainMode.FIXED_OPPONENT.value,
+        "OPPONENT_POOL": TrainMode.OPPONENT_POOL.value,
+        "POOL": TrainMode.OPPONENT_POOL.value,
+        "OPPONENT_RANDOM": TrainMode.OPPONENT_POOL.value,
+        "RANDOM_OPPONENT": TrainMode.OPPONENT_POOL.value,
         "PAPER": TrainMode.CURRICULUM.value,
         "NO_LEAGUE": TrainMode.CURRICULUM.value,
         "CURRICULUM": TrainMode.CURRICULUM.value,
@@ -835,6 +1146,8 @@ def _default_run_tag_for_mode(
     family = "ppo_latent" if latent else "ppo_custom"
     if _normalize_train_mode(mode) == TrainMode.CURRICULUM.value:
         return f"{family}_curriculum_{suffix}"
+    if _normalize_train_mode(mode) == TrainMode.OPPONENT_POOL.value:
+        return f"{family}_opp_pool_{suffix}"
     if _normalize_train_mode(mode) == TrainMode.FIXED_OPPONENT.value:
         return f"{family}_fixed_{fixed_opponent_tag.lower()}_{suffix}"
     return f"{family}_{suffix}"
@@ -853,17 +1166,18 @@ if __name__ == "__main__":
         parser.add_argument(
             "--preset",
             type=str,
-            default=None,
+            default=DEFAULT_CLI_TRAINING_PRESET,
             help=(
-                "Apply a named training preset before other CLI overrides. "
-                "Examples: latent_train80_op3_1m, latent_op3_wrmax_2m (1M wrmax recipe)"
+                f"Apply a named training preset before other CLI overrides (default: {DEFAULT_CLI_TRAINING_PRESET!r}). "
+                "Use 'none' or '' to skip presets and use PPOConfig + CLI fields only. "
+                "Examples: latent_op3_wrmax_1m (drift wrmax), latent_a1_plan_faithful (1M plan-faithful A1)."
             ),
         )
         parser.add_argument(
             "--mode",
             type=str,
             default=None,
-            help="Training mode: FIXED_OPPONENT, or CURRICULUM for OP1->OP2->OP3.",
+            help="Training mode: FIXED_OPPONENT, OPPONENT_POOL (uniform --opponent-pool per episode), or CURRICULUM.",
         )
         parser.add_argument("--run-tag", type=str, default=None)
         parser.add_argument("--total-steps", type=int, default=None)
@@ -899,6 +1213,35 @@ if __name__ == "__main__":
             help="Train critic on normalized returns while denormalizing values for GAE/advantages.",
         )
         parser.add_argument("--fixed-opponent", type=str, default="OP3")
+        parser.add_argument(
+            "--opponent-randomize",
+            action="store_true",
+            help="Each finished episode samples next scripted opponent uniformly from --opponent-pool (FIXED_OPPONENT or OPPONENT_POOL).",
+        )
+        parser.add_argument(
+            "--opponent-pool",
+            nargs="+",
+            default=None,
+            metavar="TAG",
+            help=(
+                "Scripted tags when --opponent-randomize or mode=OPPONENT_POOL (config default: OP1 OP2 OP3). "
+                "OP4 is removed from training pools unless --allow-op4-in-training-pool is set. "
+                "OP5_RUSHER (alias OP5) is a trainable fast-rush scripted stress test."
+            ),
+        )
+        parser.add_argument(
+            "--allow-op4-in-training-pool",
+            action="store_true",
+            help="Allow OP4 in opponent_pool during training (default: OP4 is eval-only and stripped).",
+        )
+        parser.add_argument(
+            "--e3-step-telemetry",
+            action="store_true",
+            help=(
+                "Latent only: write per-decision-step CSV (z, entropy, argmax, switched, game_phase) next to metrics "
+                "for E2 / strategy-switch analysis (path: <checkpoint-dir>/<run-tag>_e3_steps.csv)."
+            ),
+        )
         parser.add_argument("--map-set", type=str, choices=["train", "eval"], default=None)
         parser.add_argument("--agents", type=int, choices=[2, 4, 6, 8], default=None)
         parser.add_argument("--max-blue-agents", type=int, default=None)
@@ -947,21 +1290,32 @@ if __name__ == "__main__":
             help="Coefficient for the sampled-z clipped PPO strategy loss.",
         )
         parser.add_argument(
+            "--latent-strategy-aux-return-head",
+            action="store_true",
+            help="Enable A2 auxiliary per-z return regression on the shared q_phi trunk (sampled z only; not Q-learning).",
+        )
+        parser.add_argument(
             "--latent-strategy-q-head",
             action="store_true",
-            help="Enable A2 Q-head supervision for q_phi using normalized sampled-strategy returns.",
+            help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            "--latent-strategy-aux-return-coef",
+            type=float,
+            default=None,
+            help="Weight for the A2 auxiliary return MSE on resampled-z minibatches.",
         )
         parser.add_argument(
             "--latent-strategy-q-coef",
             type=float,
             default=None,
-            help="Coefficient for the A2 sampled-strategy Q-head MSE loss.",
+            help=argparse.SUPPRESS,
         )
         parser.add_argument(
             "--latent-strategy-tau",
             type=float,
             default=None,
-            help="Softmax temperature for Q-head strategy logits.",
+            help="Softmax temperature for strategy logits when the auxiliary return head shares the trunk.",
         )
         parser.add_argument(
             "--latent-entropy-objective",
@@ -1124,9 +1478,13 @@ if __name__ == "__main__":
         )
         args = parser.parse_args()
 
+        preset_key = str(args.preset or "").strip()
+        if preset_key.lower() in {"", "none"}:
+            preset_key = ""
+
         cfg = PPOConfig()
-        if args.preset is not None:
-            cfg = _apply_training_preset(cfg, args.preset)
+        if preset_key:
+            cfg = _apply_training_preset(cfg, preset_key)
         if args.mode is not None:
             cfg.mode = _normalize_train_mode(args.mode)
         if args.seed is not None:
@@ -1136,6 +1494,12 @@ if __name__ == "__main__":
         elif args.agents is not None:
             cfg.max_blue_agents = int(args.agents)
         cfg.fixed_opponent_tag = str(args.fixed_opponent).upper()
+        if args.opponent_randomize:
+            cfg.opponent_randomize = True
+        if getattr(args, "opponent_pool", None):
+            cfg.opponent_pool = tuple(str(x).strip().upper() for x in args.opponent_pool if str(x).strip())
+        if getattr(args, "allow_op4_in_training_pool", False):
+            cfg.allow_op4_in_training_pool = True
         if args.map_set is not None:
             cfg.map_set = str(args.map_set).lower()
         if args.latent_strategy:
@@ -1157,10 +1521,13 @@ if __name__ == "__main__":
             cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
         if args.latent_strategy_ppo_coef is not None:
             cfg.latent_strategy_ppo_coef = max(0.0, float(args.latent_strategy_ppo_coef))
-        if args.latent_strategy_q_head:
-            cfg.latent_strategy_q_head = True
-        if args.latent_strategy_q_coef is not None:
-            cfg.latent_strategy_q_coef = max(0.0, float(args.latent_strategy_q_coef))
+        if args.latent_strategy_aux_return_head or bool(getattr(args, "latent_strategy_q_head", False)):
+            cfg.latent_strategy_aux_return_head = True
+        aux_coef = getattr(args, "latent_strategy_aux_return_coef", None)
+        if aux_coef is None and getattr(args, "latent_strategy_q_coef", None) is not None:
+            aux_coef = getattr(args, "latent_strategy_q_coef", None)
+        if aux_coef is not None:
+            cfg.latent_strategy_aux_return_coef = max(0.0, float(aux_coef))
         if args.latent_strategy_tau is not None:
             cfg.latent_strategy_tau = max(1e-3, float(args.latent_strategy_tau))
         if args.latent_entropy_objective is not None:
@@ -1185,10 +1552,10 @@ if __name__ == "__main__":
             cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
         if args.latent_vf_hidden is not None:
             cfg.latent_vf_hidden = max(1, int(args.latent_vf_hidden))
-        # Presets set ``cfg.run_tag``; do not overwrite with the default tag unless no preset.
+        # Presets set ``cfg.run_tag``; only overwrite when user supplies --run-tag or no preset was applied.
         if args.run_tag is not None:
             cfg.run_tag = args.run_tag
-        elif args.preset is None:
+        elif not preset_key:
             cfg.run_tag = _default_run_tag_for_mode(
                 cfg.mode,
                 cfg.fixed_opponent_tag,
@@ -1197,6 +1564,12 @@ if __name__ == "__main__":
             )
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
         cfg.checkpoint_dir = args.checkpoint_dir or os.path.join("checkpoints", _agents_suffix(cfg.max_blue_agents))
+        if getattr(args, "e3_step_telemetry", False):
+            if not cfg.use_latent_strategy:
+                print("[PPO] WARNING: --e3-step-telemetry ignored (requires latent strategy).")
+            else:
+                os.makedirs(cfg.checkpoint_dir, exist_ok=True)
+                cfg.e3_step_telemetry_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_e3_steps.csv")
         if args.fresh_metrics_csv:
             cfg.fresh_metrics_csv = True
         if args.no_metrics_csv:
@@ -1263,8 +1636,9 @@ if __name__ == "__main__":
             cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
         if args.no_progress_bar:
             cfg.enable_progress_bar = False
-        if args.preset:
-            print(f"[PPO] Training preset: {str(args.preset).strip()!r}")
+        if preset_key:
+            cfg.cli_preset = preset_key
+            print(f"[PPO] Training preset: {cfg.cli_preset!r}")
             if cfg.load_path:
                 print(f"[PPO] Warm-start checkpoint: {cfg.load_path}")
         train_ppo(cfg)
