@@ -93,6 +93,40 @@ class OpponentParamsTests(unittest.TestCase):
         self.assertTrue(volatile_dual.any().item())
         self.assertTrue(yolo.any().item())
 
+    def test_op6_outputs_bounded_and_style_for_4v4(self) -> None:
+        params = sample_batched_opponent_params(
+            kind="SCRIPTED",
+            key="OP6",
+            phase="OP6",
+            n_agents=4,
+            batch_size=64,
+            device="cpu",
+            generator=_make_generator(501),
+        )
+        self.assertTrue(torch.isfinite(params["speed_mult"]).all().item())
+        self.assertTrue((params["attacker_style"] == 0).all().item())
+        self.assertTrue((params["defender_style"] == 1).all().item())
+        self.assertTrue(((params["role_switch_prob"] >= 0.0) & (params["role_switch_prob"] <= 0.90)).all().item())
+
+    def test_op7_samples_multiple_regimes_like_mixture(self) -> None:
+        params = sample_batched_opponent_params(
+            kind="SCRIPTED",
+            key="OP7",
+            phase="OP7",
+            n_agents=4,
+            batch_size=4096,
+            device="cpu",
+            generator=_make_generator(701),
+        )
+        shell = (params["speed_mult"] < 0.86) & (params["attacker_style"] == 0) & (params["defender_style"] == 1)
+        feint = (params["attacker_style"] == 1) & (params["defender_style"] == 0) & (params["role_switch_prob"] > 0.38)
+        dual = (params["attacker_style"] == 1) & (params["defender_style"] == 1) & (params["role_switch_prob"] > 0.46)
+        surge = (params["speed_mult"] > 0.91) & (params["attacker_style"] == 1) & (params["defender_style"] == 0)
+        self.assertTrue(shell.any().item())
+        self.assertTrue(feint.any().item())
+        self.assertTrue(dual.any().item())
+        self.assertTrue(surge.any().item())
+
 
 if __name__ == "__main__":
     unittest.main()

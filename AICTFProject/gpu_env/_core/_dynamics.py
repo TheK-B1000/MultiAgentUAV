@@ -93,7 +93,7 @@ class _DynamicsMixin:
     def _apply_opponent_params_for_mask(self, env_mask: torch.Tensor) -> None:
         if sample_batched_opponent_params is None:
             return
-        # Only SCRIPTED with OP1/OP2/OP3/OP4/OP5_RUSHER have defined params.
+        # Only SCRIPTED tags with defined ``sample_batched_opponent_params`` branches apply here.
         # SNAPSHOT opponents should keep neutral/default red dynamics so they behave
         # like true self-play rather than inheriting scripted-opponent boosts.
         idx = torch.where(env_mask)[0]
@@ -108,13 +108,27 @@ class _DynamicsMixin:
             neutral_mask = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
             neutral_mask[idx[snapshot_mask]] = True
             self._apply_neutral_red_params(neutral_mask)
+        _scripted_param_tags = frozenset(
+            {
+                "OP1",
+                "OP2",
+                "OP3",
+                "OP4",
+                "OP5",
+                "OP5_RUSHER",
+                "OP6",
+                "OP6_TURTLE",
+                "OP7",
+                "OP7_SWITCHER",
+            }
+        )
         grouped: Dict[Tuple[str, str], List[int]] = {}
         for env_i in idx.detach().cpu().tolist():
             use_kind = str(self._opponent_kind[env_i]).upper()
             use_key = str(self._opponent_key[env_i]).upper()
             if use_kind == "SNAPSHOT":
                 continue
-            if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4", "OP5_RUSHER", "OP5"):
+            if use_kind not in ("SCRIPTED",) or use_key not in _scripted_param_tags:
                 if use_kind == "SPECIES":
                     use_kind = "SCRIPTED"
                     use_key = "OP3"

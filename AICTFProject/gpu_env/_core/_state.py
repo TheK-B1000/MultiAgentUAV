@@ -484,7 +484,7 @@ class _StateMixin:
             )
 
     def get_opponent_key(self, env_indices: Optional[Sequence[int]] = None) -> str:
-        """Return current red opponent key (OP1/OP2/OP3/OP4/OP5_RUSHER). For eval verification."""
+        """Return current red opponent key (OP1…OP7 scripted tags). For eval verification."""
         idx = self._normalize_env_indices(env_indices)
         if idx.numel() == 0:
             return "OP3"

@@ -471,8 +471,8 @@ CUSTOM_PPO_VEC_SCHEMA_VERSION = 1
 # When renaming metrics columns, old CSV headers may still use the legacy name; see ``_write_csv_row``.
 _METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {"strategy_aux_return_loss": "strategy_q_loss"}
 
-# Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1, OP2, OP3, OP4, OP5_RUSHER).
-SCRIPTED_OPPONENT_MI_COUNT: int = 5
+# Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1 … OP5_RUSHER, OP6, OP7).
+SCRIPTED_OPPONENT_MI_COUNT: int = 7
 
 
 def apply_deterministic_sampling_generators(
@@ -976,7 +976,7 @@ class CustomPPOTrainer:
             if not self._opponent_pool_tags:
                 raise ValueError(
                     "Opponent pool training (mode=OPPONENT_POOL or opponent_randomize) requires a non-empty "
-                    "opponent_pool (e.g. OP1–OP3; OP4 optional)."
+                    "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
                 )
             self.env._before_reset_indices_hook = self._hook_sample_training_opponent_before_reset
 
@@ -1563,7 +1563,7 @@ class CustomPPOTrainer:
         return row
 
     def _opponent_id_int_from_info(self, info: dict[str, Any]) -> int:
-        """Scripted opponent index OP1→0 … OP5_RUSHER→4; ``-1`` if unknown / non-scripted."""
+        """Scripted opponent index for MI telemetry: OP1→0 … OP7→6; ``-1`` if unknown / non-scripted."""
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         kind = str(er.get("opponent_kind", info.get("opponent_kind", "scripted")) or "scripted").lower()
         if kind != "scripted":
@@ -1574,7 +1574,11 @@ class CustomPPOTrainer:
             or ""
         ).strip().upper()
         tag = "OP5_RUSHER" if tag_raw == "OP5" else tag_raw
-        return {"OP1": 0, "OP2": 1, "OP3": 2, "OP4": 3, "OP5_RUSHER": 4}.get(tag, -1)
+        if tag == "OP6_TURTLE":
+            tag = "OP6"
+        if tag == "OP7_SWITCHER":
+            tag = "OP7"
+        return {"OP1": 0, "OP2": 1, "OP3": 2, "OP4": 3, "OP5_RUSHER": 4, "OP6": 5, "OP7": 6}.get(tag, -1)
 
     def _opponent_id_csv_from_info(self, info: dict[str, Any]) -> str:
         oid = self._opponent_id_int_from_info(info)

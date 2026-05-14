@@ -322,7 +322,7 @@ def _strip_eval_only_opponents_from_training_pool(cfg: PPOConfig) -> None:
     if not filt:
         raise ValueError(
             "opponent_pool is empty after removing eval-only scripted tags "
-            f"{sorted(banned)}. Use OP1–OP3 or OP5_RUSHER for training, or pass "
+            f"{sorted(banned)}. Use OP1–OP3, OP5–OP7 (and aliases OP5, OP6_TURTLE, OP7_SWITCHER) for training, or pass "
             "--allow-op4-in-training-pool together with OP4 in --opponent-pool."
         )
     removed = sorted(set(pool) - set(filt))
@@ -746,7 +746,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 "Use mode=FIXED_OPPONENT or OPPONENT_POOL with opponent_randomize, or turn opponent_randomize off."
             )
         pool = tuple(str(x).strip().upper() for x in getattr(cfg, "opponent_pool", ()) if str(x).strip())
-        allowed = {"OP1", "OP2", "OP3", "OP4", "OP5_RUSHER", "OP5"}
+        allowed = {
+            "OP1",
+            "OP2",
+            "OP3",
+            "OP4",
+            "OP5_RUSHER",
+            "OP5",
+            "OP6",
+            "OP6_TURTLE",
+            "OP7",
+            "OP7_SWITCHER",
+        }
         pool = tuple(x for x in pool if x in allowed)
         if not pool:
             raise ValueError(f"opponent_pool must contain at least one of {sorted(allowed)}; got {getattr(cfg, 'opponent_pool', ())!r}.")
@@ -1226,7 +1237,8 @@ if __name__ == "__main__":
             help=(
                 "Scripted tags when --opponent-randomize or mode=OPPONENT_POOL (config default: OP1 OP2 OP3). "
                 "OP4 is removed from training pools unless --allow-op4-in-training-pool is set. "
-                "OP5_RUSHER (alias OP5) is a trainable fast-rush scripted stress test."
+                "OP5_RUSHER (alias OP5) is a fast-rush stress test; OP6 / OP6_TURTLE is a defensive turtle; "
+                "OP7 / OP7_SWITCHER is a trainable deceptive multi-profile scripted opponent."
             ),
         )
         parser.add_argument(
