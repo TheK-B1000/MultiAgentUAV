@@ -28,7 +28,79 @@ class _StepMixin:
         self._record_action_success(macro, targets, mines, flags, snapshot)
         rewards = self._compute_step_reward_components(macro, targets, mines, flags, combat, movement, snapshot)
         terminal = self._advance_episode_end(flags, combat, rewards)
+        self._update_red_behavior_ring()
         return self._assemble_step_outputs(tensor_obs, rewards, terminal)
+
+    def _update_red_behavior_ring(self) -> None:
+        """Record 6 red-team behavior scalars into the rolling ring buffer (vectorized over B)."""
+        B = self.B
+        Nr = self.Nr
+        dev = self.device
+        midline = float(self.cols) * 0.5
+
+        ra = self.red_alive.to(torch.float32)          # (B, Nr)
+        ra_sum = ra.sum(dim=1).clamp(min=1.0)           # (B,)
+
+        # 1. attacker_frac: fraction of alive red on blue half (x < midline)
+        on_blue = (self.red_x < midline).to(torch.float32) * ra
+        attacker_frac = on_blue.sum(dim=1) / ra_sum
+
+        # 2. midline_press: any alive red on blue half
+        midline_press = (on_blue.sum(dim=1) > 0.0).to(torch.float32)
+
+        # 3. mean_speed: mean speed of alive red
+        mean_speed = (self.red_speed * ra).sum(dim=1) / ra_sum
+
+        # 4. home_defender_frac: fraction of red near their own flag
+        R_home = self.max_dist * 0.15
+        rfx = self.red_flag_pos[:, 0:1].expand(B, Nr)
+        rfy = self.red_flag_pos[:, 1:2].expand(B, Nr)
+        dist_to_own_flag = torch.sqrt(
+            (self.red_x - rfx) ** 2 + (self.red_y - rfy) ** 2 + 1e-8
+        )
+        near_flag = (dist_to_own_flag < R_home).to(torch.float32) * ra
+        home_defender_frac = near_flag.sum(dim=1) / float(max(Nr, 1))
+
+        # 5. threat_depth: closest alive red to blue flag
+        bfx = self.blue_flag_pos[:, 0:1].expand(B, Nr)
+        bfy = self.blue_flag_pos[:, 1:2].expand(B, Nr)
+        dist_to_blue_flag = torch.sqrt(
+            (self.red_x - bfx) ** 2 + (self.red_y - bfy) ** 2 + 1e-8
+        )
+        dist_to_blue_flag = torch.where(
+            self.red_alive, dist_to_blue_flag, torch.full_like(dist_to_blue_flag, self.max_dist)
+        )
+        threat_depth = dist_to_blue_flag.min(dim=1).values  # (B,)
+
+        # 6. crossings: fraction that crossed midline since last step
+        prev_side = torch.sign(self._red_x_prev - midline)
+        curr_side = torch.sign(self.red_x - midline)
+        crossed = ((prev_side != curr_side) & (prev_side != 0)).to(torch.float32)
+        crossings = crossed.sum(dim=1) / float(max(Nr, 1))
+
+        # Assemble raw feature vector: (B, 6)
+        raw = torch.stack([
+            attacker_frac,   # 0
+            midline_press,   # 1
+            mean_speed,      # 2
+            home_defender_frac,  # 3
+            threat_depth,    # 4
+            crossings,       # 5
+        ], dim=1)
+
+        # Write into ring at current index
+        idx = self._red_behavior_idx  # (B,) int64
+        # Use advanced indexing: ring[b, idx[b], :] = raw[b, :]
+        batch_idx = torch.arange(B, device=dev, dtype=torch.int64)
+        self._red_behavior_ring[batch_idx, idx, :] = raw
+
+        # Advance index modulo K and increment count
+        K = self._red_behavior_ring_K
+        self._red_behavior_idx = (idx + 1) % K
+        self._red_behavior_count = self._red_behavior_count.add(1).clamp(max=K)
+
+        # Update _red_x_prev for next step's crossing calculation
+        self._red_x_prev = self.red_x.clone()
 
     def _advance_blue_macros(self, blue_action_flat: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if blue_action_flat.device != self.device:

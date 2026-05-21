@@ -185,6 +185,15 @@ class _StateMixin:
         self.red_tag_pressure_time = torch.zeros((B, Nr), dtype=f32, device=dev)
         self.blue_tag_pressure_time = torch.zeros((B, Nb), dtype=f32, device=dev)
 
+        # --- Rolling red-team behavior ring buffer (sharp3 opponent-behavior features) ---
+        self._red_behavior_ring_K = 20
+        self._red_behavior_ring = torch.zeros(
+            (B, self._red_behavior_ring_K, 6), dtype=f32, device=dev,
+        )
+        self._red_behavior_idx = torch.zeros((B,), dtype=torch.int64, device=dev)
+        self._red_behavior_count = torch.zeros((B,), dtype=torch.int64, device=dev)
+        self._red_x_prev = torch.zeros((B, Nr), dtype=f32, device=dev)
+
     def _alloc_mine_state(self, B: int, Nb: int, Nr: int, dev: torch.device, f32: torch.dtype) -> None:
         # Mines: each team has max_mines_per_team slots. Agents get charges by GRAB_MINE at pickups, place with PLACE_MINE.
         Nm = int(self.cfg.max_mines_per_team)
@@ -384,10 +393,16 @@ class _StateMixin:
         self.metric_collision_events[idx] = 0
         self.metric_near_misses[idx] = 0
         self.metric_blue_zone_visited[idx] = False
+        # Reset red behavior ring buffer for restarted envs.
+        self._red_behavior_ring[idx] = 0.0
+        self._red_behavior_idx[idx] = 0
+        self._red_behavior_count[idx] = 0
         self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
         self._apply_train_domain_randomization(env_mask)
+        # Initialize _red_x_prev from freshly-spawned red positions.
+        self._red_x_prev[idx] = self.red_x[idx].clone()
 
     def _apply_train_domain_randomization(self, env_mask: torch.Tensor) -> None:
         """Resample per-episode sim/observation jitter for masked env rows."""

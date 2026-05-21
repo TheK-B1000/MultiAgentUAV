@@ -26,12 +26,13 @@ import torch
 if TYPE_CHECKING:
     from game_field_gpu import BatchedCTFCore
 
-GLOBAL_STATE_DIM: int = 19
-GLOBAL_STATE_USED: int = 19
+GLOBAL_STATE_DIM: int = 25
+GLOBAL_STATE_USED: int = 25
 
 # Order matches the plan’s “global summary” (team geometry + dispersion, flag proximity, captures, motion).
 # The first 14 fields preserve the original plan global-summary order.
 # Score and clock pressure are appended for critic/q_phi predictability.
+# Fields 19-24 are rolling opponent-behavior summaries (sharp3).
 GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
     "blue_mean_x",
     "blue_mean_y",
@@ -52,12 +53,17 @@ GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
     "score_diff_norm",
     "decision_frac",
     "sim_time_frac",
+    "red_attacker_fraction_recent",
+    "red_role_switch_rate_recent",
+    "red_mean_speed_recent",
+    "red_midline_pressure_recent",
+    "red_home_defender_fraction_recent",
+    "red_min_to_blue_flag_window_min",
 )
 assert len(GLOBAL_STATE_FIELD_NAMES) == GLOBAL_STATE_DIM, len(GLOBAL_STATE_FIELD_NAMES)
 
-# Slices [8:12] are “territory / flag” features for optional event-based resampling (min distances + capture bits).
+# Slices [8:12] are "territory / flag" features for optional event-based resampling (min distances + capture bits).
 GLOBAL_STATE_FLAG_TERRITORY_SLICE = slice(8, 12)
-
 
 def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
     """
@@ -166,6 +172,47 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
         blue_score_norm, red_score_norm, score_diff_norm,
         decision_frac, sim_time_frac,
     ]
+
+    # --- Opponent-behavior summaries from rolling ring buffer (sharp3) ---
+    K = core._red_behavior_ring_K
+    ring = core._red_behavior_ring                   # (B, K, 6)
+    count_long = core._red_behavior_count.clamp(min=1)  # (B,)
+    count = count_long.to(f32)                        # (B,)
+
+    # Valid mask: (B, K) — True for slots that have been written
+    valid = (
+        torch.arange(K, device=dev)
+        .unsqueeze(0)
+        .lt(core._red_behavior_count.unsqueeze(1))
+    )
+
+    # Mean summaries: sum only valid entries, divide by count
+    ring_masked = ring * valid.unsqueeze(-1).to(f32)  # zero out invalid
+    mean_summary = ring_masked.sum(dim=1) / count.unsqueeze(-1)  # (B, 6)
+
+    # Threat depth min: mask invalid entries with max_dist before taking min
+    threat_col = ring[..., 4]  # (B, K)
+    threat_masked = threat_col.masked_fill(~valid, diag)
+    threat_depth_min = threat_masked.min(dim=1).values / diag  # (B,)
+
+    # Assemble in documented order:
+    #   red_attacker_fraction_recent   = mean(ring[:, 0])
+    #   red_role_switch_rate_recent     = mean(ring[:, 5])  (crossings)
+    #   red_mean_speed_recent           = mean(ring[:, 2]) / 3.0
+    #   red_midline_pressure_recent     = mean(ring[:, 1])
+    #   red_home_defender_fraction_recent = mean(ring[:, 3])
+    #   red_min_to_blue_flag_window_min = min(ring[:, 4]) / max_dist
+    summaries = torch.stack([
+        mean_summary[:, 0],           # attacker fraction
+        mean_summary[:, 5],           # role switch rate (crossings)
+        mean_summary[:, 2] / 3.0,     # mean speed normalized
+        mean_summary[:, 1],           # midline pressure
+        mean_summary[:, 3],           # home defender fraction
+        threat_depth_min,             # min threat depth normalized
+    ], dim=-1)                        # (B, 6)
+
+    parts.extend([summaries[:, i] for i in range(6)])
+
     used = torch.stack(parts, dim=1)
     assert used.shape[1] == GLOBAL_STATE_USED, (used.shape[1], GLOBAL_STATE_USED)
     return used.to(dtype=f32)

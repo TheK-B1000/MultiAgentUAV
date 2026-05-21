@@ -616,6 +616,56 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_red_behavior_features_present(self) -> None:
+        """sharp3: Verify 6 opponent-behavior summaries appear in global state."""
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=2, n_agents_per_team=4, device="cpu", seed=77))
+        try:
+            env.reset()
+            # Step at least 25 times so ring fills beyond K_window=20
+            action = np.zeros((2, 8), dtype=np.int64)
+            for _ in range(25):
+                env.step_async(action)
+                env.step_wait()
+            state = env.state()
+            core = env.core
+
+            # 1. Dimension is 25
+            self.assertEqual(state.shape[1], 25)
+            self.assertEqual(GLOBAL_STATE_DIM, 25)
+
+            # 2. All 6 new field names are present
+            behavior_fields = [
+                "red_attacker_fraction_recent",
+                "red_role_switch_rate_recent",
+                "red_mean_speed_recent",
+                "red_midline_pressure_recent",
+                "red_home_defender_fraction_recent",
+                "red_min_to_blue_flag_window_min",
+            ]
+            for name in behavior_fields:
+                self.assertIn(name, GLOBAL_STATE_FIELD_NAMES)
+
+            # 3. All features are finite
+            self.assertTrue(np.isfinite(state).all(), "global_state contains NaN/Inf")
+
+            # 4. Behavior ring has data (count > 0)
+            self.assertTrue(bool((core._red_behavior_count > 0).all().item()))
+
+            # 5. At least one behavior summary is non-zero after movement
+            behavior_slice = state[:, 19:25]
+            self.assertTrue(
+                float(np.abs(behavior_slice).max()) > 0.0,
+                "All 6 behavior features are zero after 25 steps; expected some activity",
+            )
+
+            # 6. Reset clears ring buffer
+            core.reset_all()
+            self.assertEqual(int(core._red_behavior_count.max().item()), 0)
+            self.assertEqual(int(core._red_behavior_idx.max().item()), 0)
+            self.assertTrue(bool((core._red_behavior_ring == 0.0).all().item()))
+        finally:
+            env.close()
+
 
 if __name__ == "__main__":
     unittest.main()
