@@ -112,6 +112,8 @@ def run_eval_episodes(
     record_entropy: bool = False,
     coordination_metrics: bool = True,
     progress_every: int = 0,
+    fixed_latent_id: int | None = None,
+    latent_resample_every_n: int | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -125,6 +127,13 @@ def run_eval_episodes(
     from rl.custom_ppo import load_custom_ppo_policy
 
     model = load_custom_ppo_policy(model_path, env.observation_space, env.action_space, device=device)
+    if fixed_latent_id is not None and hasattr(model, "model") and bool(
+        getattr(model.model, "uses_latent_strategy", False)
+    ):
+        model.fixed_latent_strategy = True
+        model.fixed_latent_strategy_id = max(0, int(fixed_latent_id))
+    if latent_resample_every_n is not None and hasattr(model, "strategy_interval"):
+        model.strategy_interval = max(0, int(latent_resample_every_n))
     if progress_every > 0:
         print(
             f"  checkpoint loaded; {n_episodes} episodes",

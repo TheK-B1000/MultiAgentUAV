@@ -90,6 +90,24 @@ def main() -> None:
     # Default True: argmax / greedy match paper-style *evaluation* (stochastic is for ablations / debugging).
     parser.add_argument("--deterministic", action="store_true", default=True)
     parser.add_argument("--stochastic", action="store_false", dest="deterministic")
+    parser.add_argument(
+        "--fixed-latent-id",
+        type=int,
+        default=None,
+        help=(
+            "Latent only: deployment ablation — clamp every episode to this strategy id "
+            "(0..K-1); skips q_phi(s) routing."
+        ),
+    )
+    parser.add_argument(
+        "--latent-resample-every",
+        type=int,
+        default=None,
+        help=(
+            "Latent only: re-run q_phi and broadcast a new z every N decision steps "
+            "(0 = episode start only, matching training default)."
+        ),
+    )
     args = parser.parse_args()
 
     checkpoint = os.path.abspath(args.checkpoint if args.checkpoint.endswith(".zip") else args.checkpoint + ".zip")
@@ -135,6 +153,8 @@ def main() -> None:
                     deterministic=bool(args.deterministic),
                     coordination_metrics=not bool(args.no_coordination_metrics),
                     progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
+                    fixed_latent_id=args.fixed_latent_id,
+                    latent_resample_every_n=args.latent_resample_every,
                 )
             finally:
                 env.close()
