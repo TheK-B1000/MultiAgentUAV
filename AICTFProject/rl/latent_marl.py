@@ -30,21 +30,53 @@ class StrategyEncoder(nn.Module):
     ``q_\\phi(z | s)`` as in *Summer Implementation Plan.docx* IMPLEMENTATION §4: only
     ``Linear → ReLU → Linear → ReLU → Linear (logits)`` — no custom init in the spec;
     use PyTorch default ``Linear``/``Module`` initialization.
+
+    Optional ``oracle_dim > 0`` widens the first linear so q_phi can accept side-channel
+    features concatenated onto the global state (e.g. a 7-dim opponent-id one-hot used for
+    the staged-router upper-bound test). The oracle channel is **q_phi-only**; the actor
+    and critic still consume the canonical ``GLOBAL_STATE_DIM`` input.
     """
 
-    def __init__(self, state_dim: int, latent_k: int, hidden: int = 128) -> None:
+    def __init__(self, state_dim: int, latent_k: int, hidden: int = 128, oracle_dim: int = 0) -> None:
         super().__init__()
+        self.state_dim = int(state_dim)
+        self.oracle_dim = max(0, int(oracle_dim))
+        in_dim = self.state_dim + self.oracle_dim
         self.net = nn.Sequential(
-            nn.Linear(int(state_dim), int(hidden)),
+            nn.Linear(in_dim, int(hidden)),
             nn.ReLU(),
             nn.Linear(int(hidden), int(hidden)),
             nn.ReLU(),
             nn.Linear(int(hidden), int(latent_k)),
         )
 
-    def forward(self, global_state: torch.Tensor) -> torch.Tensor:
-        """Return strategy logits with shape ``(B, K)``."""
-        return self.net(global_state.float())
+    def forward(self, global_state: torch.Tensor, oracle=None) -> torch.Tensor:
+        """Return strategy logits with shape ``(B, K)``.
+
+        When ``oracle_dim > 0``, ``oracle`` may be supplied with shape ``(B, oracle_dim)`` and
+        will be concatenated onto ``global_state`` along the feature axis. If it is omitted, a
+        zero oracle vector is used so the same widened q_phi can run C1 oracle and C2 no-oracle
+        checks without rebuilding the actor/critic.
+        """
+        gs = global_state.float()
+        if self.oracle_dim == 0:
+            if oracle is not None:
+                raise ValueError("oracle was supplied but StrategyEncoder was built with oracle_dim=0")
+            x = gs
+        else:
+            if oracle is None:
+                oracle = torch.zeros(
+                    (*gs.shape[:-1], self.oracle_dim),
+                    dtype=gs.dtype,
+                    device=gs.device,
+                )
+            ora = oracle.float()
+            if ora.shape[-1] != self.oracle_dim:
+                raise ValueError(
+                    f"oracle feature width {ora.shape[-1]} != expected {self.oracle_dim}"
+                )
+            x = torch.cat([gs, ora], dim=-1)
+        return self.net(x)
 
 
 class LatentConditionedActor(nn.Module):

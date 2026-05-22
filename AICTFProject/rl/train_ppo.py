@@ -406,10 +406,13 @@ class PPOConfig:
     latent_lam_p: float = 0.02
     # A1: clipped PPO/REINFORCE-style update for sampled z. Kept low because z operates at episode cadence.
     latent_strategy_ppo_coef: float = 0.1
-    # A2 (opt-in): auxiliary MSE on the shared q_phi trunk predicting per-z returns from the **sampled** z only.
-    # Not a full Q(s,a,z) critic and not off-policy Q-learning; MAPPO value remains V_phi(s, a, z).
+    # A2: auxiliary MSE on the shared q_phi trunk predicting per-z
+    # returns from the **sampled** z only. Not a full Q(s,a,z) critic and not off-policy Q-learning;
+    # MAPPO value remains V_phi(s, a, z). Enabled by default to prevent latent-strategy collapse —
+    # without A2 the only signal on q_phi was the per-z PPO surrogate (sparse, episodic), which empirically
+    # let z drift toward a single mode. Keep this opt-in so the plan-faithful baseline stays clean.
     latent_strategy_aux_return_head: bool = False
-    latent_strategy_aux_return_coef: float = 1.0
+    latent_strategy_aux_return_coef: float = 0.0
     latent_strategy_tau: float = 1.0
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
@@ -421,6 +424,19 @@ class PPOConfig:
     # This tests whether learned/multiple strategy selection matters beyond a single learned z embedding.
     fixed_latent_strategy: bool = False
     fixed_latent_strategy_id: int = 0
+    # Staged Latent Strategy Routing (SLSR) — see docs above. ``forced_z_mode='rotate'`` cycles
+    # z = (env_idx + episode_idx) % K so the actor learns differentiated z-conditioned skills with no
+    # router involvement (Stage 1 skill discovery). ``qphi_oracle_mode='one_hot'`` concatenates a
+    # canonical 7-dim OP1..OP7 one-hot onto the q_phi input only (oracle upper-bound / Stage 2).
+    # ``freeze_actor_critic`` freezes actor + z-embedding + critic so only q_phi (and its A2 head)
+    # train; pair with ``router_ce_*`` to perform supervised router alignment on best-z labels.
+    forced_z_mode: Literal["none", "fixed", "rotate"] = "none"
+    qphi_oracle_mode: Literal["none", "one_hot"] = "none"
+    qphi_oracle_dim: int = 0
+    freeze_actor_critic: bool = False
+    router_ce_labels_path: Optional[str] = None
+    router_ce_coef: float = 0.0
+    router_ce_mode: Literal["soft", "hard"] = "soft"
     # **Ablation / plan §12 only** — not combined with the main “episode-start z” story by default.
     # Use ``rl.config_presets.ablation_flag_resample_config`` for an explicit run.
     latent_resample_on_flag: bool = False
@@ -648,7 +664,7 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.run_tag = "latent_op3_wrmax_1m_2v2"
         return cfg
     if key in {"latent_a1_plan_faithful", "latent_op3_a1_plan_faithful"}:
-        # Paper plan–faithful latent (A1): 1M steps, episode-start z, λ_p / λ_H, no A2 auxiliary return head, env defaults, no warm start.
+        # Paper plan-faithful latent (A1): reward-only q_phi, episode-start z, env defaults, no warm start.
         cfg.use_latent_strategy = True
         cfg.total_timesteps = 1_000_000
         cfg.mode = TrainMode.FIXED_OPPONENT.value
@@ -674,6 +690,13 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_resample_every_n = 0
         cfg.latent_resample_on_flag = False
         cfg.latent_kl_consecutive = 0.0
+        cfg.forced_z_mode = "none"
+        cfg.qphi_oracle_mode = "none"
+        cfg.qphi_oracle_dim = 0
+        cfg.freeze_actor_critic = False
+        cfg.router_ce_labels_path = None
+        cfg.router_ce_coef = 0.0
+        cfg.router_ce_mode = "hard"
         cfg.latent_gae_reset_on_z_change = True
         cfg.latent_bootstrap_z_deterministic = True
         cfg.latent_vf_hidden = 128
@@ -694,6 +717,27 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.load_path = None
         cfg.run_tag = "latent_a1_plan_faithful_1m_2v2"
         return cfg
+    if key in {"latent_slsr_router", "slsr_router"}:
+        cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP3", "OP5", "OP6", "OP7")
+        cfg.latent_resample_every_n = 20
+        cfg.latent_entropy_objective = "minimize"
+        cfg.latent_lam_h = 0.01
+        cfg.latent_lam_p = 0.03
+        cfg.latent_strategy_aux_return_head = True
+        cfg.latent_strategy_aux_return_coef = 1.0
+        cfg.latent_strategy_tau = 0.7
+        cfg.forced_z_mode = "none"
+        cfg.qphi_oracle_mode = "none"
+        cfg.qphi_oracle_dim = 0
+        cfg.freeze_actor_critic = False
+        cfg.router_ce_labels_path = None
+        cfg.router_ce_coef = 0.0
+        cfg.router_ce_mode = "hard"
+        cfg.run_tag = "latent_slsr_router_1m_2v2"
+        return cfg
     if key in {"latent_op3_wrmax_train_2m", "latent_wrmax_op3_train_2m"}:
         cfg = _apply_training_preset(cfg, "latent_op3_wrmax_1m")
         cfg.total_timesteps = 2_000_000
@@ -711,7 +755,7 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'latent_op3_wrmax_1m', 'latent_wrmax_op3_1m', "
         "'latent_op3_wrmax_2m', 'latent_wrmax_op3_2m' (aliases for wrmax 1M), "
         "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m', "
-        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful'."
+        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful', 'latent_slsr_router'."
     )
 
 
@@ -778,6 +822,16 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 "latent_resample_every_n=1 is disallowed (do not resample z every decision step). "
                 "Use 0 (sample at episode start) or N>=2 (sparse refresh)."
             )
+        forced_z = str(getattr(cfg, "forced_z_mode", "none") or "none").strip().lower()
+        cfg.forced_z_mode = "none" if forced_z in {"", "off", "none"} else forced_z
+        if cfg.forced_z_mode not in {"none", "fixed", "rotate"}:
+            raise ValueError("forced_z_mode must be one of: none, fixed, rotate.")
+        qphi_oracle = str(getattr(cfg, "qphi_oracle_mode", "none") or "none").strip().lower()
+        cfg.qphi_oracle_mode = "none" if qphi_oracle in {"", "off", "none"} else qphi_oracle
+        if cfg.qphi_oracle_mode not in {"none", "one_hot"}:
+            raise ValueError("qphi_oracle_mode must be one of: none, one_hot.")
+        if cfg.qphi_oracle_mode == "one_hot" and int(getattr(cfg, "qphi_oracle_dim", 0) or 0) <= 0:
+            cfg.qphi_oracle_dim = 7
     elif bool(getattr(cfg, "fixed_latent_strategy", False)):
         raise ValueError("fixed_latent_strategy requires use_latent_strategy=True.")
 
@@ -869,6 +923,31 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             )
         if fixed:
             print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
+        forced_z_raw = str(getattr(cfg, "forced_z_mode", "none") or "none").lower()
+        forced_z_mode = "none" if forced_z_raw in {"", "off", "none"} else forced_z_raw
+        if forced_z_mode == "rotate":
+            print(
+                "[PPO] Staged Stage-1 forced-z: rotating z = (env_idx + episode_idx) % K per episode "
+                f"(K={int(cfg.latent_k)}); q_phi is bypassed for action selection."
+            )
+        qphi_oracle_raw = str(getattr(cfg, "qphi_oracle_mode", "none") or "none").lower()
+        qphi_oracle_mode = "none" if qphi_oracle_raw in {"", "off", "none"} else qphi_oracle_raw
+        if qphi_oracle_mode == "one_hot":
+            qphi_dim = int(getattr(cfg, "qphi_oracle_dim", 0) or 0) or 7
+            print(
+                f"[PPO] q_phi oracle (Experiment A): mode=one_hot (dim={qphi_dim}, canonical OP1..OP7 one-hot "
+                "concatenated onto q_phi input only; critic/actor unchanged)."
+            )
+        if bool(getattr(cfg, "freeze_actor_critic", False)):
+            print(
+                "[PPO] Staged Stage-2 freeze: actor + critic + z-embedding are frozen; only q_phi trains."
+            )
+        if float(getattr(cfg, "router_ce_coef", 0.0) or 0.0) > 0.0:
+            print(
+                "[PPO] Staged router CE loss enabled: "
+                f"coef={float(cfg.router_ce_coef):.3f}, mode={str(getattr(cfg, 'router_ce_mode', 'soft'))}, "
+                f"labels={str(getattr(cfg, 'router_ce_labels_path', '') or '(none)')}"
+            )
     else:
         print("[PPO] Latent team strategy: disabled (vanilla local PPO baseline).")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
@@ -1293,6 +1372,62 @@ if __name__ == "__main__":
             default=None,
             help="Strategy ID used by --fixed-latent-strategy (default: 0). Supplying this implies fixed latent.",
         )
+        # Staged Latent Strategy Routing (SLSR) flags. Stage 1 uses --forced-z-mode rotate to learn
+        # diverse z-conditioned skills; Stage 2 adds --freeze-actor-critic + --router-ce-labels +
+        # --router-ce-coef (and optionally --qphi-oracle one_hot) to align q_phi on best-z labels.
+        parser.add_argument(
+            "--forced-z-mode",
+            choices=("none", "off", "fixed", "rotate"),
+            default=None,
+            help=(
+                "Stage-1 forced-z control: 'fixed' or 'rotate' override action z while q_phi can still train; "
+                "'none' uses q_phi."
+            ),
+        )
+        parser.add_argument(
+            "--qphi-oracle",
+            choices=("none", "off", "one_hot"),
+            default=None,
+            help=(
+                "Stage-2 q_phi oracle input mode. 'one_hot' concatenates a canonical 7-dim OP1..OP7 "
+                "one-hot opponent ID onto the q_phi branch only (critic/actor unchanged)."
+            ),
+        )
+        parser.add_argument(
+            "--qphi-oracle-dim",
+            type=int,
+            default=None,
+            help="Width of q_phi oracle features. Defaults to 7 for --qphi-oracle one_hot, otherwise 0.",
+        )
+        parser.add_argument(
+            "--freeze-actor-critic",
+            action="store_true",
+            help=(
+                "Stage-2 freeze: actor backbone, z-embedding, and critic are frozen; only q_phi (and "
+                "its A2 aux head if enabled) train. Pair with --router-ce-labels to align q_phi."
+            ),
+        )
+        parser.add_argument(
+            "--router-ce-labels",
+            type=str,
+            default=None,
+            help=(
+                "Path to a JSON of best-z labels produced by tools/derive_best_z_labels.py. Required "
+                "when --router-ce-coef > 0."
+            ),
+        )
+        parser.add_argument(
+            "--router-ce-coef",
+            type=float,
+            default=None,
+            help="Weight on the supervised q_phi CE loss against the labels JSON (0=off).",
+        )
+        parser.add_argument(
+            "--router-ce-mode",
+            choices=("soft", "hard"),
+            default=None,
+            help="CE target: 'soft' (probability vector) or 'hard' (argmax z). Default soft.",
+        )
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy weight (see --latent-entropy-objective).")
         parser.add_argument(
@@ -1527,6 +1662,22 @@ if __name__ == "__main__":
         if args.fixed_latent_id is not None:
             cfg.fixed_latent_strategy = True
             cfg.fixed_latent_strategy_id = max(0, int(args.fixed_latent_id))
+        if args.forced_z_mode is not None:
+            forced_z_mode = str(args.forced_z_mode or "none").strip().lower()
+            cfg.forced_z_mode = "none" if forced_z_mode in {"", "off", "none"} else forced_z_mode
+        if args.qphi_oracle is not None:
+            qphi_oracle = str(args.qphi_oracle or "none").strip().lower()
+            cfg.qphi_oracle_mode = "none" if qphi_oracle in {"", "off", "none"} else qphi_oracle
+        if args.qphi_oracle_dim is not None:
+            cfg.qphi_oracle_dim = max(0, int(args.qphi_oracle_dim))
+        if args.freeze_actor_critic:
+            cfg.freeze_actor_critic = True
+        if args.router_ce_labels is not None:
+            cfg.router_ce_labels_path = str(args.router_ce_labels)
+        if args.router_ce_coef is not None:
+            cfg.router_ce_coef = max(0.0, float(args.router_ce_coef))
+        if args.router_ce_mode is not None:
+            cfg.router_ce_mode = str(args.router_ce_mode)
         if args.latent_lam_p is not None:
             cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
         if args.latent_lam_h is not None:

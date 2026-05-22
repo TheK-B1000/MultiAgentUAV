@@ -28,6 +28,10 @@ htmlcov/
 AICTFProject/.test_runs/
 AICTFProject/checkpoints_sb3/test_runs/
 
+# Training run artifacts (rotated logs + diagnostic CSVs are run outputs, not source)
+AICTFProject/logs/*.log
+AICTFProject/logs/diagnostics/
+
 # Builds
 dist/
 build/

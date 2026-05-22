@@ -256,6 +256,19 @@ class CustomPPOInferencePolicy:
             arr = arr[None, ...]
         return torch.as_tensor(arr, dtype=torch.float32, device=self.device)
 
+    def _eval_qphi_oracle(self, batch: int) -> Optional[torch.Tensor]:
+        """Zero-filled oracle stub for eval-time inference of oracle-trained checkpoints.
+
+        At deploy time we do not get the canonical opponent_id, so q_phi sees a zero vector on the
+        oracle channel. This preserves shape compatibility for oracle-trained checkpoints; routing
+        quality on this code path is expected to be poor by construction (it is not the deploy
+        regime the staged plan tests against).
+        """
+        dim = int(getattr(self.model, "qphi_oracle_dim", 0) or 0)
+        if dim <= 0:
+            return None
+        return torch.zeros((int(batch), dim), dtype=torch.float32, device=self.device)
+
     def _batched_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         batched: Dict[str, np.ndarray] = {}
         for key, value in obs.items():
@@ -288,7 +301,8 @@ class CustomPPOInferencePolicy:
                     z_probs = self._fixed_strategy_probs(batch)
                     needs_strategy = False
                 else:
-                    z_logits = self.model.strategy_logits(global_state)
+                    eval_oracle = self._eval_qphi_oracle(batch)
+                    z_logits = self.model.strategy_logits(global_state, oracle=eval_oracle)
                     z_dist = Categorical(logits=z_logits)
                     needs_strategy = (
                         self._prev_z is None
@@ -296,7 +310,9 @@ class CustomPPOInferencePolicy:
                         or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
                     )
                     if needs_strategy:
-                        z_idx, _, z_ent, _ = self.model.sample_strategy(global_state, deterministic=deterministic)
+                        z_idx, _, z_ent, _ = self.model.sample_strategy(
+                            global_state, deterministic=deterministic, oracle=eval_oracle
+                        )
                         self._prev_z = z_idx.detach()
                         self._strategy_age = 0
                     else:
@@ -338,7 +354,9 @@ class CustomPPOInferencePolicy:
                     z_idx = self._fixed_strategy_tensor(batch)
                 else:
                     global_state = self._global_state_tensor(batched, batch)
-                    z_idx, _, z_entropy, _ = self.model.sample_strategy(global_state, deterministic=True)
+                    z_idx, _, z_entropy, _ = self.model.sample_strategy(
+                        global_state, deterministic=True, oracle=self._eval_qphi_oracle(batch)
+                    )
             logits = self.model._mask_logits(self.model.policy_logits(obs_t, z_idx=z_idx), obs_t.get("mask"))
             entropy = torch.stack([dist.entropy() for dist in self.model._categoricals(logits)], dim=0).sum(dim=0)
         return float((entropy + z_entropy).mean().detach().cpu().item())
@@ -421,6 +439,10 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
     }
     if bool(cfg.get("use_latent_strategy", False)):
+        qphi_mode = _normalize_none_mode(cfg.get("qphi_oracle_mode", "none"))
+        qphi_dim = int(cfg.get("qphi_oracle_dim", 0) or 0)
+        if qphi_mode == "one_hot" and qphi_dim <= 0:
+            qphi_dim = 7
         kwargs.update(
             {
                 "latent_k": int(cfg.get("latent_k", 4)),
@@ -429,9 +451,15 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
                 "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
+                "qphi_oracle_dim": qphi_dim,
             }
         )
     return kwargs
+
+
+def _normalize_none_mode(value: Any) -> str:
+    text = str(value or "none").strip().lower()
+    return "none" if text in {"", "off", "none"} else text
 
 
 # Intentional, stable split from ``PPOConfig.seed`` (E3 / trace §13). Do not “tweak” without a note.
@@ -541,6 +569,7 @@ class SharedActorCentralizedCritic(nn.Module):
         strategy_hidden_dim: int = 128,
         use_strategy_aux_return_head: bool = False,
         strategy_tau: float = 1.0,
+        qphi_oracle_dim: int = 0,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -575,12 +604,14 @@ class SharedActorCentralizedCritic(nn.Module):
         self.z_embed_dim = int(z_embed_dim) if self.uses_latent_strategy else 0
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
         self.strategy_tau = max(1e-3, float(strategy_tau))
+        self.qphi_oracle_dim = max(0, int(qphi_oracle_dim)) if self.uses_latent_strategy else 0
 
         if self.uses_latent_strategy:
             strategy_net = StrategyEncoder(
                 state_dim=GLOBAL_STATE_DIM,
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
+                oracle_dim=self.qphi_oracle_dim,
             )
             if self.use_strategy_aux_return_head:
                 self.strategy_aux_return_head = strategy_net
@@ -643,37 +674,54 @@ class SharedActorCentralizedCritic(nn.Module):
             return torch.multinomial(probs, 1, replacement=True, generator=generator).squeeze(-1)
         return dist.sample()
 
-    def strategy_logits(self, global_state: torch.Tensor) -> torch.Tensor:
-        """Return ``q_phi(z | s)`` logits for latent strategy mode."""
+    def strategy_logits(
+        self,
+        global_state: torch.Tensor,
+        *,
+        oracle: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Return ``q_phi(z | s)`` logits for latent strategy mode.
+
+        When ``self.qphi_oracle_dim > 0``, ``oracle`` may be supplied with shape
+        ``(B, qphi_oracle_dim)``; omitted oracle input is treated as zeros. The oracle channel is
+        q_phi-only, so actor and critic still consume the canonical global state.
+        """
         if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
         if self.use_strategy_aux_return_head:
-            return self.strategy_aux_return_predictions(global_state) / self.strategy_tau
+            return self.strategy_aux_return_predictions(global_state, oracle=oracle) / self.strategy_tau
         if self.strategy_encoder is None:
             raise RuntimeError("strategy encoder is not initialized.")
-        return self.strategy_encoder(global_state.float())
+        return self.strategy_encoder(global_state.float(), oracle)
 
-    def strategy_aux_return_predictions(self, global_state: torch.Tensor) -> torch.Tensor:
+    def strategy_aux_return_predictions(
+        self,
+        global_state: torch.Tensor,
+        *,
+        oracle: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """A2 auxiliary: per-z scalar predictions from the shared trunk, shape ``(B, K)``.
 
         These are **not** a full action-value :math:`Q(s,\\mathbf{a}, z)` and are not trained with
         off-policy Bellman targets; they only supply an optional supervised signal on the **sampled**
-        strategy index (see plan A2 / auxiliary return regression).
+        strategy index (see plan A2 / auxiliary return regression). The optional ``oracle``
+        argument feeds the same side-channel as ``strategy_logits`` for q_phi-oracle experiments.
         """
         if not self.uses_latent_strategy or self.strategy_aux_return_head is None:
             raise RuntimeError(
                 "strategy_aux_return_predictions is only available when the A2 auxiliary return head is enabled."
             )
-        return self.strategy_aux_return_head(global_state.float())
+        return self.strategy_aux_return_head(global_state.float(), oracle)
 
     def sample_strategy(
         self,
         global_state: torch.Tensor,
         *,
         deterministic: bool = False,
+        oracle: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily choose team strategy indices from ``q_phi(z | s)``."""
-        logits = self.strategy_logits(global_state)
+        logits = self.strategy_logits(global_state, oracle=oracle)
         dist = Categorical(logits=logits)
         z_idx = self._categorical_argmax_or_sample(
             dist, deterministic=deterministic, generator=self._sampling_gen_strategy
@@ -802,10 +850,13 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         deterministic: bool = False,
         z_idx: Optional[torch.Tensor] = None,
+        qphi_oracle: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily select actions and return values/log-probs/entropy."""
         if self.uses_latent_strategy and z_idx is None:
-            z_idx, _, _, _ = self.sample_strategy(global_state, deterministic=deterministic)
+            z_idx, _, _, _ = self.sample_strategy(
+                global_state, deterministic=deterministic, oracle=qphi_oracle
+            )
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         actions = []
         g_act = self._sampling_gen_action
@@ -827,6 +878,7 @@ class SharedActorCentralizedCritic(nn.Module):
         actions: torch.Tensor,
         *,
         z_idx: Optional[torch.Tensor] = None,
+        qphi_oracle: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Evaluate fixed actions under the current policy."""
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
@@ -836,7 +888,7 @@ class SharedActorCentralizedCritic(nn.Module):
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
-            z_logits = self.strategy_logits(global_state)
+            z_logits = self.strategy_logits(global_state, oracle=qphi_oracle)
             z_dist = Categorical(logits=z_logits)
             z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
             aux["strategy_logits"] = z_logits
@@ -880,6 +932,29 @@ class CustomPPOTrainer:
             if self.use_latent_strategy
             else 0
         )
+        # Staged-router flags (forced-z mode, q_phi oracle, supervised CE, freeze).
+        self.forced_z_mode = _normalize_none_mode(getattr(cfg, "forced_z_mode", "none"))
+        if self.forced_z_mode not in {"none", "fixed", "rotate"}:
+            raise ValueError(
+                f"forced_z_mode must be one of none/fixed/rotate, got {self.forced_z_mode!r}"
+            )
+        self.qphi_oracle_mode = _normalize_none_mode(getattr(cfg, "qphi_oracle_mode", "none"))
+        if self.qphi_oracle_mode not in {"none", "one_hot"}:
+            raise ValueError(
+                f"qphi_oracle_mode must be one of none/one_hot, got {self.qphi_oracle_mode!r}"
+            )
+        self.qphi_oracle_dim = max(0, int(getattr(cfg, "qphi_oracle_dim", 0) or 0))
+        if self.use_latent_strategy and self.qphi_oracle_mode == "one_hot" and self.qphi_oracle_dim <= 0:
+            self.qphi_oracle_dim = 7
+        if self.qphi_oracle_mode == "none":
+            self.qphi_oracle_dim = 0
+        self.freeze_actor_critic = bool(getattr(cfg, "freeze_actor_critic", False)) and self.use_latent_strategy
+        self.router_ce_coef = max(0.0, float(getattr(cfg, "router_ce_coef", 0.0) or 0.0))
+        self.router_ce_mode = str(getattr(cfg, "router_ce_mode", "soft") or "soft").lower()
+        if self.router_ce_mode not in {"soft", "hard"}:
+            raise ValueError(f"router_ce_mode must be soft or hard, got {self.router_ce_mode!r}")
+        self.router_ce_labels_path = str(getattr(cfg, "router_ce_labels_path", "") or "")
+
         model_kwargs: dict[str, Any] = {
             "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
         }
@@ -892,13 +967,24 @@ class CustomPPOTrainer:
                     "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
                     "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
                     "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
+                    "qphi_oracle_dim": int(self.qphi_oracle_dim),
                 }
             )
         self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
         apply_deterministic_sampling_generators(
             self.model, int(getattr(cfg, "seed", 0) or 0), device=self.device
         )
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=float(learning_rate), eps=1e-5)
+        if self.freeze_actor_critic:
+            self._apply_actor_critic_freeze()
+        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
+        if not trainable_params:
+            raise RuntimeError("No trainable parameters remain for PPO optimizer.")
+        self.optimizer = torch.optim.Adam(
+            trainable_params,
+            lr=float(learning_rate),
+            eps=1e-5,
+        )
+        self._router_ce_soft, self._router_ce_hard = self._load_router_ce_labels()
         self.base_learning_rate = float(learning_rate)
         self.clip_range = float(clip_range)
         self.ent_coef = float(ent_coef)
@@ -979,6 +1065,100 @@ class CustomPPOTrainer:
                     "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
                 )
             self.env._before_reset_indices_hook = self._hook_sample_training_opponent_before_reset
+
+    def _apply_actor_critic_freeze(self) -> None:
+        """Freeze actor + critic + z-embedding so only q_phi (and its aux head) train.
+
+        Used by Stage-2 supervised router alignment: actor skills are held fixed while q_phi learns
+        to route. Asserts that at least one parameter remains trainable so a frozen optimizer is not
+        silently constructed.
+        """
+        m = self.model
+        for mod in (m.actor_cnn, m.actor_body, m.actor_head, m.critic):
+            for p in mod.parameters():
+                p.requires_grad_(False)
+        if m.strategy_embedding is not None:
+            for p in m.strategy_embedding.parameters():
+                p.requires_grad_(False)
+        trainable = [n for n, p in m.named_parameters() if p.requires_grad]
+        if not trainable:
+            raise RuntimeError(
+                "freeze_actor_critic=True left no trainable parameters; q_phi (strategy_encoder or "
+                "strategy_aux_return_head) must remain trainable for staged router training."
+            )
+        names_short = ", ".join(sorted({n.split('.', 1)[0] for n in trainable}))
+        print(
+            f"[PPO] Stage-2 freeze: actor+critic+z_emb frozen; trainable modules = [{names_short}] "
+            f"({len(trainable)} param tensors)."
+        )
+
+    def _load_router_ce_labels(
+        self,
+    ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+        """Load supervised q_phi labels (soft + hard) keyed by canonical opponent_id 0..6.
+
+        Returns ``(soft_targets, hard_targets)`` where:
+            * ``soft_targets`` has shape ``(7, K)`` with row ``oid`` equal to the soft label vector,
+              or zeros if the opponent has no label (those rows are masked out at loss time).
+            * ``hard_targets`` has shape ``(7,)`` with the argmax-z label, or ``-1`` for unlabeled.
+
+        Returns ``(None, None)`` when no labels file is configured or router_ce_coef==0.
+        """
+        if not self.use_latent_strategy or self.router_ce_coef <= 0.0:
+            return None, None
+        if not self.router_ce_labels_path:
+            return None, None
+        import json as _json
+        path = self.router_ce_labels_path
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                bundle = _json.load(f)
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"router_ce_labels_path does not exist: {path}") from e
+        if int(bundle.get("k", self.latent_k)) != int(self.latent_k):
+            raise ValueError(
+                f"router CE labels JSON has K={bundle.get('k')} but trainer has K={self.latent_k}."
+            )
+        soft = torch.zeros((7, int(self.latent_k)), dtype=torch.float32, device=self.device)
+        hard = torch.full((7,), -1, dtype=torch.long, device=self.device)
+        n_loaded = 0
+        for _opp_name, payload in (bundle.get("opponents") or {}).items():
+            oid = int(payload.get("opponent_id", -1))
+            if not (0 <= oid < 7):
+                continue
+            soft_vec = payload.get("soft") or []
+            if len(soft_vec) != int(self.latent_k):
+                continue
+            soft[oid] = torch.as_tensor(soft_vec, dtype=torch.float32, device=self.device)
+            hard[oid] = int(payload.get("hard_z", -1))
+            n_loaded += 1
+        if n_loaded == 0:
+            raise ValueError(
+                f"router_ce_labels_path={path} contained no usable opponent entries (opponent_id must be 0..6)."
+            )
+        print(
+            f"[PPO] Router CE labels loaded: {n_loaded} opponent(s) from {path}; "
+            f"mode={self.router_ce_mode}, coef={self.router_ce_coef:.3f}."
+        )
+        return soft, hard
+
+    def _qphi_oracle_one_hot(self, opp_ids: torch.Tensor) -> Optional[torch.Tensor]:
+        """Convert ``(B,)`` opponent_id tensor (-1 for unknown) into ``(B, 7)`` one-hot.
+
+        Unknown opponent_id maps to all-zeros (no information leaked). Returns ``None`` when the
+        q_phi oracle is disabled.
+        """
+        if self.qphi_oracle_dim <= 0:
+            return None
+        ids = opp_ids.long().to(self.device)
+        valid = ids >= 0
+        clamped = ids.clamp(min=0, max=6)
+        one_hot = F.one_hot(clamped, num_classes=7).float() * valid.float().unsqueeze(-1)
+        if self.qphi_oracle_dim == 7:
+            return one_hot
+        out = torch.zeros((ids.shape[0], int(self.qphi_oracle_dim)), dtype=torch.float32, device=self.device)
+        out[:, : min(7, int(self.qphi_oracle_dim))] = one_hot[:, : min(7, int(self.qphi_oracle_dim))]
+        return out
 
     def _reward_shaping_coef(self) -> float:
         if self.reward_shaping_decay_steps <= 0:
@@ -1717,12 +1897,23 @@ class CustomPPOTrainer:
         if not self.use_latent_strategy:
             return
         n_envs = int(self.env.num_envs)
-        z0 = self.fixed_latent_strategy_id if self.fixed_latent_strategy else 0
+        if self.fixed_latent_strategy or self.forced_z_mode == "fixed":
+            z0 = self.fixed_latent_strategy_id
+        elif self.forced_z_mode == "rotate":
+            # First episode in each env starts at z = env_idx % K so the per-env counter at
+            # episode boundary (ep_idx=0) lines up with the z used during the first episode.
+            z0 = 0
+        else:
+            z0 = 0
         self._current_z = torch.full((n_envs,), int(z0), dtype=torch.long, device=self.device)
         self._strategy_age = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
+        # In forced/rotate mode, q_phi is never sampled (we override z), so no env "needs sample".
+        no_sample = self.fixed_latent_strategy or self.forced_z_mode in {"fixed", "rotate"}
         self._needs_strategy_sample = torch.full(
-            (n_envs,), not self.fixed_latent_strategy, dtype=torch.bool, device=self.device
+            (n_envs,), not no_sample, dtype=torch.bool, device=self.device
         )
+        self._env_episode_idx = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
+        self._current_opp_id = torch.full((n_envs,), -1, dtype=torch.long, device=self.device)
         if self.latent_kl_consecutive > 0.0:
             self._z_kl_first_in_ep = torch.ones((n_envs,), dtype=torch.bool, device=self.device)
             self._prev_z_logits = None
@@ -1741,24 +1932,34 @@ class CustomPPOTrainer:
             self._reset_strategy_state()
         assert self._current_z is not None
 
-        if self.fixed_latent_strategy:
-            batch = int(global_state.shape[0])
-            z_idx = torch.full(
-                (batch,), self.fixed_latent_strategy_id, dtype=torch.long, device=self.device
-            )
+        batch = int(global_state.shape[0])
+        # Forced-z branches: q_phi is bypassed for action selection (we override z), but we still
+        # compute z_logits with the live q_phi so the supervised CE / entropy / MI signals can train.
+        if self.fixed_latent_strategy or self.forced_z_mode in {"fixed", "rotate"}:
+            if self.fixed_latent_strategy or self.forced_z_mode == "fixed":
+                z_idx = torch.full(
+                    (batch,), self.fixed_latent_strategy_id, dtype=torch.long, device=self.device
+                )
+            else:  # rotate
+                # Stagger across envs so parallel envs don't all start on the same z; rotation phase
+                # still advances by one z per completed episode in every env.
+                env_arange = torch.arange(batch, dtype=torch.long, device=self.device)
+                z_idx = ((env_arange + self._env_episode_idx[:batch]) % int(self.latent_k)).long().clone()
             prev_z = self._current_z.clone()
             self._current_z = z_idx.clone()
-            fixed_logits = torch.full(
-                (batch, self.latent_k), -1.0e8, dtype=torch.float32, device=self.device
-            )
-            fixed_logits[:, self.fixed_latent_strategy_id] = 0.0
             false_mask = torch.zeros((batch,), dtype=torch.bool, device=self.device)
+            # When q_phi is being trained (supervised or via PPO) we still want fresh logits for
+            # diagnostics + CE loss; if the encoder is frozen this is cheap and side-effect-free.
+            oracle = self._qphi_oracle_one_hot(self._current_opp_id[:batch])
+            with torch.no_grad():
+                z_logits = self.model.strategy_logits(global_state, oracle=oracle)
+            z_dist = Categorical(logits=z_logits)
             aux = {
                 "z": z_idx,
                 "prev_z": prev_z,
-                "z_log_prob": torch.zeros((batch,), dtype=torch.float32, device=self.device),
-                "z_entropy": torch.zeros((batch,), dtype=torch.float32, device=self.device),
-                "z_logits": fixed_logits,
+                "z_log_prob": z_dist.log_prob(z_idx),
+                "z_entropy": z_dist.entropy(),
+                "z_logits": z_logits,
                 "z_resampled": false_mask,
                 "z_persist_mask": false_mask,
             }
@@ -1774,16 +1975,19 @@ class CustomPPOTrainer:
 
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
+            oracle_resample = self._qphi_oracle_one_hot(self._current_opp_id[idx])
             sampled_z, _, _, _ = self.model.sample_strategy(
                 global_state.index_select(0, idx),
                 deterministic=False,
+                oracle=oracle_resample,
             )
             z_idx[idx] = sampled_z
             self._current_z = z_idx.clone()
             self._strategy_age[idx] = 0
             self._needs_strategy_sample[idx] = False
 
-        z_logits = self.model.strategy_logits(global_state)
+        oracle = self._qphi_oracle_one_hot(self._current_opp_id[:batch])
+        z_logits = self.model.strategy_logits(global_state, oracle=oracle)
         z_dist = Categorical(logits=z_logits)
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
@@ -1819,7 +2023,12 @@ class CustomPPOTrainer:
         self._strategy_age += 1
         if bool(done_t.any().item()):
             self._strategy_age[done_t] = 0
-            self._needs_strategy_sample[done_t] = not self.fixed_latent_strategy
+            # When forced/rotate mode is active, q_phi is never *sampled* at the next reset (z is
+            # overridden anyway), so leave _needs_strategy_sample False on those envs.
+            no_sample = self.fixed_latent_strategy or self.forced_z_mode in {"fixed", "rotate"}
+            self._needs_strategy_sample[done_t] = not no_sample
+            # Advance the per-env episode counter (used by forced_z_mode='rotate').
+            self._env_episode_idx[done_t] = self._env_episode_idx[done_t] + 1
 
     def _obs_rows_from_next(
         self,
@@ -2241,8 +2450,16 @@ class CustomPPOTrainer:
         """
         if not self.use_latent_strategy:
             raise RuntimeError("_z_for_bootstrap requires latent strategy mode.")
-        if self.fixed_latent_strategy:
+        if self.fixed_latent_strategy or self.forced_z_mode == "fixed":
             return torch.full_like(z_t, int(self.fixed_latent_strategy_id), dtype=torch.long)
+        if self.forced_z_mode == "rotate":
+            # Mirror _mark_strategy_step_done + the env-staggered rotate formula in _strategy_for_step.
+            device = self.device
+            done_t = torch.as_tensor(dones, dtype=torch.bool, device=device)
+            next_ep_idx = self._env_episode_idx + done_t.long()
+            n = int(z_t.shape[0])
+            env_arange = torch.arange(n, dtype=torch.long, device=device)
+            return ((env_arange + next_ep_idx[:n]) % int(self.latent_k)).long()
         batch = int(z_t.shape[0])
         device = self.device
         done_t = torch.as_tensor(dones, dtype=torch.bool, device=device)
@@ -2251,7 +2468,7 @@ class CustomPPOTrainer:
         needs_next = self._needs_strategy_sample.clone()
         if bool(done_t.any().item()):
             needs_next = needs_next.clone()
-            needs_next[done_t] = bool(not self.fixed_latent_strategy)
+            needs_next[done_t] = True
         resample_next = needs_next.clone()
         if self.latent_resample_every_n > 0:
             resample_next = resample_next | (age_next >= int(self.latent_resample_every_n))
@@ -2265,9 +2482,11 @@ class CustomPPOTrainer:
                 device=device,
             )
             gs_sub = gs.index_select(0, idx)
+            oracle_sub = self._qphi_oracle_one_hot(self._current_opp_id[idx])
             sampled_z, _, _, _ = self.model.sample_strategy(
                 gs_sub,
                 deterministic=bool(self.latent_bootstrap_z_deterministic),
+                oracle=oracle_sub,
             )
             z_next[idx] = sampled_z.long()
         return z_next
@@ -2405,6 +2624,10 @@ class CustomPPOTrainer:
                 dtype=torch.long,
                 device=self.device,
             )
+            # Cache for the next iteration's q_phi-oracle / CE-label lookup. On the first step after
+            # a hard reset this is -1 (unknown -> zero one-hot); from step 2 onward it reflects the
+            # opponent each env is currently playing.
+            self._current_opp_id = opp_row.detach().clone()
 
             add_items: dict[str, torch.Tensor] = dict(
                 obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=self.device),
@@ -2567,6 +2790,8 @@ class CustomPPOTrainer:
             "strategy_grad_norm": [],
             "strategy_resample_fraction": [],
             "strategy_kl": [],
+            "strategy_router_ce_loss": [],
+            "strategy_router_ce_frac_labeled": [],
         }
         stop_update = False
         target_kl = getattr(self.cfg, "target_kl", None)
@@ -2579,11 +2804,17 @@ class CustomPPOTrainer:
                     "mask": batch["obs_mask"],
                 }
                 z_idx = batch["z"] if self.use_latent_strategy else None
+                qphi_oracle_batch = (
+                    self._qphi_oracle_one_hot(batch["opponent_id"])
+                    if self.use_latent_strategy
+                    else None
+                )
                 values_norm, action_log_prob, entropy, aux = self.model.evaluate_actions(
                     obs_batch,
                     batch["global_state"],
                     batch["actions"],
                     z_idx=z_idx,
+                    qphi_oracle=qphi_oracle_batch,
                 )
                 if self.use_latent_strategy:
                     resample = batch["z_resampled"].bool()
@@ -2614,6 +2845,7 @@ class CustomPPOTrainer:
                             "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off)"
                         )
                     latent_loss = float(getattr(self.cfg, "latent_lam_p", 0.0)) * persist_loss + strategy_entropy_loss
+                    router_ce_loss_term = torch.zeros((), dtype=torch.float32, device=self.device)
                     if self.latent_kl_consecutive > 0.0:
                         v = batch["z_kl_prev_valid"].float()
                         log_p = F.log_softmax(batch["z_logits"], -1)
@@ -2626,10 +2858,51 @@ class CustomPPOTrainer:
                         stats["strategy_kl"].append(float(kl_m.detach().cpu().item()))
                     else:
                         stats["strategy_kl"].append(0.0)
+                    # When z is overridden (fixed or rotate), no PPO/persist gradients should flow to
+                    # q_phi: but supervised CE (below) and entropy regularization still can.
+                    if self.forced_z_mode in {"fixed", "rotate"}:
+                        strategy_entropy = strategy_entropy  # keep diagnostic value
+                        persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                        latent_loss = strategy_entropy_loss  # drop PPO/persist; entropy reg may still help
+                    # Supervised router CE (Stage 2 / C1 / C2): align q_phi with best-z labels per
+                    # opponent. Mask out rows with unknown opponent_id (-1) so non-scripted episodes
+                    # contribute nothing. Soft mode uses KL-style CE against a probability target;
+                    # hard mode uses standard CE with argmax label.
+                    if (
+                        self.router_ce_coef > 0.0
+                        and self._router_ce_soft is not None
+                        and self._router_ce_hard is not None
+                    ):
+                        opp_ids = batch["opponent_id"].long()
+                        valid = (opp_ids >= 0) & (opp_ids < 7)
+                        n_valid = int(valid.sum().item())
+                        if n_valid > 0:
+                            sel = opp_ids.clamp(min=0, max=6)
+                            logits = aux["strategy_logits"]
+                            log_softmax = F.log_softmax(logits, dim=-1)
+                            if self.router_ce_mode == "soft":
+                                tgt = self._router_ce_soft.index_select(0, sel)
+                                row_ce = -(tgt * log_softmax).sum(dim=-1)
+                            else:
+                                hard_labels = self._router_ce_hard.index_select(0, sel).clamp(min=0)
+                                row_ce = F.cross_entropy(logits, hard_labels, reduction="none")
+                            row_ce = row_ce * valid.float()
+                            ce_loss = row_ce.sum() / max(1, n_valid)
+                            router_ce_loss_term = float(self.router_ce_coef) * ce_loss
+                            latent_loss = latent_loss + router_ce_loss_term
+                            stats["strategy_router_ce_loss"].append(float(ce_loss.detach().cpu().item()))
+                        else:
+                            stats["strategy_router_ce_loss"].append(0.0)
+                        stats["strategy_router_ce_frac_labeled"].append(
+                            float(valid.float().mean().detach().cpu().item())
+                        )
+                    else:
+                        stats["strategy_router_ce_loss"].append(0.0)
+                        stats["strategy_router_ce_frac_labeled"].append(0.0)
                     if self.fixed_latent_strategy:
                         strategy_entropy = torch.zeros_like(entropy)
                         persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
-                        latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                        latent_loss = router_ce_loss_term
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)
@@ -2637,6 +2910,8 @@ class CustomPPOTrainer:
                     latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                     resample = torch.zeros_like(entropy, dtype=torch.bool)
                     stats["strategy_kl"].append(0.0)
+                    stats["strategy_router_ce_loss"].append(0.0)
+                    stats["strategy_router_ce_frac_labeled"].append(0.0)
 
                 advantages = batch["advantages"]
                 if advantages.numel() > 1:
@@ -2663,7 +2938,10 @@ class CustomPPOTrainer:
                         )
                         latent_loss = latent_loss + self.latent_strategy_ppo_coef * strategy_policy_loss
                         if self.latent_strategy_aux_return_head and self.latent_strategy_aux_return_coef > 0.0:
-                            pred_all = self.model.strategy_aux_return_predictions(batch["global_state"])
+                            pred_all = self.model.strategy_aux_return_predictions(
+                                batch["global_state"],
+                                oracle=qphi_oracle_batch,
+                            )
                             z_sel = batch["z"][resample].long().clamp(min=0, max=self.latent_k - 1)
                             pred_selected = pred_all[resample].gather(1, z_sel.reshape(-1, 1)).squeeze(1)
                             ret_target = self._normalize_strategy_returns(batch["returns"][resample])
@@ -2693,7 +2971,13 @@ class CustomPPOTrainer:
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 strategy_grad_norm = self._strategy_encoder_grad_norm()
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), float(self.cfg.max_grad_norm))
+                # Clip only trainable params: when actor/critic are frozen (Stage 2), their grads are
+                # None and modern clip_grad_norm_ handles that, but iterating fewer params is faster
+                # and matches the optimizer parameter set.
+                grad_norm = torch.nn.utils.clip_grad_norm_(
+                    [p for p in self.model.parameters() if p.requires_grad],
+                    float(self.cfg.max_grad_norm),
+                )
                 self.optimizer.step()
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
@@ -2812,6 +3096,10 @@ class CustomPPOTrainer:
                             f" MI_z_o={mi_z_o:.4f} MI_z_phase={mi_z_p:.4f} MI_z_outcome={mi_z_y:.4f}"
                             + (f" | {' ; '.join(opp_diag_bits)}" if opp_diag_bits else "")
                         )
+                    qphi_ce_val = float(row.get("strategy_router_ce_loss", 0.0) or 0.0)
+                    qphi_ce_frac = float(row.get("strategy_router_ce_frac_labeled", 0.0) or 0.0)
+                    ce_suffix = f" qphi_ce={qphi_ce_val:.3f}({qphi_ce_frac:.2f})" if self.router_ce_coef > 0.0 else ""
+                    forced_suffix = f" forced_z={self.forced_z_mode}" if self.forced_z_mode != "none" else ""
                     print(
                         "[PPO|diag] "
                         f"steps={int(row.get('timesteps', self.global_step))} "
@@ -2826,6 +3114,7 @@ class CustomPPOTrainer:
                         f"z_ratio={float(row.get('strategy_ratio_std', 0.0)):.3f} "
                         f"z_occ=[{','.join(z_occ_parts)}] "
                         f"z_wr=[{','.join(z_wr_parts)}]"
+                        f"{ce_suffix}{forced_suffix}"
                         f"{opp_suffix}"
                     )
                 if self.normalize_returns:
@@ -2886,8 +3175,32 @@ class CustomPPOTrainer:
         """Restore a checkpoint produced by :meth:`save`."""
         payload = _torch_load_checkpoint(path, map_location=self.device)
         _assert_compatible_global_state_dim(payload, path)
-        self.model.load_state_dict(_remap_legacy_strategy_aux_head_state_dict(payload["model_state_dict"]))
-        self.optimizer.load_state_dict(payload["optimizer_state_dict"])
+        state_dict = _remap_legacy_strategy_aux_head_state_dict(payload["model_state_dict"])
+        optimizer_loaded = True
+        try:
+            self.model.load_state_dict(state_dict)
+        except RuntimeError:
+            current = self.model.state_dict()
+            compatible = {
+                k: v
+                for k, v in state_dict.items()
+                if k in current and tuple(current[k].shape) == tuple(v.shape)
+            }
+            skipped = sorted(k for k in state_dict if k not in compatible)
+            if not skipped:
+                raise
+            missing, unexpected = self.model.load_state_dict(compatible, strict=False)
+            optimizer_loaded = False
+            print(
+                "[PPO] Partial checkpoint load: skipped incompatible q_phi/router keys "
+                f"({len(skipped)} skipped, {len(missing)} missing, {len(unexpected)} unexpected). "
+                "Optimizer state was reset."
+            )
+        if optimizer_loaded:
+            try:
+                self.optimizer.load_state_dict(payload["optimizer_state_dict"])
+            except ValueError:
+                print("[PPO] Optimizer state skipped because current trainable parameter groups differ.")
         self.global_step = int(payload.get("global_step", 0))
         self._updates_completed = int(payload.get("updates_completed", 0))
         self._return_norm_mean = float(payload.get("return_norm_mean", 0.0))

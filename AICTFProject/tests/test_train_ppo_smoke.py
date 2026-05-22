@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from plot.compare_reward_updates import COMPARISON_COLUMNS, compare_policy_updates, format_markdown_table
@@ -221,11 +222,25 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.0)
             self.assertAlmostEqual(cfg.latent_strategy_tau, 1.0)
             self.assertEqual(cfg.latent_resample_every_n, 0)
+            self.assertEqual(cfg.forced_z_mode, "none")
+            self.assertEqual(cfg.qphi_oracle_mode, "none")
+            self.assertAlmostEqual(cfg.router_ce_coef, 0.0)
             self.assertEqual(cfg.latent_vf_hidden, 128)
             self.assertEqual(cfg.reward_shaping_coef_end, 1.0)
             self.assertEqual(cfg.reward_shaping_decay_steps, 0)
             self.assertIsNone(cfg.env_win_team_reward, msg=preset)
             self.assertIsNone(cfg.env_dense_weight, msg=preset)
+
+    def test_slsr_router_preset_is_separate_from_plan_faithful(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "latent_slsr_router")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.mode, TrainMode.OPPONENT_POOL.value)
+        self.assertEqual(cfg.opponent_pool, ("OP3", "OP5", "OP6", "OP7"))
+        self.assertTrue(cfg.latent_strategy_aux_return_head)
+        self.assertEqual(cfg.forced_z_mode, "none")
+        self.assertEqual(cfg.qphi_oracle_mode, "none")
+        self.assertEqual(cfg.router_ce_mode, "hard")
+        self.assertAlmostEqual(cfg.router_ce_coef, 0.0)
 
     def test_wrmax_train_2m_preset(self) -> None:
         cfg = _apply_training_preset(PPOConfig(), "latent_op3_wrmax_train_2m")
@@ -574,6 +589,119 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             SharedActorCentralizedCritic.sample_strategy = original  # type: ignore[assignment]
             env.close()
+
+    def test_strategy_router_oracle_api_accepts_oracle_and_no_oracle(self) -> None:
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=700))
+        try:
+            obs_np = env.reset()
+            model = SharedActorCentralizedCritic(
+                env.observation_space,
+                env.action_space,
+                latent_k=4,
+                qphi_oracle_dim=7,
+            )
+            global_state = torch.as_tensor(env.state(), dtype=torch.float32)
+            oracle = F.one_hot(torch.tensor([2]), num_classes=7).float()
+            logits_no_oracle = model.strategy_logits(global_state)
+            logits_oracle = model.strategy_logits(global_state, oracle=oracle)
+            z, z_logp, z_entropy, z_logits = model.sample_strategy(global_state, oracle=oracle)
+            obs = {
+                "grid": torch.as_tensor(obs_np["grid"], dtype=torch.float32),
+                "vec": torch.as_tensor(obs_np["vec"], dtype=torch.float32),
+                "agent_mask": torch.as_tensor(obs_np["agent_mask"], dtype=torch.float32),
+                "mask": torch.as_tensor(obs_np["mask"], dtype=torch.float32),
+            }
+            actions = torch.as_tensor(env.action_space.sample(), dtype=torch.long).reshape(1, -1)
+            values, logp, entropy, aux = model.evaluate_actions(
+                obs,
+                global_state,
+                actions,
+                z_idx=z,
+                qphi_oracle=oracle,
+            )
+            self.assertEqual(tuple(logits_no_oracle.shape), (1, 4))
+            self.assertEqual(tuple(logits_oracle.shape), (1, 4))
+            self.assertEqual(tuple(z_logits.shape), (1, 4))
+            self.assertEqual(tuple(z.shape), (1,))
+            self.assertEqual(tuple(z_logp.shape), (1,))
+            self.assertEqual(tuple(z_entropy.shape), (1,))
+            self.assertEqual(tuple(values.shape), (1,))
+            self.assertEqual(tuple(logp.shape), (1,))
+            self.assertEqual(tuple(entropy.shape), (1,))
+            self.assertIn("strategy_logits", aux)
+        finally:
+            env.close()
+
+    def test_router_ce_backpropagates_into_qphi_only_when_frozen(self) -> None:
+        cfg = _smoke_ppo_config(
+            run_tag="unittest_router_ce_freeze_2v2",
+            checkpoint_dir=str(_WORKSPACE_TMP),
+        )
+        cfg.use_latent_strategy = True
+        cfg.qphi_oracle_mode = "one_hot"
+        cfg.freeze_actor_critic = True
+        cfg.latent_strategy_aux_return_head = False
+        env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=701))
+        try:
+            trainer = CustomPPOTrainer(
+                env,
+                cfg,
+                learning_rate=1e-4,
+                clip_range=0.2,
+                ent_coef=0.0,
+                n_epochs=1,
+                batch_size=1,
+                value_clip_range=0.2,
+            )
+            trainable = {name for name, p in trainer.model.named_parameters() if p.requires_grad}
+            self.assertTrue(trainable)
+            self.assertTrue(all(name.startswith("strategy_encoder.") for name in trainable))
+            global_state = torch.as_tensor(env.state(), dtype=torch.float32)
+            oracle = trainer._qphi_oracle_one_hot(torch.tensor([4], device=trainer.device))
+            logits = trainer.model.strategy_logits(global_state, oracle=oracle)
+            loss = F.cross_entropy(logits, torch.tensor([2]))
+            trainer.optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            qphi_grad = sum(
+                float(p.grad.abs().sum().item())
+                for name, p in trainer.model.named_parameters()
+                if name.startswith("strategy_encoder.") and p.grad is not None
+            )
+            actor_grad = sum(
+                float(p.grad.abs().sum().item())
+                for name, p in trainer.model.named_parameters()
+                if name.startswith(("actor_", "critic", "strategy_embedding")) and p.grad is not None
+            )
+            self.assertGreater(qphi_grad, 0.0)
+            self.assertEqual(actor_grad, 0.0)
+        finally:
+            env.close()
+
+    def test_c1_smoke_run_reaches_update_with_oracle_ce_and_freeze(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_c1_oracle_router_2v2"
+        labels_path = _WORKSPACE_TMP / "router_labels.json"
+        labels_path.write_text(
+            '{"k":4,"opponents":{"OP3":{"opponent_id":2,"hard_z":1,"soft":[0.0,1.0,0.0,0.0]}}}',
+            encoding="utf-8",
+        )
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.total_timesteps = 8
+        cfg.n_steps = 8
+        cfg.batch_size = 8
+        cfg.use_latent_strategy = True
+        cfg.qphi_oracle_mode = "one_hot"
+        cfg.freeze_actor_critic = True
+        cfg.router_ce_labels_path = str(labels_path)
+        cfg.router_ce_coef = 1.0
+        cfg.router_ce_mode = "hard"
+        try:
+            train_ppo(cfg)
+            self.assertTrue((_WORKSPACE_TMP / f"final_{tag}.zip").is_file())
+        finally:
+            if labels_path.exists():
+                labels_path.unlink()
+            _cleanup_training_outputs(tag)
 
     def test_checkpoint_preserves_strategy_return_normalizer(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
