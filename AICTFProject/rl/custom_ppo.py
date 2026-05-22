@@ -131,6 +131,8 @@ def _compose_training_reward_components(
         + out["reward_offense"]
         + float(dense_weight) * dense
     )
+    if "reward_per_z_shaping" in out:
+        raw = raw + out["reward_per_z_shaping"]
     if stalemate is not None:
         raw = raw + torch.where(
             stalemate.bool(),
@@ -938,6 +940,13 @@ class CustomPPOTrainer:
             raise ValueError(
                 f"forced_z_mode must be one of none/fixed/rotate, got {self.forced_z_mode!r}"
             )
+        self.use_per_z_shaping = self.use_latent_strategy and bool(getattr(cfg, "use_per_z_shaping", False))
+        self.per_z_shaping_coef = float(getattr(cfg, "per_z_shaping_coef", 0.1))
+        if self.use_per_z_shaping and self.forced_z_mode != "rotate":
+            raise ValueError(
+                "use_per_z_shaping is only allowed in the Stage-1B shaping ablation "
+                "(forced_z_mode='rotate'); it is not part of latent_a1_plan_faithful or latent_slsr_router."
+            )
         self.qphi_oracle_mode = _normalize_none_mode(getattr(cfg, "qphi_oracle_mode", "none"))
         if self.qphi_oracle_mode not in {"none", "one_hot"}:
             raise ValueError(
@@ -1445,6 +1454,8 @@ class CustomPPOTrainer:
             "learning_rate",
             "strategy_entropy",
             "strategy_entropy_frac",
+            "strategy_entropy_objective_code",
+            "strategy_lam_h_effective",
             "strategy_policy_loss",
             "strategy_approx_kl",
             "strategy_clip_fraction",
@@ -1454,8 +1465,16 @@ class CustomPPOTrainer:
             "strategy_grad_norm",
             "strategy_resample_count",
             "strategy_resample_fraction",
+            "strategy_router_ce_loss",
+            "strategy_router_ce_frac_labeled",
             "strategy_unique_count",
             "strategy_dominant",
+            "strategy_argmax_unique_count",
+            "strategy_argmax_dominant",
+            "strategy_argmax_max_occupancy",
+            "strategy_argmax_entropy_frac",
+            "strategy_qphi_confidence_mean",
+            "strategy_qphi_margin_mean",
             "strategy_switch_count",
             "strategy_switch_fraction",
             "strategy_wr_spread",
@@ -1469,8 +1488,10 @@ class CustomPPOTrainer:
             "curriculum_phase_win_rate",
         ]
         if self.use_latent_strategy:
+            fields.append("reward_per_z_shaping_mean")
             fields.append("strategy_kl")
             fields.extend(f"strategy_occupancy_{idx}" for idx in range(self.latent_k))
+            fields.extend(f"strategy_argmax_occupancy_{idx}" for idx in range(self.latent_k))
             for idx in range(self.latent_k):
                 fields.extend(
                     [
@@ -1490,6 +1511,7 @@ class CustomPPOTrainer:
                     ]
                 )
             fields.append("latent_mi_z_opponent_nats")
+            fields.append("latent_mi_argmax_z_opponent_nats")
             fields.append("latent_mi_z_phase_nats")
             fields.append("latent_mi_z_outcome_nats")
             fields.append("latent_mi_z_spread_bucket_nats")
@@ -1520,6 +1542,9 @@ class CustomPPOTrainer:
             for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
                 for z_idx in range(self.latent_k):
                     fields.append(f"strategy_occupancy_op{o_idx}_z{z_idx}")
+            for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
+                for z_idx in range(self.latent_k):
+                    fields.append(f"strategy_argmax_occupancy_op{o_idx}_z{z_idx}")
             for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
                 for z_idx in range(self.latent_k):
                     fields.extend(
@@ -1720,6 +1745,10 @@ class CustomPPOTrainer:
         row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
         row.update(stats)
         if self.use_latent_strategy:
+            vals = buffer.fields["reward_per_z_shaping"][: int(buffer.pos)].detach().float().reshape(-1)
+            shaping_mean = float(vals.mean().detach().cpu().item()) if vals.numel() > 0 else 0.0
+            row["reward_per_z_shaping_mean"] = shaping_mean
+            self.last_stats["reward_per_z_shaping_mean"] = shaping_mean
             entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
             row["strategy_entropy_frac"] = entropy / max(1e-6, math.log(max(2, int(self.latent_k))))
             z_win_rates: list[float] = []
@@ -2044,6 +2073,17 @@ class CustomPPOTrainer:
                 rows[key].append(np.asarray(source, dtype=np.float32))
         return {key: np.stack(values, axis=0) for key, values in rows.items()}
 
+    def _effective_latent_entropy_objective(self, progress_remaining: float) -> str:
+        h_goal = str(getattr(self.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
+        switch_frac = float(getattr(self.cfg, "latent_entropy_objective_switch_frac", 1.1) or 1.1)
+        if switch_frac <= 1.0:
+            train_frac = 1.0 - max(0.0, min(1.0, float(progress_remaining)))
+            if train_frac >= switch_frac:
+                h_goal = str(getattr(self.cfg, "latent_entropy_objective_after_switch", "none") or "none").lower()
+        if h_goal not in {"maximize", "minimize", "none"}:
+            return "maximize"
+        return h_goal
+
     def _latent_rollout_stats(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
         """Summarize strategy occupancy and switching for the latest rollout."""
         if not self.use_latent_strategy or "z" not in buffer.fields:
@@ -2070,6 +2110,30 @@ class CustomPPOTrainer:
         }
         for idx, value in enumerate(occupancy.detach().cpu().tolist()):
             out[f"strategy_occupancy_{idx}"] = float(value)
+        if "z_logits" in buffer.fields:
+            logits = buffer.fields["z_logits"][:length].reshape(-1, self.latent_k).float()
+            if logits.numel() > 0:
+                probs = torch.softmax(logits, dim=-1)
+                argmax_z = torch.argmax(probs, dim=-1).clamp(min=0, max=self.latent_k - 1)
+                arg_counts = torch.bincount(argmax_z, minlength=self.latent_k).float()
+                arg_occ = arg_counts / arg_counts.sum().clamp_min(1.0)
+                arg_entropy = -torch.sum(arg_occ * torch.log(arg_occ.clamp_min(1e-12)))
+                top2 = torch.topk(probs, k=min(2, self.latent_k), dim=-1).values
+                margin = top2[:, 0] - (top2[:, 1] if top2.shape[1] > 1 else 0.0)
+                out.update(
+                    {
+                        "strategy_argmax_unique_count": float((arg_counts > 0).sum().detach().cpu().item()),
+                        "strategy_argmax_dominant": float(torch.argmax(arg_counts).detach().cpu().item()),
+                        "strategy_argmax_max_occupancy": float(arg_occ.max().detach().cpu().item()),
+                        "strategy_argmax_entropy_frac": float(
+                            (arg_entropy / max(1e-6, math.log(max(2, int(self.latent_k))))).detach().cpu().item()
+                        ),
+                        "strategy_qphi_confidence_mean": float(probs.max(dim=-1).values.mean().detach().cpu().item()),
+                        "strategy_qphi_margin_mean": float(margin.mean().detach().cpu().item()),
+                    }
+                )
+                for idx, value in enumerate(arg_occ.detach().cpu().tolist()):
+                    out[f"strategy_argmax_occupancy_{idx}"] = float(value)
         return out
 
     def _latent_opponent_rollout_diag(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
@@ -2082,6 +2146,11 @@ class CustomPPOTrainer:
         z = buffer.fields["z"][:length].reshape(-1).long().cpu().numpy()
         K = int(self.latent_k)
         out: dict[str, float] = {}
+        argmax_z: Optional[np.ndarray] = None
+        if "z_logits" in buffer.fields:
+            logits = buffer.fields["z_logits"][:length].reshape(-1, K).detach().float().cpu().numpy()
+            if logits.size > 0:
+                argmax_z = np.argmax(logits, axis=-1).astype(np.int64)
 
         if "opponent_id" in buffer.fields:
             oid = buffer.fields["opponent_id"][:length].reshape(-1).long().cpu().numpy()
@@ -2104,8 +2173,37 @@ class CustomPPOTrainer:
                 occ = cnt / max(total, 1.0)
                 for k in range(K):
                     out[f"strategy_occupancy_op{o}_z{k}"] = float(occ[k])
+            if argmax_z is not None:
+                joint_arg = np.zeros((K, SCRIPTED_OPPONENT_MI_COUNT), dtype=np.float64)
+                for i in range(argmax_z.size):
+                    zi = int(argmax_z[i])
+                    oi = int(oid[i])
+                    if 0 <= zi < K and 0 <= oi < SCRIPTED_OPPONENT_MI_COUNT:
+                        joint_arg[zi, oi] += 1.0
+                out["latent_mi_argmax_z_opponent_nats"] = float(discrete_mi_plugin(joint_arg))
+                for o in range(SCRIPTED_OPPONENT_MI_COUNT):
+                    mask = oid == o
+                    if not np.any(mask):
+                        for k in range(K):
+                            out[f"strategy_argmax_occupancy_op{o}_z{k}"] = 0.0
+                        continue
+                    z_sub = np.clip(argmax_z[mask], 0, K - 1)
+                    cnt = np.bincount(z_sub, minlength=K).astype(np.float64)
+                    total = float(cnt.sum())
+                    occ = cnt / max(total, 1.0)
+                    for k in range(K):
+                        out[f"strategy_argmax_occupancy_op{o}_z{k}"] = float(occ[k])
+            else:
+                out["latent_mi_argmax_z_opponent_nats"] = 0.0
+                for o in range(SCRIPTED_OPPONENT_MI_COUNT):
+                    for k in range(K):
+                        out[f"strategy_argmax_occupancy_op{o}_z{k}"] = 0.0
         else:
             out["latent_mi_z_opponent_nats"] = 0.0
+            out["latent_mi_argmax_z_opponent_nats"] = 0.0
+            for o in range(SCRIPTED_OPPONENT_MI_COUNT):
+                for k in range(K):
+                    out[f"strategy_argmax_occupancy_op{o}_z{k}"] = 0.0
 
         pid_flat: Optional[np.ndarray] = None
         if "phase_id" in buffer.fields:
@@ -2426,6 +2524,7 @@ class CustomPPOTrainer:
             buffer.register_field("z_persist_mask", dtype=torch.bool)
             buffer.register_field("phase_id", dtype=torch.long)
             buffer.register_field("outcome_id", dtype=torch.long)
+            buffer.register_field("reward_per_z_shaping")
             buffer.register_field("behavior_telemetry", (N_TELEMETRY,))
             buffer.register_field("spread_bucket_id", dtype=torch.long)
             buffer.register_field("role_bucket_id", dtype=torch.long)
@@ -2603,6 +2702,30 @@ class CustomPPOTrainer:
                     "reward_total",
                 )
             }
+            if self.use_per_z_shaping and beh_t is not None and z_t is not None:
+                n_attack = beh_t[:, 1]
+                n_defend = beh_t[:, 2]
+                escort_cnt = beh_t[:, 4]
+                n_intercept = beh_t[:, 7]
+                Nb = float(self.env.core.Nb)
+
+                z_mod = z_t % 4
+                r_offense = n_attack / Nb
+                r_defense = n_defend / Nb
+                r_split = torch.minimum(n_attack, n_defend) / (Nb / 2.0)
+                r_support = (escort_cnt + n_intercept) / Nb
+
+                shaping = torch.zeros(z_t.shape[0], dtype=torch.float32, device=self.device)
+                shaping = torch.where(z_mod == 0, r_offense, shaping)
+                shaping = torch.where(z_mod == 1, r_defense, shaping)
+                shaping = torch.where(z_mod == 2, r_split, shaping)
+                shaping = torch.where(z_mod == 3, r_support, shaping)
+
+                reward_component["reward_per_z_shaping"] = self.per_z_shaping_coef * shaping
+            else:
+                reward_component["reward_per_z_shaping"] = torch.zeros(
+                    int(self.env.num_envs), dtype=torch.float32, device=self.device
+                )
             shaping_coef = float(self._reward_shaping_coef())
             stalemate = torch.as_tensor(
                 [bool(info.get("stalemate_truncated", False)) for info in infos],
@@ -2679,6 +2802,7 @@ class CustomPPOTrainer:
                     pressure_bucket_id=pb,
                     attack_defense_ratio_bucket_id=adb,
                     blue_ahead=blue_ahead_t,
+                    reward_per_z_shaping=reward_component["reward_per_z_shaping"],
                 )
                 if self.latent_kl_consecutive > 0.0 and self._z_kl_first_in_ep is not None:
                     z_logits_cur = strategy_aux["z_logits"]
@@ -2771,6 +2895,8 @@ class CustomPPOTrainer:
         latent_lam_h_start = max(0.0, float(getattr(self.cfg, "latent_lam_h", 0.0) or 0.0))
         latent_lam_h_end = min(latent_lam_h_start, 0.001)
         latent_lam_h = latent_lam_h_end + (latent_lam_h_start - latent_lam_h_end) * progress_remaining
+        h_goal_effective = self._effective_latent_entropy_objective(progress_remaining)
+        h_goal_code = {"none": 0.0, "maximize": 1.0, "minimize": -1.0}.get(h_goal_effective, 1.0)
         self._update_strategy_return_stats(buffer)
 
         stats: dict[str, list[float]] = {
@@ -2781,6 +2907,8 @@ class CustomPPOTrainer:
             "clip_fraction": [],
             "grad_norm": [],
             "strategy_entropy": [],
+            "strategy_entropy_objective_code": [],
+            "strategy_lam_h_effective": [],
             "strategy_policy_loss": [],
             "strategy_approx_kl": [],
             "strategy_clip_fraction": [],
@@ -2828,7 +2956,7 @@ class CustomPPOTrainer:
                         h_mean = strategy_entropy[resample].mean()
                     else:
                         h_mean = torch.zeros((), dtype=torch.float32, device=self.device)
-                    h_goal = str(getattr(self.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
+                    h_goal = h_goal_effective
                     if h_goal == "none" or latent_lam_h <= 0.0:
                         strategy_entropy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                     elif h_goal == "minimize":
@@ -2875,6 +3003,9 @@ class CustomPPOTrainer:
                     ):
                         opp_ids = batch["opponent_id"].long()
                         valid = (opp_ids >= 0) & (opp_ids < 7)
+                        if bool(valid.any().item()):
+                            label_ids = opp_ids.clamp(min=0, max=6)
+                            valid = valid & (self._router_ce_hard.index_select(0, label_ids) >= 0)
                         n_valid = int(valid.sum().item())
                         if n_valid > 0:
                             sel = opp_ids.clamp(min=0, max=6)
@@ -2988,6 +3119,8 @@ class CustomPPOTrainer:
                 stats["clip_fraction"].append(float(ppo_stats["clip_fraction"].detach().cpu().item()))
                 stats["grad_norm"].append(float(torch.as_tensor(grad_norm).detach().cpu().item()))
                 stats["strategy_entropy"].append(float(strategy_entropy.mean().detach().cpu().item()))
+                stats["strategy_entropy_objective_code"].append(float(h_goal_code))
+                stats["strategy_lam_h_effective"].append(float(latent_lam_h))
                 stats["strategy_policy_loss"].append(float(strategy_policy_loss.detach().cpu().item()))
                 stats["strategy_approx_kl"].append(float(strategy_ppo_stats["approx_kl"].detach().cpu().item()))
                 stats["strategy_clip_fraction"].append(
@@ -3067,18 +3200,22 @@ class CustomPPOTrainer:
                 if row:
                     z_wr_parts: list[str] = []
                     z_occ_parts: list[str] = []
+                    z_arg_parts: list[str] = []
                     if self.use_latent_strategy:
                         for i in range(self.latent_k):
                             wr = row.get(f"episode_z_{i}_win_rate", "")
                             occ = row.get(f"strategy_occupancy_{i}", "")
+                            arg_occ = row.get(f"strategy_argmax_occupancy_{i}", "")
                             z_wr_parts.append("-" if wr == "" else f"{float(wr):.3f}")
                             z_occ_parts.append("-" if occ == "" else f"{float(occ):.3f}")
+                            z_arg_parts.append("-" if arg_occ == "" else f"{float(arg_occ):.3f}")
                     z_entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
                     z_entropy_frac = float(row.get("strategy_entropy_frac", 0.0) or 0.0)
                     z_wr_spread = float(row.get("strategy_wr_spread", 0.0) or 0.0)
                     opp_suffix = ""
                     if self.use_latent_strategy:
                         mi_z_o = float(row.get("latent_mi_z_opponent_nats", 0.0) or 0.0)
+                        mi_arg_o = float(row.get("latent_mi_argmax_z_opponent_nats", 0.0) or 0.0)
                         mi_z_p = float(row.get("latent_mi_z_phase_nats", 0.0) or 0.0)
                         mi_z_y = float(row.get("latent_mi_z_outcome_nats", 0.0) or 0.0)
                         opp_diag_bits: list[str] = []
@@ -3086,14 +3223,20 @@ class CustomPPOTrainer:
                             occ_o = [
                                 float(row.get(f"strategy_occupancy_op{o}_z{k}", 0.0) or 0.0) for k in range(self.latent_k)
                             ]
+                            arg_o = [
+                                float(row.get(f"strategy_argmax_occupancy_op{o}_z{k}", 0.0) or 0.0)
+                                for k in range(self.latent_k)
+                            ]
                             wr_o = [row.get(f"episode_opp{o}_z{k}_win_rate", "") for k in range(self.latent_k)]
-                            if sum(occ_o) < 1e-9 and all(w == "" for w in wr_o):
+                            if sum(occ_o) < 1e-9 and sum(arg_o) < 1e-9 and all(w == "" for w in wr_o):
                                 continue
                             occ_s = ",".join(f"{x:.2f}" for x in occ_o)
+                            arg_s = ",".join(f"{x:.2f}" for x in arg_o)
                             wr_s = ",".join("-" if w == "" else f"{float(w):.2f}" for w in wr_o)
-                            opp_diag_bits.append(f"o{o}:z_occ=[{occ_s}] z_wr=[{wr_s}]")
+                            opp_diag_bits.append(f"o{o}:z_occ=[{occ_s}] z_arg=[{arg_s}] z_wr=[{wr_s}]")
                         opp_suffix = (
-                            f" MI_z_o={mi_z_o:.4f} MI_z_phase={mi_z_p:.4f} MI_z_outcome={mi_z_y:.4f}"
+                            f" MI_z_o={mi_z_o:.4f} MI_arg_o={mi_arg_o:.4f} "
+                            f"MI_z_phase={mi_z_p:.4f} MI_z_outcome={mi_z_y:.4f}"
                             + (f" | {' ; '.join(opp_diag_bits)}" if opp_diag_bits else "")
                         )
                     qphi_ce_val = float(row.get("strategy_router_ce_loss", 0.0) or 0.0)
@@ -3113,6 +3256,9 @@ class CustomPPOTrainer:
                         f"z_pi={float(row.get('strategy_policy_loss', 0.0)):.3f} "
                         f"z_ratio={float(row.get('strategy_ratio_std', 0.0)):.3f} "
                         f"z_occ=[{','.join(z_occ_parts)}] "
+                        f"z_arg=[{','.join(z_arg_parts)}] "
+                        f"arg_conf={float(row.get('strategy_qphi_confidence_mean', 0.0) or 0.0):.3f} "
+                        f"arg_margin={float(row.get('strategy_qphi_margin_mean', 0.0) or 0.0):.3f} "
                         f"z_wr=[{','.join(z_wr_parts)}]"
                         f"{ce_suffix}{forced_suffix}"
                         f"{opp_suffix}"

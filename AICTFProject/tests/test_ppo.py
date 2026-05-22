@@ -181,5 +181,34 @@ class PPOCoreTests(unittest.TestCase):
         self.assertAlmostEqual(float(out["reward_total"][0]), float(expected), places=6)
 
 
+    def test_training_reward_composition_adds_per_z_shaping(self) -> None:
+        reward_component = {
+            "reward_terminal": torch.tensor([1.0]),
+            "reward_offense": torch.tensor([0.5]),
+            "reward_pbrs": torch.tensor([2.0]),
+            "reward_team": torch.tensor([1.0]),
+            "reward_sparse": torch.tensor([0.5]),
+            "reward_failure": torch.tensor([-0.25]),
+            "reward_total": torch.tensor([99.0]),
+            "reward_per_z_shaping": torch.tensor([0.15]),
+        }
+
+        out = _compose_training_reward_components(
+            reward_component,
+            dense_weight=0.25,
+            reward_scale=2.0,
+            reward_clip=1.0,
+            shaping_coef=0.5,
+            stalemate=torch.tensor([True]),
+            stalemate_penalty=-0.08,
+        )
+
+        raw = 1.0 + (0.5 * 0.5) - 0.25 + 0.5 + 0.25 * ((2.0 * 0.5) + (1.0 * 0.5)) - 0.08 + 0.15
+        expected = torch.tanh(torch.tensor(raw / 2.0))
+        self.assertAlmostEqual(float(out["reward_offense"][0]), 0.25, places=6)
+        self.assertAlmostEqual(float(out["reward_per_z_shaping"][0]), 0.15, places=6)
+        self.assertAlmostEqual(float(out["reward_total"][0]), float(expected), places=6)
+
+
 if __name__ == "__main__":
     unittest.main()

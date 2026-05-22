@@ -402,6 +402,10 @@ class PPOConfig:
     # minimized loss and sharpens q_phi (recommended when telemetry shows strategy_entropy≈ln K with no persistence grad).
     # ``none`` removes the H term (strategy_encoder receives no gradient from λ_H when λ_p/KL are also inactive).
     latent_entropy_objective: Literal["maximize", "minimize", "none"] = "maximize"
+    # Optional faithful router-probe schedule: keep the plan entropy bonus early, then release it.
+    # Values > 1 disable the switch.
+    latent_entropy_objective_switch_frac: float = 1.1
+    latent_entropy_objective_after_switch: Literal["maximize", "minimize", "none"] = "none"
     latent_lam_h: float = 0.005
     latent_lam_p: float = 0.02
     # A1: clipped PPO/REINFORCE-style update for sampled z. Kept low because z operates at episode cadence.
@@ -431,6 +435,8 @@ class PPOConfig:
     # ``freeze_actor_critic`` freezes actor + z-embedding + critic so only q_phi (and its A2 head)
     # train; pair with ``router_ce_*`` to perform supervised router alignment on best-z labels.
     forced_z_mode: Literal["none", "fixed", "rotate"] = "none"
+    use_per_z_shaping: bool = False
+    per_z_shaping_coef: float = 0.1
     qphi_oracle_mode: Literal["none", "one_hot"] = "none"
     qphi_oracle_dim: int = 0
     freeze_actor_critic: bool = False
@@ -681,6 +687,8 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.n_epochs = 8
         cfg.ent_coef = 0.0015
         cfg.latent_entropy_objective = "maximize"
+        cfg.latent_entropy_objective_switch_frac = 1.1
+        cfg.latent_entropy_objective_after_switch = "none"
         cfg.latent_lam_h = 0.005
         cfg.latent_lam_p = 0.02
         cfg.latent_strategy_ppo_coef = 0.30
@@ -690,7 +698,11 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_resample_every_n = 0
         cfg.latent_resample_on_flag = False
         cfg.latent_kl_consecutive = 0.0
+        cfg.fixed_latent_strategy = False
+        cfg.fixed_latent_strategy_id = 0
         cfg.forced_z_mode = "none"
+        cfg.use_per_z_shaping = False
+        cfg.per_z_shaping_coef = 0.0
         cfg.qphi_oracle_mode = "none"
         cfg.qphi_oracle_dim = 0
         cfg.freeze_actor_critic = False
@@ -717,6 +729,20 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.load_path = None
         cfg.run_tag = "latent_a1_plan_faithful_1m_2v2"
         return cfg
+    if key in {"latent_faithful_router_probe", "latent_router_probe_faithful"}:
+        # Reward-only router probe: plan-faithful latent lane plus Option-B sparse q_phi samples,
+        # a diagnostic opponent pool, and an entropy release schedule. No oracle, CE, A2, or z shaping.
+        cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP3", "OP5", "OP6", "OP7")
+        cfg.latent_resample_every_n = 20
+        cfg.latent_entropy_objective = "maximize"
+        cfg.latent_entropy_objective_switch_frac = 0.60
+        cfg.latent_entropy_objective_after_switch = "none"
+        cfg.latent_lam_p = 0.05
+        cfg.run_tag = "latent_faithful_router_probe_1m_2v2"
+        return cfg
     if key in {"latent_slsr_router", "slsr_router"}:
         cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
         cfg.mode = TrainMode.OPPONENT_POOL.value
@@ -730,6 +756,8 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_strategy_aux_return_coef = 1.0
         cfg.latent_strategy_tau = 0.7
         cfg.forced_z_mode = "none"
+        cfg.use_per_z_shaping = False
+        cfg.per_z_shaping_coef = 0.0
         cfg.qphi_oracle_mode = "none"
         cfg.qphi_oracle_dim = 0
         cfg.freeze_actor_critic = False
@@ -738,10 +766,47 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.router_ce_mode = "hard"
         cfg.run_tag = "latent_slsr_router_1m_2v2"
         return cfg
+    if key in {"latent_c1_router_ce", "c1_router_ce"}:
+        # C1: prove q_phi can learn fixed-z evidence. Actor/critic frozen, no oracle,
+        # no A2 aux head, no entropy/persistence/strategy-PPO shaping.
+        cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP3", "OP5", "OP6", "OP7")
+        cfg.freeze_actor_critic = True
+        cfg.qphi_oracle_mode = "none"
+        cfg.qphi_oracle_dim = 0
+        cfg.forced_z_mode = "none"
+        cfg.use_per_z_shaping = False
+        cfg.per_z_shaping_coef = 0.0
+        cfg.latent_strategy_aux_return_head = False
+        cfg.latent_strategy_aux_return_coef = 0.0
+        cfg.latent_strategy_tau = 1.0
+        cfg.latent_entropy_objective = "none"
+        cfg.latent_entropy_objective_switch_frac = 1.1
+        cfg.latent_entropy_objective_after_switch = "none"
+        cfg.latent_lam_h = 0.0
+        cfg.latent_lam_p = 0.0
+        cfg.latent_strategy_ppo_coef = 0.0
+        cfg.latent_resample_every_n = 0
+        cfg.latent_resample_on_flag = False
+        cfg.latent_kl_consecutive = 0.0
+        cfg.router_ce_labels_path = None
+        cfg.router_ce_coef = 1.0
+        cfg.router_ce_mode = "soft"
+        cfg.run_tag = "latent_c1_router_ce_50k_4v4"
+        return cfg
     if key in {"latent_op3_wrmax_train_2m", "latent_wrmax_op3_train_2m"}:
         cfg = _apply_training_preset(cfg, "latent_op3_wrmax_1m")
         cfg.total_timesteps = 2_000_000
         cfg.run_tag = "latent_op3_wrmax_train_2m_2v2"
+        return cfg
+    if key in {"latent_stage1b_shaping", "latent_op3_stage1b_shaping", "stage1b_shaping"}:
+        cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
+        cfg.forced_z_mode = "rotate"
+        cfg.use_per_z_shaping = True
+        cfg.per_z_shaping_coef = 0.1
+        cfg.run_tag = "latent_stage1b_shaping_1m_2v2"
         return cfg
     raise ValueError(
         f"Unknown preset {preset!r}. Supported presets: "
@@ -755,7 +820,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'latent_op3_wrmax_1m', 'latent_wrmax_op3_1m', "
         "'latent_op3_wrmax_2m', 'latent_wrmax_op3_2m' (aliases for wrmax 1M), "
         "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m', "
-        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful', 'latent_slsr_router'."
+        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful', "
+        "'latent_faithful_router_probe', 'latent_slsr_router', 'latent_c1_router_ce', "
+        "'latent_stage1b_shaping'."
     )
 
 
@@ -822,6 +889,19 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
                 "latent_resample_every_n=1 is disallowed (do not resample z every decision step). "
                 "Use 0 (sample at episode start) or N>=2 (sparse refresh)."
             )
+        cfg.latent_resample_every_n = res_n
+        cfg.latent_entropy_objective = str(getattr(cfg, "latent_entropy_objective", "maximize") or "maximize").lower()  # type: ignore[assignment]
+        if cfg.latent_entropy_objective not in {"maximize", "minimize", "none"}:
+            raise ValueError("latent_entropy_objective must be one of: maximize, minimize, none.")
+        cfg.latent_entropy_objective_after_switch = str(
+            getattr(cfg, "latent_entropy_objective_after_switch", "none") or "none"
+        ).lower()  # type: ignore[assignment]
+        if cfg.latent_entropy_objective_after_switch not in {"maximize", "minimize", "none"}:
+            raise ValueError("latent_entropy_objective_after_switch must be one of: maximize, minimize, none.")
+        cfg.latent_entropy_objective_switch_frac = max(
+            0.0,
+            float(getattr(cfg, "latent_entropy_objective_switch_frac", 1.1) or 0.0),
+        )
         forced_z = str(getattr(cfg, "forced_z_mode", "none") or "none").strip().lower()
         cfg.forced_z_mode = "none" if forced_z in {"", "off", "none"} else forced_z
         if cfg.forced_z_mode not in {"none", "fixed", "rotate"}:
@@ -832,6 +912,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             raise ValueError("qphi_oracle_mode must be one of: none, one_hot.")
         if cfg.qphi_oracle_mode == "one_hot" and int(getattr(cfg, "qphi_oracle_dim", 0) or 0) <= 0:
             cfg.qphi_oracle_dim = 7
+        if bool(getattr(cfg, "use_per_z_shaping", False)) and cfg.forced_z_mode != "rotate":
+            raise ValueError(
+                "use_per_z_shaping is only allowed in the Stage-1B shaping ablation "
+                "(forced_z_mode='rotate'); it is not part of latent_a1_plan_faithful or latent_slsr_router."
+            )
     elif bool(getattr(cfg, "fixed_latent_strategy", False)):
         raise ValueError("fixed_latent_strategy requires use_latent_strategy=True.")
 
@@ -903,12 +988,15 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
         fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
         h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
+        h_switch_frac = float(getattr(cfg, "latent_entropy_objective_switch_frac", 1.1) or 1.1)
+        h_after = getattr(cfg, "latent_entropy_objective_after_switch", "none") or "none"
+        h_schedule = f"->{h_after}@{h_switch_frac:.2f}" if h_switch_frac <= 1.0 else ""
         aux_head = bool(getattr(cfg, "latent_strategy_aux_return_head", False))
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
             f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f} "
-            f"(H:{h_obj}), "
+            f"(H:{h_obj}{h_schedule}), "
             f"lambda_KL={lam_kl:.4f}, strategy_ppo_coef={float(cfg.latent_strategy_ppo_coef):.3f}, "
             f"aux_return_head={aux_head}, aux_return_coef={float(cfg.latent_strategy_aux_return_coef):.3f}, "
             f"tau={float(cfg.latent_strategy_tau):.3f}, "
@@ -929,6 +1017,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             print(
                 "[PPO] Staged Stage-1 forced-z: rotating z = (env_idx + episode_idx) % K per episode "
                 f"(K={int(cfg.latent_k)}); q_phi is bypassed for action selection."
+            )
+        if bool(getattr(cfg, "use_per_z_shaping", False)):
+            print(
+                "[PPO] Stage-1B shaping ablation: per-z shaping enabled "
+                f"(coef={float(getattr(cfg, 'per_z_shaping_coef', 0.0)):.3f}); not plan-faithful."
             )
         qphi_oracle_raw = str(getattr(cfg, "qphi_oracle_mode", "none") or "none").lower()
         qphi_oracle_mode = "none" if qphi_oracle_raw in {"", "off", "none"} else qphi_oracle_raw
@@ -1385,6 +1478,17 @@ if __name__ == "__main__":
             ),
         )
         parser.add_argument(
+            "--use-per-z-shaping",
+            action="store_true",
+            help="Enable explicit but lightweight per-z specialization shaping for forced-z stage 1B.",
+        )
+        parser.add_argument(
+            "--per-z-shaping-coef",
+            type=float,
+            default=None,
+            help="Coefficient scaling the per-z specialization shaping (default: 0.1).",
+        )
+        parser.add_argument(
             "--qphi-oracle",
             choices=("none", "off", "one_hot"),
             default=None,
@@ -1442,6 +1546,11 @@ if __name__ == "__main__":
             help="Enable A2 auxiliary per-z return regression on the shared q_phi trunk (sampled z only; not Q-learning).",
         )
         parser.add_argument(
+            "--no-latent-strategy-aux-return-head",
+            action="store_true",
+            help="Disable the A2 auxiliary per-z return regression head even if the selected preset enables it.",
+        )
+        parser.add_argument(
             "--latent-strategy-q-head",
             action="store_true",
             help=argparse.SUPPRESS,
@@ -1470,6 +1579,19 @@ if __name__ == "__main__":
             choices=("maximize", "minimize", "none"),
             default=None,
             help="How λ_H shapes H(q_phi): maximize=paper bonus on entropy; minimize=penalty (sharper z); none=off.",
+        )
+        parser.add_argument(
+            "--latent-entropy-objective-switch-frac",
+            type=float,
+            default=None,
+            help="Training fraction [0,1] where q_phi entropy objective switches; >1 disables the switch.",
+        )
+        parser.add_argument(
+            "--latent-entropy-objective-after-switch",
+            type=str,
+            choices=("maximize", "minimize", "none"),
+            default=None,
+            help="q_phi entropy objective after --latent-entropy-objective-switch-frac.",
         )
         parser.add_argument(
             "--latent-resample-on-flag",
@@ -1665,6 +1787,10 @@ if __name__ == "__main__":
         if args.forced_z_mode is not None:
             forced_z_mode = str(args.forced_z_mode or "none").strip().lower()
             cfg.forced_z_mode = "none" if forced_z_mode in {"", "off", "none"} else forced_z_mode
+        if args.use_per_z_shaping:
+            cfg.use_per_z_shaping = True
+        if args.per_z_shaping_coef is not None:
+            cfg.per_z_shaping_coef = float(args.per_z_shaping_coef)
         if args.qphi_oracle is not None:
             qphi_oracle = str(args.qphi_oracle or "none").strip().lower()
             cfg.qphi_oracle_mode = "none" if qphi_oracle in {"", "off", "none"} else qphi_oracle
@@ -1686,6 +1812,9 @@ if __name__ == "__main__":
             cfg.latent_strategy_ppo_coef = max(0.0, float(args.latent_strategy_ppo_coef))
         if args.latent_strategy_aux_return_head or bool(getattr(args, "latent_strategy_q_head", False)):
             cfg.latent_strategy_aux_return_head = True
+        if args.no_latent_strategy_aux_return_head:
+            cfg.latent_strategy_aux_return_head = False
+            cfg.latent_strategy_aux_return_coef = 0.0
         aux_coef = getattr(args, "latent_strategy_aux_return_coef", None)
         if aux_coef is None and getattr(args, "latent_strategy_q_coef", None) is not None:
             aux_coef = getattr(args, "latent_strategy_q_coef", None)
@@ -1695,6 +1824,10 @@ if __name__ == "__main__":
             cfg.latent_strategy_tau = max(1e-3, float(args.latent_strategy_tau))
         if args.latent_entropy_objective is not None:
             cfg.latent_entropy_objective = args.latent_entropy_objective  # type: ignore[assignment]
+        if args.latent_entropy_objective_switch_frac is not None:
+            cfg.latent_entropy_objective_switch_frac = float(args.latent_entropy_objective_switch_frac)
+        if args.latent_entropy_objective_after_switch is not None:
+            cfg.latent_entropy_objective_after_switch = args.latent_entropy_objective_after_switch  # type: ignore[assignment]
         if args.latent_resample_on_flag:
             cfg.latent_resample_on_flag = True
         if args.latent_kl_consecutive is not None:

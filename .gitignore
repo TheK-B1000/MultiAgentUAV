@@ -31,6 +31,9 @@ AICTFProject/checkpoints_sb3/test_runs/
 # Training run artifacts (rotated logs + diagnostic CSVs are run outputs, not source)
 AICTFProject/logs/*.log
 AICTFProject/logs/diagnostics/
+AICTFProject/csv/eval_*.csv
+AICTFProject/csv/archive_pre_slsr/
+AICTFProject/test_out.txt
 
 # Builds
 dist/

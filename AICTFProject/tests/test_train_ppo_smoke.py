@@ -217,12 +217,16 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIsNone(cfg.load_path, msg=preset)
             self.assertFalse(cfg.latent_strategy_aux_return_head)
             self.assertEqual(cfg.latent_entropy_objective, "maximize")
+            self.assertGreater(cfg.latent_entropy_objective_switch_frac, 1.0)
+            self.assertEqual(cfg.latent_entropy_objective_after_switch, "none")
             self.assertAlmostEqual(cfg.latent_lam_h, 0.005)
             self.assertAlmostEqual(cfg.latent_lam_p, 0.02)
             self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.0)
             self.assertAlmostEqual(cfg.latent_strategy_tau, 1.0)
             self.assertEqual(cfg.latent_resample_every_n, 0)
+            self.assertFalse(cfg.fixed_latent_strategy)
             self.assertEqual(cfg.forced_z_mode, "none")
+            self.assertFalse(cfg.use_per_z_shaping)
             self.assertEqual(cfg.qphi_oracle_mode, "none")
             self.assertAlmostEqual(cfg.router_ce_coef, 0.0)
             self.assertEqual(cfg.latent_vf_hidden, 128)
@@ -231,6 +235,45 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIsNone(cfg.env_win_team_reward, msg=preset)
             self.assertIsNone(cfg.env_dense_weight, msg=preset)
 
+    def test_plan_faithful_resets_staged_rescue_knobs(self) -> None:
+        cfg = PPOConfig()
+        cfg.fixed_latent_strategy = True
+        cfg.forced_z_mode = "rotate"
+        cfg.use_per_z_shaping = True
+        cfg.qphi_oracle_mode = "one_hot"
+        cfg.qphi_oracle_dim = 7
+        cfg.freeze_actor_critic = True
+        cfg.router_ce_labels_path = "labels.json"
+        cfg.router_ce_coef = 1.0
+
+        cfg = _apply_training_preset(cfg, "latent_a1_plan_faithful")
+
+        self.assertFalse(cfg.fixed_latent_strategy)
+        self.assertEqual(cfg.forced_z_mode, "none")
+        self.assertFalse(cfg.use_per_z_shaping)
+        self.assertEqual(cfg.qphi_oracle_mode, "none")
+        self.assertEqual(cfg.qphi_oracle_dim, 0)
+        self.assertFalse(cfg.freeze_actor_critic)
+        self.assertIsNone(cfg.router_ce_labels_path)
+        self.assertAlmostEqual(cfg.router_ce_coef, 0.0)
+        self.assertGreater(cfg.latent_entropy_objective_switch_frac, 1.0)
+        self.assertEqual(cfg.latent_entropy_objective_after_switch, "none")
+
+    def test_faithful_router_probe_preset_keeps_reward_only_lane(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "latent_faithful_router_probe")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.mode, TrainMode.OPPONENT_POOL.value)
+        self.assertEqual(cfg.opponent_pool, ("OP3", "OP5", "OP6", "OP7"))
+        self.assertEqual(cfg.latent_resample_every_n, 20)
+        self.assertEqual(cfg.latent_entropy_objective, "maximize")
+        self.assertAlmostEqual(cfg.latent_entropy_objective_switch_frac, 0.60)
+        self.assertEqual(cfg.latent_entropy_objective_after_switch, "none")
+        self.assertFalse(cfg.latent_strategy_aux_return_head)
+        self.assertEqual(cfg.forced_z_mode, "none")
+        self.assertFalse(cfg.use_per_z_shaping)
+        self.assertEqual(cfg.qphi_oracle_mode, "none")
+        self.assertAlmostEqual(cfg.router_ce_coef, 0.0)
+
     def test_slsr_router_preset_is_separate_from_plan_faithful(self) -> None:
         cfg = _apply_training_preset(PPOConfig(), "latent_slsr_router")
         self.assertTrue(cfg.use_latent_strategy)
@@ -238,9 +281,23 @@ class TrainPpoSmokeTests(unittest.TestCase):
         self.assertEqual(cfg.opponent_pool, ("OP3", "OP5", "OP6", "OP7"))
         self.assertTrue(cfg.latent_strategy_aux_return_head)
         self.assertEqual(cfg.forced_z_mode, "none")
+        self.assertFalse(cfg.use_per_z_shaping)
         self.assertEqual(cfg.qphi_oracle_mode, "none")
         self.assertEqual(cfg.router_ce_mode, "hard")
         self.assertAlmostEqual(cfg.router_ce_coef, 0.0)
+
+    def test_per_z_shaping_is_stage1b_only(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_per_z_shaping_guard_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.use_latent_strategy = True
+        cfg.forced_z_mode = "none"
+        cfg.use_per_z_shaping = True
+        try:
+            with self.assertRaisesRegex(ValueError, "Stage-1B shaping ablation"):
+                train_ppo(cfg)
+        finally:
+            _cleanup_training_outputs(tag)
 
     def test_wrmax_train_2m_preset(self) -> None:
         cfg = _apply_training_preset(PPOConfig(), "latent_op3_wrmax_train_2m")
@@ -374,6 +431,34 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("strategy_occupancy_0", stats)
             occupancy = [float(stats.get(f"strategy_occupancy_{i}", 0.0)) for i in range(cfg.latent_k)]
             self.assertAlmostEqual(sum(occupancy), 1.0, places=5)
+        finally:
+            _cleanup_training_outputs(tag)
+
+    def test_train_ppo_smoke_latent_stage1b_shaping(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_smoke_stage1b_shaping_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.use_latent_strategy = True
+        cfg.forced_z_mode = "rotate"
+        cfg.use_per_z_shaping = True
+        cfg.per_z_shaping_coef = 0.1
+        cfg.n_steps = 4
+        cfg.total_timesteps = 8
+        cfg.batch_size = 4
+        final_zip = _WORKSPACE_TMP / f"final_{tag}.zip"
+        metrics_csv = _WORKSPACE_TMP / f"{tag}_metrics.csv"
+        try:
+            train_ppo(cfg)
+            self.assertTrue(final_zip.is_file())
+            self.assertTrue(metrics_csv.is_file())
+            with metrics_csv.open(newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertGreaterEqual(len(rows), 1)
+            self.assertIn("reward_per_z_shaping_mean", rows[0])
+            self.assertNotEqual(rows[0]["reward_per_z_shaping_mean"], "")
+            payload = _load_checkpoint_payload(final_zip)
+            stats = payload.get("last_stats", {})
+            self.assertIn("reward_per_z_shaping_mean", stats)
         finally:
             _cleanup_training_outputs(tag)
 
@@ -677,9 +762,9 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             env.close()
 
-    def test_c1_smoke_run_reaches_update_with_oracle_ce_and_freeze(self) -> None:
+    def test_c1_smoke_run_reaches_update_with_non_oracle_ce_and_freeze(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
-        tag = "unittest_c1_oracle_router_2v2"
+        tag = "unittest_c1_router_ce_2v2"
         labels_path = _WORKSPACE_TMP / "router_labels.json"
         labels_path.write_text(
             '{"k":4,"opponents":{"OP3":{"opponent_id":2,"hard_z":1,"soft":[0.0,1.0,0.0,0.0]}}}',
@@ -690,14 +775,18 @@ class TrainPpoSmokeTests(unittest.TestCase):
         cfg.n_steps = 8
         cfg.batch_size = 8
         cfg.use_latent_strategy = True
-        cfg.qphi_oracle_mode = "one_hot"
+        cfg.qphi_oracle_mode = "none"
         cfg.freeze_actor_critic = True
+        cfg.latent_strategy_aux_return_head = False
         cfg.router_ce_labels_path = str(labels_path)
         cfg.router_ce_coef = 1.0
         cfg.router_ce_mode = "hard"
         try:
             train_ppo(cfg)
             self.assertTrue((_WORKSPACE_TMP / f"final_{tag}.zip").is_file())
+            payload = _load_checkpoint_payload(_WORKSPACE_TMP / f"final_{tag}.zip")
+            stats = payload.get("last_stats", {})
+            self.assertGreater(float(stats.get("strategy_router_ce_frac_labeled", 0.0)), 0.0)
         finally:
             if labels_path.exists():
                 labels_path.unlink()
