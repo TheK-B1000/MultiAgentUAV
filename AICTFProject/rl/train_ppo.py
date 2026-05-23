@@ -446,6 +446,10 @@ class PPOConfig:
     router_ce_labels_path: Optional[str] = None
     router_ce_coef: float = 0.0
     router_ce_mode: Literal["soft", "hard"] = "soft"
+    router_pref_coef: float = 0.0
+    router_pref_warmup_steps: int = 0
+    router_pref_temperature: float = 0.25
+    router_pref_target_source: Literal["per_opponent_z_winrate_from_eval", "none"] = "none"
     # **Ablation / plan §12 only** — not combined with the main “episode-start z” story by default.
     # Use ``rl.config_presets.ablation_flag_resample_config`` for an explicit run.
     latent_resample_on_flag: bool = False
@@ -1585,6 +1589,30 @@ if __name__ == "__main__":
             default=None,
             help="CE target: 'soft' (probability vector) or 'hard' (argmax z). Default soft.",
         )
+        parser.add_argument(
+            "--router-pref-coef",
+            type=float,
+            default=None,
+            help="Weight on the router preference loss (0=off).",
+        )
+        parser.add_argument(
+            "--router-pref-warmup-steps",
+            type=int,
+            default=None,
+            help="Number of steps for router preference supervised warmup.",
+        )
+        parser.add_argument(
+            "--router-pref-temperature",
+            type=float,
+            default=None,
+            help="Softmax temperature for preference targets.",
+        )
+        parser.add_argument(
+            "--router-pref-target-source",
+            choices=("per_opponent_z_winrate_from_eval", "none"),
+            default=None,
+            help="Source of target distributions for router preference training.",
+        )
         parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
         parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy weight (see --latent-entropy-objective).")
         parser.add_argument(
@@ -1862,6 +1890,14 @@ if __name__ == "__main__":
             cfg.router_ce_coef = max(0.0, float(args.router_ce_coef))
         if args.router_ce_mode is not None:
             cfg.router_ce_mode = str(args.router_ce_mode)
+        if args.router_pref_coef is not None:
+            cfg.router_pref_coef = max(0.0, float(args.router_pref_coef))
+        if args.router_pref_warmup_steps is not None:
+            cfg.router_pref_warmup_steps = max(0, int(args.router_pref_warmup_steps))
+        if args.router_pref_temperature is not None:
+            cfg.router_pref_temperature = max(1e-3, float(args.router_pref_temperature))
+        if args.router_pref_target_source is not None:
+            cfg.router_pref_target_source = str(args.router_pref_target_source)
         if args.latent_lam_p is not None:
             cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
         if args.latent_lam_h is not None:

@@ -1012,6 +1012,12 @@ class CustomPPOTrainer:
         if self.router_ce_mode not in {"soft", "hard"}:
             raise ValueError(f"router_ce_mode must be soft or hard, got {self.router_ce_mode!r}")
         self.router_ce_labels_path = str(getattr(cfg, "router_ce_labels_path", "") or "")
+        self.router_pref_coef = max(0.0, float(getattr(cfg, "router_pref_coef", 0.0) or 0.0))
+        self.router_pref_warmup_steps = max(0, int(getattr(cfg, "router_pref_warmup_steps", 0) or 0))
+        self.router_pref_temperature = max(1e-3, float(getattr(cfg, "router_pref_temperature", 0.25) or 0.25))
+        self.router_pref_target_source = str(getattr(cfg, "router_pref_target_source", "none") or "none").lower()
+        if self.router_pref_target_source not in {"per_opponent_z_winrate_from_eval", "none"}:
+            raise ValueError(f"router_pref_target_source must be per_opponent_z_winrate_from_eval or none, got {self.router_pref_target_source!r}")
 
         model_kwargs: dict[str, Any] = {
             "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
@@ -1043,6 +1049,7 @@ class CustomPPOTrainer:
             lr=float(learning_rate),
             eps=1e-5,
         )
+        self._router_pref_weights = torch.ones((7,), dtype=torch.float32, device=self.device)
         self._router_ce_soft, self._router_ce_hard = self._load_router_ce_labels()
         self.base_learning_rate = float(learning_rate)
         self.clip_range = float(clip_range)
@@ -1163,7 +1170,7 @@ class CustomPPOTrainer:
 
         Returns ``(None, None)`` when no labels file is configured or router_ce_coef==0.
         """
-        if not self.use_latent_strategy or self.router_ce_coef <= 0.0:
+        if not self.use_latent_strategy or (self.router_ce_coef <= 0.0 and self.router_pref_coef <= 0.0):
             return None, None
         if not self.router_ce_labels_path:
             return None, None
@@ -1180,15 +1187,33 @@ class CustomPPOTrainer:
             )
         soft = torch.zeros((7, int(self.latent_k)), dtype=torch.float32, device=self.device)
         hard = torch.full((7,), -1, dtype=torch.long, device=self.device)
+        spread_weights = torch.ones((7,), dtype=torch.float32, device=self.device)
         n_loaded = 0
         for _opp_name, payload in (bundle.get("opponents") or {}).items():
             oid = int(payload.get("opponent_id", -1))
             if not (0 <= oid < 7):
                 continue
-            soft_vec = payload.get("soft") or []
-            if len(soft_vec) != int(self.latent_k):
-                continue
-            soft[oid] = torch.as_tensor(soft_vec, dtype=torch.float32, device=self.device)
+            
+            wr_vec = payload.get("wr_by_z")
+            if wr_vec is not None and len(wr_vec) == int(self.latent_k):
+                wr_tensor = torch.as_tensor(wr_vec, dtype=torch.float32, device=self.device)
+                max_val = float(wr_tensor.max().item())
+                wr_norm = wr_tensor.clone()
+                if max_val > 1.0:
+                    wr_norm = wr_norm / 100.0
+                spread = float((wr_norm.max() - wr_norm.min()).item())
+                spread_w = max(0.0, min(1.0, (spread - 0.05) / 0.20))
+                spread_weights[oid] = spread_w
+                temp = self.router_pref_temperature if self.router_pref_coef > 0.0 else bundle.get("temperature", 0.05)
+                soft[oid] = torch.softmax(wr_norm / temp, dim=-1)
+            else:
+                soft_vec = payload.get("soft") or []
+                if len(soft_vec) == int(self.latent_k):
+                    soft[oid] = torch.as_tensor(soft_vec, dtype=torch.float32, device=self.device)
+                    soft_tensor = soft[oid]
+                    spread = float((soft_tensor.max() - soft_tensor.min()).item())
+                    spread_w = max(0.0, min(1.0, (spread - 0.05) / 0.20))
+                    spread_weights[oid] = spread_w
             hard[oid] = int(payload.get("hard_z", -1))
             n_loaded += 1
         if n_loaded == 0:
@@ -1199,6 +1224,9 @@ class CustomPPOTrainer:
             f"[PPO] Router CE labels loaded: {n_loaded} opponent(s) from {path}; "
             f"mode={self.router_ce_mode}, coef={self.router_ce_coef:.3f}."
         )
+        self._router_pref_weights = spread_weights
+        weight_list = [f"OP{i+1}:{self._router_pref_weights[i].item():.2f}" for i in range(7)]
+        print(f"[PPO] Router preference spread weights: {', '.join(weight_list)}")
         return soft, hard
 
     def _qphi_oracle_one_hot(self, opp_ids: torch.Tensor) -> Optional[torch.Tensor]:
@@ -1585,6 +1613,22 @@ class CustomPPOTrainer:
             fields.append("latent_mi_z_role_bucket_nats")
             fields.append("latent_mi_z_pressure_bucket_nats")
             fields.append("latent_mi_z_attack_defense_ratio_bucket_nats")
+            # Add preference loss logging fields:
+            fields.extend(
+                [
+                    "strategy_router_pref_loss",
+                    "strategy_router_pref_active_coef",
+                    "strategy_router_pref_weight_mean",
+                    "strategy_target_entropy",
+                    "strategy_target_max_prob",
+                    "strategy_qphi_max_prob",
+                    "strategy_target_ce_uniform",
+                    "strategy_opp3_samples",
+                    "strategy_opp5_samples",
+                    "strategy_opp6_samples",
+                    "strategy_opp7_samples",
+                ]
+            )
             if self.qphi_context_dim > 0:
                 fields.extend(
                     [
@@ -3110,6 +3154,17 @@ class CustomPPOTrainer:
             "strategy_kl": [],
             "strategy_router_ce_loss": [],
             "strategy_router_ce_frac_labeled": [],
+            "strategy_router_pref_loss": [],
+            "strategy_router_pref_active_coef": [],
+            "strategy_router_pref_weight_mean": [],
+            "strategy_target_entropy": [],
+            "strategy_target_max_prob": [],
+            "strategy_qphi_max_prob": [],
+            "strategy_target_ce_uniform": [],
+            "strategy_opp3_samples": [],
+            "strategy_opp5_samples": [],
+            "strategy_opp6_samples": [],
+            "strategy_opp7_samples": [],
         }
         stop_update = False
         target_kl = getattr(self.cfg, "target_kl", None)
@@ -3132,6 +3187,17 @@ class CustomPPOTrainer:
                     if self.use_latent_strategy and self.qphi_context_dim > 0 and "qphi_context" in batch
                     else None
                 )
+                if self.use_latent_strategy:
+                    opp_ids = batch["opponent_id"].long()
+                    stats["strategy_opp3_samples"].append(float((opp_ids == 2).sum().item()))
+                    stats["strategy_opp5_samples"].append(float((opp_ids == 4).sum().item()))
+                    stats["strategy_opp6_samples"].append(float((opp_ids == 5).sum().item()))
+                    stats["strategy_opp7_samples"].append(float((opp_ids == 6).sum().item()))
+                else:
+                    stats["strategy_opp3_samples"].append(0.0)
+                    stats["strategy_opp5_samples"].append(0.0)
+                    stats["strategy_opp6_samples"].append(0.0)
+                    stats["strategy_opp7_samples"].append(0.0)
                 values_norm, action_log_prob, entropy, aux = self.model.evaluate_actions(
                     obs_batch,
                     batch["global_state"],
@@ -3188,6 +3254,62 @@ class CustomPPOTrainer:
                         strategy_entropy = strategy_entropy  # keep diagnostic value
                         persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                         latent_loss = strategy_entropy_loss  # drop PPO/persist; entropy reg may still help
+                    
+                    # Router preference loss (Phase 1)
+                    router_pref_loss_term = torch.zeros((), dtype=torch.float32, device=self.device)
+                    router_pref_loss_val = 0.0
+                    pref_weight_mean_val = 1.0
+                    target_entropy_val = 0.0
+                    target_max_prob_val = 0.0
+                    qphi_max_prob_val = 0.0
+                    target_ce_uniform_val = 0.0
+                    
+                    active_pref_coef = 0.0
+                    if self.router_pref_coef > 0.0:
+                        if self.router_pref_warmup_steps <= 0 or self.global_step < self.router_pref_warmup_steps:
+                            active_pref_coef = self.router_pref_coef
+                            
+                    if active_pref_coef > 0.0 and self.router_pref_target_source == "per_opponent_z_winrate_from_eval" and self._router_ce_soft is not None:
+                        opp_ids = batch["opponent_id"].long()
+                        valid = (opp_ids >= 0) & (opp_ids < 7)
+                        if bool(valid.any().item()):
+                            label_ids = opp_ids.clamp(min=0, max=6)
+                            valid = valid & (self._router_ce_hard.index_select(0, label_ids) >= 0)
+                        n_valid = int(valid.sum().item())
+                        if n_valid > 0:
+                            sel = opp_ids.clamp(min=0, max=6)
+                            logits = aux["strategy_logits"]
+                            log_softmax = F.log_softmax(logits, dim=-1)
+                            probs = F.softmax(logits, dim=-1)
+                            
+                            tgt = self._router_ce_soft.index_select(0, sel)
+                            w_opp = self._router_pref_weights.index_select(0, sel)
+                            pref_weight_mean_val = float(w_opp[valid].mean().item())
+                            
+                            row_ce = -(tgt * log_softmax).sum(dim=-1)
+                            row_ce = row_ce * w_opp * valid.float()
+                            ce_loss = row_ce.sum() / max(1, n_valid)
+                            
+                            router_pref_loss_term = float(active_pref_coef) * ce_loss
+                            latent_loss = latent_loss + router_pref_loss_term
+                            router_pref_loss_val = float(ce_loss.detach().cpu().item())
+                            
+                            tgt_valid = tgt[valid]
+                            probs_valid = probs[valid]
+                            
+                            target_entropy_val = float((- (tgt_valid * torch.log(tgt_valid.clamp(min=1e-8))).sum(dim=-1).mean()).item())
+                            target_max_prob_val = float(tgt_valid.max(dim=-1)[0].mean().item())
+                            qphi_max_prob_val = float(probs_valid.max(dim=-1)[0].mean().item())
+                            target_ce_uniform_val = float((-log_softmax[valid].mean()).item())
+                    
+                    stats["strategy_router_pref_loss"].append(router_pref_loss_val)
+                    stats["strategy_router_pref_active_coef"].append(float(active_pref_coef))
+                    stats["strategy_router_pref_weight_mean"].append(pref_weight_mean_val)
+                    stats["strategy_target_entropy"].append(target_entropy_val)
+                    stats["strategy_target_max_prob"].append(target_max_prob_val)
+                    stats["strategy_qphi_max_prob"].append(qphi_max_prob_val)
+                    stats["strategy_target_ce_uniform"].append(target_ce_uniform_val)
+
                     # Supervised router CE (Stage 2 / C1 / C2): align q_phi with best-z labels per
                     # opponent. Mask out rows with unknown opponent_id (-1) so non-scripted episodes
                     # contribute nothing. Soft mode uses KL-style CE against a probability target;
