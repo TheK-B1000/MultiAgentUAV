@@ -28,11 +28,17 @@ class _StepMixin:
         self._record_action_success(macro, targets, mines, flags, snapshot)
         rewards = self._compute_step_reward_components(macro, targets, mines, flags, combat, movement, snapshot)
         terminal = self._advance_episode_end(flags, combat, rewards)
-        self._update_red_behavior_ring()
+        self._update_red_behavior_ring(flags=flags, combat=combat, mines=mines)
         return self._assemble_step_outputs(tensor_obs, rewards, terminal)
 
-    def _update_red_behavior_ring(self) -> None:
-        """Record 6 red-team behavior scalars into the rolling ring buffer (vectorized over B)."""
+    def _update_red_behavior_ring(
+        self,
+        *,
+        flags: Optional[Dict[str, torch.Tensor]] = None,
+        combat: Optional[Dict[str, torch.Tensor]] = None,
+        mines: Optional[Dict[str, torch.Tensor]] = None,
+    ) -> None:
+        """Record red-team behavior and event scalars into the rolling ring buffer."""
         B = self.B
         Nr = self.Nr
         dev = self.device
@@ -78,7 +84,23 @@ class _StepMixin:
         crossed = ((prev_side != curr_side) & (prev_side != 0)).to(torch.float32)
         crossings = crossed.sum(dim=1) / float(max(Nr, 1))
 
-        # Assemble raw feature vector: (B, 6)
+        red_pickups = torch.zeros((B,), dtype=torch.float32, device=dev)
+        red_caps = torch.zeros((B,), dtype=torch.float32, device=dev)
+        red_intercepts = torch.zeros((B,), dtype=torch.float32, device=dev)
+        red_mine_pickups = torch.zeros((B,), dtype=torch.float32, device=dev)
+        if flags is not None:
+            if "red_grab_agents" in flags:
+                red_pickups = (flags["red_grab_agents"].sum(dim=1).to(torch.float32) / float(max(Nr, 1))).clamp(0.0, 1.0)
+            if "red_cap_env" in flags:
+                red_caps = flags["red_cap_env"].to(torch.float32).clamp(0.0, 1.0)
+            if "red_mine_pickup_agents" in flags:
+                red_mine_pickups = (
+                    flags["red_mine_pickup_agents"].sum(dim=1).to(torch.float32) / float(max(Nr, 1))
+                ).clamp(0.0, 1.0)
+        if combat is not None and "red_tag_total" in combat:
+            red_intercepts = (combat["red_tag_total"].to(torch.float32) / float(max(Nr, 1))).clamp(0.0, 1.0)
+
+        # Assemble raw feature vector: (B, 10)
         raw = torch.stack([
             attacker_frac,   # 0
             midline_press,   # 1
@@ -86,6 +108,10 @@ class _StepMixin:
             home_defender_frac,  # 3
             threat_depth,    # 4
             crossings,       # 5
+            red_pickups,      # 6
+            red_caps,         # 7
+            red_intercepts,   # 8
+            red_mine_pickups, # 9
         ], dim=1)
 
         # Write into ring at current index

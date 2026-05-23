@@ -31,17 +31,24 @@ class StrategyEncoder(nn.Module):
     ``Linear → ReLU → Linear → ReLU → Linear (logits)`` — no custom init in the spec;
     use PyTorch default ``Linear``/``Module`` initialization.
 
-    Optional ``oracle_dim > 0`` widens the first linear so q_phi can accept side-channel
-    features concatenated onto the global state (e.g. a 7-dim opponent-id one-hot used for
-    the staged-router upper-bound test). The oracle channel is **q_phi-only**; the actor
-    and critic still consume the canonical ``GLOBAL_STATE_DIM`` input.
+    Optional side-channel widths widen the first linear so q_phi can accept extra
+    features concatenated onto the global state. These channels are **q_phi-only**;
+    the actor and critic still consume the canonical ``GLOBAL_STATE_DIM`` input.
     """
 
-    def __init__(self, state_dim: int, latent_k: int, hidden: int = 128, oracle_dim: int = 0) -> None:
+    def __init__(
+        self,
+        state_dim: int,
+        latent_k: int,
+        hidden: int = 128,
+        oracle_dim: int = 0,
+        context_dim: int = 0,
+    ) -> None:
         super().__init__()
         self.state_dim = int(state_dim)
         self.oracle_dim = max(0, int(oracle_dim))
-        in_dim = self.state_dim + self.oracle_dim
+        self.context_dim = max(0, int(context_dim))
+        in_dim = self.state_dim + self.oracle_dim + self.context_dim
         self.net = nn.Sequential(
             nn.Linear(in_dim, int(hidden)),
             nn.ReLU(),
@@ -50,7 +57,7 @@ class StrategyEncoder(nn.Module):
             nn.Linear(int(hidden), int(latent_k)),
         )
 
-    def forward(self, global_state: torch.Tensor, oracle=None) -> torch.Tensor:
+    def forward(self, global_state: torch.Tensor, oracle=None, context=None) -> torch.Tensor:
         """Return strategy logits with shape ``(B, K)``.
 
         When ``oracle_dim > 0``, ``oracle`` may be supplied with shape ``(B, oracle_dim)`` and
@@ -59,10 +66,10 @@ class StrategyEncoder(nn.Module):
         checks without rebuilding the actor/critic.
         """
         gs = global_state.float()
+        extras: list[torch.Tensor] = []
         if self.oracle_dim == 0:
             if oracle is not None:
                 raise ValueError("oracle was supplied but StrategyEncoder was built with oracle_dim=0")
-            x = gs
         else:
             if oracle is None:
                 oracle = torch.zeros(
@@ -75,7 +82,24 @@ class StrategyEncoder(nn.Module):
                 raise ValueError(
                     f"oracle feature width {ora.shape[-1]} != expected {self.oracle_dim}"
                 )
-            x = torch.cat([gs, ora], dim=-1)
+            extras.append(ora)
+        if self.context_dim == 0:
+            if context is not None:
+                raise ValueError("context was supplied but StrategyEncoder was built with context_dim=0")
+        else:
+            if context is None:
+                context = torch.zeros(
+                    (*gs.shape[:-1], self.context_dim),
+                    dtype=gs.dtype,
+                    device=gs.device,
+                )
+            ctx = context.float()
+            if ctx.shape[-1] != self.context_dim:
+                raise ValueError(
+                    f"context feature width {ctx.shape[-1]} != expected {self.context_dim}"
+                )
+            extras.append(ctx)
+        x = torch.cat([gs, *extras], dim=-1) if extras else gs
         return self.net(x)
 
 

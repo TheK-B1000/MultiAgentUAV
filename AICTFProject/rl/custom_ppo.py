@@ -53,6 +53,11 @@ from rl.ppo_core import (
     ppo_policy_loss,
     ppo_value_loss,
 )
+from rl.qphi_features import (
+    C2_QPHI_CONTEXT_DIM,
+    C2_QPHI_CONTEXT_FEATURE_NAMES,
+    build_c2_qphi_context_batch,
+)
 
 
 def _tqdm_for_sb3_progress() -> Any:
@@ -271,6 +276,13 @@ class CustomPPOInferencePolicy:
             return None
         return torch.zeros((int(batch), dim), dtype=torch.float32, device=self.device)
 
+    def _eval_qphi_context(self, batch: int) -> Optional[torch.Tensor]:
+        """Zero-filled eval-time stub for checkpoints with q_phi-only context features."""
+        dim = int(getattr(self.model, "qphi_context_dim", 0) or 0)
+        if dim <= 0:
+            return None
+        return torch.zeros((int(batch), dim), dtype=torch.float32, device=self.device)
+
     def _batched_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         batched: Dict[str, np.ndarray] = {}
         for key, value in obs.items():
@@ -304,7 +316,10 @@ class CustomPPOInferencePolicy:
                     needs_strategy = False
                 else:
                     eval_oracle = self._eval_qphi_oracle(batch)
-                    z_logits = self.model.strategy_logits(global_state, oracle=eval_oracle)
+                    eval_context = self._eval_qphi_context(batch)
+                    z_logits = self.model.strategy_logits(
+                        global_state, oracle=eval_oracle, context=eval_context
+                    )
                     z_dist = Categorical(logits=z_logits)
                     needs_strategy = (
                         self._prev_z is None
@@ -313,7 +328,10 @@ class CustomPPOInferencePolicy:
                     )
                     if needs_strategy:
                         z_idx, _, z_ent, _ = self.model.sample_strategy(
-                            global_state, deterministic=deterministic, oracle=eval_oracle
+                            global_state,
+                            deterministic=deterministic,
+                            oracle=eval_oracle,
+                            context=eval_context,
                         )
                         self._prev_z = z_idx.detach()
                         self._strategy_age = 0
@@ -357,7 +375,10 @@ class CustomPPOInferencePolicy:
                 else:
                     global_state = self._global_state_tensor(batched, batch)
                     z_idx, _, z_entropy, _ = self.model.sample_strategy(
-                        global_state, deterministic=True, oracle=self._eval_qphi_oracle(batch)
+                        global_state,
+                        deterministic=True,
+                        oracle=self._eval_qphi_oracle(batch),
+                        context=self._eval_qphi_context(batch),
                     )
             logits = self.model._mask_logits(self.model.policy_logits(obs_t, z_idx=z_idx), obs_t.get("mask"))
             entropy = torch.stack([dist.entropy() for dist in self.model._categoricals(logits)], dim=0).sum(dim=0)
@@ -445,6 +466,14 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         qphi_dim = int(cfg.get("qphi_oracle_dim", 0) or 0)
         if qphi_mode == "one_hot" and qphi_dim <= 0:
             qphi_dim = 7
+        if qphi_mode == "none":
+            qphi_dim = 0
+        qphi_context_mode = _normalize_none_mode(cfg.get("qphi_context_mode", "none"))
+        qphi_context_dim = int(cfg.get("qphi_context_dim", 0) or 0)
+        if qphi_context_mode == "c2_temporal" and qphi_context_dim <= 0:
+            qphi_context_dim = C2_QPHI_CONTEXT_DIM
+        if qphi_context_mode == "none":
+            qphi_context_dim = 0
         kwargs.update(
             {
                 "latent_k": int(cfg.get("latent_k", 4)),
@@ -454,6 +483,7 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
                 "qphi_oracle_dim": qphi_dim,
+                "qphi_context_dim": qphi_context_dim,
             }
         )
     return kwargs
@@ -572,6 +602,7 @@ class SharedActorCentralizedCritic(nn.Module):
         use_strategy_aux_return_head: bool = False,
         strategy_tau: float = 1.0,
         qphi_oracle_dim: int = 0,
+        qphi_context_dim: int = 0,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -607,6 +638,7 @@ class SharedActorCentralizedCritic(nn.Module):
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
         self.strategy_tau = max(1e-3, float(strategy_tau))
         self.qphi_oracle_dim = max(0, int(qphi_oracle_dim)) if self.uses_latent_strategy else 0
+        self.qphi_context_dim = max(0, int(qphi_context_dim)) if self.uses_latent_strategy else 0
 
         if self.uses_latent_strategy:
             strategy_net = StrategyEncoder(
@@ -614,6 +646,7 @@ class SharedActorCentralizedCritic(nn.Module):
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
                 oracle_dim=self.qphi_oracle_dim,
+                context_dim=self.qphi_context_dim,
             )
             if self.use_strategy_aux_return_head:
                 self.strategy_aux_return_head = strategy_net
@@ -681,26 +714,29 @@ class SharedActorCentralizedCritic(nn.Module):
         global_state: torch.Tensor,
         *,
         oracle: Optional[torch.Tensor] = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return ``q_phi(z | s)`` logits for latent strategy mode.
 
-        When ``self.qphi_oracle_dim > 0``, ``oracle`` may be supplied with shape
-        ``(B, qphi_oracle_dim)``; omitted oracle input is treated as zeros. The oracle channel is
-        q_phi-only, so actor and critic still consume the canonical global state.
+        Optional oracle/context channels are q_phi-only, so actor and critic still consume the
+        canonical global state.
         """
         if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
         if self.use_strategy_aux_return_head:
-            return self.strategy_aux_return_predictions(global_state, oracle=oracle) / self.strategy_tau
+            return self.strategy_aux_return_predictions(
+                global_state, oracle=oracle, context=context
+            ) / self.strategy_tau
         if self.strategy_encoder is None:
             raise RuntimeError("strategy encoder is not initialized.")
-        return self.strategy_encoder(global_state.float(), oracle)
+        return self.strategy_encoder(global_state.float(), oracle=oracle, context=context)
 
     def strategy_aux_return_predictions(
         self,
         global_state: torch.Tensor,
         *,
         oracle: Optional[torch.Tensor] = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """A2 auxiliary: per-z scalar predictions from the shared trunk, shape ``(B, K)``.
 
@@ -713,7 +749,7 @@ class SharedActorCentralizedCritic(nn.Module):
             raise RuntimeError(
                 "strategy_aux_return_predictions is only available when the A2 auxiliary return head is enabled."
             )
-        return self.strategy_aux_return_head(global_state.float(), oracle)
+        return self.strategy_aux_return_head(global_state.float(), oracle=oracle, context=context)
 
     def sample_strategy(
         self,
@@ -721,9 +757,10 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         deterministic: bool = False,
         oracle: Optional[torch.Tensor] = None,
+        context: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily choose team strategy indices from ``q_phi(z | s)``."""
-        logits = self.strategy_logits(global_state, oracle=oracle)
+        logits = self.strategy_logits(global_state, oracle=oracle, context=context)
         dist = Categorical(logits=logits)
         z_idx = self._categorical_argmax_or_sample(
             dist, deterministic=deterministic, generator=self._sampling_gen_strategy
@@ -853,11 +890,12 @@ class SharedActorCentralizedCritic(nn.Module):
         deterministic: bool = False,
         z_idx: Optional[torch.Tensor] = None,
         qphi_oracle: Optional[torch.Tensor] = None,
+        qphi_context: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily select actions and return values/log-probs/entropy."""
         if self.uses_latent_strategy and z_idx is None:
             z_idx, _, _, _ = self.sample_strategy(
-                global_state, deterministic=deterministic, oracle=qphi_oracle
+                global_state, deterministic=deterministic, oracle=qphi_oracle, context=qphi_context
             )
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         actions = []
@@ -881,6 +919,7 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         z_idx: Optional[torch.Tensor] = None,
         qphi_oracle: Optional[torch.Tensor] = None,
+        qphi_context: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Evaluate fixed actions under the current policy."""
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
@@ -890,7 +929,7 @@ class SharedActorCentralizedCritic(nn.Module):
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
-            z_logits = self.strategy_logits(global_state, oracle=qphi_oracle)
+            z_logits = self.strategy_logits(global_state, oracle=qphi_oracle, context=qphi_context)
             z_dist = Categorical(logits=z_logits)
             z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
             aux["strategy_logits"] = z_logits
@@ -957,6 +996,16 @@ class CustomPPOTrainer:
             self.qphi_oracle_dim = 7
         if self.qphi_oracle_mode == "none":
             self.qphi_oracle_dim = 0
+        self.qphi_context_mode = _normalize_none_mode(getattr(cfg, "qphi_context_mode", "none"))
+        if self.qphi_context_mode not in {"none", "c2_temporal"}:
+            raise ValueError(
+                f"qphi_context_mode must be one of none/c2_temporal, got {self.qphi_context_mode!r}"
+            )
+        self.qphi_context_dim = max(0, int(getattr(cfg, "qphi_context_dim", 0) or 0))
+        if self.use_latent_strategy and self.qphi_context_mode == "c2_temporal" and self.qphi_context_dim <= 0:
+            self.qphi_context_dim = C2_QPHI_CONTEXT_DIM
+        if self.qphi_context_mode == "none":
+            self.qphi_context_dim = 0
         self.freeze_actor_critic = bool(getattr(cfg, "freeze_actor_critic", False)) and self.use_latent_strategy
         self.router_ce_coef = max(0.0, float(getattr(cfg, "router_ce_coef", 0.0) or 0.0))
         self.router_ce_mode = str(getattr(cfg, "router_ce_mode", "soft") or "soft").lower()
@@ -977,6 +1026,7 @@ class CustomPPOTrainer:
                     "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
                     "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
                     "qphi_oracle_dim": int(self.qphi_oracle_dim),
+                    "qphi_context_dim": int(self.qphi_context_dim),
                 }
             )
         self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
@@ -1168,6 +1218,19 @@ class CustomPPOTrainer:
         out = torch.zeros((ids.shape[0], int(self.qphi_oracle_dim)), dtype=torch.float32, device=self.device)
         out[:, : min(7, int(self.qphi_oracle_dim))] = one_hot[:, : min(7, int(self.qphi_oracle_dim))]
         return out
+
+    def _qphi_context_for_env(self) -> Optional[torch.Tensor]:
+        """Build q_phi-only context features from the live env core for rollout sampling."""
+        if not self.use_latent_strategy or self.qphi_context_dim <= 0:
+            return None
+        if self.qphi_context_mode == "c2_temporal":
+            ctx = build_c2_qphi_context_batch(self.env.core).to(device=self.device, dtype=torch.float32)
+            if int(ctx.shape[-1]) != int(self.qphi_context_dim):
+                raise ValueError(
+                    f"C2 q_phi context width {int(ctx.shape[-1])} != configured {int(self.qphi_context_dim)}"
+                )
+            return ctx
+        return None
 
     def _reward_shaping_coef(self) -> float:
         if self.reward_shaping_decay_steps <= 0:
@@ -1397,6 +1460,10 @@ class CustomPPOTrainer:
             "reward_total",
         ]
 
+    @staticmethod
+    def _metric_safe_name(name: str) -> str:
+        return "".join(ch if ch.isalnum() else "_" for ch in str(name).lower()).strip("_")
+
     def _update_fieldnames(self) -> list[str]:
         fields = [
             "update",
@@ -1518,6 +1585,24 @@ class CustomPPOTrainer:
             fields.append("latent_mi_z_role_bucket_nats")
             fields.append("latent_mi_z_pressure_bucket_nats")
             fields.append("latent_mi_z_attack_defense_ratio_bucket_nats")
+            if self.qphi_context_dim > 0:
+                fields.extend(
+                    [
+                        "qphi_context_probe_acc",
+                        "qphi_context_pairwise_sep_mean",
+                        "qphi_context_pairwise_sep_min",
+                        "qphi_context_feature_dim",
+                    ]
+                )
+                names = list(C2_QPHI_CONTEXT_FEATURE_NAMES)
+                if len(names) < int(self.qphi_context_dim):
+                    names.extend(f"qphi_context_{i}" for i in range(len(names), int(self.qphi_context_dim)))
+                for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
+                    fields.append(f"qphi_context_op{o_idx}_count")
+                    for j in range(int(self.qphi_context_dim)):
+                        short = self._metric_safe_name(names[j])
+                        fields.append(f"qphi_context_op{o_idx}_{short}_mean")
+                        fields.append(f"qphi_context_op{o_idx}_{short}_std")
             for r in range(N_ROLE_BUCKET_MI):
                 for z_idx in range(self.latent_k):
                     fields.append(f"latent_role{r}_z{z_idx}_frac")
@@ -1953,6 +2038,7 @@ class CustomPPOTrainer:
     def _strategy_for_step(
         self,
         global_state: torch.Tensor,
+        qphi_context: Optional[torch.Tensor] = None,
     ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor], dict[str, torch.Tensor]]:
         """Return current sparse strategy and sampling metadata for one rollout step."""
         if not self.use_latent_strategy:
@@ -1981,7 +2067,9 @@ class CustomPPOTrainer:
             # diagnostics + CE loss; if the encoder is frozen this is cheap and side-effect-free.
             oracle = self._qphi_oracle_one_hot(self._current_opp_id[:batch])
             with torch.no_grad():
-                z_logits = self.model.strategy_logits(global_state, oracle=oracle)
+                z_logits = self.model.strategy_logits(
+                    global_state, oracle=oracle, context=qphi_context
+                )
             z_dist = Categorical(logits=z_logits)
             aux = {
                 "z": z_idx,
@@ -2005,10 +2093,12 @@ class CustomPPOTrainer:
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
             oracle_resample = self._qphi_oracle_one_hot(self._current_opp_id[idx])
+            context_resample = qphi_context.index_select(0, idx) if qphi_context is not None else None
             sampled_z, _, _, _ = self.model.sample_strategy(
                 global_state.index_select(0, idx),
                 deterministic=False,
                 oracle=oracle_resample,
+                context=context_resample,
             )
             z_idx[idx] = sampled_z
             self._current_z = z_idx.clone()
@@ -2016,7 +2106,7 @@ class CustomPPOTrainer:
             self._needs_strategy_sample[idx] = False
 
         oracle = self._qphi_oracle_one_hot(self._current_opp_id[:batch])
-        z_logits = self.model.strategy_logits(global_state, oracle=oracle)
+        z_logits = self.model.strategy_logits(global_state, oracle=oracle, context=qphi_context)
         z_dist = Categorical(logits=z_logits)
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
@@ -2352,6 +2442,81 @@ class CustomPPOTrainer:
 
         return out
 
+    def _qphi_context_feature_diag(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
+        """C2 identifiability probe over the q_phi-only context features collected this rollout."""
+        if (
+            not self.use_latent_strategy
+            or self.qphi_context_dim <= 0
+            or "qphi_context" not in buffer.fields
+            or "opponent_id" not in buffer.fields
+        ):
+            return {}
+        length = int(buffer.pos)
+        if length <= 0:
+            return {}
+        x = buffer.fields["qphi_context"][:length].detach().float().reshape(-1, int(self.qphi_context_dim))
+        oid = buffer.fields["opponent_id"][:length].detach().long().reshape(-1)
+        valid = (oid >= 0) & (oid < SCRIPTED_OPPONENT_MI_COUNT)
+        out: dict[str, float] = {
+            "qphi_context_feature_dim": float(int(self.qphi_context_dim)),
+            "qphi_context_probe_acc": 0.0,
+            "qphi_context_pairwise_sep_mean": 0.0,
+            "qphi_context_pairwise_sep_min": 0.0,
+        }
+        names = list(C2_QPHI_CONTEXT_FEATURE_NAMES)
+        if len(names) < int(self.qphi_context_dim):
+            names.extend(f"qphi_context_{i}" for i in range(len(names), int(self.qphi_context_dim)))
+        for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
+            mask = valid & (oid == o_idx)
+            n = int(mask.sum().item())
+            out[f"qphi_context_op{o_idx}_count"] = float(n)
+            if n > 0:
+                vals = x[mask]
+                mean = vals.mean(dim=0)
+                std = vals.std(dim=0, unbiased=False) if n > 1 else torch.zeros_like(mean)
+            else:
+                mean = torch.zeros((int(self.qphi_context_dim),), dtype=torch.float32, device=x.device)
+                std = torch.zeros_like(mean)
+            for j in range(int(self.qphi_context_dim)):
+                short = self._metric_safe_name(names[j])
+                out[f"qphi_context_op{o_idx}_{short}_mean"] = float(mean[j].detach().cpu().item())
+                out[f"qphi_context_op{o_idx}_{short}_std"] = float(std[j].detach().cpu().item())
+
+        if int(valid.sum().item()) <= 0:
+            return out
+        ids = torch.unique(oid[valid]).long()
+        if int(ids.numel()) < 2:
+            return out
+        x_valid = x[valid]
+        oid_valid = oid[valid]
+        global_std = x_valid.std(dim=0, unbiased=False).clamp_min(1e-4)
+        centroids: list[torch.Tensor] = []
+        centroid_ids: list[int] = []
+        for raw_id in ids.detach().cpu().tolist():
+            o_idx = int(raw_id)
+            mask = oid_valid == o_idx
+            if bool(mask.any().item()):
+                centroids.append(x_valid[mask].mean(dim=0))
+                centroid_ids.append(o_idx)
+        if len(centroids) < 2:
+            return out
+        c = torch.stack(centroids, dim=0)
+        xz = x_valid / global_std
+        cz = c / global_std
+        dist = torch.cdist(xz, cz, p=2.0)
+        pred_idx = torch.argmin(dist, dim=1)
+        id_tensor = torch.as_tensor(centroid_ids, dtype=torch.long, device=x.device)
+        pred_ids = id_tensor[pred_idx]
+        out["qphi_context_probe_acc"] = float((pred_ids == oid_valid).float().mean().detach().cpu().item())
+        sep_vals: list[float] = []
+        for i in range(int(cz.shape[0])):
+            for j in range(i + 1, int(cz.shape[0])):
+                sep_vals.append(float(torch.norm(cz[i] - cz[j], p=2).detach().cpu().item()))
+        if sep_vals:
+            out["qphi_context_pairwise_sep_mean"] = float(np.mean(sep_vals))
+            out["qphi_context_pairwise_sep_min"] = float(np.min(sep_vals))
+        return out
+
     def _strategy_resample_advantage_stats(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
         """Per-z mean/std of raw GAE advantages at z-resample steps (pre-minibatch normalization)."""
         if not self.use_latent_strategy or self.fixed_latent_strategy:
@@ -2498,6 +2663,8 @@ class CustomPPOTrainer:
         buffer.register_field("obs_agent_mask", tuple(obs["agent_mask"].shape[1:]))
         buffer.register_field("obs_mask", tuple(obs["mask"].shape[1:]))
         buffer.register_field("global_state", (GLOBAL_STATE_DIM,))
+        if self.use_latent_strategy and self.qphi_context_dim > 0:
+            buffer.register_field("qphi_context", (int(self.qphi_context_dim),))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
         buffer.register_field("values")
@@ -2541,6 +2708,7 @@ class CustomPPOTrainer:
         next_global_state_np: np.ndarray,
         z_t: torch.Tensor,
         dones: np.ndarray,
+        next_qphi_context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Strategy index for V(s', z') bootstrapping to match the start of the *next* decision.
 
@@ -2582,10 +2750,12 @@ class CustomPPOTrainer:
             )
             gs_sub = gs.index_select(0, idx)
             oracle_sub = self._qphi_oracle_one_hot(self._current_opp_id[idx])
+            context_sub = next_qphi_context.index_select(0, idx) if next_qphi_context is not None else None
             sampled_z, _, _, _ = self.model.sample_strategy(
                 gs_sub,
                 deterministic=bool(self.latent_bootstrap_z_deterministic),
                 oracle=oracle_sub,
+                context=context_sub,
             )
             z_next[idx] = sampled_z.long()
         return z_next
@@ -2597,6 +2767,7 @@ class CustomPPOTrainer:
         next_obs: Optional[Dict[str, np.ndarray]] = None,
         prev_z: Optional[torch.Tensor] = None,
         dones: Optional[np.ndarray] = None,
+        next_qphi_context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         rows = []
         for env_i, info in enumerate(infos):
@@ -2621,6 +2792,7 @@ class CustomPPOTrainer:
                 next_global_state,
                 prev_z.long().reshape(-1),
                 dones,
+                next_qphi_context=next_qphi_context,
             )
             _, next_values, _, _ = self.model.act(
                 next_obs_t,
@@ -2652,8 +2824,9 @@ class CustomPPOTrainer:
             decision_global_state_np = np.asarray(global_state, dtype=np.float32)
             obs_t = self._tensor_obs(obs)
             gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
+            qphi_context_t = self._qphi_context_for_env()
             with torch.no_grad():
-                z_t, prev_z_t, strategy_aux = self._strategy_for_step(gs_t)
+                z_t, prev_z_t, strategy_aux = self._strategy_for_step(gs_t, qphi_context=qphi_context_t)
                 actions_t, values_norm_t, action_log_probs_t, _ = self.model.act(obs_t, gs_t, z_idx=z_t)
                 values_t = self._denormalize_values(values_norm_t)
                 # Action PPO uses action log-probs only; q_phi is trained separately
@@ -2682,7 +2855,15 @@ class CustomPPOTrainer:
                         env_index=env_i,
                     )
             next_global_state = self.env.state().astype(np.float32)
-            next_values_t = self._next_values(infos, next_global_state, next_obs=next_obs, prev_z=z_t, dones=dones)
+            next_qphi_context_t = self._qphi_context_for_env()
+            next_values_t = self._next_values(
+                infos,
+                next_global_state,
+                next_obs=next_obs,
+                prev_z=z_t,
+                dones=dones,
+                next_qphi_context=next_qphi_context_t,
+            )
             terminated = np.asarray([bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)])
             truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
             reward_component = {
@@ -2776,6 +2957,15 @@ class CustomPPOTrainer:
                 truncated=torch.as_tensor(truncated, dtype=torch.bool, device=self.device),
                 opponent_id=opp_row,
             )
+            if self.use_latent_strategy and self.qphi_context_dim > 0:
+                if qphi_context_t is None:
+                    add_items["qphi_context"] = torch.zeros(
+                        (int(self.env.num_envs), int(self.qphi_context_dim)),
+                        dtype=torch.float32,
+                        device=self.device,
+                    )
+                else:
+                    add_items["qphi_context"] = qphi_context_t
             if self.use_latent_strategy:
                 n_e = int(self.env.num_envs)
                 phase_list: list[int] = []
@@ -2937,12 +3127,18 @@ class CustomPPOTrainer:
                     if self.use_latent_strategy
                     else None
                 )
+                qphi_context_batch = (
+                    batch["qphi_context"]
+                    if self.use_latent_strategy and self.qphi_context_dim > 0 and "qphi_context" in batch
+                    else None
+                )
                 values_norm, action_log_prob, entropy, aux = self.model.evaluate_actions(
                     obs_batch,
                     batch["global_state"],
                     batch["actions"],
                     z_idx=z_idx,
                     qphi_oracle=qphi_oracle_batch,
+                    qphi_context=qphi_context_batch,
                 )
                 if self.use_latent_strategy:
                     resample = batch["z_resampled"].bool()
@@ -3072,6 +3268,7 @@ class CustomPPOTrainer:
                             pred_all = self.model.strategy_aux_return_predictions(
                                 batch["global_state"],
                                 oracle=qphi_oracle_batch,
+                                context=qphi_context_batch,
                             )
                             z_sel = batch["z"][resample].long().clamp(min=0, max=self.latent_k - 1)
                             pred_selected = pred_all[resample].gather(1, z_sel.reshape(-1, 1)).squeeze(1)
@@ -3172,6 +3369,7 @@ class CustomPPOTrainer:
         self.last_stats.update(self._rollout_advantage_diagnostics(buffer))
         self.last_stats.update(self._latent_rollout_stats(buffer))
         self.last_stats.update(self._latent_opponent_rollout_diag(buffer))
+        self.last_stats.update(self._qphi_context_feature_diag(buffer))
         return self.last_stats
 
     def _save_periodic_checkpoint(self) -> None:
@@ -3242,6 +3440,11 @@ class CustomPPOTrainer:
                     qphi_ce_val = float(row.get("strategy_router_ce_loss", 0.0) or 0.0)
                     qphi_ce_frac = float(row.get("strategy_router_ce_frac_labeled", 0.0) or 0.0)
                     ce_suffix = f" qphi_ce={qphi_ce_val:.3f}({qphi_ce_frac:.2f})" if self.router_ce_coef > 0.0 else ""
+                    ctx_suffix = ""
+                    if self.qphi_context_dim > 0:
+                        ctx_acc = float(row.get("qphi_context_probe_acc", 0.0) or 0.0)
+                        ctx_sep = float(row.get("qphi_context_pairwise_sep_min", 0.0) or 0.0)
+                        ctx_suffix = f" ctx_probe={ctx_acc:.3f} ctx_sep_min={ctx_sep:.2f}"
                     forced_suffix = f" forced_z={self.forced_z_mode}" if self.forced_z_mode != "none" else ""
                     print(
                         "[PPO|diag] "
@@ -3260,7 +3463,7 @@ class CustomPPOTrainer:
                         f"arg_conf={float(row.get('strategy_qphi_confidence_mean', 0.0) or 0.0):.3f} "
                         f"arg_margin={float(row.get('strategy_qphi_margin_mean', 0.0) or 0.0):.3f} "
                         f"z_wr=[{','.join(z_wr_parts)}]"
-                        f"{ce_suffix}{forced_suffix}"
+                        f"{ce_suffix}{ctx_suffix}{forced_suffix}"
                         f"{opp_suffix}"
                     )
                 if self.normalize_returns:

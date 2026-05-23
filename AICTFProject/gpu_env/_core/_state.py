@@ -188,7 +188,7 @@ class _StateMixin:
         # --- Rolling red-team behavior ring buffer (sharp3 opponent-behavior features) ---
         self._red_behavior_ring_K = 20
         self._red_behavior_ring = torch.zeros(
-            (B, self._red_behavior_ring_K, 6), dtype=f32, device=dev,
+            (B, self._red_behavior_ring_K, 10), dtype=f32, device=dev,
         )
         self._red_behavior_idx = torch.zeros((B,), dtype=torch.int64, device=dev)
         self._red_behavior_count = torch.zeros((B,), dtype=torch.int64, device=dev)

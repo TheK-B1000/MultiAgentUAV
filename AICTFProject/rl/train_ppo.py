@@ -27,6 +27,7 @@ from opponent_params import sample_batched_opponent_params
 from rl.custom_ppo import CustomPPOTrainer
 from rl.curriculum import CurriculumState, jacob_paper_curriculum_state, phase_from_tag
 from rl.global_state import GLOBAL_STATE_DIM
+from rl.qphi_features import C2_QPHI_CONTEXT_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
 
 
@@ -439,6 +440,8 @@ class PPOConfig:
     per_z_shaping_coef: float = 0.1
     qphi_oracle_mode: Literal["none", "one_hot"] = "none"
     qphi_oracle_dim: int = 0
+    qphi_context_mode: Literal["none", "c2_temporal"] = "none"
+    qphi_context_dim: int = 0
     freeze_actor_critic: bool = False
     router_ce_labels_path: Optional[str] = None
     router_ce_coef: float = 0.0
@@ -705,6 +708,8 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.per_z_shaping_coef = 0.0
         cfg.qphi_oracle_mode = "none"
         cfg.qphi_oracle_dim = 0
+        cfg.qphi_context_mode = "none"
+        cfg.qphi_context_dim = 0
         cfg.freeze_actor_critic = False
         cfg.router_ce_labels_path = None
         cfg.router_ce_coef = 0.0
@@ -760,6 +765,8 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.per_z_shaping_coef = 0.0
         cfg.qphi_oracle_mode = "none"
         cfg.qphi_oracle_dim = 0
+        cfg.qphi_context_mode = "none"
+        cfg.qphi_context_dim = 0
         cfg.freeze_actor_critic = False
         cfg.router_ce_labels_path = None
         cfg.router_ce_coef = 0.0
@@ -776,6 +783,8 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.freeze_actor_critic = True
         cfg.qphi_oracle_mode = "none"
         cfg.qphi_oracle_dim = 0
+        cfg.qphi_context_mode = "none"
+        cfg.qphi_context_dim = 0
         cfg.forced_z_mode = "none"
         cfg.use_per_z_shaping = False
         cfg.per_z_shaping_coef = 0.0
@@ -795,6 +804,16 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.router_ce_coef = 1.0
         cfg.router_ce_mode = "soft"
         cfg.run_tag = "latent_c1_router_ce_50k_4v4"
+        return cfg
+    if key in {"latent_c2_router_ce_features", "c2_router_ce_features", "latent_c2_feature_identity"}:
+        # C2 Feature Identity: same frozen CE setup as C1/no-oracle, but q_phi receives
+        # a q_phi-only temporal opponent/context block. Actor and critic stay on their original inputs.
+        cfg = _apply_training_preset(cfg, "latent_c1_router_ce")
+        cfg.qphi_oracle_mode = "none"
+        cfg.qphi_oracle_dim = 0
+        cfg.qphi_context_mode = "c2_temporal"
+        cfg.qphi_context_dim = C2_QPHI_CONTEXT_DIM
+        cfg.run_tag = "latent_c2_router_ce_features_50k_4v4"
         return cfg
     if key in {"latent_op3_wrmax_train_2m", "latent_wrmax_op3_train_2m"}:
         cfg = _apply_training_preset(cfg, "latent_op3_wrmax_1m")
@@ -822,6 +841,7 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m', "
         "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful', "
         "'latent_faithful_router_probe', 'latent_slsr_router', 'latent_c1_router_ce', "
+        "'latent_c2_router_ce_features', "
         "'latent_stage1b_shaping'."
     )
 
@@ -912,6 +932,16 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             raise ValueError("qphi_oracle_mode must be one of: none, one_hot.")
         if cfg.qphi_oracle_mode == "one_hot" and int(getattr(cfg, "qphi_oracle_dim", 0) or 0) <= 0:
             cfg.qphi_oracle_dim = 7
+        if cfg.qphi_oracle_mode == "none":
+            cfg.qphi_oracle_dim = 0
+        qphi_context = str(getattr(cfg, "qphi_context_mode", "none") or "none").strip().lower()
+        cfg.qphi_context_mode = "none" if qphi_context in {"", "off", "none"} else qphi_context
+        if cfg.qphi_context_mode not in {"none", "c2_temporal"}:
+            raise ValueError("qphi_context_mode must be one of: none, c2_temporal.")
+        if cfg.qphi_context_mode == "c2_temporal" and int(getattr(cfg, "qphi_context_dim", 0) or 0) <= 0:
+            cfg.qphi_context_dim = C2_QPHI_CONTEXT_DIM
+        if cfg.qphi_context_mode == "none":
+            cfg.qphi_context_dim = 0
         if bool(getattr(cfg, "use_per_z_shaping", False)) and cfg.forced_z_mode != "rotate":
             raise ValueError(
                 "use_per_z_shaping is only allowed in the Stage-1B shaping ablation "
@@ -1030,6 +1060,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             print(
                 f"[PPO] q_phi oracle (Experiment A): mode=one_hot (dim={qphi_dim}, canonical OP1..OP7 one-hot "
                 "concatenated onto q_phi input only; critic/actor unchanged)."
+            )
+        qphi_context_raw = str(getattr(cfg, "qphi_context_mode", "none") or "none").lower()
+        qphi_context_mode = "none" if qphi_context_raw in {"", "off", "none"} else qphi_context_raw
+        if qphi_context_mode == "c2_temporal":
+            qphi_ctx_dim = int(getattr(cfg, "qphi_context_dim", 0) or 0) or C2_QPHI_CONTEXT_DIM
+            print(
+                f"[PPO] q_phi C2 context: mode=c2_temporal (dim={qphi_ctx_dim}; temporal red/opponent "
+                "features concatenated onto q_phi input only; critic/actor unchanged)."
             )
         if bool(getattr(cfg, "freeze_actor_critic", False)):
             print(
@@ -1504,6 +1542,21 @@ if __name__ == "__main__":
             help="Width of q_phi oracle features. Defaults to 7 for --qphi-oracle one_hot, otherwise 0.",
         )
         parser.add_argument(
+            "--qphi-context",
+            choices=("none", "off", "c2_temporal"),
+            default=None,
+            help=(
+                "q_phi-only context feature mode. c2_temporal adds rolling red/opponent behavior "
+                "features to q_phi while leaving actor/critic inputs unchanged."
+            ),
+        )
+        parser.add_argument(
+            "--qphi-context-dim",
+            type=int,
+            default=None,
+            help="Width of q_phi context features. Defaults to the C2 temporal feature width.",
+        )
+        parser.add_argument(
             "--freeze-actor-critic",
             action="store_true",
             help=(
@@ -1796,6 +1849,11 @@ if __name__ == "__main__":
             cfg.qphi_oracle_mode = "none" if qphi_oracle in {"", "off", "none"} else qphi_oracle
         if args.qphi_oracle_dim is not None:
             cfg.qphi_oracle_dim = max(0, int(args.qphi_oracle_dim))
+        if args.qphi_context is not None:
+            qphi_context = str(args.qphi_context or "none").strip().lower()
+            cfg.qphi_context_mode = "none" if qphi_context in {"", "off", "none"} else qphi_context
+        if args.qphi_context_dim is not None:
+            cfg.qphi_context_dim = max(0, int(args.qphi_context_dim))
         if args.freeze_actor_critic:
             cfg.freeze_actor_critic = True
         if args.router_ce_labels is not None:
