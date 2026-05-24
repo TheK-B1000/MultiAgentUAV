@@ -11,6 +11,8 @@ from rl.latent_marl import (
     LatentConditionedActor,
     StrategyEncoder,
     expected_strategy_switch_penalty,
+    TemporalStateTracker,
+    CONTEXT_STATE_DIM,
 )
 
 
@@ -65,13 +67,20 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         )
         action_space = spaces.MultiDiscrete([5, 50, 5, 50])
         model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=8)
+        dims = model.input_dim_contract()
+        self.assertEqual(dims["base_global_state_dim"], GLOBAL_STATE_DIM)
+        self.assertEqual(dims["temporal_context_dim"], CONTEXT_STATE_DIM)
+        self.assertEqual(dims["q_phi_input_dim"], CONTEXT_STATE_DIM)
+        self.assertEqual(dims["critic_context_dim"], CONTEXT_STATE_DIM)
+        self.assertEqual(dims["actor_input_dim"], model.actor_cnn_feature_dim + VEC_OBS_DIM + 8)
+        self.assertEqual(dims["critic_z_dim"], 4)
         obs = {
             "grid": torch.rand(3, 2, 7, 20, 20),
             "vec": torch.rand(3, 2, VEC_OBS_DIM),
             "agent_mask": torch.ones(3, 2),
             "mask": torch.ones(3, 110),
         }
-        global_state = torch.rand(3, GLOBAL_STATE_DIM)
+        global_state = torch.rand(3, CONTEXT_STATE_DIM)
         z, z_log_prob, z_entropy, z_logits = model.sample_strategy(global_state)
         actions, values, action_log_prob, action_entropy = model.act(obs, global_state, z_idx=z)
 
@@ -88,6 +97,49 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         self.assertEqual(tuple(eval_values.shape), (3,))
         self.assertEqual(tuple(eval_log_prob.shape), (3,))
         self.assertIn("strategy_log_prob", aux)
+        extra = model._critic_extra(actions, z)
+        self.assertEqual(tuple(extra[:, -4:].shape), (3, 4))
+        self.assertTrue(torch.allclose(extra[:, -4:].sum(dim=-1), torch.ones(3)))
+        with self.assertRaisesRegex(AssertionError, "critic expected context"):
+            model.values(torch.rand(3, GLOBAL_STATE_DIM), actions=actions, z_idx=z)
+        with self.assertRaisesRegex(AssertionError, "q_phi expected context"):
+            model.sample_strategy(torch.rand(3, GLOBAL_STATE_DIM))
+
+    def test_temporal_state_tracker(self):
+        tracker = TemporalStateTracker(num_envs=2, state_dim=GLOBAL_STATE_DIM)
+        # Test output dimension
+        self.assertEqual(CONTEXT_STATE_DIM, GLOBAL_STATE_DIM * 5)
+        
+        # Step 0
+        state0 = torch.ones((2, GLOBAL_STATE_DIM)) * 2.0
+        out0 = tracker.update(state0)
+        self.assertEqual(tuple(out0.shape), (2, CONTEXT_STATE_DIM))
+        # Initial EMAs should equal raw state
+        self.assertTrue(torch.allclose(tracker.ema_short, state0))
+        self.assertTrue(torch.allclose(tracker.ema_long, state0))
+        # Differences should be 0
+        self.assertTrue(torch.allclose(out0[:, GLOBAL_STATE_DIM*3:GLOBAL_STATE_DIM*4], torch.zeros_like(state0)))
+        
+        # Step 1
+        state1 = torch.ones((2, GLOBAL_STATE_DIM)) * 3.0
+        out1 = tracker.update(state1)
+        expected_short = 0.2 * state1 + 0.8 * state0
+        expected_long = 0.05 * state1 + 0.95 * state0
+        self.assertTrue(torch.allclose(tracker.ema_short, expected_short))
+        self.assertTrue(torch.allclose(tracker.ema_long, expected_long))
+        
+        # Test reset on done
+        dones = torch.tensor([True, False])
+        tracker.update(state1, dones=dones)
+        # First env should reset to state1 since it's done
+        self.assertTrue(torch.allclose(tracker.ema_short[0], state1[0]))
+        # Second env should continue update
+        expected_short_env1 = 0.2 * state1[1] + 0.8 * expected_short[1]
+        self.assertTrue(torch.allclose(tracker.ema_short[1], expected_short_env1))
+        
+        # Test passive get_current_context
+        passive_out = tracker.get_current_context(state1)
+        self.assertEqual(tuple(passive_out.shape), (2, CONTEXT_STATE_DIM))
 
 
 if __name__ == "__main__":

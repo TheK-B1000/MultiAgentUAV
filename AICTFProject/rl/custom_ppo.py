@@ -23,6 +23,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
+from macro_actions import MacroAction
 from rl.curriculum import phase_from_tag
 from rl.discrete_mi import discrete_mi_plugin
 from rl.global_state import (
@@ -45,7 +46,7 @@ from rl.latent_phase_labels import (
     team_phase_id_from_global_state,
     team_phase_label_from_global_state,
 )
-from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator
+from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator, TemporalStateTracker, CONTEXT_STATE_DIM
 from rl.networks import CNNEncoder, CentralizedCritic
 from rl.ppo_core import (
     TensorDictRolloutBuffer,
@@ -153,10 +154,13 @@ def _assert_compatible_global_state_dim(payload: dict[str, Any], path: str) -> N
     ckpt_dim = payload.get("global_state_dim")
     if ckpt_dim is None:
         return
-    if int(ckpt_dim) != int(GLOBAL_STATE_DIM):
+    cfg = payload.get("cfg") or {}
+    uses_latent = bool(cfg.get("use_latent_strategy", False))
+    expected_dim = CONTEXT_STATE_DIM if uses_latent else GLOBAL_STATE_DIM
+    if int(ckpt_dim) != int(expected_dim):
         raise ValueError(
             f"Checkpoint {path!r} was saved with global_state_dim={int(ckpt_dim)}, "
-            f"but this code expects {GLOBAL_STATE_DIM}. Start a fresh run or load a "
+            f"but this code expects {expected_dim}. Start a fresh run or load a "
             "checkpoint trained after the global-state expansion."
         )
 
@@ -216,6 +220,7 @@ class CustomPPOInferencePolicy:
         self._last_strategy_probs: Optional[torch.Tensor] = None
         self._last_strategy_entropy: Optional[torch.Tensor] = None
         self._last_strategy_resampled = False
+        self._temporal_tracker: Optional[TemporalStateTracker] = None
 
     def _fixed_strategy_id(self) -> int:
         if not self.model.uses_latent_strategy:
@@ -230,6 +235,15 @@ class CustomPPOInferencePolicy:
         probs[:, self._fixed_strategy_id()] = 1.0
         return probs
 
+    def _get_temporal_tracker(self, batch_size: int) -> TemporalStateTracker:
+        if self._temporal_tracker is None or self._temporal_tracker.num_envs != batch_size:
+            self._temporal_tracker = TemporalStateTracker(
+                num_envs=batch_size,
+                state_dim=GLOBAL_STATE_DIM,
+                device=self.device,
+            )
+        return self._temporal_tracker
+
     def reset_strategy(self) -> None:
         """Forget the persisted inference strategy, typically at episode reset."""
         self._prev_z = None
@@ -238,6 +252,8 @@ class CustomPPOInferencePolicy:
         self._last_strategy_probs = None
         self._last_strategy_entropy = None
         self._last_strategy_resampled = False
+        if self._temporal_tracker is not None:
+            self._temporal_tracker.reset()
 
     def _tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
         return {
@@ -281,6 +297,8 @@ class CustomPPOInferencePolicy:
             if self.model.uses_latent_strategy:
                 batch = int(obs_t["grid"].shape[0])
                 global_state = self._global_state_tensor(batched, batch)
+                tracker = self._get_temporal_tracker(batch)
+                context_gs = tracker.update(global_state)
                 if self.fixed_latent_strategy:
                     z_idx = self._fixed_strategy_tensor(batch)
                     self._prev_z = z_idx.detach()
@@ -288,7 +306,7 @@ class CustomPPOInferencePolicy:
                     z_probs = self._fixed_strategy_probs(batch)
                     needs_strategy = False
                 else:
-                    z_logits = self.model.strategy_logits(global_state)
+                    z_logits = self.model.strategy_logits(context_gs)
                     z_dist = Categorical(logits=z_logits)
                     needs_strategy = (
                         self._prev_z is None
@@ -296,7 +314,7 @@ class CustomPPOInferencePolicy:
                         or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
                     )
                     if needs_strategy:
-                        z_idx, _, z_ent, _ = self.model.sample_strategy(global_state, deterministic=deterministic)
+                        z_idx, _, z_ent, _ = self.model.sample_strategy(context_gs, deterministic=deterministic)
                         self._prev_z = z_idx.detach()
                         self._strategy_age = 0
                     else:
@@ -309,7 +327,7 @@ class CustomPPOInferencePolicy:
                 self._last_strategy_resampled = bool(needs_strategy)
                 action_tensor, _, _, _ = self.model.act(
                     obs_t,
-                    global_state,
+                    context_gs,
                     deterministic=deterministic,
                     z_idx=z_idx,
                 )
@@ -338,7 +356,9 @@ class CustomPPOInferencePolicy:
                     z_idx = self._fixed_strategy_tensor(batch)
                 else:
                     global_state = self._global_state_tensor(batched, batch)
-                    z_idx, _, z_entropy, _ = self.model.sample_strategy(global_state, deterministic=True)
+                    tracker = self._get_temporal_tracker(batch)
+                    context_gs = tracker.get_current_context(global_state)
+                    z_idx, _, z_entropy, _ = self.model.sample_strategy(context_gs, deterministic=True)
             logits = self.model._mask_logits(self.model.policy_logits(obs_t, z_idx=z_idx), obs_t.get("mask"))
             entropy = torch.stack([dist.entropy() for dist in self.model._categoricals(logits)], dim=0).sum(dim=0)
         return float((entropy + z_entropy).mean().detach().cpu().item())
@@ -438,6 +458,15 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
 # Decimal: 268435469 (strategy) and 536870955 (action); masked with ``& 0xFFFF_FFFF``.
 STRATEGY_GENERATOR_SEED_OFFSET = 0x1_0000_00D
 ACTION_GENERATOR_SEED_OFFSET = 0x2_0000_02B
+
+FORCED_Z_PROFILE_MAX_ROWS = 4096
+FORCED_Z_MACRO_ACTIONS: tuple[tuple[int, str], ...] = (
+    (int(MacroAction.GO_TO), "go_to"),
+    (int(MacroAction.GRAB_MINE), "grab_mine"),
+    (int(MacroAction.GET_FLAG), "get_flag"),
+    (int(MacroAction.PLACE_MINE), "place_mine"),
+    (int(MacroAction.GO_HOME), "go_home"),
+)
 
 
 E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
@@ -576,9 +605,11 @@ class SharedActorCentralizedCritic(nn.Module):
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
         self.strategy_tau = max(1e-3, float(strategy_tau))
 
+        self.global_state_dim = CONTEXT_STATE_DIM if self.uses_latent_strategy else GLOBAL_STATE_DIM
+
         if self.uses_latent_strategy:
             strategy_net = StrategyEncoder(
-                state_dim=GLOBAL_STATE_DIM,
+                state_dim=self.global_state_dim,
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
             )
@@ -610,14 +641,99 @@ class SharedActorCentralizedCritic(nn.Module):
         self.actor_head = nn.Linear(int(actor_hidden_dim), self.per_agent_logits)
         critic_extra_dim = self.joint_action_onehot_dim + self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
-            global_state_dim=GLOBAL_STATE_DIM,
+            global_state_dim=self.global_state_dim,
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
         )
+        self.q_phi_input_dim = self._strategy_context_dim()
+        self.critic_context_dim = int(self.critic.global_state_dim)
+        self.critic_z_dim = int(self.latent_k) if self.uses_latent_strategy else 0
+        self.critic_joint_action_dim = int(self.joint_action_onehot_dim) if self.uses_latent_strategy else 0
+        self.actor_input_dim = int(self._decentralized_actor_in_dim)
+        self._assert_input_contracts()
         # Optional: separate ``torch.Generator`` streams so q_\phi(z|s) sampling does not advance
         # the same RNG as per-head action Categoricals (fairer E3 vs no-latent; see docs).
         self._sampling_gen_strategy: Optional[torch.Generator] = None
         self._sampling_gen_action: Optional[torch.Generator] = None
+
+    def _strategy_context_dim(self) -> int:
+        if not self.uses_latent_strategy:
+            return 0
+        source = self.strategy_aux_return_head if self.use_strategy_aux_return_head else self.strategy_encoder
+        if source is None:
+            raise AssertionError("latent strategy enabled but q_phi module is missing")
+        dim = getattr(source, "state_dim", None)
+        if dim is not None:
+            return int(dim)
+        first = getattr(source, "net", [None])[0]
+        if isinstance(first, nn.Linear):
+            return int(first.in_features)
+        raise AssertionError("could not resolve q_phi input dim")
+
+    def _assert_input_contracts(self) -> None:
+        actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
+        if self.uses_latent_strategy:
+            actor_expected += int(self.z_embed_dim)
+            if int(self.global_state_dim) != int(CONTEXT_STATE_DIM):
+                raise AssertionError(
+                    f"latent q_phi/critic must use temporal context dim {CONTEXT_STATE_DIM}, "
+                    f"got {self.global_state_dim}"
+                )
+            if int(self.q_phi_input_dim) != int(CONTEXT_STATE_DIM):
+                raise AssertionError(
+                    f"q_phi_input_dim={self.q_phi_input_dim} does not match temporal_context_dim={CONTEXT_STATE_DIM}"
+                )
+            if int(self.critic.global_state_dim) != int(CONTEXT_STATE_DIM):
+                raise AssertionError(
+                    f"critic_context_dim={self.critic.global_state_dim} does not match temporal_context_dim={CONTEXT_STATE_DIM}"
+                )
+            if int(self.critic.extra_dim) != int(self.joint_action_onehot_dim + self.latent_k):
+                raise AssertionError(
+                    "latent critic extra input must be joint action one-hot plus z one-hot "
+                    f"({self.joint_action_onehot_dim}+{self.latent_k}), got {self.critic.extra_dim}"
+                )
+        else:
+            if int(self.global_state_dim) != int(GLOBAL_STATE_DIM):
+                raise AssertionError(f"no-latent critic context dim must be {GLOBAL_STATE_DIM}, got {self.global_state_dim}")
+            if int(self.q_phi_input_dim) != 0:
+                raise AssertionError(f"q_phi_input_dim must be 0 when latent is disabled, got {self.q_phi_input_dim}")
+            if int(self.critic.global_state_dim) != int(GLOBAL_STATE_DIM):
+                raise AssertionError(
+                    f"critic_context_dim={self.critic.global_state_dim} does not match base_global_state_dim={GLOBAL_STATE_DIM}"
+                )
+            if int(self.critic.extra_dim) != 0:
+                raise AssertionError(f"no-latent critic extra dim must be 0, got {self.critic.extra_dim}")
+
+        if int(self._decentralized_actor_in_dim) != actor_expected:
+            raise AssertionError(
+                f"actor_input_dim={self._decentralized_actor_in_dim} must equal local obs + z embedding width "
+                f"{actor_expected}"
+            )
+        first_actor = self.actor_body[0]
+        if not isinstance(first_actor, nn.Linear) or int(first_actor.in_features) != actor_expected:
+            got = getattr(first_actor, "in_features", None)
+            raise AssertionError(f"actor MLP first layer input {got} != decentralized actor input {actor_expected}")
+        # Defense-in-depth: actor input must not match the *temporal* context either.
+        # CONTEXT_STATE_DIM is the q_phi/critic-only width; if it accidentally lined up with
+        # the actor concat width, we want to fail loudly rather than silently train a non-decentralized policy.
+        if int(self._decentralized_actor_in_dim) == int(CONTEXT_STATE_DIM):
+            raise AssertionError(
+                f"actor_input_dim={self._decentralized_actor_in_dim} equals temporal_context_dim={CONTEXT_STATE_DIM}; "
+                "actor must consume local obs + z embedding only, never the centralized temporal context."
+            )
+
+    def input_dim_contract(self) -> dict[str, int]:
+        self._assert_input_contracts()
+        return {
+            "base_global_state_dim": int(GLOBAL_STATE_DIM),
+            "temporal_context_dim": int(CONTEXT_STATE_DIM),
+            "q_phi_input_dim": int(self.q_phi_input_dim),
+            "critic_context_dim": int(self.critic_context_dim),
+            "actor_input_dim": int(self.actor_input_dim),
+            "critic_extra_dim": int(self.critic.extra_dim),
+            "critic_z_dim": int(self.critic_z_dim),
+            "critic_joint_action_dim": int(self.critic_joint_action_dim),
+        }
 
     def set_sampling_generators(
         self,
@@ -647,6 +763,10 @@ class SharedActorCentralizedCritic(nn.Module):
         """Return ``q_phi(z | s)`` logits for latent strategy mode."""
         if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
+        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.q_phi_input_dim):
+            raise AssertionError(
+                f"q_phi expected context shape (B, {self.q_phi_input_dim}), got {tuple(global_state.shape)}"
+            )
         if self.use_strategy_aux_return_head:
             return self.strategy_aux_return_predictions(global_state) / self.strategy_tau
         if self.strategy_encoder is None:
@@ -748,7 +868,15 @@ class SharedActorCentralizedCritic(nn.Module):
             raise ValueError("actions and z_idx are required by the latent action-conditioned **value** critic.")
         z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
         z_one_hot = F.one_hot(z, num_classes=self.latent_k).float()
-        return torch.cat([self._joint_action_one_hot(actions).to(z_one_hot.device), z_one_hot], dim=-1)
+        extra = torch.cat([self._joint_action_one_hot(actions).to(z_one_hot.device), z_one_hot], dim=-1)
+        expected = int(self.joint_action_onehot_dim + self.latent_k)
+        if extra.dim() != 2 or int(extra.shape[1]) != expected:
+            raise AssertionError(f"critic extra must be joint_action_onehot + z_onehot width {expected}, got {tuple(extra.shape)}")
+        z_slice = extra[:, -self.latent_k :]
+        z_sum = z_slice.sum(dim=-1)
+        if int(z_slice.shape[1]) != int(self.latent_k) or not torch.allclose(z_sum, torch.ones_like(z_sum), atol=1e-6):
+            raise AssertionError("critic input is missing the terminal z one-hot slice")
+        return extra
 
     def values(
         self,
@@ -757,6 +885,10 @@ class SharedActorCentralizedCritic(nn.Module):
         z_idx: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return scalar :math:`V_\\phi(s,\\mathbf{a},z)` with shape ``(B,)`` (PPO/GAE target)."""
+        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.critic_context_dim):
+            raise AssertionError(
+                f"critic expected context shape (B, {self.critic_context_dim}), got {tuple(global_state.shape)}"
+            )
         return self.critic(global_state.float(), extra=self._critic_extra(actions, z_idx)).squeeze(-1)
 
     def _mask_logits(self, logits: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
@@ -947,9 +1079,18 @@ class CustomPPOTrainer:
         self._sb3_rollout_pbar: Any = None
         self._last_obs: Optional[Dict[str, np.ndarray]] = None
         self._last_global_state: Optional[np.ndarray] = None
+        self._last_context_state: Optional[torch.Tensor] = None
         self._current_z: Optional[torch.Tensor] = None
         self._strategy_age = torch.zeros((int(env.num_envs),), dtype=torch.long, device=self.device)
         self._needs_strategy_sample = torch.ones((int(env.num_envs),), dtype=torch.bool, device=self.device)
+        if self.use_latent_strategy:
+            self.temporal_tracker = TemporalStateTracker(
+                num_envs=int(env.num_envs),
+                state_dim=GLOBAL_STATE_DIM,
+                device=self.device,
+            )
+        else:
+            self.temporal_tracker = None
         self.latent_resample_on_flag = (
             bool(getattr(cfg, "latent_resample_on_flag", False))
             and self.use_latent_strategy
@@ -988,25 +1129,95 @@ class CustomPPOTrainer:
 
     def _log_decentralized_actor_contract_once(self) -> None:
         """One-time training log: policy actor is CNN(grid) + scalars + optional z, not global state."""
+        self.log_input_dim_contract()
+
+    def log_input_dim_contract(self) -> None:
+        """Print the startup input-dimension contract once."""
         if self._decentralized_actor_contract_logged:
             return
         m = self.model
         assert isinstance(m, SharedActorCentralizedCritic)
+        dims = m.input_dim_contract()
+        print(
+            "[PPO] Input dims: "
+            f"base_global_state_dim={dims['base_global_state_dim']} "
+            f"temporal_context_dim={dims['temporal_context_dim']} "
+            f"q_phi_input_dim={dims['q_phi_input_dim']} "
+            f"critic_context_dim={dims['critic_context_dim']} "
+            f"actor_input_dim={dims['actor_input_dim']}"
+        )
         if m.uses_latent_strategy:
             print(
                 "[PPO] Decentralized actor contract: per-agent MLP input dim = "
                 f"{m._decentralized_actor_in_dim} "
                 f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent} + z_emb {m.z_embed_dim}); "
-                f"global_state_dim={GLOBAL_STATE_DIM} is for q_phi/critic only."
+                f"global_state_dim={m.global_state_dim} is for q_phi/critic only."
+            )
+            print(
+                "[PPO] Critic z contract: "
+                f"context_dim={dims['critic_context_dim']} "
+                f"joint_action_onehot_dim={dims['critic_joint_action_dim']} "
+                f"z_onehot_dim={dims['critic_z_dim']} "
+                f"critic_extra_dim={dims['critic_extra_dim']} "
+                "z_present=True"
             )
         else:
             print(
                 "[PPO] Decentralized actor contract: per-agent MLP input dim = "
                 f"{m._decentralized_actor_in_dim} "
                 f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent}, no z); "
-                f"global_state_dim={GLOBAL_STATE_DIM} not used in policy."
+                f"global_state_dim={m.global_state_dim} not used in policy."
             )
+        self._log_plan_faithful_audit()
         self._decentralized_actor_contract_logged = True
+
+    def _log_plan_faithful_audit(self) -> None:
+        """One-time Summer-plan audit: confirm forbidden objectives are absent and flag optional add-ons.
+
+        Forbidden by the Summer Implementation Plan and the current research direction:
+        supervised router labels, opponent-ID heads, Gumbel-Softmax z, VAE losses, handcrafted strategy
+        labels. None are implemented in this codebase; this log is a defense-in-depth assertion plus a
+        printed reminder that they remain off. Optional plan §12 add-ons (aux return head, KL-consecutive,
+        flag-triggered resample, fixed-z) are reported but not blocked.
+        """
+        if not self.model.uses_latent_strategy:
+            return
+        # Sanity-check that we have not silently grown any forbidden attribute on the model.
+        for forbidden_attr in (
+            "opponent_id_head",
+            "opponent_classifier",
+            "gumbel_softmax_z",
+            "vae_z_head",
+            "strategy_label_head",
+            "supervised_router",
+        ):
+            if getattr(self.model, forbidden_attr, None) is not None:
+                raise AssertionError(
+                    f"plan-faithful audit: forbidden module '{forbidden_attr}' is attached to the model."
+                )
+        cfg = self.cfg
+        optional = {
+            "aux_return_head": bool(getattr(cfg, "latent_strategy_aux_return_head", False)),
+            "kl_consecutive": float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0) > 0.0,
+            "resample_on_flag": bool(getattr(cfg, "latent_resample_on_flag", False)),
+            "fixed_latent_strategy": bool(getattr(cfg, "fixed_latent_strategy", False)),
+        }
+        print(
+            "[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, "
+            "no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels."
+        )
+        extras_on = [name for name, on in optional.items() if on]
+        if extras_on:
+            print(
+                "[PPO] Summer-plan audit: optional add-ons ENABLED "
+                f"{extras_on} (not plan-faithful first-run; treat as intentional ablation)."
+            )
+        else:
+            print(
+                "[PPO] Summer-plan audit: optional add-ons "
+                "(aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF "
+                "— plan-faithful first-run."
+            )
 
     @staticmethod
     def _flag_territory_features_changed(
@@ -1335,8 +1546,20 @@ class CustomPPOTrainer:
                         f"latent_phase{p}_switch_mean",
                         f"latent_phase{p}_blue_ahead_mean",
                         f"latent_phase{p}_capture_step_mean",
+                        f"q_phi_phase{p}_entropy_mean",
                     ]
                 )
+                for z_idx in range(self.latent_k):
+                    fields.append(f"q_phi_phase{p}_z{z_idx}_prob_mean")
+            fields.append("latent_behavior_diversity_l2_mean")
+            for z_idx in range(self.latent_k):
+                for name in BEHAVIOR_TELEMETRY_NAMES:
+                    fields.append(f"latent_z{z_idx}_behavior_{name}_mean")
+            fields.append("forced_z_macro_jsd_mean")
+            for z_idx in range(self.latent_k):
+                for _action_id, action_name in FORCED_Z_MACRO_ACTIONS:
+                    fields.append(f"forced_z{z_idx}_macro_{action_name}_prob")
+                fields.append(f"forced_z{z_idx}_macro_entropy")
             for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
                 for z_idx in range(self.latent_k):
                     fields.append(f"strategy_occupancy_op{o_idx}_z{z_idx}")
@@ -1729,6 +1952,9 @@ class CustomPPOTrainer:
         else:
             self._z_kl_first_in_ep = None
             self._prev_z_logits = None
+        if self.temporal_tracker is not None:
+            self.temporal_tracker.reset()
+        self._last_context_state = None
 
     def _strategy_for_step(
         self,
@@ -1873,6 +2099,14 @@ class CustomPPOTrainer:
         z = buffer.fields["z"][:length].reshape(-1).long().cpu().numpy()
         K = int(self.latent_k)
         out: dict[str, float] = {}
+        q_probs_np: Optional[np.ndarray] = None
+        q_entropy_np: Optional[np.ndarray] = None
+        if "z_logits" in buffer.fields:
+            z_logits_t = buffer.fields["z_logits"][:length].reshape(-1, K).float()
+            q_probs_t = torch.softmax(z_logits_t, dim=-1)
+            q_entropy_t = -(q_probs_t.clamp_min(1e-8) * q_probs_t.clamp_min(1e-8).log()).sum(dim=-1)
+            q_probs_np = q_probs_t.detach().cpu().numpy()
+            q_entropy_np = q_entropy_t.detach().cpu().numpy()
 
         if "opponent_id" in buffer.fields:
             oid = buffer.fields["opponent_id"][:length].reshape(-1).long().cpu().numpy()
@@ -1958,6 +2192,15 @@ class CustomPPOTrainer:
                     out[f"latent_phase{p}_capture_step_mean"] = (
                         float(rsp_bin[mask].mean()) if rsp_bin is not None else 0.0
                     )
+                if q_entropy_np is None or q_probs_np is None or not np.any(mask):
+                    out[f"q_phi_phase{p}_entropy_mean"] = 0.0
+                    for k in range(K):
+                        out[f"q_phi_phase{p}_z{k}_prob_mean"] = 0.0
+                else:
+                    out[f"q_phi_phase{p}_entropy_mean"] = float(q_entropy_np[mask].mean())
+                    q_phase = q_probs_np[mask]
+                    for k in range(K):
+                        out[f"q_phi_phase{p}_z{k}_prob_mean"] = float(q_phase[:, k].mean())
 
         if ba is not None:
             ahead = ba > 0.5
@@ -2043,6 +2286,111 @@ class CustomPPOTrainer:
         else:
             out["latent_mi_z_attack_defense_ratio_bucket_nats"] = 0.0
 
+        return out
+
+    def _behavior_diversity_stats(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
+        """Post-hoc behavior spread by sampled z; diagnostics only, no labels or losses."""
+        if not self.use_latent_strategy or "z" not in buffer.fields or "behavior_telemetry" not in buffer.fields:
+            return {}
+        length = int(buffer.pos)
+        if length <= 0:
+            return {}
+        z = buffer.fields["z"][:length].reshape(-1).long()
+        beh = buffer.fields["behavior_telemetry"][:length].reshape(-1, N_TELEMETRY).float()
+        out: dict[str, float] = {}
+        means: list[torch.Tensor] = []
+        for k in range(int(self.latent_k)):
+            mask = z == k
+            if bool(mask.any().item()):
+                mean_k = beh[mask].mean(dim=0)
+                means.append(mean_k)
+            else:
+                mean_k = torch.zeros((N_TELEMETRY,), dtype=torch.float32, device=beh.device)
+            for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
+                out[f"latent_z{k}_behavior_{name}_mean"] = float(mean_k[j].detach().cpu().item())
+
+        if len(means) >= 2:
+            pairwise: list[float] = []
+            for i in range(len(means)):
+                for j in range(i + 1, len(means)):
+                    pairwise.append(float(torch.linalg.vector_norm(means[i] - means[j]).detach().cpu().item()))
+            out["latent_behavior_diversity_l2_mean"] = float(np.mean(pairwise)) if pairwise else 0.0
+        else:
+            out["latent_behavior_diversity_l2_mean"] = 0.0
+        return out
+
+    def _macro_probs_from_logits(self, logits: torch.Tensor) -> torch.Tensor:
+        """Return macro-action probabilities with shape (B, n_agents, macro_dim)."""
+        macro_chunks: list[torch.Tensor] = []
+        offset = 0
+        for _agent_idx in range(int(self.model.n_agents)):
+            for head_idx in range(int(self.model.heads_per_agent)):
+                dim = int(self.model.per_agent_action_dims[head_idx])
+                chunk = logits[:, offset : offset + dim]
+                if head_idx == 0:
+                    macro_chunks.append(torch.softmax(chunk, dim=-1))
+                offset += dim
+        if not macro_chunks:
+            raise AssertionError("could not find macro-action heads for forced-z profiling")
+        return torch.stack(macro_chunks, dim=1)
+
+    def _forced_z_behavior_profile(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
+        """Profile actor macro preferences under every forced z on the same rollout observations."""
+        if not self.use_latent_strategy:
+            return {}
+        length = int(buffer.pos)
+        if length <= 0:
+            return {}
+        total = length * int(buffer.n_envs)
+        if total <= 0:
+            return {}
+        if total > FORCED_Z_PROFILE_MAX_ROWS:
+            row_idx = torch.linspace(
+                0,
+                total - 1,
+                steps=FORCED_Z_PROFILE_MAX_ROWS,
+                device=self.device,
+            ).long()
+        else:
+            row_idx = torch.arange(total, device=self.device)
+        obs_batch = {
+            "grid": buffer.fields["obs_grid"][:length].reshape(total, *buffer.fields["obs_grid"].shape[2:]).index_select(0, row_idx),
+            "vec": buffer.fields["obs_vec"][:length].reshape(total, *buffer.fields["obs_vec"].shape[2:]).index_select(0, row_idx),
+            "agent_mask": buffer.fields["obs_agent_mask"][:length].reshape(total, *buffer.fields["obs_agent_mask"].shape[2:]).index_select(0, row_idx),
+            "mask": buffer.fields["obs_mask"][:length].reshape(total, *buffer.fields["obs_mask"].shape[2:]).index_select(0, row_idx),
+        }
+        out: dict[str, float] = {}
+        mean_macros: list[torch.Tensor] = []
+        with torch.no_grad():
+            for z_id in range(int(self.latent_k)):
+                z_idx = torch.full((int(row_idx.numel()),), z_id, dtype=torch.long, device=self.device)
+                logits = self.model.policy_logits(obs_batch, z_idx=z_idx)
+                logits = self.model._mask_logits(logits, obs_batch.get("mask"))
+                macro_probs = self._macro_probs_from_logits(logits)
+                mean_macro = macro_probs.mean(dim=(0, 1))
+                mean_macros.append(mean_macro)
+                macro_entropy = -(
+                    macro_probs.clamp_min(1e-8) * macro_probs.clamp_min(1e-8).log()
+                ).sum(dim=-1).mean()
+                for action_id, action_name in FORCED_Z_MACRO_ACTIONS:
+                    if action_id < int(mean_macro.numel()):
+                        out[f"forced_z{z_id}_macro_{action_name}_prob"] = float(mean_macro[action_id].detach().cpu().item())
+                    else:
+                        out[f"forced_z{z_id}_macro_{action_name}_prob"] = 0.0
+                out[f"forced_z{z_id}_macro_entropy"] = float(macro_entropy.detach().cpu().item())
+
+        if len(mean_macros) >= 2:
+            js_vals: list[float] = []
+            for i in range(len(mean_macros)):
+                for j in range(i + 1, len(mean_macros)):
+                    p = mean_macros[i].clamp_min(1e-8)
+                    q = mean_macros[j].clamp_min(1e-8)
+                    m = 0.5 * (p + q)
+                    js = 0.5 * (p * (p.log() - m.log())).sum() + 0.5 * (q * (q.log() - m.log())).sum()
+                    js_vals.append(float(js.detach().cpu().item()))
+            out["forced_z_macro_jsd_mean"] = float(np.mean(js_vals)) if js_vals else 0.0
+        else:
+            out["forced_z_macro_jsd_mean"] = 0.0
         return out
 
     def _strategy_resample_advantage_stats(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
@@ -2190,7 +2538,7 @@ class CustomPPOTrainer:
         buffer.register_field("obs_vec", tuple(obs["vec"].shape[1:]))
         buffer.register_field("obs_agent_mask", tuple(obs["agent_mask"].shape[1:]))
         buffer.register_field("obs_mask", tuple(obs["mask"].shape[1:]))
-        buffer.register_field("global_state", (GLOBAL_STATE_DIM,))
+        buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
         buffer.register_field("values")
@@ -2230,7 +2578,7 @@ class CustomPPOTrainer:
 
     def _z_for_bootstrap(
         self,
-        next_global_state_np: np.ndarray,
+        next_context_gs_t: torch.Tensor,
         z_t: torch.Tensor,
         dones: np.ndarray,
     ) -> torch.Tensor:
@@ -2259,12 +2607,7 @@ class CustomPPOTrainer:
         z_next = z_t.long().clone()
         if bool(resample_next.any().item()):
             idx = torch.where(resample_next)[0]
-            gs = torch.as_tensor(
-                np.asarray(next_global_state_np, dtype=np.float32),
-                dtype=torch.float32,
-                device=device,
-            )
-            gs_sub = gs.index_select(0, idx)
+            gs_sub = next_context_gs_t.index_select(0, idx)
             sampled_z, _, _, _ = self.model.sample_strategy(
                 gs_sub,
                 deterministic=bool(self.latent_bootstrap_z_deterministic),
@@ -2293,6 +2636,11 @@ class CustomPPOTrainer:
         with torch.no_grad():
             if not self.use_latent_strategy:
                 return self._denormalize_values(self.model.values(gs))
+            
+            done_t = torch.as_tensor(dones, dtype=torch.bool, device=self.device) if dones is not None else None
+            next_context_gs_t = self.temporal_tracker.update(gs, dones=done_t)
+            self._last_context_state = next_context_gs_t
+
             if next_obs is None or prev_z is None:
                 raise ValueError("latent next value bootstrap requires next_obs and prev_z.")
             obs_rows = self._obs_rows_from_next(next_obs, infos)
@@ -2300,13 +2648,13 @@ class CustomPPOTrainer:
             if dones is None:
                 raise ValueError("latent next value bootstrap requires dones for z lookahead.")
             next_z = self._z_for_bootstrap(
-                next_global_state,
+                next_context_gs_t,
                 prev_z.long().reshape(-1),
                 dones,
             )
             _, next_values, _, _ = self.model.act(
                 next_obs_t,
-                gs,
+                next_context_gs_t,
                 deterministic=True,
                 z_idx=next_z,
             )
@@ -2326,17 +2674,25 @@ class CustomPPOTrainer:
             obs = self.env.reset()
             global_state = self.env.state().astype(np.float32)
             self._reset_strategy_state()
+            if self.use_latent_strategy:
+                gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
+                context_state = self.temporal_tracker.update(gs_t)
+            else:
+                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
         else:
             obs = self._last_obs
             global_state = self._last_global_state
+            if self.use_latent_strategy:
+                context_state = self._last_context_state
+            else:
+                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
         buffer = self._make_buffer(obs)
         for step_idx in range(int(self.cfg.n_steps)):
             decision_global_state_np = np.asarray(global_state, dtype=np.float32)
             obs_t = self._tensor_obs(obs)
-            gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
-                z_t, prev_z_t, strategy_aux = self._strategy_for_step(gs_t)
-                actions_t, values_norm_t, action_log_probs_t, _ = self.model.act(obs_t, gs_t, z_idx=z_t)
+                z_t, prev_z_t, strategy_aux = self._strategy_for_step(context_state)
+                actions_t, values_norm_t, action_log_probs_t, _ = self.model.act(obs_t, context_state, z_idx=z_t)
                 values_t = self._denormalize_values(values_norm_t)
                 # Action PPO uses action log-probs only; q_phi is trained separately
                 # at actual z-sampling points in update().
@@ -2411,7 +2767,7 @@ class CustomPPOTrainer:
                 obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=self.device),
                 obs_agent_mask=torch.as_tensor(obs["agent_mask"], dtype=torch.float32, device=self.device),
                 obs_mask=torch.as_tensor(obs["mask"], dtype=torch.float32, device=self.device),
-                global_state=gs_t,
+                global_state=context_state,
                 actions=actions_t,
                 log_probs=log_probs_t,
                 values=values_t,
@@ -2481,12 +2837,8 @@ class CustomPPOTrainer:
                             "time_frac": float(ds) / float(max_dec),
                         }
                     )
-            obs = next_obs
-            global_state = next_global_state
-            self.global_step += int(self.env.num_envs)
-            self._on_sb3_rollout_env_step()
             if self.latent_resample_on_flag:
-                prev_sec = gs_t[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
+                prev_sec = context_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
                 nxt_sec = torch.as_tensor(
                     next_global_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE],
                     dtype=torch.float32,
@@ -2494,6 +2846,14 @@ class CustomPPOTrainer:
                 )
                 chg = self._flag_territory_features_changed(prev_sec, nxt_sec)
                 self._needs_strategy_sample[chg] = True
+            obs = next_obs
+            global_state = next_global_state
+            if self.use_latent_strategy:
+                context_state = self._last_context_state
+            else:
+                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=self.device)
+            self.global_step += int(self.env.num_envs)
+            self._on_sb3_rollout_env_step()
             if self.use_latent_strategy and self.latent_kl_consecutive > 0.0 and self._z_kl_first_in_ep is not None:
                 self._prev_z_logits = strategy_aux["z_logits"].detach().clone()
                 self._z_kl_first_in_ep = torch.as_tensor(dones, dtype=torch.bool, device=self.device)
@@ -2755,6 +3115,8 @@ class CustomPPOTrainer:
         self.last_stats.update(self._rollout_advantage_diagnostics(buffer))
         self.last_stats.update(self._latent_rollout_stats(buffer))
         self.last_stats.update(self._latent_opponent_rollout_diag(buffer))
+        self.last_stats.update(self._behavior_diversity_stats(buffer))
+        self.last_stats.update(self._forced_z_behavior_profile(buffer))
         return self.last_stats
 
     def _save_periodic_checkpoint(self) -> None:
@@ -2876,7 +3238,7 @@ class CustomPPOTrainer:
                 "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
                 "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
                 "actor_cnn_feature_dim": int(self.model.actor_cnn_feature_dim),
-                "global_state_dim": int(GLOBAL_STATE_DIM),
+                "global_state_dim": int(self.model.global_state_dim),
                 "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
             },
             path,

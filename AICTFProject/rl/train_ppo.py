@@ -27,6 +27,7 @@ from opponent_params import sample_batched_opponent_params
 from rl.custom_ppo import CustomPPOTrainer
 from rl.curriculum import CurriculumState, jacob_paper_curriculum_state, phase_from_tag
 from rl.global_state import GLOBAL_STATE_DIM
+from rl.latent_marl import CONTEXT_STATE_DIM
 from rl.stress_schedule import STRESS_BY_PHASE
 
 
@@ -453,15 +454,97 @@ class PPOConfig:
     periodic_checkpoint_steps: int = 50_000
 
 
-# Default ``python rl/train_ppo.py`` recipe when ``--preset`` is omitted: plan-faithful A1
-# (env defaults, no auxiliary return head / warm start, episode-start z). Pass ``--preset none`` to skip.
-DEFAULT_CLI_TRAINING_PRESET = "latent_a1_plan_faithful"
+# Default ``python rl/train_ppo.py`` recipe when ``--preset`` is omitted: plan-faithful
+# latent with sparse persistence and entropy. Pass ``--preset none`` to skip.
+DEFAULT_CLI_TRAINING_PRESET = "plan_faithful_latent_persist_entropy"
+
+
+def _apply_plan_faithful_base(cfg: PPOConfig) -> PPOConfig:
+    """Shared Summer-plan setup for the clean latent/no-latent ablation family."""
+    cfg.total_timesteps = 1_000_000
+    cfg.mode = TrainMode.FIXED_OPPONENT.value
+    cfg.fixed_opponent_tag = "OP3"
+    cfg.normalize_returns = True
+    cfg.clip_range = 0.18
+    cfg.clip_range_vf = 0.2
+    cfg.vf_coef = 1.1
+    cfg.learning_rate = 1.8e-4
+    cfg.lr_floor_frac = 0.05
+    cfg.target_kl = 0.02
+    cfg.n_steps = 2048
+    cfg.batch_size = 512
+    cfg.n_epochs = 8
+    cfg.ent_coef = 0.0015
+    cfg.latent_k = 4
+    cfg.latent_entropy_objective = "maximize"
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_p = 0.025
+    cfg.latent_strategy_ppo_coef = 0.30
+    cfg.latent_strategy_aux_return_head = False
+    cfg.latent_strategy_aux_return_coef = 0.0
+    cfg.latent_strategy_tau = 1.0
+    cfg.latent_resample_every_n = 20
+    cfg.latent_resample_on_flag = False
+    cfg.latent_kl_consecutive = 0.0
+    cfg.latent_gae_reset_on_z_change = True
+    cfg.latent_bootstrap_z_deterministic = True
+    cfg.latent_vf_hidden = 128
+    cfg.fixed_latent_strategy = False
+    cfg.fixed_latent_strategy_id = 0
+    cfg.env_win_team_reward = None
+    cfg.env_draw_team_penalty = None
+    cfg.env_lose_team_punish = None
+    cfg.env_action_failed_punishment = None
+    cfg.env_dense_weight = None
+    cfg.env_sparse_weight = None
+    cfg.env_reward_scale = None
+    cfg.env_reward_clip = None
+    cfg.env_stalemate_penalty = None
+    cfg.env_stalemate_max_steps = None
+    cfg.reward_shaping_coef_start = 1.0
+    cfg.reward_shaping_coef_end = 1.0
+    cfg.reward_shaping_decay_steps = 0
+    cfg.periodic_checkpoint_steps = 50_000
+    cfg.load_path = None
+    return cfg
 
 
 def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
     """Apply named high-level presets for repeatable training recipes."""
     key = str(preset).strip().lower()
     if not key:
+        return cfg
+    if key in {
+        "plan_faithful_latent",
+        "plan_faithful_latent_persist_entropy",
+        "latent_plan_faithful",
+        "latent_plan_faithful_persist_entropy",
+    }:
+        cfg = _apply_plan_faithful_base(cfg)
+        cfg.use_latent_strategy = True
+        cfg.run_tag = "plan_faithful_latent_persist_entropy_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_no_persistence", "latent_plan_faithful_no_persistence"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
+        cfg.latent_lam_p = 0.0
+        cfg.run_tag = "plan_faithful_latent_no_persistence_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_no_entropy", "latent_plan_faithful_no_entropy"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
+        cfg.latent_entropy_objective = "none"
+        cfg.latent_lam_h = 0.0
+        cfg.run_tag = "plan_faithful_latent_no_entropy_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
+        cfg.latent_k = 1
+        cfg.run_tag = "plan_faithful_latent_k1_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_no_latent", "no_latent_plan_faithful"}:
+        cfg = _apply_plan_faithful_base(cfg)
+        cfg.use_latent_strategy = False
+        cfg.fixed_latent_strategy = False
+        cfg.run_tag = "plan_faithful_no_latent_1m_2v2"
         return cfg
     # Paper plan naming (Summer Implementation Plan): Option A = episodic z; Option B = sparse refresh + active λ_p.
     if key == "plan_option_a":
@@ -711,7 +794,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'latent_op3_wrmax_1m', 'latent_wrmax_op3_1m', "
         "'latent_op3_wrmax_2m', 'latent_wrmax_op3_2m' (aliases for wrmax 1M), "
         "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m', "
-        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful'."
+        "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful', "
+        "'plan_faithful_latent_persist_entropy', 'plan_faithful_latent_no_persistence', "
+        "'plan_faithful_latent_no_entropy', 'plan_faithful_latent_k1', 'plan_faithful_no_latent'."
     )
 
 
@@ -766,8 +851,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     if bool(getattr(cfg, "use_latent_strategy", False)):
         k = int(getattr(cfg, "latent_k", 4))
-        if k not in (4, 6):
-            raise ValueError("latent_k must be 4 or 6 (Summer Implementation Plan: fixed K for all experiments).")
+        if k not in (1, 4, 6):
+            raise ValueError("latent_k must be 1, 4, or 6 (K=1 is the collapsed-latent ablation).")
         if bool(getattr(cfg, "fixed_latent_strategy", False)):
             fixed_id = int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0)
             if fixed_id < 0 or fixed_id >= k:
@@ -796,7 +881,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={cfg.mode} | run_tag={cfg.run_tag!r}")
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
-    print(f"[PPO] Global state dim: {GLOBAL_STATE_DIM}")
+    gs_dim = CONTEXT_STATE_DIM if bool(getattr(cfg, "use_latent_strategy", False)) else GLOBAL_STATE_DIM
+    print(f"[PPO] Global state dim: {gs_dim}")
     print(f"[PPO] Actor CNN feature dim: {int(getattr(cfg, 'actor_cnn_feature_dim', 128))}")
     print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
     if bool(getattr(cfg, "train_domain_randomization", False)):
@@ -1001,6 +1087,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             value_clip_range=getattr(cfg, "clip_range_vf", clip_range),
             curriculum=curriculum,
         )
+        trainer.log_input_dim_contract()
         if cfg.load_path and os.path.isfile(cfg.load_path):
             print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
             trainer.load(cfg.load_path)
@@ -1181,7 +1268,8 @@ if __name__ == "__main__":
             help=(
                 f"Apply a named training preset before other CLI overrides (default: {DEFAULT_CLI_TRAINING_PRESET!r}). "
                 "Use 'none' or '' to skip presets and use PPOConfig + CLI fields only. "
-                "Examples: latent_op3_wrmax_1m (drift wrmax), latent_a1_plan_faithful (1M plan-faithful A1)."
+                "Examples: plan_faithful_latent_persist_entropy (recommended), "
+                "latent_op3_wrmax_1m (drift wrmax), latent_a1_plan_faithful (legacy A1)."
             ),
         )
         parser.add_argument(
@@ -1519,7 +1607,7 @@ if __name__ == "__main__":
         if args.no_latent_strategy:
             cfg.use_latent_strategy = False
         if args.latent_k is not None:
-            cfg.latent_k = max(2, int(args.latent_k))
+            cfg.latent_k = max(1, int(args.latent_k))
         if args.latent_resample_every is not None:
             cfg.latent_resample_every_n = max(0, int(args.latent_resample_every))
         if args.fixed_latent_strategy:

@@ -227,6 +227,32 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIsNone(cfg.env_win_team_reward, msg=preset)
             self.assertIsNone(cfg.env_dense_weight, msg=preset)
 
+    def test_plan_faithful_ablation_presets_apply_expected_knobs(self) -> None:
+        main = _apply_training_preset(PPOConfig(), "plan_faithful_latent_persist_entropy")
+        self.assertTrue(main.use_latent_strategy)
+        self.assertEqual(main.latent_k, 4)
+        self.assertEqual(main.latent_resample_every_n, 20)
+        self.assertAlmostEqual(main.latent_lam_p, 0.025)
+        self.assertAlmostEqual(main.latent_lam_h, 0.003)
+        self.assertFalse(main.latent_strategy_aux_return_head)
+        self.assertAlmostEqual(main.latent_strategy_aux_return_coef, 0.0)
+        self.assertEqual(main.latent_entropy_objective, "maximize")
+
+        no_p = _apply_training_preset(PPOConfig(), "plan_faithful_latent_no_persistence")
+        self.assertEqual(no_p.latent_resample_every_n, 20)
+        self.assertAlmostEqual(no_p.latent_lam_p, 0.0)
+
+        no_h = _apply_training_preset(PPOConfig(), "plan_faithful_latent_no_entropy")
+        self.assertEqual(no_h.latent_entropy_objective, "none")
+        self.assertAlmostEqual(no_h.latent_lam_h, 0.0)
+
+        k1 = _apply_training_preset(PPOConfig(), "plan_faithful_latent_k1")
+        self.assertEqual(k1.latent_k, 1)
+
+        plain = _apply_training_preset(PPOConfig(), "plan_faithful_no_latent")
+        self.assertFalse(plain.use_latent_strategy)
+        self.assertFalse(plain.fixed_latent_strategy)
+
     def test_wrmax_train_2m_preset(self) -> None:
         cfg = _apply_training_preset(PPOConfig(), "latent_op3_wrmax_train_2m")
         self.assertEqual(cfg.total_timesteps, 2_000_000)
@@ -476,6 +502,12 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("latent_mi_z_opponent_nats", rows[0])
             self.assertIn("latent_mi_z_phase_nats", rows[0])
             self.assertIn("latent_mi_z_outcome_nats", rows[0])
+            self.assertIn("q_phi_phase0_entropy_mean", rows[0])
+            self.assertIn("q_phi_phase0_z0_prob_mean", rows[0])
+            self.assertIn("latent_behavior_diversity_l2_mean", rows[0])
+            self.assertIn("latent_z0_behavior_team_spread_mean", rows[0])
+            self.assertIn("forced_z_macro_jsd_mean", rows[0])
+            self.assertIn("forced_z0_macro_get_flag_prob", rows[0])
             self.assertIn("strategy_occupancy_op0_z0", rows[0])
             self.assertIn("episode_opp0_z0_count", rows[0])
             self.assertIn("episode_z_0_red_score_mean", rows[0])

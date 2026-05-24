@@ -1,7 +1,9 @@
 """Reusable PPO/latent configs aligned with the Summer Implementation Plan and paper ablations.
 
-**Main result (clean default):** sample ``z`` once per episode; no event-based or KL extras
-(``latent_resample_every_n=0``, ``latent_resample_on_flag=False``, ``latent_kl_consecutive=0``).
+**Main plan-faithful first run:** K=4, sparse strategy interval 20, persistence + entropy,
+no supervised labels, no opponent-ID heads, no auxiliary prediction heads.
+
+Legacy A1 configs below still sample ``z`` once per episode for old comparisons.
 
 **E3 baseline (fair comparison):** :func:`paper_default_no_latent_config` is
 ``replace(paper_default_latent_config(), use_latent_strategy=False)`` so the
@@ -18,6 +20,42 @@ from __future__ import annotations
 from dataclasses import replace
 
 from rl.train_ppo import PPOConfig, TrainMode
+
+
+def plan_faithful_latent_persist_entropy_config() -> PPOConfig:
+    """Recommended Summer-plan first run: K=4, sparse z interval 20, persistence + entropy, no labels."""
+    return PPOConfig(
+        use_latent_strategy=True,
+        latent_k=4,
+        latent_resample_every_n=20,
+        latent_resample_on_flag=False,
+        latent_kl_consecutive=0.0,
+        latent_lam_p=0.025,
+        latent_lam_h=0.003,
+        latent_entropy_objective="maximize",
+        latent_strategy_aux_return_head=False,
+        latent_strategy_aux_return_coef=0.0,
+    )
+
+
+def plan_faithful_latent_no_persistence_config() -> PPOConfig:
+    return replace(plan_faithful_latent_persist_entropy_config(), latent_lam_p=0.0)
+
+
+def plan_faithful_latent_no_entropy_config() -> PPOConfig:
+    return replace(
+        plan_faithful_latent_persist_entropy_config(),
+        latent_lam_h=0.0,
+        latent_entropy_objective="none",
+    )
+
+
+def plan_faithful_latent_k1_config() -> PPOConfig:
+    return replace(plan_faithful_latent_persist_entropy_config(), latent_k=1)
+
+
+def plan_faithful_no_latent_config() -> PPOConfig:
+    return replace(plan_faithful_latent_persist_entropy_config(), use_latent_strategy=False)
 
 
 def paper_default_latent_config() -> PPOConfig:

@@ -120,6 +120,7 @@ class CentralizedCritic(nn.Module):
         self.global_state_dim = int(global_state_dim)
         self.extra_dim = int(extra_dim)
         input_dim = self.global_state_dim + self.extra_dim
+        self.input_dim = int(input_dim)
         # 128–128 MLP to a scalar; Word spec names ``critic_input``; no custom init in the spec.
         self.net = nn.Sequential(
             nn.Linear(input_dim, int(hidden_dim)),
