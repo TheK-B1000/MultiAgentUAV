@@ -1075,6 +1075,14 @@ class CustomPPOTrainer:
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
         # Optional E3: per-env-step z / q_phi / phase rows (set before long E3 runs; see E3_STEP_TELEMETRY_FIELDS).
         self._e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
+        # Persistent file handle / writer so we don't pay open+close+full-file-read schema-check per step.
+        # Schema check runs once on first write; thereafter we just append. File is closed at the end of learn().
+        self._e3_file: Optional[Any] = None
+        self._e3_writer: Optional[Any] = None
+        self._e3_fields_cache: Optional[list[str]] = None
+        self._e3_rows_since_flush: int = 0
+        # Flush to disk every N PPO env-steps worth of rows; tuned so disk I/O is ~100 KB/flush, not per-row.
+        self._e3_flush_every_steps: int = 100
         # SB3-style: ``tqdm`` bar updated every ``n_envs`` sim steps during ``collect_rollout`` only.
         self._sb3_rollout_pbar: Any = None
         self._last_obs: Optional[Dict[str, np.ndarray]] = None
@@ -1333,12 +1341,17 @@ class CustomPPOTrainer:
         attack_defense_ratio_bucket_np: np.ndarray,
         blue_ahead_np: np.ndarray,
     ) -> None:
-        """One row per env for this PPO step (optional E3 / §6.3 style histograms)."""
+        """One row per env for this PPO step (optional E3 / §6.3 style histograms).
+
+        Hot-loop optimized: file handle and CSV writer are opened once (lazily) and kept open
+        for the lifetime of the trainer. Schema migration runs only on first call; thereafter
+        we just append rows. Python's default text-mode buffered I/O batches the actual disk
+        writes; we flush every ``self._e3_flush_every_steps`` PPO env-steps so a Ctrl+C still
+        loses at most ~100 steps of rows.
+        """
         if not self._e3_step_telemetry_path or not self.use_latent_strategy:
             return
         path = self._e3_step_telemetry_path
-        d = os.path.dirname(os.path.abspath(path)) or "."
-        os.makedirs(d, exist_ok=True)
         zt = z_t.detach().cpu().numpy()
         pz = prev_z.detach().cpu().numpy()
         zH = strategy_aux["z_entropy"].detach().cpu().numpy()
@@ -1346,43 +1359,70 @@ class CustomPPOTrainer:
         am = zlog.argmax(axis=-1)
         n_e = int(zt.shape[0])
         assert int(decision_global_state_np.shape[0]) == n_e, (decision_global_state_np.shape, n_e)
-        fields = list(E3_STEP_TELEMETRY_FIELDS)
-        self._ensure_additive_csv_header(path, fields)
-        skip_header = os.path.isfile(path) and os.path.getsize(path) > 0
-        with open(path, "a", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-            if not skip_header:
-                w.writeheader()
-            upd = int(self._updates_completed)
-            for e in range(n_e):
-                info = dict(infos[e]) if e < len(infos) else {}
-                gs_e = decision_global_state_np[e]
-                sf = float(info.get("stalemate_frac", 0.0) or 0.0)
-                pid = int(team_phase_id_from_global_state(gs_e, stalemate_frac=sf))
-                row: dict[str, Any] = {
-                    "update": upd,
-                    "rollout_step": int(rollout_step),
-                    "env_id": e,
-                    "global_step": int(global_step_at_step_end),
-                    "z_t": int(zt[e]),
-                    "q_phi_entropy": float(zH[e]),
-                    "q_phi_argmax": int(am[e]),
-                    "switched": int(bool(int(zt[e]) != int(pz[e]))),
-                    "game_phase": coarse_game_phase_from_global_state(gs_e),
-                    "team_phase": team_phase_label_from_global_state(gs_e, stalemate_frac=sf),
-                    "score_outcome": outcome_label_from_global_state(gs_e),
-                    "stalemate_frac": sf,
-                    "opponent_id": int(self._opponent_id_int_from_info(info)),
-                    "phase_id": pid,
-                    "blue_ahead": float(blue_ahead_np[e]),
-                    "spread_bucket": int(spread_bucket_np[e]),
-                    "role_bucket": int(role_bucket_np[e]),
-                    "pressure_bucket": int(pressure_bucket_np[e]),
-                    "attack_defense_ratio_bucket": int(attack_defense_ratio_bucket_np[e]),
-                }
-                for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
-                    row[name] = float(behavior_telemetry_np[e, j])
-                w.writerow({key: row.get(key, "") for key in fields})
+        fields = self._e3_fields_cache or list(E3_STEP_TELEMETRY_FIELDS)
+        if self._e3_writer is None:
+            d = os.path.dirname(os.path.abspath(path)) or "."
+            os.makedirs(d, exist_ok=True)
+            self._ensure_additive_csv_header(path, fields)
+            needs_header = not (os.path.isfile(path) and os.path.getsize(path) > 0)
+            self._e3_file = open(path, "a", newline="", encoding="utf-8")
+            self._e3_writer = csv.DictWriter(self._e3_file, fieldnames=fields, extrasaction="ignore")
+            if needs_header:
+                self._e3_writer.writeheader()
+            self._e3_fields_cache = fields
+        w = self._e3_writer
+        upd = int(self._updates_completed)
+        for e in range(n_e):
+            info = dict(infos[e]) if e < len(infos) else {}
+            gs_e = decision_global_state_np[e]
+            sf = float(info.get("stalemate_frac", 0.0) or 0.0)
+            pid = int(team_phase_id_from_global_state(gs_e, stalemate_frac=sf))
+            row: dict[str, Any] = {
+                "update": upd,
+                "rollout_step": int(rollout_step),
+                "env_id": e,
+                "global_step": int(global_step_at_step_end),
+                "z_t": int(zt[e]),
+                "q_phi_entropy": float(zH[e]),
+                "q_phi_argmax": int(am[e]),
+                "switched": int(bool(int(zt[e]) != int(pz[e]))),
+                "game_phase": coarse_game_phase_from_global_state(gs_e),
+                "team_phase": team_phase_label_from_global_state(gs_e, stalemate_frac=sf),
+                "score_outcome": outcome_label_from_global_state(gs_e),
+                "stalemate_frac": sf,
+                "opponent_id": int(self._opponent_id_int_from_info(info)),
+                "phase_id": pid,
+                "blue_ahead": float(blue_ahead_np[e]),
+                "spread_bucket": int(spread_bucket_np[e]),
+                "role_bucket": int(role_bucket_np[e]),
+                "pressure_bucket": int(pressure_bucket_np[e]),
+                "attack_defense_ratio_bucket": int(attack_defense_ratio_bucket_np[e]),
+            }
+            for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
+                row[name] = float(behavior_telemetry_np[e, j])
+            w.writerow({key: row.get(key, "") for key in fields})
+        self._e3_rows_since_flush += 1
+        if self._e3_rows_since_flush >= self._e3_flush_every_steps:
+            if self._e3_file is not None:
+                self._e3_file.flush()
+            self._e3_rows_since_flush = 0
+
+    def _close_e3_step_telemetry(self) -> None:
+        """Flush and close the persistent e3 step telemetry file (idempotent)."""
+        f = self._e3_file
+        if f is None:
+            return
+        try:
+            f.flush()
+        except Exception:
+            pass
+        try:
+            f.close()
+        except Exception:
+            pass
+        self._e3_file = None
+        self._e3_writer = None
+        self._e3_rows_since_flush = 0
 
     def _episode_fieldnames(self) -> list[str]:
         return [
@@ -3216,6 +3256,7 @@ class CustomPPOTrainer:
                 self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]
                 self._sb3_rollout_pbar.close()  # type: ignore[union-attr]
                 self._sb3_rollout_pbar = None
+            self._close_e3_step_telemetry()
         return self.last_stats
 
     def save(self, path: str) -> None:

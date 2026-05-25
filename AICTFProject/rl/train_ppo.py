@@ -1300,6 +1300,18 @@ if __name__ == "__main__":
         parser.add_argument("--target-kl", type=float, default=None, help="PPO target KL; negative disables early stopping.")
         parser.add_argument("--n-epochs", type=int, default=None, help="Number of PPO optimization epochs per rollout.")
         parser.add_argument(
+            "--n-envs",
+            type=int,
+            default=None,
+            help="Number of vectorized GPU env instances (default: PPOConfig.n_envs=8). Increase to keep the GPU busy.",
+        )
+        parser.add_argument(
+            "--n-steps",
+            type=int,
+            default=None,
+            help="Rollout length per env between PPO updates (default: PPOConfig.n_steps=2048).",
+        )
+        parser.add_argument(
             "--clip-range-vf",
             type=float,
             default=None,
@@ -1690,6 +1702,10 @@ if __name__ == "__main__":
             cfg.target_kl = None if float(args.target_kl) < 0.0 else max(0.0, float(args.target_kl))
         if args.n_epochs is not None:
             cfg.n_epochs = max(1, int(args.n_epochs))
+        if args.n_envs is not None:
+            cfg.n_envs = max(1, int(args.n_envs))
+        if args.n_steps is not None:
+            cfg.n_steps = max(1, int(args.n_steps))
         if args.clip_range_vf is not None:
             cfg.clip_range_vf = None if float(args.clip_range_vf) < 0.0 else max(0.0, float(args.clip_range_vf))
         if args.vf_coef is not None:
