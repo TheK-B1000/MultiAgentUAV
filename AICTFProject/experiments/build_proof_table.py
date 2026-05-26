@@ -97,6 +97,7 @@ def _final_metrics_row(metrics_path: str) -> dict:
         "latent_lam_h": _get("latent_lam_h"),
         "latent_lam_p": _get("latent_lam_p"),
         "latent_K": _get("latent_strategy_n"),
+        "z_wr_spread": _get("strategy_wr_spread"),
     }
 
 
@@ -119,16 +120,26 @@ def _train_wr_by_opponent(episodes_path: str, *, tail: int = 500) -> dict:
     return out
 
 
-def _op4_wr(comparison_path: str, run_tag: str) -> Optional[float]:
+def _eval_wr(comparison_path: str, run_tag: str, opponent: str) -> Optional[float]:
     if not os.path.isfile(comparison_path):
         return None
-    df = pd.read_csv(comparison_path)
-    sel = df[(df["run_tag"] == run_tag) & (df["opponent"].astype(str).str.upper() == "OP4")]
-    if sel.empty:
+    try:
+        df = pd.read_csv(comparison_path)
+        opp_upper = opponent.upper()
+        # Handle variations in opponent naming (e.g. OP5 vs OP5_RUSHER)
+        def _match_opp(val: str) -> bool:
+            v = str(val).strip().upper().replace("_RUSHER", "").replace("_TURTLE", "")
+            o = opp_upper.replace("_RUSHER", "").replace("_TURTLE", "")
+            return v == o
+        
+        sel = df[(df["run_tag"] == run_tag) & (df["opponent"].map(_match_opp))]
+        if sel.empty:
+            return None
+        # Prefer the largest-N row (more episodes => tighter estimate)
+        sel = sel.sort_values("episodes", ascending=False)
+        return float(sel.iloc[0]["win_rate"])
+    except Exception:
         return None
-    # Prefer the largest-N row (more episodes => tighter estimate)
-    sel = sel.sort_values("episodes", ascending=False)
-    return float(sel.iloc[0]["win_rate"])
 
 
 def build_row(*, run_tag: str, checkpoint_dir: str) -> dict:
@@ -139,22 +150,83 @@ def build_row(*, run_tag: str, checkpoint_dir: str) -> dict:
     row: dict = {"run_tag": run_tag}
     row.update(_final_metrics_row(metrics_path))
     row.update(_train_wr_by_opponent(episodes_path))
-    op4 = _op4_wr(op4_path, run_tag)
-    if op4 is not None:
-        row["WR_OP4_holdout"] = op4
+    
+    # Extract evaluation win rates
+    for opp in ["OP3", "OP5", "OP6", "OP4"]:
+        val = _eval_wr(op4_path, run_tag, opp)
+        if val is not None:
+            row[f"WR_eval_{opp}"] = val
+        else:
+            row[f"WR_eval_{opp}"] = float("nan")
     return row
 
 
 def _fmt_pct(v: float) -> str:
     if v is None or (isinstance(v, float) and not np.isfinite(v)):
-        return "   -  "
-    return f"{100.0 * float(v):5.1f}%"
+        return "  -  "
+    return f"{100.0 * float(v):4.1f}%"
 
 
 def _fmt_bits(v: float) -> str:
     if v is None or (isinstance(v, float) and not np.isfinite(v)):
         return "  -   "
     return f"{float(v):+.4f}"
+
+
+def compute_verdict(row: dict, baseline_row: Optional[dict]) -> str:
+    run_tag = str(row.get("run_tag", ""))
+    if "no_latent" in run_tag:
+        return "baseline"
+    if "latent_k1" in run_tag:
+        return "sanity"
+    
+    mi_phase = row.get("MI_z_phase_bits", float("nan"))
+    zh_frac = row.get("zH_frac", float("nan"))
+    z_spread = row.get("z_wr_spread", float("nan"))
+    
+    op4_wr = row.get("WR_eval_OP4", float("nan"))
+    op3_wr = row.get("WR_eval_OP3", float("nan"))
+    op5_wr = row.get("WR_eval_OP5", float("nan"))
+    op6_wr = row.get("WR_eval_OP6", float("nan"))
+    
+    # 1. Latent meaningfulness checks
+    ok_mi = (isinstance(mi_phase, float) and np.isfinite(mi_phase) and mi_phase > 0.01)
+    ok_zh = (isinstance(zh_frac, float) and np.isfinite(zh_frac) and 0.40 <= zh_frac <= 0.95)
+    ok_spread = (isinstance(z_spread, float) and np.isfinite(z_spread) and z_spread > 0.05)
+    
+    # 2. Performance checks
+    ok_perf = True
+    reasons = []
+    
+    if baseline_row is not None:
+        base_op4 = baseline_row.get("WR_eval_OP4", float("nan"))
+        base_op3 = baseline_row.get("WR_eval_OP3", float("nan"))
+        base_op5 = baseline_row.get("WR_eval_OP5", float("nan"))
+        base_op6 = baseline_row.get("WR_eval_OP6", float("nan"))
+        
+        # OP4 holdout >= baseline OP4 - 2 percentage points
+        if isinstance(op4_wr, float) and np.isfinite(op4_wr) and isinstance(base_op4, float) and np.isfinite(base_op4):
+            if op4_wr < base_op4 - 0.02:
+                ok_perf = False
+                reasons.append("OP4 drop")
+        # Seen opponents not worse by > 3 percentage points
+        for name, wr, base_wr in [("OP3", op3_wr, base_op3), ("OP5", op5_wr, base_op5), ("OP6", op6_wr, base_op6)]:
+            if isinstance(wr, float) and np.isfinite(wr) and isinstance(base_wr, float) and np.isfinite(base_wr):
+                if wr < base_wr - 0.03:
+                    ok_perf = False
+                    reasons.append(f"{name} drop")
+                    
+    if ok_mi and ok_zh and ok_spread and ok_perf:
+        return "PASS"
+    elif not ok_mi and not ok_zh and not ok_spread:
+        return "FAIL"
+    else:
+        parts = []
+        if not ok_mi: parts.append("low MI")
+        if not ok_zh: parts.append("collapse")
+        if not ok_spread: parts.append("low spread")
+        parts.extend(reasons)
+        return "PARTIAL (" + ",".join(parts) + ")"
 
 
 def main() -> None:
@@ -208,58 +280,60 @@ def main() -> None:
     df.to_csv(out_path, index=False)
     print(f"[build_proof_table] wrote {out_path}\n")
 
-    # Pretty print: WR table first, then meaning table
-    print("=" * 110)
-    print("PROOF TABLE 1/2 — Win rates (training tail vs held-out OP4)")
-    print("=" * 110)
+    # Find baseline row
+    baseline_row = next((r for r in rows if "no_latent" in str(r.get("run_tag", ""))), None)
+
+    # Unified pretty-print table
+    print("=" * 145)
+    print("UNIFIED LATENT EVALUATION PROOF TABLE")
+    print("=" * 145)
     header = (
-        f"  {'run_tag':<58}  {'WR_all':>7}  {'OP3':>7}  {'OP5':>7}  {'OP6':>7}  {'OP4_ho':>7}"
+        f"  {'Run (tag)':<46}  {'WR OP3':>7}  {'WR OP5':>7}  {'WR OP6':>7}  {'WR OP4':>7}  {'zH_frac':>7}  {'MI_phase':>8}  {'MI_outc':>8}  {'MI_opp':>8}  {'z_spread':>8}  {'Verdict':<15}"
     )
     print(header)
     print("  " + "-" * (len(header) - 2))
-    for _, r in df.iterrows():
-        print(
-            f"  {str(r['run_tag']):<58}  "
-            f"{_fmt_pct(r.get('WR_train_overall')):>7}  "
-            f"{_fmt_pct(r.get('WR_train_vs_OP3')):>7}  "
-            f"{_fmt_pct(r.get('WR_train_vs_OP5')):>7}  "
-            f"{_fmt_pct(r.get('WR_train_vs_OP6')):>7}  "
-            f"{_fmt_pct(r.get('WR_OP4_holdout')):>7}"
-        )
 
-    print("\n" + "=" * 110)
-    print("PROOF TABLE 2/2 — Latent meaning (final PPO update; MI in bits)")
-    print("=" * 110)
-    header2 = (
-        f"  {'run_tag':<58}  {'zH_frac':>7}  {'MI_phase':>9}  {'MI_outc':>9}  {'MI_opp':>9}  {'switch%':>7}"
-    )
-    print(header2)
-    print("  " + "-" * (len(header2) - 2))
-    for _, r in df.iterrows():
-        zH_frac = r.get("zH_frac")
-        sw = r.get("switch_fraction")
+    for r in rows:
+        run_tag = r.get("run_tag", "")
+        short_tag = run_tag
+        for pfx in ["plan_faithful_", "_hardpool_1m_2v2", "_1m_2v2"]:
+            short_tag = short_tag.replace(pfx, "")
+            
+        verdict = compute_verdict(r, baseline_row)
+        
+        op3 = _fmt_pct(r.get("WR_eval_OP3"))
+        op5 = _fmt_pct(r.get("WR_eval_OP5"))
+        op6 = _fmt_pct(r.get("WR_eval_OP6"))
+        op4 = _fmt_pct(r.get("WR_eval_OP4"))
+        
+        zh = r.get("zH_frac")
+        zh_str = f"{float(zh):.3f}" if (isinstance(zh, float) and np.isfinite(zh)) else "  -  "
+        
+        mi_p = _fmt_bits(r.get("MI_z_phase_bits"))
+        mi_o = _fmt_bits(r.get("MI_z_outcome_bits"))
+        mi_opp = _fmt_bits(r.get("MI_z_opp_bits"))
+        
+        sp = r.get("z_wr_spread")
+        sp_str = f"{float(sp):+.3f}" if (isinstance(sp, float) and np.isfinite(sp)) else "  -  "
+        
         print(
-            f"  {str(r['run_tag']):<58}  "
-            f"{(f'{float(zH_frac):.3f}' if zH_frac == zH_frac else '  -  '):>7}  "
-            f"{_fmt_bits(r.get('MI_z_phase_bits')):>9}  "
-            f"{_fmt_bits(r.get('MI_z_outcome_bits')):>9}  "
-            f"{_fmt_bits(r.get('MI_z_opp_bits')):>9}  "
-            f"{(f'{100*float(sw):.1f}%' if sw == sw else '  -  '):>7}"
+            f"  {short_tag:<46}  "
+            f"{op3:>7}  "
+            f"{op5:>7}  "
+            f"{op6:>7}  "
+            f"{op4:>7}  "
+            f"{zh_str:>7}  "
+            f"{mi_p:>8}  "
+            f"{mi_o:>8}  "
+            f"{mi_opp:>8}  "
+            f"{sp_str:>8}  "
+            f"{verdict:<15}"
         )
+    print("=" * 145)
 
-    # Highlight the success criteria for phase-aux variants
-    phase_variants = df[df["run_tag"].astype(str).str.contains("phaseaux", case=False)]
-    if not phase_variants.empty:
-        print("\n[build_proof_table] phase-aux success criteria check (target: MI_phase > 0.01 bits, zH_frac < 0.95):")
-        for _, r in phase_variants.iterrows():
-            mi = r.get("MI_z_phase_bits", float("nan"))
-            zh = r.get("zH_frac", float("nan"))
-            ok_mi = (isinstance(mi, float) and np.isfinite(mi) and mi > 0.01)
-            ok_zh = (isinstance(zh, float) and np.isfinite(zh) and zh < 0.95)
-            verdict = "PASS" if (ok_mi and ok_zh) else ("partial" if (ok_mi or ok_zh) else "fail")
-            print(
-                f"  {r['run_tag']:<58}  MI_phase={mi:.4f} bits  zH_frac={zh:.3f}  -> {verdict}"
-            )
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":

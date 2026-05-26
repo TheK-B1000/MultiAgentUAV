@@ -1,0 +1,9 @@
+run_tag,WR_eval_OP3,WR_eval_OP5,WR_eval_OP6,WR_eval_OP4
+plan_faithful_no_latent_hardpool_1m_2v2,,,,
+plan_faithful_latent_k1_hardpool_1m_2v2,,,,
+plan_faithful_latent_no_persistence_hardpool_1m_2v2,,,,
+plan_faithful_latent_persist_entropy_hardpool_1m_2v2,,,,
+plan_faithful_latent_no_entropy_hardpool_1m_2v2,,,,
+plan_faithful_latent_phaseaux_001_hardpool_1m_2v2,,,,
+plan_faithful_latent_phaseaux_005_hardpool_1m_2v2,,,,
+plan_faithful_latent_phaseaux_010_hardpool_1m_2v2,,,,
