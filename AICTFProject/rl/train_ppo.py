@@ -411,6 +411,7 @@ class PPOConfig:
     # Not a full Q(s,a,z) critic and not off-policy Q-learning; MAPPO value remains V_phi(s, a, z).
     latent_strategy_aux_return_head: bool = False
     latent_strategy_aux_return_coef: float = 1.0
+    latent_strategy_aux_predict_phase_coef: float = 0.0
     latent_strategy_tau: float = 1.0
     # 0 = sample once at episode start (main paper default; plan Option A). N>=2 = sparse refresh (Option B).
     latent_resample_every_n: int = 0
@@ -519,32 +520,33 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "plan_faithful_latent_persist_entropy",
         "latent_plan_faithful",
         "latent_plan_faithful_persist_entropy",
+        "latent_recommended",
     }:
         cfg = _apply_plan_faithful_base(cfg)
         cfg.use_latent_strategy = True
-        cfg.run_tag = "plan_faithful_latent_persist_entropy_1m_2v2"
+        cfg.run_tag = "latent_recommended_1m_2v2"
         return cfg
-    if key in {"plan_faithful_latent_no_persistence", "latent_plan_faithful_no_persistence"}:
+    if key in {"plan_faithful_latent_no_persistence", "latent_plan_faithful_no_persistence", "latent_recommended_no_persistence"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
         cfg.latent_lam_p = 0.0
-        cfg.run_tag = "plan_faithful_latent_no_persistence_1m_2v2"
+        cfg.run_tag = "latent_recommended_no_persistence_1m_2v2"
         return cfg
-    if key in {"plan_faithful_latent_no_entropy", "latent_plan_faithful_no_entropy"}:
+    if key in {"plan_faithful_latent_no_entropy", "latent_plan_faithful_no_entropy", "latent_recommended_no_entropy"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
         cfg.latent_entropy_objective = "none"
         cfg.latent_lam_h = 0.0
-        cfg.run_tag = "plan_faithful_latent_no_entropy_1m_2v2"
+        cfg.run_tag = "latent_recommended_no_entropy_1m_2v2"
         return cfg
-    if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent"}:
+    if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent", "latent_recommended_collapsed_k1"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
         cfg.latent_k = 1
-        cfg.run_tag = "plan_faithful_latent_k1_1m_2v2"
+        cfg.run_tag = "latent_recommended_collapsed_k1_1m_2v2"
         return cfg
-    if key in {"plan_faithful_no_latent", "no_latent_plan_faithful"}:
+    if key in {"plan_faithful_no_latent", "no_latent_plan_faithful", "no_latent_baseline"}:
         cfg = _apply_plan_faithful_base(cfg)
         cfg.use_latent_strategy = False
         cfg.fixed_latent_strategy = False
-        cfg.run_tag = "plan_faithful_no_latent_1m_2v2"
+        cfg.run_tag = "no_latent_baseline_1m_2v2"
         return cfg
     # Paper plan naming (Summer Implementation Plan): Option A = episodic z; Option B = sparse refresh + active λ_p.
     if key == "plan_option_a":
@@ -851,8 +853,8 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     if bool(getattr(cfg, "use_latent_strategy", False)):
         k = int(getattr(cfg, "latent_k", 4))
-        if k not in (1, 4, 6):
-            raise ValueError("latent_k must be 1, 4, or 6 (K=1 is the collapsed-latent ablation).")
+        if k < 1:
+            raise ValueError("latent_k must be >= 1.")
         if bool(getattr(cfg, "fixed_latent_strategy", False)):
             fixed_id = int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0)
             if fixed_id < 0 or fixed_id >= k:
@@ -881,8 +883,20 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={cfg.mode} | run_tag={cfg.run_tag!r}")
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
-    gs_dim = CONTEXT_STATE_DIM if bool(getattr(cfg, "use_latent_strategy", False)) else GLOBAL_STATE_DIM
-    print(f"[PPO] Global state dim: {gs_dim}")
+    base_gs_dim = GLOBAL_STATE_DIM
+    temp_ctx_dim = CONTEXT_STATE_DIM if bool(getattr(cfg, "use_latent_strategy", False)) else 0
+    q_phi_dim = CONTEXT_STATE_DIM if bool(getattr(cfg, "use_latent_strategy", False)) else 0
+    crit_dim = CONTEXT_STATE_DIM if bool(getattr(cfg, "use_latent_strategy", False)) else GLOBAL_STATE_DIM
+    actor_cnn_feat = int(getattr(cfg, "actor_cnn_feature_dim", 128))
+    z_embed = int(getattr(cfg, "latent_z_embed_dim", 16))
+    act_dim = (actor_cnn_feat + 20 + z_embed) if bool(getattr(cfg, "use_latent_strategy", False)) else (actor_cnn_feat + 20)
+    print(
+        f"[PPO] Input dims: base_global_state_dim={base_gs_dim} "
+        f"temporal_context_dim={temp_ctx_dim} "
+        f"q_phi_input_dim={q_phi_dim} "
+        f"critic_context_dim={crit_dim} "
+        f"actor_input_dim={act_dim}"
+    )
     print(f"[PPO] Actor CNN feature dim: {int(getattr(cfg, 'actor_cnn_feature_dim', 128))}")
     print(f"[PPO] Map set: {str(getattr(cfg, 'map_set', 'train')).lower()}")
     if bool(getattr(cfg, "train_domain_randomization", False)):
@@ -1424,6 +1438,12 @@ if __name__ == "__main__":
             help=argparse.SUPPRESS,
         )
         parser.add_argument(
+            "--latent-strategy-aux-predict-phase-coef",
+            type=float,
+            default=None,
+            help="Weight for the optional phase prediction auxiliary loss.",
+        )
+        parser.add_argument(
             "--latent-strategy-tau",
             type=float,
             default=None,
@@ -1642,6 +1662,8 @@ if __name__ == "__main__":
             cfg.latent_strategy_aux_return_coef = max(0.0, float(aux_coef))
         if args.latent_strategy_tau is not None:
             cfg.latent_strategy_tau = max(1e-3, float(args.latent_strategy_tau))
+        if getattr(args, "latent_strategy_aux_predict_phase_coef", None) is not None:
+            cfg.latent_strategy_aux_predict_phase_coef = max(0.0, float(args.latent_strategy_aux_predict_phase_coef))
         if args.latent_entropy_objective is not None:
             cfg.latent_entropy_objective = args.latent_entropy_objective  # type: ignore[assignment]
         if args.latent_resample_on_flag:

@@ -1,0 +1,15 @@
+{
+  "pid": 46276,
+  "token": "46276-1779780194457814300",
+  "created_at": "2026-05-26 03:23:14",
+  "run_tag": "latent_recommended_1m_2v2",
+  "argv": [
+    "AICTFProject/rl/train_ppo.py",
+    "--preset",
+    "latent_recommended",
+    "--total-steps",
+    "2000"
+  ],
+  "metrics_csv_path": "checkpoints\\2v2\\latent_recommended_1m_2v2_metrics.csv",
+  "episode_csv_path": "checkpoints\\2v2\\latent_recommended_1m_2v2_episodes.csv"
+}

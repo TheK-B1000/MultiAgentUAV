@@ -28,6 +28,7 @@ from rl.curriculum import phase_from_tag
 from rl.discrete_mi import discrete_mi_plugin
 from rl.global_state import (
     GLOBAL_STATE_DIM,
+    GLOBAL_STATE_FIELD_NAMES,
     GLOBAL_STATE_FLAG_TERRITORY_SLICE,
     coarse_game_phase_from_global_state,
 )
@@ -621,10 +622,12 @@ class SharedActorCentralizedCritic(nn.Module):
                 self.strategy_aux_return_head = None
             # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
             self.strategy_embedding = nn.Embedding(self.latent_k, self.z_embed_dim)
+            self.phase_predictor = nn.Linear(self.z_embed_dim, len(TEAM_PHASES))
         else:
             self.strategy_encoder = None
             self.strategy_aux_return_head = None
             self.strategy_embedding = None
+            self.phase_predictor = None
 
         # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
         self._decentralized_actor_in_dim = int(
@@ -674,35 +677,19 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
         if self.uses_latent_strategy:
             actor_expected += int(self.z_embed_dim)
-            if int(self.global_state_dim) != int(CONTEXT_STATE_DIM):
-                raise AssertionError(
-                    f"latent q_phi/critic must use temporal context dim {CONTEXT_STATE_DIM}, "
-                    f"got {self.global_state_dim}"
-                )
-            if int(self.q_phi_input_dim) != int(CONTEXT_STATE_DIM):
-                raise AssertionError(
-                    f"q_phi_input_dim={self.q_phi_input_dim} does not match temporal_context_dim={CONTEXT_STATE_DIM}"
-                )
-            if int(self.critic.global_state_dim) != int(CONTEXT_STATE_DIM):
-                raise AssertionError(
-                    f"critic_context_dim={self.critic.global_state_dim} does not match temporal_context_dim={CONTEXT_STATE_DIM}"
-                )
-            if int(self.critic.extra_dim) != int(self.joint_action_onehot_dim + self.latent_k):
-                raise AssertionError(
-                    "latent critic extra input must be joint action one-hot plus z one-hot "
-                    f"({self.joint_action_onehot_dim}+{self.latent_k}), got {self.critic.extra_dim}"
-                )
+            assert int(self.global_state_dim) == 95, f"latent global_state_dim must be 95, got {self.global_state_dim}"
+            assert int(self.q_phi_input_dim) == 95, f"q_phi_input_dim must be 95, got {self.q_phi_input_dim}"
+            assert int(self.critic.global_state_dim) == 95, f"critic global_state_dim must be 95, got {self.critic.global_state_dim}"
+            assert int(self._decentralized_actor_in_dim) == actor_expected, f"latent actor input dim must be {actor_expected}, got {self._decentralized_actor_in_dim}"
+            expected_extra = int(self.joint_action_onehot_dim + self.latent_k)
+            assert int(self.critic.extra_dim) == expected_extra, (
+                f"critic extra_dim must be joint_action_onehot_dim + latent_k = {expected_extra}, got {self.critic.extra_dim}"
+            )
         else:
-            if int(self.global_state_dim) != int(GLOBAL_STATE_DIM):
-                raise AssertionError(f"no-latent critic context dim must be {GLOBAL_STATE_DIM}, got {self.global_state_dim}")
-            if int(self.q_phi_input_dim) != 0:
-                raise AssertionError(f"q_phi_input_dim must be 0 when latent is disabled, got {self.q_phi_input_dim}")
-            if int(self.critic.global_state_dim) != int(GLOBAL_STATE_DIM):
-                raise AssertionError(
-                    f"critic_context_dim={self.critic.global_state_dim} does not match base_global_state_dim={GLOBAL_STATE_DIM}"
-                )
-            if int(self.critic.extra_dim) != 0:
-                raise AssertionError(f"no-latent critic extra dim must be 0, got {self.critic.extra_dim}")
+            assert int(self.global_state_dim) == 19, f"no-latent global_state_dim must be 19, got {self.global_state_dim}"
+            assert int(self.critic.global_state_dim) == 19, f"no-latent critic global_state_dim must be 19, got {self.critic.global_state_dim}"
+            assert int(self._decentralized_actor_in_dim) == 148, f"no-latent actor input dim must be 148, got {self._decentralized_actor_in_dim}"
+            assert int(self.critic.extra_dim) == 0, f"no-latent critic extra_dim must be 0, got {self.critic.extra_dim}"
 
         if int(self._decentralized_actor_in_dim) != actor_expected:
             raise AssertionError(
@@ -713,9 +700,6 @@ class SharedActorCentralizedCritic(nn.Module):
         if not isinstance(first_actor, nn.Linear) or int(first_actor.in_features) != actor_expected:
             got = getattr(first_actor, "in_features", None)
             raise AssertionError(f"actor MLP first layer input {got} != decentralized actor input {actor_expected}")
-        # Defense-in-depth: actor input must not match the *temporal* context either.
-        # CONTEXT_STATE_DIM is the q_phi/critic-only width; if it accidentally lined up with
-        # the actor concat width, we want to fail loudly rather than silently train a non-decentralized policy.
         if int(self._decentralized_actor_in_dim) == int(CONTEXT_STATE_DIM):
             raise AssertionError(
                 f"actor_input_dim={self._decentralized_actor_in_dim} equals temporal_context_dim={CONTEXT_STATE_DIM}; "
@@ -800,6 +784,16 @@ class SharedActorCentralizedCritic(nn.Module):
         )
         return z_idx.long(), dist.log_prob(z_idx), dist.entropy(), logits
 
+    def phase_logits_from_strategy_logits(self, z_logits: torch.Tensor) -> torch.Tensor:
+        """Predict team phase through q_phi's soft z distribution."""
+        if not self.uses_latent_strategy or self.strategy_embedding is None or self.phase_predictor is None:
+            raise RuntimeError("phase logits are only available when latent strategy is enabled.")
+        if z_logits.dim() != 2 or int(z_logits.shape[1]) != int(self.latent_k):
+            raise AssertionError(f"phase predictor expected z logits shape (B, {self.latent_k}), got {tuple(z_logits.shape)}")
+        z_probs = torch.softmax(z_logits.float(), dim=-1)
+        expected_z_emb = z_probs @ self.strategy_embedding.weight
+        return self.phase_predictor(expected_z_emb)
+
     def policy_logits(self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``."""
         grid = obs["grid"].float()
@@ -864,8 +858,9 @@ class SharedActorCentralizedCritic(nn.Module):
     def _critic_extra(self, actions: Optional[torch.Tensor], z_idx: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
         if not self.uses_latent_strategy:
             return None
-        if actions is None or z_idx is None:
-            raise ValueError("actions and z_idx are required by the latent action-conditioned **value** critic.")
+        assert z_idx is not None, "z_idx is required for critic conditioning in latent strategy mode"
+        if actions is None:
+            raise ValueError("actions are required by the latent action-conditioned **value** critic.")
         z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
         z_one_hot = F.one_hot(z, num_classes=self.latent_k).float()
         extra = torch.cat([self._joint_action_one_hot(actions).to(z_one_hot.device), z_one_hot], dim=-1)
@@ -1045,6 +1040,7 @@ class CustomPPOTrainer:
         self.latent_strategy_ppo_coef = max(0.0, float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0))
         self.latent_strategy_aux_return_coef = max(0.0, _effective_latent_aux_return_coef(cfg))
         self.latent_strategy_aux_return_head = self.use_latent_strategy and _effective_latent_aux_return_head(cfg)
+        self.latent_strategy_aux_predict_phase_coef = max(0.0, float(getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0))
         self.reward_shaping_coef_start = float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0)
         self.reward_shaping_coef_end = float(getattr(cfg, "reward_shaping_coef_end", self.reward_shaping_coef_start))
         self.reward_shaping_decay_steps = max(0, int(getattr(cfg, "reward_shaping_decay_steps", 0) or 0))
@@ -1226,6 +1222,69 @@ class CustomPPOTrainer:
                 "(aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF "
                 "— plan-faithful first-run."
             )
+
+        # Plan-faithfulness audit (added for phase-aux experiments): explicitly verify and log the
+        # three pathways the user asked to confirm — actor input, phase head input, and opponent pool.
+        m = self.model
+
+        # (a) actor_input = local_obs + z_embedding only. The decentralized actor MUST NOT see
+        # phase_id, opponent_id, or the global team summary. We log the exact composition.
+        if m.uses_latent_strategy:
+            print(
+                "[PPO] Audit actor_input: "
+                f"cnn({getattr(m, 'actor_cnn_feature_dim', '?')}) "
+                f"+ per_agent_vec({getattr(m, '_scalar_per_agent', '?')}) "
+                f"+ z_emb({getattr(m, 'z_embed_dim', '?')}) "
+                f"= {getattr(m, '_decentralized_actor_in_dim', '?')} dim. "
+                "(no phase_id, no opponent_id, no global_state in actor pathway)"
+            )
+
+        # (b) aux_phase_head_input. The phase predictor receives the *expected z embedding*, which
+        # is a function of q_phi's own output logits — never local obs, never phase_id, never opp_id.
+        # Also assert q_phi/critic global_state field names contain no "phase" tag.
+        phase_coef = float(getattr(self.cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0)
+        if m.uses_latent_strategy:
+            forbidden_in_global_state = [
+                name for name in GLOBAL_STATE_FIELD_NAMES if "phase" in str(name).lower()
+            ]
+            if forbidden_in_global_state:
+                raise AssertionError(
+                    "plan-faithful audit: q_phi/critic global_state contains phase-tagged fields "
+                    f"{forbidden_in_global_state}; this would leak the phase label into the input."
+                )
+            if phase_coef > 0.0:
+                print(
+                    "[PPO] Audit aux_phase_head_input: expected_z_emb"
+                    f"({getattr(m, 'z_embed_dim', '?')}) "
+                    "= softmax(z_logits) @ strategy_embedding. "
+                    f"phase_id used only as cross-entropy TARGET (coef={phase_coef:g}). "
+                    f"q_phi input ({getattr(m, 'global_state_dim', '?')}-d {GLOBAL_STATE_FIELD_NAMES!r}) "
+                    "contains no phase fields. Phase gradient does NOT flow into actor."
+                )
+            else:
+                print("[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).")
+
+        # (c) opponent_pool training filter: confirm OP4 is excluded unless explicitly allowed.
+        pool = tuple(str(t).strip().upper() for t in (getattr(self.cfg, "opponent_pool", ()) or ()))
+        allow_op4 = bool(getattr(self.cfg, "allow_op4_in_training_pool", False))
+        op4_in_pool = "OP4" in pool
+        if op4_in_pool and not allow_op4:
+            # _strip_eval_only_opponents_from_training_pool should have removed it earlier; this is
+            # a defense-in-depth assertion.
+            raise AssertionError(
+                "plan-faithful audit: OP4 present in training opponent_pool but "
+                "allow_op4_in_training_pool=False; OP4 must be eval-only."
+            )
+        op4_status = (
+            f"ALLOWED (allow_op4_in_training_pool=True)" if op4_in_pool and allow_op4
+            else "EXCLUDED (eval-only)" if not op4_in_pool
+            else "INCONSISTENT"
+        )
+        print(
+            "[PPO] Audit opponent_pool (training): "
+            f"{list(pool) if pool else '(default fixed-opponent mode)'} ; "
+            f"OP4 status: {op4_status}"
+        )
 
     @staticmethod
     def _flag_territory_features_changed(
@@ -1563,6 +1622,7 @@ class CustomPPOTrainer:
             fields.append("latent_mi_z_opponent_nats")
             fields.append("latent_mi_z_phase_nats")
             fields.append("latent_mi_z_outcome_nats")
+            fields.append("latent_mi_z_flag_state_nats")
             fields.append("latent_mi_z_spread_bucket_nats")
             fields.append("latent_mi_z_role_bucket_nats")
             fields.append("latent_mi_z_pressure_bucket_nats")
@@ -1611,6 +1671,30 @@ class CustomPPOTrainer:
                             f"episode_opp{o_idx}_z{z_idx}_win_rate",
                         ]
                     )
+            # Append new diagnostic columns
+            fields.append("strategy_phase_loss")
+            fields.extend([
+                "latent_switch_near_capture_frac",
+                "latent_switch_near_kill_frac",
+                "latent_switch_near_return_frac",
+            ])
+            for f in range(4):
+                for k in range(self.latent_k):
+                    fields.append(f"latent_flag_state{f}_z{k}_frac")
+            for s in range(3):
+                for k in range(self.latent_k):
+                    fields.append(f"latent_spread{s}_z{k}_frac")
+            for a in range(3):
+                for k in range(self.latent_k):
+                    fields.append(f"latent_adr{a}_z{k}_frac")
+            for p in range(len(TEAM_PHASES)):
+                fields.append(f"latent_phase{p}_entropy")
+            fields.extend([
+                "latent_role_diversity",
+                "latent_spread_diversity",
+                "latent_pressure_diversity",
+                "latent_adr_diversity",
+            ])
         return fields
 
     def _write_episode_metrics(
@@ -2326,6 +2410,165 @@ class CustomPPOTrainer:
         else:
             out["latent_mi_z_attack_defense_ratio_bucket_nats"] = 0.0
 
+        # Helper to compute Shannon entropy
+        def shannon_entropy(arr, num_categories):
+            if arr.size == 0:
+                return 0.0
+            counts = np.bincount(arr, minlength=num_categories).astype(np.float64)
+            probs = counts / counts.sum()
+            probs = probs[probs > 0]
+            return float(-np.sum(probs * np.log(probs)))
+
+        # 1. z occupancy by flag state f in [0, 3] and k in [0, K-1]
+        gs_all = buffer.fields["global_state"][:length].cpu().numpy()
+        gs_flat = gs_all.reshape(-1, gs_all.shape[-1])
+        gs_raw = gs_flat[:, :19]
+        blue_flag_captured = (gs_raw[:, 10] > 0.5).astype(int)
+        red_flag_captured = (gs_raw[:, 11] > 0.5).astype(int)
+        flag_state = blue_flag_captured + 2 * red_flag_captured
+        joint_f = np.zeros((K, 4), dtype=np.float64)
+        for i in range(z.size):
+            zi = int(z[i])
+            fi = int(flag_state[i])
+            if 0 <= zi < K and 0 <= fi < 4:
+                joint_f[zi, fi] += 1.0
+        out["latent_mi_z_flag_state_nats"] = float(discrete_mi_plugin(joint_f))
+        
+        for f in range(4):
+            f_mask = (flag_state == f)
+            if not np.any(f_mask):
+                for k in range(K):
+                    out[f"latent_flag_state{f}_z{k}_frac"] = 0.0
+            else:
+                z_f = np.clip(z[f_mask], 0, K - 1)
+                for k in range(K):
+                    out[f"latent_flag_state{f}_z{k}_frac"] = float((z_f == k).mean())
+
+        # 2. z occupancy by spacing s in [0, 2] and k in [0, K-1]
+        if "spread_bucket_id" in buffer.fields:
+            sb = buffer.fields["spread_bucket_id"][:length].reshape(-1).long().cpu().numpy()
+            for s in range(3):
+                s_mask = (sb == s)
+                if not np.any(s_mask):
+                    for k in range(K):
+                        out[f"latent_spread{s}_z{k}_frac"] = 0.0
+                else:
+                    z_s = np.clip(z[s_mask], 0, K - 1)
+                    for k in range(K):
+                        out[f"latent_spread{s}_z{k}_frac"] = float((z_s == k).mean())
+        else:
+            for s in range(3):
+                for k in range(K):
+                    out[f"latent_spread{s}_z{k}_frac"] = 0.0
+
+        # 3. z occupancy by aggression a in [0, 2] and k in [0, K-1]
+        if "attack_defense_ratio_bucket_id" in buffer.fields:
+            adr = buffer.fields["attack_defense_ratio_bucket_id"][:length].reshape(-1).long().cpu().numpy()
+            for a in range(3):
+                a_mask = (adr == a)
+                if not np.any(a_mask):
+                    for k in range(K):
+                        out[f"latent_adr{a}_z{k}_frac"] = 0.0
+                else:
+                    z_a = np.clip(z[a_mask], 0, K - 1)
+                    for k in range(K):
+                        out[f"latent_adr{a}_z{k}_frac"] = float((z_a == k).mean())
+        else:
+            for a in range(3):
+                for k in range(K):
+                    out[f"latent_adr{a}_z{k}_frac"] = 0.0
+
+        # 4. Phase entropy: p in [0, phases-1]
+        if pid_flat is not None:
+            n_p = len(TEAM_PHASES)
+            for p in range(n_p):
+                mask = (pid_flat == p)
+                if not np.any(mask):
+                    out[f"latent_phase{p}_entropy"] = 0.0
+                else:
+                    z_sub = np.clip(z[mask], 0, K - 1)
+                    out[f"latent_phase{p}_entropy"] = shannon_entropy(z_sub, K)
+        else:
+            for p in range(len(TEAM_PHASES)):
+                out[f"latent_phase{p}_entropy"] = 0.0
+
+        # 5. Behavior diversity
+        if "role_bucket_id" in buffer.fields:
+            rb = buffer.fields["role_bucket_id"][:length].reshape(-1).long().cpu().numpy()
+            out["latent_role_diversity"] = shannon_entropy(rb, n_rb)
+        else:
+            out["latent_role_diversity"] = 0.0
+
+        if "spread_bucket_id" in buffer.fields:
+            sb = buffer.fields["spread_bucket_id"][:length].reshape(-1).long().cpu().numpy()
+            out["latent_spread_diversity"] = shannon_entropy(sb, n_sb)
+        else:
+            out["latent_spread_diversity"] = 0.0
+
+        if "pressure_bucket_id" in buffer.fields:
+            pb = buffer.fields["pressure_bucket_id"][:length].reshape(-1).long().cpu().numpy()
+            out["latent_pressure_diversity"] = shannon_entropy(pb, n_pb)
+        else:
+            out["latent_pressure_diversity"] = 0.0
+
+        if "attack_defense_ratio_bucket_id" in buffer.fields:
+            adr = buffer.fields["attack_defense_ratio_bucket_id"][:length].reshape(-1).long().cpu().numpy()
+            out["latent_adr_diversity"] = shannon_entropy(adr, n_adr)
+        else:
+            out["latent_adr_diversity"] = 0.0
+
+        # 6. Switch timing near events (capture, kill, return)
+        n_envs = int(buffer.n_envs)
+        rsp = buffer.fields["reward_sparse_points"][:length].cpu().numpy()
+        z_env = buffer.fields["z"][:length].cpu().numpy()
+        pz_env = buffer.fields["prev_z"][:length].cpu().numpy()
+        persist_env = buffer.fields["z_persist_mask"][:length].cpu().numpy()
+        sw_env = persist_env & (z_env != pz_env)
+        total_switches = float(sw_env.sum())
+
+        switches_near_capture = 0.0
+        switches_near_kill = 0.0
+        switches_near_return = 0.0
+
+        if total_switches > 0:
+            gs_env = buffer.fields["global_state"][:length].cpu().numpy()
+            blue_cap_env = gs_env[:, :, 10] > 0.5
+            red_cap_env = gs_env[:, :, 11] > 0.5
+            for b in range(n_envs):
+                switch_indices = np.where(sw_env[:, b])[0]
+                if len(switch_indices) == 0:
+                    continue
+                capture_indices = np.where(np.abs(rsp[:, b]) > 50.0)[0]
+                kill_indices = np.where((np.abs(rsp[:, b]) > 1.0) & (np.abs(rsp[:, b]) < 40.0))[0]
+                
+                # Identify returns
+                blue_cap = blue_cap_env[:, b]
+                red_cap = red_cap_env[:, b]
+                return_indices = []
+                for t in range(1, length):
+                    blue_ret = blue_cap[t-1] and (not blue_cap[t])
+                    red_ret = red_cap[t-1] and (not red_cap[t])
+                    no_score = np.abs(rsp[t, b]) < 1.0
+                    if (blue_ret or red_ret) and no_score:
+                        return_indices.append(t)
+                return_indices = np.array(return_indices)
+
+                for idx in switch_indices:
+                    if len(capture_indices) > 0 and np.min(np.abs(capture_indices - idx)) <= 3:
+                        switches_near_capture += 1.0
+                    if len(kill_indices) > 0 and np.min(np.abs(kill_indices - idx)) <= 3:
+                        switches_near_kill += 1.0
+                    if len(return_indices) > 0 and np.min(np.abs(return_indices - idx)) <= 3:
+                        switches_near_return += 1.0
+
+            out["latent_switch_near_capture_frac"] = switches_near_capture / total_switches
+            out["latent_switch_near_kill_frac"] = switches_near_kill / total_switches
+            out["latent_switch_near_return_frac"] = switches_near_return / total_switches
+        else:
+            out["latent_switch_near_capture_frac"] = 0.0
+            out["latent_switch_near_kill_frac"] = 0.0
+            out["latent_switch_near_return_frac"] = 0.0
+
         return out
 
     def _behavior_diversity_stats(self, buffer: TensorDictRolloutBuffer) -> dict[str, float]:
@@ -2967,6 +3210,7 @@ class CustomPPOTrainer:
             "strategy_grad_norm": [],
             "strategy_resample_fraction": [],
             "strategy_kl": [],
+            "strategy_phase_loss": [],
         }
         stop_update = False
         target_kl = getattr(self.cfg, "target_kl", None)
@@ -3026,6 +3270,14 @@ class CustomPPOTrainer:
                         stats["strategy_kl"].append(float(kl_m.detach().cpu().item()))
                     else:
                         stats["strategy_kl"].append(0.0)
+                    if self.latent_strategy_aux_predict_phase_coef > 0.0:
+                        phase_logits = self.model.phase_logits_from_strategy_logits(aux["strategy_logits"])
+                        phase_loss = F.cross_entropy(phase_logits, batch["phase_id"].long())
+                        latent_loss = latent_loss + self.latent_strategy_aux_predict_phase_coef * phase_loss
+                        stats["strategy_phase_loss"].append(float(phase_loss.detach().cpu().item()))
+                    else:
+                        stats["strategy_phase_loss"].append(0.0)
+
                     if self.fixed_latent_strategy:
                         strategy_entropy = torch.zeros_like(entropy)
                         persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
@@ -3037,6 +3289,7 @@ class CustomPPOTrainer:
                     latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                     resample = torch.zeros_like(entropy, dtype=torch.bool)
                     stats["strategy_kl"].append(0.0)
+                    stats["strategy_phase_loss"].append(0.0)
 
                 advantages = batch["advantages"]
                 if advantages.numel() > 1:
@@ -3199,6 +3452,7 @@ class CustomPPOTrainer:
                         mi_z_o = float(row.get("latent_mi_z_opponent_nats", 0.0) or 0.0)
                         mi_z_p = float(row.get("latent_mi_z_phase_nats", 0.0) or 0.0)
                         mi_z_y = float(row.get("latent_mi_z_outcome_nats", 0.0) or 0.0)
+                        mi_z_f = float(row.get("latent_mi_z_flag_state_nats", 0.0) or 0.0)
                         opp_diag_bits: list[str] = []
                         for o in range(SCRIPTED_OPPONENT_MI_COUNT):
                             occ_o = [
@@ -3211,7 +3465,8 @@ class CustomPPOTrainer:
                             wr_s = ",".join("-" if w == "" else f"{float(w):.2f}" for w in wr_o)
                             opp_diag_bits.append(f"o{o}:z_occ=[{occ_s}] z_wr=[{wr_s}]")
                         opp_suffix = (
-                            f" MI_z_o={mi_z_o:.4f} MI_z_phase={mi_z_p:.4f} MI_z_outcome={mi_z_y:.4f}"
+                            f" MI_z_o={mi_z_o:.4f} MI_z_phase={mi_z_p:.4f} "
+                            f"MI_z_flag={mi_z_f:.4f} MI_z_outcome={mi_z_y:.4f}"
                             + (f" | {' ; '.join(opp_diag_bits)}" if opp_diag_bits else "")
                         )
                     print(
@@ -3230,6 +3485,18 @@ class CustomPPOTrainer:
                         f"z_wr=[{','.join(z_wr_parts)}]"
                         f"{opp_suffix}"
                     )
+                    if self.use_latent_strategy:
+                        sw_cap = float(row.get("latent_switch_near_capture_frac", 0.0) or 0.0)
+                        sw_kill = float(row.get("latent_switch_near_kill_frac", 0.0) or 0.0)
+                        sw_ret = float(row.get("latent_switch_near_return_frac", 0.0) or 0.0)
+                        div_role = float(row.get("latent_role_diversity", 0.0) or 0.0)
+                        div_spread = float(row.get("latent_spread_diversity", 0.0) or 0.0)
+                        div_pres = float(row.get("latent_pressure_diversity", 0.0) or 0.0)
+                        div_adr = float(row.get("latent_adr_diversity", 0.0) or 0.0)
+                        print(
+                            f"      [Switch Near] cap={sw_cap:.3f} kill={sw_kill:.3f} ret={sw_ret:.3f} | "
+                            f"div_role={div_role:.3f} div_spread={div_spread:.3f} div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
+                        )
                 if self.normalize_returns:
                     print(
                         "[PPO|return_norm] "

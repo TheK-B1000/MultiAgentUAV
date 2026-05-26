@@ -153,7 +153,24 @@ def main() -> None:
     from eval_rollout import compute_aggregates, count_wld, run_eval_episodes  # noqa: E402
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig  # noqa: E402
 
+    # Merge-mode: preserve rows in op4_zero_shot_comparison.csv that are not being re-evaluated this
+    # invocation, so partial re-runs (e.g. only the 3 phase-aux variants) don't wipe out previous results.
     aggregate_rows: list[dict[str, Any]] = []
+    comparison_path_for_merge = os.path.join(out_dir, "op4_zero_shot_comparison.csv")
+    if os.path.isfile(comparison_path_for_merge):
+        try:
+            with open(comparison_path_for_merge, "r", newline="", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                rerun_tags = set(run_tags)
+                preserved = [row for row in reader if str(row.get("run_tag", "")).strip() not in rerun_tags]
+            if preserved:
+                aggregate_rows.extend(preserved)
+                print(
+                    f"[eval_op4_zero_shot] preserving {len(preserved)} row(s) from existing comparison CSV "
+                    f"(not in --run-tags this invocation)."
+                )
+        except Exception as exc:
+            print(f"[eval_op4_zero_shot] could not read existing comparison CSV ({exc}); starting fresh.")
 
     for ri, run_tag in enumerate(run_tags):
         ckpt = _resolve_checkpoint(checkpoint_dir, run_tag)

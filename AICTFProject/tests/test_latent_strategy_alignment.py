@@ -66,13 +66,13 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
             }
         )
         action_space = spaces.MultiDiscrete([5, 50, 5, 50])
-        model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=8)
+        model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=16)
         dims = model.input_dim_contract()
         self.assertEqual(dims["base_global_state_dim"], GLOBAL_STATE_DIM)
         self.assertEqual(dims["temporal_context_dim"], CONTEXT_STATE_DIM)
         self.assertEqual(dims["q_phi_input_dim"], CONTEXT_STATE_DIM)
         self.assertEqual(dims["critic_context_dim"], CONTEXT_STATE_DIM)
-        self.assertEqual(dims["actor_input_dim"], model.actor_cnn_feature_dim + VEC_OBS_DIM + 8)
+        self.assertEqual(dims["actor_input_dim"], model.actor_cnn_feature_dim + VEC_OBS_DIM + 16)
         self.assertEqual(dims["critic_z_dim"], 4)
         obs = {
             "grid": torch.rand(3, 2, 7, 20, 20),
@@ -104,6 +104,61 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
             model.values(torch.rand(3, GLOBAL_STATE_DIM), actions=actions, z_idx=z)
         with self.assertRaisesRegex(AssertionError, "q_phi expected context"):
             model.sample_strategy(torch.rand(3, GLOBAL_STATE_DIM))
+
+    def test_phase_aux_loss_backpropagates_into_q_phi(self):
+        obs_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
+            }
+        )
+        action_space = spaces.MultiDiscrete([5, 50, 5, 50])
+        model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=16)
+        global_state = torch.rand(6, CONTEXT_STATE_DIM)
+        phase_id = torch.tensor([0, 1, 2, 3, 4, 5], dtype=torch.long)
+
+        z_logits = model.strategy_logits(global_state)
+        phase_logits = model.phase_logits_from_strategy_logits(z_logits)
+        self.assertEqual(tuple(phase_logits.shape), (6, 6))
+
+        model.zero_grad(set_to_none=True)
+        torch.nn.functional.cross_entropy(phase_logits, phase_id).backward()
+        self.assertIsNotNone(model.strategy_encoder)
+        grad_norm = sum(
+            float(param.grad.detach().abs().sum().item())
+            for param in model.strategy_encoder.parameters()
+            if param.grad is not None
+        )
+        self.assertGreater(grad_norm, 0.0)
+
+    def test_temporal_state_tracker(self):
+        tracker = TemporalStateTracker(num_envs=2, state_dim=GLOBAL_STATE_DIM)
+        # Test output dimension
+        self.assertEqual(CONTEXT_STATE_DIM, GLOBAL_STATE_DIM * 5)
+        
+        # Step 0
+        state0 = torch.ones((2, GLOBAL_STATE_DIM)) * 2.0
+        out0 = tracker.update(state0)
+        self.assertEqual(tuple(out0.shape), (2, CONTEXT_STATE_DIM))
+        # Initial EMAs should equal raw state
+        self.assertTrue(torch.allclose(tracker.ema_short, state0))
+        self.assertTrue(torch.allclose(tracker.ema_long, state0))
+        # Differences should be 0
+        self.assertTrue(torch.allclose(out0[:, GLOBAL_STATE_DIM*3:GLOBAL_STATE_DIM*4], torch.zeros_like(state0)))
+        
+        # Step 1
+        state1 = torch.ones((2, GLOBAL_STATE_DIM)) * 3.0
+        out1 = tracker.update(state1)
+        expected_short = 0.2 * state1 + 0.8 * state0
+        expected_long = 0.05 * state1 + 0.95 * state0
+        self.assertTrue(torch.allclose(tracker.ema_short, expected_short))
+        self.assertTrue(torch.allclose(tracker.ema_long, expected_long))
+        
+        # Test reset on done
+        dones = torch.tensor([True, False])
+        tracker.update(state1, dones=dones)
 
     def test_temporal_state_tracker(self):
         tracker = TemporalStateTracker(num_envs=2, state_dim=GLOBAL_STATE_DIM)
@@ -140,6 +195,171 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         # Test passive get_current_context
         passive_out = tracker.get_current_context(state1)
         self.assertEqual(tuple(passive_out.shape), (2, CONTEXT_STATE_DIM))
+
+    def test_presets_config_application(self):
+        from rl.train_ppo import PPOConfig, _apply_training_preset
+        
+        cfg = PPOConfig()
+        cfg = _apply_training_preset(cfg, "latent_recommended")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.latent_k, 4)
+        self.assertEqual(cfg.latent_resample_every_n, 20)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.025)
+        self.assertAlmostEqual(cfg.latent_lam_h, 0.003)
+        self.assertEqual(cfg.run_tag, "latent_recommended_1m_2v2")
+        
+        cfg = PPOConfig()
+        cfg = _apply_training_preset(cfg, "latent_recommended_no_persistence")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.latent_k, 4)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.0)
+        self.assertEqual(cfg.run_tag, "latent_recommended_no_persistence_1m_2v2")
+
+        cfg = PPOConfig()
+        cfg = _apply_training_preset(cfg, "latent_recommended_no_entropy")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.latent_entropy_objective, "none")
+        self.assertAlmostEqual(cfg.latent_lam_h, 0.0)
+        self.assertEqual(cfg.run_tag, "latent_recommended_no_entropy_1m_2v2")
+
+        cfg = PPOConfig()
+        cfg = _apply_training_preset(cfg, "latent_recommended_collapsed_k1")
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.latent_k, 1)
+        self.assertEqual(cfg.run_tag, "latent_recommended_collapsed_k1_1m_2v2")
+
+        cfg = PPOConfig()
+        cfg = _apply_training_preset(cfg, "no_latent_baseline")
+        self.assertFalse(cfg.use_latent_strategy)
+        self.assertEqual(cfg.run_tag, "no_latent_baseline_1m_2v2")
+
+    def test_assert_input_contracts_fails_on_wrong_dims(self):
+        obs_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
+            }
+        )
+        action_space = spaces.MultiDiscrete([5, 50, 5, 50])
+        model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=15)
+        
+        original_q_phi = model.q_phi_input_dim
+        try:
+            model.q_phi_input_dim = 94
+            with self.assertRaises(AssertionError):
+                model._assert_input_contracts()
+        finally:
+            model.q_phi_input_dim = original_q_phi
+
+    def test_diagnostics_occupancies_and_diversities_and_timing(self):
+        from rl.ppo_core import TensorDictRolloutBuffer
+        from rl.custom_ppo import CustomPPOTrainer
+        
+        class MockConfig:
+            device = "cpu"
+            use_latent_strategy = True
+            latent_k = 4
+            latent_resample_every_n = 20
+            fixed_latent_strategy = False
+            latent_strategy_ppo_coef = 0.1
+            latent_strategy_aux_return_head = False
+            latent_strategy_aux_return_coef = 0.0
+            latent_strategy_aux_predict_phase_coef = 0.0
+            actor_cnn_feature_dim = 128
+            seed = 42
+        
+        obs_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
+            }
+        )
+        action_space = spaces.MultiDiscrete([5, 50, 5, 50])
+        
+        obs_space_ref = obs_space
+        action_space_ref = action_space
+
+        class MockEnv:
+            observation_space = obs_space_ref
+            action_space = action_space_ref
+            num_envs = 2
+            class Core:
+                pass
+            core = Core()
+        
+        trainer = CustomPPOTrainer(MockEnv(), MockConfig(), learning_rate=1e-4, clip_range=0.2, ent_coef=0.01, n_epochs=2, batch_size=2)
+        
+        buffer = TensorDictRolloutBuffer(buffer_size=10, n_envs=2, device="cpu")
+        buffer.register_field("z", dtype=torch.long)
+        buffer.register_field("prev_z", dtype=torch.long)
+        buffer.register_field("z_persist_mask", dtype=torch.bool)
+        buffer.register_field("z_resampled", dtype=torch.bool)
+        buffer.register_field("reward_sparse_points", dtype=torch.float32)
+        buffer.register_field("rewards", dtype=torch.float32)
+        buffer.register_field("global_state", (95,))
+        buffer.register_field("spread_bucket_id", dtype=torch.long)
+        buffer.register_field("role_bucket_id", dtype=torch.long)
+        buffer.register_field("pressure_bucket_id", dtype=torch.long)
+        buffer.register_field("attack_defense_ratio_bucket_id", dtype=torch.long)
+        buffer.register_field("phase_id", dtype=torch.long)
+        
+        for step in range(10):
+            gs = torch.zeros((2, 95))
+            gs[0, 10] = 1.0 if step < 5 else 0.0
+            gs[1, 11] = 0.0 if step < 5 else 1.0
+            
+            z = torch.tensor([1, 2]) if step < 5 else torch.tensor([2, 2])
+            if step == 3:
+                z = torch.tensor([1, 0])
+                
+            prev_z = torch.tensor([1, 2]) if step == 0 else (torch.tensor([1, 2]) if step < 5 else torch.tensor([2, 2]))
+            if step == 3:
+                prev_z = torch.tensor([1, 2])
+                
+            rsp = torch.tensor([0.0, 0.0])
+            if step == 8:
+                rsp = torch.tensor([10.0, 0.0])
+            if step == 2:
+                rsp = torch.tensor([0.0, 100.0])
+                
+            buffer.add(
+                z=z,
+                prev_z=prev_z,
+                z_persist_mask=torch.tensor([True, True]),
+                z_resampled=torch.tensor([False, False]),
+                reward_sparse_points=rsp,
+                rewards=torch.tensor([0.0, 0.0]),
+                global_state=gs,
+                spread_bucket_id=torch.tensor([1, 0]),
+                role_bucket_id=torch.tensor([2, 1]),
+                pressure_bucket_id=torch.tensor([0, 2]),
+                attack_defense_ratio_bucket_id=torch.tensor([2, 1]),
+                phase_id=torch.tensor([0, 1]),
+            )
+            
+        buffer.pos = 10
+        out = trainer._latent_opponent_rollout_diag(buffer)
+        
+        self.assertIn("latent_mi_z_flag_state_nats", out)
+        self.assertIn("latent_switch_near_capture_frac", out)
+        self.assertIn("latent_switch_near_kill_frac", out)
+        self.assertIn("latent_switch_near_return_frac", out)
+        self.assertIn("latent_flag_state1_z1_frac", out)
+        self.assertIn("latent_spread1_z2_frac", out)
+        self.assertIn("latent_adr2_z2_frac", out)
+        self.assertIn("latent_phase0_entropy", out)
+        self.assertIn("latent_role_diversity", out)
+        self.assertIn("latent_spread_diversity", out)
+        self.assertIn("latent_pressure_diversity", out)
+        self.assertIn("latent_adr_diversity", out)
+        fields = trainer._update_fieldnames()
+        self.assertIn("latent_mi_z_flag_state_nats", fields)
+        self.assertIn("latent_switch_near_capture_frac", fields)
+        self.assertIn("latent_flag_state1_z1_frac", fields)
 
 
 if __name__ == "__main__":
