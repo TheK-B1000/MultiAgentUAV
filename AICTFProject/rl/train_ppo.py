@@ -570,6 +570,22 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.env_stalemate_penalty = -0.10
         cfg.run_tag = "plan_faithful_latent_phase3b_outcome_clean_hardpool_1m_2v2"
         return cfg
+    if key in {
+        "plan_faithful_latent_phase3b_ablate_k1",
+        "latent_phase3b_ablate_k1",
+    }:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase3b_outcome_clean")
+        cfg.latent_k = 1
+        cfg.run_tag = "plan_faithful_latent_phase3b_ablate_k1_hardpool_1m_2v2"
+        return cfg
+    if key in {
+        "plan_faithful_latent_phase3b_ablate_no_persistence",
+        "latent_phase3b_ablate_no_persistence",
+    }:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase3b_outcome_clean")
+        cfg.latent_lam_p = 0.0
+        cfg.run_tag = "plan_faithful_latent_phase3b_ablate_no_persistence_hardpool_1m_2v2"
+        return cfg
     if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent", "latent_recommended_collapsed_k1"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
         cfg.latent_k = 1
@@ -834,7 +850,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'plan_faithful_latent_no_entropy', 'plan_faithful_latent_k1', 'plan_faithful_no_latent', "
         "'plan_faithful_latent_phase1_coupling', 'plan_faithful_latent_phase2_credit', "
         "'plan_faithful_latent_phase3_reward_geometry', "
-        "'plan_faithful_latent_phase3b_outcome_clean'."
+        "'plan_faithful_latent_phase3b_outcome_clean', "
+        "'plan_faithful_latent_phase3b_ablate_k1', "
+        "'plan_faithful_latent_phase3b_ablate_no_persistence'."
     )
 
 
