@@ -262,7 +262,7 @@ class TensorDictRolloutBuffer:
         }
         bs = max(1, int(batch_size))
         for start in range(0, total, bs):
-            idx = indices[start : start + bs]
+            idx = indices[start : start + bs] 
             yield {name: value.index_select(0, idx) for name, value in flat.items()}
 
     def as_mapping(self) -> Mapping[str, torch.Tensor]:

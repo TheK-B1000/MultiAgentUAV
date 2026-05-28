@@ -537,6 +537,23 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_lam_h = 0.0
         cfg.run_tag = "latent_recommended_no_entropy_1m_2v2"
         return cfg
+    if key in {"plan_faithful_latent_phase1_coupling", "latent_phase1_coupling"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_no_entropy")
+        cfg.latent_resample_every_n = 10
+        cfg.latent_strategy_ppo_coef = 0.45
+        cfg.latent_strategy_aux_predict_phase_coef = 0.05
+        cfg.run_tag = "plan_faithful_latent_phase1_coupling_hardpool_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_phase2_credit", "latent_phase2_credit"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase1_coupling")
+        cfg.gae_lambda = 0.97
+        cfg.run_tag = "plan_faithful_latent_phase2_credit_hardpool_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_phase3_reward_geometry", "latent_phase3_reward_geometry"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase1_coupling")
+        cfg.env_dense_weight = 0.18
+        cfg.run_tag = "plan_faithful_latent_phase3_reward_geometry_hardpool_1m_2v2"
+        return cfg
     if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent", "latent_recommended_collapsed_k1"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
         cfg.latent_k = 1
@@ -798,7 +815,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'latent_op3_wrmax_train_2m', 'latent_wrmax_op3_train_2m', "
         "'latent_a1_plan_faithful', 'latent_op3_a1_plan_faithful', "
         "'plan_faithful_latent_persist_entropy', 'plan_faithful_latent_no_persistence', "
-        "'plan_faithful_latent_no_entropy', 'plan_faithful_latent_k1', 'plan_faithful_no_latent'."
+        "'plan_faithful_latent_no_entropy', 'plan_faithful_latent_k1', 'plan_faithful_no_latent', "
+        "'plan_faithful_latent_phase1_coupling', 'plan_faithful_latent_phase2_credit', "
+        "'plan_faithful_latent_phase3_reward_geometry'."
     )
 
 
