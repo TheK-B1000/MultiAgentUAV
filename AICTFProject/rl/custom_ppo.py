@@ -48,7 +48,7 @@ from rl.latent_phase_labels import (
     team_phase_label_from_global_state,
 )
 from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator, TemporalStateTracker, CONTEXT_STATE_DIM
-from rl.networks import CNNEncoder, CentralizedCritic
+from rl.networks import CNNEncoder, CentralizedCritic, orthogonal_init
 from rl.ppo_core import (
     TensorDictRolloutBuffer,
     align_next_values_to_rollout_actions,
@@ -571,8 +571,12 @@ class SharedActorCentralizedCritic(nn.Module):
         strategy_hidden_dim: int = 128,
         use_strategy_aux_return_head: bool = False,
         strategy_tau: float = 1.0,
+        latent_use_film: bool = False,
+        latent_use_dual_critic: bool = False,
     ) -> None:
         super().__init__()
+        self.latent_use_film = bool(latent_use_film)
+        self.latent_use_dual_critic = bool(latent_use_dual_critic)
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
         vec_shape = tuple(int(v) for v in observation_space.spaces["vec"].shape)
         if len(grid_shape) != 4:
@@ -631,7 +635,7 @@ class SharedActorCentralizedCritic(nn.Module):
 
         # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
         self._decentralized_actor_in_dim = int(
-            self._local_actor_in_dim + (self.z_embed_dim if self.uses_latent_strategy else 0)
+            self._local_actor_in_dim + (self.z_embed_dim if (self.uses_latent_strategy and not self.latent_use_film) else 0)
         )
         actor_in = self._decentralized_actor_in_dim
         # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
@@ -642,12 +646,24 @@ class SharedActorCentralizedCritic(nn.Module):
             nn.ReLU(),
         )
         self.actor_head = nn.Linear(int(actor_hidden_dim), self.per_agent_logits)
+        if self.uses_latent_strategy and self.latent_use_film:
+            self.film_scale = nn.Linear(self.z_embed_dim, int(actor_hidden_dim))
+            self.film_shift = nn.Linear(self.z_embed_dim, int(actor_hidden_dim))
+            orthogonal_init(self.film_scale, gain=1.0)
+            orthogonal_init(self.film_shift, gain=1.0)
+
         critic_extra_dim = self.joint_action_onehot_dim + self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
             global_state_dim=self.global_state_dim,
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
         )
+        if self.uses_latent_strategy and self.latent_use_dual_critic:
+            self.baseline_critic = CentralizedCritic(
+                global_state_dim=self.global_state_dim,
+                hidden_dim=int(critic_hidden_dim),
+                extra_dim=0,
+            )
         self.q_phi_input_dim = self._strategy_context_dim()
         self.critic_context_dim = int(self.critic.global_state_dim)
         self.critic_z_dim = int(self.latent_k) if self.uses_latent_strategy else 0
@@ -676,7 +692,8 @@ class SharedActorCentralizedCritic(nn.Module):
     def _assert_input_contracts(self) -> None:
         actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
         if self.uses_latent_strategy:
-            actor_expected += int(self.z_embed_dim)
+            if not self.latent_use_film:
+                actor_expected += int(self.z_embed_dim)
             assert int(self.global_state_dim) == 95, f"latent global_state_dim must be 95, got {self.global_state_dim}"
             assert int(self.q_phi_input_dim) == 95, f"q_phi_input_dim must be 95, got {self.q_phi_input_dim}"
             assert int(self.critic.global_state_dim) == 95, f"critic global_state_dim must be 95, got {self.critic.global_state_dim}"
@@ -822,7 +839,7 @@ class SharedActorCentralizedCritic(nn.Module):
             vloc = vloc * mask
         local_obs = torch.cat([cnn_features, vloc], dim=-1)
         actor_inputs: list[torch.Tensor] = [local_obs]
-        if self.uses_latent_strategy:
+        if self.uses_latent_strategy and not self.latent_use_film:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
             z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
@@ -841,7 +858,19 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         if d_in == int(GLOBAL_STATE_DIM):
             raise AssertionError("actor input width equals GLOBAL_STATE_DIM; policy must not consume global state")
-        hidden = self.actor_body(actor_in.reshape(batch * self.n_agents, -1))
+        if self.uses_latent_strategy and self.latent_use_film:
+            if z_idx is None:
+                raise ValueError("z_idx is required when latent strategy is enabled.")
+            z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+            z_emb = self.strategy_embedding(z)
+            h1 = self.actor_body[0](actor_in.reshape(batch * self.n_agents, -1))
+            scale = self.film_scale(z_emb).unsqueeze(1).expand(batch, self.n_agents, -1).reshape(batch * self.n_agents, -1)
+            shift = self.film_shift(z_emb).unsqueeze(1).expand(batch, self.n_agents, -1).reshape(batch * self.n_agents, -1)
+            h1 = (1.0 + scale) * h1 + shift
+            h1_act = self.actor_body[1](h1)
+            hidden = self.actor_body[3](self.actor_body[2](h1_act))
+        else:
+            hidden = self.actor_body(actor_in.reshape(batch * self.n_agents, -1))
         per_agent_logits = self.actor_head(hidden).reshape(batch, self.n_agents, self.per_agent_logits)
         return per_agent_logits.reshape(batch, self.n_agents * self.per_agent_logits)
 
@@ -947,6 +976,16 @@ class SharedActorCentralizedCritic(nn.Module):
         values = self.values(global_state, actions=action_tensor, z_idx=z_idx)
         return action_tensor, values, log_prob, entropy
 
+    def baseline_values(self, global_state: torch.Tensor) -> torch.Tensor:
+        """Return baseline V(s) scalar value with shape ``(B,)``."""
+        if not self.latent_use_dual_critic:
+            raise RuntimeError("baseline_values is only available when latent_use_dual_critic is enabled.")
+        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.critic_context_dim):
+            raise AssertionError(
+                f"baseline critic expected context shape (B, {self.critic_context_dim}), got {tuple(global_state.shape)}"
+            )
+        return self.baseline_critic(global_state.float()).squeeze(-1)
+
     def evaluate_actions(
         self,
         obs: Dict[str, torch.Tensor],
@@ -969,6 +1008,8 @@ class SharedActorCentralizedCritic(nn.Module):
             aux["strategy_logits"] = z_logits
             aux["strategy_log_prob"] = z_dist.log_prob(z)
             aux["strategy_entropy"] = z_dist.entropy()
+            if self.latent_use_dual_critic:
+                aux["baseline_values"] = self.baseline_values(global_state)
         return values, log_prob, entropy, aux
 
 
@@ -1019,6 +1060,8 @@ class CustomPPOTrainer:
                     "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
                     "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
                     "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
+                    "latent_use_film": bool(getattr(cfg, "latent_use_film", False)),
+                    "latent_use_dual_critic": bool(getattr(cfg, "latent_use_dual_critic", False)),
                 }
             )
         self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
@@ -2935,12 +2978,15 @@ class CustomPPOTrainer:
                 prev_z.long().reshape(-1),
                 dones,
             )
-            _, next_values, _, _ = self.model.act(
-                next_obs_t,
-                next_context_gs_t,
-                deterministic=True,
-                z_idx=next_z,
-            )
+            if self.model.latent_use_dual_critic:
+                next_values = self.model.baseline_values(next_context_gs_t)
+            else:
+                _, next_values, _, _ = self.model.act(
+                    next_obs_t,
+                    next_context_gs_t,
+                    deterministic=True,
+                    z_idx=next_z,
+                )
             next_values = self._denormalize_values(next_values)
             terminated = torch.as_tensor(
                 [bool(info.get("terminated", False)) for info in infos],
@@ -2976,6 +3022,8 @@ class CustomPPOTrainer:
             with torch.no_grad():
                 z_t, prev_z_t, strategy_aux = self._strategy_for_step(context_state)
                 actions_t, values_norm_t, action_log_probs_t, _ = self.model.act(obs_t, context_state, z_idx=z_t)
+                if self.model.latent_use_dual_critic:
+                    values_norm_t = self.model.baseline_values(context_state)
                 values_t = self._denormalize_values(values_norm_t)
                 # Action PPO uses action log-probs only; q_phi is trained separately
                 # at actual z-sampling points in update().
@@ -3339,7 +3387,22 @@ class CustomPPOTrainer:
                     self.clip_range,
                 )
                 value_targets = self._normalize_value_targets(batch["returns"])
-                value_loss = ppo_value_loss(values_norm, batch["values_norm"], value_targets, self.value_clip_range)
+                if self.model.latent_use_dual_critic:
+                    v_baseline_loss = ppo_value_loss(
+                        aux["baseline_values"],
+                        batch["values_norm"],
+                        value_targets,
+                        self.value_clip_range,
+                    )
+                    q_strategy_loss = F.mse_loss(values_norm, value_targets)
+                    value_loss = v_baseline_loss + q_strategy_loss
+                else:
+                    value_loss = ppo_value_loss(
+                        values_norm,
+                        batch["values_norm"],
+                        value_targets,
+                        self.value_clip_range,
+                    )
                 entropy_loss = -entropy.mean()
                 loss = policy_loss + self.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
 
