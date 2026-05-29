@@ -428,6 +428,9 @@ class PPOConfig:
     latent_resample_on_flag: bool = False
     # Optional §12: KL( q_\phi(s_t) || q_\phi(s_{t-1}) ) on consecutive time steps; 0 = off (ablation only).
     latent_kl_consecutive: float = 0.0
+    # Phase 4A Rescue: FiLM-based latent strategy injection and dual value baseline (state baseline alongside Q(s,a,z)).
+    latent_use_film: bool = False
+    latent_use_dual_critic: bool = False
 
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.
@@ -585,6 +588,16 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase3b_outcome_clean")
         cfg.latent_lam_p = 0.0
         cfg.run_tag = "plan_faithful_latent_phase3b_ablate_no_persistence_hardpool_1m_2v2"
+        return cfg
+    if key in {
+        "plan_faithful_latent_phase4a_rescue",
+        "latent_phase4a_rescue",
+    }:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase3b_outcome_clean")
+        cfg.latent_use_film = True
+        cfg.latent_use_dual_critic = True
+        cfg.latent_resample_on_flag = True
+        cfg.run_tag = "plan_faithful_latent_phase4a_rescue_hardpool_1m_2v2"
         return cfg
     if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent", "latent_recommended_collapsed_k1"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
@@ -1522,6 +1535,16 @@ if __name__ == "__main__":
             help="Weight for consecutive-step KL on q_phi logits (0=off; optional plan §12).",
         )
         parser.add_argument(
+            "--latent-use-film",
+            action="store_true",
+            help="Inject z via FiLM gating on policy hidden layers instead of concatenation.",
+        )
+        parser.add_argument(
+            "--latent-use-dual-critic",
+            action="store_true",
+            help="Retain Q(s,a,z) but train and use a separate state baseline V(s) for GAE advantage.",
+        )
+        parser.add_argument(
             "--no-latent-gae-z-reset",
             action="store_true",
             help="Keep legacy GAE: carry λ-returns across z switches (can smear credit when V(s,z) jumps).",
@@ -1738,6 +1761,10 @@ if __name__ == "__main__":
             cfg.dr_blue_speed_jitter = max(0.0, min(0.75, float(args.dr_blue_speed_jitter)))
         if args.latent_z_embed_dim is not None:
             cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
+        if args.latent_use_film:
+            cfg.latent_use_film = True
+        if args.latent_use_dual_critic:
+            cfg.latent_use_dual_critic = True
         if args.latent_vf_hidden is not None:
             cfg.latent_vf_hidden = max(1, int(args.latent_vf_hidden))
         # Presets set ``cfg.run_tag``; only overwrite when user supplies --run-tag or no preset was applied.
