@@ -655,13 +655,18 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             cfg.metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics.csv")
         if not cfg.episode_csv_path:
             cfg.episode_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_episodes.csv")
-        if bool(getattr(cfg, "use_latent_strategy", False)) and not cfg.strategy_experience_csv_path:
+        strategy_experience_enabled = bool(getattr(cfg, "use_latent_strategy", False)) and bool(
+            getattr(cfg, "latent_episode_strategy_ppo", False)
+        )
+        if strategy_experience_enabled and not cfg.strategy_experience_csv_path:
             cfg.strategy_experience_csv_path = os.path.join(
                 cfg.checkpoint_dir, f"{cfg.run_tag}_strategy_experience.csv"
             )
+        elif not strategy_experience_enabled:
+            cfg.strategy_experience_csv_path = None
         print(f"[PPO] Update metrics CSV: {cfg.metrics_csv_path}")
         print(f"[PPO] Episode metrics CSV: {cfg.episode_csv_path}")
-        if cfg.strategy_experience_csv_path:
+        if strategy_experience_enabled and cfg.strategy_experience_csv_path:
             print(f"[PPO] Strategy experience CSV: {cfg.strategy_experience_csv_path}")
         _e3p = str(getattr(cfg, "e3_step_telemetry_path", "") or "").strip()
         if _e3p:
