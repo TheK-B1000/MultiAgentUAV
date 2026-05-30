@@ -25,7 +25,6 @@ from rl.custom_ppo.inference import (
     CUSTOM_PPO_ACTOR_ARCH,
     CUSTOM_PPO_VEC_SCHEMA_VERSION,
 )
-from rl.custom_ppo.csv_writers import SCRIPTED_OPPONENT_MI_COUNT
 from rl.custom_ppo.curriculum_runtime import _hook_sample_training_opponent_before_reset
 from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
@@ -309,88 +308,7 @@ class CustomPPOTrainer:
                 self._updates_completed += 1
                 row = self.telemetry.write_update_metrics(stats, rollout)
                 self._save_periodic_checkpoint()
-                if row:
-                    z_wr_parts: list[str] = []
-                    z_occ_parts: list[str] = []
-                    if self.use_latent_strategy:
-                        for i in range(self.latent_k):
-                            wr = row.get(f"episode_z_{i}_win_rate", "")
-                            occ = row.get(f"strategy_occupancy_{i}", "")
-                            z_wr_parts.append("-" if wr == "" else f"{float(wr):.3f}")
-                            z_occ_parts.append("-" if occ == "" else f"{float(occ):.3f}")
-                    z_entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
-                    z_entropy_frac = float(row.get("strategy_entropy_frac", 0.0) or 0.0)
-                    z_wr_spread = float(row.get("strategy_wr_spread", 0.0) or 0.0)
-                    opp_suffix = ""
-                    if self.use_latent_strategy:
-                        mi_z_o = float(row.get("latent_mi_z_opponent_nats", 0.0) or 0.0)
-                        mi_z_p = float(row.get("latent_mi_z_phase_nats", 0.0) or 0.0)
-                        mi_z_y = float(row.get("latent_mi_z_outcome_nats", 0.0) or 0.0)
-                        mi_z_f = float(row.get("latent_mi_z_flag_state_nats", 0.0) or 0.0)
-                        opp_diag_bits: list[str] = []
-                        for o in range(SCRIPTED_OPPONENT_MI_COUNT):
-                            occ_o = [
-                                float(row.get(f"strategy_occupancy_op{o}_z{k}", 0.0) or 0.0) for k in range(self.latent_k)
-                            ]
-                            wr_o = [row.get(f"episode_opp{o}_z{k}_win_rate", "") for k in range(self.latent_k)]
-                            if sum(occ_o) < 1e-9 and all(w == "" for w in wr_o):
-                                continue
-                            occ_s = ",".join(f"{x:.2f}" for x in occ_o)
-                            wr_s = ",".join("-" if w == "" else f"{float(w):.2f}" for w in wr_o)
-                            opp_diag_bits.append(f"o{o}:z_occ=[{occ_s}] z_wr=[{wr_s}]")
-                        opp_suffix = (
-                            f" MI_z_o={mi_z_o:.4f} MI_z_phase={mi_z_p:.4f} "
-                            f"MI_z_flag={mi_z_f:.4f} MI_z_outcome={mi_z_y:.4f} | "
-                            + " ".join(opp_diag_bits)
-                        )
-                    print(
-                        f"[PPO|diag] steps={self.global_step} "
-                        f"ev={row['explained_variance']:.3f} "
-                        f"v_loss={row['value_loss']:.3f} "
-                        f"shape/out={row['reward_shaping_mean']:.3f}/{row['reward_outcome_mean']:.3f} "
-                        f"qphi_grad={row.get('strategy_grad_norm', 0.0):.3f} "
-                        f"zH={z_entropy:.3f}({z_entropy_frac:.2f}) "
-                        f"z_wr_spread={z_wr_spread:.3f} "
-                        f"z_aux_ret={float(row.get('strategy_aux_return_loss', row.get('strategy_q_loss', 0.0))):.3f} "
-                        f"z_pi={float(row.get('strategy_policy_loss', 0.0)):.3f} "
-                        f"z_ratio={float(row.get('strategy_ratio_std', 0.0)):.3f} "
-                        f"z_occ=[{','.join(z_occ_parts)}] "
-                        f"z_wr=[{','.join(z_wr_parts)}]"
-                        f"{opp_suffix}"
-                    )
-                    if self.use_latent_strategy:
-                        sw_cap = float(row.get("latent_switch_near_capture_frac", 0.0) or 0.0)
-                        sw_kill = float(row.get("latent_switch_near_kill_frac", 0.0) or 0.0)
-                        sw_ret = float(row.get("latent_switch_near_return_frac", 0.0) or 0.0)
-                        div_role = float(row.get("latent_role_diversity", 0.0) or 0.0)
-                        div_spread = float(row.get("latent_spread_diversity", 0.0) or 0.0)
-                        div_pres = float(row.get("latent_pressure_diversity", 0.0) or 0.0)
-                        div_adr = float(row.get("latent_adr_diversity", 0.0) or 0.0)
-                        print(
-                            f"      [Switch Near] cap={sw_cap:.3f} kill={sw_kill:.3f} ret={sw_ret:.3f} | "
-                            f"div_role={div_role:.3f} div_spread={div_spread:.3f} div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
-                        )
-                if self.normalize_returns:
-                    print(
-                        "[PPO|return_norm] "
-                        f"update={self._updates_completed} "
-                        f"mean={stats.get('return_norm_mean', 0.0):.4f} "
-                        f"std={stats.get('return_norm_std', 0.0):.4f} "
-                        f"count={stats.get('return_norm_count', 0.0):.0f}"
-                    )
-                if bool(getattr(self.cfg, "verbose_training", False)):
-                    latent_bits = ""
-                    if self.use_latent_strategy:
-                        latent_bits = (
-                            f" z_entropy={stats.get('strategy_entropy', 0.0):.4f} "
-                            f"z_persist={stats.get('strategy_persist_loss', 0.0):.4f}"
-                        )
-                    print(
-                        "[PPO|custom] "
-                        f"steps={self.global_step} policy_loss={stats['policy_loss']:.4f} "
-                        f"value_loss={stats['value_loss']:.4f} approx_kl={stats['approx_kl']:.5f}"
-                        f"{latent_bits}"
-                    )
+                self.telemetry.print_update_diagnostics(row, stats)
         finally:
             if self._sb3_rollout_pbar is not None:
                 self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]
