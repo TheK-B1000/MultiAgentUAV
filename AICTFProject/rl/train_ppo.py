@@ -1156,7 +1156,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--latent-strategy-q-head",
             action="store_true",
-            help=argparse.SUPPRESS,
+            help=argparse.SUPPRESS,  # DEPRECATED legacy alias for --latent-strategy-aux-return-head; emits a warning.
         )
         parser.add_argument(
             "--latent-strategy-aux-return-coef",
@@ -1168,7 +1168,7 @@ if __name__ == "__main__":
             "--latent-strategy-q-coef",
             type=float,
             default=None,
-            help=argparse.SUPPRESS,
+            help=argparse.SUPPRESS,  # DEPRECATED legacy alias for --latent-strategy-aux-return-coef; emits a warning.
         )
         parser.add_argument(
             "--latent-strategy-aux-predict-phase-coef",
@@ -1396,10 +1396,24 @@ if __name__ == "__main__":
             cfg.latent_episode_strategy_value_coef = max(0.0, float(args.latent_episode_strategy_value_coef))
         if args.no_latent_episode_strategy_return_norm:
             cfg.latent_episode_strategy_return_norm = False
-        if args.latent_strategy_aux_return_head or bool(getattr(args, "latent_strategy_q_head", False)):
+        legacy_q_head_used = bool(getattr(args, "latent_strategy_q_head", False))
+        legacy_q_coef_used = getattr(args, "latent_strategy_q_coef", None) is not None
+        if legacy_q_head_used or legacy_q_coef_used:
+            legacy_flags = []
+            if legacy_q_head_used:
+                legacy_flags.append("--latent-strategy-q-head -> --latent-strategy-aux-return-head")
+            if legacy_q_coef_used:
+                legacy_flags.append("--latent-strategy-q-coef -> --latent-strategy-aux-return-coef")
+            print(
+                "[PPO] DEPRECATED CLI flag(s): "
+                + "; ".join(legacy_flags)
+                + ". The canonical name is the only one written to run_config.json; legacy "
+                "flags will be removed in a future cleanup."
+            )
+        if args.latent_strategy_aux_return_head or legacy_q_head_used:
             cfg.latent_strategy_aux_return_head = True
         aux_coef = getattr(args, "latent_strategy_aux_return_coef", None)
-        if aux_coef is None and getattr(args, "latent_strategy_q_coef", None) is not None:
+        if aux_coef is None and legacy_q_coef_used:
             aux_coef = getattr(args, "latent_strategy_q_coef", None)
         if aux_coef is not None:
             cfg.latent_strategy_aux_return_coef = max(0.0, float(aux_coef))

@@ -52,6 +52,76 @@ def remap_legacy_actor_state_dict_keys(
     return out
 
 
+def _migrate_legacy_aliased_strategy_modules(
+    state_dict: Dict[str, Any],
+    *,
+    prefix: str = "",
+    has_strategy_encoder: bool,
+    has_strategy_aux_return_head: bool,
+) -> Dict[str, Any]:
+    """Bridge the Step-5 split between ``StrategyEncoder`` and the aux-return head.
+
+    Pre-Step-5 ``SharedActorCentralizedCritic`` aliased a single
+    :class:`StrategyEncoder` instance to **either** ``self.strategy_encoder``
+    (aux-return head off) **or** ``self.strategy_aux_return_head`` (aux-return
+    head on), so the same module silently served two distinct roles. After
+    Step 5 each role has its own ``nn.Module``; this helper rewrites legacy
+    checkpoints accordingly:
+
+    * Aux head was **off** on disk → state dict already has ``strategy_encoder.*``
+      and no aux-head keys; pass through.
+    * Aux head was **on** on disk and the new model still keeps it on → state
+      dict has ``strategy_aux_return_head.*`` only; mirror those weights into
+      ``strategy_encoder.*`` (so q_phi(z|s) keeps the trained behavior the
+      aliased module was producing) and keep the aux-head weights too.
+    * Aux head was on on disk but the new model has it off → rename the legacy
+      aux-head weights into ``strategy_encoder.*`` (single role survives).
+
+    The migration is idempotent: a state dict that already matches the new
+    layout passes through untouched.
+    """
+    if not state_dict:
+        return dict(state_dict)
+
+    enc_full_prefix = prefix + "strategy_encoder."
+    aux_full_prefix = prefix + "strategy_aux_return_head."
+
+    legacy_aux_keys = [
+        k for k in state_dict
+        if k.startswith(aux_full_prefix) or k == aux_full_prefix[:-1]
+    ]
+    has_canonical_encoder = any(
+        k.startswith(enc_full_prefix) or k == enc_full_prefix[:-1] for k in state_dict
+    )
+
+    out: Dict[str, Any] = dict(state_dict)
+    if not legacy_aux_keys:
+        return out
+    if has_canonical_encoder:
+        # New-layout checkpoint already has both heads; if the model expects no
+        # aux head we'd drop those keys below, but state_dict load handles that.
+        return out
+
+    # Mirror legacy aux-head weights into strategy_encoder so q_phi(z|s) is
+    # initialized from what the aliased module had been producing.
+    for k in legacy_aux_keys:
+        if k.startswith(aux_full_prefix):
+            mirror_key = enc_full_prefix + k[len(aux_full_prefix):]
+        else:
+            mirror_key = enc_full_prefix[:-1]
+        out[mirror_key] = state_dict[k]
+
+    if not has_strategy_aux_return_head:
+        # Model dropped the aux head; the mirrored copy already holds the
+        # legacy weights as strategy_encoder, so the originals are surplus.
+        for k in legacy_aux_keys:
+            del out[k]
+    # ``has_strategy_encoder=False`` cannot reach this branch since latent
+    # strategy is either off (no migration needed) or on (encoder is always
+    # present after Step 5).
+    return out
+
+
 class SharedActorCentralizedCritic(nn.Module):
     """Shared decentralized actor with an optional latent team strategy."""
 
@@ -108,16 +178,26 @@ class SharedActorCentralizedCritic(nn.Module):
         self.global_state_dim = CONTEXT_STATE_DIM if self.uses_latent_strategy else GLOBAL_STATE_DIM
 
         if self.uses_latent_strategy:
-            strategy_net = StrategyEncoder(
+            # Step 5: ``StrategyEncoder`` (q_phi(z|s), the latent team-strategy policy)
+            # and the optional A2 auxiliary per-z return regression head are now
+            # ALWAYS distinct ``nn.Module`` instances when both are enabled. Before
+            # this change a single ``StrategyEncoder`` was aliased to either slot
+            # depending on the cfg flag, which made the same code path mean
+            # different things at runtime ("q_phi is the aux head, sometimes").
+            # See ``_migrate_legacy_aliased_strategy_modules`` for the on-disk
+            # checkpoint migration.
+            self.strategy_encoder = StrategyEncoder(
                 state_dim=self.global_state_dim,
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
             )
             if self.use_strategy_aux_return_head:
-                self.strategy_aux_return_head = strategy_net
-                self.strategy_encoder = None
+                self.strategy_aux_return_head = StrategyEncoder(
+                    state_dim=self.global_state_dim,
+                    latent_k=self.latent_k,
+                    hidden=int(strategy_hidden_dim),
+                )
             else:
-                self.strategy_encoder = strategy_net
                 self.strategy_aux_return_head = None
             self.phase_predictor = nn.Linear(self.z_embed_dim, len(TEAM_PHASES))
         else:
@@ -214,6 +294,17 @@ class SharedActorCentralizedCritic(nn.Module):
             remapped = remap_legacy_actor_state_dict_keys(state_dict, prefix=prefix)
             state_dict.clear()
             state_dict.update(remapped)
+        # Step 5: also bridge legacy aliased q_phi / aux-return head weights so
+        # checkpoints saved when the aux-return head was the *same* module as
+        # ``strategy_encoder`` still populate the new separate modules.
+        migrated = _migrate_legacy_aliased_strategy_modules(
+            state_dict,
+            prefix=prefix,
+            has_strategy_encoder=self.strategy_encoder is not None,
+            has_strategy_aux_return_head=self.strategy_aux_return_head is not None,
+        )
+        state_dict.clear()
+        state_dict.update(migrated)
         return super()._load_from_state_dict(
             state_dict,
             prefix,
@@ -227,7 +318,10 @@ class SharedActorCentralizedCritic(nn.Module):
     def _strategy_context_dim(self) -> int:
         if not self.uses_latent_strategy:
             return 0
-        source = self.strategy_aux_return_head if self.use_strategy_aux_return_head else self.strategy_encoder
+        # ``strategy_encoder`` (q_phi(z|s)) is always present when latent is on
+        # since Step 5; the aux-return head, when enabled, is a separate module
+        # with the same input contract.
+        source = self.strategy_encoder
         if source is None:
             raise AssertionError("latent strategy enabled but q_phi module is missing")
         dim = getattr(source, "state_dim", None)
@@ -309,15 +403,23 @@ class SharedActorCentralizedCritic(nn.Module):
         return dist.sample()
 
     def strategy_logits(self, global_state: torch.Tensor) -> torch.Tensor:
-        """Return ``q_phi(z | s)`` logits for latent strategy mode."""
+        """Return ``q_phi(z | s)`` logits for latent strategy mode.
+
+        Since Step 5 the latent policy and the optional A2 aux-return head are
+        backed by **separate** modules, so ``strategy_logits`` always reads
+        ``self.strategy_encoder``. (Pre-Step-5, with the aux-return head on,
+        the same module served both roles and the z-policy logits were
+        ``strategy_aux_return_head(s) / strategy_tau``. Legacy checkpoints with
+        that aliased layout get migrated by
+        :func:`_migrate_legacy_aliased_strategy_modules` so the trained
+        weights are mirrored into ``strategy_encoder``.)
+        """
         if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
         if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.q_phi_input_dim):
             raise AssertionError(
                 f"q_phi expected context shape (B, {self.q_phi_input_dim}), got {tuple(global_state.shape)}"
             )
-        if self.use_strategy_aux_return_head:
-            return self.strategy_aux_return_predictions(global_state) / self.strategy_tau
         if self.strategy_encoder is None:
             raise RuntimeError("strategy encoder is not initialized.")
         return self.strategy_encoder(global_state.float())

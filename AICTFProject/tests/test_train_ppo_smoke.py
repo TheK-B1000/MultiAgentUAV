@@ -27,6 +27,7 @@ from rl.custom_ppo import (
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
+from rl.custom_ppo.csv_writers import _write_csv_row
 from rl.train_ppo import (
     PPOConfig,
     TrainMode,
@@ -400,8 +401,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
             path.write_text("episode_id,phase_name,opponent\n1,OP3,SCRIPTED:OP3\n", encoding="utf-8")
 
             with self.assertRaisesRegex(ValueError, "CSV schema mismatch"):
-                CustomPPOTrainer._write_csv_row(
-                    object(),
+                _write_csv_row(
                     str(path),
                     ["episode_id", "opponent"],
                     {"episode_id": 2, "opponent": "SCRIPTED:OP3"},
@@ -416,8 +416,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
         path = _WORKSPACE_TMP / "schema_additive_metrics.csv"
         try:
             path.write_text("a,b\n1,2\n", encoding="utf-8")
-            CustomPPOTrainer._write_csv_row(
-                object(),
+            _write_csv_row(
                 str(path),
                 ["a", "x", "b"],
                 {"a": "3", "x": "99", "b": "4"},
@@ -437,8 +436,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
         path = _WORKSPACE_TMP / "schema_rename_metrics_aux_return.csv"
         try:
             path.write_text("a,strategy_q_loss,b\n1,0.5,2\n", encoding="utf-8")
-            CustomPPOTrainer._write_csv_row(
-                object(),
+            _write_csv_row(
                 str(path),
                 ["a", "strategy_aux_return_loss", "b"],
                 {"a": "3", "strategy_aux_return_loss": "0.25", "b": "4"},

@@ -596,7 +596,7 @@ def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor
 def _write_strategy_experience_table(trainer: Any) -> dict[str, float]:
     if not trainer.strategy_experience_csv_path or not trainer.use_latent_strategy or trainer.latent_k <= 0:
         return {"strategy_bucket_best_match_frac": 0.0, "strategy_experience_records": 0.0, "strategy_experience_buckets": 0.0}
-    records = list(trainer._rollout_strategy_episode_records)
+    records = list(trainer.latent_state.rollout_strategy_episode_records)
     if not records:
         return {"strategy_bucket_best_match_frac": 0.0, "strategy_experience_records": 0.0, "strategy_experience_buckets": 0.0}
 

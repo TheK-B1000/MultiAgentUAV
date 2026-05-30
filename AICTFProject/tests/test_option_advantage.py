@@ -76,7 +76,7 @@ class OptionAdvantageTests(unittest.TestCase):
 
     def _make_filled_buffer(self, trainer, n_steps=4, z_resampled_val=False):
         """Helper: create and fill a buffer with n_steps of dummy data."""
-        buffer = trainer._make_buffer(self.env.reset())
+        buffer = trainer.rollout_collector.make_buffer(self.env.reset())
         for _ in range(n_steps):
             add_items = {
                 "obs_grid": torch.zeros((2, 2, 7, 20, 20)),
@@ -150,7 +150,7 @@ class OptionAdvantageTests(unittest.TestCase):
         buffer.fields["option_advantages"].fill_(9.9)
         buffer.fields["option_returns"].fill_(9.9)
         
-        with patch("rl.custom_ppo.trainer._latent_strategy_ppo_loss") as mock_loss:
+        with patch("rl.custom_ppo.ppo_updater._latent_strategy_ppo_loss") as mock_loss:
             mock_loss.return_value = (torch.tensor(0.0), _mock_strategy_ppo_stats())
             trainer.update(buffer, total_timesteps=100)
             
@@ -187,9 +187,9 @@ class OptionAdvantageTests(unittest.TestCase):
             )
             return torch.zeros(2)
 
-        with patch.object(trainer_latent, "_strategy_for_step") as mock_strat, \
+        with patch.object(trainer_latent.latent_state, "strategy_for_step") as mock_strat, \
              patch.object(trainer_latent.model, "act") as mock_act, \
-             patch.object(trainer_latent, "_next_values", side_effect=_mock_next_values_latent):
+             patch.object(trainer_latent.rollout_collector, "next_values", side_effect=_mock_next_values_latent):
              
             mock_strat.return_value = (torch.zeros(2, dtype=torch.long), torch.zeros(2, dtype=torch.long), {
                 "z": torch.zeros(2, dtype=torch.long),
@@ -221,7 +221,7 @@ class OptionAdvantageTests(unittest.TestCase):
         )
         
         with patch.object(trainer_no_latent.model, "act") as mock_act, \
-             patch.object(trainer_no_latent, "_next_values") as mock_next:
+             patch.object(trainer_no_latent.rollout_collector, "next_values") as mock_next:
              
             mock_act.return_value = (torch.zeros(2, 4, dtype=torch.long), torch.zeros(2), torch.zeros(2), torch.zeros(2))
             mock_next.return_value = torch.zeros(2)
@@ -311,7 +311,7 @@ class OptionAdvantageTests(unittest.TestCase):
         buffer.fields["option_advantages"].fill_(9.99)
         buffer.fields["option_returns"].fill_(9.99)
         
-        with patch("rl.custom_ppo.trainer.ppo_policy_loss") as mock_action_loss:
+        with patch("rl.custom_ppo.ppo_updater.ppo_policy_loss") as mock_action_loss:
             mock_action_loss.return_value = (
                 torch.tensor(0.0, requires_grad=True),
                 {"ratio": torch.ones(1), "approx_kl": torch.tensor(0.0), "clip_fraction": torch.tensor(0.0)},
@@ -360,7 +360,7 @@ class OptionAdvantageTests(unittest.TestCase):
         buffer.fields["option_advantages"].fill_(9.99)
         buffer.fields["option_returns"].fill_(9.99)
         
-        with patch("rl.custom_ppo.trainer._latent_strategy_ppo_loss") as mock_loss:
+        with patch("rl.custom_ppo.ppo_updater._latent_strategy_ppo_loss") as mock_loss:
             mock_loss.return_value = (torch.tensor(0.0), _mock_strategy_ppo_stats())
             trainer.update(buffer, total_timesteps=100)
             

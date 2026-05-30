@@ -131,40 +131,6 @@ def canonicalize_latent_strategy_cfg(cfg: Mapping[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _effective_latent_aux_return_head(cfg: Any) -> bool:
-    """Whether the aux-return head is enabled.
-
-    Accepts canonical or legacy cfg shape (mapping or object). After Step 5
-    new callers should canonicalize once with
-    :func:`canonicalize_latent_strategy_cfg` and then read the canonical
-    attribute directly; this wrapper exists for the boundary helpers that
-    still receive an unvalidated mapping/object.
-    """
-    if isinstance(cfg, Mapping):
-        canonical = canonicalize_latent_strategy_cfg(cfg)
-        return bool(canonical.get("latent_strategy_aux_return_head", False))
-    return bool(getattr(cfg, "latent_strategy_aux_return_head", False)) or bool(
-        getattr(cfg, "latent_strategy_q_head", False)
-    )
-
-
-def _effective_latent_aux_return_coef(cfg: Any) -> float:
-    if isinstance(cfg, Mapping):
-        canonical = canonicalize_latent_strategy_cfg(cfg)
-        return max(0.0, float(canonical.get("latent_strategy_aux_return_coef", 0.0) or 0.0))
-    return max(
-        0.0,
-        float(
-            getattr(
-                cfg,
-                "latent_strategy_aux_return_coef",
-                getattr(cfg, "latent_strategy_q_coef", 1.0),
-            )
-            or 0.0
-        ),
-    )
-
-
 def _remap_legacy_strategy_aux_head_state_dict(sd: Mapping[str, Any]) -> dict[str, Any]:
     """Map ``strategy_q_head`` module weights to ``strategy_aux_return_head`` (older checkpoints)."""
     out = dict(sd)

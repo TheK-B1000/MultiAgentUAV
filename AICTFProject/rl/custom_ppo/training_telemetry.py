@@ -41,8 +41,8 @@ import numpy as np
 import torch
 
 from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES
-from rl.global_state import (
-    coarse_game_phase_from_global_state,
+from rl.global_state import coarse_game_phase_from_global_state
+from rl.latent_phase_labels import (
     outcome_label_from_global_state,
     team_phase_id_from_global_state,
     team_phase_label_from_global_state,

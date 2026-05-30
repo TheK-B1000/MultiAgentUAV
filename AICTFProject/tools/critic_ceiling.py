@@ -179,7 +179,7 @@ def main() -> int:
 
     print(f"samples: {x.shape[0]} | global_state_dim: {x.shape[1]}")
     print(f"returns: mean={float(np.mean(y)):.4f} std={float(np.std(y)):.4f} min={float(np.min(y)):.4f} max={float(np.max(y)):.4f}")
-    critic_ev = trainer._explained_variance(torch.as_tensor(v), torch.as_tensor(y))
+    critic_ev = trainer.telemetry.explained_variance(torch.as_tensor(v), torch.as_tensor(y))
     print(f"checkpoint_critic_ev_on_collected_rollout: {critic_ev:.4f}")
     print("model,train_r2,test_r2")
     best = ("", float("-inf"))
