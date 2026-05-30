@@ -85,7 +85,14 @@ class OperationalGapGuardsTests(unittest.TestCase):
 
     def test_opponent_tag_strings_not_in_z_graph_files(self) -> None:
         here = os.path.join(os.path.dirname(__file__), "..", "rl")
-        for name in ("custom_ppo.py", "latent_marl.py", "config_presets.py"):
+        for name in (
+            "custom_ppo/inference.py",
+            "custom_ppo/policy.py",
+            "custom_ppo/trainer.py",
+            "custom_ppo/__init__.py",
+            "latent_marl.py",
+            "config_presets.py",
+        ):
             path = os.path.abspath(os.path.join(here, name))
             with open(path, encoding="utf-8") as f:
                 text = f.read()
