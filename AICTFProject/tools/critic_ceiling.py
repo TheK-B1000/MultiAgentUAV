@@ -66,16 +66,7 @@ def _make_trainer(cfg: PPOConfig, model_path: Path) -> tuple[CustomPPOTrainer, G
     env.env_method("set_next_opponent", "SCRIPTED", opponent_tag)
     _apply_initial_opponent_params(env, cfg, gpu_cfg, opponent_tag=opponent_tag, phase=phase)
 
-    trainer = CustomPPOTrainer(
-        env,
-        cfg,
-        learning_rate=float(cfg.learning_rate),
-        clip_range=float(cfg.clip_range),
-        ent_coef=float(cfg.ent_coef),
-        n_epochs=int(cfg.n_epochs),
-        batch_size=int(cfg.batch_size),
-        value_clip_range=getattr(cfg, "clip_range_vf", cfg.clip_range),
-    )
+    trainer = CustomPPOTrainer.from_config(env, cfg)
     trainer.load(str(model_path))
     return trainer, env
 

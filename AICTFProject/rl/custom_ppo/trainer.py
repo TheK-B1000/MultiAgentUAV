@@ -31,6 +31,7 @@ from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
 from rl.custom_ppo.rollout_collector import RolloutCollector
 from rl.custom_ppo.trainer_audit import log_decentralized_actor_contract_once
+from rl.custom_ppo.trainer_config import TrainerHyperparams, build_model_kwargs
 from rl.custom_ppo.training_telemetry import TrainingTelemetry
 # Re-exported for back-compat (``rl.custom_ppo._compose_training_reward_components``).
 from rl.custom_ppo.reward_composition import _compose_training_reward_components  # noqa: F401
@@ -94,111 +95,98 @@ class CustomPPOTrainer:
         value_clip_range: Optional[float] = None,
         curriculum: Optional[Any] = None,
     ) -> None:
+        """Construct a trainer.
+
+        Hyperparameter resolution (~50 ``getattr(cfg, ..., default)`` calls
+        in the legacy ``__init__``) has been extracted into
+        :class:`~rl.custom_ppo.trainer_config.TrainerHyperparams`. The
+        explicit kwargs (``learning_rate`` / ``clip_range`` / ``ent_coef``
+        / ``n_epochs`` / ``batch_size`` / ``value_clip_range``) stay on
+        the signature for backward compatibility with existing call sites
+        (tests, ``tools/critic_ceiling.py``); see :meth:`from_config` for
+        the ergonomic single-arg factory used by ``train_ppo``.
+        """
+        hparams = TrainerHyperparams.from_ppo_config(
+            cfg,
+            env,
+            learning_rate=learning_rate,
+            clip_range=clip_range,
+            ent_coef=ent_coef,
+            n_epochs=n_epochs,
+            batch_size=batch_size,
+            value_clip_range=value_clip_range,
+            curriculum=curriculum,
+        )
         self.env = env
         self.cfg = cfg
+        self.hparams = hparams
         self.curriculum = curriculum
         self.device = torch.device(str(cfg.device))
-        self.use_latent_strategy = bool(getattr(cfg, "use_latent_strategy", False))
-        self.latent_k = int(getattr(cfg, "latent_k", 4)) if self.use_latent_strategy else 0
-        self.latent_resample_every_n = max(0, int(getattr(cfg, "latent_resample_every_n", 0) or 0))
-        self.fixed_latent_strategy = self.use_latent_strategy and bool(
-            getattr(cfg, "fixed_latent_strategy", False)
-        )
-        self.latent_gae_reset_on_z_change = bool(
-            getattr(cfg, "latent_gae_reset_on_z_change", True)
-        ) and (self.use_latent_strategy and not self.fixed_latent_strategy)
-        self.latent_bootstrap_z_deterministic = bool(getattr(cfg, "latent_bootstrap_z_deterministic", True))
-        self.fixed_latent_strategy_id = (
-            max(0, min(int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0), self.latent_k - 1))
-            if self.use_latent_strategy
-            else 0
-        )
-        model_kwargs: dict[str, Any] = {
-            "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
-        }
-        if self.use_latent_strategy:
-            model_kwargs.update(
-                {
-                    "latent_k": self.latent_k,
-                    "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
-                    "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
-                    "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
-                    # Canonical attribute access. Legacy CLI / cfg-dict keys
-                    # (``latent_strategy_q_head``) are folded into the
-                    # canonical name at the load boundary (CLI parsing for
-                    # PPOConfig, inference.canonicalize_latent_strategy_cfg
-                    # for checkpoint dicts), so the trainer reads one name.
-                    "use_strategy_aux_return_head": bool(
-                        getattr(cfg, "latent_strategy_aux_return_head", False)
-                    ),
-                    "use_episode_strategy_value_head": bool(getattr(cfg, "latent_episode_strategy_ppo", False)),
-                    "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
-                }
-            )
-        self.model = SharedActorCentralizedCritic(env.observation_space, env.action_space, **model_kwargs).to(self.device)
+
+        # Bulk-copy the resolved hyperparameters onto historical
+        # ``self.<name>`` attributes — every downstream module reads
+        # ``trainer.use_latent_strategy``, ``trainer.latent_k`` etc.,
+        # so keeping those names live preserves the public surface.
+        self.use_latent_strategy = hparams.use_latent_strategy
+        self.latent_k = hparams.latent_k
+        self.latent_resample_every_n = hparams.latent_resample_every_n
+        self.fixed_latent_strategy = hparams.fixed_latent_strategy
+        self.latent_gae_reset_on_z_change = hparams.latent_gae_reset_on_z_change
+        self.latent_bootstrap_z_deterministic = hparams.latent_bootstrap_z_deterministic
+        self.fixed_latent_strategy_id = hparams.fixed_latent_strategy_id
+
+        self.model = SharedActorCentralizedCritic(
+            env.observation_space, env.action_space, **build_model_kwargs(cfg, hparams)
+        ).to(self.device)
         apply_deterministic_sampling_generators(
             self.model, int(getattr(cfg, "seed", 0) or 0), device=self.device
         )
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=float(learning_rate), eps=1e-5)
-        self.base_learning_rate = float(learning_rate)
-        self.clip_range = float(clip_range)
-        self.ent_coef = float(ent_coef)
-        self.vf_coef = max(0.0, float(getattr(cfg, "vf_coef", 1.0) or 0.0))
-        self.n_epochs = int(n_epochs)
-        self.batch_size = int(batch_size)
-        self.value_clip_range = None if value_clip_range is None else float(value_clip_range)
-        self.normalize_returns = bool(getattr(cfg, "normalize_returns", False))
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=hparams.learning_rate, eps=1e-5
+        )
+        self.base_learning_rate = hparams.learning_rate
+        self.clip_range = hparams.clip_range
+        self.ent_coef = hparams.ent_coef
+        self.vf_coef = hparams.vf_coef
+        self.n_epochs = hparams.n_epochs
+        self.batch_size = hparams.batch_size
+        self.value_clip_range = hparams.value_clip_range
+        self.normalize_returns = hparams.normalize_returns
+
         self._return_norm_mean = 0.0
         self._return_norm_var = 1.0
         self._return_norm_count = 1e-4
-        self.latent_strategy_ppo_coef = max(0.0, float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0))
-        self.latent_episode_strategy_ppo = (
-            self.use_latent_strategy
-            and not self.fixed_latent_strategy
-            and bool(getattr(cfg, "latent_episode_strategy_ppo", False))
-        )
-        self.latent_episode_strategy_coef = max(
-            0.0, float(getattr(cfg, "latent_episode_strategy_coef", 0.0) or 0.0)
-        )
-        self.latent_episode_strategy_clip_eps = max(
-            1e-6, float(getattr(cfg, "latent_episode_strategy_clip_eps", 0.2) or 0.2)
-        )
-        self.latent_episode_strategy_value_coef = max(
-            0.0, float(getattr(cfg, "latent_episode_strategy_value_coef", 0.5) or 0.0)
-        )
-        self.latent_episode_strategy_return_norm = bool(
-            getattr(cfg, "latent_episode_strategy_return_norm", True)
-        )
-        # Canonical attribute access only — legacy ``latent_strategy_q_*`` keys
-        # are folded at the config-load boundary, see ``rl.custom_ppo.inference
-        # .canonicalize_latent_strategy_cfg`` and the CLI argparse handler.
-        self.latent_strategy_aux_return_coef = max(
-            0.0, float(getattr(cfg, "latent_strategy_aux_return_coef", 0.0) or 0.0)
-        )
-        self.latent_strategy_aux_return_head = (
-            self.use_latent_strategy
-            and bool(getattr(cfg, "latent_strategy_aux_return_head", False))
-        )
-        self.latent_strategy_aux_predict_phase_coef = max(0.0, float(getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0))
-        self.reward_shaping_coef_start = float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0)
-        self.reward_shaping_coef_end = float(getattr(cfg, "reward_shaping_coef_end", self.reward_shaping_coef_start))
-        self.reward_shaping_decay_steps = max(0, int(getattr(cfg, "reward_shaping_decay_steps", 0) or 0))
-        env_cfg = getattr(env, "cfg", None)
-        self.reward_dense_weight = max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0))
-        self.reward_scale = max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0))
-        self.reward_clip = max(1e-6, float(getattr(env_cfg, "reward_clip", 1.0) or 1.0))
-        self.reward_stalemate_penalty = float(getattr(env_cfg, "stalemate_penalty", 0.0) or 0.0)
-        self.periodic_checkpoint_steps = max(0, int(getattr(cfg, "periodic_checkpoint_steps", 0) or 0))
-        self._next_periodic_checkpoint_step = (
-            self.periodic_checkpoint_steps if self.periodic_checkpoint_steps > 0 else 0
-        )
         self._strategy_return_mean = 0.0
         self._strategy_return_var = 1.0
         self._strategy_return_count = 1e-4
+
+        self.latent_strategy_ppo_coef = hparams.latent_strategy_ppo_coef
+        self.latent_episode_strategy_ppo = hparams.latent_episode_strategy_ppo
+        self.latent_episode_strategy_coef = hparams.latent_episode_strategy_coef
+        self.latent_episode_strategy_clip_eps = hparams.latent_episode_strategy_clip_eps
+        self.latent_episode_strategy_value_coef = hparams.latent_episode_strategy_value_coef
+        self.latent_episode_strategy_return_norm = hparams.latent_episode_strategy_return_norm
+        self.latent_strategy_aux_return_coef = hparams.latent_strategy_aux_return_coef
+        self.latent_strategy_aux_return_head = hparams.latent_strategy_aux_return_head
+        self.latent_strategy_aux_predict_phase_coef = hparams.latent_strategy_aux_predict_phase_coef
+
+        self.reward_shaping_coef_start = hparams.reward_shaping_coef_start
+        self.reward_shaping_coef_end = hparams.reward_shaping_coef_end
+        self.reward_shaping_decay_steps = hparams.reward_shaping_decay_steps
+        self.reward_dense_weight = hparams.reward_dense_weight
+        self.reward_scale = hparams.reward_scale
+        self.reward_clip = hparams.reward_clip
+        self.reward_stalemate_penalty = hparams.reward_stalemate_penalty
+
+        self.periodic_checkpoint_steps = hparams.periodic_checkpoint_steps
+        self._next_periodic_checkpoint_step = (
+            self.periodic_checkpoint_steps if self.periodic_checkpoint_steps > 0 else 0
+        )
+
         self.global_step = 0
         self.last_stats: dict[str, float] = {}
-        self.run_id = str(getattr(cfg, "run_id", "") or "")
-        self.run_pid = int(getattr(cfg, "run_pid", os.getpid()) or os.getpid())
+        self.run_id = hparams.run_id
+        self.run_pid = hparams.run_pid
         self._updates_completed = 0
         self._ep_wins = 0
         self._ep_losses = 0
@@ -206,9 +194,10 @@ class CustomPPOTrainer:
         self._episodes_completed = 0
         self._rollout_episode_records: list[dict[str, Any]] = []
         self._recent_episode_successes = deque(maxlen=200)
-        self.metrics_csv_path = str(getattr(cfg, "metrics_csv_path", "") or "")
-        self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
-        self.strategy_experience_csv_path = str(getattr(cfg, "strategy_experience_csv_path", "") or "")
+        self.metrics_csv_path = hparams.metrics_csv_path
+        self.episode_csv_path = hparams.episode_csv_path
+        self.strategy_experience_csv_path = hparams.strategy_experience_csv_path
+
         self.telemetry = TrainingTelemetry(self)
         if self.use_latent_strategy:
             self.temporal_tracker = TemporalStateTracker(
@@ -218,16 +207,8 @@ class CustomPPOTrainer:
             )
         else:
             self.temporal_tracker = None
-        self.latent_resample_on_flag = (
-            bool(getattr(cfg, "latent_resample_on_flag", False))
-            and self.use_latent_strategy
-            and not self.fixed_latent_strategy
-        )
-        self.latent_kl_consecutive = (
-            max(0.0, float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0))
-            if self.use_latent_strategy and not self.fixed_latent_strategy
-            else 0.0
-        )
+        self.latent_resample_on_flag = hparams.latent_resample_on_flag
+        self.latent_kl_consecutive = hparams.latent_kl_consecutive
         self.latent_state = LatentStrategyState(self)
         self.rollout_collector = RolloutCollector(self)
         self.updater = PPOUpdater(self)
@@ -236,14 +217,11 @@ class CustomPPOTrainer:
         self._last_global_state = None
         self._last_context_state = None
         self._decentralized_actor_contract_logged = False
-        mode_s = str(getattr(cfg, "mode", "") or "").strip().upper()
-        self._opponent_randomize_training = (
-            (mode_s == "OPPONENT_POOL" or bool(getattr(cfg, "opponent_randomize", False)))
-            and curriculum is None
-        )
-        self._opponent_pool_tags = (
-            [str(x).strip().upper() for x in getattr(cfg, "opponent_pool", ())] if self._opponent_randomize_training else []
-        )
+
+        self._opponent_randomize_training = hparams.opponent_randomize_training
+        # ``list`` (not tuple) for back-compat with downstream callers that
+        # historically appended/sliced this attribute.
+        self._opponent_pool_tags = list(hparams.opponent_pool_tags)
         self._rng_opponent = np.random.default_rng(int(getattr(cfg, "seed", 0)) + 901)
         if self._opponent_randomize_training:
             if not self._opponent_pool_tags:
@@ -251,7 +229,37 @@ class CustomPPOTrainer:
                     "Opponent pool training (mode=OPPONENT_POOL or opponent_randomize) requires a non-empty "
                     "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
                 )
-            self.env._before_reset_indices_hook = partial(_hook_sample_training_opponent_before_reset, self)
+            self.env._before_reset_indices_hook = partial(
+                _hook_sample_training_opponent_before_reset, self
+            )
+
+    @classmethod
+    def from_config(
+        cls,
+        env,
+        cfg,
+        *,
+        curriculum: Optional[Any] = None,
+    ) -> "CustomPPOTrainer":
+        """Build a trainer using PPO hyperparameters from ``cfg`` directly.
+
+        Eliminates the boilerplate where every caller re-passed
+        ``cfg.learning_rate`` / ``cfg.clip_range`` / etc. as keyword args
+        (``train_ppo.py``, ``tools/critic_ceiling.py``). The legacy
+        kwargs constructor stays available for tests that override the
+        defaults inline.
+        """
+        return cls(
+            env,
+            cfg,
+            learning_rate=float(cfg.learning_rate),
+            clip_range=float(cfg.clip_range),
+            ent_coef=float(cfg.ent_coef),
+            n_epochs=int(cfg.n_epochs),
+            batch_size=int(cfg.batch_size),
+            value_clip_range=getattr(cfg, "clip_range_vf", cfg.clip_range),
+            curriculum=curriculum,
+        )
 
     def _reward_shaping_coef(self) -> float:
         if self.reward_shaping_decay_steps <= 0:

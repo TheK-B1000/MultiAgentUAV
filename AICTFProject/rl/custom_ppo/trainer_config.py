@@ -1,0 +1,289 @@
+"""Trainer-side hyperparameter resolution.
+
+Historically :class:`~rl.custom_ppo.trainer.CustomPPOTrainer` resolved its
+runtime hyperparameters with ~50 inline ``getattr(cfg, "...", default)``
+calls scattered through its constructor. That conflated three things:
+
+1. *Schema*: what fields the trainer actually depends on.
+2. *Defaults*: the fallback values used when the legacy ``PPOConfig`` /
+   checkpoint cfg-dict omits a field.
+3. *Coercion / clamping*: ``max(0.0, float(...))`` style bounds.
+
+This module centralizes all three behind a single immutable
+:class:`TrainerHyperparams` frozen dataclass and a
+:meth:`TrainerHyperparams.from_ppo_config` factory. The trainer can then
+do a single bulk assignment from a typed object instead of dozens of
+inline ``getattr`` reads.
+
+Backward compatibility:
+    * The trainer still keeps ``self.cfg`` as the original ``PPOConfig`` /
+      cfg-like object — many downstream modules (``RolloutCollector``,
+      ``PPOUpdater``, ``TrainingTelemetry``, etc.) read fields off
+      ``trainer.cfg`` for values that don't need pre-resolution (e.g.
+      ``cfg.gamma``, ``cfg.gae_lambda``, ``cfg.max_grad_norm``,
+      ``cfg.target_kl``, ``cfg.run_tag``).
+    * The trainer also keeps every ``self.<name>`` attribute it
+      historically exposed (``self.use_latent_strategy``,
+      ``self.latent_k``, etc.); they are now set from
+      ``self.hparams.<name>`` rather than from inline ``getattr`` reads.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(frozen=True)
+class TrainerHyperparams:
+    """Immutable resolved trainer hyperparameters.
+
+    Built once from the raw ``PPOConfig`` (or a cfg-dict) via
+    :meth:`from_ppo_config`. Trainer reads these and copies them onto its
+    historical ``self.<name>`` attributes for backward compatibility.
+
+    All fields are derived; nothing is owned by the trainer that mutates
+    them (use ``trainer.global_step`` / ``trainer.last_stats`` / etc. for
+    runtime state). Reward-shaping schedule fields (``..._start``,
+    ``..._end``, ``..._decay_steps``) stay here because the trainer
+    interpolates them per step at runtime.
+    """
+
+    # ----- optimization / PPO -----
+    learning_rate: float
+    clip_range: float
+    value_clip_range: float | None
+    ent_coef: float
+    n_epochs: int
+    batch_size: int
+    vf_coef: float
+    normalize_returns: bool
+
+    # ----- latent strategy gating -----
+    use_latent_strategy: bool
+    latent_k: int
+    latent_resample_every_n: int
+    fixed_latent_strategy: bool
+    fixed_latent_strategy_id: int
+    latent_gae_reset_on_z_change: bool
+    latent_bootstrap_z_deterministic: bool
+    latent_resample_on_flag: bool
+    latent_kl_consecutive: float
+
+    # ----- latent strategy losses / coefficients -----
+    latent_strategy_ppo_coef: float
+    latent_episode_strategy_ppo: bool
+    latent_episode_strategy_coef: float
+    latent_episode_strategy_clip_eps: float
+    latent_episode_strategy_value_coef: float
+    latent_episode_strategy_return_norm: bool
+    latent_strategy_aux_return_coef: float
+    latent_strategy_aux_return_head: bool
+    latent_strategy_aux_predict_phase_coef: float
+
+    # ----- reward composition (env-driven defaults) -----
+    reward_dense_weight: float
+    reward_scale: float
+    reward_clip: float
+    reward_stalemate_penalty: float
+
+    # ----- reward shaping schedule -----
+    reward_shaping_coef_start: float
+    reward_shaping_coef_end: float
+    reward_shaping_decay_steps: int
+
+    # ----- checkpointing -----
+    periodic_checkpoint_steps: int
+
+    # ----- run identity / telemetry paths -----
+    run_id: str
+    run_pid: int
+    metrics_csv_path: str
+    episode_csv_path: str
+    strategy_experience_csv_path: str
+
+    # ----- opponent pool training -----
+    opponent_randomize_training: bool
+    opponent_pool_tags: tuple[str, ...] = field(default_factory=tuple)
+
+    @classmethod
+    def from_ppo_config(
+        cls,
+        cfg: Any,
+        env: Any,
+        *,
+        learning_rate: float,
+        clip_range: float,
+        ent_coef: float,
+        n_epochs: int,
+        batch_size: int,
+        value_clip_range: float | None,
+        curriculum: Any | None,
+    ) -> "TrainerHyperparams":
+        """Resolve a :class:`TrainerHyperparams` from a ``PPOConfig`` (or cfg-like).
+
+        ``env`` is needed because reward-composition defaults live on
+        ``env.cfg`` rather than the PPOConfig. ``curriculum`` participates
+        in the opponent-pool gate: curriculum-driven runs disable the
+        flat opponent-pool path even when ``cfg.mode == OPPONENT_POOL``
+        (the curriculum supplies its own opponent each episode).
+        """
+        use_latent = bool(getattr(cfg, "use_latent_strategy", False))
+        latent_k = int(getattr(cfg, "latent_k", 4)) if use_latent else 0
+        fixed_latent = use_latent and bool(getattr(cfg, "fixed_latent_strategy", False))
+        fixed_latent_id = (
+            max(0, min(int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0), latent_k - 1))
+            if use_latent
+            else 0
+        )
+        latent_gae_reset = bool(getattr(cfg, "latent_gae_reset_on_z_change", True)) and (
+            use_latent and not fixed_latent
+        )
+
+        env_cfg = getattr(env, "cfg", None)
+
+        mode_s = str(getattr(cfg, "mode", "") or "").strip().upper()
+        opp_randomize = (
+            (mode_s == "OPPONENT_POOL" or bool(getattr(cfg, "opponent_randomize", False)))
+            and curriculum is None
+        )
+        opp_tags: tuple[str, ...] = (
+            tuple(str(x).strip().upper() for x in getattr(cfg, "opponent_pool", ()))
+            if opp_randomize
+            else ()
+        )
+
+        return cls(
+            learning_rate=float(learning_rate),
+            clip_range=float(clip_range),
+            value_clip_range=None if value_clip_range is None else float(value_clip_range),
+            ent_coef=float(ent_coef),
+            n_epochs=int(n_epochs),
+            batch_size=int(batch_size),
+            vf_coef=max(0.0, float(getattr(cfg, "vf_coef", 1.0) or 0.0)),
+            normalize_returns=bool(getattr(cfg, "normalize_returns", False)),
+            use_latent_strategy=use_latent,
+            latent_k=latent_k,
+            latent_resample_every_n=max(0, int(getattr(cfg, "latent_resample_every_n", 0) or 0)),
+            fixed_latent_strategy=fixed_latent,
+            fixed_latent_strategy_id=fixed_latent_id,
+            latent_gae_reset_on_z_change=latent_gae_reset,
+            latent_bootstrap_z_deterministic=bool(
+                getattr(cfg, "latent_bootstrap_z_deterministic", True)
+            ),
+            latent_resample_on_flag=(
+                bool(getattr(cfg, "latent_resample_on_flag", False))
+                and use_latent
+                and not fixed_latent
+            ),
+            latent_kl_consecutive=(
+                max(0.0, float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0))
+                if use_latent and not fixed_latent
+                else 0.0
+            ),
+            latent_strategy_ppo_coef=max(
+                0.0, float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0)
+            ),
+            latent_episode_strategy_ppo=(
+                use_latent
+                and not fixed_latent
+                and bool(getattr(cfg, "latent_episode_strategy_ppo", False))
+            ),
+            latent_episode_strategy_coef=max(
+                0.0, float(getattr(cfg, "latent_episode_strategy_coef", 0.0) or 0.0)
+            ),
+            latent_episode_strategy_clip_eps=max(
+                1e-6, float(getattr(cfg, "latent_episode_strategy_clip_eps", 0.2) or 0.2)
+            ),
+            latent_episode_strategy_value_coef=max(
+                0.0, float(getattr(cfg, "latent_episode_strategy_value_coef", 0.5) or 0.0)
+            ),
+            latent_episode_strategy_return_norm=bool(
+                getattr(cfg, "latent_episode_strategy_return_norm", True)
+            ),
+            # Canonical attribute access only — legacy ``latent_strategy_q_*`` keys are
+            # folded at the config-load boundary (see
+            # ``rl.custom_ppo.inference.canonicalize_latent_strategy_cfg`` and the CLI
+            # argparse handler).
+            latent_strategy_aux_return_coef=max(
+                0.0, float(getattr(cfg, "latent_strategy_aux_return_coef", 0.0) or 0.0)
+            ),
+            latent_strategy_aux_return_head=(
+                use_latent and bool(getattr(cfg, "latent_strategy_aux_return_head", False))
+            ),
+            latent_strategy_aux_predict_phase_coef=max(
+                0.0,
+                float(getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0),
+            ),
+            reward_dense_weight=max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0)),
+            reward_scale=max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0)),
+            reward_clip=max(1e-6, float(getattr(env_cfg, "reward_clip", 1.0) or 1.0)),
+            reward_stalemate_penalty=float(getattr(env_cfg, "stalemate_penalty", 0.0) or 0.0),
+            reward_shaping_coef_start=float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0),
+            reward_shaping_coef_end=float(
+                getattr(
+                    cfg,
+                    "reward_shaping_coef_end",
+                    float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0),
+                )
+            ),
+            reward_shaping_decay_steps=max(
+                0, int(getattr(cfg, "reward_shaping_decay_steps", 0) or 0)
+            ),
+            periodic_checkpoint_steps=max(
+                0, int(getattr(cfg, "periodic_checkpoint_steps", 0) or 0)
+            ),
+            run_id=str(getattr(cfg, "run_id", "") or ""),
+            run_pid=int(getattr(cfg, "run_pid", os.getpid()) or os.getpid()),
+            metrics_csv_path=str(getattr(cfg, "metrics_csv_path", "") or ""),
+            episode_csv_path=str(getattr(cfg, "episode_csv_path", "") or ""),
+            strategy_experience_csv_path=str(
+                getattr(cfg, "strategy_experience_csv_path", "") or ""
+            ),
+            opponent_randomize_training=opp_randomize,
+            opponent_pool_tags=opp_tags,
+        )
+
+def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
+    """Compose ``SharedActorCentralizedCritic`` kwargs from cfg + hparams.
+
+    Model shape (CNN feature dim, latent network sizes, embed dim) lives
+    on ``PPOConfig`` and is read here once. Latent-feature kwargs are
+    only included when ``hparams.use_latent_strategy`` is true; this
+    matches the historical trainer behavior so checkpoints stay
+    compatible.
+    """
+    model_kwargs: dict[str, Any] = {
+        "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
+    }
+    if hparams.use_latent_strategy:
+        model_kwargs.update(
+            {
+                "latent_k": hparams.latent_k,
+                "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
+                "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
+                "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
+                # Canonical attribute access. Legacy CLI / cfg-dict keys
+                # (``latent_strategy_q_head``) are folded into the canonical
+                # name at the load boundary (CLI parsing for PPOConfig,
+                # ``inference.canonicalize_latent_strategy_cfg`` for
+                # checkpoint dicts), so the trainer reads one name.
+                "use_strategy_aux_return_head": bool(
+                    getattr(cfg, "latent_strategy_aux_return_head", False)
+                ),
+                # Model-architecture flag — keep ungated (mirrors historical
+                # behavior). The runtime gating (``use_latent and not
+                # fixed_latent``) lives on ``hparams.latent_episode_strategy_ppo``.
+                "use_episode_strategy_value_head": bool(
+                    getattr(cfg, "latent_episode_strategy_ppo", False)
+                ),
+                "strategy_tau": max(
+                    1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)
+                ),
+            }
+        )
+    return model_kwargs
+
+
+__all__ = ["TrainerHyperparams", "build_model_kwargs"]
