@@ -1,56 +1,98 @@
+"""Resolve every preset in the registry and verify it matches the saved snapshot.
+
+The snapshot at ``tests/preset_snapshots.json`` is the source of truth for
+training behavior across all named presets. Any code change that intentionally
+shifts a preset's resolved config must regenerate the snapshot via::
+
+    python tools/snapshot_presets.py
+
+If this test fails after a change you did not intend to make to training
+recipes, you have probably broken a preset. Do **not** blindly regenerate
+the snapshot.
+"""
+from __future__ import annotations
+
 import json
 import os
 import unittest
 from dataclasses import asdict
+from typing import Any
 
+from rl.presets import PRESET_REGISTRY, apply_preset
 from rl.train_ppo import PPOConfig
-from rl.presets import apply_preset, PRESET_REGISTRY
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+SNAPSHOT_PATH = os.path.join(_HERE, "preset_snapshots.json")
+
+
+def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
+    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict."""
+    cfg = PPOConfig()
+    apply_preset(cfg, key)
+    cfg_dict = asdict(cfg)
+    if isinstance(cfg_dict.get("opponent_pool"), tuple):
+        cfg_dict["opponent_pool"] = list(cfg_dict["opponent_pool"])
+    return cfg_dict
+
+
+def resolve_all_presets() -> dict[str, dict[str, Any]]:
+    """Resolve every preset key in :data:`PRESET_REGISTRY` to a JSON-safe dict.
+
+    Exported so ``tools/snapshot_presets.py`` can reuse the exact same
+    resolution path the test uses; the two cannot drift.
+    """
+    return {key: _resolve_preset_to_dict(key) for key in sorted(PRESET_REGISTRY.keys())}
 
 
 class PresetResolutionTests(unittest.TestCase):
-    def test_all_presets_resolve_and_match_snapshots(self) -> None:
-        """Resolve every preset in the registry and verify it matches the saved snapshot."""
-        here = os.path.dirname(os.path.abspath(__file__))
-        snapshot_path = os.path.join(here, "preset_snapshots.json")
-
-        # Resolve all presets to JSON-serializable dicts
-        resolved = {}
+    def test_every_registered_preset_resolves(self) -> None:
+        """Smoke test: every preset key applies cleanly to a fresh PPOConfig."""
         for key in sorted(PRESET_REGISTRY.keys()):
-            cfg = PPOConfig()
-            apply_preset(cfg, key)
-            
-            # Convert config to a dict, converting any non-serializable types (like tuples) to lists/strings
-            cfg_dict = asdict(cfg)
-            # Make sure tuples inside dict are lists for JSON consistency
-            if "opponent_pool" in cfg_dict and isinstance(cfg_dict["opponent_pool"], tuple):
-                cfg_dict["opponent_pool"] = list(cfg_dict["opponent_pool"])
-                
-            resolved[key] = cfg_dict
+            with self.subTest(preset=key):
+                cfg = PPOConfig()
+                try:
+                    apply_preset(cfg, key)
+                except Exception as exc:
+                    self.fail(f"preset {key!r} failed to resolve: {exc!r}")
+                self.assertTrue(
+                    isinstance(cfg.run_tag, str) and cfg.run_tag.strip(),
+                    f"preset {key!r} left run_tag empty",
+                )
 
-        # If snapshot does not exist, write the current values as the baseline
-        if not os.path.isfile(snapshot_path):
-            with open(snapshot_path, "w", encoding="utf-8") as f:
-                json.dump(resolved, f, indent=2)
-            print(f"\n[Presets Test] Created reference snapshots file at: {snapshot_path}")
+    def test_resolved_configs_match_snapshot(self) -> None:
+        """Resolved PPOConfig must exactly match the committed snapshot."""
+        if not os.path.isfile(SNAPSHOT_PATH):
+            self.fail(
+                f"preset snapshot missing at {SNAPSHOT_PATH!r}. "
+                "Regenerate it intentionally with: "
+                "python tools/snapshot_presets.py"
+            )
 
-        # Load snapshot and compare
-        with open(snapshot_path, "r", encoding="utf-8") as f:
+        resolved = resolve_all_presets()
+        with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
             snapshot = json.load(f)
 
-        # Assert keys match exactly
-        self.assertEqual(
-            set(resolved.keys()),
-            set(snapshot.keys()),
-            "The set of keys in the preset registry does not match the saved snapshot keys.",
+        missing_in_snapshot = sorted(set(resolved.keys()) - set(snapshot.keys()))
+        extra_in_snapshot = sorted(set(snapshot.keys()) - set(resolved.keys()))
+        self.assertFalse(
+            missing_in_snapshot,
+            f"presets added without snapshot regen: {missing_in_snapshot}. "
+            "Run: python tools/snapshot_presets.py",
+        )
+        self.assertFalse(
+            extra_in_snapshot,
+            f"snapshot contains stale presets no longer in registry: {extra_in_snapshot}. "
+            "Run: python tools/snapshot_presets.py",
         )
 
-        # Assert config fields match exactly for each preset
-        for key in resolved:
-            self.assertEqual(
-                resolved[key],
-                snapshot[key],
-                f"Preset '{key}' configuration differs from saved snapshot.",
-            )
+        for key in sorted(resolved.keys()):
+            with self.subTest(preset=key):
+                self.assertEqual(
+                    resolved[key],
+                    snapshot[key],
+                    f"preset {key!r} resolved config differs from snapshot. "
+                    "If this change is intentional, run: python tools/snapshot_presets.py",
+                )
 
 
 if __name__ == "__main__":

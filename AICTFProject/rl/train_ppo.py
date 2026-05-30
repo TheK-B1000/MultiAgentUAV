@@ -120,6 +120,7 @@ def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None) -> s
         "total_timesteps": int(cfg.total_timesteps),
         "metrics_csv_path": cfg.metrics_csv_path,
         "episode_csv_path": cfg.episode_csv_path,
+        "strategy_experience_csv_path": cfg.strategy_experience_csv_path,
         "load_path": cfg.load_path,
         "cli_preset": getattr(cfg, "cli_preset", None),
         "resolved_ppo_config": _json_safe(asdict(cfg)),
@@ -217,6 +218,7 @@ def _acquire_run_lock(cfg: PPOConfig) -> _RunLock:
         "argv": sys.argv,
         "metrics_csv_path": str(getattr(cfg, "metrics_csv_path", "") or ""),
         "episode_csv_path": str(getattr(cfg, "episode_csv_path", "") or ""),
+        "strategy_experience_csv_path": str(getattr(cfg, "strategy_experience_csv_path", "") or ""),
     }
     while True:
         try:
@@ -397,6 +399,7 @@ class PPOConfig:
     use_latent_strategy: bool = True
     latent_k: int = 4
     latent_z_embed_dim: int = 16
+    latent_actor_conditioning: Literal["concat"] = "concat"
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
@@ -412,6 +415,9 @@ class PPOConfig:
     # completed-episode return. Pure task-return credit; no labels or semantic heads.
     latent_episode_strategy_ppo: bool = False
     latent_episode_strategy_coef: float = 0.25
+    latent_episode_strategy_clip_eps: float = 0.2
+    latent_episode_strategy_value_coef: float = 0.5
+    latent_episode_strategy_return_norm: bool = True
     # A2 (opt-in): auxiliary MSE on the shared q_phi trunk predicting per-z returns from the **sampled** z only.
     # Not a full Q(s,a,z) critic and not off-policy Q-learning; MAPPO value remains V_phi(s, a, z).
     latent_strategy_aux_return_head: bool = False
@@ -460,12 +466,16 @@ class PPOConfig:
     periodic_checkpoint_steps: int = 50_000
 
 
+def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
+    """Apply named high-level presets for repeatable training recipes."""
+    from rl.presets import apply_preset
+
+    return apply_preset(cfg, preset)
+
+
 # Default ``python rl/train_ppo.py`` recipe when ``--preset`` is omitted: plan-faithful
 # latent with sparse persistence and entropy. Pass ``--preset none`` to skip.
 DEFAULT_CLI_TRAINING_PRESET = "plan_faithful_latent_persist_entropy"
-
-
-from rl.presets import apply_preset as _apply_training_preset
 
 
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
@@ -616,12 +626,14 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
         h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
         aux_head = bool(getattr(cfg, "latent_strategy_aux_return_head", False))
+        episode_credit = bool(getattr(cfg, "latent_episode_strategy_ppo", False))
         print(
             "[PPO] Latent team strategy: enabled "
             f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
             f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f} "
             f"(H:{h_obj}), "
             f"lambda_KL={lam_kl:.4f}, strategy_ppo_coef={float(cfg.latent_strategy_ppo_coef):.3f}, "
+            f"episode_credit={episode_credit}, episode_coef={float(getattr(cfg, 'latent_episode_strategy_coef', 0.0)):.3f}, "
             f"aux_return_head={aux_head}, aux_return_coef={float(cfg.latent_strategy_aux_return_coef):.3f}, "
             f"tau={float(cfg.latent_strategy_tau):.3f}, "
             f"GAE_reset_on_z_change={bool(getattr(cfg, 'latent_gae_reset_on_z_change', True))}, "
@@ -643,27 +655,37 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             cfg.metrics_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_metrics.csv")
         if not cfg.episode_csv_path:
             cfg.episode_csv_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_episodes.csv")
+        if bool(getattr(cfg, "use_latent_strategy", False)) and not cfg.strategy_experience_csv_path:
+            cfg.strategy_experience_csv_path = os.path.join(
+                cfg.checkpoint_dir, f"{cfg.run_tag}_strategy_experience.csv"
+            )
         print(f"[PPO] Update metrics CSV: {cfg.metrics_csv_path}")
         print(f"[PPO] Episode metrics CSV: {cfg.episode_csv_path}")
+        if cfg.strategy_experience_csv_path:
+            print(f"[PPO] Strategy experience CSV: {cfg.strategy_experience_csv_path}")
         _e3p = str(getattr(cfg, "e3_step_telemetry_path", "") or "").strip()
         if _e3p:
             print(f"[PPO] E3 step telemetry CSV (per-step z, team_phase, behavior telemetry, buckets, MI-related fields): {_e3p}")
         if (not cfg.fresh_metrics_csv) and (not cfg.load_path) and (
-            _metrics_csv_nonempty(cfg.metrics_csv_path) or _metrics_csv_nonempty(cfg.episode_csv_path)
+            _metrics_csv_nonempty(cfg.metrics_csv_path)
+            or _metrics_csv_nonempty(cfg.episode_csv_path)
+            or _metrics_csv_nonempty(cfg.strategy_experience_csv_path)
         ):
             print(
-                "[PPO] WARNING: metrics/episode CSV already exists; this run will APPEND. "
+                "[PPO] WARNING: metrics/episode/strategy-experience CSV already exists; this run will APPEND. "
                 "That duplicates `timestep`/update indices if you reused --run-tag. "
                 "Use --fresh-metrics-csv (rotates old files aside) or a new --run-tag."
             )
     else:
         cfg.metrics_csv_path = None
         cfg.episode_csv_path = None
+        cfg.strategy_experience_csv_path = None
         print("[PPO] Metrics CSV logging disabled.")
     run_lock = _acquire_run_lock(cfg)
     if bool(getattr(cfg, "enable_metrics_csv", True)) and cfg.fresh_metrics_csv:
         _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
         _rotate_csv_aside(cfg.episode_csv_path, label="episode")
+        _rotate_csv_aside(cfg.strategy_experience_csv_path, label="strategy experience")
     try:
         rc_path = write_run_config_json(cfg)
         print(f"[PPO] Run config written: {rc_path}")
@@ -963,6 +985,12 @@ if __name__ == "__main__":
         parser.add_argument("--checkpoint-dir", type=str, default=None)
         parser.add_argument("--metrics-csv", type=str, default=None, help="Path for per-update training metrics CSV.")
         parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")
+        parser.add_argument(
+            "--strategy-experience-csv",
+            type=str,
+            default=None,
+            help="Path for latent bucket/z return diagnostics CSV.",
+        )
         parser.add_argument("--no-metrics-csv", action="store_true", help="Disable training CSV telemetry.")
         parser.add_argument(
             "--fresh-metrics-csv",
@@ -1080,6 +1108,34 @@ if __name__ == "__main__":
             type=float,
             default=None,
             help="Coefficient for the sampled-z clipped PPO strategy loss.",
+        )
+        parser.add_argument(
+            "--latent-episode-strategy-ppo",
+            action="store_true",
+            help="Enable Option A episode-level PPO credit for q_phi's sampled episode-start z.",
+        )
+        parser.add_argument(
+            "--latent-episode-strategy-coef",
+            type=float,
+            default=None,
+            help="Weight for episode-level q_phi PPO credit (recommended sweep: 0.25, 0.5, 1.0).",
+        )
+        parser.add_argument(
+            "--latent-episode-strategy-clip-eps",
+            type=float,
+            default=None,
+            help="Clip epsilon for episode-level q_phi PPO credit.",
+        )
+        parser.add_argument(
+            "--latent-episode-strategy-value-coef",
+            type=float,
+            default=None,
+            help="Value baseline coefficient for episode-level q_phi PPO credit.",
+        )
+        parser.add_argument(
+            "--no-latent-episode-strategy-return-norm",
+            action="store_true",
+            help="Disable rollout-normalized episode-level q_phi advantages.",
         )
         parser.add_argument(
             "--latent-strategy-aux-return-head",
@@ -1319,6 +1375,16 @@ if __name__ == "__main__":
             cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
         if args.latent_strategy_ppo_coef is not None:
             cfg.latent_strategy_ppo_coef = max(0.0, float(args.latent_strategy_ppo_coef))
+        if args.latent_episode_strategy_ppo:
+            cfg.latent_episode_strategy_ppo = True
+        if args.latent_episode_strategy_coef is not None:
+            cfg.latent_episode_strategy_coef = max(0.0, float(args.latent_episode_strategy_coef))
+        if args.latent_episode_strategy_clip_eps is not None:
+            cfg.latent_episode_strategy_clip_eps = max(1e-6, float(args.latent_episode_strategy_clip_eps))
+        if args.latent_episode_strategy_value_coef is not None:
+            cfg.latent_episode_strategy_value_coef = max(0.0, float(args.latent_episode_strategy_value_coef))
+        if args.no_latent_episode_strategy_return_norm:
+            cfg.latent_episode_strategy_return_norm = False
         if args.latent_strategy_aux_return_head or bool(getattr(args, "latent_strategy_q_head", False)):
             cfg.latent_strategy_aux_return_head = True
         aux_coef = getattr(args, "latent_strategy_aux_return_coef", None)
@@ -1378,6 +1444,8 @@ if __name__ == "__main__":
             cfg.metrics_csv_path = args.metrics_csv
         if args.episode_csv is not None:
             cfg.episode_csv_path = args.episode_csv
+        if args.strategy_experience_csv is not None:
+            cfg.strategy_experience_csv_path = args.strategy_experience_csv
         if args.total_steps is not None:
             cfg.total_timesteps = int(args.total_steps)
         if args.load is not None:

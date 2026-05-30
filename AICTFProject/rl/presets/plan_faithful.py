@@ -26,6 +26,11 @@ def apply_plan_faithful_base(cfg: PPOConfig) -> PPOConfig:
     cfg.latent_lam_h = 0.003
     cfg.latent_lam_p = 0.025
     cfg.latent_strategy_ppo_coef = 0.30
+    cfg.latent_episode_strategy_ppo = False
+    cfg.latent_episode_strategy_coef = 0.25
+    cfg.latent_episode_strategy_clip_eps = 0.2
+    cfg.latent_episode_strategy_value_coef = 0.5
+    cfg.latent_episode_strategy_return_norm = True
     cfg.latent_strategy_aux_return_head = False
     cfg.latent_strategy_aux_return_coef = 0.0
     cfg.latent_strategy_tau = 1.0
@@ -213,10 +218,8 @@ def apply_plan_option_b_lamp(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
-# Forward reference helper to make importing easy/flexible
 def apply_latent_a1_plan_faithful(cfg: PPOConfig) -> PPOConfig:
-    # Defined in other.py but duplicated/imported here or referenced.
-    # To keep dependencies clean, let's implement it here directly:
+    """Plan-faithful A1 recipe (used as the base for option-A/option-B variants)."""
     cfg.use_latent_strategy = True
     cfg.total_timesteps = 1_000_000
     cfg.mode = TrainMode.FIXED_OPPONENT.value

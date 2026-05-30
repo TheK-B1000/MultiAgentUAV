@@ -658,6 +658,46 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             _cleanup_training_outputs(tag)
 
+    def test_episode_strategy_credit_smoke_writes_metrics_and_experience_table(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_episode_strategy_credit_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        cfg.use_latent_strategy = True
+        cfg.latent_resample_every_n = 0
+        cfg.latent_lam_p = 0.0
+        cfg.latent_lam_h = 0.001
+        cfg.latent_strategy_ppo_coef = 0.0
+        cfg.latent_episode_strategy_ppo = True
+        cfg.latent_episode_strategy_coef = 0.25
+        cfg.n_steps = 4
+        cfg.batch_size = 4
+        cfg.total_timesteps = 4
+        cfg.max_decision_steps = 1
+        final_zip = _WORKSPACE_TMP / f"final_{tag}.zip"
+        metrics_csv = _WORKSPACE_TMP / f"{tag}_metrics.csv"
+        strategy_csv = _WORKSPACE_TMP / f"{tag}_strategy_experience.csv"
+        try:
+            train_ppo(cfg)
+            self.assertTrue(final_zip.is_file())
+            self.assertTrue(metrics_csv.is_file())
+            self.assertTrue(strategy_csv.is_file())
+            with metrics_csv.open(newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertGreaterEqual(len(rows), 1)
+            row = rows[0]
+            self.assertIn("latent_episode_pg_loss", row)
+            self.assertIn("latent_episode_v_loss", row)
+            self.assertIn("latent_episode_entropy", row)
+            self.assertIn("latent_episode_ratio_mean", row)
+            self.assertGreater(float(row["latent_episode_count"]), 0.0)
+            with strategy_csv.open(newline="", encoding="utf-8") as f:
+                strategy_rows = list(csv.DictReader(f))
+            self.assertGreaterEqual(len(strategy_rows), 1)
+            for col in ("bucket_id", "z", "count", "mean_return", "win_rate", "q_phi_prob_mean", "chosen_freq"):
+                self.assertIn(col, strategy_rows[0])
+        finally:
+            _cleanup_training_outputs(tag)
+
     def test_latent_strategy_persists_across_rollout_boundaries(self) -> None:
         cfg = _smoke_ppo_config(
             run_tag="unittest_strategy_persistence_2v2",

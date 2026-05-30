@@ -48,6 +48,14 @@ from rl.latent_phase_labels import (
     team_phase_label_from_global_state,
 )
 from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator, expected_strategy_switch_penalty, TemporalStateTracker, CONTEXT_STATE_DIM
+from rl.latent_losses import (
+    strategy_aux_return_loss as _latent_strategy_aux_return_loss,
+    strategy_entropy_loss as _latent_strategy_entropy_loss,
+    strategy_kl_consecutive_loss as _latent_strategy_kl_consecutive_loss,
+    strategy_persistence_loss as _latent_strategy_persistence_loss,
+    strategy_phase_aux_loss as _latent_strategy_phase_aux_loss,
+    strategy_ppo_loss as _latent_strategy_ppo_loss,
+)
 from rl.networks import CNNEncoder, CentralizedCritic
 from rl.ppo_core import (
     TensorDictRolloutBuffer,
@@ -3740,55 +3748,60 @@ class CustomPPOTrainer:
                     strategy_entropy = aux["strategy_entropy"]
                     # Paper default: maximize H(z)  ⇔ L += -λ_H * H(z) (minimized loss decreases as H rises).
                     # ``latent_entropy_objective=minimize`` flips sign (L += +λ_H * H(z)) so q_phi trains toward sharper z.
-                    if bool(resample.any().item()):
-                        h_mean = strategy_entropy[resample].mean()
-                    else:
-                        h_mean = torch.zeros((), dtype=torch.float32, device=self.device)
                     h_goal = str(getattr(self.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
-                    if h_goal == "none" or latent_lam_h <= 0.0:
-                        strategy_entropy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
-                    elif h_goal == "minimize":
-                        strategy_entropy_loss = latent_lam_h * h_mean
-                    else:
-                        strategy_entropy_loss = -latent_lam_h * h_mean
-                    switch = expected_strategy_switch_penalty(aux["strategy_logits"], batch["prev_z"])
-                    if bool(persist_mask.any().item()):
-                        persist_loss = switch[persist_mask].mean()
-                    else:
-                        persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    strategy_entropy_loss, _ = _latent_strategy_entropy_loss(
+                        strategy_entropy,
+                        resample,
+                        objective=h_goal,
+                        lam_h=latent_lam_h,
+                        device=self.device,
+                    )
+                    persist_term_loss, persist_stats = _latent_strategy_persistence_loss(
+                        aux["strategy_logits"],
+                        batch["prev_z"],
+                        persist_mask,
+                        lam_p=float(getattr(self.cfg, "latent_lam_p", 0.0)),
+                        device=self.device,
+                    )
+                    # Caller-side invariant: persist_mask must be all-False (so the persist
+                    # term is exactly 0) when no mid-episode resampling is enabled.
                     if self.latent_resample_every_n == 0 and not self.latent_resample_on_flag:
-                        assert persist_loss.item() == 0.0, (
+                        assert persist_stats["persist_term"] == 0.0, (
                             "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off)"
                         )
-                    latent_loss = float(getattr(self.cfg, "latent_lam_p", 0.0)) * persist_loss + strategy_entropy_loss
+                    persist_loss_value = persist_stats["persist_term"]
+                    latent_loss = persist_term_loss + strategy_entropy_loss
                     if self.latent_kl_consecutive > 0.0:
-                        v = batch["z_kl_prev_valid"].float()
-                        log_p = F.log_softmax(batch["z_logits"], -1)
-                        log_q = F.log_softmax(batch["z_logits_prev"].detach(), -1)
-                        p = log_p.exp()
-                        kl = (p * (log_p - log_q)).sum(-1)
-                        denom = v.sum().clamp_min(1.0)
-                        kl_m = (kl * v).sum() / denom
-                        latent_loss = latent_loss + float(self.latent_kl_consecutive) * kl_m
-                        stats["strategy_kl"].append(float(kl_m.detach().cpu().item()))
+                        kl_loss, kl_stats = _latent_strategy_kl_consecutive_loss(
+                            batch["z_logits"],
+                            batch["z_logits_prev"],
+                            batch["z_kl_prev_valid"],
+                            coef=float(self.latent_kl_consecutive),
+                        )
+                        latent_loss = latent_loss + kl_loss
+                        stats["strategy_kl"].append(kl_stats["kl_mean"])
                     else:
                         stats["strategy_kl"].append(0.0)
                     if self.latent_strategy_aux_predict_phase_coef > 0.0:
                         phase_logits = self.model.phase_logits_from_strategy_logits(aux["strategy_logits"])
-                        phase_loss = F.cross_entropy(phase_logits, batch["phase_id"].long())
-                        latent_loss = latent_loss + self.latent_strategy_aux_predict_phase_coef * phase_loss
-                        stats["strategy_phase_loss"].append(float(phase_loss.detach().cpu().item()))
+                        phase_loss_scaled, phase_stats = _latent_strategy_phase_aux_loss(
+                            phase_logits,
+                            batch["phase_id"],
+                            coef=float(self.latent_strategy_aux_predict_phase_coef),
+                        )
+                        latent_loss = latent_loss + phase_loss_scaled
+                        stats["strategy_phase_loss"].append(phase_stats["phase_term"])
                     else:
                         stats["strategy_phase_loss"].append(0.0)
 
                     if self.fixed_latent_strategy:
                         strategy_entropy = torch.zeros_like(entropy)
-                        persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                        persist_loss_value = 0.0
                         latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)
-                    persist_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    persist_loss_value = 0.0
                     latent_loss = torch.zeros((), dtype=torch.float32, device=self.device)
                     resample = torch.zeros_like(entropy, dtype=torch.bool)
                     stats["strategy_kl"].append(0.0)
@@ -3798,38 +3811,36 @@ class CustomPPOTrainer:
                 if advantages.numel() > 1:
                     advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
                 if self.use_latent_strategy and not self.fixed_latent_strategy:
-                    strategy_policy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
-                    strategy_aux_return_loss = torch.zeros((), dtype=torch.float32, device=self.device)
-                    strategy_ppo_stats = {
-                        "approx_kl": torch.zeros((), dtype=torch.float32, device=self.device),
-                        "clip_fraction": torch.zeros((), dtype=torch.float32, device=self.device),
-                        "ratio": torch.ones((1,), dtype=torch.float32, device=self.device),
-                    }
+                    strategy_policy_loss_scaled, strategy_ppo_stats = _latent_strategy_ppo_loss(
+                        strategy_log_prob,
+                        batch["z_log_probs"],
+                        advantages,
+                        resample,
+                        clip_range=float(self.clip_range),
+                        coef=float(self.latent_strategy_ppo_coef),
+                        device=self.device,
+                    )
+                    strategy_policy_loss = strategy_ppo_stats.pop("policy_loss")
+                    strategy_aux_return_loss_value = 0.0
                     if bool(resample.any().item()):
-                        strategy_adv = advantages[resample].detach()
-                        if strategy_adv.numel() > 1:
-                            strategy_adv = (
-                                strategy_adv - strategy_adv.mean()
-                            ) / (strategy_adv.std(unbiased=False) + 1e-8)
-                        strategy_policy_loss, strategy_ppo_stats = ppo_policy_loss(
-                            strategy_log_prob[resample],
-                            batch["z_log_probs"][resample],
-                            strategy_adv,
-                            self.clip_range,
-                        )
-                        latent_loss = latent_loss + self.latent_strategy_ppo_coef * strategy_policy_loss
+                        latent_loss = latent_loss + strategy_policy_loss_scaled
                         if self.latent_strategy_aux_return_head and self.latent_strategy_aux_return_coef > 0.0:
                             pred_all = self.model.strategy_aux_return_predictions(batch["global_state"])
-                            z_sel = batch["z"][resample].long().clamp(min=0, max=self.latent_k - 1)
-                            pred_selected = pred_all[resample].gather(1, z_sel.reshape(-1, 1)).squeeze(1)
                             ret_target = self._normalize_strategy_returns(batch["returns"][resample])
-                            strategy_aux_return_loss = F.mse_loss(pred_selected, ret_target)
-                            latent_loss = (
-                                latent_loss + self.latent_strategy_aux_return_coef * strategy_aux_return_loss
+                            aux_return_loss_scaled, aux_return_stats = _latent_strategy_aux_return_loss(
+                                pred_all,
+                                batch["z"],
+                                ret_target,
+                                resample,
+                                latent_k=int(self.latent_k),
+                                coef=float(self.latent_strategy_aux_return_coef),
+                                device=self.device,
                             )
+                            strategy_aux_return_loss_value = aux_return_stats["aux_return_term"]
+                            latent_loss = latent_loss + aux_return_loss_scaled
                 else:
                     strategy_policy_loss = torch.zeros((), dtype=torch.float32, device=self.device)
-                    strategy_aux_return_loss = torch.zeros((), dtype=torch.float32, device=self.device)
+                    strategy_aux_return_loss_value = 0.0
                     strategy_ppo_stats = {
                         "approx_kl": torch.zeros((), dtype=torch.float32, device=self.device),
                         "clip_fraction": torch.zeros((), dtype=torch.float32, device=self.device),
@@ -3869,8 +3880,8 @@ class CustomPPOTrainer:
                 stats["strategy_ratio_std"].append(
                     float(ratio_z.std(unbiased=False).detach().cpu().item()) if ratio_z.numel() > 1 else 0.0
                 )
-                stats["strategy_aux_return_loss"].append(float(strategy_aux_return_loss.detach().cpu().item()))
-                stats["strategy_persist_loss"].append(float(persist_loss.detach().cpu().item()))
+                stats["strategy_aux_return_loss"].append(float(strategy_aux_return_loss_value))
+                stats["strategy_persist_loss"].append(float(persist_loss_value))
                 stats["strategy_grad_norm"].append(strategy_grad_norm)
                 stats["strategy_resample_fraction"].append(float(resample.float().mean().detach().cpu().item()))
                 if target_kl is not None and approx_kl_value > 1.5 * float(target_kl):
