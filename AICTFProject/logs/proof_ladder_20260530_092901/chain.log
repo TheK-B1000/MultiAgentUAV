@@ -1,0 +1,11 @@
+﻿[09:29:01] project root: K:\MultiAgentUAV\AICTFProject
+[09:29:01] python:       K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe
+[09:29:01] log dir:      K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092901
+[09:29:01] rows:         5   seeds=0   include_option_a=False
+[09:29:01] opp pool:     OP3 OP5 OP6
+[09:29:01] eval opps:    OP3 OP4 OP5_RUSHER OP6_TURTLE
+[09:29:01] 
+[09:29:01] [preflight] verify every --preset resolves
+[09:29:01] [preflight] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092901\_preflight_resolve_presets.py plan_faithful_no_latent plan_faithful_latent_k1 plan_faithful_latent_persist_entropy plan_faithful_latent_no_persistence plan_faithful_latent_no_entropy
+[09:29:01] [preflight] FAILED (exit=1); see K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092901\preflight.log
+[09:29:01] [preflight] aborting chain (one or more presets failed to resolve)

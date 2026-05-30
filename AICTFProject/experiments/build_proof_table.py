@@ -63,6 +63,7 @@ DEFAULT_RUN_TAGS: tuple[str, ...] = (
     "plan_faithful_latent_phase3b_outcome_clean_hardpool_1m_2v2",
     "plan_faithful_latent_phase3b_ablate_k1_hardpool_1m_2v2",
     "plan_faithful_latent_phase3b_ablate_no_persistence_hardpool_1m_2v2",
+    "plan_faithful_latent_option_a_hardpool_1m_2v2",
 )
 
 LN2 = math.log(2.0)

@@ -58,6 +58,29 @@ def plan_faithful_no_latent_config() -> PPOConfig:
     return replace(plan_faithful_latent_persist_entropy_config(), use_latent_strategy=False)
 
 
+def plan_faithful_latent_option_a_config() -> PPOConfig:
+    """Fix D / Plan Option A: ``z`` sampled once per episode, λ_p disabled, λ_H at the bottom of the plan range.
+
+    This is the cleanest plan-faithful contrast against
+    :func:`plan_faithful_no_latent_config` — only ``use_latent_strategy`` and the
+    latent hyperparameters differ. Mirrors the
+    ``plan_faithful_latent_option_a`` preset in :mod:`rl.train_ppo`.
+    """
+    return replace(
+        plan_faithful_latent_persist_entropy_config(),
+        latent_resample_every_n=0,
+        latent_lam_p=0.0,
+        latent_lam_h=0.001,
+        latent_entropy_objective="maximize",
+        latent_strategy_aux_predict_phase_coef=0.0,
+        latent_strategy_aux_return_head=False,
+        latent_strategy_aux_return_coef=0.0,
+        latent_resample_on_flag=False,
+        latent_kl_consecutive=0.0,
+        fixed_latent_strategy=False,
+    )
+
+
 def paper_default_latent_config() -> PPOConfig:
     """Primary paper table: latent on; episode-start ``z`` only; no optional §12 resampling in the run."""
     return PPOConfig(

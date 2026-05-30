@@ -541,7 +541,7 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_no_entropy")
         cfg.latent_resample_every_n = 10
         cfg.latent_strategy_ppo_coef = 0.45
-        cfg.latent_strategy_aux_predict_phase_coef = 0.05
+        cfg.latent_strategy_aux_predict_phase_coef = 0.0
         cfg.run_tag = "plan_faithful_latent_phase1_coupling_hardpool_1m_2v2"
         return cfg
     if key in {"plan_faithful_latent_phase2_credit", "latent_phase2_credit"}:
@@ -585,6 +585,57 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase3b_outcome_clean")
         cfg.latent_lam_p = 0.0
         cfg.run_tag = "plan_faithful_latent_phase3b_ablate_no_persistence_hardpool_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_phase4a_rescue", "latent_phase4a_rescue"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase3b_outcome_clean")
+        cfg.latent_strategy_aux_predict_phase_coef = 0.0
+        cfg.run_tag = "plan_faithful_latent_phase4a_rescue_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_phase4a_rescue_hardpool", "latent_phase4a_rescue_hardpool"}:
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase4a_rescue")
+        cfg.run_tag = "plan_faithful_latent_phase4a_rescue_hardpool_1m_2v2"
+        return cfg
+    if key in {"plan_faithful_latent_episode_z_clean", "latent_episode_z_clean"}:
+        cfg = _apply_plan_faithful_base(cfg)
+        cfg.use_latent_strategy = True
+        cfg.latent_k = 4
+        cfg.latent_resample_every_n = 0
+        cfg.latent_lam_p = 0.0
+        cfg.latent_lam_h = 0.001
+        cfg.latent_strategy_aux_predict_phase_coef = 0.0
+        cfg.latent_strategy_aux_return_head = False
+        cfg.latent_strategy_aux_return_coef = 0.0
+        cfg.run_tag = "plan_faithful_latent_episode_z_clean_1m_2v2"
+        return cfg
+    if key in {
+        "plan_faithful_latent_option_a",
+        "latent_option_a",
+        "plan_faithful_latent_fix_d",
+        "latent_fix_d",
+    }:
+        # Fix D from the latent-vs-no-latent diagnosis: run the plan's recommended
+        # "Option A" (Summer Implementation Plan §5, IMPLEMENTATION §5):
+        #   - z sampled ONCE per episode (latent_resample_every_n = 0)
+        #   - no within-episode persistence penalty to optimize against (lam_p = 0)
+        #   - H(z) at the bottom of the plan range so q_phi can become state-conditioned (lam_h = 0.001)
+        #   - no auxiliary phase predictor (plan compliance; "No auxiliary prediction tasks")
+        #   - no auxiliary per-z return head (plan compliance; this is the strict A1/Option A baseline)
+        # Other knobs inherit from _apply_plan_faithful_base so this row is a single-flag
+        # contrast against plan_faithful_no_latent.
+        cfg = _apply_plan_faithful_base(cfg)
+        cfg.use_latent_strategy = True
+        cfg.latent_k = 4
+        cfg.latent_resample_every_n = 0
+        cfg.latent_lam_p = 0.0
+        cfg.latent_lam_h = 0.001
+        cfg.latent_entropy_objective = "maximize"
+        cfg.latent_strategy_aux_predict_phase_coef = 0.0
+        cfg.latent_strategy_aux_return_head = False
+        cfg.latent_strategy_aux_return_coef = 0.0
+        cfg.latent_resample_on_flag = False
+        cfg.latent_kl_consecutive = 0.0
+        cfg.fixed_latent_strategy = False
+        cfg.run_tag = "plan_faithful_latent_option_a_1m_2v2"
         return cfg
     if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent", "latent_recommended_collapsed_k1"}:
         cfg = _apply_training_preset(cfg, "plan_faithful_latent_persist_entropy")
@@ -852,7 +903,11 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         "'plan_faithful_latent_phase3_reward_geometry', "
         "'plan_faithful_latent_phase3b_outcome_clean', "
         "'plan_faithful_latent_phase3b_ablate_k1', "
-        "'plan_faithful_latent_phase3b_ablate_no_persistence'."
+        "'plan_faithful_latent_phase3b_ablate_no_persistence', "
+        "'plan_faithful_latent_phase4a_rescue', "
+        "'plan_faithful_latent_phase4a_rescue_hardpool', "
+        "'plan_faithful_latent_episode_z_clean', "
+        "'plan_faithful_latent_option_a' (a.k.a. 'plan_faithful_latent_fix_d')."
     )
 
 

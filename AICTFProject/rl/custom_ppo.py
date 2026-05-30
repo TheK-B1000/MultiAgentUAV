@@ -47,7 +47,7 @@ from rl.latent_phase_labels import (
     team_phase_id_from_global_state,
     team_phase_label_from_global_state,
 )
-from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator, TemporalStateTracker, CONTEXT_STATE_DIM
+from rl.latent_marl import StrategyEncoder, paper_strategy_switch_indicator, expected_strategy_switch_penalty, TemporalStateTracker, CONTEXT_STATE_DIM
 from rl.networks import CNNEncoder, CentralizedCritic
 from rl.ppo_core import (
     TensorDictRolloutBuffer,
@@ -222,6 +222,15 @@ class CustomPPOInferencePolicy:
         self._last_strategy_entropy: Optional[torch.Tensor] = None
         self._last_strategy_resampled = False
         self._temporal_tracker: Optional[TemporalStateTracker] = None
+        # Eval-time destruction baselines for the proof ladder:
+        #   "normal"          - q_phi(z|s) (trained behavior; default)
+        #   "uniform_random"  - z ~ Uniform({0..K-1}); q_phi bypassed
+        #   "shuffled"        - z ~ self._latent_eval_marginal (must be set); preserves marginal P(z),
+        #                       destroys state-conditioning. Falls back to uniform if marginal not set.
+        # All three honor self.strategy_interval / per-episode reset like normal mode.
+        self.latent_eval_mode: str = "normal"
+        self._latent_eval_marginal: Optional[torch.Tensor] = None
+        self._latent_eval_rng: Optional[torch.Generator] = None
 
     def _fixed_strategy_id(self) -> int:
         if not self.model.uses_latent_strategy:
@@ -235,6 +244,78 @@ class CustomPPOInferencePolicy:
         probs = torch.zeros((int(batch), int(self.model.latent_k)), dtype=torch.float32, device=self.device)
         probs[:, self._fixed_strategy_id()] = 1.0
         return probs
+
+    def set_latent_eval_mode(
+        self,
+        mode: str,
+        *,
+        marginal: Optional[Iterable[float]] = None,
+        seed: Optional[int] = None,
+    ) -> None:
+        """Switch the eval-time latent selector ("normal" / "uniform_random" / "shuffled").
+
+        ``marginal`` is required (and must sum to ~1.0 over K elements) when ``mode == "shuffled"``;
+        otherwise shuffled falls back to uniform. ``seed`` makes the destruction RNG reproducible
+        across the eval pass; if ``None``, a fixed default seed is used so two reruns of the same
+        checkpoint produce identical random-z / shuffled-z draws.
+        """
+        m = str(mode).strip().lower()
+        if m not in {"normal", "uniform_random", "shuffled", "fixed"}:
+            raise ValueError(
+                f"latent_eval_mode must be one of normal|uniform_random|shuffled|fixed, got {mode!r}"
+            )
+        self.latent_eval_mode = m
+        if marginal is not None and self.model.uses_latent_strategy:
+            marg = torch.as_tensor(list(marginal), dtype=torch.float32, device=self.device)
+            if int(marg.numel()) != int(self.model.latent_k):
+                raise ValueError(
+                    f"latent_eval_marginal must have length latent_k={self.model.latent_k}, got {int(marg.numel())}"
+                )
+            total = float(marg.sum().item())
+            if total <= 0.0:
+                raise ValueError("latent_eval_marginal must sum to > 0")
+            self._latent_eval_marginal = marg / total
+        elif m == "shuffled" and self._latent_eval_marginal is None:
+            print(
+                "[CustomPPOInferencePolicy] latent_eval_mode='shuffled' but no marginal provided; "
+                "falling back to uniform marginal."
+            )
+            self._latent_eval_marginal = torch.full(
+                (int(self.model.latent_k),), 1.0 / max(1, int(self.model.latent_k)), device=self.device
+            )
+        # Use a separate generator so destruction draws do not steal entropy from action sampling.
+        if seed is None:
+            seed = 0x5EE_D + (0 if m == "normal" else 1)
+        self._latent_eval_rng = torch.Generator(device=self.device)
+        self._latent_eval_rng.manual_seed(int(seed) & 0xFFFFFFFF)
+
+    def _destructive_latent_z(self, batch: int) -> torch.Tensor:
+        """Draw z without consulting q_phi, per ``self.latent_eval_mode``."""
+        K = max(1, int(self.model.latent_k))
+        if self.latent_eval_mode == "uniform_random":
+            return torch.randint(
+                low=0,
+                high=K,
+                size=(int(batch),),
+                generator=self._latent_eval_rng,
+                device=self.device,
+                dtype=torch.long,
+            )
+        if self.latent_eval_mode == "shuffled":
+            probs = self._latent_eval_marginal
+            if probs is None:
+                probs = torch.full((K,), 1.0 / K, device=self.device)
+            cat = Categorical(probs=probs.unsqueeze(0).expand(int(batch), -1))
+            if self._latent_eval_rng is None:
+                return cat.sample()
+            # Categorical.sample doesn't take a generator; emulate via multinomial.
+            return torch.multinomial(
+                probs.unsqueeze(0).expand(int(batch), -1),
+                num_samples=1,
+                replacement=True,
+                generator=self._latent_eval_rng,
+            ).squeeze(-1).long()
+        raise AssertionError(f"_destructive_latent_z called in mode {self.latent_eval_mode!r}")
 
     def _get_temporal_tracker(self, batch_size: int) -> TemporalStateTracker:
         if self._temporal_tracker is None or self._temporal_tracker.num_envs != batch_size:
@@ -300,12 +381,33 @@ class CustomPPOInferencePolicy:
                 global_state = self._global_state_tensor(batched, batch)
                 tracker = self._get_temporal_tracker(batch)
                 context_gs = tracker.update(global_state)
+                destructive = self.latent_eval_mode in ("uniform_random", "shuffled")
                 if self.fixed_latent_strategy:
                     z_idx = self._fixed_strategy_tensor(batch)
                     self._prev_z = z_idx.detach()
                     z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
                     z_probs = self._fixed_strategy_probs(batch)
                     needs_strategy = False
+                elif destructive:
+                    # Proof-ladder destruction baselines: bypass q_phi entirely. We still call
+                    # strategy_logits so z_probs (the q_phi posterior at this state) is logged for
+                    # comparison, but z_idx is drawn from uniform / marginal instead.
+                    z_logits = self.model.strategy_logits(context_gs)
+                    needs_strategy = (
+                        self._prev_z is None
+                        or int(self._prev_z.numel()) != batch
+                        or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
+                    )
+                    if needs_strategy:
+                        z_idx = self._destructive_latent_z(batch)
+                        self._prev_z = z_idx.detach()
+                        self._strategy_age = 0
+                    else:
+                        z_idx = self._prev_z.to(self.device)
+                    # Report the q_phi entropy at this state so eval CSVs still surface q_phi's
+                    # belief; the chosen z is independent of it though.
+                    z_ent = Categorical(logits=z_logits).entropy()
+                    z_probs = torch.softmax(z_logits, dim=-1)
                 else:
                     z_logits = self.model.strategy_logits(context_gs)
                     z_dist = Categorical(logits=z_logits)
@@ -3248,7 +3350,7 @@ class CustomPPOTrainer:
                         strategy_entropy_loss = latent_lam_h * h_mean
                     else:
                         strategy_entropy_loss = -latent_lam_h * h_mean
-                    switch = paper_strategy_switch_indicator(batch["z"], batch["prev_z"])
+                    switch = expected_strategy_switch_penalty(aux["strategy_logits"], batch["prev_z"])
                     if bool(persist_mask.any().item()):
                         persist_loss = switch[persist_mask].mean()
                     else:

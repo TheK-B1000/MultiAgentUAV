@@ -53,6 +53,11 @@ ABLATIONS: tuple[Ablation, ...] = (
         "Collapsed latent control with K=1.",
     ),
     Ablation(
+        "latent_option_a",
+        "plan_faithful_latent_option_a",
+        "Plan Option A (Fix D): episode-start z, lambda_p=0, lambda_H=0.001, no aux heads.",
+    ),
+    Ablation(
         "no_latent",
         "plan_faithful_no_latent",
         "Decentralized actor baseline with latent path disabled.",

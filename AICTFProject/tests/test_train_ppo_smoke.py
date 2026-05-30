@@ -253,6 +253,108 @@ class TrainPpoSmokeTests(unittest.TestCase):
         self.assertFalse(plain.use_latent_strategy)
         self.assertFalse(plain.fixed_latent_strategy)
 
+    def test_plan_faithful_latent_episode_z_clean_preset(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "plan_faithful_latent_episode_z_clean")
+
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.latent_k, 4)
+        self.assertEqual(cfg.latent_resample_every_n, 0)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.0)
+        self.assertAlmostEqual(cfg.latent_lam_h, 0.001)
+
+        self.assertEqual(cfg.latent_strategy_aux_predict_phase_coef, 0.0)
+        self.assertFalse(cfg.latent_strategy_aux_return_head)
+        self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.0)
+
+        self.assertEqual(
+            cfg.run_tag,
+            "plan_faithful_latent_episode_z_clean_1m_2v2"
+        )
+
+    def test_plan_faithful_latent_option_a_preset(self) -> None:
+        """Fix D: ``plan_faithful_latent_option_a`` must match the Summer-plan Option A recipe exactly."""
+        for alias in (
+            "plan_faithful_latent_option_a",
+            "latent_option_a",
+            "plan_faithful_latent_fix_d",
+            "latent_fix_d",
+        ):
+            cfg = _apply_training_preset(PPOConfig(), alias)
+
+            self.assertTrue(cfg.use_latent_strategy, msg=alias)
+            self.assertEqual(cfg.latent_k, 4, msg=alias)
+            self.assertEqual(cfg.latent_resample_every_n, 0, msg=alias)
+            self.assertAlmostEqual(cfg.latent_lam_p, 0.0, msg=alias)
+            self.assertAlmostEqual(cfg.latent_lam_h, 0.001, msg=alias)
+            self.assertEqual(cfg.latent_entropy_objective, "maximize", msg=alias)
+            self.assertAlmostEqual(cfg.latent_strategy_aux_predict_phase_coef, 0.0, msg=alias)
+            self.assertFalse(cfg.latent_strategy_aux_return_head, msg=alias)
+            self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.0, msg=alias)
+            self.assertFalse(cfg.latent_resample_on_flag, msg=alias)
+            self.assertAlmostEqual(cfg.latent_kl_consecutive, 0.0, msg=alias)
+            self.assertFalse(cfg.fixed_latent_strategy, msg=alias)
+            self.assertEqual(
+                cfg.run_tag,
+                "plan_faithful_latent_option_a_1m_2v2",
+                msg=alias,
+            )
+
+    def test_plan_faithful_latent_option_a_is_single_flag_contrast_vs_no_latent(self) -> None:
+        """Only the latent path (and its hyperparameters) may differ vs ``plan_faithful_no_latent``."""
+        latent = _apply_training_preset(PPOConfig(), "plan_faithful_latent_option_a")
+        plain = _apply_training_preset(PPOConfig(), "plan_faithful_no_latent")
+
+        latent_only_fields = {
+            "use_latent_strategy",
+            "latent_k",
+            "latent_z_embed_dim",
+            "latent_vf_hidden",
+            "latent_strategy_hidden",
+            "latent_entropy_objective",
+            "latent_lam_h",
+            "latent_lam_p",
+            "latent_strategy_ppo_coef",
+            "latent_strategy_aux_return_head",
+            "latent_strategy_aux_return_coef",
+            "latent_strategy_aux_predict_phase_coef",
+            "latent_strategy_tau",
+            "latent_resample_every_n",
+            "latent_gae_reset_on_z_change",
+            "latent_bootstrap_z_deterministic",
+            "fixed_latent_strategy",
+            "fixed_latent_strategy_id",
+            "latent_resample_on_flag",
+            "latent_kl_consecutive",
+            "run_tag",
+        }
+        for field_name in latent.__dataclass_fields__:
+            if field_name in latent_only_fields:
+                continue
+            self.assertEqual(
+                getattr(latent, field_name),
+                getattr(plain, field_name),
+                msg=f"plan_faithful_latent_option_a must match plan_faithful_no_latent on non-latent field {field_name!r}",
+            )
+
+    def test_plan_faithful_presets_disable_phase_predictor(self) -> None:
+        faithful_presets = [
+            "plan_faithful_latent_phase1_coupling",
+            "plan_faithful_latent_phase2_credit",
+            "plan_faithful_latent_phase3b_outcome_clean",
+            "plan_faithful_latent_phase4a_rescue",
+            "plan_faithful_latent_phase4a_rescue_hardpool",
+            "plan_faithful_latent_episode_z_clean",
+            "plan_faithful_latent_option_a",
+        ]
+
+        for preset in faithful_presets:
+            cfg = _apply_training_preset(PPOConfig(), preset)
+            self.assertEqual(
+                cfg.latent_strategy_aux_predict_phase_coef,
+                0.0,
+                msg=f"{preset} should not use phase prediction"
+            )
+
     def test_wrmax_train_2m_preset(self) -> None:
         cfg = _apply_training_preset(PPOConfig(), "latent_op3_wrmax_train_2m")
         self.assertEqual(cfg.total_timesteps, 2_000_000)

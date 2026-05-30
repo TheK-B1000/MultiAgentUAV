@@ -143,7 +143,40 @@ def main() -> None:
         action="store_true",
         help="Skip per-episode coord_* fields (faster, smaller CSVs).",
     )
+    parser.add_argument(
+        "--latent-mode",
+        type=str,
+        default="normal",
+        choices=("normal", "uniform_random", "shuffled"),
+        help=(
+            "Eval-time latent selector. 'normal' uses trained q_phi(z|s). "
+            "'uniform_random' draws z ~ Uniform({0..K-1}) (destroys q_phi entirely). "
+            "'shuffled' draws z ~ marginal P(z) (preserves marginal, destroys state-conditioning). "
+            "Non-normal modes only affect latent checkpoints; no-latent runs ignore the flag."
+        ),
+    )
+    parser.add_argument(
+        "--latent-marginal",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated P(z) of length K for --latent-mode=shuffled "
+            "(e.g. '0.25,0.25,0.25,0.25'). If omitted with --latent-mode=shuffled, "
+            "the policy falls back to uniform — equivalent to 'uniform_random'."
+        ),
+    )
+    parser.add_argument(
+        "--latent-eval-seed",
+        type=int,
+        default=None,
+        help="Seed for the destructive latent RNG (random-z / shuffled-z). Default is a fixed value so reruns are reproducible.",
+    )
     args = parser.parse_args()
+    latent_marginal = None
+    if args.latent_marginal:
+        latent_marginal = [float(x) for x in str(args.latent_marginal).split(",") if x.strip()]
+    latent_mode = str(args.latent_mode).strip().lower()
+    label_suffix = "" if latent_mode == "normal" else f"__{latent_mode}"
 
     run_tags = list(args.run_tags) if args.run_tags else list(DEFAULT_HARDPOOL_RUN_TAGS)
     checkpoint_dir = os.path.abspath(args.checkpoint_dir)
@@ -155,19 +188,24 @@ def main() -> None:
 
     # Merge-mode: preserve rows in op4_zero_shot_comparison.csv that are not being re-evaluated this
     # invocation, so partial re-runs (e.g. only the 3 phase-aux variants) don't wipe out previous results.
+    # The run_tag in the CSV is suffixed with the latent mode (e.g. "__uniform_random") so each
+    # (run_tag, mode) combo is its own row and does not stomp the normal-mode row.
     aggregate_rows: list[dict[str, Any]] = []
     comparison_path_for_merge = os.path.join(out_dir, "op4_zero_shot_comparison.csv")
+    suffixed_tags_being_rerun = {f"{t}{label_suffix}" for t in run_tags}
     if os.path.isfile(comparison_path_for_merge):
         try:
             with open(comparison_path_for_merge, "r", newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
-                rerun_tags = set(run_tags)
-                preserved = [row for row in reader if str(row.get("run_tag", "")).strip() not in rerun_tags]
+                preserved = [
+                    row for row in reader
+                    if str(row.get("run_tag", "")).strip() not in suffixed_tags_being_rerun
+                ]
             if preserved:
                 aggregate_rows.extend(preserved)
                 print(
                     f"[eval_op4_zero_shot] preserving {len(preserved)} row(s) from existing comparison CSV "
-                    f"(not in --run-tags this invocation)."
+                    f"(not in --run-tags + --latent-mode this invocation)."
                 )
         except Exception as exc:
             print(f"[eval_op4_zero_shot] could not read existing comparison CSV ({exc}); starting fresh.")
@@ -203,20 +241,25 @@ def main() -> None:
                     deterministic=bool(args.deterministic),
                     coordination_metrics=not bool(args.no_coordination_metrics),
                     progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
+                    latent_eval_mode=latent_mode,
+                    latent_eval_marginal=latent_marginal,
+                    latent_eval_seed=args.latent_eval_seed,
                 )
             finally:
                 env.close()
 
+            tagged_run_tag = f"{run_tag}{label_suffix}"
             for idx, row in enumerate(episodes, start=1):
                 row["episode_id"] = idx
-                row["run_tag"] = run_tag
+                row["run_tag"] = tagged_run_tag
                 row["opponent"] = opponent
                 row["map_set"] = str(args.map_set).lower()
                 row["checkpoint"] = ckpt
+                row["latent_eval_mode"] = latent_mode
 
             ep_path = os.path.join(
                 out_dir,
-                f"eval_{run_tag}_{opponent}_{int(args.episodes)}ep.csv",
+                f"eval_{tagged_run_tag}_{opponent}_{int(args.episodes)}ep.csv",
             )
             _write_rows(
                 ep_path,
@@ -237,9 +280,10 @@ def main() -> None:
             agg = compute_aggregates(episodes)
             n = max(1, w + l + d)
             agg_row: dict[str, Any] = {
-                "run_tag": run_tag,
+                "run_tag": tagged_run_tag,
                 "opponent": opponent,
                 "map_set": str(args.map_set).lower(),
+                "latent_eval_mode": latent_mode,
                 "episodes": len(episodes),
                 "wins": w,
                 "losses": l,

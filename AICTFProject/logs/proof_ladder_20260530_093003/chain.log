@@ -1,0 +1,16 @@
+﻿[09:30:03] project root: K:\MultiAgentUAV\AICTFProject
+[09:30:03] python:       K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe
+[09:30:03] log dir:      K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_093003
+[09:30:03] rows:         5   seeds=0   include_option_a=False
+[09:30:03] opp pool:     OP3 OP5 OP6
+[09:30:03] eval opps:    OP3 OP4 OP5_RUSHER OP6_TURTLE
+[09:30:03] 
+[09:30:04] [preflight] verify every --preset resolves
+[09:30:04] [preflight] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_093003\_preflight_resolve_presets.py plan_faithful_no_latent plan_faithful_latent_k1 plan_faithful_latent_persist_entropy plan_faithful_latent_no_persistence plan_faithful_latent_no_entropy
+[09:30:07] [preflight] OK
+[09:30:07] 
+[09:30:07] [A train] plan_faithful_no_latent_hardpool_1m_4v4   (no latent (baseline))
+[09:30:07] [A train] SKIP (final checkpoint exists: checkpoints\4v4\final_plan_faithful_no_latent_hardpool_1m_4v4.zip)
+[09:30:07] 
+[09:30:07] [B train] plan_faithful_latent_k1_hardpool_1m_4v4   (K=1 collapsed latent (DAGGER))
+[09:30:07] [B train] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe -u rl/train_ppo.py --preset plan_faithful_latent_k1 --agents 4 --seed 0 --total-steps 1000000 --device cuda --n-envs 32 --n-epochs 6 --opponent-randomize --opponent-pool OP3 OP5 OP6 --e3-step-telemetry --checkpoint-dir checkpoints\4v4 --run-tag plan_faithful_latent_k1_hardpool_1m_4v4

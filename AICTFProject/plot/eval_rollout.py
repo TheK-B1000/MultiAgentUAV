@@ -114,6 +114,9 @@ def run_eval_episodes(
     progress_every: int = 0,
     fixed_latent_id: int | None = None,
     latent_resample_every_n: int | None = None,
+    latent_eval_mode: str = "normal",
+    latent_eval_marginal: list[float] | None = None,
+    latent_eval_seed: int | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -134,6 +137,16 @@ def run_eval_episodes(
         model.fixed_latent_strategy_id = max(0, int(fixed_latent_id))
     if latent_resample_every_n is not None and hasattr(model, "strategy_interval"):
         model.strategy_interval = max(0, int(latent_resample_every_n))
+    if (
+        str(latent_eval_mode).lower() != "normal"
+        and hasattr(model, "set_latent_eval_mode")
+        and bool(getattr(getattr(model, "model", None), "uses_latent_strategy", False))
+    ):
+        model.set_latent_eval_mode(
+            str(latent_eval_mode).lower(),
+            marginal=latent_eval_marginal,
+            seed=latent_eval_seed,
+        )
     if progress_every > 0:
         print(
             f"  checkpoint loaded; {n_episodes} episodes",

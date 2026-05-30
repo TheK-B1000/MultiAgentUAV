@@ -1,0 +1,35 @@
+﻿[09:29:31] project root: K:\MultiAgentUAV\AICTFProject
+[09:29:32] python:       K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe
+[09:29:32] log dir:      K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092931
+[09:29:32] rows:         5   seeds=0   include_option_a=False
+[09:29:32] opp pool:     OP3 OP5 OP6
+[09:29:32] eval opps:    OP3 OP4 OP5_RUSHER OP6_TURTLE
+[09:29:32] 
+[09:29:32] [preflight] verify every --preset resolves
+[09:29:32] [preflight] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092931\_preflight_resolve_presets.py plan_faithful_no_latent plan_faithful_latent_k1 plan_faithful_latent_persist_entropy plan_faithful_latent_no_persistence plan_faithful_latent_no_entropy
+[09:29:41] [preflight] OK
+[09:29:41] [train] -SkipTrain set; checking which checkpoints already exist
+[09:29:41] [B train] MISSING checkpoint: checkpoints\4v4\final_plan_faithful_latent_k1_hardpool_1m_4v4.zip
+[09:29:41] [C train] MISSING checkpoint: checkpoints\4v4\final_plan_faithful_latent_persist_entropy_hardpool_1m_4v4.zip
+[09:29:41] [D train] MISSING checkpoint: checkpoints\4v4\final_plan_faithful_latent_no_persistence_hardpool_1m_4v4.zip
+[09:29:41] [E train] MISSING checkpoint: checkpoints\4v4\final_plan_faithful_latent_no_entropy_hardpool_1m_4v4.zip
+[09:29:41] [eval] -SkipEval set; skipping
+[09:29:41] [MI] -SkipMI set; skipping
+[09:29:41] [proof] -SkipProof set; skipping
+[09:29:41] 
+[09:29:41] ============================== SUMMARY ==============================
+[09:29:41] log dir: K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092931
+[09:29:41] row seed     run_tag                                                    train     eval      MI       
+[09:29:41] --- ----     -------                                                    -----     ----      --       
+[09:29:41] A   0        plan_faithful_no_latent_hardpool_1m_4v4                    OK        -         -        
+[09:29:41] B   0        plan_faithful_latent_k1_hardpool_1m_4v4                    FAIL      -         -        
+[09:29:41] C   0        plan_faithful_latent_persist_entropy_hardpool_1m_4v4       FAIL      -         -        
+[09:29:41] D   0        plan_faithful_latent_no_persistence_hardpool_1m_4v4        FAIL      -         -        
+[09:29:41] E   0        plan_faithful_latent_no_entropy_hardpool_1m_4v4            FAIL      -         -        
+[09:29:41] proof table: skipped
+[09:29:41] =====================================================================
+[09:29:41] 
+[09:29:41] READ FROM THE PROOF TABLE:
+[09:29:41]   WR(C) > WR(A)  =>  latent setup helped.
+[09:29:41]   WR(C) > WR(B)  =>  K=4 strategy discovery helped (the DAGGER).
+[09:29:41]   Compare D and E to C to attribute the gain to persistence vs entropy.

@@ -1,0 +1,44 @@
+﻿[09:28:05] project root: K:\MultiAgentUAV\AICTFProject
+[09:28:05] python:       K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe
+[09:28:05] log dir:      K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092805
+[09:28:05] rows:         5   seeds=0   include_option_a=False
+[09:28:05] opp pool:     OP3 OP5 OP6
+[09:28:05] eval opps:    OP3 OP4 OP5_RUSHER OP6_TURTLE
+[09:28:05] 
+[09:28:05] [preflight] verify every --preset resolves
+[09:28:05] [preflight] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092805\_preflight_resolve_presets.py plan_faithful_no_latent plan_faithful_latent_k1 plan_faithful_latent_persist_entropy plan_faithful_latent_no_persistence plan_faithful_latent_no_entropy
+[09:28:05] 
+[09:28:05] [A train] plan_faithful_no_latent_hardpool_1m_4v4   (no latent (baseline))
+[09:28:05] [A train] SKIP (final checkpoint exists: checkpoints\4v4\final_plan_faithful_no_latent_hardpool_1m_4v4.zip)
+[09:28:05] 
+[09:28:05] [B train] plan_faithful_latent_k1_hardpool_1m_4v4   (K=1 collapsed latent (DAGGER))
+[09:28:05] [B train] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe -u rl/train_ppo.py --preset plan_faithful_latent_k1 --agents 4 --seed 0 --total-steps 1000000 --device cuda --n-envs 32 --n-epochs 6 --opponent-randomize --opponent-pool OP3 OP5 OP6 --e3-step-telemetry --checkpoint-dir checkpoints\4v4 --run-tag plan_faithful_latent_k1_hardpool_1m_4v4
+[09:28:05] 
+[09:28:05] [C train] plan_faithful_latent_persist_entropy_hardpool_1m_4v4   (K=4 + persistence + entropy (PRIMARY))
+[09:28:05] [C train] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe -u rl/train_ppo.py --preset plan_faithful_latent_persist_entropy --agents 4 --seed 0 --total-steps 1000000 --device cuda --n-envs 32 --n-epochs 6 --opponent-randomize --opponent-pool OP3 OP5 OP6 --e3-step-telemetry --checkpoint-dir checkpoints\4v4 --run-tag plan_faithful_latent_persist_entropy_hardpool_1m_4v4
+[09:28:05] 
+[09:28:05] [D train] plan_faithful_latent_no_persistence_hardpool_1m_4v4   (K=4, lambda_p = 0 (ablation))
+[09:28:05] [D train] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe -u rl/train_ppo.py --preset plan_faithful_latent_no_persistence --agents 4 --seed 0 --total-steps 1000000 --device cuda --n-envs 32 --n-epochs 6 --opponent-randomize --opponent-pool OP3 OP5 OP6 --e3-step-telemetry --checkpoint-dir checkpoints\4v4 --run-tag plan_faithful_latent_no_persistence_hardpool_1m_4v4
+[09:28:05] 
+[09:28:05] [E train] plan_faithful_latent_no_entropy_hardpool_1m_4v4   (K=4, lambda_H = 0 / entropy off (ablation))
+[09:28:05] [E train] K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe -u rl/train_ppo.py --preset plan_faithful_latent_no_entropy --agents 4 --seed 0 --total-steps 1000000 --device cuda --n-envs 32 --n-epochs 6 --opponent-randomize --opponent-pool OP3 OP5 OP6 --e3-step-telemetry --checkpoint-dir checkpoints\4v4 --run-tag plan_faithful_latent_no_entropy_hardpool_1m_4v4
+[09:28:05] [eval] -SkipEval set; skipping
+[09:28:05] [MI] -SkipMI set; skipping
+[09:28:05] [proof] -SkipProof set; skipping
+[09:28:05] 
+[09:28:05] ============================== SUMMARY ==============================
+[09:28:05] log dir: K:\MultiAgentUAV\AICTFProject\logs\proof_ladder_20260530_092805
+[09:28:05] row seed     run_tag                                                    train     eval      MI       
+[09:28:05] --- ----     -------                                                    -----     ----      --       
+[09:28:05] A   0        plan_faithful_no_latent_hardpool_1m_4v4                    OK        -         -        
+[09:28:05] B   0        plan_faithful_latent_k1_hardpool_1m_4v4                    OK        -         -        
+[09:28:05] C   0        plan_faithful_latent_persist_entropy_hardpool_1m_4v4       OK        -         -        
+[09:28:05] D   0        plan_faithful_latent_no_persistence_hardpool_1m_4v4        OK        -         -        
+[09:28:05] E   0        plan_faithful_latent_no_entropy_hardpool_1m_4v4            OK        -         -        
+[09:28:05] proof table: skipped
+[09:28:05] =====================================================================
+[09:28:05] 
+[09:28:05] READ FROM THE PROOF TABLE:
+[09:28:05]   WR(C) > WR(A)  =>  latent setup helped.
+[09:28:05]   WR(C) > WR(B)  =>  K=4 strategy discovery helped (the DAGGER).
+[09:28:05]   Compare D and E to C to attribute the gain to persistence vs entropy.
