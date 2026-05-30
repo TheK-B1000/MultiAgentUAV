@@ -21,7 +21,6 @@ from rl.curriculum import phase_from_tag
 from rl.discrete_mi import discrete_mi_plugin
 from rl.global_state import (
     GLOBAL_STATE_DIM,
-    GLOBAL_STATE_FIELD_NAMES,
     GLOBAL_STATE_FLAG_TERRITORY_SLICE,
     coarse_game_phase_from_global_state,
 )
@@ -107,6 +106,9 @@ from rl.custom_ppo.return_normalization import (
     _update_strategy_return_stats,
     _normalize_strategy_returns,
 )
+from rl.custom_ppo.option_returns import compute_option_returns
+from rl.custom_ppo.trainer_audit import log_decentralized_actor_contract_once
+from rl.custom_ppo.training_telemetry import TrainingTelemetry
 
 
 def _tqdm_for_sb3_progress() -> Any:
@@ -290,7 +292,14 @@ class CustomPPOTrainer:
                     "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
                     "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
                     "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
-                    "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
+                    # Canonical attribute access. Legacy CLI / cfg-dict keys
+                    # (``latent_strategy_q_head``) are folded into the
+                    # canonical name at the load boundary (CLI parsing for
+                    # PPOConfig, inference.canonicalize_latent_strategy_cfg
+                    # for checkpoint dicts), so the trainer reads one name.
+                    "use_strategy_aux_return_head": bool(
+                        getattr(cfg, "latent_strategy_aux_return_head", False)
+                    ),
                     "use_episode_strategy_value_head": bool(getattr(cfg, "latent_episode_strategy_ppo", False)),
                     "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
                 }
@@ -329,8 +338,16 @@ class CustomPPOTrainer:
         self.latent_episode_strategy_return_norm = bool(
             getattr(cfg, "latent_episode_strategy_return_norm", True)
         )
-        self.latent_strategy_aux_return_coef = max(0.0, _effective_latent_aux_return_coef(cfg))
-        self.latent_strategy_aux_return_head = self.use_latent_strategy and _effective_latent_aux_return_head(cfg)
+        # Canonical attribute access only — legacy ``latent_strategy_q_*`` keys
+        # are folded at the config-load boundary, see ``rl.custom_ppo.inference
+        # .canonicalize_latent_strategy_cfg`` and the CLI argparse handler.
+        self.latent_strategy_aux_return_coef = max(
+            0.0, float(getattr(cfg, "latent_strategy_aux_return_coef", 0.0) or 0.0)
+        )
+        self.latent_strategy_aux_return_head = (
+            self.use_latent_strategy
+            and bool(getattr(cfg, "latent_strategy_aux_return_head", False))
+        )
         self.latent_strategy_aux_predict_phase_coef = max(0.0, float(getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0))
         self.reward_shaping_coef_start = float(getattr(cfg, "reward_shaping_coef_start", 1.0) or 1.0)
         self.reward_shaping_coef_end = float(getattr(cfg, "reward_shaping_coef_end", self.reward_shaping_coef_start))
@@ -377,12 +394,7 @@ class CustomPPOTrainer:
         self._rollout_strategy_episode_records: list[dict[str, Any]] = []
         self.episode_strategy_recorder = EpisodeStrategyRecorder()
         self._next_strategy_episode_id = 0
-        self._e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
-        self._e3_file = None
-        self._e3_writer = None
-        self._e3_fields_cache = None
-        self._e3_rows_since_flush = 0
-        self._e3_flush_every_steps = 100
+        self.telemetry = TrainingTelemetry(self)
         self._sb3_rollout_pbar = None
         self._last_obs = None
         self._last_global_state = None
@@ -434,142 +446,6 @@ class CustomPPOTrainer:
         frac = min(1.0, max(0.0, float(self.global_step) / float(self.reward_shaping_decay_steps)))
         return float(self.reward_shaping_coef_start + frac * (self.reward_shaping_coef_end - self.reward_shaping_coef_start))
 
-    def _log_decentralized_actor_contract_once(self) -> None:
-        """One-time training log: policy actor is CNN(grid) + scalars + optional z, not global state."""
-        self.log_input_dim_contract()
-
-    def log_input_dim_contract(self) -> None:
-        """Print the startup input-dimension contract once."""
-        if self._decentralized_actor_contract_logged:
-            return
-        m = self.model
-        assert isinstance(m, SharedActorCentralizedCritic)
-        dims = m.input_dim_contract()
-        print(
-            "[PPO] Input dims: "
-            f"base_global_state_dim={dims['base_global_state_dim']} "
-            f"temporal_context_dim={dims['temporal_context_dim']} "
-            f"q_phi_input_dim={dims['q_phi_input_dim']} "
-            f"critic_context_dim={dims['critic_context_dim']} "
-            f"actor_input_dim={dims['actor_input_dim']}"
-        )
-        if m.uses_latent_strategy:
-            print(
-                "[PPO] Decentralized actor contract: per-agent MLP input dim = "
-                f"{m._decentralized_actor_in_dim} "
-                f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent} + z_emb {m.z_embed_dim}); "
-                f"global_state_dim={m.global_state_dim} is for q_phi/critic only."
-            )
-            print(
-                "[PPO] Critic z contract: "
-                f"context_dim={dims['critic_context_dim']} "
-                f"joint_action_onehot_dim={dims['critic_joint_action_dim']} "
-                f"z_onehot_dim={dims['critic_z_dim']} "
-                f"critic_extra_dim={dims['critic_extra_dim']} "
-                "z_present=True"
-            )
-        else:
-            print(
-                "[PPO] Decentralized actor contract: per-agent MLP input dim = "
-                f"{m._decentralized_actor_in_dim} "
-                f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent}, no z); "
-                f"global_state_dim={m.global_state_dim} not used in policy."
-            )
-        self._log_plan_faithful_audit()
-        self._decentralized_actor_contract_logged = True
-
-    def _log_plan_faithful_audit(self) -> None:
-        if not self.model.uses_latent_strategy:
-            return
-        for forbidden_attr in (
-            "opponent_id_head",
-            "opponent_classifier",
-            "gumbel_softmax_z",
-            "vae_z_head",
-            "strategy_label_head",
-            "supervised_router",
-        ):
-            if getattr(self.model, forbidden_attr, None) is not None:
-                raise AssertionError(
-                    f"plan-faithful audit: forbidden module '{forbidden_attr}' is attached to the model."
-                )
-        cfg = self.cfg
-        optional = {
-            "aux_return_head": bool(getattr(cfg, "latent_strategy_aux_return_head", False)),
-            "kl_consecutive": float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0) > 0.0,
-            "resample_on_flag": bool(getattr(cfg, "latent_resample_on_flag", False)),
-            "fixed_latent_strategy": bool(getattr(cfg, "fixed_latent_strategy", False)),
-        }
-        print(
-            "[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, "
-            "no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels."
-        )
-        extras_on = [name for name, on in optional.items() if on]
-        if extras_on:
-            print(
-                "[PPO] Summer-plan audit: optional add-ons ENABLED "
-                f"{extras_on} (not plan-faithful first-run; treat as intentional ablation)."
-            )
-        else:
-            print(
-                "[PPO] Summer-plan audit: optional add-ons "
-                "(aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF "
-                "— plan-faithful first-run."
-            )
-
-        m = self.model
-
-        if m.uses_latent_strategy:
-            print(
-                "[PPO] Audit actor_input: "
-                f"cnn({getattr(m, 'actor_cnn_feature_dim', '?')}) "
-                f"+ per_agent_vec({getattr(m, '_scalar_per_agent', '?')}) "
-                f"+ z_emb({getattr(m, 'z_embed_dim', '?')}) "
-                f"= {getattr(m, '_decentralized_actor_in_dim', '?')} dim. "
-                "(no phase_id, no opponent_id, no global_state in actor pathway)"
-            )
-
-        phase_coef = float(getattr(self.cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0)
-        if m.uses_latent_strategy:
-            forbidden_in_global_state = [
-                name for name in GLOBAL_STATE_FIELD_NAMES if "phase" in str(name).lower()
-            ]
-            if forbidden_in_global_state:
-                raise AssertionError(
-                    "plan-faithful audit: q_phi/critic global_state contains phase-tagged fields "
-                    f"{forbidden_in_global_state}; this would leak the phase label into the input."
-                )
-            if phase_coef > 0.0:
-                print(
-                    "[PPO] Audit aux_phase_head_input: expected_z_emb"
-                    f"({getattr(m, 'z_embed_dim', '?')}) "
-                    "= softmax(z_logits) @ strategy_embedding. "
-                    f"phase_id used only as cross-entropy TARGET (coef={phase_coef:g}). "
-                    f"q_phi input ({getattr(m, 'global_state_dim', '?')}-d {GLOBAL_STATE_FIELD_NAMES!r}) "
-                    "contains no phase fields. Phase gradient does NOT flow into actor."
-                )
-            else:
-                print("[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).")
-
-        pool = tuple(str(t).strip().upper() for t in (getattr(self.cfg, "opponent_pool", ()) or ()))
-        allow_op4 = bool(getattr(self.cfg, "allow_op4_in_training_pool", False))
-        op4_in_pool = "OP4" in pool
-        if op4_in_pool and not allow_op4:
-            raise AssertionError(
-                "plan-faithful audit: OP4 present in training opponent_pool but "
-                "allow_op4_in_training_pool=False; OP4 must be eval-only."
-            )
-        op4_status = (
-            f"ALLOWED (allow_op4_in_training_pool=True)" if op4_in_pool and allow_op4
-            else "EXCLUDED (eval-only)" if not op4_in_pool
-            else "INCONSISTENT"
-        )
-        print(
-            "[PPO] Audit opponent_pool (training): "
-            f"{list(pool) if pool else '(default fixed-opponent mode)'} ; "
-            f"OP4 status: {op4_status}"
-        )
-
     @staticmethod
     def _flag_territory_features_changed(
         pre: torch.Tensor, post: torch.Tensor, *, eps: float = 1e-4
@@ -580,310 +456,6 @@ class CustomPPOTrainer:
         ch_cap = (pre[:, 2:4] - post[:, 2:4]).abs() > 0.5
         ch_capt = ch_cap.any(dim=-1)
         return ch_float | ch_capt
-
-    def _append_e3_step_telemetry(
-        self,
-        *,
-        rollout_step: int,
-        global_step_at_step_end: int,
-        decision_global_state_np: np.ndarray,
-        z_t: torch.Tensor,
-        prev_z: torch.Tensor,
-        strategy_aux: dict[str, torch.Tensor],
-        infos: list[Any],
-        behavior_telemetry_np: np.ndarray,
-        spread_bucket_np: np.ndarray,
-        role_bucket_np: np.ndarray,
-        pressure_bucket_np: np.ndarray,
-        attack_defense_ratio_bucket_np: np.ndarray,
-        blue_ahead_np: np.ndarray,
-    ) -> None:
-        if not self._e3_step_telemetry_path or not self.use_latent_strategy:
-            return
-        path = self._e3_step_telemetry_path
-        zt = z_t.detach().cpu().numpy()
-        pz = prev_z.detach().cpu().numpy()
-        zH = strategy_aux["z_entropy"].detach().cpu().numpy()
-        zlog = strategy_aux["z_logits"].detach().cpu().numpy()
-        am = zlog.argmax(axis=-1)
-        n_e = int(zt.shape[0])
-        assert int(decision_global_state_np.shape[0]) == n_e, (decision_global_state_np.shape, n_e)
-        fields = self._e3_fields_cache or list(E3_STEP_TELEMETRY_FIELDS)
-        if self._e3_writer is None:
-            d = os.path.dirname(os.path.abspath(path)) or "."
-            os.makedirs(d, exist_ok=True)
-            _ensure_additive_csv_header(path, fields)
-            needs_header = not (os.path.isfile(path) and os.path.getsize(path) > 0)
-            self._e3_file = open(path, "a", newline="", encoding="utf-8")
-            self._e3_writer = csv.DictWriter(self._e3_file, fieldnames=fields, extrasaction="ignore")
-            if needs_header:
-                self._e3_writer.writeheader()
-            self._e3_fields_cache = fields
-        w = self._e3_writer
-        upd = int(self._updates_completed)
-        for e in range(n_e):
-            info = dict(infos[e]) if e < len(infos) else {}
-            gs_e = decision_global_state_np[e]
-            sf = float(info.get("stalemate_frac", 0.0) or 0.0)
-            pid = int(team_phase_id_from_global_state(gs_e, stalemate_frac=sf))
-            row: dict[str, Any] = {
-                "update": upd,
-                "rollout_step": int(rollout_step),
-                "env_id": e,
-                "global_step": int(global_step_at_step_end),
-                "z_t": int(zt[e]),
-                "q_phi_entropy": float(zH[e]),
-                "q_phi_argmax": int(am[e]),
-                "switched": int(bool(int(zt[e]) != int(pz[e]))),
-                "game_phase": coarse_game_phase_from_global_state(gs_e),
-                "team_phase": team_phase_label_from_global_state(gs_e, stalemate_frac=sf),
-                "score_outcome": outcome_label_from_global_state(gs_e),
-                "stalemate_frac": sf,
-                "opponent_id": int(_opponent_id_int_from_info(self.cfg, info)),
-                "phase_id": pid,
-                "blue_ahead": float(blue_ahead_np[e]),
-                "spread_bucket": int(spread_bucket_np[e]),
-                "role_bucket": int(role_bucket_np[e]),
-                "pressure_bucket": int(pressure_bucket_np[e]),
-                "attack_defense_ratio_bucket": int(attack_defense_ratio_bucket_np[e]),
-            }
-            for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
-                row[name] = float(behavior_telemetry_np[e, j])
-            w.writerow({key: row.get(key, "") for key in fields})
-        self._e3_rows_since_flush += 1
-        if self._e3_rows_since_flush >= self._e3_flush_every_steps:
-            if self._e3_file is not None:
-                self._e3_file.flush()
-            self._e3_rows_since_flush = 0
-
-    def _close_e3_step_telemetry(self) -> None:
-        """Flush and close the persistent e3 step telemetry file (idempotent)."""
-        f = self._e3_file
-        if f is None:
-            return
-        try:
-            f.flush()
-        except Exception:
-            pass
-        try:
-            f.close()
-        except Exception:
-            pass
-        self._e3_file = None
-        self._e3_writer = None
-        self._e3_rows_since_flush = 0
-
-    def _write_episode_metrics(
-        self,
-        info: dict[str, Any],
-        *,
-        blue_score: int,
-        red_score: int,
-        timestep: int,
-        rollout_step: Optional[int] = None,
-        latent_z: Optional[int] = None,
-    ) -> None:
-        if not self.episode_csv_path:
-            return
-        er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
-        row = {
-            "episode_id": self._episodes_completed,
-            "run_id": self.run_id,
-            "run_pid": self.run_pid,
-            "timesteps": int(timestep),
-            "policy_update": int(self._updates_completed),
-            "rollout_step": "" if rollout_step is None else int(rollout_step),
-            "latent_z": "" if latent_z is None else int(latent_z),
-            "curriculum_phase": str(info.get("phase", "")),
-            "mode": str(getattr(self.cfg, "mode", "FIXED_OPPONENT")),
-            "map_set": str(info.get("map_set", getattr(self.cfg, "map_set", "train"))).lower(),
-            "opponent": _opponent_legend(self.cfg, info),
-            "opponent_id": _opponent_id_csv_from_info(self.cfg, info),
-            "success": 1 if blue_score > red_score else 0,
-            "blue_score": int(blue_score),
-            "red_score": int(red_score),
-            "win_margin": int(blue_score) - int(red_score),
-            "decision_steps": int(er.get("decision_steps", info.get("decision_steps", 0)) or 0),
-            "zone_coverage": float(er.get("zone_coverage", 0.0) or 0.0),
-            "collision_free_episode": int(er.get("collision_free_episode", 1) or 0),
-            "collision_events_per_episode": int(er.get("collision_events_per_episode", 0) or 0),
-            "near_misses_per_episode": int(er.get("near_misses_per_episode", 0) or 0),
-            "time_to_first_score": er.get("time_to_first_score", ""),
-            "mean_inter_robot_dist": er.get("mean_inter_robot_dist", ""),
-            "reward_terminal": float(er.get("reward_terminal", info.get("reward_terminal", 0.0)) or 0.0),
-            "reward_offense": float(er.get("reward_offense", info.get("reward_offense", 0.0)) or 0.0),
-            "reward_pbrs": float(er.get("reward_pbrs", info.get("reward_pbrs", 0.0)) or 0.0),
-            "reward_team": float(er.get("reward_team", info.get("reward_team", 0.0)) or 0.0),
-            "reward_sparse": float(er.get("reward_sparse", info.get("reward_sparse", 0.0)) or 0.0),
-            "reward_sparse_points": float(
-                er.get("reward_sparse_points", info.get("reward_sparse_points", info.get("sparse_points", 0.0))) or 0.0
-            ),
-            "reward_failure": float(er.get("reward_failure", info.get("reward_failure", 0.0)) or 0.0),
-            "reward_total": float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0),
-        }
-        _write_csv_row(self.episode_csv_path, _episode_fieldnames(), row)
-
-    @staticmethod
-    def _explained_variance(values: torch.Tensor, returns: torch.Tensor) -> float:
-        y_pred = values.detach().float().reshape(-1)
-        y_true = returns.detach().float().reshape(-1)
-        if y_true.numel() <= 1:
-            return 0.0
-        var_y = torch.var(y_true, unbiased=False)
-        if float(var_y.detach().cpu().item()) <= 1e-12:
-            return 0.0
-        ev = 1.0 - torch.var(y_true - y_pred, unbiased=False) / var_y
-        return float(ev.detach().cpu().item())
-
-    def _rollout_episode_summary(self) -> dict[str, Any]:
-        records = list(self._rollout_episode_records)
-        n = len(records)
-        if n <= 0:
-            base: dict[str, Any] = {
-                "rollout_episodes": 0,
-                "rollout_wins": 0,
-                "rollout_losses": 0,
-                "rollout_draws": 0,
-                "rollout_win_rate": 0.0,
-                "rollout_win_margin_mean": 0.0,
-                "rollout_blue_score_mean": 0.0,
-                "rollout_red_score_mean": 0.0,
-            }
-        else:
-            wins = sum(int(r["success"]) for r in records)
-            margins = [int(r["win_margin"]) for r in records]
-            losses = sum(1 for m in margins if m < 0)
-            draws = sum(1 for m in margins if m == 0)
-            base = {
-                "rollout_episodes": n,
-                "rollout_wins": wins,
-                "rollout_losses": losses,
-                "rollout_draws": draws,
-                "rollout_win_rate": float(wins) / float(n),
-                "rollout_win_margin_mean": float(np.mean(margins)),
-                "rollout_blue_score_mean": float(np.mean([int(r["blue_score"]) for r in records])),
-                "rollout_red_score_mean": float(np.mean([int(r["red_score"]) for r in records])),
-            }
-        if self.use_latent_strategy:
-            for z_idx in range(self.latent_k):
-                z_records = [r for r in records if r.get("latent_z") == z_idx]
-                zn = len(z_records)
-                base[f"episode_z_{z_idx}_count"] = zn
-                if zn <= 0:
-                    base[f"episode_z_{z_idx}_win_rate"] = ""
-                    base[f"episode_z_{z_idx}_blue_score_mean"] = ""
-                    base[f"episode_z_{z_idx}_red_score_mean"] = ""
-                    base[f"episode_z_{z_idx}_win_margin_mean"] = ""
-                else:
-                    base[f"episode_z_{z_idx}_win_rate"] = float(sum(int(r["success"]) for r in z_records)) / float(zn)
-                    base[f"episode_z_{z_idx}_blue_score_mean"] = float(np.mean([int(r["blue_score"]) for r in z_records]))
-                    base[f"episode_z_{z_idx}_red_score_mean"] = float(np.mean([int(r["red_score"]) for r in z_records]))
-                    base[f"episode_z_{z_idx}_win_margin_mean"] = float(np.mean([int(r["win_margin"]) for r in z_records]))
-            for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
-                for z_idx in range(self.latent_k):
-                    sub = [
-                        r
-                        for r in records
-                        if int(r.get("opponent_id", -1)) == o_idx and r.get("latent_z") == z_idx
-                    ]
-                    zn = len(sub)
-                    base[f"episode_opp{o_idx}_z{z_idx}_count"] = zn
-                    if zn <= 0:
-                        base[f"episode_opp{o_idx}_z{z_idx}_win_rate"] = ""
-                    else:
-                        base[f"episode_opp{o_idx}_z{z_idx}_win_rate"] = float(
-                            sum(int(r["success"]) for r in sub)
-                        ) / float(zn)
-        return base
-
-    def _rolling_win_rate(self, window: int) -> float:
-        recent = list(self._recent_episode_successes)[-max(1, int(window)):]
-        if not recent:
-            return 0.0
-        return float(sum(recent)) / float(len(recent))
-
-    def _write_update_metrics(self, stats: dict[str, float], buffer: TensorDictRolloutBuffer) -> dict[str, Any]:
-        if not self.metrics_csv_path:
-            return {}
-        rewards = buffer.fields["rewards"][: int(buffer.pos)].detach().float().reshape(-1)
-        returns = buffer.fields["returns"][: int(buffer.pos)].detach().float().reshape(-1)
-        values = buffer.fields["values"][: int(buffer.pos)].detach().float().reshape(-1)
-        games = self._ep_wins + self._ep_losses + self._ep_draws
-        row: dict[str, Any] = {
-            "update": self._updates_completed,
-            "run_id": self.run_id,
-            "run_pid": self.run_pid,
-            "timesteps": int(self.global_step),
-            "episodes_completed": int(self._episodes_completed),
-            "wins": int(self._ep_wins),
-            "losses": int(self._ep_losses),
-            "draws": int(self._ep_draws),
-            "win_rate": float(self._ep_wins) / float(max(1, games)),
-            "rolling_win_rate_50ep": self._rolling_win_rate(50),
-            "rolling_win_rate_200ep": self._rolling_win_rate(200),
-            "rollout_reward_mean": float(rewards.mean().detach().cpu().item()) if rewards.numel() > 0 else 0.0,
-            "rollout_reward_std": float(rewards.std(unbiased=False).detach().cpu().item()) if rewards.numel() > 1 else 0.0,
-            "rollout_return_mean": float(returns.mean().detach().cpu().item()) if returns.numel() > 0 else 0.0,
-            "rollout_return_std": float(returns.std(unbiased=False).detach().cpu().item()) if returns.numel() > 1 else 0.0,
-            "explained_variance": self._explained_variance(values, returns),
-        }
-        row.update(self._rollout_episode_summary())
-        if self.curriculum is not None:
-            row.update(
-                {
-                    "curriculum_phase": str(self.curriculum.phase),
-                    "curriculum_phase_idx": int(self.curriculum.phase_idx),
-                    "curriculum_phase_episodes": int(self.curriculum.phase_episode_count),
-                    "curriculum_phase_win_rate": float(self.curriculum.phase_winrate()),
-                }
-            )
-        for key in (
-            "reward_terminal",
-            "reward_offense",
-            "reward_pbrs",
-            "reward_team",
-            "reward_sparse",
-            "reward_sparse_points",
-            "reward_failure",
-            "reward_total",
-        ):
-            vals = buffer.fields[key][: int(buffer.pos)].detach().float().reshape(-1)
-            row[f"{key}_mean"] = float(vals.mean().detach().cpu().item()) if vals.numel() > 0 else 0.0
-        reward_outcome = float(row.get("reward_terminal_mean", 0.0)) + float(row.get("reward_sparse_mean", 0.0))
-        reward_shaping = (
-            float(row.get("reward_offense_mean", 0.0))
-            + self.reward_dense_weight
-            * (float(row.get("reward_pbrs_mean", 0.0)) + float(row.get("reward_team_mean", 0.0)))
-        )
-        reward_failure = float(row.get("reward_failure_mean", 0.0))
-        row["reward_outcome_mean"] = reward_outcome
-        row["reward_shaping_mean"] = reward_shaping
-        row["reward_shaping_to_outcome_abs_ratio"] = abs(reward_shaping) / (abs(reward_outcome) + 1e-6)
-        row["reward_shaping_coef"] = float(self._reward_shaping_coef())
-        row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
-        row.update(stats)
-        if self.use_latent_strategy:
-            entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
-            row["strategy_entropy_frac"] = entropy / max(1e-6, math.log(max(2, int(self.latent_k))))
-            z_win_rates: list[float] = []
-            for z_idx in range(self.latent_k):
-                value = row.get(f"episode_z_{z_idx}_win_rate", "")
-                if value == "":
-                    continue
-                z_win_rates.append(float(value))
-            row["strategy_wr_spread"] = (
-                float(max(z_win_rates) - min(z_win_rates)) if len(z_win_rates) >= 2 else 0.0
-            )
-        else:
-            row["strategy_entropy_frac"] = 0.0
-            row["strategy_wr_spread"] = 0.0
-        _write_csv_row(
-            self.metrics_csv_path,
-            _update_fieldnames(self.use_latent_strategy, self.latent_k),
-            row,
-            legacy_column_fill=_METRICS_CSV_LEGACY_COLUMN_FILL,
-        )
-        return row
 
     def _on_episode_done(
         self,
@@ -920,7 +492,7 @@ class CustomPPOTrainer:
             }
         )
         self._recent_episode_successes.append(success)
-        self._write_episode_metrics(
+        self.telemetry.write_episode_metrics(
             info,
             blue_score=bs,
             red_score=rs,
@@ -931,7 +503,7 @@ class CustomPPOTrainer:
         _update_curriculum_after_episode(self, info=info, blue_score=bs, red_score=rs, env_index=env_index)
         every = int(getattr(self.cfg, "episode_log_every", 0) or 0)
         if every > 0 and self._episodes_completed % every == 0:
-            self._print_episode_progress(info)
+            self.telemetry.print_episode_progress(info)
 
     def _record_episode_strategy_outcome(
         self,
@@ -963,18 +535,6 @@ class CustomPPOTrainer:
                 "bucket_id": int(self._episode_strategy_bucket[env_i].detach().cpu().item()),
                 "q_phi_probs": [float(x) for x in probs],
             }
-        )
-
-    def _print_episode_progress(self, info: dict[str, Any]) -> None:
-        n = self._episodes_completed
-        w, l, d = self._ep_wins, self._ep_losses, self._ep_draws
-        wr = 100.0 * float(w) / float(max(1, w + l + d))
-        mode = str(getattr(self.cfg, "mode", "FIXED_OPPONENT"))
-        opp = _opponent_legend(self.cfg, info)
-        print(
-            f"[PPO] ep={n} mode={mode} opp={opp} "
-            f"W={w} L={l} D={d} WR={wr:.1f}%"
-            + (f" phase={self.curriculum.phase}" if self.curriculum is not None else "")
         )
 
     def _tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
@@ -1414,7 +974,7 @@ class CustomPPOTrainer:
 
     def collect_rollout(self) -> TensorDictRolloutBuffer:
         """Collect one rollout and compute advantages/returns."""
-        self._log_decentralized_actor_contract_once()
+        log_decentralized_actor_contract_once(self)
         self._rollout_episode_records = []
         self._rollout_strategy_episode_records = []
         if self._last_obs is None or self._last_global_state is None:
@@ -1617,9 +1177,9 @@ class CustomPPOTrainer:
                 self._prev_z_logits = strategy_aux["z_logits"].detach().clone()
                 self._z_kl_first_in_ep = torch.as_tensor(dones, dtype=torch.bool, device=self.device)
             self._mark_strategy_step_done(dones)
-            if self._e3_step_telemetry_path and self.use_latent_strategy and z_t is not None and prev_z_t is not None:
+            if self.telemetry.e3_step_telemetry_path and self.use_latent_strategy and z_t is not None and prev_z_t is not None:
                 assert beh_t is not None and sb is not None and adb is not None
-                self._append_e3_step_telemetry(
+                self.telemetry.append_e3_step(
                     rollout_step=step_idx,
                     global_step_at_step_end=int(self.global_step),
                     decision_global_state_np=decision_global_state_np,
@@ -1652,48 +1212,16 @@ class CustomPPOTrainer:
             gae_kw["reset_gae_on_z_change"] = True
         buffer.compute_returns_and_advantages(**gae_kw)
         if self.use_latent_strategy:
-            # Option-level Monte Carlo return for crediting q_phi(z|s) at z-resample
-            # boundaries: discounted reward sum within the *option window* (the run
-            # of consecutive steps that share a single sampled z), with bootstrapping
-            # at the window boundary. Per-env truncation bootstraps from V(s'); per-
-            # env termination contributes 0 future value; option boundaries inside an
-            # ongoing trajectory bootstrap from V(s_{t+1}, z_{t+1}); otherwise the
-            # next option_return carries forward unchanged.
-            #
-            # The recursion runs T steps backwards in Python, but every per-env
-            # condition is dispatched via torch.where so the inner ops are fully
-            # vectorized across n_envs. No Python branch is allowed to depend on a
-            # multi-env boolean tensor (the old `if done_t:` form crashed on n_envs>1).
             with torch.no_grad():
-                rewards_tensor = buffer.fields["rewards"]
-                values_tensor = buffer.fields["values"]
-                next_values_tensor = buffer.fields["next_values"]
-                terminated_tensor = buffer.fields["terminated"].bool()
-                truncated_tensor = buffer.fields["truncated"].bool()
-                z_resampled_tensor = buffer.fields["z_resampled"].bool()
-
-                T = int(rewards_tensor.shape[0])
-                option_returns = torch.zeros_like(rewards_tensor)
-                gamma = float(self.cfg.gamma)
-                zero_row = torch.zeros_like(rewards_tensor[0])
-
-                for t in reversed(range(T)):
-                    done_t = terminated_tensor[t] | truncated_tensor[t]
-                    done_next = torch.where(
-                        terminated_tensor[t], zero_row, next_values_tensor[t]
-                    )
-                    if t == T - 1:
-                        carry = next_values_tensor[t]
-                    else:
-                        carry = torch.where(
-                            z_resampled_tensor[t + 1],
-                            values_tensor[t + 1],
-                            option_returns[t + 1],
-                        )
-                    next_val = torch.where(done_t, done_next, carry)
-                    option_returns[t] = rewards_tensor[t] + gamma * next_val
-
-                option_advantages = option_returns - values_tensor
+                option_returns, option_advantages = compute_option_returns(
+                    rewards=buffer.fields["rewards"],
+                    values=buffer.fields["values"],
+                    next_values=buffer.fields["next_values"],
+                    terminated=buffer.fields["terminated"],
+                    truncated=buffer.fields["truncated"],
+                    z_resampled=buffer.fields["z_resampled"],
+                    gamma=float(self.cfg.gamma),
+                )
                 if "option_returns" not in buffer.fields:
                     buffer.register_field("option_returns")
                 if "option_advantages" not in buffer.fields:
@@ -1970,7 +1498,7 @@ class CustomPPOTrainer:
                 rollout = self.collect_rollout()
                 stats = self.update(rollout, total_timesteps=total)
                 self._updates_completed += 1
-                row = self._write_update_metrics(stats, rollout)
+                row = self.telemetry.write_update_metrics(stats, rollout)
                 self._save_periodic_checkpoint()
                 if row:
                     z_wr_parts: list[str] = []
@@ -2059,7 +1587,7 @@ class CustomPPOTrainer:
                 self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]
                 self._sb3_rollout_pbar.close()  # type: ignore[union-attr]
                 self._sb3_rollout_pbar = None
-            self._close_e3_step_telemetry()
+            self.telemetry.close_e3_step_telemetry()
         return self.last_stats
 
     def save(self, path: str) -> None:

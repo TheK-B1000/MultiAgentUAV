@@ -25,6 +25,7 @@ import torch
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig, VEC_OBS_DIM
 from opponent_params import sample_batched_opponent_params
 from rl.custom_ppo import CustomPPOTrainer
+from rl.custom_ppo.trainer_audit import log_input_dim_contract
 from rl.curriculum import CurriculumState, jacob_paper_curriculum_state, phase_from_tag
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import CONTEXT_STATE_DIM
@@ -799,7 +800,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             value_clip_range=getattr(cfg, "clip_range_vf", clip_range),
             curriculum=curriculum,
         )
-        trainer.log_input_dim_contract()
+        log_input_dim_contract(trainer)
         if cfg.load_path and os.path.isfile(cfg.load_path):
             print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
             trainer.load(cfg.load_path)
