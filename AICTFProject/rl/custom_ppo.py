@@ -537,6 +537,20 @@ def _remap_legacy_strategy_aux_head_state_dict(sd: Mapping[str, Any]) -> dict[st
     return out
 
 
+def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> None:
+    """Load checkpoints while allowing the new opt-in episode baseline head to be absent in older files."""
+    result = model.load_state_dict(_remap_legacy_strategy_aux_head_state_dict(sd), strict=False)
+    missing = list(getattr(result, "missing_keys", []))
+    unexpected = list(getattr(result, "unexpected_keys", []))
+    allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
+    disallowed_missing = [k for k in missing if k not in allowed_missing]
+    if disallowed_missing or unexpected:
+        raise RuntimeError(
+            "Incompatible model state_dict: "
+            f"missing={disallowed_missing!r}, unexpected={unexpected!r}"
+        )
+
+
 def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
     if not isinstance(cfg, dict):
         return {}
@@ -551,6 +565,7 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "strategy_hidden_dim": int(cfg.get("latent_strategy_hidden", 128)),
                 "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
                 "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
+                "use_episode_strategy_value_head": bool(cfg.get("latent_episode_strategy_ppo", False)),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
             }
         )
@@ -650,7 +665,7 @@ def load_custom_ppo_policy(
         action_space,
         **_model_kwargs_from_cfg(payload.get("cfg") or {}),
     ).to(device_t)
-    model.load_state_dict(_remap_legacy_strategy_aux_head_state_dict(payload["model_state_dict"]))
+    _load_model_state_dict_compat(model, payload["model_state_dict"])
     ckpt_cfg = payload.get("cfg") or {}
     if isinstance(ckpt_cfg, dict) and "seed" in ckpt_cfg:
         apply_deterministic_sampling_generators(model, int(ckpt_cfg["seed"]), device=device_t)
@@ -672,6 +687,7 @@ class SharedActorCentralizedCritic(nn.Module):
         z_embed_dim: int = 16,
         strategy_hidden_dim: int = 128,
         use_strategy_aux_return_head: bool = False,
+        use_episode_strategy_value_head: bool = False,
         strategy_tau: float = 1.0,
     ) -> None:
         super().__init__()
@@ -706,6 +722,7 @@ class SharedActorCentralizedCritic(nn.Module):
         self.uses_latent_strategy = self.latent_k > 0
         self.z_embed_dim = int(z_embed_dim) if self.uses_latent_strategy else 0
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
+        self.use_episode_strategy_value_head = bool(use_episode_strategy_value_head) and self.uses_latent_strategy
         self.strategy_tau = max(1e-3, float(strategy_tau))
 
         self.global_state_dim = CONTEXT_STATE_DIM if self.uses_latent_strategy else GLOBAL_STATE_DIM
@@ -750,6 +767,17 @@ class SharedActorCentralizedCritic(nn.Module):
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
         )
+        if self.use_episode_strategy_value_head:
+            episode_value_in = int(self.global_state_dim + self.latent_k)
+            self.episode_strategy_value_head = nn.Sequential(
+                nn.Linear(episode_value_in, int(critic_hidden_dim)),
+                nn.ReLU(),
+                nn.Linear(int(critic_hidden_dim), int(critic_hidden_dim)),
+                nn.ReLU(),
+                nn.Linear(int(critic_hidden_dim), 1),
+            )
+        else:
+            self.episode_strategy_value_head = None
         self.q_phi_input_dim = self._strategy_context_dim()
         self.critic_context_dim = int(self.critic.global_state_dim)
         self.critic_z_dim = int(self.latent_k) if self.uses_latent_strategy else 0
@@ -871,6 +899,20 @@ class SharedActorCentralizedCritic(nn.Module):
                 "strategy_aux_return_predictions is only available when the A2 auxiliary return head is enabled."
             )
         return self.strategy_aux_return_head(global_state.float())
+
+    def episode_strategy_value(self, global_state: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
+        """Episode-level baseline V_phi(s0, z) for PPO credit on q_phi's sampled strategy action."""
+        if not self.uses_latent_strategy or self.episode_strategy_value_head is None:
+            raise RuntimeError("episode_strategy_value is only available for episode-level strategy PPO.")
+        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.q_phi_input_dim):
+            raise AssertionError(
+                f"episode strategy value expected context shape (B, {self.q_phi_input_dim}), got {tuple(global_state.shape)}"
+            )
+        z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+        if int(z.shape[0]) != int(global_state.shape[0]):
+            raise ValueError(f"z_idx must have shape ({int(global_state.shape[0])},), got {tuple(z_idx.shape)}")
+        z_one_hot = F.one_hot(z, num_classes=self.latent_k).to(dtype=torch.float32, device=global_state.device)
+        return self.episode_strategy_value_head(torch.cat([global_state.float(), z_one_hot], dim=-1)).squeeze(-1)
 
     def sample_strategy(
         self,
@@ -1120,6 +1162,7 @@ class CustomPPOTrainer:
                     "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
                     "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
                     "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
+                    "use_episode_strategy_value_head": bool(getattr(cfg, "latent_episode_strategy_ppo", False)),
                     "strategy_tau": max(1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)),
                 }
             )
@@ -1140,6 +1183,23 @@ class CustomPPOTrainer:
         self._return_norm_var = 1.0
         self._return_norm_count = 1e-4
         self.latent_strategy_ppo_coef = max(0.0, float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0))
+        self.latent_episode_strategy_ppo = (
+            self.use_latent_strategy
+            and not self.fixed_latent_strategy
+            and bool(getattr(cfg, "latent_episode_strategy_ppo", False))
+        )
+        self.latent_episode_strategy_coef = max(
+            0.0, float(getattr(cfg, "latent_episode_strategy_coef", 0.25) or 0.0)
+        )
+        self.latent_episode_strategy_clip_eps = max(
+            1e-6, float(getattr(cfg, "latent_episode_strategy_clip_eps", 0.2) or 0.2)
+        )
+        self.latent_episode_strategy_value_coef = max(
+            0.0, float(getattr(cfg, "latent_episode_strategy_value_coef", 0.5) or 0.0)
+        )
+        self.latent_episode_strategy_return_norm = bool(
+            getattr(cfg, "latent_episode_strategy_return_norm", True)
+        )
         self.latent_strategy_aux_return_coef = max(0.0, _effective_latent_aux_return_coef(cfg))
         self.latent_strategy_aux_return_head = self.use_latent_strategy and _effective_latent_aux_return_head(cfg)
         self.latent_strategy_aux_predict_phase_coef = max(0.0, float(getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0))
@@ -1171,6 +1231,21 @@ class CustomPPOTrainer:
         self._recent_episode_successes = deque(maxlen=200)
         self.metrics_csv_path = str(getattr(cfg, "metrics_csv_path", "") or "")
         self.episode_csv_path = str(getattr(cfg, "episode_csv_path", "") or "")
+        self.strategy_experience_csv_path = str(getattr(cfg, "strategy_experience_csv_path", "") or "")
+        n_envs = int(env.num_envs)
+        strategy_prob_width = max(1, int(self.latent_k))
+        self._episode_return_accum = torch.zeros((n_envs,), dtype=torch.float32, device=self.device)
+        self._episode_strategy_state = torch.zeros(
+            (n_envs, int(self.model.global_state_dim)), dtype=torch.float32, device=self.device
+        )
+        self._episode_strategy_z = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
+        self._episode_strategy_log_prob = torch.zeros((n_envs,), dtype=torch.float32, device=self.device)
+        self._episode_strategy_probs = torch.zeros(
+            (n_envs, strategy_prob_width), dtype=torch.float32, device=self.device
+        )
+        self._episode_strategy_bucket = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
+        self._episode_strategy_has_start = torch.zeros((n_envs,), dtype=torch.bool, device=self.device)
+        self._rollout_strategy_episode_records: list[dict[str, Any]] = []
         # Optional E3: per-env-step z / q_phi / phase rows (set before long E3 runs; see E3_STEP_TELEMETRY_FIELDS).
         self._e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
         # Persistent file handle / writer so we don't pay open+close+full-file-read schema-check per step.
@@ -1686,6 +1761,23 @@ class CustomPPOTrainer:
             "strategy_grad_norm",
             "strategy_resample_count",
             "strategy_resample_fraction",
+            "latent_episode_pg_loss",
+            "latent_episode_v_loss",
+            "latent_episode_entropy",
+            "latent_episode_adv_mean",
+            "latent_episode_adv_std",
+            "latent_episode_return_mean",
+            "latent_episode_return_std",
+            "latent_episode_ratio_mean",
+            "latent_episode_ratio_max",
+            "latent_episode_ratio_min",
+            "latent_episode_approx_kl",
+            "latent_episode_clip_fraction",
+            "latent_episode_count",
+            "latent_episode_loss",
+            "strategy_bucket_best_match_frac",
+            "strategy_experience_records",
+            "strategy_experience_buckets",
             "strategy_unique_count",
             "strategy_dominant",
             "strategy_switch_count",
@@ -2142,6 +2234,37 @@ class CustomPPOTrainer:
         if every > 0 and self._episodes_completed % every == 0:
             self._print_episode_progress(info)
 
+    def _record_episode_strategy_outcome(
+        self,
+        env_index: int,
+        info: dict[str, Any],
+        *,
+        episode_return: float,
+    ) -> None:
+        if not self.latent_episode_strategy_ppo:
+            return
+        env_i = int(env_index)
+        if env_i < 0 or env_i >= int(self._episode_strategy_has_start.numel()):
+            return
+        if not bool(self._episode_strategy_has_start[env_i].detach().cpu().item()):
+            return
+        er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
+        bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
+        rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
+        probs = self._episode_strategy_probs[env_i, : self.latent_k].detach().cpu().tolist()
+        self._rollout_strategy_episode_records.append(
+            {
+                "episode_id": int(self._episodes_completed),
+                "global_state_0": self._episode_strategy_state[env_i].detach().clone(),
+                "z": int(self._episode_strategy_z[env_i].detach().cpu().item()),
+                "z_logprob_old": float(self._episode_strategy_log_prob[env_i].detach().cpu().item()),
+                "episode_return": float(episode_return),
+                "episode_win": 1 if bs > rs else 0,
+                "bucket_id": int(self._episode_strategy_bucket[env_i].detach().cpu().item()),
+                "q_phi_probs": [float(x) for x in probs],
+            }
+        )
+
     def _print_episode_progress(self, info: dict[str, Any]) -> None:
         n = self._episodes_completed
         w, l, d = self._ep_wins, self._ep_losses, self._ep_draws
@@ -2181,6 +2304,57 @@ class CustomPPOTrainer:
         if self.temporal_tracker is not None:
             self.temporal_tracker.reset()
         self._last_context_state = None
+        if hasattr(self, "_episode_return_accum"):
+            self._episode_return_accum.zero_()
+            self._episode_strategy_has_start.zero_()
+
+    def _strategy_experience_bucket_ids(self, context_state: torch.Tensor) -> torch.Tensor:
+        """Coarse post-hoc situation buckets for diagnostics only; never used as training labels."""
+        if context_state.dim() != 2:
+            raise ValueError(f"context_state must be 2-D, got {tuple(context_state.shape)}")
+        raw = context_state[:, :GLOBAL_STATE_DIM].float()
+        enemy_has_our_flag = (raw[:, 10] > 0.5).long()
+        we_have_enemy_flag = (raw[:, 11] > 0.5).long()
+        dist_edges = torch.tensor([0.20, 0.50], dtype=torch.float32, device=raw.device)
+        closest_ally_to_enemy_flag = torch.bucketize(raw[:, 8].contiguous(), dist_edges).long().clamp(0, 2)
+        closest_enemy_to_our_flag = torch.bucketize(raw[:, 9].contiguous(), dist_edges).long().clamp(0, 2)
+        spread = torch.sqrt(torch.clamp(raw[:, 2].pow(2) + raw[:, 3].pow(2), min=0.0))
+        spread_bin = (spread > 0.15).long()
+        score = raw[:, 16]
+        score_state = torch.where(
+            score < -0.05,
+            torch.zeros_like(score, dtype=torch.long),
+            torch.where(score > 0.05, torch.full_like(score, 2, dtype=torch.long), torch.ones_like(score, dtype=torch.long)),
+        )
+        bucket = enemy_has_our_flag
+        bucket = bucket * 2 + we_have_enemy_flag
+        bucket = bucket * 3 + closest_ally_to_enemy_flag
+        bucket = bucket * 3 + closest_enemy_to_our_flag
+        bucket = bucket * 2 + spread_bin
+        bucket = bucket * 3 + score_state
+        return bucket.long()
+
+    def _store_episode_strategy_start(
+        self,
+        *,
+        start_mask: torch.Tensor,
+        global_state: torch.Tensor,
+        z_idx: torch.Tensor,
+        z_log_prob: torch.Tensor,
+        z_logits: torch.Tensor,
+    ) -> None:
+        if not self.latent_episode_strategy_ppo or not bool(start_mask.any().item()):
+            return
+        idx = torch.where(start_mask)[0]
+        probs = torch.softmax(z_logits.detach(), dim=-1)
+        self._episode_strategy_state[idx] = global_state.index_select(0, idx).detach()
+        self._episode_strategy_z[idx] = z_idx.index_select(0, idx).detach()
+        self._episode_strategy_log_prob[idx] = z_log_prob.index_select(0, idx).detach()
+        self._episode_strategy_probs[idx, : self.latent_k] = probs.index_select(0, idx)
+        self._episode_strategy_bucket[idx] = self._strategy_experience_bucket_ids(
+            global_state.index_select(0, idx)
+        ).detach()
+        self._episode_strategy_has_start[idx] = True
 
     def _strategy_for_step(
         self,
@@ -2216,7 +2390,8 @@ class CustomPPOTrainer:
             }
             return z_idx, prev_z, aux
 
-        resample_mask = self._needs_strategy_sample.clone()
+        episode_start_mask = self._needs_strategy_sample.clone()
+        resample_mask = episode_start_mask.clone()
         if self.latent_resample_every_n > 0:
             resample_mask |= self._strategy_age >= self.latent_resample_every_n
 
@@ -2239,6 +2414,13 @@ class CustomPPOTrainer:
         z_dist = Categorical(logits=z_logits)
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
+        self._store_episode_strategy_start(
+            start_mask=episode_start_mask,
+            global_state=global_state,
+            z_idx=z_idx,
+            z_log_prob=z_log_prob,
+            z_logits=z_logits,
+        )
 
         aux = {
             "z": z_idx,
@@ -2881,6 +3063,210 @@ class CustomPPOTrainer:
         std = max(1e-3, float(self._strategy_return_var) ** 0.5)
         return (returns.detach().float() - float(self._strategy_return_mean)) / std
 
+    def _empty_latent_episode_strategy_stats(self) -> dict[str, float]:
+        return {
+            "latent_episode_pg_loss": 0.0,
+            "latent_episode_v_loss": 0.0,
+            "latent_episode_entropy": 0.0,
+            "latent_episode_adv_mean": 0.0,
+            "latent_episode_adv_std": 0.0,
+            "latent_episode_return_mean": 0.0,
+            "latent_episode_return_std": 0.0,
+            "latent_episode_ratio_mean": 0.0,
+            "latent_episode_ratio_max": 0.0,
+            "latent_episode_ratio_min": 0.0,
+            "latent_episode_approx_kl": 0.0,
+            "latent_episode_clip_fraction": 0.0,
+            "latent_episode_count": 0.0,
+            "latent_episode_loss": 0.0,
+        }
+
+    def _episode_strategy_training_batch(self) -> Optional[dict[str, torch.Tensor]]:
+        if (
+            not self.latent_episode_strategy_ppo
+            or self.fixed_latent_strategy
+            or self.model.episode_strategy_value_head is None
+        ):
+            return None
+        records = list(self._rollout_strategy_episode_records)
+        if not records:
+            return None
+        states = torch.stack([r["global_state_0"].detach().float() for r in records], dim=0).to(self.device)
+        z = torch.as_tensor([int(r["z"]) for r in records], dtype=torch.long, device=self.device)
+        old_log_prob = torch.as_tensor(
+            [float(r["z_logprob_old"]) for r in records], dtype=torch.float32, device=self.device
+        )
+        episode_returns = torch.as_tensor(
+            [float(r["episode_return"]) for r in records], dtype=torch.float32, device=self.device
+        )
+        return {
+            "states": states,
+            "z": z,
+            "old_log_prob": old_log_prob,
+            "episode_returns": episode_returns,
+        }
+
+    def _apply_episode_strategy_ppo(self, *, latent_lam_h: float) -> dict[str, float]:
+        stats = self._empty_latent_episode_strategy_stats()
+        batch = self._episode_strategy_training_batch()
+        if batch is None:
+            return stats
+        states = batch["states"]
+        z = batch["z"]
+        old_log_prob = batch["old_log_prob"]
+        episode_returns = batch["episode_returns"]
+
+        logits = self.model.strategy_logits(states)
+        dist = Categorical(logits=logits)
+        new_log_prob = dist.log_prob(z)
+        v_z = self.model.episode_strategy_value(states, z)
+        adv = episode_returns - v_z.detach()
+        if self.latent_episode_strategy_return_norm and adv.numel() > 1:
+            adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
+
+        pg_loss, ppo_stats = ppo_policy_loss(
+            new_log_prob,
+            old_log_prob,
+            adv.detach(),
+            self.latent_episode_strategy_clip_eps,
+        )
+        v_loss = 0.5 * (episode_returns - v_z).pow(2).mean()
+        z_entropy = dist.entropy().mean()
+        h_goal = str(getattr(self.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
+        if h_goal == "none" or latent_lam_h <= 0.0:
+            entropy_term = torch.zeros((), dtype=torch.float32, device=self.device)
+        elif h_goal == "minimize":
+            entropy_term = float(latent_lam_h) * z_entropy
+        else:
+            entropy_term = -float(latent_lam_h) * z_entropy
+        loss = self.latent_episode_strategy_coef * (
+            pg_loss + self.latent_episode_strategy_value_coef * v_loss
+        ) + entropy_term
+
+        self.optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), float(self.cfg.max_grad_norm))
+        self.optimizer.step()
+
+        ratio = ppo_stats["ratio"].detach().float()
+        with torch.no_grad():
+            stats.update(
+                {
+                    "latent_episode_pg_loss": float(pg_loss.detach().cpu().item()),
+                    "latent_episode_v_loss": float(v_loss.detach().cpu().item()),
+                    "latent_episode_entropy": float(z_entropy.detach().cpu().item()),
+                    "latent_episode_adv_mean": float(adv.detach().mean().cpu().item()),
+                    "latent_episode_adv_std": float(
+                        adv.detach().std(unbiased=False).cpu().item()
+                    ) if adv.numel() > 1 else 0.0,
+                    "latent_episode_return_mean": float(episode_returns.detach().mean().cpu().item()),
+                    "latent_episode_return_std": float(
+                        episode_returns.detach().std(unbiased=False).cpu().item()
+                    ) if episode_returns.numel() > 1 else 0.0,
+                    "latent_episode_ratio_mean": float(ratio.mean().cpu().item()),
+                    "latent_episode_ratio_max": float(ratio.max().cpu().item()),
+                    "latent_episode_ratio_min": float(ratio.min().cpu().item()),
+                    "latent_episode_approx_kl": float(ppo_stats["approx_kl"].detach().cpu().item()),
+                    "latent_episode_clip_fraction": float(ppo_stats["clip_fraction"].detach().cpu().item()),
+                    "latent_episode_count": float(episode_returns.numel()),
+                    "latent_episode_loss": float(loss.detach().cpu().item()),
+                }
+            )
+        return stats
+
+    def _strategy_experience_fieldnames(self) -> list[str]:
+        return [
+            "update",
+            "run_id",
+            "run_pid",
+            "timesteps",
+            "bucket_id",
+            "z",
+            "count",
+            "bucket_count",
+            "mean_return",
+            "win_rate",
+            "q_phi_prob_mean",
+            "chosen_freq",
+            "best_z",
+            "best_z_match_frac",
+        ]
+
+    def _write_strategy_experience_table(self) -> dict[str, float]:
+        if not self.strategy_experience_csv_path or not self.use_latent_strategy or self.latent_k <= 0:
+            return {"strategy_bucket_best_match_frac": 0.0, "strategy_experience_records": 0.0, "strategy_experience_buckets": 0.0}
+        records = list(self._rollout_strategy_episode_records)
+        if not records:
+            return {"strategy_bucket_best_match_frac": 0.0, "strategy_experience_records": 0.0, "strategy_experience_buckets": 0.0}
+
+        by_bucket: dict[int, list[dict[str, Any]]] = {}
+        for r in records:
+            by_bucket.setdefault(int(r["bucket_id"]), []).append(r)
+
+        rows: list[dict[str, Any]] = []
+        best_match = 0
+        total = 0
+        for bucket_id, bucket_records in sorted(by_bucket.items()):
+            bucket_count = len(bucket_records)
+            total += bucket_count
+            returns_by_z: dict[int, list[float]] = {z: [] for z in range(self.latent_k)}
+            wins_by_z: dict[int, list[int]] = {z: [] for z in range(self.latent_k)}
+            for r in bucket_records:
+                z = int(r["z"])
+                if 0 <= z < self.latent_k:
+                    returns_by_z[z].append(float(r["episode_return"]))
+                    wins_by_z[z].append(int(r["episode_win"]))
+            best_candidates = [
+                (float(np.mean(vals)), z) for z, vals in returns_by_z.items() if vals
+            ]
+            best_z = max(best_candidates)[1] if best_candidates else -1
+            if best_z >= 0:
+                best_match += len(returns_by_z[best_z])
+            best_z_match_frac = float(len(returns_by_z.get(best_z, []))) / float(max(1, bucket_count))
+            for z in range(self.latent_k):
+                z_returns = returns_by_z[z]
+                z_wins = wins_by_z[z]
+                prob_vals = [
+                    float(r["q_phi_probs"][z])
+                    for r in bucket_records
+                    if z < len(r.get("q_phi_probs", []))
+                ]
+                count = len(z_returns)
+                rows.append(
+                    {
+                        "update": int(self._updates_completed),
+                        "run_id": self.run_id,
+                        "run_pid": self.run_pid,
+                        "timesteps": int(self.global_step),
+                        "bucket_id": int(bucket_id),
+                        "z": int(z),
+                        "count": int(count),
+                        "bucket_count": int(bucket_count),
+                        "mean_return": "" if count <= 0 else float(np.mean(z_returns)),
+                        "win_rate": "" if count <= 0 else float(np.mean(z_wins)),
+                        "q_phi_prob_mean": float(np.mean(prob_vals)) if prob_vals else "",
+                        "chosen_freq": float(count) / float(max(1, bucket_count)),
+                        "best_z": int(best_z),
+                        "best_z_match_frac": best_z_match_frac,
+                    }
+                )
+
+        fieldnames = self._strategy_experience_fieldnames()
+        path = self.strategy_experience_csv_path
+        os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+        self._ensure_additive_csv_header(path, fieldnames)
+        nonempty = os.path.isfile(path) and os.path.getsize(path) > 0
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            if not nonempty:
+                writer.writeheader()
+            writer.writerows({key: row.get(key, "") for key in fieldnames} for row in rows)
+        return {
+            "strategy_bucket_best_match_frac": float(best_match) / float(max(1, total)),
+            "strategy_experience_records": float(total),
+            "strategy_experience_buckets": float(len(by_bucket)),
+        }
+
     def _return_norm_std(self) -> float:
         return max(1e-3, float(self._return_norm_var) ** 0.5)
 
@@ -3055,6 +3441,7 @@ class CustomPPOTrainer:
         """Collect one rollout and compute advantages/returns."""
         self._log_decentralized_actor_contract_once()
         self._rollout_episode_records = []
+        self._rollout_strategy_episode_records = []
         if self._last_obs is None or self._last_global_state is None:
             obs = self.env.reset()
             global_state = self.env.state().astype(np.float32)
@@ -3140,6 +3527,20 @@ class CustomPPOTrainer:
                 stalemate=stalemate,
                 stalemate_penalty=self.reward_stalemate_penalty,
             )
+            if self.use_latent_strategy:
+                done_t = torch.as_tensor(dones, dtype=torch.bool, device=self.device)
+                self._episode_return_accum = self._episode_return_accum + reward_component["reward_total"].detach()
+                if bool(done_t.any().item()):
+                    if self.latent_episode_strategy_ppo:
+                        for env_i, done_i in enumerate(dones):
+                            if bool(done_i):
+                                self._record_episode_strategy_outcome(
+                                    env_i,
+                                    dict(infos[env_i]),
+                                    episode_return=float(self._episode_return_accum[env_i].detach().cpu().item()),
+                                )
+                    self._episode_return_accum[done_t] = 0.0
+                    self._episode_strategy_has_start[done_t] = False
 
             opp_row = torch.as_tensor(
                 [self._opponent_id_int_from_info(dict(info)) for info in infos],
@@ -3478,6 +3879,9 @@ class CustomPPOTrainer:
             if stop_update:
                 break
 
+        episode_strategy_stats = self._apply_episode_strategy_ppo(latent_lam_h=latent_lam_h)
+        strategy_experience_stats = self._write_strategy_experience_table()
+
         self.last_stats = {name: float(np.mean(values)) if values else 0.0 for name, values in stats.items()}
         value_losses = np.asarray(stats["value_loss"], dtype=np.float32)
         if value_losses.size > 0:
@@ -3512,6 +3916,8 @@ class CustomPPOTrainer:
         self.last_stats.update(self._latent_opponent_rollout_diag(buffer))
         self.last_stats.update(self._behavior_diversity_stats(buffer))
         self.last_stats.update(self._forced_z_behavior_profile(buffer))
+        self.last_stats.update(episode_strategy_stats)
+        self.last_stats.update(strategy_experience_stats)
         return self.last_stats
 
     def _save_periodic_checkpoint(self) -> None:
@@ -3658,7 +4064,7 @@ class CustomPPOTrainer:
         """Restore a checkpoint produced by :meth:`save`."""
         payload = _torch_load_checkpoint(path, map_location=self.device)
         _assert_compatible_global_state_dim(payload, path)
-        self.model.load_state_dict(_remap_legacy_strategy_aux_head_state_dict(payload["model_state_dict"]))
+        _load_model_state_dict_compat(self.model, payload["model_state_dict"])
         self.optimizer.load_state_dict(payload["optimizer_state_dict"])
         self.global_step = int(payload.get("global_step", 0))
         self._updates_completed = int(payload.get("updates_completed", 0))
