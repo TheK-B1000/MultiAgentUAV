@@ -49,7 +49,7 @@ def _load_checkpoint_payload(path: Path) -> dict:
 
 
 def _cleanup_training_outputs(tag: str) -> None:
-    for suffix in (".zip", "_metrics.csv", "_episodes.csv"):
+    for suffix in (".zip", "_metrics.csv", "_episodes.csv", "_strategy_experience.csv"):
         path = _WORKSPACE_TMP / (f"final_{tag}{suffix}" if suffix == ".zip" else f"{tag}{suffix}")
         if path.exists():
             path.unlink()
@@ -299,6 +299,27 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 msg=alias,
             )
 
+    def test_plan_faithful_latent_option_a_episode_credit_preset(self) -> None:
+        cfg = _apply_training_preset(PPOConfig(), "plan_faithful_latent_option_a_episode_credit")
+
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertEqual(cfg.latent_k, 4)
+        self.assertEqual(cfg.latent_resample_every_n, 0)
+        self.assertAlmostEqual(cfg.latent_lam_p, 0.0)
+        self.assertAlmostEqual(cfg.latent_lam_h, 0.001)
+        self.assertEqual(cfg.latent_entropy_objective, "maximize")
+        self.assertEqual(cfg.latent_actor_conditioning, "concat")
+        self.assertAlmostEqual(cfg.latent_strategy_aux_predict_phase_coef, 0.0)
+        self.assertFalse(cfg.latent_strategy_aux_return_head)
+        self.assertAlmostEqual(cfg.latent_strategy_aux_return_coef, 0.0)
+        self.assertAlmostEqual(cfg.latent_strategy_ppo_coef, 0.0)
+        self.assertTrue(cfg.latent_episode_strategy_ppo)
+        self.assertAlmostEqual(cfg.latent_episode_strategy_coef, 0.25)
+        self.assertAlmostEqual(cfg.latent_episode_strategy_clip_eps, 0.2)
+        self.assertAlmostEqual(cfg.latent_episode_strategy_value_coef, 0.5)
+        self.assertTrue(cfg.latent_episode_strategy_return_norm)
+        self.assertEqual(cfg.run_tag, "plan_faithful_latent_option_a_episode_credit_1m_2v2")
+
     def test_plan_faithful_latent_option_a_is_single_flag_contrast_vs_no_latent(self) -> None:
         """Only the latent path (and its hyperparameters) may differ vs ``plan_faithful_no_latent``."""
         latent = _apply_training_preset(PPOConfig(), "plan_faithful_latent_option_a")
@@ -345,6 +366,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
             "plan_faithful_latent_phase4a_rescue_hardpool",
             "plan_faithful_latent_episode_z_clean",
             "plan_faithful_latent_option_a",
+            "plan_faithful_latent_option_a_episode_credit",
         ]
 
         for preset in faithful_presets:
