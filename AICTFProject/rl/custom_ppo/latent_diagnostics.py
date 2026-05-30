@@ -667,3 +667,43 @@ def _write_strategy_experience_table(trainer: Any) -> dict[str, float]:
         "strategy_experience_records": float(total),
         "strategy_experience_buckets": float(len(by_bucket)),
     }
+
+
+def _latent_option_advantage_stats(trainer: Any, buffer: Any) -> dict[str, float]:
+    """Calculate mean, std, and count of option advantages at resampled steps."""
+    if not trainer.use_latent_strategy or trainer.fixed_latent_strategy:
+        return {
+            "latent_q_phi_option_advantage_mean": 0.0,
+            "latent_q_phi_option_advantage_std": 0.0,
+            "latent_q_phi_option_advantage_count": 0.0,
+        }
+    length = int(buffer.pos)
+    if length <= 0 or "option_advantages" not in buffer.fields or "z_resampled" not in buffer.fields:
+        return {
+            "latent_q_phi_option_advantage_mean": 0.0,
+            "latent_q_phi_option_advantage_std": 0.0,
+            "latent_q_phi_option_advantage_count": 0.0,
+        }
+    
+    opt_adv = buffer.fields["option_advantages"][:length]
+    rs = buffer.fields["z_resampled"][:length].bool()
+    
+    flat_opt_adv = opt_adv.reshape(-1).float()
+    flat_rs = rs.reshape(-1)
+    
+    resampled_opt_adv = flat_opt_adv[flat_rs]
+    count = int(resampled_opt_adv.numel())
+    
+    if count > 0:
+        mean_val = float(resampled_opt_adv.mean().item())
+        std_val = float(resampled_opt_adv.std(unbiased=False).item()) if count > 1 else 0.0
+    else:
+        mean_val = 0.0
+        std_val = 0.0
+        
+    return {
+        "latent_q_phi_option_advantage_mean": mean_val,
+        "latent_q_phi_option_advantage_std": std_val,
+        "latent_q_phi_option_advantage_count": float(count),
+    }
+

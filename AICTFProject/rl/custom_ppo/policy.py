@@ -8,9 +8,48 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from rl.global_state import GLOBAL_STATE_DIM
-from rl.latent_marl import StrategyEncoder, CONTEXT_STATE_DIM
+from rl.latent_marl import LatentConditionedActor, StrategyEncoder, CONTEXT_STATE_DIM
 from rl.latent_phase_labels import TEAM_PHASES
 from rl.networks import CNNEncoder, CentralizedCritic
+
+
+# Legacy state-dict keys mapped to the new composed submodule paths under
+# ``latent_actor``. Pre-composition checkpoints stored these tensors directly
+# at the top of ``SharedActorCentralizedCritic``; the model now owns them via
+# ``self.latent_actor = LatentConditionedActor(...)``. The remap keeps every
+# checkpoint on disk loadable without manual migration.
+_LEGACY_ACTOR_RENAMES: tuple[tuple[str, str], ...] = (
+    ("actor_body.", "latent_actor.body."),
+    ("actor_head.", "latent_actor.action_head."),
+    ("strategy_embedding.", "latent_actor.strategy_embedding."),
+)
+
+
+def remap_legacy_actor_state_dict_keys(
+    state_dict: Dict[str, Any], *, prefix: str = ""
+) -> Dict[str, Any]:
+    """Rewrite pre-composition actor/embedding keys to their composed paths.
+
+    ``prefix`` is the path to the :class:`SharedActorCentralizedCritic` inside
+    the checkpoint (empty string when the model is at the top of the file, or
+    e.g. ``"model."`` when nested). Keys that already use the new ``latent_actor.*``
+    layout pass through untouched, so this remap is idempotent.
+    """
+    if not state_dict:
+        return dict(state_dict)
+    out: Dict[str, Any] = {}
+    for key, value in state_dict.items():
+        if prefix and not key.startswith(prefix):
+            out[key] = value
+            continue
+        tail = key[len(prefix):] if prefix else key
+        new_tail = tail
+        for old, new in _LEGACY_ACTOR_RENAMES:
+            if tail.startswith(old):
+                new_tail = new + tail[len(old):]
+                break
+        out[prefix + new_tail] = value
+    return out
 
 
 class SharedActorCentralizedCritic(nn.Module):
@@ -80,28 +119,28 @@ class SharedActorCentralizedCritic(nn.Module):
             else:
                 self.strategy_encoder = strategy_net
                 self.strategy_aux_return_head = None
-            # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
-            self.strategy_embedding = nn.Embedding(self.latent_k, self.z_embed_dim)
             self.phase_predictor = nn.Linear(self.z_embed_dim, len(TEAM_PHASES))
         else:
             self.strategy_encoder = None
             self.strategy_aux_return_head = None
-            self.strategy_embedding = None
             self.phase_predictor = None
 
         # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
         self._decentralized_actor_in_dim = int(
             self._local_actor_in_dim + (self.z_embed_dim if self.uses_latent_strategy else 0)
         )
-        actor_in = self._decentralized_actor_in_dim
-        # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
-        self.actor_body = nn.Sequential(
-            nn.Linear(int(actor_in), int(actor_hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(int(actor_hidden_dim), int(actor_hidden_dim)),
-            nn.ReLU(),
+        # The decentralized actor body, output head, and strategy embedding are
+        # owned by the canonical ``LatentConditionedActor``. Code that reads
+        # ``self.actor_body`` / ``self.actor_head`` / ``self.strategy_embedding``
+        # goes through the property shims below; legacy on-disk state dicts are
+        # migrated by ``remap_legacy_actor_state_dict_keys``.
+        self.latent_actor = LatentConditionedActor(
+            local_feature_dim=int(self._local_actor_in_dim),
+            latent_k=self.latent_k if self.uses_latent_strategy else 0,
+            action_dim=int(self.per_agent_logits),
+            z_embed_dim=self.z_embed_dim if self.uses_latent_strategy else 0,
+            hidden_dim=int(actor_hidden_dim),
         )
-        self.actor_head = nn.Linear(int(actor_hidden_dim), self.per_agent_logits)
         critic_extra_dim = self.joint_action_onehot_dim + self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
             global_state_dim=self.global_state_dim,
@@ -129,6 +168,61 @@ class SharedActorCentralizedCritic(nn.Module):
         # the same RNG as per-head action Categoricals (fairer E3 vs no-latent; see docs).
         self._sampling_gen_strategy: Optional[torch.Generator] = None
         self._sampling_gen_action: Optional[torch.Generator] = None
+
+    # ------------------------------------------------------------------
+    # Legacy attribute shims. These point into ``self.latent_actor`` so any
+    # test, diagnostic, or external caller still written against the old
+    # attribute names continues to work. The shims read-only; do not assign.
+    # ------------------------------------------------------------------
+
+    @property
+    def actor_body(self) -> nn.Module:
+        """Composed actor MLP trunk (``latent_actor.body``); legacy alias."""
+        return self.latent_actor.body
+
+    @property
+    def actor_head(self) -> nn.Module:
+        """Composed actor output projection (``latent_actor.action_head``); legacy alias."""
+        return self.latent_actor.action_head
+
+    @property
+    def strategy_embedding(self) -> Optional[nn.Embedding]:
+        """Composed strategy embedding (``latent_actor.strategy_embedding``); ``None`` when no latent."""
+        return self.latent_actor.strategy_embedding
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ) -> None:
+        # Rewrite the slice of ``state_dict`` that targets this module so legacy
+        # pre-composition keys (``actor_body.*``, ``actor_head.*``,
+        # ``strategy_embedding.*``) load into the composed ``latent_actor``
+        # submodule. The remap is idempotent: keys that already use the new
+        # layout pass through untouched.
+        has_legacy = any(
+            key.startswith(prefix + old)
+            for key in state_dict
+            for old, _ in _LEGACY_ACTOR_RENAMES
+        )
+        if has_legacy:
+            remapped = remap_legacy_actor_state_dict_keys(state_dict, prefix=prefix)
+            state_dict.clear()
+            state_dict.update(remapped)
+        return super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
 
     def _strategy_context_dim(self) -> int:
         if not self.uses_latent_strategy:
@@ -280,7 +374,17 @@ class SharedActorCentralizedCritic(nn.Module):
         return self.phase_predictor(expected_z_emb)
 
     def policy_logits(self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``."""
+        """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
+
+        Feature pipeline:
+
+        1. ``actor_cnn`` encodes per-agent grids → ``cnn_features``.
+        2. Optional agent mask zeroes out padded agents' features / scalars.
+        3. ``local_features = concat(cnn_features, scalars)`` per-agent.
+        4. ``self.latent_actor`` handles the strategy embedding (when present)
+           and the 256-256 MLP + action head. Per-agent ``z`` is shared across
+           the team — the same ``z_idx`` row is broadcast across all agents.
+        """
         grid = obs["grid"].float()
         vec = obs["vec"].float()
         if grid.dim() != 5:
@@ -306,28 +410,25 @@ class SharedActorCentralizedCritic(nn.Module):
             cnn_features = cnn_features * mask
             vloc = vloc * mask
         local_obs = torch.cat([cnn_features, vloc], dim=-1)
-        actor_inputs: list[torch.Tensor] = [local_obs]
+        local_in = local_obs.reshape(batch * self.n_agents, -1)
+        if int(local_in.shape[-1]) != int(self._local_actor_in_dim):
+            raise AssertionError(
+                f"local actor input width {int(local_in.shape[-1])} != expected "
+                f"{int(self._local_actor_in_dim)}"
+            )
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
             z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
             if z.shape[0] != batch:
                 raise ValueError(f"z_idx must have shape ({batch},), got {tuple(z_idx.shape)}")
-            assert self.strategy_embedding is not None
-            z_emb = self.strategy_embedding(z).unsqueeze(1).expand(batch, self.n_agents, self.z_embed_dim)
-            actor_inputs.append(z_emb)
-
-        actor_in = torch.cat(actor_inputs, dim=-1)
-        d_in = int(actor_in.shape[-1])
-        if d_in != self._decentralized_actor_in_dim:
-            raise AssertionError(
-                f"decentralized actor expects concat width {self._decentralized_actor_in_dim} "
-                f"(cnn_features + scalars + z), got {d_in}"
-            )
-        if d_in == int(GLOBAL_STATE_DIM):
-            raise AssertionError("actor input width equals GLOBAL_STATE_DIM; policy must not consume global state")
-        hidden = self.actor_body(actor_in.reshape(batch * self.n_agents, -1))
-        per_agent_logits = self.actor_head(hidden).reshape(batch, self.n_agents, self.per_agent_logits)
+            z_per_agent = z.unsqueeze(1).expand(batch, self.n_agents).reshape(batch * self.n_agents)
+            per_agent_flat = self.latent_actor(local_in, z_per_agent)
+        else:
+            per_agent_flat = self.latent_actor(local_in)
+        per_agent_logits = per_agent_flat.reshape(batch, self.n_agents, self.per_agent_logits)
+        if int(per_agent_logits.shape[-1]) == 0:
+            raise AssertionError("latent_actor produced zero-width logits; check action_dim wiring")
         return per_agent_logits.reshape(batch, self.n_agents * self.per_agent_logits)
 
     def _joint_action_one_hot(self, actions: torch.Tensor) -> torch.Tensor:

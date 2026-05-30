@@ -305,6 +305,11 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_pressure_diversity",
             "latent_adr_diversity",
         ])
+        fields.extend([
+            "latent_q_phi_option_advantage_mean",
+            "latent_q_phi_option_advantage_std",
+            "latent_q_phi_option_advantage_count",
+        ])
     return fields
 
 

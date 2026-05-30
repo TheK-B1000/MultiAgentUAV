@@ -27,7 +27,7 @@ def apply_plan_faithful_base(cfg: PPOConfig) -> PPOConfig:
     cfg.latent_lam_p = 0.025
     cfg.latent_strategy_ppo_coef = 0.30
     cfg.latent_episode_strategy_ppo = False
-    cfg.latent_episode_strategy_coef = 0.25
+    cfg.latent_episode_strategy_coef = 0.0
     cfg.latent_episode_strategy_clip_eps = 0.2
     cfg.latent_episode_strategy_value_coef = 0.5
     cfg.latent_episode_strategy_return_norm = True

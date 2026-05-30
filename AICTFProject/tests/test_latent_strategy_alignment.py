@@ -27,7 +27,12 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
 
     def test_actor_is_decentralized_per_agent_given_shared_z(self):
         torch.manual_seed(7)
-        actor = LatentConditionedActor((7, 20, 20), vec_dim=VEC_OBS_DIM, latent_k=4, action_dim=55)
+        feature_dim = 7 * 20 * 20 + VEC_OBS_DIM
+        actor = LatentConditionedActor(
+            local_feature_dim=feature_dim,
+            latent_k=4,
+            action_dim=55,
+        )
         actor.eval()
         grid = torch.rand(2, 7, 20, 20)
         vec = torch.rand(2, VEC_OBS_DIM)
@@ -37,12 +42,25 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         changed_grid[1] = torch.rand(7, 20, 20)
         changed_vec[1] = torch.rand(VEC_OBS_DIM)
 
+        def _flat_features(g, v):
+            return torch.cat([g.reshape(g.shape[0], -1), v], dim=-1)
+
         with torch.no_grad():
-            logits_a = actor(grid, vec, z_idx)
-            logits_b = actor(changed_grid, changed_vec, z_idx)
+            logits_a = actor(_flat_features(grid, vec), z_idx)
+            logits_b = actor(_flat_features(changed_grid, changed_vec), z_idx)
 
         self.assertTrue(torch.allclose(logits_a[0], logits_b[0], atol=1e-6))
         self.assertFalse(torch.allclose(logits_a[1], logits_b[1], atol=1e-6))
+
+    def test_actor_no_latent_skips_embedding_and_z(self):
+        """``latent_k=0`` produces a plain MLP head and forward ignores ``z_idx``."""
+        torch.manual_seed(11)
+        actor = LatentConditionedActor(local_feature_dim=16, latent_k=0, action_dim=5)
+        self.assertIsNone(actor.strategy_embedding)
+        feats = torch.randn(3, 16)
+        with torch.no_grad():
+            logits = actor(feats)
+        self.assertEqual(tuple(logits.shape), (3, 5))
 
     def test_persistence_penalty_is_low_when_previous_strategy_is_likely(self):
         logits = torch.tensor(

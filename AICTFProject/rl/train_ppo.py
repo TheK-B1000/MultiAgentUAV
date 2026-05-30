@@ -414,7 +414,11 @@ class PPOConfig:
     # Option A episode-start strategy credit: PPO update on the sampled z using full
     # completed-episode return. Pure task-return credit; no labels or semantic heads.
     latent_episode_strategy_ppo: bool = False
-    latent_episode_strategy_coef: float = 0.25
+    # Default 0.0 keeps episode-credit OFF by default per the SUMMER plan: latent z is
+    # learned end-to-end from task reward via the MARL loss + persistence regularizer,
+    # with no auxiliary objectives. Presets that opt into episode-credit (e.g.
+    # plan_faithful_latent_episode_credit) must set this explicitly.
+    latent_episode_strategy_coef: float = 0.0
     latent_episode_strategy_clip_eps: float = 0.2
     latent_episode_strategy_value_coef: float = 0.5
     latent_episode_strategy_return_norm: bool = True
@@ -439,6 +443,7 @@ class PPOConfig:
     latent_resample_on_flag: bool = False
     # Optional §12: KL( q_\phi(s_t) || q_\phi(s_{t-1}) ) on consecutive time steps; 0 = off (ablation only).
     latent_kl_consecutive: float = 0.0
+    latent_q_phi_option_advantage: bool = False
 
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.

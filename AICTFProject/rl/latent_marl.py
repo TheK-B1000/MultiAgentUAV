@@ -173,14 +173,25 @@ class StrategyEncoder(nn.Module):
 
 class LatentConditionedActor(nn.Module):
     """
-    Word doc IMPLEMENTATION §7: ``concat(local_obs, z_emb)`` then 256–256 ReLU MLP to logits.
-    No custom init in the spec (default ``Linear`` weights).
+    Word doc IMPLEMENTATION §7: ``concat(local_features, z_emb)`` then 256–256 ReLU MLP to logits.
+
+    This is the **canonical** decentralized actor head. Callers (e.g.
+    :class:`rl.custom_ppo.policy.SharedActorCentralizedCritic`) own their own
+    per-token feature extractor (a CNN, a flatten, etc.) and pass the
+    pre-encoded ``local_features`` of width ``local_feature_dim``. Keeping the
+    feature extractor outside this module lets the same actor body be reused
+    across CNN-backed training and any flatten-only tests/utilities.
+
+    When ``latent_k <= 0`` or ``z_embed_dim <= 0`` the module degrades to a
+    plain MLP head with no strategy embedding — used by the no-latent
+    baseline. ``forward`` then ignores ``z_idx``.
+
+    No custom init in the spec (default ``Linear`` / ``Embedding`` weights).
     """
 
     def __init__(
         self,
-        obs_shape: tuple[int, int, int],
-        vec_dim: int,
+        local_feature_dim: int,
         latent_k: int,
         action_dim: int,
         *,
@@ -188,28 +199,63 @@ class LatentConditionedActor(nn.Module):
         hidden_dim: int = 256,
     ) -> None:
         super().__init__()
-        c, h, w = (int(x) for x in obs_shape)
-        self._flat_dim = c * h * w
-        self.strategy_embedding = nn.Embedding(int(latent_k), int(z_embed_dim))
-        in_dim = self._flat_dim + int(vec_dim) + int(z_embed_dim)
+        self.local_feature_dim = int(local_feature_dim)
+        self.latent_k = max(0, int(latent_k))
+        self.z_embed_dim = int(z_embed_dim) if (self.latent_k > 0 and int(z_embed_dim) > 0) else 0
+        self.hidden_dim = int(hidden_dim)
+        self.action_dim = int(action_dim)
+
+        if self.latent_k > 0 and self.z_embed_dim > 0:
+            # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
+            self.strategy_embedding = nn.Embedding(self.latent_k, self.z_embed_dim)
+        else:
+            self.strategy_embedding = None
+
+        in_dim = self.local_feature_dim + self.z_embed_dim
+        # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
         self.body = nn.Sequential(
-            nn.Linear(in_dim, int(hidden_dim)),
+            nn.Linear(in_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(int(hidden_dim), int(hidden_dim)),
+            nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
         )
-        self.action_head = nn.Linear(int(hidden_dim), int(action_dim))
+        self.action_head = nn.Linear(self.hidden_dim, self.action_dim)
 
-    def forward(self, grid: torch.Tensor, vec: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
-        """Return per-agent logits from local observations and shared strategy indices."""
-        if grid.dim() != 4:
-            raise ValueError(f"grid must be (B, C, H, W), got {tuple(grid.shape)}")
-        if vec.dim() != 2:
-            raise ValueError(f"vec must be (B, V), got {tuple(vec.shape)}")
-        z = z_idx.long().reshape(-1).clamp(min=0, max=self.strategy_embedding.num_embeddings - 1)
-        z_emb = self.strategy_embedding(z)
-        flat = grid.float().reshape(grid.shape[0], -1)
-        return self.action_head(self.body(torch.cat([flat, vec.float(), z_emb], dim=-1)))
+    def forward(
+        self, local_features: torch.Tensor, z_idx: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """Return per-token logits.
+
+        ``local_features`` must have shape ``(N, local_feature_dim)`` where
+        ``N`` is the caller's batch-of-tokens (e.g. ``batch_size * n_agents``).
+        ``z_idx`` is required iff the strategy embedding is enabled and must
+        broadcast to the same leading dim as ``local_features``.
+        """
+        if local_features.dim() != 2:
+            raise ValueError(
+                f"local_features must be (N, local_feature_dim), got {tuple(local_features.shape)}"
+            )
+        if int(local_features.shape[-1]) != int(self.local_feature_dim):
+            raise ValueError(
+                f"local_features width {int(local_features.shape[-1])} != local_feature_dim "
+                f"{int(self.local_feature_dim)}"
+            )
+        if self.strategy_embedding is not None:
+            if z_idx is None:
+                raise ValueError("z_idx is required when strategy embedding is enabled.")
+            z = z_idx.long().reshape(-1).clamp(
+                min=0, max=self.strategy_embedding.num_embeddings - 1
+            )
+            if int(z.shape[0]) != int(local_features.shape[0]):
+                raise ValueError(
+                    f"z_idx leading dim {int(z.shape[0])} must match local_features leading dim "
+                    f"{int(local_features.shape[0])}"
+                )
+            z_emb = self.strategy_embedding(z)
+            x = torch.cat([local_features.float(), z_emb], dim=-1)
+        else:
+            x = local_features.float()
+        return self.action_head(self.body(x))
 
 
 __all__ = [

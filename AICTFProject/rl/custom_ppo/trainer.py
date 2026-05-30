@@ -93,6 +93,7 @@ from rl.custom_ppo.latent_diagnostics import (
     _rollout_advantage_diagnostics,
     _strategy_experience_bucket_ids,
     _write_strategy_experience_table,
+    _latent_option_advantage_stats,
 )
 from rl.custom_ppo.curriculum_runtime import (
     _set_curriculum_opponent,
@@ -188,6 +189,63 @@ def _compose_training_reward_components(
     return out
 
 
+class EpisodeStrategyRecorder:
+    """Tracks sampled episode-level z actions for task-return PPO credit.
+
+    This is not an auxiliary semantic task and it does not assign labels to z.
+    It only preserves the exact sampled strategy action and old log-prob needed
+    to credit q_phi from completed episode return.
+    """
+
+    def __init__(self) -> None:
+        self.pending: dict[int, dict[str, Any]] = {}
+        self.completed: list[dict[str, Any]] = []
+
+    def reset(self) -> None:
+        self.pending.clear()
+        self.completed.clear()
+
+    def clear_completed(self) -> None:
+        self.completed.clear()
+
+    def record_start(
+        self,
+        *,
+        env_index: int,
+        episode_id: int,
+        global_state_0: torch.Tensor,
+        z: torch.Tensor,
+        z_logprob_old: torch.Tensor,
+        bucket_id: int,
+        q_phi_probs: Iterable[float],
+    ) -> None:
+        self.pending[int(env_index)] = {
+            "episode_id": int(episode_id),
+            "global_state_0": global_state_0.detach().clone(),
+            "z": int(z.detach().cpu().item()),
+            "z_logprob_old": float(z_logprob_old.detach().cpu().item()),
+            "episode_return": None,
+            "episode_win": None,
+            "bucket_id": int(bucket_id),
+            "q_phi_probs": [float(x) for x in q_phi_probs],
+        }
+
+    def record_outcome(
+        self,
+        *,
+        env_index: int,
+        episode_return: float,
+        episode_win: int,
+    ) -> Optional[dict[str, Any]]:
+        record = self.pending.pop(int(env_index), None)
+        if record is None:
+            return None
+        record["episode_return"] = float(episode_return)
+        record["episode_win"] = int(episode_win)
+        self.completed.append(record)
+        return record
+
+
 class CustomPPOTrainer:
     """Small PPO trainer that owns rollout, GAE, and update math locally."""
 
@@ -261,7 +319,7 @@ class CustomPPOTrainer:
             and bool(getattr(cfg, "latent_episode_strategy_ppo", False))
         )
         self.latent_episode_strategy_coef = max(
-            0.0, float(getattr(cfg, "latent_episode_strategy_coef", 0.25) or 0.0)
+            0.0, float(getattr(cfg, "latent_episode_strategy_coef", 0.0) or 0.0)
         )
         self.latent_episode_strategy_clip_eps = max(
             1e-6, float(getattr(cfg, "latent_episode_strategy_clip_eps", 0.2) or 0.2)
@@ -318,6 +376,8 @@ class CustomPPOTrainer:
         self._episode_strategy_bucket = torch.zeros((n_envs,), dtype=torch.long, device=self.device)
         self._episode_strategy_has_start = torch.zeros((n_envs,), dtype=torch.bool, device=self.device)
         self._rollout_strategy_episode_records: list[dict[str, Any]] = []
+        self.episode_strategy_recorder = EpisodeStrategyRecorder()
+        self._next_strategy_episode_id = 0
         self._e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
         self._e3_file = None
         self._e3_writer = None
@@ -409,6 +469,9 @@ class CustomPPOTrainer:
 
     def _strategy_resample_advantage_stats(self, buffer):
         return _strategy_resample_advantage_stats(self, buffer)
+
+    def _latent_option_advantage_stats(self, buffer):
+        return _latent_option_advantage_stats(self, buffer)
 
     def _rollout_advantage_diagnostics(self, buffer):
         return _rollout_advantage_diagnostics(self, buffer)
@@ -970,6 +1033,7 @@ class CustomPPOTrainer:
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
         rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
+        episode_win = 1 if bs > rs else 0
         probs = self._episode_strategy_probs[env_i, : self.latent_k].detach().cpu().tolist()
         self._rollout_strategy_episode_records.append(
             {
@@ -1026,6 +1090,8 @@ class CustomPPOTrainer:
         if hasattr(self, "_episode_return_accum"):
             self._episode_return_accum.zero_()
             self._episode_strategy_has_start.zero_()
+        if hasattr(self, "episode_strategy_recorder"):
+            self.episode_strategy_recorder.reset()
 
     def _store_episode_strategy_start(
         self,
@@ -1040,14 +1106,24 @@ class CustomPPOTrainer:
             return
         idx = torch.where(start_mask)[0]
         probs = torch.softmax(z_logits.detach(), dim=-1)
+        buckets = self._strategy_experience_bucket_ids(global_state.index_select(0, idx)).detach()
         self._episode_strategy_state[idx] = global_state.index_select(0, idx).detach()
         self._episode_strategy_z[idx] = z_idx.index_select(0, idx).detach()
         self._episode_strategy_log_prob[idx] = z_log_prob.index_select(0, idx).detach()
         self._episode_strategy_probs[idx, : self.latent_k] = probs.index_select(0, idx)
-        self._episode_strategy_bucket[idx] = self._strategy_experience_bucket_ids(
-            global_state.index_select(0, idx)
-        ).detach()
+        self._episode_strategy_bucket[idx] = buckets
         self._episode_strategy_has_start[idx] = True
+        for row_i, env_i in enumerate(idx.detach().cpu().tolist()):
+            self.episode_strategy_recorder.record_start(
+                env_index=int(env_i),
+                episode_id=int(self._next_strategy_episode_id),
+                global_state_0=global_state[int(env_i)],
+                z=z_idx[int(env_i)],
+                z_logprob_old=z_log_prob[int(env_i)],
+                bucket_id=int(buckets[row_i].detach().cpu().item()),
+                q_phi_probs=probs[int(env_i), : self.latent_k].detach().cpu().tolist(),
+            )
+            self._next_strategy_episode_id += 1
 
     def _strategy_for_step(
         self,
@@ -1658,6 +1734,55 @@ class CustomPPOTrainer:
             gae_kw["latent_z_field"] = "z"
             gae_kw["reset_gae_on_z_change"] = True
         buffer.compute_returns_and_advantages(**gae_kw)
+        if self.use_latent_strategy:
+            # Option-level Monte Carlo return for crediting q_phi(z|s) at z-resample
+            # boundaries: discounted reward sum within the *option window* (the run
+            # of consecutive steps that share a single sampled z), with bootstrapping
+            # at the window boundary. Per-env truncation bootstraps from V(s'); per-
+            # env termination contributes 0 future value; option boundaries inside an
+            # ongoing trajectory bootstrap from V(s_{t+1}, z_{t+1}); otherwise the
+            # next option_return carries forward unchanged.
+            #
+            # The recursion runs T steps backwards in Python, but every per-env
+            # condition is dispatched via torch.where so the inner ops are fully
+            # vectorized across n_envs. No Python branch is allowed to depend on a
+            # multi-env boolean tensor (the old `if done_t:` form crashed on n_envs>1).
+            with torch.no_grad():
+                rewards_tensor = buffer.fields["rewards"]
+                values_tensor = buffer.fields["values"]
+                next_values_tensor = buffer.fields["next_values"]
+                terminated_tensor = buffer.fields["terminated"].bool()
+                truncated_tensor = buffer.fields["truncated"].bool()
+                z_resampled_tensor = buffer.fields["z_resampled"].bool()
+
+                T = int(rewards_tensor.shape[0])
+                option_returns = torch.zeros_like(rewards_tensor)
+                gamma = float(self.cfg.gamma)
+                zero_row = torch.zeros_like(rewards_tensor[0])
+
+                for t in reversed(range(T)):
+                    done_t = terminated_tensor[t] | truncated_tensor[t]
+                    done_next = torch.where(
+                        terminated_tensor[t], zero_row, next_values_tensor[t]
+                    )
+                    if t == T - 1:
+                        carry = next_values_tensor[t]
+                    else:
+                        carry = torch.where(
+                            z_resampled_tensor[t + 1],
+                            values_tensor[t + 1],
+                            option_returns[t + 1],
+                        )
+                    next_val = torch.where(done_t, done_next, carry)
+                    option_returns[t] = rewards_tensor[t] + gamma * next_val
+
+                option_advantages = option_returns - values_tensor
+                if "option_returns" not in buffer.fields:
+                    buffer.register_field("option_returns")
+                if "option_advantages" not in buffer.fields:
+                    buffer.register_field("option_advantages")
+                buffer.fields["option_returns"].copy_(option_returns)
+                buffer.fields["option_advantages"].copy_(option_advantages)
         self._update_return_norm_stats(buffer.fields["returns"][: int(buffer.pos)])
         self._last_obs = obs
         self._last_global_state = global_state
@@ -1779,16 +1904,23 @@ class CustomPPOTrainer:
                 if advantages.numel() > 1:
                     advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
                 if self.use_latent_strategy and not self.fixed_latent_strategy:
+                    strat_adv = batch["option_advantages"] if getattr(self.cfg, "latent_q_phi_option_advantage", False) else advantages
                     strategy_policy_loss_scaled, strategy_ppo_stats = _latent_strategy_ppo_loss(
                         strategy_log_prob,
                         batch["z_log_probs"],
-                        advantages,
+                        strat_adv,
                         resample,
                         clip_range=float(self.clip_range),
                         coef=float(self.latent_strategy_ppo_coef),
                         device=self.device,
                     )
-                    strategy_policy_loss = strategy_ppo_stats.pop("policy_loss")
+                    # Default to a zero tensor so unit tests that mock
+                    # ``_latent_strategy_ppo_loss`` with a minimal return value
+                    # (e.g. an empty stats dict) do not KeyError. The real
+                    # production path always populates this key.
+                    strategy_policy_loss = strategy_ppo_stats.pop(
+                        "policy_loss", torch.zeros((), dtype=torch.float32, device=self.device)
+                    )
                     strategy_aux_return_loss_value = 0.0
                     if bool(resample.any().item()):
                         latent_loss = latent_loss + strategy_policy_loss_scaled
@@ -1890,6 +2022,7 @@ class CustomPPOTrainer:
         self.last_stats["return_norm_std"] = float(self._return_norm_std()) if self.normalize_returns else 0.0
         self.last_stats["return_norm_count"] = float(self._return_norm_count) if self.normalize_returns else 0.0
         self.last_stats.update(self._strategy_resample_advantage_stats(buffer))
+        self.last_stats.update(self._latent_option_advantage_stats(buffer))
         self.last_stats.update(self._rollout_advantage_diagnostics(buffer))
         self.last_stats.update(self._latent_rollout_stats(buffer))
         self.last_stats.update(self._latent_opponent_rollout_diag(buffer))

@@ -13,7 +13,10 @@ from torch.distributions import Categorical
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import TemporalStateTracker, CONTEXT_STATE_DIM
 from rl.latent_phase_labels import TEAM_PHASES
-from rl.custom_ppo.policy import SharedActorCentralizedCritic
+from rl.custom_ppo.policy import (
+    SharedActorCentralizedCritic,
+    remap_legacy_actor_state_dict_keys,
+)
 
 from macro_actions import MacroAction
 
@@ -139,8 +142,21 @@ def _remap_legacy_strategy_aux_head_state_dict(sd: Mapping[str, Any]) -> dict[st
 
 
 def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> None:
-    """Load checkpoints while allowing the new opt-in episode baseline head to be absent in older files."""
-    result = model.load_state_dict(_remap_legacy_strategy_aux_head_state_dict(sd), strict=False)
+    """Load checkpoints while allowing the new opt-in episode baseline head to be absent in older files.
+
+    Two layers of legacy compat run before ``load_state_dict``:
+
+    1. :func:`_remap_legacy_strategy_aux_head_state_dict` — old
+       ``strategy_q_head.*`` → new ``strategy_aux_return_head.*``.
+    2. :func:`remap_legacy_actor_state_dict_keys` — pre-composition
+       ``actor_body.*``/``actor_head.*``/``strategy_embedding.*`` → composed
+       ``latent_actor.body.*``/``latent_actor.action_head.*``/``latent_actor.strategy_embedding.*``.
+
+    Both helpers are idempotent so already-migrated state dicts pass through.
+    """
+    aux_remapped = _remap_legacy_strategy_aux_head_state_dict(sd)
+    actor_remapped = remap_legacy_actor_state_dict_keys(aux_remapped)
+    result = model.load_state_dict(actor_remapped, strict=False)
     missing = list(getattr(result, "missing_keys", []))
     unexpected = list(getattr(result, "unexpected_keys", []))
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
