@@ -7,6 +7,7 @@ import sys
 import warnings
 from collections import deque
 from dataclasses import asdict
+from functools import partial
 from typing import Any, Dict, Iterable, Mapping, Optional
 
 import numpy as np
@@ -61,8 +62,6 @@ from rl.custom_ppo.inference import (
     _torch_load_checkpoint,
     _assert_compatible_global_state_dim,
     apply_deterministic_sampling_generators,
-    _effective_latent_aux_return_head,
-    _effective_latent_aux_return_coef,
     _remap_legacy_strategy_aux_head_state_dict,
     _load_model_state_dict_compat,
     _model_kwargs_from_cfg,
@@ -427,89 +426,7 @@ class CustomPPOTrainer:
                     "Opponent pool training (mode=OPPONENT_POOL or opponent_randomize) requires a non-empty "
                     "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
                 )
-            self.env._before_reset_indices_hook = self._hook_sample_training_opponent_before_reset
-
-    # CSV Delegation stubs
-    def _write_csv_row(self, *args, **kwargs):
-        return _write_csv_row(*args, **kwargs)
-
-    def _ensure_additive_csv_header(self, *args, **kwargs):
-        return _ensure_additive_csv_header(*args, **kwargs)
-
-    def _episode_fieldnames(self, *args, **kwargs):
-        return _episode_fieldnames(*args, **kwargs)
-
-    def _update_fieldnames(self, *args, **kwargs):
-        return _update_fieldnames(self.use_latent_strategy, self.latent_k)
-
-    def _strategy_experience_fieldnames(self, *args, **kwargs):
-        return _strategy_experience_fieldnames(*args, **kwargs)
-
-    def _opponent_id_int_from_info(self, info):
-        return _opponent_id_int_from_info(self.cfg, info)
-
-    def _opponent_id_csv_from_info(self, info):
-        return _opponent_id_csv_from_info(self.cfg, info)
-
-    def _opponent_legend(self, info):
-        return _opponent_legend(self.cfg, info)
-
-    # Telemetry and diagnostics delegation stubs
-    def _latent_rollout_stats(self, buffer):
-        return _latent_rollout_stats(self, buffer)
-
-    def _latent_opponent_rollout_diag(self, buffer):
-        return _latent_opponent_rollout_diag(self, buffer)
-
-    def _behavior_diversity_stats(self, buffer):
-        return _behavior_diversity_stats(self, buffer)
-
-    def _forced_z_behavior_profile(self, buffer):
-        return _forced_z_behavior_profile(self, buffer)
-
-    def _strategy_resample_advantage_stats(self, buffer):
-        return _strategy_resample_advantage_stats(self, buffer)
-
-    def _latent_option_advantage_stats(self, buffer):
-        return _latent_option_advantage_stats(self, buffer)
-
-    def _rollout_advantage_diagnostics(self, buffer):
-        return _rollout_advantage_diagnostics(self, buffer)
-
-    def _strategy_experience_bucket_ids(self, context_state):
-        return _strategy_experience_bucket_ids(context_state)
-
-    def _write_strategy_experience_table(self):
-        return _write_strategy_experience_table(self)
-
-    # Curriculum delegation stubs
-    def _set_curriculum_opponent(self, phase, env_index=None):
-        return _set_curriculum_opponent(self, phase, env_index)
-
-    def _update_curriculum_after_episode(self, info, blue_score, red_score, env_index):
-        return _update_curriculum_after_episode(self, info=info, blue_score=blue_score, red_score=red_score, env_index=env_index)
-
-    def _hook_sample_training_opponent_before_reset(self, done, infos):
-        return _hook_sample_training_opponent_before_reset(self, done, infos)
-
-    # Return normalization delegation stubs
-    def _return_norm_std(self):
-        return _return_norm_std(self)
-
-    def _normalize_value_targets(self, returns):
-        return _normalize_value_targets(self, returns)
-
-    def _denormalize_values(self, values):
-        return _denormalize_values(self, values)
-
-    def _update_return_norm_stats(self, returns):
-        return _update_return_norm_stats(self, returns)
-
-    def _update_strategy_return_stats(self, buffer):
-        return _update_strategy_return_stats(self, buffer)
-
-    def _normalize_strategy_returns(self, returns):
-        return _normalize_strategy_returns(self, returns)
+            self.env._before_reset_indices_hook = partial(_hook_sample_training_opponent_before_reset, self)
 
     def _reward_shaping_coef(self) -> float:
         if self.reward_shaping_decay_steps <= 0:
@@ -695,7 +612,7 @@ class CustomPPOTrainer:
         if self._e3_writer is None:
             d = os.path.dirname(os.path.abspath(path)) or "."
             os.makedirs(d, exist_ok=True)
-            self._ensure_additive_csv_header(path, fields)
+            _ensure_additive_csv_header(path, fields)
             needs_header = not (os.path.isfile(path) and os.path.getsize(path) > 0)
             self._e3_file = open(path, "a", newline="", encoding="utf-8")
             self._e3_writer = csv.DictWriter(self._e3_file, fieldnames=fields, extrasaction="ignore")
@@ -722,7 +639,7 @@ class CustomPPOTrainer:
                 "team_phase": team_phase_label_from_global_state(gs_e, stalemate_frac=sf),
                 "score_outcome": outcome_label_from_global_state(gs_e),
                 "stalemate_frac": sf,
-                "opponent_id": int(self._opponent_id_int_from_info(info)),
+                "opponent_id": int(_opponent_id_int_from_info(self.cfg, info)),
                 "phase_id": pid,
                 "blue_ahead": float(blue_ahead_np[e]),
                 "spread_bucket": int(spread_bucket_np[e]),
@@ -780,8 +697,8 @@ class CustomPPOTrainer:
             "curriculum_phase": str(info.get("phase", "")),
             "mode": str(getattr(self.cfg, "mode", "FIXED_OPPONENT")),
             "map_set": str(info.get("map_set", getattr(self.cfg, "map_set", "train"))).lower(),
-            "opponent": self._opponent_legend(info),
-            "opponent_id": self._opponent_id_csv_from_info(info),
+            "opponent": _opponent_legend(self.cfg, info),
+            "opponent_id": _opponent_id_csv_from_info(self.cfg, info),
             "success": 1 if blue_score > red_score else 0,
             "blue_score": int(blue_score),
             "red_score": int(red_score),
@@ -804,7 +721,7 @@ class CustomPPOTrainer:
             "reward_failure": float(er.get("reward_failure", info.get("reward_failure", 0.0)) or 0.0),
             "reward_total": float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0),
         }
-        self._write_csv_row(self.episode_csv_path, self._episode_fieldnames(), row)
+        _write_csv_row(self.episode_csv_path, _episode_fieldnames(), row)
 
     @staticmethod
     def _explained_variance(values: torch.Tensor, returns: torch.Tensor) -> float:
@@ -960,9 +877,9 @@ class CustomPPOTrainer:
         else:
             row["strategy_entropy_frac"] = 0.0
             row["strategy_wr_spread"] = 0.0
-        self._write_csv_row(
+        _write_csv_row(
             self.metrics_csv_path,
-            self._update_fieldnames(),
+            _update_fieldnames(self.use_latent_strategy, self.latent_k),
             row,
             legacy_column_fill=_METRICS_CSV_LEGACY_COLUMN_FILL,
         )
@@ -999,7 +916,7 @@ class CustomPPOTrainer:
                 "win_margin": int(bs) - int(rs),
                 "success": success,
                 "latent_z": latent_z,
-                "opponent_id": int(self._opponent_id_int_from_info(info)),
+                "opponent_id": int(_opponent_id_int_from_info(self.cfg, info)),
             }
         )
         self._recent_episode_successes.append(success)
@@ -1011,7 +928,7 @@ class CustomPPOTrainer:
             rollout_step=rollout_step,
             latent_z=latent_z,
         )
-        self._update_curriculum_after_episode(info=info, blue_score=bs, red_score=rs, env_index=env_index)
+        _update_curriculum_after_episode(self, info=info, blue_score=bs, red_score=rs, env_index=env_index)
         every = int(getattr(self.cfg, "episode_log_every", 0) or 0)
         if every > 0 and self._episodes_completed % every == 0:
             self._print_episode_progress(info)
@@ -1053,7 +970,7 @@ class CustomPPOTrainer:
         w, l, d = self._ep_wins, self._ep_losses, self._ep_draws
         wr = 100.0 * float(w) / float(max(1, w + l + d))
         mode = str(getattr(self.cfg, "mode", "FIXED_OPPONENT"))
-        opp = self._opponent_legend(info)
+        opp = _opponent_legend(self.cfg, info)
         print(
             f"[PPO] ep={n} mode={mode} opp={opp} "
             f"W={w} L={l} D={d} WR={wr:.1f}%"
@@ -1106,7 +1023,7 @@ class CustomPPOTrainer:
             return
         idx = torch.where(start_mask)[0]
         probs = torch.softmax(z_logits.detach(), dim=-1)
-        buckets = self._strategy_experience_bucket_ids(global_state.index_select(0, idx)).detach()
+        buckets = _strategy_experience_bucket_ids(global_state.index_select(0, idx)).detach()
         self._episode_strategy_state[idx] = global_state.index_select(0, idx).detach()
         self._episode_strategy_z[idx] = z_idx.index_select(0, idx).detach()
         self._episode_strategy_log_prob[idx] = z_log_prob.index_select(0, idx).detach()
@@ -1464,7 +1381,7 @@ class CustomPPOTrainer:
         gs = torch.as_tensor(np.stack(rows, axis=0), dtype=torch.float32, device=self.device)
         with torch.no_grad():
             if not self.use_latent_strategy:
-                return self._denormalize_values(self.model.values(gs))
+                return _denormalize_values(self, self.model.values(gs))
             
             done_t = torch.as_tensor(dones, dtype=torch.bool, device=self.device) if dones is not None else None
             next_context_gs_t = self.temporal_tracker.update(gs, dones=done_t)
@@ -1487,7 +1404,7 @@ class CustomPPOTrainer:
                 deterministic=True,
                 z_idx=next_z,
             )
-            next_values = self._denormalize_values(next_values)
+            next_values = _denormalize_values(self, next_values)
             terminated = torch.as_tensor(
                 [bool(info.get("terminated", False)) for info in infos],
                 dtype=torch.bool,
@@ -1523,7 +1440,7 @@ class CustomPPOTrainer:
             with torch.no_grad():
                 z_t, prev_z_t, strategy_aux = self._strategy_for_step(context_state)
                 actions_t, values_norm_t, action_log_probs_t, _ = self.model.act(obs_t, context_state, z_idx=z_t)
-                values_t = self._denormalize_values(values_norm_t)
+                values_t = _denormalize_values(self, values_norm_t)
                 log_probs_t = action_log_probs_t
             actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
             beh_t = sb = rb = pb = adb = blue_ahead_t = None
@@ -1599,7 +1516,7 @@ class CustomPPOTrainer:
                     self._episode_strategy_has_start[done_t] = False
 
             opp_row = torch.as_tensor(
-                [self._opponent_id_int_from_info(dict(info)) for info in infos],
+                [_opponent_id_int_from_info(self.cfg, dict(info)) for info in infos],
                 dtype=torch.long,
                 device=self.device,
             )
@@ -1783,7 +1700,7 @@ class CustomPPOTrainer:
                     buffer.register_field("option_advantages")
                 buffer.fields["option_returns"].copy_(option_returns)
                 buffer.fields["option_advantages"].copy_(option_advantages)
-        self._update_return_norm_stats(buffer.fields["returns"][: int(buffer.pos)])
+        _update_return_norm_stats(self, buffer.fields["returns"][: int(buffer.pos)])
         self._last_obs = obs
         self._last_global_state = global_state
         return buffer
@@ -1799,7 +1716,7 @@ class CustomPPOTrainer:
         latent_lam_h_start = max(0.0, float(getattr(self.cfg, "latent_lam_h", 0.0) or 0.0))
         latent_lam_h_end = min(latent_lam_h_start, 0.001)
         latent_lam_h = latent_lam_h_end + (latent_lam_h_start - latent_lam_h_end) * progress_remaining
-        self._update_strategy_return_stats(buffer)
+        _update_strategy_return_stats(self, buffer)
 
         stats: dict[str, list[float]] = {
             "policy_loss": [],
@@ -1926,7 +1843,7 @@ class CustomPPOTrainer:
                         latent_loss = latent_loss + strategy_policy_loss_scaled
                         if self.latent_strategy_aux_return_head and self.latent_strategy_aux_return_coef > 0.0:
                             pred_all = self.model.strategy_aux_return_predictions(batch["global_state"])
-                            ret_target = self._normalize_strategy_returns(batch["returns"][resample])
+                            ret_target = _normalize_strategy_returns(self, batch["returns"][resample])
                             aux_return_loss_scaled, aux_return_stats = _latent_strategy_aux_return_loss(
                                 pred_all,
                                 batch["z"],
@@ -1952,7 +1869,7 @@ class CustomPPOTrainer:
                     advantages,
                     self.clip_range,
                 )
-                value_targets = self._normalize_value_targets(batch["returns"])
+                value_targets = _normalize_value_targets(self, batch["returns"])
                 value_loss = ppo_value_loss(values_norm, batch["values_norm"], value_targets, self.value_clip_range)
                 entropy_loss = -entropy.mean()
                 loss = policy_loss + self.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
@@ -1991,7 +1908,7 @@ class CustomPPOTrainer:
                 break
 
         episode_strategy_stats = self._apply_episode_strategy_ppo(latent_lam_h=latent_lam_h)
-        strategy_experience_stats = self._write_strategy_experience_table()
+        strategy_experience_stats = _write_strategy_experience_table(self)
 
         self.last_stats = {name: float(np.mean(values)) if values else 0.0 for name, values in stats.items()}
         value_losses = np.asarray(stats["value_loss"], dtype=np.float32)
@@ -2019,15 +1936,15 @@ class CustomPPOTrainer:
             )
         self.last_stats["learning_rate"] = float(lr)
         self.last_stats["return_norm_mean"] = float(self._return_norm_mean) if self.normalize_returns else 0.0
-        self.last_stats["return_norm_std"] = float(self._return_norm_std()) if self.normalize_returns else 0.0
+        self.last_stats["return_norm_std"] = float(_return_norm_std(self)) if self.normalize_returns else 0.0
         self.last_stats["return_norm_count"] = float(self._return_norm_count) if self.normalize_returns else 0.0
-        self.last_stats.update(self._strategy_resample_advantage_stats(buffer))
-        self.last_stats.update(self._latent_option_advantage_stats(buffer))
-        self.last_stats.update(self._rollout_advantage_diagnostics(buffer))
-        self.last_stats.update(self._latent_rollout_stats(buffer))
-        self.last_stats.update(self._latent_opponent_rollout_diag(buffer))
-        self.last_stats.update(self._behavior_diversity_stats(buffer))
-        self.last_stats.update(self._forced_z_behavior_profile(buffer))
+        self.last_stats.update(_strategy_resample_advantage_stats(self, buffer))
+        self.last_stats.update(_latent_option_advantage_stats(self, buffer))
+        self.last_stats.update(_rollout_advantage_diagnostics(self, buffer))
+        self.last_stats.update(_latent_rollout_stats(self, buffer))
+        self.last_stats.update(_latent_opponent_rollout_diag(self, buffer))
+        self.last_stats.update(_behavior_diversity_stats(self, buffer))
+        self.last_stats.update(_forced_z_behavior_profile(self, buffer))
         self.last_stats.update(episode_strategy_stats)
         self.last_stats.update(strategy_experience_stats)
         return self.last_stats

@@ -7,6 +7,8 @@ from gymnasium import spaces
 from game_field_gpu import VEC_OBS_DIM
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo import SharedActorCentralizedCritic
+from rl.custom_ppo.csv_writers import _update_fieldnames
+from rl.custom_ppo.latent_diagnostics import _latent_opponent_rollout_diag
 from rl.latent_marl import (
     LatentConditionedActor,
     StrategyEncoder,
@@ -360,7 +362,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
             )
             
         buffer.pos = 10
-        out = trainer._latent_opponent_rollout_diag(buffer)
+        out = _latent_opponent_rollout_diag(trainer, buffer)
         
         self.assertIn("latent_mi_z_flag_state_nats", out)
         self.assertIn("latent_switch_near_capture_frac", out)
@@ -374,7 +376,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         self.assertIn("latent_spread_diversity", out)
         self.assertIn("latent_pressure_diversity", out)
         self.assertIn("latent_adr_diversity", out)
-        fields = trainer._update_fieldnames()
+        fields = _update_fieldnames(trainer.use_latent_strategy, trainer.latent_k)
         self.assertIn("latent_mi_z_flag_state_nats", fields)
         self.assertIn("latent_switch_near_capture_frac", fields)
         self.assertIn("latent_flag_state1_z1_frac", fields)

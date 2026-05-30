@@ -68,7 +68,10 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
     payload = _torch_load_checkpoint(path, map_location="cpu")
     if not isinstance(payload, dict) or "model_state_dict" not in payload:
         raise ValueError("Not a custom PPO checkpoint.")
-    cfg = payload.get("cfg") or {}
+    raw_cfg = payload.get("cfg") or {}
+    # Canonicalize once at the read boundary so every downstream consumer of
+    # the returned metadata can read ``latent_strategy_aux_return_*`` directly.
+    cfg = canonicalize_latent_strategy_cfg(raw_cfg) if isinstance(raw_cfg, dict) else raw_cfg
     fmt = str(payload.get("format", "custom_ppo_v2"))
     meta: dict[str, Any] = {
         "format": fmt,
@@ -94,22 +97,61 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
     return meta
 
 
+# ----------------------------------------------------------------------
+# Legacy config-key canonicalization for the latent strategy aux-return head.
+#
+# Older checkpoints and CLI flags used ``latent_strategy_q_head`` /
+# ``latent_strategy_q_coef``. The canonical names are
+# ``latent_strategy_aux_return_head`` / ``latent_strategy_aux_return_coef``;
+# they reflect that q_phi(z|s) is **not** an action-value Q-function but an
+# auxiliary per-z return regression head. All downstream code (trainer, model
+# kwargs, snapshots) reads only the canonical names — legacy keys are folded
+# in ONCE here, at the config-load boundary, instead of every reader
+# repeatedly running ``getattr(..., "latent_strategy_q_*")`` fallbacks.
+# ----------------------------------------------------------------------
+
+_LATENT_STRATEGY_LEGACY_KEY_MAP: tuple[tuple[str, str], ...] = (
+    ("latent_strategy_q_head", "latent_strategy_aux_return_head"),
+    ("latent_strategy_q_coef", "latent_strategy_aux_return_coef"),
+)
+
+
+def canonicalize_latent_strategy_cfg(cfg: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``cfg`` with legacy aux-return keys folded into canonical names.
+
+    Idempotent: passing an already-canonical dict returns an equivalent copy.
+    If both a legacy and canonical key are present the canonical key wins (i.e.
+    a newer in-place fix takes precedence over a still-present legacy alias).
+    """
+    out: dict[str, Any] = dict(cfg)
+    for legacy_key, canonical_key in _LATENT_STRATEGY_LEGACY_KEY_MAP:
+        if legacy_key in out and canonical_key not in out:
+            out[canonical_key] = out[legacy_key]
+        out.pop(legacy_key, None)
+    return out
+
+
 def _effective_latent_aux_return_head(cfg: Any) -> bool:
-    """Whether A2 auxiliary per-z return head is enabled (new or legacy checkpoint / config keys)."""
-    if isinstance(cfg, dict):
-        if "latent_strategy_aux_return_head" in cfg:
-            return bool(cfg["latent_strategy_aux_return_head"])
-        return bool(cfg.get("latent_strategy_q_head", False))
+    """Whether the aux-return head is enabled.
+
+    Accepts canonical or legacy cfg shape (mapping or object). After Step 5
+    new callers should canonicalize once with
+    :func:`canonicalize_latent_strategy_cfg` and then read the canonical
+    attribute directly; this wrapper exists for the boundary helpers that
+    still receive an unvalidated mapping/object.
+    """
+    if isinstance(cfg, Mapping):
+        canonical = canonicalize_latent_strategy_cfg(cfg)
+        return bool(canonical.get("latent_strategy_aux_return_head", False))
     return bool(getattr(cfg, "latent_strategy_aux_return_head", False)) or bool(
         getattr(cfg, "latent_strategy_q_head", False)
     )
 
 
 def _effective_latent_aux_return_coef(cfg: Any) -> float:
-    if isinstance(cfg, dict):
-        if "latent_strategy_aux_return_coef" in cfg:
-            return max(0.0, float(cfg["latent_strategy_aux_return_coef"] or 0.0))
-        return max(0.0, float(cfg.get("latent_strategy_q_coef", 1.0) or 0.0))
+    if isinstance(cfg, Mapping):
+        canonical = canonicalize_latent_strategy_cfg(cfg)
+        return max(0.0, float(canonical.get("latent_strategy_aux_return_coef", 0.0) or 0.0))
     return max(
         0.0,
         float(
@@ -171,6 +213,7 @@ def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> No
 def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
     if not isinstance(cfg, dict):
         return {}
+    cfg = canonicalize_latent_strategy_cfg(cfg)
     kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
     }
@@ -181,7 +224,9 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
                 "strategy_hidden_dim": int(cfg.get("latent_strategy_hidden", 128)),
                 "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
-                "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
+                "use_strategy_aux_return_head": bool(
+                    cfg.get("latent_strategy_aux_return_head", False)
+                ),
                 "use_episode_strategy_value_head": bool(cfg.get("latent_episode_strategy_ppo", False)),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
             }
@@ -223,7 +268,14 @@ def load_custom_ppo_policy(
         **_model_kwargs_from_cfg(payload.get("cfg") or {}),
     ).to(device_t)
     _load_model_state_dict_compat(model, payload["model_state_dict"])
-    ckpt_cfg = payload.get("cfg") or {}
+    raw_ckpt_cfg = payload.get("cfg") or {}
+    # Single canonicalization at the boundary so the inference policy + any
+    # ``cfg``-key consumers see only ``latent_strategy_aux_return_*`` names.
+    ckpt_cfg = (
+        canonicalize_latent_strategy_cfg(raw_ckpt_cfg)
+        if isinstance(raw_ckpt_cfg, dict)
+        else raw_ckpt_cfg
+    )
     if isinstance(ckpt_cfg, dict) and "seed" in ckpt_cfg:
         apply_deterministic_sampling_generators(model, int(ckpt_cfg["seed"]), device=device_t)
     return CustomPPOInferencePolicy(model, device=device_t, cfg=ckpt_cfg)
