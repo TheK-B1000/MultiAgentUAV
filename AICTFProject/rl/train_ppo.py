@@ -597,6 +597,9 @@ def _apply_training_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
         cfg.latent_use_film = True
         cfg.latent_use_dual_critic = True
         cfg.latent_resample_on_flag = True
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = ("OP1", "OP2", "OP3")
         cfg.run_tag = "plan_faithful_latent_phase4a_rescue_hardpool_1m_2v2"
         return cfg
     if key in {"plan_faithful_latent_k1", "latent_plan_faithful_k1", "plan_faithful_collapsed_latent", "latent_recommended_collapsed_k1"}:

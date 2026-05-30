@@ -450,6 +450,10 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
                 "use_strategy_aux_return_head": _effective_latent_aux_return_head(cfg),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
+                # Phase 4A architecture flags. Older checkpoints lack these keys; defaults to False
+                # keep load behavior identical for pre-Phase-4A runs.
+                "latent_use_film": bool(cfg.get("latent_use_film", False)),
+                "latent_use_dual_critic": bool(cfg.get("latent_use_dual_critic", False)),
             }
         )
     return kwargs

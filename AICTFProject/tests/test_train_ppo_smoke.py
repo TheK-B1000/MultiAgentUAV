@@ -657,6 +657,65 @@ class TrainPpoSmokeTests(unittest.TestCase):
             env.close()
             env2.close()
 
+    def test_train_ppo_smoke_phase4a_rescue(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "unittest_smoke_phase4a_rescue_2v2"
+        cfg = _smoke_ppo_config(run_tag=tag, checkpoint_dir=str(_WORKSPACE_TMP))
+        # Apply the preset configuration
+        cfg = _apply_training_preset(cfg, "plan_faithful_latent_phase4a_rescue")
+        # Override fields to keep the smoke test fast
+        cfg.total_timesteps = 8
+        cfg.n_envs = 1
+        cfg.n_steps = 8
+        cfg.batch_size = 8
+        cfg.n_epochs = 1
+        cfg.device = "cpu"
+        cfg.enable_tensorboard = False
+        cfg.enable_checkpoints = False
+        cfg.enable_eval = False
+        cfg.verbose_training = False
+        cfg.max_blue_agents = 2
+        cfg.gpu_native_env = True
+        cfg.run_tag = tag
+        cfg.enable_progress_bar = False
+
+        self.assertTrue(cfg.use_latent_strategy)
+        self.assertTrue(cfg.latent_use_film)
+        self.assertTrue(cfg.latent_use_dual_critic)
+        self.assertTrue(cfg.latent_resample_on_flag)
+        self.assertEqual(cfg.mode, "OPPONENT_POOL")
+        self.assertTrue(cfg.opponent_randomize)
+
+        final_zip = _WORKSPACE_TMP / f"final_{tag}.zip"
+        env = None
+        try:
+            train_ppo(cfg)
+            self.assertTrue(final_zip.is_file())
+            
+            # Check metadata
+            meta = read_custom_ppo_metadata(str(final_zip))
+            self.assertEqual(meta["format"], CUSTOM_PPO_LATENT_FORMAT)
+            self.assertTrue(meta["use_latent_strategy"])
+            self.assertTrue(meta["cfg"].get("latent_use_film"))
+            self.assertTrue(meta["cfg"].get("latent_use_dual_critic"))
+            self.assertEqual(meta["latent_k"], cfg.latent_k)
+            
+            # Check policy loading and inference
+            env = GPUCTFVecEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=777))
+            obs = env.reset()
+            obs["global_state"] = env.state()
+            policy = load_custom_ppo_policy(str(final_zip), env.observation_space, env.action_space, device="cpu")
+            actions, _ = policy.predict(obs, deterministic=True)
+            self.assertEqual(actions.shape, (4,))
+            info = policy.strategy_info()
+            self.assertIn("strategy", info)
+            self.assertTrue(policy.model.latent_use_film)
+            self.assertTrue(policy.model.latent_use_dual_critic)
+        finally:
+            if env is not None:
+                env.close()
+            _cleanup_training_outputs(tag)
+
 
 if __name__ == "__main__":
     unittest.main()
