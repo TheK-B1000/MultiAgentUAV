@@ -79,6 +79,7 @@ class TrainerHyperparams:
     latent_episode_strategy_value_coef: float
     latent_episode_strategy_return_norm: bool
     latent_episode_strategy_warmup_decision_steps: int
+    latent_q_phi_marginal_baseline: bool
     latent_strategy_aux_return_coef: float
     latent_strategy_aux_return_head: bool
     latent_strategy_aux_predict_phase_coef: float
@@ -214,6 +215,9 @@ class TrainerHyperparams:
             latent_episode_strategy_warmup_decision_steps=max(
                 0,
                 int(getattr(cfg, "latent_episode_strategy_warmup_decision_steps", 0) or 0),
+            ),
+            latent_q_phi_marginal_baseline=bool(
+                getattr(cfg, "latent_q_phi_marginal_baseline", False)
             ),
             # Canonical attribute access only — legacy ``latent_strategy_q_*`` keys are
             # folded at the config-load boundary (see

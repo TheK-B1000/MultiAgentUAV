@@ -51,6 +51,7 @@ from torch.distributions import Categorical
 
 from rl.ppo_core import ppo_policy_loss
 from rl.global_state import GLOBAL_STATE_DIM
+from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
 
 if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
@@ -158,6 +159,7 @@ class LatentStrategyState:
         strategy_prob_width = max(1, int(trainer.latent_k))
 
         self.episode_return_accum = torch.zeros((n_envs,), dtype=torch.float32, device=device)
+        self.episode_return_baseline_at_commit = torch.zeros((n_envs,), dtype=torch.float32, device=device)
         self.episode_strategy_state = torch.zeros(
             (n_envs, int(trainer.model.global_state_dim)), dtype=torch.float32, device=device
         )
@@ -217,6 +219,7 @@ class LatentStrategyState:
             trainer.temporal_tracker.reset()
         trainer._last_context_state = None
         self.episode_return_accum.zero_()
+        self.episode_return_baseline_at_commit.zero_()
         self.episode_strategy_has_start.zero_()
         self.episode_strategy_recorder.reset()
         self.steps_since_ep_start.zero_()
@@ -298,17 +301,15 @@ class LatentStrategyState:
         if trainer.latent_resample_every_n > 0:
             resample_mask |= self.strategy_age >= trainer.latent_resample_every_n
 
-        # Episode-credit warmup: defer the committed z snapshot until ctx170 EMAs
+        # Warmup: defer the committed z snapshot until ctx170 EMAs
         # have observed a few decision steps of opponent behavior. The provisional
-        # z chosen at step 0 still drives actions during the warmup window, but it
-        # is *not* snapshotted for q_phi credit -- we force a resample at the
-        # commit step and snapshot that (context, z) pair instead. Without this
-        # guard, q_phi's per-episode credit is fed a structurally opponent-blind
-        # context (raw initial geometry + zeroed EMAs), upper-bounding MI(z; ·).
+        # z chosen at step 0 still drives actions during the warmup window, but we
+        # force a resample at the commit step and snapshot/train on that committed
+        # (context, z) pair instead. Without this guard, q_phi is fed a structurally
+        # opponent-blind context (raw initial geometry + zeroed EMAs) at step 0.
         warmup = int(getattr(trainer, "latent_episode_strategy_warmup_decision_steps", 0) or 0)
-        episode_credit_on = bool(getattr(trainer, "latent_episode_strategy_ppo", False))
         commit_now = torch.zeros_like(episode_start_mask)
-        if episode_credit_on and warmup > 0:
+        if warmup > 0:
             commit_now = (
                 (self.steps_since_ep_start == warmup)
                 & (~self.episode_strategy_committed)
@@ -338,24 +339,28 @@ class LatentStrategyState:
 
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
-        # Snapshot the q_phi training (state, z, log_prob) pair for episode-credit:
+        # Snapshot the q_phi training (state, z, log_prob) pair:
         # - warmup == 0: legacy behavior, snapshot at episode start (step 0)
         # - warmup  > 0: snapshot at the commit step, after the EMA window
-        if episode_credit_on and warmup > 0:
+        if warmup > 0:
             snapshot_mask = commit_now
         else:
             snapshot_mask = episode_start_mask
-        # Only track the warmup bookkeeping when episode-credit is the consumer.
-        # ``episode_strategy_committed`` is a guard against double-commits inside
-        # episode-credit mode; when episode-credit is off it must stay False so
-        # the state machine matches the legacy contract.
-        if episode_credit_on and bool(snapshot_mask.any().item()):
+
+        # Track the warmup bookkeeping.
+        if bool(snapshot_mask.any().item()):
             self.episode_strategy_committed |= snapshot_mask
             self.first_z_sample_step = torch.where(
                 snapshot_mask,
                 self.steps_since_ep_start,
                 self.first_z_sample_step,
             )
+            if warmup > 0:
+                self.episode_return_baseline_at_commit = torch.where(
+                    snapshot_mask,
+                    self.episode_return_accum,
+                    self.episode_return_baseline_at_commit,
+                )
         self.store_episode_strategy_start(
             start_mask=snapshot_mask,
             global_state=global_state,
@@ -364,13 +369,20 @@ class LatentStrategyState:
             z_logits=z_logits,
         )
 
+        # Exclude step 0 from q_phi PPO training when warmup is active.
+        # z_resampled means "eligible for q_phi training", not merely "sampled a latent"
+        training_resample_mask = resample_mask.clone()
+        if warmup > 0:
+            training_resample_mask = training_resample_mask & (~episode_start_mask)
+
         aux = {
             "z": z_idx,
             "prev_z": prev_z,
             "z_log_prob": z_log_prob,
             "z_entropy": z_entropy,
             "z_logits": z_logits,
-            "z_resampled": resample_mask,
+            "z_resampled": training_resample_mask,
+            "z_resampled_actual": resample_mask,
             "z_persist_mask": persist_mask,
         }
         return z_idx, prev_z, aux
@@ -389,6 +401,7 @@ class LatentStrategyState:
             self.steps_since_ep_start[done_t] = 0
             self.episode_strategy_committed[done_t] = False
             self.first_z_sample_step[done_t] = -1
+            self.episode_return_baseline_at_commit[done_t] = 0.0
 
     # ------------------------------------------------------------------
     # Episode outcome → completed-record buffer
@@ -414,9 +427,16 @@ class LatentStrategyState:
         bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
         rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
         episode_win = 1 if bs > rs else 0
+        warmup = int(getattr(trainer, "latent_episode_strategy_warmup_decision_steps", 0) or 0)
+        if warmup > 0:
+            baseline = float(self.episode_return_baseline_at_commit[env_i].detach().cpu().item())
+            adjusted_return = episode_return - baseline
+        else:
+            adjusted_return = episode_return
+
         record = self.episode_strategy_recorder.record_outcome(
             env_index=env_i,
-            episode_return=float(episode_return),
+            episode_return=float(adjusted_return),
             episode_win=episode_win,
         )
         if record is not None:
@@ -429,7 +449,7 @@ class LatentStrategyState:
                 "global_state_0": self.episode_strategy_state[env_i].detach().clone(),
                 "z": int(self.episode_strategy_z[env_i].detach().cpu().item()),
                 "z_logprob_old": float(self.episode_strategy_log_prob[env_i].detach().cpu().item()),
-                "episode_return": float(episode_return),
+                "episode_return": float(adjusted_return),
                 "episode_win": episode_win,
                 "bucket_id": int(self.episode_strategy_bucket[env_i].detach().cpu().item()),
                 "q_phi_probs": [float(x) for x in probs],
@@ -457,6 +477,11 @@ class LatentStrategyState:
             "latent_episode_clip_fraction": 0.0,
             "latent_episode_count": 0.0,
             "latent_episode_loss": 0.0,
+            "strategy_entropy_resample_mean": 0.0,
+            "qphi_margin_resample_mean": 0.0,
+            "episode_credit_grad_norm": 0.0,
+            "episode_credit_adv_mean": 0.0,
+            "episode_credit_adv_std": 0.0,
         }
 
     def episode_strategy_training_batch(self) -> Optional[dict[str, torch.Tensor]]:
@@ -502,7 +527,25 @@ class LatentStrategyState:
         dist = Categorical(logits=logits)
         new_log_prob = dist.log_prob(z)
         v_z = trainer.model.episode_strategy_value(states, z)
-        adv = episode_returns - v_z.detach()
+
+        # q_phi advantage baseline. Legacy default (False) uses V(s, z_picked), which
+        # mathematically cancels the cross-z signal q_phi needs to specialize (the
+        # centralized critic absorbs E[R | s, z] before the router ever sees the
+        # gradient). When ``latent_q_phi_marginal_baseline`` is enabled, the baseline
+        # is the variance-optimal AAC formula E_{z' ~ q_phi}[V(s, z')], so the
+        # advantage encodes "this z vs the average available z in this context".
+        # The marginal helper already returns a detached tensor; the explicit
+        # ``.detach()`` on the legacy branch keeps the value head's gradient route
+        # exclusively through ``v_loss``, never through the baseline path.
+        if getattr(trainer.cfg, "latent_q_phi_marginal_baseline", False):
+            from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
+            v_baseline = compute_z_marginal_strategy_value(
+                trainer.model, states, trainer.latent_k, policy_weighted=False
+            )
+        else:
+            v_baseline = v_z.detach()
+
+        adv = episode_returns - v_baseline
         if trainer.latent_episode_strategy_return_norm and adv.numel() > 1:
             adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
 
@@ -527,11 +570,18 @@ class LatentStrategyState:
 
         trainer.optimizer.zero_grad(set_to_none=True)
         loss.backward()
+        episode_credit_grad_norm = self.strategy_encoder_grad_norm()
         torch.nn.utils.clip_grad_norm_(trainer.model.parameters(), float(trainer.cfg.max_grad_norm))
         trainer.optimizer.step()
 
         ratio = ppo_stats["ratio"].detach().float()
         with torch.no_grad():
+            probs = torch.softmax(logits, dim=-1)
+            chosen_probs = probs.gather(dim=-1, index=z.unsqueeze(-1)).squeeze(-1)
+            margin_resample = chosen_probs - (1.0 / trainer.latent_k)
+            qphi_margin_resample_mean = float(margin_resample.mean().detach().cpu().item())
+            strategy_entropy_resample_mean = float(z_entropy.detach().cpu().item())
+
             stats.update(
                 {
                     "latent_episode_pg_loss": float(pg_loss.detach().cpu().item()),
@@ -552,6 +602,13 @@ class LatentStrategyState:
                     "latent_episode_clip_fraction": float(ppo_stats["clip_fraction"].detach().cpu().item()),
                     "latent_episode_count": float(episode_returns.numel()),
                     "latent_episode_loss": float(loss.detach().cpu().item()),
+                    "strategy_entropy_resample_mean": strategy_entropy_resample_mean,
+                    "qphi_margin_resample_mean": qphi_margin_resample_mean,
+                    "episode_credit_grad_norm": episode_credit_grad_norm,
+                    "episode_credit_adv_mean": float(adv.detach().mean().cpu().item()),
+                    "episode_credit_adv_std": float(
+                        adv.detach().std(unbiased=False).cpu().item()
+                    ) if adv.numel() > 1 else 0.0,
                 }
             )
         return stats

@@ -323,6 +323,13 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_q_phi_option_advantage_std",
             "latent_q_phi_option_advantage_count",
         ])
+        fields.extend([
+            "strategy_entropy_resample_mean",
+            "qphi_margin_resample_mean",
+            "episode_credit_grad_norm",
+            "episode_credit_adv_mean",
+            "episode_credit_adv_std",
+        ])
     return fields
 
 

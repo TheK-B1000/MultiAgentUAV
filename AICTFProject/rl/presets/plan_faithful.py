@@ -143,6 +143,93 @@ def apply_plan_faithful_latent_episode_strategic(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3b_marginal(cfg: PPOConfig) -> PPOConfig:
+    """Episode-credit strategy PPO with uniform marginal baseline.
+
+    Inherits from ``apply_plan_faithful_latent_episode_strategic`` and configures:
+      - ``latent_q_phi_marginal_baseline = True`` (advantage relative to average V over all strategies)
+    """
+    cfg = apply_plan_faithful_latent_episode_strategic(cfg)
+    cfg.latent_q_phi_marginal_baseline = True
+    cfg.run_tag = "latent_v3b_marginal_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_step6(cfg: PPOConfig) -> PPOConfig:
+    """Step 6: option-style q_phi advantage.
+
+    Inherits from apply_plan_faithful_latent_strategic (latent_q_phi_option_advantage = True,
+    latent_strategy_ppo_coef = 0.40) and configures:
+      - warmup5 commit behavior (warmup_decision_steps = 5)
+      - no persistence loss (latent_lam_p = 0.0)
+      - lamH entropy annealing (0.003 -> 0.0005 over steps 200k to 700k)
+    """
+    cfg = apply_plan_faithful_latent_strategic(cfg)
+
+    cfg.latent_resample_every_n = 0
+    cfg.latent_episode_strategy_warmup_decision_steps = 5
+    cfg.latent_lam_p = 0.0
+
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0005
+    cfg.latent_entropy_anneal_start = 200_000
+    cfg.latent_entropy_anneal_end = 700_000
+
+    cfg.run_tag = "latent_step6_optionadv_warmup5_lamHanneal_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3b_marginal(cfg: PPOConfig) -> PPOConfig:
+    """v3b: episode-credit with z-marginal baseline (fixes baseline-eating).
+
+    The v3 episode-credit + warmup + entropy-anneal run held PPO stable
+    (~65% WR, EV 0.61) but produced effectively zero MI(z; opponent) and
+    kept ``zH`` pinned at maximum entropy even after ``lam_h`` annealed
+    to the floor. Code audit identified the math root cause:
+
+        adv_z = R - V(s, z_picked)
+
+    The centralized critic ``V(s, z_picked)`` already absorbs ``E[R | s, z]``,
+    so the advantage that arrives at q_phi is "this z vs its own expectation"
+    -- i.e. mostly within-z policy noise. The cross-z signal q_phi needs to
+    learn from is mathematically subtracted before the gradient is computed.
+
+    v3b applies the variance-optimal AAC fix while keeping everything else
+    identical to v3. ``adv`` now uses a z-marginal baseline:
+
+        adv_z = R - E_{z' ~ q_phi(s)}[V(s, z')] = R - sum_k pi_phi(k|s) * V(s, k)
+
+    so the advantage encodes "this z vs the average available z in this
+    context" -- the exact signal contextual specialization needs.
+
+    Inherits ``apply_plan_faithful_latent_episode_strategic`` (which already
+    has warmup=5, lam_p=0, lam_h anneal 0.003 -> 0.0005 from 200k -> 700k,
+    K=4, ctx170, episode-credit on, per-step coupling off). Flips one knob:
+
+      - ``latent_q_phi_marginal_baseline = True``
+
+    Plan-faithful: no labels, no aux heads, no opponent IDs. Only the
+    baseline math changes.
+
+    Expected first signs of working (per implementation review):
+      ~100k: latent_episode_pg_loss meaningfully nonzero, adv_std > 0.5
+      ~300k: latent_episode_approx_kl consistent in 0.001-0.01 range
+      ~500k: zH_frac drops below 0.95 (q_phi moves off uniform)
+      ~700k: MI(z; opponent) above 0.02 if the fix works
+      ~1M:   WR matches the 65% baseline, MI > 0.02
+
+    If MI is still pinned near 0 by 700k under v3b, the problem is deeper
+    than the baseline -- next experiment becomes V calibration on off-policy
+    z slots (train V(s, z) on all K z per state, not just the picked one)
+    or expand the actor's z-conditioning capacity (z_emb 16 -> 32).
+    """
+    cfg = apply_plan_faithful_latent_episode_strategic(cfg)
+    cfg.latent_q_phi_marginal_baseline = True
+    cfg.run_tag = "latent_v3b_episodecredit_marginalbaseline_warmup5_lamHanneal_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_strategic(cfg: PPOConfig) -> PPOConfig:
     """Plan-faithful primary latent + two anti-decorative-z fixes.
 

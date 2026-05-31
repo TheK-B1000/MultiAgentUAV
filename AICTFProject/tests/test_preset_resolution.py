@@ -105,6 +105,11 @@ class PresetResolutionTests(unittest.TestCase):
             "plan_faithful_latent_episode_strategic",
             "latent_episode_strategic",
             "plan_faithful_latent_intent_credit",
+            # v3b inherits from episode_strategic and only flips the q_phi advantage
+            # baseline from "z-conditioned V" to "policy-marginal V". Episode-credit
+            # stays ON; the marginal baseline lives inside apply_episode_strategy_ppo.
+            "plan_faithful_latent_v3b_marginal",
+            "latent_v3b_marginal",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -115,6 +120,23 @@ class PresetResolutionTests(unittest.TestCase):
                 else:
                     self.assertFalse(cfg["latent_episode_strategy_ppo"])
                     self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.0)
+
+    def test_plan_faithful_latent_step6_config(self) -> None:
+        """Verify that step 6 has the expected option-style q_phi advantage and warmup configuration."""
+        resolved = resolve_all_presets()
+        for key in ("plan_faithful_latent_step6", "latent_step6"):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["latent_q_phi_option_advantage"])
+                self.assertFalse(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_strategy_ppo_coef"], 0.40)
+                self.assertEqual(cfg["latent_episode_strategy_warmup_decision_steps"], 5)
+                self.assertAlmostEqual(cfg["latent_lam_h"], 0.003)
+                self.assertAlmostEqual(cfg["latent_lam_h_start"], 0.003)
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.0005)
+                self.assertEqual(cfg["latent_entropy_anneal_start"], 200_000)
+                self.assertEqual(cfg["latent_entropy_anneal_end"], 700_000)
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.0)
 
 
 if __name__ == "__main__":

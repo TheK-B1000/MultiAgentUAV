@@ -179,7 +179,11 @@ class PPOUpdater:
                         assert persist_stats["persist_term"] == 0.0, (
                             "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off)"
                         )
-                    persist_loss_value = persist_stats["persist_term"]
+                    apply_main_loop_qphi_loss = float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
+                    if not apply_main_loop_qphi_loss:
+                        strategy_entropy_loss = torch.zeros_like(strategy_entropy_loss)
+                        persist_term_loss = torch.zeros_like(persist_term_loss)
+                    persist_loss_value = 0.0 if not apply_main_loop_qphi_loss else persist_stats["persist_term"]
                     latent_loss = persist_term_loss + strategy_entropy_loss
                     if hparams.latent_kl_consecutive > 0.0:
                         kl_loss, kl_stats = _latent_strategy_kl_consecutive_loss(
@@ -188,6 +192,8 @@ class PPOUpdater:
                             batch["z_kl_prev_valid"],
                             coef=float(hparams.latent_kl_consecutive),
                         )
+                        if not apply_main_loop_qphi_loss:
+                            kl_loss = torch.zeros_like(kl_loss)
                         latent_loss = latent_loss + kl_loss
                         stats["strategy_kl"].append(kl_stats["kl_mean"])
                     else:
@@ -201,6 +207,8 @@ class PPOUpdater:
                             batch["phase_id"],
                             coef=float(hparams.latent_strategy_aux_predict_phase_coef),
                         )
+                        if not apply_main_loop_qphi_loss:
+                            phase_loss_scaled = torch.zeros_like(phase_loss_scaled)
                         latent_loss = latent_loss + phase_loss_scaled
                         stats["strategy_phase_loss"].append(phase_stats["phase_term"])
                     else:
@@ -247,6 +255,9 @@ class PPOUpdater:
                         "policy_loss",
                         torch.zeros((), dtype=torch.float32, device=device),
                     )
+                    if not apply_main_loop_qphi_loss:
+                        strategy_policy_loss_scaled = torch.zeros_like(strategy_policy_loss_scaled)
+                        strategy_policy_loss = torch.zeros_like(strategy_policy_loss)
                     strategy_aux_return_loss_value = 0.0
                     if bool(resample.any().item()):
                         latent_loss = latent_loss + strategy_policy_loss_scaled
@@ -280,6 +291,9 @@ class PPOUpdater:
                                 device=device,
                             )
                             strategy_aux_return_loss_value = aux_return_stats["aux_return_term"]
+                            if not apply_main_loop_qphi_loss:
+                                aux_return_loss_scaled = torch.zeros_like(aux_return_loss_scaled)
+                                strategy_aux_return_loss_value = 0.0
                             latent_loss = latent_loss + aux_return_loss_scaled
                 else:
                     strategy_policy_loss = torch.zeros((), dtype=torch.float32, device=device)

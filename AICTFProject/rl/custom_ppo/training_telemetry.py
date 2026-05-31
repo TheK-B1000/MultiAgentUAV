@@ -532,10 +532,14 @@ class TrainingTelemetry:
                 ep_ratio_mn = float(row.get("latent_episode_ratio_min", 1.0) or 1.0)
                 ep_ratio_mx = float(row.get("latent_episode_ratio_max", 1.0) or 1.0)
                 ep_ret_mean = float(row.get("latent_episode_return_mean", 0.0) or 0.0)
+                ep_margin = float(row.get("qphi_margin_resample_mean", 0.0) or 0.0)
+                ep_ent_res = float(row.get("strategy_entropy_resample_mean", 0.0) or 0.0)
+                ep_g = float(row.get("episode_credit_grad_norm", 0.0) or 0.0)
                 print(
                     f"      [episode-credit] n_eps={ep_count:.0f} pg={ep_pg:.4f} v={ep_v:.4f} "
                     f"adv_std={ep_adv_std:.3f} kl={ep_kl:.4f} clip={ep_clip:.3f} "
-                    f"ratio=[{ep_ratio_mn:.3f},{ep_ratio_mx:.3f}] ret_mean={ep_ret_mean:.3f}"
+                    f"ratio=[{ep_ratio_mn:.3f},{ep_ratio_mx:.3f}] ret_mean={ep_ret_mean:.3f} "
+                    f"margin={ep_margin:.4f} ent_res={ep_ent_res:.4f} grad_norm={ep_g:.8f}"
                 )
         if hparams.normalize_returns:
             print(

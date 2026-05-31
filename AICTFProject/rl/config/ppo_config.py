@@ -131,6 +131,18 @@ class PPOConfig:
     # (red_speed, formation, flag pressure) that distinguish OP3/OP5/OP6. Only takes
     # effect when ``latent_episode_strategy_ppo == True``.
     latent_episode_strategy_warmup_decision_steps: int = 0
+    # Use a z-marginal value baseline for q_phi's policy-gradient advantage.
+    # Default False preserves the legacy (z-conditioned) baseline:
+    #     adv = R - V(s, z_picked)
+    # which mathematically subtracts the cross-z signal q_phi is supposed to learn from
+    # (the centralized value head absorbs E[R | s, z] before the router ever sees it).
+    # When True, the advantage uses an expectation under q_phi's current policy:
+    #     adv = R - E_{z' ~ q_phi(s)}[V(s, z')] = R - sum_k pi_phi(k|s) * V(s, k)
+    # which is the variance-optimal AAC baseline and gives q_phi a non-zero gradient
+    # encoding "this z vs the average z" instead of "this z vs its own expectation".
+    # Plan-faithful: no labels, no aux heads, no opponent IDs -- just the correct
+    # baseline math for an option-style policy gradient.
+    latent_q_phi_marginal_baseline: bool = False
     # A2 (opt-in): auxiliary MSE on the shared q_phi trunk predicting per-z returns from the **sampled** z only.
     # Not a full Q(s,a,z) critic and not off-policy Q-learning; MAPPO value remains V_phi(s, a, z).
     latent_strategy_aux_return_head: bool = False
@@ -153,6 +165,7 @@ class PPOConfig:
     # Optional §12: KL( q_\phi(s_t) || q_\phi(s_{t-1}) ) on consecutive time steps; 0 = off (ablation only).
     latent_kl_consecutive: float = 0.0
     latent_q_phi_option_advantage: bool = False
+    latent_q_phi_marginal_baseline: bool = False
 
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.

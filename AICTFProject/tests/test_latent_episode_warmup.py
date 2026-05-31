@@ -55,6 +55,8 @@ def _load_latent_strategy_state():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     module._strategy_experience_bucket_ids = _stub_strategy_experience_bucket_ids
+    if "rl.ppo_core" in sys.modules:
+        del sys.modules["rl.ppo_core"]
     return module.LatentStrategyState
 
 
@@ -213,17 +215,40 @@ class LatentEpisodeWarmupTests(unittest.TestCase):
         # Env 1 untouched: still mid-episode, still committed.
         self.assertTrue(bool(ls.episode_strategy_committed[1].item()))
 
-    def test_warmup_skipped_when_episode_credit_off(self):
-        """warmup>0 with episode_credit=False is a no-op (snapshots stay at step 0 path)."""
-        trainer = _make_trainer(1, warmup=5, episode_credit=False)
+    def test_warmup_active_when_episode_credit_off_and_z_resampled_masking(self):
+        """Warmup is active when episode_credit=False, but z_resampled (eligible for training) is False at step 0 and True at commit step."""
+        n_envs = 1
+        warmup = 5
+        trainer = _make_trainer(n_envs, warmup=warmup, episode_credit=False)
         ls = LatentStrategyState(trainer)
         ls.reset()
+
         state = self._state_with_z_signal([1])
-        ls.strategy_for_step(state)
-        # store_episode_strategy_start short-circuits when episode_credit is off,
-        # so episode_strategy_has_start stays False either way -- the key contract
-        # is that no warmup-driven resample happens.
+        # Step 0: provisional sample
+        z0, _, aux0 = ls.strategy_for_step(state)
+        # Warmup is active, so commit has not happened yet
         self.assertFalse(bool(ls.episode_strategy_committed.any().item()))
+        # z_resampled (eligible for PPO training) must be False at step 0
+        self.assertFalse(bool(aux0["z_resampled"].any().item()))
+        # but actual resample did occur provisionally
+        self.assertTrue(bool(aux0["z_resampled_actual"].any().item()))
+
+        # Steps 1..warmup-1
+        for step in range(1, warmup):
+            ls.mark_strategy_step_done(np.zeros((n_envs,), dtype=bool))
+            _, _, aux_step = ls.strategy_for_step(state)
+            self.assertFalse(bool(ls.episode_strategy_committed.any().item()))
+            self.assertFalse(bool(aux_step["z_resampled"].any().item()))
+            self.assertFalse(bool(aux_step["z_resampled_actual"].any().item()))
+
+        # Step W: commit step
+        ls.mark_strategy_step_done(np.zeros((n_envs,), dtype=bool))
+        _, _, aux_w = ls.strategy_for_step(state)
+        # Warmup commit has now occurred
+        self.assertTrue(bool(ls.episode_strategy_committed.all().item()))
+        # z_resampled (eligible for PPO training) must be True at the commit step
+        self.assertTrue(bool(aux_w["z_resampled"].all().item()))
+        self.assertTrue(bool(aux_w["z_resampled_actual"].all().item()))
 
 
 if __name__ == "__main__":
