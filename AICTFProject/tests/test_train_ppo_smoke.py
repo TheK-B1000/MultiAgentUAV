@@ -728,6 +728,46 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_episode_strategy_recorder_uses_actor_z_and_logprob(self) -> None:
+        cfg = _smoke_ppo_config(
+            run_tag="unittest_strategy_recorder_exact_z_2v2",
+            checkpoint_dir=str(_WORKSPACE_TMP),
+        )
+        cfg.use_latent_strategy = True
+        cfg.latent_resample_every_n = 0
+        cfg.latent_strategy_ppo_coef = 0.0
+        cfg.latent_episode_strategy_ppo = True
+        cfg.latent_episode_strategy_coef = 0.25
+        cfg.n_steps = 1
+        cfg.batch_size = 1
+        cfg.max_decision_steps = 100
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(n_envs=1, n_agents_per_team=2, max_decision_steps=100, device="cpu", seed=322)
+        )
+        try:
+            trainer = CustomPPOTrainer(
+                env,
+                cfg,
+                learning_rate=1e-4,
+                clip_range=0.2,
+                ent_coef=0.0,
+                n_epochs=1,
+                batch_size=1,
+                value_clip_range=0.2,
+            )
+            rollout = trainer.collect_rollout()
+            record = trainer.episode_strategy_recorder.pending[0]
+
+            self.assertTrue(bool(rollout.fields["z_resampled"][0, 0].item()))
+            self.assertEqual(record["z"], int(rollout.fields["z"][0, 0].item()))
+            self.assertAlmostEqual(
+                record["z_logprob_old"],
+                float(rollout.fields["z_log_probs"][0, 0].item()),
+                places=6,
+            )
+        finally:
+            env.close()
+
     def test_fixed_latent_strategy_clamps_z_without_sampling(self) -> None:
         cfg = _smoke_ppo_config(
             run_tag="unittest_fixed_latent_2v2",

@@ -74,6 +74,35 @@ def apply_plan_faithful_latent_no_persistence(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_strategic(cfg: PPOConfig) -> PPOConfig:
+    """Plan-faithful primary latent + two anti-decorative-z fixes.
+
+    Inherits ``apply_plan_faithful_latent`` (K=4, persistence on, entropy on,
+    z_emb=16, resample_every_n=20) and flips:
+
+    1. ``latent_q_phi_option_advantage = True`` -- q_phi learns from the
+       sum of rewards across the whole z-segment (until the next resample
+       or episode end), instead of only the per-step advantage at the
+       resample timestep. Plan-faithful: no new labels, no aux heads --
+       just correct temporal credit for the latent router under
+       option-style sampling.
+
+    2. ``latent_strategy_ppo_coef`` raised 0.30 -> 0.40 -- stronger pull
+       on the actor to honor z, so the policy stops being approximately
+       z-invariant. Still well within the plan's allowed range
+       (phase1_coupling/phase3b use 0.45).
+
+    Use as the back-pressure run when the primary preset shows
+    non-collapsed but decorative z (high z_entropy, low z_wr_spread,
+    near-noise-floor MI(z; outcome/role/spread/flag)).
+    """
+    cfg = apply_plan_faithful_latent(cfg)
+    cfg.latent_q_phi_option_advantage = True
+    cfg.latent_strategy_ppo_coef = 0.40
+    cfg.run_tag = "latent_strategic_1m_2v2"
+    return cfg
+
+
 def apply_plan_faithful_latent_no_entropy(cfg: PPOConfig) -> PPOConfig:
     cfg = apply_plan_faithful_latent(cfg)
     cfg.latent_entropy_objective = "none"

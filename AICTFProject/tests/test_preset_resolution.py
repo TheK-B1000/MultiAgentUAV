@@ -94,6 +94,23 @@ class PresetResolutionTests(unittest.TestCase):
                     "If this change is intentional, run: python tools/snapshot_presets.py",
                 )
 
+    def test_only_episode_credit_presets_enable_episode_strategy_ppo(self) -> None:
+        """Old presets must keep episode-level q_phi PPO disabled by default."""
+        episode_credit_presets = {
+            "plan_faithful_latent_option_a_episode_credit",
+            "latent_option_a_episode_credit",
+            "plan_faithful_latent_episode_credit",
+        }
+        resolved = resolve_all_presets()
+        for key, cfg in resolved.items():
+            with self.subTest(preset=key):
+                if key in episode_credit_presets:
+                    self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                    self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.25)
+                else:
+                    self.assertFalse(cfg["latent_episode_strategy_ppo"])
+                    self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

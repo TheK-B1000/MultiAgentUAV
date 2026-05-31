@@ -212,6 +212,7 @@ class CustomPPOTrainer:
         self.latent_resample_on_flag = hparams.latent_resample_on_flag
         self.latent_kl_consecutive = hparams.latent_kl_consecutive
         self.latent_state = LatentStrategyState(self)
+        self.episode_strategy_recorder = self.latent_state.episode_strategy_recorder
         self.rollout_collector = RolloutCollector(
             model=self.model,
             env=self.env,

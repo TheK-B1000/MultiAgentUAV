@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 from rl.presets.plan_faithful import (
     apply_plan_faithful_latent,
     apply_plan_faithful_latent_no_persistence,
+    apply_plan_faithful_latent_strategic,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
     apply_plan_faithful_latent_phase2_credit,
@@ -53,6 +54,9 @@ PRESET_REGISTRY = {
     "plan_faithful_latent_no_persistence": apply_plan_faithful_latent_no_persistence,
     "latent_plan_faithful_no_persistence": apply_plan_faithful_latent_no_persistence,
     "latent_recommended_no_persistence": apply_plan_faithful_latent_no_persistence,
+    "plan_faithful_latent_strategic": apply_plan_faithful_latent_strategic,
+    "latent_strategic": apply_plan_faithful_latent_strategic,
+    "plan_faithful_latent_option_credit": apply_plan_faithful_latent_strategic,
     "plan_faithful_latent_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_plan_faithful_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_recommended_no_entropy": apply_plan_faithful_latent_no_entropy,

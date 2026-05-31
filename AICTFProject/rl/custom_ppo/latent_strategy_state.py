@@ -59,9 +59,10 @@ if TYPE_CHECKING:
 class EpisodeStrategyRecorder:
     """Tracks sampled episode-level z actions for task-return PPO credit.
 
-    This is not an auxiliary semantic task and it does not assign labels to z.
-    It only preserves the exact sampled strategy action and old log-prob needed
-    to credit q_phi from completed episode return.
+    q_phi is context-rich but opponent-label blind: it sees centralized temporal
+    state, not explicit opponent IDs or handcrafted strategy labels. This
+    recorder only preserves the exact sampled strategy action and old log-prob
+    needed to credit q_phi from completed episode return.
     """
 
     def __init__(self) -> None:
@@ -188,7 +189,7 @@ class LatentStrategyState:
         z_log_prob: torch.Tensor,
         z_logits: torch.Tensor,
     ) -> None:
-        """Snapshot z and global_state at episode start for q_phi PPO credit."""
+        """Snapshot the exact actor-controlling z at episode start for q_phi PPO credit."""
         trainer = self.trainer
         if not trainer.latent_episode_strategy_ppo or not bool(start_mask.any().item()):
             return
@@ -258,19 +259,21 @@ class LatentStrategyState:
         z_idx = self.current_z.clone()
         persist_mask = resample_mask & (~self.needs_strategy_sample)
 
+        z_logits = trainer.model.strategy_logits(global_state)
+        z_dist = Categorical(logits=z_logits)
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
-            sampled_z, _, _, _ = trainer.model.sample_strategy(
-                global_state.index_select(0, idx),
+            sampled_dist = Categorical(logits=z_logits.index_select(0, idx))
+            sampled_z = trainer.model._categorical_argmax_or_sample(
+                sampled_dist,
                 deterministic=False,
+                generator=trainer.model._sampling_gen_strategy,
             )
             z_idx[idx] = sampled_z
             self.current_z = z_idx.clone()
             self.strategy_age[idx] = 0
             self.needs_strategy_sample[idx] = False
 
-        z_logits = trainer.model.strategy_logits(global_state)
-        z_dist = Categorical(logits=z_logits)
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
         self.store_episode_strategy_start(
@@ -326,6 +329,15 @@ class LatentStrategyState:
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
         rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
+        episode_win = 1 if bs > rs else 0
+        record = self.episode_strategy_recorder.record_outcome(
+            env_index=env_i,
+            episode_return=float(episode_return),
+            episode_win=episode_win,
+        )
+        if record is not None:
+            self.rollout_strategy_episode_records.append(record)
+            return
         probs = self.episode_strategy_probs[env_i, : trainer.latent_k].detach().cpu().tolist()
         self.rollout_strategy_episode_records.append(
             {
@@ -334,7 +346,7 @@ class LatentStrategyState:
                 "z": int(self.episode_strategy_z[env_i].detach().cpu().item()),
                 "z_logprob_old": float(self.episode_strategy_log_prob[env_i].detach().cpu().item()),
                 "episode_return": float(episode_return),
-                "episode_win": 1 if bs > rs else 0,
+                "episode_win": episode_win,
                 "bucket_id": int(self.episode_strategy_bucket[env_i].detach().cpu().item()),
                 "q_phi_probs": [float(x) for x in probs],
             }
