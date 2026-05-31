@@ -141,3 +141,19 @@ Code pointers are relative to the `AICTFProject/` root unless noted.
 | **Sub-seed protocol (intentional, stable)** | In `rl.custom_ppo`: `STRATEGY_GENERATOR_SEED_OFFSET` = `0x1_0000_00D` (decimal 268435469), `ACTION_GENERATOR_SEED_OFFSET` = `0x2_0000_02B` (decimal 536870955). Wire-up uses `(int(seed) + offset) & 0xFFFF_FFFF` for `torch.Generator.manual_seed` on the training/inference device. Do not change ad hoc without a paper/code note. |
 | **E3 step telemetry (CSV)** | Set `PPOConfig.e3_step_telemetry_path` to append per–env-step rows when `use_latent_strategy` is on. Field order is `rl.custom_ppo.E3_STEP_TELEMETRY_FIELDS` (`z_t`, `q_phi_entropy`, `q_phi_argmax` = `argmax_z q_\phi`, `switched` = $z_t \ne z_{t-1}$ at the policy’s stored `prev_z`, `game_phase` = `rl.global_state.coarse_game_phase_from_global_state`). `update` is the PPO update index (0 on the first `collect_rollout`). |
 | **Mechanical guards in repo** | `rl/config_presets.py` (``paper_default_latent_config`` / ``paper_default_no_latent_config`` / flag ablation), `tests/test_operational_gap_guards.py`, `tests/test_latent_core_import_graph.py` (no opponent/league roots in the latent PPO *module* import graph), `tests/test_e3_baseline_parity.py` (single-flag config diff + actor/critic width deltas), `tests/test_e3_rng_verification.py` (no-latent never calls `sample_strategy`, latent inference replay, E3 CSV header). L\_persist when $N=0$ is **exactly** $0$ in `update()`. |
+
+---
+
+## 14. Strategy Latent Metrics & Alignment Diagnostics (MI & Credit Milestones)
+
+| Metric / Milestone | Target / Value | Description / Action Plan |
+| --- | --- | --- |
+| **Early Noise Floor (Update 5)** | Noise floor | **Expected pattern:** Early in training, $z$ selection is highly random / entropy-dominated. v1 followed exactly this trajectory. |
+| **Growth milestone (Update 8 - ~525k)** | $\text{MI}(z; \text{outcome}) > 0.005$ | **MI is growing milestone:** First indicator of $z$ usage signal. If $\text{MI} \le 0.005$ at update 8, the option-credit + ctx170 hypothesis is failing to translate to active $z$ usage. Mitigation: widen $q_\phi$ (widen `latent_strategy_hidden` from 128 to 192, and/or `latent_vf_hidden` 128 $\to$ 192) for the next run (do not act before update 8). |
+| **V1 parity milestone (Update 12 - ~785k)** | $\text{MI}(z; \text{outcome}) > 0.015$ | **V1 parity:** V2 matches V1's final MI value with ~22% of training time remaining. |
+| **Target outcome beats V1 (Update 15 - ~983k)** | $\text{MI}(z; \text{outcome}) > 0.04$ | **V2 target:** V2 actually beats V1 by 2.4×, representing the target the strategic stack was designed to deliver. |
+| **Tying $z$ choices to Opponent** | `opponent_randomize = True` or `mode = OPPONENT_POOL` | **Solution:** Train against a randomized opponent pool to force $q_\phi$ to correlate $z$ with different opponent profiles to maximize task rewards. |
+| **Tying $z$ choices to Phase** | `latent_strategy_aux_predict_phase_coef > 0.0` | **Solution:** Predict game phase from strategy logits using an auxiliary cross-entropy head, directly guiding strategy representation learning based on game progression. |
+| **Tying $z$ choices to Flag State** | `latent_resample_on_flag = True` | **Solution:** Synchronize resampling events to occur when the flag state/territory switches. |
+| **Tying $z$ choices to Outcome** | `latent_q_phi_option_advantage = True` / `latent_strategy_aux_return_head = True` | **Solution:** Use option-level advantage/credit propagation across strategy segments (Option-Credit) and/or train an auxiliary head to predict expected returns (outcomes) from $z$. |
+

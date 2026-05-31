@@ -149,6 +149,18 @@ class LatentStrategyState:
         self.needs_strategy_sample = torch.ones((n_envs,), dtype=torch.bool, device=device)
         self.z_kl_first_in_ep: Optional[torch.Tensor] = None
         self.prev_z_logits: Optional[torch.Tensor] = None
+        # Per-env state for the episode-credit warmup. Only meaningful when
+        # ``latent_episode_strategy_ppo`` is True AND
+        # ``latent_episode_strategy_warmup_decision_steps > 0``. ``steps_since_ep_start``
+        # counts decision steps elapsed since the most recent episode reset (0 on the
+        # step where ``needs_strategy_sample`` first fires). ``episode_strategy_committed``
+        # is True once the committed (post-warmup) z + context has been snapshotted, and
+        # False between episode reset and that commit moment.
+        self.steps_since_ep_start = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.episode_strategy_committed = torch.zeros((n_envs,), dtype=torch.bool, device=device)
+        self.first_z_sample_step = torch.full(
+            (n_envs,), -1, dtype=torch.long, device=device
+        )
 
     # ------------------------------------------------------------------
     # Reset / per-step sampling
@@ -179,6 +191,9 @@ class LatentStrategyState:
         self.episode_return_accum.zero_()
         self.episode_strategy_has_start.zero_()
         self.episode_strategy_recorder.reset()
+        self.steps_since_ep_start.zero_()
+        self.episode_strategy_committed.zero_()
+        self.first_z_sample_step.fill_(-1)
 
     def store_episode_strategy_start(
         self,
@@ -255,9 +270,28 @@ class LatentStrategyState:
         if trainer.latent_resample_every_n > 0:
             resample_mask |= self.strategy_age >= trainer.latent_resample_every_n
 
+        # Episode-credit warmup: defer the committed z snapshot until ctx170 EMAs
+        # have observed a few decision steps of opponent behavior. The provisional
+        # z chosen at step 0 still drives actions during the warmup window, but it
+        # is *not* snapshotted for q_phi credit -- we force a resample at the
+        # commit step and snapshot that (context, z) pair instead. Without this
+        # guard, q_phi's per-episode credit is fed a structurally opponent-blind
+        # context (raw initial geometry + zeroed EMAs), upper-bounding MI(z; ·).
+        warmup = int(getattr(trainer, "latent_episode_strategy_warmup_decision_steps", 0) or 0)
+        episode_credit_on = bool(getattr(trainer, "latent_episode_strategy_ppo", False))
+        commit_now = torch.zeros_like(episode_start_mask)
+        if episode_credit_on and warmup > 0:
+            commit_now = (
+                (self.steps_since_ep_start == warmup)
+                & (~self.episode_strategy_committed)
+                & (~episode_start_mask)  # never both on the same call
+            )
+            if bool(commit_now.any().item()):
+                resample_mask = resample_mask | commit_now
+
         prev_z = self.current_z.clone()
         z_idx = self.current_z.clone()
-        persist_mask = resample_mask & (~self.needs_strategy_sample)
+        persist_mask = resample_mask & (~self.needs_strategy_sample) & (~commit_now)
 
         z_logits = trainer.model.strategy_logits(global_state)
         z_dist = Categorical(logits=z_logits)
@@ -276,8 +310,26 @@ class LatentStrategyState:
 
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
+        # Snapshot the q_phi training (state, z, log_prob) pair for episode-credit:
+        # - warmup == 0: legacy behavior, snapshot at episode start (step 0)
+        # - warmup  > 0: snapshot at the commit step, after the EMA window
+        if episode_credit_on and warmup > 0:
+            snapshot_mask = commit_now
+        else:
+            snapshot_mask = episode_start_mask
+        # Only track the warmup bookkeeping when episode-credit is the consumer.
+        # ``episode_strategy_committed`` is a guard against double-commits inside
+        # episode-credit mode; when episode-credit is off it must stay False so
+        # the state machine matches the legacy contract.
+        if episode_credit_on and bool(snapshot_mask.any().item()):
+            self.episode_strategy_committed |= snapshot_mask
+            self.first_z_sample_step = torch.where(
+                snapshot_mask,
+                self.steps_since_ep_start,
+                self.first_z_sample_step,
+            )
         self.store_episode_strategy_start(
-            start_mask=episode_start_mask,
+            start_mask=snapshot_mask,
             global_state=global_state,
             z_idx=z_idx,
             z_log_prob=z_log_prob,
@@ -302,9 +354,13 @@ class LatentStrategyState:
             return
         done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
         self.strategy_age += 1
+        self.steps_since_ep_start += 1
         if bool(done_t.any().item()):
             self.strategy_age[done_t] = 0
             self.needs_strategy_sample[done_t] = not trainer.fixed_latent_strategy
+            self.steps_since_ep_start[done_t] = 0
+            self.episode_strategy_committed[done_t] = False
+            self.first_z_sample_step[done_t] = -1
 
     # ------------------------------------------------------------------
     # Episode outcome → completed-record buffer

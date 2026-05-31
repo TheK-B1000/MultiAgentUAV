@@ -167,6 +167,9 @@ class CustomPPOTrainer:
         self.latent_episode_strategy_clip_eps = hparams.latent_episode_strategy_clip_eps
         self.latent_episode_strategy_value_coef = hparams.latent_episode_strategy_value_coef
         self.latent_episode_strategy_return_norm = hparams.latent_episode_strategy_return_norm
+        self.latent_episode_strategy_warmup_decision_steps = (
+            hparams.latent_episode_strategy_warmup_decision_steps
+        )
         self.latent_strategy_aux_return_coef = hparams.latent_strategy_aux_return_coef
         self.latent_strategy_aux_return_head = hparams.latent_strategy_aux_return_head
         self.latent_strategy_aux_predict_phase_coef = hparams.latent_strategy_aux_predict_phase_coef

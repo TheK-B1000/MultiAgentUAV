@@ -194,7 +194,7 @@ class TrainingTelemetry:
             row["strategy_entropy_frac"] = float(zH[e]) / max(1e-6, math.log(max(2, int(self.hparams.latent_k))))
             
             if ctx_np is not None:
-                for i in range(95):
+                for i in range(ctx_np.shape[1]):
                     row[f"q_phi_context_{i}"] = float(ctx_np[e, i])
                     
             w.writerow({key: row.get(key, "") for key in fields})

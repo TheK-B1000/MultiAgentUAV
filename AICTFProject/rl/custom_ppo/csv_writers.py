@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES
 from rl.latent_phase_labels import TEAM_PHASES
+from rl.latent_marl import CONTEXT_STATE_DIM
 
 E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
     "update",
@@ -38,7 +39,7 @@ E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
     "qprob_3",
     "strategy_entropy",
     "strategy_entropy_frac",
-) + tuple(f"q_phi_context_{i}" for i in range(95))
+) + tuple(f"q_phi_context_{i}" for i in range(CONTEXT_STATE_DIM))
 
 # When renaming metrics columns, old CSV headers may still use the legacy name; see ``_write_csv_row``.
 _METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {"strategy_aux_return_loss": "strategy_q_loss"}

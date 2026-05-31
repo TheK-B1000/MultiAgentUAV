@@ -261,20 +261,22 @@ class CustomPPOInferencePolicy:
         self.device = torch.device(device)
         self.model.to(self.device)
         self.model.eval()
-        self._prev_z: Optional[torch.Tensor] = None
+        self._prev_z = None
         cfg = cfg or {}
         self.strategy_interval = max(0, int(cfg.get("latent_resample_every_n", 0) or 0))
         self.fixed_latent_strategy = bool(cfg.get("fixed_latent_strategy", False))
         self.fixed_latent_strategy_id = max(0, int(cfg.get("fixed_latent_strategy_id", 0) or 0))
         self._strategy_age = 0
-        self._last_strategy_z: Optional[torch.Tensor] = None
-        self._last_strategy_probs: Optional[torch.Tensor] = None
-        self._last_strategy_entropy: Optional[torch.Tensor] = None
+        self._last_strategy_z = None
+        self._last_strategy_probs = None
+        self._last_strategy_entropy = None
         self._last_strategy_resampled = False
-        self._temporal_tracker: Optional[TemporalStateTracker] = None
-        self.latent_eval_mode: str = "normal"
-        self._latent_eval_marginal: Optional[torch.Tensor] = None
-        self._latent_eval_rng: Optional[torch.Generator] = None
+        self._last_strategy_logits = None
+        self._last_context_gs = None
+        self._temporal_tracker = None
+        self.latent_eval_mode = "normal"
+        self._latent_eval_marginal = None
+        self._latent_eval_rng = None
 
     def _fixed_strategy_id(self) -> int:
         if not self.model.uses_latent_strategy:
@@ -368,6 +370,8 @@ class CustomPPOInferencePolicy:
         self._last_strategy_probs = None
         self._last_strategy_entropy = None
         self._last_strategy_resampled = False
+        self._last_strategy_logits = None
+        self._last_context_gs = None
         if self._temporal_tracker is not None:
             self._temporal_tracker.reset()
 
@@ -419,6 +423,7 @@ class CustomPPOInferencePolicy:
                 if self.fixed_latent_strategy:
                     z_idx = self._fixed_strategy_tensor(batch)
                     self._prev_z = z_idx.detach()
+                    z_logits = self.model.strategy_logits(context_gs)
                     z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
                     z_probs = self._fixed_strategy_probs(batch)
                     needs_strategy = False
@@ -457,6 +462,8 @@ class CustomPPOInferencePolicy:
                 self._last_strategy_probs = z_probs.detach().cpu()
                 self._last_strategy_entropy = z_ent.detach().cpu()
                 self._last_strategy_resampled = bool(needs_strategy)
+                self._last_strategy_logits = z_logits.detach().cpu()
+                self._last_context_gs = context_gs.detach().cpu()
                 action_tensor, _, _, _ = self.model.act(
                     obs_t,
                     context_gs,
@@ -516,4 +523,10 @@ class CustomPPOInferencePolicy:
                 out[f"strategy_prob_{idx}"] = float(prob)
         if entropy is not None and entropy.numel() > 0:
             out["strategy_entropy"] = float(entropy.reshape(-1)[0].item())
+        if self._last_strategy_logits is not None and self._last_strategy_logits.numel() > 0:
+            l0 = self._last_strategy_logits.reshape(self._last_strategy_logits.shape[0], -1)[0]
+            for idx, logit in enumerate(l0.tolist()):
+                out[f"strategy_logit_{idx}"] = float(logit)
+        if self._last_context_gs is not None and self._last_context_gs.numel() > 0:
+            out["context_state"] = self._last_context_gs.reshape(self._last_context_gs.shape[0], -1)[0].numpy()
         return out

@@ -86,6 +86,11 @@ def main() -> None:
         action="store_true",
         help="Disable per-episode coord_* fields (macro trajectory agreement / correlation).",
     )
+    parser.add_argument(
+        "--e3-step-telemetry",
+        action="store_true",
+        help="Write step-level strategy/behavior CSV telemetry for eval episodes.",
+    )
     parser.add_argument("--out-dir", type=str, default=None, help="CSV output dir (default: AICTFProject/csv)")
     # Default True: argmax / greedy match paper-style *evaluation* (stochastic is for ablations / debugging).
     parser.add_argument("--deterministic", action="store_true", default=True)
@@ -142,6 +147,8 @@ def main() -> None:
                 seed=int(args.seed) + 1000 * map_idx + opp_idx,
             )
             env = GPUCTFVecEnv(cfg)
+            episode_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_{map_set}_{opponent}_{int(args.episodes)}ep.csv")
+            e3_path = episode_path.replace(".csv", "_e3_steps.csv") if args.e3_step_telemetry else None
             try:
                 print(f"[eval_checkpoint] {label} {mode} map={map_set} vs {opponent}: {args.episodes} episode(s)")
                 episodes = run_eval_episodes(
@@ -155,6 +162,7 @@ def main() -> None:
                     progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
                     fixed_latent_id=args.fixed_latent_id,
                     latent_resample_every_n=args.latent_resample_every,
+                    e3_step_telemetry_path=e3_path,
                 )
             finally:
                 env.close()
@@ -167,7 +175,6 @@ def main() -> None:
                 row["opponent"] = opponent
                 row["checkpoint"] = checkpoint
 
-            episode_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_{map_set}_{opponent}_{int(args.episodes)}ep.csv")
             _write_rows(
                 episode_path,
                 episodes,

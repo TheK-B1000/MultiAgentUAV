@@ -25,19 +25,25 @@ def main():
     print(f"Loaded {len(df)} rows.")
 
     # Find context columns
-    ctx_cols = [f"q_phi_context_{i}" for i in range(95)]
-    missing_cols = [col for col in ctx_cols if col not in df.columns]
-    if missing_cols:
-        print(f"Error: Missing context columns in CSV: {len(missing_cols)} columns missing.")
+    ctx_cols = [col for col in df.columns if str(col).startswith("q_phi_context_")]
+    num_ctx = len(ctx_cols)
+    if num_ctx == 0:
+        print("Error: No context columns found in CSV.")
         sys.exit(1)
 
-    # 1. Extract features
+    # 1. Extract context features
     X_raw = df[ctx_cols].values.astype(np.float32)
+
+    # Find qphi_logits columns
+    logit_cols = [col for col in df.columns if str(col).startswith("qlogit_")]
+    if len(logit_cols) > 0:
+        X_logits = df[logit_cols].values.astype(np.float32)
+    else:
+        X_logits = None
 
     # 2. Extract targets
     # opponent_id (integer)
     if "opponent_id" in df.columns:
-        # filter out rows where opponent_id is invalid/missing (e.g. -1)
         y_opp = df["opponent_id"].values.astype(np.int64)
     else:
         y_opp = None
@@ -64,49 +70,58 @@ def main():
     targets = {
         "opponent_id": (y_opp, 7 if y_opp is not None else 0),
         "phase_id": (y_phase, 6 if y_phase is not None else 0),
-        "score_outcome": (y_outcome, 3 if y_outcome is not None else 0),
         "flag_state": (y_flag, 4),
+        "score_outcome": (y_outcome, 3 if y_outcome is not None else 0),
     }
 
     # Normalize features
-    mean = X_raw.mean(axis=0)
-    std = X_raw.std(axis=0) + 1e-8
-    X_norm = (X_raw - mean) / std
+    mean_ctx = X_raw.mean(axis=0)
+    std_ctx = X_raw.std(axis=0) + 1e-8
+    X_ctx_norm = (X_raw - mean_ctx) / std_ctx
 
-    print("\n--- Training Diagnostic Probes ---")
+    if X_logits is not None:
+        mean_logits = X_logits.mean(axis=0)
+        std_logits = X_logits.std(axis=0) + 1e-8
+        X_logits_norm = (X_logits - mean_logits) / std_logits
+    else:
+        X_logits_norm = None
+
     results = {}
 
-    for name, (y, num_classes) in targets.items():
-        if y is None:
-            print(f"Skipping {name} (column not present in CSV).")
-            continue
-
+    def run_probe(X_norm, y, num_classes):
         # Filter invalid target values (e.g. -1 for opponent_id)
         valid = (y >= 0) & (y < num_classes)
         if not np.any(valid):
-            print(f"Skipping {name} (no valid labels).")
-            continue
+            return None
 
         X_valid = X_norm[valid]
         y_valid = y[valid]
 
-        # Train/Test split
+        # Seed for reproducibility of training and split
+        np.random.seed(42)
+        torch.manual_seed(42)
+
         n_samples = len(X_valid)
         split = int(n_samples * 0.8)
         indices = np.random.permutation(n_samples)
         train_idx, test_idx = indices[:split], indices[split:]
 
+        if len(test_idx) == 0 or len(train_idx) == 0:
+            return None
+
         X_train, y_train = torch.tensor(X_valid[train_idx]), torch.tensor(y_valid[train_idx])
         X_test, y_test = torch.tensor(X_valid[test_idx]), torch.tensor(y_valid[test_idx])
 
-        # Baseline: majority class accuracy
-        unique, counts = np.unique(y_valid[test_idx], return_counts=True)
-        majority_acc = (counts.max() / len(test_idx)) * 100.0 if len(test_idx) > 0 else 0.0
+        # Baselines
+        unique_test, counts_test = np.unique(y_valid[test_idx], return_counts=True)
+        majority_acc = (counts_test.max() / len(test_idx)) * 100.0
+        random_acc = (1.0 / num_classes) * 100.0
 
         # Build simple MLP classifier
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        input_dim = X_valid.shape[1]
         model = nn.Sequential(
-            nn.Linear(95, 64),
+            nn.Linear(input_dim, 64),
             nn.ReLU(),
             nn.Linear(64, num_classes)
         ).to(device)
@@ -133,25 +148,82 @@ def main():
         with torch.no_grad():
             outputs = model(X_test.to(device))
             preds = torch.argmax(outputs, dim=-1).cpu().numpy()
-            test_acc = (preds == y_test.numpy()).mean() * 100.0
+            y_test_np = y_test.numpy()
+            
+            acc = (preds == y_test_np).mean() * 100.0
+            
+            # Balanced accuracy
+            classes_present = np.unique(y_test_np)
+            recalls = []
+            for c in classes_present:
+                mask = (y_test_np == c)
+                if np.sum(mask) > 0:
+                    recall = np.sum((preds == c) & mask) / np.sum(mask)
+                    recalls.append(recall)
+            bal_acc = np.mean(recalls) * 100.0 if recalls else 0.0
 
-        print(f"Target: {name:<15} | Samples: {n_samples:<6} | Majority-Class Baseline: {majority_acc:6.2f}% | Probe Accuracy: {test_acc:6.2f}%")
-        results[name] = (test_acc, majority_acc)
+        return {
+            "acc": acc,
+            "bal_acc": bal_acc,
+            "majority_acc": majority_acc,
+            "random_acc": random_acc,
+            "samples": n_samples
+        }
 
-    print("\n--- Diagnostic Conclusion ---")
-    passes = []
-    for name, (acc, baseline) in results.items():
-        if acc > baseline + 5.0: # accuracy is significantly better than baseline
-            passes.append(name)
+    # Run probes
+    for target_name, (y, num_classes) in targets.items():
+        if y is None:
+            continue
+        
+        # Probe context
+        res_ctx = run_probe(X_ctx_norm, y, num_classes)
+        if res_ctx is not None:
+            results[f"context_{target_name}"] = res_ctx
 
-    if len(passes) >= 3:
-        print("RESULT: PASS")
-        print(f"The 95-d temporal context contains strong predictive signal for: {', '.join(passes)}.")
-        print("posterior/representation collapse is due to training / actor utilization, NOT lack of context signal.")
-    else:
-        print("RESULT: FAIL")
-        print("The 95-d temporal context lacks predictive signal (not significantly better than majority class baseline).")
-        print("Consider adding better global-state features (team shape, pressure, carrier information).")
+        # Probe logits
+        if X_logits_norm is not None:
+            res_logits = run_probe(X_logits_norm, y, num_classes)
+            if res_logits is not None:
+                results[f"qphi_logits_{target_name}"] = res_logits
+
+    # Print the specific format requested
+    print("\n--- Diagnostic Probe Outputs ---")
+
+    # 1. Context accuracy for each target
+    targets_ordered = [("opponent_id", "opponent_acc"), ("phase_id", "phase_acc"), ("flag_state", "flag_acc"), ("score_outcome", "outcome_acc")]
+    for t_id, print_name in targets_ordered:
+        key = f"context_{t_id}"
+        val_str = f"{results[key]['acc']:.2f}%" if key in results else "N/A"
+        print(f"[probe/context] {print_name}: {val_str}")
+    print()
+
+    # 2. Qphi logits accuracy for each target
+    for t_id, print_name in targets_ordered:
+        key = f"qphi_logits_{t_id}"
+        val_str = f"{results[key]['acc']:.2f}%" if key in results else "N/A"
+        print(f"[probe/qphi_logits] {print_name}: {val_str}")
+    print()
+
+    # 3. Balanced accuracy for opponent target
+    key_opp_ctx = "context_opponent_id"
+    val_opp_ctx = f"{results[key_opp_ctx]['bal_acc']:.2f}%" if key_opp_ctx in results else "N/A"
+    print(f"[probe/context] opponent_bal_acc: {val_opp_ctx}")
+
+    key_opp_log = "qphi_logits_opponent_id"
+    val_opp_log = f"{results[key_opp_log]['bal_acc']:.2f}%" if key_opp_log in results else "N/A"
+    print(f"[probe/qphi_logits] opponent_bal_acc: {val_opp_log}")
+    print()
+
+    # 4. Baselines for each target
+    for t_id, _ in targets_ordered:
+        short_name = t_id.replace("_id", "").replace("_state", "").replace("state", "").replace("score_", "")
+        key = f"context_{t_id}"
+        if key in results:
+            print(f"[probe] random_baseline_acc for {short_name}: {results[key]['random_acc']:.2f}%")
+            print(f"[probe] majority_baseline_acc for {short_name}: {results[key]['majority_acc']:.2f}%")
+        else:
+            print(f"[probe] random_baseline_acc for {short_name}: N/A")
+            print(f"[probe] majority_baseline_acc for {short_name}: N/A")
 
 if __name__ == "__main__":
     main()

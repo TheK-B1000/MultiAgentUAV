@@ -118,6 +118,15 @@ class PPOConfig:
     latent_episode_strategy_clip_eps: float = 0.2
     latent_episode_strategy_value_coef: float = 0.5
     latent_episode_strategy_return_norm: bool = True
+    # Decision-step warmup before locking the per-episode z under episode-credit mode.
+    # 0 = legacy behavior: snapshot the z chosen at step 0 (ctx170 EMAs still at reset,
+    # zero opponent fingerprint -- structurally bounds MI(z; opponent) near zero).
+    # >0 = let the episode run for N decision steps, then force-resample z and snapshot
+    # that (context, z) pair for q_phi's per-episode credit. With alpha_short=0.2 the
+    # short EMA reaches ~63%/86% of equilibrium by step 5/10, exposing opponent dynamics
+    # (red_speed, formation, flag pressure) that distinguish OP3/OP5/OP6. Only takes
+    # effect when ``latent_episode_strategy_ppo == True``.
+    latent_episode_strategy_warmup_decision_steps: int = 0
     # A2 (opt-in): auxiliary MSE on the shared q_phi trunk predicting per-z returns from the **sampled** z only.
     # Not a full Q(s,a,z) critic and not off-policy Q-learning; MAPPO value remains V_phi(s, a, z).
     latent_strategy_aux_return_head: bool = False

@@ -32,6 +32,8 @@ def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
     cfg_dict = asdict(cfg)
     if isinstance(cfg_dict.get("opponent_pool"), tuple):
         cfg_dict["opponent_pool"] = list(cfg_dict["opponent_pool"])
+    if isinstance(cfg_dict.get("opponent_pool_weights"), tuple):
+        cfg_dict["opponent_pool_weights"] = list(cfg_dict["opponent_pool_weights"])
     return cfg_dict
 
 

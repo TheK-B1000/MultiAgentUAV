@@ -10,12 +10,14 @@ action head (macro index), plus full MultiDiscrete-vector agreement.
 """
 from __future__ import annotations
 
+import csv
 import math
 import os
 import sys
 from typing import Any
 
 import numpy as np
+import torch
 
 from rl.global_state import coarse_game_phase_from_global_state
 
@@ -117,6 +119,7 @@ def run_eval_episodes(
     latent_eval_mode: str = "normal",
     latent_eval_marginal: list[float] | None = None,
     latent_eval_seed: int | None = None,
+    e3_step_telemetry_path: str | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -192,141 +195,230 @@ def run_eval_episodes(
         n_agents, heads_per_agent = 1, 1
     expected_flat = max(1, n_agents * heads_per_agent)
 
-    episodes: list[dict] = []
-    obs = env.reset()
-    if hasattr(model, "reset_strategy"):
-        model.reset_strategy()
+    e3_writer = None
+    e3_file = None
+    if e3_step_telemetry_path and hasattr(model, "model") and bool(getattr(model.model, "uses_latent_strategy", False)):
+        from rl.custom_ppo import E3_STEP_TELEMETRY_FIELDS
+        os.makedirs(os.path.dirname(os.path.abspath(e3_step_telemetry_path)) or ".", exist_ok=True)
+        e3_file = open(e3_step_telemetry_path, "w", newline="", encoding="utf-8")
+        e3_writer = csv.DictWriter(e3_file, fieldnames=E3_STEP_TELEMETRY_FIELDS, extrasaction="ignore")
+        e3_writer.writeheader()
 
-    for _ in range(n_episodes):
-        ep_return = 0.0
-        steps = 0
-        blue_traj: list[np.ndarray] = []
-        ep_entropy_first = float("nan")
-        strategy_counts: dict[int, int] = {}
-        strategy_prev: int | None = None
-        strategy_switches = 0
-        strategy_resamples = 0
-        strategy_steps = 0
-        strategy_entropy_sum = 0.0
-        strategy_k = 0
-        strategy_phase_counts: dict[str, dict[int, int]] = {}
-        while True:
-            single = {
-                k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
-                for k, v in obs.items()
-            }
-            try:
-                single["global_state"] = env.state()[0]
-            except Exception:
-                pass
-            strategy_phase = _strategy_phase_from_global_state(single.get("global_state"))
-            if record_entropy and steps == 0:
+    try:
+        episodes: list[dict] = []
+        obs = env.reset()
+        if hasattr(model, "reset_strategy"):
+            model.reset_strategy()
+
+        global_step_counter = 0
+        for ep_idx in range(n_episodes):
+            ep_return = 0.0
+            steps = 0
+            info_prev = {}
+            blue_traj: list[np.ndarray] = []
+            ep_entropy_first = float("nan")
+            strategy_counts: dict[int, int] = {}
+            strategy_prev: int | None = None
+            strategy_switches = 0
+            strategy_resamples = 0
+            strategy_steps = 0
+            strategy_entropy_sum = 0.0
+            strategy_k = 0
+            strategy_phase_counts: dict[str, dict[int, int]] = {}
+            while True:
+                single = {
+                    k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
+                    for k, v in obs.items()
+                }
                 try:
-                    ep_entropy_first = _policy_entropy_first_step(model, single)
+                    single["global_state"] = env.state()[0]
                 except Exception:
-                    ep_entropy_first = float("nan")
-            act, _ = model.predict(single, deterministic=deterministic)
-            if coordination_metrics and n_agents >= 2:
-                flat = np.asarray(act, dtype=np.int64).reshape(-1)
-                if flat.size == expected_flat:
-                    step_mat = flat.reshape(n_agents, heads_per_agent)
-                    blue_traj.append(step_mat.copy())
-            strategy_info = model.strategy_info() if hasattr(model, "strategy_info") else {}
-            if "strategy" in strategy_info:
-                strategy = int(strategy_info["strategy"])
-                strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
-                phase_counts = strategy_phase_counts.setdefault(strategy_phase, {})
-                phase_counts[strategy] = phase_counts.get(strategy, 0) + 1
-                if strategy_prev is not None and strategy != strategy_prev:
-                    strategy_switches += 1
-                strategy_prev = strategy
-                if bool(strategy_info.get("strategy_resampled", False)):
-                    strategy_resamples += 1
-                strategy_steps += 1
-                strategy_entropy_sum += float(strategy_info.get("strategy_entropy", 0.0))
-                strategy_k = max(strategy_k, int(strategy_info.get("strategy_k", 0)))
-            env.step_async(act)
-            obs, rew, done, infos = env.step_wait()
-            steps += 1
-            ep_return += float(rew[0])
-            if done.any():
-                for i in range(len(done)):
-                    if done[i]:
-                        info = infos[i] if i < len(infos) else {}
-                        ep_res = info.get("episode_result", info)
-                        bs = int(ep_res.get("blue_score", 0))
-                        rs = int(ep_res.get("red_score", 0))
-                        success = 1 if bs > rs else 0
-                        decision_steps = int(ep_res.get("decision_steps", info.get("decision_steps", 0)))
-                        zone_cov = float(ep_res.get("zone_coverage", 0.0))
-                        collision_free = int(ep_res.get("collision_free_episode", 1))
-                        ttfs = ep_res.get("time_to_first_score")
-                        try:
-                            ttfs_f = float(ttfs) if ttfs is not None and ttfs != "" else np.nan
-                        except (TypeError, ValueError):
-                            ttfs_f = np.nan
-                        mean_dist = ep_res.get("mean_inter_robot_dist")
-                        try:
-                            mean_dist_f = float(mean_dist) if mean_dist is not None and mean_dist != "" else np.nan
-                        except (TypeError, ValueError):
-                            mean_dist_f = np.nan
+                    pass
+                strategy_phase = _strategy_phase_from_global_state(single.get("global_state"))
+                if record_entropy and steps == 0:
+                    try:
+                        ep_entropy_first = _policy_entropy_first_step(model, single)
+                    except Exception:
+                        ep_entropy_first = float("nan")
+                act, _ = model.predict(single, deterministic=deterministic)
+                if coordination_metrics and n_agents >= 2:
+                    flat = np.asarray(act, dtype=np.int64).reshape(-1)
+                    if flat.size == expected_flat:
+                        step_mat = flat.reshape(n_agents, heads_per_agent)
+                        blue_traj.append(step_mat.copy())
+                strategy_info = model.strategy_info() if hasattr(model, "strategy_info") else {}
+                if "strategy" in strategy_info:
+                    strategy = int(strategy_info["strategy"])
+                    strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
+                    phase_counts = strategy_phase_counts.setdefault(strategy_phase, {})
+                    phase_counts[strategy] = phase_counts.get(strategy, 0) + 1
+                    if strategy_prev is not None and strategy != strategy_prev:
+                        strategy_switches += 1
+                    
+                    if e3_writer is not None:
+                        env_core = env.core
+                        act_t = torch.as_tensor(act, device=env_core.device).unsqueeze(0)
+                        
+                        from rl.behavior_telemetry import compute_behavior_telemetry_batch, bucket_ids_from_telemetry
+                        beh_t = compute_behavior_telemetry_batch(env_core, act_t)
+                        sb, rb, pb, adb = bucket_ids_from_telemetry(beh_t, act_t, env_core)
+                        
+                        gs_np = single.get("global_state")
+                        sf = float(info_prev.get("stalemate_frac", 0.0))
+                        
+                        from rl.latent_phase_labels import team_phase_label_from_global_state, outcome_label_from_global_state, team_phase_id_from_global_state
+                        t_phase = team_phase_label_from_global_state(gs_np, stalemate_frac=sf)
+                        s_outcome = outcome_label_from_global_state(gs_np)
+                        p_id = int(team_phase_id_from_global_state(gs_np, stalemate_frac=sf))
+                        
+                        opp_tag = "OP5_RUSHER" if opponent == "OP5" else opponent
+                        if opp_tag == "OP6_TURTLE": opp_tag = "OP6"
+                        if opp_tag == "OP7_SWITCHER": opp_tag = "OP7"
+                        opp_id = {"OP1": 0, "OP2": 1, "OP3": 2, "OP4": 3, "OP5_RUSHER": 4, "OP6": 5, "OP7": 6}.get(opp_tag, -1)
+                        
+                        logits = [strategy_info.get(f"strategy_logit_{i}", 0.0) for i in range(strategy_info.get("strategy_k", 4))]
+                        q_phi_argmax = int(np.argmax(logits)) if logits else 0
+                        switched = int(strategy_prev is not None and strategy != strategy_prev)
+                        
                         row = {
-                            "success": success,
-                            "blue_score": bs,
-                            "red_score": rs,
-                            "steps": decision_steps,
-                            "return": ep_return,
-                            "zone_coverage": zone_cov,
-                            "collision_free": collision_free,
-                            "win_margin": bs - rs,
-                            "time_to_first_score": ttfs_f,
-                            "mean_inter_robot_dist": mean_dist_f,
+                            "update": ep_idx,
+                            "rollout_step": steps,
+                            "env_id": 0,
+                            "global_step": global_step_counter,
+                            "z_t": strategy,
+                            "q_phi_entropy": float(strategy_info.get("strategy_entropy", 0.0)),
+                            "q_phi_argmax": q_phi_argmax,
+                            "switched": switched,
+                            "game_phase": strategy_phase,
+                            "team_phase": t_phase,
+                            "score_outcome": s_outcome,
+                            "stalemate_frac": sf,
+                            "opponent_id": opp_id,
+                            "phase_id": p_id,
+                            "blue_ahead": float(env_core.blue_score > env_core.red_score),
+                            "spread_bucket": int(sb),
+                            "role_bucket": int(rb),
+                            "pressure_bucket": int(pb),
+                            "attack_defense_ratio_bucket": int(adb),
+                            "strategy_entropy": float(strategy_info.get("strategy_entropy", 0.0)),
                         }
-                        if record_entropy:
-                            row["policy_entropy"] = ep_entropy_first
-                        if coordination_metrics:
-                            if blue_traj:
-                                row.update(
-                                    compute_episode_coordination_metrics(np.stack(blue_traj, axis=0))
-                                )
+                        
+                        from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES
+                        beh_np = beh_t.detach().cpu().numpy()[0]
+                        for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
+                            row[name] = float(beh_np[j])
+                            
+                        strategy_k = strategy_info.get("strategy_k", 4)
+                        for i in range(4):
+                            if i < strategy_k:
+                                row[f"qlogit_{i}"] = float(strategy_info.get(f"strategy_logit_{i}", 0.0))
+                                row[f"qprob_{i}"] = float(strategy_info.get(f"strategy_prob_{i}", 0.0))
                             else:
-                                row.update(
-                                    {
-                                        "coord_pairwise_head0_pearson_mean": float("nan"),
-                                        "coord_head0_team_agreement_rate": float("nan"),
-                                        "coord_full_action_team_agreement_rate": float("nan"),
-                                        "coord_trajectory_steps": 0.0,
-                                    }
-                                )
-                        if strategy_steps > 0:
-                            denom = float(max(1, strategy_steps))
-                            row["strategy_switches"] = strategy_switches
-                            row["strategy_switch_rate"] = float(strategy_switches) / float(max(1, strategy_steps - 1))
-                            row["strategy_resamples"] = strategy_resamples
-                            row["strategy_resample_rate"] = float(strategy_resamples) / denom
-                            row["strategy_unique_count"] = len(strategy_counts)
-                            row["strategy_entropy_mean"] = strategy_entropy_sum / denom
-                            dominant = max(strategy_counts.items(), key=lambda kv: kv[1])[0]
-                            row["strategy_dominant"] = dominant
-                            for z_idx in range(strategy_k):
-                                row[f"strategy_occupancy_{z_idx}"] = float(strategy_counts.get(z_idx, 0)) / denom
-                            for phase, counts in sorted(strategy_phase_counts.items()):
-                                phase_denom = float(max(1, sum(counts.values())))
-                                for z_idx in range(strategy_k):
-                                    row[f"strategy_phase_{phase}_occupancy_{z_idx}"] = (
-                                        float(counts.get(z_idx, 0)) / phase_denom
+                                row[f"qlogit_{i}"] = 0.0
+                                row[f"qprob_{i}"] = 0.0
+                                
+                        row["strategy_entropy_frac"] = float(strategy_info.get("strategy_entropy", 0.0)) / max(1e-6, math.log(max(2, strategy_k)))
+                        
+                        ctx_np = strategy_info.get("context_state")
+                        if ctx_np is not None:
+                            for i in range(ctx_np.shape[0]):
+                                row[f"q_phi_context_{i}"] = float(ctx_np[i])
+                                
+                        e3_writer.writerow(row)
+                    
+                    strategy_prev = strategy
+                    if bool(strategy_info.get("strategy_resampled", False)):
+                        strategy_resamples += 1
+                    strategy_steps += 1
+                    strategy_entropy_sum += float(strategy_info.get("strategy_entropy", 0.0))
+                    strategy_k = max(strategy_k, int(strategy_info.get("strategy_k", 0)))
+                env.step_async(act)
+                obs, rew, done, infos = env.step_wait()
+                info_prev = infos[0] if len(infos) > 0 else {}
+                steps += 1
+                global_step_counter += 1
+                ep_return += float(rew[0])
+                if done.any():
+                    for i in range(len(done)):
+                        if done[i]:
+                            info = infos[i] if i < len(infos) else {}
+                            ep_res = info.get("episode_result", info)
+                            bs = int(ep_res.get("blue_score", 0))
+                            rs = int(ep_res.get("red_score", 0))
+                            success = 1 if bs > rs else 0
+                            decision_steps = int(ep_res.get("decision_steps", info.get("decision_steps", 0)))
+                            zone_cov = float(ep_res.get("zone_coverage", 0.0))
+                            collision_free = int(ep_res.get("collision_free_episode", 1))
+                            ttfs = ep_res.get("time_to_first_score")
+                            try:
+                                ttfs_f = float(ttfs) if ttfs is not None and ttfs != "" else np.nan
+                            except (TypeError, ValueError):
+                                ttfs_f = np.nan
+                            mean_dist = ep_res.get("mean_inter_robot_dist")
+                            try:
+                                mean_dist_f = float(mean_dist) if mean_dist is not None and mean_dist != "" else np.nan
+                            except (TypeError, ValueError):
+                                mean_dist_f = np.nan
+                            row = {
+                                "success": success,
+                                "blue_score": bs,
+                                "red_score": rs,
+                                "steps": decision_steps,
+                                "return": ep_return,
+                                "zone_coverage": zone_cov,
+                                "collision_free": collision_free,
+                                "win_margin": bs - rs,
+                                "time_to_first_score": ttfs_f,
+                                "mean_inter_robot_dist": mean_dist_f,
+                            }
+                            if record_entropy:
+                                row["policy_entropy"] = ep_entropy_first
+                            if coordination_metrics:
+                                if blue_traj:
+                                    row.update(
+                                        compute_episode_coordination_metrics(np.stack(blue_traj, axis=0))
                                     )
-                        episodes.append(row)
-                        if progress_every > 0:
-                            le = len(episodes)
-                            if le == 1 or le % progress_every == 0 or le == n_episodes:
-                                print(f"  episode {le}/{n_episodes}", flush=True)
-                        ep_return = 0.0
-                if hasattr(model, "reset_strategy"):
-                    model.reset_strategy()
-                break
+                                else:
+                                    row.update(
+                                        {
+                                            "coord_pairwise_head0_pearson_mean": float("nan"),
+                                            "coord_head0_team_agreement_rate": float("nan"),
+                                            "coord_full_action_team_agreement_rate": float("nan"),
+                                            "coord_trajectory_steps": 0.0,
+                                        }
+                                    )
+                            if strategy_steps > 0:
+                                denom = float(max(1, strategy_steps))
+                                row["strategy_switches"] = strategy_switches
+                                row["strategy_switch_rate"] = float(strategy_switches) / float(max(1, strategy_steps - 1))
+                                row["strategy_resamples"] = strategy_resamples
+                                row["strategy_resample_rate"] = float(strategy_resamples) / denom
+                                row["strategy_unique_count"] = len(strategy_counts)
+                                row["strategy_entropy_mean"] = strategy_entropy_sum / denom
+                                dominant = max(strategy_counts.items(), key=lambda kv: kv[1])[0]
+                                row["strategy_dominant"] = dominant
+                                for z_idx in range(strategy_k):
+                                    row[f"strategy_occupancy_{z_idx}"] = float(strategy_counts.get(z_idx, 0)) / denom
+                                for phase, counts in sorted(strategy_phase_counts.items()):
+                                    phase_denom = float(max(1, sum(counts.values())))
+                                    for z_idx in range(strategy_k):
+                                        row[f"strategy_phase_{phase}_occupancy_{z_idx}"] = (
+                                            float(counts.get(z_idx, 0)) / phase_denom
+                                        )
+                            episodes.append(row)
+                            if progress_every > 0:
+                                le = len(episodes)
+                                if le == 1 or le % progress_every == 0 or le == n_episodes:
+                                    print(f"  episode {le}/{n_episodes}", flush=True)
+                            ep_return = 0.0
+                    if hasattr(model, "reset_strategy"):
+                        model.reset_strategy()
+                    break
 
-    return episodes
+        return episodes
+    finally:
+        if e3_file is not None:
+            e3_file.close()
 
 
 def count_wld(episodes: list[dict]) -> tuple[int, int, int]:

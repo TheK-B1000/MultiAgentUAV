@@ -74,6 +74,69 @@ def apply_plan_faithful_latent_no_persistence(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_episode_strategic(cfg: PPOConfig) -> PPOConfig:
+    """Episode-credit answer to the decorative-z problem (variance-reduction fix).
+
+    Switches q_phi's credit assignment from per-segment option-credit to
+    per-episode episode-credit. The key insight: per-segment credit gives q_phi
+    a gradient dominated by within-segment policy/opponent stochasticity rather
+    than by z's marginal contribution. With K=4 and ~60 (state-class, z) cells,
+    a 20-step-segment rollout produces only ~13 samples per cell — far too few
+    to learn a sharp conditional q_phi(z|state) when each sample is high-variance.
+
+    Per-episode credit collapses this to **one clean datapoint per episode per cell**:
+    a 1M-step rollout sees ~10,000 episodes ⇒ ~800 samples per cell ⇒ ~60x
+    variance reduction. With that signal-to-noise q_phi can actually sharpen,
+    which makes MI(z; opponent/outcome/flag) measurably > 0 instead of stuck
+    at the plug-in noise floor.
+
+    Inherits the plan-faithful base (K=4, ctx170 from the upgraded env,
+    rebalanced 4v4 opponents) and configures:
+
+      - ``latent_resample_every_n = 0``  → z is sampled at episode start only
+      - ``latent_episode_strategy_warmup_decision_steps = 5`` → defer the
+        committed z snapshot for 5 decision steps so ctx170 EMAs have observed
+        opponent dynamics (red_speed, formation, flag pressure) before q_phi
+        chooses. Without this guard the snapshot context is structurally
+        opponent-blind (raw initial geometry + zeroed EMAs) and MI(z; opponent)
+        is upper-bounded near zero regardless of credit quality.
+      - ``latent_lam_p = 0``              → no persistence loss (nothing to persist)
+      - ``latent_lam_h = 0.003``          → keep entropy regularization so K=4
+                                            doesn't collapse to a single z
+      - ``latent_strategy_ppo_coef = 0``  → no per-step strategy coupling
+      - ``latent_episode_strategy_ppo = True``
+      - ``latent_episode_strategy_coef = 0.30``  → per-episode credit weight
+      - ``latent_q_phi_option_advantage = False`` → unused in episode mode
+
+    Plan-faithful: no labels, no aux heads, no opponent ID. Only changes the
+    *credit horizon* for q_phi from 20 steps to the full episode, and defers
+    the q_phi decision moment until the context is opponent-informed.
+    """
+    cfg = apply_plan_faithful_base(cfg)
+    cfg.use_latent_strategy = True
+    cfg.latent_k = 4
+    cfg.latent_resample_every_n = 0
+    cfg.latent_resample_on_flag = False
+    cfg.latent_lam_p = 0.0
+    cfg.latent_lam_h = 0.003
+    cfg.latent_entropy_objective = "maximize"
+    cfg.latent_strategy_ppo_coef = 0.0
+    cfg.latent_episode_strategy_ppo = True
+    cfg.latent_episode_strategy_coef = 0.30
+    cfg.latent_episode_strategy_clip_eps = 0.2
+    cfg.latent_episode_strategy_value_coef = 0.5
+    cfg.latent_episode_strategy_return_norm = True
+    cfg.latent_episode_strategy_warmup_decision_steps = 5
+    cfg.latent_q_phi_option_advantage = False
+    cfg.latent_strategy_aux_predict_phase_coef = 0.0
+    cfg.latent_strategy_aux_return_head = False
+    cfg.latent_strategy_aux_return_coef = 0.0
+    cfg.latent_kl_consecutive = 0.0
+    cfg.fixed_latent_strategy = False
+    cfg.run_tag = "latent_episode_strategic_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_strategic(cfg: PPOConfig) -> PPOConfig:
     """Plan-faithful primary latent + two anti-decorative-z fixes.
 
