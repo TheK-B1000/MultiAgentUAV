@@ -191,9 +191,16 @@ function Invoke-Stage {
     $stageStartIso = Get-Date -Format "o"
     Write-Chain ("[" + $Label + "] started (chain elapsed: " + (Format-Elapsed $ChainStopwatch.Elapsed) + ")") "DarkCyan"
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    # Pipe Tee-Object output to Out-Host so the function's pipeline return is JUST $ok,
-    # not the merged stream. Tee still writes the full transcript to $LogPath.
-    & $Cmd[0] @($Cmd[1..($Cmd.Length - 1)]) *>&1 | Tee-Object -FilePath $LogPath -Append | Out-Host
+    # IMPORTANT: do NOT merge stderr (`*>&1`) into the captured pipe. The PPO
+    # trainer's tqdm progress bar writes to stderr with `\r` carriage returns
+    # to redraw in place; Tee-Object is line-oriented and would buffer/eat
+    # those updates, hiding the bar entirely. Leaving stderr unmerged lets
+    # PowerShell render the bar straight to the user's terminal.
+    #
+    # Trade-off: stderr (Python warnings, tracebacks) won't appear in
+    # $LogPath -- they still appear on screen, and a non-zero Python exit
+    # code is still captured for the per-stage FAIL/OK summary below.
+    & $Cmd[0] @($Cmd[1..($Cmd.Length - 1)]) | Tee-Object -FilePath $LogPath -Append | Out-Host
     $ok = ($LASTEXITCODE -eq 0)
     $sw.Stop()
     $elapsed = Format-Elapsed $sw.Elapsed
