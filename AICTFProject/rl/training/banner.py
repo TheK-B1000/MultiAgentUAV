@@ -152,19 +152,34 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
     h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
     aux_head = bool(getattr(cfg, "latent_strategy_aux_return_head", False))
     episode_credit = bool(getattr(cfg, "latent_episode_strategy_ppo", False))
+    ep_warmup = int(getattr(cfg, "latent_episode_strategy_warmup_decision_steps", 0) or 0)
+    warmup_label = (
+        f", episode_warmup_steps={ep_warmup}" if episode_credit and ep_warmup > 0 else ""
+    )
     print(
         "[PPO] Latent team strategy: enabled "
         f"(K={int(cfg.latent_k)}, sample={interval_label}, on_flag={on_flag}, "
         f"lambda_p={float(cfg.latent_lam_p):.4f}, lambda_H={float(cfg.latent_lam_h):.4f} "
         f"(H:{h_obj}), "
         f"lambda_KL={lam_kl:.4f}, strategy_ppo_coef={float(cfg.latent_strategy_ppo_coef):.3f}, "
-        f"episode_credit={episode_credit}, episode_coef={float(getattr(cfg, 'latent_episode_strategy_coef', 0.0)):.3f}, "
+        f"episode_credit={episode_credit}, episode_coef={float(getattr(cfg, 'latent_episode_strategy_coef', 0.0)):.3f}"
+        f"{warmup_label}, "
         f"aux_return_head={aux_head}, aux_return_coef={float(cfg.latent_strategy_aux_return_coef):.3f}, "
         f"tau={float(cfg.latent_strategy_tau):.3f}, "
         f"GAE_reset_on_z_change={bool(getattr(cfg, 'latent_gae_reset_on_z_change', True))}, "
         f"bootstrap_z_deterministic={bool(getattr(cfg, 'latent_bootstrap_z_deterministic', True))}"
         f"{fixed_label})"
     )
+    if episode_credit and ep_warmup > 0:
+        print(
+            f"[PPO] Episode-credit warmup: provisional z drives steps 0..{ep_warmup - 1}; "
+            f"committed z + ctx170 snapshot taken at decision step {ep_warmup} (after EMAs see opponent dynamics)."
+        )
+    if episode_credit and ep_warmup == 0:
+        print(
+            "[PPO] WARNING: episode_credit on with warmup_decision_steps=0; q_phi snapshot uses step-0 context "
+            "(canonical initial geometry + zeroed EMAs => opponent-blind). MI(z; opponent) structurally bounded near zero."
+        )
     if (not fixed) and interval <= 0 and float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0:
         print(
             "[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; "

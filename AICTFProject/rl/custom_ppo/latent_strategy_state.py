@@ -50,10 +50,38 @@ import torch
 from torch.distributions import Categorical
 
 from rl.ppo_core import ppo_policy_loss
-from rl.custom_ppo.latent_diagnostics import _strategy_experience_bucket_ids
+from rl.global_state import GLOBAL_STATE_DIM
 
 if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
+
+
+def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor:
+    """Coarse post-hoc situation buckets for diagnostics only; never used as training labels."""
+    if context_state.dim() != 2:
+        raise ValueError(f"context_state must be 2-D, got {tuple(context_state.shape)}")
+    raw = context_state[:, :GLOBAL_STATE_DIM].float()
+    enemy_has_our_flag = (raw[:, 10] > 0.5).long()
+    we_have_enemy_flag = (raw[:, 11] > 0.5).long()
+    dist_edges = torch.tensor([0.20, 0.50], dtype=torch.float32, device=raw.device)
+    closest_ally_to_enemy_flag = torch.bucketize(raw[:, 8].contiguous(), dist_edges).long().clamp(0, 2)
+    closest_enemy_to_our_flag = torch.bucketize(raw[:, 9].contiguous(), dist_edges).long().clamp(0, 2)
+    spread = torch.sqrt(torch.clamp(raw[:, 2].pow(2) + raw[:, 3].pow(2), min=0.0))
+    spread_bin = (spread > 0.15).long()
+    score = raw[:, 16]
+    score_state = torch.where(
+        score < -0.05,
+        torch.zeros_like(score, dtype=torch.long),
+        torch.where(score > 0.05, torch.full_like(score, 2, dtype=torch.long), torch.ones_like(score, dtype=torch.long)),
+    )
+    bucket = enemy_has_our_flag
+    bucket = bucket * 2 + we_have_enemy_flag
+    bucket = bucket * 3 + closest_ally_to_enemy_flag
+    bucket = bucket * 3 + closest_enemy_to_our_flag
+    bucket = bucket * 2 + spread_bin
+    bucket = bucket * 3 + score_state
+    return bucket.long()
+
 
 
 class EpisodeStrategyRecorder:

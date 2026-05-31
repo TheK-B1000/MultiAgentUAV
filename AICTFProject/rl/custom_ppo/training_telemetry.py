@@ -516,6 +516,26 @@ class TrainingTelemetry:
                     f"div_role={div_role:.3f} div_spread={div_spread:.3f} "
                     f"div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
                 )
+            # Episode-credit q_phi telemetry: under v3 (latent_episode_strategy_ppo=True,
+            # latent_strategy_ppo_coef=0) the qphi_grad / z_pi / z_ratio fields on the main
+            # diag line are all structurally zero -- the per-step path is disabled by design.
+            # The real q_phi learning signal lives in apply_episode_strategy_ppo and is shown
+            # here so the user can verify q_phi is actually getting credit each update.
+            if bool(getattr(self.cfg, "latent_episode_strategy_ppo", False)):
+                ep_count = float(row.get("latent_episode_count", 0.0) or 0.0)
+                ep_pg = float(row.get("latent_episode_pg_loss", 0.0) or 0.0)
+                ep_v = float(row.get("latent_episode_v_loss", 0.0) or 0.0)
+                ep_adv_std = float(row.get("latent_episode_adv_std", 0.0) or 0.0)
+                ep_kl = float(row.get("latent_episode_approx_kl", 0.0) or 0.0)
+                ep_clip = float(row.get("latent_episode_clip_fraction", 0.0) or 0.0)
+                ep_ratio_mn = float(row.get("latent_episode_ratio_min", 1.0) or 1.0)
+                ep_ratio_mx = float(row.get("latent_episode_ratio_max", 1.0) or 1.0)
+                ep_ret_mean = float(row.get("latent_episode_return_mean", 0.0) or 0.0)
+                print(
+                    f"      [episode-credit] n_eps={ep_count:.0f} pg={ep_pg:.4f} v={ep_v:.4f} "
+                    f"adv_std={ep_adv_std:.3f} kl={ep_kl:.4f} clip={ep_clip:.3f} "
+                    f"ratio=[{ep_ratio_mn:.3f},{ep_ratio_mx:.3f}] ret_mean={ep_ret_mean:.3f}"
+                )
         if hparams.normalize_returns:
             print(
                 "[PPO|return_norm] "

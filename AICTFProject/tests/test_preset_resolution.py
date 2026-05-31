@@ -102,13 +102,16 @@ class PresetResolutionTests(unittest.TestCase):
             "plan_faithful_latent_option_a_episode_credit",
             "latent_option_a_episode_credit",
             "plan_faithful_latent_episode_credit",
+            "plan_faithful_latent_episode_strategic",
+            "latent_episode_strategic",
+            "plan_faithful_latent_intent_credit",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
             with self.subTest(preset=key):
                 if key in episode_credit_presets:
                     self.assertTrue(cfg["latent_episode_strategy_ppo"])
-                    self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.25)
+                    self.assertTrue(cfg["latent_episode_strategy_coef"] in {0.25, 0.30})
                 else:
                     self.assertFalse(cfg["latent_episode_strategy_ppo"])
                     self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.0)

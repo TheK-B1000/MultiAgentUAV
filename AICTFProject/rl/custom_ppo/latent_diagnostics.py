@@ -563,33 +563,6 @@ def _rollout_advantage_diagnostics(trainer: Any, buffer: Any) -> dict[str, float
     return out
 
 
-def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor:
-    """Coarse post-hoc situation buckets for diagnostics only; never used as training labels."""
-    if context_state.dim() != 2:
-        raise ValueError(f"context_state must be 2-D, got {tuple(context_state.shape)}")
-    raw = context_state[:, :GLOBAL_STATE_DIM].float()
-    enemy_has_our_flag = (raw[:, 10] > 0.5).long()
-    we_have_enemy_flag = (raw[:, 11] > 0.5).long()
-    dist_edges = torch.tensor([0.20, 0.50], dtype=torch.float32, device=raw.device)
-    closest_ally_to_enemy_flag = torch.bucketize(raw[:, 8].contiguous(), dist_edges).long().clamp(0, 2)
-    closest_enemy_to_our_flag = torch.bucketize(raw[:, 9].contiguous(), dist_edges).long().clamp(0, 2)
-    spread = torch.sqrt(torch.clamp(raw[:, 2].pow(2) + raw[:, 3].pow(2), min=0.0))
-    spread_bin = (spread > 0.15).long()
-    score = raw[:, 16]
-    score_state = torch.where(
-        score < -0.05,
-        torch.zeros_like(score, dtype=torch.long),
-        torch.where(score > 0.05, torch.full_like(score, 2, dtype=torch.long), torch.ones_like(score, dtype=torch.long)),
-    )
-    bucket = enemy_has_our_flag
-    bucket = bucket * 2 + we_have_enemy_flag
-    bucket = bucket * 3 + closest_ally_to_enemy_flag
-    bucket = bucket * 3 + closest_enemy_to_our_flag
-    bucket = bucket * 2 + spread_bin
-    bucket = bucket * 3 + score_state
-    return bucket.long()
-
-
 def _write_strategy_experience_table(trainer: Any) -> dict[str, float]:
     if not trainer.strategy_experience_csv_path or not trainer.use_latent_strategy or trainer.latent_k <= 0:
         return {"strategy_bucket_best_match_frac": 0.0, "strategy_experience_records": 0.0, "strategy_experience_buckets": 0.0}
