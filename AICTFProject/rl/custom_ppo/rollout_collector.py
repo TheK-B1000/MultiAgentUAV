@@ -14,13 +14,36 @@ update. Splitting it out lets the trainer become the conductor and lets the
 collector be replaced or wrapped (e.g. for evaluation) without touching the
 update or telemetry paths.
 
-Per the refactor plan we deliberately keep ``trainer`` as a context object
-for this first pass — making the dependencies explicit later is a follow-up.
+Internal structure
+------------------
+:meth:`RolloutCollector.collect` is intentionally a tiny conductor that calls,
+in order:
+
+1. :meth:`_initial_step_state` — reset / persist obs + global / context state.
+2. :meth:`make_buffer` — register the field schema for one rollout.
+3. :meth:`_step_once` for ``cfg.n_steps`` iterations — runs one env step,
+   composes rewards, builds and records a ``StepFrame`` via
+   :class:`~rl.custom_ppo.rollout_step_recorder.RolloutStepRecorder` (PR-9),
+   and advances obs / global / context state.
+4. :meth:`_finalize_buffer` — next-values alignment, GAE, option-returns,
+   and return-norm stats update.
+
+Static collaborators (``model`` / ``env`` / ``device`` / ``cfg`` /
+``hparams`` / ``latent_state`` / ``telemetry`` / ``episode_stats`` /
+``temporal_tracker`` / ``reward_shaping_coef``) are injected explicitly
+into the constructor. A ``runtime`` back-reference to the trainer is
+kept for the mutable cross-rollout cursor state that hasn't been
+extracted into its own owner yet: ``global_step``, ``_last_obs`` /
+``_last_global_state`` / ``_last_context_state``, ``_sb3_rollout_pbar``,
+and ``_global_state_probe_rows``. It is also passed through to a handful
+of legacy helpers (``_denormalize_values``, ``_update_return_norm_stats``,
+``_update_curriculum_after_episode``, ``log_decentralized_actor_contract_once``)
+that still take a trainer-shaped first arg.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -34,10 +57,6 @@ from rl.global_state import (
     GLOBAL_STATE_DIM,
     GLOBAL_STATE_FLAG_TERRITORY_SLICE,
 )
-from rl.latent_phase_labels import (
-    outcome_id_from_global_state,
-    team_phase_id_from_global_state,
-)
 from rl.ppo_core import (
     TensorDictRolloutBuffer,
     align_next_values_to_rollout_actions,
@@ -50,9 +69,13 @@ from rl.custom_ppo.return_normalization import (
     _update_return_norm_stats,
 )
 from rl.custom_ppo.reward_composition import _compose_training_reward_components
+from rl.custom_ppo.rollout_step_recorder import RolloutStepRecorder, StepFrame
 from rl.custom_ppo.trainer_audit import log_decentralized_actor_contract_once
+from rl.custom_ppo.trainer_config import TrainerHyperparams
 
 if TYPE_CHECKING:
+    from rl.custom_ppo.latent_strategy_state import LatentStrategyState
+    from rl.custom_ppo.training_telemetry import TrainingTelemetry
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
@@ -60,15 +83,36 @@ class RolloutCollector:
     """Owns ``collect_rollout`` and its env-stepping helpers.
 
     Constructed once by the trainer and held as ``self.rollout_collector``.
-    Reads trainer state (cfg, env, model, optimizer-free, global_step) and
-    mutates trainer counters (``_episodes_completed``, ``global_step``,
-    ``_last_obs``, ``_last_global_state``, ``_last_context_state``,
-    ``_ep_wins/losses/draws``, ``_rollout_episode_records``,
-    ``_recent_episode_successes``).
+    See the module docstring for the full dependency surface.
     """
 
-    def __init__(self, trainer: "CustomPPOTrainer") -> None:
-        self.trainer = trainer
+    def __init__(
+        self,
+        *,
+        model: Any,
+        env: Any,
+        device: Any,
+        cfg: Any,
+        hparams: TrainerHyperparams,
+        latent_state: "LatentStrategyState",
+        telemetry: "TrainingTelemetry",
+        episode_stats: Any,
+        temporal_tracker: Any,
+        reward_shaping_coef: Any,
+        runtime: "CustomPPOTrainer",
+    ) -> None:
+        self.model = model
+        self.env = env
+        self.device = device
+        self.cfg = cfg
+        self.hparams = hparams
+        self.latent_state = latent_state
+        self.telemetry = telemetry
+        self.episode_stats = episode_stats
+        self.temporal_tracker = temporal_tracker
+        self._reward_shaping_coef_fn = reward_shaping_coef
+        self.runtime = runtime
+        self.step_recorder = RolloutStepRecorder(runtime)
 
     # ------------------------------------------------------------------
     # Step-level helpers (also called from inside ``next_values``).
@@ -86,7 +130,7 @@ class RolloutCollector:
         return ch_float | ch_capt
 
     def tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
-        device = self.trainer.device
+        device = self.device
         return {
             "grid": torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             "vec": torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),
@@ -95,11 +139,10 @@ class RolloutCollector:
         }
 
     def on_sb3_rollout_env_step(self) -> None:
-        trainer = self.trainer
-        p = trainer._sb3_rollout_pbar
+        p = self.runtime._sb3_rollout_pbar
         if p is None:
             return
-        nenv = int(trainer.env.num_envs)
+        nenv = int(self.env.num_envs)
         try:
             rest = int(p.total) - int(p.n)  # type: ignore[attr-defined]
         except Exception:
@@ -278,25 +321,12 @@ class RolloutCollector:
         else:
             bs = int(info.get("blue_score", 0))
             rs = int(info.get("red_score", 0))
-        success = 1 if bs > rs else 0
-        if bs > rs:
-            trainer._ep_wins += 1
-        elif bs < rs:
-            trainer._ep_losses += 1
-        else:
-            trainer._ep_draws += 1
-        trainer._episodes_completed += 1
-        trainer._rollout_episode_records.append(
-            {
-                "blue_score": int(bs),
-                "red_score": int(rs),
-                "win_margin": int(bs) - int(rs),
-                "success": success,
-                "latent_z": latent_z,
-                "opponent_id": int(_opponent_id_int_from_info(trainer.cfg, info)),
-            }
+        trainer.episode_stats.record(
+            blue_score=bs,
+            red_score=rs,
+            latent_z=latent_z,
+            opponent_id=_opponent_id_int_from_info(trainer.cfg, info),
         )
-        trainer._recent_episode_successes.append(success)
         trainer.telemetry.write_episode_metrics(
             info,
             blue_score=bs,
@@ -307,7 +337,7 @@ class RolloutCollector:
         )
         _update_curriculum_after_episode(trainer, info=info, blue_score=bs, red_score=rs, env_index=env_index)
         every = int(getattr(trainer.cfg, "episode_log_every", 0) or 0)
-        if every > 0 and trainer._episodes_completed % every == 0:
+        if every > 0 and trainer.episode_stats.episodes_completed % every == 0:
             trainer.telemetry.print_episode_progress(info)
 
     # ------------------------------------------------------------------
@@ -315,11 +345,45 @@ class RolloutCollector:
     # ------------------------------------------------------------------
 
     def collect(self) -> TensorDictRolloutBuffer:
-        """Collect one rollout and compute advantages/returns."""
+        """Collect one rollout and compute advantages/returns.
+
+        Conductor only: every named stage below corresponds to a private
+        helper. Read top-to-bottom for the per-rollout flow; read each
+        helper for the per-step / per-stage detail.
+        """
         trainer = self.trainer
         log_decentralized_actor_contract_once(trainer)
-        trainer._rollout_episode_records = []
+        trainer.episode_stats.reset_rollout()
         trainer.latent_state.rollout_strategy_episode_records = []
+        obs, global_state, context_state = self._initial_step_state()
+        buffer = self.make_buffer(obs)
+        for step_idx in range(int(trainer.cfg.n_steps)):
+            obs, global_state, context_state = self._step_once(
+                buffer,
+                step_idx=step_idx,
+                obs=obs,
+                global_state=global_state,
+                context_state=context_state,
+            )
+        self._finalize_buffer(buffer)
+        trainer._last_obs = obs
+        trainer._last_global_state = global_state
+        return buffer
+
+    # ------------------------------------------------------------------
+    # Rollout setup / teardown.
+    # ------------------------------------------------------------------
+
+    def _initial_step_state(
+        self,
+    ) -> Tuple[Dict[str, np.ndarray], np.ndarray, torch.Tensor]:
+        """Return ``(obs, global_state, context_state)`` for the first step.
+
+        Either reuses persisted state from the previous rollout or, on the
+        very first ``collect()`` call, resets the env (and the latent
+        temporal tracker / latent state) and seeds the context.
+        """
+        trainer = self.trainer
         if trainer._last_obs is None or trainer._last_global_state is None:
             obs = trainer.env.reset()
             global_state = trainer.env.state().astype(np.float32)
@@ -329,219 +393,18 @@ class RolloutCollector:
                 context_state = trainer.temporal_tracker.update(gs_t)
             else:
                 context_state = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
+            return obs, global_state, context_state
+        obs = trainer._last_obs
+        global_state = trainer._last_global_state
+        if trainer.use_latent_strategy:
+            context_state = trainer._last_context_state
         else:
-            obs = trainer._last_obs
-            global_state = trainer._last_global_state
-            if trainer.use_latent_strategy:
-                context_state = trainer._last_context_state
-            else:
-                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
-        buffer = self.make_buffer(obs)
-        for step_idx in range(int(trainer.cfg.n_steps)):
-            decision_global_state_np = np.asarray(global_state, dtype=np.float32)
-            obs_t = self.tensor_obs(obs)
-            with torch.no_grad():
-                z_t, prev_z_t, strategy_aux = trainer.latent_state.strategy_for_step(context_state)
-                actions_t, values_norm_t, action_log_probs_t, _ = trainer.model.act(obs_t, context_state, z_idx=z_t)
-                values_t = _denormalize_values(trainer, values_norm_t)
-                log_probs_t = action_log_probs_t
-            actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
-            beh_t = sb = rb = pb = adb = blue_ahead_t = None
-            if trainer.use_latent_strategy:
-                beh_t = compute_behavior_telemetry_batch(trainer.env.core, actions_t)
-                sb, rb, pb, adb = bucket_ids_from_telemetry(beh_t, actions_t, trainer.env.core)
-                blue_ahead_t = (trainer.env.core.blue_score > trainer.env.core.red_score).to(
-                    dtype=torch.float32, device=trainer.device
-                )
-            trainer.env.step_async(actions_np)
-            next_obs, rewards, dones, infos = trainer.env.step_wait()
-            step_after = trainer.global_step + int(trainer.env.num_envs)
-            z_np = z_t.detach().cpu().numpy() if z_t is not None else None
-            for env_i, (done_i, info) in enumerate(zip(dones, infos)):
-                if bool(done_i):
-                    latent_z = int(z_np[env_i]) if z_np is not None else None
-                    self.on_episode_done(
-                        dict(info),
-                        timestep=step_after,
-                        rollout_step=step_idx + 1,
-                        latent_z=latent_z,
-                        env_index=env_i,
-                    )
-            next_global_state = trainer.env.state().astype(np.float32)
-            next_values_t = self.next_values(infos, next_global_state, next_obs=next_obs, prev_z=z_t, dones=dones)
-            terminated = np.asarray([bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)])
-            truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
-            reward_component = {
-                key: torch.as_tensor(
-                    [float(info.get(key, 0.0) or 0.0) for info in infos],
-                    dtype=torch.float32,
-                    device=trainer.device,
-                )
-                for key in (
-                    "reward_terminal",
-                    "reward_offense",
-                    "reward_pbrs",
-                    "reward_team",
-                    "reward_sparse",
-                    "reward_sparse_points",
-                    "reward_failure",
-                    "reward_total",
-                )
-            }
-            shaping_coef = float(trainer._reward_shaping_coef())
-            stalemate = torch.as_tensor(
-                [bool(info.get("stalemate_truncated", False)) for info in infos],
-                dtype=torch.bool,
-                device=trainer.device,
-            )
-            reward_component = _compose_training_reward_components(
-                reward_component,
-                dense_weight=trainer.reward_dense_weight,
-                reward_scale=trainer.reward_scale,
-                reward_clip=trainer.reward_clip,
-                shaping_coef=shaping_coef,
-                stalemate=stalemate,
-                stalemate_penalty=trainer.reward_stalemate_penalty,
-            )
-            if trainer.use_latent_strategy:
-                done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
-                trainer.latent_state.episode_return_accum = (
-                    trainer.latent_state.episode_return_accum + reward_component["reward_total"].detach()
-                )
-                if bool(done_t.any().item()):
-                    if trainer.latent_episode_strategy_ppo:
-                        for env_i, done_i in enumerate(dones):
-                            if bool(done_i):
-                                trainer.latent_state.record_episode_strategy_outcome(
-                                    env_i,
-                                    dict(infos[env_i]),
-                                    episode_return=float(
-                                        trainer.latent_state.episode_return_accum[env_i].detach().cpu().item()
-                                    ),
-                                )
-                    trainer.latent_state.episode_return_accum[done_t] = 0.0
-                    trainer.latent_state.episode_strategy_has_start[done_t] = False
+            context_state = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
+        return obs, global_state, context_state
 
-            opp_row = torch.as_tensor(
-                [_opponent_id_int_from_info(trainer.cfg, dict(info)) for info in infos],
-                dtype=torch.long,
-                device=trainer.device,
-            )
-
-            add_items: dict[str, torch.Tensor] = dict(
-                obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=trainer.device),
-                obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=trainer.device),
-                obs_agent_mask=torch.as_tensor(obs["agent_mask"], dtype=torch.float32, device=trainer.device),
-                obs_mask=torch.as_tensor(obs["mask"], dtype=torch.float32, device=trainer.device),
-                global_state=context_state,
-                actions=actions_t,
-                log_probs=log_probs_t,
-                values=values_t,
-                values_norm=values_norm_t,
-                next_values=next_values_t,
-                rewards=reward_component["reward_total"],
-                reward_terminal=reward_component["reward_terminal"],
-                reward_offense=reward_component["reward_offense"],
-                reward_pbrs=reward_component["reward_pbrs"],
-                reward_team=reward_component["reward_team"],
-                reward_sparse=reward_component["reward_sparse"],
-                reward_sparse_points=reward_component["reward_sparse_points"],
-                reward_failure=reward_component["reward_failure"],
-                reward_total=reward_component["reward_total"],
-                terminated=torch.as_tensor(terminated, dtype=torch.bool, device=trainer.device),
-                truncated=torch.as_tensor(truncated, dtype=torch.bool, device=trainer.device),
-                opponent_id=opp_row,
-            )
-            if trainer.use_latent_strategy:
-                n_e = int(trainer.env.num_envs)
-                phase_list: list[int] = []
-                outcome_list: list[int] = []
-                for e in range(n_e):
-                    info_e = dict(infos[e]) if e < len(infos) else {}
-                    sf = float(info_e.get("stalemate_frac", 0.0) or 0.0)
-                    phase_list.append(
-                        int(team_phase_id_from_global_state(decision_global_state_np[e], stalemate_frac=sf))
-                    )
-                    outcome_list.append(int(outcome_id_from_global_state(decision_global_state_np[e])))
-                add_items.update(
-                    z=strategy_aux["z"],
-                    prev_z=strategy_aux["prev_z"],
-                    z_log_probs=strategy_aux["z_log_prob"],
-                    z_logits=strategy_aux["z_logits"],
-                    z_resampled=strategy_aux["z_resampled"],
-                    z_persist_mask=strategy_aux["z_persist_mask"],
-                    phase_id=torch.as_tensor(phase_list, dtype=torch.long, device=trainer.device),
-                    outcome_id=torch.as_tensor(outcome_list, dtype=torch.long, device=trainer.device),
-                    behavior_telemetry=beh_t,
-                    spread_bucket_id=sb,
-                    role_bucket_id=rb,
-                    pressure_bucket_id=pb,
-                    attack_defense_ratio_bucket_id=adb,
-                    blue_ahead=blue_ahead_t,
-                )
-                if trainer.latent_kl_consecutive > 0.0 and trainer.latent_state.z_kl_first_in_ep is not None:
-                    z_logits_cur = strategy_aux["z_logits"]
-                    zlp = trainer.latent_state.prev_z_logits
-                    if zlp is None:
-                        zlp = torch.zeros_like(z_logits_cur)
-                    add_items["z_logits_prev"] = zlp
-                    add_items["z_kl_prev_valid"] = (~trainer.latent_state.z_kl_first_in_ep).to(dtype=torch.float32)
-            buffer.add(**add_items)
-            probe_rows = getattr(trainer, "_global_state_probe_rows", None)
-            if probe_rows is not None:
-                score_lim = max(1, int(getattr(trainer.env.cfg, "score_limit", 1)))
-                max_dec = max(1, int(getattr(trainer.env.cfg, "max_decision_steps", 400)))
-                gs_np = decision_global_state_np
-                for i, info in enumerate(infos):
-                    bs = int(info.get("blue_score", 0) or 0)
-                    rs = int(info.get("red_score", 0) or 0)
-                    ds = int(info.get("decision_steps", 0) or 0)
-                    probe_rows.append(
-                        {
-                            "global_state": np.asarray(gs_np[i], dtype=np.float32).copy(),
-                            "score_diff": float(bs - rs) / float(score_lim),
-                            "time_frac": float(ds) / float(max_dec),
-                        }
-                    )
-            if trainer.latent_resample_on_flag:
-                prev_sec = context_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
-                nxt_sec = torch.as_tensor(
-                    next_global_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE],
-                    dtype=torch.float32,
-                    device=trainer.device,
-                )
-                chg = self.flag_territory_features_changed(prev_sec, nxt_sec)
-                trainer.latent_state.needs_strategy_sample[chg] = True
-            obs = next_obs
-            global_state = next_global_state
-            if trainer.use_latent_strategy:
-                context_state = trainer._last_context_state
-            else:
-                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
-            trainer.global_step += int(trainer.env.num_envs)
-            self.on_sb3_rollout_env_step()
-            if trainer.use_latent_strategy and trainer.latent_kl_consecutive > 0.0 and trainer.latent_state.z_kl_first_in_ep is not None:
-                trainer.latent_state.prev_z_logits = strategy_aux["z_logits"].detach().clone()
-                trainer.latent_state.z_kl_first_in_ep = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
-            trainer.latent_state.mark_strategy_step_done(dones)
-            if trainer.telemetry.e3_step_telemetry_path and trainer.use_latent_strategy and z_t is not None and prev_z_t is not None:
-                assert beh_t is not None and sb is not None and adb is not None
-                trainer.telemetry.append_e3_step(
-                    rollout_step=step_idx,
-                    global_step_at_step_end=int(trainer.global_step),
-                    decision_global_state_np=decision_global_state_np,
-                    z_t=z_t,
-                    prev_z=prev_z_t,
-                    strategy_aux=strategy_aux,
-                    infos=infos,
-                    behavior_telemetry_np=beh_t.detach().cpu().numpy(),
-                    spread_bucket_np=sb.detach().cpu().numpy(),
-                    role_bucket_np=rb.detach().cpu().numpy(),
-                    pressure_bucket_np=pb.detach().cpu().numpy(),
-                    attack_defense_ratio_bucket_np=adb.detach().cpu().numpy(),
-                    blue_ahead_np=blue_ahead_t.detach().cpu().numpy(),
-                )
-
+    def _finalize_buffer(self, buffer: TensorDictRolloutBuffer) -> None:
+        """Post-loop: align ``next_values``, run GAE, option-returns, return-norm."""
+        trainer = self.trainer
         buffer.fields["next_values"][: int(buffer.pos)].copy_(
             align_next_values_to_rollout_actions(
                 buffer.fields["values"][: int(buffer.pos)],
@@ -550,7 +413,7 @@ class RolloutCollector:
                 buffer.fields["truncated"][: int(buffer.pos)].bool(),
             )
         )
-        gae_kw: dict[str, Any] = dict(
+        gae_kw: Dict[str, Any] = dict(
             gamma=float(trainer.cfg.gamma),
             gae_lambda=float(trainer.cfg.gae_lambda),
         )
@@ -576,9 +439,369 @@ class RolloutCollector:
                 buffer.fields["option_returns"].copy_(option_returns)
                 buffer.fields["option_advantages"].copy_(option_advantages)
         _update_return_norm_stats(trainer, buffer.fields["returns"][: int(buffer.pos)])
-        trainer._last_obs = obs
-        trainer._last_global_state = global_state
-        return buffer
+
+    # ------------------------------------------------------------------
+    # Per-step pipeline.
+    # ------------------------------------------------------------------
+
+    def _step_once(
+        self,
+        buffer: TensorDictRolloutBuffer,
+        *,
+        step_idx: int,
+        obs: Dict[str, np.ndarray],
+        global_state: np.ndarray,
+        context_state: torch.Tensor,
+    ) -> Tuple[Dict[str, np.ndarray], np.ndarray, torch.Tensor]:
+        """Run one env step and write one row to ``buffer``.
+
+        Sequence of named stages, each delegated to a small private helper:
+        sample → (latent telemetry) → env step → episode-done bookkeeping →
+        next-value bootstrap → reward composition → record (PR-9) →
+        diagnostics → flag-resample trigger → state advance → end-of-step
+        latent housekeeping → E3 telemetry append.
+        """
+        trainer = self.trainer
+        decision_global_state_np = np.asarray(global_state, dtype=np.float32)
+        obs_t = self.tensor_obs(obs)
+        with torch.no_grad():
+            z_t, prev_z_t, strategy_aux = trainer.latent_state.strategy_for_step(context_state)
+            actions_t, values_norm_t, log_probs_t, _ = trainer.model.act(
+                obs_t, context_state, z_idx=z_t
+            )
+            values_t = _denormalize_values(trainer, values_norm_t)
+        actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
+
+        beh_t, sb, rb, pb, adb, blue_ahead_t = self._pre_step_latent_telemetry(actions_t)
+
+        trainer.env.step_async(actions_np)
+        next_obs, _rewards, dones, infos = trainer.env.step_wait()
+        step_after = trainer.global_step + int(trainer.env.num_envs)
+
+        z_np = z_t.detach().cpu().numpy() if z_t is not None else None
+        self._handle_episode_dones(
+            dones=dones,
+            infos=infos,
+            z_np=z_np,
+            step_idx=step_idx,
+            step_after=step_after,
+        )
+
+        next_global_state = trainer.env.state().astype(np.float32)
+        next_values_t = self.next_values(
+            infos, next_global_state, next_obs=next_obs, prev_z=z_t, dones=dones
+        )
+
+        terminated = np.asarray(
+            [bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)]
+        )
+        truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
+        reward_component = self._compose_step_rewards(infos)
+
+        if trainer.use_latent_strategy:
+            self._update_latent_episode_returns(
+                reward_component=reward_component, dones=dones, infos=infos
+            )
+
+        opp_row = torch.as_tensor(
+            [_opponent_id_int_from_info(trainer.cfg, dict(info)) for info in infos],
+            dtype=torch.long,
+            device=trainer.device,
+        )
+
+        frame = StepFrame(
+            obs=obs,
+            context_state=context_state,
+            decision_global_state_np=decision_global_state_np,
+            actions_t=actions_t,
+            log_probs_t=log_probs_t,
+            values_t=values_t,
+            values_norm_t=values_norm_t,
+            next_values_t=next_values_t,
+            reward_component=reward_component,
+            terminated=terminated,
+            truncated=truncated,
+            opp_row=opp_row,
+            infos=infos,
+            strategy_aux=strategy_aux if trainer.use_latent_strategy else None,
+            behavior_telemetry=beh_t,
+            spread_bucket=sb,
+            role_bucket=rb,
+            pressure_bucket=pb,
+            attack_defense_ratio_bucket=adb,
+            blue_ahead=blue_ahead_t,
+        )
+        self.step_recorder.record(buffer, frame)
+
+        self._append_global_state_probe_rows(decision_global_state_np, infos)
+        if trainer.latent_resample_on_flag:
+            self._apply_flag_resample_trigger(context_state, next_global_state)
+
+        next_context_state = self._advance_context(next_global_state)
+        trainer.global_step += int(trainer.env.num_envs)
+        self.on_sb3_rollout_env_step()
+
+        self._finalize_step_latent_state(strategy_aux, dones)
+        self._append_e3_step_telemetry(
+            step_idx=step_idx,
+            decision_global_state_np=decision_global_state_np,
+            z_t=z_t,
+            prev_z_t=prev_z_t,
+            strategy_aux=strategy_aux,
+            infos=infos,
+            beh_t=beh_t,
+            sb=sb,
+            rb=rb,
+            pb=pb,
+            adb=adb,
+            blue_ahead_t=blue_ahead_t,
+        )
+        return next_obs, next_global_state, next_context_state
+
+    # ------------------------------------------------------------------
+    # Per-step helpers, in roughly the order ``_step_once`` calls them.
+    # ------------------------------------------------------------------
+
+    def _pre_step_latent_telemetry(
+        self, actions_t: torch.Tensor
+    ) -> Tuple[
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+    ]:
+        """Compute ``(behavior_telemetry, sb, rb, pb, adb, blue_ahead)`` or all-``None``.
+
+        Latent-only: returns six ``None`` when ``use_latent_strategy`` is
+        ``False`` so call sites don't need to branch. The values are read
+        from the *current* env core state (i.e. before ``step_async``).
+        """
+        trainer = self.trainer
+        if not trainer.use_latent_strategy:
+            return None, None, None, None, None, None
+        beh_t = compute_behavior_telemetry_batch(trainer.env.core, actions_t)
+        sb, rb, pb, adb = bucket_ids_from_telemetry(beh_t, actions_t, trainer.env.core)
+        blue_ahead_t = (trainer.env.core.blue_score > trainer.env.core.red_score).to(
+            dtype=torch.float32, device=trainer.device
+        )
+        return beh_t, sb, rb, pb, adb, blue_ahead_t
+
+    def _handle_episode_dones(
+        self,
+        *,
+        dones: np.ndarray,
+        infos: List[Dict[str, Any]],
+        z_np: Optional[np.ndarray],
+        step_idx: int,
+        step_after: int,
+    ) -> None:
+        """Forward each finished episode to :meth:`on_episode_done`."""
+        for env_i, (done_i, info) in enumerate(zip(dones, infos)):
+            if not bool(done_i):
+                continue
+            latent_z = int(z_np[env_i]) if z_np is not None else None
+            self.on_episode_done(
+                dict(info),
+                timestep=step_after,
+                rollout_step=step_idx + 1,
+                latent_z=latent_z,
+                env_index=env_i,
+            )
+
+    def _compose_step_rewards(
+        self, infos: List[Dict[str, Any]]
+    ) -> Dict[str, torch.Tensor]:
+        """Pull reward components from ``infos`` and run the training composer."""
+        trainer = self.trainer
+        device = trainer.device
+        reward_component = {
+            key: torch.as_tensor(
+                [float(info.get(key, 0.0) or 0.0) for info in infos],
+                dtype=torch.float32,
+                device=device,
+            )
+            for key in (
+                "reward_terminal",
+                "reward_offense",
+                "reward_pbrs",
+                "reward_team",
+                "reward_sparse",
+                "reward_sparse_points",
+                "reward_failure",
+                "reward_total",
+            )
+        }
+        shaping_coef = float(trainer._reward_shaping_coef())
+        stalemate = torch.as_tensor(
+            [bool(info.get("stalemate_truncated", False)) for info in infos],
+            dtype=torch.bool,
+            device=device,
+        )
+        return _compose_training_reward_components(
+            reward_component,
+            dense_weight=trainer.reward_dense_weight,
+            reward_scale=trainer.reward_scale,
+            reward_clip=trainer.reward_clip,
+            shaping_coef=shaping_coef,
+            stalemate=stalemate,
+            stalemate_penalty=trainer.reward_stalemate_penalty,
+        )
+
+    def _update_latent_episode_returns(
+        self,
+        *,
+        reward_component: Dict[str, torch.Tensor],
+        dones: np.ndarray,
+        infos: List[Dict[str, Any]],
+    ) -> None:
+        """Maintain ``episode_return_accum`` and flush on env-level dones.
+
+        Used by the episode-strategy PPO path to score whole-episode returns
+        per latent ``z``. Caller already gated this on ``use_latent_strategy``.
+        """
+        trainer = self.trainer
+        done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
+        trainer.latent_state.episode_return_accum = (
+            trainer.latent_state.episode_return_accum
+            + reward_component["reward_total"].detach()
+        )
+        if not bool(done_t.any().item()):
+            return
+        if trainer.latent_episode_strategy_ppo:
+            for env_i, done_i in enumerate(dones):
+                if not bool(done_i):
+                    continue
+                trainer.latent_state.record_episode_strategy_outcome(
+                    env_i,
+                    dict(infos[env_i]),
+                    episode_return=float(
+                        trainer.latent_state.episode_return_accum[env_i]
+                        .detach()
+                        .cpu()
+                        .item()
+                    ),
+                )
+        trainer.latent_state.episode_return_accum[done_t] = 0.0
+        trainer.latent_state.episode_strategy_has_start[done_t] = False
+
+    def _append_global_state_probe_rows(
+        self,
+        decision_global_state_np: np.ndarray,
+        infos: List[Dict[str, Any]],
+    ) -> None:
+        """Append optional ``(global_state, score_diff, time_frac)`` probe rows."""
+        trainer = self.trainer
+        probe_rows = getattr(trainer, "_global_state_probe_rows", None)
+        if probe_rows is None:
+            return
+        score_lim = max(1, int(getattr(trainer.env.cfg, "score_limit", 1)))
+        max_dec = max(1, int(getattr(trainer.env.cfg, "max_decision_steps", 400)))
+        for i, info in enumerate(infos):
+            bs = int(info.get("blue_score", 0) or 0)
+            rs = int(info.get("red_score", 0) or 0)
+            ds = int(info.get("decision_steps", 0) or 0)
+            probe_rows.append(
+                {
+                    "global_state": np.asarray(decision_global_state_np[i], dtype=np.float32).copy(),
+                    "score_diff": float(bs - rs) / float(score_lim),
+                    "time_frac": float(ds) / float(max_dec),
+                }
+            )
+
+    def _apply_flag_resample_trigger(
+        self,
+        context_state: torch.Tensor,
+        next_global_state: np.ndarray,
+    ) -> None:
+        """Mark envs whose flag-territory features changed for next-step resample."""
+        trainer = self.trainer
+        prev_sec = context_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
+        nxt_sec = torch.as_tensor(
+            next_global_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE],
+            dtype=torch.float32,
+            device=trainer.device,
+        )
+        chg = self.flag_territory_features_changed(prev_sec, nxt_sec)
+        trainer.latent_state.needs_strategy_sample[chg] = True
+
+    def _advance_context(self, next_global_state: np.ndarray) -> torch.Tensor:
+        """Return the context tensor for the *next* step.
+
+        Latent mode: the temporal tracker was already advanced inside
+        :meth:`next_values`, so we just hand back ``trainer._last_context_state``.
+        Non-latent mode: context is just the (raw) global state on device.
+        """
+        trainer = self.trainer
+        if trainer.use_latent_strategy:
+            return trainer._last_context_state
+        return torch.as_tensor(next_global_state, dtype=torch.float32, device=trainer.device)
+
+    def _finalize_step_latent_state(
+        self,
+        strategy_aux: Dict[str, torch.Tensor],
+        dones: np.ndarray,
+    ) -> None:
+        """End-of-step latent housekeeping (KL-prev snapshot + strategy age)."""
+        trainer = self.trainer
+        if (
+            trainer.use_latent_strategy
+            and trainer.latent_kl_consecutive > 0.0
+            and trainer.latent_state.z_kl_first_in_ep is not None
+        ):
+            trainer.latent_state.prev_z_logits = strategy_aux["z_logits"].detach().clone()
+            trainer.latent_state.z_kl_first_in_ep = torch.as_tensor(
+                dones, dtype=torch.bool, device=trainer.device
+            )
+        trainer.latent_state.mark_strategy_step_done(dones)
+
+    def _append_e3_step_telemetry(
+        self,
+        *,
+        step_idx: int,
+        decision_global_state_np: np.ndarray,
+        z_t: Optional[torch.Tensor],
+        prev_z_t: Optional[torch.Tensor],
+        strategy_aux: Dict[str, torch.Tensor],
+        infos: List[Dict[str, Any]],
+        beh_t: Optional[torch.Tensor],
+        sb: Optional[torch.Tensor],
+        rb: Optional[torch.Tensor],
+        pb: Optional[torch.Tensor],
+        adb: Optional[torch.Tensor],
+        blue_ahead_t: Optional[torch.Tensor],
+    ) -> None:
+        """Forward one row to the E3 step telemetry CSV when enabled."""
+        trainer = self.trainer
+        if not (trainer.telemetry.e3_step_telemetry_path and trainer.use_latent_strategy):
+            return
+        if z_t is None or prev_z_t is None:
+            return
+        if (
+            beh_t is None
+            or sb is None
+            or rb is None
+            or pb is None
+            or adb is None
+            or blue_ahead_t is None
+        ):
+            return
+        trainer.telemetry.append_e3_step(
+            rollout_step=step_idx,
+            global_step_at_step_end=int(trainer.global_step),
+            decision_global_state_np=decision_global_state_np,
+            z_t=z_t,
+            prev_z=prev_z_t,
+            strategy_aux=strategy_aux,
+            infos=infos,
+            behavior_telemetry_np=beh_t.detach().cpu().numpy(),
+            spread_bucket_np=sb.detach().cpu().numpy(),
+            role_bucket_np=rb.detach().cpu().numpy(),
+            pressure_bucket_np=pb.detach().cpu().numpy(),
+            attack_defense_ratio_bucket_np=adb.detach().cpu().numpy(),
+            blue_ahead_np=blue_ahead_t.detach().cpu().numpy(),
+        )
 
 
 __all__ = ["RolloutCollector"]
