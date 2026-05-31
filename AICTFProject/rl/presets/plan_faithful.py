@@ -101,8 +101,10 @@ def apply_plan_faithful_latent_episode_strategic(cfg: PPOConfig) -> PPOConfig:
         opponent-blind (raw initial geometry + zeroed EMAs) and MI(z; opponent)
         is upper-bounded near zero regardless of credit quality.
       - ``latent_lam_p = 0``              → no persistence loss (nothing to persist)
-      - ``latent_lam_h = 0.003``          → keep entropy regularization so K=4
-                                            doesn't collapse to a single z
+      - ``latent_lam_h = 0.003``          → start with entropy pressure so K=4
+                                            stays alive
+      - ``latent_lam_h_start/end``        → anneal 0.003 -> 0.0005 from
+                                            200k to 700k so q_phi can sharpen
       - ``latent_strategy_ppo_coef = 0``  → no per-step strategy coupling
       - ``latent_episode_strategy_ppo = True``
       - ``latent_episode_strategy_coef = 0.30``  → per-episode credit weight
@@ -119,6 +121,10 @@ def apply_plan_faithful_latent_episode_strategic(cfg: PPOConfig) -> PPOConfig:
     cfg.latent_resample_on_flag = False
     cfg.latent_lam_p = 0.0
     cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0005
+    cfg.latent_entropy_anneal_start = 200_000
+    cfg.latent_entropy_anneal_end = 700_000
     cfg.latent_entropy_objective = "maximize"
     cfg.latent_strategy_ppo_coef = 0.0
     cfg.latent_episode_strategy_ppo = True

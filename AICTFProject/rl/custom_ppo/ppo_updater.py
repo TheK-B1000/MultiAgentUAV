@@ -16,7 +16,7 @@ mechanical — heavy thinning of dependencies can come in a follow-up.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -47,6 +47,7 @@ from rl.custom_ppo.return_normalization import (
     _normalize_value_targets,
     _update_strategy_return_stats,
 )
+from rl.custom_ppo.schedules import resolve_latent_lam_h
 from rl.custom_ppo.trainer_config import TrainerHyperparams
 
 if TYPE_CHECKING:
@@ -86,6 +87,10 @@ class PPOUpdater:
         self.latent_state = latent_state
         self.runtime = runtime
 
+    def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
+        """Return the current latent entropy coefficient for this rollout."""
+        return resolve_latent_lam_h(self.cfg, global_step=global_step, total_timesteps=total_timesteps)
+
     def update(
         self,
         buffer: TensorDictRolloutBuffer,
@@ -107,9 +112,7 @@ class PPOUpdater:
         for group in self.optimizer.param_groups:
             group["lr"] = lr
         ent_coef = hparams.ent_coef if progress_remaining > 0.75 else 0.5 * hparams.ent_coef
-        latent_lam_h_start = max(0.0, float(getattr(cfg, "latent_lam_h", 0.0) or 0.0))
-        latent_lam_h_end = min(latent_lam_h_start, 0.001)
-        latent_lam_h = latent_lam_h_end + (latent_lam_h_start - latent_lam_h_end) * progress_remaining
+        latent_lam_h = self.compute_latent_lam_h(runtime.global_step, total_timesteps)
         _update_strategy_return_stats(runtime, buffer)
 
         stats: dict[str, list[float]] = {
@@ -370,6 +373,7 @@ class PPOUpdater:
                 }
             )
         runtime.last_stats["learning_rate"] = float(lr)
+        runtime.last_stats["latent_lam_h"] = float(latent_lam_h)
         if hparams.normalize_returns:
             rn = runtime.return_norm
             runtime.last_stats["return_norm_mean"] = float(rn.mean)

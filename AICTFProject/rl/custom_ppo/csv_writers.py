@@ -176,6 +176,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         "clip_fraction",
         "grad_norm",
         "learning_rate",
+        "latent_lam_h",
         "strategy_entropy",
         "strategy_entropy_frac",
         "strategy_policy_loss",

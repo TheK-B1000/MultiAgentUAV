@@ -104,6 +104,10 @@ class PPOConfig:
     # ``none`` removes the H term (strategy_encoder receives no gradient from λ_H when λ_p/KL are also inactive).
     latent_entropy_objective: Literal["maximize", "minimize", "none"] = "maximize"
     latent_lam_h: float = 0.005
+    latent_lam_h_start: Optional[float] = None
+    latent_lam_h_end: Optional[float] = None
+    latent_entropy_anneal_start: Optional[int] = None
+    latent_entropy_anneal_end: Optional[int] = None
     latent_lam_p: float = 0.02
     # A1: clipped PPO/REINFORCE-style update for sampled z. Kept low because z operates at episode cadence.
     latent_strategy_ppo_coef: float = 0.1

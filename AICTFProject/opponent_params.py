@@ -17,12 +17,11 @@ Each style maps to a distribution over these params and returns GPU tensors for 
   ~``2.2 / max_speed_cps`` is largely ineffective until integrator / cap semantics change.
 
 OP3 vs OP4 (must be clearly different for held-out eval):
-  - OP3: Training workhorse. Medium attacker + medium defender, moderate role switching (~0.35),
-    real medium-difficulty deception / coordination / sync on **every** team size (the formerly
-    nerfed 4v4/8v8 speed-only branch was replaced with a tough balanced band — the prior
-    ~0.66-0.78 speed band with zero coord/sync/deception let flat policies trivially reach
-    100% WR; the rebalanced band restores intended difficulty).
-  - OP4: Held-out **style mixture**, not ``OP3 + noise``. Each episode draws one of four archetypes:
+  - OP3: Training workhorse. Fixed medium attacker + medium defender, moderate role switching (~0.35),
+    moderate deception / coordination on 2v2. Larger teams use the normal speed-only band so OP3
+    remains a trainable baseline instead of the hard test opponent.
+  - OP4: Held-out **style mixture**, not ``OP3 + noise``. Each episode draws one of four archetypes
+    and is intentionally tougher than OP3 eval on larger teams:
     committed blitz (striker-heavy, low role churn), slow anchor with heavy deception,
     volatile ``(medium, medium)`` with **much** higher role + deception than OP3's fixed pivot rate,
     or high-entropy yolo / randomized styles. Goal: different *behavior regime* than OP3, not only strength.
@@ -236,28 +235,15 @@ def sample_batched_opponent_params(
                 n_low, n_high = 0.0, 0.0
         elif key == "OP3":
             # Strategy 3/4-like: Medium Attacker + Medium Defender + dynamic switching.
-            # All team sizes get real medium difficulty. The prior 4v4/8v8 speed-only
-            # branch (s=0.66-0.78, no deception/coord/sync) let flat policies hit 100% WR
-            # because red was just a slow trickle; the new bands restore the intended
-            # workhorse challenge (medium coord, mid deception, real sync windows).
+            # OP3 is the normal training baseline. Keep larger teams in the legacy
+            # speed-only band; OP4 owns the harder held-out eval pressure.
             attacker_style = 1
             defender_style = 1
             role_switch_prob = 0.35
             if n_agents >= 8:
-                s_low, s_high = 0.88, 1.04
-                d_low, d_high = 0.06, 0.18
-                c_prob = 0.40
-                sync_c_low, sync_c_high = 3, 6
-                sync_nc_low, sync_nc_high = 2, 5
-                n_low, n_high = 0.0, 0.04
+                s_low, s_high = 0.70, 0.82
             elif n_agents >= 4:
-                # 4v4 tough OP3: real medium band, was previously the nerfed slow trickle.
-                s_low, s_high = 0.92, 1.10
-                d_low, d_high = 0.08, 0.22
-                c_prob = 0.45
-                sync_c_low, sync_c_high = 3, 6
-                sync_nc_low, sync_nc_high = 2, 5
-                n_low, n_high = 0.0, 0.04
+                s_low, s_high = 0.66, 0.78
             elif op3_easy:
                 # n_agents == 3 (rare): use the legacy 2v2-ish band so behavior is sane.
                 s_low, s_high = 0.88, 1.08

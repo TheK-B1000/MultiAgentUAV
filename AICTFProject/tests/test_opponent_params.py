@@ -62,6 +62,56 @@ class OpponentParamsTests(unittest.TestCase):
         for key in params_a:
             self.assertTrue(torch.equal(params_a[key], params_b[key]), key)
 
+    def test_op3_larger_teams_use_normal_speed_only_band(self):
+        expected_speed_bounds = {
+            4: (0.66, 0.78),
+            8: (0.70, 0.82),
+        }
+        for n_agents, (s_low, s_high) in expected_speed_bounds.items():
+            with self.subTest(n_agents=n_agents):
+                params = sample_batched_opponent_params(
+                    kind="SCRIPTED",
+                    key="OP3",
+                    phase="OP3",
+                    n_agents=n_agents,
+                    batch_size=512,
+                    device="cpu",
+                    generator=_make_generator(300 + n_agents),
+                )
+
+                self.assertGreaterEqual(float(params["speed_mult"].min()), s_low)
+                self.assertLessEqual(float(params["speed_mult"].max()), s_high)
+                self.assertTrue((params["deception_prob"] == 0.0).all().item())
+                self.assertFalse(params["coordinated_attack"].any().item())
+                self.assertTrue((params["attack_sync_window"] == 0).all().item())
+                self.assertTrue((params["noise_sigma"] == 0.0).all().item())
+                self.assertTrue((params["attacker_style"] == 1).all().item())
+                self.assertTrue((params["defender_style"] == 1).all().item())
+                self.assertTrue(torch.allclose(params["role_switch_prob"], torch.full((512,), 0.35)))
+
+    def test_op4_eval_is_tougher_than_op3_on_larger_teams(self):
+        op3_speed_high = {
+            4: 0.78,
+            8: 0.82,
+        }
+        for n_agents, op3_high in op3_speed_high.items():
+            with self.subTest(n_agents=n_agents):
+                params = sample_batched_opponent_params(
+                    kind="SCRIPTED",
+                    key="OP4",
+                    phase="OP4",
+                    n_agents=n_agents,
+                    batch_size=4096,
+                    device="cpu",
+                    generator=_make_generator(400 + n_agents),
+                )
+
+                self.assertGreater(float(params["speed_mult"].max()), op3_high)
+                self.assertGreater(float(params["deception_prob"].max()), 0.20)
+                self.assertTrue(params["coordinated_attack"].any().item())
+                self.assertGreater(int(params["attack_sync_window"].max()), 0)
+                self.assertGreater(float(params["role_switch_prob"].max()), 0.50)
+
     def test_op4_samples_multiple_behavior_regimes(self):
         params = sample_batched_opponent_params(
             kind="SCRIPTED",

@@ -618,6 +618,7 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("reward_sparse_mean", rows[0])
             self.assertIn("reward_failure_mean", rows[0])
             self.assertIn("reward_failure_to_outcome_abs", rows[0])
+            self.assertIn("latent_lam_h", rows[0])
             self.assertIn("strategy_entropy_frac", rows[0])
             self.assertIn("strategy_wr_spread", rows[0])
             self.assertIn("strategy_occupancy_0", rows[0])
