@@ -1,19 +1,116 @@
 from __future__ import annotations
 
 import csv
-import math
 import os
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
 
-from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES, N_TELEMETRY, N_ROLE_BUCKET_MI, N_ATTACK_DEFENSE_RATIO_BUCKET
+from rl.behavior_telemetry import (
+    BEHAVIOR_TELEMETRY_NAMES,
+    N_ATTACK_DEFENSE_RATIO_BUCKET,
+    N_ROLE_BUCKET_MI,
+    N_TELEMETRY,
+)
+from rl.custom_ppo.csv_writers import (
+    SCRIPTED_OPPONENT_MI_COUNT,
+    _ensure_additive_csv_header,
+    _strategy_experience_fieldnames,
+)
+from rl.custom_ppo.inference import FORCED_Z_MACRO_ACTIONS, FORCED_Z_PROFILE_MAX_ROWS
 from rl.discrete_mi import discrete_mi_plugin
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_phase_labels import TEAM_PHASES
-from rl.custom_ppo.inference import FORCED_Z_PROFILE_MAX_ROWS, FORCED_Z_MACRO_ACTIONS
-from rl.custom_ppo.csv_writers import SCRIPTED_OPPONENT_MI_COUNT, _strategy_experience_fieldnames, _ensure_additive_csv_header
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers shared by the rollout diagnostics below.
+#
+# These exist because the same three patterns appear ~8-10 times each inside
+# `_latent_opponent_rollout_diag`:
+#   1. pull an optional integer/float field out of the rollout buffer,
+#   2. compute plug-in MI(z; x) for some categorical x,
+#   3. write P(z=k | bucket=b) for every (b, k).
+# Centralising them keeps the diagnostic readable as a checklist and replaces
+# the Python-level joint-histogram loops with a single vectorised bincount.
+# ---------------------------------------------------------------------------
+
+
+def _flat_long_np(buffer: Any, name: str, length: int) -> np.ndarray | None:
+    """Return ``buffer.fields[name][:length]`` flattened to int64 numpy, or None."""
+    if name not in buffer.fields:
+        return None
+    return buffer.fields[name][:length].reshape(-1).long().cpu().numpy()
+
+
+def _flat_float_np(buffer: Any, name: str, length: int) -> np.ndarray | None:
+    """Return ``buffer.fields[name][:length]`` flattened to float32 numpy, or None."""
+    if name not in buffer.fields:
+        return None
+    return buffer.fields[name][:length].reshape(-1).float().cpu().numpy()
+
+
+def _mi_z_vs(z: np.ndarray, K: int, x: np.ndarray | None, n_x: int) -> float:
+    """Plug-in MI(z; x) in nats. Returns 0.0 when ``x`` is missing or empty."""
+    if x is None:
+        return 0.0
+    valid = (z >= 0) & (z < K) & (x >= 0) & (x < n_x)
+    if not bool(valid.any()):
+        return 0.0
+    idx = z[valid].astype(np.int64) * n_x + x[valid].astype(np.int64)
+    joint = np.bincount(idx, minlength=K * n_x).reshape(K, n_x).astype(np.float64)
+    return float(discrete_mi_plugin(joint))
+
+
+def _bucket_z_fracs(
+    out: dict[str, float],
+    z: np.ndarray,
+    K: int,
+    bucket: np.ndarray,
+    n_buckets: int,
+    key: Callable[[int, int], str],
+) -> None:
+    """Write ``out[key(b, k)] = P(z=k | bucket=b)`` for every (b, k); zeros when empty."""
+    for b in range(n_buckets):
+        mask = bucket == b
+        if bool(mask.any()):
+            z_sub = np.clip(z[mask], 0, K - 1)
+            for k in range(K):
+                out[key(b, k)] = float((z_sub == k).mean())
+        else:
+            for k in range(K):
+                out[key(b, k)] = 0.0
+
+
+def _fill_zero_z_fracs(
+    out: dict[str, float], K: int, n_buckets: int, key: Callable[[int, int], str]
+) -> None:
+    """Default branch for ``_bucket_z_fracs`` when the bucket field is absent."""
+    for b in range(n_buckets):
+        for k in range(K):
+            out[key(b, k)] = 0.0
+
+
+def _shannon_entropy_nats(arr: np.ndarray | None, num_categories: int) -> float:
+    """Plug-in Shannon entropy in nats. Returns 0.0 when ``arr`` is missing/empty."""
+    if arr is None or arr.size == 0:
+        return 0.0
+    counts = np.bincount(arr, minlength=num_categories).astype(np.float64)
+    total = counts.sum()
+    if total <= 0.0:
+        return 0.0
+    probs = counts / total
+    probs = probs[probs > 0]
+    return float(-np.sum(probs * np.log(probs)))
+
+
+# ---------------------------------------------------------------------------
+# Public diagnostics. The function names below are imported by the trainer
+# (``rl.custom_ppo.ppo_updater``) and by ``tests/test_latent_strategy_alignment``;
+# their signatures, return-dict keys, and numeric outputs are part of the
+# trainer's CSV contract and must not change.
+# ---------------------------------------------------------------------------
 
 
 def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
@@ -45,6 +142,141 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
     return out
 
 
+def _q_phi_probs_and_entropy(
+    buffer: Any, length: int, K: int
+) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """Softmax probs and per-step entropy of stored q_phi logits, or (None, None)."""
+    if "z_logits" not in buffer.fields:
+        return None, None
+    logits = buffer.fields["z_logits"][:length].reshape(-1, K).float()
+    probs = torch.softmax(logits, dim=-1)
+    entropy = -(probs.clamp_min(1e-8) * probs.clamp_min(1e-8).log()).sum(dim=-1)
+    return probs.detach().cpu().numpy(), entropy.detach().cpu().numpy()
+
+
+def _flag_state_per_step(buffer: Any, length: int) -> np.ndarray:
+    """Encode (blue_has_red_flag, red_has_blue_flag) as a 4-valued bucket per step."""
+    gs_all = buffer.fields["global_state"][:length].cpu().numpy()
+    gs_flat = gs_all.reshape(-1, gs_all.shape[-1])
+    blue_cap = (gs_flat[:, 10] > 0.5).astype(np.int64)
+    red_cap = (gs_flat[:, 11] > 0.5).astype(np.int64)
+    return blue_cap + 2 * red_cap
+
+
+def _phase_block(
+    out: dict[str, float],
+    z: np.ndarray,
+    K: int,
+    sw: np.ndarray,
+    ba: np.ndarray | None,
+    rsp_bin: np.ndarray | None,
+    pid: np.ndarray,
+    q_probs: np.ndarray | None,
+    q_entropy: np.ndarray | None,
+) -> None:
+    """Per-phase z fractions, switch / blue-ahead / capture means, and q_phi means."""
+    for p in range(len(TEAM_PHASES)):
+        mask = pid == p
+        if not bool(mask.any()):
+            for k in range(K):
+                out[f"latent_phase{p}_z{k}_frac"] = 0.0
+            out[f"latent_phase{p}_switch_mean"] = 0.0
+            out[f"latent_phase{p}_blue_ahead_mean"] = 0.0
+            out[f"latent_phase{p}_capture_step_mean"] = 0.0
+            out[f"q_phi_phase{p}_entropy_mean"] = 0.0
+            for k in range(K):
+                out[f"q_phi_phase{p}_z{k}_prob_mean"] = 0.0
+            continue
+
+        z_sub = np.clip(z[mask], 0, K - 1)
+        for k in range(K):
+            out[f"latent_phase{p}_z{k}_frac"] = float((z_sub == k).mean())
+        out[f"latent_phase{p}_switch_mean"] = float(sw[mask].mean())
+        out[f"latent_phase{p}_blue_ahead_mean"] = float(ba[mask].mean()) if ba is not None else 0.0
+        out[f"latent_phase{p}_capture_step_mean"] = (
+            float(rsp_bin[mask].mean()) if rsp_bin is not None else 0.0
+        )
+
+        if q_probs is None or q_entropy is None:
+            out[f"q_phi_phase{p}_entropy_mean"] = 0.0
+            for k in range(K):
+                out[f"q_phi_phase{p}_z{k}_prob_mean"] = 0.0
+        else:
+            out[f"q_phi_phase{p}_entropy_mean"] = float(q_entropy[mask].mean())
+            q_phase = q_probs[mask]
+            for k in range(K):
+                out[f"q_phi_phase{p}_z{k}_prob_mean"] = float(q_phase[:, k].mean())
+
+
+def _reward_sum_after_switch_5(out: dict[str, float], buffer: Any, length: int) -> None:
+    """Mean of the next-5-step reward sum following a z-switch (excludes terminal switches)."""
+    rewards = buffer.fields["rewards"][:length].detach().cpu().numpy()
+    z_tb = buffer.fields["z"][:length].detach().cpu().numpy()
+    pz_tb = buffer.fields["prev_z"][:length].detach().cpu().numpy()
+    Tn, Bn = int(z_tb.shape[0]), int(z_tb.shape[1])
+    sums: list[float] = []
+    for t in range(Tn):
+        h = min(5, Tn - 1 - t)
+        if h <= 0:
+            continue
+        for b in range(Bn):
+            if int(z_tb[t, b]) != int(pz_tb[t, b]):
+                sums.append(float(rewards[t + 1 : t + 1 + h, b].sum()))
+    out["latent_reward_sum_5_after_z_switch_mean"] = float(np.mean(sums)) if sums else 0.0
+
+
+def _flag_return_indices(
+    blue_cap_col: np.ndarray, red_cap_col: np.ndarray, abs_rsp_col: np.ndarray
+) -> np.ndarray:
+    """Time indices where a flag was returned (carrier dropped it) without scoring."""
+    if blue_cap_col.shape[0] < 2:
+        return np.empty(0, dtype=np.int64)
+    # blue_cap is bool; for the time-stepped diff we need integer logic against ~.
+    blue_ret = blue_cap_col[:-1] & ~blue_cap_col[1:]
+    red_ret = red_cap_col[:-1] & ~red_cap_col[1:]
+    no_score = abs_rsp_col[1:] < 1.0
+    hit = (blue_ret | red_ret) & no_score
+    return np.where(hit)[0] + 1  # +1 because index t in original referred to the second step.
+
+
+def _switch_proximity_fracs(out: dict[str, float], buffer: Any, length: int) -> None:
+    """Fraction of z-switches within 3 steps of a capture / kill / flag-return event."""
+    rsp = buffer.fields["reward_sparse_points"][:length].cpu().numpy()
+    z_env = buffer.fields["z"][:length].cpu().numpy()
+    pz_env = buffer.fields["prev_z"][:length].cpu().numpy()
+    persist_env = buffer.fields["z_persist_mask"][:length].cpu().numpy()
+    sw_env = persist_env & (z_env != pz_env)
+    total = float(sw_env.sum())
+    if total <= 0.0:
+        out["latent_switch_near_capture_frac"] = 0.0
+        out["latent_switch_near_kill_frac"] = 0.0
+        out["latent_switch_near_return_frac"] = 0.0
+        return
+
+    gs_env = buffer.fields["global_state"][:length].cpu().numpy()
+    blue_cap_env = gs_env[:, :, 10] > 0.5
+    red_cap_env = gs_env[:, :, 11] > 0.5
+    near_capture = near_kill = near_return = 0.0
+    for b in range(int(buffer.n_envs)):
+        switch_idx = np.where(sw_env[:, b])[0]
+        if switch_idx.size == 0:
+            continue
+        abs_rsp = np.abs(rsp[:, b])
+        capture_idx = np.where(abs_rsp > 50.0)[0]
+        kill_idx = np.where((abs_rsp > 1.0) & (abs_rsp < 40.0))[0]
+        return_idx = _flag_return_indices(blue_cap_env[:, b], red_cap_env[:, b], abs_rsp)
+        for idx in switch_idx:
+            if capture_idx.size and int(np.min(np.abs(capture_idx - idx))) <= 3:
+                near_capture += 1.0
+            if kill_idx.size and int(np.min(np.abs(kill_idx - idx))) <= 3:
+                near_kill += 1.0
+            if return_idx.size and int(np.min(np.abs(return_idx - idx))) <= 3:
+                near_return += 1.0
+    out["latent_switch_near_capture_frac"] = near_capture / total
+    out["latent_switch_near_kill_frac"] = near_kill / total
+    out["latent_switch_near_return_frac"] = near_return / total
+
+
 def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]:
     """Per-opponent z occupancy plus MI(z; opponent/phase/outcome) and phase / behavior bucket rollups."""
     if not trainer.use_latent_strategy or "z" not in buffer.fields:
@@ -52,111 +284,38 @@ def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]
     length = int(buffer.pos)
     if length <= 0:
         return {}
-    z = buffer.fields["z"][:length].reshape(-1).long().cpu().numpy()
-    K = int(trainer.latent_k)
-    out: dict[str, float] = {}
-    q_probs_np: Optional[np.ndarray] = None
-    q_entropy_np: Optional[np.ndarray] = None
-    if "z_logits" in buffer.fields:
-        z_logits_t = buffer.fields["z_logits"][:length].reshape(-1, K).float()
-        q_probs_t = torch.softmax(z_logits_t, dim=-1)
-        q_entropy_t = -(q_probs_t.clamp_min(1e-8) * q_probs_t.clamp_min(1e-8).log()).sum(dim=-1)
-        q_probs_np = q_probs_t.detach().cpu().numpy()
-        q_entropy_np = q_entropy_t.detach().cpu().numpy()
 
-    if "opponent_id" in buffer.fields:
-        oid = buffer.fields["opponent_id"][:length].reshape(-1).long().cpu().numpy()
-        joint = np.zeros((K, SCRIPTED_OPPONENT_MI_COUNT), dtype=np.float64)
-        for i in range(z.size):
-            zi = int(z[i])
-            oi = int(oid[i])
-            if 0 <= zi < K and 0 <= oi < SCRIPTED_OPPONENT_MI_COUNT:
-                joint[zi, oi] += 1.0
-        out["latent_mi_z_opponent_nats"] = float(discrete_mi_plugin(joint))
-        for o in range(SCRIPTED_OPPONENT_MI_COUNT):
-            mask = oid == o
-            if not np.any(mask):
-                for k in range(K):
-                    out[f"strategy_occupancy_op{o}_z{k}"] = 0.0
-                continue
-            z_sub = np.clip(z[mask], 0, K - 1)
-            cnt = np.bincount(z_sub, minlength=K).astype(np.float64)
-            total = float(cnt.sum())
-            occ = cnt / max(total, 1.0)
-            for k in range(K):
-                out[f"strategy_occupancy_op{o}_z{k}"] = float(occ[k])
+    K = int(trainer.latent_k)
+    z = _flat_long_np(buffer, "z", length)
+    prev_z = _flat_long_np(buffer, "prev_z", length)
+    assert z is not None and prev_z is not None  # guarded by the "z in fields" check above
+    sw = (z != prev_z).astype(np.float64)
+    out: dict[str, float] = {}
+
+    q_probs, q_entropy = _q_phi_probs_and_entropy(buffer, length, K)
+
+    # --- MI(z; categorical context fields) plus per-opponent occupancy --------
+    oid = _flat_long_np(buffer, "opponent_id", length)
+    if oid is not None:
+        out["latent_mi_z_opponent_nats"] = _mi_z_vs(z, K, oid, SCRIPTED_OPPONENT_MI_COUNT)
+        _bucket_z_fracs(out, z, K, oid, SCRIPTED_OPPONENT_MI_COUNT,
+                        lambda o, k: f"strategy_occupancy_op{o}_z{k}")
     else:
         out["latent_mi_z_opponent_nats"] = 0.0
 
-    pid_flat: Optional[np.ndarray] = None
-    if "phase_id" in buffer.fields:
-        pid_flat = buffer.fields["phase_id"][:length].reshape(-1).long().cpu().numpy()
-        n_p = len(TEAM_PHASES)
-        joint_p = np.zeros((K, n_p), dtype=np.float64)
-        for i in range(z.size):
-            zi = int(z[i])
-            pi = int(pid_flat[i])
-            if 0 <= zi < K and 0 <= pi < n_p:
-                joint_p[zi, pi] += 1.0
-        out["latent_mi_z_phase_nats"] = float(discrete_mi_plugin(joint_p))
-    else:
-        out["latent_mi_z_phase_nats"] = 0.0
+    pid = _flat_long_np(buffer, "phase_id", length)
+    out["latent_mi_z_phase_nats"] = _mi_z_vs(z, K, pid, len(TEAM_PHASES))
 
-    if "outcome_id" in buffer.fields:
-        yid = buffer.fields["outcome_id"][:length].reshape(-1).long().cpu().numpy()
-        joint_y = np.zeros((K, 3), dtype=np.float64)
-        for i in range(z.size):
-            zi = int(z[i])
-            yi = int(yid[i])
-            if 0 <= zi < K and 0 <= yi < 3:
-                joint_y[zi, yi] += 1.0
-        out["latent_mi_z_outcome_nats"] = float(discrete_mi_plugin(joint_y))
-    else:
-        out["latent_mi_z_outcome_nats"] = 0.0
+    yid = _flat_long_np(buffer, "outcome_id", length)
+    out["latent_mi_z_outcome_nats"] = _mi_z_vs(z, K, yid, 3)
 
-    prev_np = buffer.fields["prev_z"][:length].reshape(-1).long().cpu().numpy()
-    sw = (z != prev_np).astype(np.float64)
-    ba: Optional[np.ndarray] = None
-    if "blue_ahead" in buffer.fields:
-        ba = buffer.fields["blue_ahead"][:length].reshape(-1).float().cpu().numpy()
-    rsp_bin: Optional[np.ndarray] = None
-    if "reward_sparse_points" in buffer.fields:
-        rsp_bin = (
-            (np.abs(buffer.fields["reward_sparse_points"][:length].reshape(-1).float().cpu().numpy()) > 1e-5)
-            .astype(np.float64)
-        )
+    # --- Phase-conditioned rollups + ahead/trail switch rates ----------------
+    ba = _flat_float_np(buffer, "blue_ahead", length)
+    rsp_flat = _flat_float_np(buffer, "reward_sparse_points", length)
+    rsp_bin = (np.abs(rsp_flat) > 1e-5).astype(np.float64) if rsp_flat is not None else None
 
-    if pid_flat is not None:
-        n_p = len(TEAM_PHASES)
-        for p in range(n_p):
-            mask = pid_flat == p
-            cnt_m = float(mask.sum())
-            if cnt_m <= 0.0:
-                for k in range(K):
-                    out[f"latent_phase{p}_z{k}_frac"] = 0.0
-                out[f"latent_phase{p}_switch_mean"] = 0.0
-                out[f"latent_phase{p}_blue_ahead_mean"] = 0.0
-                out[f"latent_phase{p}_capture_step_mean"] = 0.0
-            else:
-                z_sub = np.clip(z[mask], 0, K - 1)
-                for k in range(K):
-                    out[f"latent_phase{p}_z{k}_frac"] = float((z_sub == k).mean())
-                out[f"latent_phase{p}_switch_mean"] = float(sw[mask].mean())
-                out[f"latent_phase{p}_blue_ahead_mean"] = (
-                    float(ba[mask].mean()) if ba is not None else 0.0
-                )
-                out[f"latent_phase{p}_capture_step_mean"] = (
-                    float(rsp_bin[mask].mean()) if rsp_bin is not None else 0.0
-                )
-            if q_entropy_np is None or q_probs_np is None or not np.any(mask):
-                out[f"q_phi_phase{p}_entropy_mean"] = 0.0
-                for k in range(K):
-                    out[f"q_phi_phase{p}_z{k}_prob_mean"] = 0.0
-            else:
-                out[f"q_phi_phase{p}_entropy_mean"] = float(q_entropy_np[mask].mean())
-                q_phase = q_probs_np[mask]
-                for k in range(K):
-                    out[f"q_phi_phase{p}_z{k}_prob_mean"] = float(q_phase[:, k].mean())
+    if pid is not None:
+        _phase_block(out, z, K, sw, ba, rsp_bin, pid, q_probs, q_entropy)
 
     if ba is not None:
         ahead = ba > 0.5
@@ -167,231 +326,70 @@ def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]
         out["latent_switch_rate_blue_ahead"] = 0.0
         out["latent_switch_rate_blue_trail"] = 0.0
 
-    Rtb = buffer.fields["rewards"][:length].detach().cpu().numpy()
-    Ztb = buffer.fields["z"][:length].detach().cpu().numpy()
-    Ptb = buffer.fields["prev_z"][:length].detach().cpu().numpy()
-    Tn, Bn = int(Ztb.shape[0]), int(Ztb.shape[1])
-    sums: list[float] = []
-    for t in range(Tn):
-        for b in range(Bn):
-            if int(Ztb[t, b]) != int(Ptb[t, b]):
-                h = min(5, Tn - 1 - t)
-                if h > 0:
-                    sums.append(float(Rtb[t + 1 : t + 1 + h, b].sum()))
-    out["latent_reward_sum_5_after_z_switch_mean"] = float(np.mean(sums)) if sums else 0.0
+    _reward_sum_after_switch_5(out, buffer, length)
 
+    # --- MI(z; situation bucket) for spread / role / pressure / ADR ----------
     n_sb, n_rb, n_pb = 3, int(N_ROLE_BUCKET_MI), 3
     n_adr = int(N_ATTACK_DEFENSE_RATIO_BUCKET)
 
-    if "spread_bucket_id" in buffer.fields:
-        sb = buffer.fields["spread_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        j = np.zeros((K, n_sb), dtype=np.float64)
-        for i in range(z.size):
-            zi, si = int(z[i]), int(sb[i])
-            if 0 <= zi < K and 0 <= si < n_sb:
-                j[zi, si] += 1.0
-        out["latent_mi_z_spread_bucket_nats"] = float(discrete_mi_plugin(j))
-    else:
-        out["latent_mi_z_spread_bucket_nats"] = 0.0
+    sb = _flat_long_np(buffer, "spread_bucket_id", length)
+    out["latent_mi_z_spread_bucket_nats"] = _mi_z_vs(z, K, sb, n_sb)
 
-    if "role_bucket_id" in buffer.fields:
-        rb = buffer.fields["role_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        j = np.zeros((K, n_rb), dtype=np.float64)
-        for i in range(z.size):
-            zi, ri = int(z[i]), int(rb[i])
-            if 0 <= zi < K and 0 <= ri < n_rb:
-                j[zi, ri] += 1.0
-        out["latent_mi_z_role_bucket_nats"] = float(discrete_mi_plugin(j))
+    rb = _flat_long_np(buffer, "role_bucket_id", length)
+    if rb is not None:
+        out["latent_mi_z_role_bucket_nats"] = _mi_z_vs(z, K, rb, n_rb)
+        _bucket_z_fracs(out, z, K, rb, n_rb, lambda r, k: f"latent_role{r}_z{k}_frac")
         for r in range(n_rb):
             mask = rb == r
-            if not np.any(mask):
-                for k_idx in range(K):
-                    out[f"latent_role{r}_z{k_idx}_frac"] = 0.0
-                out[f"latent_role{r}_switch_mean"] = 0.0
-            else:
-                z_sub = np.clip(z[mask], 0, K - 1)
-                for k_idx in range(K):
-                    out[f"latent_role{r}_z{k_idx}_frac"] = float((z_sub == k_idx).mean())
-                out[f"latent_role{r}_switch_mean"] = float(sw[mask].mean())
+            out[f"latent_role{r}_switch_mean"] = float(sw[mask].mean()) if bool(mask.any()) else 0.0
     else:
         out["latent_mi_z_role_bucket_nats"] = 0.0
+        _fill_zero_z_fracs(out, K, n_rb, lambda r, k: f"latent_role{r}_z{k}_frac")
         for r in range(n_rb):
-            for k_idx in range(K):
-                out[f"latent_role{r}_z{k_idx}_frac"] = 0.0
             out[f"latent_role{r}_switch_mean"] = 0.0
 
-    if "pressure_bucket_id" in buffer.fields:
-        pb = buffer.fields["pressure_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        j = np.zeros((K, n_pb), dtype=np.float64)
-        for i in range(z.size):
-            zi, pi2 = int(z[i]), int(pb[i])
-            if 0 <= zi < K and 0 <= pi2 < n_pb:
-                j[zi, pi2] += 1.0
-        out["latent_mi_z_pressure_bucket_nats"] = float(discrete_mi_plugin(j))
+    pb = _flat_long_np(buffer, "pressure_bucket_id", length)
+    out["latent_mi_z_pressure_bucket_nats"] = _mi_z_vs(z, K, pb, n_pb)
+
+    adb = _flat_long_np(buffer, "attack_defense_ratio_bucket_id", length)
+    out["latent_mi_z_attack_defense_ratio_bucket_nats"] = _mi_z_vs(z, K, adb, n_adr)
+
+    # --- Flag-state derived from global_state --------------------------------
+    flag_state = _flag_state_per_step(buffer, length)
+    out["latent_mi_z_flag_state_nats"] = _mi_z_vs(z, K, flag_state, 4)
+    _bucket_z_fracs(out, z, K, flag_state, 4, lambda f, k: f"latent_flag_state{f}_z{k}_frac")
+
+    # --- Per-bucket occupancy distributions (spread, ADR) --------------------
+    if sb is not None:
+        _bucket_z_fracs(out, z, K, sb, 3, lambda s, k: f"latent_spread{s}_z{k}_frac")
     else:
-        out["latent_mi_z_pressure_bucket_nats"] = 0.0
+        _fill_zero_z_fracs(out, K, 3, lambda s, k: f"latent_spread{s}_z{k}_frac")
 
-    if "attack_defense_ratio_bucket_id" in buffer.fields:
-        adb = buffer.fields["attack_defense_ratio_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        j = np.zeros((K, n_adr), dtype=np.float64)
-        for i in range(z.size):
-            zi, ai = int(z[i]), int(adb[i])
-            if 0 <= zi < K and 0 <= ai < n_adr:
-                j[zi, ai] += 1.0
-        out["latent_mi_z_attack_defense_ratio_bucket_nats"] = float(discrete_mi_plugin(j))
+    if adb is not None:
+        _bucket_z_fracs(out, z, K, adb, 3, lambda a, k: f"latent_adr{a}_z{k}_frac")
     else:
-        out["latent_mi_z_attack_defense_ratio_bucket_nats"] = 0.0
+        _fill_zero_z_fracs(out, K, 3, lambda a, k: f"latent_adr{a}_z{k}_frac")
 
-    def shannon_entropy(arr, num_categories):
-        if arr.size == 0:
-            return 0.0
-        counts = np.bincount(arr, minlength=num_categories).astype(np.float64)
-        probs = counts / counts.sum()
-        probs = probs[probs > 0]
-        return float(-np.sum(probs * np.log(probs)))
-
-    gs_all = buffer.fields["global_state"][:length].cpu().numpy()
-    gs_flat = gs_all.reshape(-1, gs_all.shape[-1])
-    gs_raw = gs_flat[:, :19]
-    blue_flag_captured = (gs_raw[:, 10] > 0.5).astype(int)
-    red_flag_captured = (gs_raw[:, 11] > 0.5).astype(int)
-    flag_state = blue_flag_captured + 2 * red_flag_captured
-    joint_f = np.zeros((K, 4), dtype=np.float64)
-    for i in range(z.size):
-        zi = int(z[i])
-        fi = int(flag_state[i])
-        if 0 <= zi < K and 0 <= fi < 4:
-            joint_f[zi, fi] += 1.0
-    out["latent_mi_z_flag_state_nats"] = float(discrete_mi_plugin(joint_f))
-    
-    for f in range(4):
-        f_mask = (flag_state == f)
-        if not np.any(f_mask):
-            for k in range(K):
-                out[f"latent_flag_state{f}_z{k}_frac"] = 0.0
+    # --- Per-phase Shannon entropy over z ------------------------------------
+    for p in range(len(TEAM_PHASES)):
+        if pid is None:
+            out[f"latent_phase{p}_entropy"] = 0.0
+            continue
+        mask = pid == p
+        if bool(mask.any()):
+            out[f"latent_phase{p}_entropy"] = _shannon_entropy_nats(
+                np.clip(z[mask], 0, K - 1), K
+            )
         else:
-            z_f = np.clip(z[f_mask], 0, K - 1)
-            for k in range(K):
-                out[f"latent_flag_state{f}_z{k}_frac"] = float((z_f == k).mean())
-
-    if "spread_bucket_id" in buffer.fields:
-        sb = buffer.fields["spread_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        for s in range(3):
-            s_mask = (sb == s)
-            if not np.any(s_mask):
-                for k in range(K):
-                    out[f"latent_spread{s}_z{k}_frac"] = 0.0
-            else:
-                z_s = np.clip(z[s_mask], 0, K - 1)
-                for k in range(K):
-                    out[f"latent_spread{s}_z{k}_frac"] = float((z_s == k).mean())
-    else:
-        for s in range(3):
-            for k in range(K):
-                out[f"latent_spread{s}_z{k}_frac"] = 0.0
-
-    if "attack_defense_ratio_bucket_id" in buffer.fields:
-        adr = buffer.fields["attack_defense_ratio_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        for a in range(3):
-            a_mask = (adr == a)
-            if not np.any(a_mask):
-                for k in range(K):
-                    out[f"latent_adr{a}_z{k}_frac"] = 0.0
-            else:
-                z_a = np.clip(z[a_mask], 0, K - 1)
-                for k in range(K):
-                    out[f"latent_adr{a}_z{k}_frac"] = float((z_a == k).mean())
-    else:
-        for a in range(3):
-            for k in range(K):
-                out[f"latent_adr{a}_z{k}_frac"] = 0.0
-
-    if pid_flat is not None:
-        n_p = len(TEAM_PHASES)
-        for p in range(n_p):
-            mask = (pid_flat == p)
-            if not np.any(mask):
-                out[f"latent_phase{p}_entropy"] = 0.0
-            else:
-                z_sub = np.clip(z[mask], 0, K - 1)
-                out[f"latent_phase{p}_entropy"] = shannon_entropy(z_sub, K)
-    else:
-        for p in range(len(TEAM_PHASES)):
             out[f"latent_phase{p}_entropy"] = 0.0
 
-    if "role_bucket_id" in buffer.fields:
-        rb = buffer.fields["role_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        out["latent_role_diversity"] = shannon_entropy(rb, n_rb)
-    else:
-        out["latent_role_diversity"] = 0.0
+    # --- Overall diversity (Shannon entropy of the bucket distribution) ------
+    out["latent_role_diversity"] = _shannon_entropy_nats(rb, n_rb)
+    out["latent_spread_diversity"] = _shannon_entropy_nats(sb, n_sb)
+    out["latent_pressure_diversity"] = _shannon_entropy_nats(pb, n_pb)
+    out["latent_adr_diversity"] = _shannon_entropy_nats(adb, n_adr)
 
-    if "spread_bucket_id" in buffer.fields:
-        sb = buffer.fields["spread_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        out["latent_spread_diversity"] = shannon_entropy(sb, n_sb)
-    else:
-        out["latent_spread_diversity"] = 0.0
-
-    if "pressure_bucket_id" in buffer.fields:
-        pb = buffer.fields["pressure_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        out["latent_pressure_diversity"] = shannon_entropy(pb, n_pb)
-    else:
-        out["latent_pressure_diversity"] = 0.0
-
-    if "attack_defense_ratio_bucket_id" in buffer.fields:
-        adr = buffer.fields["attack_defense_ratio_bucket_id"][:length].reshape(-1).long().cpu().numpy()
-        out["latent_adr_diversity"] = shannon_entropy(adr, n_adr)
-    else:
-        out["latent_adr_diversity"] = 0.0
-
-    n_envs = int(buffer.n_envs)
-    rsp = buffer.fields["reward_sparse_points"][:length].cpu().numpy()
-    z_env = buffer.fields["z"][:length].cpu().numpy()
-    pz_env = buffer.fields["prev_z"][:length].cpu().numpy()
-    persist_env = buffer.fields["z_persist_mask"][:length].cpu().numpy()
-    sw_env = persist_env & (z_env != pz_env)
-    total_switches = float(sw_env.sum())
-
-    switches_near_capture = 0.0
-    switches_near_kill = 0.0
-    switches_near_return = 0.0
-
-    if total_switches > 0:
-        gs_env = buffer.fields["global_state"][:length].cpu().numpy()
-        blue_cap_env = gs_env[:, :, 10] > 0.5
-        red_cap_env = gs_env[:, :, 11] > 0.5
-        for b in range(n_envs):
-            switch_indices = np.where(sw_env[:, b])[0]
-            if len(switch_indices) == 0:
-                continue
-            capture_indices = np.where(np.abs(rsp[:, b]) > 50.0)[0]
-            kill_indices = np.where((np.abs(rsp[:, b]) > 1.0) & (np.abs(rsp[:, b]) < 40.0))[0]
-            
-            blue_cap = blue_cap_env[:, b]
-            red_cap = red_cap_env[:, b]
-            return_indices = []
-            for t in range(1, length):
-                blue_ret = blue_cap[t-1] and (not blue_cap[t])
-                red_ret = red_cap[t-1] and (not red_cap[t])
-                no_score = np.abs(rsp[t, b]) < 1.0
-                if (blue_ret or red_ret) and no_score:
-                    return_indices.append(t)
-            return_indices = np.array(return_indices)
-
-            for idx in switch_indices:
-                if len(capture_indices) > 0 and np.min(np.abs(capture_indices - idx)) <= 3:
-                    switches_near_capture += 1.0
-                if len(kill_indices) > 0 and np.min(np.abs(kill_indices - idx)) <= 3:
-                    switches_near_kill += 1.0
-                if len(return_indices) > 0 and np.min(np.abs(return_indices - idx)) <= 3:
-                    switches_near_return += 1.0
-
-        out["latent_switch_near_capture_frac"] = switches_near_capture / total_switches
-        out["latent_switch_near_kill_frac"] = switches_near_kill / total_switches
-        out["latent_switch_near_return_frac"] = switches_near_return / total_switches
-    else:
-        out["latent_switch_near_capture_frac"] = 0.0
-        out["latent_switch_near_kill_frac"] = 0.0
-        out["latent_switch_near_return_frac"] = 0.0
+    _switch_proximity_fracs(out, buffer, length)
 
     return out
 
@@ -517,11 +515,10 @@ def _strategy_resample_advantage_stats(trainer: Any, buffer: Any) -> dict[str, f
     flat_adv = adv.reshape(-1).float()
     flat_z = z.reshape(-1)
     flat_rs = rs.reshape(-1)
-    mask = flat_rs
     out: dict[str, float] = {}
     K = int(trainer.latent_k)
     for k in range(K):
-        m = mask & (flat_z == k)
+        m = flat_rs & (flat_z == k)
         n = int(m.sum().item())
         out[f"strategy_resample_adv_n_z{k}"] = float(n)
         if n > 0:
@@ -669,41 +666,31 @@ def _write_strategy_experience_table(trainer: Any) -> dict[str, float]:
     }
 
 
+_ZERO_OPT_ADV: dict[str, float] = {
+    "latent_q_phi_option_advantage_mean": 0.0,
+    "latent_q_phi_option_advantage_std": 0.0,
+    "latent_q_phi_option_advantage_count": 0.0,
+}
+
+
 def _latent_option_advantage_stats(trainer: Any, buffer: Any) -> dict[str, float]:
     """Calculate mean, std, and count of option advantages at resampled steps."""
     if not trainer.use_latent_strategy or trainer.fixed_latent_strategy:
-        return {
-            "latent_q_phi_option_advantage_mean": 0.0,
-            "latent_q_phi_option_advantage_std": 0.0,
-            "latent_q_phi_option_advantage_count": 0.0,
-        }
+        return dict(_ZERO_OPT_ADV)
     length = int(buffer.pos)
     if length <= 0 or "option_advantages" not in buffer.fields or "z_resampled" not in buffer.fields:
-        return {
-            "latent_q_phi_option_advantage_mean": 0.0,
-            "latent_q_phi_option_advantage_std": 0.0,
-            "latent_q_phi_option_advantage_count": 0.0,
-        }
-    
-    opt_adv = buffer.fields["option_advantages"][:length]
-    rs = buffer.fields["z_resampled"][:length].bool()
-    
-    flat_opt_adv = opt_adv.reshape(-1).float()
-    flat_rs = rs.reshape(-1)
-    
-    resampled_opt_adv = flat_opt_adv[flat_rs]
-    count = int(resampled_opt_adv.numel())
-    
-    if count > 0:
-        mean_val = float(resampled_opt_adv.mean().item())
-        std_val = float(resampled_opt_adv.std(unbiased=False).item()) if count > 1 else 0.0
-    else:
-        mean_val = 0.0
-        std_val = 0.0
-        
+        return dict(_ZERO_OPT_ADV)
+
+    opt_adv = buffer.fields["option_advantages"][:length].reshape(-1).float()
+    rs = buffer.fields["z_resampled"][:length].reshape(-1).bool()
+    vals = opt_adv[rs]
+    count = int(vals.numel())
+    if count == 0:
+        return dict(_ZERO_OPT_ADV)
     return {
-        "latent_q_phi_option_advantage_mean": mean_val,
-        "latent_q_phi_option_advantage_std": std_val,
+        "latent_q_phi_option_advantage_mean": float(vals.mean().item()),
+        "latent_q_phi_option_advantage_std": (
+            float(vals.std(unbiased=False).item()) if count > 1 else 0.0
+        ),
         "latent_q_phi_option_advantage_count": float(count),
     }
-
