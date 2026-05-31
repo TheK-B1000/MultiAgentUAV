@@ -77,6 +77,12 @@ class PPOConfig:
     # Default excludes OP4 (reserved for zero-shot eval). Use ``--allow-op4-in-training-pool`` to train vs OP4.
     opponent_randomize: bool = False
     opponent_pool: tuple[str, ...] = field(default_factory=lambda: ("OP1", "OP2", "OP3"))
+    # Per-tag sampling probabilities for opponent_randomize, aligned positionally with
+    # opponent_pool. Empty tuple (default) = uniform 1/N over the pool. Non-empty must
+    # have the same length as opponent_pool; values are auto-normalized to sum 1.0 by
+    # ``normalize_and_validate_training_config``. Plan-faithful — only changes how often
+    # each opponent is sampled, not the opponent definitions.
+    opponent_pool_weights: tuple[float, ...] = field(default_factory=tuple)
     allow_op4_in_training_pool: bool = False
     max_blue_agents: int = 2
     use_deterministic: bool = False

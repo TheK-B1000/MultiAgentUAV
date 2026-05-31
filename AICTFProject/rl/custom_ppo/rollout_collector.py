@@ -561,6 +561,7 @@ class RolloutCollector:
             pb=pb,
             adb=adb,
             blue_ahead_t=blue_ahead_t,
+            context_state=context_state,
         )
         return next_obs, next_global_state, next_context_state
 
@@ -776,6 +777,7 @@ class RolloutCollector:
         pb: Optional[torch.Tensor],
         adb: Optional[torch.Tensor],
         blue_ahead_t: Optional[torch.Tensor],
+        context_state: Optional[torch.Tensor] = None,
     ) -> None:
         """Forward one row to the E3 step telemetry CSV when enabled."""
         if not (self.telemetry.e3_step_telemetry_path and self.hparams.use_latent_strategy):
@@ -805,6 +807,7 @@ class RolloutCollector:
             pressure_bucket_np=pb.detach().cpu().numpy(),
             attack_defense_ratio_bucket_np=adb.detach().cpu().numpy(),
             blue_ahead_np=blue_ahead_t.detach().cpu().numpy(),
+            context_state=context_state,
         )
 
 

@@ -694,3 +694,58 @@ def _latent_option_advantage_stats(trainer: Any, buffer: Any) -> dict[str, float
         ),
         "latent_q_phi_option_advantage_count": float(count),
     }
+
+
+def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, float]:
+    """Audit policy z-sensitivity KL divergence across different latent strategy assignments."""
+    if not trainer.use_latent_strategy or trainer.latent_k <= 1:
+        return {"policy_z_sensitivity_KL": 0.0}
+    length = int(buffer.pos)
+    if length <= 0:
+        return {"policy_z_sensitivity_KL": 0.0}
+    total = length * int(buffer.n_envs)
+    if total <= 0:
+        return {"policy_z_sensitivity_KL": 0.0}
+
+    from rl.custom_ppo.inference import FORCED_Z_PROFILE_MAX_ROWS
+    if total > FORCED_Z_PROFILE_MAX_ROWS:
+        row_idx = torch.linspace(
+            0,
+            total - 1,
+            steps=FORCED_Z_PROFILE_MAX_ROWS,
+            device=trainer.device,
+        ).long()
+    else:
+        row_idx = torch.arange(total, device=trainer.device)
+
+    obs_batch = {
+        "grid": buffer.fields["obs_grid"][:length].reshape(total, *buffer.fields["obs_grid"].shape[2:]).index_select(0, row_idx),
+        "vec": buffer.fields["obs_vec"][:length].reshape(total, *buffer.fields["obs_vec"].shape[2:]).index_select(0, row_idx),
+        "agent_mask": buffer.fields["obs_agent_mask"][:length].reshape(total, *buffer.fields["obs_agent_mask"].shape[2:]).index_select(0, row_idx),
+        "mask": buffer.fields["obs_mask"][:length].reshape(total, *buffer.fields["obs_mask"].shape[2:]).index_select(0, row_idx),
+    }
+
+    dists_by_z = []
+    with torch.no_grad():
+        for z_id in range(int(trainer.latent_k)):
+            z_idx = torch.full((int(row_idx.numel()),), z_id, dtype=torch.long, device=trainer.device)
+            logits = trainer.model.policy_logits(obs_batch, z_idx=z_idx)
+            logits = trainer.model._mask_logits(logits, obs_batch.get("mask"))
+            dists = list(trainer.model._categoricals(logits))
+            dists_by_z.append(dists)
+
+    kl_values = []
+    K = int(trainer.latent_k)
+    for i in range(K):
+        for j in range(K):
+            if i == j:
+                continue
+            dists_i = dists_by_z[i]
+            dists_j = dists_by_z[j]
+            kl_sum = torch.zeros((int(row_idx.numel()),), device=trainer.device)
+            for di, dj in zip(dists_i, dists_j):
+                kl_sum += torch.distributions.kl.kl_divergence(di, dj)
+            kl_values.append(float(kl_sum.mean().item()))
+
+    mean_kl = float(np.mean(kl_values)) if kl_values else 0.0
+    return {"policy_z_sensitivity_KL": mean_kl}

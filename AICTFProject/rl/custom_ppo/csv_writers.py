@@ -28,7 +28,17 @@ E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
     "role_bucket",
     "pressure_bucket",
     "attack_defense_ratio_bucket",
-)
+    "qlogit_0",
+    "qlogit_1",
+    "qlogit_2",
+    "qlogit_3",
+    "qprob_0",
+    "qprob_1",
+    "qprob_2",
+    "qprob_3",
+    "strategy_entropy",
+    "strategy_entropy_frac",
+) + tuple(f"q_phi_context_{i}" for i in range(95))
 
 # When renaming metrics columns, old CSV headers may still use the legacy name; see ``_write_csv_row``.
 _METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {"strategy_aux_return_loss": "strategy_q_loss"}
@@ -209,6 +219,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
     ]
     if use_latent_strategy:
         fields.append("strategy_kl")
+        fields.append("policy_z_sensitivity_KL")
         fields.extend(f"strategy_occupancy_{idx}" for idx in range(latent_k))
         for idx in range(latent_k):
             fields.extend(

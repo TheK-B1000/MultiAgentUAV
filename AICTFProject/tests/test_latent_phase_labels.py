@@ -7,6 +7,7 @@ import unittest
 import numpy as np
 
 from rl.discrete_mi import discrete_mi_plugin
+from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_phase_labels import (
     TEAM_PHASES,
     outcome_id_from_global_state,
@@ -24,7 +25,7 @@ def _state(
     b_score: float = 0.0,
     r_score: float = 0.0,
 ) -> np.ndarray:
-    s = np.zeros(19, dtype=np.float32)
+    s = np.zeros(GLOBAL_STATE_DIM, dtype=np.float32)
     s[8] = min_b_rf
     s[9] = min_r_bf
     s[10] = blue_cap

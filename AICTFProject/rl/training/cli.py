@@ -123,6 +123,19 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--opponent-pool-weights",
+        nargs="+",
+        default=None,
+        metavar="TAG=PROB",
+        help=(
+            "Per-tag sampling weights for --opponent-pool. Format: TAG=PROB (e.g. "
+            "'--opponent-pool-weights OP3=0.2 OP5=0.5 OP6=0.3'). Weights are auto-normalized "
+            "to sum 1.0. Missing tags from the pool are rejected; extra tags ignored. "
+            "Default: uniform 1/N over the pool. Plan-faithful — does not give the model "
+            "opponent identity, only changes contested-signal frequency."
+        ),
+    )
+    parser.add_argument(
         "--allow-op4-in-training-pool",
         action="store_true",
         help="Allow OP4 in opponent_pool during training (default: OP4 is eval-only and stripped).",
@@ -442,6 +455,36 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.opponent_randomize = True
     if getattr(args, "opponent_pool", None):
         cfg.opponent_pool = tuple(str(x).strip().upper() for x in args.opponent_pool if str(x).strip())
+    if getattr(args, "opponent_pool_weights", None):
+        wmap: dict[str, float] = {}
+        for entry in args.opponent_pool_weights:
+            text = str(entry).strip()
+            if not text:
+                continue
+            if "=" not in text:
+                raise ValueError(
+                    f"--opponent-pool-weights entries must be 'TAG=PROB'; got {entry!r}."
+                )
+            tag, _, val = text.partition("=")
+            tag = tag.strip().upper()
+            try:
+                wmap[tag] = float(val.strip())
+            except ValueError as exc:
+                raise ValueError(
+                    f"--opponent-pool-weights value for {tag!r} is not numeric: {val!r}."
+                ) from exc
+        pool = tuple(getattr(cfg, "opponent_pool", ()) or ())
+        if not pool:
+            raise ValueError(
+                "--opponent-pool-weights requires --opponent-pool (or a preset that sets one)."
+            )
+        missing = [tag for tag in pool if tag not in wmap]
+        if missing:
+            raise ValueError(
+                f"--opponent-pool-weights missing entries for pool tag(s) {missing!r}. "
+                f"Pool: {list(pool)}; weights given: {sorted(wmap.keys())}."
+            )
+        cfg.opponent_pool_weights = tuple(wmap[tag] for tag in pool)
     if getattr(args, "allow_op4_in_training_pool", False):
         cfg.allow_op4_in_training_pool = True
     if args.map_set is not None:

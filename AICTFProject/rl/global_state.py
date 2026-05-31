@@ -26,8 +26,8 @@ import torch
 if TYPE_CHECKING:
     from game_field_gpu import BatchedCTFCore
 
-GLOBAL_STATE_DIM: int = 19
-GLOBAL_STATE_USED: int = 19
+GLOBAL_STATE_DIM: int = 34
+GLOBAL_STATE_USED: int = 34
 
 # Order matches the plan’s “global summary” (team geometry + dispersion, flag proximity, captures, motion).
 # The first 14 fields preserve the original plan global-summary order.
@@ -52,6 +52,21 @@ GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
     "score_diff_norm",
     "decision_frac",
     "sim_time_frac",
+    "flag_pressure_blue",
+    "flag_pressure_red",
+    "home_defense_blue",
+    "home_defense_red",
+    "carrier_dist_home",
+    "carrier_enemy_nearest_dist",
+    "carrier_teammate_support",
+    "mean_blue_red_dist",
+    "min_blue_red_dist",
+    "blue_near_enemy_flag_count",
+    "red_near_enemy_flag_count",
+    "blue_near_home_flag_count",
+    "red_near_home_flag_count",
+    "team_pairwise_distance_mean",
+    "team_pairwise_distance_std",
 )
 assert len(GLOBAL_STATE_FIELD_NAMES) == GLOBAL_STATE_DIM, len(GLOBAL_STATE_FIELD_NAMES)
 
@@ -65,7 +80,8 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
 
     Features (see ``GLOBAL_STATE_FIELD_NAMES``), normalized where noted:
       the first 14 entries preserve the original global summary; entries 14-18
-      append score and clock pressure for critic/q_phi predictability.
+      append score and clock pressure; entries 19-33 append observable
+      geometry/pressure signals for q_phi and critic predictability.
       0–3 blue mean/std; 4–7 red mean/std; 8–9 min alive dist to enemy flags;
       10-11 capture indicators; 12-13 mean team speeds; 14-18 score/clock pressure.
     """
@@ -157,6 +173,172 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
         1.0,
     )
 
+    near_radius = 0.20 * diag
+
+    def _dist_to_point(x: torch.Tensor, y: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
+        px = point[:, 0:1].expand_as(x)
+        py = point[:, 1:2].expand_as(y)
+        return torch.sqrt(torch.clamp((x - px) ** 2 + (y - py) ** 2, min=0.0))
+
+    def _min_alive_dist_to_point(
+        x: torch.Tensor,
+        y: torch.Tensor,
+        alive: torch.Tensor,
+        point: torch.Tensor,
+    ) -> torch.Tensor:
+        dist = _dist_to_point(x, y, point)
+        dist = torch.where(alive, dist, torch.full_like(dist, float("inf")))
+        out = dist.min(dim=1).values / diag
+        return torch.where(torch.isfinite(out), out, torch.ones_like(out))
+
+    def _near_count_frac(
+        x: torch.Tensor,
+        y: torch.Tensor,
+        alive: torch.Tensor,
+        point: torch.Tensor,
+    ) -> torch.Tensor:
+        dist = _dist_to_point(x, y, point)
+        near = alive & (dist <= near_radius)
+        denom = torch.clamp(alive.to(f32).sum(dim=1), min=1.0)
+        return near.to(f32).sum(dim=1) / denom
+
+    min_red_to_blue_home = _min_alive_dist_to_point(rx, ry, ra, bh)
+    min_blue_to_red_home = _min_alive_dist_to_point(bx, by, ba, rh)
+    min_blue_to_blue_home = _min_alive_dist_to_point(bx, by, ba, bh)
+    min_red_to_red_home = _min_alive_dist_to_point(rx, ry, ra, rh)
+    flag_pressure_blue = 1.0 - min_red_to_blue_home
+    flag_pressure_red = 1.0 - min_blue_to_red_home
+    home_defense_blue = 1.0 - min_blue_to_blue_home
+    home_defense_red = 1.0 - min_red_to_red_home
+
+    blue_red_dist = torch.sqrt(
+        torch.clamp(
+            (bx[:, :, None] - rx[:, None, :]) ** 2
+            + (by[:, :, None] - ry[:, None, :]) ** 2,
+            min=0.0,
+        )
+    )
+    blue_red_alive = ba[:, :, None] & ra[:, None, :]
+    blue_red_dist_masked = torch.where(
+        blue_red_alive,
+        blue_red_dist,
+        torch.full_like(blue_red_dist, float("inf")),
+    )
+    blue_red_count = torch.clamp(blue_red_alive.to(f32).sum(dim=(1, 2)), min=1.0)
+    mean_blue_red_dist = (
+        torch.where(blue_red_alive, blue_red_dist, torch.zeros_like(blue_red_dist)).sum(dim=(1, 2))
+        / blue_red_count
+        / diag
+    )
+    min_blue_red_dist = blue_red_dist_masked.amin(dim=(1, 2)) / diag
+    min_blue_red_dist = torch.where(
+        torch.isfinite(min_blue_red_dist),
+        min_blue_red_dist,
+        torch.ones_like(min_blue_red_dist),
+    )
+
+    def _carrier_feature_rows(
+        team_x: torch.Tensor,
+        team_y: torch.Tensor,
+        team_alive: torch.Tensor,
+        carrying: torch.Tensor,
+        home: torch.Tensor,
+        enemy_x: torch.Tensor,
+        enemy_y: torch.Tensor,
+        enemy_alive: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        carry_f = carrying.to(f32)
+        has_carrier = carrying.any(dim=1)
+        cx = (team_x * carry_f).sum(dim=1)
+        cy = (team_y * carry_f).sum(dim=1)
+        dist_home = torch.sqrt(torch.clamp((cx - home[:, 0]) ** 2 + (cy - home[:, 1]) ** 2, min=0.0)) / diag
+
+        enemy_dist = torch.sqrt(
+            torch.clamp((enemy_x - cx[:, None]) ** 2 + (enemy_y - cy[:, None]) ** 2, min=0.0)
+        )
+        enemy_dist = torch.where(enemy_alive, enemy_dist, torch.full_like(enemy_dist, float("inf")))
+        nearest_enemy = enemy_dist.min(dim=1).values / diag
+
+        teammate_mask = team_alive & (~carrying)
+        teammate_dist = torch.sqrt(
+            torch.clamp((team_x - cx[:, None]) ** 2 + (team_y - cy[:, None]) ** 2, min=0.0)
+        )
+        teammate_dist = torch.where(teammate_mask, teammate_dist, torch.full_like(teammate_dist, float("inf")))
+        nearest_teammate = teammate_dist.min(dim=1).values / diag
+        support = 1.0 - nearest_teammate
+
+        dist_home = torch.where(has_carrier, dist_home, torch.ones_like(dist_home))
+        nearest_enemy = torch.where(
+            has_carrier & torch.isfinite(nearest_enemy),
+            nearest_enemy,
+            torch.ones_like(nearest_enemy),
+        )
+        support = torch.where(
+            has_carrier & torch.isfinite(support),
+            support,
+            torch.zeros_like(support),
+        )
+        return has_carrier.to(f32), dist_home, nearest_enemy, torch.clamp(support, 0.0, 1.0)
+
+    blue_has_carrier, blue_carrier_home, blue_carrier_enemy, blue_carrier_support = _carrier_feature_rows(
+        bx, by, ba, core.blue_carrying, bh, rx, ry, ra
+    )
+    red_has_carrier, red_carrier_home, red_carrier_enemy, red_carrier_support = _carrier_feature_rows(
+        rx, ry, ra, core.red_carrying, rh, bx, by, ba
+    )
+    any_carrier = (blue_has_carrier + red_has_carrier).clamp(0.0, 1.0)
+    carrier_dist_home = torch.where(
+        blue_has_carrier > 0.5,
+        blue_carrier_home,
+        torch.where(red_has_carrier > 0.5, red_carrier_home, torch.ones_like(blue_carrier_home)),
+    )
+    carrier_enemy_nearest_dist = torch.where(
+        blue_has_carrier > 0.5,
+        blue_carrier_enemy,
+        torch.where(red_has_carrier > 0.5, red_carrier_enemy, torch.ones_like(blue_carrier_enemy)),
+    )
+    carrier_teammate_support = torch.where(
+        blue_has_carrier > 0.5,
+        blue_carrier_support,
+        torch.where(red_has_carrier > 0.5, red_carrier_support, torch.zeros_like(blue_carrier_support)),
+    ) * any_carrier
+
+    blue_near_enemy_flag_count = _near_count_frac(bx, by, ba, rh)
+    red_near_enemy_flag_count = _near_count_frac(rx, ry, ra, bh)
+    blue_near_home_flag_count = _near_count_frac(bx, by, ba, bh)
+    red_near_home_flag_count = _near_count_frac(rx, ry, ra, rh)
+
+    def _within_team_pairwise(x: torch.Tensor, y: torch.Tensor, alive: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        n = int(x.shape[1])
+        if n < 2:
+            zeros = torch.zeros((B,), dtype=f32, device=dev)
+            return zeros, zeros
+        dist = torch.sqrt(
+            torch.clamp(
+                (x[:, :, None] - x[:, None, :]) ** 2
+                + (y[:, :, None] - y[:, None, :]) ** 2,
+                min=0.0,
+            )
+        )
+        pair_alive = alive[:, :, None] & alive[:, None, :]
+        upper = torch.triu(torch.ones((n, n), dtype=torch.bool, device=dev), diagonal=1)
+        mask = pair_alive & upper[None, :, :]
+        count = mask.to(f32).sum(dim=(1, 2))
+        sum_dist = torch.where(mask, dist, torch.zeros_like(dist)).sum(dim=(1, 2))
+        mean = sum_dist / torch.clamp(count, min=1.0)
+        var = (
+            torch.where(mask, (dist - mean[:, None, None]) ** 2, torch.zeros_like(dist)).sum(dim=(1, 2))
+            / torch.clamp(count, min=1.0)
+        )
+        mean = torch.where(count > 0, mean / diag, torch.zeros_like(mean))
+        std = torch.where(count > 0, torch.sqrt(torch.clamp(var, min=0.0)) / diag, torch.zeros_like(var))
+        return mean, std
+
+    blue_pair_mean, blue_pair_std = _within_team_pairwise(bx, by, ba)
+    red_pair_mean, red_pair_std = _within_team_pairwise(rx, ry, ra)
+    team_pairwise_distance_mean = 0.5 * (blue_pair_mean + red_pair_mean)
+    team_pairwise_distance_std = 0.5 * (blue_pair_std + red_pair_std)
+
     parts = [
         bmx, bmy, bsx, bsy,
         rmx, rmy, rsx, rsy,
@@ -165,6 +347,13 @@ def build_global_state_batch(core: "BatchedCTFCore") -> torch.Tensor:
         mean_b_sp, mean_r_sp,
         blue_score_norm, red_score_norm, score_diff_norm,
         decision_frac, sim_time_frac,
+        flag_pressure_blue, flag_pressure_red,
+        home_defense_blue, home_defense_red,
+        carrier_dist_home, carrier_enemy_nearest_dist, carrier_teammate_support,
+        mean_blue_red_dist, min_blue_red_dist,
+        blue_near_enemy_flag_count, red_near_enemy_flag_count,
+        blue_near_home_flag_count, red_near_home_flag_count,
+        team_pairwise_distance_mean, team_pairwise_distance_std,
     ]
     used = torch.stack(parts, dim=1)
     assert used.shape[1] == GLOBAL_STATE_USED, (used.shape[1], GLOBAL_STATE_USED)

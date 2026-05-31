@@ -245,6 +245,15 @@ class CustomPPOTrainer:
         # ``list`` (not tuple) for back-compat with downstream callers that
         # historically appended/sliced this attribute.
         self._opponent_pool_tags = list(hparams.opponent_pool_tags)
+        # ``None`` ⇒ uniform sampling. Otherwise a list of probabilities aligned
+        # positionally with ``_opponent_pool_tags`` (already normalized upstream).
+        weights = list(hparams.opponent_pool_weights) if hparams.opponent_pool_weights else None
+        if weights is not None and len(weights) != len(self._opponent_pool_tags):
+            raise ValueError(
+                f"opponent_pool_weights length {len(weights)} does not match "
+                f"opponent_pool_tags length {len(self._opponent_pool_tags)}."
+            )
+        self._opponent_pool_weights = weights
         self._rng_opponent = np.random.default_rng(int(getattr(cfg, "seed", 0)) + 901)
         if self._opponent_randomize_training:
             if not self._opponent_pool_tags:

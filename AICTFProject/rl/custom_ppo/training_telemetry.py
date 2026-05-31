@@ -124,6 +124,7 @@ class TrainingTelemetry:
         pressure_bucket_np: np.ndarray,
         attack_defense_ratio_bucket_np: np.ndarray,
         blue_ahead_np: np.ndarray,
+        context_state: Optional[torch.Tensor] = None,
     ) -> None:
         if not self.e3_step_telemetry_path or not self.hparams.use_latent_strategy:
             return
@@ -132,6 +133,9 @@ class TrainingTelemetry:
         pz = prev_z.detach().cpu().numpy()
         zH = strategy_aux["z_entropy"].detach().cpu().numpy()
         zlog = strategy_aux["z_logits"].detach().cpu().numpy()
+        import torch.nn.functional as F
+        zprobs = F.softmax(strategy_aux["z_logits"], dim=-1).detach().cpu().numpy()
+        ctx_np = context_state.detach().cpu().numpy() if context_state is not None else None
         am = zlog.argmax(axis=-1)
         n_e = int(zt.shape[0])
         assert int(decision_global_state_np.shape[0]) == n_e, (decision_global_state_np.shape, n_e)
@@ -176,6 +180,23 @@ class TrainingTelemetry:
             }
             for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
                 row[name] = float(behavior_telemetry_np[e, j])
+            
+            K = zlog.shape[1]
+            for i in range(4):
+                if i < K:
+                    row[f"qlogit_{i}"] = float(zlog[e, i])
+                    row[f"qprob_{i}"] = float(zprobs[e, i])
+                else:
+                    row[f"qlogit_{i}"] = 0.0
+                    row[f"qprob_{i}"] = 0.0
+            
+            row["strategy_entropy"] = float(zH[e])
+            row["strategy_entropy_frac"] = float(zH[e]) / max(1e-6, math.log(max(2, int(self.hparams.latent_k))))
+            
+            if ctx_np is not None:
+                for i in range(95):
+                    row[f"q_phi_context_{i}"] = float(ctx_np[e, i])
+                    
             w.writerow({key: row.get(key, "") for key in fields})
         self._e3_rows_since_flush += 1
         if self._e3_rows_since_flush >= self._e3_flush_every_steps:

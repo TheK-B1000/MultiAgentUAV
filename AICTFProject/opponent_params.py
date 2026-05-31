@@ -17,19 +17,26 @@ Each style maps to a distribution over these params and returns GPU tensors for 
   ~``2.2 / max_speed_cps`` is largely ineffective until integrator / cap semantics change.
 
 OP3 vs OP4 (must be clearly different for held-out eval):
-  - OP3: Training workhorse. Fixed medium attacker + medium defender, moderate role switching (~0.35),
-    moderate deception/coord on 2v2; larger teams mostly get a slower balanced speed band.
+  - OP3: Training workhorse. Medium attacker + medium defender, moderate role switching (~0.35),
+    real medium-difficulty deception / coordination / sync on **every** team size (the formerly
+    nerfed 4v4/8v8 speed-only branch was replaced with a tough balanced band — the prior
+    ~0.66-0.78 speed band with zero coord/sync/deception let flat policies trivially reach
+    100% WR; the rebalanced band restores intended difficulty).
   - OP4: Held-out **style mixture**, not ``OP3 + noise``. Each episode draws one of four archetypes:
     committed blitz (striker-heavy, low role churn), slow anchor with heavy deception,
     volatile ``(medium, medium)`` with **much** higher role + deception than OP3's fixed pivot rate,
     or high-entropy yolo / randomized styles. Goal: different *behavior regime* than OP3, not only strength.
   - OP5_RUSHER: Trainable stress-test. High sustained speed, striker-heavy red (attacker=1,
     defender=0), **high coordination** and **very low** role churn so red commits to flag
-    pressure. Target: strong flat policies **~70–85%** WR vs OP5 on train maps (OP3 often
-    still ~95–99%); tune 2v2 speed / c_prob in small steps if OP5 stays mild (~95%+ flat WR).
-  - OP6 / OP6_TURTLE: Trainable **defensive turtle**: easy attacker + medium defender, **low**
-    role switching, slower speed band on 4v4+, moderate coordination — pressures breakouts
-    and escorted pushes vs a compact red shell.
+    pressure. 4v4 ``bite_v4`` adds extended sync windows (3-7 / 3-6) and small deception
+    (0.04-0.12) so OP5 can't be one-strategy solved (target ~30-55% WR on flat 4v4 policies;
+    2v2 retains the ``bite_v2`` tuning that ``test_op5_rusher_bounded_2v2`` pins).
+  - OP6 / OP6_TURTLE: Trainable **defensive turtle**. 4v4 is intentionally the **hardest**
+    training opponent — chase-speed band 1.00-1.20 (so red can actually intercept), c=0.70
+    coordination, sync 3-7 / 3-6, heavy mid-field deception 0.25-0.45 (defenders feint, blue
+    can't predict the intercept), role switch 0.18 (shell can shape-shift mid-push). The
+    ``attacker_style=0 / defender_style=1`` identity is preserved (turtle = home shell, not
+    counter-attacker); difficulty comes from the defense *working*, not from offensive pressure.
   - OP7 / OP7_SWITCHER: Trainable **deceptive switcher**: each episode samples one of several
     archetypes (slow shell / feint-intercept / volatile dual / coordinated rush). High
     within-episode variability is expressed through **stochastic role pivots** (``role_switch_prob``)
@@ -47,7 +54,7 @@ import torch
 
 # Bump this string whenever OP5_RUSHER / OP5 scripted tuning changes so eval CSV filenames
 # match the code path (see ``plot/eval_checkpoint.py``).
-OP5_RUSHER_TUNING_TAG = "bite_v3"
+OP5_RUSHER_TUNING_TAG = "bite_v4"
 
 
 def _sample_uniform(
@@ -228,23 +235,39 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.0, 0.06
                 n_low, n_high = 0.0, 0.0
         elif key == "OP3":
-            # Strategy 3/4-like: Medium Attacker + Medium Defender + dynamic switching
+            # Strategy 3/4-like: Medium Attacker + Medium Defender + dynamic switching.
+            # All team sizes get real medium difficulty. The prior 4v4/8v8 speed-only
+            # branch (s=0.66-0.78, no deception/coord/sync) let flat policies hit 100% WR
+            # because red was just a slow trickle; the new bands restore the intended
+            # workhorse challenge (medium coord, mid deception, real sync windows).
             attacker_style = 1
             defender_style = 1
             role_switch_prob = 0.35
-            if op3_easy:
-                if n_agents >= 8:
-                    s_low, s_high = 0.70, 0.82
-                elif n_agents >= 4:
-                    s_low, s_high = 0.66, 0.78
-                else:
-                    s_low, s_high = 0.88, 1.08
-                    d_low, d_high = 0.05, 0.18
-                    c_prob = 0.25
-                    sync_c_low, sync_c_high = 2, 5
-                    sync_nc_low, sync_nc_high = 2, 4
-                    n_low, n_high = 0.0, 0.04
+            if n_agents >= 8:
+                s_low, s_high = 0.88, 1.04
+                d_low, d_high = 0.06, 0.18
+                c_prob = 0.40
+                sync_c_low, sync_c_high = 3, 6
+                sync_nc_low, sync_nc_high = 2, 5
+                n_low, n_high = 0.0, 0.04
+            elif n_agents >= 4:
+                # 4v4 tough OP3: real medium band, was previously the nerfed slow trickle.
+                s_low, s_high = 0.92, 1.10
+                d_low, d_high = 0.08, 0.22
+                c_prob = 0.45
+                sync_c_low, sync_c_high = 3, 6
+                sync_nc_low, sync_nc_high = 2, 5
+                n_low, n_high = 0.0, 0.04
+            elif op3_easy:
+                # n_agents == 3 (rare): use the legacy 2v2-ish band so behavior is sane.
+                s_low, s_high = 0.88, 1.08
+                d_low, d_high = 0.05, 0.18
+                c_prob = 0.25
+                sync_c_low, sync_c_high = 2, 5
+                sync_nc_low, sync_nc_high = 2, 4
+                n_low, n_high = 0.0, 0.04
             else:
+                # 2v2 (and 1v1): unchanged from prior tuning — already tough.
                 d_low, d_high = 0.1, 0.35
                 c_prob = 0.5
                 sync_c_low, sync_c_high = 3, 8
@@ -266,7 +289,14 @@ def sample_batched_opponent_params(
                 sync_c_low, sync_c_high = 1, 5
                 sync_nc_low, sync_nc_high = 1, 4
             elif n_agents >= 4:
-                s_low, s_high = 1.00, 1.24
+                # 4v4 bite_v4: full coordination + extended sync windows + small deception
+                # so OP5 can't be one-strategy solved by a flat policy.
+                s_low, s_high = 1.05, 1.28
+                d_low, d_high = 0.04, 0.12
+                c_prob = 0.95
+                sync_c_low, sync_c_high = 3, 7
+                sync_nc_low, sync_nc_high = 3, 6
+                n_low, n_high = 0.0, 0.04
             else:
                 # 2v2 bite_v1: 1.15–1.35, c=0.78, role=0.04 → ~95% flat WR vs OP5; bite_v2 pushes harder.
                 s_low, s_high = 1.20, 1.43
@@ -284,7 +314,18 @@ def sample_batched_opponent_params(
                 s_low, s_high = 0.64, 0.78
                 c_prob = 0.20
             elif n_agents >= 4:
-                s_low, s_high = 0.68, 0.84
+                # 4v4 turtle: the *hardest* training opponent at 4v4. Real chase-speed band
+                # (red can actually intercept blue raiders), heavy coordination, extended
+                # sync windows, and heavy mid-field deception so blue can't predict the
+                # intercept. Style identity (attacker=0/defender=1) preserved — the
+                # turtle is hard because the defense *works*, not because it counter-attacks.
+                s_low, s_high = 1.00, 1.20
+                d_low, d_high = 0.25, 0.45
+                c_prob = 0.70
+                sync_c_low, sync_c_high = 3, 7
+                sync_nc_low, sync_nc_high = 3, 6
+                n_low, n_high = 0.0, 0.05
+                role_switch_prob = 0.18
             else:
                 s_low, s_high = 0.72, 0.90
                 d_low, d_high = 0.08, 0.22

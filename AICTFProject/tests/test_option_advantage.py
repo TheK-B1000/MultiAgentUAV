@@ -8,6 +8,8 @@ from gymnasium import spaces
 
 from rl.train_ppo import PPOConfig
 from rl.custom_ppo import CustomPPOTrainer
+from rl.global_state import GLOBAL_STATE_DIM
+from rl.latent_marl import CONTEXT_STATE_DIM
 from game_field_gpu import VEC_OBS_DIM
 
 
@@ -53,6 +55,15 @@ class OptionAdvantageTests(unittest.TestCase):
                 red_carrying = torch.zeros((2, 2), dtype=torch.bool)
                 red_flag_pos = torch.zeros((2, 2))
                 blue_flag_pos = torch.zeros((2, 2))
+                red_flag_home = torch.zeros((2, 2))
+                blue_flag_home = torch.zeros((2, 2))
+                blue_speed = torch.zeros((2, 2))
+                red_speed = torch.zeros((2, 2))
+                step_count = torch.zeros((2,), dtype=torch.long)
+                sim_step_count = torch.zeros((2,), dtype=torch.long)
+                score_limit = 3
+                max_steps = 100
+                max_sim_steps = 100
             core = Core()
             def reset(self):
                 return {
@@ -62,7 +73,7 @@ class OptionAdvantageTests(unittest.TestCase):
                     "mask": np.ones((2, 110), dtype=np.float32),
                 }
             def state(self):
-                return np.zeros((2, 19), dtype=np.float32)
+                return np.zeros((2, GLOBAL_STATE_DIM), dtype=np.float32)
             def step_async(self, actions):
                 pass
             def step_wait(self):
@@ -83,7 +94,7 @@ class OptionAdvantageTests(unittest.TestCase):
                 "obs_vec": torch.zeros((2, 2, VEC_OBS_DIM)),
                 "obs_agent_mask": torch.ones((2, 2)),
                 "obs_mask": torch.ones((2, 110)),
-                "global_state": torch.zeros((2, 95)),
+                "global_state": torch.zeros((2, CONTEXT_STATE_DIM)),
                 "actions": torch.zeros((2, 4), dtype=torch.long),
                 "log_probs": torch.zeros((2,)),
                 "values": torch.zeros((2,)),

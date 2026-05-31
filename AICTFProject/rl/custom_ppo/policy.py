@@ -336,17 +336,27 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
         if self.uses_latent_strategy:
             actor_expected += int(self.z_embed_dim)
-            assert int(self.global_state_dim) == 95, f"latent global_state_dim must be 95, got {self.global_state_dim}"
-            assert int(self.q_phi_input_dim) == 95, f"q_phi_input_dim must be 95, got {self.q_phi_input_dim}"
-            assert int(self.critic.global_state_dim) == 95, f"critic global_state_dim must be 95, got {self.critic.global_state_dim}"
+            assert int(self.global_state_dim) == int(CONTEXT_STATE_DIM), (
+                f"latent global_state_dim must be {CONTEXT_STATE_DIM}, got {self.global_state_dim}"
+            )
+            assert int(self.q_phi_input_dim) == int(CONTEXT_STATE_DIM), (
+                f"q_phi_input_dim must be {CONTEXT_STATE_DIM}, got {self.q_phi_input_dim}"
+            )
+            assert int(self.critic.global_state_dim) == int(CONTEXT_STATE_DIM), (
+                f"critic global_state_dim must be {CONTEXT_STATE_DIM}, got {self.critic.global_state_dim}"
+            )
             assert int(self._decentralized_actor_in_dim) == actor_expected, f"latent actor input dim must be {actor_expected}, got {self._decentralized_actor_in_dim}"
             expected_extra = int(self.joint_action_onehot_dim + self.latent_k)
             assert int(self.critic.extra_dim) == expected_extra, (
                 f"critic extra_dim must be joint_action_onehot_dim + latent_k = {expected_extra}, got {self.critic.extra_dim}"
             )
         else:
-            assert int(self.global_state_dim) == 19, f"no-latent global_state_dim must be 19, got {self.global_state_dim}"
-            assert int(self.critic.global_state_dim) == 19, f"no-latent critic global_state_dim must be 19, got {self.critic.global_state_dim}"
+            assert int(self.global_state_dim) == int(GLOBAL_STATE_DIM), (
+                f"no-latent global_state_dim must be {GLOBAL_STATE_DIM}, got {self.global_state_dim}"
+            )
+            assert int(self.critic.global_state_dim) == int(GLOBAL_STATE_DIM), (
+                f"no-latent critic global_state_dim must be {GLOBAL_STATE_DIM}, got {self.critic.global_state_dim}"
+            )
             assert int(self._decentralized_actor_in_dim) == 148, f"no-latent actor input dim must be 148, got {self._decentralized_actor_in_dim}"
             assert int(self.critic.extra_dim) == 0, f"no-latent critic extra_dim must be 0, got {self.critic.extra_dim}"
 

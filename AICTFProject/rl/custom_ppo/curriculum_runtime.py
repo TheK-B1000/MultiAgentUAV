@@ -52,10 +52,14 @@ def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, 
     """Sample the *next* episode's scripted opponent per finished sub-env (GPUCTFVecEnv hook)."""
     if trainer.curriculum is not None or not trainer._opponent_randomize_training:
         return
+    weights = getattr(trainer, "_opponent_pool_weights", None)
     for env_i, done_i in enumerate(done):
         if not bool(done_i):
             continue
-        tag = str(trainer._rng_opponent.choice(trainer._opponent_pool_tags)).upper()
+        if weights is not None:
+            tag = str(trainer._rng_opponent.choice(trainer._opponent_pool_tags, p=weights)).upper()
+        else:
+            tag = str(trainer._rng_opponent.choice(trainer._opponent_pool_tags)).upper()
         phase_s = phase_from_tag(tag)
         try:
             trainer.env.env_method("set_next_opponent", "SCRIPTED", tag, indices=[env_i])

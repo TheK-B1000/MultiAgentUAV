@@ -320,7 +320,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         buffer.register_field("z_resampled", dtype=torch.bool)
         buffer.register_field("reward_sparse_points", dtype=torch.float32)
         buffer.register_field("rewards", dtype=torch.float32)
-        buffer.register_field("global_state", (95,))
+        buffer.register_field("global_state", (CONTEXT_STATE_DIM,))
         buffer.register_field("spread_bucket_id", dtype=torch.long)
         buffer.register_field("role_bucket_id", dtype=torch.long)
         buffer.register_field("pressure_bucket_id", dtype=torch.long)
@@ -328,7 +328,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         buffer.register_field("phase_id", dtype=torch.long)
         
         for step in range(10):
-            gs = torch.zeros((2, 95))
+            gs = torch.zeros((2, CONTEXT_STATE_DIM))
             gs[0, 10] = 1.0 if step < 5 else 0.0
             gs[1, 11] = 0.0 if step < 5 else 1.0
             

@@ -87,6 +87,30 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_global_state_strategy_features_are_observable_not_labels(self) -> None:
+        strategy_features = {
+            "flag_pressure_blue",
+            "flag_pressure_red",
+            "home_defense_blue",
+            "home_defense_red",
+            "carrier_dist_home",
+            "carrier_enemy_nearest_dist",
+            "carrier_teammate_support",
+            "mean_blue_red_dist",
+            "min_blue_red_dist",
+            "blue_near_enemy_flag_count",
+            "red_near_enemy_flag_count",
+            "blue_near_home_flag_count",
+            "red_near_home_flag_count",
+            "team_pairwise_distance_mean",
+            "team_pairwise_distance_std",
+        }
+        forbidden_labels = {"opponent_id", "phase_id", "attack_label", "defend_label", "role_label"}
+
+        self.assertEqual(len(GLOBAL_STATE_FIELD_NAMES), GLOBAL_STATE_DIM)
+        self.assertTrue(strategy_features.issubset(set(GLOBAL_STATE_FIELD_NAMES)))
+        self.assertTrue(forbidden_labels.isdisjoint(set(GLOBAL_STATE_FIELD_NAMES)))
+
     def test_reset_seed_reproducibility(self) -> None:
         cfg1 = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=123, map_set="train")
         cfg2 = GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=999, map_set="train")

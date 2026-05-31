@@ -56,6 +56,46 @@ def _normalize_train_mode(mode: str) -> str:
     return aliases.get(raw, raw)
 
 
+def _normalize_opponent_pool_weights(cfg: PPOConfig) -> None:
+    """Validate and normalize ``cfg.opponent_pool_weights`` to sum to 1.0.
+
+    Empty weights ⇒ uniform sampling (no-op). Non-empty must have the same length
+    as ``cfg.opponent_pool``; entries must be finite and non-negative with positive
+    sum. The tuple is rewritten in-place after normalization so downstream code can
+    pass it straight to ``np.random.Generator.choice(p=...)``.
+    """
+    raw = tuple(getattr(cfg, "opponent_pool_weights", ()) or ())
+    if not raw:
+        return
+    pool = tuple(getattr(cfg, "opponent_pool", ()) or ())
+    if len(raw) != len(pool):
+        raise ValueError(
+            f"opponent_pool_weights has length {len(raw)} but opponent_pool has length "
+            f"{len(pool)} (pool={pool!r}, weights={raw!r}). Weights must be positionally "
+            "aligned with the pool."
+        )
+    try:
+        floats = tuple(float(w) for w in raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"opponent_pool_weights entries must be numeric; got {raw!r}."
+        ) from exc
+    if any(not (w >= 0.0) for w in floats):  # rejects NaN and negatives
+        raise ValueError(
+            f"opponent_pool_weights entries must be finite and non-negative; got {floats!r}."
+        )
+    total = sum(floats)
+    if total <= 0.0:
+        raise ValueError(
+            f"opponent_pool_weights sum must be > 0; got {floats!r} (sum={total})."
+        )
+    normalized = tuple(w / total for w in floats)
+    if any(abs(a - b) > 1e-9 for a, b in zip(normalized, floats)):
+        named = ", ".join(f"{tag}={w:.4f}" for tag, w in zip(pool, normalized))
+        print(f"[PPO] opponent_pool_weights normalized to sum=1.0: {named}")
+    cfg.opponent_pool_weights = normalized
+
+
 def _strip_eval_only_opponents_from_training_pool(cfg: PPOConfig) -> None:
     """Remove eval-only scripted opponents from ``cfg.opponent_pool`` when training samples that pool."""
     if bool(getattr(cfg, "allow_op4_in_training_pool", False)):
@@ -141,6 +181,7 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
             raise ValueError(f"opponent_pool must contain at least one of {sorted(allowed)}; got {getattr(cfg, 'opponent_pool', ())!r}.")
         cfg.opponent_pool = pool
         _strip_eval_only_opponents_from_training_pool(cfg)
+        _normalize_opponent_pool_weights(cfg)
 
     if bool(getattr(cfg, "use_latent_strategy", False)):
         k = int(getattr(cfg, "latent_k", 4))
@@ -164,6 +205,7 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
 
 __all__ = [
     "EVAL_ONLY_TRAINING_OPPONENT_TAGS",
+    "_normalize_opponent_pool_weights",
     "_normalize_train_mode",
     "_strip_eval_only_opponents_from_training_pool",
     "normalize_and_validate_training_config",

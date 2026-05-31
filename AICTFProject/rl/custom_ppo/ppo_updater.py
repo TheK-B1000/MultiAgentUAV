@@ -40,6 +40,7 @@ from rl.custom_ppo.latent_diagnostics import (
     _rollout_advantage_diagnostics,
     _strategy_resample_advantage_stats,
     _write_strategy_experience_table,
+    _policy_z_sensitivity_kl,
 )
 from rl.custom_ppo.return_normalization import (
     _normalize_strategy_returns,
@@ -385,6 +386,7 @@ class PPOUpdater:
         runtime.last_stats.update(_latent_opponent_rollout_diag(runtime, buffer))
         runtime.last_stats.update(_behavior_diversity_stats(runtime, buffer))
         runtime.last_stats.update(_forced_z_behavior_profile(runtime, buffer))
+        runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(strategy_experience_stats)
         return runtime.last_stats

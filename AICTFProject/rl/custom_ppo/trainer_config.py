@@ -106,6 +106,9 @@ class TrainerHyperparams:
     # ----- opponent pool training -----
     opponent_randomize_training: bool
     opponent_pool_tags: tuple[str, ...] = field(default_factory=tuple)
+    # Empty tuple ⇒ uniform sampling. Non-empty must align positionally with
+    # ``opponent_pool_tags`` and sum to 1.0 (normalized upstream).
+    opponent_pool_weights: tuple[float, ...] = field(default_factory=tuple)
 
     @classmethod
     def from_ppo_config(
@@ -150,6 +153,11 @@ class TrainerHyperparams:
         )
         opp_tags: tuple[str, ...] = (
             tuple(str(x).strip().upper() for x in getattr(cfg, "opponent_pool", ()))
+            if opp_randomize
+            else ()
+        )
+        opp_weights: tuple[float, ...] = (
+            tuple(float(w) for w in getattr(cfg, "opponent_pool_weights", ()) or ())
             if opp_randomize
             else ()
         )
@@ -243,6 +251,7 @@ class TrainerHyperparams:
             ),
             opponent_randomize_training=opp_randomize,
             opponent_pool_tags=opp_tags,
+            opponent_pool_weights=opp_weights,
         )
 
 def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:

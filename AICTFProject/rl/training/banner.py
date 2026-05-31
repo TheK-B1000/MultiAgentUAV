@@ -111,9 +111,15 @@ def print_training_banner(
         )
     if cfg.mode == TrainMode.OPPONENT_POOL.value or bool(getattr(cfg, "opponent_randomize", False)):
         label = "OPPONENT_POOL mode" if cfg.mode == TrainMode.OPPONENT_POOL.value else "opponent_randomize flag"
+        weights = tuple(getattr(cfg, "opponent_pool_weights", ()) or ())
+        if weights and len(weights) == len(cfg.opponent_pool):
+            weight_str = ", ".join(f"{tag}={w:.3f}" for tag, w in zip(cfg.opponent_pool, weights))
+            sampler_desc = f"weighted per completed episode over pool={list(cfg.opponent_pool)} ({weight_str})"
+        else:
+            sampler_desc = f"uniform per completed episode over pool={list(cfg.opponent_pool)}"
         print(
             "[PPO] Opponent randomization: enabled "
-            f"({label}; uniform per completed episode over pool={list(cfg.opponent_pool)}; "
+            f"({label}; {sampler_desc}; "
             "pre-reset hook \u2014 opponent logged for each episode is the one played during that episode)."
         )
     if curriculum is not None:
