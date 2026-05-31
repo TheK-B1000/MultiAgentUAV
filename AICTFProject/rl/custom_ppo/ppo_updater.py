@@ -44,7 +44,6 @@ from rl.custom_ppo.latent_diagnostics import (
 from rl.custom_ppo.return_normalization import (
     _normalize_strategy_returns,
     _normalize_value_targets,
-    _return_norm_std,
     _update_strategy_return_stats,
 )
 from rl.custom_ppo.trainer_config import TrainerHyperparams
@@ -61,9 +60,10 @@ class PPOUpdater:
     ``hparams`` / ``latent_state``) are injected explicitly. A thin
     ``runtime`` back-reference to the trainer is kept for the shared
     mutable state that hasn't been extracted into its own owner yet
-    (``global_step`` read, ``last_stats`` write, return-norm and
-    strategy-return running stats consumed by ``return_normalization`` and
-    diagnostics helpers via the trainer-shaped ``runtime`` arg).
+    (``global_step`` read, ``last_stats`` write). Return-normalization
+    stats live on ``runtime.return_norm`` and ``runtime.strategy_return_norm``
+    sub-components, which the ``return_normalization`` helper shims
+    consume via the trainer-shaped ``runtime`` arg.
     """
 
     def __init__(
@@ -369,15 +369,15 @@ class PPOUpdater:
                 }
             )
         runtime.last_stats["learning_rate"] = float(lr)
-        runtime.last_stats["return_norm_mean"] = (
-            float(runtime._return_norm_mean) if hparams.normalize_returns else 0.0
-        )
-        runtime.last_stats["return_norm_std"] = (
-            float(_return_norm_std(runtime)) if hparams.normalize_returns else 0.0
-        )
-        runtime.last_stats["return_norm_count"] = (
-            float(runtime._return_norm_count) if hparams.normalize_returns else 0.0
-        )
+        if hparams.normalize_returns:
+            rn = runtime.return_norm
+            runtime.last_stats["return_norm_mean"] = float(rn.mean)
+            runtime.last_stats["return_norm_std"] = float(rn.std)
+            runtime.last_stats["return_norm_count"] = float(rn.count)
+        else:
+            runtime.last_stats["return_norm_mean"] = 0.0
+            runtime.last_stats["return_norm_std"] = 0.0
+            runtime.last_stats["return_norm_count"] = 0.0
         runtime.last_stats.update(_strategy_resample_advantage_stats(runtime, buffer))
         runtime.last_stats.update(_latent_option_advantage_stats(runtime, buffer))
         runtime.last_stats.update(_rollout_advantage_diagnostics(runtime, buffer))

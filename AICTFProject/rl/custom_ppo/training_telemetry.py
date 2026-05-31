@@ -17,17 +17,17 @@ Owned by :class:`TrainingTelemetry`:
 - the persistent e3-step CSV file handle, dict-writer, field cache and
   rows-since-flush counter
 
-Read from the trainer (context-object pattern):
+Static collaborators (injected explicitly into the constructor):
 
-- ``trainer.cfg``, ``trainer.run_id``, ``trainer.run_pid``
-- ``trainer.episode_csv_path``, ``trainer.metrics_csv_path``
-- ``trainer._episodes_completed``, ``trainer._updates_completed``
-- ``trainer._ep_wins / _ep_losses / _ep_draws``
-- ``trainer._recent_episode_successes``, ``trainer._rollout_episode_records``
-- ``trainer.use_latent_strategy``, ``trainer.latent_k``
-- ``trainer.reward_dense_weight``, ``trainer.global_step``
-- ``trainer.curriculum``
-- ``trainer._reward_shaping_coef()``
+- ``cfg`` — raw :class:`PPOConfig` for ad-hoc ``getattr`` lookups
+- ``hparams`` — resolved :class:`TrainerHyperparams`
+- ``curriculum`` — optional curriculum-state collaborator
+- ``reward_shaping_coef`` — zero-arg callable returning the current shaping coef
+
+Shared mutable runtime state (kept on the trainer; reached through the
+``runtime`` back-reference): ``global_step``, ``_updates_completed``, and
+the episode-scope sub-component ``trainer.episode_stats`` (win/loss/draw
+tallies, rollout episode records, and the recent-successes deque).
 """
 
 from __future__ import annotations
@@ -60,6 +60,7 @@ from rl.custom_ppo.csv_writers import (
     _write_csv_row,
 )
 from rl.ppo_core import TensorDictRolloutBuffer
+from rl.custom_ppo.trainer_config import TrainerHyperparams
 
 if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
@@ -74,9 +75,20 @@ class TrainingTelemetry:
     e3 file handle directly.
     """
 
-    def __init__(self, trainer: "CustomPPOTrainer") -> None:
-        self.trainer = trainer
-        cfg = trainer.cfg
+    def __init__(
+        self,
+        *,
+        cfg: Any,
+        hparams: TrainerHyperparams,
+        curriculum: Any,
+        reward_shaping_coef: Any,
+        runtime: "CustomPPOTrainer",
+    ) -> None:
+        self.cfg = cfg
+        self.hparams = hparams
+        self.curriculum = curriculum
+        self._reward_shaping_coef_fn = reward_shaping_coef
+        self.runtime = runtime
         self.e3_step_telemetry_path = str(getattr(cfg, "e3_step_telemetry_path", "") or "")
         self._e3_file: Any = None
         self._e3_writer: Any = None
@@ -113,8 +125,7 @@ class TrainingTelemetry:
         attack_defense_ratio_bucket_np: np.ndarray,
         blue_ahead_np: np.ndarray,
     ) -> None:
-        trainer = self.trainer
-        if not self.e3_step_telemetry_path or not trainer.use_latent_strategy:
+        if not self.e3_step_telemetry_path or not self.hparams.use_latent_strategy:
             return
         path = self.e3_step_telemetry_path
         zt = z_t.detach().cpu().numpy()
@@ -136,7 +147,7 @@ class TrainingTelemetry:
                 self._e3_writer.writeheader()
             self._e3_fields_cache = fields
         w = self._e3_writer
-        upd = int(trainer._updates_completed)
+        upd = int(self.runtime._updates_completed)
         for e in range(n_e):
             info = dict(infos[e]) if e < len(infos) else {}
             gs_e = decision_global_state_np[e]
@@ -155,7 +166,7 @@ class TrainingTelemetry:
                 "team_phase": team_phase_label_from_global_state(gs_e, stalemate_frac=sf),
                 "score_outcome": outcome_label_from_global_state(gs_e),
                 "stalemate_frac": sf,
-                "opponent_id": int(_opponent_id_int_from_info(trainer.cfg, info)),
+                "opponent_id": int(_opponent_id_int_from_info(self.cfg, info)),
                 "phase_id": pid,
                 "blue_ahead": float(blue_ahead_np[e]),
                 "spread_bucket": int(spread_bucket_np[e]),
@@ -199,23 +210,25 @@ class TrainingTelemetry:
         rollout_step: Optional[int] = None,
         latent_z: Optional[int] = None,
     ) -> None:
-        trainer = self.trainer
-        if not trainer.episode_csv_path:
+        runtime = self.runtime
+        hparams = self.hparams
+        cfg = self.cfg
+        if not hparams.episode_csv_path:
             return
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         row = {
-            "episode_id": trainer._episodes_completed,
-            "run_id": trainer.run_id,
-            "run_pid": trainer.run_pid,
+            "episode_id": runtime.episode_stats.episodes_completed,
+            "run_id": hparams.run_id,
+            "run_pid": hparams.run_pid,
             "timesteps": int(timestep),
-            "policy_update": int(trainer._updates_completed),
+            "policy_update": int(runtime._updates_completed),
             "rollout_step": "" if rollout_step is None else int(rollout_step),
             "latent_z": "" if latent_z is None else int(latent_z),
             "curriculum_phase": str(info.get("phase", "")),
-            "mode": str(getattr(trainer.cfg, "mode", "FIXED_OPPONENT")),
-            "map_set": str(info.get("map_set", getattr(trainer.cfg, "map_set", "train"))).lower(),
-            "opponent": _opponent_legend(trainer.cfg, info),
-            "opponent_id": _opponent_id_csv_from_info(trainer.cfg, info),
+            "mode": str(getattr(cfg, "mode", "FIXED_OPPONENT")),
+            "map_set": str(info.get("map_set", getattr(cfg, "map_set", "train"))).lower(),
+            "opponent": _opponent_legend(cfg, info),
+            "opponent_id": _opponent_id_csv_from_info(cfg, info),
             "success": 1 if blue_score > red_score else 0,
             "blue_score": int(blue_score),
             "red_score": int(red_score),
@@ -238,11 +251,11 @@ class TrainingTelemetry:
             "reward_failure": float(er.get("reward_failure", info.get("reward_failure", 0.0)) or 0.0),
             "reward_total": float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0),
         }
-        _write_csv_row(trainer.episode_csv_path, _episode_fieldnames(), row)
+        _write_csv_row(hparams.episode_csv_path, _episode_fieldnames(), row)
 
     def rollout_episode_summary(self) -> dict[str, Any]:
-        trainer = self.trainer
-        records = list(trainer._rollout_episode_records)
+        hparams = self.hparams
+        records = list(self.runtime.episode_stats.rollout_records)
         n = len(records)
         if n <= 0:
             base: dict[str, Any] = {
@@ -270,8 +283,8 @@ class TrainingTelemetry:
                 "rollout_blue_score_mean": float(np.mean([int(r["blue_score"]) for r in records])),
                 "rollout_red_score_mean": float(np.mean([int(r["red_score"]) for r in records])),
             }
-        if trainer.use_latent_strategy:
-            for z_idx in range(trainer.latent_k):
+        if hparams.use_latent_strategy:
+            for z_idx in range(hparams.latent_k):
                 z_records = [r for r in records if r.get("latent_z") == z_idx]
                 zn = len(z_records)
                 base[f"episode_z_{z_idx}_count"] = zn
@@ -286,7 +299,7 @@ class TrainingTelemetry:
                     base[f"episode_z_{z_idx}_red_score_mean"] = float(np.mean([int(r["red_score"]) for r in z_records]))
                     base[f"episode_z_{z_idx}_win_margin_mean"] = float(np.mean([int(r["win_margin"]) for r in z_records]))
             for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
-                for z_idx in range(trainer.latent_k):
+                for z_idx in range(hparams.latent_k):
                     sub = [
                         r
                         for r in records
@@ -303,33 +316,31 @@ class TrainingTelemetry:
         return base
 
     def rolling_win_rate(self, window: int) -> float:
-        recent = list(self.trainer._recent_episode_successes)[-max(1, int(window)):]
-        if not recent:
-            return 0.0
-        return float(sum(recent)) / float(len(recent))
+        return self.runtime.episode_stats.rolling_win_rate(window)
 
     def write_update_metrics(
         self,
         stats: dict[str, float],
         buffer: TensorDictRolloutBuffer,
     ) -> dict[str, Any]:
-        trainer = self.trainer
-        if not trainer.metrics_csv_path:
+        runtime = self.runtime
+        hparams = self.hparams
+        if not hparams.metrics_csv_path:
             return {}
         rewards = buffer.fields["rewards"][: int(buffer.pos)].detach().float().reshape(-1)
         returns = buffer.fields["returns"][: int(buffer.pos)].detach().float().reshape(-1)
         values = buffer.fields["values"][: int(buffer.pos)].detach().float().reshape(-1)
-        games = trainer._ep_wins + trainer._ep_losses + trainer._ep_draws
+        ep = runtime.episode_stats
         row: dict[str, Any] = {
-            "update": trainer._updates_completed,
-            "run_id": trainer.run_id,
-            "run_pid": trainer.run_pid,
-            "timesteps": int(trainer.global_step),
-            "episodes_completed": int(trainer._episodes_completed),
-            "wins": int(trainer._ep_wins),
-            "losses": int(trainer._ep_losses),
-            "draws": int(trainer._ep_draws),
-            "win_rate": float(trainer._ep_wins) / float(max(1, games)),
+            "update": runtime._updates_completed,
+            "run_id": hparams.run_id,
+            "run_pid": hparams.run_pid,
+            "timesteps": int(runtime.global_step),
+            "episodes_completed": int(ep.episodes_completed),
+            "wins": int(ep.wins),
+            "losses": int(ep.losses),
+            "draws": int(ep.draws),
+            "win_rate": ep.cumulative_win_rate,
             "rolling_win_rate_50ep": self.rolling_win_rate(50),
             "rolling_win_rate_200ep": self.rolling_win_rate(200),
             "rollout_reward_mean": float(rewards.mean().detach().cpu().item()) if rewards.numel() > 0 else 0.0,
@@ -339,13 +350,13 @@ class TrainingTelemetry:
             "explained_variance": self.explained_variance(values, returns),
         }
         row.update(self.rollout_episode_summary())
-        if trainer.curriculum is not None:
+        if self.curriculum is not None:
             row.update(
                 {
-                    "curriculum_phase": str(trainer.curriculum.phase),
-                    "curriculum_phase_idx": int(trainer.curriculum.phase_idx),
-                    "curriculum_phase_episodes": int(trainer.curriculum.phase_episode_count),
-                    "curriculum_phase_win_rate": float(trainer.curriculum.phase_winrate()),
+                    "curriculum_phase": str(self.curriculum.phase),
+                    "curriculum_phase_idx": int(self.curriculum.phase_idx),
+                    "curriculum_phase_episodes": int(self.curriculum.phase_episode_count),
+                    "curriculum_phase_win_rate": float(self.curriculum.phase_winrate()),
                 }
             )
         for key in (
@@ -363,21 +374,21 @@ class TrainingTelemetry:
         reward_outcome = float(row.get("reward_terminal_mean", 0.0)) + float(row.get("reward_sparse_mean", 0.0))
         reward_shaping = (
             float(row.get("reward_offense_mean", 0.0))
-            + trainer.reward_dense_weight
+            + hparams.reward_dense_weight
             * (float(row.get("reward_pbrs_mean", 0.0)) + float(row.get("reward_team_mean", 0.0)))
         )
         reward_failure = float(row.get("reward_failure_mean", 0.0))
         row["reward_outcome_mean"] = reward_outcome
         row["reward_shaping_mean"] = reward_shaping
         row["reward_shaping_to_outcome_abs_ratio"] = abs(reward_shaping) / (abs(reward_outcome) + 1e-6)
-        row["reward_shaping_coef"] = float(trainer._reward_shaping_coef())
+        row["reward_shaping_coef"] = float(self._reward_shaping_coef_fn())
         row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
         row.update(stats)
-        if trainer.use_latent_strategy:
+        if hparams.use_latent_strategy:
             entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
-            row["strategy_entropy_frac"] = entropy / max(1e-6, math.log(max(2, int(trainer.latent_k))))
+            row["strategy_entropy_frac"] = entropy / max(1e-6, math.log(max(2, int(hparams.latent_k))))
             z_win_rates: list[float] = []
-            for z_idx in range(trainer.latent_k):
+            for z_idx in range(hparams.latent_k):
                 value = row.get(f"episode_z_{z_idx}_win_rate", "")
                 if value == "":
                     continue
@@ -389,8 +400,8 @@ class TrainingTelemetry:
             row["strategy_entropy_frac"] = 0.0
             row["strategy_wr_spread"] = 0.0
         _write_csv_row(
-            trainer.metrics_csv_path,
-            _update_fieldnames(trainer.use_latent_strategy, trainer.latent_k),
+            hparams.metrics_csv_path,
+            _update_fieldnames(hparams.use_latent_strategy, hparams.latent_k),
             row,
             legacy_column_fill=_METRICS_CSV_LEGACY_COLUMN_FILL,
         )
@@ -409,19 +420,20 @@ class TrainingTelemetry:
         * The big ``[PPO|diag]`` line (+ optional ``[Switch Near]``
           follow-up for latent runs) — only when ``row`` is non-empty,
           i.e. when ``write_update_metrics`` actually wrote a row.
-        * ``[PPO|return_norm]`` — when ``trainer.normalize_returns``.
+        * ``[PPO|return_norm]`` — when ``hparams.normalize_returns``.
         * ``[PPO|custom]`` verbose line — when ``cfg.verbose_training``.
 
         ``row`` is the dict returned by :meth:`write_update_metrics` (may
         be empty when nothing was written); ``stats`` is the return of
         ``PPOUpdater.update`` for this rollout.
         """
-        trainer = self.trainer
+        runtime = self.runtime
+        hparams = self.hparams
         if row:
             z_wr_parts: list[str] = []
             z_occ_parts: list[str] = []
-            if trainer.use_latent_strategy:
-                for i in range(trainer.latent_k):
+            if hparams.use_latent_strategy:
+                for i in range(hparams.latent_k):
                     wr = row.get(f"episode_z_{i}_win_rate", "")
                     occ = row.get(f"strategy_occupancy_{i}", "")
                     z_wr_parts.append("-" if wr == "" else f"{float(wr):.3f}")
@@ -430,7 +442,7 @@ class TrainingTelemetry:
             z_entropy_frac = float(row.get("strategy_entropy_frac", 0.0) or 0.0)
             z_wr_spread = float(row.get("strategy_wr_spread", 0.0) or 0.0)
             opp_suffix = ""
-            if trainer.use_latent_strategy:
+            if hparams.use_latent_strategy:
                 mi_z_o = float(row.get("latent_mi_z_opponent_nats", 0.0) or 0.0)
                 mi_z_p = float(row.get("latent_mi_z_phase_nats", 0.0) or 0.0)
                 mi_z_y = float(row.get("latent_mi_z_outcome_nats", 0.0) or 0.0)
@@ -439,11 +451,11 @@ class TrainingTelemetry:
                 for o in range(SCRIPTED_OPPONENT_MI_COUNT):
                     occ_o = [
                         float(row.get(f"strategy_occupancy_op{o}_z{k}", 0.0) or 0.0)
-                        for k in range(trainer.latent_k)
+                        for k in range(hparams.latent_k)
                     ]
                     wr_o = [
                         row.get(f"episode_opp{o}_z{k}_win_rate", "")
-                        for k in range(trainer.latent_k)
+                        for k in range(hparams.latent_k)
                     ]
                     if sum(occ_o) < 1e-9 and all(w == "" for w in wr_o):
                         continue
@@ -456,7 +468,7 @@ class TrainingTelemetry:
                     + " ".join(opp_diag_bits)
                 )
             print(
-                f"[PPO|diag] steps={trainer.global_step} "
+                f"[PPO|diag] steps={runtime.global_step} "
                 f"ev={row['explained_variance']:.3f} "
                 f"v_loss={row['value_loss']:.3f} "
                 f"shape/out={row['reward_shaping_mean']:.3f}/{row['reward_outcome_mean']:.3f} "
@@ -470,7 +482,7 @@ class TrainingTelemetry:
                 f"z_wr=[{','.join(z_wr_parts)}]"
                 f"{opp_suffix}"
             )
-            if trainer.use_latent_strategy:
+            if hparams.use_latent_strategy:
                 sw_cap = float(row.get("latent_switch_near_capture_frac", 0.0) or 0.0)
                 sw_kill = float(row.get("latent_switch_near_kill_frac", 0.0) or 0.0)
                 sw_ret = float(row.get("latent_switch_near_return_frac", 0.0) or 0.0)
@@ -483,39 +495,40 @@ class TrainingTelemetry:
                     f"div_role={div_role:.3f} div_spread={div_spread:.3f} "
                     f"div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
                 )
-        if trainer.normalize_returns:
+        if hparams.normalize_returns:
             print(
                 "[PPO|return_norm] "
-                f"update={trainer._updates_completed} "
+                f"update={runtime._updates_completed} "
                 f"mean={stats.get('return_norm_mean', 0.0):.4f} "
                 f"std={stats.get('return_norm_std', 0.0):.4f} "
                 f"count={stats.get('return_norm_count', 0.0):.0f}"
             )
-        if bool(getattr(trainer.cfg, "verbose_training", False)):
+        if bool(getattr(self.cfg, "verbose_training", False)):
             latent_bits = ""
-            if trainer.use_latent_strategy:
+            if hparams.use_latent_strategy:
                 latent_bits = (
                     f" z_entropy={stats.get('strategy_entropy', 0.0):.4f} "
                     f"z_persist={stats.get('strategy_persist_loss', 0.0):.4f}"
                 )
             print(
                 "[PPO|custom] "
-                f"steps={trainer.global_step} policy_loss={stats['policy_loss']:.4f} "
+                f"steps={runtime.global_step} policy_loss={stats['policy_loss']:.4f} "
                 f"value_loss={stats['value_loss']:.4f} approx_kl={stats['approx_kl']:.5f}"
                 f"{latent_bits}"
             )
 
     def print_episode_progress(self, info: dict[str, Any]) -> None:
-        trainer = self.trainer
-        n = trainer._episodes_completed
-        w, l, d = trainer._ep_wins, trainer._ep_losses, trainer._ep_draws
-        wr = 100.0 * float(w) / float(max(1, w + l + d))
-        mode = str(getattr(trainer.cfg, "mode", "FIXED_OPPONENT"))
-        opp = _opponent_legend(trainer.cfg, info)
+        runtime = self.runtime
+        ep = runtime.episode_stats
+        n = ep.episodes_completed
+        w, l, d = ep.wins, ep.losses, ep.draws
+        wr = 100.0 * ep.cumulative_win_rate
+        mode = str(getattr(self.cfg, "mode", "FIXED_OPPONENT"))
+        opp = _opponent_legend(self.cfg, info)
         print(
             f"[PPO] ep={n} mode={mode} opp={opp} "
             f"W={w} L={l} D={d} WR={wr:.1f}%"
-            + (f" phase={trainer.curriculum.phase}" if trainer.curriculum is not None else "")
+            + (f" phase={self.curriculum.phase}" if self.curriculum is not None else "")
         )
 
 

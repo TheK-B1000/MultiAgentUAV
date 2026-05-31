@@ -148,6 +148,24 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logDir    = Join-Path $projectRoot ("logs\proof_ladder_" + $timestamp)
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $chainLog  = Join-Path $logDir "chain.log"
+$timingCsv = Join-Path $logDir "stage_timings.csv"
+"label,started_at,elapsed_seconds,status,log_path" | Set-Content -LiteralPath $timingCsv -Encoding utf8
+
+# Global chain stopwatch (printed at every stage completion as a running total)
+# and a tally of (label -> elapsed_seconds) for the final summary block.
+$ChainStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$StageTimings   = [System.Collections.Generic.List[psobject]]::new()
+
+function Format-Elapsed {
+    param([TimeSpan]$Span)
+    if ($Span.TotalHours -ge 1) {
+        return ("{0}h{1:00}m{2:00}s" -f [int]$Span.TotalHours, $Span.Minutes, $Span.Seconds)
+    } elseif ($Span.TotalMinutes -ge 1) {
+        return ("{0}m{1:00}s" -f [int]$Span.TotalMinutes, $Span.Seconds)
+    } else {
+        return ("{0:0.0}s" -f $Span.TotalSeconds)
+    }
+}
 
 function Write-Chain {
     param([string]$Message, [string]$Color = "Gray")
@@ -164,15 +182,34 @@ function Invoke-Stage {
         [string[]]$Cmd
     )
     Write-Chain ("[" + $Label + "] " + ($Cmd -join " "))
-    if ($DryRun) { return $true }
+    if ($DryRun) {
+        Write-Chain ("[" + $Label + "] DRY-RUN (skipped, 0s)") "DarkGray"
+        $StageTimings.Add([pscustomobject]@{ Label = $Label; ElapsedSeconds = 0.0; Status = "dryrun"; LogPath = $LogPath })
+        ("{0},{1},{2:0.00},{3},{4}" -f $Label, (Get-Date -Format "o"), 0.0, "dryrun", $LogPath) | Add-Content -LiteralPath $timingCsv -Encoding utf8
+        return $true
+    }
+    $stageStartIso = Get-Date -Format "o"
+    Write-Chain ("[" + $Label + "] started (chain elapsed: " + (Format-Elapsed $ChainStopwatch.Elapsed) + ")") "DarkCyan"
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
     # Pipe Tee-Object output to Out-Host so the function's pipeline return is JUST $ok,
     # not the merged stream. Tee still writes the full transcript to $LogPath.
     & $Cmd[0] @($Cmd[1..($Cmd.Length - 1)]) *>&1 | Tee-Object -FilePath $LogPath -Append | Out-Host
     $ok = ($LASTEXITCODE -eq 0)
+    $sw.Stop()
+    $elapsed = Format-Elapsed $sw.Elapsed
+    $chainElapsed = Format-Elapsed $ChainStopwatch.Elapsed
+    $status = if ($ok) { "ok" } else { "fail" }
+    $StageTimings.Add([pscustomobject]@{
+        Label          = $Label
+        ElapsedSeconds = [Math]::Round($sw.Elapsed.TotalSeconds, 2)
+        Status         = $status
+        LogPath        = $LogPath
+    })
+    ("{0},{1},{2:0.00},{3},{4}" -f $Label, $stageStartIso, $sw.Elapsed.TotalSeconds, $status, $LogPath) | Add-Content -LiteralPath $timingCsv -Encoding utf8
     if (-not $ok) {
-        Write-Chain ("[" + $Label + "] FAILED (exit=" + $LASTEXITCODE + "); see " + $LogPath) "Red"
+        Write-Chain ("[" + $Label + "] FAILED in " + $elapsed + " (exit=" + $LASTEXITCODE + "; chain elapsed: " + $chainElapsed + "); see " + $LogPath) "Red"
     } else {
-        Write-Chain ("[" + $Label + "] OK") "Green"
+        Write-Chain ("[" + $Label + "] OK in " + $elapsed + " (chain elapsed: " + $chainElapsed + ")") "Green"
     }
     return $ok
 }
@@ -476,6 +513,32 @@ if ($SkipProof) {
     $proofColor = "Red"
 }
 Write-Chain ("proof table: " + $proofStr) $proofColor
+Write-Chain "=====================================================================" "Cyan"
+
+# Per-stage wall-clock breakdown.
+$ChainStopwatch.Stop()
+Write-Chain "" "Gray"
+Write-Chain "============================== TIMINGS ==============================" "Cyan"
+Write-Chain ("{0,-46} {1,-6} {2,12}" -f "stage", "status", "elapsed") "White"
+Write-Chain ("{0,-46} {1,-6} {2,12}" -f "-----", "------", "-------") "White"
+$totalSecondsByStatus = @{ ok = 0.0; fail = 0.0; dryrun = 0.0 }
+foreach ($t in $StageTimings) {
+    $span = [TimeSpan]::FromSeconds($t.ElapsedSeconds)
+    $color = if ($t.Status -eq "fail") { "Red" } elseif ($t.Status -eq "dryrun") { "DarkGray" } else { "Green" }
+    Write-Chain ("{0,-46} {1,-6} {2,12}" -f $t.Label, $t.Status, (Format-Elapsed $span)) $color
+    if ($totalSecondsByStatus.ContainsKey($t.Status)) {
+        $totalSecondsByStatus[$t.Status] += [double]$t.ElapsedSeconds
+    }
+}
+Write-Chain ("{0,-46} {1,-6} {2,12}" -f "-----", "------", "-------") "White"
+$okSpan   = [TimeSpan]::FromSeconds($totalSecondsByStatus["ok"])
+$failSpan = [TimeSpan]::FromSeconds($totalSecondsByStatus["fail"])
+Write-Chain ("{0,-46} {1,-6} {2,12}" -f "stages OK total", "ok",   (Format-Elapsed $okSpan)) "Green"
+if ($totalSecondsByStatus["fail"] -gt 0.0) {
+    Write-Chain ("{0,-46} {1,-6} {2,12}" -f "stages FAILED total", "fail", (Format-Elapsed $failSpan)) "Red"
+}
+Write-Chain ("{0,-46} {1,-6} {2,12}" -f "chain wall-clock total", "-", (Format-Elapsed $ChainStopwatch.Elapsed)) "Cyan"
+Write-Chain ("(per-stage CSV: " + $timingCsv + ")") "DarkGray"
 Write-Chain "=====================================================================" "Cyan"
 
 # Headline reminder of what to read

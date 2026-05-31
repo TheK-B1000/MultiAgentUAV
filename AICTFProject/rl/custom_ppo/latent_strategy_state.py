@@ -329,7 +329,7 @@ class LatentStrategyState:
         probs = self.episode_strategy_probs[env_i, : trainer.latent_k].detach().cpu().tolist()
         self.rollout_strategy_episode_records.append(
             {
-                "episode_id": int(trainer._episodes_completed),
+                "episode_id": int(trainer.episode_stats.episodes_completed),
                 "global_state_0": self.episode_strategy_state[env_i].detach().clone(),
                 "z": int(self.episode_strategy_z[env_i].detach().cpu().item()),
                 "z_logprob_old": float(self.episode_strategy_log_prob[env_i].detach().cpu().item()),

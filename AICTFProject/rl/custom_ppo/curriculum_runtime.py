@@ -43,7 +43,7 @@ def _update_curriculum_after_episode(
         wr = 100.0 * float(trainer.curriculum.phase_winrate(old_phase))
         print(
             f"[PPO] Curriculum advanced: {old_phase} -> {new_phase} "
-            f"after episode {trainer._episodes_completed} (gate_wr={wr:.1f}%)."
+            f"after episode {trainer.episode_stats.episodes_completed} (gate_wr={wr:.1f}%)."
         )
     _set_curriculum_opponent(trainer, new_phase, env_index)
 

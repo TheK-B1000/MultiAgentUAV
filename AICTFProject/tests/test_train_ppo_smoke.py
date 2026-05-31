@@ -793,9 +793,9 @@ class TrainPpoSmokeTests(unittest.TestCase):
                 batch_size=1,
                 value_clip_range=0.2,
             )
-            trainer._strategy_return_mean = 1.25
-            trainer._strategy_return_var = 0.5
-            trainer._strategy_return_count = 123.0
+            trainer.strategy_return_norm.mean = 1.25
+            trainer.strategy_return_norm.var = 0.5
+            trainer.strategy_return_norm.count = 123.0
             trainer.save(str(path))
 
             restored = CustomPPOTrainer(
@@ -810,9 +810,9 @@ class TrainPpoSmokeTests(unittest.TestCase):
             )
             restored.load(str(path))
 
-            self.assertAlmostEqual(restored._strategy_return_mean, 1.25)
-            self.assertAlmostEqual(restored._strategy_return_var, 0.5)
-            self.assertAlmostEqual(restored._strategy_return_count, 123.0)
+            self.assertAlmostEqual(restored.strategy_return_norm.mean, 1.25)
+            self.assertAlmostEqual(restored.strategy_return_norm.var, 0.5)
+            self.assertAlmostEqual(restored.strategy_return_norm.count, 123.0)
         finally:
             if path.exists():
                 path.unlink()

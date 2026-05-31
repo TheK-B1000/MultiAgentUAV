@@ -167,16 +167,17 @@ class RolloutCollector:
         return {key: np.stack(values, axis=0) for key, values in rows.items()}
 
     def make_buffer(self, obs: Dict[str, np.ndarray]) -> TensorDictRolloutBuffer:
-        trainer = self.trainer
-        n_steps = int(trainer.cfg.n_steps)
-        n_envs = int(trainer.env.num_envs)
-        buffer = TensorDictRolloutBuffer(n_steps, n_envs, device=trainer.device)
+        cfg = self.cfg
+        hparams = self.hparams
+        n_steps = int(cfg.n_steps)
+        n_envs = int(self.env.num_envs)
+        buffer = TensorDictRolloutBuffer(n_steps, n_envs, device=self.device)
         buffer.register_field("obs_grid", tuple(obs["grid"].shape[1:]))
         buffer.register_field("obs_vec", tuple(obs["vec"].shape[1:]))
         buffer.register_field("obs_agent_mask", tuple(obs["agent_mask"].shape[1:]))
         buffer.register_field("obs_mask", tuple(obs["mask"].shape[1:]))
-        buffer.register_field("global_state", (trainer.model.global_state_dim,))
-        buffer.register_field("actions", (len(getattr(trainer.env.action_space, "nvec", [])),), dtype=torch.long)
+        buffer.register_field("global_state", (self.model.global_state_dim,))
+        buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
         buffer.register_field("values")
         buffer.register_field("values_norm")
@@ -193,11 +194,11 @@ class RolloutCollector:
         buffer.register_field("terminated", dtype=torch.bool)
         buffer.register_field("truncated", dtype=torch.bool)
         buffer.register_field("opponent_id", dtype=torch.long)
-        if trainer.use_latent_strategy:
+        if hparams.use_latent_strategy:
             buffer.register_field("z", dtype=torch.long)
             buffer.register_field("prev_z", dtype=torch.long)
             buffer.register_field("z_log_probs")
-            buffer.register_field("z_logits", (trainer.latent_k,))
+            buffer.register_field("z_logits", (hparams.latent_k,))
             buffer.register_field("z_resampled", dtype=torch.bool)
             buffer.register_field("z_persist_mask", dtype=torch.bool)
             buffer.register_field("phase_id", dtype=torch.long)
@@ -208,8 +209,8 @@ class RolloutCollector:
             buffer.register_field("pressure_bucket_id", dtype=torch.long)
             buffer.register_field("attack_defense_ratio_bucket_id", dtype=torch.long)
             buffer.register_field("blue_ahead", dtype=torch.float32)
-            if trainer.latent_kl_consecutive > 0.0:
-                buffer.register_field("z_logits_prev", (trainer.latent_k,))
+            if hparams.latent_kl_consecutive > 0.0:
+                buffer.register_field("z_logits_prev", (hparams.latent_k,))
                 buffer.register_field("z_kl_prev_valid")
         return buffer
 
@@ -220,30 +221,30 @@ class RolloutCollector:
         dones: np.ndarray,
     ) -> torch.Tensor:
         """Strategy index for V(s', z') bootstrapping to match the start of the *next* decision."""
-        trainer = self.trainer
-        if not trainer.use_latent_strategy:
+        hparams = self.hparams
+        if not hparams.use_latent_strategy:
             raise RuntimeError("z_for_bootstrap requires latent strategy mode.")
-        if trainer.fixed_latent_strategy:
-            return torch.full_like(z_t, int(trainer.fixed_latent_strategy_id), dtype=torch.long)
-        device = trainer.device
+        if hparams.fixed_latent_strategy:
+            return torch.full_like(z_t, int(hparams.fixed_latent_strategy_id), dtype=torch.long)
+        device = self.device
         done_t = torch.as_tensor(dones, dtype=torch.bool, device=device)
-        age_next = trainer.latent_state.strategy_age + 1
+        age_next = self.latent_state.strategy_age + 1
         age_next = torch.where(done_t, torch.zeros_like(age_next), age_next)
-        needs_next = trainer.latent_state.needs_strategy_sample.clone()
+        needs_next = self.latent_state.needs_strategy_sample.clone()
         if bool(done_t.any().item()):
             needs_next = needs_next.clone()
-            needs_next[done_t] = bool(not trainer.fixed_latent_strategy)
+            needs_next[done_t] = bool(not hparams.fixed_latent_strategy)
         resample_next = needs_next.clone()
-        if trainer.latent_resample_every_n > 0:
-            resample_next = resample_next | (age_next >= int(trainer.latent_resample_every_n))
+        if hparams.latent_resample_every_n > 0:
+            resample_next = resample_next | (age_next >= int(hparams.latent_resample_every_n))
         resample_next = resample_next & (~done_t)
         z_next = z_t.long().clone()
         if bool(resample_next.any().item()):
             idx = torch.where(resample_next)[0]
             gs_sub = next_context_gs_t.index_select(0, idx)
-            sampled_z, _, _, _ = trainer.model.sample_strategy(
+            sampled_z, _, _, _ = self.model.sample_strategy(
                 gs_sub,
-                deterministic=bool(trainer.latent_bootstrap_z_deterministic),
+                deterministic=bool(hparams.latent_bootstrap_z_deterministic),
             )
             z_next[idx] = sampled_z.long()
         return z_next
@@ -256,7 +257,8 @@ class RolloutCollector:
         prev_z: Optional[torch.Tensor] = None,
         dones: Optional[np.ndarray] = None,
     ) -> torch.Tensor:
-        trainer = self.trainer
+        runtime = self.runtime
+        device = self.device
         rows = []
         for env_i, info in enumerate(infos):
             if bool(info.get("terminated", False)):
@@ -266,14 +268,14 @@ class RolloutCollector:
                 rows.append(np.asarray(terminal_obs.get("global_state", next_global_state[env_i]), dtype=np.float32))
             else:
                 rows.append(np.asarray(next_global_state[env_i], dtype=np.float32))
-        gs = torch.as_tensor(np.stack(rows, axis=0), dtype=torch.float32, device=trainer.device)
+        gs = torch.as_tensor(np.stack(rows, axis=0), dtype=torch.float32, device=device)
         with torch.no_grad():
-            if not trainer.use_latent_strategy:
-                return _denormalize_values(trainer, trainer.model.values(gs))
+            if not self.hparams.use_latent_strategy:
+                return _denormalize_values(runtime, self.model.values(gs))
 
-            done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device) if dones is not None else None
-            next_context_gs_t = trainer.temporal_tracker.update(gs, dones=done_t)
-            trainer._last_context_state = next_context_gs_t
+            done_t = torch.as_tensor(dones, dtype=torch.bool, device=device) if dones is not None else None
+            next_context_gs_t = self.temporal_tracker.update(gs, dones=done_t)
+            runtime._last_context_state = next_context_gs_t
 
             if next_obs is None or prev_z is None:
                 raise ValueError("latent next value bootstrap requires next_obs and prev_z.")
@@ -286,17 +288,17 @@ class RolloutCollector:
                 prev_z.long().reshape(-1),
                 dones,
             )
-            _, next_values, _, _ = trainer.model.act(
+            _, next_values, _, _ = self.model.act(
                 next_obs_t,
                 next_context_gs_t,
                 deterministic=True,
                 z_idx=next_z,
             )
-            next_values = _denormalize_values(trainer, next_values)
+            next_values = _denormalize_values(runtime, next_values)
             terminated = torch.as_tensor(
                 [bool(info.get("terminated", False)) for info in infos],
                 dtype=torch.bool,
-                device=trainer.device,
+                device=device,
             )
             return torch.where(terminated, torch.zeros_like(next_values), next_values)
 
@@ -313,7 +315,7 @@ class RolloutCollector:
         latent_z: Optional[int] = None,
         env_index: Optional[int] = None,
     ) -> None:
-        trainer = self.trainer
+        runtime = self.runtime
         er = info.get("episode_result")
         if isinstance(er, dict):
             bs = int(er.get("blue_score", 0))
@@ -321,24 +323,24 @@ class RolloutCollector:
         else:
             bs = int(info.get("blue_score", 0))
             rs = int(info.get("red_score", 0))
-        trainer.episode_stats.record(
+        self.episode_stats.record(
             blue_score=bs,
             red_score=rs,
             latent_z=latent_z,
-            opponent_id=_opponent_id_int_from_info(trainer.cfg, info),
+            opponent_id=_opponent_id_int_from_info(self.cfg, info),
         )
-        trainer.telemetry.write_episode_metrics(
+        self.telemetry.write_episode_metrics(
             info,
             blue_score=bs,
             red_score=rs,
-            timestep=int(timestep or trainer.global_step),
+            timestep=int(timestep or runtime.global_step),
             rollout_step=rollout_step,
             latent_z=latent_z,
         )
-        _update_curriculum_after_episode(trainer, info=info, blue_score=bs, red_score=rs, env_index=env_index)
-        every = int(getattr(trainer.cfg, "episode_log_every", 0) or 0)
-        if every > 0 and trainer.episode_stats.episodes_completed % every == 0:
-            trainer.telemetry.print_episode_progress(info)
+        _update_curriculum_after_episode(runtime, info=info, blue_score=bs, red_score=rs, env_index=env_index)
+        every = int(getattr(self.cfg, "episode_log_every", 0) or 0)
+        if every > 0 and self.episode_stats.episodes_completed % every == 0:
+            self.telemetry.print_episode_progress(info)
 
     # ------------------------------------------------------------------
     # Main entry point.
@@ -351,13 +353,13 @@ class RolloutCollector:
         helper. Read top-to-bottom for the per-rollout flow; read each
         helper for the per-step / per-stage detail.
         """
-        trainer = self.trainer
-        log_decentralized_actor_contract_once(trainer)
-        trainer.episode_stats.reset_rollout()
-        trainer.latent_state.rollout_strategy_episode_records = []
+        runtime = self.runtime
+        log_decentralized_actor_contract_once(runtime)
+        self.episode_stats.reset_rollout()
+        self.latent_state.rollout_strategy_episode_records = []
         obs, global_state, context_state = self._initial_step_state()
         buffer = self.make_buffer(obs)
-        for step_idx in range(int(trainer.cfg.n_steps)):
+        for step_idx in range(int(self.cfg.n_steps)):
             obs, global_state, context_state = self._step_once(
                 buffer,
                 step_idx=step_idx,
@@ -366,8 +368,8 @@ class RolloutCollector:
                 context_state=context_state,
             )
         self._finalize_buffer(buffer)
-        trainer._last_obs = obs
-        trainer._last_global_state = global_state
+        runtime._last_obs = obs
+        runtime._last_global_state = global_state
         return buffer
 
     # ------------------------------------------------------------------
@@ -383,28 +385,31 @@ class RolloutCollector:
         very first ``collect()`` call, resets the env (and the latent
         temporal tracker / latent state) and seeds the context.
         """
-        trainer = self.trainer
-        if trainer._last_obs is None or trainer._last_global_state is None:
-            obs = trainer.env.reset()
-            global_state = trainer.env.state().astype(np.float32)
-            trainer.latent_state.reset()
-            if trainer.use_latent_strategy:
-                gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
-                context_state = trainer.temporal_tracker.update(gs_t)
+        runtime = self.runtime
+        device = self.device
+        use_latent = self.hparams.use_latent_strategy
+        if runtime._last_obs is None or runtime._last_global_state is None:
+            obs = self.env.reset()
+            global_state = self.env.state().astype(np.float32)
+            self.latent_state.reset()
+            if use_latent:
+                gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=device)
+                context_state = self.temporal_tracker.update(gs_t)
             else:
-                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
+                context_state = torch.as_tensor(global_state, dtype=torch.float32, device=device)
             return obs, global_state, context_state
-        obs = trainer._last_obs
-        global_state = trainer._last_global_state
-        if trainer.use_latent_strategy:
-            context_state = trainer._last_context_state
+        obs = runtime._last_obs
+        global_state = runtime._last_global_state
+        if use_latent:
+            context_state = runtime._last_context_state
         else:
-            context_state = torch.as_tensor(global_state, dtype=torch.float32, device=trainer.device)
+            context_state = torch.as_tensor(global_state, dtype=torch.float32, device=device)
         return obs, global_state, context_state
 
     def _finalize_buffer(self, buffer: TensorDictRolloutBuffer) -> None:
         """Post-loop: align ``next_values``, run GAE, option-returns, return-norm."""
-        trainer = self.trainer
+        cfg = self.cfg
+        hparams = self.hparams
         buffer.fields["next_values"][: int(buffer.pos)].copy_(
             align_next_values_to_rollout_actions(
                 buffer.fields["values"][: int(buffer.pos)],
@@ -414,14 +419,14 @@ class RolloutCollector:
             )
         )
         gae_kw: Dict[str, Any] = dict(
-            gamma=float(trainer.cfg.gamma),
-            gae_lambda=float(trainer.cfg.gae_lambda),
+            gamma=float(cfg.gamma),
+            gae_lambda=float(cfg.gae_lambda),
         )
-        if trainer.latent_gae_reset_on_z_change:
+        if hparams.latent_gae_reset_on_z_change:
             gae_kw["latent_z_field"] = "z"
             gae_kw["reset_gae_on_z_change"] = True
         buffer.compute_returns_and_advantages(**gae_kw)
-        if trainer.use_latent_strategy:
+        if hparams.use_latent_strategy:
             with torch.no_grad():
                 option_returns, option_advantages = compute_option_returns(
                     rewards=buffer.fields["rewards"],
@@ -430,7 +435,7 @@ class RolloutCollector:
                     terminated=buffer.fields["terminated"],
                     truncated=buffer.fields["truncated"],
                     z_resampled=buffer.fields["z_resampled"],
-                    gamma=float(trainer.cfg.gamma),
+                    gamma=float(cfg.gamma),
                 )
                 if "option_returns" not in buffer.fields:
                     buffer.register_field("option_returns")
@@ -438,7 +443,7 @@ class RolloutCollector:
                     buffer.register_field("option_advantages")
                 buffer.fields["option_returns"].copy_(option_returns)
                 buffer.fields["option_advantages"].copy_(option_advantages)
-        _update_return_norm_stats(trainer, buffer.fields["returns"][: int(buffer.pos)])
+        _update_return_norm_stats(self.runtime, buffer.fields["returns"][: int(buffer.pos)])
 
     # ------------------------------------------------------------------
     # Per-step pipeline.
@@ -461,22 +466,23 @@ class RolloutCollector:
         diagnostics → flag-resample trigger → state advance → end-of-step
         latent housekeeping → E3 telemetry append.
         """
-        trainer = self.trainer
+        runtime = self.runtime
+        env = self.env
         decision_global_state_np = np.asarray(global_state, dtype=np.float32)
         obs_t = self.tensor_obs(obs)
         with torch.no_grad():
-            z_t, prev_z_t, strategy_aux = trainer.latent_state.strategy_for_step(context_state)
-            actions_t, values_norm_t, log_probs_t, _ = trainer.model.act(
+            z_t, prev_z_t, strategy_aux = self.latent_state.strategy_for_step(context_state)
+            actions_t, values_norm_t, log_probs_t, _ = self.model.act(
                 obs_t, context_state, z_idx=z_t
             )
-            values_t = _denormalize_values(trainer, values_norm_t)
+            values_t = _denormalize_values(runtime, values_norm_t)
         actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
 
         beh_t, sb, rb, pb, adb, blue_ahead_t = self._pre_step_latent_telemetry(actions_t)
 
-        trainer.env.step_async(actions_np)
-        next_obs, _rewards, dones, infos = trainer.env.step_wait()
-        step_after = trainer.global_step + int(trainer.env.num_envs)
+        env.step_async(actions_np)
+        next_obs, _rewards, dones, infos = env.step_wait()
+        step_after = runtime.global_step + int(env.num_envs)
 
         z_np = z_t.detach().cpu().numpy() if z_t is not None else None
         self._handle_episode_dones(
@@ -487,7 +493,7 @@ class RolloutCollector:
             step_after=step_after,
         )
 
-        next_global_state = trainer.env.state().astype(np.float32)
+        next_global_state = env.state().astype(np.float32)
         next_values_t = self.next_values(
             infos, next_global_state, next_obs=next_obs, prev_z=z_t, dones=dones
         )
@@ -498,15 +504,15 @@ class RolloutCollector:
         truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
         reward_component = self._compose_step_rewards(infos)
 
-        if trainer.use_latent_strategy:
+        if self.hparams.use_latent_strategy:
             self._update_latent_episode_returns(
                 reward_component=reward_component, dones=dones, infos=infos
             )
 
         opp_row = torch.as_tensor(
-            [_opponent_id_int_from_info(trainer.cfg, dict(info)) for info in infos],
+            [_opponent_id_int_from_info(self.cfg, dict(info)) for info in infos],
             dtype=torch.long,
-            device=trainer.device,
+            device=self.device,
         )
 
         frame = StepFrame(
@@ -523,7 +529,7 @@ class RolloutCollector:
             truncated=truncated,
             opp_row=opp_row,
             infos=infos,
-            strategy_aux=strategy_aux if trainer.use_latent_strategy else None,
+            strategy_aux=strategy_aux if self.hparams.use_latent_strategy else None,
             behavior_telemetry=beh_t,
             spread_bucket=sb,
             role_bucket=rb,
@@ -534,11 +540,11 @@ class RolloutCollector:
         self.step_recorder.record(buffer, frame)
 
         self._append_global_state_probe_rows(decision_global_state_np, infos)
-        if trainer.latent_resample_on_flag:
+        if self.hparams.latent_resample_on_flag:
             self._apply_flag_resample_trigger(context_state, next_global_state)
 
         next_context_state = self._advance_context(next_global_state)
-        trainer.global_step += int(trainer.env.num_envs)
+        runtime.global_step += int(env.num_envs)
         self.on_sb3_rollout_env_step()
 
         self._finalize_step_latent_state(strategy_aux, dones)
@@ -578,13 +584,13 @@ class RolloutCollector:
         ``False`` so call sites don't need to branch. The values are read
         from the *current* env core state (i.e. before ``step_async``).
         """
-        trainer = self.trainer
-        if not trainer.use_latent_strategy:
+        if not self.hparams.use_latent_strategy:
             return None, None, None, None, None, None
-        beh_t = compute_behavior_telemetry_batch(trainer.env.core, actions_t)
-        sb, rb, pb, adb = bucket_ids_from_telemetry(beh_t, actions_t, trainer.env.core)
-        blue_ahead_t = (trainer.env.core.blue_score > trainer.env.core.red_score).to(
-            dtype=torch.float32, device=trainer.device
+        env_core = self.env.core
+        beh_t = compute_behavior_telemetry_batch(env_core, actions_t)
+        sb, rb, pb, adb = bucket_ids_from_telemetry(beh_t, actions_t, env_core)
+        blue_ahead_t = (env_core.blue_score > env_core.red_score).to(
+            dtype=torch.float32, device=self.device
         )
         return beh_t, sb, rb, pb, adb, blue_ahead_t
 
@@ -614,8 +620,8 @@ class RolloutCollector:
         self, infos: List[Dict[str, Any]]
     ) -> Dict[str, torch.Tensor]:
         """Pull reward components from ``infos`` and run the training composer."""
-        trainer = self.trainer
-        device = trainer.device
+        device = self.device
+        hparams = self.hparams
         reward_component = {
             key: torch.as_tensor(
                 [float(info.get(key, 0.0) or 0.0) for info in infos],
@@ -633,7 +639,7 @@ class RolloutCollector:
                 "reward_total",
             )
         }
-        shaping_coef = float(trainer._reward_shaping_coef())
+        shaping_coef = float(self._reward_shaping_coef_fn())
         stalemate = torch.as_tensor(
             [bool(info.get("stalemate_truncated", False)) for info in infos],
             dtype=torch.bool,
@@ -641,12 +647,12 @@ class RolloutCollector:
         )
         return _compose_training_reward_components(
             reward_component,
-            dense_weight=trainer.reward_dense_weight,
-            reward_scale=trainer.reward_scale,
-            reward_clip=trainer.reward_clip,
+            dense_weight=hparams.reward_dense_weight,
+            reward_scale=hparams.reward_scale,
+            reward_clip=hparams.reward_clip,
             shaping_coef=shaping_coef,
             stalemate=stalemate,
-            stalemate_penalty=trainer.reward_stalemate_penalty,
+            stalemate_penalty=hparams.reward_stalemate_penalty,
         )
 
     def _update_latent_episode_returns(
@@ -661,30 +667,30 @@ class RolloutCollector:
         Used by the episode-strategy PPO path to score whole-episode returns
         per latent ``z``. Caller already gated this on ``use_latent_strategy``.
         """
-        trainer = self.trainer
-        done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
-        trainer.latent_state.episode_return_accum = (
-            trainer.latent_state.episode_return_accum
+        latent_state = self.latent_state
+        done_t = torch.as_tensor(dones, dtype=torch.bool, device=self.device)
+        latent_state.episode_return_accum = (
+            latent_state.episode_return_accum
             + reward_component["reward_total"].detach()
         )
         if not bool(done_t.any().item()):
             return
-        if trainer.latent_episode_strategy_ppo:
+        if self.hparams.latent_episode_strategy_ppo:
             for env_i, done_i in enumerate(dones):
                 if not bool(done_i):
                     continue
-                trainer.latent_state.record_episode_strategy_outcome(
+                latent_state.record_episode_strategy_outcome(
                     env_i,
                     dict(infos[env_i]),
                     episode_return=float(
-                        trainer.latent_state.episode_return_accum[env_i]
+                        latent_state.episode_return_accum[env_i]
                         .detach()
                         .cpu()
                         .item()
                     ),
                 )
-        trainer.latent_state.episode_return_accum[done_t] = 0.0
-        trainer.latent_state.episode_strategy_has_start[done_t] = False
+        latent_state.episode_return_accum[done_t] = 0.0
+        latent_state.episode_strategy_has_start[done_t] = False
 
     def _append_global_state_probe_rows(
         self,
@@ -692,12 +698,12 @@ class RolloutCollector:
         infos: List[Dict[str, Any]],
     ) -> None:
         """Append optional ``(global_state, score_diff, time_frac)`` probe rows."""
-        trainer = self.trainer
-        probe_rows = getattr(trainer, "_global_state_probe_rows", None)
+        probe_rows = getattr(self.runtime, "_global_state_probe_rows", None)
         if probe_rows is None:
             return
-        score_lim = max(1, int(getattr(trainer.env.cfg, "score_limit", 1)))
-        max_dec = max(1, int(getattr(trainer.env.cfg, "max_decision_steps", 400)))
+        env_cfg = self.env.cfg
+        score_lim = max(1, int(getattr(env_cfg, "score_limit", 1)))
+        max_dec = max(1, int(getattr(env_cfg, "max_decision_steps", 400)))
         for i, info in enumerate(infos):
             bs = int(info.get("blue_score", 0) or 0)
             rs = int(info.get("red_score", 0) or 0)
@@ -716,27 +722,25 @@ class RolloutCollector:
         next_global_state: np.ndarray,
     ) -> None:
         """Mark envs whose flag-territory features changed for next-step resample."""
-        trainer = self.trainer
         prev_sec = context_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE]
         nxt_sec = torch.as_tensor(
             next_global_state[:, GLOBAL_STATE_FLAG_TERRITORY_SLICE],
             dtype=torch.float32,
-            device=trainer.device,
+            device=self.device,
         )
         chg = self.flag_territory_features_changed(prev_sec, nxt_sec)
-        trainer.latent_state.needs_strategy_sample[chg] = True
+        self.latent_state.needs_strategy_sample[chg] = True
 
     def _advance_context(self, next_global_state: np.ndarray) -> torch.Tensor:
         """Return the context tensor for the *next* step.
 
         Latent mode: the temporal tracker was already advanced inside
-        :meth:`next_values`, so we just hand back ``trainer._last_context_state``.
+        :meth:`next_values`, so we just hand back ``runtime._last_context_state``.
         Non-latent mode: context is just the (raw) global state on device.
         """
-        trainer = self.trainer
-        if trainer.use_latent_strategy:
-            return trainer._last_context_state
-        return torch.as_tensor(next_global_state, dtype=torch.float32, device=trainer.device)
+        if self.hparams.use_latent_strategy:
+            return self.runtime._last_context_state
+        return torch.as_tensor(next_global_state, dtype=torch.float32, device=self.device)
 
     def _finalize_step_latent_state(
         self,
@@ -744,17 +748,18 @@ class RolloutCollector:
         dones: np.ndarray,
     ) -> None:
         """End-of-step latent housekeeping (KL-prev snapshot + strategy age)."""
-        trainer = self.trainer
+        latent_state = self.latent_state
+        hparams = self.hparams
         if (
-            trainer.use_latent_strategy
-            and trainer.latent_kl_consecutive > 0.0
-            and trainer.latent_state.z_kl_first_in_ep is not None
+            hparams.use_latent_strategy
+            and hparams.latent_kl_consecutive > 0.0
+            and latent_state.z_kl_first_in_ep is not None
         ):
-            trainer.latent_state.prev_z_logits = strategy_aux["z_logits"].detach().clone()
-            trainer.latent_state.z_kl_first_in_ep = torch.as_tensor(
-                dones, dtype=torch.bool, device=trainer.device
+            latent_state.prev_z_logits = strategy_aux["z_logits"].detach().clone()
+            latent_state.z_kl_first_in_ep = torch.as_tensor(
+                dones, dtype=torch.bool, device=self.device
             )
-        trainer.latent_state.mark_strategy_step_done(dones)
+        latent_state.mark_strategy_step_done(dones)
 
     def _append_e3_step_telemetry(
         self,
@@ -773,8 +778,7 @@ class RolloutCollector:
         blue_ahead_t: Optional[torch.Tensor],
     ) -> None:
         """Forward one row to the E3 step telemetry CSV when enabled."""
-        trainer = self.trainer
-        if not (trainer.telemetry.e3_step_telemetry_path and trainer.use_latent_strategy):
+        if not (self.telemetry.e3_step_telemetry_path and self.hparams.use_latent_strategy):
             return
         if z_t is None or prev_z_t is None:
             return
@@ -787,9 +791,9 @@ class RolloutCollector:
             or blue_ahead_t is None
         ):
             return
-        trainer.telemetry.append_e3_step(
+        self.telemetry.append_e3_step(
             rollout_step=step_idx,
-            global_step_at_step_end=int(trainer.global_step),
+            global_step_at_step_end=int(self.runtime.global_step),
             decision_global_state_np=decision_global_state_np,
             z_t=z_t,
             prev_z=prev_z_t,

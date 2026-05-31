@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import sys
 import warnings
-from collections import deque
 from dataclasses import asdict
 from functools import partial
 from typing import Any, Optional
@@ -26,8 +25,10 @@ from rl.custom_ppo.inference import (
     CUSTOM_PPO_VEC_SCHEMA_VERSION,
 )
 from rl.custom_ppo.curriculum_runtime import _hook_sample_training_opponent_before_reset
+from rl.custom_ppo.episode_stats import EpisodeStats
 from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
+from rl.custom_ppo.return_normalization import ReturnNormalizer
 from rl.custom_ppo.rollout_collector import RolloutCollector
 from rl.custom_ppo.trainer_audit import log_decentralized_actor_contract_once
 from rl.custom_ppo.trainer_config import TrainerHyperparams, build_model_kwargs
@@ -152,12 +153,13 @@ class CustomPPOTrainer:
         self.value_clip_range = hparams.value_clip_range
         self.normalize_returns = hparams.normalize_returns
 
-        self._return_norm_mean = 0.0
-        self._return_norm_var = 1.0
-        self._return_norm_count = 1e-4
-        self._strategy_return_mean = 0.0
-        self._strategy_return_var = 1.0
-        self._strategy_return_count = 1e-4
+        # Running return-normalization stats live on these two sub-components.
+        # ``strategy_return_norm`` is always materialized; its update site
+        # (``_update_strategy_return_stats``) gates on
+        # ``latent_strategy_aux_return_head`` so an instance with the default
+        # mean=0 / var=1 simply passes values through when the aux head is off.
+        self.return_norm = ReturnNormalizer(enabled=hparams.normalize_returns)
+        self.strategy_return_norm = ReturnNormalizer(enabled=True)
 
         self.latent_strategy_ppo_coef = hparams.latent_strategy_ppo_coef
         self.latent_episode_strategy_ppo = hparams.latent_episode_strategy_ppo
@@ -187,17 +189,18 @@ class CustomPPOTrainer:
         self.run_id = hparams.run_id
         self.run_pid = hparams.run_pid
         self._updates_completed = 0
-        self._ep_wins = 0
-        self._ep_losses = 0
-        self._ep_draws = 0
-        self._episodes_completed = 0
-        self._rollout_episode_records: list[dict[str, Any]] = []
-        self._recent_episode_successes = deque(maxlen=200)
+        self.episode_stats = EpisodeStats(success_window=200)
         self.metrics_csv_path = hparams.metrics_csv_path
         self.episode_csv_path = hparams.episode_csv_path
         self.strategy_experience_csv_path = hparams.strategy_experience_csv_path
 
-        self.telemetry = TrainingTelemetry(self)
+        self.telemetry = TrainingTelemetry(
+            cfg=self.cfg,
+            hparams=self.hparams,
+            curriculum=self.curriculum,
+            reward_shaping_coef=self._reward_shaping_coef,
+            runtime=self,
+        )
         if self.use_latent_strategy:
             self.temporal_tracker = TemporalStateTracker(
                 num_envs=int(env.num_envs),
@@ -209,8 +212,28 @@ class CustomPPOTrainer:
         self.latent_resample_on_flag = hparams.latent_resample_on_flag
         self.latent_kl_consecutive = hparams.latent_kl_consecutive
         self.latent_state = LatentStrategyState(self)
-        self.rollout_collector = RolloutCollector(self)
-        self.updater = PPOUpdater(self)
+        self.rollout_collector = RolloutCollector(
+            model=self.model,
+            env=self.env,
+            device=self.device,
+            cfg=self.cfg,
+            hparams=self.hparams,
+            latent_state=self.latent_state,
+            telemetry=self.telemetry,
+            episode_stats=self.episode_stats,
+            temporal_tracker=self.temporal_tracker,
+            reward_shaping_coef=self._reward_shaping_coef,
+            runtime=self,
+        )
+        self.updater = PPOUpdater(
+            model=self.model,
+            optimizer=self.optimizer,
+            device=self.device,
+            cfg=self.cfg,
+            hparams=self.hparams,
+            latent_state=self.latent_state,
+            runtime=self,
+        )
         self._sb3_rollout_pbar = None
         self._last_obs = None
         self._last_global_state = None
@@ -320,18 +343,20 @@ class CustomPPOTrainer:
     def save(self, path: str) -> None:
         """Save a torch checkpoint. The project keeps the historical ``.zip`` suffix."""
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        rn = self.return_norm.state_dict()
+        srn = self.strategy_return_norm.state_dict()
         torch.save(
             {
                 "model_state_dict": self.model.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict(),
                 "global_step": self.global_step,
                 "updates_completed": self._updates_completed,
-                "return_norm_mean": float(self._return_norm_mean),
-                "return_norm_var": float(self._return_norm_var),
-                "return_norm_count": float(self._return_norm_count),
-                "strategy_return_mean": float(self._strategy_return_mean),
-                "strategy_return_var": float(self._strategy_return_var),
-                "strategy_return_count": float(self._strategy_return_count),
+                "return_norm_mean": rn["mean"],
+                "return_norm_var": rn["var"],
+                "return_norm_count": rn["count"],
+                "strategy_return_mean": srn["mean"],
+                "strategy_return_var": srn["var"],
+                "strategy_return_count": srn["count"],
                 "cfg": asdict(self.cfg),
                 "last_stats": self.last_stats,
                 "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
@@ -351,12 +376,20 @@ class CustomPPOTrainer:
         self.optimizer.load_state_dict(payload["optimizer_state_dict"])
         self.global_step = int(payload.get("global_step", 0))
         self._updates_completed = int(payload.get("updates_completed", 0))
-        self._return_norm_mean = float(payload.get("return_norm_mean", 0.0))
-        self._return_norm_var = float(payload.get("return_norm_var", 1.0))
-        self._return_norm_count = float(payload.get("return_norm_count", 1e-4))
-        self._strategy_return_mean = float(payload.get("strategy_return_mean", 0.0))
-        self._strategy_return_var = float(payload.get("strategy_return_var", 1.0))
-        self._strategy_return_count = float(payload.get("strategy_return_count", 1e-4))
+        self.return_norm.load_state_dict(
+            {
+                "mean": payload.get("return_norm_mean", 0.0),
+                "var": payload.get("return_norm_var", 1.0),
+                "count": payload.get("return_norm_count", 1e-4),
+            }
+        )
+        self.strategy_return_norm.load_state_dict(
+            {
+                "mean": payload.get("strategy_return_mean", 0.0),
+                "var": payload.get("strategy_return_var", 1.0),
+                "count": payload.get("strategy_return_count", 1e-4),
+            }
+        )
         self.last_stats = dict(payload.get("last_stats", {}))
         self._last_obs = None
         self._last_global_state = None
