@@ -124,6 +124,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3d_smart_router",
             "plan_faithful_latent_v3d",
             "latent_v3d",
+            "plan_faithful_latent_v3d_delay",
+            "latent_v3d_delay",
+            "plan_faithful_latent_v3d_delayed_anneal",
+            "latent_v3d_delayed_anneal",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():

@@ -198,6 +198,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         "latent_episode_ratio_mean",
         "latent_episode_ratio_max",
         "latent_episode_ratio_min",
+        "latent_episode_ratio_std",
         "latent_episode_approx_kl",
         "latent_episode_clip_fraction",
         "latent_episode_count",

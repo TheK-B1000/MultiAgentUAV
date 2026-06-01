@@ -489,23 +489,26 @@ class TrainingTelemetry:
                     + " ".join(opp_diag_bits)
                 )
             # In episode-credit mode (latent_strategy_ppo_coef==0 + episode_strategy_ppo=True)
-            # the main-loop q_phi loss is gated to zero by Fix 5, so qphi_grad on this line
-            # is structurally 0 by design -- the router gradient lives in the [episode-credit]
-            # line below as `grad_norm=...`. Rename the field here to make that explicit.
+            # the main-loop q_phi loss is gated to zero by Fix 5, so the main-loop gradient, policy
+            # loss, and ratio stats are structurally zero. To print meaningful active router metrics,
+            # we pull their values from the episode-credit update when episode_credit_on is True.
             episode_credit_on = bool(getattr(self.cfg, "latent_episode_strategy_ppo", False))
             qphi_field_label = "qphi_grad_main" if episode_credit_on else "qphi_grad"
+            qphi_grad_val = float(row.get('episode_credit_grad_norm' if episode_credit_on else 'strategy_grad_norm', 0.0) or 0.0)
+            z_pi_val = float(row.get('latent_episode_pg_loss' if episode_credit_on else 'strategy_policy_loss', 0.0) or 0.0)
+            z_ratio_val = float(row.get('latent_episode_ratio_std' if episode_credit_on else 'strategy_ratio_std', 0.0) or 0.0)
             print(
                 f"[PPO|diag] steps={runtime.global_step} "
                 f"ev={row['explained_variance']:.3f} "
                 f"v_loss={row['value_loss']:.3f} "
                 f"shape/out={row['reward_shaping_mean']:.3f}/{row['reward_outcome_mean']:.3f} "
-                f"{qphi_field_label}={row.get('strategy_grad_norm', 0.0):.8f} "
+                f"{qphi_field_label}={qphi_grad_val:.8f} "
                 f"lamH={row.get('latent_lam_h', 0.0):.6f} "
                 f"zH={z_entropy:.3f}({z_entropy_frac:.2f}) "
                 f"z_wr_spread={z_wr_spread:.3f} "
                 f"z_aux_ret={float(row.get('strategy_aux_return_loss', row.get('strategy_q_loss', 0.0))):.3f} "
-                f"z_pi={float(row.get('strategy_policy_loss', 0.0)):.3f} "
-                f"z_ratio={float(row.get('strategy_ratio_std', 0.0)):.3f} "
+                f"z_pi={z_pi_val:.3f} "
+                f"z_ratio={z_ratio_val:.3f} "
                 f"z_occ=[{','.join(z_occ_parts)}] "
                 f"z_wr=[{','.join(z_wr_parts)}]"
                 f"{opp_suffix}"
