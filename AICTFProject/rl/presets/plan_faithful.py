@@ -230,6 +230,156 @@ def apply_plan_faithful_latent_v3b_marginal(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
+    """v3d: context-bucketed marginal baseline ("smart coach router").
+
+    The v3c experimental finding (~851k steps): the dedicated router
+    optimizer + 6 inner epochs DID move q_phi off uniform (zH dropped to
+    1.335(0.96), z_occ went [.25, .20, .38, .17]). Router gradient is alive
+    (episode-credit grad_norm ~0.02). But the movement is "global z preference"
+    (z2 is just popular) not "context-conditioned z selection" (different z
+    for different situations). MI(z; opponent) still hovering near noise.
+
+    Diagnosis (per analyst): the v3c V-marginal baseline ``mean_k V(s, z_k)``
+    depends on V being well-calibrated for off-policy z slots, but V only sees
+    value-loss updates for episodes where each z was *actually picked* (~25%
+    at uniform). So the marginal baseline subtracts noise approximating the
+    right thing -- the cross-z signal q_phi needs is fuzzy.
+
+    v3d replaces the baseline with an *empirical* per-bucket mean of episode
+    returns::
+
+        v3c:  adv = R - mean_k V(s, z_k)        # V-marginal
+        v3d:  adv = R - mean(R | bucket(s))     # bucket-empirical
+
+    where ``bucket`` defaults to the scripted opponent id (3 buckets for
+    OP3/OP5/OP6 in the standard tough pool). q_phi now learns "is this z
+    better than the average z WITHIN this opponent's episodes?" rather than
+    "better than overall average?". This is variance reduction by
+    stratification -- standard Monte Carlo technique, no V noise, no
+    architecture changes.
+
+    Plan-faithful guarantee: the bucket id is a GRADIENT-SHAPING signal
+    (input to the baseline), NEVER a policy input. q_phi still sees only
+    ``s`` and learns ``pi(z|s)``. The bucket only affects the variance of
+    the estimator. Two episodes vs OP5 where z=2 won and z=2 lost
+    contribute oppositely-signed advantages -- q_phi must still discover
+    from ``s`` alone which z to pick under each context.
+
+    Inherits everything from v3c:
+      - latent_episode_strategy_n_epochs = 6
+      - latent_episode_strategy_lr = 5e-3
+      - latent_q_phi_marginal_baseline = True (kept on as a fallback path,
+        though v3d's bucket baseline takes priority in apply_episode_strategy_ppo)
+      - lamH anneal 0.003 -> 0.001 from 200k -> 700k
+      - warmup=5, K=4, ctx170, episode-credit on, coef==0 main-loop gate
+
+    Sets:
+      - latent_q_phi_bucket_baseline = "opponent"
+      - latent_q_phi_bucket_baseline_ema = 0.9
+      - latent_q_phi_bucket_baseline_min_count = 8
+
+    Why "opponent" only at the start (not "opponent_x_bucket")?
+      "opponent" gives 3 buckets with ~1000 episodes each per rollout --
+      extremely robust per-bucket means. "opponent_x_bucket" splits ~3000
+      episodes across ~648 buckets (~5 episodes each), well below min_count,
+      so the fallback-to-global path would dominate -- defeating the purpose.
+      If v3d works but MI plateaus, the next iteration adds the bucket_id
+      composite for sharper context conditioning.
+
+    Hypothesis tested: "q_phi's gradient direction is correct (v3c showed
+    movement), but the V-marginal baseline is too noisy for off-policy z to
+    produce CONTEXT-CONDITIONED specialization. An empirical bucket mean
+    bypasses V entirely and exposes the within-opponent cross-z signal."
+
+    Expected first signs of working (per analyst's success criteria):
+      ~50k:   [bucket-baseline] var_reduction < 1.0 (R_std visibly larger
+              than adv_std; opponent stratification is removing return
+              variance the marginal baseline missed)
+      ~200k:  MI(z; opponent) above 0.02 (first real cross-opponent
+              differentiation -- this is the metric v3c could not move)
+      ~500k:  z_wr_spread > 0.15 (z choices materially affect WR per
+              opponent), per-opponent z_occ visibly non-uniform per opponent
+      ~700k:  MI(z; opponent) > 0.05, z_wr_spread > 0.20, WR matches or
+              beats v3c's 67% baseline
+
+    If MI(z; opponent) stays at noise floor under v3d, the bottleneck is
+    no longer signal quality -- next experiment becomes either (a) larger
+    z_embedding (16 -> 32 dims) for richer per-z conditioning, or (b)
+    auxiliary V-calibration on off-policy z (train V(s, z) on ALL K z per
+    state via the bucket-mean as a target, not just the picked one).
+    """
+    cfg = apply_plan_faithful_latent_v3c_router_lr(cfg)
+    cfg.latent_q_phi_bucket_baseline = "opponent"
+    cfg.latent_q_phi_bucket_baseline_ema = 0.9
+    cfg.latent_q_phi_bucket_baseline_min_count = 8
+    cfg.run_tag = "latent_v3d_smartrouter_bucketopp_ema09_min8_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3c_router_lr(cfg: PPOConfig) -> PPOConfig:
+    """v3c: amplify the router update strength on top of v3b's marginal baseline.
+
+    v3b's experimental finding: the marginal baseline successfully unblocked
+    q_phi's gradient signal (``episode_credit_grad_norm`` was non-zero from
+    update 1, ~0.005-0.027 per update) but cumulative logit change over a
+    1M-step run was only ~10^-5 -- five orders of magnitude short of the
+    ~ln(2) ≈ 0.7 needed to differentiate K=4 strategies. q_phi stayed at
+    max entropy (zH_frac=1.0), MI(z; opponent) stayed at noise floor.
+
+    Diagnosis (per implementation review): two compounding constraints on the
+    router's effective step size:
+
+      (1) ``apply_episode_strategy_ppo`` runs ONE backward step per rollout
+          (vs the actor's 6-8 PPO inner epochs). That alone is a ~7x signal
+          reduction.
+
+      (2) The shared optimizer's LR (1.35e-4 for 4v4) is calibrated for the
+          noisy actor gradient. q_phi's per-step gradient is clean but small
+          (~0.01), and at this LR moves logits by only ~1.35e-6 per update.
+
+    v3c lifts both constraints with config-only changes (no architecture
+    surgery, no labels, no aux heads):
+
+      - ``latent_episode_strategy_n_epochs = 6``  → q_phi gets PPO inner epochs
+        like the actor. The first epoch is ratio==1 REINFORCE-style; epochs 2-6
+        see the ratio drift away from 1 and the clipped PG actually does work.
+
+      - ``latent_episode_strategy_lr = 5e-3``     → dedicated AdamW for the
+        strategy_encoder + episode_strategy_value_head at ~37x the shared LR.
+        Combined with (1), the effective per-update step grows ~7 × 37 = ~260x.
+
+      - ``latent_lam_h_end = 0.001`` (vs v3b's 0.0005) → slightly higher entropy
+        floor as collapse insurance. If MI growth threatens to winner-take-all
+        one z (because V is poorly calibrated for the disused z slots), the
+        entropy regularizer holds the distribution open. Tighten back to 0.0005
+        in a follow-up if collapse doesn't materialize.
+
+    Plan-faithful: no labels, no opponent IDs, no aux heads, no Gumbel tricks,
+    no imitation. Only changes router update strength (epochs + LR) and a tiny
+    entropy floor adjustment.
+
+    Hypothesis tested: "q_phi has the correct reward-derived gradient, but the
+    current number of router updates and shared LR are too small to move logits."
+    Falsifiable: if zH_frac stays at 1.0 and MI stays at noise floor under
+    v3c, the bottleneck is no longer training strength -- next experiment
+    becomes V calibration on off-policy z slots or z_embed capacity.
+
+    Expected first signs of working:
+      ~50k:  episode-credit ratio drifts off [1.000, 1.000]; clip_fraction > 0
+      ~100k: zH_frac drops below 0.99 (first measurable router movement)
+      ~300k: MI(z; opponent) above 0.02 if hypothesis is right
+      ~700k: zH_frac in 0.80-0.95, MI(z; opponent) > 0.05 if it sharpens
+      ~1M:   WR matches v3b 67% baseline, MI > 0.05, occupancy biased not collapsed
+    """
+    cfg = apply_plan_faithful_latent_v3b_marginal(cfg)
+    cfg.latent_episode_strategy_n_epochs = 6
+    cfg.latent_episode_strategy_lr = 5e-3
+    cfg.latent_lam_h_end = 0.001
+    cfg.run_tag = "latent_v3c_routerlr_epochs6_lr5e3_lamHfloor1e3_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_strategic(cfg: PPOConfig) -> PPOConfig:
     """Plan-faithful primary latent + two anti-decorative-z fixes.
 

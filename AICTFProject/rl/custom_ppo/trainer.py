@@ -145,6 +145,35 @@ class CustomPPOTrainer:
             self.model.parameters(), lr=hparams.learning_rate, eps=1e-5
         )
         self.base_learning_rate = hparams.learning_rate
+
+        # Dedicated optimizer for the q_phi strategy encoder and the
+        # episode_strategy_value_head when ``latent_episode_strategy_lr`` is set.
+        # Rationale: the shared optimizer's LR is calibrated for the noisy actor;
+        # q_phi's per-update gradient (post-marginal-baseline) is real but small
+        # and cannot move logits enough at the actor's LR in 15 update cycles.
+        # A separate AdamW with a higher LR (e.g. 1e-3 to 1e-2) gives the router
+        # the larger effective step it needs. Under Fix 5, the shared optimizer
+        # never updates the strategy_encoder anyway (zero gradient via the
+        # main-loop coef-gate), so there is no double-stepping concern.
+        self.latent_router_optimizer: Optional[torch.optim.Optimizer] = None
+        if (
+            hparams.latent_episode_strategy_lr is not None
+            and hparams.use_latent_strategy
+            and not hparams.fixed_latent_strategy
+        ):
+            router_params: list[torch.nn.Parameter] = []
+            strategy_encoder = getattr(self.model, "strategy_encoder", None)
+            if strategy_encoder is not None:
+                router_params.extend(p for p in strategy_encoder.parameters() if p.requires_grad)
+            value_head = getattr(self.model, "episode_strategy_value_head", None)
+            if value_head is not None:
+                router_params.extend(p for p in value_head.parameters() if p.requires_grad)
+            if router_params:
+                self.latent_router_optimizer = torch.optim.AdamW(
+                    router_params,
+                    lr=float(hparams.latent_episode_strategy_lr),
+                    eps=1e-5,
+                )
         self.clip_range = hparams.clip_range
         self.ent_coef = hparams.ent_coef
         self.vf_coef = hparams.vf_coef
@@ -170,7 +199,24 @@ class CustomPPOTrainer:
         self.latent_episode_strategy_warmup_decision_steps = (
             hparams.latent_episode_strategy_warmup_decision_steps
         )
+        self.latent_episode_strategy_n_epochs = hparams.latent_episode_strategy_n_epochs
+        self.latent_episode_strategy_lr = hparams.latent_episode_strategy_lr
         self.latent_q_phi_marginal_baseline = hparams.latent_q_phi_marginal_baseline
+        self.latent_q_phi_bucket_baseline = hparams.latent_q_phi_bucket_baseline
+        self.latent_q_phi_bucket_baseline_ema = hparams.latent_q_phi_bucket_baseline_ema
+        self.latent_q_phi_bucket_baseline_min_count = hparams.latent_q_phi_bucket_baseline_min_count
+
+        # Bucket-baseline helper for v3d. Only constructed when the mode is
+        # set; ``apply_episode_strategy_ppo`` falls back to the V-marginal /
+        # legacy baseline when this is ``None``. State (per-bucket EMAs +
+        # global mean) lives on the helper across rollouts.
+        from rl.custom_ppo.latent_bucket_baseline import BucketBaseline
+        self.latent_bucket_baseline: Optional[BucketBaseline] = None
+        if self.latent_q_phi_bucket_baseline is not None:
+            self.latent_bucket_baseline = BucketBaseline(
+                ema=self.latent_q_phi_bucket_baseline_ema,
+                min_count=self.latent_q_phi_bucket_baseline_min_count,
+            )
         self.latent_strategy_aux_return_coef = hparams.latent_strategy_aux_return_coef
         self.latent_strategy_aux_return_head = hparams.latent_strategy_aux_return_head
         self.latent_strategy_aux_predict_phase_coef = hparams.latent_strategy_aux_predict_phase_coef

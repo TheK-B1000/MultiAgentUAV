@@ -488,12 +488,18 @@ class TrainingTelemetry:
                     f"MI_z_flag={mi_z_f:.4f} MI_z_outcome={mi_z_y:.4f} | "
                     + " ".join(opp_diag_bits)
                 )
+            # In episode-credit mode (latent_strategy_ppo_coef==0 + episode_strategy_ppo=True)
+            # the main-loop q_phi loss is gated to zero by Fix 5, so qphi_grad on this line
+            # is structurally 0 by design -- the router gradient lives in the [episode-credit]
+            # line below as `grad_norm=...`. Rename the field here to make that explicit.
+            episode_credit_on = bool(getattr(self.cfg, "latent_episode_strategy_ppo", False))
+            qphi_field_label = "qphi_grad_main" if episode_credit_on else "qphi_grad"
             print(
                 f"[PPO|diag] steps={runtime.global_step} "
                 f"ev={row['explained_variance']:.3f} "
                 f"v_loss={row['value_loss']:.3f} "
                 f"shape/out={row['reward_shaping_mean']:.3f}/{row['reward_outcome_mean']:.3f} "
-                f"qphi_grad={row.get('strategy_grad_norm', 0.0):.8f} "
+                f"{qphi_field_label}={row.get('strategy_grad_norm', 0.0):.8f} "
                 f"lamH={row.get('latent_lam_h', 0.0):.6f} "
                 f"zH={z_entropy:.3f}({z_entropy_frac:.2f}) "
                 f"z_wr_spread={z_wr_spread:.3f} "
@@ -518,11 +524,12 @@ class TrainingTelemetry:
                     f"div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
                 )
             # Episode-credit q_phi telemetry: under v3 (latent_episode_strategy_ppo=True,
-            # latent_strategy_ppo_coef=0) the qphi_grad / z_pi / z_ratio fields on the main
-            # diag line are all structurally zero -- the per-step path is disabled by design.
-            # The real q_phi learning signal lives in apply_episode_strategy_ppo and is shown
-            # here so the user can verify q_phi is actually getting credit each update.
-            if bool(getattr(self.cfg, "latent_episode_strategy_ppo", False)):
+            # latent_strategy_ppo_coef=0) the qphi_grad_main / z_pi / z_ratio fields on the
+            # main diag line are all structurally zero -- the per-step path is disabled by
+            # design. The real q_phi learning signal lives in apply_episode_strategy_ppo and
+            # is shown here so the user can verify q_phi is actually getting credit each
+            # update.
+            if episode_credit_on:
                 ep_count = float(row.get("latent_episode_count", 0.0) or 0.0)
                 ep_pg = float(row.get("latent_episode_pg_loss", 0.0) or 0.0)
                 ep_v = float(row.get("latent_episode_v_loss", 0.0) or 0.0)
@@ -541,6 +548,26 @@ class TrainingTelemetry:
                     f"ratio=[{ep_ratio_mn:.3f},{ep_ratio_mx:.3f}] ret_mean={ep_ret_mean:.3f} "
                     f"margin={ep_margin:.4f} ent_res={ep_ent_res:.4f} grad_norm={ep_g:.8f}"
                 )
+                # v3d bucket-baseline telemetry. Only printed when the bucket
+                # baseline is active (mode != None on the cfg). Reads the same
+                # row dict so log scrapers can locate fields by name.
+                bucket_mode = getattr(self.cfg, "latent_q_phi_bucket_baseline", None)
+                if bucket_mode:
+                    b_count = float(row.get("bucket_baseline_count", 0.0) or 0.0)
+                    b_fallback = float(row.get("bucket_baseline_fallback_frac", 0.0) or 0.0)
+                    b_var = float(row.get("bucket_baseline_var_reduction", 1.0) or 1.0)
+                    b_gmean = float(row.get("bucket_baseline_global_mean", 0.0) or 0.0)
+                    b_rstd = float(row.get("bucket_baseline_raw_return_std", 0.0) or 0.0)
+                    b_astd = float(row.get("bucket_baseline_adv_std", 0.0) or 0.0)
+                    # var_reduction < 1.0 means bucket baseline successfully
+                    # stratified the return signal -- the lower, the more the
+                    # router gradient gains from the per-bucket structure.
+                    print(
+                        f"      [bucket-baseline] mode={bucket_mode} n_buckets={b_count:.0f} "
+                        f"fallback={b_fallback:.3f} var_reduction={b_var:.3f} "
+                        f"(R_std={b_rstd:.3f} -> adv_std={b_astd:.3f}) "
+                        f"global_mean={b_gmean:.3f}"
+                    )
         if hparams.normalize_returns:
             print(
                 "[PPO|return_norm] "

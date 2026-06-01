@@ -131,6 +131,61 @@ class PPOConfig:
     # (red_speed, formation, flag pressure) that distinguish OP3/OP5/OP6. Only takes
     # effect when ``latent_episode_strategy_ppo == True``.
     latent_episode_strategy_warmup_decision_steps: int = 0
+    # Number of inner PPO epochs ``apply_episode_strategy_ppo`` runs per training
+    # update. Default 1 reproduces legacy v3/v3b behavior (a single backward step
+    # per rollout, ~15 q_phi updates over a 1M-step run). Set higher (e.g. 6-8,
+    # matching the actor's ``n_epochs``) when the marginal-baseline gradient is
+    # measurably nonzero but cumulative logit change is too small to move q_phi
+    # off uniform within the update budget. Only takes effect when
+    # ``latent_episode_strategy_ppo == True``.
+    latent_episode_strategy_n_epochs: int = 1
+    # Dedicated learning rate for the q_phi strategy encoder and the
+    # episode_strategy_value_head when running ``apply_episode_strategy_ppo``.
+    # ``None`` (default) falls back to the shared optimizer's learning rate
+    # (calibrated for the noisy actor). Set higher (e.g. 1e-3 to 1e-2) when
+    # the router has the right gradient direction but cumulative step is too
+    # small at the actor-tuned LR. A separate AdamW optimizer with this LR is
+    # built at trainer init and steps strategy_encoder + episode_strategy_value
+    # parameters; the shared optimizer's step on those params is a no-op anyway
+    # under Fix 5 (``latent_strategy_ppo_coef == 0`` gates main-loop q_phi loss
+    # to zero), so there is no double-stepping.
+    latent_episode_strategy_lr: Optional[float] = None
+    # Bucketing strategy for q_phi's advantage baseline (v3d "Smart Coach
+    # Router"). When set, the q_phi advantage replaces the V-marginal baseline
+    # with an empirical per-bucket mean of episode returns:
+    #
+    #     v3c:  adv = R - mean_k V(s, z_k)        # marginal-over-V baseline
+    #     v3d:  adv = R - mean(R | bucket(s))     # marginal-over-bucket baseline
+    #
+    # This is variance-reduction by stratification (standard PPO/REINFORCE
+    # technique). q_phi learns "is this z better than average WITHIN this
+    # bucket?" rather than "better than overall average?". The V head is
+    # poorly calibrated for off-policy z (each z slot only sees value-loss
+    # updates for episodes where it was actually picked, ~25% at uniform),
+    # so the V-marginal baseline subtracts noise; the bucket mean is empirical
+    # and gives q_phi the variance-optimal stratified-sampling gradient.
+    #
+    # Plan-faithful: bucket ids are GRADIENT-shaping signals, never inputs to
+    # the policy. q_phi still only sees (s) and learns pi(z|s). Bucket only
+    # affects gradient variance, not policy input.
+    #
+    # Supported values:
+    #   None                -- default; v3c V-marginal baseline behavior
+    #   "opponent"          -- bucket by scripted opponent (3 buckets for OP3/5/6)
+    #   "bucket_id"         -- 216-bucket flag/score/spread/dist composite captured
+    #                          at z-commit time (in episode_strategy_bucket).
+    #   "opponent_x_bucket" -- cross product (up to ~648 buckets; sharper but noisier)
+    latent_q_phi_bucket_baseline: Optional[str] = None
+    # EMA decay for cross-rollout bucket means. 1.0 = no update (pure prior);
+    # 0.0 = per-rollout means only (no smoothing). Default 0.9 retains 90% of
+    # prior + 10% of new rollout's bucket means. Higher = smoother but slower
+    # to react when policy/opponent statistics shift.
+    latent_q_phi_bucket_baseline_ema: float = 0.9
+    # Per-rollout count fallback. When fewer than this many episodes land in a
+    # bucket within the current rollout, use the rollout's GLOBAL mean for those
+    # episodes instead of the bucket mean. Avoids huge advantages from
+    # singleton-bucket episodes during the early "EMA priming" rollouts.
+    latent_q_phi_bucket_baseline_min_count: int = 8
     # Use a z-marginal value baseline for q_phi's policy-gradient advantage.
     # Default False preserves the legacy (z-conditioned) baseline:
     #     adv = R - V(s, z_picked)

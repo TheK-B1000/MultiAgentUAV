@@ -329,6 +329,12 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "episode_credit_grad_norm",
             "episode_credit_adv_mean",
             "episode_credit_adv_std",
+            "bucket_baseline_count",
+            "bucket_baseline_fallback_frac",
+            "bucket_baseline_var_reduction",
+            "bucket_baseline_global_mean",
+            "bucket_baseline_raw_return_std",
+            "bucket_baseline_adv_std",
         ])
     return fields
 

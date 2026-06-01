@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,12 @@ class TrainerHyperparams:
     latent_episode_strategy_value_coef: float
     latent_episode_strategy_return_norm: bool
     latent_episode_strategy_warmup_decision_steps: int
+    latent_episode_strategy_n_epochs: int
+    latent_episode_strategy_lr: Optional[float]
     latent_q_phi_marginal_baseline: bool
+    latent_q_phi_bucket_baseline: Optional[str]
+    latent_q_phi_bucket_baseline_ema: float
+    latent_q_phi_bucket_baseline_min_count: int
     latent_strategy_aux_return_coef: float
     latent_strategy_aux_return_head: bool
     latent_strategy_aux_predict_phase_coef: float
@@ -216,8 +221,27 @@ class TrainerHyperparams:
                 0,
                 int(getattr(cfg, "latent_episode_strategy_warmup_decision_steps", 0) or 0),
             ),
+            latent_episode_strategy_n_epochs=max(
+                1, int(getattr(cfg, "latent_episode_strategy_n_epochs", 1) or 1)
+            ),
+            latent_episode_strategy_lr=(
+                float(getattr(cfg, "latent_episode_strategy_lr", None))
+                if getattr(cfg, "latent_episode_strategy_lr", None) is not None
+                else None
+            ),
             latent_q_phi_marginal_baseline=bool(
                 getattr(cfg, "latent_q_phi_marginal_baseline", False)
+            ),
+            latent_q_phi_bucket_baseline=(
+                str(getattr(cfg, "latent_q_phi_bucket_baseline", None))
+                if getattr(cfg, "latent_q_phi_bucket_baseline", None)
+                else None
+            ),
+            latent_q_phi_bucket_baseline_ema=float(
+                getattr(cfg, "latent_q_phi_bucket_baseline_ema", 0.9) or 0.0
+            ),
+            latent_q_phi_bucket_baseline_min_count=max(
+                1, int(getattr(cfg, "latent_q_phi_bucket_baseline_min_count", 8) or 1)
             ),
             # Canonical attribute access only — legacy ``latent_strategy_q_*`` keys are
             # folded at the config-load boundary (see

@@ -110,6 +110,20 @@ class PresetResolutionTests(unittest.TestCase):
             # stays ON; the marginal baseline lives inside apply_episode_strategy_ppo.
             "plan_faithful_latent_v3b_marginal",
             "latent_v3b_marginal",
+            # v3c inherits from v3b and only changes router update strength
+            # (n_epochs=6, dedicated LR=5e-3) + entropy floor 0.001. Episode-credit
+            # path stays ON.
+            "plan_faithful_latent_v3c_router_lr",
+            "latent_v3c_router_lr",
+            "plan_faithful_latent_v3c",
+            "latent_v3c",
+            # v3d inherits from v3c and only swaps the q_phi baseline source
+            # (V-marginal -> empirical per-opponent bucket mean). Episode-credit
+            # path stays ON.
+            "plan_faithful_latent_v3d_smart_router",
+            "latent_v3d_smart_router",
+            "plan_faithful_latent_v3d",
+            "latent_v3d",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():

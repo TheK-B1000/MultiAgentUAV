@@ -52,6 +52,7 @@ from torch.distributions import Categorical
 from rl.ppo_core import ppo_policy_loss
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
+from rl.custom_ppo.csv_writers import _opponent_id_int_from_info
 
 if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
@@ -124,6 +125,7 @@ class EpisodeStrategyRecorder:
             "episode_return": None,
             "episode_win": None,
             "bucket_id": int(bucket_id),
+            "opponent_id": -1,
             "q_phi_probs": [float(x) for x in q_phi_probs],
         }
 
@@ -133,12 +135,21 @@ class EpisodeStrategyRecorder:
         env_index: int,
         episode_return: float,
         episode_win: int,
+        opponent_id: int = -1,
     ) -> Optional[dict[str, Any]]:
+        """Finalize a started episode's q_phi record.
+
+        ``opponent_id`` is the scripted-opponent integer id captured at episode
+        completion time from the env's info dict. -1 means "unknown / not
+        randomized" -- the BucketBaseline path treats these as a single bucket
+        and falls back to the global mean when min-count is not met.
+        """
         record = self.pending.pop(int(env_index), None)
         if record is None:
             return None
         record["episode_return"] = float(episode_return)
         record["episode_win"] = int(episode_win)
+        record["opponent_id"] = int(opponent_id)
         self.completed.append(record)
         return record
 
@@ -414,7 +425,14 @@ class LatentStrategyState:
         *,
         episode_return: float,
     ) -> None:
-        """Snapshot a finished episode's q_phi record (state, z, log_prob, return)."""
+        """Snapshot a finished episode's q_phi record (state, z, log_prob, return).
+
+        Also captures ``opponent_id`` from the completion info -- needed by the
+        bucket-baseline path (v3d) which stratifies the q_phi advantage by
+        opponent. Falls back to -1 when opponent info is absent (e.g. fixed-
+        opponent runs); the BucketBaseline collapses unknown ids to the global
+        mean automatically.
+        """
         trainer = self.trainer
         if not trainer.latent_episode_strategy_ppo:
             return
@@ -434,10 +452,16 @@ class LatentStrategyState:
         else:
             adjusted_return = episode_return
 
+        try:
+            opponent_id = int(_opponent_id_int_from_info(trainer.cfg, info))
+        except Exception:
+            opponent_id = -1
+
         record = self.episode_strategy_recorder.record_outcome(
             env_index=env_i,
             episode_return=float(adjusted_return),
             episode_win=episode_win,
+            opponent_id=opponent_id,
         )
         if record is not None:
             self.rollout_strategy_episode_records.append(record)
@@ -452,6 +476,7 @@ class LatentStrategyState:
                 "episode_return": float(adjusted_return),
                 "episode_win": episode_win,
                 "bucket_id": int(self.episode_strategy_bucket[env_i].detach().cpu().item()),
+                "opponent_id": opponent_id,
                 "q_phi_probs": [float(x) for x in probs],
             }
         )
@@ -482,6 +507,13 @@ class LatentStrategyState:
             "episode_credit_grad_norm": 0.0,
             "episode_credit_adv_mean": 0.0,
             "episode_credit_adv_std": 0.0,
+            # v3d bucket-baseline telemetry. Zero when bucket baseline is OFF.
+            "bucket_baseline_count": 0.0,
+            "bucket_baseline_fallback_frac": 0.0,
+            "bucket_baseline_var_reduction": 1.0,
+            "bucket_baseline_global_mean": 0.0,
+            "bucket_baseline_raw_return_std": 0.0,
+            "bucket_baseline_adv_std": 0.0,
         }
 
     def episode_strategy_training_batch(self) -> Optional[dict[str, torch.Tensor]]:
@@ -504,15 +536,49 @@ class LatentStrategyState:
         episode_returns = torch.as_tensor(
             [float(r["episode_return"]) for r in records], dtype=torch.float32, device=device
         )
+        # Bucket keys for v3d. Each is shape (N_eps,) long, on the trainer
+        # device. ``-1`` slots are pre-v3d records or fixed-opponent runs and
+        # are handled as a degenerate "unknown" bucket by BucketBaseline.
+        opponent_ids = torch.as_tensor(
+            [int(r.get("opponent_id", -1)) for r in records],
+            dtype=torch.long,
+            device=device,
+        )
+        bucket_ids = torch.as_tensor(
+            [int(r.get("bucket_id", -1)) for r in records],
+            dtype=torch.long,
+            device=device,
+        )
         return {
             "states": states,
             "z": z,
             "old_log_prob": old_log_prob,
             "episode_returns": episode_returns,
+            "opponent_ids": opponent_ids,
+            "bucket_ids": bucket_ids,
         }
 
     def apply_episode_strategy_ppo(self, *, latent_lam_h: float) -> dict[str, float]:
-        """Run one PPO step on the q_phi(z|s) head using completed episode records."""
+        """Run inner-epoch PPO update(s) on q_phi using completed episode records.
+
+        With ``latent_episode_strategy_n_epochs == 1`` (legacy v3/v3b behavior),
+        this is a single backward step per rollout -- effectively a one-shot
+        REINFORCE-style update because the PPO ratio starts at exactly 1.0 (new
+        log_prob is computed from the same weights that produced old_log_prob).
+        Across a 1M-step run that's only ~15 update cycles, which cannot move
+        q_phi off uniform at the shared optimizer's actor-tuned LR.
+
+        With ``n_epochs > 1``, we run N PPO inner epochs over the same completed
+        episode batch -- the same pattern the actor's main PPO loop uses. After
+        the first epoch's optimizer step, subsequent epochs recompute
+        new_log_prob from the *updated* logits, so the PPO ratio drifts away
+        from 1.0 and the clipped policy gradient does meaningful work.
+
+        When ``trainer.latent_router_optimizer`` is set (via
+        ``latent_episode_strategy_lr``), this dedicated AdamW steps only the
+        strategy_encoder + episode_strategy_value_head params -- at a higher
+        LR than the shared optimizer can afford for the actor.
+        """
         trainer = self.trainer
         stats = self.empty_episode_strategy_stats()
         batch = self.episode_strategy_training_batch()
@@ -522,57 +588,130 @@ class LatentStrategyState:
         z = batch["z"]
         old_log_prob = batch["old_log_prob"]
         episode_returns = batch["episode_returns"]
+        opponent_ids = batch.get("opponent_ids")
+        bucket_ids = batch.get("bucket_ids")
 
-        logits = trainer.model.strategy_logits(states)
-        dist = Categorical(logits=logits)
-        new_log_prob = dist.log_prob(z)
-        v_z = trainer.model.episode_strategy_value(states, z)
-
-        # q_phi advantage baseline. Legacy default (False) uses V(s, z_picked), which
-        # mathematically cancels the cross-z signal q_phi needs to specialize (the
-        # centralized critic absorbs E[R | s, z] before the router ever sees the
-        # gradient). When ``latent_q_phi_marginal_baseline`` is enabled, the baseline
-        # is the variance-optimal AAC formula E_{z' ~ q_phi}[V(s, z')], so the
-        # advantage encodes "this z vs the average available z in this context".
-        # The marginal helper already returns a detached tensor; the explicit
-        # ``.detach()`` on the legacy branch keeps the value head's gradient route
-        # exclusively through ``v_loss``, never through the baseline path.
-        if getattr(trainer.cfg, "latent_q_phi_marginal_baseline", False):
-            from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
-            v_baseline = compute_z_marginal_strategy_value(
-                trainer.model, states, trainer.latent_k, policy_weighted=False
+        # v3d bucket-baseline path: when ``latent_q_phi_bucket_baseline`` is
+        # set, replace the V-marginal baseline with the per-bucket empirical
+        # mean of episode returns. Computed ONCE per rollout (the EMA + min-
+        # count fallback already smooth across rollouts), then re-used across
+        # all inner epochs since the baseline depends only on returns, not on
+        # the strategy_encoder being updated.
+        bucket_baseline_vector: Optional[torch.Tensor] = None
+        bucket_baseline_helper = getattr(trainer, "latent_bucket_baseline", None)
+        bucket_mode = getattr(trainer, "latent_q_phi_bucket_baseline", None)
+        if (
+            bucket_baseline_helper is not None
+            and bucket_mode is not None
+            and opponent_ids is not None
+            and bucket_ids is not None
+        ):
+            from rl.custom_ppo.latent_bucket_baseline import resolve_bucket_ids
+            keys = resolve_bucket_ids(
+                mode=str(bucket_mode),
+                opponent_ids=opponent_ids,
+                bucket_ids=bucket_ids,
             )
-        else:
-            v_baseline = v_z.detach()
+            bucket_baseline_vector = bucket_baseline_helper.update_and_compute(
+                episode_returns.detach(), keys.detach()
+            ).detach()
 
-        adv = episode_returns - v_baseline
-        if trainer.latent_episode_strategy_return_norm and adv.numel() > 1:
-            adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
-
-        pg_loss, ppo_stats = ppo_policy_loss(
-            new_log_prob,
-            old_log_prob,
-            adv.detach(),
-            trainer.latent_episode_strategy_clip_eps,
+        n_inner_epochs = max(
+            1, int(getattr(trainer, "latent_episode_strategy_n_epochs", 1) or 1)
         )
-        v_loss = 0.5 * (episode_returns - v_z).pow(2).mean()
-        z_entropy = dist.entropy().mean()
-        h_goal = str(getattr(trainer.cfg, "latent_entropy_objective", "maximize") or "maximize").lower()
-        if h_goal == "none" or latent_lam_h <= 0.0:
-            entropy_term = torch.zeros((), dtype=torch.float32, device=trainer.device)
-        elif h_goal == "minimize":
-            entropy_term = float(latent_lam_h) * z_entropy
+        router_optimizer = (
+            getattr(trainer, "latent_router_optimizer", None) or trainer.optimizer
+        )
+        # Only clip the router's own params when using the dedicated optimizer;
+        # under the shared path the legacy full-model scope is fine because
+        # non-router params have zero gradients in this backward.
+        if getattr(trainer, "latent_router_optimizer", None) is not None:
+            clip_params: list[torch.nn.Parameter] = []
+            for group in trainer.latent_router_optimizer.param_groups:
+                clip_params.extend(group["params"])
         else:
-            entropy_term = -float(latent_lam_h) * z_entropy
-        loss = trainer.latent_episode_strategy_coef * (
-            pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
-        ) + entropy_term
+            clip_params = list(trainer.model.parameters())
 
-        trainer.optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        episode_credit_grad_norm = self.strategy_encoder_grad_norm()
-        torch.nn.utils.clip_grad_norm_(trainer.model.parameters(), float(trainer.cfg.max_grad_norm))
-        trainer.optimizer.step()
+        pg_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        v_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        z_entropy = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        adv = torch.zeros((1,), dtype=torch.float32, device=trainer.device)
+        ppo_stats: dict[str, torch.Tensor] = {
+            "ratio": torch.ones((1,), dtype=torch.float32, device=trainer.device),
+            "approx_kl": torch.zeros((), dtype=torch.float32, device=trainer.device),
+            "clip_fraction": torch.zeros((), dtype=torch.float32, device=trainer.device),
+        }
+        logits = trainer.model.strategy_logits(states)
+        episode_credit_grad_norm = 0.0
+
+        for _ in range(n_inner_epochs):
+            logits = trainer.model.strategy_logits(states)
+            dist = Categorical(logits=logits)
+            new_log_prob = dist.log_prob(z)
+            v_z = trainer.model.episode_strategy_value(states, z)
+
+            # q_phi advantage baseline. Three modes, in priority order:
+            #
+            #   v3d (bucket_baseline_vector is not None):
+            #     adv = R - mean(R | bucket(s)) -- empirical per-bucket mean,
+            #     EMA-smoothed across rollouts, min-count fallback to global
+            #     mean. Variance-reduction by stratification; bypasses V
+            #     entirely, so off-policy z calibration of V no longer
+            #     bottlenecks q_phi's gradient.
+            #
+            #   v3b/v3c (latent_q_phi_marginal_baseline=True, bucket off):
+            #     adv = R - mean_k V(s, z_k) -- AAC marginal-over-V baseline.
+            #     Detached helper. Removes the "V(s, z_picked) eats the signal"
+            #     pathology of legacy mode but still depends on V being well-
+            #     calibrated for off-policy z, which it often isn't.
+            #
+            #   Legacy default (both off):
+            #     adv = R - V(s, z_picked) -- the centralized critic absorbs
+            #     E[R | s, z] before q_phi sees the gradient. Mostly within-z
+            #     noise; documented here for completeness, do not use.
+            #
+            # All three paths produce detached baselines so the value head's
+            # gradient route is exclusively through ``v_loss``.
+            if bucket_baseline_vector is not None:
+                v_baseline = bucket_baseline_vector
+            elif getattr(trainer.cfg, "latent_q_phi_marginal_baseline", False):
+                v_baseline = compute_z_marginal_strategy_value(
+                    trainer.model, states, trainer.latent_k, policy_weighted=False
+                )
+            else:
+                v_baseline = v_z.detach()
+
+            adv = episode_returns - v_baseline
+            if trainer.latent_episode_strategy_return_norm and adv.numel() > 1:
+                adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
+
+            pg_loss, ppo_stats = ppo_policy_loss(
+                new_log_prob,
+                old_log_prob,
+                adv.detach(),
+                trainer.latent_episode_strategy_clip_eps,
+            )
+            v_loss = 0.5 * (episode_returns - v_z).pow(2).mean()
+            z_entropy = dist.entropy().mean()
+            h_goal = str(
+                getattr(trainer.cfg, "latent_entropy_objective", "maximize") or "maximize"
+            ).lower()
+            if h_goal == "none" or latent_lam_h <= 0.0:
+                entropy_term = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            elif h_goal == "minimize":
+                entropy_term = float(latent_lam_h) * z_entropy
+            else:
+                entropy_term = -float(latent_lam_h) * z_entropy
+            loss = trainer.latent_episode_strategy_coef * (
+                pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
+            ) + entropy_term
+
+            router_optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            episode_credit_grad_norm = self.strategy_encoder_grad_norm()
+            torch.nn.utils.clip_grad_norm_(clip_params, float(trainer.cfg.max_grad_norm))
+            router_optimizer.step()
 
         ratio = ppo_stats["ratio"].detach().float()
         with torch.no_grad():
@@ -611,6 +750,23 @@ class LatentStrategyState:
                     ) if adv.numel() > 1 else 0.0,
                 }
             )
+
+            # v3d bucket-baseline telemetry. ``last_stats`` reflects the SINGLE
+            # update_and_compute call made at the top of this rollout (outside
+            # the inner-epoch loop) -- the baseline math runs once per rollout,
+            # not once per inner epoch.
+            if bucket_baseline_vector is not None and bucket_baseline_helper is not None:
+                bs = bucket_baseline_helper.last_stats
+                stats.update(
+                    {
+                        "bucket_baseline_count": float(bs.get("bucket_count", 0)),
+                        "bucket_baseline_fallback_frac": float(bs.get("fallback_fraction", 0.0)),
+                        "bucket_baseline_var_reduction": float(bs.get("variance_reduction_ratio", 1.0)),
+                        "bucket_baseline_global_mean": float(bs.get("global_mean", 0.0)),
+                        "bucket_baseline_raw_return_std": float(bs.get("raw_return_std", 0.0)),
+                        "bucket_baseline_adv_std": float(bs.get("adv_std", 0.0)),
+                    }
+                )
         return stats
 
     def strategy_encoder_grad_norm(self) -> float:
