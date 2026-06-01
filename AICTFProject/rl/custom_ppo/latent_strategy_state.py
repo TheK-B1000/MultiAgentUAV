@@ -685,7 +685,25 @@ class LatentStrategyState:
 
             adv = episode_returns - v_baseline
             if trainer.latent_episode_strategy_return_norm and adv.numel() > 1:
-                adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
+                if bucket_baseline_vector is not None and bucket_mode is not None:
+                    from rl.custom_ppo.latent_bucket_baseline import resolve_bucket_ids
+                    keys = resolve_bucket_ids(
+                        mode=str(bucket_mode),
+                        opponent_ids=opponent_ids,
+                        bucket_ids=bucket_ids,
+                    )
+                    normalized_adv = torch.zeros_like(adv)
+                    unique_keys = torch.unique(keys)
+                    for k in unique_keys:
+                        mask = (keys == k)
+                        if mask.sum() > 1:
+                            sub_adv = adv[mask]
+                            normalized_adv[mask] = (sub_adv - sub_adv.mean()) / (sub_adv.std(unbiased=False) + 1e-8)
+                        else:
+                            normalized_adv[mask] = adv[mask]
+                    adv = normalized_adv
+                else:
+                    adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
 
             pg_loss, ppo_stats = ppo_policy_loss(
                 new_log_prob,

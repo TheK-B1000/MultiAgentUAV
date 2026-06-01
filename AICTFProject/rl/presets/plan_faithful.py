@@ -282,6 +282,21 @@ def apply_plan_faithful_latent_v3d_delayed_anneal(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3e_strong_z_actor(cfg: PPOConfig) -> PPOConfig:
+    """v3e: strong z actor preset.
+
+    Inherits from v3d_delayed_anneal and configures:
+      - latent_z_embed_dim: 16 -> 32
+      - actor_hidden_dim: 256 -> 384
+      - run_tag: latent_v3e_strong_z_actor_1m_4v4
+    """
+    cfg = apply_plan_faithful_latent_v3d_delayed_anneal(cfg)
+    cfg.latent_z_embed_dim = 32
+    cfg.actor_hidden_dim = 384
+    cfg.run_tag = "latent_v3e_strong_z_actor_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

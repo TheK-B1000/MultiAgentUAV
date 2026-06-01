@@ -90,6 +90,7 @@ class PPOConfig:
     use_stable_marl_ppo: bool = False
     target_kl: Optional[float] = 0.02
     actor_cnn_feature_dim: int = 128
+    actor_hidden_dim: int = 256
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True

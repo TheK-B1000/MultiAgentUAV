@@ -371,6 +371,13 @@ class V3dRuntimeWiringTests(unittest.TestCase):
             msg="Trainer init must gate BucketBaseline construction on mode being set.",
         )
 
+    def test_per_bucket_advantage_normalization_wiring(self):
+        # Verify the per-bucket advantage normalization logic exists in latent_strategy_state.py.
+        self.assertIn("resolve_bucket_ids", _LATENT_STATE_SRC)
+        self.assertIn("mode=str(bucket_mode)", _LATENT_STATE_SRC)
+        self.assertIn("sub_adv = adv[mask]", _LATENT_STATE_SRC)
+        self.assertIn("normalized_adv[mask] = (sub_adv - sub_adv.mean()) / (sub_adv.std(unbiased=False) + 1e-8)", _LATENT_STATE_SRC)
+
 
 if __name__ == "__main__":
     unittest.main()

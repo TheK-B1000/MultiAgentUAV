@@ -128,6 +128,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3d_delay",
             "plan_faithful_latent_v3d_delayed_anneal",
             "latent_v3d_delayed_anneal",
+            "plan_faithful_latent_v3e_strong_z_actor",
+            "latent_v3e_strong_z_actor",
+            "plan_faithful_latent_v3e",
+            "latent_v3e",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():

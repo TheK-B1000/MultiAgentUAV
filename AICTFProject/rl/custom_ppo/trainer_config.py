@@ -298,6 +298,7 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
     """
     model_kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
+        "actor_hidden_dim": int(getattr(cfg, "actor_hidden_dim", 256)),
     }
     if hparams.use_latent_strategy:
         model_kwargs.update(
