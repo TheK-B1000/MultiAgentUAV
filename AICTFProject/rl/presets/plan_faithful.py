@@ -230,6 +230,58 @@ def apply_plan_faithful_latent_v3b_marginal(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3d_delayed_anneal(cfg: PPOConfig) -> PPOConfig:
+    """v3d variant: same smart-router baseline, delayed entropy anneal.
+
+    Motivating diagnosis from the live v3d run: at ~327k the bucket baseline +
+    dedicated router LR are already pushing meaningful router updates
+    (``kl=0.0150``, ``grad_norm=0.08``, ``z_occ`` non-uniform) WHILE the
+    entropy schedule is still in its 200k-700k decay window (lamH already at
+    ~0.0025 by 327k). That means two opposing forces are active at the same
+    time:
+
+      (1) The smart router pushing q_phi to commit to whichever z scored best
+          in each bucket so far -- with strong updates that early movement
+          gets locked in fast.
+
+      (2) The entropy regularizer pulling q_phi back toward uniform -- but
+          the leash is already loosening.
+
+    Risk: q_phi latches onto z_k that won during the OPENING ROLLOUTS, where
+    the actor hadn't yet had enough updates under all K strategies. Result is
+    "louder, not wiser" -- a self-fulfilling z preference where unused z slots
+    starve for training because the router stopped sampling them.
+
+    This variant decouples the timing: same start/floor entropy (0.003 -> 0.001
+    keeps the curiosity high early and the floor low enough for selection
+    late), but the decay starts later and ends later, giving the actor an
+    extra 100k steps of fully-uniform-sampled rollouts under all K strategies
+    before the entropy leash starts to loosen.
+
+    Plan-faithful: identical to v3d in every other respect. Only changes
+    ``latent_entropy_anneal_start`` (200k -> 300k) and
+    ``latent_entropy_anneal_end`` (700k -> 800k). Bucket baseline still
+    "opponent", router LR still 5e-3, n_epochs still 6.
+
+    When to launch:
+      - v3d's MI(z; opponent) stalls below 0.02 by 500k.
+      - OR v3d's z_occ shows premature one-z dominance (any slot > 0.5
+        before 500k).
+      - OR z_wr_spread starts declining (router locking in suboptimally).
+
+    When NOT to launch:
+      - v3d's MI is climbing healthily. Don't fix what isn't broken.
+      - z_occ stays in the [.15, .40] band across all four z slots through
+        the run. That's a router doing its job; no need to give it more
+        exploration runway.
+    """
+    cfg = apply_plan_faithful_latent_v3d_smart_router(cfg)
+    cfg.latent_entropy_anneal_start = 300_000
+    cfg.latent_entropy_anneal_end = 800_000
+    cfg.run_tag = "latent_v3d_delayedanneal_300k_800k_bucketopp_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 
