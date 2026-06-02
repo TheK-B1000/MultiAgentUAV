@@ -26,6 +26,7 @@ from rl.custom_ppo.inference import (
 )
 from rl.custom_ppo.curriculum_runtime import _hook_sample_training_opponent_before_reset
 from rl.custom_ppo.episode_stats import EpisodeStats
+from rl.custom_ppo.latent_behavior_contrast import BehaviorContrastMemory
 from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
 from rl.custom_ppo.return_normalization import ReturnNormalizer
@@ -205,6 +206,16 @@ class CustomPPOTrainer:
         self.latent_q_phi_bucket_baseline = hparams.latent_q_phi_bucket_baseline
         self.latent_q_phi_bucket_baseline_ema = hparams.latent_q_phi_bucket_baseline_ema
         self.latent_q_phi_bucket_baseline_min_count = hparams.latent_q_phi_bucket_baseline_min_count
+        self.latent_forced_z_episode_frac = hparams.latent_forced_z_episode_frac
+        self.latent_behavior_contrast_coef = hparams.latent_behavior_contrast_coef
+        self.latent_behavior_contrast_margin = hparams.latent_behavior_contrast_margin
+        self.latent_behavior_contrast_ema = hparams.latent_behavior_contrast_ema
+        self.latent_behavior_contrast_anneal_after_steps = (
+            hparams.latent_behavior_contrast_anneal_after_steps
+        )
+        self.latent_behavior_contrast_anneal_to = hparams.latent_behavior_contrast_anneal_to
+        self.latent_usage_balance_coef = hparams.latent_usage_balance_coef
+        self.latent_q_phi_train_after_steps = hparams.latent_q_phi_train_after_steps
 
         # Bucket-baseline helper for v3d. Only constructed when the mode is
         # set; ``apply_episode_strategy_ppo`` falls back to the V-marginal /
@@ -216,6 +227,19 @@ class CustomPPOTrainer:
             self.latent_bucket_baseline = BucketBaseline(
                 ema=self.latent_q_phi_bucket_baseline_ema,
                 min_count=self.latent_q_phi_bucket_baseline_min_count,
+            )
+        self.latent_behavior_contrast: Optional[BehaviorContrastMemory] = None
+        if (
+            hparams.use_latent_strategy
+            and not hparams.fixed_latent_strategy
+            and hparams.latent_behavior_contrast_coef > 0.0
+            and hparams.latent_forced_z_episode_frac > 0.0
+        ):
+            self.latent_behavior_contrast = BehaviorContrastMemory(
+                latent_k=hparams.latent_k,
+                ema=hparams.latent_behavior_contrast_ema,
+                margin=hparams.latent_behavior_contrast_margin,
+                device=self.device,
             )
         self.latent_strategy_aux_return_coef = hparams.latent_strategy_aux_return_coef
         self.latent_strategy_aux_return_head = hparams.latent_strategy_aux_return_head

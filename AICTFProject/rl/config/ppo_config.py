@@ -222,6 +222,24 @@ class PPOConfig:
     latent_kl_consecutive: float = 0.0
     latent_q_phi_option_advantage: bool = False
     latent_q_phi_marginal_baseline: bool = False
+    # v3f: self-supervised option separation. A fraction of episodes are forced
+    # to a uniformly sampled z, then completed-episode behavior embeddings are
+    # rewarded for separating from other z centroids in the same label-free
+    # context bucket. This does not assign semantic roles to latents.
+    latent_forced_z_episode_frac: float = 0.0
+    latent_behavior_contrast_coef: float = 0.0
+    latent_behavior_contrast_margin: float = 0.25
+    latent_behavior_contrast_ema: float = 0.9
+    latent_behavior_contrast_anneal_after_steps: int = 0
+    latent_behavior_contrast_anneal_to: float = 0.0
+    latent_usage_balance_coef: float = 0.0
+    latent_q_phi_train_after_steps: int = 0
+    latent_preference_coef: float = 0.0
+    latent_preference_temperature: float = 0.75
+    latent_preference_min_bucket_count: int = 8
+    latent_preference_min_distinct_z: int = 2
+    latent_preference_opponent_balanced: bool = False
+    latent_preference_log_opponent_targets: bool = False
 
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.

@@ -190,6 +190,7 @@ class RolloutCollector:
         buffer.register_field("reward_sparse")
         buffer.register_field("reward_sparse_points")
         buffer.register_field("reward_failure")
+        buffer.register_field("reward_behavior_contrast")
         buffer.register_field("reward_total")
         buffer.register_field("terminated", dtype=torch.bool)
         buffer.register_field("truncated", dtype=torch.bool)
@@ -200,6 +201,7 @@ class RolloutCollector:
             buffer.register_field("z_log_probs")
             buffer.register_field("z_logits", (hparams.latent_k,))
             buffer.register_field("z_resampled", dtype=torch.bool)
+            buffer.register_field("z_forced", dtype=torch.bool)
             buffer.register_field("z_persist_mask", dtype=torch.bool)
             buffer.register_field("phase_id", dtype=torch.long)
             buffer.register_field("outcome_id", dtype=torch.long)
@@ -357,6 +359,7 @@ class RolloutCollector:
         log_decentralized_actor_contract_once(runtime)
         self.episode_stats.reset_rollout()
         self.latent_state.rollout_strategy_episode_records = []
+        self.latent_state.reset_behavior_contrast_rollout_stats()
         obs, global_state, context_state = self._initial_step_state()
         buffer = self.make_buffer(obs)
         for step_idx in range(int(self.cfg.n_steps)):
@@ -503,6 +506,18 @@ class RolloutCollector:
         )
         truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
         reward_component = self._compose_step_rewards(infos)
+        if self.hparams.use_latent_strategy and beh_t is not None and z_t is not None:
+            contrast_bonus = self.latent_state.record_behavior_contrast_step(
+                behavior_telemetry=beh_t,
+                z_idx=z_t,
+                dones=dones,
+            )
+            reward_component["reward_behavior_contrast"] = contrast_bonus
+            reward_component["reward_total"] = reward_component["reward_total"] + contrast_bonus
+        else:
+            reward_component["reward_behavior_contrast"] = torch.zeros(
+                (int(env.num_envs),), dtype=torch.float32, device=self.device
+            )
 
         if self.hparams.use_latent_strategy:
             self._update_latent_episode_returns(

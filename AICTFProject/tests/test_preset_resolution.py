@@ -132,6 +132,18 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3e_strong_z_actor",
             "plan_faithful_latent_v3e",
             "latent_v3e",
+            "plan_faithful_latent_v3f_behavior_contrast",
+            "latent_v3f_behavior_contrast",
+            "plan_faithful_latent_v3f",
+            "latent_v3f",
+            "plan_faithful_latent_v3g_preference",
+            "latent_v3g_preference",
+            "plan_faithful_latent_v3g",
+            "latent_v3g",
+            "plan_faithful_latent_v3h_balanced_preference",
+            "latent_v3h_balanced_preference",
+            "plan_faithful_latent_v3h",
+            "latent_v3h",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -159,6 +171,68 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(cfg["latent_entropy_anneal_start"], 200_000)
                 self.assertEqual(cfg["latent_entropy_anneal_end"], 700_000)
                 self.assertAlmostEqual(cfg["latent_lam_p"], 0.0)
+
+    def test_latent_v3f_behavior_contrast_is_summer_faithful(self) -> None:
+        """v3f separates options without supervised router labels or semantic z roles."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3f_behavior_contrast",
+            "latent_v3f_behavior_contrast",
+            "plan_faithful_latent_v3f",
+            "latent_v3f",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertEqual(cfg["latent_resample_every_n"], 0)
+                self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.30)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.05)
+                self.assertEqual(cfg["latent_behavior_contrast_anneal_after_steps"], 800_000)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_anneal_to"], 0.005)
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.01)
+                self.assertEqual(cfg["latent_q_phi_train_after_steps"], 100_000)
+                self.assertFalse(cfg["latent_strategy_aux_return_head"])
+                self.assertAlmostEqual(cfg["latent_strategy_aux_return_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_strategy_aux_predict_phase_coef"], 0.0)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3g_preference_is_summer_faithful(self) -> None:
+        """v3g is faithful to the Summer spec and has correct preference hyperparams."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3g_preference",
+            "latent_v3g_preference",
+            "plan_faithful_latent_v3g",
+            "latent_v3g",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.03)
+                self.assertAlmostEqual(cfg["latent_preference_temperature"], 0.75)
+                self.assertEqual(cfg["latent_preference_min_bucket_count"], 8)
+                self.assertEqual(cfg["latent_preference_min_distinct_z"], 2)
+                self.assertFalse(cfg.get("latent_preference_opponent_balanced", False))
+                self.assertFalse(cfg.get("latent_preference_log_opponent_targets", False))
+
+    def test_latent_v3h_preference_balanced_is_summer_faithful(self) -> None:
+        """v3h has correct opponent balanced preference distillation config and target telemetry."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3h_balanced_preference",
+            "latent_v3h_balanced_preference",
+            "plan_faithful_latent_v3h",
+            "latent_v3h",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.03)
+                self.assertTrue(cfg.get("latent_preference_opponent_balanced", False))
+                self.assertTrue(cfg.get("latent_preference_log_opponent_targets", False))
 
 
 if __name__ == "__main__":

@@ -108,6 +108,7 @@ class OptionAdvantageTests(unittest.TestCase):
                 "reward_sparse": torch.zeros((2,)),
                 "reward_sparse_points": torch.zeros((2,)),
                 "reward_failure": torch.zeros((2,)),
+                "reward_behavior_contrast": torch.zeros((2,)),
                 "reward_total": torch.zeros((2,)),
                 "terminated": torch.zeros((2,), dtype=torch.bool),
                 "truncated": torch.zeros((2,), dtype=torch.bool),
@@ -117,6 +118,7 @@ class OptionAdvantageTests(unittest.TestCase):
                 "z_log_probs": torch.zeros((2,)),
                 "z_logits": torch.zeros((2, 4)),
                 "z_resampled": torch.full((2,), z_resampled_val, dtype=torch.bool),
+                "z_forced": torch.zeros((2,), dtype=torch.bool),
                 "z_persist_mask": torch.zeros((2,), dtype=torch.bool),
                 "phase_id": torch.zeros((2,), dtype=torch.long),
                 "outcome_id": torch.zeros((2,), dtype=torch.long),
@@ -209,6 +211,7 @@ class OptionAdvantageTests(unittest.TestCase):
                 "z_entropy": torch.zeros(2),
                 "z_logits": torch.zeros(2, 4),
                 "z_resampled": torch.zeros(2, dtype=torch.bool),
+                "z_forced": torch.zeros(2, dtype=torch.bool),
                 "z_persist_mask": torch.zeros(2, dtype=torch.bool),
             })
             mock_act.return_value = (torch.zeros(2, 4, dtype=torch.long), torch.zeros(2), torch.zeros(2), torch.zeros(2))

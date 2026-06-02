@@ -297,6 +297,61 @@ def apply_plan_faithful_latent_v3e_strong_z_actor(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3f_behavior_contrast(cfg: PPOConfig) -> PPOConfig:
+    """v3f: self-supervised latent behavior contrast.
+
+    Inherits v3e's stronger z-conditioned actor and v3d's episode-credit
+    router, then adds label-free option separation:
+
+      - 30% forced-z episodes, uniformly sampled across K
+      - completed-episode behavior contrast bonus on forced-z episodes only
+      - q_phi episode-credit delayed until the actor has seen forced-z data
+      - weak aggregate q_phi usage balance, applied only inside q_phi credit
+
+    Plan-faithful: no role labels, no scripted z meanings, no opponent-ID
+    heads, no supervised router targets. The behavior embedding is built from
+    existing observable team telemetry and compared inside coarse game-state
+    buckets so the pressure is "different modes under similar contexts."
+    """
+    cfg = apply_plan_faithful_latent_v3e_strong_z_actor(cfg)
+    cfg.latent_forced_z_episode_frac = 0.30
+    cfg.latent_behavior_contrast_coef = 0.05
+    cfg.latent_behavior_contrast_margin = 0.25
+    cfg.latent_behavior_contrast_ema = 0.90
+    cfg.latent_behavior_contrast_anneal_after_steps = 800_000
+    cfg.latent_behavior_contrast_anneal_to = 0.005
+    cfg.latent_usage_balance_coef = 0.01
+    cfg.latent_q_phi_train_after_steps = 100_000
+    cfg.run_tag = "latent_v3f_behavior_contrast_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3g_preference(cfg: PPOConfig) -> PPOConfig:
+    """v3g: self-supervised latent preference distillation from forced-z.
+
+    Inherits v3f's contrastive separation (forced-z exploration + actor conditioning)
+    and smart router, then distills a soft target probability distribution from
+    the returns of forced-z episodes into q_phi.
+    """
+    cfg = apply_plan_faithful_latent_v3f_behavior_contrast(cfg)
+    cfg.latent_preference_coef = 0.03
+    cfg.latent_preference_temperature = 0.75
+    cfg.latent_preference_min_bucket_count = 8
+    cfg.latent_preference_min_distinct_z = 2
+    cfg.run_tag = "latent_v3g_preference_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3h_balanced_preference(cfg: PPOConfig) -> PPOConfig:
+    """v3h: self-supervised latent preference distillation with opponent-balanced KL loss and target telemetry."""
+    cfg = apply_plan_faithful_latent_v3g_preference(cfg)
+    cfg.latent_preference_coef = 0.03
+    cfg.latent_preference_opponent_balanced = True
+    cfg.latent_preference_log_opponent_targets = True
+    cfg.run_tag = "latent_v3h_balanced_preference_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

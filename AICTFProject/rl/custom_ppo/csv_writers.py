@@ -154,6 +154,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         "reward_sparse_mean",
         "reward_sparse_points_mean",
         "reward_failure_mean",
+        "reward_behavior_contrast_mean",
         "reward_total_mean",
         "reward_outcome_mean",
         "reward_shaping_mean",
@@ -336,7 +337,31 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "bucket_baseline_global_mean",
             "bucket_baseline_raw_return_std",
             "bucket_baseline_adv_std",
+            "latent_forced_z_episode_fraction",
+            "latent_forced_z_step_fraction",
+            "latent_behavior_contrast_bonus_mean",
+            "latent_behavior_contrast_distance_mean",
+            "latent_behavior_contrast_active_frac",
+            "latent_behavior_contrast_coef",
+            "latent_usage_balance_loss",
+            "latent_usage_balance_kl",
+            "latent_q_phi_train_active",
+            "latent_preference_loss",
+            "latent_preference_active_fraction",
+            "latent_preference_buffer_size",
+            "latent_preference_num_active_buckets",
+            "latent_preference_target_entropy",
         ])
+        for opp_name in ["op5", "op6"]:
+            fields.extend([
+                f"latent_pref_{opp_name}_loss",
+                f"latent_pref_{opp_name}_active_fraction",
+                f"latent_pref_{opp_name}_target_entropy",
+                f"latent_pref_{opp_name}_best_z",
+                f"latent_pref_{opp_name}_buffer_count",
+                f"latent_pref_{opp_name}_active_buckets",
+            ])
+            fields.extend(f"latent_pref_{opp_name}_target_z{z}" for z in range(latent_k))
     return fields
 
 

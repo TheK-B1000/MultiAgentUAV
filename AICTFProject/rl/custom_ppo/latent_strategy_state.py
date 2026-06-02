@@ -48,8 +48,11 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 import numpy as np
 import torch
 from torch.distributions import Categorical
+from collections import deque
+import torch.nn.functional as F
 
 from rl.ppo_core import ppo_policy_loss
+from rl.behavior_telemetry import N_TELEMETRY
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
 from rl.custom_ppo.csv_writers import _opponent_id_int_from_info
@@ -63,6 +66,8 @@ def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor
     if context_state.dim() != 2:
         raise ValueError(f"context_state must be 2-D, got {tuple(context_state.shape)}")
     raw = context_state[:, :GLOBAL_STATE_DIM].float()
+    if raw.shape[1] < GLOBAL_STATE_DIM:
+        raw = torch.nn.functional.pad(raw, (0, GLOBAL_STATE_DIM - int(raw.shape[1])))
     enemy_has_our_flag = (raw[:, 10] > 0.5).long()
     we_have_enemy_flag = (raw[:, 11] > 0.5).long()
     dist_edges = torch.tensor([0.20, 0.50], dtype=torch.float32, device=raw.device)
@@ -83,7 +88,6 @@ def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor
     bucket = bucket * 2 + spread_bin
     bucket = bucket * 3 + score_state
     return bucket.long()
-
 
 
 class EpisodeStrategyRecorder:
@@ -202,6 +206,18 @@ class LatentStrategyState:
         self.first_z_sample_step = torch.full(
             (n_envs,), -1, dtype=torch.long, device=device
         )
+        self.episode_forced_z = torch.zeros((n_envs,), dtype=torch.bool, device=device)
+        self.episode_forced_z_id = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.episode_contrast_bucket = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.episode_behavior_sum = torch.zeros((n_envs, N_TELEMETRY), dtype=torch.float32, device=device)
+        self.episode_behavior_count = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.rollout_behavior_contrast_bonus_sum = 0.0
+        self.rollout_behavior_contrast_distance_sum = 0.0
+        self.rollout_behavior_contrast_count = 0
+        self.rollout_behavior_contrast_active_count = 0
+        self.rollout_forced_z_episode_count = 0
+        self.rollout_completed_episode_count = 0
+        self.latent_preference_buffer = deque(maxlen=20000)
 
     # ------------------------------------------------------------------
     # Reset / per-step sampling
@@ -236,6 +252,28 @@ class LatentStrategyState:
         self.steps_since_ep_start.zero_()
         self.episode_strategy_committed.zero_()
         self.first_z_sample_step.fill_(-1)
+        self.episode_forced_z.zero_()
+        self.episode_forced_z_id.zero_()
+        self.episode_contrast_bucket.zero_()
+        self.episode_behavior_sum.zero_()
+        self.episode_behavior_count.zero_()
+        self.reset_behavior_contrast_rollout_stats()
+
+    def reset_behavior_contrast_rollout_stats(self) -> None:
+        self.rollout_behavior_contrast_bonus_sum = 0.0
+        self.rollout_behavior_contrast_distance_sum = 0.0
+        self.rollout_behavior_contrast_count = 0
+        self.rollout_behavior_contrast_active_count = 0
+        self.rollout_forced_z_episode_count = 0
+        self.rollout_completed_episode_count = 0
+
+    def behavior_contrast_coef(self) -> float:
+        trainer = self.trainer
+        base = max(0.0, float(getattr(trainer, "latent_behavior_contrast_coef", 0.0) or 0.0))
+        after = max(0, int(getattr(trainer, "latent_behavior_contrast_anneal_after_steps", 0) or 0))
+        if after <= 0 or int(getattr(trainer, "global_step", 0) or 0) < after:
+            return base
+        return max(0.0, float(getattr(trainer, "latent_behavior_contrast_anneal_to", 0.0) or 0.0))
 
     def store_episode_strategy_start(
         self,
@@ -303,6 +341,7 @@ class LatentStrategyState:
                 "z_entropy": torch.zeros((batch,), dtype=torch.float32, device=device),
                 "z_logits": fixed_logits,
                 "z_resampled": false_mask,
+                "z_forced": false_mask,
                 "z_persist_mask": false_mask,
             }
             return z_idx, prev_z, aux
@@ -335,6 +374,51 @@ class LatentStrategyState:
 
         z_logits = trainer.model.strategy_logits(global_state)
         z_dist = Categorical(logits=z_logits)
+        if bool(episode_start_mask.any().item()):
+            start_idx = torch.where(episode_start_mask)[0]
+            self.episode_forced_z[start_idx] = False
+            self.episode_behavior_sum[start_idx] = 0.0
+            self.episode_behavior_count[start_idx] = 0
+            self.episode_contrast_bucket[start_idx] = _strategy_experience_bucket_ids(
+                global_state.index_select(0, start_idx)
+            ).detach()
+            forced_frac = max(
+                0.0,
+                min(float(getattr(trainer, "latent_forced_z_episode_frac", 0.0) or 0.0), 1.0),
+            )
+            contrast_on = (
+                getattr(trainer, "latent_behavior_contrast", None) is not None
+                and self.behavior_contrast_coef() > 0.0
+                and forced_frac > 0.0
+            )
+            if contrast_on:
+                gen = trainer.model._sampling_gen_strategy
+                rand_kwargs = {
+                    "dtype": torch.float32,
+                    "device": device,
+                }
+                if gen is not None:
+                    rand_kwargs["generator"] = gen
+                forced_draw = torch.rand((int(start_idx.numel()),), **rand_kwargs)
+                forced_mask_local = forced_draw < forced_frac
+                if bool(forced_mask_local.any().item()):
+                    forced_idx = start_idx[forced_mask_local]
+                    uniform_logits = torch.zeros(
+                        (int(forced_idx.numel()), trainer.latent_k),
+                        dtype=torch.float32,
+                        device=device,
+                    )
+                    uniform_dist = Categorical(logits=uniform_logits)
+                    forced_z = trainer.model._categorical_argmax_or_sample(
+                        uniform_dist,
+                        deterministic=False,
+                        generator=trainer.model._sampling_gen_strategy,
+                    ).long()
+                    self.episode_forced_z[forced_idx] = True
+                    self.episode_forced_z_id[forced_idx] = forced_z
+
+        forced_active = self.episode_forced_z.clone()
+        resample_mask = resample_mask & (~forced_active)
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
             sampled_dist = Categorical(logits=z_logits.index_select(0, idx))
@@ -347,6 +431,11 @@ class LatentStrategyState:
             self.current_z = z_idx.clone()
             self.strategy_age[idx] = 0
             self.needs_strategy_sample[idx] = False
+        if bool(forced_active.any().item()):
+            z_idx[forced_active] = self.episode_forced_z_id[forced_active]
+            self.current_z = z_idx.clone()
+            self.strategy_age[forced_active] = 0
+            self.needs_strategy_sample[forced_active] = False
 
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
@@ -357,6 +446,7 @@ class LatentStrategyState:
             snapshot_mask = commit_now
         else:
             snapshot_mask = episode_start_mask
+        snapshot_mask = snapshot_mask & (~forced_active)
 
         # Track the warmup bookkeeping.
         if bool(snapshot_mask.any().item()):
@@ -385,6 +475,7 @@ class LatentStrategyState:
         training_resample_mask = resample_mask.clone()
         if warmup > 0:
             training_resample_mask = training_resample_mask & (~episode_start_mask)
+        training_resample_mask = training_resample_mask & (~forced_active)
 
         aux = {
             "z": z_idx,
@@ -395,6 +486,7 @@ class LatentStrategyState:
             "z_resampled": training_resample_mask,
             "z_resampled_actual": resample_mask,
             "z_persist_mask": persist_mask,
+            "z_forced": forced_active,
         }
         return z_idx, prev_z, aux
 
@@ -413,6 +505,69 @@ class LatentStrategyState:
             self.episode_strategy_committed[done_t] = False
             self.first_z_sample_step[done_t] = -1
             self.episode_return_baseline_at_commit[done_t] = 0.0
+            self.episode_forced_z[done_t] = False
+            self.episode_forced_z_id[done_t] = 0
+            self.episode_contrast_bucket[done_t] = 0
+            self.episode_behavior_sum[done_t] = 0.0
+            self.episode_behavior_count[done_t] = 0
+
+    def record_behavior_contrast_step(
+        self,
+        *,
+        behavior_telemetry: torch.Tensor,
+        z_idx: torch.Tensor,
+        dones: np.ndarray,
+    ) -> torch.Tensor:
+        """Accumulate behavior and return a terminal contrast bonus per env."""
+        trainer = self.trainer
+        n_envs = int(behavior_telemetry.shape[0])
+        bonus = torch.zeros((n_envs,), dtype=torch.float32, device=trainer.device)
+        memory = getattr(trainer, "latent_behavior_contrast", None)
+        if memory is None:
+            return bonus
+
+        self.episode_behavior_sum = self.episode_behavior_sum + behavior_telemetry.detach().float()
+        self.episode_behavior_count = self.episode_behavior_count + 1
+        done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
+        if not bool(done_t.any().item()):
+            return bonus
+
+        team_size = int(getattr(getattr(trainer.env, "core", None), "Nb", 1) or 1)
+        coef = self.behavior_contrast_coef()
+        for env_i, done_i in enumerate(dones):
+            if not bool(done_i):
+                continue
+            self.rollout_completed_episode_count += 1
+            if not bool(self.episode_forced_z[env_i].detach().cpu().item()):
+                continue
+            self.rollout_forced_z_episode_count += 1
+            count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
+            emb = self.episode_behavior_sum[env_i] / float(count)
+            emb = memory.normalize(emb, team_size=team_size)
+            result = memory.score_and_update(
+                bucket_id=int(self.episode_contrast_bucket[env_i].detach().cpu().item()),
+                z=int(z_idx[env_i].detach().cpu().item()),
+                embedding=emb,
+                coef=coef,
+            )
+            bonus[env_i] = result.bonus.to(device=trainer.device)
+            self.rollout_behavior_contrast_bonus_sum += float(result.bonus.detach().cpu().item())
+            self.rollout_behavior_contrast_distance_sum += float(result.distance)
+            self.rollout_behavior_contrast_count += int(result.count)
+            self.rollout_behavior_contrast_active_count += int(result.active)
+        return bonus
+
+    def behavior_contrast_rollout_stats(self) -> dict[str, float]:
+        count = max(1, int(self.rollout_behavior_contrast_count))
+        completed = max(1, int(self.rollout_completed_episode_count))
+        forced = max(1, int(self.rollout_forced_z_episode_count))
+        return {
+            "latent_forced_z_episode_fraction": float(self.rollout_forced_z_episode_count) / float(completed),
+            "latent_behavior_contrast_bonus_mean": float(self.rollout_behavior_contrast_bonus_sum) / float(forced),
+            "latent_behavior_contrast_distance_mean": float(self.rollout_behavior_contrast_distance_sum) / float(count),
+            "latent_behavior_contrast_active_frac": float(self.rollout_behavior_contrast_active_count) / float(count),
+            "latent_behavior_contrast_coef": float(self.behavior_contrast_coef()),
+        }
 
     # ------------------------------------------------------------------
     # Episode outcome → completed-record buffer
@@ -439,6 +594,35 @@ class LatentStrategyState:
         env_i = int(env_index)
         if env_i < 0 or env_i >= int(self.episode_strategy_has_start.numel()):
             return
+
+        is_forced_z = bool(self.episode_forced_z[env_i].detach().cpu().item())
+        if is_forced_z:
+            try:
+                opponent_id = int(_opponent_id_int_from_info(self.trainer.cfg, info))
+            except Exception:
+                opponent_id = -1
+            
+            er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
+            bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
+            rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
+            episode_win = 1 if bs > rs else 0
+            
+            z_val = int(self.episode_forced_z_id[env_i].detach().cpu().item())
+            count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
+            emb = (self.episode_behavior_sum[env_i] / float(count)).detach().cpu().numpy().tolist()
+            
+            forced_record = {
+                "context_bucket": int(self.episode_contrast_bucket[env_i].detach().cpu().item()),
+                "opponent": opponent_id,
+                "phase_flag_state": int(self.episode_contrast_bucket[env_i].detach().cpu().item()),
+                "z": z_val,
+                "return": float(episode_return),
+                "behavior_embedding": emb,
+                "win_loss": episode_win,
+            }
+            self.latent_preference_buffer.append(forced_record)
+            return
+
         if not bool(self.episode_strategy_has_start[env_i].detach().cpu().item()):
             return
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
@@ -486,8 +670,13 @@ class LatentStrategyState:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def empty_episode_strategy_stats() -> dict[str, float]:
-        return {
+    def empty_episode_strategy_stats(latent_k: int = 4) -> dict[str, float]:
+        res = {
+            "latent_preference_loss": 0.0,
+            "latent_preference_active_fraction": 0.0,
+            "latent_preference_buffer_size": 0.0,
+            "latent_preference_num_active_buckets": 0.0,
+            "latent_preference_target_entropy": 0.0,
             "latent_episode_pg_loss": 0.0,
             "latent_episode_v_loss": 0.0,
             "latent_episode_entropy": 0.0,
@@ -515,7 +704,20 @@ class LatentStrategyState:
             "bucket_baseline_global_mean": 0.0,
             "bucket_baseline_raw_return_std": 0.0,
             "bucket_baseline_adv_std": 0.0,
+            "latent_usage_balance_loss": 0.0,
+            "latent_usage_balance_kl": 0.0,
+            "latent_q_phi_train_active": 0.0,
         }
+        for opp_name in ["op5", "op6"]:
+            res[f"latent_pref_{opp_name}_loss"] = 0.0
+            res[f"latent_pref_{opp_name}_active_fraction"] = 0.0
+            res[f"latent_pref_{opp_name}_target_entropy"] = 0.0
+            res[f"latent_pref_{opp_name}_best_z"] = -1.0
+            res[f"latent_pref_{opp_name}_buffer_count"] = 0.0
+            res[f"latent_pref_{opp_name}_active_buckets"] = 0.0
+            for z in range(latent_k):
+                res[f"latent_pref_{opp_name}_target_z{z}"] = 0.0
+        return res
 
     def episode_strategy_training_batch(self) -> Optional[dict[str, torch.Tensor]]:
         trainer = self.trainer
@@ -581,7 +783,7 @@ class LatentStrategyState:
         LR than the shared optimizer can afford for the actor.
         """
         trainer = self.trainer
-        stats = self.empty_episode_strategy_stats()
+        stats = self.empty_episode_strategy_stats(trainer.latent_k)
         batch = self.episode_strategy_training_batch()
         if batch is None:
             return stats
@@ -591,6 +793,13 @@ class LatentStrategyState:
         episode_returns = batch["episode_returns"]
         opponent_ids = batch.get("opponent_ids")
         bucket_ids = batch.get("bucket_ids")
+        stats["latent_episode_count"] = float(episode_returns.numel())
+        train_after = max(
+            0, int(getattr(trainer, "latent_q_phi_train_after_steps", 0) or 0)
+        )
+        if train_after > 0 and int(getattr(trainer, "global_step", 0) or 0) < train_after:
+            return stats
+        stats["latent_q_phi_train_active"] = 1.0
 
         # v3d bucket-baseline path: when ``latent_q_phi_bucket_baseline`` is
         # set, replace the V-marginal baseline with the per-bucket empirical
@@ -616,6 +825,71 @@ class LatentStrategyState:
             bucket_baseline_vector = bucket_baseline_helper.update_and_compute(
                 episode_returns.detach(), keys.detach()
             ).detach()
+
+        # Counterfactual Latent Preference precomputation
+        pref_coef = float(getattr(trainer, "latent_preference_coef", 0.0) or 0.0)
+        B = states.shape[0]
+        batch_target_probs = torch.zeros((B, trainer.latent_k), dtype=torch.float32, device=trainer.device)
+        batch_pref_mask = torch.zeros((B,), dtype=torch.bool, device=trainer.device)
+
+        active_buckets_count = 0
+        target_entropy_sum = 0.0
+        unique_keys = set()
+        key_to_target_probs = {}
+
+        if pref_coef > 0.0 and len(self.latent_preference_buffer) > 0 and opponent_ids is not None and bucket_ids is not None:
+            batch_keys = (opponent_ids * 256 + bucket_ids).detach().cpu().numpy().tolist()
+            unique_keys = set(batch_keys)
+            
+            # Group buffer records by key
+            buffer_by_key = {}
+            for r in self.latent_preference_buffer:
+                k = int(r["opponent"] * 256 + r["context_bucket"])
+                if k not in buffer_by_key:
+                    buffer_by_key[k] = []
+                buffer_by_key[k].append(r)
+            
+            min_bucket_count = int(getattr(trainer, "latent_preference_min_bucket_count", 8) or 8)
+            min_distinct_z = int(getattr(trainer, "latent_preference_min_distinct_z", 2) or 2)
+            temperature = float(getattr(trainer, "latent_preference_temperature", 0.75) or 0.75)
+            
+            key_to_target_probs = {}
+            for k in unique_keys:
+                matching = buffer_by_key.get(int(k), [])
+                distinct_zs_in_matching = set(r["z"] for r in matching)
+                if len(matching) < min_bucket_count or len(distinct_zs_in_matching) < min_distinct_z:
+                    key_to_target_probs[k] = None
+                else:
+                    active_buckets_count += 1
+                    returns_for_z = {z_idx: [] for z_idx in range(trainer.latent_k)}
+                    for r in matching:
+                        returns_for_z[r["z"]].append(r["return"])
+                    
+                    avg_return_by_z = {}
+                    for z_idx in range(trainer.latent_k):
+                        if len(returns_for_z[z_idx]) > 0:
+                            avg_return_by_z[z_idx] = sum(returns_for_z[z_idx]) / len(returns_for_z[z_idx])
+                    
+                    sampled_avgs = [avg_return_by_z[z_idx] for z_idx in range(trainer.latent_k) if z_idx in avg_return_by_z]
+                    fallback_val = min(sampled_avgs) if len(sampled_avgs) > 0 else 0.0
+                    
+                    for z_idx in range(trainer.latent_k):
+                        if z_idx not in avg_return_by_z:
+                            avg_return_by_z[z_idx] = fallback_val
+                    
+                    avg_returns = np.array([avg_return_by_z[z_idx] for z_idx in range(trainer.latent_k)], dtype=np.float32)
+                    exp_returns = np.exp((avg_returns - np.max(avg_returns)) / temperature)
+                    target_prob = exp_returns / np.sum(exp_returns)
+                    key_to_target_probs[k] = target_prob
+            
+            for i, k in enumerate(batch_keys):
+                target = key_to_target_probs.get(k)
+                if target is not None:
+                    batch_target_probs[i] = torch.as_tensor(target, dtype=torch.float32, device=trainer.device)
+                    batch_pref_mask[i] = True
+                    # Target entropy computation: -sum(p * log(p))
+                    entropy = -np.sum(target * np.log(target + 1e-12))
+                    target_entropy_sum += float(entropy)
 
         n_inner_epochs = max(
             1, int(getattr(trainer, "latent_episode_strategy_n_epochs", 1) or 1)
@@ -645,6 +919,8 @@ class LatentStrategyState:
         }
         logits = trainer.model.strategy_logits(states)
         episode_credit_grad_norm = 0.0
+        usage_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        usage_kl = torch.zeros((), dtype=torch.float32, device=trainer.device)
 
         for _ in range(n_inner_epochs):
             logits = trainer.model.strategy_logits(states)
@@ -722,9 +998,46 @@ class LatentStrategyState:
                 entropy_term = float(latent_lam_h) * z_entropy
             else:
                 entropy_term = -float(latent_lam_h) * z_entropy
+            usage_coef = max(0.0, float(getattr(trainer, "latent_usage_balance_coef", 0.0) or 0.0))
+            if usage_coef > 0.0 and logits.shape[0] > 0:
+                p_bar = torch.softmax(logits, dim=-1).mean(dim=0).clamp_min(1e-8)
+                usage_kl = (
+                    p_bar * (torch.log(p_bar) + torch.log(p_bar.new_tensor(float(trainer.latent_k))))
+                ).sum()
+                usage_loss = usage_coef * usage_kl
+            else:
+                usage_kl = torch.zeros((), dtype=torch.float32, device=trainer.device)
+                usage_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            pref_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            if pref_coef > 0.0 and bool(batch_pref_mask.any().item()):
+                valid_logits = logits[batch_pref_mask]
+                valid_targets = batch_target_probs[batch_pref_mask]
+                log_probs = torch.log_softmax(valid_logits, dim=-1)
+                if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
+                    kl_per_episode = F.kl_div(
+                        log_probs,
+                        valid_targets,
+                        reduction="none"
+                    ).sum(dim=-1)
+                    valid_opps = opponent_ids[batch_pref_mask]
+                    unique_opps = torch.unique(valid_opps)
+                    opponent_losses = []
+                    for opp_id in unique_opps:
+                        opp_mask = (valid_opps == opp_id)
+                        opp_kl = kl_per_episode[opp_mask]
+                        if opp_kl.numel() > 0:
+                            opponent_losses.append(opp_kl.mean())
+                    if len(opponent_losses) > 0:
+                        pref_loss = torch.stack(opponent_losses).mean()
+                else:
+                    pref_loss = F.kl_div(
+                        log_probs,
+                        valid_targets,
+                        reduction="batchmean"
+                    )
             loss = trainer.latent_episode_strategy_coef * (
                 pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
-            ) + entropy_term
+            ) + entropy_term + usage_loss + pref_coef * pref_loss
 
             router_optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -787,6 +1100,67 @@ class LatentStrategyState:
                         "bucket_baseline_adv_std": float(bs.get("adv_std", 0.0)),
                     }
                 )
+            stats["latent_usage_balance_loss"] = float(usage_loss.detach().cpu().item())
+            stats["latent_usage_balance_kl"] = float(usage_kl.detach().cpu().item())
+            stats["latent_preference_loss"] = float(pref_loss.detach().cpu().item())
+            stats["latent_preference_active_fraction"] = float(batch_pref_mask.float().mean().cpu().item())
+            stats["latent_preference_buffer_size"] = float(len(self.latent_preference_buffer))
+            stats["latent_preference_num_active_buckets"] = float(active_buckets_count)
+            valid_count = int(batch_pref_mask.sum().item())
+            stats["latent_preference_target_entropy"] = float(target_entropy_sum / max(1, valid_count)) if valid_count > 0 else 0.0
+
+            # --- Opponent specific preference target telemetry ---
+            log_opponent_targets = bool(getattr(trainer.cfg, "latent_preference_log_opponent_targets", False))
+            
+            # Always track buffer counts as requested
+            for opp_name, opp_id in [("op5", 4), ("op6", 5)]:
+                stats[f"latent_pref_{opp_name}_buffer_count"] = float(sum(1 for r in self.latent_preference_buffer if r["opponent"] == opp_id))
+                
+            if log_opponent_targets and opponent_ids is not None:
+                # 1. Compute elementwise KL values per episode in the batch (for logging)
+                if batch_pref_mask.any():
+                    valid_logits = logits[batch_pref_mask]
+                    valid_targets = batch_target_probs[batch_pref_mask]
+                    valid_log_probs = torch.log_softmax(valid_logits, dim=-1)
+                    kl_per_episode = F.kl_div(valid_log_probs, valid_targets, reduction="none").sum(dim=-1)
+                    valid_opps = opponent_ids[batch_pref_mask]
+                else:
+                    kl_per_episode = None
+                    valid_opps = None
+                    
+                for opp_name, opp_id in [("op5", 4), ("op6", 5)]:
+                    opp_mask = (opponent_ids == opp_id)
+                    opp_episodes_count = int(opp_mask.sum().item())
+                    opp_active_mask = opp_mask & batch_pref_mask
+                    opp_active_count = int(opp_active_mask.sum().item())
+                    
+                    if opp_episodes_count > 0:
+                        stats[f"latent_pref_{opp_name}_active_fraction"] = float(opp_active_count) / opp_episodes_count
+                    else:
+                        stats[f"latent_pref_{opp_name}_active_fraction"] = 0.0
+                        
+                    opp_keys_in_batch = [k for k in unique_keys if (k // 256) == opp_id]
+                    stats[f"latent_pref_{opp_name}_active_buckets"] = float(sum(1 for k in opp_keys_in_batch if key_to_target_probs.get(k) is not None))
+                    
+                    if opp_active_count > 0 and kl_per_episode is not None and valid_opps is not None:
+                        opp_valid_mask = (valid_opps == opp_id)
+                        opp_loss = float(kl_per_episode[opp_valid_mask].mean().item())
+                        stats[f"latent_pref_{opp_name}_loss"] = opp_loss
+                        
+                        opp_valid_targets = valid_targets[opp_valid_mask]
+                        entropy_per_episode = -(opp_valid_targets * torch.log(opp_valid_targets + 1e-12)).sum(dim=-1)
+                        stats[f"latent_pref_{opp_name}_target_entropy"] = float(entropy_per_episode.mean().item())
+                        
+                        opp_mean_targets = opp_valid_targets.mean(dim=0)
+                        for z_idx in range(trainer.latent_k):
+                            stats[f"latent_pref_{opp_name}_target_z{z_idx}"] = float(opp_mean_targets[z_idx].item())
+                        stats[f"latent_pref_{opp_name}_best_z"] = float(opp_mean_targets.argmax().item())
+                    else:
+                        stats[f"latent_pref_{opp_name}_loss"] = 0.0
+                        stats[f"latent_pref_{opp_name}_target_entropy"] = 0.0
+                        stats[f"latent_pref_{opp_name}_best_z"] = -1.0
+                        for z_idx in range(trainer.latent_k):
+                            stats[f"latent_pref_{opp_name}_target_z{z_idx}"] = 0.0
         return stats
 
     def strategy_encoder_grad_norm(self) -> float:

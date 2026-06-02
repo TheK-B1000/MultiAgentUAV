@@ -88,6 +88,20 @@ class TrainerHyperparams:
     latent_strategy_aux_return_coef: float
     latent_strategy_aux_return_head: bool
     latent_strategy_aux_predict_phase_coef: float
+    latent_forced_z_episode_frac: float
+    latent_behavior_contrast_coef: float
+    latent_behavior_contrast_margin: float
+    latent_behavior_contrast_ema: float
+    latent_behavior_contrast_anneal_after_steps: int
+    latent_behavior_contrast_anneal_to: float
+    latent_usage_balance_coef: float
+    latent_q_phi_train_after_steps: int
+    latent_preference_coef: float
+    latent_preference_temperature: float
+    latent_preference_min_bucket_count: int
+    latent_preference_min_distinct_z: int
+    latent_preference_opponent_balanced: bool
+    latent_preference_log_opponent_targets: bool
 
     # ----- reward composition (env-driven defaults) -----
     reward_dense_weight: float
@@ -257,6 +271,51 @@ class TrainerHyperparams:
                 0.0,
                 float(getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0),
             ),
+            latent_forced_z_episode_frac=(
+                min(max(float(getattr(cfg, "latent_forced_z_episode_frac", 0.0) or 0.0), 0.0), 1.0)
+                if use_latent and not fixed_latent
+                else 0.0
+            ),
+            latent_behavior_contrast_coef=(
+                max(0.0, float(getattr(cfg, "latent_behavior_contrast_coef", 0.0) or 0.0))
+                if use_latent and not fixed_latent
+                else 0.0
+            ),
+            latent_behavior_contrast_margin=max(
+                1e-6, float(getattr(cfg, "latent_behavior_contrast_margin", 0.25) or 0.25)
+            ),
+            latent_behavior_contrast_ema=min(
+                max(float(getattr(cfg, "latent_behavior_contrast_ema", 0.9) or 0.0), 0.0),
+                0.999,
+            ),
+            latent_behavior_contrast_anneal_after_steps=max(
+                0, int(getattr(cfg, "latent_behavior_contrast_anneal_after_steps", 0) or 0)
+            ),
+            latent_behavior_contrast_anneal_to=max(
+                0.0, float(getattr(cfg, "latent_behavior_contrast_anneal_to", 0.0) or 0.0)
+            ),
+            latent_usage_balance_coef=(
+                max(0.0, float(getattr(cfg, "latent_usage_balance_coef", 0.0) or 0.0))
+                if use_latent and not fixed_latent
+                else 0.0
+            ),
+            latent_q_phi_train_after_steps=max(
+                0, int(getattr(cfg, "latent_q_phi_train_after_steps", 0) or 0)
+            ),
+            latent_preference_coef=max(
+                0.0, float(getattr(cfg, "latent_preference_coef", 0.0) or 0.0)
+            ),
+            latent_preference_temperature=max(
+                1e-6, float(getattr(cfg, "latent_preference_temperature", 0.75) or 0.75)
+            ),
+            latent_preference_min_bucket_count=max(
+                1, int(getattr(cfg, "latent_preference_min_bucket_count", 8) or 8)
+            ),
+            latent_preference_min_distinct_z=max(
+                1, int(getattr(cfg, "latent_preference_min_distinct_z", 2) or 2)
+            ),
+            latent_preference_opponent_balanced=bool(getattr(cfg, "latent_preference_opponent_balanced", False)),
+            latent_preference_log_opponent_targets=bool(getattr(cfg, "latent_preference_log_opponent_targets", False)),
             reward_dense_weight=max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0)),
             reward_scale=max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0)),
             reward_clip=max(1e-6, float(getattr(env_cfg, "reward_clip", 1.0) or 1.0)),

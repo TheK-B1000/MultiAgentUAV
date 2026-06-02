@@ -17,6 +17,9 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v3d_smart_router,
     apply_plan_faithful_latent_v3d_delayed_anneal,
     apply_plan_faithful_latent_v3e_strong_z_actor,
+    apply_plan_faithful_latent_v3f_behavior_contrast,
+    apply_plan_faithful_latent_v3g_preference,
+    apply_plan_faithful_latent_v3h_balanced_preference,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
     apply_plan_faithful_latent_phase2_credit,
@@ -86,6 +89,18 @@ PRESET_REGISTRY = {
     "latent_v3e_strong_z_actor": apply_plan_faithful_latent_v3e_strong_z_actor,
     "plan_faithful_latent_v3e": apply_plan_faithful_latent_v3e_strong_z_actor,
     "latent_v3e": apply_plan_faithful_latent_v3e_strong_z_actor,
+    "plan_faithful_latent_v3f_behavior_contrast": apply_plan_faithful_latent_v3f_behavior_contrast,
+    "latent_v3f_behavior_contrast": apply_plan_faithful_latent_v3f_behavior_contrast,
+    "plan_faithful_latent_v3f": apply_plan_faithful_latent_v3f_behavior_contrast,
+    "latent_v3f": apply_plan_faithful_latent_v3f_behavior_contrast,
+    "plan_faithful_latent_v3g_preference": apply_plan_faithful_latent_v3g_preference,
+    "latent_v3g_preference": apply_plan_faithful_latent_v3g_preference,
+    "plan_faithful_latent_v3g": apply_plan_faithful_latent_v3g_preference,
+    "latent_v3g": apply_plan_faithful_latent_v3g_preference,
+    "plan_faithful_latent_v3h_balanced_preference": apply_plan_faithful_latent_v3h_balanced_preference,
+    "latent_v3h_balanced_preference": apply_plan_faithful_latent_v3h_balanced_preference,
+    "plan_faithful_latent_v3h": apply_plan_faithful_latent_v3h_balanced_preference,
+    "latent_v3h": apply_plan_faithful_latent_v3h_balanced_preference,
     "plan_faithful_latent_intent_credit": apply_plan_faithful_latent_episode_strategic,
     "plan_faithful_latent_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_plan_faithful_no_entropy": apply_plan_faithful_latent_no_entropy,
@@ -181,6 +196,7 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             "'plan_faithful_latent_phase4a_rescue', "
             "'plan_faithful_latent_phase4a_rescue_hardpool', "
             "'plan_faithful_latent_episode_z_clean', "
+            "'plan_faithful_latent_v3f_behavior_contrast', "
             "'plan_faithful_latent_option_a' (a.k.a. 'plan_faithful_latent_fix_d'), "
             "'plan_faithful_latent_option_a_episode_credit'."
         )

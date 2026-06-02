@@ -407,6 +407,14 @@ class PPOUpdater:
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(strategy_experience_stats)
+        runtime.last_stats.update(self.latent_state.behavior_contrast_rollout_stats())
+        if hparams.use_latent_strategy and "z_forced" in buffer.fields:
+            forced_steps = buffer.fields["z_forced"][: int(buffer.pos)].detach().float()
+            runtime.last_stats["latent_forced_z_step_fraction"] = (
+                float(forced_steps.mean().cpu().item()) if forced_steps.numel() > 0 else 0.0
+            )
+        else:
+            runtime.last_stats["latent_forced_z_step_fraction"] = 0.0
         return runtime.last_stats
 
 
