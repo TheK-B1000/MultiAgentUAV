@@ -55,6 +55,20 @@ class EntropyAnnealingTests(unittest.TestCase):
         self.assertEqual(cfg.latent_entropy_anneal_start, 200_000)
         self.assertEqual(cfg.latent_entropy_anneal_end, 700_000)
 
+    def test_v3h2_entropy_schedule(self) -> None:
+        cfg = PPOConfig(
+            run_tag="latent_v3h2_balanced_preference_1m_4v4",
+            late_entropy_floor=0.0003,
+        )
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=0, total_timesteps=1_000_000), 0.003)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=100_000, total_timesteps=1_000_000), 0.003)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=299_999, total_timesteps=1_000_000), 0.003)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=300_000, total_timesteps=1_000_000), 0.003)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=450_000, total_timesteps=1_000_000), 0.002)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=600_000, total_timesteps=1_000_000), 0.001)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=800_000, total_timesteps=1_000_000), 0.00065)
+        self.assertAlmostEqual(resolve_latent_lam_h(cfg, global_step=1_000_000, total_timesteps=1_000_000), 0.0003)
+
     def test_metrics_csv_includes_current_entropy_coefficient(self) -> None:
         self.assertIn("latent_lam_h", _update_fieldnames(use_latent_strategy=True, latent_k=4))
 

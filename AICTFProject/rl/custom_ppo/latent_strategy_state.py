@@ -367,6 +367,13 @@ class LatentStrategyState:
             )
             if bool(commit_now.any().item()):
                 resample_mask = resample_mask | commit_now
+                # Fix forced-z bucket alignment at warmup/commit step:
+                forced_commit = commit_now & self.episode_forced_z
+                if bool(forced_commit.any().item()):
+                    f_idx = torch.where(forced_commit)[0]
+                    self.episode_contrast_bucket[f_idx] = _strategy_experience_bucket_ids(
+                        global_state.index_select(0, f_idx)
+                    ).detach()
 
         prev_z = self.current_z.clone()
         z_idx = self.current_z.clone()
@@ -969,8 +976,8 @@ class LatentStrategyState:
                         bucket_ids=bucket_ids,
                     )
                     normalized_adv = torch.zeros_like(adv)
-                    unique_keys = torch.unique(keys)
-                    for k in unique_keys:
+                    unique_keys_tensor = torch.unique(keys)
+                    for k in unique_keys_tensor:
                         mask = (keys == k)
                         if mask.sum() > 1:
                             sub_adv = adv[mask]
@@ -1009,16 +1016,35 @@ class LatentStrategyState:
                 usage_kl = torch.zeros((), dtype=torch.float32, device=trainer.device)
                 usage_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
             pref_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            pref_loss_scaled = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            commit_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
             if pref_coef > 0.0 and bool(batch_pref_mask.any().item()):
                 valid_logits = logits[batch_pref_mask]
                 valid_targets = batch_target_probs[batch_pref_mask]
                 log_probs = torch.log_softmax(valid_logits, dim=-1)
+                
+                # Compute target confidence: 1.0 - target_entropy / log(K)
+                target_probs_clamped = valid_targets.clamp_min(1e-8)
+                target_entropy_eps = -(valid_targets * torch.log(target_probs_clamped)).sum(dim=-1)
+                import math
+                target_confidence = 1.0 - target_entropy_eps / math.log(trainer.latent_k)
+                target_confidence = target_confidence.clamp(0.0, 1.0)
+                
+                confidence_scale = float(getattr(trainer, "latent_preference_confidence_scale", 2.0) or 2.0)
+                commit_coef = float(getattr(trainer, "latent_preference_commit_coef", 0.0) or 0.0)
+                
+                # effective preference coefficient per episode: base_pref_coef * (1.0 + confidence_scale * target_confidence)
+                effective_coef_eps = pref_coef * (1.0 + confidence_scale * target_confidence)
+                
+                # Compute KL divergence per episode
+                kl_per_episode = F.kl_div(
+                    log_probs,
+                    valid_targets,
+                    reduction="none"
+                ).sum(dim=-1)
+                
+                # Raw KL loss for telemetry
                 if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
-                    kl_per_episode = F.kl_div(
-                        log_probs,
-                        valid_targets,
-                        reduction="none"
-                    ).sum(dim=-1)
                     valid_opps = opponent_ids[batch_pref_mask]
                     unique_opps = torch.unique(valid_opps)
                     opponent_losses = []
@@ -1030,14 +1056,44 @@ class LatentStrategyState:
                     if len(opponent_losses) > 0:
                         pref_loss = torch.stack(opponent_losses).mean()
                 else:
-                    pref_loss = F.kl_div(
-                        log_probs,
-                        valid_targets,
-                        reduction="batchmean"
-                    )
+                    pref_loss = kl_per_episode.mean()
+                
+                # Scaled preference loss applied to loss
+                weighted_kl_per_episode = effective_coef_eps * kl_per_episode
+                if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
+                    opponent_weighted_losses = []
+                    for opp_id in unique_opps:
+                        opp_mask = (valid_opps == opp_id)
+                        opp_weighted_kl = weighted_kl_per_episode[opp_mask]
+                        if opp_weighted_kl.numel() > 0:
+                            opponent_weighted_losses.append(opp_weighted_kl.mean())
+                    if len(opponent_weighted_losses) > 0:
+                        pref_loss_scaled = torch.stack(opponent_weighted_losses).mean()
+                else:
+                    pref_loss_scaled = weighted_kl_per_episode.mean()
+                
+                # Confidence-weighted entropy commitment loss
+                commit_type = str(getattr(trainer.cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy")
+                if commit_type == "confidence_weighted_entropy" and commit_coef > 0.0:
+                    valid_q_probs = torch.softmax(valid_logits, dim=-1)
+                    q_entropy_eps = -(valid_q_probs * torch.log(valid_q_probs + 1e-8)).sum(dim=-1)
+                    commit_loss_eps = target_confidence * q_entropy_eps
+                    
+                    if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
+                        opponent_commit_losses = []
+                        for opp_id in unique_opps:
+                            opp_mask = (valid_opps == opp_id)
+                            opp_commit = commit_loss_eps[opp_mask]
+                            if opp_commit.numel() > 0:
+                                opponent_commit_losses.append(opp_commit.mean())
+                        if len(opponent_commit_losses) > 0:
+                            commit_loss = commit_coef * torch.stack(opponent_commit_losses).mean()
+                    else:
+                        commit_loss = commit_coef * commit_loss_eps.mean()
+
             loss = trainer.latent_episode_strategy_coef * (
                 pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
-            ) + entropy_term + usage_loss + pref_coef * pref_loss
+            ) + entropy_term + usage_loss + pref_loss_scaled + commit_loss
 
             router_optimizer.zero_grad(set_to_none=True)
             loss.backward()

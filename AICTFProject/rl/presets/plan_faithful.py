@@ -352,6 +352,26 @@ def apply_plan_faithful_latent_v3h_balanced_preference(cfg: PPOConfig) -> PPOCon
     return cfg
 
 
+def apply_plan_faithful_latent_v3h2_balanced_preference(cfg: PPOConfig) -> PPOConfig:
+    """v3h2: self-supervised latent preference distillation with confidence-weighted KL + entropy commitment."""
+    cfg = apply_plan_faithful_latent_v3h_balanced_preference(cfg)
+    cfg.latent_preference_confidence_scale = 2.0
+    cfg.latent_preference_commit_coef = 0.003
+    cfg.late_entropy_floor = 0.0003
+    cfg.commitment_type = "confidence_weighted_entropy"
+    # Entropy schedule:
+    # 0 - 300k steps: lam_h = 0.003
+    # 300k - 600k steps: linear anneal from 0.003 to 0.001
+    # 600k+ steps: linear anneal from 0.001 to late_floor (0.0003) at total_timesteps
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0003
+    cfg.latent_entropy_anneal_start = 300_000
+    cfg.latent_entropy_anneal_end = 600_000
+    cfg.run_tag = "latent_v3h2_balanced_preference_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

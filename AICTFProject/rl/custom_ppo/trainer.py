@@ -216,6 +216,16 @@ class CustomPPOTrainer:
         self.latent_behavior_contrast_anneal_to = hparams.latent_behavior_contrast_anneal_to
         self.latent_usage_balance_coef = hparams.latent_usage_balance_coef
         self.latent_q_phi_train_after_steps = hparams.latent_q_phi_train_after_steps
+        self.latent_preference_coef = hparams.latent_preference_coef
+        self.latent_preference_temperature = hparams.latent_preference_temperature
+        self.latent_preference_min_bucket_count = hparams.latent_preference_min_bucket_count
+        self.latent_preference_min_distinct_z = hparams.latent_preference_min_distinct_z
+        self.latent_preference_opponent_balanced = hparams.latent_preference_opponent_balanced
+        self.latent_preference_log_opponent_targets = hparams.latent_preference_log_opponent_targets
+        self.latent_preference_confidence_scale = hparams.latent_preference_confidence_scale
+        self.latent_preference_commit_coef = hparams.latent_preference_commit_coef
+        self.late_entropy_floor = hparams.late_entropy_floor
+        self.commitment_type = hparams.commitment_type
 
         # Bucket-baseline helper for v3d. Only constructed when the mode is
         # set; ``apply_episode_strategy_ppo`` falls back to the V-marginal /

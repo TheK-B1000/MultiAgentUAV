@@ -240,6 +240,10 @@ class PPOConfig:
     latent_preference_min_distinct_z: int = 2
     latent_preference_opponent_balanced: bool = False
     latent_preference_log_opponent_targets: bool = False
+    latent_preference_confidence_scale: float = 2.0
+    latent_preference_commit_coef: float = 0.003
+    late_entropy_floor: float = 0.0003
+    commitment_type: str = "confidence_weighted_entropy"
 
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.

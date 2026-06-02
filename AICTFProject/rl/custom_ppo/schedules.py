@@ -32,6 +32,26 @@ def linear_anneal(
 
 def resolve_latent_lam_h(cfg: Any, *, global_step: int | float, total_timesteps: int) -> float:
     """Resolve the current latent entropy coefficient without changing old configs."""
+    run_tag = str(getattr(cfg, "run_tag", "") or "")
+    if "v3h2" in run_tag:
+        step_f = float(global_step)
+        late_floor = float(getattr(cfg, "late_entropy_floor", 0.0003))
+        if step_f < 300_000:
+            return 0.003
+        elif step_f < 600_000:
+            # Linear anneal from 0.003 to 0.001
+            progress = (step_f - 300_000) / 300_000.0
+            return 0.003 + progress * (0.001 - 0.003)
+        else:
+            # Linear anneal from 0.001 to late_floor (0.0003) at total_timesteps
+            end_step = float(total_timesteps)
+            if end_step <= 600_000:
+                return late_floor
+            if step_f >= end_step:
+                return late_floor
+            progress = (step_f - 600_000) / (end_step - 600_000)
+            return 0.001 + progress * (late_floor - 0.001)
+
     lam_h_start = getattr(cfg, "latent_lam_h_start", None)
     if lam_h_start is None:
         lam_h_start = getattr(cfg, "latent_lam_h", 0.0) or 0.0

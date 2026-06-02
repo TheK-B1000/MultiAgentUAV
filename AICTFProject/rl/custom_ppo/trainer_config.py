@@ -102,6 +102,10 @@ class TrainerHyperparams:
     latent_preference_min_distinct_z: int
     latent_preference_opponent_balanced: bool
     latent_preference_log_opponent_targets: bool
+    latent_preference_confidence_scale: float
+    latent_preference_commit_coef: float
+    late_entropy_floor: float
+    commitment_type: str
 
     # ----- reward composition (env-driven defaults) -----
     reward_dense_weight: float
@@ -316,6 +320,10 @@ class TrainerHyperparams:
             ),
             latent_preference_opponent_balanced=bool(getattr(cfg, "latent_preference_opponent_balanced", False)),
             latent_preference_log_opponent_targets=bool(getattr(cfg, "latent_preference_log_opponent_targets", False)),
+            latent_preference_confidence_scale=float(getattr(cfg, "latent_preference_confidence_scale", 2.0) or 2.0),
+            latent_preference_commit_coef=float(getattr(cfg, "latent_preference_commit_coef", 0.0) or 0.0),
+            late_entropy_floor=float(getattr(cfg, "late_entropy_floor", 0.0003) or 0.0003),
+            commitment_type=str(getattr(cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy"),
             reward_dense_weight=max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0)),
             reward_scale=max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0)),
             reward_clip=max(1e-6, float(getattr(env_cfg, "reward_clip", 1.0) or 1.0)),

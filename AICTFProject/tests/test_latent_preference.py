@@ -284,5 +284,79 @@ class LatentPreferenceTests(unittest.TestCase):
         self.assertAlmostEqual(stats["latent_preference_loss"], expected_balanced_loss, places=5)
 
 
+    def test_v3h2_confidence_weighted_loss(self) -> None:
+        trainer = _make_trainer(n_envs=1, warmup=0, episode_credit=True, gs_dim=4)
+        trainer.cfg = SimpleNamespace(opponent_pool=["OP3", "OP5"], opponent_pool_weights=[0.5, 0.5])
+        
+        # v3h2 hyperparams
+        trainer.latent_preference_coef = 0.03
+        trainer.latent_preference_temperature = 1.0
+        trainer.latent_preference_min_bucket_count = 2
+        trainer.latent_preference_min_distinct_z = 2
+        trainer.latent_preference_confidence_scale = 2.0
+        trainer.latent_preference_commit_coef = 0.003
+        trainer.late_entropy_floor = 0.0003
+        trainer.commitment_type = "confidence_weighted_entropy"
+        
+        class MockOptimizer:
+            def __init__(self):
+                self.zero_grad_called = False
+                self.step_called = False
+                self.param_groups = [{"params": []}]
+            def zero_grad(self, set_to_none=True):
+                self.zero_grad_called = True
+            def step(self):
+                self.step_called = True
+        
+        trainer.optimizer = MockOptimizer()
+        trainer.latent_router_optimizer = None
+        trainer.cfg.max_grad_norm = 1.0
+        trainer.latent_episode_strategy_coef = 0.3
+        trainer.latent_episode_strategy_value_coef = 0.5
+        trainer.latent_entropy_objective = "maximize"
+        trainer.latent_episode_strategy_n_epochs = 1
+        trainer.latent_episode_strategy_clip_eps = 0.2
+        trainer.latent_episode_strategy_return_norm = False
+        trainer.latent_lam_h = 0.0
+        
+        class MockModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.global_state_dim = 4
+                self.strategy_encoder = torch.nn.Linear(4, 4)
+                self.episode_strategy_value_head = torch.nn.Linear(4, 1)
+                
+                # Setup dummy weights to yield deterministic predictions
+                with torch.no_grad():
+                    self.strategy_encoder.weight.zero_()
+                    self.strategy_encoder.bias.copy_(torch.tensor([0.0, 0.0, 0.0, 0.0]))
+            def strategy_logits(self, state):
+                return self.strategy_encoder(state)
+            def episode_strategy_value(self, state, z):
+                return self.episode_strategy_value_head(state).squeeze(-1)
+        
+        mock_model = MockModel()
+        trainer.model = mock_model
+        
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+        
+        # Add 2 records to the preference buffer:
+        latent_state.latent_preference_buffer.append({
+            "context_bucket": 5, "opponent": 2, "phase_flag_state": 5, "z": 0, "return": 0.0, "behavior_embedding": [0.0]*13, "win_loss": 0,
+        })
+        latent_state.latent_preference_buffer.append({
+            "context_bucket": 5, "opponent": 2, "phase_flag_state": 5, "z": 1, "return": 100.0, "behavior_embedding": [0.0]*13, "win_loss": 0,
+        })
+        
+        # Put 1 matching episode record in standard training rollout records
+        latent_state.rollout_strategy_episode_records.append({
+            "episode_id": 0, "global_state_0": torch.zeros(4, dtype=torch.float32), "z": 1, "z_logprob_old": 0.0, "episode_return": 15.0, "bucket_id": 5, "opponent_id": 2, "q_phi_probs": [0.25]*4,
+        })
+        
+        stats = latent_state.apply_episode_strategy_ppo(latent_lam_h=0.0)
+        self.assertGreater(stats["latent_preference_loss"], 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()
