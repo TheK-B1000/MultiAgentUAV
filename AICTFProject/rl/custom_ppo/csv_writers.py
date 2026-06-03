@@ -372,6 +372,9 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_refresh_reason_near_base",
             "latent_refresh_z_changed_rate",
         ])
+        for i in range(latent_k):
+            for j in range(latent_k):
+                fields.append(f"latent_refresh_z{i}_to_z{j}")
     return fields
 
 

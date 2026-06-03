@@ -274,5 +274,36 @@ class LatentEventRefreshTests(unittest.TestCase):
         stats = ls.event_refresh_rollout_stats()
         self.assertEqual(stats["latent_refresh_count"], 2.0)
 
+    def test_transition_matrix(self):
+        trainer = _make_trainer(1)
+        # Override sampling to return 2 initially
+        trainer.model._categorical_argmax_or_sample = lambda dist, **kwargs: torch.tensor([2], dtype=torch.long)
+        
+        ls = LatentStrategyState(trainer)
+        ls.reset()
+        
+        # Step 0: start. Samples z0 = 2.
+        state_t0 = self._gs(enemy_flag=0.0)
+        z0, _, _ = ls.strategy_for_step(state_t0)
+        self.assertEqual(int(z0.item()), 2)
+        ls.mark_strategy_step_done(np.array([False]))
+        
+        # Clear gap
+        for _ in range(25):
+            ls.mark_strategy_step_done(np.array([False]))
+            
+        # Trigger event and transition to z = 3
+        trainer.model._categorical_argmax_or_sample = lambda dist, **kwargs: torch.tensor([3], dtype=torch.long)
+        state_t1 = self._gs(enemy_flag=1.0)
+        z1, _, _ = ls.strategy_for_step(state_t1)
+        self.assertEqual(int(z1.item()), 3)
+        
+        stats = ls.event_refresh_rollout_stats()
+        # The transition must be 2 -> 3
+        self.assertEqual(stats["latent_refresh_z2_to_z3"], 1.0)
+        # Other transitions must be 0.0
+        self.assertEqual(stats["latent_refresh_z0_to_z0"], 0.0)
+        self.assertEqual(stats["latent_refresh_z2_to_z2"], 0.0)
+
 if __name__ == "__main__":
     unittest.main()

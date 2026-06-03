@@ -223,6 +223,10 @@ class LatentStrategyState:
         self.steps_since_last_refresh = torch.zeros((n_envs,), dtype=torch.long, device=device)
         self.refresh_count_this_episode = torch.zeros((n_envs,), dtype=torch.long, device=device)
         self.prev_global_state = None
+        self.rollout_refresh_transitions = np.zeros(
+            (max(1, int(trainer.latent_k)), max(1, int(trainer.latent_k))),
+            dtype=np.float32,
+        )
 
         # Rollout accumulator stats
         self.rollout_refresh_count = 0
@@ -285,10 +289,13 @@ class LatentStrategyState:
         self.rollout_refresh_reason_score_change = 0
         self.rollout_refresh_reason_near_base = 0
         self.rollout_refresh_total_steps = 0
+        self.rollout_refresh_transitions.fill(0.0)
 
     def event_refresh_rollout_stats(self) -> dict[str, float]:
+        stats = {}
+        latent_k = max(1, int(self.trainer.latent_k))
         if not getattr(self.trainer, "latent_event_refresh_enabled", False):
-            return {
+            stats.update({
                 "latent_refresh_count": 0.0,
                 "latent_refresh_rate": 0.0,
                 "latent_refresh_reason_enemy_flag": 0.0,
@@ -296,13 +303,17 @@ class LatentStrategyState:
                 "latent_refresh_reason_score_change": 0.0,
                 "latent_refresh_reason_near_base": 0.0,
                 "latent_refresh_z_changed_rate": 0.0,
-            }
+            })
+            for i in range(latent_k):
+                for j in range(latent_k):
+                    stats[f"latent_refresh_z{i}_to_z{j}"] = 0.0
+            return stats
         
         count = float(self.rollout_refresh_count)
         total_steps = float(max(1, self.rollout_refresh_total_steps))
         z_changed_rate = float(self.rollout_refresh_z_changed_count) / count if count > 0 else 0.0
         
-        return {
+        stats.update({
             "latent_refresh_count": count,
             "latent_refresh_rate": count / total_steps,
             "latent_refresh_reason_enemy_flag": float(self.rollout_refresh_reason_enemy_flag),
@@ -310,7 +321,11 @@ class LatentStrategyState:
             "latent_refresh_reason_score_change": float(self.rollout_refresh_reason_score_change),
             "latent_refresh_reason_near_base": float(self.rollout_refresh_reason_near_base),
             "latent_refresh_z_changed_rate": z_changed_rate,
-        }
+        })
+        for i in range(latent_k):
+            for j in range(latent_k):
+                stats[f"latent_refresh_z{i}_to_z{j}"] = float(self.rollout_refresh_transitions[i, j])
+        return stats
 
     def reset_behavior_contrast_rollout_stats(self) -> None:
         self.rollout_behavior_contrast_bonus_sum = 0.0
@@ -565,6 +580,14 @@ class LatentStrategyState:
             if bool(event_resampled.any().item()):
                 actual_changes = (z_idx != prev_z) & event_resampled
                 self.rollout_refresh_z_changed_count += int(actual_changes.sum().item())
+                
+                # Track transitions
+                for env_idx in torch.where(event_resampled)[0]:
+                    pz_val = int(prev_z[env_idx].item())
+                    nz_val = int(z_idx[env_idx].item())
+                    latent_k = int(trainer.latent_k)
+                    if 0 <= pz_val < latent_k and 0 <= nz_val < latent_k:
+                        self.rollout_refresh_transitions[pz_val, nz_val] += 1.0
 
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
