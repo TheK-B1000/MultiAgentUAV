@@ -177,6 +177,35 @@ def _v3i3_resolve_target(
     return None, None
 
 
+def _carrier_progress_bucket_ids(global_state: torch.Tensor) -> torch.Tensor:
+    """Bucket active carrier progress from the global-state carrier distance.
+
+    Bucket ids:
+      0 = no active flag carrier
+      1 = carrier far from scoring home
+      2 = carrier in midfield
+      3 = carrier near scoring home
+    """
+    if global_state.dim() != 2:
+        raise ValueError(f"global_state must be 2-D, got {tuple(global_state.shape)}")
+    raw = global_state[:, :GLOBAL_STATE_DIM].float()
+    if raw.shape[1] < GLOBAL_STATE_DIM:
+        raw = F.pad(raw, (0, GLOBAL_STATE_DIM - int(raw.shape[1])))
+    enemy_has_our_flag = raw[:, 10] > 0.5
+    we_have_enemy_flag = raw[:, 11] > 0.5
+    carrier_active = enemy_has_our_flag | we_have_enemy_flag
+    dist_home = raw[:, 23].contiguous()
+    far = torch.ones_like(dist_home, dtype=torch.long)
+    mid = torch.full_like(dist_home, 2, dtype=torch.long)
+    near = torch.full_like(dist_home, 3, dtype=torch.long)
+    active_bucket = torch.where(
+        dist_home > 0.66,
+        far,
+        torch.where(dist_home > 0.33, mid, near),
+    )
+    return torch.where(carrier_active, active_bucket, torch.zeros_like(active_bucket))
+
+
 def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor:
     """Coarse post-hoc situation buckets for diagnostics only; never used as training labels."""
     if context_state.dim() != 2:
@@ -771,21 +800,7 @@ class LatentStrategyState:
                     we_have = (curr_gs[:, 11] > 0.5).long()
                     flag_state_t = enemy_has * 2 + we_have
 
-                    flag_active = (enemy_has > 0.5) | (we_have > 0.5)
-                    carrier_dist = curr_gs[:, 23]
-                    carrier_progress_bucket_t = torch.where(
-                        ~flag_active,
-                        torch.zeros_like(carrier_dist, dtype=torch.long),
-                        torch.where(
-                            carrier_dist > 0.66,
-                            torch.ones_like(carrier_dist, dtype=torch.long),
-                            torch.where(
-                                carrier_dist > 0.33,
-                                torch.full_like(carrier_dist, 2, dtype=torch.long),
-                                torch.full_like(carrier_dist, 3, dtype=torch.long)
-                            )
-                        )
-                    )
+                    carrier_progress_bucket_t = _carrier_progress_bucket_ids(curr_gs)
 
                     # The actual sampled z post-resample for the event-refreshed
                     # envs. ``z_idx`` still holds prev_z at this point in the

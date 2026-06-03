@@ -459,6 +459,109 @@ class LatentPreferenceTests(unittest.TestCase):
         # Because z=0 and z=1 normalized returns are both 0.0, means=[0.0, 0.0, 0.0, 0.0] -> uniform.
         self.assertAlmostEqual(stats["latent_v3i3_event_pref_target_entropy"], 1.38629436, places=4)
 
+    def test_apply_episode_strategy_ppo_v3i4_normalizes_by_progress_key(self) -> None:
+        trainer = _make_trainer(n_envs=1, warmup=0, episode_credit=True, gs_dim=4)
+        trainer.cfg = SimpleNamespace(opponent_pool=["OP3"], opponent_pool_weights=[1.0])
+        trainer.latent_v3i3_event_preference_enabled = True
+        trainer.latent_v3i3_event_preference_coef = 0.5
+        trainer.latent_v3i3_event_preference_temperature = 1.0
+        trainer.latent_v3i3_event_preference_min_bucket_count = 3
+        trainer.latent_v3i3_event_preference_min_distinct_z = 1
+        trainer.latent_v3i3_event_preference_buffer_size = 1000
+        trainer.latent_v3i3_event_preference_warmup_steps = 0
+        trainer.latent_v3i3_event_preference_normalize = True
+        trainer.global_step = 100
+        trainer.latent_k = 4
+        trainer.latent_episode_strategy_coef = 0.0
+        trainer.latent_episode_strategy_n_epochs = 1
+        trainer.cfg.max_grad_norm = 1.0
+        trainer.latent_episode_strategy_return_norm = False
+        trainer.latent_episode_strategy_value_coef = 0.5
+        trainer.latent_entropy_objective = "maximize"
+        trainer.latent_episode_strategy_clip_eps = 0.2
+        trainer.latent_lam_h = 0.0
+        trainer.latent_preference_coef = 0.0
+        trainer.latent_event_preference_key_mode = "event_flag_progress"
+
+        class MockOptimizer:
+            def __init__(self):
+                self.zero_grad_called = False
+                self.step_called = False
+                self.param_groups = [{"params": []}]
+            def zero_grad(self, set_to_none=True):
+                self.zero_grad_called = True
+            def step(self):
+                self.step_called = True
+
+        trainer.optimizer = MockOptimizer()
+        trainer.latent_router_optimizer = None
+
+        class MockModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.global_state_dim = 4
+                self.strategy_encoder = torch.nn.Linear(4, 4)
+                self.episode_strategy_value_head = torch.nn.Linear(4, 1)
+            def strategy_logits(self, state):
+                return self.strategy_encoder(state)
+            def episode_strategy_value(self, state, z):
+                return self.episode_strategy_value_head(state).squeeze(-1)
+
+        trainer.model = MockModel()
+
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+
+        # Same opponent/event/flag, different progress buckets.
+        # Correct v3i4 normalization subtracts each full progress-key baseline,
+        # so fallback to (opp,event,flag) sees zero advantage for both z slots.
+        for _ in range(2):
+            latent_state.refresh_preference_buffer.append({
+                "opponent_id": 2,
+                "event_type": 1,
+                "flag_state_bucket": 2,
+                "carrier_progress_bucket": 1,
+                "z": 1,
+                "future_return": 20.0,
+            })
+            latent_state.refresh_preference_buffer.append({
+                "opponent_id": 2,
+                "event_type": 1,
+                "flag_state_bucket": 2,
+                "carrier_progress_bucket": 3,
+                "z": 0,
+                "future_return": 120.0,
+            })
+
+        latent_state.rollout_refresh_records.append({
+            "refresh_state": torch.zeros(4, dtype=torch.float32),
+            "opponent_id": 2,
+            "reason_id": 1,
+            "flag_state_bucket": 2,
+            "carrier_progress_bucket": 1,
+            "next_z": 1,
+            "return_at_refresh": 0.0,
+        })
+        latent_state.rollout_strategy_episode_records.append({
+            "episode_id": 0,
+            "global_state_0": torch.zeros(4, dtype=torch.float32),
+            "z": 1,
+            "z_logprob_old": 0.0,
+            "episode_return": 15.0,
+            "bucket_id": 5,
+            "opponent_id": 2,
+            "q_phi_probs": [0.25] * 4,
+        })
+
+        stats = latent_state.apply_episode_strategy_ppo(latent_lam_h=0.0)
+
+        self.assertEqual(stats["latent_v3i3_event_pref_active_records"], 1.0)
+        self.assertEqual(stats["latent_v3i3_event_pref_fallback_oef"], 1.0)
+        self.assertEqual(stats["latent_v3i3_event_pref_fallback_full"], 0.0)
+        self.assertAlmostEqual(
+            stats["latent_v3i3_event_pref_target_entropy"], 1.38629436, places=4
+        )
+
 
 
 if __name__ == "__main__":

@@ -303,6 +303,7 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertTrue(cfg["latent_event_refresh_enabled"])
                 self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
                 self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
                 self.assertEqual(cfg["latent_v3i3_event_preference_warmup_steps"], 50_000)
                 self.assertFalse(cfg["fixed_latent_strategy"])
 

@@ -42,6 +42,7 @@ _lss_module = _load_latent_strategy_module()
 LatentStrategyState = _lss_module.LatentStrategyState
 _v3i3_target_from_items = _lss_module._v3i3_target_from_items
 _v3i3_resolve_target = _lss_module._v3i3_resolve_target
+_carrier_progress_bucket_ids = _lss_module._carrier_progress_bucket_ids
 
 class _FakeStrategyHead(torch.nn.Module):
     def __init__(self, latent_k: int) -> None:
@@ -355,6 +356,22 @@ class V3i3PendingRefreshCaptureTests(unittest.TestCase):
         self.assertIn("return_at_refresh", rec)
         # flag_state_bucket = 2*enemy_has + we_have = 2*1 + 0 = 2
         self.assertEqual(int(rec["flag_state_bucket"]), 2)
+        # carrier_progress_bucket: 1 = carrier far from scoring home.
+        self.assertEqual(int(rec["carrier_progress_bucket"]), 1)
+
+    def test_carrier_progress_bucket_ids_cover_no_far_mid_near(self) -> None:
+        state = torch.zeros((4, 170), dtype=torch.float32)
+        state[0, 23] = 0.1
+        state[1, 10] = 1.0
+        state[1, 23] = 0.8
+        state[2, 11] = 1.0
+        state[2, 23] = 0.5
+        state[3, 10] = 1.0
+        state[3, 23] = 0.2
+
+        buckets = _carrier_progress_bucket_ids(state)
+
+        self.assertEqual(buckets.tolist(), [0, 1, 2, 3])
 
     def test_event_type_priority_when_multiple_triggers_fire(self) -> None:
         """Enemy_flag wins over score_change when both fire on the same step."""
@@ -450,6 +467,19 @@ class V3i3HierarchicalFallbackTests(unittest.TestCase):
             by_o.setdefault((int(opp),), []).append(pair)
         return by_full, by_oe, by_o
 
+    def _make_progress_buffer_with_items(self, items: list) -> tuple[dict, dict, dict, dict]:
+        """``items`` is a list of (opp, event, flag, progress, z, future_return) tuples."""
+        by_full, by_oef, by_oe, by_o = {}, {}, {}, {}
+        for opp, ev, fl, progress, z, fr in items:
+            pair = (int(z), float(fr))
+            by_full.setdefault(
+                (int(opp), int(ev), int(fl), int(progress)), []
+            ).append(pair)
+            by_oef.setdefault((int(opp), int(ev), int(fl)), []).append(pair)
+            by_oe.setdefault((int(opp), int(ev)), []).append(pair)
+            by_o.setdefault((int(opp),), []).append(pair)
+        return by_full, by_oef, by_oe, by_o
+
     def test_full_bucket_match_when_sufficient_evidence(self) -> None:
         by_full, by_oe, by_o = self._make_buffer_with_items([
             (2, 0, 2, 0, 1.0),
@@ -505,6 +535,35 @@ class V3i3HierarchicalFallbackTests(unittest.TestCase):
         )
         self.assertEqual(level, "o")
         self.assertIsNotNone(target)
+
+    def test_v3i4_falls_back_from_progress_to_event_flag(self) -> None:
+        by_full, by_oef, by_oe, by_o = self._make_progress_buffer_with_items([
+            (2, 0, 2, 3, 0, 1.0),
+            (2, 0, 2, 1, 0, 0.8),
+            (2, 0, 2, 1, 1, -0.2),
+            (2, 0, 2, 2, 1, -0.3),
+        ])
+
+        target, level = _v3i3_resolve_target(
+            opponent_id=2,
+            event_type=0,
+            flag_state_bucket=2,
+            carrier_progress_bucket=3,
+            by_full=by_full,
+            by_oef=by_oef,
+            by_oe=by_oe,
+            by_o=by_o,
+            latent_k=4,
+            min_count=4,
+            min_distinct_z=2,
+            temperature=0.75,
+            target_cache={},
+            key_mode="event_flag_progress",
+        )
+
+        self.assertEqual(level, "oef")
+        self.assertIsNotNone(target)
+        self.assertGreater(float(target[0]), float(target[1]))
 
     def test_returns_none_when_no_level_has_enough(self) -> None:
         by_full, by_oe, by_o = self._make_buffer_with_items([
