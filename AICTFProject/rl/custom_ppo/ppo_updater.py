@@ -39,6 +39,7 @@ from rl.custom_ppo.latent_diagnostics import (
     _latent_rollout_stats,
     _rollout_advantage_diagnostics,
     _strategy_resample_advantage_stats,
+    _write_refresh_log_table,
     _write_strategy_experience_table,
     _policy_z_sensitivity_kl,
 )
@@ -363,6 +364,15 @@ class PPOUpdater:
             latent_lam_h=latent_lam_h
         )
         strategy_experience_stats = _write_strategy_experience_table(runtime)
+        # v3i3 per-refresh proof-layer CSV log. Always-safe no-op when the
+        # feature is disabled. Runs AFTER apply_episode_strategy_ppo so the
+        # finalized ``rollout_refresh_records`` (used by both the loss above
+        # and the log below) are consistent.
+        refresh_log_stats = _write_refresh_log_table(runtime)
+        # Drain the per-rollout refresh records once both consumers (loss +
+        # CSV) have run. The cumulative ``refresh_preference_buffer`` is
+        # NOT cleared (it is the teacher's growing evidence library).
+        self.latent_state.clear_rollout_refresh_records()
 
         runtime.last_stats = {
             name: float(np.mean(values)) if values else 0.0 for name, values in stats.items()
@@ -411,6 +421,7 @@ class PPOUpdater:
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(strategy_experience_stats)
+        runtime.last_stats.update(refresh_log_stats)
         runtime.last_stats.update(self.latent_state.behavior_contrast_rollout_stats())
         runtime.last_stats.update(self.latent_state.event_refresh_rollout_stats())
         if hparams.use_latent_strategy and "z_forced" in buffer.fields:

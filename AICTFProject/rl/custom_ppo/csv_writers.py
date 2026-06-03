@@ -378,6 +378,21 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         for i in range(latent_k):
             for j in range(latent_k):
                 fields.append(f"latent_refresh_z{i}_to_z{j}")
+        # v3i3 event-conditioned preference telemetry. Always present in
+        # the schema so disabled runs emit zeros (matches the v3i2-era
+        # pattern for latent_preference_*).
+        fields.extend([
+            "latent_v3i3_event_pref_loss",
+            "latent_v3i3_event_pref_active_fraction",
+            "latent_v3i3_event_pref_active_buckets",
+            "latent_v3i3_event_pref_active_records",
+            "latent_v3i3_event_pref_buffer_size",
+            "latent_v3i3_event_pref_target_entropy",
+            "latent_v3i3_event_pref_fallback_full",
+            "latent_v3i3_event_pref_fallback_oe",
+            "latent_v3i3_event_pref_fallback_o",
+            "latent_v3i3_event_pref_rollout_records",
+        ])
     return fields
 
 
@@ -397,6 +412,41 @@ def _strategy_experience_fieldnames() -> list[str]:
         "chosen_freq",
         "best_z",
         "best_z_match_frac",
+    ]
+
+
+# v3i3 per-refresh proof-layer log. One CSV row per finalized refresh
+# event. The "reason" / event_type integer encoding follows the priority
+# used by ``LatentStrategyState.strategy_for_step``:
+#     0 = enemy_flag, 1 = friendly_flag, 2 = score_change, 3 = near_base
+# (priority left-to-right when multiple triggers fire on the same step).
+# ``flag_state_bucket`` is ``2 * enemy_has_our_flag + we_have_enemy_flag``
+# (0..3) computed from the global state at the refresh moment.
+V3I3_REFRESH_REASON_LABELS: tuple[str, ...] = (
+    "enemy_flag",
+    "friendly_flag",
+    "score_change",
+    "near_base",
+)
+
+
+def _v3i3_refresh_log_fieldnames() -> list[str]:
+    return [
+        "update",
+        "run_id",
+        "run_pid",
+        "timesteps",
+        "env_id",
+        "episode_id",
+        "decision_step",
+        "reason_id",
+        "reason",
+        "prev_z",
+        "next_z",
+        "opponent_id",
+        "flag_state_bucket",
+        "return_at_refresh",
+        "return_from_now_to_end",
     ]
 
 

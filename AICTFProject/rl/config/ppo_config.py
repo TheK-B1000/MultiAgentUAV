@@ -252,6 +252,35 @@ class PPOConfig:
     latent_event_refresh_use_q_phi: bool = True
     latent_event_refresh_force_roles: bool = False
 
+    # v3i3 event-conditioned preference. Each event refresh becomes a
+    # per-refresh learning datapoint with target bucket key
+    # ``(opponent_id, event_type, flag_state_bucket)`` and credit signal
+    # ``return_from_now_to_end_of_episode``. The teacher loss is a KL between
+    # ``q_phi(z | state_at_refresh)`` and softmax over avg future-return per
+    # z within the matching bucket. Hierarchical fallback when the
+    # finest-grained bucket is undersampled:
+    #     (opp, event, flag) -> (opp, event) -> (opp)
+    # Plan-faithful: ``event_type`` is *context* (input only to the
+    # teacher's bucket key + future-return credit), never a command. q_phi
+    # still learns pi(z | state) -- no scripted z assignments.
+    latent_v3i3_event_preference_enabled: bool = False
+    latent_v3i3_event_preference_coef: float = 0.0
+    latent_v3i3_event_preference_temperature: float = 0.75
+    latent_v3i3_event_preference_min_bucket_count: int = 4
+    latent_v3i3_event_preference_min_distinct_z: int = 2
+    latent_v3i3_event_preference_buffer_size: int = 50_000
+    # Number of global steps to wait before applying the v3i3 preference
+    # loss. 0 = apply from the first rollout. Useful to let the buffer
+    # accumulate evidence before the teacher fires.
+    latent_v3i3_event_preference_warmup_steps: int = 0
+    # Per-refresh proof-layer log. One CSV row per finalized refresh event:
+    #   env_id, episode_id, decision_step, reason, prev_z, next_z,
+    #   opponent_id, flag_state_bucket, return_from_now_to_end
+    # Independent of the preference loss -- enable the log alone for an
+    # instrumentation-only run.
+    latent_v3i3_refresh_log_enabled: bool = False
+    latent_v3i3_refresh_log_path: Optional[str] = None
+
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.
     train_domain_randomization: bool = False

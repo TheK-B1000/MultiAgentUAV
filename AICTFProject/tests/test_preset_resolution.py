@@ -156,6 +156,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i2_router_signal",
             "plan_faithful_latent_v3i2",
             "latent_v3i2",
+            "plan_faithful_latent_v3i3_event_conditioned_preference",
+            "latent_v3i3_event_conditioned_preference",
+            "plan_faithful_latent_v3i3",
+            "latent_v3i3",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -228,6 +232,39 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(cfg["latent_preference_min_distinct_z"], 2)
                 self.assertFalse(cfg.get("latent_preference_opponent_balanced", False))
                 self.assertFalse(cfg.get("latent_preference_log_opponent_targets", False))
+
+    def test_latent_v3i3_event_conditioned_preference_is_summer_faithful(self) -> None:
+        """v3i3 inherits v3i2 + enables event-conditioned preference & refresh log.
+
+        Plan-faithful invariants:
+            * event_refresh stays ON (the audible system v3i3 trains on)
+            * episode-credit path stays ON (v3i3 hooks into the same update)
+            * latent_v3i3_event_preference_enabled = True with coef > 0
+            * latent_v3i3_refresh_log_enabled = True (proof-layer log mandatory)
+            * No new policy inputs / role labels / scripted z assignments
+              (v3i3 only changes the preference *target* keying, the actor's
+              input remains pi(z | state)).
+        """
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i3_event_conditioned_preference",
+            "latent_v3i3_event_conditioned_preference",
+            "plan_faithful_latent_v3i3",
+            "latent_v3i3",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertGreater(cfg["latent_v3i3_event_preference_coef"], 0.0)
+                self.assertTrue(cfg["latent_v3i3_refresh_log_enabled"])
+                self.assertEqual(cfg["latent_v3i3_event_preference_min_bucket_count"], 4)
+                self.assertEqual(cfg["latent_v3i3_event_preference_min_distinct_z"], 2)
+                self.assertGreaterEqual(cfg["latent_v3i3_event_preference_buffer_size"], 1000)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+                self.assertFalse(cfg.get("latent_event_refresh_force_roles", False))
 
     def test_latent_v3h_preference_balanced_is_summer_faithful(self) -> None:
         """v3h has correct opponent balanced preference distillation config and target telemetry."""

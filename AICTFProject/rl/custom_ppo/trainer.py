@@ -231,6 +231,23 @@ class CustomPPOTrainer:
         self.latent_event_refresh_max_per_episode = hparams.latent_event_refresh_max_per_episode
         self.latent_event_refresh_use_q_phi = hparams.latent_event_refresh_use_q_phi
         self.latent_event_refresh_force_roles = hparams.latent_event_refresh_force_roles
+        self.latent_v3i3_event_preference_enabled = hparams.latent_v3i3_event_preference_enabled
+        self.latent_v3i3_event_preference_coef = hparams.latent_v3i3_event_preference_coef
+        self.latent_v3i3_event_preference_temperature = hparams.latent_v3i3_event_preference_temperature
+        self.latent_v3i3_event_preference_min_bucket_count = (
+            hparams.latent_v3i3_event_preference_min_bucket_count
+        )
+        self.latent_v3i3_event_preference_min_distinct_z = (
+            hparams.latent_v3i3_event_preference_min_distinct_z
+        )
+        self.latent_v3i3_event_preference_buffer_size = (
+            hparams.latent_v3i3_event_preference_buffer_size
+        )
+        self.latent_v3i3_event_preference_warmup_steps = (
+            hparams.latent_v3i3_event_preference_warmup_steps
+        )
+        self.latent_v3i3_refresh_log_enabled = hparams.latent_v3i3_refresh_log_enabled
+        self.latent_v3i3_refresh_log_path = hparams.latent_v3i3_refresh_log_path
 
         # Bucket-baseline helper for v3d. Only constructed when the mode is
         # set; ``apply_episode_strategy_ppo`` falls back to the V-marginal /

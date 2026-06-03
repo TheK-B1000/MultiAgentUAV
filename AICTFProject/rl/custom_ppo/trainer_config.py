@@ -111,6 +111,15 @@ class TrainerHyperparams:
     latent_event_refresh_max_per_episode: int
     latent_event_refresh_use_q_phi: bool
     latent_event_refresh_force_roles: bool
+    latent_v3i3_event_preference_enabled: bool
+    latent_v3i3_event_preference_coef: float
+    latent_v3i3_event_preference_temperature: float
+    latent_v3i3_event_preference_min_bucket_count: int
+    latent_v3i3_event_preference_min_distinct_z: int
+    latent_v3i3_event_preference_buffer_size: int
+    latent_v3i3_event_preference_warmup_steps: int
+    latent_v3i3_refresh_log_enabled: bool
+    latent_v3i3_refresh_log_path: str
 
     # ----- reward composition (env-driven defaults) -----
     reward_dense_weight: float
@@ -334,6 +343,35 @@ class TrainerHyperparams:
             latent_event_refresh_max_per_episode=int(getattr(cfg, "latent_event_refresh_max_per_episode", 3)),
             latent_event_refresh_use_q_phi=bool(getattr(cfg, "latent_event_refresh_use_q_phi", True)),
             latent_event_refresh_force_roles=bool(getattr(cfg, "latent_event_refresh_force_roles", False)),
+            latent_v3i3_event_preference_enabled=(
+                use_latent
+                and not fixed_latent
+                and bool(getattr(cfg, "latent_v3i3_event_preference_enabled", False))
+            ),
+            latent_v3i3_event_preference_coef=max(
+                0.0, float(getattr(cfg, "latent_v3i3_event_preference_coef", 0.0) or 0.0)
+            ),
+            latent_v3i3_event_preference_temperature=max(
+                1e-6, float(getattr(cfg, "latent_v3i3_event_preference_temperature", 0.75) or 0.75)
+            ),
+            latent_v3i3_event_preference_min_bucket_count=max(
+                1, int(getattr(cfg, "latent_v3i3_event_preference_min_bucket_count", 4) or 4)
+            ),
+            latent_v3i3_event_preference_min_distinct_z=max(
+                1, int(getattr(cfg, "latent_v3i3_event_preference_min_distinct_z", 2) or 2)
+            ),
+            latent_v3i3_event_preference_buffer_size=max(
+                1, int(getattr(cfg, "latent_v3i3_event_preference_buffer_size", 50_000) or 50_000)
+            ),
+            latent_v3i3_event_preference_warmup_steps=max(
+                0, int(getattr(cfg, "latent_v3i3_event_preference_warmup_steps", 0) or 0)
+            ),
+            latent_v3i3_refresh_log_enabled=bool(
+                getattr(cfg, "latent_v3i3_refresh_log_enabled", False)
+            ),
+            latent_v3i3_refresh_log_path=str(
+                getattr(cfg, "latent_v3i3_refresh_log_path", "") or ""
+            ),
             reward_dense_weight=max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0)),
             reward_scale=max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0)),
             reward_clip=max(1e-6, float(getattr(env_cfg, "reward_clip", 1.0) or 1.0)),

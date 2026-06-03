@@ -15,8 +15,10 @@ from rl.behavior_telemetry import (
 )
 from rl.custom_ppo.csv_writers import (
     SCRIPTED_OPPONENT_MI_COUNT,
+    V3I3_REFRESH_REASON_LABELS,
     _ensure_additive_csv_header,
     _strategy_experience_fieldnames,
+    _v3i3_refresh_log_fieldnames,
 )
 from rl.custom_ppo.inference import FORCED_Z_MACRO_ACTIONS, FORCED_Z_PROFILE_MAX_ROWS
 from rl.discrete_mi import discrete_mi_plugin
@@ -637,6 +639,75 @@ def _write_strategy_experience_table(trainer: Any) -> dict[str, float]:
         "strategy_experience_records": float(total),
         "strategy_experience_buckets": float(len(by_bucket)),
     }
+
+
+def _write_refresh_log_table(trainer: Any) -> dict[str, float]:
+    """Write one CSV row per finalized v3i3 refresh event for this rollout.
+
+    Schema (see ``csv_writers._v3i3_refresh_log_fieldnames``):
+        update, run_id, run_pid, timesteps,
+        env_id, episode_id, decision_step, reason_id, reason,
+        prev_z, next_z, opponent_id, flag_state_bucket,
+        return_at_refresh, return_from_now_to_end
+
+    No-op when v3i3 logging is disabled, the path is empty, or no refresh
+    records were finalized this rollout. Returns a stats dict the caller
+    can merge into ``last_stats`` for surfacing in the per-update metrics.
+    """
+    if not bool(getattr(trainer, "latent_v3i3_refresh_log_enabled", False)):
+        return {"latent_v3i3_refresh_log_rows": 0.0}
+    path = str(getattr(trainer, "latent_v3i3_refresh_log_path", "") or "")
+    if not path:
+        return {"latent_v3i3_refresh_log_rows": 0.0}
+    if not getattr(trainer, "use_latent_strategy", False):
+        return {"latent_v3i3_refresh_log_rows": 0.0}
+    latent_state = getattr(trainer, "latent_state", None)
+    if latent_state is None:
+        return {"latent_v3i3_refresh_log_rows": 0.0}
+    records = list(getattr(latent_state, "rollout_refresh_records", []) or [])
+    if not records:
+        return {"latent_v3i3_refresh_log_rows": 0.0}
+    fieldnames = _v3i3_refresh_log_fieldnames()
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    _ensure_additive_csv_header(path, fieldnames)
+    nonempty = os.path.isfile(path) and os.path.getsize(path) > 0
+    rows: list[dict[str, Any]] = []
+    update_idx = int(getattr(trainer, "_updates_completed", 0))
+    timesteps = int(getattr(trainer, "global_step", 0))
+    for rec in records:
+        reason_id = int(rec.get("reason_id", -1))
+        reason_label = (
+            V3I3_REFRESH_REASON_LABELS[reason_id]
+            if 0 <= reason_id < len(V3I3_REFRESH_REASON_LABELS)
+            else "unknown"
+        )
+        rows.append(
+            {
+                "update": update_idx,
+                "run_id": getattr(trainer, "run_id", ""),
+                "run_pid": getattr(trainer, "run_pid", 0),
+                "timesteps": timesteps,
+                "env_id": int(rec.get("env_id", -1)),
+                "episode_id": int(rec.get("episode_id", -1)),
+                "decision_step": int(rec.get("decision_step", -1)),
+                "reason_id": reason_id,
+                "reason": reason_label,
+                "prev_z": int(rec.get("prev_z", -1)),
+                "next_z": int(rec.get("next_z", -1)),
+                "opponent_id": int(rec.get("opponent_id", -1)),
+                "flag_state_bucket": int(rec.get("flag_state_bucket", -1)),
+                "return_at_refresh": float(rec.get("return_at_refresh", 0.0)),
+                "return_from_now_to_end": float(
+                    rec.get("return_from_now_to_end", rec.get("future_return", 0.0))
+                ),
+            }
+        )
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        if not nonempty:
+            writer.writeheader()
+        writer.writerows({key: r.get(key, "") for key in fieldnames} for r in rows)
+    return {"latent_v3i3_refresh_log_rows": float(len(rows))}
 
 
 _ZERO_OPT_ADV: dict[str, float] = {

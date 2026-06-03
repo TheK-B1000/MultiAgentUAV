@@ -152,10 +152,18 @@ def _resolve_metrics_csv_paths(cfg: PPOConfig) -> None:
             )
         elif not strategy_experience_enabled:
             cfg.strategy_experience_csv_path = None
+        refresh_log_enabled = bool(getattr(cfg, "latent_v3i3_refresh_log_enabled", False))
+        if refresh_log_enabled and not getattr(cfg, "latent_v3i3_refresh_log_path", None):
+            cfg.latent_v3i3_refresh_log_path = os.path.join(
+                cfg.checkpoint_dir, f"{cfg.run_tag}_refresh_log.csv"
+            )
+        elif not refresh_log_enabled:
+            cfg.latent_v3i3_refresh_log_path = None
     else:
         cfg.metrics_csv_path = None
         cfg.episode_csv_path = None
         cfg.strategy_experience_csv_path = None
+        cfg.latent_v3i3_refresh_log_path = None
 
 
 def _clamp_runtime_config_for_team_size(cfg: PPOConfig, max_agents: int) -> None:
@@ -204,6 +212,9 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
         _rotate_csv_aside(cfg.episode_csv_path, label="episode")
         _rotate_csv_aside(cfg.strategy_experience_csv_path, label="strategy experience")
+        _rotate_csv_aside(
+            getattr(cfg, "latent_v3i3_refresh_log_path", None), label="v3i3 refresh log"
+        )
     try:
         rc_path = write_run_config_json(cfg)
         print(f"[PPO] Run config written: {rc_path}")

@@ -61,6 +61,102 @@ if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
+def _v3i3_target_from_items(
+    items: list[tuple[int, float]],
+    *,
+    latent_k: int,
+    min_count: int,
+    min_distinct_z: int,
+    temperature: float,
+) -> Optional[np.ndarray]:
+    """Compute a softmax target distribution over z from refresh records.
+
+    ``items`` is a list of ``(z, future_return)`` tuples drawn from the
+    v3i3 refresh preference buffer for a single bucket key. Returns
+    ``None`` when the bucket is undersampled (``< min_count`` total or
+    ``< min_distinct_z`` distinct z values observed) so callers can fall
+    back to a coarser bucket. Empty z slots within an otherwise valid
+    bucket are filled with the minimum sampled mean (so they aren't
+    preferred over observed z).
+    """
+    if len(items) < int(min_count):
+        return None
+    per_z: list[list[float]] = [[] for _ in range(int(latent_k))]
+    for z_val, fr_val in items:
+        if 0 <= z_val < int(latent_k):
+            per_z[z_val].append(float(fr_val))
+    distinct = sum(1 for vs in per_z if vs)
+    if distinct < int(min_distinct_z):
+        return None
+    means = np.zeros(int(latent_k), dtype=np.float32)
+    sampled: list[float] = []
+    for z_val in range(int(latent_k)):
+        if per_z[z_val]:
+            m = float(np.mean(per_z[z_val]))
+            means[z_val] = m
+            sampled.append(m)
+    fill = float(min(sampled)) if sampled else 0.0
+    for z_val in range(int(latent_k)):
+        if not per_z[z_val]:
+            means[z_val] = fill
+    e = np.exp((means - means.max()) / float(max(1e-6, temperature)))
+    return (e / e.sum()).astype(np.float32)
+
+
+def _v3i3_resolve_target(
+    *,
+    opponent_id: int,
+    event_type: int,
+    flag_state_bucket: int,
+    by_full: dict,
+    by_oe: dict,
+    by_o: dict,
+    latent_k: int,
+    min_count: int,
+    min_distinct_z: int,
+    temperature: float,
+    target_cache: dict,
+) -> tuple[Optional[np.ndarray], Optional[str]]:
+    """Hierarchical fallback target lookup.
+
+    Tries the finest key first; on under-sampled buckets falls through:
+        (opp, event, flag) -> (opp, event) -> (opp)
+
+    Returns ``(target_probs_or_None, level_or_None)`` where ``level`` is
+    one of ``"full"``, ``"oe"``, ``"o"`` indicating which level produced
+    the target (``None`` when nothing matched). Caches resolved targets
+    by ``(level, key)`` so subsequent calls with the same key are cheap.
+    """
+    full_key = ("full", (int(opponent_id), int(event_type), int(flag_state_bucket)))
+    oe_key = ("oe", (int(opponent_id), int(event_type)))
+    o_key = ("o", (int(opponent_id),))
+
+    def _get(level_key: tuple, source: dict, raw_key: tuple) -> Optional[np.ndarray]:
+        if level_key in target_cache:
+            return target_cache[level_key]
+        items = source.get(raw_key, [])
+        t = _v3i3_target_from_items(
+            items,
+            latent_k=latent_k,
+            min_count=min_count,
+            min_distinct_z=min_distinct_z,
+            temperature=temperature,
+        )
+        target_cache[level_key] = t
+        return t
+
+    t = _get(full_key, by_full, full_key[1])
+    if t is not None:
+        return t, "full"
+    t = _get(oe_key, by_oe, oe_key[1])
+    if t is not None:
+        return t, "oe"
+    t = _get(o_key, by_o, o_key[1])
+    if t is not None:
+        return t, "o"
+    return None, None
+
+
 def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor:
     """Coarse post-hoc situation buckets for diagnostics only; never used as training labels."""
     if context_state.dim() != 2:
@@ -237,6 +333,33 @@ class LatentStrategyState:
         self.rollout_refresh_reason_near_base = 0
         self.rollout_refresh_total_steps = 0
 
+        # v3i3 event-conditioned preference state.
+        #
+        # Pending refresh records (per env) accumulate during the rollout as the
+        # event-refresh path fires. Each record stores everything needed to
+        # finalize the per-refresh datapoint at episode end:
+        #   - refresh_state (full context-state row, same input ``strategy_logits``
+        #     consumes) so the v3i3 KL loss can re-forward at the refresh moment
+        #   - return_at_refresh (the running episode-return accumulator at refresh
+        #     time) so ``return_from_now_to_end`` can be computed from the final
+        #     episode return at done time
+        #   - reason_id / flag_state_bucket / prev_z / next_z / decision_step
+        # On env-level done, ``record_episode_strategy_outcome`` finalizes each
+        # pending record (attaches opponent_id + future_return) into
+        # ``rollout_refresh_records`` (drained per rollout) AND a minimal
+        # ``{opp, event, flag, z, future_return}`` entry into
+        # ``refresh_preference_buffer`` (cumulative across rollouts; the v3i3
+        # teacher's evidence library).
+        self.pending_refresh_records: dict[int, list[dict[str, Any]]] = {
+            i: [] for i in range(n_envs)
+        }
+        self.rollout_refresh_records: list[dict[str, Any]] = []
+        self.episode_id_per_env = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        v3i3_buffer_size = max(
+            1, int(getattr(trainer, "latent_v3i3_event_preference_buffer_size", 0) or 50_000)
+        )
+        self.refresh_preference_buffer: deque = deque(maxlen=v3i3_buffer_size)
+
     # ------------------------------------------------------------------
     # Reset / per-step sampling
     # ------------------------------------------------------------------
@@ -278,6 +401,10 @@ class LatentStrategyState:
         self.steps_since_last_refresh.zero_()
         self.refresh_count_this_episode.zero_()
         self.prev_global_state = None
+        self.episode_id_per_env.zero_()
+        self.pending_refresh_records = {i: [] for i in range(n_envs)}
+        self.rollout_refresh_records = []
+        self.refresh_preference_buffer.clear()
         self.reset_event_refresh_rollout_stats()
         self.reset_behavior_contrast_rollout_stats()
 
@@ -290,6 +417,15 @@ class LatentStrategyState:
         self.rollout_refresh_reason_near_base = 0
         self.rollout_refresh_total_steps = 0
         self.rollout_refresh_transitions.fill(0.0)
+
+    def clear_rollout_refresh_records(self) -> None:
+        """Drain the per-rollout finalized refresh records.
+
+        Called after the v3i3 KL loss + CSV write so the next rollout starts
+        fresh. The cumulative ``refresh_preference_buffer`` is intentionally
+        NOT cleared here -- it is the teacher's growing evidence library.
+        """
+        self.rollout_refresh_records = []
 
     def event_refresh_rollout_stats(self) -> dict[str, float]:
         stats = {}
@@ -574,9 +710,72 @@ class LatentStrategyState:
                     self.rollout_refresh_reason_friendly_flag += int(trigger_friendly_flag[event_resampled].sum().item())
                     self.rollout_refresh_reason_score_change += int(trigger_score[event_resampled].sum().item())
                     self.rollout_refresh_reason_near_base += int(trigger_near_base[event_resampled].sum().item())
-                    
+
                     self.refresh_count_this_episode[event_resampled] += 1
-            
+
+            # v3i3 per-refresh capture: stash the (state_at_refresh, prev_z,
+            # next_z, event_type, flag_state_bucket, decision_step,
+            # return_at_refresh) tuple for every event-driven refresh that
+            # actually fired this step. Opponent_id + future_return are filled
+            # in on episode-done by ``_finalize_v3i3_refresh_records``. The
+            # capture is gated on either of v3i3's two consumer features
+            # (preference loss OR per-refresh CSV log) being enabled so
+            # disabled runs pay zero overhead.
+            v3i3_enabled = bool(
+                getattr(trainer, "latent_v3i3_event_preference_enabled", False)
+                or getattr(trainer, "latent_v3i3_refresh_log_enabled", False)
+            )
+            if v3i3_enabled and getattr(trainer, "latent_event_refresh_enabled", False):
+                event_resampled = trigger_refresh & resample_mask
+                if bool(event_resampled.any().item()):
+                    # Primary event type per env when multiple triggers fire on
+                    # the same step. Priority left-to-right:
+                    #   enemy_flag (0) > friendly_flag (1) > score (2) > near_base (3)
+                    event_type_t = torch.full(
+                        (curr_gs.shape[0],), -1, dtype=torch.long, device=device
+                    )
+                    event_type_t = torch.where(
+                        trigger_near_base, torch.full_like(event_type_t, 3), event_type_t
+                    )
+                    event_type_t = torch.where(
+                        trigger_score, torch.full_like(event_type_t, 2), event_type_t
+                    )
+                    event_type_t = torch.where(
+                        trigger_friendly_flag, torch.full_like(event_type_t, 1), event_type_t
+                    )
+                    event_type_t = torch.where(
+                        trigger_enemy_flag, torch.full_like(event_type_t, 0), event_type_t
+                    )
+                    # 2*enemy_carries_our_flag + we_carry_enemy_flag, range 0..3.
+                    enemy_has = (curr_gs[:, 10] > 0.5).long()
+                    we_have = (curr_gs[:, 11] > 0.5).long()
+                    flag_state_t = enemy_has * 2 + we_have
+                    # The actual sampled z post-resample for the event-refreshed
+                    # envs. ``z_idx`` still holds prev_z at this point in the
+                    # method (the bulk ``z_idx[idx] = sampled_z`` happens below);
+                    # construct next_z by indexing into sampled_z which is
+                    # aligned with ``idx`` rows.
+                    idx_to_pos = {int(v.item()): i for i, v in enumerate(idx)}
+                    for env_i_t in torch.where(event_resampled)[0]:
+                        env_i = int(env_i_t.item())
+                        pos = idx_to_pos.get(env_i, None)
+                        if pos is None:
+                            continue
+                        record = {
+                            "env_id": env_i,
+                            "episode_id": int(self.episode_id_per_env[env_i].item()),
+                            "decision_step": int(self.steps_since_ep_start[env_i].item()),
+                            "reason_id": int(event_type_t[env_i].item()),
+                            "prev_z": int(prev_z[env_i].item()),
+                            "next_z": int(sampled_z[pos].item()),
+                            "flag_state_bucket": int(flag_state_t[env_i].item()),
+                            "return_at_refresh": float(
+                                self.episode_return_accum[env_i].item()
+                            ),
+                            "refresh_state": global_state[env_i].detach().clone(),
+                        }
+                        self.pending_refresh_records.setdefault(env_i, []).append(record)
+
             z_idx[idx] = sampled_z
             self.current_z = z_idx.clone()
             self.strategy_age[idx] = 0
@@ -685,6 +884,14 @@ class LatentStrategyState:
             self.refresh_count_this_episode[done_t] = 0
             if self.prev_global_state is not None:
                 self.prev_global_state[done_t] = 0.0
+            self.episode_id_per_env[done_t] += 1
+            # Defensive: drop any v3i3 pending refresh records that weren't
+            # finalized by ``_finalize_v3i3_refresh_records`` (shouldn't
+            # happen in the normal rollout flow, but avoids leaking state
+            # into the next episode if a caller forgets to wire the hook).
+            for env_i, done_i in enumerate(dones):
+                if bool(done_i) and self.pending_refresh_records.get(env_i):
+                    self.pending_refresh_records[env_i] = []
 
     def record_behavior_contrast_step(
         self,
@@ -747,6 +954,70 @@ class LatentStrategyState:
     # ------------------------------------------------------------------
     # Episode outcome → completed-record buffer
     # ------------------------------------------------------------------
+
+    def finalize_v3i3_refresh_records(
+        self,
+        env_index: int,
+        info: dict[str, Any],
+        *,
+        episode_return: float,
+    ) -> None:
+        """Finalize all pending v3i3 refresh records for an env on episode-done.
+
+        Each pending record gets ``opponent_id`` (read from completion info)
+        and ``future_return = episode_return - return_at_refresh`` (the post-
+        refresh credit signal the v3i3 teacher distills into a target z
+        distribution). Finalized records flow into two sinks:
+
+        * ``rollout_refresh_records`` -- drained per rollout. Consumed by the
+          v3i3 KL loss (provides per-refresh training queries) and by the
+          per-refresh CSV log writer.
+        * ``refresh_preference_buffer`` -- cumulative across rollouts (capped
+          by ``latent_v3i3_event_preference_buffer_size``). The teacher's
+          evidence library, keyed by ``(opp, event_type, flag_state)`` with
+          hierarchical fallback at lookup time.
+
+        Always-safe to call (no-op when v3i3 is disabled and no pending
+        records). Independent of ``latent_episode_strategy_ppo`` so the
+        per-refresh log can be enabled even without the episode-credit path.
+        """
+        trainer = self.trainer
+        env_i = int(env_index)
+        v3i3_enabled = bool(
+            getattr(trainer, "latent_v3i3_event_preference_enabled", False)
+            or getattr(trainer, "latent_v3i3_refresh_log_enabled", False)
+        )
+        if not v3i3_enabled:
+            return
+        pending = self.pending_refresh_records.get(env_i, [])
+        if not pending:
+            return
+        try:
+            opponent_id = int(_opponent_id_int_from_info(trainer.cfg, info))
+        except Exception:
+            opponent_id = -1
+        ep_return = float(episode_return)
+        pref_buffer_on = bool(
+            getattr(trainer, "latent_v3i3_event_preference_enabled", False)
+        )
+        for rec in pending:
+            future_return = ep_return - float(rec["return_at_refresh"])
+            finalized = dict(rec)
+            finalized["opponent_id"] = opponent_id
+            finalized["future_return"] = future_return
+            finalized["return_from_now_to_end"] = future_return
+            self.rollout_refresh_records.append(finalized)
+            if pref_buffer_on:
+                self.refresh_preference_buffer.append(
+                    {
+                        "opponent_id": opponent_id,
+                        "event_type": int(rec["reason_id"]),
+                        "flag_state_bucket": int(rec["flag_state_bucket"]),
+                        "z": int(rec["next_z"]),
+                        "future_return": future_return,
+                    }
+                )
+        self.pending_refresh_records[env_i] = []
 
     def record_episode_strategy_outcome(
         self,
@@ -892,6 +1163,21 @@ class LatentStrategyState:
             res[f"latent_pref_{opp_name}_active_buckets"] = 0.0
             for z in range(latent_k):
                 res[f"latent_pref_{opp_name}_target_z{z}"] = 0.0
+        # v3i3 event-conditioned preference telemetry. Zero when disabled.
+        res.update(
+            {
+                "latent_v3i3_event_pref_loss": 0.0,
+                "latent_v3i3_event_pref_active_fraction": 0.0,
+                "latent_v3i3_event_pref_active_buckets": 0.0,
+                "latent_v3i3_event_pref_active_records": 0.0,
+                "latent_v3i3_event_pref_buffer_size": 0.0,
+                "latent_v3i3_event_pref_target_entropy": 0.0,
+                "latent_v3i3_event_pref_fallback_full": 0.0,
+                "latent_v3i3_event_pref_fallback_oe": 0.0,
+                "latent_v3i3_event_pref_fallback_o": 0.0,
+                "latent_v3i3_event_pref_rollout_records": 0.0,
+            }
+        )
         return res
 
     def episode_strategy_training_batch(self) -> Optional[dict[str, torch.Tensor]]:
@@ -1065,6 +1351,124 @@ class LatentStrategyState:
                     # Target entropy computation: -sum(p * log(p))
                     entropy = -np.sum(target * np.log(target + 1e-12))
                     target_entropy_sum += float(entropy)
+
+        # v3i3 event-conditioned preference precomputation (once per rollout).
+        # Builds a (B_r, K) target table over the rollout's finalized refresh
+        # records using hierarchical fallback over the cumulative preference
+        # buffer. Independent of the legacy ``latent_preference_*`` path.
+        v3i3_coef = float(
+            getattr(trainer, "latent_v3i3_event_preference_coef", 0.0) or 0.0
+        )
+        v3i3_warmup = int(
+            getattr(trainer, "latent_v3i3_event_preference_warmup_steps", 0) or 0
+        )
+        v3i3_enabled = bool(
+            getattr(trainer, "latent_v3i3_event_preference_enabled", False)
+        )
+        v3i3_records = list(self.rollout_refresh_records)
+        v3i3_active = (
+            v3i3_enabled
+            and v3i3_coef > 0.0
+            and len(self.refresh_preference_buffer) > 0
+            and len(v3i3_records) > 0
+            and (
+                v3i3_warmup <= 0
+                or int(getattr(trainer, "global_step", 0) or 0) >= v3i3_warmup
+            )
+        )
+        v3i3_refresh_states_t: Optional[torch.Tensor] = None
+        v3i3_target_probs_t: Optional[torch.Tensor] = None
+        v3i3_mask_t: Optional[torch.Tensor] = None
+        v3i3_active_buckets = 0
+        v3i3_active_records_count = 0
+        v3i3_target_entropy_sum = 0.0
+        v3i3_fallback_counts = {"full": 0, "oe": 0, "o": 0}
+        if v3i3_active:
+            v3i3_refresh_states_t = torch.stack(
+                [r["refresh_state"].detach().float() for r in v3i3_records], dim=0
+            ).to(trainer.device)
+            by_full: dict = {}
+            by_oe: dict = {}
+            by_o: dict = {}
+            for r in self.refresh_preference_buffer:
+                pair = (int(r["z"]), float(r["future_return"]))
+                opp_b = int(r["opponent_id"])
+                ev_b = int(r["event_type"])
+                fl_b = int(r["flag_state_bucket"])
+                by_full.setdefault((opp_b, ev_b, fl_b), []).append(pair)
+                by_oe.setdefault((opp_b, ev_b), []).append(pair)
+                by_o.setdefault((opp_b,), []).append(pair)
+            min_count = int(
+                getattr(
+                    trainer, "latent_v3i3_event_preference_min_bucket_count", 4
+                )
+                or 4
+            )
+            min_distinct = int(
+                getattr(
+                    trainer, "latent_v3i3_event_preference_min_distinct_z", 2
+                )
+                or 2
+            )
+            temperature = float(
+                getattr(
+                    trainer, "latent_v3i3_event_preference_temperature", 0.75
+                )
+                or 0.75
+            )
+            K = int(trainer.latent_k)
+            target_arr = np.full(
+                (len(v3i3_records), K), 1.0 / float(K), dtype=np.float32
+            )
+            mask_arr = np.zeros((len(v3i3_records),), dtype=bool)
+            target_cache: dict = {}
+            active_keys: set = set()
+            for i, r in enumerate(v3i3_records):
+                t, level = _v3i3_resolve_target(
+                    opponent_id=int(r["opponent_id"]),
+                    event_type=int(r["reason_id"]),
+                    flag_state_bucket=int(r["flag_state_bucket"]),
+                    by_full=by_full,
+                    by_oe=by_oe,
+                    by_o=by_o,
+                    latent_k=K,
+                    min_count=min_count,
+                    min_distinct_z=min_distinct,
+                    temperature=temperature,
+                    target_cache=target_cache,
+                )
+                if t is not None and level is not None:
+                    target_arr[i] = t
+                    mask_arr[i] = True
+                    v3i3_active_records_count += 1
+                    v3i3_target_entropy_sum += float(
+                        -(t * np.log(t + 1e-12)).sum()
+                    )
+                    v3i3_fallback_counts[level] = (
+                        v3i3_fallback_counts[level] + 1
+                    )
+                    if level == "full":
+                        active_keys.add(
+                            (
+                                "full",
+                                int(r["opponent_id"]),
+                                int(r["reason_id"]),
+                                int(r["flag_state_bucket"]),
+                            )
+                        )
+                    elif level == "oe":
+                        active_keys.add(
+                            ("oe", int(r["opponent_id"]), int(r["reason_id"]))
+                        )
+                    else:
+                        active_keys.add(("o", int(r["opponent_id"])))
+            v3i3_target_probs_t = torch.as_tensor(
+                target_arr, dtype=torch.float32, device=trainer.device
+            )
+            v3i3_mask_t = torch.as_tensor(
+                mask_arr, dtype=torch.bool, device=trainer.device
+            )
+            v3i3_active_buckets = len(active_keys)
 
         n_inner_epochs = max(
             1, int(getattr(trainer, "latent_episode_strategy_n_epochs", 1) or 1)
@@ -1259,9 +1663,32 @@ class LatentStrategyState:
                     else:
                         commit_loss = commit_coef * commit_loss_eps.mean()
 
+            # v3i3 event-conditioned preference loss. Re-forwards
+            # ``strategy_logits`` at the refresh-moment states and pulls
+            # ``q_phi(z | state_at_refresh)`` toward the bucketed target
+            # distribution. Gradient flows through the strategy encoder.
+            v3i3_pref_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            v3i3_pref_loss_scaled = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            if (
+                v3i3_active
+                and v3i3_refresh_states_t is not None
+                and v3i3_mask_t is not None
+                and v3i3_target_probs_t is not None
+                and bool(v3i3_mask_t.any().item())
+            ):
+                v3i3_logits = trainer.model.strategy_logits(v3i3_refresh_states_t)
+                valid_logits_v3i3 = v3i3_logits[v3i3_mask_t]
+                valid_targets_v3i3 = v3i3_target_probs_t[v3i3_mask_t]
+                v3i3_log_probs = torch.log_softmax(valid_logits_v3i3, dim=-1)
+                v3i3_kl = F.kl_div(
+                    v3i3_log_probs, valid_targets_v3i3, reduction="none"
+                ).sum(dim=-1)
+                v3i3_pref_loss = v3i3_kl.mean()
+                v3i3_pref_loss_scaled = v3i3_coef * v3i3_pref_loss
+
             loss = trainer.latent_episode_strategy_coef * (
                 pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
-            ) + entropy_term + usage_loss + pref_loss_scaled + commit_loss
+            ) + entropy_term + usage_loss + pref_loss_scaled + commit_loss + v3i3_pref_loss_scaled
 
             router_optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -1326,6 +1753,40 @@ class LatentStrategyState:
                 )
             stats["latent_usage_balance_loss"] = float(usage_loss.detach().cpu().item())
             stats["latent_usage_balance_kl"] = float(usage_kl.detach().cpu().item())
+            # v3i3 event-conditioned preference telemetry. ``last_stats``
+            # captures the FINAL inner-epoch's loss tensor; the active
+            # masks / bucket counts / fallback breakdown are precomputed
+            # once per rollout (above the inner loop).
+            stats["latent_v3i3_event_pref_loss"] = float(
+                v3i3_pref_loss.detach().cpu().item()
+            )
+            stats["latent_v3i3_event_pref_active_fraction"] = (
+                float(v3i3_mask_t.float().mean().cpu().item())
+                if v3i3_mask_t is not None and v3i3_mask_t.numel() > 0
+                else 0.0
+            )
+            stats["latent_v3i3_event_pref_active_buckets"] = float(v3i3_active_buckets)
+            stats["latent_v3i3_event_pref_active_records"] = float(
+                v3i3_active_records_count
+            )
+            stats["latent_v3i3_event_pref_buffer_size"] = float(
+                len(self.refresh_preference_buffer)
+            )
+            stats["latent_v3i3_event_pref_target_entropy"] = (
+                float(v3i3_target_entropy_sum / max(1, v3i3_active_records_count))
+                if v3i3_active_records_count > 0
+                else 0.0
+            )
+            stats["latent_v3i3_event_pref_fallback_full"] = float(
+                v3i3_fallback_counts["full"]
+            )
+            stats["latent_v3i3_event_pref_fallback_oe"] = float(
+                v3i3_fallback_counts["oe"]
+            )
+            stats["latent_v3i3_event_pref_fallback_o"] = float(
+                v3i3_fallback_counts["o"]
+            )
+            stats["latent_v3i3_event_pref_rollout_records"] = float(len(v3i3_records))
             stats["latent_preference_loss"] = float(pref_loss.detach().cpu().item())
             stats["latent_preference_active_fraction"] = float(batch_pref_mask.float().mean().cpu().item())
             stats["latent_preference_buffer_size"] = float(len(self.latent_preference_buffer))
