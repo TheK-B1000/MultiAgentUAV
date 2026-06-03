@@ -408,6 +408,7 @@ class PPOUpdater:
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(strategy_experience_stats)
         runtime.last_stats.update(self.latent_state.behavior_contrast_rollout_stats())
+        runtime.last_stats.update(self.latent_state.event_refresh_rollout_stats())
         if hparams.use_latent_strategy and "z_forced" in buffer.fields:
             forced_steps = buffer.fields["z_forced"][: int(buffer.pos)].detach().float()
             runtime.last_stats["latent_forced_z_step_fraction"] = (

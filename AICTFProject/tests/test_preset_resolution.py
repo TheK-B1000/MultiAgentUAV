@@ -148,6 +148,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3h2_balanced_preference",
             "plan_faithful_latent_v3h2",
             "latent_v3h2",
+            "plan_faithful_latent_v3i_event_refresh",
+            "latent_v3i_event_refresh",
+            "plan_faithful_latent_v3i",
+            "latent_v3i",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():

@@ -245,6 +245,13 @@ class PPOConfig:
     late_entropy_floor: float = 0.0003
     commitment_type: str = "confidence_weighted_entropy"
 
+    # v3i event refresh config parameters
+    latent_event_refresh_enabled: bool = False
+    latent_event_refresh_min_gap_steps: int = 20
+    latent_event_refresh_max_per_episode: int = 3
+    latent_event_refresh_use_q_phi: bool = True
+    latent_event_refresh_force_roles: bool = False
+
     # Episode-level domain randomization for sim robustness (sensor dropout/noise, blue speed jitter).
     # See ``GPUFieldConfig`` for numeric ranges; eval harnesses should keep this False.
     train_domain_randomization: bool = False

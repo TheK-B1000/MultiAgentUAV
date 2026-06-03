@@ -226,6 +226,11 @@ class CustomPPOTrainer:
         self.latent_preference_commit_coef = hparams.latent_preference_commit_coef
         self.late_entropy_floor = hparams.late_entropy_floor
         self.commitment_type = hparams.commitment_type
+        self.latent_event_refresh_enabled = hparams.latent_event_refresh_enabled
+        self.latent_event_refresh_min_gap_steps = hparams.latent_event_refresh_min_gap_steps
+        self.latent_event_refresh_max_per_episode = hparams.latent_event_refresh_max_per_episode
+        self.latent_event_refresh_use_q_phi = hparams.latent_event_refresh_use_q_phi
+        self.latent_event_refresh_force_roles = hparams.latent_event_refresh_force_roles
 
         # Bucket-baseline helper for v3d. Only constructed when the mode is
         # set; ``apply_episode_strategy_ppo`` falls back to the V-marginal /

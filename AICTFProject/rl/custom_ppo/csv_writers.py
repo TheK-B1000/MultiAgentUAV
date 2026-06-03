@@ -362,6 +362,16 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
                 f"latent_pref_{opp_name}_active_buckets",
             ])
             fields.extend(f"latent_pref_{opp_name}_target_z{z}" for z in range(latent_k))
+        # v3i event refresh telemetry fields
+        fields.extend([
+            "latent_refresh_count",
+            "latent_refresh_rate",
+            "latent_refresh_reason_enemy_flag",
+            "latent_refresh_reason_friendly_flag",
+            "latent_refresh_reason_score_change",
+            "latent_refresh_reason_near_base",
+            "latent_refresh_z_changed_rate",
+        ])
     return fields
 
 

@@ -372,6 +372,18 @@ def apply_plan_faithful_latent_v3h2_balanced_preference(cfg: PPOConfig) -> PPOCo
     return cfg
 
 
+def apply_plan_faithful_latent_v3i_event_refresh(cfg: PPOConfig) -> PPOConfig:
+    """v3i: sparse q_phi refresh on meaningful game events."""
+    cfg = apply_plan_faithful_latent_v3h2_balanced_preference(cfg)
+    cfg.latent_event_refresh_enabled = True
+    cfg.latent_event_refresh_min_gap_steps = 20
+    cfg.latent_event_refresh_max_per_episode = 3
+    cfg.latent_event_refresh_use_q_phi = True
+    cfg.latent_event_refresh_force_roles = False
+    cfg.run_tag = "latent_v3i_event_refresh_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

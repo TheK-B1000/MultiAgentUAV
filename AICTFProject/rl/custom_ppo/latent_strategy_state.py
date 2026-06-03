@@ -219,6 +219,20 @@ class LatentStrategyState:
         self.rollout_completed_episode_count = 0
         self.latent_preference_buffer = deque(maxlen=20000)
 
+        # Event refresh variables
+        self.steps_since_last_refresh = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.refresh_count_this_episode = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.prev_global_state = None
+
+        # Rollout accumulator stats
+        self.rollout_refresh_count = 0
+        self.rollout_refresh_z_changed_count = 0
+        self.rollout_refresh_reason_enemy_flag = 0
+        self.rollout_refresh_reason_friendly_flag = 0
+        self.rollout_refresh_reason_score_change = 0
+        self.rollout_refresh_reason_near_base = 0
+        self.rollout_refresh_total_steps = 0
+
     # ------------------------------------------------------------------
     # Reset / per-step sampling
     # ------------------------------------------------------------------
@@ -257,7 +271,46 @@ class LatentStrategyState:
         self.episode_contrast_bucket.zero_()
         self.episode_behavior_sum.zero_()
         self.episode_behavior_count.zero_()
+        self.steps_since_last_refresh.zero_()
+        self.refresh_count_this_episode.zero_()
+        self.prev_global_state = None
+        self.reset_event_refresh_rollout_stats()
         self.reset_behavior_contrast_rollout_stats()
+
+    def reset_event_refresh_rollout_stats(self) -> None:
+        self.rollout_refresh_count = 0
+        self.rollout_refresh_z_changed_count = 0
+        self.rollout_refresh_reason_enemy_flag = 0
+        self.rollout_refresh_reason_friendly_flag = 0
+        self.rollout_refresh_reason_score_change = 0
+        self.rollout_refresh_reason_near_base = 0
+        self.rollout_refresh_total_steps = 0
+
+    def event_refresh_rollout_stats(self) -> dict[str, float]:
+        if not getattr(self.trainer, "latent_event_refresh_enabled", False):
+            return {
+                "latent_refresh_count": 0.0,
+                "latent_refresh_rate": 0.0,
+                "latent_refresh_reason_enemy_flag": 0.0,
+                "latent_refresh_reason_friendly_flag": 0.0,
+                "latent_refresh_reason_score_change": 0.0,
+                "latent_refresh_reason_near_base": 0.0,
+                "latent_refresh_z_changed_rate": 0.0,
+            }
+        
+        count = float(self.rollout_refresh_count)
+        total_steps = float(max(1, self.rollout_refresh_total_steps))
+        z_changed_rate = float(self.rollout_refresh_z_changed_count) / count if count > 0 else 0.0
+        
+        return {
+            "latent_refresh_count": count,
+            "latent_refresh_rate": count / total_steps,
+            "latent_refresh_reason_enemy_flag": float(self.rollout_refresh_reason_enemy_flag),
+            "latent_refresh_reason_friendly_flag": float(self.rollout_refresh_reason_friendly_flag),
+            "latent_refresh_reason_score_change": float(self.rollout_refresh_reason_score_change),
+            "latent_refresh_reason_near_base": float(self.rollout_refresh_reason_near_base),
+            "latent_refresh_z_changed_rate": z_changed_rate,
+        }
 
     def reset_behavior_contrast_rollout_stats(self) -> None:
         self.rollout_behavior_contrast_bonus_sum = 0.0
@@ -351,6 +404,52 @@ class LatentStrategyState:
         if trainer.latent_resample_every_n > 0:
             resample_mask |= self.strategy_age >= trainer.latent_resample_every_n
 
+        # v3i event refresh
+        trigger_enemy_flag = torch.zeros_like(episode_start_mask)
+        trigger_friendly_flag = torch.zeros_like(episode_start_mask)
+        trigger_score = torch.zeros_like(episode_start_mask)
+        trigger_near_base = torch.zeros_like(episode_start_mask)
+        trigger_refresh = torch.zeros_like(episode_start_mask)
+
+        curr_gs = global_state[:, :GLOBAL_STATE_DIM].float().detach()
+
+        if getattr(trainer, "latent_event_refresh_enabled", False):
+            self.rollout_refresh_total_steps += int(curr_gs.shape[0])
+            if self.prev_global_state is not None:
+                active_envs = ~episode_start_mask
+                if bool(active_envs.any().item()):
+                    prev_gs = self.prev_global_state
+
+                    # 1. enemy captures/grabs flag (index 10)
+                    trigger_enemy_flag = active_envs & (prev_gs[:, 10] <= 0.5) & (curr_gs[:, 10] > 0.5)
+                    # 2. friendly captures/grabs flag (index 11)
+                    trigger_friendly_flag = active_envs & (prev_gs[:, 11] <= 0.5) & (curr_gs[:, 11] > 0.5)
+                    # 3. score changes (indices 14 and 15)
+                    trigger_score = active_envs & ((prev_gs[:, 14] != curr_gs[:, 14]) | (prev_gs[:, 15] != curr_gs[:, 15]))
+
+                    # 4. enemy carrier near base
+                    enemy_near = (curr_gs[:, 10] > 0.5) & (curr_gs[:, 23] < 0.20)
+                    enemy_near_prev = (prev_gs[:, 10] > 0.5) & (prev_gs[:, 23] < 0.20)
+                    trigger_enemy_near = active_envs & enemy_near & ~enemy_near_prev
+
+                    # 5. friendly carrier near base
+                    friendly_near = (curr_gs[:, 11] > 0.5) & (curr_gs[:, 23] < 0.20)
+                    friendly_near_prev = (prev_gs[:, 11] > 0.5) & (prev_gs[:, 23] < 0.20)
+                    trigger_friendly_near = active_envs & friendly_near & ~friendly_near_prev
+
+                    trigger_near_base = trigger_enemy_near | trigger_friendly_near
+
+                    # Guardrails
+                    event_refresh_allowed = (
+                        (self.steps_since_last_refresh >= trainer.latent_event_refresh_min_gap_steps)
+                        & (self.refresh_count_this_episode < trainer.latent_event_refresh_max_per_episode)
+                    )
+
+                    trigger_refresh = event_refresh_allowed & (
+                        trigger_enemy_flag | trigger_friendly_flag | trigger_score | trigger_near_base
+                    )
+                    resample_mask |= trigger_refresh
+
         # Warmup: defer the committed z snapshot until ctx170 EMAs
         # have observed a few decision steps of opponent behavior. The provisional
         # z chosen at step 0 still drives actions during the warmup window, but we
@@ -434,15 +533,38 @@ class LatentStrategyState:
                 deterministic=False,
                 generator=trainer.model._sampling_gen_strategy,
             )
+            
+            # Telemetry for event refresh
+            if getattr(trainer, "latent_event_refresh_enabled", False):
+                event_resampled = trigger_refresh & resample_mask
+                if bool(event_resampled.any().item()):
+                    self.rollout_refresh_count += int(event_resampled.sum().item())
+                    self.rollout_refresh_reason_enemy_flag += int(trigger_enemy_flag[event_resampled].sum().item())
+                    self.rollout_refresh_reason_friendly_flag += int(trigger_friendly_flag[event_resampled].sum().item())
+                    self.rollout_refresh_reason_score_change += int(trigger_score[event_resampled].sum().item())
+                    self.rollout_refresh_reason_near_base += int(trigger_near_base[event_resampled].sum().item())
+                    
+                    self.refresh_count_this_episode[event_resampled] += 1
+            
             z_idx[idx] = sampled_z
             self.current_z = z_idx.clone()
             self.strategy_age[idx] = 0
             self.needs_strategy_sample[idx] = False
+            self.steps_since_last_refresh[resample_mask] = 0
+
         if bool(forced_active.any().item()):
             z_idx[forced_active] = self.episode_forced_z_id[forced_active]
             self.current_z = z_idx.clone()
             self.strategy_age[forced_active] = 0
             self.needs_strategy_sample[forced_active] = False
+            self.steps_since_last_refresh[forced_active] = 0
+
+        # Check actual z changes for event-refreshed envs
+        if getattr(trainer, "latent_event_refresh_enabled", False):
+            event_resampled = trigger_refresh & resample_mask
+            if bool(event_resampled.any().item()):
+                actual_changes = (z_idx != prev_z) & event_resampled
+                self.rollout_refresh_z_changed_count += int(actual_changes.sum().item())
 
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
@@ -484,6 +606,8 @@ class LatentStrategyState:
             training_resample_mask = training_resample_mask & (~episode_start_mask)
         training_resample_mask = training_resample_mask & (~forced_active)
 
+        self.prev_global_state = curr_gs.clone()
+
         aux = {
             "z": z_idx,
             "prev_z": prev_z,
@@ -505,6 +629,7 @@ class LatentStrategyState:
         done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
         self.strategy_age += 1
         self.steps_since_ep_start += 1
+        self.steps_since_last_refresh += 1
         if bool(done_t.any().item()):
             self.strategy_age[done_t] = 0
             self.needs_strategy_sample[done_t] = not trainer.fixed_latent_strategy
@@ -517,6 +642,10 @@ class LatentStrategyState:
             self.episode_contrast_bucket[done_t] = 0
             self.episode_behavior_sum[done_t] = 0.0
             self.episode_behavior_count[done_t] = 0
+            self.steps_since_last_refresh[done_t] = 0
+            self.refresh_count_this_episode[done_t] = 0
+            if self.prev_global_state is not None:
+                self.prev_global_state[done_t] = 0.0
 
     def record_behavior_contrast_step(
         self,

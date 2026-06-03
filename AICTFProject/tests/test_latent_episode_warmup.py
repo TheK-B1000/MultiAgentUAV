@@ -32,14 +32,12 @@ def _stub_strategy_experience_bucket_ids(state: torch.Tensor) -> torch.Tensor:
 # the normal ``rl.custom_ppo`` package path triggers the trainer + diagnostics
 # graph; we only need the state-machine class for these unit tests.
 def _load_latent_strategy_state():
-    # Provide a minimal ppo_core stub so ``from rl.ppo_core import ppo_policy_loss``
-    # in latent_strategy_state succeeds without dragging in the full module graph.
+    # Provide a stub that copies needed symbols from real ppo_core
+    import rl.ppo_core
     ppo_core_mod = types.ModuleType("rl.ppo_core")
-
-    def _noop_policy_loss(*args, **kwargs):
-        raise NotImplementedError("stubbed for unit test; not called by these tests")
-
-    ppo_core_mod.ppo_policy_loss = _noop_policy_loss
+    ppo_core_mod.TensorDictRolloutBuffer = rl.ppo_core.TensorDictRolloutBuffer
+    ppo_core_mod.ppo_policy_loss = rl.ppo_core.ppo_policy_loss
+    
     sys.modules.setdefault("rl.ppo_core", ppo_core_mod)
 
     target = (
