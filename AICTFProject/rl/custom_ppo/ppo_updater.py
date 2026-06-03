@@ -175,9 +175,13 @@ class PPOUpdater:
                         lam_p=float(getattr(cfg, "latent_lam_p", 0.0)),
                         device=device,
                     )
-                    if hparams.latent_resample_every_n == 0 and not hparams.latent_resample_on_flag:
+                    if (
+                        hparams.latent_resample_every_n == 0
+                        and not hparams.latent_resample_on_flag
+                        and not hparams.latent_event_refresh_enabled
+                    ):
                         assert persist_stats["persist_term"] == 0.0, (
-                            "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off)"
+                            "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off, no event refresh)"
                         )
                     apply_main_loop_qphi_loss = float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
                     if not apply_main_loop_qphi_loss:
