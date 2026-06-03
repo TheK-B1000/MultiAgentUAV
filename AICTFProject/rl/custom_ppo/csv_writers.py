@@ -371,6 +371,9 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_refresh_reason_score_change",
             "latent_refresh_reason_near_base",
             "latent_refresh_z_changed_rate",
+            "latent_refresh_changed_z_rate",
+            "latent_refresh_same_z_rate",
+            "latent_refresh_transition_entropy",
         ])
         for i in range(latent_k):
             for j in range(latent_k):

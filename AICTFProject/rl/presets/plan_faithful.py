@@ -384,6 +384,18 @@ def apply_plan_faithful_latent_v3i_event_refresh(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3i2_router_signal(cfg: PPOConfig) -> PPOConfig:
+    """v3i2: event refresh + stronger 4v4 router signal."""
+    cfg = apply_plan_faithful_latent_v3i_event_refresh(cfg)
+    cfg.latent_q_phi_train_after_steps = 50_000
+    cfg.latent_preference_min_bucket_count = 4
+    cfg.latent_preference_min_distinct_z = 2
+    cfg.latent_preference_commit_coef = 0.005
+    cfg.run_tag = "latent_v3i2_router_signal_1m_4v4"
+    return cfg
+
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

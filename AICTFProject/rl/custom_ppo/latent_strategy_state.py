@@ -303,6 +303,9 @@ class LatentStrategyState:
                 "latent_refresh_reason_score_change": 0.0,
                 "latent_refresh_reason_near_base": 0.0,
                 "latent_refresh_z_changed_rate": 0.0,
+                "latent_refresh_changed_z_rate": 0.0,
+                "latent_refresh_same_z_rate": 0.0,
+                "latent_refresh_transition_entropy": 0.0,
             })
             for i in range(latent_k):
                 for j in range(latent_k):
@@ -312,6 +315,16 @@ class LatentStrategyState:
         count = float(self.rollout_refresh_count)
         total_steps = float(max(1, self.rollout_refresh_total_steps))
         z_changed_rate = float(self.rollout_refresh_z_changed_count) / count if count > 0 else 0.0
+        same_z_rate = 1.0 - z_changed_rate if count > 0 else 0.0
+        
+        trans = self.rollout_refresh_transitions
+        total_trans = trans.sum()
+        if total_trans > 0:
+            p = trans.flatten() / total_trans
+            p = p[p > 0]
+            transition_entropy = -float(np.sum(p * np.log(p)))
+        else:
+            transition_entropy = 0.0
         
         stats.update({
             "latent_refresh_count": count,
@@ -321,6 +334,9 @@ class LatentStrategyState:
             "latent_refresh_reason_score_change": float(self.rollout_refresh_reason_score_change),
             "latent_refresh_reason_near_base": float(self.rollout_refresh_reason_near_base),
             "latent_refresh_z_changed_rate": z_changed_rate,
+            "latent_refresh_changed_z_rate": z_changed_rate,
+            "latent_refresh_same_z_rate": same_z_rate,
+            "latent_refresh_transition_entropy": transition_entropy,
         })
         for i in range(latent_k):
             for j in range(latent_k):

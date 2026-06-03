@@ -152,6 +152,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i_event_refresh",
             "plan_faithful_latent_v3i",
             "latent_v3i",
+            "plan_faithful_latent_v3i2_router_signal",
+            "latent_v3i2_router_signal",
+            "plan_faithful_latent_v3i2",
+            "latent_v3i2",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
