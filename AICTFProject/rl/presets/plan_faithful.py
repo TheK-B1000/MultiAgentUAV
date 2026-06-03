@@ -448,6 +448,19 @@ def apply_plan_faithful_latent_v3i3_event_conditioned_preference(cfg: PPOConfig)
     return cfg
 
 
+def apply_plan_faithful_latent_v3i4_event_progress_preference(cfg: PPOConfig) -> PPOConfig:
+    """v3i4: event + carrier progress preference distillation.
+
+    Inherits from v3i3 and sets key_mode to event_flag_progress.
+    """
+    cfg = apply_plan_faithful_latent_v3i3_event_conditioned_preference(cfg)
+    cfg.latent_event_preference_key_mode = "event_flag_progress"
+    cfg.latent_v3i3_event_preference_normalize = True
+    cfg.latent_v3i3_event_preference_warmup_steps = 50_000
+    cfg.run_tag = "latent_v3i4_event_progress_preference_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

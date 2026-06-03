@@ -273,6 +273,12 @@ class PPOConfig:
     # loss. 0 = apply from the first rollout. Useful to let the buffer
     # accumulate evidence before the teacher fires.
     latent_v3i3_event_preference_warmup_steps: int = 0
+    # Normalize event preference returns by subtracting the baseline for the specific event key.
+    latent_v3i3_event_preference_normalize: bool = False
+    # Key mode for event-conditioned preference distillation.
+    #   "event_flag"          -- opponent_id, event_type, flag_state (v3i3 mode)
+    #   "event_flag_progress" -- opponent_id, event_type, flag_state, carrier_progress (v3i4 mode)
+    latent_event_preference_key_mode: str = "event_flag"
     # Per-refresh proof-layer log. One CSV row per finalized refresh event:
     #   env_id, episode_id, decision_step, reason, prev_z, next_z,
     #   opponent_id, flag_state_bucket, return_from_now_to_end

@@ -246,8 +246,12 @@ class CustomPPOTrainer:
         self.latent_v3i3_event_preference_warmup_steps = (
             hparams.latent_v3i3_event_preference_warmup_steps
         )
+        self.latent_v3i3_event_preference_normalize = (
+            hparams.latent_v3i3_event_preference_normalize
+        )
         self.latent_v3i3_refresh_log_enabled = hparams.latent_v3i3_refresh_log_enabled
         self.latent_v3i3_refresh_log_path = hparams.latent_v3i3_refresh_log_path
+        self.latent_event_preference_key_mode = hparams.latent_event_preference_key_mode
 
         # Bucket-baseline helper for v3d. Only constructed when the mode is
         # set; ``apply_episode_strategy_ppo`` falls back to the V-marginal /

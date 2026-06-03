@@ -276,6 +276,11 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="Weight for consecutive-step KL on q_phi logits (0=off; optional plan §12).",
     )
     parser.add_argument(
+        "--latent-v3i3-event-preference-normalize",
+        action="store_true",
+        help="Normalize event preference returns by subtracting the baseline for the specific event key.",
+    )
+    parser.add_argument(
         "--no-latent-gae-z-reset",
         action="store_true",
         help="Keep legacy GAE: carry λ-returns across z switches (can smear credit when V(s,z) jumps).",
@@ -549,6 +554,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.latent_resample_on_flag = True
     if args.latent_kl_consecutive is not None:
         cfg.latent_kl_consecutive = max(0.0, float(args.latent_kl_consecutive))
+    if args.latent_v3i3_event_preference_normalize:
+        cfg.latent_v3i3_event_preference_normalize = True
     if args.no_latent_gae_z_reset:
         cfg.latent_gae_reset_on_z_change = False
     if args.latent_bootstrap_z_stochastic:

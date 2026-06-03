@@ -118,8 +118,10 @@ class TrainerHyperparams:
     latent_v3i3_event_preference_min_distinct_z: int
     latent_v3i3_event_preference_buffer_size: int
     latent_v3i3_event_preference_warmup_steps: int
+    latent_v3i3_event_preference_normalize: bool
     latent_v3i3_refresh_log_enabled: bool
     latent_v3i3_refresh_log_path: str
+    latent_event_preference_key_mode: str
 
     # ----- reward composition (env-driven defaults) -----
     reward_dense_weight: float
@@ -366,11 +368,17 @@ class TrainerHyperparams:
             latent_v3i3_event_preference_warmup_steps=max(
                 0, int(getattr(cfg, "latent_v3i3_event_preference_warmup_steps", 0) or 0)
             ),
+            latent_v3i3_event_preference_normalize=bool(
+                getattr(cfg, "latent_v3i3_event_preference_normalize", False)
+            ),
             latent_v3i3_refresh_log_enabled=bool(
                 getattr(cfg, "latent_v3i3_refresh_log_enabled", False)
             ),
             latent_v3i3_refresh_log_path=str(
                 getattr(cfg, "latent_v3i3_refresh_log_path", "") or ""
+            ),
+            latent_event_preference_key_mode=str(
+                getattr(cfg, "latent_event_preference_key_mode", "event_flag") or "event_flag"
             ),
             reward_dense_weight=max(0.0, float(getattr(env_cfg, "dense_weight", 1.0) or 0.0)),
             reward_scale=max(1e-6, float(getattr(env_cfg, "reward_scale", 1.0) or 1.0)),

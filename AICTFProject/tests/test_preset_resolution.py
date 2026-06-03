@@ -160,6 +160,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i3_event_conditioned_preference",
             "plan_faithful_latent_v3i3",
             "latent_v3i3",
+            "plan_faithful_latent_v3i4_event_progress_preference",
+            "latent_v3i4_event_progress_preference",
+            "plan_faithful_latent_v3i4",
+            "latent_v3i4",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -282,6 +286,25 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertAlmostEqual(cfg["latent_preference_coef"], 0.03)
                 self.assertTrue(cfg.get("latent_preference_opponent_balanced", False))
                 self.assertTrue(cfg.get("latent_preference_log_opponent_targets", False))
+
+    def test_latent_v3i4_event_progress_preference_is_summer_faithful(self) -> None:
+        """v3i4 inherits v3i3 + sets key_mode to event_flag_progress and warmup steps to 50_000."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i4_event_progress_preference",
+            "latent_v3i4_event_progress_preference",
+            "plan_faithful_latent_v3i4",
+            "latent_v3i4",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertEqual(cfg["latent_v3i3_event_preference_warmup_steps"], 50_000)
+                self.assertFalse(cfg["fixed_latent_strategy"])
 
 
 if __name__ == "__main__":

@@ -116,20 +116,32 @@ def _v3i3_resolve_target(
     min_distinct_z: int,
     temperature: float,
     target_cache: dict,
+    carrier_progress_bucket: int = -1,
+    by_oef: Optional[dict] = None,
+    key_mode: str = "event_flag",
 ) -> tuple[Optional[np.ndarray], Optional[str]]:
     """Hierarchical fallback target lookup.
 
-    Tries the finest key first; on under-sampled buckets falls through:
+    For event_flag_progress:
+        (opp, event, flag, progress) -> (opp, event, flag) -> (opp, event) -> (opp)
+    For event_flag:
         (opp, event, flag) -> (opp, event) -> (opp)
 
     Returns ``(target_probs_or_None, level_or_None)`` where ``level`` is
-    one of ``"full"``, ``"oe"``, ``"o"`` indicating which level produced
+    one of ``"full"``, ``"oef"``, ``"oe"``, ``"o"`` indicating which level produced
     the target (``None`` when nothing matched). Caches resolved targets
     by ``(level, key)`` so subsequent calls with the same key are cheap.
     """
-    full_key = ("full", (int(opponent_id), int(event_type), int(flag_state_bucket)))
-    oe_key = ("oe", (int(opponent_id), int(event_type)))
-    o_key = ("o", (int(opponent_id),))
+    if key_mode == "event_flag_progress":
+        full_key = ("full", (int(opponent_id), int(event_type), int(flag_state_bucket), int(carrier_progress_bucket)))
+        oef_key = ("oef", (int(opponent_id), int(event_type), int(flag_state_bucket)))
+        oe_key = ("oe", (int(opponent_id), int(event_type)))
+        o_key = ("o", (int(opponent_id),))
+    else:
+        full_key = ("full", (int(opponent_id), int(event_type), int(flag_state_bucket)))
+        oef_key = None
+        oe_key = ("oe", (int(opponent_id), int(event_type)))
+        o_key = ("o", (int(opponent_id),))
 
     def _get(level_key: tuple, source: dict, raw_key: tuple) -> Optional[np.ndarray]:
         if level_key in target_cache:
@@ -148,12 +160,20 @@ def _v3i3_resolve_target(
     t = _get(full_key, by_full, full_key[1])
     if t is not None:
         return t, "full"
+
+    if oef_key is not None:
+        t = _get(oef_key, by_oef, oef_key[1])
+        if t is not None:
+            return t, "oef"
+
     t = _get(oe_key, by_oe, oe_key[1])
     if t is not None:
         return t, "oe"
+
     t = _get(o_key, by_o, o_key[1])
     if t is not None:
         return t, "o"
+
     return None, None
 
 
@@ -750,6 +770,23 @@ class LatentStrategyState:
                     enemy_has = (curr_gs[:, 10] > 0.5).long()
                     we_have = (curr_gs[:, 11] > 0.5).long()
                     flag_state_t = enemy_has * 2 + we_have
+
+                    flag_active = (enemy_has > 0.5) | (we_have > 0.5)
+                    carrier_dist = curr_gs[:, 23]
+                    carrier_progress_bucket_t = torch.where(
+                        ~flag_active,
+                        torch.zeros_like(carrier_dist, dtype=torch.long),
+                        torch.where(
+                            carrier_dist > 0.66,
+                            torch.ones_like(carrier_dist, dtype=torch.long),
+                            torch.where(
+                                carrier_dist > 0.33,
+                                torch.full_like(carrier_dist, 2, dtype=torch.long),
+                                torch.full_like(carrier_dist, 3, dtype=torch.long)
+                            )
+                        )
+                    )
+
                     # The actual sampled z post-resample for the event-refreshed
                     # envs. ``z_idx`` still holds prev_z at this point in the
                     # method (the bulk ``z_idx[idx] = sampled_z`` happens below);
@@ -769,6 +806,7 @@ class LatentStrategyState:
                             "prev_z": int(prev_z[env_i].item()),
                             "next_z": int(sampled_z[pos].item()),
                             "flag_state_bucket": int(flag_state_t[env_i].item()),
+                            "carrier_progress_bucket": int(carrier_progress_bucket_t[env_i].item()),
                             "return_at_refresh": float(
                                 self.episode_return_accum[env_i].item()
                             ),
@@ -1013,6 +1051,7 @@ class LatentStrategyState:
                         "opponent_id": opponent_id,
                         "event_type": int(rec["reason_id"]),
                         "flag_state_bucket": int(rec["flag_state_bucket"]),
+                        "carrier_progress_bucket": int(rec.get("carrier_progress_bucket", -1)),
                         "z": int(rec["next_z"]),
                         "future_return": future_return,
                     }
@@ -1173,6 +1212,7 @@ class LatentStrategyState:
                 "latent_v3i3_event_pref_buffer_size": 0.0,
                 "latent_v3i3_event_pref_target_entropy": 0.0,
                 "latent_v3i3_event_pref_fallback_full": 0.0,
+                "latent_v3i3_event_pref_fallback_oef": 0.0,
                 "latent_v3i3_event_pref_fallback_oe": 0.0,
                 "latent_v3i3_event_pref_fallback_o": 0.0,
                 "latent_v3i3_event_pref_rollout_records": 0.0,
@@ -1382,20 +1422,50 @@ class LatentStrategyState:
         v3i3_active_buckets = 0
         v3i3_active_records_count = 0
         v3i3_target_entropy_sum = 0.0
-        v3i3_fallback_counts = {"full": 0, "oe": 0, "o": 0}
+        v3i3_fallback_counts = {"full": 0, "oef": 0, "oe": 0, "o": 0}
         if v3i3_active:
             v3i3_refresh_states_t = torch.stack(
                 [r["refresh_state"].detach().float() for r in v3i3_records], dim=0
             ).to(trainer.device)
             by_full: dict = {}
+            by_oef: dict = {}
             by_oe: dict = {}
             by_o: dict = {}
+            normalize = bool(
+                getattr(
+                    trainer, "latent_v3i3_event_preference_normalize", False
+                )
+            )
+            if normalize:
+                baselines: dict = {}
+                counts: dict = {}
+                for r in self.refresh_preference_buffer:
+                    if trainer.latent_event_preference_key_mode == "event_flag_progress":
+                        k = (int(r["opponent_id"]), int(r["event_type"]), int(r["flag_state_bucket"]), int(r.get("carrier_progress_bucket", -1)))
+                    else:
+                        k = (int(r["opponent_id"]), int(r["event_type"]), int(r["flag_state_bucket"]))
+                    baselines[k] = baselines.get(k, 0.0) + float(r["future_return"])
+                    counts[k] = counts.get(k, 0) + 1
+                for k in baselines:
+                    baselines[k] /= float(counts[k])
             for r in self.refresh_preference_buffer:
-                pair = (int(r["z"]), float(r["future_return"]))
                 opp_b = int(r["opponent_id"])
                 ev_b = int(r["event_type"])
                 fl_b = int(r["flag_state_bucket"])
-                by_full.setdefault((opp_b, ev_b, fl_b), []).append(pair)
+                pr_b = int(r.get("carrier_progress_bucket", -1))
+                ret_val = float(r["future_return"])
+                if normalize:
+                    if trainer.latent_event_preference_key_mode == "event_flag_progress":
+                        k_full = (opp_b, ev_b, fl_b, pr_b)
+                    else:
+                        k_full = (opp_b, ev_b, fl_b)
+                    ret_val -= baselines.get(k_full, 0.0)
+                pair = (int(r["z"]), ret_val)
+                if trainer.latent_event_preference_key_mode == "event_flag_progress":
+                    by_full.setdefault((opp_b, ev_b, fl_b, pr_b), []).append(pair)
+                    by_oef.setdefault((opp_b, ev_b, fl_b), []).append(pair)
+                else:
+                    by_full.setdefault((opp_b, ev_b, fl_b), []).append(pair)
                 by_oe.setdefault((opp_b, ev_b), []).append(pair)
                 by_o.setdefault((opp_b,), []).append(pair)
             min_count = int(
@@ -1428,7 +1498,9 @@ class LatentStrategyState:
                     opponent_id=int(r["opponent_id"]),
                     event_type=int(r["reason_id"]),
                     flag_state_bucket=int(r["flag_state_bucket"]),
+                    carrier_progress_bucket=int(r.get("carrier_progress_bucket", -1)),
                     by_full=by_full,
+                    by_oef=by_oef,
                     by_oe=by_oe,
                     by_o=by_o,
                     latent_k=K,
@@ -1436,6 +1508,7 @@ class LatentStrategyState:
                     min_distinct_z=min_distinct,
                     temperature=temperature,
                     target_cache=target_cache,
+                    key_mode=trainer.latent_event_preference_key_mode,
                 )
                 if t is not None and level is not None:
                     target_arr[i] = t
@@ -1448,9 +1521,29 @@ class LatentStrategyState:
                         v3i3_fallback_counts[level] + 1
                     )
                     if level == "full":
+                        if trainer.latent_event_preference_key_mode == "event_flag_progress":
+                            active_keys.add(
+                                (
+                                    "full",
+                                    int(r["opponent_id"]),
+                                    int(r["reason_id"]),
+                                    int(r["flag_state_bucket"]),
+                                    int(r.get("carrier_progress_bucket", -1)),
+                                )
+                            )
+                        else:
+                            active_keys.add(
+                                (
+                                    "full",
+                                    int(r["opponent_id"]),
+                                    int(r["reason_id"]),
+                                    int(r["flag_state_bucket"]),
+                                )
+                            )
+                    elif level == "oef":
                         active_keys.add(
                             (
-                                "full",
+                                "oef",
                                 int(r["opponent_id"]),
                                 int(r["reason_id"]),
                                 int(r["flag_state_bucket"]),
@@ -1779,6 +1872,9 @@ class LatentStrategyState:
             )
             stats["latent_v3i3_event_pref_fallback_full"] = float(
                 v3i3_fallback_counts["full"]
+            )
+            stats["latent_v3i3_event_pref_fallback_oef"] = float(
+                v3i3_fallback_counts["oef"]
             )
             stats["latent_v3i3_event_pref_fallback_oe"] = float(
                 v3i3_fallback_counts["oe"]

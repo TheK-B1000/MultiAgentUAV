@@ -696,6 +696,7 @@ def _write_refresh_log_table(trainer: Any) -> dict[str, float]:
                 "next_z": int(rec.get("next_z", -1)),
                 "opponent_id": int(rec.get("opponent_id", -1)),
                 "flag_state_bucket": int(rec.get("flag_state_bucket", -1)),
+                "carrier_progress_bucket": int(rec.get("carrier_progress_bucket", -1)),
                 "return_at_refresh": float(rec.get("return_at_refresh", 0.0)),
                 "return_from_now_to_end": float(
                     rec.get("return_from_now_to_end", rec.get("future_return", 0.0))

@@ -389,6 +389,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_v3i3_event_pref_buffer_size",
             "latent_v3i3_event_pref_target_entropy",
             "latent_v3i3_event_pref_fallback_full",
+            "latent_v3i3_event_pref_fallback_oef",
             "latent_v3i3_event_pref_fallback_oe",
             "latent_v3i3_event_pref_fallback_o",
             "latent_v3i3_event_pref_rollout_records",
@@ -445,6 +446,7 @@ def _v3i3_refresh_log_fieldnames() -> list[str]:
         "next_z",
         "opponent_id",
         "flag_state_bucket",
+        "carrier_progress_bucket",
         "return_at_refresh",
         "return_from_now_to_end",
     ]
