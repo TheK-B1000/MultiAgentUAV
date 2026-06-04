@@ -227,6 +227,7 @@ class _RewardsMixin:
         blue_oob: torch.Tensor,
         blue_mine_tags: Optional[torch.Tensor] = None,
         red_mine_tags: Optional[torch.Tensor] = None,
+        red_oob: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         # Values from game_manager (sparse event points) so scoring/rewards stay aligned.
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
@@ -240,6 +241,8 @@ class _RewardsMixin:
         if red_mine_tags is not None:
             r -= float(SPARSE_MINE_TAG_POINTS) * red_mine_tags.to(torch.float32)
         r += float(SPARSE_OOB_POINTS) * blue_oob.sum(dim=1).to(torch.float32)
+        if red_oob is not None:
+            r -= float(SPARSE_OOB_POINTS) * red_oob.sum(dim=1).to(torch.float32)
         return r
 
     def _reward_total(

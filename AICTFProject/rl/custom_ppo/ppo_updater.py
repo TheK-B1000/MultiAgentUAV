@@ -324,9 +324,22 @@ class PPOUpdater:
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
-                grad_norm = torch.nn.utils.clip_grad_norm_(
-                    model.parameters(), float(cfg.max_grad_norm)
+                # Clip value/critic parameters and policy/router parameters separately
+                policy_router_params = [
+                    p for name, p in model.named_parameters()
+                    if p.requires_grad and not ("critic" in name or "value" in name)
+                ]
+                value_params = [
+                    p for name, p in model.named_parameters()
+                    if p.requires_grad and ("critic" in name or "value" in name)
+                ]
+                grad_norm_policy = torch.nn.utils.clip_grad_norm_(
+                    policy_router_params, float(cfg.max_grad_norm)
                 )
+                grad_norm_value = torch.nn.utils.clip_grad_norm_(
+                    value_params, float(cfg.max_grad_norm)
+                )
+                grad_norm = max(float(grad_norm_policy), float(grad_norm_value))
                 self.optimizer.step()
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())

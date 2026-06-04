@@ -235,7 +235,7 @@ class _StepMixin:
     ) -> Dict[str, torch.Tensor]:
         sparse_points = self._sparse_reward_points(
             flags["blue_cap_env"], flags["red_cap_env"], combat["blue_tag_noflag"], combat["blue_tag_withflag"], combat["red_tag_total"], movement["blue_oob"],
-            blue_mine_tags=mines["blue_mine_tags"], red_mine_tags=mines["red_mine_tags"],
+            blue_mine_tags=mines["blue_mine_tags"], red_mine_tags=mines["red_mine_tags"], red_oob=movement["red_oob"],
         )
         blue_kill_count = combat["blue_tag_noflag"] + combat["blue_tag_withflag"] + mines["blue_mine_tags"]
         roff = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
@@ -246,6 +246,7 @@ class _StepMixin:
         red_kill_count = combat["red_tag_total"] + mines["red_mine_tags"]
         roff -= float(self.cfg.flag_pickup_reward) * flags["red_grab_agents"].sum(dim=1).to(torch.float32)
         roff -= float(self.cfg.flag_carry_home_reward) * flags["red_cap_agents"].sum(dim=1).to(torch.float32)
+        roff -= float(self.cfg.enabled_mine_reward) * flags["red_mine_placement_agents"].sum(dim=1).to(torch.float32)
         roff -= float(self.cfg.enemy_mav_kill_reward) * red_kill_count
         self.blue_commit_ticks_left = torch.clamp(self.blue_commit_ticks_left - 1, min=0)
         ended_commit = self.blue_commit_success | (self.blue_commit_ticks_left <= 0) | (~self.blue_alive) | self.blue_tagged
