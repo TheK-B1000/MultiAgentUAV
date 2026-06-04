@@ -255,6 +255,17 @@ class PPOConfig:
     latent_awrd_margin_scale: float = 2.0
     latent_awrd_min_margin: float = 0.08
     latent_awrd_soft_margin_gating: bool = False
+    # v3i9: balanced specialist router. Keeps the marginal q_phi usage
+    # distribution high-entropy across the batch while reducing conditional
+    # entropy inside opponent/context buckets. No role labels or scripted
+    # z meanings; buckets shape the router objective and telemetry only.
+    latent_specialist_router_enabled: bool = False
+    latent_marginal_balance_coef: float = 0.0
+    latent_conditional_entropy_min_coef: float = 0.0
+    latent_context_mi_coef: float = 0.0
+    latent_specialist_warmup_steps: int = 0
+    latent_specialist_ramp_steps: int = 1
+    latent_specialist_min_bucket_count: int = 2
     late_entropy_floor: float = 0.0003
     commitment_type: str = "confidence_weighted_entropy"
 

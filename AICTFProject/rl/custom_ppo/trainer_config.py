@@ -113,6 +113,13 @@ class TrainerHyperparams:
     latent_awrd_margin_scale: float
     latent_awrd_min_margin: float
     latent_awrd_soft_margin_gating: bool
+    latent_specialist_router_enabled: bool
+    latent_marginal_balance_coef: float
+    latent_conditional_entropy_min_coef: float
+    latent_context_mi_coef: float
+    latent_specialist_warmup_steps: int
+    latent_specialist_ramp_steps: int
+    latent_specialist_min_bucket_count: int
     late_entropy_floor: float
     commitment_type: str
     latent_event_refresh_enabled: bool
@@ -372,6 +379,30 @@ class TrainerHyperparams:
             ),
             latent_awrd_min_margin=float(getattr(cfg, "latent_awrd_min_margin", 0.08)),
             latent_awrd_soft_margin_gating=bool(getattr(cfg, "latent_awrd_soft_margin_gating", False)),
+            latent_specialist_router_enabled=(
+                use_latent
+                and not fixed_latent
+                and bool(getattr(cfg, "latent_specialist_router_enabled", False))
+            ),
+            latent_marginal_balance_coef=max(
+                0.0, float(getattr(cfg, "latent_marginal_balance_coef", 0.0) or 0.0)
+            ),
+            latent_conditional_entropy_min_coef=max(
+                0.0,
+                float(getattr(cfg, "latent_conditional_entropy_min_coef", 0.0) or 0.0),
+            ),
+            latent_context_mi_coef=max(
+                0.0, float(getattr(cfg, "latent_context_mi_coef", 0.0) or 0.0)
+            ),
+            latent_specialist_warmup_steps=max(
+                0, int(getattr(cfg, "latent_specialist_warmup_steps", 0) or 0)
+            ),
+            latent_specialist_ramp_steps=max(
+                0, int(getattr(cfg, "latent_specialist_ramp_steps", 1) or 0)
+            ),
+            latent_specialist_min_bucket_count=max(
+                1, int(getattr(cfg, "latent_specialist_min_bucket_count", 2) or 2)
+            ),
             late_entropy_floor=float(getattr(cfg, "late_entropy_floor", 0.0003) or 0.0003),
             commitment_type=str(getattr(cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy"),
             latent_event_refresh_enabled=bool(getattr(cfg, "latent_event_refresh_enabled", False)),

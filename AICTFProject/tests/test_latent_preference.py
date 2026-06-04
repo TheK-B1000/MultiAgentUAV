@@ -9,11 +9,63 @@ import torch.nn.functional as F
 from rl.custom_ppo.latent_strategy_state import (
     LatentStrategyState,
     _advantage_weighted_target_from_records,
+    _router_specialist_loss,
 )
 from tests.test_latent_episode_warmup import _make_trainer
 
 
 class LatentPreferenceTests(unittest.TestCase):
+    def test_router_specialist_loss_prefers_global_balance_with_local_decisions(self) -> None:
+        context_keys = torch.tensor([0, 0, 1, 1, 2, 2, 3, 3], dtype=torch.long)
+        uniform_logits = torch.zeros((8, 4), dtype=torch.float32)
+        specialist_logits = torch.tensor(
+            [
+                [4.0, 0.0, 0.0, 0.0],
+                [4.0, 0.0, 0.0, 0.0],
+                [0.0, 4.0, 0.0, 0.0],
+                [0.0, 4.0, 0.0, 0.0],
+                [0.0, 0.0, 4.0, 0.0],
+                [0.0, 0.0, 4.0, 0.0],
+                [0.0, 0.0, 0.0, 4.0],
+                [0.0, 0.0, 0.0, 4.0],
+            ],
+            dtype=torch.float32,
+        )
+
+        uniform_loss, uniform_stats = _router_specialist_loss(
+            uniform_logits,
+            context_keys=context_keys,
+            latent_k=4,
+            marginal_balance_coef=0.02,
+            conditional_entropy_min_coef=0.015,
+            context_mi_coef=0.04,
+            coef_scale=1.0,
+            min_bucket_count=2,
+        )
+        specialist_loss, specialist_stats = _router_specialist_loss(
+            specialist_logits,
+            context_keys=context_keys,
+            latent_k=4,
+            marginal_balance_coef=0.02,
+            conditional_entropy_min_coef=0.015,
+            context_mi_coef=0.04,
+            coef_scale=1.0,
+            min_bucket_count=2,
+        )
+
+        self.assertLess(float(specialist_loss.item()), float(uniform_loss.item()))
+        self.assertAlmostEqual(
+            float(specialist_stats["latent_specialist_marginal_entropy"].item()),
+            float(uniform_stats["latent_specialist_marginal_entropy"].item()),
+            places=4,
+        )
+        self.assertLess(
+            float(specialist_stats["latent_specialist_conditional_entropy"].item()),
+            float(uniform_stats["latent_specialist_conditional_entropy"].item()),
+        )
+        self.assertGreater(float(specialist_stats["latent_specialist_context_mi"].item()), 0.5)
+        self.assertEqual(float(specialist_stats["latent_specialist_active_buckets"].item()), 4.0)
+
     def test_advantage_weighted_target_requires_clear_margin(self) -> None:
         weak_records = [
             {"z": 0, "win_loss": 1},

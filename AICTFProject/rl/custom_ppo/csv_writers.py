@@ -361,6 +361,14 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_awrd_best_z_mean",
             "latent_awrd_effective_coef_mean",
             "latent_awrd_best_z_match_rate",
+            "latent_specialist_loss",
+            "latent_specialist_marginal_entropy",
+            "latent_specialist_conditional_entropy",
+            "latent_specialist_context_bucket_entropy",
+            "latent_specialist_mi",
+            "latent_specialist_context_mi",
+            "latent_specialist_active_buckets",
+            "latent_specialist_coef_scale",
         ])
         for opp_name in ["op5", "op6"]:
             fields.extend([

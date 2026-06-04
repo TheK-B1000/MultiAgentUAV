@@ -174,6 +174,122 @@ def _advantage_weighted_target_from_records(
     return target_probs, stats
 
 
+def _router_specialist_coef_scale(
+    *,
+    global_step: int,
+    warmup_steps: int,
+    ramp_steps: int,
+) -> float:
+    """0 before warmup, linear ramp after, 1.0 at lock-in."""
+    warmup = max(0, int(warmup_steps))
+    ramp = max(0, int(ramp_steps))
+    step = int(global_step)
+    if step < warmup:
+        return 0.0
+    if ramp <= 0:
+        return 1.0
+    return float(max(0.0, min(1.0, (step - warmup) / float(ramp))))
+
+
+def _router_specialist_loss(
+    logits: torch.Tensor,
+    *,
+    context_keys: Optional[torch.Tensor],
+    latent_k: int,
+    marginal_balance_coef: float,
+    conditional_entropy_min_coef: float,
+    context_mi_coef: float,
+    coef_scale: float,
+    min_bucket_count: int,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Balanced specialization objective for q_phi.
+
+    The loss keeps all latents alive globally with high marginal entropy, while
+    pushing q_phi to be decisive within each state/context bucket. Context keys
+    are used only for the loss/telemetry grouping, never as policy inputs.
+    """
+    zero = logits.new_zeros(())
+    stats = {
+        "latent_specialist_loss": zero,
+        "latent_specialist_marginal_entropy": zero,
+        "latent_specialist_conditional_entropy": zero,
+        "latent_specialist_context_bucket_entropy": zero,
+        "latent_specialist_mi": zero,
+        "latent_specialist_context_mi": zero,
+        "latent_specialist_active_buckets": zero,
+        "latent_specialist_coef_scale": logits.new_tensor(float(coef_scale)),
+    }
+    if logits.dim() != 2 or logits.shape[0] <= 0 or int(latent_k) <= 1:
+        return zero, stats
+    scale = float(max(0.0, coef_scale))
+    marginal_coef = float(max(0.0, marginal_balance_coef))
+    conditional_coef = float(max(0.0, conditional_entropy_min_coef))
+    mi_coef = float(max(0.0, context_mi_coef))
+    if scale <= 0.0 or (marginal_coef <= 0.0 and conditional_coef <= 0.0 and mi_coef <= 0.0):
+        return zero, stats
+
+    probs = torch.softmax(logits[:, : int(latent_k)], dim=-1).clamp_min(1e-8)
+    marginal_probs = probs.mean(dim=0).clamp_min(1e-8)
+    marginal_entropy = -(marginal_probs * torch.log(marginal_probs)).sum()
+    per_context_entropy = -(probs * torch.log(probs)).sum(dim=-1)
+    conditional_entropy = per_context_entropy.mean()
+    router_mi = marginal_entropy - conditional_entropy
+
+    context_mi = zero
+    context_bucket_entropy = zero
+    active_buckets = zero
+    if context_keys is not None and mi_coef > 0.0:
+        keys = context_keys.to(device=logits.device, dtype=torch.long)
+        unique_keys = torch.unique(keys)
+        active_masks: list[torch.Tensor] = []
+        active_weights: list[torch.Tensor] = []
+        bucket_entropies: list[torch.Tensor] = []
+        min_count = max(1, int(min_bucket_count))
+        for key in unique_keys:
+            mask = keys == key
+            count = int(mask.sum().detach().cpu().item())
+            if count < min_count:
+                continue
+            bucket_probs = probs[mask].mean(dim=0).clamp_min(1e-8)
+            bucket_entropies.append(-(bucket_probs * torch.log(bucket_probs)).sum())
+            active_masks.append(mask)
+            active_weights.append(logits.new_tensor(float(count)))
+        if bucket_entropies:
+            active_mask = torch.stack(active_masks, dim=0).any(dim=0)
+            active_total = torch.stack(active_weights).sum().clamp_min(1.0)
+            weighted_entropy = torch.stack(
+                [
+                    weight / active_total * entropy
+                    for weight, entropy in zip(active_weights, bucket_entropies)
+                ]
+            ).sum()
+            active_marginal = probs[active_mask].mean(dim=0).clamp_min(1e-8)
+            active_marginal_entropy = -(
+                active_marginal * torch.log(active_marginal)
+            ).sum()
+            context_bucket_entropy = weighted_entropy
+            context_mi = (active_marginal_entropy - weighted_entropy).clamp_min(0.0)
+            active_buckets = logits.new_tensor(float(len(bucket_entropies)))
+
+    loss = scale * (
+        conditional_coef * conditional_entropy
+        - marginal_coef * marginal_entropy
+        - mi_coef * context_mi
+    )
+    stats.update(
+        {
+            "latent_specialist_loss": loss,
+            "latent_specialist_marginal_entropy": marginal_entropy,
+            "latent_specialist_conditional_entropy": conditional_entropy,
+            "latent_specialist_context_bucket_entropy": context_bucket_entropy,
+            "latent_specialist_mi": router_mi,
+            "latent_specialist_context_mi": context_mi,
+            "latent_specialist_active_buckets": active_buckets,
+        }
+    )
+    return loss, stats
+
+
 def _v3i3_resolve_target(
     *,
     opponent_id: int,
@@ -1258,6 +1374,14 @@ class LatentStrategyState:
             "latent_awrd_best_z_mean": -1.0,
             "latent_awrd_effective_coef_mean": 0.0,
             "latent_awrd_best_z_match_rate": 0.0,
+            "latent_specialist_loss": 0.0,
+            "latent_specialist_marginal_entropy": 0.0,
+            "latent_specialist_conditional_entropy": 0.0,
+            "latent_specialist_context_bucket_entropy": 0.0,
+            "latent_specialist_mi": 0.0,
+            "latent_specialist_context_mi": 0.0,
+            "latent_specialist_active_buckets": 0.0,
+            "latent_specialist_coef_scale": 0.0,
             "latent_episode_pg_loss": 0.0,
             "latent_episode_v_loss": 0.0,
             "latent_episode_entropy": 0.0,
@@ -1764,6 +1888,18 @@ class LatentStrategyState:
         else:
             clip_params = list(trainer.model.parameters())
 
+        specialist_enabled = bool(
+            getattr(trainer, "latent_specialist_router_enabled", False)
+        )
+        specialist_scale = _router_specialist_coef_scale(
+            global_step=int(getattr(trainer, "global_step", 0) or 0),
+            warmup_steps=int(getattr(trainer, "latent_specialist_warmup_steps", 0) or 0),
+            ramp_steps=int(getattr(trainer, "latent_specialist_ramp_steps", 1) or 0),
+        )
+        specialist_context_keys: Optional[torch.Tensor] = None
+        if opponent_ids is not None and bucket_ids is not None:
+            specialist_context_keys = opponent_ids.long() * 1024 + bucket_ids.long()
+
         pg_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
         v_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
         loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
@@ -1778,6 +1914,20 @@ class LatentStrategyState:
         episode_credit_grad_norm = 0.0
         usage_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
         usage_kl = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        specialist_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+        specialist_stats_t: dict[str, torch.Tensor] = {
+            k: torch.zeros((), dtype=torch.float32, device=trainer.device)
+            for k in (
+                "latent_specialist_loss",
+                "latent_specialist_marginal_entropy",
+                "latent_specialist_conditional_entropy",
+                "latent_specialist_context_bucket_entropy",
+                "latent_specialist_mi",
+                "latent_specialist_context_mi",
+                "latent_specialist_active_buckets",
+                "latent_specialist_coef_scale",
+            )
+        }
 
         for _ in range(n_inner_epochs):
             logits = trainer.model.strategy_logits(states)
@@ -1865,6 +2015,28 @@ class LatentStrategyState:
             else:
                 usage_kl = torch.zeros((), dtype=torch.float32, device=trainer.device)
                 usage_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            if specialist_enabled:
+                specialist_loss, specialist_stats_t = _router_specialist_loss(
+                    logits,
+                    context_keys=specialist_context_keys,
+                    latent_k=int(trainer.latent_k),
+                    marginal_balance_coef=float(
+                        getattr(trainer, "latent_marginal_balance_coef", 0.0) or 0.0
+                    ),
+                    conditional_entropy_min_coef=float(
+                        getattr(trainer, "latent_conditional_entropy_min_coef", 0.0)
+                        or 0.0
+                    ),
+                    context_mi_coef=float(
+                        getattr(trainer, "latent_context_mi_coef", 0.0) or 0.0
+                    ),
+                    coef_scale=specialist_scale,
+                    min_bucket_count=int(
+                        getattr(trainer, "latent_specialist_min_bucket_count", 2) or 2
+                    ),
+                )
+            else:
+                specialist_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
             pref_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
             pref_loss_scaled = torch.zeros((), dtype=torch.float32, device=trainer.device)
             commit_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
@@ -1984,7 +2156,7 @@ class LatentStrategyState:
 
             loss = trainer.latent_episode_strategy_coef * (
                 pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
-            ) + entropy_term + usage_loss + pref_loss_scaled + commit_loss + awrd_loss_scaled + v3i3_pref_loss_scaled
+            ) + entropy_term + usage_loss + specialist_loss + pref_loss_scaled + commit_loss + awrd_loss_scaled + v3i3_pref_loss_scaled
 
             router_optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -2049,6 +2221,8 @@ class LatentStrategyState:
                 )
             stats["latent_usage_balance_loss"] = float(usage_loss.detach().cpu().item())
             stats["latent_usage_balance_kl"] = float(usage_kl.detach().cpu().item())
+            for key, value in specialist_stats_t.items():
+                stats[key] = float(value.detach().cpu().item())
             # v3i3 event-conditioned preference telemetry. ``last_stats``
             # captures the FINAL inner-epoch's loss tensor; the active
             # masks / bucket counts / fallback breakdown are precomputed

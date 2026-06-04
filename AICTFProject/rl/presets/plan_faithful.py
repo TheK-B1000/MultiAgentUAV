@@ -528,6 +528,44 @@ def apply_plan_faithful_latent_v3i8_commander_lockin(cfg: PPOConfig) -> PPOConfi
     return cfg
 
 
+def apply_plan_faithful_latent_v3i9_specialist_router(cfg: PPOConfig) -> PPOConfig:
+    """v3i9: balanced specialist router.
+
+    Inherits v3i8's event-progress preference and AWRD bridge, then changes
+    the router pressure from raw entropy everywhere to balanced
+    specialization:
+
+      - high marginal entropy across the full batch, so all K latents stay alive
+      - low conditional entropy inside each situation, so q_phi gets decisive
+      - high context MI across opponent/context buckets, so different buckets
+        can prefer different z choices
+
+    Plan-faithful: context buckets are loss/telemetry groupings only. The code
+    never assigns tactical names or role labels to z.
+    """
+    cfg = apply_plan_faithful_latent_v3i8_commander_lockin(cfg)
+
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0003
+    cfg.latent_entropy_anneal_start = 100_000
+    cfg.latent_entropy_anneal_end = 500_000
+    cfg.latent_entropy_objective = "maximize"
+
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_specialist_router_enabled = True
+    cfg.latent_marginal_balance_coef = 0.02
+    cfg.latent_conditional_entropy_min_coef = 0.015
+    cfg.latent_context_mi_coef = 0.04
+    cfg.latent_specialist_warmup_steps = 100_000
+    cfg.latent_specialist_ramp_steps = 400_000
+    cfg.latent_specialist_min_bucket_count = 4
+
+    cfg.latent_awrd_coef = 0.06
+    cfg.run_tag = "latent_v3i9_specialist_router_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

@@ -180,6 +180,12 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i8_commander_lockin",
             "plan_faithful_latent_v3i8",
             "latent_v3i8",
+            "plan_faithful_latent_v3i9_specialist_router",
+            "latent_v3i9_specialist_router",
+            "plan_faithful_latent_v3i9_context_specialist",
+            "latent_v3i9_context_specialist",
+            "plan_faithful_latent_v3i9",
+            "latent_v3i9",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -423,6 +429,40 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertAlmostEqual(cfg["latent_awrd_min_margin"], 0.08)
                 self.assertAlmostEqual(cfg["latent_awrd_margin_scale"], 3.0)
                 self.assertTrue(cfg["latent_awrd_soft_margin_gating"])
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i9_specialist_router_is_summer_faithful(self) -> None:
+        """v3i9 keeps global latent usage while making q_phi decisive inside context buckets."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i9_specialist_router",
+            "latent_v3i9_specialist_router",
+            "plan_faithful_latent_v3i9_context_specialist",
+            "latent_v3i9_context_specialist",
+            "plan_faithful_latent_v3i9",
+            "latent_v3i9",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
+                self.assertTrue(cfg["latent_awrd_enabled"])
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.06)
+                self.assertTrue(cfg["latent_awrd_soft_margin_gating"])
+                self.assertTrue(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(cfg["latent_marginal_balance_coef"], 0.02)
+                self.assertAlmostEqual(cfg["latent_conditional_entropy_min_coef"], 0.015)
+                self.assertAlmostEqual(cfg["latent_context_mi_coef"], 0.04)
+                self.assertEqual(cfg["latent_specialist_warmup_steps"], 100_000)
+                self.assertEqual(cfg["latent_specialist_ramp_steps"], 400_000)
+                self.assertEqual(cfg["latent_specialist_min_bucket_count"], 4)
+                self.assertEqual(cfg["latent_entropy_anneal_start"], 100_000)
+                self.assertEqual(cfg["latent_entropy_anneal_end"], 500_000)
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.0003)
                 self.assertFalse(cfg["fixed_latent_strategy"])
 
 

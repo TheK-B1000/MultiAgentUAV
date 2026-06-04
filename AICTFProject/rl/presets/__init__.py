@@ -29,6 +29,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
     apply_plan_faithful_latent_v3i7_advantage_weighted_router_distill,
     apply_plan_faithful_latent_v3i8_commander_lockin,
+    apply_plan_faithful_latent_v3i9_specialist_router,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
     apply_plan_faithful_latent_phase2_credit,
@@ -146,6 +147,12 @@ PRESET_REGISTRY = {
     "latent_v3i8_commander_lockin": apply_plan_faithful_latent_v3i8_commander_lockin,
     "plan_faithful_latent_v3i8": apply_plan_faithful_latent_v3i8_commander_lockin,
     "latent_v3i8": apply_plan_faithful_latent_v3i8_commander_lockin,
+    "plan_faithful_latent_v3i9_specialist_router": apply_plan_faithful_latent_v3i9_specialist_router,
+    "latent_v3i9_specialist_router": apply_plan_faithful_latent_v3i9_specialist_router,
+    "plan_faithful_latent_v3i9_context_specialist": apply_plan_faithful_latent_v3i9_specialist_router,
+    "latent_v3i9_context_specialist": apply_plan_faithful_latent_v3i9_specialist_router,
+    "plan_faithful_latent_v3i9": apply_plan_faithful_latent_v3i9_specialist_router,
+    "latent_v3i9": apply_plan_faithful_latent_v3i9_specialist_router,
     "plan_faithful_latent_intent_credit": apply_plan_faithful_latent_episode_strategic,
     "plan_faithful_latent_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_plan_faithful_no_entropy": apply_plan_faithful_latent_no_entropy,
@@ -245,6 +252,7 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             "'plan_faithful_latent_option_a' (a.k.a. 'plan_faithful_latent_fix_d'), "
             "'plan_faithful_latent_option_a_episode_credit', "
             "'plan_faithful_latent_v3i4', 'plan_faithful_latent_v3i5', "
-            "'plan_faithful_latent_v3i6', 'plan_faithful_latent_v3i7'."
+            "'plan_faithful_latent_v3i6', 'plan_faithful_latent_v3i7', "
+            "'plan_faithful_latent_v3i8', 'plan_faithful_latent_v3i9'."
         )
     return fn(cfg)
