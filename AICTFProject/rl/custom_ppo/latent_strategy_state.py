@@ -112,8 +112,10 @@ def _advantage_weighted_target_from_records(
     min_distinct_z: int,
     temperature: float,
     margin_threshold: float,
+    soft_margin_gating: bool = False,
+    use_return: bool = False,
 ) -> tuple[Optional[np.ndarray], dict[str, float]]:
-    """Build a soft z target from per-z win-rate advantage evidence."""
+    """Build a soft z target from per-z win-rate or return advantage evidence."""
     stats = {
         "margin": 0.0,
         "wr_spread": 0.0,
@@ -126,7 +128,8 @@ def _advantage_weighted_target_from_records(
     for rec in records:
         z_val = int(rec.get("z", -1))
         if 0 <= z_val < int(latent_k):
-            per_z[z_val].append(float(rec.get("win_loss", 0.0)))
+            val_key = "return" if use_return else "win_loss"
+            per_z[z_val].append(float(rec.get(val_key, 0.0)))
     observed = [z for z in range(int(latent_k)) if per_z[z]]
     if len(observed) < int(min_distinct_z):
         return None, stats
@@ -147,19 +150,28 @@ def _advantage_weighted_target_from_records(
     observed_advantages = advantages[observed]
     best_pos = int(np.argmax(observed_advantages))
     best_z = int(observed[best_pos])
-    if len(observed_advantages) > 1:
-        sorted_adv = np.sort(observed_advantages)
-        margin = float(sorted_adv[-1] - sorted_adv[-2])
-    else:
-        margin = 0.0
-    wr_spread = float(max(sampled_wr) - min(sampled_wr)) if sampled_wr else 0.0
-    stats.update({"margin": margin, "wr_spread": wr_spread, "best_z": float(best_z)})
-    if margin < float(margin_threshold):
-        return None, stats
 
     temp = float(max(1e-6, temperature))
     e = np.exp((advantages - advantages.max()) / temp)
-    return (e / e.sum()).astype(np.float32), stats
+    target_probs = (e / e.sum()).astype(np.float32)
+
+    if use_return:
+        sorted_probs = np.sort(target_probs)
+        margin = float(sorted_probs[-1] - sorted_probs[-2])
+    else:
+        if len(observed_advantages) > 1:
+            sorted_adv = np.sort(observed_advantages)
+            margin = float(sorted_adv[-1] - sorted_adv[-2])
+        else:
+            margin = 0.0
+
+    wr_spread = float(max(sampled_wr) - min(sampled_wr)) if sampled_wr else 0.0
+    stats.update({"margin": margin, "wr_spread": wr_spread, "best_z": float(best_z)})
+
+    if not soft_margin_gating and margin < float(margin_threshold):
+        return None, stats
+
+    return target_probs, stats
 
 
 def _v3i3_resolve_target(
@@ -1244,6 +1256,8 @@ class LatentStrategyState:
             "latent_awrd_margin_mean": 0.0,
             "latent_awrd_wr_spread_mean": 0.0,
             "latent_awrd_best_z_mean": -1.0,
+            "latent_awrd_effective_coef_mean": 0.0,
+            "latent_awrd_best_z_match_rate": 0.0,
             "latent_episode_pg_loss": 0.0,
             "latent_episode_v_loss": 0.0,
             "latent_episode_entropy": 0.0,
@@ -1476,20 +1490,25 @@ class LatentStrategyState:
 
         # v3i7 advantage-weighted router distillation. This consumes the same
         # forced-z evidence library as the legacy preference path, but uses
-        # win-rate advantage by z and only fires when a bucket has a clear best-z
+        # win-rate or return advantage by z and only fires when a bucket has a clear best-z
         # margin. It teaches q_phi to trust discovered winning z choices without
         # adding entropy pressure or semantic role labels.
         awrd_enabled = bool(getattr(trainer, "latent_awrd_enabled", False))
         awrd_coef = float(getattr(trainer, "latent_awrd_coef", 0.0) or 0.0)
+        awrd_soft_margin = bool(getattr(trainer, "latent_awrd_soft_margin_gating", False))
+        awrd_use_return = awrd_soft_margin
         batch_awrd_target_probs = torch.zeros(
             (B, trainer.latent_k), dtype=torch.float32, device=trainer.device
         )
         batch_awrd_mask = torch.zeros((B,), dtype=torch.bool, device=trainer.device)
+        batch_awrd_coefs = torch.zeros((B,), dtype=torch.float32, device=trainer.device)
         awrd_active_buckets = 0
         awrd_target_entropy_sum = 0.0
         awrd_margin_sum = 0.0
         awrd_wr_spread_sum = 0.0
         awrd_best_z_sum = 0.0
+        awrd_best_z_matches = 0.0
+        awrd_effective_coef_sum = 0.0
         awrd_key_stats: dict[int, dict[str, float]] = {}
         if (
             awrd_enabled
@@ -1518,6 +1537,8 @@ class LatentStrategyState:
                     min_distinct_z=awrd_min_distinct,
                     temperature=awrd_temp,
                     margin_threshold=awrd_threshold,
+                    soft_margin_gating=awrd_soft_margin,
+                    use_return=awrd_use_return,
                 )
                 awrd_key_to_target[int(key)] = target
                 awrd_key_stats[int(key)] = key_stats
@@ -1536,6 +1557,25 @@ class LatentStrategyState:
                 awrd_margin_sum += float(key_stats.get("margin", 0.0))
                 awrd_wr_spread_sum += float(key_stats.get("wr_spread", 0.0))
                 awrd_best_z_sum += float(key_stats.get("best_z", -1.0))
+                
+                # Match rate telemetry
+                z_picked = int(z[i].item())
+                best_z = int(key_stats.get("best_z", -1))
+                if z_picked == best_z:
+                    awrd_best_z_matches += 1.0
+                    
+                if awrd_soft_margin:
+                    cur_awrd_coef = awrd_coef
+                    if trainer.global_step >= 700_000:
+                        cur_awrd_coef *= 1.5
+                    margin = float(key_stats.get("margin", 0.0))
+                    scale = float(getattr(trainer, "latent_awrd_margin_scale", 3.0) or 3.0)
+                    min_margin = float(getattr(trainer, "latent_awrd_min_margin", 0.08) or 0.08)
+                    eff_coef = cur_awrd_coef * (1.0 + scale * margin)
+                    if margin < min_margin:
+                        eff_coef = cur_awrd_coef * 0.25
+                    batch_awrd_coefs[i] = eff_coef
+                    awrd_effective_coef_sum += eff_coef
 
         # v3i3 event-conditioned preference precomputation (once per rollout).
         # Builds a (B_r, K) target table over the rollout's finalized refresh
@@ -1910,10 +1950,14 @@ class LatentStrategyState:
                     awrd_log_probs, awrd_targets, reduction="none"
                 ).sum(dim=-1)
                 awrd_loss = awrd_kl.mean()
-                awrd_scale = float(getattr(trainer, "latent_awrd_margin_scale", 2.0) or 2.0)
-                active_count = max(1, int(batch_awrd_mask.sum().item()))
-                margin_mean = float(awrd_margin_sum / active_count)
-                awrd_loss_scaled = awrd_coef * (1.0 + awrd_scale * margin_mean) * awrd_loss
+                if awrd_soft_margin:
+                    valid_coefs = batch_awrd_coefs[batch_awrd_mask]
+                    awrd_loss_scaled = (valid_coefs * awrd_kl).mean()
+                else:
+                    awrd_scale = float(getattr(trainer, "latent_awrd_margin_scale", 2.0) or 2.0)
+                    active_count = max(1, int(batch_awrd_mask.sum().item()))
+                    margin_mean = float(awrd_margin_sum / active_count)
+                    awrd_loss_scaled = awrd_coef * (1.0 + awrd_scale * margin_mean) * awrd_loss
 
             # v3i3 event-conditioned preference loss. Re-forwards
             # ``strategy_logits`` at the refresh-moment states and pulls
@@ -2076,6 +2120,16 @@ class LatentStrategyState:
                 float(awrd_best_z_sum / max(1, awrd_valid_count))
                 if awrd_valid_count > 0
                 else -1.0
+            )
+            stats["latent_awrd_effective_coef_mean"] = (
+                float(awrd_effective_coef_sum / max(1, awrd_valid_count))
+                if awrd_valid_count > 0
+                else 0.0
+            )
+            stats["latent_awrd_best_z_match_rate"] = (
+                float(awrd_best_z_matches / max(1, awrd_valid_count))
+                if awrd_valid_count > 0
+                else 0.0
             )
 
             # --- Opponent specific preference target telemetry ---

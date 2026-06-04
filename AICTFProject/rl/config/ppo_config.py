@@ -253,6 +253,8 @@ class PPOConfig:
     latent_awrd_min_distinct_z: int = 2
     latent_awrd_margin_threshold: float = 0.15
     latent_awrd_margin_scale: float = 2.0
+    latent_awrd_min_margin: float = 0.08
+    latent_awrd_soft_margin_gating: bool = False
     late_entropy_floor: float = 0.0003
     commitment_type: str = "confidence_weighted_entropy"
 

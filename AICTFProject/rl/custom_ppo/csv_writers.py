@@ -359,6 +359,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_awrd_margin_mean",
             "latent_awrd_wr_spread_mean",
             "latent_awrd_best_z_mean",
+            "latent_awrd_effective_coef_mean",
+            "latent_awrd_best_z_match_rate",
         ])
         for opp_name in ["op5", "op6"]:
             fields.extend([

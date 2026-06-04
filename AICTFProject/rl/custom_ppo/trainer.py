@@ -231,6 +231,8 @@ class CustomPPOTrainer:
         self.latent_awrd_min_distinct_z = hparams.latent_awrd_min_distinct_z
         self.latent_awrd_margin_threshold = hparams.latent_awrd_margin_threshold
         self.latent_awrd_margin_scale = hparams.latent_awrd_margin_scale
+        self.latent_awrd_min_margin = hparams.latent_awrd_min_margin
+        self.latent_awrd_soft_margin_gating = hparams.latent_awrd_soft_margin_gating
         self.late_entropy_floor = hparams.late_entropy_floor
         self.commitment_type = hparams.commitment_type
         self.latent_event_refresh_enabled = hparams.latent_event_refresh_enabled

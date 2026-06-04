@@ -507,6 +507,27 @@ def apply_plan_faithful_latent_v3i7_advantage_weighted_router_distill(cfg: PPOCo
     return cfg
 
 
+def apply_plan_faithful_latent_v3i8_commander_lockin(cfg: PPOConfig) -> PPOConfig:
+    """v3i8: commander lock-in preset.
+
+    Combines v3i4 policy strength with v3i7 AWRD routing intelligence.
+    """
+    cfg = apply_plan_faithful_latent_v3i4_event_progress_preference(cfg)
+
+    cfg.latent_awrd_enabled = True
+    cfg.latent_awrd_coef = 0.05
+    cfg.latent_awrd_temperature = 0.35
+    cfg.latent_awrd_min_margin = 0.08
+    cfg.latent_awrd_margin_scale = 3.0
+    cfg.latent_awrd_soft_margin_gating = True
+
+    cfg.latent_behavior_contrast_coef = 0.05
+    cfg.latent_behavior_contrast_margin = 0.25
+
+    cfg.run_tag = "latent_v3i8_commander_lockin_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

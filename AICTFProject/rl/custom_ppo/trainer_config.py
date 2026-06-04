@@ -111,6 +111,8 @@ class TrainerHyperparams:
     latent_awrd_min_distinct_z: int
     latent_awrd_margin_threshold: float
     latent_awrd_margin_scale: float
+    latent_awrd_min_margin: float
+    latent_awrd_soft_margin_gating: bool
     late_entropy_floor: float
     commitment_type: str
     latent_event_refresh_enabled: bool
@@ -368,6 +370,8 @@ class TrainerHyperparams:
             latent_awrd_margin_scale=max(
                 0.0, float(getattr(cfg, "latent_awrd_margin_scale", 2.0))
             ),
+            latent_awrd_min_margin=float(getattr(cfg, "latent_awrd_min_margin", 0.08)),
+            latent_awrd_soft_margin_gating=bool(getattr(cfg, "latent_awrd_soft_margin_gating", False)),
             late_entropy_floor=float(getattr(cfg, "late_entropy_floor", 0.0003) or 0.0003),
             commitment_type=str(getattr(cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy"),
             latent_event_refresh_enabled=bool(getattr(cfg, "latent_event_refresh_enabled", False)),

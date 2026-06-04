@@ -176,6 +176,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i7_advantage_weighted_router_distill",
             "plan_faithful_latent_v3i7",
             "latent_v3i7",
+            "plan_faithful_latent_v3i8_commander_lockin",
+            "latent_v3i8_commander_lockin",
+            "plan_faithful_latent_v3i8",
+            "latent_v3i8",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -392,6 +396,33 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(cfg["latent_awrd_min_distinct_z"], 2)
                 self.assertAlmostEqual(cfg["latent_awrd_margin_threshold"], 0.15)
                 self.assertAlmostEqual(cfg["latent_awrd_margin_scale"], 2.0)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i8_commander_lockin_is_summer_faithful(self) -> None:
+        """v3i8 inherits v3i4 + adds custom AWRD router bridge config and soft margin gating."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i8_commander_lockin",
+            "latent_v3i8_commander_lockin",
+            "plan_faithful_latent_v3i8",
+            "latent_v3i8",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.05)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_margin"], 0.25)
+                self.assertTrue(cfg["latent_awrd_enabled"])
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.05)
+                self.assertAlmostEqual(cfg["latent_awrd_temperature"], 0.35)
+                self.assertAlmostEqual(cfg["latent_awrd_min_margin"], 0.08)
+                self.assertAlmostEqual(cfg["latent_awrd_margin_scale"], 3.0)
+                self.assertTrue(cfg["latent_awrd_soft_margin_gating"])
                 self.assertFalse(cfg["fixed_latent_strategy"])
 
 
