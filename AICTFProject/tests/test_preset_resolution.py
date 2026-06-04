@@ -164,6 +164,14 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i4_event_progress_preference",
             "plan_faithful_latent_v3i4",
             "latent_v3i4",
+            "plan_faithful_latent_v3i5_crisp_router",
+            "latent_v3i5_crisp_router",
+            "plan_faithful_latent_v3i5",
+            "latent_v3i5",
+            "plan_faithful_latent_v3i6_stronger_actor_contrast",
+            "latent_v3i6_stronger_actor_contrast",
+            "plan_faithful_latent_v3i6",
+            "latent_v3i6",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -306,6 +314,55 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
                 self.assertEqual(cfg["latent_v3i3_event_preference_warmup_steps"], 50_000)
                 self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i5_crisp_router_is_summer_faithful(self) -> None:
+        """v3i5 inherits v3i4 + removes entropy pressure on router, reduces usage balance, sharpens event preference temperature and coef."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i5_crisp_router",
+            "latent_v3i5_crisp_router",
+            "plan_faithful_latent_v3i5",
+            "latent_v3i5",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
+                self.assertEqual(cfg["latent_v3i3_event_preference_warmup_steps"], 50_000)
+                self.assertEqual(cfg["latent_entropy_objective"], "none")
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.05)
+                self.assertAlmostEqual(cfg["latent_v3i3_event_preference_temperature"], 0.35)
+                self.assertAlmostEqual(cfg["latent_v3i3_event_preference_coef"], 0.05)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i6_stronger_actor_contrast_is_summer_faithful(self) -> None:
+        """v3i6 inherits v3i4 + sets behavior contrast coef to 0.10 and margin to 0.35, keeps latent_entropy_objective maximize."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i6_stronger_actor_contrast",
+            "latent_v3i6_stronger_actor_contrast",
+            "plan_faithful_latent_v3i6",
+            "latent_v3i6",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
+                self.assertEqual(cfg["latent_v3i3_event_preference_warmup_steps"], 50_000)
+                self.assertEqual(cfg["latent_entropy_objective"], "maximize")
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.10)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_margin"], 0.35)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+
 
 
 if __name__ == "__main__":

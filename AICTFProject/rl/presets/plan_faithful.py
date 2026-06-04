@@ -461,6 +461,33 @@ def apply_plan_faithful_latent_v3i4_event_progress_preference(cfg: PPOConfig) ->
     return cfg
 
 
+def apply_plan_faithful_latent_v3i5_crisp_router(cfg: PPOConfig) -> PPOConfig:
+    """v3i5: crisp router (unshackle router).
+
+    Inherits from v3i4, disables entropy pressure on the router,
+    reduces usage balance coefficient, and sharpens event preference temperature.
+    """
+    cfg = apply_plan_faithful_latent_v3i4_event_progress_preference(cfg)
+    cfg.latent_entropy_objective = "none"
+    cfg.latent_usage_balance_coef = 0.05
+    cfg.latent_v3i3_event_preference_temperature = 0.35
+    cfg.latent_v3i3_event_preference_coef = 0.05
+    cfg.run_tag = "latent_v3i5_crisp_router_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i6_stronger_actor_contrast(cfg: PPOConfig) -> PPOConfig:
+    """v3i6: stronger actor behavior contrast.
+
+    Inherits from v3i4, sets behavior contrast coef to 0.10 and margin to 0.35.
+    """
+    cfg = apply_plan_faithful_latent_v3i4_event_progress_preference(cfg)
+    cfg.latent_behavior_contrast_coef = 0.10
+    cfg.latent_behavior_contrast_margin = 0.35
+    cfg.run_tag = "latent_v3i6_stronger_actor_contrast_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

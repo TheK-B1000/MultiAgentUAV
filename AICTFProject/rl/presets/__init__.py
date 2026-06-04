@@ -25,6 +25,8 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v3i2_router_signal,
     apply_plan_faithful_latent_v3i3_event_conditioned_preference,
     apply_plan_faithful_latent_v3i4_event_progress_preference,
+    apply_plan_faithful_latent_v3i5_crisp_router,
+    apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
     apply_plan_faithful_latent_phase2_credit,
@@ -126,6 +128,14 @@ PRESET_REGISTRY = {
     "latent_v3i4_event_progress_preference": apply_plan_faithful_latent_v3i4_event_progress_preference,
     "plan_faithful_latent_v3i4": apply_plan_faithful_latent_v3i4_event_progress_preference,
     "latent_v3i4": apply_plan_faithful_latent_v3i4_event_progress_preference,
+    "plan_faithful_latent_v3i5_crisp_router": apply_plan_faithful_latent_v3i5_crisp_router,
+    "latent_v3i5_crisp_router": apply_plan_faithful_latent_v3i5_crisp_router,
+    "plan_faithful_latent_v3i5": apply_plan_faithful_latent_v3i5_crisp_router,
+    "latent_v3i5": apply_plan_faithful_latent_v3i5_crisp_router,
+    "plan_faithful_latent_v3i6_stronger_actor_contrast": apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
+    "latent_v3i6_stronger_actor_contrast": apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
+    "plan_faithful_latent_v3i6": apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
+    "latent_v3i6": apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
     "plan_faithful_latent_intent_credit": apply_plan_faithful_latent_episode_strategic,
     "plan_faithful_latent_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_plan_faithful_no_entropy": apply_plan_faithful_latent_no_entropy,
@@ -223,6 +233,7 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             "'plan_faithful_latent_episode_z_clean', "
             "'plan_faithful_latent_v3f_behavior_contrast', "
             "'plan_faithful_latent_option_a' (a.k.a. 'plan_faithful_latent_fix_d'), "
-            "'plan_faithful_latent_option_a_episode_credit'."
+            "'plan_faithful_latent_option_a_episode_credit', "
+            "'plan_faithful_latent_v3i4', 'plan_faithful_latent_v3i5', 'plan_faithful_latent_v3i6'."
         )
     return fn(cfg)
