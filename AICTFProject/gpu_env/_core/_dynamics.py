@@ -285,13 +285,12 @@ class _DynamicsMixin:
             return
 
         shove = 0.5
-
         # Blue-Blue repulsion
         ddx = self.blue_x[:, :, None] - self.blue_x[:, None, :]
         ddy = self.blue_y[:, :, None] - self.blue_y[:, None, :]
         d = torch.sqrt(ddx * ddx + ddy * ddy + 1e-8)
         eye = torch.eye(self.Nb, dtype=torch.bool, device=self.device)[None, :, :]
-        close_bb = (d < rr) & (~eye)
+        close_bb = (d < rr) & (~eye) & self.blue_alive[:, :, None] & self.blue_alive[:, None, :]
         if close_bb.any():
             dir_x = ddx / d
             dir_y = ddy / d
@@ -301,15 +300,15 @@ class _DynamicsMixin:
             norm = torch.sqrt(fx * fx + fy * fy + 1e-8)
             fx = fx / norm * shove
             fy = fy / norm * shove
-            self.blue_x = torch.clamp(self.blue_x + fx, 0.0, float(max(0, self.cols - 1)))
-            self.blue_y = torch.clamp(self.blue_y + fy, 0.0, float(max(0, self.rows - 1)))
+            self.blue_x = torch.where(self.blue_alive, torch.clamp(self.blue_x + fx, 0.0, float(max(0, self.cols - 1))), self.blue_x)
+            self.blue_y = torch.where(self.blue_alive, torch.clamp(self.blue_y + fy, 0.0, float(max(0, self.rows - 1))), self.blue_y)
 
         # Red-Red repulsion
         ddx_r = self.red_x[:, :, None] - self.red_x[:, None, :]
         ddy_r = self.red_y[:, :, None] - self.red_y[:, None, :]
         d_r = torch.sqrt(ddx_r * ddx_r + ddy_r * ddy_r + 1e-8)
         eye_r = torch.eye(self.Nr, dtype=torch.bool, device=self.device)[None, :, :]
-        close_rr = (d_r < rr) & (~eye_r)
+        close_rr = (d_r < rr) & (~eye_r) & self.red_alive[:, :, None] & self.red_alive[:, None, :]
         if close_rr.any():
             dir_xr = ddx_r / d_r
             dir_yr = ddy_r / d_r
@@ -318,14 +317,14 @@ class _DynamicsMixin:
             norm_r = torch.sqrt(fx_r * fx_r + fy_r * fy_r + 1e-8)
             fx_r = fx_r / norm_r * shove
             fy_r = fy_r / norm_r * shove
-            self.red_x = torch.clamp(self.red_x + fx_r, 0.0, float(max(0, self.cols - 1)))
-            self.red_y = torch.clamp(self.red_y + fy_r, 0.0, float(max(0, self.rows - 1)))
+            self.red_x = torch.where(self.red_alive, torch.clamp(self.red_x + fx_r, 0.0, float(max(0, self.cols - 1))), self.red_x)
+            self.red_y = torch.where(self.red_alive, torch.clamp(self.red_y + fy_r, 0.0, float(max(0, self.rows - 1))), self.red_y)
 
         # Blue-Red repulsion
         dx_br = self.blue_x[:, :, None] - self.red_x[:, None, :]
         dy_br = self.blue_y[:, :, None] - self.red_y[:, None, :]
         d_br = torch.sqrt(dx_br * dx_br + dy_br * dy_br + 1e-8)
-        close_br = d_br < rr
+        close_br = (d_br < rr) & self.blue_alive[:, :, None] & self.red_alive[:, None, :]
         if close_br.any():
             dir_xbr = dx_br / d_br
             dir_ybr = dy_br / d_br
@@ -335,16 +334,16 @@ class _DynamicsMixin:
             norm_b = torch.sqrt(fx_b * fx_b + fy_b * fy_b + 1e-8)
             fx_b = fx_b / norm_b * shove
             fy_b = fy_b / norm_b * shove
-            self.blue_x = torch.clamp(self.blue_x + fx_b, 0.0, float(max(0, self.cols - 1)))
-            self.blue_y = torch.clamp(self.blue_y + fy_b, 0.0, float(max(0, self.rows - 1)))
+            self.blue_x = torch.where(self.blue_alive, torch.clamp(self.blue_x + fx_b, 0.0, float(max(0, self.cols - 1))), self.blue_x)
+            self.blue_y = torch.where(self.blue_alive, torch.clamp(self.blue_y + fy_b, 0.0, float(max(0, self.rows - 1))), self.blue_y)
             # For red, repel in the opposite direction
             fx_r2 = -(dir_xbr * close_br.to(dir_xbr.dtype)).sum(dim=1)
             fy_r2 = -(dir_ybr * close_br.to(dir_ybr.dtype)).sum(dim=1)
             norm_r2 = torch.sqrt(fx_r2 * fx_r2 + fy_r2 * fy_r2 + 1e-8)
             fx_r2 = fx_r2 / norm_r2 * shove
             fy_r2 = fy_r2 / norm_r2 * shove
-            self.red_x = torch.clamp(self.red_x + fx_r2, 0.0, float(max(0, self.cols - 1)))
-            self.red_y = torch.clamp(self.red_y + fy_r2, 0.0, float(max(0, self.rows - 1)))
+            self.red_x = torch.where(self.red_alive, torch.clamp(self.red_x + fx_r2, 0.0, float(max(0, self.cols - 1))), self.red_x)
+            self.red_y = torch.where(self.red_alive, torch.clamp(self.red_y + fy_r2, 0.0, float(max(0, self.rows - 1))), self.red_y)
 
     # ------------------------------------------------------------------
     # Mine system: pickups spawn; agents GRAB_MINE then PLACE_MINE anywhere.

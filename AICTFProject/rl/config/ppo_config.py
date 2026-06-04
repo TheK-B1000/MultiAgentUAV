@@ -242,6 +242,17 @@ class PPOConfig:
     latent_preference_log_opponent_targets: bool = False
     latent_preference_confidence_scale: float = 2.0
     latent_preference_commit_coef: float = 0.003
+    # v3i7: advantage-weighted router distillation. Uses forced-z outcome
+    # evidence to teach q_phi which discovered z wins within the same
+    # opponent/context bucket. This is label-free: the target is derived from
+    # observed win-rate advantage by z, not role names or scripted tactics.
+    latent_awrd_enabled: bool = False
+    latent_awrd_coef: float = 0.0
+    latent_awrd_temperature: float = 0.35
+    latent_awrd_min_bucket_count: int = 8
+    latent_awrd_min_distinct_z: int = 2
+    latent_awrd_margin_threshold: float = 0.15
+    latent_awrd_margin_scale: float = 2.0
     late_entropy_floor: float = 0.0003
     commitment_type: str = "confidence_weighted_entropy"
 

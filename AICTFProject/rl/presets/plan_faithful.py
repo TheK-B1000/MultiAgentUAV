@@ -488,6 +488,25 @@ def apply_plan_faithful_latent_v3i6_stronger_actor_contrast(cfg: PPOConfig) -> P
     return cfg
 
 
+def apply_plan_faithful_latent_v3i7_advantage_weighted_router_distill(cfg: PPOConfig) -> PPOConfig:
+    """v3i7: advantage-weighted router distillation.
+
+    Inherits v3i6's stronger latent separation and adds a label-free bridge
+    that pulls q_phi toward discovered winning z choices only when forced-z
+    evidence shows a clear per-z win-rate advantage margin.
+    """
+    cfg = apply_plan_faithful_latent_v3i6_stronger_actor_contrast(cfg)
+    cfg.latent_awrd_enabled = True
+    cfg.latent_awrd_coef = 0.04
+    cfg.latent_awrd_temperature = 0.35
+    cfg.latent_awrd_min_bucket_count = 8
+    cfg.latent_awrd_min_distinct_z = 2
+    cfg.latent_awrd_margin_threshold = 0.15
+    cfg.latent_awrd_margin_scale = 2.0
+    cfg.run_tag = "latent_v3i7_adv_weighted_router_distill_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

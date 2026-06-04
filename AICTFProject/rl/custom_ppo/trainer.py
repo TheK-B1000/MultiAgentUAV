@@ -224,6 +224,13 @@ class CustomPPOTrainer:
         self.latent_preference_log_opponent_targets = hparams.latent_preference_log_opponent_targets
         self.latent_preference_confidence_scale = hparams.latent_preference_confidence_scale
         self.latent_preference_commit_coef = hparams.latent_preference_commit_coef
+        self.latent_awrd_enabled = hparams.latent_awrd_enabled
+        self.latent_awrd_coef = hparams.latent_awrd_coef
+        self.latent_awrd_temperature = hparams.latent_awrd_temperature
+        self.latent_awrd_min_bucket_count = hparams.latent_awrd_min_bucket_count
+        self.latent_awrd_min_distinct_z = hparams.latent_awrd_min_distinct_z
+        self.latent_awrd_margin_threshold = hparams.latent_awrd_margin_threshold
+        self.latent_awrd_margin_scale = hparams.latent_awrd_margin_scale
         self.late_entropy_floor = hparams.late_entropy_floor
         self.commitment_type = hparams.commitment_type
         self.latent_event_refresh_enabled = hparams.latent_event_refresh_enabled

@@ -172,6 +172,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i6_stronger_actor_contrast",
             "plan_faithful_latent_v3i6",
             "latent_v3i6",
+            "plan_faithful_latent_v3i7_advantage_weighted_router_distill",
+            "latent_v3i7_advantage_weighted_router_distill",
+            "plan_faithful_latent_v3i7",
+            "latent_v3i7",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -360,6 +364,34 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(cfg["latent_entropy_objective"], "maximize")
                 self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.10)
                 self.assertAlmostEqual(cfg["latent_behavior_contrast_margin"], 0.35)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i7_advantage_weighted_router_distill_is_summer_faithful(self) -> None:
+        """v3i7 inherits v3i6 + adds margin-gated advantage-weighted router distillation."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i7_advantage_weighted_router_distill",
+            "latent_v3i7_advantage_weighted_router_distill",
+            "plan_faithful_latent_v3i7",
+            "latent_v3i7",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertTrue(cfg["latent_event_refresh_enabled"])
+                self.assertTrue(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertEqual(cfg["latent_event_preference_key_mode"], "event_flag_progress")
+                self.assertTrue(cfg["latent_v3i3_event_preference_normalize"])
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.10)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_margin"], 0.35)
+                self.assertTrue(cfg["latent_awrd_enabled"])
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.04)
+                self.assertAlmostEqual(cfg["latent_awrd_temperature"], 0.35)
+                self.assertEqual(cfg["latent_awrd_min_bucket_count"], 8)
+                self.assertEqual(cfg["latent_awrd_min_distinct_z"], 2)
+                self.assertAlmostEqual(cfg["latent_awrd_margin_threshold"], 0.15)
+                self.assertAlmostEqual(cfg["latent_awrd_margin_scale"], 2.0)
                 self.assertFalse(cfg["fixed_latent_strategy"])
 
 

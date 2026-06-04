@@ -6,11 +6,51 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from rl.custom_ppo.latent_strategy_state import LatentStrategyState
+from rl.custom_ppo.latent_strategy_state import (
+    LatentStrategyState,
+    _advantage_weighted_target_from_records,
+)
 from tests.test_latent_episode_warmup import _make_trainer
 
 
 class LatentPreferenceTests(unittest.TestCase):
+    def test_advantage_weighted_target_requires_clear_margin(self) -> None:
+        weak_records = [
+            {"z": 0, "win_loss": 1},
+            {"z": 0, "win_loss": 0},
+            {"z": 1, "win_loss": 1},
+            {"z": 1, "win_loss": 0},
+        ]
+        target, stats = _advantage_weighted_target_from_records(
+            weak_records,
+            latent_k=4,
+            min_count=4,
+            min_distinct_z=2,
+            temperature=0.35,
+            margin_threshold=0.15,
+        )
+        self.assertIsNone(target)
+        self.assertAlmostEqual(stats["margin"], 0.0)
+
+        strong_records = [
+            {"z": 2, "win_loss": 1},
+            {"z": 2, "win_loss": 1},
+            {"z": 3, "win_loss": 0},
+            {"z": 3, "win_loss": 1},
+        ]
+        target, stats = _advantage_weighted_target_from_records(
+            strong_records,
+            latent_k=4,
+            min_count=4,
+            min_distinct_z=2,
+            temperature=0.35,
+            margin_threshold=0.15,
+        )
+        self.assertIsNotNone(target)
+        self.assertEqual(int(stats["best_z"]), 2)
+        self.assertGreater(stats["margin"], 0.15)
+        self.assertGreater(float(target[2]), float(target[3]))
+
     def test_record_episode_strategy_outcome_forced_z(self) -> None:
         trainer = _make_trainer(n_envs=2, warmup=0, episode_credit=True, gs_dim=4)
         trainer.cfg = SimpleNamespace(opponent_pool=["OP3", "OP5"], opponent_pool_weights=[0.5, 0.5])
@@ -561,6 +601,88 @@ class LatentPreferenceTests(unittest.TestCase):
         self.assertAlmostEqual(
             stats["latent_v3i3_event_pref_target_entropy"], 1.38629436, places=4
         )
+
+    def test_apply_episode_strategy_ppo_v3i7_awrd_uses_winning_z_margin(self) -> None:
+        trainer = _make_trainer(n_envs=1, warmup=0, episode_credit=True, gs_dim=4)
+        trainer.cfg = SimpleNamespace(opponent_pool=["OP5"], opponent_pool_weights=[1.0])
+        trainer.global_step = 100
+        trainer.latent_k = 4
+        trainer.latent_episode_strategy_coef = 0.0
+        trainer.latent_episode_strategy_n_epochs = 1
+        trainer.cfg.max_grad_norm = 1.0
+        trainer.latent_episode_strategy_return_norm = False
+        trainer.latent_episode_strategy_value_coef = 0.5
+        trainer.latent_entropy_objective = "maximize"
+        trainer.latent_episode_strategy_clip_eps = 0.2
+        trainer.latent_lam_h = 0.0
+        trainer.latent_preference_coef = 0.0
+        trainer.latent_v3i3_event_preference_enabled = False
+        trainer.latent_awrd_enabled = True
+        trainer.latent_awrd_coef = 0.5
+        trainer.latent_awrd_temperature = 0.35
+        trainer.latent_awrd_min_bucket_count = 4
+        trainer.latent_awrd_min_distinct_z = 2
+        trainer.latent_awrd_margin_threshold = 0.15
+        trainer.latent_awrd_margin_scale = 2.0
+
+        class MockOptimizer:
+            def __init__(self):
+                self.zero_grad_called = False
+                self.step_called = False
+                self.param_groups = [{"params": []}]
+            def zero_grad(self, set_to_none=True):
+                self.zero_grad_called = True
+            def step(self):
+                self.step_called = True
+
+        trainer.optimizer = MockOptimizer()
+        trainer.latent_router_optimizer = None
+
+        class MockModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.global_state_dim = 4
+                self.strategy_encoder = torch.nn.Linear(4, 4)
+                self.episode_strategy_value_head = torch.nn.Linear(4, 1)
+            def strategy_logits(self, state):
+                return self.strategy_encoder(state)
+            def episode_strategy_value(self, state, z):
+                return self.episode_strategy_value_head(state).squeeze(-1)
+
+        trainer.model = MockModel()
+
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+        for z_val, win_loss in ((2, 1), (2, 1), (3, 0), (3, 1)):
+            latent_state.latent_preference_buffer.append({
+                "context_bucket": 5,
+                "opponent": 4,
+                "phase_flag_state": 5,
+                "z": z_val,
+                "return": float(win_loss),
+                "behavior_embedding": [0.0] * 13,
+                "win_loss": win_loss,
+            })
+
+        latent_state.rollout_strategy_episode_records.append({
+            "episode_id": 0,
+            "global_state_0": torch.zeros(4, dtype=torch.float32),
+            "z": 2,
+            "z_logprob_old": 0.0,
+            "episode_return": 1.0,
+            "bucket_id": 5,
+            "opponent_id": 4,
+            "q_phi_probs": [0.25] * 4,
+        })
+
+        stats = latent_state.apply_episode_strategy_ppo(latent_lam_h=0.0)
+
+        self.assertGreater(stats["latent_awrd_loss"], 0.0)
+        self.assertEqual(stats["latent_awrd_active_fraction"], 1.0)
+        self.assertEqual(stats["latent_awrd_active_buckets"], 1.0)
+        self.assertAlmostEqual(stats["latent_awrd_margin_mean"], 0.5, places=5)
+        self.assertAlmostEqual(stats["latent_awrd_wr_spread_mean"], 0.5, places=5)
+        self.assertEqual(stats["latent_awrd_best_z_mean"], 2.0)
 
 
 

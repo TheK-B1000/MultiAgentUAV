@@ -351,6 +351,14 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_preference_buffer_size",
             "latent_preference_num_active_buckets",
             "latent_preference_target_entropy",
+            "latent_awrd_loss",
+            "latent_awrd_active_fraction",
+            "latent_awrd_active_buckets",
+            "latent_awrd_buffer_size",
+            "latent_awrd_target_entropy",
+            "latent_awrd_margin_mean",
+            "latent_awrd_wr_spread_mean",
+            "latent_awrd_best_z_mean",
         ])
         for opp_name in ["op5", "op6"]:
             fields.extend([

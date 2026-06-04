@@ -104,6 +104,13 @@ class TrainerHyperparams:
     latent_preference_log_opponent_targets: bool
     latent_preference_confidence_scale: float
     latent_preference_commit_coef: float
+    latent_awrd_enabled: bool
+    latent_awrd_coef: float
+    latent_awrd_temperature: float
+    latent_awrd_min_bucket_count: int
+    latent_awrd_min_distinct_z: int
+    latent_awrd_margin_threshold: float
+    latent_awrd_margin_scale: float
     late_entropy_floor: float
     commitment_type: str
     latent_event_refresh_enabled: bool
@@ -338,6 +345,29 @@ class TrainerHyperparams:
             latent_preference_log_opponent_targets=bool(getattr(cfg, "latent_preference_log_opponent_targets", False)),
             latent_preference_confidence_scale=float(getattr(cfg, "latent_preference_confidence_scale", 2.0) or 2.0),
             latent_preference_commit_coef=float(getattr(cfg, "latent_preference_commit_coef", 0.0) or 0.0),
+            latent_awrd_enabled=(
+                use_latent
+                and not fixed_latent
+                and bool(getattr(cfg, "latent_awrd_enabled", False))
+            ),
+            latent_awrd_coef=max(
+                0.0, float(getattr(cfg, "latent_awrd_coef", 0.0))
+            ),
+            latent_awrd_temperature=max(
+                1e-6, float(getattr(cfg, "latent_awrd_temperature", 0.35))
+            ),
+            latent_awrd_min_bucket_count=max(
+                1, int(getattr(cfg, "latent_awrd_min_bucket_count", 8))
+            ),
+            latent_awrd_min_distinct_z=max(
+                1, int(getattr(cfg, "latent_awrd_min_distinct_z", 2))
+            ),
+            latent_awrd_margin_threshold=max(
+                0.0, float(getattr(cfg, "latent_awrd_margin_threshold", 0.15))
+            ),
+            latent_awrd_margin_scale=max(
+                0.0, float(getattr(cfg, "latent_awrd_margin_scale", 2.0))
+            ),
             late_entropy_floor=float(getattr(cfg, "late_entropy_floor", 0.0003) or 0.0003),
             commitment_type=str(getattr(cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy"),
             latent_event_refresh_enabled=bool(getattr(cfg, "latent_event_refresh_enabled", False)),

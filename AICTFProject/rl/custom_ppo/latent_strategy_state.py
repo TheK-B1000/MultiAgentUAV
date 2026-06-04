@@ -43,6 +43,7 @@ State owned here
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 import numpy as np
@@ -101,6 +102,64 @@ def _v3i3_target_from_items(
             means[z_val] = fill
     e = np.exp((means - means.max()) / float(max(1e-6, temperature)))
     return (e / e.sum()).astype(np.float32)
+
+
+def _advantage_weighted_target_from_records(
+    records: list[dict[str, Any]],
+    *,
+    latent_k: int,
+    min_count: int,
+    min_distinct_z: int,
+    temperature: float,
+    margin_threshold: float,
+) -> tuple[Optional[np.ndarray], dict[str, float]]:
+    """Build a soft z target from per-z win-rate advantage evidence."""
+    stats = {
+        "margin": 0.0,
+        "wr_spread": 0.0,
+        "best_z": -1.0,
+        "count": float(len(records)),
+    }
+    if len(records) < int(min_count):
+        return None, stats
+    per_z: list[list[float]] = [[] for _ in range(int(latent_k))]
+    for rec in records:
+        z_val = int(rec.get("z", -1))
+        if 0 <= z_val < int(latent_k):
+            per_z[z_val].append(float(rec.get("win_loss", 0.0)))
+    observed = [z for z in range(int(latent_k)) if per_z[z]]
+    if len(observed) < int(min_distinct_z):
+        return None, stats
+
+    wr = np.zeros(int(latent_k), dtype=np.float32)
+    sampled_wr = []
+    for z_val in observed:
+        mean_wr = float(np.mean(per_z[z_val]))
+        wr[z_val] = mean_wr
+        sampled_wr.append(mean_wr)
+    fallback_wr = float(min(sampled_wr)) if sampled_wr else 0.0
+    for z_val in range(int(latent_k)):
+        if not per_z[z_val]:
+            wr[z_val] = fallback_wr
+
+    baseline = float(np.mean(sampled_wr)) if sampled_wr else 0.0
+    advantages = wr - baseline
+    observed_advantages = advantages[observed]
+    best_pos = int(np.argmax(observed_advantages))
+    best_z = int(observed[best_pos])
+    if len(observed_advantages) > 1:
+        sorted_adv = np.sort(observed_advantages)
+        margin = float(sorted_adv[-1] - sorted_adv[-2])
+    else:
+        margin = 0.0
+    wr_spread = float(max(sampled_wr) - min(sampled_wr)) if sampled_wr else 0.0
+    stats.update({"margin": margin, "wr_spread": wr_spread, "best_z": float(best_z)})
+    if margin < float(margin_threshold):
+        return None, stats
+
+    temp = float(max(1e-6, temperature))
+    e = np.exp((advantages - advantages.max()) / temp)
+    return (e / e.sum()).astype(np.float32), stats
 
 
 def _v3i3_resolve_target(
@@ -1177,6 +1236,14 @@ class LatentStrategyState:
             "latent_preference_buffer_size": 0.0,
             "latent_preference_num_active_buckets": 0.0,
             "latent_preference_target_entropy": 0.0,
+            "latent_awrd_loss": 0.0,
+            "latent_awrd_active_fraction": 0.0,
+            "latent_awrd_active_buckets": 0.0,
+            "latent_awrd_buffer_size": 0.0,
+            "latent_awrd_target_entropy": 0.0,
+            "latent_awrd_margin_mean": 0.0,
+            "latent_awrd_wr_spread_mean": 0.0,
+            "latent_awrd_best_z_mean": -1.0,
             "latent_episode_pg_loss": 0.0,
             "latent_episode_v_loss": 0.0,
             "latent_episode_entropy": 0.0,
@@ -1406,6 +1473,69 @@ class LatentStrategyState:
                     # Target entropy computation: -sum(p * log(p))
                     entropy = -np.sum(target * np.log(target + 1e-12))
                     target_entropy_sum += float(entropy)
+
+        # v3i7 advantage-weighted router distillation. This consumes the same
+        # forced-z evidence library as the legacy preference path, but uses
+        # win-rate advantage by z and only fires when a bucket has a clear best-z
+        # margin. It teaches q_phi to trust discovered winning z choices without
+        # adding entropy pressure or semantic role labels.
+        awrd_enabled = bool(getattr(trainer, "latent_awrd_enabled", False))
+        awrd_coef = float(getattr(trainer, "latent_awrd_coef", 0.0) or 0.0)
+        batch_awrd_target_probs = torch.zeros(
+            (B, trainer.latent_k), dtype=torch.float32, device=trainer.device
+        )
+        batch_awrd_mask = torch.zeros((B,), dtype=torch.bool, device=trainer.device)
+        awrd_active_buckets = 0
+        awrd_target_entropy_sum = 0.0
+        awrd_margin_sum = 0.0
+        awrd_wr_spread_sum = 0.0
+        awrd_best_z_sum = 0.0
+        awrd_key_stats: dict[int, dict[str, float]] = {}
+        if (
+            awrd_enabled
+            and awrd_coef > 0.0
+            and len(self.latent_preference_buffer) > 0
+            and opponent_ids is not None
+            and bucket_ids is not None
+        ):
+            batch_awrd_keys = (opponent_ids * 256 + bucket_ids).detach().cpu().numpy().tolist()
+            awrd_buffer_by_key: dict[int, list[dict[str, Any]]] = {}
+            for rec in self.latent_preference_buffer:
+                key = int(rec["opponent"] * 256 + rec["context_bucket"])
+                awrd_buffer_by_key.setdefault(key, []).append(rec)
+            awrd_min_count = int(getattr(trainer, "latent_awrd_min_bucket_count", 8) or 8)
+            awrd_min_distinct = int(getattr(trainer, "latent_awrd_min_distinct_z", 2) or 2)
+            awrd_temp = float(getattr(trainer, "latent_awrd_temperature", 0.35) or 0.35)
+            awrd_threshold = float(
+                getattr(trainer, "latent_awrd_margin_threshold", 0.15) or 0.15
+            )
+            awrd_key_to_target: dict[int, Optional[np.ndarray]] = {}
+            for key in set(batch_awrd_keys):
+                target, key_stats = _advantage_weighted_target_from_records(
+                    awrd_buffer_by_key.get(int(key), []),
+                    latent_k=int(trainer.latent_k),
+                    min_count=awrd_min_count,
+                    min_distinct_z=awrd_min_distinct,
+                    temperature=awrd_temp,
+                    margin_threshold=awrd_threshold,
+                )
+                awrd_key_to_target[int(key)] = target
+                awrd_key_stats[int(key)] = key_stats
+                if target is not None:
+                    awrd_active_buckets += 1
+            for i, key in enumerate(batch_awrd_keys):
+                target = awrd_key_to_target.get(int(key))
+                if target is None:
+                    continue
+                batch_awrd_target_probs[i] = torch.as_tensor(
+                    target, dtype=torch.float32, device=trainer.device
+                )
+                batch_awrd_mask[i] = True
+                awrd_target_entropy_sum += float(-np.sum(target * np.log(target + 1e-12)))
+                key_stats = awrd_key_stats.get(int(key), {})
+                awrd_margin_sum += float(key_stats.get("margin", 0.0))
+                awrd_wr_spread_sum += float(key_stats.get("wr_spread", 0.0))
+                awrd_best_z_sum += float(key_stats.get("best_z", -1.0))
 
         # v3i3 event-conditioned preference precomputation (once per rollout).
         # Builds a (B_r, K) target table over the rollout's finalized refresh
@@ -1698,6 +1828,8 @@ class LatentStrategyState:
             pref_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
             pref_loss_scaled = torch.zeros((), dtype=torch.float32, device=trainer.device)
             commit_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            awrd_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
+            awrd_loss_scaled = torch.zeros((), dtype=torch.float32, device=trainer.device)
             if pref_coef > 0.0 and bool(batch_pref_mask.any().item()):
                 valid_logits = logits[batch_pref_mask]
                 valid_targets = batch_target_probs[batch_pref_mask]
@@ -1706,7 +1838,6 @@ class LatentStrategyState:
                 # Compute target confidence: 1.0 - target_entropy / log(K)
                 target_probs_clamped = valid_targets.clamp_min(1e-8)
                 target_entropy_eps = -(valid_targets * torch.log(target_probs_clamped)).sum(dim=-1)
-                import math
                 target_confidence = 1.0 - target_entropy_eps / math.log(trainer.latent_k)
                 target_confidence = target_confidence.clamp(0.0, 1.0)
                 
@@ -1771,6 +1902,19 @@ class LatentStrategyState:
                     else:
                         commit_loss = commit_coef * commit_loss_eps.mean()
 
+            if awrd_coef > 0.0 and bool(batch_awrd_mask.any().item()):
+                awrd_logits = logits[batch_awrd_mask]
+                awrd_targets = batch_awrd_target_probs[batch_awrd_mask]
+                awrd_log_probs = torch.log_softmax(awrd_logits, dim=-1)
+                awrd_kl = F.kl_div(
+                    awrd_log_probs, awrd_targets, reduction="none"
+                ).sum(dim=-1)
+                awrd_loss = awrd_kl.mean()
+                awrd_scale = float(getattr(trainer, "latent_awrd_margin_scale", 2.0) or 2.0)
+                active_count = max(1, int(batch_awrd_mask.sum().item()))
+                margin_mean = float(awrd_margin_sum / active_count)
+                awrd_loss_scaled = awrd_coef * (1.0 + awrd_scale * margin_mean) * awrd_loss
+
             # v3i3 event-conditioned preference loss. Re-forwards
             # ``strategy_logits`` at the refresh-moment states and pulls
             # ``q_phi(z | state_at_refresh)`` toward the bucketed target
@@ -1796,7 +1940,7 @@ class LatentStrategyState:
 
             loss = trainer.latent_episode_strategy_coef * (
                 pg_loss + trainer.latent_episode_strategy_value_coef * v_loss
-            ) + entropy_term + usage_loss + pref_loss_scaled + commit_loss + v3i3_pref_loss_scaled
+            ) + entropy_term + usage_loss + pref_loss_scaled + commit_loss + awrd_loss_scaled + v3i3_pref_loss_scaled
 
             router_optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -1904,6 +2048,35 @@ class LatentStrategyState:
             stats["latent_preference_num_active_buckets"] = float(active_buckets_count)
             valid_count = int(batch_pref_mask.sum().item())
             stats["latent_preference_target_entropy"] = float(target_entropy_sum / max(1, valid_count)) if valid_count > 0 else 0.0
+            awrd_valid_count = int(batch_awrd_mask.sum().item())
+            stats["latent_awrd_loss"] = float(awrd_loss.detach().cpu().item())
+            stats["latent_awrd_active_fraction"] = (
+                float(batch_awrd_mask.float().mean().cpu().item())
+                if batch_awrd_mask.numel() > 0
+                else 0.0
+            )
+            stats["latent_awrd_active_buckets"] = float(awrd_active_buckets)
+            stats["latent_awrd_buffer_size"] = float(len(self.latent_preference_buffer))
+            stats["latent_awrd_target_entropy"] = (
+                float(awrd_target_entropy_sum / max(1, awrd_valid_count))
+                if awrd_valid_count > 0
+                else 0.0
+            )
+            stats["latent_awrd_margin_mean"] = (
+                float(awrd_margin_sum / max(1, awrd_valid_count))
+                if awrd_valid_count > 0
+                else 0.0
+            )
+            stats["latent_awrd_wr_spread_mean"] = (
+                float(awrd_wr_spread_sum / max(1, awrd_valid_count))
+                if awrd_valid_count > 0
+                else 0.0
+            )
+            stats["latent_awrd_best_z_mean"] = (
+                float(awrd_best_z_sum / max(1, awrd_valid_count))
+                if awrd_valid_count > 0
+                else -1.0
+            )
 
             # --- Opponent specific preference target telemetry ---
             log_opponent_targets = bool(getattr(trainer.cfg, "latent_preference_log_opponent_targets", False))
