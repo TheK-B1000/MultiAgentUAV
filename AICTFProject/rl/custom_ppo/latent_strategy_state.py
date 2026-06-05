@@ -240,16 +240,17 @@ def _router_specialist_loss(
     active_buckets = zero
     if context_keys is not None and mi_coef > 0.0:
         keys = context_keys.to(device=logits.device, dtype=torch.long)
-        unique_keys = torch.unique(keys)
+        unique_keys_tensor, counts_tensor = torch.unique(keys, return_counts=True)
+        unique_keys = unique_keys_tensor.detach().cpu().tolist()
+        counts = counts_tensor.detach().cpu().tolist()
         active_masks: list[torch.Tensor] = []
         active_weights: list[torch.Tensor] = []
         bucket_entropies: list[torch.Tensor] = []
         min_count = max(1, int(min_bucket_count))
-        for key in unique_keys:
-            mask = keys == key
-            count = int(mask.sum().detach().cpu().item())
+        for key, count in zip(unique_keys, counts):
             if count < min_count:
                 continue
+            mask = keys == key
             bucket_probs = probs[mask].mean(dim=0).clamp_min(1e-8)
             bucket_entropies.append(-(bucket_probs * torch.log(bucket_probs)).sum())
             active_masks.append(mask)
@@ -2067,10 +2068,12 @@ class LatentStrategyState:
                         bucket_ids=bucket_ids,
                     )
                     normalized_adv = torch.zeros_like(adv)
-                    unique_keys_tensor = torch.unique(keys)
-                    for k in unique_keys_tensor:
+                    unique_keys_tensor, counts_tensor = torch.unique(keys, return_counts=True)
+                    unique_keys = unique_keys_tensor.detach().cpu().tolist()
+                    counts = counts_tensor.detach().cpu().tolist()
+                    for k, count in zip(unique_keys, counts):
                         mask = (keys == k)
-                        if mask.sum() > 1:
+                        if count > 1:
                             sub_adv = adv[mask]
                             normalized_adv[mask] = (sub_adv - sub_adv.mean()) / (sub_adv.std(unbiased=False) + 1e-8)
                         else:
@@ -2157,10 +2160,15 @@ class LatentStrategyState:
                     reduction="none"
                 ).sum(dim=-1)
                 
-                # Raw KL loss for telemetry
-                if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
+                opponent_balanced = getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None
+                if opponent_balanced:
                     valid_opps = opponent_ids[batch_pref_mask]
-                    unique_opps = torch.unique(valid_opps)
+                    unique_opps = torch.unique(valid_opps).detach().cpu().tolist()
+                else:
+                    unique_opps = []
+
+                # Raw KL loss for telemetry
+                if opponent_balanced:
                     opponent_losses = []
                     for opp_id in unique_opps:
                         opp_mask = (valid_opps == opp_id)
@@ -2174,7 +2182,7 @@ class LatentStrategyState:
                 
                 # Scaled preference loss applied to loss
                 weighted_kl_per_episode = effective_coef_eps * kl_per_episode
-                if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
+                if opponent_balanced:
                     opponent_weighted_losses = []
                     for opp_id in unique_opps:
                         opp_mask = (valid_opps == opp_id)
@@ -2193,7 +2201,7 @@ class LatentStrategyState:
                     q_entropy_eps = -(valid_q_probs * torch.log(valid_q_probs + 1e-8)).sum(dim=-1)
                     commit_loss_eps = target_confidence * q_entropy_eps
                     
-                    if getattr(trainer.cfg, "latent_preference_opponent_balanced", False) and opponent_ids is not None:
+                    if opponent_balanced:
                         opponent_commit_losses = []
                         for opp_id in unique_opps:
                             opp_mask = (valid_opps == opp_id)
