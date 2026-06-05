@@ -186,6 +186,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i9_context_specialist",
             "plan_faithful_latent_v3i9",
             "latent_v3i9",
+            "plan_faithful_latent_v3i10_role_phase_specialist",
+            "latent_v3i10_role_phase_specialist",
+            "plan_faithful_latent_v3i10",
+            "latent_v3i10",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -463,6 +467,37 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(cfg["latent_entropy_anneal_start"], 100_000)
                 self.assertEqual(cfg["latent_entropy_anneal_end"], 500_000)
                 self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.0003)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i10_role_phase_specialist_is_summer_faithful(self) -> None:
+        """v3i10 specializes by phase/flag/progress with opponent as secondary context."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i10_role_phase_specialist",
+            "latent_v3i10_role_phase_specialist",
+            "plan_faithful_latent_v3i10",
+            "latent_v3i10",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertEqual(cfg["mode"], "FIXED_OPPONENT")
+                self.assertEqual(cfg["fixed_opponent_tag"], "OP3")
+                self.assertTrue(cfg["latent_specialist_router_enabled"])
+                self.assertEqual(
+                    cfg["latent_specialist_context_key_mode"],
+                    "role_phase_progress_opponent",
+                )
+                self.assertAlmostEqual(cfg["latent_marginal_balance_coef"], 0.015)
+                self.assertAlmostEqual(cfg["latent_conditional_entropy_min_coef"], 0.035)
+                self.assertAlmostEqual(cfg["latent_context_mi_coef"], 0.08)
+                self.assertEqual(cfg["latent_specialist_min_bucket_count"], 3)
+                self.assertEqual(cfg["latent_event_refresh_min_gap_steps"], 80)
+                self.assertEqual(cfg["latent_event_refresh_max_per_episode"], 1)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.12)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_margin"], 0.35)
+                self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.40)
                 self.assertFalse(cfg["fixed_latent_strategy"])
 
 

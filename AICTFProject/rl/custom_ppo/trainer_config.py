@@ -120,6 +120,7 @@ class TrainerHyperparams:
     latent_specialist_warmup_steps: int
     latent_specialist_ramp_steps: int
     latent_specialist_min_bucket_count: int
+    latent_specialist_context_key_mode: str
     late_entropy_floor: float
     commitment_type: str
     latent_event_refresh_enabled: bool
@@ -402,6 +403,10 @@ class TrainerHyperparams:
             ),
             latent_specialist_min_bucket_count=max(
                 1, int(getattr(cfg, "latent_specialist_min_bucket_count", 2) or 2)
+            ),
+            latent_specialist_context_key_mode=str(
+                getattr(cfg, "latent_specialist_context_key_mode", "opponent_bucket")
+                or "opponent_bucket"
             ),
             late_entropy_floor=float(getattr(cfg, "late_entropy_floor", 0.0003) or 0.0003),
             commitment_type=str(getattr(cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy"),

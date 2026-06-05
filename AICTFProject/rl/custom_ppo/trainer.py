@@ -240,6 +240,7 @@ class CustomPPOTrainer:
         self.latent_specialist_warmup_steps = hparams.latent_specialist_warmup_steps
         self.latent_specialist_ramp_steps = hparams.latent_specialist_ramp_steps
         self.latent_specialist_min_bucket_count = hparams.latent_specialist_min_bucket_count
+        self.latent_specialist_context_key_mode = hparams.latent_specialist_context_key_mode
         self.late_entropy_floor = hparams.late_entropy_floor
         self.commitment_type = hparams.commitment_type
         self.latent_event_refresh_enabled = hparams.latent_event_refresh_enabled

@@ -422,6 +422,86 @@ def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor
     return bucket.long()
 
 
+def _role_phase_specialist_context_keys(
+    global_state: torch.Tensor,
+    *,
+    include_progress: bool = True,
+) -> torch.Tensor:
+    """Phase/flag context key for specialist-router grouping.
+
+    This is a battlefield-context bucket, not a role label. It mirrors the
+    phase/flag concepts already logged for MI diagnostics so fixed-opponent
+    runs can still ask q_phi to become decisive across CTF situations.
+    """
+    if global_state.dim() != 2:
+        raise ValueError(f"global_state must be 2-D, got {tuple(global_state.shape)}")
+    raw = global_state[:, :GLOBAL_STATE_DIM].float()
+    if raw.shape[1] < GLOBAL_STATE_DIM:
+        raw = F.pad(raw, (0, GLOBAL_STATE_DIM - int(raw.shape[1])))
+
+    enemy_has_our_flag = raw[:, 10] > 0.5
+    we_have_enemy_flag = raw[:, 11] > 0.5
+    near_enemy_flag = raw[:, 8] < 0.22
+    near_own_flag = raw[:, 9] < 0.22
+
+    neutral = torch.zeros(raw.shape[0], dtype=torch.long, device=raw.device)
+    attacking = torch.ones_like(neutral)
+    carrying_home = torch.full_like(neutral, 2)
+    defending = torch.full_like(neutral, 3)
+    enemy_carrying = torch.full_like(neutral, 4)
+
+    phase = neutral
+    phase = torch.where(enemy_has_our_flag & ~we_have_enemy_flag, enemy_carrying, phase)
+    phase = torch.where(we_have_enemy_flag & ~enemy_has_our_flag, carrying_home, phase)
+    phase = torch.where(
+        (~enemy_has_our_flag) & (~we_have_enemy_flag) & near_own_flag,
+        defending,
+        phase,
+    )
+    phase = torch.where(
+        we_have_enemy_flag & (~enemy_has_our_flag) & near_enemy_flag,
+        attacking,
+        phase,
+    )
+
+    flag_state = enemy_has_our_flag.long() * 2 + we_have_enemy_flag.long()
+    near_bucket = near_own_flag.long() * 2 + near_enemy_flag.long()
+    key = ((phase * 4) + flag_state) * 4 + near_bucket
+    if include_progress:
+        key = key * 4 + _carrier_progress_bucket_ids(raw)
+    return key.long()
+
+
+def _specialist_context_keys_for_mode(
+    *,
+    mode: str,
+    states: torch.Tensor,
+    opponent_ids: Optional[torch.Tensor],
+    bucket_ids: Optional[torch.Tensor],
+) -> Optional[torch.Tensor]:
+    mode_s = str(mode or "opponent_bucket").strip().lower()
+    if mode_s in {"role_phase", "phase_flag"}:
+        return _role_phase_specialist_context_keys(states, include_progress=False)
+    if mode_s in {"role_phase_progress", "phase_flag_progress"}:
+        return _role_phase_specialist_context_keys(states, include_progress=True)
+    if mode_s in {
+        "role_phase_opponent",
+        "phase_flag_opponent",
+        "role_phase_progress_opponent",
+        "phase_flag_progress_opponent",
+    }:
+        include_progress = "progress" in mode_s
+        phase_key = _role_phase_specialist_context_keys(
+            states, include_progress=include_progress
+        )
+        if opponent_ids is None:
+            return phase_key
+        return phase_key * 16 + opponent_ids.long().clamp_min(0)
+    if opponent_ids is not None and bucket_ids is not None:
+        return opponent_ids.long() * 1024 + bucket_ids.long()
+    return None
+
+
 class EpisodeStrategyRecorder:
     """Tracks sampled episode-level z actions for task-return PPO credit.
 
@@ -1897,8 +1977,19 @@ class LatentStrategyState:
             ramp_steps=int(getattr(trainer, "latent_specialist_ramp_steps", 1) or 0),
         )
         specialist_context_keys: Optional[torch.Tensor] = None
-        if opponent_ids is not None and bucket_ids is not None:
-            specialist_context_keys = opponent_ids.long() * 1024 + bucket_ids.long()
+        specialist_context_keys = _specialist_context_keys_for_mode(
+            mode=str(
+                getattr(
+                    trainer,
+                    "latent_specialist_context_key_mode",
+                    "opponent_bucket",
+                )
+                or "opponent_bucket"
+            ),
+            states=states,
+            opponent_ids=opponent_ids,
+            bucket_ids=bucket_ids,
+        )
 
         pg_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
         v_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)

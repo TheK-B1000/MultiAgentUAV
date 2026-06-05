@@ -266,6 +266,7 @@ class PPOConfig:
     latent_specialist_warmup_steps: int = 0
     latent_specialist_ramp_steps: int = 1
     latent_specialist_min_bucket_count: int = 2
+    latent_specialist_context_key_mode: str = "opponent_bucket"
     late_entropy_floor: float = 0.0003
     commitment_type: str = "confidence_weighted_entropy"
 

@@ -9,7 +9,9 @@ import torch.nn.functional as F
 from rl.custom_ppo.latent_strategy_state import (
     LatentStrategyState,
     _advantage_weighted_target_from_records,
+    _role_phase_specialist_context_keys,
     _router_specialist_loss,
+    _specialist_context_keys_for_mode,
 )
 from tests.test_latent_episode_warmup import _make_trainer
 
@@ -65,6 +67,53 @@ class LatentPreferenceTests(unittest.TestCase):
         )
         self.assertGreater(float(specialist_stats["latent_specialist_context_mi"].item()), 0.5)
         self.assertEqual(float(specialist_stats["latent_specialist_active_buckets"].item()), 4.0)
+
+    def test_role_phase_specialist_context_keys_separate_flag_situations(self) -> None:
+        states = torch.zeros((4, 34), dtype=torch.float32)
+        states[0, 8] = 0.8
+        states[0, 9] = 0.8
+        states[1, 10] = 1.0
+        states[1, 23] = 0.1
+        states[2, 11] = 1.0
+        states[2, 8] = 0.1
+        states[2, 23] = 0.8
+        states[3, 9] = 0.1
+
+        keys = _role_phase_specialist_context_keys(states, include_progress=True)
+
+        self.assertEqual(int(keys.unique().numel()), 4)
+        self.assertNotEqual(int(keys[1].item()), int(keys[2].item()))
+        self.assertNotEqual(int(keys[0].item()), int(keys[3].item()))
+
+    def test_role_phase_opponent_context_keeps_phase_primary(self) -> None:
+        states = torch.zeros((3, 34), dtype=torch.float32)
+        states[:, 10] = 1.0
+        opponent_ids = torch.tensor([3, 5, 3], dtype=torch.long)
+
+        phase_keys = _specialist_context_keys_for_mode(
+            mode="role_phase_progress",
+            states=states,
+            opponent_ids=opponent_ids,
+            bucket_ids=None,
+        )
+        hierarchical_keys = _specialist_context_keys_for_mode(
+            mode="role_phase_progress_opponent",
+            states=states,
+            opponent_ids=opponent_ids,
+            bucket_ids=None,
+        )
+
+        self.assertIsNotNone(phase_keys)
+        self.assertIsNotNone(hierarchical_keys)
+        self.assertEqual(int(phase_keys[0].item()), int(phase_keys[1].item()))
+        self.assertNotEqual(
+            int(hierarchical_keys[0].item()),
+            int(hierarchical_keys[1].item()),
+        )
+        self.assertEqual(
+            int(hierarchical_keys[0].item()) // 16,
+            int(hierarchical_keys[1].item()) // 16,
+        )
 
     def test_advantage_weighted_target_requires_clear_margin(self) -> None:
         weak_records = [

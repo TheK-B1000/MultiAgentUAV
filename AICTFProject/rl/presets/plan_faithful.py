@@ -566,6 +566,37 @@ def apply_plan_faithful_latent_v3i9_specialist_router(cfg: PPOConfig) -> PPOConf
     return cfg
 
 
+def apply_plan_faithful_latent_v3i10_role_phase_specialist(cfg: PPOConfig) -> PPOConfig:
+    """v3i10: fixed-opponent role/phase specialist.
+
+    Gives the team-level latent a clearer job without opponent pooling:
+    specialize q_phi by phase/flag/carrier-progress context, keep z more
+    persistent after event refreshes, and strengthen behavior separation so the
+    actor cannot treat z as decorative.
+    """
+    cfg = apply_plan_faithful_latent_v3i9_specialist_router(cfg)
+
+    cfg.latent_specialist_context_key_mode = "role_phase_progress_opponent"
+    cfg.latent_marginal_balance_coef = 0.015
+    cfg.latent_conditional_entropy_min_coef = 0.035
+    cfg.latent_context_mi_coef = 0.08
+    cfg.latent_specialist_min_bucket_count = 3
+
+    cfg.latent_event_refresh_min_gap_steps = 80
+    cfg.latent_event_refresh_max_per_episode = 1
+    cfg.latent_v3i3_event_preference_coef = 0.04
+    cfg.latent_v3i3_event_preference_temperature = 0.55
+
+    cfg.latent_forced_z_episode_frac = 0.40
+    cfg.latent_behavior_contrast_coef = 0.12
+    cfg.latent_behavior_contrast_margin = 0.35
+    cfg.latent_behavior_contrast_anneal_after_steps = 900_000
+    cfg.latent_behavior_contrast_anneal_to = 0.02
+
+    cfg.run_tag = "latent_v3i10_role_phase_specialist_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
