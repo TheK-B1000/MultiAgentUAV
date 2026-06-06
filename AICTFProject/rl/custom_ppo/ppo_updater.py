@@ -16,6 +16,7 @@ mechanical — heavy thinning of dependencies can come in a follow-up.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -57,6 +58,88 @@ if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
+class StrictFaithfulDictWrapper(dict):
+    """Safeguard dict wrapper ensuring evaluation-only keys are never accessed in loss functions."""
+    disallowed_keys = {
+        "opponent_id", "phase_id", "phase", "outcome_id", "role_bucket_id",
+        "spread_bucket_id", "pressure_bucket_id", "attack_defense_ratio_bucket_id",
+        "role_bucket", "spread_bucket", "pressure_bucket", "attack_defense_ratio_bucket",
+        "opponent", "outcome"
+    }
+
+    def __getitem__(self, key):
+        if key in self.disallowed_keys:
+            raise AssertionError(f"Leakage detected! Disallowed key '{key}' accessed inside _policy_z_separation_loss.")
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        if key in self.disallowed_keys:
+            raise AssertionError(f"Leakage detected! Disallowed key '{key}' accessed inside _policy_z_separation_loss.")
+        return super().get(key, default)
+
+
+def _warmup_ramp_value(
+    *,
+    global_step: int,
+    warmup_steps: int,
+    ramp_steps: int,
+    start_value: float,
+    target_value: float,
+) -> float:
+    """Return zero before warmup, then linearly ramp start to target."""
+    step = int(global_step)
+    warmup = max(0, int(warmup_steps))
+    ramp = max(0, int(ramp_steps))
+    start = max(0.0, float(start_value))
+    target = max(0.0, float(target_value))
+    if step < warmup:
+        return 0.0
+    if ramp <= 0:
+        return target
+    progress = max(0.0, min(1.0, (step - warmup) / float(ramp)))
+    return start + progress * (target - start)
+
+
+def _z_separation_gate_mask(
+    *,
+    advantages: torch.Tensor,
+    action_entropy: torch.Tensor,
+    global_state: torch.Tensor,
+    max_action_entropy: float,
+    min_abs_advantage: float,
+    min_decision_frac: float,
+    max_entropy_frac: float,
+) -> torch.Tensor:
+    """Select tactically meaningful rows for forced-z policy separation."""
+    adv = advantages.detach().float().reshape(-1)
+    entropy = action_entropy.detach().float().reshape(-1)
+    if global_state.dim() != 2 or int(global_state.shape[0]) != int(adv.shape[0]):
+        raise ValueError(
+            "global_state must be (B, D) and align with advantages for z separation"
+        )
+    if int(entropy.shape[0]) != int(adv.shape[0]):
+        raise ValueError("action_entropy must align with advantages for z separation")
+
+    mask = torch.ones_like(adv, dtype=torch.bool)
+    min_adv = max(0.0, float(min_abs_advantage))
+    if min_adv > 0.0:
+        mask &= adv.abs() >= min_adv
+
+    min_progress = max(0.0, min(1.0, float(min_decision_frac)))
+    if min_progress > 0.0:
+        if int(global_state.shape[1]) <= 17:
+            raise ValueError(
+                "global_state needs decision_frac at index 17 for z separation gating"
+            )
+        mask &= global_state[:, 17].detach().float() >= min_progress
+
+    entropy_frac = max(0.0, min(1.0, float(max_entropy_frac)))
+    if entropy_frac < 1.0:
+        entropy_ceiling = max(0.0, float(max_action_entropy)) * entropy_frac
+        mask &= entropy <= entropy_ceiling
+    return mask
+
+
 def _policy_z_separation_loss(
     model: Any,
     obs_batch: dict[str, torch.Tensor],
@@ -64,38 +147,98 @@ def _policy_z_separation_loss(
     *,
     latent_k: int,
     margin: float,
+    active_mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-    """Penalize identical action distributions under different forced z values."""
+    """Penalize identical action distributions under forced z values using average pairwise JSD."""
     if int(latent_k) <= 1 or z_idx.numel() <= 0:
         zero = torch.zeros((), dtype=torch.float32, device=z_idx.device)
         return zero, {"jsd": zero, "active": zero}
 
-    z_a = z_idx.long().reshape(-1).clamp(min=0, max=int(latent_k) - 1)
-    z_b = (z_a + 1) % int(latent_k)
-    logits_a = model._mask_logits(model.policy_logits(obs_batch, z_idx=z_a), obs_batch.get("mask"))
-    logits_b = model._mask_logits(model.policy_logits(obs_batch, z_idx=z_b), obs_batch.get("mask"))
+    # Wrap obs_batch with StrictFaithfulDictWrapper to guarantee zero information leakage
+    obs_batch = StrictFaithfulDictWrapper(obs_batch)
+
+    batch_size = int(z_idx.reshape(-1).shape[0])
+    device = z_idx.device
+
+    active_fraction = torch.ones((), dtype=torch.float32, device=device)
+    if active_mask is not None:
+        mask = active_mask.to(device=device, dtype=torch.bool).reshape(-1)
+        if int(mask.shape[0]) != batch_size:
+            raise ValueError(
+                f"active_mask length {int(mask.shape[0])} != batch size {batch_size}"
+            )
+        active_fraction = mask.float().mean()
+        active_indices = torch.where(mask)[0]
+        if active_indices.numel() <= 0:
+            zero = torch.zeros((), dtype=torch.float32, device=device)
+            return zero, {"jsd": zero, "active": zero}
+        obs_active: dict[str, Any] = {}
+        for key, value in obs_batch.items():
+            if isinstance(value, torch.Tensor) and int(value.shape[0]) == batch_size:
+                obs_active[key] = value.index_select(0, active_indices)
+            else:
+                obs_active[key] = value
+        obs_batch = StrictFaithfulDictWrapper(obs_active)
+        batch_size = int(active_indices.numel())
+
+    # Cap batch size for JSD computation to avoid CUDA memory pressure/OOM
+    max_jsd_rows = 512
+    if batch_size > max_jsd_rows:
+        indices = torch.randperm(batch_size, device=device)[:max_jsd_rows]
+        obs_sub = {}
+        for k, v in obs_batch.items():
+            if isinstance(v, torch.Tensor) and v.shape[0] == batch_size:
+                obs_sub[k] = v[indices]
+            else:
+                obs_sub[k] = v
+        obs_sub = StrictFaithfulDictWrapper(obs_sub)
+        curr_batch_size = max_jsd_rows
+    else:
+        obs_sub = obs_batch
+        curr_batch_size = int(batch_size)
+
+    # Compute logits for all latent strategy classes
+    logits_list = []
+    for k in range(latent_k):
+        z_k = torch.full((curr_batch_size,), k, dtype=torch.long, device=device)
+        logits_k = model._mask_logits(model.policy_logits(obs_sub, z_idx=z_k), obs_sub.get("mask"))
+        logits_list.append(logits_k)
 
     js_terms: list[torch.Tensor] = []
     offset = 0
     for _agent_idx in range(int(model.n_agents)):
         for dim in model.per_agent_action_dims:
             width = int(dim)
-            a = logits_a[:, offset : offset + width]
-            b = logits_b[:, offset : offset + width]
-            p = torch.softmax(a, dim=-1).clamp_min(1e-8)
-            q = torch.softmax(b, dim=-1).clamp_min(1e-8)
-            m = 0.5 * (p + q)
-            js = 0.5 * (p * (p.log() - m.log())).sum(dim=-1)
-            js = js + 0.5 * (q * (q.log() - m.log())).sum(dim=-1)
-            js_terms.append(js)
+
+            # Extract probability distributions for all K latent classes
+            p_list = []
+            for k in range(latent_k):
+                a_k = logits_list[k][:, offset : offset + width]
+                p_k = torch.softmax(a_k, dim=-1).clamp_min(1e-8)
+                p_list.append(p_k)
+
+            # Compute all pairwise JS divergences
+            pairwise_js = []
+            for i in range(latent_k):
+                for j in range(i + 1, latent_k):
+                    p_i = p_list[i]
+                    p_j = p_list[j]
+                    m = 0.5 * (p_i + p_j)
+                    js = 0.5 * (p_i * (p_i.log() - m.log())).sum(dim=-1)
+                    js = js + 0.5 * (p_j * (p_j.log() - m.log())).sum(dim=-1)
+                    pairwise_js.append(js)
+
+            if pairwise_js:
+                js_terms.append(torch.stack(pairwise_js, dim=0).mean(dim=0))
             offset += width
 
     if not js_terms:
         zero = torch.zeros((), dtype=torch.float32, device=z_idx.device)
         return zero, {"jsd": zero, "active": zero}
+
     jsd = torch.stack(js_terms, dim=0).mean()
     loss = F.relu(jsd.new_tensor(float(max(0.0, margin))) - jsd)
-    return loss, {"jsd": jsd.detach(), "active": jsd.new_tensor(1.0)}
+    return loss, {"jsd": jsd.detach(), "active": active_fraction.detach()}
 
 
 class PPOUpdater:
@@ -156,6 +299,42 @@ class PPOUpdater:
             group["lr"] = lr
         ent_coef = hparams.ent_coef if progress_remaining > 0.75 else 0.5 * hparams.ent_coef
         latent_lam_h = self.compute_latent_lam_h(runtime.global_step, total_timesteps)
+
+        # Dynamic scheduling for z_separation_coef
+        sep_coef = float(getattr(hparams, "latent_actor_z_separation_coef", 0.0) or 0.0)
+        sep_start_coef = float(
+            getattr(hparams, "latent_actor_z_separation_start_coef", 0.0) or 0.0
+        )
+        sep_warmup = int(getattr(hparams, "latent_actor_z_separation_warmup_steps", 0) or 0)
+        sep_ramp = int(getattr(hparams, "latent_actor_z_separation_ramp_steps", 0) or 0)
+        step = int(runtime.global_step)
+        curr_sep_coef = _warmup_ramp_value(
+            global_step=step,
+            warmup_steps=sep_warmup,
+            ramp_steps=sep_ramp,
+            start_value=sep_start_coef,
+            target_value=sep_coef,
+        )
+
+        # Dynamic scheduling for z_adapter_scale
+        if getattr(hparams, "use_latent_strategy", False) and getattr(hparams, "latent_actor_z_adapter_enabled", False):
+            adapter_warmup = int(getattr(hparams, "latent_actor_z_adapter_warmup_steps", 0) or 0)
+            adapter_ramp = int(getattr(hparams, "latent_actor_z_adapter_ramp_steps", 0) or 0)
+            base_scale = float(getattr(hparams, "latent_actor_z_adapter_scale", 0.0) or 0.0)
+            curr_adapter_scale = _warmup_ramp_value(
+                global_step=step,
+                warmup_steps=adapter_warmup,
+                ramp_steps=adapter_ramp,
+                start_value=0.0,
+                target_value=base_scale,
+            )
+
+            # Apply dynamically to the model
+            if hasattr(self.model, "latent_actor") and self.model.latent_actor is not None:
+                self.model.latent_actor.z_adapter_scale = curr_adapter_scale
+        else:
+            curr_adapter_scale = 0.0
+
         _update_strategy_return_stats(runtime, buffer)
 
         stats: dict[str, list[float]] = {
@@ -198,6 +377,11 @@ class PPOUpdater:
                     batch["actions"],
                     z_idx=z_idx,
                 )
+                advantages = batch["advantages"]
+                if advantages.numel() > 1:
+                    advantages = (advantages - advantages.mean()) / (
+                        advantages.std(unbiased=False) + 1e-8
+                    )
                 z_sep_loss = torch.zeros((), dtype=torch.float32, device=device)
                 z_sep_stats = {
                     "jsd": torch.zeros((), dtype=torch.float32, device=device),
@@ -274,14 +458,51 @@ class PPOUpdater:
                         strategy_entropy = torch.zeros_like(entropy)
                         persist_loss_value = 0.0
                         latent_loss = torch.zeros((), dtype=torch.float32, device=device)
-                    sep_coef = float(
-                        getattr(hparams, "latent_actor_z_separation_coef", 0.0) or 0.0
-                    )
                     if (
-                        sep_coef > 0.0
+                        curr_sep_coef > 0.0
                         and not hparams.fixed_latent_strategy
                         and z_idx is not None
                     ):
+                        max_action_entropy = float(model.n_agents) * sum(
+                            math.log(max(1, int(dim)))
+                            for dim in model.per_agent_action_dims
+                        )
+                        separation_gate = _z_separation_gate_mask(
+                            advantages=advantages,
+                            action_entropy=entropy,
+                            global_state=batch["global_state"],
+                            max_action_entropy=max_action_entropy,
+                            min_abs_advantage=float(
+                                getattr(
+                                    hparams,
+                                    "latent_actor_z_separation_min_abs_advantage",
+                                    0.0,
+                                )
+                                or 0.0
+                            ),
+                            min_decision_frac=float(
+                                getattr(
+                                    hparams,
+                                    "latent_actor_z_separation_min_decision_frac",
+                                    0.0,
+                                )
+                                or 0.0
+                            ),
+                            max_entropy_frac=float(
+                                getattr(
+                                    hparams,
+                                    "latent_actor_z_separation_max_entropy_frac",
+                                    1.0,
+                                )
+                                if getattr(
+                                    hparams,
+                                    "latent_actor_z_separation_max_entropy_frac",
+                                    1.0,
+                                )
+                                is not None
+                                else 1.0
+                            ),
+                        )
                         z_sep_loss, z_sep_stats = _policy_z_separation_loss(
                             model,
                             obs_batch,
@@ -295,8 +516,9 @@ class PPOUpdater:
                                 )
                                 or 0.0
                             ),
+                            active_mask=separation_gate,
                         )
-                        latent_loss = latent_loss + sep_coef * z_sep_loss
+                        latent_loss = latent_loss + curr_sep_coef * z_sep_loss
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)
@@ -306,11 +528,6 @@ class PPOUpdater:
                     stats["strategy_kl"].append(0.0)
                     stats["strategy_phase_loss"].append(0.0)
 
-                advantages = batch["advantages"]
-                if advantages.numel() > 1:
-                    advantages = (advantages - advantages.mean()) / (
-                        advantages.std(unbiased=False) + 1e-8
-                    )
                 if hparams.use_latent_strategy and not hparams.fixed_latent_strategy:
                     strat_adv = (
                         batch["option_advantages"]
@@ -459,6 +676,9 @@ class PPOUpdater:
         episode_strategy_stats = self.latent_state.apply_episode_strategy_ppo(
             latent_lam_h=latent_lam_h
         )
+        rollout_specialist_stats = (
+            self.latent_state.apply_rollout_specialist_router(buffer)
+        )
         strategy_experience_stats = _write_strategy_experience_table(runtime)
         # v3i3 per-refresh proof-layer CSV log. Always-safe no-op when the
         # feature is disabled. Runs AFTER apply_episode_strategy_ppo so the
@@ -498,6 +718,8 @@ class PPOUpdater:
             )
         runtime.last_stats["learning_rate"] = float(lr)
         runtime.last_stats["latent_lam_h"] = float(latent_lam_h)
+        runtime.last_stats["latent_actor_z_adapter_scale"] = float(curr_adapter_scale)
+        runtime.last_stats["latent_actor_z_separation_coef"] = float(curr_sep_coef)
         if hparams.normalize_returns:
             rn = runtime.return_norm
             runtime.last_stats["return_norm_mean"] = float(rn.mean)
@@ -516,6 +738,7 @@ class PPOUpdater:
         runtime.last_stats.update(_forced_z_behavior_profile(runtime, buffer))
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
+        runtime.last_stats.update(rollout_specialist_stats)
         runtime.last_stats.update(strategy_experience_stats)
         runtime.last_stats.update(refresh_log_stats)
         runtime.last_stats.update(self.latent_state.behavior_contrast_rollout_stats())

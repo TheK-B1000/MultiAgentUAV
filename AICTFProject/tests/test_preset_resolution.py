@@ -198,6 +198,14 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i12_faithful_z_pressure",
             "plan_faithful_latent_v3i12",
             "latent_v3i12",
+            "plan_faithful_latent_v3i13_strict_faithful_z",
+            "latent_v3i13_strict_faithful_z",
+            "plan_faithful_latent_v3i13",
+            "latent_v3i13",
+            "plan_faithful_latent_v3i14_specialized_faithful_z",
+            "latent_v3i14_specialized_faithful_z",
+            "plan_faithful_latent_v3i14",
+            "latent_v3i14",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -580,6 +588,70 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(cfg["latent_awrd_warmup_steps"], 100_000)
                 self.assertEqual(cfg["latent_awrd_ramp_steps"], 300_000)
                 self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.45)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i14_specialized_faithful_z_owns_tactical_niches(self) -> None:
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i14_specialized_faithful_z",
+            "latent_v3i14_specialized_faithful_z",
+            "plan_faithful_latent_v3i14",
+            "latent_v3i14",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertEqual(cfg["mode"], "OPPONENT_POOL")
+                self.assertEqual(cfg["opponent_pool"], ["OP3", "OP5", "OP6"])
+                self.assertEqual(
+                    cfg["opponent_pool_weights"],
+                    [0.15, 0.40, 0.45],
+                )
+                self.assertEqual(
+                    cfg["latent_q_phi_bucket_baseline"],
+                    "tactical_context_opponent",
+                )
+                self.assertEqual(
+                    cfg["latent_specialist_context_key_mode"],
+                    "tactical_phase_flags_score_opponent",
+                )
+                self.assertEqual(
+                    cfg["latent_specialist_conditional_entropy_scope"],
+                    "context_bucket",
+                )
+                self.assertTrue(cfg["latent_specialist_use_rollout_states"])
+                self.assertEqual(
+                    cfg["latent_specialist_rollout_max_samples"], 8192
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_conditional_entropy_min_coef_start"], 0.01
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_conditional_entropy_min_coef"], 0.05
+                )
+                self.assertAlmostEqual(cfg["latent_marginal_balance_coef"], 0.02)
+                self.assertAlmostEqual(cfg["latent_lam_h"], 0.0001)
+                self.assertFalse(cfg["latent_actor_z_onehot_enabled"])
+                self.assertEqual(cfg["latent_z_embed_dim"], 0)
+                self.assertTrue(cfg["latent_actor_z_adapter_enabled"])
+                self.assertAlmostEqual(cfg["latent_actor_z_adapter_scale"], 0.5)
+                self.assertEqual(cfg["latent_actor_z_film_layers"], 2)
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_start_coef"], 0.005
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_coef"], 0.02
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_min_abs_advantage"], 0.5
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_min_decision_frac"], 0.05
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_max_entropy_frac"], 0.90
+                )
                 self.assertFalse(cfg["fixed_latent_strategy"])
 
 

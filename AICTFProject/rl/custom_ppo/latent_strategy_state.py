@@ -217,6 +217,8 @@ def _router_specialist_loss(
     latent_k: int,
     marginal_balance_coef: float,
     conditional_entropy_min_coef: float,
+    conditional_entropy_min_coef_start: float = 0.0,
+    conditional_entropy_scope: str = "state",
     context_mi_coef: float,
     coef_scale: float,
     min_bucket_count: int,
@@ -233,6 +235,8 @@ def _router_specialist_loss(
         "latent_specialist_marginal_entropy": zero,
         "latent_specialist_conditional_entropy": zero,
         "latent_specialist_context_bucket_entropy": zero,
+        "latent_specialist_conditional_term": zero,
+        "latent_specialist_conditional_coef": zero,
         "latent_specialist_mi": zero,
         "latent_specialist_context_mi": zero,
         "latent_specialist_active_buckets": zero,
@@ -242,9 +246,27 @@ def _router_specialist_loss(
         return zero, stats
     scale = float(max(0.0, coef_scale))
     marginal_coef = float(max(0.0, marginal_balance_coef))
-    conditional_coef = float(max(0.0, conditional_entropy_min_coef))
+    conditional_target_coef = float(max(0.0, conditional_entropy_min_coef))
+    conditional_start_coef = float(
+        max(0.0, conditional_entropy_min_coef_start)
+    )
+    conditional_coef = conditional_start_coef + scale * (
+        conditional_target_coef - conditional_start_coef
+    )
     mi_coef = float(max(0.0, context_mi_coef))
-    if scale <= 0.0 or (marginal_coef <= 0.0 and conditional_coef <= 0.0 and mi_coef <= 0.0):
+    scope = str(conditional_entropy_scope or "state").strip().lower()
+    if scope not in {"state", "context_bucket"}:
+        raise ValueError(
+            "conditional_entropy_scope must be 'state' or 'context_bucket'"
+        )
+    if (
+        scale <= 0.0
+        and conditional_coef <= 0.0
+    ) or (
+        marginal_coef <= 0.0
+        and conditional_coef <= 0.0
+        and mi_coef <= 0.0
+    ):
         return zero, stats
 
     probs = torch.softmax(logits[:, : int(latent_k)], dim=-1).clamp_min(1e-8)
@@ -257,7 +279,7 @@ def _router_specialist_loss(
     context_mi = zero
     context_bucket_entropy = zero
     active_buckets = zero
-    if context_keys is not None and mi_coef > 0.0:
+    if context_keys is not None and (mi_coef > 0.0 or scope == "context_bucket"):
         keys = context_keys.to(device=logits.device, dtype=torch.long)
         unique_keys_tensor, counts_tensor = torch.unique(keys, return_counts=True)
         unique_keys = unique_keys_tensor.detach().cpu().tolist()
@@ -291,10 +313,13 @@ def _router_specialist_loss(
             context_mi = (active_marginal_entropy - weighted_entropy).clamp_min(0.0)
             active_buckets = logits.new_tensor(float(len(bucket_entropies)))
 
-    loss = scale * (
-        conditional_coef * conditional_entropy
-        - marginal_coef * marginal_entropy
-        - mi_coef * context_mi
+    conditional_term = (
+        context_bucket_entropy if scope == "context_bucket" else conditional_entropy
+    )
+    loss = (
+        conditional_coef * conditional_term
+        - scale * marginal_coef * marginal_entropy
+        - scale * mi_coef * context_mi
     )
     stats.update(
         {
@@ -302,6 +327,10 @@ def _router_specialist_loss(
             "latent_specialist_marginal_entropy": marginal_entropy,
             "latent_specialist_conditional_entropy": conditional_entropy,
             "latent_specialist_context_bucket_entropy": context_bucket_entropy,
+            "latent_specialist_conditional_term": conditional_term,
+            "latent_specialist_conditional_coef": logits.new_tensor(
+                float(conditional_coef)
+            ),
             "latent_specialist_mi": router_mi,
             "latent_specialist_context_mi": context_mi,
             "latent_specialist_active_buckets": active_buckets,
@@ -442,6 +471,42 @@ def _strategy_experience_bucket_ids(context_state: torch.Tensor) -> torch.Tensor
     return bucket.long()
 
 
+def _team_phase_bucket_ids(raw: torch.Tensor) -> torch.Tensor:
+    """Return a coarse five-way team phase from observable global state."""
+    enemy_has_our_flag = raw[:, 10] > 0.5
+    we_have_enemy_flag = raw[:, 11] > 0.5
+    near_enemy_flag = raw[:, 8] < 0.22
+    near_own_flag = raw[:, 9] < 0.22
+    enemy_pressure = raw[:, 19]
+    attack_pressure = raw[:, 20]
+
+    neutral = torch.zeros(raw.shape[0], dtype=torch.long, device=raw.device)
+    attacking = torch.ones_like(neutral)
+    carrying_home = torch.full_like(neutral, 2)
+    defending = torch.full_like(neutral, 3)
+    enemy_carrying = torch.full_like(neutral, 4)
+
+    phase = neutral
+    phase = torch.where(
+        (~enemy_has_our_flag)
+        & (~we_have_enemy_flag)
+        & ((attack_pressure > enemy_pressure + 0.08) | near_enemy_flag),
+        attacking,
+        phase,
+    )
+    phase = torch.where(
+        (~enemy_has_our_flag)
+        & (~we_have_enemy_flag)
+        & ((enemy_pressure > attack_pressure + 0.08) | near_own_flag),
+        defending,
+        phase,
+    )
+    phase = torch.where(enemy_has_our_flag & ~we_have_enemy_flag, enemy_carrying, phase)
+    phase = torch.where(we_have_enemy_flag & ~enemy_has_our_flag, carrying_home, phase)
+    phase = torch.where(enemy_has_our_flag & we_have_enemy_flag, enemy_carrying, phase)
+    return phase.long()
+
+
 def _role_phase_specialist_context_keys(
     global_state: torch.Tensor,
     *,
@@ -463,26 +528,7 @@ def _role_phase_specialist_context_keys(
     we_have_enemy_flag = raw[:, 11] > 0.5
     near_enemy_flag = raw[:, 8] < 0.22
     near_own_flag = raw[:, 9] < 0.22
-
-    neutral = torch.zeros(raw.shape[0], dtype=torch.long, device=raw.device)
-    attacking = torch.ones_like(neutral)
-    carrying_home = torch.full_like(neutral, 2)
-    defending = torch.full_like(neutral, 3)
-    enemy_carrying = torch.full_like(neutral, 4)
-
-    phase = neutral
-    phase = torch.where(enemy_has_our_flag & ~we_have_enemy_flag, enemy_carrying, phase)
-    phase = torch.where(we_have_enemy_flag & ~enemy_has_our_flag, carrying_home, phase)
-    phase = torch.where(
-        (~enemy_has_our_flag) & (~we_have_enemy_flag) & near_own_flag,
-        defending,
-        phase,
-    )
-    phase = torch.where(
-        we_have_enemy_flag & (~enemy_has_our_flag) & near_enemy_flag,
-        attacking,
-        phase,
-    )
+    phase = _team_phase_bucket_ids(raw)
 
     flag_state = enemy_has_our_flag.long() * 2 + we_have_enemy_flag.long()
     near_bucket = near_own_flag.long() * 2 + near_enemy_flag.long()
@@ -490,6 +536,52 @@ def _role_phase_specialist_context_keys(
     if include_progress:
         key = key * 4 + _carrier_progress_bucket_ids(raw)
     return key.long()
+
+
+def _tactical_local_context_keys(global_state: torch.Tensor) -> torch.Tensor:
+    """Encode phase, both flag states, and score pressure into [0, 59]."""
+    if global_state.dim() != 2:
+        raise ValueError(f"global_state must be 2-D, got {tuple(global_state.shape)}")
+    raw = global_state[:, :GLOBAL_STATE_DIM].float()
+    if raw.shape[1] < GLOBAL_STATE_DIM:
+        raw = F.pad(raw, (0, GLOBAL_STATE_DIM - int(raw.shape[1])))
+
+    phase = _team_phase_bucket_ids(raw)
+    our_flag_taken = (raw[:, 10] > 0.5).long()
+    enemy_flag_taken = (raw[:, 11] > 0.5).long()
+    score_diff = raw[:, 16]
+    score_pressure = torch.where(
+        score_diff < -0.05,
+        torch.zeros_like(score_diff, dtype=torch.long),
+        torch.where(
+            score_diff > 0.05,
+            torch.full_like(score_diff, 2, dtype=torch.long),
+            torch.ones_like(score_diff, dtype=torch.long),
+        ),
+    )
+
+    tactical_key = phase
+    tactical_key = tactical_key * 2 + our_flag_taken
+    tactical_key = tactical_key * 2 + enemy_flag_taken
+    return (tactical_key * 3 + score_pressure).long()
+
+
+def _tactical_specialist_context_keys(
+    global_state: torch.Tensor,
+    *,
+    opponent_ids: Optional[torch.Tensor],
+) -> torch.Tensor:
+    """Bucket phase, both flag states, score pressure, then opponent.
+
+    The key is used only for router losses, baselines, and diagnostics. The
+    decentralized actor never receives it.
+    """
+    tactical_key = _tactical_local_context_keys(global_state)
+    if opponent_ids is None:
+        return tactical_key.long()
+    return (
+        tactical_key.long() * 16 + opponent_ids.long().clamp_min(0)
+    ).long()
 
 
 def _specialist_context_keys_for_mode(
@@ -517,9 +609,45 @@ def _specialist_context_keys_for_mode(
         if opponent_ids is None:
             return phase_key
         return phase_key * 16 + opponent_ids.long().clamp_min(0)
+    if mode_s in {
+        "tactical_phase_flags_score",
+        "tactical_phase_flags_score_opponent",
+        "phase_flags_score_opponent",
+    }:
+        include_opponent = mode_s != "tactical_phase_flags_score"
+        return _tactical_specialist_context_keys(
+            states,
+            opponent_ids=opponent_ids if include_opponent else None,
+        )
     if opponent_ids is not None and bucket_ids is not None:
         return opponent_ids.long() * 1024 + bucket_ids.long()
     return None
+
+
+def _episode_bucket_baseline_keys(
+    *,
+    mode: str,
+    states: torch.Tensor,
+    opponent_ids: torch.Tensor,
+    bucket_ids: torch.Tensor,
+) -> torch.Tensor:
+    mode_s = str(mode or "").strip().lower()
+    if mode_s in {
+        "tactical_context",
+        "tactical_context_opponent",
+        "tactical_phase_flags_score_opponent",
+    }:
+        return (
+            bucket_ids.long().clamp(min=0, max=59) * 16
+            + opponent_ids.long().clamp_min(0)
+        ).long()
+    from rl.custom_ppo.latent_bucket_baseline import resolve_bucket_ids
+
+    return resolve_bucket_ids(
+        mode=mode_s,
+        opponent_ids=opponent_ids,
+        bucket_ids=bucket_ids,
+    )
 
 
 class EpisodeStrategyRecorder:
@@ -616,6 +744,9 @@ class LatentStrategyState:
             (n_envs, strategy_prob_width), dtype=torch.float32, device=device
         )
         self.episode_strategy_bucket = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.episode_tactical_bucket_counts = torch.zeros(
+            (n_envs, 60), dtype=torch.long, device=device
+        )
         self.episode_strategy_has_start = torch.zeros((n_envs,), dtype=torch.bool, device=device)
         self.rollout_strategy_episode_records: list[dict[str, Any]] = []
         self.episode_strategy_recorder = EpisodeStrategyRecorder()
@@ -725,6 +856,7 @@ class LatentStrategyState:
         self.episode_return_accum.zero_()
         self.episode_return_baseline_at_commit.zero_()
         self.episode_strategy_has_start.zero_()
+        self.episode_tactical_bucket_counts.zero_()
         self.episode_strategy_recorder.reset()
         self.steps_since_ep_start.zero_()
         self.episode_strategy_committed.zero_()
@@ -865,6 +997,34 @@ class LatentStrategyState:
             )
             self.next_strategy_episode_id += 1
 
+    def record_tactical_context_step(self, global_state: torch.Tensor) -> None:
+        """Accumulate detached tactical occupancy for each active episode."""
+        if global_state.dim() != 2:
+            return
+        keys = _tactical_local_context_keys(global_state).detach().long()
+        env_ids = torch.arange(
+            int(keys.shape[0]), dtype=torch.long, device=keys.device
+        )
+        self.episode_tactical_bucket_counts[env_ids, keys] += 1
+
+    def representative_tactical_bucket(self, env_index: int) -> int:
+        """Return the dominant meaningful tactical context for one episode."""
+        counts = self.episode_tactical_bucket_counts[int(env_index)]
+        if int(counts.sum().item()) <= 0:
+            contrast_bucket = int(
+                self.episode_contrast_bucket[int(env_index)].item()
+            )
+            if contrast_bucket != 0:
+                return contrast_bucket
+            return int(self.episode_strategy_bucket[int(env_index)].item())
+
+        candidates = counts.clone()
+        # phase=0, flags=(0,0), score=tied encodes to local key 1. Prefer a
+        # context where something tactical happened whenever one exists.
+        if int(candidates.sum().item() - candidates[1].item()) > 0:
+            candidates[1] = 0
+        return int(torch.argmax(candidates).detach().cpu().item())
+
     def strategy_for_step(
         self,
         global_state: torch.Tensor,
@@ -875,6 +1035,7 @@ class LatentStrategyState:
             return None, None, {}
         if self.current_z is None:
             self.reset()
+        self.record_tactical_context_step(global_state)
         assert self.current_z is not None
 
         device = trainer.device
@@ -1213,6 +1374,7 @@ class LatentStrategyState:
             self.needs_strategy_sample[done_t] = not trainer.fixed_latent_strategy
             self.steps_since_ep_start[done_t] = 0
             self.episode_strategy_committed[done_t] = False
+            self.episode_tactical_bucket_counts[done_t] = 0
             self.first_z_sample_step[done_t] = -1
             self.episode_return_baseline_at_commit[done_t] = 0.0
             self.episode_forced_z[done_t] = False
@@ -1383,6 +1545,7 @@ class LatentStrategyState:
             return
 
         is_forced_z = bool(self.episode_forced_z[env_i].detach().cpu().item())
+        tactical_bucket = self.representative_tactical_bucket(env_i)
         if is_forced_z:
             try:
                 opponent_id = int(_opponent_id_int_from_info(self.trainer.cfg, info))
@@ -1399,9 +1562,9 @@ class LatentStrategyState:
             emb = (self.episode_behavior_sum[env_i] / float(count)).detach().cpu().numpy().tolist()
             
             forced_record = {
-                "context_bucket": int(self.episode_contrast_bucket[env_i].detach().cpu().item()),
+                "context_bucket": tactical_bucket,
                 "opponent": opponent_id,
-                "phase_flag_state": int(self.episode_contrast_bucket[env_i].detach().cpu().item()),
+                "phase_flag_state": tactical_bucket,
                 "z": z_val,
                 "return": float(episode_return),
                 "behavior_embedding": emb,
@@ -1435,6 +1598,7 @@ class LatentStrategyState:
             opponent_id=opponent_id,
         )
         if record is not None:
+            record["bucket_id"] = tactical_bucket
             self.rollout_strategy_episode_records.append(record)
             return
         probs = self.episode_strategy_probs[env_i, : trainer.latent_k].detach().cpu().tolist()
@@ -1446,7 +1610,7 @@ class LatentStrategyState:
                 "z_logprob_old": float(self.episode_strategy_log_prob[env_i].detach().cpu().item()),
                 "episode_return": float(adjusted_return),
                 "episode_win": episode_win,
-                "bucket_id": int(self.episode_strategy_bucket[env_i].detach().cpu().item()),
+                "bucket_id": tactical_bucket,
                 "opponent_id": opponent_id,
                 "q_phi_probs": [float(x) for x in probs],
             }
@@ -1483,6 +1647,7 @@ class LatentStrategyState:
             "latent_specialist_context_mi": 0.0,
             "latent_specialist_active_buckets": 0.0,
             "latent_specialist_coef_scale": 0.0,
+            "latent_specialist_rollout_samples": 0.0,
             "latent_episode_pg_loss": 0.0,
             "latent_episode_v_loss": 0.0,
             "latent_episode_entropy": 0.0,
@@ -1638,9 +1803,9 @@ class LatentStrategyState:
             and opponent_ids is not None
             and bucket_ids is not None
         ):
-            from rl.custom_ppo.latent_bucket_baseline import resolve_bucket_ids
-            keys = resolve_bucket_ids(
+            keys = _episode_bucket_baseline_keys(
                 mode=str(bucket_mode),
+                states=states,
                 opponent_ids=opponent_ids,
                 bucket_ids=bucket_ids,
             )
@@ -1998,11 +2163,29 @@ class LatentStrategyState:
 
         specialist_enabled = bool(
             getattr(trainer, "latent_specialist_router_enabled", False)
+        ) and not bool(
+            getattr(trainer, "latent_specialist_use_rollout_states", False)
+        )
+        specialist_warmup_steps = int(
+            getattr(trainer, "latent_specialist_warmup_steps", 0) or 0
         )
         specialist_scale = _router_specialist_coef_scale(
             global_step=int(getattr(trainer, "global_step", 0) or 0),
-            warmup_steps=int(getattr(trainer, "latent_specialist_warmup_steps", 0) or 0),
+            warmup_steps=specialist_warmup_steps,
             ramp_steps=int(getattr(trainer, "latent_specialist_ramp_steps", 1) or 0),
+        )
+        specialist_conditional_start = (
+            float(
+                getattr(
+                    trainer,
+                    "latent_conditional_entropy_min_coef_start",
+                    0.0,
+                )
+                or 0.0
+            )
+            if int(getattr(trainer, "global_step", 0) or 0)
+            >= specialist_warmup_steps
+            else 0.0
         )
         specialist_context_keys: Optional[torch.Tensor] = None
         specialist_context_keys = _specialist_context_keys_for_mode(
@@ -2041,6 +2224,8 @@ class LatentStrategyState:
                 "latent_specialist_marginal_entropy",
                 "latent_specialist_conditional_entropy",
                 "latent_specialist_context_bucket_entropy",
+                "latent_specialist_conditional_term",
+                "latent_specialist_conditional_coef",
                 "latent_specialist_mi",
                 "latent_specialist_context_mi",
                 "latent_specialist_active_buckets",
@@ -2088,9 +2273,9 @@ class LatentStrategyState:
             adv = episode_returns - v_baseline
             if trainer.latent_episode_strategy_return_norm and adv.numel() > 1:
                 if bucket_baseline_vector is not None and bucket_mode is not None:
-                    from rl.custom_ppo.latent_bucket_baseline import resolve_bucket_ids
-                    keys = resolve_bucket_ids(
+                    keys = _episode_bucket_baseline_keys(
                         mode=str(bucket_mode),
+                        states=states,
                         opponent_ids=opponent_ids,
                         bucket_ids=bucket_ids,
                     )
@@ -2147,6 +2332,15 @@ class LatentStrategyState:
                     conditional_entropy_min_coef=float(
                         getattr(trainer, "latent_conditional_entropy_min_coef", 0.0)
                         or 0.0
+                    ),
+                    conditional_entropy_min_coef_start=specialist_conditional_start,
+                    conditional_entropy_scope=str(
+                        getattr(
+                            trainer,
+                            "latent_specialist_conditional_entropy_scope",
+                            "state",
+                        )
+                        or "state"
                     ),
                     context_mi_coef=float(
                         getattr(trainer, "latent_context_mi_coef", 0.0) or 0.0
@@ -2485,6 +2679,157 @@ class LatentStrategyState:
                         stats[f"latent_pref_{opp_name}_best_z"] = -1.0
                         for z_idx in range(trainer.latent_k):
                             stats[f"latent_pref_{opp_name}_target_z{z_idx}"] = 0.0
+        return stats
+
+    def apply_rollout_specialist_router(self, buffer: Any) -> dict[str, float]:
+        """Train q_phi specialization on tactical states observed in rollout."""
+        trainer = self.trainer
+        stats = {
+            "latent_specialist_loss": 0.0,
+            "latent_specialist_marginal_entropy": 0.0,
+            "latent_specialist_conditional_entropy": 0.0,
+            "latent_specialist_context_bucket_entropy": 0.0,
+            "latent_specialist_conditional_term": 0.0,
+            "latent_specialist_conditional_coef": 0.0,
+            "latent_specialist_mi": 0.0,
+            "latent_specialist_context_mi": 0.0,
+            "latent_specialist_active_buckets": 0.0,
+            "latent_specialist_coef_scale": 0.0,
+            "latent_specialist_rollout_samples": 0.0,
+        }
+        if (
+            not bool(getattr(trainer, "latent_specialist_router_enabled", False))
+            or not bool(
+                getattr(trainer, "latent_specialist_use_rollout_states", False)
+            )
+            or bool(getattr(trainer, "fixed_latent_strategy", False))
+            or int(getattr(buffer, "pos", 0)) <= 0
+            or "global_state" not in buffer.fields
+            or "opponent_id" not in buffer.fields
+        ):
+            return stats
+
+        length = int(buffer.pos)
+        states = buffer.fields["global_state"][:length].reshape(
+            -1, buffer.fields["global_state"].shape[-1]
+        )
+        opponent_ids = buffer.fields["opponent_id"][:length].reshape(-1).long()
+        total = int(states.shape[0])
+        max_samples = max(
+            1,
+            int(
+                getattr(trainer, "latent_specialist_rollout_max_samples", 8192)
+                or 8192
+            ),
+        )
+        if total > max_samples:
+            sample_idx = torch.linspace(
+                0,
+                total - 1,
+                steps=max_samples,
+                device=states.device,
+            ).round().long().unique()
+            states = states.index_select(0, sample_idx)
+            opponent_ids = opponent_ids.index_select(0, sample_idx)
+
+        context_keys = _specialist_context_keys_for_mode(
+            mode=str(
+                getattr(
+                    trainer,
+                    "latent_specialist_context_key_mode",
+                    "opponent_bucket",
+                )
+                or "opponent_bucket"
+            ),
+            states=states,
+            opponent_ids=opponent_ids,
+            bucket_ids=None,
+        )
+        if context_keys is None:
+            return stats
+
+        warmup_steps = int(
+            getattr(trainer, "latent_specialist_warmup_steps", 0) or 0
+        )
+        global_step = int(getattr(trainer, "global_step", 0) or 0)
+        coef_scale = _router_specialist_coef_scale(
+            global_step=global_step,
+            warmup_steps=warmup_steps,
+            ramp_steps=int(
+                getattr(trainer, "latent_specialist_ramp_steps", 1) or 0
+            ),
+        )
+        conditional_start = (
+            float(
+                getattr(
+                    trainer,
+                    "latent_conditional_entropy_min_coef_start",
+                    0.0,
+                )
+                or 0.0
+            )
+            if global_step >= warmup_steps
+            else 0.0
+        )
+
+        logits = trainer.model.strategy_logits(states)
+        loss, tensor_stats = _router_specialist_loss(
+            logits,
+            context_keys=context_keys,
+            latent_k=int(trainer.latent_k),
+            marginal_balance_coef=float(
+                getattr(trainer, "latent_marginal_balance_coef", 0.0) or 0.0
+            ),
+            conditional_entropy_min_coef=float(
+                getattr(trainer, "latent_conditional_entropy_min_coef", 0.0)
+                or 0.0
+            ),
+            conditional_entropy_min_coef_start=conditional_start,
+            conditional_entropy_scope=str(
+                getattr(
+                    trainer,
+                    "latent_specialist_conditional_entropy_scope",
+                    "state",
+                )
+                or "state"
+            ),
+            context_mi_coef=float(
+                getattr(trainer, "latent_context_mi_coef", 0.0) or 0.0
+            ),
+            coef_scale=coef_scale,
+            min_bucket_count=int(
+                getattr(trainer, "latent_specialist_min_bucket_count", 2) or 2
+            ),
+        )
+        if loss.requires_grad and (
+            coef_scale > 0.0
+            or float(
+                getattr(
+                    trainer,
+                    "latent_conditional_entropy_min_coef_start",
+                    0.0,
+                )
+                or 0.0
+            )
+            > 0.0
+        ):
+            optimizer = (
+                getattr(trainer, "latent_router_optimizer", None)
+                or trainer.optimizer
+            )
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            strategy_module = getattr(trainer.model, "strategy_encoder", None)
+            if strategy_module is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    strategy_module.parameters(),
+                    float(trainer.cfg.max_grad_norm),
+                )
+            optimizer.step()
+
+        for key, value in tensor_stats.items():
+            stats[key] = float(value.detach().cpu().item())
+        stats["latent_specialist_rollout_samples"] = float(states.shape[0])
         return stats
 
     def strategy_encoder_grad_norm(self) -> float:

@@ -218,6 +218,9 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "latent_actor_z_adapter_init_std": float(
                     cfg.get("latent_actor_z_adapter_init_std", 0.02) or 0.02
                 ),
+                "latent_actor_z_film_layers": int(
+                    cfg.get("latent_actor_z_film_layers", 1) or 1
+                ),
             }
         )
     return kwargs

@@ -9,9 +9,12 @@ import torch.nn.functional as F
 from rl.custom_ppo.latent_strategy_state import (
     LatentStrategyState,
     _advantage_weighted_target_from_records,
+    _episode_bucket_baseline_keys,
     _role_phase_specialist_context_keys,
     _router_specialist_loss,
     _specialist_context_keys_for_mode,
+    _tactical_local_context_keys,
+    _tactical_specialist_context_keys,
     _warmup_ramp_coef_scale,
 )
 from tests.test_latent_episode_warmup import _make_trainer
@@ -114,6 +117,242 @@ class LatentPreferenceTests(unittest.TestCase):
         self.assertEqual(
             int(hierarchical_keys[0].item()) // 16,
             int(hierarchical_keys[1].item()) // 16,
+        )
+
+    def test_tactical_context_keys_cover_phase_flags_score_and_opponent(self) -> None:
+        states = torch.zeros((5, 34), dtype=torch.float32)
+        states[:, 8] = 0.8
+        states[:, 9] = 0.8
+        states[1, 10] = 1.0
+        states[2, 11] = 1.0
+        states[3, 16] = -0.5
+        states[4, 16] = 0.5
+        opponent_ids = torch.tensor([3, 3, 3, 3, 5], dtype=torch.long)
+
+        keys = _tactical_specialist_context_keys(
+            states,
+            opponent_ids=opponent_ids,
+        )
+
+        self.assertEqual(int(keys.unique().numel()), 5)
+        same_state_other_opponent = _tactical_specialist_context_keys(
+            states[[0, 0]],
+            opponent_ids=torch.tensor([3, 5], dtype=torch.long),
+        )
+        self.assertEqual(
+            int(same_state_other_opponent[0].item()) // 16,
+            int(same_state_other_opponent[1].item()) // 16,
+        )
+        self.assertNotEqual(
+            int(same_state_other_opponent[0].item()),
+            int(same_state_other_opponent[1].item()),
+        )
+
+    def test_tactical_context_keys_separate_attack_and_defense_pressure(self) -> None:
+        states = torch.zeros((3, 34), dtype=torch.float32)
+        states[:, 8] = 0.8
+        states[:, 9] = 0.8
+        states[1, 19] = 0.1
+        states[1, 20] = 0.8
+        states[2, 19] = 0.8
+        states[2, 20] = 0.1
+
+        keys = _tactical_local_context_keys(states)
+
+        self.assertEqual(int(keys.unique().numel()), 3)
+
+    def test_tactical_bucket_baseline_uses_episode_trajectory_bucket(self) -> None:
+        states = torch.zeros((3, 34), dtype=torch.float32)
+        states[1, 10] = 1.0
+        states[2, 16] = 0.5
+        opponent_ids = torch.tensor([3, 5, 6], dtype=torch.long)
+        bucket_ids = torch.tensor([1, 2, 3], dtype=torch.long)
+
+        baseline_keys = _episode_bucket_baseline_keys(
+            mode="tactical_context_opponent",
+            states=states,
+            opponent_ids=opponent_ids,
+            bucket_ids=bucket_ids,
+        )
+
+        expected = bucket_ids * 16 + opponent_ids
+        self.assertTrue(torch.equal(expected, baseline_keys))
+
+    def test_episode_tactical_bucket_prefers_meaningful_trajectory_state(self) -> None:
+        trainer = _make_trainer(
+            n_envs=1,
+            warmup=0,
+            episode_credit=True,
+            gs_dim=34,
+        )
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+        neutral = torch.zeros((1, 34), dtype=torch.float32)
+        neutral[:, 8] = 0.8
+        neutral[:, 9] = 0.8
+        attack = neutral.clone()
+        attack[:, 19] = 0.1
+        attack[:, 20] = 0.8
+
+        for _ in range(5):
+            latent_state.record_tactical_context_step(neutral)
+        for _ in range(2):
+            latent_state.record_tactical_context_step(attack)
+
+        attack_bucket = int(_tactical_local_context_keys(attack)[0].item())
+        self.assertEqual(
+            latent_state.representative_tactical_bucket(0),
+            attack_bucket,
+        )
+
+    def test_rollout_specialist_router_uses_tactical_states_after_warmup(self) -> None:
+        class RouterModel(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.global_state_dim = 34
+                self.strategy_encoder = torch.nn.Linear(34, 4)
+
+            def strategy_logits(self, state: torch.Tensor) -> torch.Tensor:
+                return self.strategy_encoder(state)
+
+        model = RouterModel()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        trainer = SimpleNamespace(
+            env=SimpleNamespace(num_envs=1),
+            device=torch.device("cpu"),
+            model=model,
+            optimizer=optimizer,
+            latent_router_optimizer=optimizer,
+            cfg=SimpleNamespace(max_grad_norm=1.0),
+            use_latent_strategy=True,
+            fixed_latent_strategy=False,
+            fixed_latent_strategy_id=0,
+            latent_k=4,
+            latent_kl_consecutive=0.0,
+            temporal_tracker=None,
+            _last_context_state=None,
+            latent_specialist_router_enabled=True,
+            latent_specialist_use_rollout_states=True,
+            latent_specialist_rollout_max_samples=64,
+            latent_specialist_context_key_mode=(
+                "tactical_phase_flags_score_opponent"
+            ),
+            latent_specialist_warmup_steps=100,
+            latent_specialist_ramp_steps=100,
+            latent_specialist_min_bucket_count=2,
+            latent_specialist_conditional_entropy_scope="context_bucket",
+            latent_conditional_entropy_min_coef_start=0.01,
+            latent_conditional_entropy_min_coef=0.05,
+            latent_marginal_balance_coef=0.02,
+            latent_context_mi_coef=0.05,
+            latent_resample_every_n=0,
+            latent_episode_strategy_ppo=True,
+            latent_episode_strategy_warmup_decision_steps=0,
+        )
+        latent_state = LatentStrategyState(trainer)
+
+        states = torch.zeros((12, 1, 34), dtype=torch.float32)
+        states[:, :, 8] = 0.8
+        states[:, :, 9] = 0.8
+        states[3:6, :, 19] = 0.1
+        states[3:6, :, 20] = 0.8
+        states[6:9, :, 19] = 0.8
+        states[6:9, :, 20] = 0.1
+        states[9:12, :, 11] = 1.0
+        opponent_ids = torch.tensor(
+            [2, 4, 5, 2, 4, 5, 2, 4, 5, 2, 4, 5],
+            dtype=torch.long,
+        ).reshape(12, 1)
+        states = states.repeat_interleave(2, dim=0)
+        opponent_ids = opponent_ids.repeat_interleave(2, dim=0)
+        buffer = SimpleNamespace(
+            pos=24,
+            fields={
+                "global_state": states,
+                "opponent_id": opponent_ids,
+            },
+        )
+
+        trainer.global_step = 99
+        before = model.strategy_encoder.weight.detach().clone()
+        cold_stats = latent_state.apply_rollout_specialist_router(buffer)
+        self.assertEqual(cold_stats["latent_specialist_coef_scale"], 0.0)
+        self.assertTrue(
+            torch.equal(before, model.strategy_encoder.weight.detach())
+        )
+
+        trainer.global_step = 200
+        hot_stats = latent_state.apply_rollout_specialist_router(buffer)
+        self.assertEqual(hot_stats["latent_specialist_rollout_samples"], 24.0)
+        self.assertGreater(hot_stats["latent_specialist_active_buckets"], 3.0)
+        self.assertFalse(
+            torch.equal(before, model.strategy_encoder.weight.detach())
+        )
+
+    def test_bucket_conditional_entropy_prefers_coherent_local_niches(self) -> None:
+        context_keys = torch.tensor([0, 0, 1, 1], dtype=torch.long)
+        coherent_logits = torch.tensor(
+            [
+                [6.0, 0.0, 0.0, 0.0],
+                [6.0, 0.0, 0.0, 0.0],
+                [0.0, 6.0, 0.0, 0.0],
+                [0.0, 6.0, 0.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+        incoherent_logits = torch.tensor(
+            [
+                [6.0, 0.0, 0.0, 0.0],
+                [0.0, 6.0, 0.0, 0.0],
+                [6.0, 0.0, 0.0, 0.0],
+                [0.0, 6.0, 0.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+
+        coherent_loss, coherent_stats = _router_specialist_loss(
+            coherent_logits,
+            context_keys=context_keys,
+            latent_k=4,
+            marginal_balance_coef=0.02,
+            conditional_entropy_min_coef=0.05,
+            conditional_entropy_min_coef_start=0.01,
+            conditional_entropy_scope="context_bucket",
+            context_mi_coef=0.0,
+            coef_scale=1.0,
+            min_bucket_count=2,
+        )
+        incoherent_loss, incoherent_stats = _router_specialist_loss(
+            incoherent_logits,
+            context_keys=context_keys,
+            latent_k=4,
+            marginal_balance_coef=0.02,
+            conditional_entropy_min_coef=0.05,
+            conditional_entropy_min_coef_start=0.01,
+            conditional_entropy_scope="context_bucket",
+            context_mi_coef=0.0,
+            coef_scale=1.0,
+            min_bucket_count=2,
+        )
+
+        self.assertLess(float(coherent_loss.item()), float(incoherent_loss.item()))
+        self.assertLess(
+            float(
+                coherent_stats[
+                    "latent_specialist_context_bucket_entropy"
+                ].item()
+            ),
+            float(
+                incoherent_stats[
+                    "latent_specialist_context_bucket_entropy"
+                ].item()
+            ),
+        )
+        self.assertAlmostEqual(
+            float(
+                coherent_stats["latent_specialist_conditional_coef"].item()
+            ),
+            0.05,
         )
 
     def test_advantage_weighted_target_requires_clear_margin(self) -> None:
@@ -813,6 +1052,57 @@ class LatentPreferenceTests(unittest.TestCase):
         self.assertAlmostEqual(stats["latent_awrd_wr_spread_mean"], 0.5, places=5)
         self.assertEqual(stats["latent_awrd_best_z_mean"], 2.0)
 
+    def test_strict_faithful_leakage_prevention(self) -> None:
+        """Verify that telemetry, opponent, and phase fields are NOT read inside _policy_z_separation_loss."""
+        from rl.custom_ppo.ppo_updater import _policy_z_separation_loss, StrictFaithfulDictWrapper
+
+        class MockModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.n_agents = 2
+                self.per_agent_action_dims = [3, 3]
+            def _mask_logits(self, logits, mask):
+                return logits
+            def policy_logits(self, obs, z_idx=None):
+                batch_size = z_idx.shape[0] if z_idx is not None else 1
+                return torch.zeros((batch_size, 6))
+
+        model = MockModel()
+
+        obs_batch = {
+            "grid": torch.zeros((4, 2, 5, 5, 5)),
+            "vec": torch.zeros((4, 2, 10)),
+            "agent_mask": torch.ones((4, 2)),
+            "mask": torch.ones((4, 6)),
+        }
+
+        forbidden_keys = [
+            "opponent_id", "phase_id", "phase", "outcome_id", "role_bucket_id",
+            "spread_bucket_id", "pressure_bucket_id", "attack_defense_ratio_bucket_id",
+            "role_bucket", "spread_bucket", "pressure_bucket", "attack_defense_ratio_bucket",
+            "opponent", "outcome"
+        ]
+        for key in forbidden_keys:
+            obs_batch[key] = torch.ones((4,))
+
+        z_idx = torch.zeros((4,), dtype=torch.long)
+
+        loss, stats = _policy_z_separation_loss(
+            model,
+            obs_batch,
+            z_idx,
+            latent_k=4,
+            margin=0.08,
+        )
+        self.assertIsNotNone(loss)
+        self.assertIn("jsd", stats)
+
+        wrapped_obs = StrictFaithfulDictWrapper(obs_batch)
+        for key in forbidden_keys:
+            with self.assertRaises(AssertionError):
+                _ = wrapped_obs[key]
+            with self.assertRaises(AssertionError):
+                _ = wrapped_obs.get(key)
 
 
 if __name__ == "__main__":

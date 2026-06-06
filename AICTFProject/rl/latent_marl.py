@@ -204,6 +204,7 @@ class LatentConditionedActor(nn.Module):
         z_adapter_enabled: bool = False,
         z_adapter_scale: float = 0.0,
         z_adapter_init_std: float = 0.02,
+        z_film_layers: int = 1,
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -218,10 +219,13 @@ class LatentConditionedActor(nn.Module):
         )
         self.z_embed_scale = float(max(0.0, z_embed_scale))
         self.z_adapter_enabled = (
-            bool(z_adapter_enabled) and self.latent_k > 0 and self.z_embed_dim > 0
+            bool(z_adapter_enabled) and self.latent_k > 0
         )
         self.z_adapter_scale = (
             float(max(0.0, z_adapter_scale)) if self.z_adapter_enabled else 0.0
+        )
+        self.z_film_layers = (
+            max(1, min(2, int(z_film_layers))) if self.z_adapter_enabled else 0
         )
 
         if self.latent_k > 0 and self.z_embed_dim > 0:
@@ -249,6 +253,14 @@ class LatentConditionedActor(nn.Module):
             self.z_adapter = None
         self.action_head = nn.Linear(self.hidden_dim, self.action_dim)
 
+    def _apply_z_film(self, hidden: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        if self.z_adapter is None:
+            return hidden
+        gamma, beta = self.z_adapter(z).chunk(2, dim=-1)
+        return hidden + self.z_adapter_scale * (
+            hidden * torch.tanh(gamma) + beta
+        )
+
     def forward(
         self, local_features: torch.Tensor, z_idx: torch.Tensor | None = None
     ) -> torch.Tensor:
@@ -269,7 +281,8 @@ class LatentConditionedActor(nn.Module):
                 f"{int(self.local_feature_dim)}"
             )
         z = None
-        if self.strategy_embedding is not None or self.z_onehot_enabled:
+        has_z = (self.strategy_embedding is not None) or self.z_onehot_enabled or (self.z_adapter is not None)
+        if has_z:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent actor z conditioning is enabled.")
             z = z_idx.long().reshape(-1).clamp(
@@ -290,15 +303,24 @@ class LatentConditionedActor(nn.Module):
                     device=local_features.device,
                 )
                 pieces.append(z_onehot * self.z_onehot_scale)
-            x = torch.cat(pieces, dim=-1)
+            x = torch.cat(pieces, dim=-1) if len(pieces) > 1 else local_features.float()
         else:
             x = local_features.float()
-        hidden = self.body(x)
-        if self.z_adapter is not None:
+        if self.z_adapter is not None and self.z_film_layers >= 2:
             if z is None:
                 raise ValueError("z_idx is required when z adapter is enabled.")
-            gamma, beta = self.z_adapter(z).chunk(2, dim=-1)
-            hidden = hidden + self.z_adapter_scale * (hidden * torch.tanh(gamma) + beta)
+            hidden = self.body[0](x)
+            hidden = self._apply_z_film(hidden, z)
+            hidden = self.body[1](hidden)
+            hidden = self.body[2](hidden)
+            hidden = self._apply_z_film(hidden, z)
+            hidden = self.body[3](hidden)
+        else:
+            hidden = self.body(x)
+            if self.z_adapter is not None:
+                if z is None:
+                    raise ValueError("z_idx is required when z adapter is enabled.")
+                hidden = self._apply_z_film(hidden, z)
         return self.action_head(hidden)
 
 

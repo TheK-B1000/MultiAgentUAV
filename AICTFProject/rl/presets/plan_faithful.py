@@ -628,7 +628,6 @@ def apply_plan_faithful_latent_v3i11_z_reactive_actor_adapters(cfg: PPOConfig) -
     cfg.latent_specialist_warmup_steps = 100_000
     cfg.latent_specialist_ramp_steps = 300_000
     cfg.latent_specialist_min_bucket_count = 3
-
     cfg.latent_awrd_coef = 0.10
     cfg.latent_awrd_temperature = 0.30
     cfg.latent_awrd_min_bucket_count = 6
@@ -697,6 +696,114 @@ def apply_plan_faithful_latent_v3i12_faithful_z_pressure(cfg: PPOConfig) -> PPOC
     cfg.latent_behavior_contrast_margin = 0.35
 
     cfg.run_tag = "latent_v3i12_faithful_z_pressure_pool_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i13_strict_faithful_z(cfg: PPOConfig) -> PPOConfig:
+    """v3i13: strict-faithful policy space separation with z-FiLM only.
+
+    Focuses on actor-side z dependence and policy-space separation:
+      - z-only FiLM conditioning (no concat: z_onehot_enabled=False, z_embed_dim=0, z_adapter_enabled=True, scale=0.15)
+      - Ramped z-adapter scale (warmup 100k, ramp 300k, target 0.15).
+      - Strengthened forced-z policy separation using average pairwise JS divergence loss over all K latent options.
+      - Conservative JSD separation: coef = 0.02, margin = 0.08, warmup 100k, ramp 300k.
+      - Lower entropy pressure after warmup (lam_h starting at 0.003, annealing to 0.0001 by 400k steps).
+      - Marginal anti-collapse balance pressure (latent_usage_balance_coef=0.015 and latent_marginal_balance_coef=0.02) to keep all z alive.
+      - Behavior telemetry for evaluation only.
+    """
+    cfg = apply_plan_faithful_latent_v3i12_faithful_z_pressure(cfg)
+
+    # 1. z-only FiLM conditioning (no concat)
+    cfg.latent_actor_z_onehot_enabled = False
+    cfg.latent_z_embed_dim = 0
+    cfg.latent_actor_z_adapter_enabled = True
+    cfg.latent_actor_z_adapter_scale = 0.15
+    cfg.latent_actor_z_adapter_warmup_steps = 100_000
+    cfg.latent_actor_z_adapter_ramp_steps = 300_000
+    cfg.latent_actor_z_adapter_init_std = 0.02
+
+    # 2. Strengthen forced-z policy separation using average pairwise JSD
+    cfg.latent_actor_z_separation_coef = 0.02
+    cfg.latent_actor_z_separation_margin = 0.08
+    cfg.latent_actor_z_separation_warmup_steps = 100_000
+    cfg.latent_actor_z_separation_ramp_steps = 300_000
+
+    # 3. Lower entropy pressure after warmup
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0001
+    cfg.latent_entropy_anneal_start = 100_000
+    cfg.latent_entropy_anneal_end = 400_000
+    cfg.latent_entropy_objective = "maximize"
+
+    # 4. Marginal anti-collapse pressure
+    cfg.latent_usage_balance_coef = 0.015
+    cfg.latent_marginal_balance_coef = 0.02
+
+    cfg.run_tag = "latent_v3i13_strict_faithful_z_pool_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i14_specialized_faithful_z(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v3i14: turn balanced live latents into tactical specialists.
+
+    Keeps the strict-faithful v3i13 architecture: one shared actor, no
+    opponent-id actor input, no supervised strategy labels, and no per-z
+    actor heads. Specialization comes from tactical router buckets, gated
+    forced-z policy separation, stronger shared FiLM, and harder opponents.
+    """
+    cfg = apply_plan_faithful_latent_v3i13_strict_faithful_z(cfg)
+
+    cfg.mode = TrainMode.OPPONENT_POOL.value
+    cfg.opponent_randomize = True
+    cfg.opponent_pool = ("OP3", "OP5", "OP6")
+    cfg.opponent_pool_weights = (0.15, 0.40, 0.45)
+
+    cfg.latent_q_phi_bucket_baseline = "tactical_context_opponent"
+    cfg.latent_specialist_router_enabled = True
+    cfg.latent_specialist_context_key_mode = (
+        "tactical_phase_flags_score_opponent"
+    )
+    cfg.latent_specialist_conditional_entropy_scope = "context_bucket"
+    cfg.latent_usage_balance_coef = 0.015
+    cfg.latent_marginal_balance_coef = 0.02
+    cfg.latent_conditional_entropy_min_coef_start = 0.01
+    cfg.latent_conditional_entropy_min_coef = 0.05
+    cfg.latent_context_mi_coef = 0.05
+    cfg.latent_specialist_warmup_steps = 100_000
+    cfg.latent_specialist_ramp_steps = 300_000
+    cfg.latent_specialist_min_bucket_count = 3
+    cfg.latent_specialist_use_rollout_states = True
+    cfg.latent_specialist_rollout_max_samples = 8192
+
+    cfg.latent_lam_h = 0.0001
+    cfg.latent_lam_h_start = 0.0001
+    cfg.latent_lam_h_end = 0.0001
+    cfg.latent_entropy_anneal_start = 0
+    cfg.latent_entropy_anneal_end = 0
+    cfg.latent_entropy_objective = "maximize"
+    cfg.latent_episode_strategy_coef = 0.30
+
+    cfg.latent_actor_z_onehot_enabled = False
+    cfg.latent_z_embed_dim = 0
+    cfg.latent_actor_z_adapter_enabled = True
+    cfg.latent_actor_z_adapter_scale = 0.5
+    cfg.latent_actor_z_film_layers = 2
+    cfg.latent_actor_z_adapter_warmup_steps = 100_000
+    cfg.latent_actor_z_adapter_ramp_steps = 300_000
+
+    cfg.latent_actor_z_separation_start_coef = 0.005
+    cfg.latent_actor_z_separation_coef = 0.02
+    cfg.latent_actor_z_separation_margin = 0.08
+    cfg.latent_actor_z_separation_warmup_steps = 100_000
+    cfg.latent_actor_z_separation_ramp_steps = 300_000
+    cfg.latent_actor_z_separation_min_abs_advantage = 0.5
+    cfg.latent_actor_z_separation_min_decision_frac = 0.05
+    cfg.latent_actor_z_separation_max_entropy_frac = 0.90
+
+    cfg.run_tag = "latent_v3i14_specialized_faithful_z_pool_1m_4v4"
     return cfg
 
 

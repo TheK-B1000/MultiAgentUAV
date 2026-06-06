@@ -95,7 +95,18 @@ class TrainerHyperparams:
     latent_behavior_contrast_anneal_after_steps: int
     latent_behavior_contrast_anneal_to: float
     latent_actor_z_separation_coef: float
+    latent_actor_z_separation_start_coef: float
     latent_actor_z_separation_margin: float
+    latent_actor_z_separation_min_abs_advantage: float
+    latent_actor_z_separation_min_decision_frac: float
+    latent_actor_z_separation_max_entropy_frac: float
+    latent_actor_z_adapter_enabled: bool
+    latent_actor_z_adapter_scale: float
+    latent_actor_z_film_layers: int
+    latent_actor_z_adapter_warmup_steps: int
+    latent_actor_z_adapter_ramp_steps: int
+    latent_actor_z_separation_warmup_steps: int
+    latent_actor_z_separation_ramp_steps: int
     latent_usage_balance_coef: float
     latent_q_phi_train_after_steps: int
     latent_preference_coef: float
@@ -120,11 +131,15 @@ class TrainerHyperparams:
     latent_specialist_router_enabled: bool
     latent_marginal_balance_coef: float
     latent_conditional_entropy_min_coef: float
+    latent_conditional_entropy_min_coef_start: float
+    latent_specialist_conditional_entropy_scope: str
     latent_context_mi_coef: float
     latent_specialist_warmup_steps: int
     latent_specialist_ramp_steps: int
     latent_specialist_min_bucket_count: int
     latent_specialist_context_key_mode: str
+    latent_specialist_use_rollout_states: bool
+    latent_specialist_rollout_max_samples: int
     late_entropy_floor: float
     commitment_type: str
     latent_event_refresh_enabled: bool
@@ -340,8 +355,82 @@ class TrainerHyperparams:
                 if use_latent and not fixed_latent
                 else 0.0
             ),
+            latent_actor_z_separation_start_coef=max(
+                0.0,
+                float(
+                    getattr(cfg, "latent_actor_z_separation_start_coef", 0.0)
+                    or 0.0
+                ),
+            ),
             latent_actor_z_separation_margin=max(
                 0.0, float(getattr(cfg, "latent_actor_z_separation_margin", 0.02) or 0.0)
+            ),
+            latent_actor_z_separation_min_abs_advantage=max(
+                0.0,
+                float(
+                    getattr(
+                        cfg,
+                        "latent_actor_z_separation_min_abs_advantage",
+                        0.0,
+                    )
+                    or 0.0
+                ),
+            ),
+            latent_actor_z_separation_min_decision_frac=min(
+                1.0,
+                max(
+                    0.0,
+                    float(
+                        getattr(
+                            cfg,
+                            "latent_actor_z_separation_min_decision_frac",
+                            0.0,
+                        )
+                        or 0.0
+                    ),
+                ),
+            ),
+            latent_actor_z_separation_max_entropy_frac=min(
+                1.0,
+                max(
+                    0.0,
+                    float(
+                        getattr(
+                            cfg,
+                            "latent_actor_z_separation_max_entropy_frac",
+                            1.0,
+                        )
+                        if getattr(
+                            cfg,
+                            "latent_actor_z_separation_max_entropy_frac",
+                            1.0,
+                        )
+                        is not None
+                        else 1.0
+                    ),
+                ),
+            ),
+            latent_actor_z_adapter_enabled=bool(
+                getattr(cfg, "latent_actor_z_adapter_enabled", False)
+            ),
+            latent_actor_z_adapter_scale=max(
+                0.0, float(getattr(cfg, "latent_actor_z_adapter_scale", 0.0) or 0.0)
+            ),
+            latent_actor_z_film_layers=max(
+                1,
+                min(2, int(getattr(cfg, "latent_actor_z_film_layers", 1) or 1)),
+            ),
+            latent_actor_z_adapter_warmup_steps=max(
+                0, int(getattr(cfg, "latent_actor_z_adapter_warmup_steps", 0) or 0)
+            ),
+            latent_actor_z_adapter_ramp_steps=max(
+                0, int(getattr(cfg, "latent_actor_z_adapter_ramp_steps", 0) or 0)
+            ),
+            latent_actor_z_separation_warmup_steps=max(
+                0, int(getattr(cfg, "latent_actor_z_separation_warmup_steps", 0) or 0)
+            ),
+            latent_actor_z_separation_ramp_steps=max(
+                0, int(getattr(cfg, "latent_actor_z_separation_ramp_steps", 0) or 0)
             ),
             latent_usage_balance_coef=(
                 max(0.0, float(getattr(cfg, "latent_usage_balance_coef", 0.0) or 0.0))
@@ -410,6 +499,25 @@ class TrainerHyperparams:
                 0.0,
                 float(getattr(cfg, "latent_conditional_entropy_min_coef", 0.0) or 0.0),
             ),
+            latent_conditional_entropy_min_coef_start=max(
+                0.0,
+                float(
+                    getattr(
+                        cfg,
+                        "latent_conditional_entropy_min_coef_start",
+                        0.0,
+                    )
+                    or 0.0
+                ),
+            ),
+            latent_specialist_conditional_entropy_scope=str(
+                getattr(
+                    cfg,
+                    "latent_specialist_conditional_entropy_scope",
+                    "state",
+                )
+                or "state"
+            ),
             latent_context_mi_coef=max(
                 0.0, float(getattr(cfg, "latent_context_mi_coef", 0.0) or 0.0)
             ),
@@ -425,6 +533,16 @@ class TrainerHyperparams:
             latent_specialist_context_key_mode=str(
                 getattr(cfg, "latent_specialist_context_key_mode", "opponent_bucket")
                 or "opponent_bucket"
+            ),
+            latent_specialist_use_rollout_states=bool(
+                getattr(cfg, "latent_specialist_use_rollout_states", False)
+            ),
+            latent_specialist_rollout_max_samples=max(
+                1,
+                int(
+                    getattr(cfg, "latent_specialist_rollout_max_samples", 8192)
+                    or 8192
+                ),
             ),
             late_entropy_floor=float(getattr(cfg, "late_entropy_floor", 0.0003) or 0.0003),
             commitment_type=str(getattr(cfg, "commitment_type", "confidence_weighted_entropy") or "confidence_weighted_entropy"),
@@ -553,6 +671,13 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "latent_actor_z_adapter_init_std": max(
                     0.0,
                     float(getattr(cfg, "latent_actor_z_adapter_init_std", 0.02) or 0.0),
+                ),
+                "latent_actor_z_film_layers": max(
+                    1,
+                    min(
+                        2,
+                        int(getattr(cfg, "latent_actor_z_film_layers", 1) or 1),
+                    ),
                 ),
             }
         )

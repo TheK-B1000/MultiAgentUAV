@@ -32,7 +32,11 @@ from rl.custom_ppo.policy import (
     SharedActorCentralizedCritic,
     remap_legacy_actor_state_dict_keys,
 )
-from rl.custom_ppo.ppo_updater import _policy_z_separation_loss
+from rl.custom_ppo.ppo_updater import (
+    _policy_z_separation_loss,
+    _warmup_ramp_value,
+    _z_separation_gate_mask,
+)
 from rl.latent_marl import CONTEXT_STATE_DIM, LatentConditionedActor
 
 
@@ -94,6 +98,29 @@ def _build_latent_adapter_model(seed: int = 1234) -> SharedActorCentralizedCriti
         latent_actor_z_adapter_enabled=True,
         latent_actor_z_adapter_scale=0.35,
         latent_actor_z_adapter_init_std=0.03,
+    )
+    model.eval()
+    return model
+
+
+def _build_film_only_model(
+    seed: int = 1234,
+    *,
+    film_layers: int = 2,
+) -> SharedActorCentralizedCritic:
+    torch.manual_seed(seed)
+    model = SharedActorCentralizedCritic(
+        _obs_space(),
+        _action_space(),
+        actor_cnn_feature_dim=128,
+        latent_k=4,
+        z_embed_dim=0,
+        strategy_hidden_dim=128,
+        critic_hidden_dim=128,
+        latent_actor_z_adapter_enabled=True,
+        latent_actor_z_adapter_scale=0.5,
+        latent_actor_z_adapter_init_std=0.03,
+        latent_actor_z_film_layers=film_layers,
     )
     model.eval()
     return model
@@ -387,6 +414,31 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertEqual(tuple(logits_z0.shape), (2, 110))
         self.assertGreater(float((logits_z0 - logits_z1).abs().max().item()), 1e-6)
 
+    def test_two_layer_film_keeps_v3i13_parameter_contract(self) -> None:
+        one_layer = _build_film_only_model(film_layers=1)
+        two_layer = _build_film_only_model(film_layers=2)
+        self.assertEqual(set(one_layer.state_dict()), set(two_layer.state_dict()))
+        two_layer.load_state_dict(one_layer.state_dict(), strict=True)
+        self.assertEqual(two_layer.latent_actor.z_film_layers, 2)
+        self.assertEqual(
+            int(two_layer.actor_input_dim),
+            int(two_layer._local_actor_in_dim),
+        )
+
+    def test_two_layer_film_changes_logits_without_concat_z(self) -> None:
+        model = _build_film_only_model(film_layers=2)
+        self.assertIsNone(model.strategy_embedding)
+        self.assertEqual(model.z_onehot_dim, 0)
+        obs = _fixed_obs(batch=2)
+        with torch.no_grad():
+            logits_z0 = model.policy_logits(
+                obs, z_idx=torch.zeros((2,), dtype=torch.long)
+            )
+            logits_z1 = model.policy_logits(
+                obs, z_idx=torch.ones((2,), dtype=torch.long)
+            )
+        self.assertGreater(float((logits_z0 - logits_z1).abs().max().item()), 1e-6)
+
     def test_z_onehot_extends_shared_actor_input_without_adapter(self) -> None:
         model = _build_latent_onehot_model()
         first = model.latent_actor.body[0]
@@ -413,6 +465,38 @@ class LatentConditionedActorContractTests(unittest.TestCase):
 
 
 class ZSeparationLossTests(unittest.TestCase):
+    def test_warmup_ramp_value_supports_nonzero_specialization_start(self) -> None:
+        kwargs = dict(
+            warmup_steps=100_000,
+            ramp_steps=300_000,
+            start_value=0.005,
+            target_value=0.02,
+        )
+        self.assertEqual(_warmup_ramp_value(global_step=99_999, **kwargs), 0.0)
+        self.assertAlmostEqual(
+            _warmup_ramp_value(global_step=100_000, **kwargs), 0.005
+        )
+        self.assertAlmostEqual(
+            _warmup_ramp_value(global_step=250_000, **kwargs), 0.0125
+        )
+        self.assertAlmostEqual(
+            _warmup_ramp_value(global_step=400_000, **kwargs), 0.02
+        )
+
+    def test_z_separation_gate_rejects_weak_reset_and_high_entropy_rows(self) -> None:
+        global_state = torch.zeros((4, 34), dtype=torch.float32)
+        global_state[:, 17] = torch.tensor([0.2, 0.01, 0.2, 0.2])
+        mask = _z_separation_gate_mask(
+            advantages=torch.tensor([0.1, 0.6, 0.7, 0.8]),
+            action_entropy=torch.tensor([1.0, 1.0, 9.0, 1.0]),
+            global_state=global_state,
+            max_action_entropy=10.0,
+            min_abs_advantage=0.5,
+            min_decision_frac=0.05,
+            max_entropy_frac=0.8,
+        )
+        self.assertEqual(mask.tolist(), [False, False, False, True])
+
     def test_z_separation_loss_penalizes_identical_logits(self) -> None:
         class ZBlindModel(nn.Module):
             n_agents = 1
@@ -437,6 +521,30 @@ class ZSeparationLossTests(unittest.TestCase):
         self.assertAlmostEqual(float(stats["jsd"].item()), 0.0)
         self.assertAlmostEqual(float(loss.item()), 0.02)
         self.assertEqual(float(stats["active"].item()), 1.0)
+
+    def test_z_separation_loss_reports_gate_active_fraction(self) -> None:
+        class ZBlindModel(nn.Module):
+            n_agents = 1
+            per_agent_action_dims = (3,)
+
+            def policy_logits(self, obs, z_idx=None):
+                return torch.zeros((int(z_idx.shape[0]), 3), dtype=torch.float32)
+
+            @staticmethod
+            def _mask_logits(logits, mask):
+                return logits
+
+        obs = {"mask": torch.ones((4, 3), dtype=torch.float32)}
+        loss, stats = _policy_z_separation_loss(
+            ZBlindModel(),
+            obs,
+            torch.tensor([0, 1, 2, 3], dtype=torch.long),
+            latent_k=4,
+            margin=0.02,
+            active_mask=torch.tensor([False, False, False, True]),
+        )
+        self.assertAlmostEqual(float(loss.item()), 0.02)
+        self.assertAlmostEqual(float(stats["active"].item()), 0.25)
 
     def test_z_separation_loss_is_zero_when_logits_are_distinct(self) -> None:
         class ZSeparatedModel(nn.Module):

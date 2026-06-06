@@ -103,6 +103,9 @@ class PPOConfig:
     latent_actor_z_adapter_enabled: bool = False
     latent_actor_z_adapter_scale: float = 0.0
     latent_actor_z_adapter_init_std: float = 0.02
+    latent_actor_z_film_layers: int = 1
+    latent_actor_z_adapter_warmup_steps: int = 0
+    latent_actor_z_adapter_ramp_steps: int = 0
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
@@ -182,6 +185,8 @@ class PPOConfig:
     #   "bucket_id"         -- 216-bucket flag/score/spread/dist composite captured
     #                          at z-commit time (in episode_strategy_bucket).
     #   "opponent_x_bucket" -- cross product (up to ~648 buckets; sharper but noisier)
+    #   "tactical_context_opponent" -- phase + both flag states + score pressure
+    #                                  + opponent, accumulated across the episode.
     latent_q_phi_bucket_baseline: Optional[str] = None
     # EMA decay for cross-rollout bucket means. 1.0 = no update (pure prior);
     # 0.0 = per-rollout means only (no smoothing). Default 0.9 retains 90% of
@@ -239,7 +244,13 @@ class PPOConfig:
     latent_behavior_contrast_anneal_after_steps: int = 0
     latent_behavior_contrast_anneal_to: float = 0.0
     latent_actor_z_separation_coef: float = 0.0
+    latent_actor_z_separation_start_coef: float = 0.0
     latent_actor_z_separation_margin: float = 0.02
+    latent_actor_z_separation_warmup_steps: int = 0
+    latent_actor_z_separation_ramp_steps: int = 0
+    latent_actor_z_separation_min_abs_advantage: float = 0.0
+    latent_actor_z_separation_min_decision_frac: float = 0.0
+    latent_actor_z_separation_max_entropy_frac: float = 1.0
     latent_usage_balance_coef: float = 0.0
     latent_q_phi_train_after_steps: int = 0
     latent_preference_coef: float = 0.0
@@ -272,11 +283,17 @@ class PPOConfig:
     latent_specialist_router_enabled: bool = False
     latent_marginal_balance_coef: float = 0.0
     latent_conditional_entropy_min_coef: float = 0.0
+    latent_conditional_entropy_min_coef_start: float = 0.0
+    # "state" minimizes H(q_phi(z|s)); "context_bucket" minimizes the entropy
+    # of the mean router distribution within each active tactical bucket.
+    latent_specialist_conditional_entropy_scope: str = "state"
     latent_context_mi_coef: float = 0.0
     latent_specialist_warmup_steps: int = 0
     latent_specialist_ramp_steps: int = 1
     latent_specialist_min_bucket_count: int = 2
     latent_specialist_context_key_mode: str = "opponent_bucket"
+    latent_specialist_use_rollout_states: bool = False
+    latent_specialist_rollout_max_samples: int = 8192
     late_entropy_floor: float = 0.0003
     commitment_type: str = "confidence_weighted_entropy"
 

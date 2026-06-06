@@ -346,6 +346,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_actor_z_separation_loss",
             "latent_actor_z_separation_jsd",
             "latent_actor_z_separation_active",
+            "latent_actor_z_separation_coef",
+            "latent_actor_z_adapter_scale",
             "latent_usage_balance_loss",
             "latent_usage_balance_kl",
             "latent_q_phi_train_active",
@@ -369,10 +371,13 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_specialist_marginal_entropy",
             "latent_specialist_conditional_entropy",
             "latent_specialist_context_bucket_entropy",
+            "latent_specialist_conditional_term",
+            "latent_specialist_conditional_coef",
             "latent_specialist_mi",
             "latent_specialist_context_mi",
             "latent_specialist_active_buckets",
             "latent_specialist_coef_scale",
+            "latent_specialist_rollout_samples",
         ])
         for opp_name in ["op5", "op6"]:
             fields.extend([

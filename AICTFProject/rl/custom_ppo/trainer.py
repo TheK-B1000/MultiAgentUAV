@@ -238,11 +238,23 @@ class CustomPPOTrainer:
         self.latent_specialist_router_enabled = hparams.latent_specialist_router_enabled
         self.latent_marginal_balance_coef = hparams.latent_marginal_balance_coef
         self.latent_conditional_entropy_min_coef = hparams.latent_conditional_entropy_min_coef
+        self.latent_conditional_entropy_min_coef_start = (
+            hparams.latent_conditional_entropy_min_coef_start
+        )
+        self.latent_specialist_conditional_entropy_scope = (
+            hparams.latent_specialist_conditional_entropy_scope
+        )
         self.latent_context_mi_coef = hparams.latent_context_mi_coef
         self.latent_specialist_warmup_steps = hparams.latent_specialist_warmup_steps
         self.latent_specialist_ramp_steps = hparams.latent_specialist_ramp_steps
         self.latent_specialist_min_bucket_count = hparams.latent_specialist_min_bucket_count
         self.latent_specialist_context_key_mode = hparams.latent_specialist_context_key_mode
+        self.latent_specialist_use_rollout_states = (
+            hparams.latent_specialist_use_rollout_states
+        )
+        self.latent_specialist_rollout_max_samples = (
+            hparams.latent_specialist_rollout_max_samples
+        )
         self.late_entropy_floor = hparams.late_entropy_floor
         self.commitment_type = hparams.commitment_type
         self.latent_event_refresh_enabled = hparams.latent_event_refresh_enabled
