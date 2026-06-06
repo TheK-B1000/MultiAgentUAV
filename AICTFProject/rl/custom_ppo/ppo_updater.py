@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from rl.latent_losses import (
     strategy_aux_return_loss as _latent_strategy_aux_return_loss,
@@ -54,6 +55,47 @@ from rl.custom_ppo.trainer_config import TrainerHyperparams
 if TYPE_CHECKING:
     from rl.custom_ppo.latent_strategy_state import LatentStrategyState
     from rl.custom_ppo.trainer import CustomPPOTrainer
+
+
+def _policy_z_separation_loss(
+    model: Any,
+    obs_batch: dict[str, torch.Tensor],
+    z_idx: torch.Tensor,
+    *,
+    latent_k: int,
+    margin: float,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Penalize identical action distributions under different forced z values."""
+    if int(latent_k) <= 1 or z_idx.numel() <= 0:
+        zero = torch.zeros((), dtype=torch.float32, device=z_idx.device)
+        return zero, {"jsd": zero, "active": zero}
+
+    z_a = z_idx.long().reshape(-1).clamp(min=0, max=int(latent_k) - 1)
+    z_b = (z_a + 1) % int(latent_k)
+    logits_a = model._mask_logits(model.policy_logits(obs_batch, z_idx=z_a), obs_batch.get("mask"))
+    logits_b = model._mask_logits(model.policy_logits(obs_batch, z_idx=z_b), obs_batch.get("mask"))
+
+    js_terms: list[torch.Tensor] = []
+    offset = 0
+    for _agent_idx in range(int(model.n_agents)):
+        for dim in model.per_agent_action_dims:
+            width = int(dim)
+            a = logits_a[:, offset : offset + width]
+            b = logits_b[:, offset : offset + width]
+            p = torch.softmax(a, dim=-1).clamp_min(1e-8)
+            q = torch.softmax(b, dim=-1).clamp_min(1e-8)
+            m = 0.5 * (p + q)
+            js = 0.5 * (p * (p.log() - m.log())).sum(dim=-1)
+            js = js + 0.5 * (q * (q.log() - m.log())).sum(dim=-1)
+            js_terms.append(js)
+            offset += width
+
+    if not js_terms:
+        zero = torch.zeros((), dtype=torch.float32, device=z_idx.device)
+        return zero, {"jsd": zero, "active": zero}
+    jsd = torch.stack(js_terms, dim=0).mean()
+    loss = F.relu(jsd.new_tensor(float(max(0.0, margin))) - jsd)
+    return loss, {"jsd": jsd.detach(), "active": jsd.new_tensor(1.0)}
 
 
 class PPOUpdater:
@@ -134,6 +176,9 @@ class PPOUpdater:
             "strategy_resample_fraction": [],
             "strategy_kl": [],
             "strategy_phase_loss": [],
+            "latent_actor_z_separation_loss": [],
+            "latent_actor_z_separation_jsd": [],
+            "latent_actor_z_separation_active": [],
         }
         stop_update = False
         target_kl = getattr(cfg, "target_kl", None)
@@ -153,6 +198,12 @@ class PPOUpdater:
                     batch["actions"],
                     z_idx=z_idx,
                 )
+                z_sep_loss = torch.zeros((), dtype=torch.float32, device=device)
+                z_sep_stats = {
+                    "jsd": torch.zeros((), dtype=torch.float32, device=device),
+                    "active": torch.zeros((), dtype=torch.float32, device=device),
+                }
+
                 if hparams.use_latent_strategy:
                     resample = batch["z_resampled"].bool()
                     persist_mask = batch["z_persist_mask"].bool()
@@ -223,6 +274,29 @@ class PPOUpdater:
                         strategy_entropy = torch.zeros_like(entropy)
                         persist_loss_value = 0.0
                         latent_loss = torch.zeros((), dtype=torch.float32, device=device)
+                    sep_coef = float(
+                        getattr(hparams, "latent_actor_z_separation_coef", 0.0) or 0.0
+                    )
+                    if (
+                        sep_coef > 0.0
+                        and not hparams.fixed_latent_strategy
+                        and z_idx is not None
+                    ):
+                        z_sep_loss, z_sep_stats = _policy_z_separation_loss(
+                            model,
+                            obs_batch,
+                            z_idx.long(),
+                            latent_k=int(hparams.latent_k),
+                            margin=float(
+                                getattr(
+                                    hparams,
+                                    "latent_actor_z_separation_margin",
+                                    0.02,
+                                )
+                                or 0.0
+                            ),
+                        )
+                        latent_loss = latent_loss + sep_coef * z_sep_loss
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)
@@ -366,6 +440,15 @@ class PPOUpdater:
                 stats["strategy_grad_norm"].append(strategy_grad_norm)
                 stats["strategy_resample_fraction"].append(
                     float(resample.float().mean().detach().cpu().item())
+                )
+                stats["latent_actor_z_separation_loss"].append(
+                    float(z_sep_loss.detach().cpu().item())
+                )
+                stats["latent_actor_z_separation_jsd"].append(
+                    float(z_sep_stats["jsd"].detach().cpu().item())
+                )
+                stats["latent_actor_z_separation_active"].append(
+                    float(z_sep_stats["active"].detach().cpu().item())
                 )
                 if target_kl is not None and approx_kl_value > 1.5 * float(target_kl):
                     stop_update = True

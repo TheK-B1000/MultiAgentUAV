@@ -444,6 +444,24 @@ def _macro_probs_from_logits(trainer: Any, logits: torch.Tensor) -> torch.Tensor
     return torch.stack(macro_chunks, dim=1)
 
 
+def _batched_policy_logits(
+    trainer: Any, obs_batch: dict[str, torch.Tensor], z_idx: torch.Tensor
+) -> torch.Tensor:
+    """Run model.policy_logits in smaller mini-batches to prevent CUDA OOM on large state spaces (e.g. 4v4)."""
+    total = z_idx.shape[0]
+    batch_size = min(1024, int(getattr(trainer.cfg, "batch_size", 1024)))
+    if total <= batch_size:
+        return trainer.model.policy_logits(obs_batch, z_idx=z_idx)
+    logits_list = []
+    for start in range(0, total, batch_size):
+        end = min(start + batch_size, total)
+        slice_obs = {k: v[start:end] for k, v in obs_batch.items()}
+        slice_z = z_idx[start:end]
+        slice_logits = trainer.model.policy_logits(slice_obs, z_idx=slice_z)
+        logits_list.append(slice_logits)
+    return torch.cat(logits_list, dim=0)
+
+
 def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
     """Profile actor macro preferences under every forced z on the same rollout observations."""
     if not trainer.use_latent_strategy:
@@ -463,6 +481,7 @@ def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
         ).long()
     else:
         row_idx = torch.arange(total, device=trainer.device)
+    row_idx = torch.clamp(row_idx, 0, total - 1)
     obs_batch = {
         "grid": buffer.fields["obs_grid"][:length].reshape(total, *buffer.fields["obs_grid"].shape[2:]).index_select(0, row_idx),
         "vec": buffer.fields["obs_vec"][:length].reshape(total, *buffer.fields["obs_vec"].shape[2:]).index_select(0, row_idx),
@@ -474,7 +493,7 @@ def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
     with torch.no_grad():
         for z_id in range(int(trainer.latent_k)):
             z_idx = torch.full((int(row_idx.numel()),), z_id, dtype=torch.long, device=trainer.device)
-            logits = trainer.model.policy_logits(obs_batch, z_idx=z_idx)
+            logits = _batched_policy_logits(trainer, obs_batch, z_idx=z_idx)
             logits = trainer.model._mask_logits(logits, obs_batch.get("mask"))
             macro_probs = _macro_probs_from_logits(trainer, logits)
             mean_macro = macro_probs.mean(dim=(0, 1))
@@ -762,6 +781,7 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, float]:
         ).long()
     else:
         row_idx = torch.arange(total, device=trainer.device)
+    row_idx = torch.clamp(row_idx, 0, total - 1)
 
     obs_batch = {
         "grid": buffer.fields["obs_grid"][:length].reshape(total, *buffer.fields["obs_grid"].shape[2:]).index_select(0, row_idx),
@@ -774,7 +794,7 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, float]:
     with torch.no_grad():
         for z_id in range(int(trainer.latent_k)):
             z_idx = torch.full((int(row_idx.numel()),), z_id, dtype=torch.long, device=trainer.device)
-            logits = trainer.model.policy_logits(obs_batch, z_idx=z_idx)
+            logits = _batched_policy_logits(trainer, obs_batch, z_idx=z_idx)
             logits = trainer.model._mask_logits(logits, obs_batch.get("mask"))
             dists = list(trainer.model._categoricals(logits))
             dists_by_z.append(dists)

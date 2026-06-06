@@ -139,6 +139,12 @@ class SharedActorCentralizedCritic(nn.Module):
         use_strategy_aux_return_head: bool = False,
         use_episode_strategy_value_head: bool = False,
         strategy_tau: float = 1.0,
+        latent_actor_z_onehot_enabled: bool = False,
+        latent_actor_z_onehot_scale: float = 1.0,
+        latent_actor_z_embed_scale: float = 1.0,
+        latent_actor_z_adapter_enabled: bool = False,
+        latent_actor_z_adapter_scale: float = 0.0,
+        latent_actor_z_adapter_init_std: float = 0.02,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -171,6 +177,11 @@ class SharedActorCentralizedCritic(nn.Module):
         self.latent_k = max(0, int(latent_k))
         self.uses_latent_strategy = self.latent_k > 0
         self.z_embed_dim = int(z_embed_dim) if self.uses_latent_strategy else 0
+        self.z_onehot_dim = (
+            int(self.latent_k)
+            if self.uses_latent_strategy and bool(latent_actor_z_onehot_enabled)
+            else 0
+        )
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
         self.use_episode_strategy_value_head = bool(use_episode_strategy_value_head) and self.uses_latent_strategy
         self.strategy_tau = max(1e-3, float(strategy_tau))
@@ -207,7 +218,9 @@ class SharedActorCentralizedCritic(nn.Module):
 
         # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
         self._decentralized_actor_in_dim = int(
-            self._local_actor_in_dim + (self.z_embed_dim if self.uses_latent_strategy else 0)
+            self._local_actor_in_dim
+            + (self.z_embed_dim if self.uses_latent_strategy else 0)
+            + self.z_onehot_dim
         )
         # The decentralized actor body, output head, and strategy embedding are
         # owned by the canonical ``LatentConditionedActor``. Code that reads
@@ -220,6 +233,12 @@ class SharedActorCentralizedCritic(nn.Module):
             action_dim=int(self.per_agent_logits),
             z_embed_dim=self.z_embed_dim if self.uses_latent_strategy else 0,
             hidden_dim=int(actor_hidden_dim),
+            z_onehot_enabled=bool(latent_actor_z_onehot_enabled),
+            z_onehot_scale=float(latent_actor_z_onehot_scale),
+            z_embed_scale=float(latent_actor_z_embed_scale),
+            z_adapter_enabled=bool(latent_actor_z_adapter_enabled),
+            z_adapter_scale=float(latent_actor_z_adapter_scale),
+            z_adapter_init_std=float(latent_actor_z_adapter_init_std),
         )
         critic_extra_dim = self.joint_action_onehot_dim + self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
@@ -335,7 +354,7 @@ class SharedActorCentralizedCritic(nn.Module):
     def _assert_input_contracts(self) -> None:
         actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
         if self.uses_latent_strategy:
-            actor_expected += int(self.z_embed_dim)
+            actor_expected += int(self.z_embed_dim) + int(self.z_onehot_dim)
             assert int(self.global_state_dim) == int(CONTEXT_STATE_DIM), (
                 f"latent global_state_dim must be {CONTEXT_STATE_DIM}, got {self.global_state_dim}"
             )
@@ -383,6 +402,8 @@ class SharedActorCentralizedCritic(nn.Module):
             "q_phi_input_dim": int(self.q_phi_input_dim),
             "critic_context_dim": int(self.critic_context_dim),
             "actor_input_dim": int(self.actor_input_dim),
+            "actor_z_embed_dim": int(self.z_embed_dim),
+            "actor_z_onehot_dim": int(self.z_onehot_dim),
             "critic_extra_dim": int(self.critic.extra_dim),
             "critic_z_dim": int(self.critic_z_dim),
             "critic_joint_action_dim": int(self.critic_joint_action_dim),

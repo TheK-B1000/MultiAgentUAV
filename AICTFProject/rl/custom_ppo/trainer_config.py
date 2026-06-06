@@ -94,6 +94,8 @@ class TrainerHyperparams:
     latent_behavior_contrast_ema: float
     latent_behavior_contrast_anneal_after_steps: int
     latent_behavior_contrast_anneal_to: float
+    latent_actor_z_separation_coef: float
+    latent_actor_z_separation_margin: float
     latent_usage_balance_coef: float
     latent_q_phi_train_after_steps: int
     latent_preference_coef: float
@@ -113,6 +115,8 @@ class TrainerHyperparams:
     latent_awrd_margin_scale: float
     latent_awrd_min_margin: float
     latent_awrd_soft_margin_gating: bool
+    latent_awrd_warmup_steps: int
+    latent_awrd_ramp_steps: int
     latent_specialist_router_enabled: bool
     latent_marginal_balance_coef: float
     latent_conditional_entropy_min_coef: float
@@ -331,6 +335,14 @@ class TrainerHyperparams:
             latent_behavior_contrast_anneal_to=max(
                 0.0, float(getattr(cfg, "latent_behavior_contrast_anneal_to", 0.0) or 0.0)
             ),
+            latent_actor_z_separation_coef=(
+                max(0.0, float(getattr(cfg, "latent_actor_z_separation_coef", 0.0) or 0.0))
+                if use_latent and not fixed_latent
+                else 0.0
+            ),
+            latent_actor_z_separation_margin=max(
+                0.0, float(getattr(cfg, "latent_actor_z_separation_margin", 0.02) or 0.0)
+            ),
             latent_usage_balance_coef=(
                 max(0.0, float(getattr(cfg, "latent_usage_balance_coef", 0.0) or 0.0))
                 if use_latent and not fixed_latent
@@ -380,6 +392,12 @@ class TrainerHyperparams:
             ),
             latent_awrd_min_margin=float(getattr(cfg, "latent_awrd_min_margin", 0.08)),
             latent_awrd_soft_margin_gating=bool(getattr(cfg, "latent_awrd_soft_margin_gating", False)),
+            latent_awrd_warmup_steps=max(
+                0, int(getattr(cfg, "latent_awrd_warmup_steps", 0) or 0)
+            ),
+            latent_awrd_ramp_steps=max(
+                0, int(getattr(cfg, "latent_awrd_ramp_steps", 0) or 0)
+            ),
             latent_specialist_router_enabled=(
                 use_latent
                 and not fixed_latent
@@ -516,6 +534,25 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 ),
                 "strategy_tau": max(
                     1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)
+                ),
+                "latent_actor_z_onehot_enabled": bool(
+                    getattr(cfg, "latent_actor_z_onehot_enabled", False)
+                ),
+                "latent_actor_z_onehot_scale": max(
+                    0.0, float(getattr(cfg, "latent_actor_z_onehot_scale", 1.0) or 0.0)
+                ),
+                "latent_actor_z_embed_scale": max(
+                    0.0, float(getattr(cfg, "latent_actor_z_embed_scale", 1.0) or 0.0)
+                ),
+                "latent_actor_z_adapter_enabled": bool(
+                    getattr(cfg, "latent_actor_z_adapter_enabled", False)
+                ),
+                "latent_actor_z_adapter_scale": max(
+                    0.0, float(getattr(cfg, "latent_actor_z_adapter_scale", 0.0) or 0.0)
+                ),
+                "latent_actor_z_adapter_init_std": max(
+                    0.0,
+                    float(getattr(cfg, "latent_actor_z_adapter_init_std", 0.02) or 0.0),
                 ),
             }
         )

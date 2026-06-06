@@ -12,6 +12,7 @@ from rl.custom_ppo.latent_strategy_state import (
     _role_phase_specialist_context_keys,
     _router_specialist_loss,
     _specialist_context_keys_for_mode,
+    _warmup_ramp_coef_scale,
 )
 from tests.test_latent_episode_warmup import _make_trainer
 
@@ -151,6 +152,32 @@ class LatentPreferenceTests(unittest.TestCase):
         self.assertEqual(int(stats["best_z"]), 2)
         self.assertGreater(stats["margin"], 0.15)
         self.assertGreater(float(target[2]), float(target[3]))
+
+    def test_awrd_warmup_ramp_schedule(self) -> None:
+        self.assertEqual(
+            _warmup_ramp_coef_scale(
+                global_step=99_999,
+                warmup_steps=100_000,
+                ramp_steps=300_000,
+            ),
+            0.0,
+        )
+        self.assertAlmostEqual(
+            _warmup_ramp_coef_scale(
+                global_step=250_000,
+                warmup_steps=100_000,
+                ramp_steps=300_000,
+            ),
+            0.5,
+        )
+        self.assertEqual(
+            _warmup_ramp_coef_scale(
+                global_step=400_000,
+                warmup_steps=100_000,
+                ramp_steps=300_000,
+            ),
+            1.0,
+        )
 
     def test_record_episode_strategy_outcome_forced_z(self) -> None:
         trainer = _make_trainer(n_envs=2, warmup=0, episode_credit=True, gs_dim=4)
@@ -779,6 +806,7 @@ class LatentPreferenceTests(unittest.TestCase):
         stats = latent_state.apply_episode_strategy_ppo(latent_lam_h=0.0)
 
         self.assertGreater(stats["latent_awrd_loss"], 0.0)
+        self.assertEqual(stats["latent_awrd_coef_scale"], 1.0)
         self.assertEqual(stats["latent_awrd_active_fraction"], 1.0)
         self.assertEqual(stats["latent_awrd_active_buckets"], 1.0)
         self.assertAlmostEqual(stats["latent_awrd_margin_mean"], 0.5, places=5)

@@ -97,6 +97,12 @@ class PPOConfig:
     latent_k: int = 4
     latent_z_embed_dim: int = 16
     latent_actor_conditioning: Literal["concat"] = "concat"
+    latent_actor_z_onehot_enabled: bool = False
+    latent_actor_z_onehot_scale: float = 1.0
+    latent_actor_z_embed_scale: float = 1.0
+    latent_actor_z_adapter_enabled: bool = False
+    latent_actor_z_adapter_scale: float = 0.0
+    latent_actor_z_adapter_init_std: float = 0.02
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
@@ -232,6 +238,8 @@ class PPOConfig:
     latent_behavior_contrast_ema: float = 0.9
     latent_behavior_contrast_anneal_after_steps: int = 0
     latent_behavior_contrast_anneal_to: float = 0.0
+    latent_actor_z_separation_coef: float = 0.0
+    latent_actor_z_separation_margin: float = 0.02
     latent_usage_balance_coef: float = 0.0
     latent_q_phi_train_after_steps: int = 0
     latent_preference_coef: float = 0.0
@@ -255,6 +263,8 @@ class PPOConfig:
     latent_awrd_margin_scale: float = 2.0
     latent_awrd_min_margin: float = 0.08
     latent_awrd_soft_margin_gating: bool = False
+    latent_awrd_warmup_steps: int = 0
+    latent_awrd_ramp_steps: int = 0
     # v3i9: balanced specialist router. Keeps the marginal q_phi usage
     # distribution high-entropy across the batch while reducing conditional
     # entropy inside opponent/context buckets. No role labels or scripted

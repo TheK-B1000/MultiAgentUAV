@@ -55,10 +55,14 @@ def log_input_dim_contract(trainer: "CustomPPOTrainer") -> None:
         f"actor_input_dim={dims['actor_input_dim']}"
     )
     if m.uses_latent_strategy:
+        z_onehot_clause = (
+            f" + z_onehot {m.z_onehot_dim}" if int(getattr(m, "z_onehot_dim", 0)) > 0 else ""
+        )
         print(
             "[PPO] Decentralized actor contract: per-agent MLP input dim = "
             f"{m._decentralized_actor_in_dim} "
-            f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent} + z_emb {m.z_embed_dim}); "
+            f"(cnn {m.actor_cnn_feature_dim} + scalars {m._scalar_per_agent} "
+            f"+ z_emb {m.z_embed_dim}{z_onehot_clause}); "
             f"global_state_dim={m.global_state_dim} is for q_phi/critic only."
         )
         print(
@@ -131,11 +135,17 @@ def log_plan_faithful_audit(trainer: "CustomPPOTrainer") -> None:
     m = trainer.model
 
     if m.uses_latent_strategy:
+        z_onehot_clause = (
+            f"+ z_onehot({getattr(m, 'z_onehot_dim', '?')}) "
+            if int(getattr(m, "z_onehot_dim", 0)) > 0
+            else ""
+        )
         print(
             "[PPO] Audit actor_input: "
             f"cnn({getattr(m, 'actor_cnn_feature_dim', '?')}) "
             f"+ per_agent_vec({getattr(m, '_scalar_per_agent', '?')}) "
             f"+ z_emb({getattr(m, 'z_embed_dim', '?')}) "
+            f"{z_onehot_clause}"
             f"= {getattr(m, '_decentralized_actor_in_dim', '?')} dim. "
             "(no phase_id, no opponent_id, no global_state in actor pathway)"
         )

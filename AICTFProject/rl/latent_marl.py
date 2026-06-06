@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 from rl.global_state import GLOBAL_STATE_DIM
@@ -197,6 +198,12 @@ class LatentConditionedActor(nn.Module):
         *,
         z_embed_dim: int = 16,
         hidden_dim: int = 256,
+        z_onehot_enabled: bool = False,
+        z_onehot_scale: float = 1.0,
+        z_embed_scale: float = 1.0,
+        z_adapter_enabled: bool = False,
+        z_adapter_scale: float = 0.0,
+        z_adapter_init_std: float = 0.02,
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -204,6 +211,18 @@ class LatentConditionedActor(nn.Module):
         self.z_embed_dim = int(z_embed_dim) if (self.latent_k > 0 and int(z_embed_dim) > 0) else 0
         self.hidden_dim = int(hidden_dim)
         self.action_dim = int(action_dim)
+        self.z_onehot_enabled = bool(z_onehot_enabled) and self.latent_k > 0
+        self.z_onehot_dim = int(self.latent_k) if self.z_onehot_enabled else 0
+        self.z_onehot_scale = (
+            float(max(0.0, z_onehot_scale)) if self.z_onehot_enabled else 0.0
+        )
+        self.z_embed_scale = float(max(0.0, z_embed_scale))
+        self.z_adapter_enabled = (
+            bool(z_adapter_enabled) and self.latent_k > 0 and self.z_embed_dim > 0
+        )
+        self.z_adapter_scale = (
+            float(max(0.0, z_adapter_scale)) if self.z_adapter_enabled else 0.0
+        )
 
         if self.latent_k > 0 and self.z_embed_dim > 0:
             # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
@@ -211,7 +230,7 @@ class LatentConditionedActor(nn.Module):
         else:
             self.strategy_embedding = None
 
-        in_dim = self.local_feature_dim + self.z_embed_dim
+        in_dim = self.local_feature_dim + self.z_embed_dim + self.z_onehot_dim
         # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
         self.body = nn.Sequential(
             nn.Linear(in_dim, self.hidden_dim),
@@ -219,6 +238,15 @@ class LatentConditionedActor(nn.Module):
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
         )
+        if self.z_adapter_enabled and self.z_adapter_scale > 0.0:
+            self.z_adapter = nn.Embedding(self.latent_k, self.hidden_dim * 2)
+            nn.init.normal_(
+                self.z_adapter.weight,
+                mean=0.0,
+                std=max(0.0, float(z_adapter_init_std)),
+            )
+        else:
+            self.z_adapter = None
         self.action_head = nn.Linear(self.hidden_dim, self.action_dim)
 
     def forward(
@@ -240,22 +268,38 @@ class LatentConditionedActor(nn.Module):
                 f"local_features width {int(local_features.shape[-1])} != local_feature_dim "
                 f"{int(self.local_feature_dim)}"
             )
-        if self.strategy_embedding is not None:
+        z = None
+        if self.strategy_embedding is not None or self.z_onehot_enabled:
             if z_idx is None:
-                raise ValueError("z_idx is required when strategy embedding is enabled.")
+                raise ValueError("z_idx is required when latent actor z conditioning is enabled.")
             z = z_idx.long().reshape(-1).clamp(
-                min=0, max=self.strategy_embedding.num_embeddings - 1
+                min=0, max=self.latent_k - 1
             )
             if int(z.shape[0]) != int(local_features.shape[0]):
                 raise ValueError(
                     f"z_idx leading dim {int(z.shape[0])} must match local_features leading dim "
                     f"{int(local_features.shape[0])}"
                 )
-            z_emb = self.strategy_embedding(z)
-            x = torch.cat([local_features.float(), z_emb], dim=-1)
+            pieces = [local_features.float()]
+            if self.strategy_embedding is not None:
+                z_emb = self.strategy_embedding(z) * self.z_embed_scale
+                pieces.append(z_emb)
+            if self.z_onehot_enabled:
+                z_onehot = F.one_hot(z, num_classes=self.latent_k).to(
+                    dtype=local_features.dtype,
+                    device=local_features.device,
+                )
+                pieces.append(z_onehot * self.z_onehot_scale)
+            x = torch.cat(pieces, dim=-1)
         else:
             x = local_features.float()
-        return self.action_head(self.body(x))
+        hidden = self.body(x)
+        if self.z_adapter is not None:
+            if z is None:
+                raise ValueError("z_idx is required when z adapter is enabled.")
+            gamma, beta = self.z_adapter(z).chunk(2, dim=-1)
+            hidden = hidden + self.z_adapter_scale * (hidden * torch.tanh(gamma) + beta)
+        return self.action_head(hidden)
 
 
 __all__ = [

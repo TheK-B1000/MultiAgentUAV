@@ -32,6 +32,7 @@ from rl.custom_ppo.policy import (
     SharedActorCentralizedCritic,
     remap_legacy_actor_state_dict_keys,
 )
+from rl.custom_ppo.ppo_updater import _policy_z_separation_loss
 from rl.latent_marl import CONTEXT_STATE_DIM, LatentConditionedActor
 
 
@@ -75,6 +76,42 @@ def _build_latent_model(seed: int = 1234) -> SharedActorCentralizedCritic:
         z_embed_dim=16,
         strategy_hidden_dim=128,
         critic_hidden_dim=128,
+    )
+    model.eval()
+    return model
+
+
+def _build_latent_adapter_model(seed: int = 1234) -> SharedActorCentralizedCritic:
+    torch.manual_seed(seed)
+    model = SharedActorCentralizedCritic(
+        _obs_space(),
+        _action_space(),
+        actor_cnn_feature_dim=128,
+        latent_k=4,
+        z_embed_dim=16,
+        strategy_hidden_dim=128,
+        critic_hidden_dim=128,
+        latent_actor_z_adapter_enabled=True,
+        latent_actor_z_adapter_scale=0.35,
+        latent_actor_z_adapter_init_std=0.03,
+    )
+    model.eval()
+    return model
+
+
+def _build_latent_onehot_model(seed: int = 1234) -> SharedActorCentralizedCritic:
+    torch.manual_seed(seed)
+    model = SharedActorCentralizedCritic(
+        _obs_space(),
+        _action_space(),
+        actor_cnn_feature_dim=128,
+        latent_k=4,
+        z_embed_dim=16,
+        strategy_hidden_dim=128,
+        critic_hidden_dim=128,
+        latent_actor_z_onehot_enabled=True,
+        latent_actor_z_onehot_scale=1.0,
+        latent_actor_z_embed_scale=1.25,
     )
     model.eval()
     return model
@@ -141,8 +178,18 @@ def _reference_policy_logits(
         assert z_idx is not None
         z = z_idx.long().reshape(-1).clamp(min=0, max=model.latent_k - 1)
         assert model.strategy_embedding is not None
-        z_emb = model.strategy_embedding(z).unsqueeze(1).expand(batch, model.n_agents, model.z_embed_dim)
-        actor_in = torch.cat([local_obs, z_emb], dim=-1)
+        z_emb = (
+            model.strategy_embedding(z)
+            * float(getattr(model.latent_actor, "z_embed_scale", 1.0))
+        ).unsqueeze(1).expand(batch, model.n_agents, model.z_embed_dim)
+        pieces = [local_obs, z_emb]
+        if bool(getattr(model.latent_actor, "z_onehot_enabled", False)):
+            z_onehot = F.one_hot(z, num_classes=model.latent_k).float()
+            z_onehot = z_onehot * float(getattr(model.latent_actor, "z_onehot_scale", 1.0))
+            pieces.append(
+                z_onehot.unsqueeze(1).expand(batch, model.n_agents, model.latent_k)
+            )
+        actor_in = torch.cat(pieces, dim=-1)
     else:
         actor_in = local_obs
     hidden = model.actor_body(actor_in.reshape(batch * model.n_agents, -1))
@@ -314,6 +361,109 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         assert model.strategy_embedding is not None
         self.assertEqual(int(model.strategy_embedding.num_embeddings), int(model.latent_k))
         self.assertEqual(int(model.strategy_embedding.embedding_dim), int(model.z_embed_dim))
+
+    def test_z_adapter_preserves_actor_shapes(self) -> None:
+        model = _build_latent_adapter_model()
+        first = model.latent_actor.body[0]
+        self.assertIsInstance(first, nn.Linear)
+        self.assertEqual(int(first.in_features), int(model._local_actor_in_dim + model.z_embed_dim))
+        self.assertEqual(int(model.actor_input_dim), int(model._local_actor_in_dim + model.z_embed_dim))
+        self.assertIsNotNone(model.latent_actor.z_adapter)
+        assert model.latent_actor.z_adapter is not None
+        self.assertEqual(
+            tuple(model.latent_actor.z_adapter.weight.shape),
+            (int(model.latent_k), int(model.latent_actor.hidden_dim) * 2),
+        )
+
+    def test_z_adapter_changes_logits_when_forced_z_changes(self) -> None:
+        model = _build_latent_adapter_model()
+        obs = _fixed_obs(batch=2)
+        z0 = torch.zeros((2,), dtype=torch.long)
+        z1 = torch.ones((2,), dtype=torch.long)
+        with torch.no_grad():
+            logits_z0 = model.policy_logits(obs, z_idx=z0)
+            logits_z1 = model.policy_logits(obs, z_idx=z1)
+        self.assertEqual(tuple(logits_z0.shape), tuple(logits_z1.shape))
+        self.assertEqual(tuple(logits_z0.shape), (2, 110))
+        self.assertGreater(float((logits_z0 - logits_z1).abs().max().item()), 1e-6)
+
+    def test_z_onehot_extends_shared_actor_input_without_adapter(self) -> None:
+        model = _build_latent_onehot_model()
+        first = model.latent_actor.body[0]
+        self.assertIsInstance(first, nn.Linear)
+        expected = int(model._local_actor_in_dim + model.z_embed_dim + model.latent_k)
+        self.assertEqual(int(first.in_features), expected)
+        self.assertEqual(int(model.actor_input_dim), expected)
+        self.assertEqual(int(model.z_onehot_dim), int(model.latent_k))
+        self.assertIsNone(model.latent_actor.z_adapter)
+
+    def test_z_onehot_changes_logits_when_embedding_is_zeroed(self) -> None:
+        model = _build_latent_onehot_model()
+        assert model.strategy_embedding is not None
+        with torch.no_grad():
+            model.strategy_embedding.weight.zero_()
+        obs = _fixed_obs(batch=2)
+        z0 = torch.zeros((2,), dtype=torch.long)
+        z1 = torch.ones((2,), dtype=torch.long)
+        with torch.no_grad():
+            logits_z0 = model.policy_logits(obs, z_idx=z0)
+            logits_z1 = model.policy_logits(obs, z_idx=z1)
+        self.assertEqual(tuple(logits_z0.shape), tuple(logits_z1.shape))
+        self.assertGreater(float((logits_z0 - logits_z1).abs().max().item()), 1e-6)
+
+
+class ZSeparationLossTests(unittest.TestCase):
+    def test_z_separation_loss_penalizes_identical_logits(self) -> None:
+        class ZBlindModel(nn.Module):
+            n_agents = 1
+            per_agent_action_dims = (3,)
+
+            def policy_logits(self, obs, z_idx=None):
+                return torch.zeros((int(z_idx.shape[0]), 3), dtype=torch.float32)
+
+            @staticmethod
+            def _mask_logits(logits, mask):
+                return logits
+
+        obs = {"mask": torch.ones((4, 3), dtype=torch.float32)}
+        z_idx = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        loss, stats = _policy_z_separation_loss(
+            ZBlindModel(),
+            obs,
+            z_idx,
+            latent_k=4,
+            margin=0.02,
+        )
+        self.assertAlmostEqual(float(stats["jsd"].item()), 0.0)
+        self.assertAlmostEqual(float(loss.item()), 0.02)
+        self.assertEqual(float(stats["active"].item()), 1.0)
+
+    def test_z_separation_loss_is_zero_when_logits_are_distinct(self) -> None:
+        class ZSeparatedModel(nn.Module):
+            n_agents = 1
+            per_agent_action_dims = (4,)
+
+            def policy_logits(self, obs, z_idx=None):
+                z = z_idx.long().reshape(-1).clamp(min=0, max=3)
+                logits = torch.full((int(z.shape[0]), 4), -4.0, dtype=torch.float32)
+                logits.scatter_(1, z.unsqueeze(-1), 4.0)
+                return logits
+
+            @staticmethod
+            def _mask_logits(logits, mask):
+                return logits
+
+        obs = {"mask": torch.ones((4, 4), dtype=torch.float32)}
+        z_idx = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        loss, stats = _policy_z_separation_loss(
+            ZSeparatedModel(),
+            obs,
+            z_idx,
+            latent_k=4,
+            margin=0.02,
+        )
+        self.assertGreater(float(stats["jsd"].item()), 0.02)
+        self.assertAlmostEqual(float(loss.item()), 0.0)
 
 
 if __name__ == "__main__":

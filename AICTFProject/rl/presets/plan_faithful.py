@@ -597,6 +597,109 @@ def apply_plan_faithful_latent_v3i10_role_phase_specialist(cfg: PPOConfig) -> PP
     return cfg
 
 
+def apply_plan_faithful_latent_v3i11_z_reactive_actor_adapters(cfg: PPOConfig) -> PPOConfig:
+    """v3i11: make z harder for the actor/router to ignore.
+
+    Inherits v3i10's role/phase/opponent specialist router, then adds a small
+    per-z actor adapter and delayed stronger AWRD pressure. The adapter is
+    still a shared actor with a lightweight z-conditioned residual, not K
+    separate policies.
+    """
+    cfg = apply_plan_faithful_latent_v3i10_role_phase_specialist(cfg)
+
+    cfg.mode = TrainMode.OPPONENT_POOL.value
+    cfg.opponent_randomize = True
+    cfg.opponent_pool = ("OP3", "OP5", "OP6")
+
+    cfg.latent_actor_z_adapter_enabled = True
+    cfg.latent_actor_z_adapter_scale = 0.35
+    cfg.latent_actor_z_adapter_init_std = 0.03
+
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0001
+    cfg.latent_entropy_anneal_start = 100_000
+    cfg.latent_entropy_anneal_end = 450_000
+
+    cfg.latent_usage_balance_coef = 0.015
+    cfg.latent_marginal_balance_coef = 0.02
+    cfg.latent_conditional_entropy_min_coef = 0.05
+    cfg.latent_context_mi_coef = 0.12
+    cfg.latent_specialist_warmup_steps = 100_000
+    cfg.latent_specialist_ramp_steps = 300_000
+    cfg.latent_specialist_min_bucket_count = 3
+
+    cfg.latent_awrd_coef = 0.10
+    cfg.latent_awrd_temperature = 0.30
+    cfg.latent_awrd_min_bucket_count = 6
+    cfg.latent_awrd_margin_threshold = 0.08
+    cfg.latent_awrd_margin_scale = 4.0
+    cfg.latent_awrd_warmup_steps = 100_000
+    cfg.latent_awrd_ramp_steps = 250_000
+
+    cfg.latent_forced_z_episode_frac = 0.45
+    cfg.latent_behavior_contrast_coef = 0.14
+    cfg.latent_behavior_contrast_margin = 0.35
+
+    cfg.run_tag = "latent_v3i11_z_reactive_actor_adapters_pool_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i12_faithful_z_pressure(cfg: PPOConfig) -> PPOConfig:
+    """v3i12: make the existing shared actor listen to z.
+
+    Inherits v3i10's role/phase/opponent specialist router, then adds only
+    faithful z pressure: z one-hot columns in the shared actor input, a small
+    forced-z logit separation loss, and delayed AWRD router distillation.
+    No per-latent adapters, no per-latent actor heads, and no scripted z roles.
+    """
+    cfg = apply_plan_faithful_latent_v3i10_role_phase_specialist(cfg)
+
+    cfg.mode = TrainMode.OPPONENT_POOL.value
+    cfg.opponent_randomize = True
+    cfg.opponent_pool = ("OP3", "OP5", "OP6")
+
+    cfg.latent_actor_z_onehot_enabled = True
+    cfg.latent_actor_z_onehot_scale = 1.0
+    cfg.latent_actor_z_embed_scale = 1.25
+    cfg.latent_actor_z_adapter_enabled = False
+    cfg.latent_actor_z_adapter_scale = 0.0
+    cfg.latent_actor_z_adapter_init_std = 0.02
+    cfg.latent_actor_z_separation_coef = 0.015
+    cfg.latent_actor_z_separation_margin = 0.02
+
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0003
+    cfg.latent_entropy_anneal_start = 100_000
+    cfg.latent_entropy_anneal_end = 450_000
+    cfg.latent_entropy_objective = "maximize"
+
+    cfg.latent_usage_balance_coef = 0.015
+    cfg.latent_marginal_balance_coef = 0.02
+    cfg.latent_conditional_entropy_min_coef = 0.05
+    cfg.latent_context_mi_coef = 0.12
+    cfg.latent_specialist_warmup_steps = 100_000
+    cfg.latent_specialist_ramp_steps = 300_000
+    cfg.latent_specialist_min_bucket_count = 3
+
+    cfg.latent_awrd_enabled = True
+    cfg.latent_awrd_coef = 0.10
+    cfg.latent_awrd_temperature = 0.30
+    cfg.latent_awrd_min_bucket_count = 6
+    cfg.latent_awrd_margin_threshold = 0.08
+    cfg.latent_awrd_margin_scale = 4.0
+    cfg.latent_awrd_warmup_steps = 100_000
+    cfg.latent_awrd_ramp_steps = 300_000
+
+    cfg.latent_forced_z_episode_frac = 0.45
+    cfg.latent_behavior_contrast_coef = 0.14
+    cfg.latent_behavior_contrast_margin = 0.35
+
+    cfg.run_tag = "latent_v3i12_faithful_z_pressure_pool_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

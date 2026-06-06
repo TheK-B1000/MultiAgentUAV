@@ -190,6 +190,14 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i10_role_phase_specialist",
             "plan_faithful_latent_v3i10",
             "latent_v3i10",
+            "plan_faithful_latent_v3i11_z_reactive_actor_adapters",
+            "latent_v3i11_z_reactive_actor_adapters",
+            "plan_faithful_latent_v3i11",
+            "latent_v3i11",
+            "plan_faithful_latent_v3i12_faithful_z_pressure",
+            "latent_v3i12_faithful_z_pressure",
+            "plan_faithful_latent_v3i12",
+            "latent_v3i12",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -498,6 +506,80 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.12)
                 self.assertAlmostEqual(cfg["latent_behavior_contrast_margin"], 0.35)
                 self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.40)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i11_z_reactive_actor_adapters_is_summer_faithful(self) -> None:
+        """v3i11 keeps v3i10 routing and makes z directly bend actor logits."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i11_z_reactive_actor_adapters",
+            "latent_v3i11_z_reactive_actor_adapters",
+            "plan_faithful_latent_v3i11",
+            "latent_v3i11",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertEqual(cfg["mode"], "OPPONENT_POOL")
+                self.assertTrue(cfg["opponent_randomize"])
+                self.assertEqual(cfg["opponent_pool"], ["OP3", "OP5", "OP6"])
+                self.assertTrue(cfg["latent_actor_z_adapter_enabled"])
+                self.assertAlmostEqual(cfg["latent_actor_z_adapter_scale"], 0.35)
+                self.assertAlmostEqual(cfg["latent_actor_z_adapter_init_std"], 0.03)
+                self.assertEqual(
+                    cfg["latent_specialist_context_key_mode"],
+                    "role_phase_progress_opponent",
+                )
+                self.assertTrue(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.015)
+                self.assertAlmostEqual(cfg["latent_conditional_entropy_min_coef"], 0.05)
+                self.assertAlmostEqual(cfg["latent_context_mi_coef"], 0.12)
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.10)
+                self.assertEqual(cfg["latent_awrd_warmup_steps"], 100_000)
+                self.assertEqual(cfg["latent_awrd_ramp_steps"], 250_000)
+                self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.45)
+                self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i12_faithful_z_pressure_is_summer_faithful(self) -> None:
+        """v3i12 makes z reactive through shared actor input pressure only."""
+        resolved = resolve_all_presets()
+        for key in (
+            "plan_faithful_latent_v3i12_faithful_z_pressure",
+            "latent_v3i12_faithful_z_pressure",
+            "plan_faithful_latent_v3i12",
+            "latent_v3i12",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertEqual(cfg["mode"], "OPPONENT_POOL")
+                self.assertTrue(cfg["opponent_randomize"])
+                self.assertEqual(cfg["opponent_pool"], ["OP3", "OP5", "OP6"])
+                self.assertTrue(cfg["latent_actor_z_onehot_enabled"])
+                self.assertAlmostEqual(cfg["latent_actor_z_onehot_scale"], 1.0)
+                self.assertAlmostEqual(cfg["latent_actor_z_embed_scale"], 1.25)
+                self.assertFalse(cfg["latent_actor_z_adapter_enabled"])
+                self.assertAlmostEqual(cfg["latent_actor_z_adapter_scale"], 0.0)
+                self.assertAlmostEqual(cfg["latent_actor_z_separation_coef"], 0.015)
+                self.assertAlmostEqual(cfg["latent_actor_z_separation_margin"], 0.02)
+                self.assertEqual(
+                    cfg["latent_specialist_context_key_mode"],
+                    "role_phase_progress_opponent",
+                )
+                self.assertTrue(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.015)
+                self.assertAlmostEqual(cfg["latent_marginal_balance_coef"], 0.02)
+                self.assertAlmostEqual(cfg["latent_conditional_entropy_min_coef"], 0.05)
+                self.assertAlmostEqual(cfg["latent_context_mi_coef"], 0.12)
+                self.assertEqual(cfg["latent_specialist_warmup_steps"], 100_000)
+                self.assertEqual(cfg["latent_specialist_ramp_steps"], 300_000)
+                self.assertTrue(cfg["latent_awrd_enabled"])
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.10)
+                self.assertEqual(cfg["latent_awrd_warmup_steps"], 100_000)
+                self.assertEqual(cfg["latent_awrd_ramp_steps"], 300_000)
+                self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.45)
                 self.assertFalse(cfg["fixed_latent_strategy"])
 
 

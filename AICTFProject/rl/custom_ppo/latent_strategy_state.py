@@ -191,6 +191,25 @@ def _router_specialist_coef_scale(
     return float(max(0.0, min(1.0, (step - warmup) / float(ramp))))
 
 
+def _warmup_ramp_coef_scale(
+    *,
+    global_step: int,
+    warmup_steps: int,
+    ramp_steps: int,
+) -> float:
+    """Default-preserving warmup/ramp scale for opt-in teacher losses."""
+    warmup = max(0, int(warmup_steps))
+    ramp = max(0, int(ramp_steps))
+    if warmup <= 0 and ramp <= 0:
+        return 1.0
+    step = int(global_step)
+    if step < warmup:
+        return 0.0
+    if ramp <= 0:
+        return 1.0
+    return float(max(0.0, min(1.0, (step - warmup) / float(ramp))))
+
+
 def _router_specialist_loss(
     logits: torch.Tensor,
     *,
@@ -1446,6 +1465,7 @@ class LatentStrategyState:
             "latent_preference_num_active_buckets": 0.0,
             "latent_preference_target_entropy": 0.0,
             "latent_awrd_loss": 0.0,
+            "latent_awrd_coef_scale": 0.0,
             "latent_awrd_active_fraction": 0.0,
             "latent_awrd_active_buckets": 0.0,
             "latent_awrd_buffer_size": 0.0,
@@ -1699,7 +1719,14 @@ class LatentStrategyState:
         # margin. It teaches q_phi to trust discovered winning z choices without
         # adding entropy pressure or semantic role labels.
         awrd_enabled = bool(getattr(trainer, "latent_awrd_enabled", False))
-        awrd_coef = float(getattr(trainer, "latent_awrd_coef", 0.0) or 0.0)
+        awrd_coef_scale = _warmup_ramp_coef_scale(
+            global_step=int(getattr(trainer, "global_step", 0) or 0),
+            warmup_steps=int(getattr(trainer, "latent_awrd_warmup_steps", 0) or 0),
+            ramp_steps=int(getattr(trainer, "latent_awrd_ramp_steps", 0) or 0),
+        )
+        awrd_coef = (
+            float(getattr(trainer, "latent_awrd_coef", 0.0) or 0.0) * awrd_coef_scale
+        )
         awrd_soft_margin = bool(getattr(trainer, "latent_awrd_soft_margin_gating", False))
         awrd_use_return = awrd_soft_margin
         batch_awrd_target_probs = torch.zeros(
@@ -2367,6 +2394,7 @@ class LatentStrategyState:
             stats["latent_preference_target_entropy"] = float(target_entropy_sum / max(1, valid_count)) if valid_count > 0 else 0.0
             awrd_valid_count = int(batch_awrd_mask.sum().item())
             stats["latent_awrd_loss"] = float(awrd_loss.detach().cpu().item())
+            stats["latent_awrd_coef_scale"] = float(awrd_coef_scale)
             stats["latent_awrd_active_fraction"] = (
                 float(batch_awrd_mask.float().mean().cpu().item())
                 if batch_awrd_mask.numel() > 0

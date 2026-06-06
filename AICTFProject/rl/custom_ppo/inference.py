@@ -168,6 +168,7 @@ def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> No
     missing = list(getattr(result, "missing_keys", []))
     unexpected = list(getattr(result, "unexpected_keys", []))
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
+    allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
     disallowed_missing = [k for k in missing if k not in allowed_missing]
     if disallowed_missing or unexpected:
         raise RuntimeError(
@@ -195,6 +196,28 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 ),
                 "use_episode_strategy_value_head": bool(cfg.get("latent_episode_strategy_ppo", False)),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
+                "latent_actor_z_onehot_enabled": bool(
+                    cfg.get("latent_actor_z_onehot_enabled", False)
+                ),
+                "latent_actor_z_onehot_scale": float(
+                    1.0
+                    if cfg.get("latent_actor_z_onehot_scale", 1.0) is None
+                    else cfg.get("latent_actor_z_onehot_scale", 1.0)
+                ),
+                "latent_actor_z_embed_scale": float(
+                    1.0
+                    if cfg.get("latent_actor_z_embed_scale", 1.0) is None
+                    else cfg.get("latent_actor_z_embed_scale", 1.0)
+                ),
+                "latent_actor_z_adapter_enabled": bool(
+                    cfg.get("latent_actor_z_adapter_enabled", False)
+                ),
+                "latent_actor_z_adapter_scale": float(
+                    cfg.get("latent_actor_z_adapter_scale", 0.0) or 0.0
+                ),
+                "latent_actor_z_adapter_init_std": float(
+                    cfg.get("latent_actor_z_adapter_init_std", 0.02) or 0.02
+                ),
             }
         )
     return kwargs
