@@ -337,6 +337,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "bucket_baseline_global_mean",
             "bucket_baseline_raw_return_std",
             "bucket_baseline_adv_std",
+            "latent_tactical_bucket_fallback_fraction",
             "latent_forced_z_episode_fraction",
             "latent_forced_z_step_fraction",
             "latent_behavior_contrast_bonus_mean",

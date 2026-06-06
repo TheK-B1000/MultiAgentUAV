@@ -18,6 +18,7 @@ exposed as ``model.latent_actor``. These tests pin three contracts:
 """
 from __future__ import annotations
 
+import inspect
 import unittest
 from typing import Dict
 
@@ -38,6 +39,8 @@ from rl.custom_ppo.ppo_updater import (
     _z_separation_gate_mask,
 )
 from rl.latent_marl import CONTEXT_STATE_DIM, LatentConditionedActor
+from rl.presets import apply_preset
+from rl.train_ppo import PPOConfig
 
 
 def _obs_space() -> spaces.Dict:
@@ -423,6 +426,42 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertEqual(
             int(two_layer.actor_input_dim),
             int(two_layer._local_actor_in_dim),
+        )
+
+    def test_v3i14_tuned_actor_contract_stays_film_only_and_local(self) -> None:
+        cfg = apply_preset(PPOConfig(), "latent_v3i14_tuned")
+        model = SharedActorCentralizedCritic(
+            _obs_space(),
+            _action_space(),
+            actor_cnn_feature_dim=cfg.actor_cnn_feature_dim,
+            actor_hidden_dim=cfg.actor_hidden_dim,
+            latent_k=cfg.latent_k,
+            z_embed_dim=cfg.latent_z_embed_dim,
+            strategy_hidden_dim=cfg.latent_strategy_hidden,
+            critic_hidden_dim=cfg.latent_vf_hidden,
+            latent_actor_z_onehot_enabled=(
+                cfg.latent_actor_z_onehot_enabled
+            ),
+            latent_actor_z_adapter_enabled=(
+                cfg.latent_actor_z_adapter_enabled
+            ),
+            latent_actor_z_adapter_scale=cfg.latent_actor_z_adapter_scale,
+            latent_actor_z_adapter_init_std=(
+                cfg.latent_actor_z_adapter_init_std
+            ),
+            latent_actor_z_film_layers=cfg.latent_actor_z_film_layers,
+        )
+
+        contract = model.input_dim_contract()
+        self.assertEqual(contract["actor_input_dim"], 148)
+        self.assertEqual(contract["q_phi_input_dim"], CONTEXT_STATE_DIM)
+        self.assertEqual(contract["actor_z_embed_dim"], 0)
+        self.assertEqual(contract["actor_z_onehot_dim"], 0)
+        self.assertIsNone(model.strategy_embedding)
+        self.assertIsNotNone(model.latent_actor.z_adapter)
+        self.assertEqual(
+            set(inspect.signature(model.policy_logits).parameters),
+            {"obs", "z_idx"},
         )
 
     def test_two_layer_film_changes_logits_without_concat_z(self) -> None:

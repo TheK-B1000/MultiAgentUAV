@@ -206,6 +206,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i14_specialized_faithful_z",
             "plan_faithful_latent_v3i14",
             "latent_v3i14",
+            "plan_faithful_latent_v3i14_tuned",
+            "latent_v3i14_tuned",
+            "latent_v3i14b",
+            "latent_v3i14_tactical_specialist_tuned",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -653,6 +657,81 @@ class PresetResolutionTests(unittest.TestCase):
                     cfg["latent_actor_z_separation_max_entropy_frac"], 0.90
                 )
                 self.assertFalse(cfg["fixed_latent_strategy"])
+
+    def test_latent_v3i14_tuned_strengthens_tactical_specialization(self) -> None:
+        resolved = resolve_all_presets()
+        base = resolved["latent_v3i14"]
+        for key in (
+            "plan_faithful_latent_v3i14_tuned",
+            "latent_v3i14_tuned",
+            "latent_v3i14b",
+            "latent_v3i14_tactical_specialist_tuned",
+        ):
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(
+                    cfg["latent_q_phi_bucket_baseline"],
+                    base["latent_q_phi_bucket_baseline"],
+                )
+                self.assertEqual(
+                    cfg["latent_specialist_context_key_mode"],
+                    base["latent_specialist_context_key_mode"],
+                )
+                self.assertTrue(cfg["latent_specialist_use_rollout_states"])
+                self.assertEqual(
+                    cfg["latent_specialist_rollout_max_samples"],
+                    base["latent_specialist_rollout_max_samples"],
+                )
+                self.assertGreater(
+                    cfg["latent_conditional_entropy_min_coef"],
+                    base["latent_conditional_entropy_min_coef"],
+                )
+                self.assertGreater(
+                    cfg["latent_actor_z_separation_coef"],
+                    base["latent_actor_z_separation_coef"],
+                )
+                self.assertLessEqual(
+                    cfg["latent_marginal_balance_coef"],
+                    base["latent_marginal_balance_coef"],
+                )
+                self.assertLessEqual(cfg["latent_lam_h"], base["latent_lam_h"])
+                self.assertEqual(
+                    cfg["latent_specialist_warmup_steps"],
+                    base["latent_specialist_warmup_steps"],
+                )
+                self.assertEqual(
+                    cfg["latent_specialist_ramp_steps"],
+                    base["latent_specialist_ramp_steps"],
+                )
+                self.assertEqual(
+                    cfg["latent_specialist_min_bucket_count"],
+                    base["latent_specialist_min_bucket_count"],
+                )
+                self.assertEqual(cfg["learning_rate"], base["learning_rate"])
+                self.assertEqual(cfg["n_epochs"], base["n_epochs"])
+                self.assertEqual(cfg["opponent_pool"], ["OP3", "OP5", "OP6"])
+                self.assertEqual(
+                    cfg["opponent_pool_weights"],
+                    [0.15, 0.40, 0.45],
+                )
+                self.assertFalse(cfg["allow_op4_in_training_pool"])
+                self.assertFalse(cfg["latent_actor_z_onehot_enabled"])
+                self.assertEqual(cfg["latent_z_embed_dim"], 0)
+                self.assertTrue(cfg["latent_actor_z_adapter_enabled"])
+                self.assertEqual(cfg["latent_actor_z_film_layers"], 2)
+
+    def test_latent_v3i11_remains_unchanged_by_v3i14_tuning(self) -> None:
+        cfg = resolve_all_presets()["latent_v3i11"]
+        self.assertFalse(cfg["latent_specialist_use_rollout_states"])
+        self.assertEqual(
+            cfg["latent_specialist_context_key_mode"],
+            "role_phase_progress_opponent",
+        )
+        self.assertAlmostEqual(
+            cfg["latent_conditional_entropy_min_coef"], 0.05
+        )
+        self.assertAlmostEqual(cfg["latent_actor_z_adapter_scale"], 0.35)
+        self.assertAlmostEqual(cfg["latent_lam_h"], 0.003)
 
 
 

@@ -780,6 +780,8 @@ class LatentStrategyState:
         self.rollout_behavior_contrast_active_count = 0
         self.rollout_forced_z_episode_count = 0
         self.rollout_completed_episode_count = 0
+        self.rollout_tactical_bucket_fallback_count = 0
+        self.rollout_tactical_bucket_sample_count = 0
         self.latent_preference_buffer = deque(maxlen=20000)
 
         # Event refresh variables
@@ -954,6 +956,8 @@ class LatentStrategyState:
         self.rollout_behavior_contrast_active_count = 0
         self.rollout_forced_z_episode_count = 0
         self.rollout_completed_episode_count = 0
+        self.rollout_tactical_bucket_fallback_count = 0
+        self.rollout_tactical_bucket_sample_count = 0
 
     def behavior_contrast_coef(self) -> float:
         trainer = self.trainer
@@ -1016,7 +1020,13 @@ class LatentStrategyState:
             )
             if contrast_bucket != 0:
                 return contrast_bucket
-            return int(self.episode_strategy_bucket[int(env_index)].item())
+            strategy_bucket = int(
+                self.episode_strategy_bucket[int(env_index)].item()
+            )
+            if strategy_bucket != 0:
+                return strategy_bucket
+            # Neutral phase, no flags taken, tied score is local bucket 1.
+            return 1
 
         candidates = counts.clone()
         # phase=0, flags=(0,0), score=tied encodes to local key 1. Prefer a
@@ -1451,6 +1461,10 @@ class LatentStrategyState:
             "latent_behavior_contrast_distance_mean": float(self.rollout_behavior_contrast_distance_sum) / float(count),
             "latent_behavior_contrast_active_frac": float(self.rollout_behavior_contrast_active_count) / float(count),
             "latent_behavior_contrast_coef": float(self.behavior_contrast_coef()),
+            "latent_tactical_bucket_fallback_fraction": (
+                float(self.rollout_tactical_bucket_fallback_count)
+                / float(max(1, self.rollout_tactical_bucket_sample_count))
+            ),
         }
 
     # ------------------------------------------------------------------
@@ -1545,6 +1559,20 @@ class LatentStrategyState:
             return
 
         is_forced_z = bool(self.episode_forced_z[env_i].detach().cpu().item())
+        if (
+            not is_forced_z
+            and not bool(
+                self.episode_strategy_has_start[env_i].detach().cpu().item()
+            )
+        ):
+            return
+        used_tactical_fallback = (
+            int(self.episode_tactical_bucket_counts[env_i].sum().item()) <= 0
+        )
+        self.rollout_tactical_bucket_sample_count += 1
+        self.rollout_tactical_bucket_fallback_count += int(
+            used_tactical_fallback
+        )
         tactical_bucket = self.representative_tactical_bucket(env_i)
         if is_forced_z:
             try:
@@ -1573,8 +1601,6 @@ class LatentStrategyState:
             self.latent_preference_buffer.append(forced_record)
             return
 
-        if not bool(self.episode_strategy_has_start[env_i].detach().cpu().item()):
-            return
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
         rs = int(er.get("red_score", info.get("red_score", 0)) or 0)

@@ -807,6 +807,28 @@ def apply_plan_faithful_latent_v3i14_specialized_faithful_z(
     return cfg
 
 
+def apply_plan_faithful_latent_v3i14_tuned(cfg: PPOConfig) -> PPOConfig:
+    """v3i14 tuned: stronger tactical niches without changing architecture."""
+    cfg = apply_plan_faithful_latent_v3i14_specialized_faithful_z(cfg)
+
+    # Preserve the gradual v3i14 schedule, but strengthen the final tactical
+    # target once warmup and ramp have completed.
+    cfg.latent_conditional_entropy_min_coef = 0.09
+    cfg.latent_marginal_balance_coef = 0.015
+
+    # Keep the same gated all-pairs JSD path with a moderately stronger final
+    # separation coefficient.
+    cfg.latent_actor_z_separation_coef = 0.028
+
+    # Reduce global entropy maximization while usage balance remains active.
+    cfg.latent_lam_h = 0.00005
+    cfg.latent_lam_h_start = 0.00005
+    cfg.latent_lam_h_end = 0.00005
+
+    cfg.run_tag = "latent_v3i14_tuned_tactical_specialist_pool_1m_4v4"
+    return cfg
+
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

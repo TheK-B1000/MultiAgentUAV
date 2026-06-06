@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from rl.custom_ppo.csv_writers import _update_fieldnames
 from rl.custom_ppo.latent_strategy_state import (
     LatentStrategyState,
     _advantage_weighted_target_from_records,
@@ -21,6 +22,21 @@ from tests.test_latent_episode_warmup import _make_trainer
 
 
 class LatentPreferenceTests(unittest.TestCase):
+    def test_tactical_specialist_telemetry_fields_are_exposed(self) -> None:
+        fields = _update_fieldnames(use_latent_strategy=True, latent_k=4)
+        for field in (
+            "latent_specialist_active_buckets",
+            "latent_specialist_context_bucket_entropy",
+            "latent_specialist_marginal_entropy",
+            "latent_specialist_loss",
+            "latent_actor_z_separation_loss",
+            "latent_actor_z_separation_jsd",
+            "latent_tactical_bucket_fallback_fraction",
+            "bucket_baseline_count",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, fields)
+
     def test_router_specialist_loss_prefers_global_balance_with_local_decisions(self) -> None:
         context_keys = torch.tensor([0, 0, 1, 1, 2, 2, 3, 3], dtype=torch.long)
         uniform_logits = torch.zeros((8, 4), dtype=torch.float32)
@@ -204,6 +220,56 @@ class LatentPreferenceTests(unittest.TestCase):
             latent_state.representative_tactical_bucket(0),
             attack_bucket,
         )
+
+    def test_missing_trajectory_preserves_contrast_bucket_and_logs_fallback(
+        self,
+    ) -> None:
+        trainer = _make_trainer(
+            n_envs=1,
+            warmup=0,
+            episode_credit=True,
+            gs_dim=34,
+        )
+        trainer.cfg = SimpleNamespace(
+            opponent_pool=["OP3"],
+            opponent_pool_weights=[1.0],
+        )
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+        latent_state.episode_forced_z[0] = True
+        latent_state.episode_forced_z_id[0] = 2
+        latent_state.episode_contrast_bucket[0] = 5
+        latent_state.episode_behavior_count[0] = 1
+
+        latent_state.record_episode_strategy_outcome(
+            0,
+            {"scripted_tag": "OP3"},
+            episode_return=1.0,
+        )
+
+        self.assertEqual(
+            latent_state.latent_preference_buffer[-1]["context_bucket"],
+            5,
+        )
+        stats = latent_state.behavior_contrast_rollout_stats()
+        self.assertEqual(
+            stats["latent_tactical_bucket_fallback_fraction"],
+            1.0,
+        )
+
+    def test_missing_trajectory_without_legacy_bucket_uses_nonzero_neutral(
+        self,
+    ) -> None:
+        trainer = _make_trainer(
+            n_envs=1,
+            warmup=0,
+            episode_credit=True,
+            gs_dim=34,
+        )
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+
+        self.assertEqual(latent_state.representative_tactical_bucket(0), 1)
 
     def test_rollout_specialist_router_uses_tactical_states_after_warmup(self) -> None:
         class RouterModel(torch.nn.Module):
