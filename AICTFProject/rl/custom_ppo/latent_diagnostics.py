@@ -307,9 +307,11 @@ def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]
 
     pid = _flat_long_np(buffer, "phase_id", length)
     out["latent_mi_z_phase_nats"] = _mi_z_vs(z, K, pid, len(TEAM_PHASES))
+    out["MI_executed_z_phase"] = out["latent_mi_z_phase_nats"]
 
     yid = _flat_long_np(buffer, "outcome_id", length)
     out["latent_mi_z_outcome_nats"] = _mi_z_vs(z, K, yid, 3)
+    out["MI_executed_z_outcome"] = out["latent_mi_z_outcome_nats"]
 
     # --- Phase-conditioned rollups + ahead/trail switch rates ----------------
     ba = _flat_float_np(buffer, "blue_ahead", length)
@@ -359,6 +361,7 @@ def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]
     # --- Flag-state derived from global_state --------------------------------
     flag_state = _flag_state_per_step(buffer, length)
     out["latent_mi_z_flag_state_nats"] = _mi_z_vs(z, K, flag_state, 4)
+    out["MI_executed_z_flag"] = out["latent_mi_z_flag_state_nats"]
     _bucket_z_fracs(out, z, K, flag_state, 4, lambda f, k: f"latent_flag_state{f}_z{k}_frac")
 
     # --- Per-bucket occupancy distributions (spread, ADR) --------------------

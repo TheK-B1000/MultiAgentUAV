@@ -18,6 +18,7 @@ from rl.custom_ppo.latent_strategy_state import (
     _tactical_specialist_context_keys,
     _warmup_ramp_coef_scale,
 )
+from rl.ppo_core import compute_gae
 from tests.test_latent_episode_warmup import _make_trainer
 
 
@@ -33,9 +34,213 @@ class LatentPreferenceTests(unittest.TestCase):
             "latent_actor_z_separation_jsd",
             "latent_tactical_bucket_fallback_fraction",
             "bucket_baseline_count",
+            "z_change_count",
+            "z_dwell_mean",
+            "z_refresh_attempt_count",
+            "z_refresh_accept_count",
+            "z_refresh_reject_dwell_count",
+            "z_refresh_reason_interval",
+            "z_refresh_reason_flag",
+            "z_refresh_reason_phase",
+            "z_refresh_reason_score_pressure",
+            "q_phi_argmax_vs_executed_z_agreement",
+            "MI_executed_z_phase",
+            "MI_executed_z_flag",
+            "MI_executed_z_outcome",
         ):
             with self.subTest(field=field):
                 self.assertIn(field, fields)
+
+    @staticmethod
+    def _sparse_refresh_trainer(
+        *,
+        warmup: int = 5,
+        interval: int = 32,
+        min_dwell: int = 16,
+    ) -> SimpleNamespace:
+        trainer = _make_trainer(
+            n_envs=1,
+            warmup=warmup,
+            episode_credit=True,
+            gs_dim=34,
+        )
+        trainer.latent_event_refresh_enabled = False
+        trainer.latent_sparse_tactical_refresh_enabled = True
+        trainer.latent_sparse_tactical_refresh_interval_steps = interval
+        trainer.latent_sparse_tactical_refresh_min_dwell_steps = min_dwell
+        return trainer
+
+    @staticmethod
+    def _neutral_tactical_state(z_signal: int = 0) -> torch.Tensor:
+        state = torch.zeros((1, 34), dtype=torch.float32)
+        state[:, 0] = float(z_signal)
+        state[:, 8] = 0.8
+        state[:, 9] = 0.8
+        state[:, 19] = 0.5
+        state[:, 20] = 0.5
+        return state
+
+    def _armed_sparse_state(
+        self,
+        *,
+        current_z: int = 0,
+        min_dwell: int = 16,
+        interval: int = 32,
+    ) -> tuple[LatentStrategyState, torch.Tensor]:
+        trainer = self._sparse_refresh_trainer(
+            warmup=5,
+            interval=interval,
+            min_dwell=min_dwell,
+        )
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+        latent_state.current_z.fill_(current_z)
+        latent_state.needs_strategy_sample.zero_()
+        latent_state.episode_strategy_committed.fill_(True)
+        latent_state.steps_since_z_change.fill_(min_dwell)
+        latent_state.steps_since_last_tactical_refresh.zero_()
+        base = self._neutral_tactical_state(current_z)
+        latent_state.prev_global_state = base.clone()
+        return latent_state, base
+
+    def test_sparse_refresh_does_not_run_before_warmup_commit(self) -> None:
+        trainer = self._sparse_refresh_trainer(warmup=5, min_dwell=1)
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+
+        state = self._neutral_tactical_state(1)
+        latent_state.strategy_for_step(state)
+        latent_state.mark_strategy_step_done(np.array([False]))
+
+        transitioned = self._neutral_tactical_state(2)
+        transitioned[:, 10] = 1.0
+        z_idx, _, aux = latent_state.strategy_for_step(transitioned)
+
+        self.assertEqual(int(z_idx.item()), 1)
+        self.assertFalse(bool(aux["z_persist_mask"].item()))
+        stats = latent_state.sparse_tactical_refresh_rollout_stats()
+        self.assertEqual(stats["z_refresh_attempt_count"], 0.0)
+        self.assertEqual(stats["z_refresh_accept_count"], 0.0)
+
+    def test_sparse_refresh_rejects_transition_before_min_dwell(self) -> None:
+        latent_state, _ = self._armed_sparse_state(min_dwell=16)
+        latent_state.steps_since_z_change.fill_(15)
+        transitioned = self._neutral_tactical_state(1)
+        transitioned[:, 10] = 1.0
+
+        z_idx, _, aux = latent_state.strategy_for_step(transitioned)
+
+        self.assertEqual(int(z_idx.item()), 0)
+        self.assertFalse(bool(aux["z_persist_mask"].item()))
+        stats = latent_state.sparse_tactical_refresh_rollout_stats()
+        self.assertEqual(stats["z_refresh_attempt_count"], 1.0)
+        self.assertEqual(stats["z_refresh_accept_count"], 0.0)
+        self.assertEqual(stats["z_refresh_reject_dwell_count"], 1.0)
+
+    def test_sparse_refresh_accepts_interval_after_dwell(self) -> None:
+        latent_state, base = self._armed_sparse_state(min_dwell=16, interval=32)
+        latent_state.steps_since_last_tactical_refresh.fill_(32)
+        proposal = base.clone()
+        proposal[:, 0] = 1.0
+
+        z_idx, _, aux = latent_state.strategy_for_step(proposal)
+
+        self.assertEqual(int(z_idx.item()), 1)
+        self.assertTrue(bool(aux["z_persist_mask"].item()))
+        stats = latent_state.sparse_tactical_refresh_rollout_stats()
+        self.assertEqual(stats["z_refresh_reason_interval"], 1.0)
+        self.assertEqual(stats["z_refresh_accept_count"], 1.0)
+        self.assertEqual(stats["z_change_count"], 1.0)
+
+    def test_sparse_refresh_accepts_tactical_transitions_after_dwell(self) -> None:
+        transition_updates = {
+            "flag": lambda state: state.__setitem__(
+                (slice(None), 10), 1.0
+            ),
+            "phase": lambda state: (
+                state.__setitem__((slice(None), 19), 0.1),
+                state.__setitem__((slice(None), 20), 0.9),
+            ),
+            "score_pressure": lambda state: state.__setitem__(
+                (slice(None), 16), 0.5
+            ),
+        }
+        reason_fields = {
+            "flag": "z_refresh_reason_flag",
+            "phase": "z_refresh_reason_phase",
+            "score_pressure": "z_refresh_reason_score_pressure",
+        }
+        for name, update in transition_updates.items():
+            with self.subTest(reason=name):
+                latent_state, base = self._armed_sparse_state()
+                proposal = base.clone()
+                proposal[:, 0] = 1.0
+                update(proposal)
+
+                z_idx, _, _ = latent_state.strategy_for_step(proposal)
+
+                self.assertEqual(int(z_idx.item()), 1)
+                stats = latent_state.sparse_tactical_refresh_rollout_stats()
+                self.assertEqual(stats["z_refresh_accept_count"], 1.0)
+                self.assertEqual(stats[reason_fields[name]], 1.0)
+
+    def test_same_z_sparse_proposal_is_not_a_switch(self) -> None:
+        latent_state, base = self._armed_sparse_state(current_z=1)
+        proposal = base.clone()
+        proposal[:, 10] = 1.0
+
+        z_idx, _, aux = latent_state.strategy_for_step(proposal)
+
+        self.assertEqual(int(z_idx.item()), 1)
+        self.assertFalse(bool(aux["z_persist_mask"].item()))
+        stats = latent_state.sparse_tactical_refresh_rollout_stats()
+        self.assertEqual(stats["z_refresh_accept_count"], 1.0)
+        self.assertEqual(stats["z_change_count"], 0.0)
+
+    def test_accepted_sparse_switch_sets_persistence_and_gae_boundary(self) -> None:
+        latent_state, base = self._armed_sparse_state(current_z=0)
+        proposal = base.clone()
+        proposal[:, 0] = 1.0
+        proposal[:, 16] = 0.5
+
+        z_idx, prev_z, aux = latent_state.strategy_for_step(proposal)
+
+        self.assertEqual(int(prev_z.item()), 0)
+        self.assertEqual(int(z_idx.item()), 1)
+        self.assertTrue(bool(aux["z_persist_mask"].item()))
+        stats = latent_state.sparse_tactical_refresh_rollout_stats()
+        self.assertEqual(stats["z_change_count"], 1.0)
+        self.assertEqual(stats["z_dwell_mean"], 16.0)
+
+        rewards = torch.zeros((2, 1), dtype=torch.float32)
+        values = torch.ones((2, 1), dtype=torch.float32)
+        next_values = torch.ones((2, 1), dtype=torch.float32)
+        terminated = torch.zeros((2, 1), dtype=torch.bool)
+        latent_z = torch.stack((prev_z, z_idx))
+        adv_reset, _ = compute_gae(
+            rewards,
+            values,
+            next_values,
+            terminated,
+            gamma=0.9,
+            gae_lambda=0.95,
+            latent_z=latent_z,
+            reset_gae_on_z_change=True,
+        )
+        adv_cont, _ = compute_gae(
+            rewards,
+            values,
+            next_values,
+            terminated,
+            gamma=0.9,
+            gae_lambda=0.95,
+            latent_z=latent_z,
+            reset_gae_on_z_change=False,
+        )
+        self.assertNotAlmostEqual(
+            float(adv_reset[0, 0]),
+            float(adv_cont[0, 0]),
+        )
 
     def test_router_specialist_loss_prefers_global_balance_with_local_decisions(self) -> None:
         context_keys = torch.tensor([0, 0, 1, 1, 2, 2, 3, 3], dtype=torch.long)

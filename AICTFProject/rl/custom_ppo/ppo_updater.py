@@ -415,15 +415,27 @@ class PPOUpdater:
                         hparams.latent_resample_every_n == 0
                         and not hparams.latent_resample_on_flag
                         and not hparams.latent_event_refresh_enabled
+                        and not hparams.latent_sparse_tactical_refresh_enabled
                     ):
                         assert persist_stats["persist_term"] == 0.0, (
-                            "L_persist must be exactly 0 when no mid-episode resampling (latent_resample_every_n=0, on_flag off, no event refresh)"
+                            "L_persist must be exactly 0 when no mid-episode resampling "
+                            "(latent_resample_every_n=0, on_flag off, no event refresh, "
+                            "no sparse tactical refresh)"
                         )
                     apply_main_loop_qphi_loss = float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
+                    apply_persistence_loss = (
+                        apply_main_loop_qphi_loss
+                        or hparams.latent_sparse_tactical_refresh_enabled
+                    )
                     if not apply_main_loop_qphi_loss:
                         strategy_entropy_loss = torch.zeros_like(strategy_entropy_loss)
+                    if not apply_persistence_loss:
                         persist_term_loss = torch.zeros_like(persist_term_loss)
-                    persist_loss_value = 0.0 if not apply_main_loop_qphi_loss else persist_stats["persist_term"]
+                    persist_loss_value = (
+                        persist_stats["persist_term"]
+                        if apply_persistence_loss
+                        else 0.0
+                    )
                     latent_loss = persist_term_loss + strategy_entropy_loss
                     if hparams.latent_kl_consecutive > 0.0:
                         kl_loss, kl_stats = _latent_strategy_kl_consecutive_loss(
@@ -743,6 +755,9 @@ class PPOUpdater:
         runtime.last_stats.update(refresh_log_stats)
         runtime.last_stats.update(self.latent_state.behavior_contrast_rollout_stats())
         runtime.last_stats.update(self.latent_state.event_refresh_rollout_stats())
+        runtime.last_stats.update(
+            self.latent_state.sparse_tactical_refresh_rollout_stats()
+        )
         if hparams.use_latent_strategy and "z_forced" in buffer.fields:
             forced_steps = buffer.fields["z_forced"][: int(buffer.pos)].detach().float()
             runtime.last_stats["latent_forced_z_step_fraction"] = (

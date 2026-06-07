@@ -829,6 +829,49 @@ def apply_plan_faithful_latent_v3i14_tuned(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3i15_strong_separation(cfg: PPOConfig) -> PPOConfig:
+    """v3i15 strong separation: eliminate warmups, strengthen separation JSD and initialization std."""
+    cfg = apply_plan_faithful_latent_v3i14_tuned(cfg)
+
+    # Eliminate warmups and use a rapid 20k steps ramp to prevent representation lock-in
+    cfg.latent_actor_z_adapter_warmup_steps = 0
+    cfg.latent_actor_z_adapter_ramp_steps = 20_000
+    cfg.latent_actor_z_adapter_init_std = 0.10
+
+    cfg.latent_actor_z_separation_start_coef = 0.01
+    cfg.latent_actor_z_separation_coef = 0.20
+    cfg.latent_actor_z_separation_margin = 0.35
+    cfg.latent_actor_z_separation_warmup_steps = 0
+    cfg.latent_actor_z_separation_ramp_steps = 20_000
+
+    cfg.run_tag = "latent_v3i15_strong_separation_pool_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i15_sparse_tactical_refresh(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v3i15: test sparse tactical routing timescale without actor changes."""
+    cfg = apply_plan_faithful_latent_v3i14_tuned(cfg)
+
+    # Isolate the timescale experiment from the older event-refresh path.
+    cfg.latent_event_refresh_enabled = False
+    cfg.latent_sparse_tactical_refresh_enabled = True
+    cfg.latent_sparse_tactical_refresh_interval_steps = 32
+    cfg.latent_sparse_tactical_refresh_min_dwell_steps = 16
+
+    cfg.latent_lam_p = 0.02
+    cfg.latent_lam_h = 0.000025
+    cfg.latent_lam_h_start = 0.000025
+    cfg.latent_lam_h_end = 0.000025
+    cfg.latent_conditional_entropy_min_coef = 0.09
+    cfg.latent_actor_z_separation_coef = 0.028
+    cfg.latent_marginal_balance_coef = 0.015
+    cfg.latent_gae_reset_on_z_change = True
+
+    cfg.run_tag = "latent_v3i15_sparse_tactical_refresh_pool_1m_4v4"
+    return cfg
+
 
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").

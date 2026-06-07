@@ -262,7 +262,7 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         type=str,
         choices=("maximize", "minimize", "none"),
         default=None,
-        help="How λ_H shapes H(q_phi): maximize=paper bonus on entropy; minimize=penalty (sharper z); none=off.",
+        help="How lambda_H shapes H(q_phi): maximize=paper bonus on entropy; minimize=penalty (sharper z); none=off.",
     )
     parser.add_argument(
         "--latent-resample-on-flag",
@@ -283,7 +283,7 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--no-latent-gae-z-reset",
         action="store_true",
-        help="Keep legacy GAE: carry λ-returns across z switches (can smear credit when V(s,z) jumps).",
+        help="Keep legacy GAE: carry lambda-returns across z switches (can smear credit when V(s,z) jumps).",
     )
     parser.add_argument(
         "--latent-bootstrap-z-stochastic",

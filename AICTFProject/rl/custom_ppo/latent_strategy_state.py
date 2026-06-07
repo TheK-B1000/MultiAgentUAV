@@ -507,6 +507,27 @@ def _team_phase_bucket_ids(raw: torch.Tensor) -> torch.Tensor:
     return phase.long()
 
 
+def _flag_state_bucket_ids(raw: torch.Tensor) -> torch.Tensor:
+    """Encode both observable flag possession bits into [0, 3]."""
+    enemy_has_our_flag = (raw[:, 10] > 0.5).long()
+    we_have_enemy_flag = (raw[:, 11] > 0.5).long()
+    return (enemy_has_our_flag * 2 + we_have_enemy_flag).long()
+
+
+def _score_pressure_bucket_ids(raw: torch.Tensor) -> torch.Tensor:
+    """Encode trailing, tied, and leading score pressure into [0, 2]."""
+    score_diff = raw[:, 16]
+    return torch.where(
+        score_diff < -0.05,
+        torch.zeros_like(score_diff, dtype=torch.long),
+        torch.where(
+            score_diff > 0.05,
+            torch.full_like(score_diff, 2, dtype=torch.long),
+            torch.ones_like(score_diff, dtype=torch.long),
+        ),
+    ).long()
+
+
 def _role_phase_specialist_context_keys(
     global_state: torch.Tensor,
     *,
@@ -549,16 +570,7 @@ def _tactical_local_context_keys(global_state: torch.Tensor) -> torch.Tensor:
     phase = _team_phase_bucket_ids(raw)
     our_flag_taken = (raw[:, 10] > 0.5).long()
     enemy_flag_taken = (raw[:, 11] > 0.5).long()
-    score_diff = raw[:, 16]
-    score_pressure = torch.where(
-        score_diff < -0.05,
-        torch.zeros_like(score_diff, dtype=torch.long),
-        torch.where(
-            score_diff > 0.05,
-            torch.full_like(score_diff, 2, dtype=torch.long),
-            torch.ones_like(score_diff, dtype=torch.long),
-        ),
-    )
+    score_pressure = _score_pressure_bucket_ids(raw)
 
     tactical_key = phase
     tactical_key = tactical_key * 2 + our_flag_taken
@@ -787,6 +799,12 @@ class LatentStrategyState:
         # Event refresh variables
         self.steps_since_last_refresh = torch.zeros((n_envs,), dtype=torch.long, device=device)
         self.refresh_count_this_episode = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.steps_since_last_tactical_refresh = torch.zeros(
+            (n_envs,), dtype=torch.long, device=device
+        )
+        self.steps_since_z_change = torch.zeros(
+            (n_envs,), dtype=torch.long, device=device
+        )
         self.prev_global_state = None
         self.rollout_refresh_transitions = np.zeros(
             (max(1, int(trainer.latent_k)), max(1, int(trainer.latent_k))),
@@ -801,6 +819,18 @@ class LatentStrategyState:
         self.rollout_refresh_reason_score_change = 0
         self.rollout_refresh_reason_near_base = 0
         self.rollout_refresh_total_steps = 0
+        self.rollout_sparse_z_change_count = 0
+        self.rollout_sparse_z_dwell_sum = 0.0
+        self.rollout_sparse_z_dwell_count = 0
+        self.rollout_sparse_refresh_attempt_count = 0
+        self.rollout_sparse_refresh_accept_count = 0
+        self.rollout_sparse_refresh_reject_dwell_count = 0
+        self.rollout_sparse_refresh_reason_interval = 0
+        self.rollout_sparse_refresh_reason_flag = 0
+        self.rollout_sparse_refresh_reason_phase = 0
+        self.rollout_sparse_refresh_reason_score_pressure = 0
+        self.rollout_q_phi_argmax_executed_agree_count = 0
+        self.rollout_q_phi_argmax_executed_total = 0
 
         # v3i3 event-conditioned preference state.
         #
@@ -870,12 +900,15 @@ class LatentStrategyState:
         self.episode_behavior_count.zero_()
         self.steps_since_last_refresh.zero_()
         self.refresh_count_this_episode.zero_()
+        self.steps_since_last_tactical_refresh.zero_()
+        self.steps_since_z_change.zero_()
         self.prev_global_state = None
         self.episode_id_per_env.zero_()
         self.pending_refresh_records = {i: [] for i in range(n_envs)}
         self.rollout_refresh_records = []
         self.refresh_preference_buffer.clear()
         self.reset_event_refresh_rollout_stats()
+        self.reset_sparse_tactical_refresh_rollout_stats()
         self.reset_behavior_contrast_rollout_stats()
 
     def reset_event_refresh_rollout_stats(self) -> None:
@@ -887,6 +920,80 @@ class LatentStrategyState:
         self.rollout_refresh_reason_near_base = 0
         self.rollout_refresh_total_steps = 0
         self.rollout_refresh_transitions.fill(0.0)
+
+    def reset_sparse_tactical_refresh_rollout_stats(self) -> None:
+        self.rollout_sparse_z_change_count = 0
+        self.rollout_sparse_z_dwell_sum = 0.0
+        self.rollout_sparse_z_dwell_count = 0
+        self.rollout_sparse_refresh_attempt_count = 0
+        self.rollout_sparse_refresh_accept_count = 0
+        self.rollout_sparse_refresh_reject_dwell_count = 0
+        self.rollout_sparse_refresh_reason_interval = 0
+        self.rollout_sparse_refresh_reason_flag = 0
+        self.rollout_sparse_refresh_reason_phase = 0
+        self.rollout_sparse_refresh_reason_score_pressure = 0
+        self.rollout_q_phi_argmax_executed_agree_count = 0
+        self.rollout_q_phi_argmax_executed_total = 0
+
+    def sparse_tactical_refresh_rollout_stats(self) -> dict[str, float]:
+        enabled = bool(
+            getattr(
+                self.trainer,
+                "latent_sparse_tactical_refresh_enabled",
+                False,
+            )
+        )
+        if not enabled:
+            return {
+                "z_change_count": 0.0,
+                "z_dwell_mean": 0.0,
+                "z_refresh_attempt_count": 0.0,
+                "z_refresh_accept_count": 0.0,
+                "z_refresh_reject_dwell_count": 0.0,
+                "z_refresh_reason_interval": 0.0,
+                "z_refresh_reason_flag": 0.0,
+                "z_refresh_reason_phase": 0.0,
+                "z_refresh_reason_score_pressure": 0.0,
+                "q_phi_argmax_vs_executed_z_agreement": 0.0,
+            }
+        dwell_mean = (
+            self.rollout_sparse_z_dwell_sum
+            / float(self.rollout_sparse_z_dwell_count)
+            if self.rollout_sparse_z_dwell_count > 0
+            else 0.0
+        )
+        agreement = (
+            float(self.rollout_q_phi_argmax_executed_agree_count)
+            / float(self.rollout_q_phi_argmax_executed_total)
+            if self.rollout_q_phi_argmax_executed_total > 0
+            else 0.0
+        )
+        return {
+            "z_change_count": float(self.rollout_sparse_z_change_count),
+            "z_dwell_mean": float(dwell_mean),
+            "z_refresh_attempt_count": float(
+                self.rollout_sparse_refresh_attempt_count
+            ),
+            "z_refresh_accept_count": float(
+                self.rollout_sparse_refresh_accept_count
+            ),
+            "z_refresh_reject_dwell_count": float(
+                self.rollout_sparse_refresh_reject_dwell_count
+            ),
+            "z_refresh_reason_interval": float(
+                self.rollout_sparse_refresh_reason_interval
+            ),
+            "z_refresh_reason_flag": float(
+                self.rollout_sparse_refresh_reason_flag
+            ),
+            "z_refresh_reason_phase": float(
+                self.rollout_sparse_refresh_reason_phase
+            ),
+            "z_refresh_reason_score_pressure": float(
+                self.rollout_sparse_refresh_reason_score_pressure
+            ),
+            "q_phi_argmax_vs_executed_z_agreement": float(agreement),
+        }
 
     def clear_rollout_refresh_records(self) -> None:
         """Drain the per-rollout finalized refresh records.
@@ -1084,8 +1191,99 @@ class LatentStrategyState:
         trigger_score = torch.zeros_like(episode_start_mask)
         trigger_near_base = torch.zeros_like(episode_start_mask)
         trigger_refresh = torch.zeros_like(episode_start_mask)
+        sparse_reason_interval = torch.zeros_like(episode_start_mask)
+        sparse_reason_flag = torch.zeros_like(episode_start_mask)
+        sparse_reason_phase = torch.zeros_like(episode_start_mask)
+        sparse_reason_score_pressure = torch.zeros_like(episode_start_mask)
+        sparse_refresh_attempt = torch.zeros_like(episode_start_mask)
+        sparse_refresh_accepted = torch.zeros_like(episode_start_mask)
 
         curr_gs = global_state[:, :GLOBAL_STATE_DIM].float().detach()
+
+        if getattr(trainer, "latent_sparse_tactical_refresh_enabled", False):
+            if self.prev_global_state is not None:
+                active_envs = (
+                    (~episode_start_mask)
+                    & self.episode_strategy_committed
+                    & (~self.episode_forced_z)
+                )
+                if bool(active_envs.any().item()):
+                    prev_gs = self.prev_global_state
+                    interval_steps = max(
+                        1,
+                        int(
+                            getattr(
+                                trainer,
+                                "latent_sparse_tactical_refresh_interval_steps",
+                                32,
+                            )
+                            or 32
+                        ),
+                    )
+                    min_dwell_steps = max(
+                        1,
+                        int(
+                            getattr(
+                                trainer,
+                                "latent_sparse_tactical_refresh_min_dwell_steps",
+                                16,
+                            )
+                            or 16
+                        ),
+                    )
+                    sparse_reason_interval = active_envs & (
+                        self.steps_since_last_tactical_refresh >= interval_steps
+                    )
+                    sparse_reason_flag = active_envs & (
+                        _flag_state_bucket_ids(prev_gs)
+                        != _flag_state_bucket_ids(curr_gs)
+                    )
+                    sparse_reason_phase = active_envs & (
+                        _team_phase_bucket_ids(prev_gs)
+                        != _team_phase_bucket_ids(curr_gs)
+                    )
+                    sparse_reason_score_pressure = active_envs & (
+                        _score_pressure_bucket_ids(prev_gs)
+                        != _score_pressure_bucket_ids(curr_gs)
+                    )
+                    sparse_refresh_attempt = (
+                        sparse_reason_interval
+                        | sparse_reason_flag
+                        | sparse_reason_phase
+                        | sparse_reason_score_pressure
+                    )
+                    dwell_satisfied = (
+                        self.steps_since_z_change >= min_dwell_steps
+                    )
+                    sparse_refresh_accepted = (
+                        sparse_refresh_attempt & dwell_satisfied
+                    )
+                    sparse_refresh_rejected = (
+                        sparse_refresh_attempt & (~dwell_satisfied)
+                    )
+
+                    self.rollout_sparse_refresh_attempt_count += int(
+                        sparse_refresh_attempt.sum().item()
+                    )
+                    self.rollout_sparse_refresh_accept_count += int(
+                        sparse_refresh_accepted.sum().item()
+                    )
+                    self.rollout_sparse_refresh_reject_dwell_count += int(
+                        sparse_refresh_rejected.sum().item()
+                    )
+                    self.rollout_sparse_refresh_reason_interval += int(
+                        sparse_reason_interval.sum().item()
+                    )
+                    self.rollout_sparse_refresh_reason_flag += int(
+                        sparse_reason_flag.sum().item()
+                    )
+                    self.rollout_sparse_refresh_reason_phase += int(
+                        sparse_reason_phase.sum().item()
+                    )
+                    self.rollout_sparse_refresh_reason_score_pressure += int(
+                        sparse_reason_score_pressure.sum().item()
+                    )
+                    resample_mask |= sparse_refresh_accepted
 
         if getattr(trainer, "latent_event_refresh_enabled", False):
             self.rollout_refresh_total_steps += int(curr_gs.shape[0])
@@ -1300,6 +1498,39 @@ class LatentStrategyState:
             self.needs_strategy_sample[forced_active] = False
             self.steps_since_last_refresh[forced_active] = 0
 
+        sparse_actual_changes = sparse_refresh_accepted & (z_idx != prev_z)
+        if bool(sparse_refresh_accepted.any().item()):
+            self.steps_since_last_tactical_refresh[
+                sparse_refresh_accepted
+            ] = 0
+        if bool(sparse_actual_changes.any().item()):
+            dwell_values = self.steps_since_z_change[
+                sparse_actual_changes
+            ].float()
+            self.rollout_sparse_z_change_count += int(
+                sparse_actual_changes.sum().item()
+            )
+            self.rollout_sparse_z_dwell_sum += float(
+                dwell_values.sum().item()
+            )
+            self.rollout_sparse_z_dwell_count += int(
+                sparse_actual_changes.sum().item()
+            )
+
+        actual_z_changes = resample_mask & (z_idx != prev_z)
+        if bool(actual_z_changes.any().item()):
+            self.steps_since_z_change[actual_z_changes] = 0
+        committed_now = commit_now & resample_mask
+        if bool(committed_now.any().item()):
+            self.steps_since_z_change[committed_now] = 0
+            self.steps_since_last_tactical_refresh[committed_now] = 0
+
+        # Same-z sparse proposals are refreshes but not switches. Persistence
+        # pressure and GAE boundaries only apply to actual executed z changes.
+        persist_mask = (
+            persist_mask & (~sparse_refresh_accepted)
+        ) | sparse_actual_changes
+
         # Check actual z changes for event-refreshed envs
         if getattr(trainer, "latent_event_refresh_enabled", False):
             event_resampled = trigger_refresh & resample_mask
@@ -1340,6 +1571,21 @@ class LatentStrategyState:
                     self.episode_return_accum,
                     self.episode_return_baseline_at_commit,
                 )
+
+        if getattr(trainer, "latent_sparse_tactical_refresh_enabled", False):
+            agreement_mask = (
+                self.episode_strategy_committed & (~forced_active)
+            )
+            if bool(agreement_mask.any().item()):
+                q_phi_argmax = torch.argmax(z_logits, dim=-1)
+                self.rollout_q_phi_argmax_executed_agree_count += int(
+                    (q_phi_argmax[agreement_mask] == z_idx[agreement_mask])
+                    .sum()
+                    .item()
+                )
+                self.rollout_q_phi_argmax_executed_total += int(
+                    agreement_mask.sum().item()
+                )
         self.store_episode_strategy_start(
             start_mask=snapshot_mask,
             global_state=global_state,
@@ -1379,6 +1625,8 @@ class LatentStrategyState:
         self.strategy_age += 1
         self.steps_since_ep_start += 1
         self.steps_since_last_refresh += 1
+        self.steps_since_last_tactical_refresh += 1
+        self.steps_since_z_change += 1
         if bool(done_t.any().item()):
             self.strategy_age[done_t] = 0
             self.needs_strategy_sample[done_t] = not trainer.fixed_latent_strategy
@@ -1394,6 +1642,8 @@ class LatentStrategyState:
             self.episode_behavior_count[done_t] = 0
             self.steps_since_last_refresh[done_t] = 0
             self.refresh_count_this_episode[done_t] = 0
+            self.steps_since_last_tactical_refresh[done_t] = 0
+            self.steps_since_z_change[done_t] = 0
             if self.prev_global_state is not None:
                 self.prev_global_state[done_t] = 0.0
             self.episode_id_per_env[done_t] += 1

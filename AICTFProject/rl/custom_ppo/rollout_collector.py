@@ -361,6 +361,7 @@ class RolloutCollector:
         self.latent_state.rollout_strategy_episode_records = []
         self.latent_state.reset_behavior_contrast_rollout_stats()
         self.latent_state.reset_event_refresh_rollout_stats()
+        self.latent_state.reset_sparse_tactical_refresh_rollout_stats()
         obs, global_state, context_state = self._initial_step_state()
         buffer = self.make_buffer(obs)
         for step_idx in range(int(self.cfg.n_steps)):

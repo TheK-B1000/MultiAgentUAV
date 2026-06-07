@@ -304,6 +304,12 @@ class PPOConfig:
     latent_event_refresh_use_q_phi: bool = True
     latent_event_refresh_force_roles: bool = False
 
+    # v3i15 sparse tactical q_phi refresh. Disabled by default so all earlier
+    # presets retain episode-persistent strategy execution.
+    latent_sparse_tactical_refresh_enabled: bool = False
+    latent_sparse_tactical_refresh_interval_steps: int = 32
+    latent_sparse_tactical_refresh_min_dwell_steps: int = 16
+
     # v3i3 event-conditioned preference. Each event refresh becomes a
     # per-refresh learning datapoint with target bucket key
     # ``(opponent_id, event_type, flag_state_bucket)`` and credit signal

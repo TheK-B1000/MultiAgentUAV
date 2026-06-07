@@ -247,6 +247,9 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("latent_mi_z_phase_nats")
         fields.append("latent_mi_z_outcome_nats")
         fields.append("latent_mi_z_flag_state_nats")
+        fields.append("MI_executed_z_phase")
+        fields.append("MI_executed_z_flag")
+        fields.append("MI_executed_z_outcome")
         fields.append("latent_mi_z_spread_bucket_nats")
         fields.append("latent_mi_z_role_bucket_nats")
         fields.append("latent_mi_z_pressure_bucket_nats")
@@ -406,6 +409,18 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         for i in range(latent_k):
             for j in range(latent_k):
                 fields.append(f"latent_refresh_z{i}_to_z{j}")
+        fields.extend([
+            "z_change_count",
+            "z_dwell_mean",
+            "z_refresh_attempt_count",
+            "z_refresh_accept_count",
+            "z_refresh_reject_dwell_count",
+            "z_refresh_reason_interval",
+            "z_refresh_reason_flag",
+            "z_refresh_reason_phase",
+            "z_refresh_reason_score_pressure",
+            "q_phi_argmax_vs_executed_z_agreement",
+        ])
         # v3i3 event-conditioned preference telemetry. Always present in
         # the schema so disabled runs emit zeros (matches the v3i2-era
         # pattern for latent_preference_*).

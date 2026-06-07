@@ -262,6 +262,15 @@ class CustomPPOTrainer:
         self.latent_event_refresh_max_per_episode = hparams.latent_event_refresh_max_per_episode
         self.latent_event_refresh_use_q_phi = hparams.latent_event_refresh_use_q_phi
         self.latent_event_refresh_force_roles = hparams.latent_event_refresh_force_roles
+        self.latent_sparse_tactical_refresh_enabled = (
+            hparams.latent_sparse_tactical_refresh_enabled
+        )
+        self.latent_sparse_tactical_refresh_interval_steps = (
+            hparams.latent_sparse_tactical_refresh_interval_steps
+        )
+        self.latent_sparse_tactical_refresh_min_dwell_steps = (
+            hparams.latent_sparse_tactical_refresh_min_dwell_steps
+        )
         self.latent_v3i3_event_preference_enabled = hparams.latent_v3i3_event_preference_enabled
         self.latent_v3i3_event_preference_coef = hparams.latent_v3i3_event_preference_coef
         self.latent_v3i3_event_preference_temperature = hparams.latent_v3i3_event_preference_temperature

@@ -147,6 +147,9 @@ class TrainerHyperparams:
     latent_event_refresh_max_per_episode: int
     latent_event_refresh_use_q_phi: bool
     latent_event_refresh_force_roles: bool
+    latent_sparse_tactical_refresh_enabled: bool
+    latent_sparse_tactical_refresh_interval_steps: int
+    latent_sparse_tactical_refresh_min_dwell_steps: int
     latent_v3i3_event_preference_enabled: bool
     latent_v3i3_event_preference_coef: float
     latent_v3i3_event_preference_temperature: float
@@ -551,6 +554,39 @@ class TrainerHyperparams:
             latent_event_refresh_max_per_episode=int(getattr(cfg, "latent_event_refresh_max_per_episode", 3)),
             latent_event_refresh_use_q_phi=bool(getattr(cfg, "latent_event_refresh_use_q_phi", True)),
             latent_event_refresh_force_roles=bool(getattr(cfg, "latent_event_refresh_force_roles", False)),
+            latent_sparse_tactical_refresh_enabled=(
+                use_latent
+                and not fixed_latent
+                and bool(
+                    getattr(
+                        cfg,
+                        "latent_sparse_tactical_refresh_enabled",
+                        False,
+                    )
+                )
+            ),
+            latent_sparse_tactical_refresh_interval_steps=max(
+                1,
+                int(
+                    getattr(
+                        cfg,
+                        "latent_sparse_tactical_refresh_interval_steps",
+                        32,
+                    )
+                    or 32
+                ),
+            ),
+            latent_sparse_tactical_refresh_min_dwell_steps=max(
+                1,
+                int(
+                    getattr(
+                        cfg,
+                        "latent_sparse_tactical_refresh_min_dwell_steps",
+                        16,
+                    )
+                    or 16
+                ),
+            ),
             latent_v3i3_event_preference_enabled=(
                 use_latent
                 and not fixed_latent
