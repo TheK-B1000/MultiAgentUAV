@@ -34,7 +34,10 @@ from rl.custom_ppo.policy import (
     SharedActorCentralizedCritic,
     remap_legacy_actor_state_dict_keys,
 )
-from rl.custom_ppo.latent_diagnostics import _policy_z_sensitivity_kl
+from rl.custom_ppo.latent_diagnostics import (
+    _jsd_from_logits,
+    _policy_z_sensitivity_kl,
+)
 from rl.custom_ppo.ppo_updater import (
     _policy_z_separation_loss,
     _warmup_ramp_value,
@@ -560,6 +563,38 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         )
         sensitivity = _policy_z_sensitivity_kl(trainer, buffer)
         self.assertGreater(sensitivity["policy_z_sensitivity_KL"], 0.0)
+        self.assertGreater(sensitivity["actor_z_jsd_mean"], 0.0)
+        self.assertGreaterEqual(
+            sensitivity["actor_z_jsd_max"],
+            sensitivity["actor_z_jsd_mean"],
+        )
+        self.assertGreater(sensitivity["actor_z_logit_l2"], 0.0)
+        self.assertGreaterEqual(sensitivity["actor_z_argmax_disagree"], 0.0)
+        self.assertLessEqual(sensitivity["actor_z_argmax_disagree"], 1.0)
+        self.assertEqual(
+            len(sensitivity["actor_z_jsd_per_head"].split(",")),
+            model.heads_per_agent,
+        )
+        self.assertEqual(
+            len(sensitivity["actor_z_entropy_by_z"].split(",")),
+            model.latent_k,
+        )
+        for z_id in range(model.latent_k):
+            self.assertIn(f"actor_z_entropy_z{z_id}", sensitivity)
+
+    def test_jsd_from_logits_is_symmetric_and_zero_for_identical_logits(
+        self,
+    ) -> None:
+        logits_a = torch.tensor([[3.0, -1.0], [0.5, 0.5]])
+        logits_b = torch.tensor([[-1.0, 3.0], [0.5, 0.5]])
+        same = _jsd_from_logits(logits_a, logits_a)
+        ab = _jsd_from_logits(logits_a, logits_b)
+        ba = _jsd_from_logits(logits_b, logits_a)
+
+        torch.testing.assert_close(same, torch.zeros_like(same), atol=1e-7, rtol=0.0)
+        torch.testing.assert_close(ab, ba)
+        self.assertGreater(float(ab[0].item()), 0.0)
+        self.assertAlmostEqual(float(ab[1].item()), 0.0, places=7)
 
     def test_two_layer_film_changes_logits_without_concat_z(self) -> None:
         model = _build_film_only_model(film_layers=2)

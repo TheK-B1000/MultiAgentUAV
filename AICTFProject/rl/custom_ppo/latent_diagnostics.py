@@ -763,16 +763,25 @@ def _latent_option_advantage_stats(trainer: Any, buffer: Any) -> dict[str, float
     }
 
 
-def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, float]:
-    """Audit policy z-sensitivity KL divergence across different latent strategy assignments."""
+def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
+    """Probe actor behavior under every forced z on the same observations."""
+    zero_stats: dict[str, Any] = {
+        "policy_z_sensitivity_KL": 0.0,
+        "actor_z_jsd_mean": 0.0,
+        "actor_z_jsd_max": 0.0,
+        "actor_z_jsd_per_head": "",
+        "actor_z_argmax_disagree": 0.0,
+        "actor_z_logit_l2": 0.0,
+        "actor_z_entropy_by_z": "",
+    }
     if not trainer.use_latent_strategy or trainer.latent_k <= 1:
-        return {"policy_z_sensitivity_KL": 0.0}
+        return zero_stats
     length = int(buffer.pos)
     if length <= 0:
-        return {"policy_z_sensitivity_KL": 0.0}
+        return zero_stats
     total = length * int(buffer.n_envs)
     if total <= 0:
-        return {"policy_z_sensitivity_KL": 0.0}
+        return zero_stats
 
     from rl.custom_ppo.inference import FORCED_Z_PROFILE_MAX_ROWS
     if total > FORCED_Z_PROFILE_MAX_ROWS:
@@ -793,19 +802,20 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, float]:
         "mask": buffer.fields["obs_mask"][:length].reshape(total, *buffer.fields["obs_mask"].shape[2:]).index_select(0, row_idx),
     }
 
-    dists_by_z = []
+    logits_by_z: list[torch.Tensor] = []
+    dists_by_z: list[list[torch.distributions.Categorical]] = []
     with torch.no_grad():
         for z_id in range(int(trainer.latent_k)):
             z_idx = torch.full((int(row_idx.numel()),), z_id, dtype=torch.long, device=trainer.device)
             logits = _batched_policy_logits(trainer, obs_batch, z_idx=z_idx)
             logits = trainer.model._mask_logits(logits, obs_batch.get("mask"))
-            dists = list(trainer.model._categoricals(logits))
-            dists_by_z.append(dists)
+            logits_by_z.append(logits.float())
+            dists_by_z.append(list(trainer.model._categoricals(logits)))
 
-    kl_values = []
-    K = int(trainer.latent_k)
-    for i in range(K):
-        for j in range(K):
+    kl_values: list[float] = []
+    latent_k = int(trainer.latent_k)
+    for i in range(latent_k):
+        for j in range(latent_k):
             if i == j:
                 continue
             dists_i = dists_by_z[i]
@@ -816,4 +826,122 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, float]:
             kl_values.append(float(kl_sum.mean().item()))
 
     mean_kl = float(np.mean(kl_values)) if kl_values else 0.0
-    return {"policy_z_sensitivity_KL": mean_kl}
+    action_dims = tuple(int(dim) for dim in trainer.model.action_dims)
+    heads_per_agent = int(trainer.model.heads_per_agent)
+    agent_mask = obs_batch.get("agent_mask")
+    if agent_mask is None:
+        agent_mask = torch.ones(
+            (int(row_idx.numel()), int(trainer.model.n_agents)),
+            dtype=torch.float32,
+            device=trainer.device,
+        )
+    else:
+        agent_mask = agent_mask.to(device=trainer.device).float()
+
+    offsets: list[tuple[int, int]] = []
+    offset = 0
+    for dim in action_dims:
+        offsets.append((offset, offset + dim))
+        offset += dim
+
+    entropy_by_z: list[float] = []
+    for z_id, dists in enumerate(dists_by_z):
+        entropy_values: list[torch.Tensor] = []
+        for action_idx, dist in enumerate(dists):
+            agent_idx = action_idx // heads_per_agent
+            valid = agent_mask[:, agent_idx] > 0.5
+            if bool(valid.any()):
+                entropy_values.append(dist.entropy()[valid])
+        entropy = (
+            torch.cat(entropy_values).mean()
+            if entropy_values
+            else torch.zeros((), device=trainer.device)
+        )
+        entropy_by_z.append(float(entropy.item()))
+        zero_stats[f"actor_z_entropy_z{z_id}"] = float(entropy.item())
+
+    jsd_values: list[torch.Tensor] = []
+    argmax_disagreements: list[torch.Tensor] = []
+    logit_l2_values: list[torch.Tensor] = []
+    jsd_by_head: list[list[torch.Tensor]] = [
+        [] for _ in range(heads_per_agent)
+    ]
+    for i in range(latent_k):
+        for j in range(i + 1, latent_k):
+            logits_i = logits_by_z[i]
+            logits_j = logits_by_z[j]
+            for action_idx, (start, end) in enumerate(offsets):
+                agent_idx = action_idx // heads_per_agent
+                head_idx = action_idx % heads_per_agent
+                valid = agent_mask[:, agent_idx] > 0.5
+                if not bool(valid.any()):
+                    continue
+                head_i = logits_i[valid, start:end]
+                head_j = logits_j[valid, start:end]
+                jsd = _jsd_from_logits(head_i, head_j)
+                jsd_values.append(jsd)
+                jsd_by_head[head_idx].append(jsd)
+                argmax_disagreements.append(
+                    (head_i.argmax(dim=-1) != head_j.argmax(dim=-1)).float()
+                )
+                logit_l2_values.append(
+                    torch.linalg.vector_norm(head_i - head_j, dim=-1)
+                )
+
+    all_jsd = (
+        torch.cat(jsd_values)
+        if jsd_values
+        else torch.zeros((1,), device=trainer.device)
+    )
+    all_disagree = (
+        torch.cat(argmax_disagreements)
+        if argmax_disagreements
+        else torch.zeros((1,), device=trainer.device)
+    )
+    all_logit_l2 = (
+        torch.cat(logit_l2_values)
+        if logit_l2_values
+        else torch.zeros((1,), device=trainer.device)
+    )
+    per_head_jsd = [
+        float(torch.cat(values).mean().item()) if values else 0.0
+        for values in jsd_by_head
+    ]
+    for head_idx, value in enumerate(per_head_jsd):
+        zero_stats[f"actor_z_jsd_head_{head_idx}"] = value
+
+    zero_stats.update(
+        {
+            "policy_z_sensitivity_KL": mean_kl,
+            "actor_z_jsd_mean": float(all_jsd.mean().item()),
+            "actor_z_jsd_max": float(all_jsd.max().item()),
+            "actor_z_jsd_per_head": ",".join(
+                f"{value:.8e}" for value in per_head_jsd
+            ),
+            "actor_z_argmax_disagree": float(all_disagree.mean().item()),
+            "actor_z_logit_l2": float(all_logit_l2.mean().item()),
+            "actor_z_entropy_by_z": ",".join(
+                f"{value:.8e}" for value in entropy_by_z
+            ),
+        }
+    )
+    return zero_stats
+
+
+def _jsd_from_logits(
+    logits_a: torch.Tensor,
+    logits_b: torch.Tensor,
+    *,
+    dim: int = -1,
+    eps: float = 1e-8,
+) -> torch.Tensor:
+    """Return Jensen-Shannon divergence for matching categorical logits."""
+    log_p = torch.log_softmax(logits_a.float(), dim=dim)
+    log_q = torch.log_softmax(logits_b.float(), dim=dim)
+    p = log_p.exp()
+    q = log_q.exp()
+    mixture = 0.5 * (p + q)
+    log_mixture = torch.log(mixture.clamp_min(float(eps)))
+    kl_pm = torch.sum(p * (log_p - log_mixture), dim=dim)
+    kl_qm = torch.sum(q * (log_q - log_mixture), dim=dim)
+    return 0.5 * (kl_pm + kl_qm)

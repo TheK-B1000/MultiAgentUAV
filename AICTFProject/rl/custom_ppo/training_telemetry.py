@@ -412,7 +412,7 @@ class TrainingTelemetry:
                 row.get("policy_z_sensitivity_KL", 0.0) or 0.0
             )
             row["z_sep_JSD"] = float(
-                row.get("latent_actor_z_separation_jsd", 0.0) or 0.0
+                row.get("actor_z_jsd_mean", 0.0) or 0.0
             )
             row["actor_input_dim"] = int(input_contract["actor_input_dim"])
             row["z_embed_dim"] = int(input_contract["actor_z_embed_dim"])
@@ -538,10 +538,18 @@ class TrainingTelemetry:
                 )
                 print(
                     "      [Actor Z] "
-                    f"sensitivity_KL={float(row.get('z_sensitivity_KL', 0.0) or 0.0):.6f} "
-                    f"sep_JSD={float(row.get('z_sep_JSD', 0.0) or 0.0):.6f} "
+                    f"sensitivity_KL={float(row.get('z_sensitivity_KL', 0.0) or 0.0):.8e} "
+                    f"sep_JSD={float(row.get('z_sep_JSD', 0.0) or 0.0):.8e} "
+                    f"max_JSD={float(row.get('actor_z_jsd_max', 0.0) or 0.0):.8e} "
+                    f"argmax_disagree={float(row.get('actor_z_argmax_disagree', 0.0) or 0.0):.6f} "
+                    f"logit_l2={float(row.get('actor_z_logit_l2', 0.0) or 0.0):.8e} "
                     f"actor_input_dim={int(row.get('actor_input_dim', 0) or 0)} "
                     f"z_embed_dim={int(row.get('z_embed_dim', 0) or 0)}"
+                )
+                print(
+                    "      [Actor Z detail] "
+                    f"jsd_per_head=[{row.get('actor_z_jsd_per_head', '')}] "
+                    f"entropy_by_z=[{row.get('actor_z_entropy_by_z', '')}]"
                 )
                 if hparams.latent_sparse_tactical_refresh_enabled:
                     z_change = float(row.get("z_change_count", 0.0) or 0.0)

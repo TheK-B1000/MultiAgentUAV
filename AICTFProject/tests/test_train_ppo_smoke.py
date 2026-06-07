@@ -633,6 +633,17 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("latent_z0_behavior_team_spread_mean", rows[0])
             self.assertIn("forced_z_macro_jsd_mean", rows[0])
             self.assertIn("forced_z0_macro_get_flag_prob", rows[0])
+            self.assertIn("actor_z_jsd_mean", rows[0])
+            self.assertIn("actor_z_jsd_max", rows[0])
+            self.assertIn("actor_z_jsd_per_head", rows[0])
+            self.assertIn("actor_z_argmax_disagree", rows[0])
+            self.assertIn("actor_z_logit_l2", rows[0])
+            self.assertIn("actor_z_entropy_by_z", rows[0])
+            self.assertGreater(float(rows[0]["actor_z_jsd_mean"]), 0.0)
+            self.assertAlmostEqual(
+                float(rows[0]["z_sep_JSD"]),
+                float(rows[0]["actor_z_jsd_mean"]),
+            )
             self.assertIn("strategy_occupancy_op0_z0", rows[0])
             self.assertIn("episode_opp0_z0_count", rows[0])
             self.assertIn("episode_z_0_red_score_mean", rows[0])
