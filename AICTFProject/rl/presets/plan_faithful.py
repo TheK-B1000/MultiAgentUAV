@@ -936,6 +936,121 @@ def apply_plan_faithful_latent_v3i16_policy_z_embedding(
     return cfg
 
 
+def _apply_v3i17_consequence_only(cfg: PPOConfig) -> PPOConfig:
+    """Shared v3i17 configuration: 'reward z consequences, not z existence'.
+
+    Branched into two sibling presets, ``v3i17_episode_arc`` (episode-level z)
+    and ``v3i17_long_arc`` (256-step persistence). Both keep v3i16's actor
+    z-embedding architecture and disable every "existence" knob, leaving only
+    the consequence channel (episode-credit PPO on q_phi) alive after the
+    entropy anneal completes.
+
+    Existence pressure removed / annealed away:
+
+    * ``latent_lam_h`` anneals **0.003 -> 0.0** over steps **200k -> 700k**.
+      Early phase keeps K=4 alive while q_phi explores; after 700k the
+      coefficient is exactly zero so the marginal-entropy reward stops
+      contributing gradient.
+    * ``latent_actor_z_separation_*``, ``latent_usage_balance_*``,
+      ``latent_marginal_balance_*``, ``latent_behavior_contrast_*``,
+      ``latent_specialist_*``, ``latent_conditional_entropy_min_*``,
+      ``latent_context_mi_*`` all forced to 0 / disabled (inherited from v3i16).
+
+    Consequence channel kept on:
+
+    * ``latent_episode_strategy_ppo = True`` with
+      ``latent_episode_strategy_coef = 0.30``. q_phi's gradient is the
+      per-episode return advantage. One clean datapoint per episode per
+      (context, z) cell; the only signal that pushes q_phi to specialise.
+    * ``latent_episode_strategy_warmup_decision_steps = 5`` so q_phi commits
+      after the ctx170 EMAs have observed opponent dynamics.
+    * ``latent_strategy_ppo_coef = 0.0`` -- no per-step strategy coupling.
+    * v3i3 / preference / AWRD distillation channels stay OFF; we want a
+      single, audit-able consequence source.
+    """
+    cfg = apply_plan_faithful_latent_v3i16_policy_z_embedding(cfg)
+
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0
+    cfg.latent_entropy_anneal_start = 200_000
+    cfg.latent_entropy_anneal_end = 700_000
+    cfg.latent_entropy_objective = "maximize"
+
+    cfg.latent_strategy_ppo_coef = 0.0
+    cfg.latent_episode_strategy_ppo = True
+    cfg.latent_episode_strategy_coef = 0.30
+    cfg.latent_episode_strategy_clip_eps = 0.2
+    cfg.latent_episode_strategy_value_coef = 0.5
+    cfg.latent_episode_strategy_return_norm = True
+    cfg.latent_episode_strategy_warmup_decision_steps = 5
+    cfg.latent_q_phi_option_advantage = False
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i17_episode_arc(cfg: PPOConfig) -> PPOConfig:
+    """v3i17 episode-arc: one z per episode, consequence-only gradient.
+
+    "Strategy needs a story arc, not a 5-second costume change."
+
+    Differences vs v3i16:
+
+    * ``latent_resample_every_n = 0``  -- z is sampled once at episode start
+      and held for the entire episode. No mid-episode refreshes.
+    * ``latent_lam_p = 0.0``  -- with z fixed for the episode, persistence
+      loss is a no-op; zeroing it out avoids stale telemetry.
+    * ``latent_lam_h`` anneals 0.003 -> 0.0 from 200k -> 700k (consequence-
+      only past 700k).
+    * ``latent_event_refresh_enabled = False`` (already inherited; reaffirmed).
+    * Episode-credit PPO is the sole gradient to q_phi.
+
+    Faithful guarantee unchanged: no labels, no aux heads, no opponent ID.
+    """
+    cfg = _apply_v3i17_consequence_only(cfg)
+
+    cfg.latent_resample_every_n = 0
+    cfg.latent_resample_on_flag = False
+    cfg.latent_event_refresh_enabled = False
+    cfg.latent_sparse_tactical_refresh_enabled = False
+    cfg.latent_lam_p = 0.0
+    cfg.latent_kl_consecutive = 0.0
+    cfg.latent_gae_reset_on_z_change = True
+
+    cfg.run_tag = "v3i17_episode_arc_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v3i17_long_arc(cfg: PPOConfig) -> PPOConfig:
+    """v3i17 long-arc: 256-step z persistence, consequence-only gradient.
+
+    Sibling to ``v3i17_episode_arc``. Keeps the option of mid-episode z
+    refreshes but extends the dwell to a 256-step "story arc" -- 4x longer
+    than v3i16's 64-step costume change.
+
+    Differences vs v3i16:
+
+    * ``latent_resample_every_n = 256`` (was 64).
+    * ``latent_lam_p = 0.01`` (was 0.02) -- small switch cost preserved so
+      within-arc continuity is encouraged, but lighter since 256 steps is
+      already a long arc.
+    * ``latent_lam_h`` anneals 0.003 -> 0.0 from 200k -> 700k.
+    * Episode-credit PPO is the sole consequence channel; per-step strategy
+      coupling stays off.
+    """
+    cfg = _apply_v3i17_consequence_only(cfg)
+
+    cfg.latent_resample_every_n = 256
+    cfg.latent_resample_on_flag = False
+    cfg.latent_event_refresh_enabled = False
+    cfg.latent_sparse_tactical_refresh_enabled = False
+    cfg.latent_lam_p = 0.01
+    cfg.latent_kl_consecutive = 0.0
+    cfg.latent_gae_reset_on_z_change = True
+
+    cfg.run_tag = "v3i17_long_arc_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

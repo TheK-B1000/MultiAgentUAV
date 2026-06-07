@@ -216,6 +216,16 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i15_sparse_refresh",
             "plan_faithful_latent_v3i15_strong_separation",
             "latent_v3i15_strong_separation",
+            # v3i17: consequence-only family. Inherits v3i16's architecture but
+            # turns episode-credit PPO back on as the SOLE q_phi gradient.
+            "plan_faithful_latent_v3i17_episode_arc",
+            "latent_v3i17_episode_arc",
+            "latent_v3i17",
+            "v3i17_episode_arc",
+            "plan_faithful_latent_v3i17_long_arc",
+            "latent_v3i17_long_arc",
+            "latent_v3i17b",
+            "v3i17_long_arc",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -864,6 +874,112 @@ class PresetResolutionTests(unittest.TestCase):
                     cfg["run_tag"],
                     "v3i16_plan_faithful_z_embed_1m_4v4",
                 )
+
+    def test_latent_v3i17_is_consequence_only_episode_arc(self) -> None:
+        """v3i17 episode_arc: episode-level z, lam_h anneal -> 0, episode-credit only.
+
+        Plan-faithful invariants:
+            * One z per episode (latent_resample_every_n == 0)
+            * No mid-episode refresh machinery
+            * Existence pressure annealed to exactly 0 (latent_lam_h_end == 0.0)
+            * Sole consequence channel: latent_episode_strategy_ppo with coef > 0
+            * No supervised heads / preference / specialist / behavior-contrast
+        """
+        resolved = resolve_all_presets()
+        aliases = (
+            "plan_faithful_latent_v3i17_episode_arc",
+            "latent_v3i17_episode_arc",
+            "latent_v3i17",
+            "v3i17_episode_arc",
+        )
+        first = resolved[aliases[0]]
+        for key in aliases:
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(cfg, first)
+                # Duration: episode-level z
+                self.assertEqual(cfg["latent_resample_every_n"], 0)
+                self.assertFalse(cfg["latent_resample_on_flag"])
+                self.assertFalse(cfg["latent_event_refresh_enabled"])
+                self.assertFalse(cfg["latent_sparse_tactical_refresh_enabled"])
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.0)
+                # Existence pressure annealed to exactly 0.0 by end of run
+                self.assertAlmostEqual(cfg["latent_lam_h_start"], 0.003)
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.0)
+                self.assertEqual(cfg["latent_entropy_anneal_start"], 200_000)
+                self.assertEqual(cfg["latent_entropy_anneal_end"], 700_000)
+                # Consequence channel: episode-credit PPO only
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.30)
+                self.assertAlmostEqual(cfg["latent_strategy_ppo_coef"], 0.0)
+                self.assertEqual(
+                    cfg["latent_episode_strategy_warmup_decision_steps"], 5
+                )
+                # No supervised / existence channels
+                self.assertFalse(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertFalse(cfg["latent_awrd_enabled"])
+                self.assertFalse(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.0)
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_coef"], 0.0
+                )
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.0)
+                self.assertAlmostEqual(
+                    cfg["latent_marginal_balance_coef"], 0.0
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_return_coef"], 0.0
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_predict_phase_coef"], 0.0
+                )
+                # Architecture inherited from v3i16
+                self.assertEqual(cfg["latent_z_embed_dim"], 16)
+                self.assertFalse(cfg["latent_actor_z_onehot_enabled"])
+                self.assertFalse(cfg["latent_actor_z_adapter_enabled"])
+                self.assertEqual(
+                    cfg["run_tag"], "v3i17_episode_arc_1m_4v4"
+                )
+
+    def test_latent_v3i17_long_arc_uses_256_step_persistence(self) -> None:
+        """v3i17 long_arc: 256-step dwell, same consequence-only contract.
+
+        The only differences vs v3i17_episode_arc are:
+            * latent_resample_every_n == 256 (was 0)
+            * latent_lam_p == 0.01 (small switch cost within the long arc)
+        """
+        resolved = resolve_all_presets()
+        aliases = (
+            "plan_faithful_latent_v3i17_long_arc",
+            "latent_v3i17_long_arc",
+            "latent_v3i17b",
+            "v3i17_long_arc",
+        )
+        first = resolved[aliases[0]]
+        for key in aliases:
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(cfg, first)
+                self.assertEqual(cfg["latent_resample_every_n"], 256)
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.01)
+                # Same consequence-only contract as episode_arc
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.0)
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(
+                    cfg["latent_episode_strategy_coef"], 0.30
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_ppo_coef"], 0.0
+                )
+                self.assertFalse(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertFalse(cfg["latent_event_refresh_enabled"])
+                self.assertFalse(cfg["latent_sparse_tactical_refresh_enabled"])
+                # No supervised / preference / specialist
+                self.assertFalse(cfg["latent_awrd_enabled"])
+                self.assertFalse(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.0)
+                self.assertEqual(cfg["run_tag"], "v3i17_long_arc_1m_4v4")
 
     def test_latent_v3i11_remains_unchanged_by_v3i14_tuning(self) -> None:
         cfg = resolve_all_presets()["latent_v3i11"]
