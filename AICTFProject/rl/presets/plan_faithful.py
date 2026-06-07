@@ -988,6 +988,45 @@ def _apply_v3i17_consequence_only(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3i18_v3i16_plus_128(cfg: PPOConfig) -> PPOConfig:
+    """v3i18: conservative ``v3i16 + 128`` -- only the resample interval changes.
+
+    Hypothesis: v3i16 had the best-behaved actor-z embedding path of the v3iX
+    family but its 64-step strategic horizon may be too short. Doubling the
+    persistence window to 128 decision steps gives z a longer arc without
+    touching any other dial.
+
+    Inherits ``apply_plan_faithful_latent_v3i16_policy_z_embedding`` verbatim
+    and changes exactly **one** runtime knob:
+
+    * ``latent_resample_every_n``: ``64`` -> ``128``
+
+    Everything else from v3i16 is preserved bit-for-bit:
+
+    * actor z embedding path: ``latent_z_embed_dim = 16``,
+      ``latent_actor_z_onehot_enabled = False``,
+      ``latent_actor_z_adapter_enabled = False``,
+      ``latent_actor_z_film_layers = 1``
+    * ``latent_strategy_ppo_coef = 0.30`` (per-step PPO strategy gradient,
+      inherited from ``apply_plan_faithful_base``)
+    * ``latent_lam_p = 0.02`` (persistence loss within the 128-step window)
+    * ``latent_lam_h = 0.001`` flat (no anneal)
+    * ``latent_episode_strategy_ppo = False`` (no episode-credit channel)
+    * no AWRD, no v3i3 event preference, no preference distillation
+    * no supervised labels, no phase / flag / outcome heads, no opponent heads
+    * no behavior-contrast loss, no actor-z separation loss,
+      no usage-balance / marginal-balance / specialist pressure
+    * ``latent_event_refresh_enabled = False``,
+      ``latent_sparse_tactical_refresh_enabled = False``
+    """
+    cfg = apply_plan_faithful_latent_v3i16_policy_z_embedding(cfg)
+
+    cfg.latent_resample_every_n = 128
+
+    cfg.run_tag = "v3i18_v3i16_plus_128_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3i17_episode_arc(cfg: PPOConfig) -> PPOConfig:
     """v3i17 episode-arc: one z per episode, consequence-only gradient.
 

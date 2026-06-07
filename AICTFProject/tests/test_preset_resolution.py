@@ -942,6 +942,102 @@ class PresetResolutionTests(unittest.TestCase):
                     cfg["run_tag"], "v3i17_episode_arc_1m_4v4"
                 )
 
+    def test_latent_v3i18_is_v3i16_with_only_resample_interval_changed(self) -> None:
+        """v3i18 = v3i16 with exactly ONE knob changed (resample_every_n: 64 -> 128).
+
+        Plan-faithful guarantees:
+
+        * Inherits v3i16's actor z-embedding architecture verbatim.
+        * The resolved config differs from v3i16 in exactly two keys:
+          ``latent_resample_every_n`` and ``run_tag``.
+        * No new supervised heads, preference channels, or existence rewards.
+        """
+        resolved = resolve_all_presets()
+        aliases = (
+            "plan_faithful_latent_v3i18_v3i16_plus_128",
+            "latent_v3i18_v3i16_plus_128",
+            "latent_v3i18",
+            "v3i18_v3i16_plus_128",
+        )
+        first = resolved[aliases[0]]
+        v3i16 = resolved["latent_v3i16"]
+
+        # Exact minimal-delta property: only resample interval + run_tag differ.
+        differing_keys = {k for k in first if first[k] != v3i16.get(k)}
+        differing_keys |= {k for k in v3i16 if k not in first}
+        self.assertEqual(
+            differing_keys,
+            {"latent_resample_every_n", "run_tag"},
+            f"v3i18 must differ from v3i16 only in (resample_every_n, run_tag); "
+            f"unexpected diff: {differing_keys}",
+        )
+        self.assertEqual(v3i16["latent_resample_every_n"], 64)
+        self.assertEqual(first["latent_resample_every_n"], 128)
+
+        for key in aliases:
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(cfg, first)
+
+                # Architecture inherited from v3i16
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertEqual(cfg["latent_k"], 4)
+                self.assertEqual(cfg["latent_z_embed_dim"], 16)
+                self.assertAlmostEqual(cfg["latent_actor_z_embed_scale"], 1.0)
+                self.assertFalse(cfg["latent_actor_z_onehot_enabled"])
+                self.assertFalse(cfg["latent_actor_z_adapter_enabled"])
+                self.assertAlmostEqual(cfg["latent_actor_z_adapter_scale"], 0.0)
+                self.assertEqual(cfg["latent_actor_z_film_layers"], 1)
+
+                # Only the resample interval changed.
+                self.assertEqual(cfg["latent_resample_every_n"], 128)
+                self.assertFalse(cfg["latent_resample_on_flag"])
+                self.assertFalse(cfg["latent_event_refresh_enabled"])
+                self.assertFalse(cfg["latent_sparse_tactical_refresh_enabled"])
+                self.assertTrue(cfg["latent_gae_reset_on_z_change"])
+
+                # v3i16 knobs preserved bit-for-bit (the user's explicit list).
+                self.assertAlmostEqual(cfg["latent_strategy_ppo_coef"], 0.30)
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.02)
+                self.assertAlmostEqual(cfg["latent_lam_h"], 0.001)
+                self.assertAlmostEqual(cfg["latent_lam_h_start"], 0.001)
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.001)
+
+                # No episode-credit PPO (per the user's explicit "keep unchanged" list).
+                self.assertFalse(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.0)
+
+                # Summer-faithful audit: no supervised / existence / preference channels.
+                self.assertFalse(cfg["latent_strategy_aux_return_head"])
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_return_coef"], 0.0
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_predict_phase_coef"], 0.0
+                )
+                self.assertFalse(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertFalse(cfg["latent_awrd_enabled"])
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.0)
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_coef"], 0.0
+                )
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.0)
+                self.assertAlmostEqual(
+                    cfg["latent_marginal_balance_coef"], 0.0
+                )
+                self.assertFalse(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(
+                    cfg["latent_conditional_entropy_min_coef"], 0.0
+                )
+                self.assertAlmostEqual(cfg["latent_context_mi_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.0)
+
+                self.assertEqual(
+                    cfg["run_tag"], "v3i18_v3i16_plus_128_1m_4v4"
+                )
+
     def test_latent_v3i17_long_arc_uses_256_step_persistence(self) -> None:
         """v3i17 long_arc: 256-step dwell, same consequence-only contract.
 
