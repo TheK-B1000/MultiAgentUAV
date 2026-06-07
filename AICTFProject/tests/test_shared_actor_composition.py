@@ -517,20 +517,28 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         model.eval()
 
         contract = model.input_dim_contract()
-        self.assertEqual(contract["actor_input_dim"], 156)
-        self.assertEqual(contract["actor_z_embed_dim"], 8)
+        self.assertEqual(contract["actor_input_dim"], 164)
+        self.assertEqual(contract["actor_z_embed_dim"], 16)
         self.assertEqual(contract["actor_z_onehot_dim"], 0)
         self.assertEqual(contract["q_phi_input_dim"], CONTEXT_STATE_DIM)
         self.assertEqual(contract["critic_context_dim"], CONTEXT_STATE_DIM)
+        self.assertEqual(contract["critic_z_dim"], 4)
         self.assertIsNotNone(model.strategy_embedding)
         assert model.strategy_embedding is not None
-        self.assertEqual(model.strategy_embedding.embedding_dim, 8)
-        self.assertIsNotNone(model.latent_actor.z_adapter)
-        self.assertEqual(model.latent_actor.z_film_layers, 2)
+        self.assertEqual(model.strategy_embedding.embedding_dim, 16)
+        self.assertIsNone(model.latent_actor.z_adapter)
+        self.assertEqual(model.latent_actor.z_film_layers, 0)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
             {"obs", "z_idx"},
         )
+        actions = torch.zeros((4, len(model.action_dims)), dtype=torch.long)
+        critic_extra = model._critic_extra(
+            actions,
+            torch.arange(4, dtype=torch.long),
+        )
+        assert critic_extra is not None
+        torch.testing.assert_close(critic_extra[:, -4:], torch.eye(4))
 
         obs = _fixed_obs(batch=4)
         buffer = SimpleNamespace(

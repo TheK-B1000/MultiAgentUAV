@@ -196,6 +196,8 @@ PRESET_REGISTRY = {
     "latent_v3i16_policy_z_embedding": apply_plan_faithful_latent_v3i16_policy_z_embedding,
     "latent_v3i16": apply_plan_faithful_latent_v3i16_policy_z_embedding,
     "latent_v3i16_summer_z_embed": apply_plan_faithful_latent_v3i16_policy_z_embedding,
+    "plan_faithful_latent_v3i16_z_embed": apply_plan_faithful_latent_v3i16_policy_z_embedding,
+    "v3i16_plan_faithful_z_embed": apply_plan_faithful_latent_v3i16_policy_z_embedding,
     "plan_faithful_latent_intent_credit": apply_plan_faithful_latent_episode_strategic,
     "plan_faithful_latent_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_plan_faithful_no_entropy": apply_plan_faithful_latent_no_entropy,
@@ -304,6 +306,8 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             "'latent_v3i15_sparse_tactical_refresh', 'latent_v3i15', "
             "'latent_v3i15_sparse_refresh', "
             "'latent_v3i16_policy_z_embedding', 'latent_v3i16', "
-            "'latent_v3i16_summer_z_embed'."
+            "'latent_v3i16_summer_z_embed', "
+            "'plan_faithful_latent_v3i16_z_embed', "
+            "'v3i16_plan_faithful_z_embed'."
         )
     return fn(cfg)

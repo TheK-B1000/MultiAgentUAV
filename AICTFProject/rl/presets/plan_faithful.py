@@ -876,17 +876,63 @@ def apply_plan_faithful_latent_v3i15_sparse_tactical_refresh(
 def apply_plan_faithful_latent_v3i16_policy_z_embedding(
     cfg: PPOConfig,
 ) -> PPOConfig:
-    """v3i16: expose a small learned z embedding to the shared actor."""
-    cfg = apply_plan_faithful_latent_v3i15_sparse_tactical_refresh(cfg)
+    """v3i16: strict plan-faithful learned-z actor conditioning.
 
-    # Summer-plan actor path: concat(local observation features, learned z
-    # embedding). The inherited shared two-layer FiLM conditioning remains.
+    The actor receives ``concat(CNN(grid), per_agent_vec, z_embedding)``.
+    The critic keeps its existing z one-hot path. All later experimental
+    routing teachers, behavior rewards, policy-separation losses, adapters,
+    and event-driven refresh paths are disabled for this clean test.
+    """
+    cfg = apply_plan_faithful_latent(cfg)
+
     cfg.latent_actor_z_onehot_enabled = False
-    cfg.latent_z_embed_dim = 8
+    cfg.latent_z_embed_dim = 16
     cfg.latent_actor_z_embed_scale = 1.0
-    cfg.latent_actor_z_separation_coef = 0.035
+    cfg.latent_actor_z_adapter_enabled = False
+    cfg.latent_actor_z_adapter_scale = 0.0
+    cfg.latent_actor_z_film_layers = 1
+    cfg.latent_actor_z_adapter_warmup_steps = 0
+    cfg.latent_actor_z_adapter_ramp_steps = 0
 
-    cfg.run_tag = "latent_v3i16_policy_z_embedding_pool_1m_4v4"
+    cfg.latent_lam_h = 0.001
+    cfg.latent_lam_h_start = 0.001
+    cfg.latent_lam_h_end = 0.001
+    cfg.latent_entropy_anneal_start = 0
+    cfg.latent_entropy_anneal_end = 0
+    cfg.latent_entropy_objective = "maximize"
+    cfg.latent_lam_p = 0.02
+
+    # Fixed-cadence persistence is the simple Option-B path. It keeps lambda_p
+    # active without the event/tactical refresh machinery from v3i15.
+    cfg.latent_resample_every_n = 64
+    cfg.latent_resample_on_flag = False
+    cfg.latent_event_refresh_enabled = False
+    cfg.latent_sparse_tactical_refresh_enabled = False
+    cfg.latent_kl_consecutive = 0.0
+    cfg.latent_gae_reset_on_z_change = True
+
+    cfg.latent_strategy_aux_predict_phase_coef = 0.0
+    cfg.latent_strategy_aux_return_head = False
+    cfg.latent_strategy_aux_return_coef = 0.0
+    cfg.latent_forced_z_episode_frac = 0.0
+    cfg.latent_behavior_contrast_coef = 0.0
+    cfg.latent_actor_z_separation_start_coef = 0.0
+    cfg.latent_actor_z_separation_coef = 0.0
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_preference_coef = 0.0
+    cfg.latent_preference_commit_coef = 0.0
+    cfg.latent_awrd_enabled = False
+    cfg.latent_awrd_coef = 0.0
+    cfg.latent_specialist_router_enabled = False
+    cfg.latent_marginal_balance_coef = 0.0
+    cfg.latent_conditional_entropy_min_coef_start = 0.0
+    cfg.latent_conditional_entropy_min_coef = 0.0
+    cfg.latent_context_mi_coef = 0.0
+    cfg.latent_v3i3_event_preference_enabled = False
+    cfg.latent_v3i3_event_preference_coef = 0.0
+    cfg.latent_v3i3_refresh_log_enabled = False
+
+    cfg.run_tag = "v3i16_plan_faithful_z_embed_1m_4v4"
     return cfg
 
 
