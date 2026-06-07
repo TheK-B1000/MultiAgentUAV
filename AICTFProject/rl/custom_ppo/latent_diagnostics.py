@@ -394,6 +394,23 @@ def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]
     out["latent_pressure_diversity"] = _shannon_entropy_nats(pb, n_pb)
     out["latent_adr_diversity"] = _shannon_entropy_nats(adb, n_adr)
 
+    # Normalized MI = I(z; x) / H(z). Stays plan-faithful: just a ratio of
+    # already-computed plug-in quantities, no training-time supervision. H(z) is
+    # computed from valid z entries (z in [0, K)); the same filter used by MI.
+    z_valid = z[(z >= 0) & (z < K)] if z is not None else None
+    h_z = _shannon_entropy_nats(z_valid.astype(np.int64), K) if z_valid is not None else 0.0
+    if h_z > 1e-12:
+        out["latent_normalized_mi_z_opponent"] = float(out["latent_mi_z_opponent_nats"] / h_z)
+        out["latent_normalized_mi_z_phase"] = float(out["latent_mi_z_phase_nats"] / h_z)
+        out["latent_normalized_mi_z_outcome"] = float(out["latent_mi_z_outcome_nats"] / h_z)
+        out["latent_normalized_mi_z_flag_state"] = float(out["latent_mi_z_flag_state_nats"] / h_z)
+    else:
+        out["latent_normalized_mi_z_opponent"] = 0.0
+        out["latent_normalized_mi_z_phase"] = 0.0
+        out["latent_normalized_mi_z_outcome"] = 0.0
+        out["latent_normalized_mi_z_flag_state"] = 0.0
+    out["latent_z_marginal_entropy_nats"] = float(h_z)
+
     _switch_proximity_fracs(out, buffer, length)
 
     return out
