@@ -873,6 +873,23 @@ def apply_plan_faithful_latent_v3i15_sparse_tactical_refresh(
     return cfg
 
 
+def apply_plan_faithful_latent_v3i16_policy_z_embedding(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v3i16: expose a small learned z embedding to the shared actor."""
+    cfg = apply_plan_faithful_latent_v3i15_sparse_tactical_refresh(cfg)
+
+    # Summer-plan actor path: concat(local observation features, learned z
+    # embedding). The inherited shared two-layer FiLM conditioning remains.
+    cfg.latent_actor_z_onehot_enabled = False
+    cfg.latent_z_embed_dim = 8
+    cfg.latent_actor_z_embed_scale = 1.0
+    cfg.latent_actor_z_separation_coef = 0.035
+
+    cfg.run_tag = "latent_v3i16_policy_z_embedding_pool_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

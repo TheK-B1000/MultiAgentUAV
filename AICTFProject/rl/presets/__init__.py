@@ -38,6 +38,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v3i14_tuned,
     apply_plan_faithful_latent_v3i15_strong_separation,
     apply_plan_faithful_latent_v3i15_sparse_tactical_refresh,
+    apply_plan_faithful_latent_v3i16_policy_z_embedding,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
     apply_plan_faithful_latent_phase2_credit,
@@ -191,6 +192,10 @@ PRESET_REGISTRY = {
     "latent_v3i15_sparse_tactical_refresh": apply_plan_faithful_latent_v3i15_sparse_tactical_refresh,
     "latent_v3i15": apply_plan_faithful_latent_v3i15_sparse_tactical_refresh,
     "latent_v3i15_sparse_refresh": apply_plan_faithful_latent_v3i15_sparse_tactical_refresh,
+    "plan_faithful_latent_v3i16_policy_z_embedding": apply_plan_faithful_latent_v3i16_policy_z_embedding,
+    "latent_v3i16_policy_z_embedding": apply_plan_faithful_latent_v3i16_policy_z_embedding,
+    "latent_v3i16": apply_plan_faithful_latent_v3i16_policy_z_embedding,
+    "latent_v3i16_summer_z_embed": apply_plan_faithful_latent_v3i16_policy_z_embedding,
     "plan_faithful_latent_intent_credit": apply_plan_faithful_latent_episode_strategic,
     "plan_faithful_latent_no_entropy": apply_plan_faithful_latent_no_entropy,
     "latent_plan_faithful_no_entropy": apply_plan_faithful_latent_no_entropy,
@@ -297,6 +302,8 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             "'latent_v3i14b', 'latent_v3i14_tactical_specialist_tuned', "
             "'latent_v3i15_strong_separation', "
             "'latent_v3i15_sparse_tactical_refresh', 'latent_v3i15', "
-            "'latent_v3i15_sparse_refresh'."
+            "'latent_v3i15_sparse_refresh', "
+            "'latent_v3i16_policy_z_embedding', 'latent_v3i16', "
+            "'latent_v3i16_summer_z_embed'."
         )
     return fn(cfg)

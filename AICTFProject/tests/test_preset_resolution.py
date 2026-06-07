@@ -216,6 +216,10 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i15_sparse_refresh",
             "plan_faithful_latent_v3i15_strong_separation",
             "latent_v3i15_strong_separation",
+            "plan_faithful_latent_v3i16_policy_z_embedding",
+            "latent_v3i16_policy_z_embedding",
+            "latent_v3i16",
+            "latent_v3i16_summer_z_embed",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -797,6 +801,68 @@ class PresetResolutionTests(unittest.TestCase):
         self.assertAlmostEqual(base["latent_lam_p"], 0.0)
         self.assertAlmostEqual(base["latent_lam_h"], 0.00005)
         self.assertIn("latent_v3i15_strong_separation", resolved)
+
+    def test_latent_v3i16_adds_policy_z_embedding_only(self) -> None:
+        resolved = resolve_all_presets()
+        base = resolved["latent_v3i15_sparse_tactical_refresh"]
+        aliases = (
+            "plan_faithful_latent_v3i16_policy_z_embedding",
+            "latent_v3i16_policy_z_embedding",
+            "latent_v3i16",
+            "latent_v3i16_summer_z_embed",
+        )
+        first = resolved[aliases[0]]
+        for key in aliases:
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(cfg, first)
+                self.assertEqual(cfg["latent_z_embed_dim"], 8)
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_embed_scale"],
+                    1.0,
+                )
+                self.assertFalse(cfg["latent_actor_z_onehot_enabled"])
+                self.assertTrue(cfg["latent_actor_z_adapter_enabled"])
+                self.assertEqual(cfg["latent_actor_z_film_layers"], 2)
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_coef"],
+                    0.035,
+                )
+                self.assertTrue(
+                    cfg["latent_sparse_tactical_refresh_enabled"]
+                )
+                self.assertEqual(
+                    cfg["latent_sparse_tactical_refresh_interval_steps"],
+                    32,
+                )
+                self.assertEqual(
+                    cfg["latent_sparse_tactical_refresh_min_dwell_steps"],
+                    16,
+                )
+                self.assertTrue(cfg["latent_gae_reset_on_z_change"])
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.02)
+                self.assertAlmostEqual(cfg["latent_lam_h"], 0.000025)
+                self.assertAlmostEqual(
+                    cfg["latent_conditional_entropy_min_coef"],
+                    0.09,
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_marginal_balance_coef"],
+                    0.015,
+                )
+                self.assertEqual(cfg["learning_rate"], base["learning_rate"])
+                self.assertEqual(cfg["n_epochs"], base["n_epochs"])
+                self.assertEqual(cfg["opponent_pool"], ["OP3", "OP5", "OP6"])
+                self.assertEqual(
+                    cfg["opponent_pool_weights"],
+                    [0.15, 0.40, 0.45],
+                )
+
+        self.assertEqual(base["latent_z_embed_dim"], 0)
+        self.assertAlmostEqual(
+            base["latent_actor_z_separation_coef"],
+            0.028,
+        )
 
     def test_latent_v3i11_remains_unchanged_by_v3i14_tuning(self) -> None:
         cfg = resolve_all_presets()["latent_v3i11"]

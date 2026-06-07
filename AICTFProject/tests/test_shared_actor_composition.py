@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import inspect
 import unittest
+from types import SimpleNamespace
 from typing import Dict
 
 import numpy as np
@@ -33,6 +34,7 @@ from rl.custom_ppo.policy import (
     SharedActorCentralizedCritic,
     remap_legacy_actor_state_dict_keys,
 )
+from rl.custom_ppo.latent_diagnostics import _policy_z_sensitivity_kl
 from rl.custom_ppo.ppo_updater import (
     _policy_z_separation_loss,
     _warmup_ramp_value,
@@ -493,6 +495,63 @@ class LatentConditionedActorContractTests(unittest.TestCase):
             set(inspect.signature(model.policy_logits).parameters),
             {"obs", "z_idx"},
         )
+
+    def test_v3i16_direct_z_embedding_expands_local_actor_only(self) -> None:
+        cfg = apply_preset(PPOConfig(), "latent_v3i16_policy_z_embedding")
+        model = SharedActorCentralizedCritic(
+            _obs_space(),
+            _action_space(),
+            actor_cnn_feature_dim=cfg.actor_cnn_feature_dim,
+            actor_hidden_dim=cfg.actor_hidden_dim,
+            latent_k=cfg.latent_k,
+            z_embed_dim=cfg.latent_z_embed_dim,
+            strategy_hidden_dim=cfg.latent_strategy_hidden,
+            critic_hidden_dim=cfg.latent_vf_hidden,
+            latent_actor_z_onehot_enabled=cfg.latent_actor_z_onehot_enabled,
+            latent_actor_z_embed_scale=cfg.latent_actor_z_embed_scale,
+            latent_actor_z_adapter_enabled=cfg.latent_actor_z_adapter_enabled,
+            latent_actor_z_adapter_scale=cfg.latent_actor_z_adapter_scale,
+            latent_actor_z_adapter_init_std=cfg.latent_actor_z_adapter_init_std,
+            latent_actor_z_film_layers=cfg.latent_actor_z_film_layers,
+        )
+        model.eval()
+
+        contract = model.input_dim_contract()
+        self.assertEqual(contract["actor_input_dim"], 156)
+        self.assertEqual(contract["actor_z_embed_dim"], 8)
+        self.assertEqual(contract["actor_z_onehot_dim"], 0)
+        self.assertEqual(contract["q_phi_input_dim"], CONTEXT_STATE_DIM)
+        self.assertEqual(contract["critic_context_dim"], CONTEXT_STATE_DIM)
+        self.assertIsNotNone(model.strategy_embedding)
+        assert model.strategy_embedding is not None
+        self.assertEqual(model.strategy_embedding.embedding_dim, 8)
+        self.assertIsNotNone(model.latent_actor.z_adapter)
+        self.assertEqual(model.latent_actor.z_film_layers, 2)
+        self.assertEqual(
+            set(inspect.signature(model.policy_logits).parameters),
+            {"obs", "z_idx"},
+        )
+
+        obs = _fixed_obs(batch=4)
+        buffer = SimpleNamespace(
+            pos=1,
+            n_envs=4,
+            fields={
+                "obs_grid": obs["grid"].unsqueeze(0),
+                "obs_vec": obs["vec"].unsqueeze(0),
+                "obs_agent_mask": obs["agent_mask"].unsqueeze(0),
+                "obs_mask": obs["mask"].unsqueeze(0),
+            },
+        )
+        trainer = SimpleNamespace(
+            use_latent_strategy=True,
+            latent_k=4,
+            device=torch.device("cpu"),
+            model=model,
+            cfg=SimpleNamespace(batch_size=1024),
+        )
+        sensitivity = _policy_z_sensitivity_kl(trainer, buffer)
+        self.assertGreater(sensitivity["policy_z_sensitivity_KL"], 0.0)
 
     def test_two_layer_film_changes_logits_without_concat_z(self) -> None:
         model = _build_film_only_model(film_layers=2)

@@ -47,6 +47,10 @@ class LatentPreferenceTests(unittest.TestCase):
             "MI_executed_z_phase",
             "MI_executed_z_flag",
             "MI_executed_z_outcome",
+            "z_sensitivity_KL",
+            "z_sep_JSD",
+            "actor_input_dim",
+            "z_embed_dim",
         ):
             with self.subTest(field=field):
                 self.assertIn(field, fields)

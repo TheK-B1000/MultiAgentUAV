@@ -145,7 +145,45 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
     """Print the ``[PPO] Latent team strategy: enabled (...)`` line (and notes)."""
     interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
     fixed = bool(getattr(cfg, "fixed_latent_strategy", False))
-    interval_label = "fixed" if fixed else ("episode start" if interval <= 0 else f"every {interval} decision steps")
+    sparse_tactical_refresh = (
+        bool(
+            getattr(
+                cfg,
+                "latent_sparse_tactical_refresh_enabled",
+                False,
+            )
+        )
+        and not fixed
+    )
+    if fixed:
+        interval_label = "fixed"
+    elif sparse_tactical_refresh:
+        sparse_interval = int(
+            getattr(
+                cfg,
+                "latent_sparse_tactical_refresh_interval_steps",
+                32,
+            )
+            or 32
+        )
+        sparse_dwell = int(
+            getattr(
+                cfg,
+                "latent_sparse_tactical_refresh_min_dwell_steps",
+                16,
+            )
+            or 16
+        )
+        interval_label = (
+            "episode start + tactical transitions/"
+            f"{sparse_interval}-step interval (min dwell {sparse_dwell})"
+        )
+    else:
+        interval_label = (
+            "episode start"
+            if interval <= 0
+            else f"every {interval} decision steps"
+        )
     on_flag = bool(getattr(cfg, "latent_resample_on_flag", False)) and not fixed
     lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
     fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
@@ -180,7 +218,12 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
             "[PPO] WARNING: episode_credit on with warmup_decision_steps=0; q_phi snapshot uses step-0 context "
             "(canonical initial geometry + zeroed EMAs => opponent-blind). MI(z; opponent) structurally bounded near zero."
         )
-    if (not fixed) and interval <= 0 and float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0:
+    if (
+        (not fixed)
+        and interval <= 0
+        and not sparse_tactical_refresh
+        and float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0
+    ):
         print(
             "[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; "
             "with sample=episode start it has near-zero training effect."

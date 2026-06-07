@@ -224,6 +224,10 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
     if use_latent_strategy:
         fields.append("strategy_kl")
         fields.append("policy_z_sensitivity_KL")
+        fields.append("z_sensitivity_KL")
+        fields.append("z_sep_JSD")
+        fields.append("actor_input_dim")
+        fields.append("z_embed_dim")
         fields.extend(f"strategy_occupancy_{idx}" for idx in range(latent_k))
         for idx in range(latent_k):
             fields.extend(

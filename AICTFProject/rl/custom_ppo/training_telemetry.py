@@ -407,6 +407,15 @@ class TrainingTelemetry:
         row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
         row.update(stats)
         if hparams.use_latent_strategy:
+            input_contract = runtime.model.input_dim_contract()
+            row["z_sensitivity_KL"] = float(
+                row.get("policy_z_sensitivity_KL", 0.0) or 0.0
+            )
+            row["z_sep_JSD"] = float(
+                row.get("latent_actor_z_separation_jsd", 0.0) or 0.0
+            )
+            row["actor_input_dim"] = int(input_contract["actor_input_dim"])
+            row["z_embed_dim"] = int(input_contract["actor_z_embed_dim"])
             entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
             row["strategy_entropy_frac"] = entropy / max(1e-6, math.log(max(2, int(hparams.latent_k))))
             z_win_rates: list[float] = []
@@ -527,6 +536,57 @@ class TrainingTelemetry:
                     f"div_role={div_role:.3f} div_spread={div_spread:.3f} "
                     f"div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
                 )
+                print(
+                    "      [Actor Z] "
+                    f"sensitivity_KL={float(row.get('z_sensitivity_KL', 0.0) or 0.0):.6f} "
+                    f"sep_JSD={float(row.get('z_sep_JSD', 0.0) or 0.0):.6f} "
+                    f"actor_input_dim={int(row.get('actor_input_dim', 0) or 0)} "
+                    f"z_embed_dim={int(row.get('z_embed_dim', 0) or 0)}"
+                )
+                if hparams.latent_sparse_tactical_refresh_enabled:
+                    z_change = float(row.get("z_change_count", 0.0) or 0.0)
+                    z_dwell = float(row.get("z_dwell_mean", 0.0) or 0.0)
+                    refresh_attempt = float(
+                        row.get("z_refresh_attempt_count", 0.0) or 0.0
+                    )
+                    refresh_accept = float(
+                        row.get("z_refresh_accept_count", 0.0) or 0.0
+                    )
+                    refresh_reject = float(
+                        row.get("z_refresh_reject_dwell_count", 0.0) or 0.0
+                    )
+                    reason_interval = float(
+                        row.get("z_refresh_reason_interval", 0.0) or 0.0
+                    )
+                    reason_flag = float(
+                        row.get("z_refresh_reason_flag", 0.0) or 0.0
+                    )
+                    reason_phase = float(
+                        row.get("z_refresh_reason_phase", 0.0) or 0.0
+                    )
+                    reason_score = float(
+                        row.get(
+                            "z_refresh_reason_score_pressure",
+                            0.0,
+                        )
+                        or 0.0
+                    )
+                    agreement = float(
+                        row.get(
+                            "q_phi_argmax_vs_executed_z_agreement",
+                            0.0,
+                        )
+                        or 0.0
+                    )
+                    print(
+                        "      [Sparse Refresh] "
+                        f"change={z_change:.0f} dwell={z_dwell:.2f} "
+                        f"attempt={refresh_attempt:.0f} accept={refresh_accept:.0f} "
+                        f"reject_dwell={refresh_reject:.0f} "
+                        f"reason=i:{reason_interval:.0f}/f:{reason_flag:.0f}/"
+                        f"p:{reason_phase:.0f}/s:{reason_score:.0f} "
+                        f"qarg_exec={agreement:.3f}"
+                    )
             # Episode-credit q_phi telemetry: under v3 (latent_episode_strategy_ppo=True,
             # latent_strategy_ppo_coef=0) the qphi_grad_main / z_pi / z_ratio fields on the
             # main diag line are all structurally zero -- the per-step path is disabled by
