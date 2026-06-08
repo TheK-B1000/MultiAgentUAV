@@ -178,11 +178,14 @@ def _run_episode(
 
     if hasattr(model, "reset_strategy"):
         model.reset_strategy()
-    if mode == "fixed_z":
-        model.fixed_latent_strategy = True
-        model.fixed_latent_strategy_id = max(0, min(int(fixed_z_id), latent_k - 1))
-    else:
-        model.fixed_latent_strategy = False
+    # fixed_z is only meaningful for latent checkpoints; for non-latent the
+    # attribute does not exist on the policy handle (and predict() ignores it).
+    if latent_k > 0 and hasattr(model, "fixed_latent_strategy"):
+        if mode == "fixed_z":
+            model.fixed_latent_strategy = True
+            model.fixed_latent_strategy_id = max(0, min(int(fixed_z_id), latent_k - 1))
+        else:
+            model.fixed_latent_strategy = False
 
     obs = env.reset()
     prev_blue_score = 0
@@ -452,16 +455,21 @@ def _write_summary_md(
     opponents: list[str],
     deterministic: bool,
     seed: int,
+    is_latent: bool = True,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
-    lines.append(f"# Qualitative latent rollout: `{checkpoint.name}`\n")
+    title_suffix = "" if is_latent else " (baseline -- no latent strategy)"
+    lines.append(f"# Qualitative rollout: `{checkpoint.name}`{title_suffix}\n")
     lines.append(
         f"Pure evaluation -- no training objectives, no supervised labels, no "
         f"backward passes. Tool: `tools/qualitative_rollout.py`.\n"
     )
+    latent_line = (
+        f"- latent_k: **{latent_k}**" if is_latent else "- latent_k: **n/a (no_latent baseline)**"
+    )
     lines.append(
-        f"- latent_k: **{latent_k}** | blue agents: **{n_blue}** | red agents: **{n_red}**\n"
+        f"{latent_line} | blue agents: **{n_blue}** | red agents: **{n_red}**\n"
         f"- opponents evaluated: **{', '.join(opponents)}**\n"
         f"- deterministic policy: **{deterministic}** | seed: **{seed}**\n"
         f"- total episodes: **{len(records)}**\n"
@@ -471,83 +479,130 @@ def _write_summary_md(
     natural_rows = [r for r in agg_rows if r["mode"] == "natural"]
     fixed_rows = [r for r in agg_rows if r["mode"] == "fixed_z"]
 
-    lines.append("## Win rate by (opponent, z) -- fixed-z mode\n")
-    lines.append(
-        "Each row forces ``z`` to a single value for the entire episode. "
-        "If the WR rows differ meaningfully across z for the same opponent, "
-        "the actor is genuinely sensitive to z. If they look identical, the "
-        "actor learned to ignore z.\n"
-    )
-    lines.append(
-        _markdown_table(
-            fixed_rows,
-            ["opponent", "z", "n_episodes_touched", "blue_win_rate",
-             "blue_scores_per_episode", "red_scores_per_episode", "n_steps"],
+    if is_latent:
+        lines.append("## Win rate by (opponent, z) -- fixed-z mode\n")
+        lines.append(
+            "Each row forces ``z`` to a single value for the entire episode. "
+            "If the WR rows differ meaningfully across z for the same opponent, "
+            "the actor is genuinely sensitive to z. If they look identical, the "
+            "actor learned to ignore z.\n"
         )
-    )
-
-    lines.append("## Natural q_phi routing -- per-z dwell + WR\n")
-    lines.append(
-        "In natural mode q_phi picks z. The WR column here is per-episode "
-        "(an episode contributes to every z it visited). ``n_steps`` is the "
-        "total dwell that z accumulated across all episodes for that opponent.\n"
-    )
-    lines.append(
-        _markdown_table(
-            natural_rows,
-            ["opponent", "z", "n_episodes_touched", "n_steps",
-             "blue_win_rate", "blue_scores_per_episode", "red_scores_per_episode"],
-        )
-    )
-
-    # Behavioral fingerprint per z (averaged across all opponents + modes).
-    by_z_global: dict[int, dict[str, float]] = {}
-    by_z_count: dict[int, int] = {}
-    for r in agg_rows:
-        z = int(r["z"])
-        if z < 0:
-            continue
-        if z not in by_z_global:
-            by_z_global[z] = {name: 0.0 for name in BEHAVIOR_TELEMETRY_NAMES}
-            by_z_count[z] = 0
-        w = int(r["n_steps"])
-        for name in BEHAVIOR_TELEMETRY_NAMES:
-            by_z_global[z][name] += float(r.get(f"{name}_mean", 0.0)) * w
-        by_z_count[z] += w
-
-    behavior_rows: list[dict[str, Any]] = []
-    for z in sorted(by_z_global):
-        denom = max(by_z_count[z], 1)
-        row: dict[str, Any] = {"z": z, "total_steps": by_z_count[z]}
-        for name in BEHAVIOR_TELEMETRY_NAMES:
-            row[name] = by_z_global[z][name] / denom
-        behavior_rows.append(row)
-
-    lines.append("## Behavioral fingerprint per z (step-weighted, all opponents + modes)\n")
-    lines.append(
-        "Means of the 13 ``BEHAVIOR_TELEMETRY_NAMES`` signals, weighted by "
-        "the number of steps that z was active. These are *observed* "
-        "behaviors -- no labels were used to compute them.\n"
-    )
-    lines.append(_markdown_table(behavior_rows, ["z", "total_steps", *BEHAVIOR_TELEMETRY_NAMES]))
-
-    if len(behavior_rows) > 1:
-        means = np.asarray(
-            [[r[name] for name in BEHAVIOR_TELEMETRY_NAMES] for r in behavior_rows],
-            dtype=np.float64,
-        )
-        avg = means.mean(axis=0, keepdims=True)
-        dev = means - avg
-        lines.append("## Top 3 distinguishing behaviors per z\n")
-        for i, r in enumerate(behavior_rows):
-            order = np.argsort(-np.abs(dev[i]))[:3]
-            picks = ", ".join(
-                f"`{BEHAVIOR_TELEMETRY_NAMES[j]}` "
-                f"({means[i, j]:+.3f} vs avg {avg[0, j]:+.3f})"
-                for j in order
+        lines.append(
+            _markdown_table(
+                fixed_rows,
+                ["opponent", "z", "n_episodes_touched", "blue_win_rate",
+                 "blue_scores_per_episode", "red_scores_per_episode", "n_steps"],
             )
-            lines.append(f"- **z{int(r['z'])}**: {picks}")
-        lines.append("")
+        )
+
+        lines.append("## Natural q_phi routing -- per-z dwell + WR\n")
+        lines.append(
+            "In natural mode q_phi picks z. The WR column here is per-episode "
+            "(an episode contributes to every z it visited). ``n_steps`` is the "
+            "total dwell that z accumulated across all episodes for that opponent.\n"
+        )
+        lines.append(
+            _markdown_table(
+                natural_rows,
+                ["opponent", "z", "n_episodes_touched", "n_steps",
+                 "blue_win_rate", "blue_scores_per_episode", "red_scores_per_episode"],
+            )
+        )
+    else:
+        lines.append("## Per-opponent WR -- baseline (no z)\n")
+        lines.append(
+            "Non-latent checkpoint: there is no ``z`` to fix or route. Each "
+            "row is the aggregate over all natural-mode episodes for that "
+            "opponent. ``z`` is reported as -1 to keep the schema consistent "
+            "with latent runs for side-by-side comparison.\n"
+        )
+        lines.append(
+            _markdown_table(
+                natural_rows,
+                ["opponent", "z", "n_episodes_touched", "n_steps",
+                 "blue_win_rate", "blue_scores_per_episode", "red_scores_per_episode"],
+            )
+        )
+
+    # Behavioral fingerprint -- per z for latent, per opponent for baseline.
+    if is_latent:
+        # Average behavior signals across all opponents + modes, weighted by
+        # the number of steps that z was active.
+        by_z_global: dict[int, dict[str, float]] = {}
+        by_z_count: dict[int, int] = {}
+        for r in agg_rows:
+            z = int(r["z"])
+            if z < 0:
+                continue
+            if z not in by_z_global:
+                by_z_global[z] = {name: 0.0 for name in BEHAVIOR_TELEMETRY_NAMES}
+                by_z_count[z] = 0
+            w = int(r["n_steps"])
+            for name in BEHAVIOR_TELEMETRY_NAMES:
+                by_z_global[z][name] += float(r.get(f"{name}_mean", 0.0)) * w
+            by_z_count[z] += w
+
+        behavior_rows: list[dict[str, Any]] = []
+        for z in sorted(by_z_global):
+            denom = max(by_z_count[z], 1)
+            row: dict[str, Any] = {"z": z, "total_steps": by_z_count[z]}
+            for name in BEHAVIOR_TELEMETRY_NAMES:
+                row[name] = by_z_global[z][name] / denom
+            behavior_rows.append(row)
+
+        lines.append("## Behavioral fingerprint per z (step-weighted, all opponents + modes)\n")
+        lines.append(
+            "Means of the 13 ``BEHAVIOR_TELEMETRY_NAMES`` signals, weighted by "
+            "the number of steps that z was active. These are *observed* "
+            "behaviors -- no labels were used to compute them.\n"
+        )
+        lines.append(_markdown_table(behavior_rows, ["z", "total_steps", *BEHAVIOR_TELEMETRY_NAMES]))
+
+        if len(behavior_rows) > 1:
+            means = np.asarray(
+                [[r[name] for name in BEHAVIOR_TELEMETRY_NAMES] for r in behavior_rows],
+                dtype=np.float64,
+            )
+            avg = means.mean(axis=0, keepdims=True)
+            dev = means - avg
+            lines.append("## Top 3 distinguishing behaviors per z\n")
+            for i, r in enumerate(behavior_rows):
+                order = np.argsort(-np.abs(dev[i]))[:3]
+                picks = ", ".join(
+                    f"`{BEHAVIOR_TELEMETRY_NAMES[j]}` "
+                    f"({means[i, j]:+.3f} vs avg {avg[0, j]:+.3f})"
+                    for j in order
+                )
+                lines.append(f"- **z{int(r['z'])}**: {picks}")
+            lines.append("")
+    else:
+        # Baseline fingerprint: one row per opponent, step-weighted means.
+        by_opp: dict[str, dict[str, float]] = {}
+        by_opp_count: dict[str, int] = {}
+        for r in agg_rows:
+            opp = str(r["opponent"])
+            if opp not in by_opp:
+                by_opp[opp] = {name: 0.0 for name in BEHAVIOR_TELEMETRY_NAMES}
+                by_opp_count[opp] = 0
+            w = int(r["n_steps"])
+            for name in BEHAVIOR_TELEMETRY_NAMES:
+                by_opp[opp][name] += float(r.get(f"{name}_mean", 0.0)) * w
+            by_opp_count[opp] += w
+        behavior_rows = []
+        for opp in sorted(by_opp):
+            denom = max(by_opp_count[opp], 1)
+            row = {"opponent": opp, "total_steps": by_opp_count[opp]}
+            for name in BEHAVIOR_TELEMETRY_NAMES:
+                row[name] = by_opp[opp][name] / denom
+            behavior_rows.append(row)
+
+        lines.append("## Behavioral fingerprint per opponent (step-weighted)\n")
+        lines.append(
+            "Baseline reference: means of the 13 ``BEHAVIOR_TELEMETRY_NAMES`` "
+            "signals per opponent. Use these as the no-latent comparison "
+            "point when reading a latent checkpoint's per-z fingerprint.\n"
+        )
+        lines.append(_markdown_table(behavior_rows, ["opponent", "total_steps", *BEHAVIOR_TELEMETRY_NAMES]))
 
     lines.append("## Summer-faithful audit\n")
     lines.append(
@@ -582,27 +637,38 @@ def run(
     if not checkpoint.exists():
         raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
     meta = read_custom_ppo_metadata(str(checkpoint))
-    if not meta.get("use_latent_strategy"):
-        raise SystemExit(
-            "This tool is for latent checkpoints only "
-            f"({checkpoint} reports use_latent_strategy=False)."
-        )
-    latent_k = int(meta.get("latent_k", 4))
+    is_latent = bool(meta.get("use_latent_strategy", False))
+    latent_k = int(meta.get("latent_k", 4)) if is_latent else 0
     n_blue = int(meta.get("n_blue", agents))
     n_red = n_blue  # CTF is symmetric
 
+    effective_modes = list(modes)
+    if not is_latent and "fixed_z" in effective_modes:
+        warnings.warn(
+            "[qualitative] checkpoint has no latent strategy "
+            "(use_latent_strategy=False); skipping fixed_z mode."
+        )
+        effective_modes = [m for m in effective_modes if m != "fixed_z"]
+    if not effective_modes:
+        raise SystemExit(
+            "[qualitative] no modes left to run "
+            "(non-latent checkpoint with only fixed_z requested)."
+        )
+
     cfg = PPOConfig()
-    cfg.use_latent_strategy = True
+    cfg.use_latent_strategy = is_latent
     cfg.n_envs = 1
     cfg.seed = int(seed)
     cfg.device = str(device)
     cfg.max_blue_agents = n_blue
     cfg.n_agents_per_team = n_blue
-    cfg.latent_k = latent_k
+    if is_latent:
+        cfg.latent_k = latent_k
 
+    flavour = f"latent_k={latent_k}" if is_latent else "no_latent (baseline)"
     print(f"[qualitative] checkpoint: {checkpoint}")
-    print(f"[qualitative] latent_k={latent_k}  agents={n_blue}v{n_red}  device={device}  seed={seed}")
-    print(f"[qualitative] modes={modes}  episodes_per_mode={episodes_per_mode}")
+    print(f"[qualitative] {flavour}  agents={n_blue}v{n_red}  device={device}  seed={seed}")
+    print(f"[qualitative] modes={effective_modes}  episodes_per_mode={episodes_per_mode}")
     print(f"[qualitative] opponents={opponents}")
 
     first_opp_env = _env_opponent_tag(opponents[0])
@@ -629,7 +695,7 @@ def run(
                 continue
             # NB: opponent only switches on the next env.reset(), so the very
             # first reset of a (new opponent) block hooks up the correct red AI.
-            for mode in modes:
+            for mode in effective_modes:
                 if mode == "natural":
                     for ep_idx in range(episodes_per_mode):
                         torch.manual_seed(seed + global_ep_counter)
@@ -702,6 +768,7 @@ def run(
             opponents=opponents,
             deterministic=deterministic,
             seed=seed,
+            is_latent=is_latent,
         )
 
         outputs = {

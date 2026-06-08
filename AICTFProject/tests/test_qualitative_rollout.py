@@ -251,6 +251,55 @@ def test_summarise_positions_centroid_ignores_dead_agents():
 # ---------------------------------------------------------------------------
 
 
+def test_write_summary_md_baseline_no_latent_path(tmp_path: Path):
+    """Non-latent checkpoint: per-opponent baseline summary, no per-z sections."""
+    records = [
+        _make_record("OP4", "natural", -1, 0, [-1, -1, -1, -1], blue_won=True),
+        _make_record("OP4", "natural", -1, 1, [-1, -1, -1], blue_won=False),
+    ]
+    agg = qr._aggregate_by_z(records)
+    # Baseline aggregation: one (opp, mode, z=-1) bucket.
+    assert len(agg) == 1
+    only = agg[0]
+    assert only["z"] == -1
+    assert only["opponent"] == "OP4"
+    assert only["n_episodes_touched"] == 2
+    assert only["blue_win_rate"] == pytest.approx(0.5)
+
+    out_md = tmp_path / "rollout_summary.md"
+    qr._write_summary_md(
+        out_md,
+        records=records,
+        agg_rows=agg,
+        checkpoint=Path("final_no_latent_baseline.zip"),
+        latent_k=0,
+        n_blue=4,
+        n_red=4,
+        opponents=["OP4"],
+        deterministic=True,
+        seed=42,
+        is_latent=False,
+    )
+    text = out_md.read_text(encoding="utf-8")
+
+    # Non-latent flag in header.
+    assert "(baseline -- no latent strategy)" in text
+    assert "no_latent baseline" in text
+
+    # Baseline-only section names.
+    assert "## Per-opponent WR -- baseline (no z)" in text
+    assert "## Behavioral fingerprint per opponent" in text
+
+    # Latent-only sections must be absent.
+    assert "Win rate by (opponent, z) -- fixed-z mode" not in text
+    assert "Natural q_phi routing" not in text
+    assert "Behavioral fingerprint per z" not in text
+    assert "Top 3 distinguishing behaviors per z" not in text
+
+    # Summer-faithful footer still present.
+    assert "## Summer-faithful audit" in text
+
+
 def test_write_summary_md_includes_required_sections(tmp_path: Path):
     records = [
         _make_record("OP3", "fixed_z", 0, 0, [0, 0, 0], blue_won=True),
@@ -273,7 +322,7 @@ def test_write_summary_md_includes_required_sections(tmp_path: Path):
     )
     text = out_md.read_text(encoding="utf-8")
     # Section headers we care about for review.
-    assert "# Qualitative latent rollout" in text
+    assert "# Qualitative rollout" in text
     assert "## Win rate by (opponent, z) -- fixed-z mode" in text
     assert "## Natural q_phi routing" in text
     assert "## Behavioral fingerprint per z" in text
