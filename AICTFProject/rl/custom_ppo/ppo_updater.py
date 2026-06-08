@@ -688,6 +688,16 @@ class PPOUpdater:
         episode_strategy_stats = self.latent_state.apply_episode_strategy_ppo(
             latent_lam_h=latent_lam_h
         )
+        # v3i19 arc-credit PPO update. Runs as a separate inner-PPO pass on
+        # q_phi over per-arc records (one per z-arc, not one per episode).
+        # No-op when ``latent_arc_credit_enabled`` is False so legacy presets
+        # remain untouched; mutually compatible with episode-credit (both can
+        # be on, though v3i19 explicitly turns episode-credit off).
+        arc_strategy_stats = self.latent_state.apply_arc_strategy_ppo()
+        # Drain the rollout's arc records once the PPO update is done so the
+        # next rollout starts with a clean buffer. Per-env open-arc state is
+        # preserved (arcs can span rollout boundaries).
+        self.latent_state.reset_arc_credit_rollout_state()
         rollout_specialist_stats = (
             self.latent_state.apply_rollout_specialist_router(buffer)
         )
@@ -750,6 +760,7 @@ class PPOUpdater:
         runtime.last_stats.update(_forced_z_behavior_profile(runtime, buffer))
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
+        runtime.last_stats.update(arc_strategy_stats)
         runtime.last_stats.update(rollout_specialist_stats)
         runtime.last_stats.update(strategy_experience_stats)
         runtime.last_stats.update(refresh_log_stats)

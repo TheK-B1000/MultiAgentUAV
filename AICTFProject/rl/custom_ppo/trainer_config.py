@@ -81,6 +81,14 @@ class TrainerHyperparams:
     latent_episode_strategy_warmup_decision_steps: int
     latent_episode_strategy_n_epochs: int
     latent_episode_strategy_lr: Optional[float]
+    # v3i19 arc-credit channel (Summer-faithful per-arc q_phi PPO gradient).
+    latent_arc_credit_enabled: bool
+    latent_arc_credit_coef: float
+    latent_arc_credit_n_epochs: int
+    latent_arc_credit_clip_eps: float
+    latent_arc_credit_return_norm: bool
+    latent_arc_credit_baseline: str
+    latent_arc_credit_min_len: int
     latent_q_phi_marginal_baseline: bool
     latent_q_phi_bucket_baseline: Optional[str]
     latent_q_phi_bucket_baseline_ema: float
@@ -301,6 +309,30 @@ class TrainerHyperparams:
                 float(getattr(cfg, "latent_episode_strategy_lr", None))
                 if getattr(cfg, "latent_episode_strategy_lr", None) is not None
                 else None
+            ),
+            latent_arc_credit_enabled=(
+                use_latent
+                and not fixed_latent
+                and bool(getattr(cfg, "latent_arc_credit_enabled", False))
+            ),
+            latent_arc_credit_coef=max(
+                0.0, float(getattr(cfg, "latent_arc_credit_coef", 1.0) or 0.0)
+            ),
+            latent_arc_credit_n_epochs=max(
+                1, int(getattr(cfg, "latent_arc_credit_n_epochs", 4) or 1)
+            ),
+            latent_arc_credit_clip_eps=max(
+                1e-6, float(getattr(cfg, "latent_arc_credit_clip_eps", 0.2) or 0.2)
+            ),
+            latent_arc_credit_return_norm=bool(
+                getattr(cfg, "latent_arc_credit_return_norm", True)
+            ),
+            latent_arc_credit_baseline=str(
+                getattr(cfg, "latent_arc_credit_baseline", "context_value")
+                or "context_value"
+            ).lower(),
+            latent_arc_credit_min_len=max(
+                1, int(getattr(cfg, "latent_arc_credit_min_len", 32) or 1)
             ),
             latent_q_phi_marginal_baseline=bool(
                 getattr(cfg, "latent_q_phi_marginal_baseline", False)
@@ -685,6 +717,13 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 # fixed_latent``) lives on ``hparams.latent_episode_strategy_ppo``.
                 "use_episode_strategy_value_head": bool(
                     getattr(cfg, "latent_episode_strategy_ppo", False)
+                    or (
+                        getattr(cfg, "latent_arc_credit_enabled", False)
+                        and str(
+                            getattr(cfg, "latent_arc_credit_baseline", "context_value")
+                            or "context_value"
+                        ).lower() == "context_value"
+                    )
                 ),
                 "strategy_tau": max(
                     1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)

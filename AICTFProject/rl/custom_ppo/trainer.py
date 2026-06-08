@@ -202,6 +202,14 @@ class CustomPPOTrainer:
         )
         self.latent_episode_strategy_n_epochs = hparams.latent_episode_strategy_n_epochs
         self.latent_episode_strategy_lr = hparams.latent_episode_strategy_lr
+        # v3i19 arc-credit channel.
+        self.latent_arc_credit_enabled = hparams.latent_arc_credit_enabled
+        self.latent_arc_credit_coef = hparams.latent_arc_credit_coef
+        self.latent_arc_credit_n_epochs = hparams.latent_arc_credit_n_epochs
+        self.latent_arc_credit_clip_eps = hparams.latent_arc_credit_clip_eps
+        self.latent_arc_credit_return_norm = hparams.latent_arc_credit_return_norm
+        self.latent_arc_credit_baseline = hparams.latent_arc_credit_baseline
+        self.latent_arc_credit_min_len = hparams.latent_arc_credit_min_len
         self.latent_q_phi_marginal_baseline = hparams.latent_q_phi_marginal_baseline
         self.latent_q_phi_bucket_baseline = hparams.latent_q_phi_bucket_baseline
         self.latent_q_phi_bucket_baseline_ema = hparams.latent_q_phi_bucket_baseline_ema

@@ -160,6 +160,55 @@ class PPOConfig:
     # under Fix 5 (``latent_strategy_ppo_coef == 0`` gates main-loop q_phi loss
     # to zero), so there is no double-stepping.
     latent_episode_strategy_lr: Optional[float] = None
+    # ------------------------------------------------------------------
+    # v3i19 arc-credit channel: per-z-arc PPO update on q_phi.
+    # ------------------------------------------------------------------
+    # When ``latent_arc_credit_enabled`` is True, q_phi receives a PPO gradient
+    # at every z-arc boundary (i.e. every time a sparse resample or event refresh
+    # changes z, plus at episode end). Each arc contributes one training record
+    # (ctx_at_arc_start, z, log_prob(z), arc_return) to the rollout's arc buffer
+    # and the buffer is processed in inner PPO epochs at update time.
+    #
+    # This is the Summer-faithful "reward z consequences, not z existence" channel
+    # specified for v3i19_summer_consequence. It is mutually exclusive with the
+    # per-step ``latent_strategy_ppo_coef`` channel (which v3i18 proved too noisy)
+    # and orthogonal to the per-episode ``latent_episode_strategy_ppo`` channel
+    # (which can be left off when arc-credit is on; arc credit subsumes it for
+    # episode-arc presets when ``latent_resample_every_n == 0``).
+    #
+    # Plan-faithful contract: arc_return is summed env reward over the arc only.
+    # No labels, no semantic heads, no opponent ID seen by q_phi. The advantage
+    # baseline is either q_phi's own value head (``context_value``) or a global
+    # EMA over arc returns (``running_mean``); neither uses external labels.
+    latent_arc_credit_enabled: bool = False
+    # Loss coefficient applied to the arc-credit PPO loss. Mirrors
+    # ``latent_episode_strategy_coef`` semantics. v3i18 confirmed per-step
+    # coef=0.3 was insufficient; v3i19's per-arc default is 1.0 for stronger
+    # consequence amplitude (one credit signal per arc, not per step).
+    latent_arc_credit_coef: float = 1.0
+    # Number of PPO inner epochs run over the arc buffer per training update.
+    # Mirrors ``latent_episode_strategy_n_epochs``. Default 4 because the arc
+    # batch is per-arc (not per-episode), so the batch is ~K times larger than
+    # the episode batch with ``resample_every_n>0``; the extra epochs give the
+    # arc gradient enough cumulative step to move q_phi.
+    latent_arc_credit_n_epochs: int = 4
+    # Standard PPO clipping epsilon for the arc-credit ratio.
+    latent_arc_credit_clip_eps: float = 0.2
+    # Normalize arc advantages within each PPO mini-batch (mean=0, std=1).
+    # On by default; essential when WR varies 50-100% across opponents.
+    latent_arc_credit_return_norm: bool = True
+    # Advantage baseline for the arc-credit PPO loss:
+    #   "context_value" -- V_phi(ctx_at_arc_start, z_arc). Reuses the existing
+    #                      ``episode_strategy_value_head`` (no new params).
+    #   "running_mean"  -- detached EMA of arc returns (no V dependency).
+    # The Summer plan only requires that no labels or aux heads be introduced;
+    # both baselines satisfy that. Default "context_value" matches v3i19 spec.
+    latent_arc_credit_baseline: str = "context_value"
+    # Minimum arc length (in env steps) required for the arc to contribute to
+    # the PPO loss. Arcs shorter than this (e.g. cut by episode end soon after
+    # a z resample) are dropped from the loss but still counted in telemetry.
+    # Prevents extremely short noisy arcs from dominating the gradient.
+    latent_arc_credit_min_len: int = 32
     # Bucketing strategy for q_phi's advantage baseline (v3d "Smart Coach
     # Router"). When set, the q_phi advantage replaces the V-marginal baseline
     # with an empirical per-bucket mean of episode returns:

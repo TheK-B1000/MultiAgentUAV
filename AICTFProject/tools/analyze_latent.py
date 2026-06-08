@@ -622,6 +622,32 @@ def _qphi_audit_df(acc: ColumnStats) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
+def _df_to_markdown(df: pd.DataFrame) -> str:
+    """Render a GitHub-flavored markdown table without requiring `tabulate`.
+
+    Mirrors ``DataFrame.to_markdown(index=False)`` for the subset of formatting
+    this report needs. Floats are rendered using pandas' default formatting
+    (callers ``.round()`` first to control precision).
+    """
+    if df.empty:
+        return ""
+    cols = [str(c) for c in df.columns]
+    header = "| " + " | ".join(cols) + " |"
+    sep = "| " + " | ".join(["---"] * len(cols)) + " |"
+    body: list[str] = []
+    for _, row in df.iterrows():
+        cells: list[str] = []
+        for v in row:
+            if pd.isna(v):
+                cells.append("")
+            elif isinstance(v, float):
+                cells.append(f"{v}")
+            else:
+                cells.append(str(v))
+        body.append("| " + " | ".join(cells) + " |")
+    return "\n".join([header, sep, *body])
+
+
 def _write_report(
     out_path: Path,
     *,
@@ -645,12 +671,12 @@ def _write_report(
     lines.append("## Dwell-weighted segment MI (Summer-faithful)")
     lines.append("Computed at z-segment granularity, not per-step. Normalized = MI / H(z_seg).\n")
     if not seg_mi_df.empty:
-        lines.append(seg_mi_df.round(4).to_markdown(index=False))
+        lines.append(_df_to_markdown(seg_mi_df.round(4)))
     lines.append("")
 
     lines.append("## Dwell-by-z")
     if not summary_df.empty:
-        lines.append(summary_df.round(3).to_markdown(index=False))
+        lines.append(_df_to_markdown(summary_df.round(3)))
     lines.append("")
 
     lines.append("## Switch rate by team phase")
@@ -659,7 +685,7 @@ def _write_report(
         total = float(rows_by_phase[p])
         rate = float(switch_by_phase[p] / total) if total > 0 else 0.0
         rows.append({"phase_id": p, "phase_name": name, "rows": int(total), "switch_rate": rate})
-    lines.append(pd.DataFrame(rows).round(4).to_markdown(index=False))
+    lines.append(_df_to_markdown(pd.DataFrame(rows).round(4)))
     lines.append("")
 
     lines.append("## Top distinguishing behaviors per z")
@@ -680,7 +706,7 @@ def _write_report(
 
     lines.append("## z_wr by opponent (from episodes.csv)")
     if not z_wr_opp_df.empty:
-        lines.append(z_wr_opp_df.round(3).to_markdown(index=False))
+        lines.append(_df_to_markdown(z_wr_opp_df.round(3)))
     lines.append("")
 
     lines.append("## q_phi global-feature audit")
@@ -704,7 +730,7 @@ def _write_report(
         latest["is_strategic"] = latest["global_state_field"].isin(strategic)
         cols = ["global_state_field", "mean", "std", "min", "max", "frac_zero", "is_constant", "is_strategic"]
         lines.append("### Current frame (frame_offset = 0)")
-        lines.append(latest[cols].round(4).to_markdown(index=False))
+        lines.append(_df_to_markdown(latest[cols].round(4)))
         # Flag dead columns across all frames.
         dead = qphi_df[qphi_df["is_constant"]]
         if not dead.empty:
@@ -726,6 +752,7 @@ def run(run_arg: str, *, K: int, out_dir: Path | None, chunk_rows: int) -> dict[
     if not e3.exists():
         raise FileNotFoundError(f"Missing e3 step CSV: {e3}")
     out_dir = out_dir or e3.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
     stem = paths["stem"].name
 
     def _out(name: str) -> Path:

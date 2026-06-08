@@ -687,10 +687,14 @@ class RolloutCollector:
         """
         latent_state = self.latent_state
         done_t = torch.as_tensor(dones, dtype=torch.bool, device=self.device)
+        reward_total = reward_component["reward_total"].detach()
         latent_state.episode_return_accum = (
-            latent_state.episode_return_accum
-            + reward_component["reward_total"].detach()
+            latent_state.episode_return_accum + reward_total
         )
+        # v3i19 arc-credit reward accumulator. Independent of episode-credit:
+        # arc accumulates over the open z-arc only and is finalized at z change
+        # OR at episode end (handled below). No-op when arc credit is disabled.
+        latent_state.arc_accumulate_step(reward_total)
         if not bool(done_t.any().item()):
             return
         episode_strategy_ppo_on = bool(self.hparams.latent_episode_strategy_ppo)
@@ -722,6 +726,13 @@ class RolloutCollector:
                     )
         latent_state.episode_return_accum[done_t] = 0.0
         latent_state.episode_strategy_has_start[done_t] = False
+        # v3i19 arc-credit: finalize the still-open arc on episode termination.
+        # The arc's accumulated reward is the segment-return for credit
+        # attribution to the z that was active in those last steps. Must run
+        # BEFORE the next ``strategy_for_step`` (which would otherwise see
+        # ``arc_has_open=True`` and overwrite the snapshot).
+        if bool(getattr(self.hparams, "latent_arc_credit_enabled", False)):
+            latent_state.arc_finalize(done_t, reason="episode_end")
 
     def _append_global_state_probe_rows(
         self,

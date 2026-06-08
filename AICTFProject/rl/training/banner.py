@@ -230,6 +230,34 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
         )
     if fixed:
         print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
+    if bool(getattr(cfg, "latent_arc_credit_enabled", False)) and not fixed:
+        arc_coef = float(getattr(cfg, "latent_arc_credit_coef", 1.0) or 0.0)
+        arc_baseline = str(
+            getattr(cfg, "latent_arc_credit_baseline", "context_value") or "context_value"
+        )
+        arc_min_len = int(getattr(cfg, "latent_arc_credit_min_len", 32) or 1)
+        arc_epochs = int(getattr(cfg, "latent_arc_credit_n_epochs", 4) or 1)
+        arc_clip = float(getattr(cfg, "latent_arc_credit_clip_eps", 0.2) or 0.2)
+        arc_norm = bool(getattr(cfg, "latent_arc_credit_return_norm", True))
+        print(
+            "[PPO] q_phi arc-credit: enabled "
+            f"(coef={arc_coef:.3f}, baseline={arc_baseline}, min_len={arc_min_len}, "
+            f"n_epochs={arc_epochs}, clip_eps={arc_clip:.3f}, return_norm={arc_norm})"
+        )
+        h_start = float(getattr(cfg, "latent_lam_h_start", float(cfg.latent_lam_h)) or 0.0)
+        h_end = float(
+            getattr(cfg, "latent_lam_h_end", getattr(cfg, "latent_lam_h_final", float(cfg.latent_lam_h)))
+            or 0.0
+        )
+        if h_start != h_end:
+            anneal_end = int(
+                getattr(cfg, "latent_entropy_anneal_end", getattr(cfg, "latent_entropy_decay_steps", 0))
+                or 0
+            )
+            print(
+                f"[PPO] Entropy schedule: lambda_H {h_start:.4f} -> {h_end:.4f} over {anneal_end:,} steps "
+                "(collapse guard only; not the credit signal)"
+            )
 
 
 def _print_metrics_csv_banner(cfg: PPOConfig) -> None:

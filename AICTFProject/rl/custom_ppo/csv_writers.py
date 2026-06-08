@@ -268,6 +268,26 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("latent_normalized_mi_z_phase")
         fields.append("latent_normalized_mi_z_outcome")
         fields.append("latent_normalized_mi_z_flag_state")
+        # v3i19 arc-credit telemetry (zeroed when arc credit is disabled).
+        fields.append("latent_arc_count")
+        fields.append("latent_arc_finalized_count")
+        fields.append("latent_arc_dropped_short_count")
+        fields.append("latent_arc_mean_length")
+        fields.append("latent_arc_mean_return")
+        fields.append("latent_arc_advantage_mean")
+        fields.append("latent_arc_advantage_std")
+        fields.append("latent_arc_policy_loss")
+        fields.append("latent_arc_value_loss")
+        fields.append("latent_arc_clipfrac")
+        fields.append("latent_arc_approx_kl")
+        # v3i19 smoke alarm: gradient flow + q_phi posterior shape. If
+        # ``latent_arc_credit_coef > 0`` but ``q_phi_grad_norm`` stays near
+        # zero across rollouts, the consequence channel is decorative.
+        fields.append("latent_arc_credit_coef")
+        fields.append("latent_arc_grad_norm")
+        fields.append("q_phi_grad_norm")
+        fields.append("q_phi_entropy")
+        fields.append("q_phi_mean_max_prob")
         fields.append("latent_mi_z_spread_bucket_nats")
         fields.append("latent_mi_z_role_bucket_nats")
         fields.append("latent_mi_z_pressure_bucket_nats")

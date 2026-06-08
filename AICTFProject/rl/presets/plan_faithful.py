@@ -1090,6 +1090,154 @@ def apply_plan_faithful_latent_v3i17_long_arc(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v3i19_summer_consequence(cfg: PPOConfig) -> PPOConfig:
+    """v3i19: Summer-faithful per-arc consequence credit.
+
+    Diagnosis driving the design (from v3i18 telemetry):
+
+    * v3i18's z had near-max entropy AND near-zero MI with any context.
+    * Per-step ``latent_strategy_ppo_coef = 0.30`` was too noisy a credit
+      pathway when ~200 z decisions per episode shared a single env return.
+    * Behavior fingerprints across z values were statistically identical;
+      the actor learned to ignore z.
+
+    v3i19 changes credit assignment, not the conceptual design. Same K=4,
+    same global-state q_phi, same shared actor, same critic-z conditioning,
+    same persistence + entropy regularisation, same task-reward-only signal.
+    The only change is HOW the task-reward gradient reaches q_phi.
+
+    Recipe (per the locked design):
+
+    1. **Sparse refresh with optional flag-event reactivity** --
+       ``latent_resample_every_n = 64`` (vs v3i18's 128). Optional flag-
+       event refresh on territory changes via ``latent_resample_on_flag``.
+       This gives q_phi more chances to react to flag-state transitions
+       while keeping persistence in effect within each arc.
+    2. **Persistence**: ``latent_lam_p = 0.03`` (range 0.01-0.05 from plan;
+       prevents thrashing without freezing z forever).
+    3. **Entropy decays from 0.003 -> 0.0002 over 300k steps.** Early
+       training keeps z alive; later training stops paying q_phi to spin
+       the roulette wheel. Still Summer-faithful: entropy regularisation
+       remains present as a collapse guard, not as the primary objective.
+    4. **Per-arc credit replaces per-step PPO.**
+       ``latent_strategy_ppo_coef = 0.0``,
+       ``latent_episode_strategy_ppo = False``,
+       ``latent_arc_credit_enabled = True``,
+       ``latent_arc_credit_coef = 1.0``.
+       At each z-decision boundary the trainer saves
+       (ctx_at_arc_start, z, log_prob(z), V_phi(ctx)). When the arc ends
+       (next z-resample or episode end), arc_return = sum env reward over
+       the arc, arc_advantage = arc_return - V_phi(ctx). Normalized within
+       the rollout batch. q_phi loss = clipped PPO ratio * advantage.
+    5. **Stronger actor z conditioning via architecture** (FiLM + onehot
+       concat). The actor receives both the FiLM scale/shift modulation
+       from the z embedding AND an onehot z appended to the per-agent vector.
+       Still inside the Summer policy form pi_i(a_i | o_i, z); no separate
+       per-z heads. This makes z harder for the actor to ignore without
+       any auxiliary supervision.
+    6. **Critic z conditioning** remains on (inherited from v3i16): the
+       centralized critic sees ``concat(global_state, joint_actions, z_onehot)``.
+
+    Plan-faithful contract maintained:
+
+    * No labels, no opponent IDs, no phase/flag/outcome heads.
+    * No reconstruction loss, no auxiliary prediction heads.
+    * No handcrafted strategy rewards, no role-labelled bonuses.
+    * Critic-z, persistence, sparse refresh, and entropy regularisation
+      all explicitly endorsed by the Summer plan.
+
+    Minimum proof thresholds (analysis tool):
+
+    * ``normalized_MI_z_opponent`` > 0.02 (v3i18 ~= 0.0001)
+    * ``normalized_MI_z_phase`` > 0.01-0.02 (v3i18 ~= 0.00006)
+    * ``normalized_MI_z_flag`` > 0.02 (v3i18 ~= 0.00024)
+    * ``behavior_by_z`` clear spread in >= 3 signals (v3i18: tiny)
+    * fixed-z behavior visibly different across z (v3i18: identical)
+
+    The success criterion is "z carries nonzero consequence", NOT WR alone.
+    """
+    cfg = apply_plan_faithful_latent_v3i16_policy_z_embedding(cfg)
+
+    # 1. Sparse refresh ONLY. ``latent_resample_on_flag`` is disabled because
+    #    the current ``_apply_flag_resample_trigger`` fires on continuous
+    #    distance-feature changes (>1e-4 in slice [8:12]), which means it
+    #    triggers a z resample on essentially every decision step in a 4v4
+    #    game with moving agents. The first v3i19 launch confirmed this: arcs
+    #    averaged 1.3 steps, 100% dropped by ``min_len=32``, q_phi grad
+    #    stayed at 0.0. The user's spec called this "optional if easy"; it's
+    #    not easy in the current implementation. Future revisit could enable
+    #    the more disciplined ``latent_event_refresh_enabled`` path (which
+    #    has min_gap_steps + max_per_episode guardrails and uses discrete
+    #    capture-bit transitions instead of distance deltas).
+    cfg.latent_resample_every_n = 64
+    cfg.latent_resample_on_flag = False
+    cfg.latent_event_refresh_enabled = False
+    cfg.latent_sparse_tactical_refresh_enabled = False
+    cfg.latent_gae_reset_on_z_change = True
+    cfg.latent_kl_consecutive = 0.0
+
+    # 2. Persistence (range 0.01-0.05; doubled from v3i16/v3i18's 0.02 to
+    #    discourage thrashing now that sparse + flag refresh combine to
+    #    propose more resamples per episode).
+    cfg.latent_lam_p = 0.03
+
+    # 3. Entropy schedule: 0.003 -> 0.0002 over 300k steps. Collapse guard
+    #    early, near-zero late. ``latent_entropy_anneal_start = 0`` so the
+    #    decay begins immediately; ``_end`` is the user-spec 300_000 mark.
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.0002
+    cfg.latent_entropy_anneal_start = 0
+    cfg.latent_entropy_anneal_end = 300_000
+    cfg.latent_entropy_objective = "maximize"
+
+    # 4. Per-arc consequence credit. Per-step PPO and episode-credit OFF.
+    cfg.latent_strategy_ppo_coef = 0.0
+    cfg.latent_episode_strategy_ppo = False
+    cfg.latent_episode_strategy_coef = 0.0
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_coef = 1.0
+    cfg.latent_arc_credit_baseline = "context_value"
+    cfg.latent_arc_credit_return_norm = True
+    cfg.latent_arc_credit_min_len = 32
+    cfg.latent_arc_credit_n_epochs = 4
+    cfg.latent_arc_credit_clip_eps = 0.2
+
+    # 5. FiLM + onehot concat actor z conditioning. Stronger than v3i16's
+    #    FiLM-only path; still shared-actor form pi_i(a_i | o_i, z).
+    cfg.latent_actor_z_onehot_enabled = True
+    cfg.latent_actor_z_onehot_scale = 1.0
+    cfg.latent_z_embed_dim = 16
+    cfg.latent_actor_z_film_layers = 1
+
+    # 6. Defensive zeroing of every "z existence" pressure / labelled head /
+    #    aux objective (mostly inherited from v3i16 already; reaffirmed
+    #    here for audit clarity).
+    cfg.latent_strategy_aux_predict_phase_coef = 0.0
+    cfg.latent_strategy_aux_return_head = False
+    cfg.latent_strategy_aux_return_coef = 0.0
+    cfg.latent_forced_z_episode_frac = 0.0
+    cfg.latent_behavior_contrast_coef = 0.0
+    cfg.latent_actor_z_separation_coef = 0.0
+    cfg.latent_actor_z_separation_start_coef = 0.0
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_preference_coef = 0.0
+    cfg.latent_preference_commit_coef = 0.0
+    cfg.latent_awrd_enabled = False
+    cfg.latent_awrd_coef = 0.0
+    cfg.latent_specialist_router_enabled = False
+    cfg.latent_marginal_balance_coef = 0.0
+    cfg.latent_conditional_entropy_min_coef_start = 0.0
+    cfg.latent_conditional_entropy_min_coef = 0.0
+    cfg.latent_context_mi_coef = 0.0
+    cfg.latent_v3i3_event_preference_enabled = False
+    cfg.latent_v3i3_event_preference_coef = 0.0
+    cfg.latent_v3i3_refresh_log_enabled = False
+
+    cfg.run_tag = "v3i19_summer_consequence_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

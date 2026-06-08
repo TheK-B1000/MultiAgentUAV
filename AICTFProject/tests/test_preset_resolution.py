@@ -1077,6 +1077,117 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertAlmostEqual(cfg["latent_preference_coef"], 0.0)
                 self.assertEqual(cfg["run_tag"], "v3i17_long_arc_1m_4v4")
 
+    def test_latent_v3i19_summer_consequence_arc_credit_contract(self) -> None:
+        """v3i19: Summer-faithful per-arc consequence credit.
+
+        Asserts the locked design from the user spec:
+
+        * Sampling: ``latent_resample_every_n == 64`` + flag-event refresh ON.
+        * Persistence: ``latent_lam_p == 0.03``.
+        * Entropy: anneals 0.003 -> 0.0002 over 0 -> 300_000 steps.
+        * Credit assignment: arc credit ON (coef 1.0, baseline context_value,
+          min_len 32, return_norm), per-step PPO OFF, episode-credit OFF.
+        * Actor conditioning: FiLM (1 layer) + onehot concat, z_embed_dim=16.
+        * No supervised / preference / existence channels.
+        * Inherits ``latent_k=4`` and critic-z conditioning from v3i16 lineage.
+        """
+        resolved = resolve_all_presets()
+        aliases = (
+            "plan_faithful_latent_v3i19_summer_consequence",
+            "latent_v3i19_summer_consequence",
+            "latent_v3i19",
+            "v3i19_summer_consequence",
+        )
+        first = resolved[aliases[0]]
+        for key in aliases:
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(cfg, first)
+
+                # K, shared actor, critic z (inherited from v3i16 lineage).
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertEqual(cfg["latent_k"], 4)
+
+                # Sparse interval-only sampling. ``latent_resample_on_flag``
+                # is OFF because its current implementation (distance-delta
+                # triggers in flag-territory slice) fires every step in 4v4
+                # and would collapse arc lengths to ~1, dropping 100% of
+                # arcs under ``min_len=32`` and starving q_phi of gradient.
+                # See plan_faithful.py preset docstring for context.
+                self.assertEqual(cfg["latent_resample_every_n"], 64)
+                self.assertFalse(cfg["latent_resample_on_flag"])
+                self.assertFalse(cfg["latent_event_refresh_enabled"])
+                self.assertFalse(cfg["latent_sparse_tactical_refresh_enabled"])
+                self.assertTrue(cfg["latent_gae_reset_on_z_change"])
+
+                # Persistence.
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.03)
+
+                # Entropy schedule.
+                self.assertAlmostEqual(cfg["latent_lam_h_start"], 0.003)
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.0002)
+                self.assertEqual(cfg["latent_entropy_anneal_start"], 0)
+                self.assertEqual(cfg["latent_entropy_anneal_end"], 300_000)
+
+                # Credit assignment: arc credit is the SOLE q_phi gradient.
+                self.assertTrue(cfg["latent_arc_credit_enabled"])
+                self.assertAlmostEqual(cfg["latent_arc_credit_coef"], 1.0)
+                self.assertEqual(cfg["latent_arc_credit_baseline"], "context_value")
+                self.assertEqual(cfg["latent_arc_credit_min_len"], 32)
+                self.assertTrue(cfg["latent_arc_credit_return_norm"])
+                self.assertEqual(cfg["latent_arc_credit_n_epochs"], 4)
+                self.assertAlmostEqual(cfg["latent_arc_credit_clip_eps"], 0.2)
+                self.assertAlmostEqual(cfg["latent_strategy_ppo_coef"], 0.0)
+                self.assertFalse(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.0)
+
+                # Actor: FiLM + onehot concat at embed_dim 16.
+                self.assertEqual(cfg["latent_z_embed_dim"], 16)
+                self.assertEqual(cfg["latent_actor_z_film_layers"], 1)
+                self.assertTrue(cfg["latent_actor_z_onehot_enabled"])
+                self.assertAlmostEqual(cfg["latent_actor_z_onehot_scale"], 1.0)
+                self.assertFalse(cfg["latent_actor_z_adapter_enabled"])
+
+                # Summer-faithful audit: no supervised / preference / existence
+                # / role-label / aux-prediction channels.
+                self.assertFalse(cfg["latent_strategy_aux_return_head"])
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_return_coef"], 0.0
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_predict_phase_coef"], 0.0
+                )
+                self.assertFalse(cfg["latent_v3i3_event_preference_enabled"])
+                self.assertAlmostEqual(
+                    cfg["latent_v3i3_event_preference_coef"], 0.0
+                )
+                self.assertFalse(cfg["latent_v3i3_refresh_log_enabled"])
+                self.assertFalse(cfg["latent_awrd_enabled"])
+                self.assertAlmostEqual(cfg["latent_awrd_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_preference_commit_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_behavior_contrast_coef"], 0.0)
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_coef"], 0.0
+                )
+                self.assertAlmostEqual(
+                    cfg["latent_actor_z_separation_start_coef"], 0.0
+                )
+                self.assertAlmostEqual(cfg["latent_usage_balance_coef"], 0.0)
+                self.assertAlmostEqual(
+                    cfg["latent_marginal_balance_coef"], 0.0
+                )
+                self.assertFalse(cfg["latent_specialist_router_enabled"])
+                self.assertAlmostEqual(
+                    cfg["latent_conditional_entropy_min_coef"], 0.0
+                )
+                self.assertAlmostEqual(cfg["latent_context_mi_coef"], 0.0)
+                self.assertAlmostEqual(cfg["latent_forced_z_episode_frac"], 0.0)
+
+                self.assertEqual(
+                    cfg["run_tag"], "v3i19_summer_consequence_1m_4v4"
+                )
+
     def test_latent_v3i11_remains_unchanged_by_v3i14_tuning(self) -> None:
         cfg = resolve_all_presets()["latent_v3i11"]
         self.assertFalse(cfg["latent_specialist_use_rollout_states"])

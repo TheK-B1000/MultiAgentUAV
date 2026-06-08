@@ -859,6 +859,44 @@ class LatentStrategyState:
         )
         self.refresh_preference_buffer: deque = deque(maxlen=v3i3_buffer_size)
 
+        # ------------------------------------------------------------------
+        # v3i19 arc-credit channel: per-env state for the currently-open arc.
+        #
+        # An "arc" begins at every z-sample boundary (episode start, sparse
+        # resample, or event refresh) and ends when z is resampled again or
+        # the episode terminates. While an arc is open, ``arc_return_accum``
+        # grows with the env reward and ``arc_steps_accum`` counts decision
+        # steps. On arc end, if ``arc_steps_accum >= latent_arc_credit_min_len``,
+        # the snapshot (ctx, z, log_prob, opponent_id, bucket_id, arc_return)
+        # is pushed to ``rollout_strategy_arc_records`` for PPO update.
+        # ``arc_has_open`` gates the finalize/snapshot side-effects so the
+        # very first sample of a rollout (when nothing is open yet) is a
+        # no-op for the finalize hook.
+        # ------------------------------------------------------------------
+        self.arc_open_ctx = torch.zeros(
+            (n_envs, int(trainer.model.global_state_dim)), dtype=torch.float32, device=device
+        )
+        self.arc_open_z = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.arc_open_log_prob = torch.zeros((n_envs,), dtype=torch.float32, device=device)
+        self.arc_open_opponent_id = torch.full((n_envs,), -1, dtype=torch.long, device=device)
+        self.arc_open_bucket_id = torch.full((n_envs,), -1, dtype=torch.long, device=device)
+        self.arc_return_accum = torch.zeros((n_envs,), dtype=torch.float32, device=device)
+        self.arc_steps_accum = torch.zeros((n_envs,), dtype=torch.long, device=device)
+        self.arc_has_open = torch.zeros((n_envs,), dtype=torch.bool, device=device)
+        # Append-only buffer of finalized arc records consumed by
+        # ``apply_arc_strategy_ppo`` at training update time and drained after.
+        self.rollout_strategy_arc_records: list[dict[str, Any]] = []
+        # Rollout-level telemetry: total arcs finalized, arcs dropped below
+        # ``latent_arc_credit_min_len``, mean arc length and return.
+        self.rollout_arc_finalized_count = 0
+        self.rollout_arc_dropped_short_count = 0
+        self.rollout_arc_length_sum = 0
+        self.rollout_arc_return_sum = 0.0
+        # Running-mean baseline (used when ``latent_arc_credit_baseline ==
+        # "running_mean"``). Plain detached EMA, no neural component.
+        self.arc_return_running_mean = 0.0
+        self.arc_return_running_count = 0
+
     # ------------------------------------------------------------------
     # Reset / per-step sampling
     # ------------------------------------------------------------------
@@ -907,9 +945,37 @@ class LatentStrategyState:
         self.pending_refresh_records = {i: [] for i in range(n_envs)}
         self.rollout_refresh_records = []
         self.refresh_preference_buffer.clear()
+        # v3i19 arc-credit per-env state reset: no arc is open at trainer
+        # init / rollout-start. The buffer/telemetry reset happens below in
+        # ``reset_arc_credit_rollout_state``.
+        self.arc_open_ctx.zero_()
+        self.arc_open_z.zero_()
+        self.arc_open_log_prob.zero_()
+        self.arc_open_opponent_id.fill_(-1)
+        self.arc_open_bucket_id.fill_(-1)
+        self.arc_return_accum.zero_()
+        self.arc_steps_accum.zero_()
+        self.arc_has_open.zero_()
+        self.arc_return_running_mean = 0.0
+        self.arc_return_running_count = 0
         self.reset_event_refresh_rollout_stats()
         self.reset_sparse_tactical_refresh_rollout_stats()
         self.reset_behavior_contrast_rollout_stats()
+        self.reset_arc_credit_rollout_state()
+
+    def reset_arc_credit_rollout_state(self) -> None:
+        """Drop the rollout's arc-credit buffer + telemetry counters.
+
+        Does NOT touch the per-env open-arc state (``arc_open_*``,
+        ``arc_return_accum``, ``arc_steps_accum``, ``arc_has_open``) because
+        those reflect in-flight arcs that span the rollout boundary; only the
+        finalized-record buffer + rollout-level counters are drained.
+        """
+        self.rollout_strategy_arc_records = []
+        self.rollout_arc_finalized_count = 0
+        self.rollout_arc_dropped_short_count = 0
+        self.rollout_arc_length_sum = 0
+        self.rollout_arc_return_sum = 0.0
 
     def reset_event_refresh_rollout_stats(self) -> None:
         self.rollout_refresh_count = 0
@@ -1107,6 +1173,372 @@ class LatentStrategyState:
                 q_phi_probs=probs[int(env_i), : trainer.latent_k].detach().cpu().tolist(),
             )
             self.next_strategy_episode_id += 1
+
+    # ------------------------------------------------------------------
+    # v3i19 arc-credit hooks
+    # ------------------------------------------------------------------
+
+    def arc_accumulate_step(self, rewards: torch.Tensor) -> None:
+        """Add the env's per-step team-mean reward to each open arc's return.
+
+        Called once per env step from the rollout loop, AFTER the env has
+        stepped and rewards are available, BEFORE any z-resample for the
+        next step. ``rewards`` may be shape ``(n_envs,)`` (already team-
+        reduced) or ``(n_envs, n_agents)``; we coerce to ``(n_envs,)``.
+
+        No-op when arc credit is disabled to keep zero overhead in legacy
+        presets.
+        """
+        trainer = self.trainer
+        if not getattr(trainer, "latent_arc_credit_enabled", False):
+            return
+        r = rewards.detach()
+        if r.dim() > 1:
+            r = r.mean(dim=tuple(range(1, r.dim())))
+        # Only accumulate for envs that have an arc currently open.
+        active = self.arc_has_open
+        if not bool(active.any().item()):
+            return
+        self.arc_return_accum = torch.where(
+            active, self.arc_return_accum + r.to(self.arc_return_accum), self.arc_return_accum
+        )
+        self.arc_steps_accum = torch.where(
+            active, self.arc_steps_accum + 1, self.arc_steps_accum
+        )
+
+    def arc_finalize(
+        self,
+        finalize_mask: torch.Tensor,
+        *,
+        opponent_ids: Optional[torch.Tensor] = None,
+        reason: str = "z_change",
+    ) -> int:
+        """Push open arcs into the rollout's arc record buffer.
+
+        ``finalize_mask`` selects envs whose currently-open arc has just ended
+        (because z is about to change OR because the episode terminated).
+        Arcs shorter than ``latent_arc_credit_min_len`` are dropped from the
+        PPO training buffer (still counted in the dropped-short telemetry).
+
+        Returns the number of arcs pushed to the buffer.
+        """
+        trainer = self.trainer
+        if not getattr(trainer, "latent_arc_credit_enabled", False):
+            return 0
+        eligible = finalize_mask & self.arc_has_open
+        if not bool(eligible.any().item()):
+            return 0
+        idx = torch.where(eligible)[0]
+        min_len = max(1, int(getattr(trainer, "latent_arc_credit_min_len", 32) or 1))
+        pushed = 0
+        for env_i in idx.detach().cpu().tolist():
+            env_i = int(env_i)
+            steps = int(self.arc_steps_accum[env_i].detach().cpu().item())
+            arc_return = float(self.arc_return_accum[env_i].detach().cpu().item())
+            self.rollout_arc_finalized_count += 1
+            self.rollout_arc_length_sum += steps
+            self.rollout_arc_return_sum += arc_return
+            # Running-mean EMA over arc returns (used by the running_mean
+            # baseline). Computed *before* the drop-short check so even
+            # short arcs inform the EMA's drift.
+            self.arc_return_running_count += 1
+            alpha = 1.0 / float(self.arc_return_running_count)
+            self.arc_return_running_mean += alpha * (arc_return - self.arc_return_running_mean)
+            if steps < min_len:
+                self.rollout_arc_dropped_short_count += 1
+                continue
+            rec_opp = (
+                int(opponent_ids[env_i].detach().cpu().item())
+                if opponent_ids is not None
+                else int(self.arc_open_opponent_id[env_i].detach().cpu().item())
+            )
+            self.rollout_strategy_arc_records.append(
+                {
+                    "global_state_0": self.arc_open_ctx[env_i].detach().clone().cpu(),
+                    "z": int(self.arc_open_z[env_i].detach().cpu().item()),
+                    "z_logprob_old": float(self.arc_open_log_prob[env_i].detach().cpu().item()),
+                    "arc_return": arc_return,
+                    "arc_length": steps,
+                    "opponent_id": rec_opp,
+                    "bucket_id": int(self.arc_open_bucket_id[env_i].detach().cpu().item()),
+                    "reason": str(reason),
+                }
+            )
+            pushed += 1
+        # Mark the open-arc slot as closed for these envs. The arc_open_*
+        # snapshots remain in place but ``arc_has_open`` going False means
+        # subsequent ``arc_accumulate_step`` calls skip them until a new arc
+        # is opened.
+        self.arc_has_open[idx] = False
+        self.arc_return_accum[idx] = 0.0
+        self.arc_steps_accum[idx] = 0
+        return pushed
+
+    def arc_open(
+        self,
+        open_mask: torch.Tensor,
+        *,
+        global_state: torch.Tensor,
+        z_idx: torch.Tensor,
+        z_log_prob: torch.Tensor,
+        opponent_ids: Optional[torch.Tensor] = None,
+    ) -> int:
+        """Snapshot a new arc start for each env in ``open_mask``.
+
+        Must be called AFTER ``arc_finalize`` for the same envs (so the
+        previous arc is already pushed before we overwrite the snapshot).
+        Pairs with ``arc_finalize`` to form the per-arc lifecycle:
+        finalize old -> open new on every z-resample or episode-start step.
+        """
+        trainer = self.trainer
+        if not getattr(trainer, "latent_arc_credit_enabled", False):
+            return 0
+        if not bool(open_mask.any().item()):
+            return 0
+        idx = torch.where(open_mask)[0]
+        gs = global_state.index_select(0, idx).detach()
+        # Ensure stored ctx matches arc_open_ctx's expected dim. The model's
+        # global_state_dim is the post-temporal-stacking width that q_phi
+        # actually consumes; the env state passed in may be the same shape
+        # (it is during normal MAPPO loops).
+        target_dim = int(self.arc_open_ctx.shape[1])
+        if gs.shape[1] >= target_dim:
+            gs = gs[:, :target_dim]
+        else:
+            pad = torch.zeros(
+                (gs.shape[0], target_dim - gs.shape[1]),
+                dtype=gs.dtype,
+                device=gs.device,
+            )
+            gs = torch.cat([gs, pad], dim=1)
+        self.arc_open_ctx[idx] = gs
+        self.arc_open_z[idx] = z_idx.index_select(0, idx).detach().long()
+        self.arc_open_log_prob[idx] = z_log_prob.index_select(0, idx).detach().float()
+        buckets = _strategy_experience_bucket_ids(gs).detach()
+        self.arc_open_bucket_id[idx] = buckets
+        if opponent_ids is not None:
+            self.arc_open_opponent_id[idx] = opponent_ids.index_select(0, idx).detach().long()
+        self.arc_has_open[idx] = True
+        self.arc_return_accum[idx] = 0.0
+        self.arc_steps_accum[idx] = 0
+        return int(idx.numel())
+
+    @staticmethod
+    def empty_arc_strategy_stats() -> dict[str, float]:
+        """Default arc-credit telemetry slot (zeroed when arc credit is off).
+
+        The ``q_phi_*`` and ``latent_arc_grad_norm`` fields are the smoke
+        alarm for v3i19: if ``latent_arc_credit_coef`` is 1.0 but
+        ``q_phi_grad_norm`` stays tiny, the consequence channel is decorative
+        and v3i19 will collapse to v3i18 silently. Logged unconditionally so
+        every rollout's CSV exposes the gradient-flow check.
+        """
+        return {
+            "latent_arc_count": 0.0,
+            "latent_arc_finalized_count": 0.0,
+            "latent_arc_dropped_short_count": 0.0,
+            "latent_arc_mean_length": 0.0,
+            "latent_arc_mean_return": 0.0,
+            "latent_arc_advantage_mean": 0.0,
+            "latent_arc_advantage_std": 0.0,
+            "latent_arc_policy_loss": 0.0,
+            "latent_arc_value_loss": 0.0,
+            "latent_arc_clipfrac": 0.0,
+            "latent_arc_approx_kl": 0.0,
+            "latent_arc_credit_coef": 0.0,
+            "latent_arc_grad_norm": 0.0,
+            "q_phi_grad_norm": 0.0,
+            "q_phi_entropy": 0.0,
+            "q_phi_mean_max_prob": 0.0,
+        }
+
+    def _q_phi_params(self) -> list[torch.nn.Parameter]:
+        """Return the q_phi parameter list (strategy_encoder + value head).
+
+        Used by ``apply_arc_strategy_ppo`` to compute ``q_phi_grad_norm``
+        AFTER backward and BEFORE optimizer.step(). Identical to the
+        router_optimizer's parameter set when a dedicated router LR is on.
+        """
+        trainer = self.trainer
+        params: list[torch.nn.Parameter] = []
+        strategy_encoder = getattr(trainer.model, "strategy_encoder", None)
+        if strategy_encoder is not None:
+            params.extend(p for p in strategy_encoder.parameters() if p.requires_grad)
+        value_head = getattr(trainer.model, "episode_strategy_value_head", None)
+        if value_head is not None:
+            params.extend(p for p in value_head.parameters() if p.requires_grad)
+        return params
+
+    @staticmethod
+    def _grad_norm_l2(params: list[torch.nn.Parameter]) -> float:
+        """L2 grad norm over ``params``. Returns 0.0 when all grads are None."""
+        sq_sum = 0.0
+        any_grad = False
+        for p in params:
+            g = p.grad
+            if g is None:
+                continue
+            any_grad = True
+            sq_sum += float(g.detach().pow(2).sum().item())
+        if not any_grad:
+            return 0.0
+        return float(sq_sum ** 0.5)
+
+    def apply_arc_strategy_ppo(self) -> dict[str, float]:
+        """Per-arc PPO update on q_phi (v3i19 Summer-faithful consequence credit).
+
+        Mirrors ``apply_episode_strategy_ppo`` but operates on per-arc records
+        (one per z-arc, not one per episode). Each arc contributes its own
+        (ctx_at_arc_start, z, log_prob, arc_return) tuple. The advantage is
+        ``arc_return - baseline``, where baseline is either ``V_phi(ctx, z)``
+        (context_value mode, reusing the existing strategy value head) or a
+        detached EMA of arc returns (running_mean mode, no V dependency).
+
+        Plan-faithful: arc_return is summed env reward over the arc only.
+        No labels, no semantic heads, no opponent ID seen by q_phi or the
+        value head. The optimizer used is the same dedicated router
+        optimizer (or shared optimizer) as ``apply_episode_strategy_ppo``.
+        """
+        trainer = self.trainer
+        stats = self.empty_arc_strategy_stats()
+        stats["latent_arc_finalized_count"] = float(self.rollout_arc_finalized_count)
+        stats["latent_arc_dropped_short_count"] = float(self.rollout_arc_dropped_short_count)
+        if self.rollout_arc_finalized_count > 0:
+            stats["latent_arc_mean_length"] = float(
+                self.rollout_arc_length_sum / self.rollout_arc_finalized_count
+            )
+            stats["latent_arc_mean_return"] = float(
+                self.rollout_arc_return_sum / self.rollout_arc_finalized_count
+            )
+
+        if not getattr(trainer, "latent_arc_credit_enabled", False) or trainer.fixed_latent_strategy:
+            return stats
+        records = list(self.rollout_strategy_arc_records)
+        if not records:
+            return stats
+        device = trainer.device
+        states = torch.stack(
+            [r["global_state_0"].detach().float() for r in records], dim=0
+        ).to(device)
+        z = torch.as_tensor([int(r["z"]) for r in records], dtype=torch.long, device=device)
+        old_log_prob = torch.as_tensor(
+            [float(r["z_logprob_old"]) for r in records], dtype=torch.float32, device=device
+        )
+        arc_returns = torch.as_tensor(
+            [float(r["arc_return"]) for r in records], dtype=torch.float32, device=device
+        )
+        stats["latent_arc_count"] = float(arc_returns.numel())
+
+        baseline_mode = str(
+            getattr(trainer, "latent_arc_credit_baseline", "context_value")
+            or "context_value"
+        ).lower()
+        coef = max(0.0, float(getattr(trainer, "latent_arc_credit_coef", 1.0) or 0.0))
+        if coef <= 0.0:
+            return stats
+        n_epochs = max(1, int(getattr(trainer, "latent_arc_credit_n_epochs", 4) or 1))
+        clip_eps = max(1e-6, float(getattr(trainer, "latent_arc_credit_clip_eps", 0.2) or 0.2))
+        return_norm = bool(getattr(trainer, "latent_arc_credit_return_norm", True))
+        value_coef = max(
+            0.0, float(getattr(trainer, "latent_episode_strategy_value_coef", 0.5) or 0.0)
+        )
+
+        adv_means: list[float] = []
+        adv_stds: list[float] = []
+        pg_losses: list[float] = []
+        value_losses: list[float] = []
+        clipfracs: list[float] = []
+        kls: list[float] = []
+        grad_norms: list[float] = []
+        q_phi_entropies: list[float] = []
+        q_phi_max_probs: list[float] = []
+
+        q_phi_params = self._q_phi_params()
+
+        # Pre-compute the v3i19 "smoke alarm" coef telemetry so it appears
+        # in the CSV even on rollouts where the inner loop is skipped
+        # (e.g. coef==0 or no records). Constant per run.
+        stats["latent_arc_credit_coef"] = coef
+
+        for _ in range(n_epochs):
+            logits = trainer.model.strategy_logits(states)
+            dist = Categorical(logits=logits)
+            new_log_prob = dist.log_prob(z)
+            # q_phi posterior diagnostics: entropy + max-prob averaged over
+            # the batch. Together with grad_norm they pin "is q_phi
+            # actually shifting under arc credit?".
+            probs = torch.softmax(logits, dim=-1)
+            q_phi_entropies.append(float(dist.entropy().mean().detach().cpu().item()))
+            q_phi_max_probs.append(float(probs.max(dim=-1).values.mean().detach().cpu().item()))
+
+            if baseline_mode == "running_mean":
+                baseline = torch.full_like(
+                    arc_returns, float(self.arc_return_running_mean)
+                )
+                v_z = baseline  # unused but kept for symmetry with v_loss below
+            else:
+                # context_value: V_phi(ctx, z) from the existing head.
+                if trainer.model.episode_strategy_value_head is None:
+                    baseline = torch.zeros_like(arc_returns)
+                    v_z = baseline
+                else:
+                    v_z = trainer.model.episode_strategy_value(states, z)
+                    baseline = v_z.detach()
+
+            adv = arc_returns - baseline
+            if return_norm and adv.numel() > 1:
+                adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
+            adv_means.append(float(adv.mean().detach().cpu().item()))
+            adv_stds.append(float(adv.std(unbiased=False).detach().cpu().item()))
+
+            pg_loss, ppo_stats = ppo_policy_loss(
+                new_log_prob, old_log_prob, adv.detach(), clip_eps
+            )
+            if (
+                baseline_mode == "context_value"
+                and trainer.model.episode_strategy_value_head is not None
+            ):
+                v_loss = 0.5 * (arc_returns - v_z).pow(2).mean()
+            else:
+                v_loss = torch.zeros((), dtype=torch.float32, device=device)
+            loss = coef * pg_loss + value_coef * v_loss
+
+            router_opt = getattr(trainer, "latent_router_optimizer", None)
+            shared_opt = trainer.optimizer
+            opt = router_opt if router_opt is not None else shared_opt
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            # Capture q_phi grad norm AFTER backward and BEFORE step. This is
+            # the v3i19 smoke alarm: if coef==1.0 but this stays tiny across
+            # rollouts, the consequence channel is decorative.
+            grad_norms.append(self._grad_norm_l2(q_phi_params))
+            opt.step()
+
+            pg_losses.append(float(pg_loss.detach().cpu().item()))
+            value_losses.append(float(v_loss.detach().cpu().item()))
+            clipfracs.append(float(ppo_stats.get("clipfrac", 0.0)))
+            kls.append(float(ppo_stats.get("approx_kl", 0.0)))
+
+        # Average across inner epochs for clean rollout-level telemetry.
+        n = max(1, len(adv_means))
+        stats["latent_arc_advantage_mean"] = float(sum(adv_means) / n)
+        stats["latent_arc_advantage_std"] = float(sum(adv_stds) / n)
+        stats["latent_arc_policy_loss"] = float(sum(pg_losses) / n)
+        stats["latent_arc_value_loss"] = float(sum(value_losses) / n)
+        stats["latent_arc_clipfrac"] = float(sum(clipfracs) / n)
+        stats["latent_arc_approx_kl"] = float(sum(kls) / n)
+        # Smoke alarm. grad_norm == arc-channel grad on q_phi params after
+        # backward; entropy/max_prob characterise q_phi's posterior shape on
+        # the same batch the loss is computed over.
+        if grad_norms:
+            grad_norm_mean = float(sum(grad_norms) / len(grad_norms))
+            stats["latent_arc_grad_norm"] = grad_norm_mean
+            stats["q_phi_grad_norm"] = grad_norm_mean
+        if q_phi_entropies:
+            stats["q_phi_entropy"] = float(sum(q_phi_entropies) / len(q_phi_entropies))
+        if q_phi_max_probs:
+            stats["q_phi_mean_max_prob"] = float(sum(q_phi_max_probs) / len(q_phi_max_probs))
+        return stats
 
     def record_tactical_context_step(self, global_state: torch.Tensor) -> None:
         """Accumulate detached tactical occupancy for each active episode."""
@@ -1548,6 +1980,29 @@ class LatentStrategyState:
 
         z_log_prob = z_dist.log_prob(z_idx)
         z_entropy = z_dist.entropy()
+
+        # v3i19 arc-credit lifecycle hook. Every z-sample boundary (episode
+        # start, sparse resample, event refresh, warmup commit) is treated as
+        # the end of the previous arc and the start of a new one:
+        #
+        # * ``arc_finalize`` pushes the previous arc's (ctx, z, log_prob,
+        #   arc_return, arc_length) snapshot into the rollout buffer if it's
+        #   above ``latent_arc_credit_min_len``. Envs at episode-start have
+        #   no open arc (cleared on episode-done) so this is a per-env no-op
+        #   for them.
+        # * ``arc_open`` snapshots the new arc's start state.
+        #
+        # Both are no-ops when ``latent_arc_credit_enabled`` is False, so legacy
+        # presets pay zero overhead here.
+        if bool(resample_mask.any().item()):
+            self.arc_finalize(resample_mask, reason="z_change")
+            self.arc_open(
+                resample_mask,
+                global_state=global_state,
+                z_idx=z_idx,
+                z_log_prob=z_log_prob,
+            )
+
         # Snapshot the q_phi training (state, z, log_prob) pair:
         # - warmup == 0: legacy behavior, snapshot at episode start (step 0)
         # - warmup  > 0: snapshot at the commit step, after the EMA window
