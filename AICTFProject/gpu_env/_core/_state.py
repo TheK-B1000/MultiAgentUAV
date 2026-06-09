@@ -598,25 +598,35 @@ class _StateMixin:
         if idx.numel() == 0:
             return
         E = int(idx.numel())
+        # NOTE: ``self.blue_speed[idx].zero_()`` is a PyTorch *no-op* when
+        # ``idx`` is a LongTensor (advanced indexing returns a fresh tensor,
+        # whose ``.zero_()`` does not reach back to the original storage).
+        # Use ``self.blue_speed[idx] = 0.0`` instead, which goes through the
+        # in-place ``__setitem__`` path. The old pattern silently left blue
+        # /red speed, heading, alive, and respawn carrying over from the
+        # last frame of the prior episode -- breaking the matched-start
+        # contract that q_probe / local CF rely on (and giving agents a
+        # non-zero initial velocity / dead-on-arrival flag at the start of
+        # every episode after the very first).
         if blue:
             x_lo, x_hi = 0.0, max(1.0, float(self.cols // 3 - 1))
             self.blue_x[idx] = self._rand_uniform((E, self.Nb), x_lo, x_hi)
             self.blue_y[idx] = self._rand_uniform((E, self.Nb), 0.0, float(max(0, self.rows - 1)))
-            self.blue_heading[idx].zero_()
-            self.blue_speed[idx].zero_()
-            self.blue_alive[idx].fill_(True)
-            self.blue_tagged[idx].fill_(False)
-            self.blue_carrying[idx].fill_(False)
-            self.blue_respawn[idx].zero_()
+            self.blue_heading[idx] = 0.0
+            self.blue_speed[idx] = 0.0
+            self.blue_alive[idx] = True
+            self.blue_tagged[idx] = False
+            self.blue_carrying[idx] = False
+            self.blue_respawn[idx] = 0
         else:
             x_lo = max(0.0, float(self.cols - max(1, self.cols // 3)))
             x_hi = float(max(0, self.cols - 1))
             self.red_x[idx] = self._rand_uniform((E, self.Nr), x_lo, x_hi)
             self.red_y[idx] = self._rand_uniform((E, self.Nr), 0.0, float(max(0, self.rows - 1)))
-            self.red_heading[idx].fill_(math.pi)
-            self.red_speed[idx].zero_()
-            self.red_alive[idx].fill_(True)
-            self.red_tagged[idx].fill_(False)
-            self.red_carrying[idx].fill_(False)
-            self.red_respawn[idx].zero_()
+            self.red_heading[idx] = math.pi
+            self.red_speed[idx] = 0.0
+            self.red_alive[idx] = True
+            self.red_tagged[idx] = False
+            self.red_carrying[idx] = False
+            self.red_respawn[idx] = 0
 

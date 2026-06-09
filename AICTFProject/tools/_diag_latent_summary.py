@@ -27,16 +27,23 @@ for r in runs:
     if c not in df.columns: return float('nan')
     s = pd.to_numeric(tail[c], errors='coerce')
     return float(s.mean())
-  def get_metric(col_main, col_ep):
-    val_ep = m(col_ep)
-    if not pd.isna(val_ep) and val_ep != 0.0:
-      return val_ep
-    return m(col_main)
+  def get_metric(*cols):
+    """Return tail mean of the first column with a non-zero finite value.
+
+    Order columns by priority: arc-credit > episode-credit > per-step
+    strategy-PPO so v3i19+ / v4i1 / v4i3 runs do not silently report 0.0
+    for q_phi just because the per-step strategy-PPO path is off.
+    """
+    for col in cols:
+      val = m(col)
+      if not pd.isna(val) and val != 0.0:
+        return val
+    return m(cols[-1])
   row = [r[:38], m('episode_win_rate'), m('strategy_entropy_frac'), m('strategy_wr_spread'),
          m('latent_mi_z_opponent_nats'), m('latent_mi_z_phase_nats'),
-         get_metric('strategy_grad_norm', 'episode_credit_grad_norm'),
-         get_metric('strategy_policy_loss', 'latent_episode_pg_loss'),
-         get_metric('strategy_ratio_std', 'latent_episode_ratio_std'),
+         get_metric('q_phi_strategy_encoder_grad_norm', 'episode_credit_grad_norm', 'strategy_grad_norm'),
+         get_metric('latent_arc_policy_loss', 'latent_episode_pg_loss', 'strategy_policy_loss'),
+         get_metric('latent_arc_clipfrac', 'latent_episode_ratio_std', 'strategy_ratio_std'),
          m('strategy_unique_count'), m('strategy_resample_fraction'), m('strategy_persist_loss')]
   out = []
   for i,v in enumerate(row):

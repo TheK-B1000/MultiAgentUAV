@@ -26,14 +26,23 @@ SNAPSHOT_PATH = os.path.join(_HERE, "preset_snapshots.json")
 
 
 def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
-    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict."""
+    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict.
+
+    JSON has no tuple type, so any ``tuple`` field on PPOConfig has to be
+    normalised to a list before comparison: otherwise a freshly resolved
+    config (tuple) would never equal a snapshot loaded from JSON (list).
+    Add every tuple-typed PPOConfig field that ships in the registry here.
+    """
     cfg = PPOConfig()
     apply_preset(cfg, key)
     cfg_dict = asdict(cfg)
-    if isinstance(cfg_dict.get("opponent_pool"), tuple):
-        cfg_dict["opponent_pool"] = list(cfg_dict["opponent_pool"])
-    if isinstance(cfg_dict.get("opponent_pool_weights"), tuple):
-        cfg_dict["opponent_pool_weights"] = list(cfg_dict["opponent_pool_weights"])
+    for tuple_field in (
+        "opponent_pool",
+        "opponent_pool_weights",
+        "latent_router_distill_opponents",
+    ):
+        if isinstance(cfg_dict.get(tuple_field), tuple):
+            cfg_dict[tuple_field] = list(cfg_dict[tuple_field])
     return cfg_dict
 
 

@@ -263,6 +263,125 @@ def _read_raw_rows(csv_path: Path) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# v4i2b: arc-boundary CSV + NPZ I/O (router distillation richer input)
+#
+# These artifacts are gated by ``--save-arc-contexts``. They are written
+# alongside the existing v4i2 ``_qprobe_contexts.npz`` (which stays one
+# row per (opp, seed)) and do NOT replace it. The supervision target
+# encoded in the arc CSV is ``remaining_return_from_here`` --
+# strictly an *approximation* of the local optimal-z target: it is the
+# return of the z that was actually forced from that arc onward, NOT a
+# clone-and-replay counterfactual for each z'. See the v4i2b plan for
+# the distinction.
+# ---------------------------------------------------------------------------
+
+_ARC_FIELDS: tuple[str, ...] = (
+    "checkpoint_path",
+    "checkpoint_steps",
+    "checkpoint_kind",
+    "opponent",
+    "probe_seed",
+    "forced_z",
+    "arc_idx",
+    "timestep",
+    "approx_remaining_return_supervision",
+    "final_episode_return",
+    "episode_length",
+    "blue_score",
+    "red_score",
+    "blue_won",
+    "context_key",
+)
+
+
+def _arc_context_key(*, steps: int, opp: str, seed: int, z: int, arc_idx: int) -> str:
+    return f"{int(steps)}|{str(opp).upper()}|{int(seed)}|{int(z)}|{int(arc_idx)}"
+
+
+# Debug toggle for matched-start contract verification: when set to a truthy
+# env var, ``_run_one_episode`` dumps ``env.state()`` slices at step 0 of each
+# forced-z roll so dispersion across z within (opp, seed) can be eyeballed.
+# Default off; only useful when chasing matched-start regressions.
+_QPROBE_DEBUG_MATCHED_START: bool = bool(os.environ.get("QPROBE_DEBUG_MATCHED_START", ""))
+
+
+def _read_existing_arc_keys(
+    csv_path: Path,
+) -> set[tuple[str, str, int, int]]:
+    """Return ``(ckpt_path, opp, seed, z)`` tuples already represented in the arcs CSV.
+
+    Resume contract: if a (ckpt, opp, seed, z) tuple already has ANY arc
+    row in the CSV, we treat that episode as done -- we do not re-run it.
+    Per-arc-idx granularity is unnecessary because arc-idx coverage is
+    deterministic for a fixed (model, seed, z): re-running the same
+    matched-start episode would produce the same set of arc indices.
+    """
+    out: set[tuple[str, str, int, int]] = set()
+    if not csv_path.exists():
+        return out
+    with csv_path.open("r", newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            try:
+                out.add(
+                    (
+                        str(row["checkpoint_path"]),
+                        str(row["opponent"]).upper(),
+                        int(row["probe_seed"]),
+                        int(row["forced_z"]),
+                    )
+                )
+            except (KeyError, ValueError):
+                continue
+    return out
+
+
+def _append_arc_rows(csv_path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    is_new = not csv_path.exists()
+    with csv_path.open("a", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(_ARC_FIELDS))
+        if is_new:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow({k: row.get(k, "") for k in _ARC_FIELDS})
+
+
+def _read_arc_contexts_npz(path: Path) -> dict[str, np.ndarray]:
+    """Load ``<run_tag>_qprobe_arc_contexts.npz`` if present; else {}.
+
+    Same two-parallel-arrays layout as the v4i2 contexts file. Keys are
+    ``f"{steps}|{opp}|{seed}|{z}|{arc_idx}"``.
+    """
+    if not path.exists():
+        return {}
+    try:
+        with np.load(path, allow_pickle=True) as data:
+            keys = [str(k) for k in data["keys"].tolist()]
+            ctx = np.asarray(data["contexts"], dtype=np.float32)
+        if ctx.shape[0] != len(keys):
+            return {}
+        return {keys[i]: ctx[i] for i in range(len(keys))}
+    except (OSError, KeyError, ValueError):
+        return {}
+
+
+def _write_arc_contexts_npz(
+    path: Path, merged: dict[str, np.ndarray]
+) -> None:
+    if not merged:
+        return
+    keys = sorted(merged.keys())
+    arr = np.stack(
+        [np.asarray(merged[k], dtype=np.float32) for k in keys], axis=0
+    )
+    tmp = path.with_name(path.stem + ".tmp.npz")
+    np.savez(tmp, keys=np.array(keys, dtype=object), contexts=arr)
+    os.replace(tmp, path)
+
+
+# ---------------------------------------------------------------------------
 # Contexts NPZ I/O (v4i2 router distillation input)
 # ---------------------------------------------------------------------------
 
@@ -320,6 +439,7 @@ def _run_one_episode(
     probe_seed: int,
     device: str,
     max_steps: int,
+    arc_interval: int = 0,
 ) -> dict[str, Any]:
     """Run a single matched-start episode with z forced to ``forced_z``.
 
@@ -327,13 +447,54 @@ def _run_one_episode(
     Matched-start contract: callers reseed the env BEFORE calling this so
     every z variant within a given (opponent, probe_seed) sees the same
     initial state.
+
+    Optional ``arc_interval`` (>0) turns on v4i2b arc-boundary capture:
+    in addition to the per-episode aggregates, the returned row carries
+    ``_arc_captures``, a list of one dict per capture-time, with:
+
+      * ``arc_idx``: 0, 1, 2, ... -- a contiguous counter
+      * ``timestep``: env step where the capture happened
+      * ``context``: float32 np.ndarray, shape (170,), the q_phi input
+        ``model._last_context_gs`` at that step (= what q_phi would see
+        if it had been resampling z here under ``latent_resample_every_n``)
+      * ``remaining_return_from_here``: float, ``sum(step_rewards[t:])``
+        i.e. the return of the (forced_z) trajectory from this arc onward.
+
+    Captures are taken AT decision time (right after ``model.predict``)
+    on steps ``0, arc_interval, 2*arc_interval, ...`` so the temporal
+    positions match where q_phi is normally queried under
+    ``latent_resample_every_n=arc_interval`` -- even though q_probe
+    forces z and so q_phi is never actually consulted here.
     """
+    # Matched-start contract for forced-z probing:
+    #
+    #   Within one (opp, probe_seed) group we run K = latent_k episodes that
+    #   differ ONLY in the forced ``z``. For arc_idx=0 dispersion to round
+    #   to zero (the contract on which v4i2b distillation + v4i3 local CF
+    #   both rely), three things must be true at the first ``model.predict``:
+    #
+    #     1. ``core._rng`` is in the *same* deterministic state across z, so
+    #        ``env.reset()`` produces the same initial global_state.
+    #     2. The policy's TemporalStateTracker EMAs are zeroed, so the
+    #        first ``tracker.update`` produces ``concat([s, s, s, 0, 0])``
+    #        from the matched initial state ``s``.
+    #     3. The action / strategy sampling generators are reseeded so the
+    #        only thing differing across z is z itself, not the RNG.
+    #
+    # The pitfall: ``env.env_method("set_next_opponent", ...)`` triggers
+    # ``_apply_opponent_params_for_mask``, which calls
+    # ``sample_batched_opponent_params(..., generator=self._rng)`` and so
+    # CONSUMES ``core._rng``. If we seed the env BEFORE set_next_opponent,
+    # ``env.reset()`` runs with a partly-consumed RNG that depends on the
+    # opponent transition (and on cached mask state inside the core).
+    # Therefore we (a) flip the env-opponent BEFORE re-seeding, then
+    # (b) re-seed the env so ``env.reset()`` always sees a fresh ``_rng``.
     _set_global_seeds(probe_seed)
+    env.env_method("set_next_opponent", "SCRIPTED", opponent_env_tag)
     try:
         env.seed(int(probe_seed))
     except Exception:
         pass
-    env.env_method("set_next_opponent", "SCRIPTED", opponent_env_tag)
     # Reset the in-policy episode-state caches so q_phi's prev_z + temporal
     # tracker do not bleed across (opp, seed, z) combos. Then clamp z.
     if hasattr(model, "reset_strategy"):
@@ -347,6 +508,15 @@ def _run_one_episode(
     )
 
     obs = env.reset()
+    # Defensive second reset of the temporal tracker AFTER env.reset() but
+    # BEFORE the first predict. The tracker auto-resets on
+    # ``decision_frac < 1e-5`` inside its update path, but only if that
+    # column is exactly zero at step 0; defensively zeroing here makes the
+    # contract independent of the env's exact initial decision_frac value
+    # and matches the way the trainer reinitialises the tracker between
+    # rollouts.
+    if hasattr(model, "_temporal_tracker") and model._temporal_tracker is not None:
+        model._temporal_tracker.reset()
     episode_return = 0.0
     episode_length = 0
     blue_score = 0
@@ -357,6 +527,13 @@ def _run_one_episode(
     # been primed once. Same value for every z within a matched (opp, seed)
     # pair, so v4i2 router distillation can key it as one row per (opp, seed).
     first_context: np.ndarray | None = None
+    # v4i2b arc-boundary capture state. The captures are filled in during
+    # the loop (with the context-at-decision-time but no remaining_return
+    # yet); ``remaining_return_from_here`` is back-filled after the loop
+    # so it can use the eventual step_rewards.
+    arc_interval_eff = int(arc_interval) if arc_interval and int(arc_interval) > 0 else 0
+    arc_captures: list[dict[str, Any]] = []
+    step_rewards: list[float] = []
 
     for step in range(max_steps):
         # ``CustomPPOInferencePolicy.predict`` expects per-env (un-batched)
@@ -370,6 +547,16 @@ def _run_one_episode(
             single["global_state"] = env.state()[0]
         except Exception:
             pass
+        if step == 0 and _QPROBE_DEBUG_MATCHED_START:
+            import sys
+            gs0 = single.get("global_state")
+            if gs0 is not None:
+                _arr = np.asarray(gs0, dtype=np.float32).reshape(-1)
+                print(
+                    f"[q_probe-debug] opp={opponent_env_tag} seed={probe_seed} z={forced_z} step0 "
+                    f"gs[:6]={_arr[:6].tolist()} gs[12:14]={_arr[12:14].tolist()}",
+                    file=sys.stderr, flush=True,
+                )
         # Stochastic policy so the only difference across z is z itself
         # (deterministic sampling generators give matched RNG sequences).
         action, _ = model.predict(single, deterministic=False)
@@ -378,9 +565,28 @@ def _run_one_episode(
             if ctx_t is not None:
                 arr = ctx_t.detach().cpu().numpy().astype(np.float32).reshape(-1)
                 first_context = arr
+        # v4i2b: capture q_phi context at every arc boundary (including
+        # step 0). ``model._last_context_gs`` is set on every predict() and
+        # is the exact tensor q_phi consumes at this decision boundary.
+        if arc_interval_eff > 0 and (step % arc_interval_eff == 0):
+            ctx_t = getattr(model, "_last_context_gs", None)
+            if ctx_t is not None:
+                arc_captures.append(
+                    {
+                        "arc_idx": int(len(arc_captures)),
+                        "timestep": int(step),
+                        "context": ctx_t.detach()
+                        .cpu()
+                        .numpy()
+                        .astype(np.float32)
+                        .reshape(-1),
+                    }
+                )
         env.step_async(action)
         obs, rewards, dones, infos = env.step_wait()
-        episode_return += float(np.asarray(rewards).reshape(-1)[0])
+        r_t = float(np.asarray(rewards).reshape(-1)[0])
+        step_rewards.append(r_t)
+        episode_return += r_t
         episode_length = step + 1
         if bool(np.asarray(dones).reshape(-1)[0]):
             info = infos[0] if len(infos) > 0 else {}
@@ -389,6 +595,32 @@ def _run_one_episode(
             red_score = int(ep_res.get("red_score", 0))
             blue_won = bool(blue_score > red_score)
             break
+
+    # Back-fill ``remaining_return_from_here`` for each arc capture using
+    # the (forced-z) per-step rewards collected above. ``step_rewards[t]``
+    # is the reward emitted by the env in response to the action chosen
+    # at step ``t`` (i.e., the reward consequent to the decision the
+    # capture was taken at), so ``sum(step_rewards[t:])`` is exactly the
+    # remaining-return-from-here under the forced-z policy.
+    if arc_captures:
+        # Pre-compute cumulative tail sum for O(N) total cost.
+        n = len(step_rewards)
+        tail = [0.0] * (n + 1)
+        running = 0.0
+        for i in range(n - 1, -1, -1):
+            running += step_rewards[i]
+            tail[i] = running
+        episode_R_f = float(episode_return)
+        for cap in arc_captures:
+            t = int(cap["timestep"])
+            if t < n:
+                cap["remaining_return_from_here"] = float(tail[t])
+            else:
+                # Capture timestep is past the last collected reward
+                # (episode ended exactly at the arc boundary). Remaining
+                # return from that point is 0.0 by definition.
+                cap["remaining_return_from_here"] = 0.0
+            cap["final_episode_return"] = episode_R_f
 
     return {
         "z": int(forced_z),
@@ -400,6 +632,7 @@ def _run_one_episode(
         "red_score": int(red_score),
         "blue_score_minus_red": int(blue_score - red_score),
         "_first_context": first_context,
+        "_arc_captures": arc_captures,
     }
 
 
@@ -415,20 +648,37 @@ def probe_checkpoint(
     skip_existing_keys: set[tuple[str, int, str, int]] | None = None,
     save_contexts: bool = False,
     existing_context_keys: set[str] | None = None,
-) -> tuple[list[dict[str, Any]], dict[str, np.ndarray]]:
+    save_arc_contexts: bool = False,
+    existing_arc_keys: set[tuple[str, str, int, int]] | None = None,
+    existing_arc_context_keys: set[str] | None = None,
+) -> tuple[
+    list[dict[str, Any]],
+    dict[str, np.ndarray],
+    list[dict[str, Any]],
+    dict[str, np.ndarray],
+]:
     """Run the full (opponent x z x seed) probe matrix on one checkpoint.
 
-    Returns ``(new_rows, new_contexts)``:
+    Returns ``(new_rows, new_contexts, new_arc_rows, new_arc_contexts)``:
 
-    * ``new_rows``: list of raw episode dicts (does NOT write them).
+    * ``new_rows``: list of raw per-episode dicts (does NOT write them).
     * ``new_contexts``: when ``save_contexts`` is set, maps
       ``f"{checkpoint_steps}|{opponent}|{probe_seed}"`` -> 170-d float32
       context vector. Only keys not already present in
       ``existing_context_keys`` are populated. Caller writes/merges the NPZ.
+    * ``new_arc_rows``: when ``save_arc_contexts`` is set, one dict per
+      arc-boundary capture matching ``_ARC_FIELDS``. Schema documented at
+      the top of the v4i2b section.
+    * ``new_arc_contexts``: when ``save_arc_contexts`` is set, maps each
+      arc-row ``context_key`` -> 170-d float32 vector.
     """
     skip = skip_existing_keys or set()
     ctx_skip = existing_context_keys or set()
+    arc_skip = existing_arc_keys or set()
+    arc_ctx_skip = existing_arc_context_keys or set()
     new_contexts: dict[str, np.ndarray] = {}
+    new_arc_rows: list[dict[str, Any]] = []
+    new_arc_contexts: dict[str, np.ndarray] = {}
     ckpt_path_s = str(entry.path)
 
     meta = read_custom_ppo_metadata(ckpt_path_s)
@@ -437,8 +687,21 @@ def probe_checkpoint(
             f"[q_probe] SKIP {entry.path.name}: not a latent checkpoint "
             "(use_latent_strategy=False)."
         )
-        return [], new_contexts
+        return [], new_contexts, new_arc_rows, new_arc_contexts
     latent_k = int(meta.get("latent_k", 4))
+    # v4i2b: pick the arc-capture interval. Prefer the checkpoint's
+    # ``latent_resample_every_n`` (so the captured contexts match where
+    # q_phi would actually be queried under PPO). Fall back to 64 (the
+    # v3i19 / v4i1 default) if missing or zero.
+    cfg_meta = meta.get("cfg") or {}
+    arc_interval = int(cfg_meta.get("latent_resample_every_n", 0) or 0)
+    if save_arc_contexts and arc_interval <= 0:
+        print(
+            "[q_probe] WARNING: latent_resample_every_n is 0 in the checkpoint "
+            "config; defaulting --save-arc-contexts interval to 64 to match the "
+            "v3i19 / v4i1 family."
+        )
+        arc_interval = 64
     n_blue = int(meta.get("n_blue", agents))
 
     cfg = PPOConfig()
@@ -488,6 +751,7 @@ def probe_checkpoint(
                         probe_seed=probe_seed,
                         device=device,
                         max_steps=max_steps,
+                        arc_interval=int(arc_interval) if save_arc_contexts else 0,
                     )
                     # Capture first-step q_phi context once per
                     # (entry.steps, opp, seed). It is identical across z
@@ -509,6 +773,65 @@ def probe_checkpoint(
                             )
                     else:
                         ep.pop("_first_context", None)
+                    # v4i2b: emit per-arc rows + contexts for this episode.
+                    arc_caps = ep.pop("_arc_captures", []) or []
+                    if save_arc_contexts and arc_caps:
+                        arc_resume_key = (
+                            ckpt_path_s,
+                            str(opp_label).upper(),
+                            int(probe_seed),
+                            int(z),
+                        )
+                        # The resume contract is per-episode: if this
+                        # (ckpt, opp, seed, z) already has any arc rows
+                        # in the CSV, skip them entirely on re-run to
+                        # avoid duplicates. (Probe is deterministic.)
+                        if arc_resume_key not in arc_skip:
+                            for cap in arc_caps:
+                                ctx_key = _arc_context_key(
+                                    steps=int(entry.steps),
+                                    opp=str(opp_label),
+                                    seed=int(probe_seed),
+                                    z=int(z),
+                                    arc_idx=int(cap["arc_idx"]),
+                                )
+                                if (
+                                    ctx_key not in arc_ctx_skip
+                                    and ctx_key not in new_arc_contexts
+                                ):
+                                    new_arc_contexts[ctx_key] = np.asarray(
+                                        cap["context"], dtype=np.float32
+                                    )
+                                new_arc_rows.append(
+                                    {
+                                        "checkpoint_path": ckpt_path_s,
+                                        "checkpoint_steps": int(entry.steps),
+                                        "checkpoint_kind": entry.kind,
+                                        "opponent": str(opp_label).upper(),
+                                        "probe_seed": int(probe_seed),
+                                        "forced_z": int(z),
+                                        "arc_idx": int(cap["arc_idx"]),
+                                        "timestep": int(cap["timestep"]),
+                                        "approx_remaining_return_supervision": float(
+                                            cap.get(
+                                                "remaining_return_from_here", 0.0
+                                            )
+                                        ),
+                                        "final_episode_return": float(
+                                            cap.get(
+                                                "final_episode_return",
+                                                ep.get("episode_return", 0.0),
+                                            )
+                                        ),
+                                        "episode_length": int(
+                                            ep.get("episode_length", 0)
+                                        ),
+                                        "blue_score": int(ep.get("blue_score", 0)),
+                                        "red_score": int(ep.get("red_score", 0)),
+                                        "blue_won": int(ep.get("blue_won", 0)),
+                                        "context_key": ctx_key,
+                                    }
+                                )
                     row = {
                         "checkpoint_path": ckpt_path_s,
                         "checkpoint_steps": int(entry.steps),
@@ -530,7 +853,7 @@ def probe_checkpoint(
             env.close()
         except Exception as exc:
             print(f"[q_probe] WARNING: env.close() raised: {exc}")
-    return new_rows, new_contexts
+    return new_rows, new_contexts, new_arc_rows, new_arc_contexts
 
 
 # ---------------------------------------------------------------------------
@@ -1157,6 +1480,7 @@ def run_probe_once(
     success_threshold: float,
     failure_threshold: float,
     save_contexts: bool = False,
+    save_arc_contexts: bool = False,
 ) -> None:
     """Run the probe over a batch of checkpoint entries, write CSVs + report."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1164,14 +1488,27 @@ def run_probe_once(
     summary_csv = output_dir / f"{run_tag}_qprobe_summary.csv"
     report_md = output_dir / f"{run_tag}_qprobe_report.md"
     contexts_npz = output_dir / f"{run_tag}_qprobe_contexts.npz"
+    arc_csv = output_dir / f"{run_tag}_qprobe_arcs.csv"
+    arc_contexts_npz = output_dir / f"{run_tag}_qprobe_arc_contexts.npz"
 
     existing_keys = _read_existing_raw_keys(raw_csv)
     contexts_merged: dict[str, np.ndarray] = (
         _read_contexts_npz(contexts_npz) if save_contexts else {}
     )
+    arc_keys_existing: set[tuple[str, str, int, int]] = (
+        _read_existing_arc_keys(arc_csv) if save_arc_contexts else set()
+    )
+    arc_contexts_merged: dict[str, np.ndarray] = (
+        _read_arc_contexts_npz(arc_contexts_npz) if save_arc_contexts else {}
+    )
 
     for entry in entries:
-        new_rows, new_contexts = probe_checkpoint(
+        (
+            new_rows,
+            new_contexts,
+            new_arc_rows,
+            new_arc_contexts,
+        ) = probe_checkpoint(
             entry=entry,
             opponents=opponents,
             n_seeds=n_seeds,
@@ -1182,6 +1519,11 @@ def run_probe_once(
             skip_existing_keys=existing_keys,
             save_contexts=save_contexts,
             existing_context_keys=set(contexts_merged.keys()) if save_contexts else None,
+            save_arc_contexts=save_arc_contexts,
+            existing_arc_keys=arc_keys_existing if save_arc_contexts else None,
+            existing_arc_context_keys=(
+                set(arc_contexts_merged.keys()) if save_arc_contexts else None
+            ),
         )
         if new_rows:
             _append_raw_rows(raw_csv, new_rows)
@@ -1200,6 +1542,25 @@ def run_probe_once(
             print(
                 f"[q_probe] contexts: wrote {contexts_npz.name} "
                 f"({len(contexts_merged)} total keys)"
+            )
+        if save_arc_contexts and new_arc_rows:
+            _append_arc_rows(arc_csv, new_arc_rows)
+            for r in new_arc_rows:
+                arc_keys_existing.add(
+                    (
+                        str(r["checkpoint_path"]),
+                        str(r["opponent"]).upper(),
+                        int(r["probe_seed"]),
+                        int(r["forced_z"]),
+                    )
+                )
+        if save_arc_contexts and new_arc_contexts:
+            arc_contexts_merged.update(new_arc_contexts)
+            _write_arc_contexts_npz(arc_contexts_npz, arc_contexts_merged)
+            print(
+                f"[q_probe] arc-contexts: wrote {arc_contexts_npz.name} "
+                f"({len(arc_contexts_merged)} total keys), arc-CSV rows now "
+                f"in {arc_csv.name}"
             )
 
     all_raw = _read_raw_rows(raw_csv)
@@ -1288,6 +1649,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "(see tools/router_distill_from_qprobe.py)."
         ),
     )
+    p.add_argument(
+        "--save-arc-contexts",
+        action="store_true",
+        help=(
+            "v4i2b: also write <run_tag>_qprobe_arcs.csv and "
+            "<run_tag>_qprobe_arc_contexts.npz containing one row per "
+            "arc boundary (every latent_resample_every_n steps, default "
+            "64) for EACH forced-z rollout. Each row carries "
+            "approx_remaining_return_supervision = "
+            "sum(step_rewards[arc_timestep:]) (the return of the forced-z "
+            "policy from that arc onward) plus the q_phi context at that "
+            "moment. NOT a counterfactual: this is logged contextual-bandit "
+            "data, intended as the supervision input for the arc-mode of "
+            "tools/router_distill_from_qprobe.py."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -1352,6 +1729,7 @@ def main(argv: list[str] | None = None) -> int:
             success_threshold=float(args.success_threshold),
             failure_threshold=float(args.failure_threshold),
             save_contexts=bool(args.save_contexts),
+            save_arc_contexts=bool(args.save_arc_contexts),
         )
 
     if not do_watch:
@@ -1406,6 +1784,7 @@ def main(argv: list[str] | None = None) -> int:
             success_threshold=float(args.success_threshold),
             failure_threshold=float(args.failure_threshold),
             save_contexts=bool(args.save_contexts),
+            save_arc_contexts=bool(args.save_arc_contexts),
         )
 
 

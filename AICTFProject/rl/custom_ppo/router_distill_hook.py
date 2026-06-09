@@ -110,9 +110,11 @@ class PeriodicRouterDistillHook:
         )
         self.artifacts_subdir: str = str(
             getattr(
-                cfg, "latent_router_distill_artifacts_subdir", "v4i3_router_distill"
+                cfg,
+                "latent_router_distill_artifacts_subdir",
+                "v4i4post_router_distill",
             )
-            or "v4i3_router_distill"
+            or "v4i4post_router_distill"
         )
 
         self.run_tag: str = str(run_tag or "v4i3")

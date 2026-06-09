@@ -1,4 +1,4 @@
-"""v4i2: Return-Ranked Router Distillation from q_probe Data.
+"""v4i2 / v4i2b: Return-Ranked Router Distillation from q_probe Data.
 
 This is **offline** supervised distillation of the latent-strategy router
 ``q_phi`` from the matched-start returns produced by ``tools/q_probe.py``
@@ -12,18 +12,39 @@ Scope guard (mirrors the v4i2 plan):
 * It only trains the ``strategy_encoder`` (q_phi) sub-module of the loaded
   checkpoint, with the rest of the model **frozen**.
 * No role / phase / opponent-ID labels are introduced. The supervision is
-  task return: for each matched starting world ``(opponent, probe_seed)``,
-  we use the per-z returns ``[R(z0), R(z1), ..., R(z_{K-1})]`` measured by
-  q_probe and turn them into a soft target distribution via centered/scaled
-  softmax.
+  task return.
+
+Two supervision modes are supported (use one, not both):
+
+* **v4i2 episode-start mode** (default): supervision is per matched starting
+  world ``(opponent, probe_seed)``. The K returns are full-episode returns
+  under each forced z; targets are ``softmax(((R - mean) / std) / temp)``.
+  Inputs: ``--qprobe-csv`` + ``--contexts`` (one context per (opp, seed)).
+
+* **v4i2b arc-boundary mode**: supervision is per arc boundary
+  ``(opponent, probe_seed, arc_idx)``. The K targets are the SAME soft-max
+  distribution built from the K remaining-returns-from-here values, but
+  each of the K examples carries the **per-z** q_phi context (different
+  across z because trajectories diverge after step 0). This is logged
+  contextual-bandit data labelled ``approx_remaining_return_supervision``
+  -- NOT a clone-and-replay counterfactual.
+  Inputs: ``--arc-csv`` + ``--arc-contexts``. When both are supplied, the
+  script ignores ``--qprobe-csv`` / ``--contexts`` and runs in arc mode.
 
 Inputs
 ------
 
 * ``--checkpoint``       v4i1 (or later) PPO checkpoint .zip with q_phi.
 * ``--qprobe-csv``       Raw q_probe episode CSV (``<run_tag>_qprobe.csv``).
+                         Required for episode-start mode.
 * ``--contexts``         Contexts NPZ (``<run_tag>_qprobe_contexts.npz``)
                          produced by ``q_probe.py --save-contexts``.
+                         Required for episode-start mode.
+* ``--arc-csv``          Arc-boundary CSV (``<run_tag>_qprobe_arcs.csv``).
+                         Provide together with ``--arc-contexts`` to enable
+                         arc-boundary supervision.
+* ``--arc-contexts``     Arc-boundary contexts NPZ
+                         (``<run_tag>_qprobe_arc_contexts.npz``).
 * ``--out``              Output path for the router-distilled checkpoint.
 
 Output
@@ -194,6 +215,258 @@ def build_examples(
             f"{missing_ctx} groups missing context, kept {len(out)}."
         )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Arc-boundary (v4i2b) data loading
+# ---------------------------------------------------------------------------
+
+def _load_arc_contexts_npz(path: Path) -> dict[str, np.ndarray]:
+    """Load ``<run_tag>_qprobe_arc_contexts.npz`` (same layout as v4i2)."""
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Arc-contexts NPZ not found: {path}. Re-run q_probe.py with "
+            "--save-arc-contexts."
+        )
+    with np.load(path, allow_pickle=True) as data:
+        keys = [str(k) for k in data["keys"].tolist()]
+        ctx = np.asarray(data["contexts"], dtype=np.float32)
+    if ctx.shape[0] != len(keys):
+        raise ValueError(
+            f"Arc-contexts NPZ malformed: {len(keys)} keys vs {ctx.shape[0]} rows."
+        )
+    return {keys[i]: ctx[i].astype(np.float32) for i in range(len(keys))}
+
+
+def _load_arc_rows(path: Path) -> list[dict[str, Any]]:
+    """Load the arc-boundary CSV into a list of dicts (typed strings)."""
+    if not path.exists():
+        raise FileNotFoundError(f"Arc CSV not found: {path}")
+    out: list[dict[str, Any]] = []
+    with path.open("r", newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            out.append(dict(row))
+    return out
+
+
+def build_arc_examples(
+    *,
+    arc_rows: list[dict[str, Any]],
+    arc_contexts: dict[str, np.ndarray],
+    checkpoint_path: str,
+    latent_k: int,
+) -> tuple[list[_ContextRow], dict[str, Any]]:
+    """v4i2b: emit K examples per K-complete arc-boundary scene.
+
+    Group ``arc_rows`` by ``(checkpoint_steps, opponent, probe_seed, arc_idx)``.
+    A scene is "K-complete" when all ``latent_k`` forced-z rollouts reached
+    this arc boundary AND all K context-keys are present in the NPZ.
+
+    For each K-complete scene we build ONE returns vector
+    ``[R_rem(z0), R_rem(z1), ..., R_rem(z_{K-1})]`` from the per-z
+    ``approx_remaining_return_supervision`` values and emit K training rows
+    -- one per forced_z. Each emitted row carries the **per-z** q_phi
+    context at this arc boundary in the z-th rollout (different across z,
+    because trajectories diverge), and the SAME K-vector ``returns``.
+
+    The matched-target / per-z-context pairing is the v4i2b approximation:
+    we are saying "from this arc-state reached via z=k, the relative
+    desirability of the K z's at this scene is the K remaining-returns
+    we measured". This is logged contextual-bandit data, NOT a
+    clone-and-replay counterfactual.
+
+    Returns ``(rows, stats)``.
+    """
+    ckpt_str = str(Path(checkpoint_path).resolve())
+    ckpt_name = Path(checkpoint_path).name
+
+    grouped: dict[
+        tuple[int, str, int, int], dict[int, dict[str, Any]]
+    ] = {}
+    n_csv_total = 0
+    n_csv_filtered_path = 0
+    for r in arc_rows:
+        n_csv_total += 1
+        rp = str(r.get("checkpoint_path", ""))
+        if not rp:
+            n_csv_filtered_path += 1
+            continue
+        try:
+            rp_resolved = str(Path(rp).resolve())
+        except OSError:
+            rp_resolved = rp
+        if rp_resolved != ckpt_str and Path(rp).name != ckpt_name:
+            n_csv_filtered_path += 1
+            continue
+        try:
+            steps = int(r["checkpoint_steps"])
+            opp = str(r["opponent"]).upper()
+            seed = int(r["probe_seed"])
+            z = int(r["forced_z"])
+            arc_idx = int(r["arc_idx"])
+            rem_R = float(r["approx_remaining_return_supervision"])
+            ctx_key = str(r["context_key"])
+        except (KeyError, ValueError):
+            continue
+        if not (0 <= z < latent_k):
+            continue
+        grouped.setdefault((steps, opp, seed, arc_idx), {})[z] = {
+            "remaining_R": rem_R,
+            "context_key": ctx_key,
+        }
+
+    out: list[_ContextRow] = []
+    n_scenes = len(grouped)
+    n_complete = 0
+    n_skipped_missing_z = 0
+    n_skipped_missing_ctx = 0
+    arc_idx_hist: dict[int, int] = {}
+    # v4i2b diagnostic: dispersion of the K per-z contexts within each
+    # K-complete arc scene. Low dispersion = rollouts have not yet
+    # meaningfully diverged at this arc, so grouping a single K-vector
+    # target across the K contexts is close to valid. High dispersion =
+    # rollouts have diverged, so the target is noisy. Reported overall
+    # and broken out per arc_idx (expectation: ~0 at arc_idx=0 because
+    # the matched-start contract makes step-0 global state identical
+    # across z, and grows with arc_idx).
+    per_scene_disp: list[dict[str, Any]] = []
+    for (steps, opp, seed, arc_idx), zmap in grouped.items():
+        if len(zmap) < latent_k or any(
+            z not in zmap for z in range(latent_k)
+        ):
+            n_skipped_missing_z += 1
+            continue
+        ctxs: list[np.ndarray] = []
+        any_missing = False
+        for z in range(latent_k):
+            ck = zmap[z]["context_key"]
+            ctx = arc_contexts.get(ck)
+            if ctx is None:
+                any_missing = True
+                break
+            ctxs.append(np.asarray(ctx, dtype=np.float32).reshape(-1))
+        if any_missing:
+            n_skipped_missing_ctx += 1
+            continue
+        n_complete += 1
+        arc_idx_hist[arc_idx] = arc_idx_hist.get(arc_idx, 0) + 1
+        returns_arr = np.array(
+            [zmap[z]["remaining_R"] for z in range(latent_k)],
+            dtype=np.float32,
+        )
+        ctx_stack = np.stack(ctxs, axis=0).astype(np.float32)  # [K, 170]
+        centroid = ctx_stack.mean(axis=0)
+        diffs = ctx_stack - centroid[None, :]
+        per_z_l2 = np.linalg.norm(diffs, axis=1)
+        scene_l2 = float(per_z_l2.mean())
+        scene_l2_max = float(per_z_l2.max())
+        centroid_norm = float(np.linalg.norm(centroid))
+        scene_l2_norm = scene_l2 / (centroid_norm + 1e-8)
+        ctx_norms = np.linalg.norm(ctx_stack, axis=1)
+        if centroid_norm > 1e-8:
+            cos_sims = (ctx_stack @ centroid) / (
+                ctx_norms * centroid_norm + 1e-8
+            )
+            scene_cos_disp = float(1.0 - cos_sims.mean())
+        else:
+            scene_cos_disp = 0.0
+        per_scene_disp.append(
+            {
+                "checkpoint_steps": int(steps),
+                "opponent": str(opp),
+                "probe_seed": int(seed),
+                "arc_idx": int(arc_idx),
+                "centroid_l2_norm": float(centroid_norm),
+                "context_l2_dispersion": scene_l2,
+                "context_l2_dispersion_max": scene_l2_max,
+                "context_l2_dispersion_normalized": float(scene_l2_norm),
+                "context_cos_dispersion": float(scene_cos_disp),
+            }
+        )
+        for z in range(latent_k):
+            key = f"{steps}|{opp}|{seed}|{z}|{arc_idx}"
+            out.append(
+                _ContextRow(
+                    key=key,
+                    steps=steps,
+                    opponent=opp,
+                    seed=seed,
+                    context=ctxs[z],
+                    returns=returns_arr,
+                )
+            )
+    dispersion_summary = _summarize_arc_dispersion(per_scene_disp)
+    stats = {
+        "n_csv_rows": int(n_csv_total),
+        "n_csv_filtered_by_checkpoint": int(n_csv_filtered_path),
+        "n_scenes_total": int(n_scenes),
+        "n_scenes_complete_K": int(n_complete),
+        "n_scenes_missing_z": int(n_skipped_missing_z),
+        "n_scenes_missing_ctx": int(n_skipped_missing_ctx),
+        "n_rows_emitted": int(len(out)),
+        "arc_idx_histogram": dict(sorted(arc_idx_hist.items())),
+        "context_dispersion_across_forced_z": dispersion_summary,
+        "_per_scene_dispersion_rows": per_scene_disp,
+    }
+    return out, stats
+
+
+def _summarize_arc_dispersion(
+    per_scene: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Aggregate per-scene dispersion into overall + per-arc_idx summaries."""
+    if not per_scene:
+        return {
+            "n_scenes": 0,
+            "overall": {},
+            "per_arc_idx": {},
+        }
+    l2 = np.array(
+        [r["context_l2_dispersion"] for r in per_scene], dtype=np.float64
+    )
+    l2_norm = np.array(
+        [r["context_l2_dispersion_normalized"] for r in per_scene],
+        dtype=np.float64,
+    )
+    cos_disp = np.array(
+        [r["context_cos_dispersion"] for r in per_scene], dtype=np.float64
+    )
+    overall = {
+        "mean_l2": float(l2.mean()),
+        "median_l2": float(np.median(l2)),
+        "max_l2": float(l2.max()),
+        "mean_l2_normalized": float(l2_norm.mean()),
+        "median_l2_normalized": float(np.median(l2_norm)),
+        "max_l2_normalized": float(l2_norm.max()),
+        "mean_cos_dispersion": float(cos_disp.mean()),
+        "median_cos_dispersion": float(np.median(cos_disp)),
+        "max_cos_dispersion": float(cos_disp.max()),
+    }
+    per_arc: dict[int, dict[str, float]] = {}
+    arc_indices = sorted({int(r["arc_idx"]) for r in per_scene})
+    for ai in arc_indices:
+        bucket = [r for r in per_scene if int(r["arc_idx"]) == ai]
+        bl2_n = np.array(
+            [r["context_l2_dispersion_normalized"] for r in bucket],
+            dtype=np.float64,
+        )
+        bcos = np.array(
+            [r["context_cos_dispersion"] for r in bucket],
+            dtype=np.float64,
+        )
+        per_arc[ai] = {
+            "n_scenes": int(len(bucket)),
+            "mean_l2_normalized": float(bl2_n.mean()),
+            "max_l2_normalized": float(bl2_n.max()),
+            "mean_cos_dispersion": float(bcos.mean()),
+            "max_cos_dispersion": float(bcos.max()),
+        }
+    return {
+        "n_scenes": int(len(per_scene)),
+        "overall": overall,
+        "per_arc_idx": per_arc,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -534,6 +807,40 @@ def save_distilled_checkpoint(
 # Reporting
 # ---------------------------------------------------------------------------
 
+def _write_arc_dispersion_csv(
+    csv_path: Path, per_scene_rows: list[dict[str, Any]]
+) -> None:
+    """Write per-(opp, seed, arc_idx) context dispersion stats for inspection."""
+    if not per_scene_rows:
+        return
+    fieldnames = [
+        "checkpoint_steps",
+        "opponent",
+        "probe_seed",
+        "arc_idx",
+        "centroid_l2_norm",
+        "context_l2_dispersion",
+        "context_l2_dispersion_max",
+        "context_l2_dispersion_normalized",
+        "context_cos_dispersion",
+    ]
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    rows_sorted = sorted(
+        per_scene_rows,
+        key=lambda r: (
+            int(r.get("checkpoint_steps", 0)),
+            str(r.get("opponent", "")),
+            int(r.get("probe_seed", 0)),
+            int(r.get("arc_idx", 0)),
+        ),
+    )
+    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in rows_sorted:
+            writer.writerow({k: r.get(k, "") for k in fieldnames})
+
+
 def _write_metrics_csv(metrics_path: Path, results: dict[str, Any]) -> None:
     rows = [
         results["pre_train"].as_row("train", "pre"),
@@ -560,19 +867,120 @@ def _write_report(
     n_train: int,
     n_val: int,
     latent_k: int,
+    arc_mode: bool = False,
+    arc_stats: dict[str, Any] | None = None,
 ) -> None:
     lines: list[str] = []
-    lines.append(f"# v4i2 Router Distillation Report")
+    if arc_mode:
+        lines.append("# v4i2b Router Distillation Report (arc-boundary supervision)")
+    else:
+        lines.append("# v4i2 Router Distillation Report (episode-start supervision)")
     lines.append("")
     lines.append(f"- source checkpoint: `{Path(args.checkpoint).name}`")
-    lines.append(f"- qprobe CSV:        `{Path(args.qprobe_csv).name}`")
-    lines.append(f"- contexts NPZ:      `{Path(args.contexts).name}`")
+    if arc_mode:
+        lines.append(
+            f"- supervision: **approx_remaining_return_supervision** "
+            "(remaining return of the forced-z trajectory from each arc onward; "
+            "NOT a clone-and-replay counterfactual)"
+        )
+        lines.append(f"- arc CSV:           `{Path(args.arc_csv).name}`")
+        lines.append(f"- arc contexts NPZ:  `{Path(args.arc_contexts).name}`")
+    else:
+        lines.append(
+            "- supervision: full-episode return per matched (opponent, probe_seed)"
+        )
+        lines.append(f"- qprobe CSV:        `{Path(args.qprobe_csv).name}`")
+        lines.append(f"- contexts NPZ:      `{Path(args.contexts).name}`")
     lines.append(f"- output checkpoint: `{Path(args.out).name}`")
     lines.append(f"- temperature: {args.temperature}, epochs: {args.epochs}, "
                  f"lr: {args.lr}, weight_decay: {args.weight_decay}")
     lines.append(f"- n_train: {n_train}, n_val: {n_val}, latent_k: {latent_k}, "
                  f"random_baseline_top1: {1.0 / max(1, latent_k):.3f}")
+    if arc_mode and arc_stats is not None:
+        lines.append(
+            f"- arc scenes: total={arc_stats['n_scenes_total']}, "
+            f"K-complete={arc_stats['n_scenes_complete_K']}, "
+            f"missing_z={arc_stats['n_scenes_missing_z']}, "
+            f"missing_ctx={arc_stats['n_scenes_missing_ctx']}, "
+            f"rows_emitted={arc_stats['n_rows_emitted']}"
+        )
+        lines.append(
+            f"- arc_idx histogram (K-complete only): "
+            f"{arc_stats['arc_idx_histogram']}"
+        )
     lines.append("")
+    if arc_mode and arc_stats is not None:
+        disp = arc_stats.get("context_dispersion_across_forced_z", {})
+        if disp.get("n_scenes", 0) > 0:
+            lines.append("## context_dispersion_across_forced_z (diagnostic)")
+            lines.append("")
+            lines.append(
+                "How far the K per-z q_phi contexts have drifted apart at each "
+                "K-complete arc scene. Computed against the per-scene centroid:"
+            )
+            lines.append("")
+            lines.append(
+                "- `l2_normalized` = mean_k ||ctx_k - centroid||_2 / "
+                "(||centroid||_2 + 1e-8)"
+            )
+            lines.append(
+                "- `cos_dispersion` = 1 - mean_k cos(ctx_k, centroid)"
+            )
+            lines.append("")
+            lines.append(
+                "Low values mean rollouts have not meaningfully diverged at "
+                "this arc, so grouping a single K-vector target across the K "
+                "contexts is close to valid (clean labels). High values mean "
+                "rollouts have already diverged, so the target is noisy "
+                "(swampy labels)."
+            )
+            lines.append("")
+            overall = disp["overall"]
+            lines.append("### Overall (K-complete scenes)")
+            lines.append("")
+            lines.append("| metric | mean | median | max |")
+            lines.append("|---|---|---|---|")
+            lines.append(
+                f"| l2 | {overall['mean_l2']:.4f} | "
+                f"{overall['median_l2']:.4f} | "
+                f"{overall['max_l2']:.4f} |"
+            )
+            lines.append(
+                f"| l2_normalized | {overall['mean_l2_normalized']:.4f} | "
+                f"{overall['median_l2_normalized']:.4f} | "
+                f"{overall['max_l2_normalized']:.4f} |"
+            )
+            lines.append(
+                f"| cos_dispersion | "
+                f"{overall['mean_cos_dispersion']:.4f} | "
+                f"{overall['median_cos_dispersion']:.4f} | "
+                f"{overall['max_cos_dispersion']:.4f} |"
+            )
+            lines.append("")
+            lines.append("### Per arc_idx (K-complete scenes only)")
+            lines.append("")
+            lines.append(
+                "| arc_idx | n_scenes | mean_l2_norm | max_l2_norm | "
+                "mean_cos_disp | max_cos_disp |"
+            )
+            lines.append("|---|---|---|---|---|---|")
+            for ai, b in disp["per_arc_idx"].items():
+                lines.append(
+                    f"| {ai} | {b['n_scenes']} | "
+                    f"{b['mean_l2_normalized']:.4f} | "
+                    f"{b['max_l2_normalized']:.4f} | "
+                    f"{b['mean_cos_dispersion']:.4f} | "
+                    f"{b['max_cos_dispersion']:.4f} |"
+                )
+            lines.append("")
+            lines.append(
+                "Sanity check: at `arc_idx=0` the matched-start contract "
+                "forces identical global state across z, so dispersion "
+                "should be exactly 0.0. Dispersion should grow monotonically "
+                "with `arc_idx` as rollouts diverge. Per-scene values are in "
+                "the companion `*_distill_arc_dispersion.csv`."
+            )
+            lines.append("")
     lines.append("## Metrics (pre vs post)")
     lines.append("")
     lines.append("| split | phase | n | top1 | regret_mean | max_prob | entropy(nats) | ce |")
@@ -625,6 +1033,14 @@ def _write_report(
     lines.append("  value heads stayed byte-identical to the source checkpoint.")
     lines.append("- This script does NOT change reward, opponents, maps, arc-credit math,")
     lines.append("  or the PPO trainer (v4i2 scope guard).")
+    if arc_mode:
+        lines.append(
+            "- v4i2b note: the per-arc supervision is the return of the "
+            "**forced-z** trajectory from that arc onward (logged data), not a "
+            "clone-and-replay counterfactual. The K-vector target for the "
+            "scene is built from the K such measurements (one per z), and "
+            "each emitted example carries the per-z arc-state q_phi context."
+        )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -639,10 +1055,32 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--checkpoint", type=Path, required=True,
                    help="Source PPO checkpoint (e.g. final_v4i1_*.zip).")
-    p.add_argument("--qprobe-csv", type=Path, required=True,
-                   help="Raw q_probe episodes CSV (<run_tag>_qprobe.csv).")
-    p.add_argument("--contexts", type=Path, required=True,
-                   help="q_probe contexts NPZ (<run_tag>_qprobe_contexts.npz).")
+    p.add_argument("--qprobe-csv", type=Path, default=None,
+                   help=("Raw q_probe episodes CSV (<run_tag>_qprobe.csv). "
+                         "Required unless --arc-csv is given (v4i2b mode)."))
+    p.add_argument("--contexts", type=Path, default=None,
+                   help=("q_probe contexts NPZ (<run_tag>_qprobe_contexts.npz). "
+                         "Required unless --arc-contexts is given (v4i2b mode)."))
+    p.add_argument(
+        "--arc-csv",
+        type=Path,
+        default=None,
+        help=(
+            "v4i2b arc-boundary CSV (<run_tag>_qprobe_arcs.csv). When both "
+            "--arc-csv and --arc-contexts are provided, the script runs in "
+            "arc-boundary mode (approx_remaining_return_supervision) and "
+            "ignores --qprobe-csv / --contexts."
+        ),
+    )
+    p.add_argument(
+        "--arc-contexts",
+        type=Path,
+        default=None,
+        help=(
+            "v4i2b arc-boundary contexts NPZ "
+            "(<run_tag>_qprobe_arc_contexts.npz). See --arc-csv."
+        ),
+    )
     p.add_argument("--out", type=Path, required=True,
                    help="Output path for the router-distilled checkpoint.")
     p.add_argument("--temperature", type=float, default=1.0,
@@ -682,22 +1120,89 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[v4i2] latent_k={latent_k}, n_blue={int(meta.get('n_blue', 4))}, "
           f"device={args.device}")
 
-    contexts = _load_contexts_npz(args.contexts)
-    qprobe_rows = _load_qprobe_rows(args.qprobe_csv)
-    print(f"[v4i2] contexts: {len(contexts)} rows; qprobe CSV: {len(qprobe_rows)} rows")
-
-    rows = build_examples(
-        qprobe_rows=qprobe_rows,
-        contexts=contexts,
-        checkpoint_path=str(args.checkpoint),
-        latent_k=latent_k,
-    )
-    if not rows:
+    arc_mode = bool(args.arc_csv) and bool(args.arc_contexts)
+    if arc_mode:
+        if not Path(args.arc_csv).exists():
+            print(f"[v4i2b] FATAL: arc CSV not found: {args.arc_csv}")
+            return 2
+        if not Path(args.arc_contexts).exists():
+            print(f"[v4i2b] FATAL: arc contexts NPZ not found: {args.arc_contexts}")
+            return 2
+        arc_contexts_map = _load_arc_contexts_npz(args.arc_contexts)
+        arc_rows_raw = _load_arc_rows(args.arc_csv)
         print(
-            "[v4i2] FATAL: no usable (steps, opp, seed) groups. Double-check that "
-            "the qprobe CSV and contexts NPZ correspond to this checkpoint."
+            f"[v4i2b] arc-mode: contexts NPZ {len(arc_contexts_map)} keys; "
+            f"arc CSV {len(arc_rows_raw)} rows"
         )
-        return 1
+        rows, arc_stats = build_arc_examples(
+            arc_rows=arc_rows_raw,
+            arc_contexts=arc_contexts_map,
+            checkpoint_path=str(args.checkpoint),
+            latent_k=latent_k,
+        )
+        print(
+            "[v4i2b] arc-mode stats: "
+            f"scenes_total={arc_stats['n_scenes_total']}, "
+            f"K-complete={arc_stats['n_scenes_complete_K']}, "
+            f"missing_z={arc_stats['n_scenes_missing_z']}, "
+            f"missing_ctx={arc_stats['n_scenes_missing_ctx']}, "
+            f"rows_emitted={arc_stats['n_rows_emitted']}, "
+            f"arc_idx_hist={arc_stats['arc_idx_histogram']}"
+        )
+        disp = arc_stats.get("context_dispersion_across_forced_z", {})
+        if disp.get("n_scenes", 0) > 0:
+            overall = disp["overall"]
+            print(
+                "[v4i2b] context_dispersion_across_forced_z (overall, K-complete scenes): "
+                f"mean_l2={overall['mean_l2']:.4f}, "
+                f"mean_l2_normalized={overall['mean_l2_normalized']:.4f}, "
+                f"mean_cos_disp={overall['mean_cos_dispersion']:.4f} | "
+                f"max_l2_norm={overall['max_l2_normalized']:.4f}, "
+                f"max_cos_disp={overall['max_cos_dispersion']:.4f}"
+            )
+            print(
+                "[v4i2b] context_dispersion_across_forced_z per arc_idx "
+                "(n / mean_l2_norm / mean_cos_disp):"
+            )
+            for ai, b in disp["per_arc_idx"].items():
+                print(
+                    f"[v4i2b]   arc_idx={ai}: n={b['n_scenes']}, "
+                    f"mean_l2_norm={b['mean_l2_normalized']:.4f}, "
+                    f"mean_cos_disp={b['mean_cos_dispersion']:.4f}"
+                )
+        if not rows:
+            print(
+                "[v4i2b] FATAL: no K-complete arc scenes. Verify that the "
+                "arc CSV and arc contexts NPZ correspond to this checkpoint, "
+                "and that latent_k matches."
+            )
+            return 1
+    else:
+        if args.qprobe_csv is None or args.contexts is None:
+            print(
+                "[v4i2] FATAL: episode-start mode requires both --qprobe-csv "
+                "and --contexts (or pass --arc-csv + --arc-contexts for v4i2b)."
+            )
+            return 2
+        contexts = _load_contexts_npz(args.contexts)
+        qprobe_rows = _load_qprobe_rows(args.qprobe_csv)
+        print(
+            f"[v4i2] contexts: {len(contexts)} rows; qprobe CSV: "
+            f"{len(qprobe_rows)} rows"
+        )
+        rows = build_examples(
+            qprobe_rows=qprobe_rows,
+            contexts=contexts,
+            checkpoint_path=str(args.checkpoint),
+            latent_k=latent_k,
+        )
+        arc_stats = None
+        if not rows:
+            print(
+                "[v4i2] FATAL: no usable (steps, opp, seed) groups. Double-check "
+                "that the qprobe CSV and contexts NPZ correspond to this checkpoint."
+            )
+            return 1
 
     train_rows, val_rows = split_train_val(
         rows,
@@ -760,9 +1265,20 @@ def main(argv: list[str] | None = None) -> int:
         n_train=len(train_rows),
         n_val=len(val_rows),
         latent_k=latent_k,
+        arc_mode=arc_mode,
+        arc_stats=arc_stats,
     )
     print(f"[v4i2] wrote metrics: {metrics_csv}")
     print(f"[v4i2] wrote report:  {report_md}")
+    if arc_mode and arc_stats is not None:
+        per_scene_disp = arc_stats.get("_per_scene_dispersion_rows", [])
+        if per_scene_disp:
+            disp_csv = (
+                args.out.parent
+                / f"{base_name}_{args.report_suffix}_arc_dispersion.csv"
+            )
+            _write_arc_dispersion_csv(disp_csv, per_scene_disp)
+            print(f"[v4i2b] wrote arc dispersion CSV: {disp_csv}")
 
     return 0
 

@@ -442,8 +442,11 @@ class PPOConfig:
     # The probe + distill runs run as separate subprocesses; ``cpu`` is the
     # safe default so the PPO GPU is not contended.
     latent_router_distill_device: str = "cpu"
-    # Subdirectory under ``checkpoint_dir`` for the v4i3 artifact tree.
-    latent_router_distill_artifacts_subdir: str = "v4i3_router_distill"
+    # Subdirectory under ``checkpoint_dir`` for the v4i4post artifact tree.
+    # (This recipe was originally introduced as v4i3 but was rescoped: the
+    # canonical v4i3 is now the Summer-Faithful Proof Suite, and periodic
+    # router distillation lives in v4i4post as a post-Summer extension.)
+    latent_router_distill_artifacts_subdir: str = "v4i4post_router_distill"
 
 
 __all__ = ["PPOConfig", "TrainMode"]

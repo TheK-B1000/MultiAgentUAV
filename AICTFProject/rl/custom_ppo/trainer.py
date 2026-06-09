@@ -343,9 +343,11 @@ class CustomPPOTrainer:
             self.periodic_checkpoint_steps if self.periodic_checkpoint_steps > 0 else 0
         )
 
-        # v4i3 periodic router-distillation hook. Stays a no-op unless the
-        # ``latent_router_distill_enabled`` flag (or the ``v4i3`` preset)
-        # turns it on. The hook owns its own cadence counter, subprocess
+        # v4i4post periodic router-distillation hook. Stays a no-op unless
+        # the ``latent_router_distill_enabled`` flag (or the
+        # ``v4i4post`` / legacy alias preset) turns it on. The canonical
+        # v4i3 (Summer Proof Suite) leaves this off. The hook owns its own
+        # cadence counter, subprocess
         # plumbing, and Adam-moment reset; the trainer just hands it a
         # checkpoint path after each periodic save.
         self.router_distill_hook = PeriodicRouterDistillHook(
@@ -496,8 +498,8 @@ class CustomPPOTrainer:
             ckpt_path = os.path.join(str(getattr(self.cfg, "checkpoint_dir", "checkpoints")), ckpt_name)
             self.save(ckpt_path)
             print(f"[PPO] Periodic checkpoint saved: {ckpt_path}")
-            # v4i3 hook (no-op unless ``latent_router_distill_enabled``): run
-            # q_probe + router distillation against the just-saved checkpoint
+            # v4i4post hook (no-op unless ``latent_router_distill_enabled``):
+            # run q_probe + router distillation against the just-saved checkpoint
             # and hot-swap the distilled ``strategy_encoder.*`` weights back
             # into the running model. Always best-effort: any failure here
             # cannot block training.

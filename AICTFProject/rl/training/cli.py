@@ -416,77 +416,82 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         default=None,
         help="Save checkpoint every N env steps during training (0 disables).",
     )
-    # --- v4i3: Periodic Return-Ranked Router Distillation ---------------
+    # --- v4i4post (post-Summer extension): Periodic Return-Ranked Router
+    # Distillation. These flags used to live under the v4i3 banner before
+    # v4i3 was rescoped to the Summer Proof Suite. The CANONICAL v4i3
+    # preset (Summer Proof Suite) leaves all of these off; only
+    # ``latent_v4i4post_periodic_router_distill`` turns them on.
     parser.add_argument(
         "--latent-router-distill-enabled",
         action="store_true",
         default=None,
         help=(
-            "v4i3: after each periodic checkpoint save, run tools/q_probe.py + "
+            "v4i4post: after each periodic checkpoint save, run tools/q_probe.py + "
             "tools/router_distill_from_qprobe.py as subprocesses against the "
             "just-saved checkpoint and hot-swap the distilled strategy_encoder "
-            "weights back into the running model. Off by default."
+            "weights back into the running model. Off by default (v4i3 Summer "
+            "Proof keeps this off; only v4i4post turns it on)."
         ),
     )
     parser.add_argument(
         "--latent-router-distill-every-n-steps",
         type=int,
         default=None,
-        help="v4i3 cadence (default 250000). The hook fires on the first periodic-save boundary >= this.",
+        help="v4i4post cadence (default 250000). The hook fires on the first periodic-save boundary >= this.",
     )
     parser.add_argument(
         "--latent-router-distill-n-seeds",
         type=int,
         default=None,
-        help="v4i3: matched-start seeds per (opponent, z) for the in-trainer q_probe.",
+        help="v4i4post: matched-start seeds per (opponent, z) for the in-trainer q_probe.",
     )
     parser.add_argument(
         "--latent-router-distill-base-seed",
         type=int,
         default=None,
-        help="v4i3: q_probe base seed; the hook uses seeds base..base+n_seeds-1.",
+        help="v4i4post: q_probe base seed; the hook uses seeds base..base+n_seeds-1.",
     )
     parser.add_argument(
         "--latent-router-distill-opponents",
         nargs="+",
         default=None,
-        help="v4i3: opponent labels for the in-trainer q_probe (default: OP5 OP6 OP7).",
+        help="v4i4post: opponent labels for the in-trainer q_probe (default: OP5 OP6 OP7).",
     )
     parser.add_argument(
         "--latent-router-distill-epochs",
         type=int,
         default=None,
-        help="v4i3 distill epochs per round (default 100).",
+        help="v4i4post distill epochs per round (default 100).",
     )
     parser.add_argument(
         "--latent-router-distill-lr",
         type=float,
         default=None,
-        help="v4i3 distill learning rate (default 1e-4).",
+        help="v4i4post distill learning rate (default 1e-4).",
     )
     parser.add_argument(
         "--latent-router-distill-temperature",
         type=float,
         default=None,
-        help="v4i3 soft-target temperature (default 1.0).",
+        help="v4i4post soft-target temperature (default 1.0).",
     )
     parser.add_argument(
         "--latent-router-distill-weight-decay",
         type=float,
         default=None,
-        help="v4i3 distill optimizer weight decay (default 0.0).",
+        help="v4i4post distill optimizer weight decay (default 0.0).",
     )
     parser.add_argument(
         "--latent-router-distill-device",
         type=str,
         default=None,
-        help="v4i3 subprocess device for q_probe + distill (default: cpu).",
+        help="v4i4post subprocess device for q_probe + distill (default: cpu).",
     )
     parser.add_argument(
         "--latent-router-distill-artifacts-subdir",
         type=str,
         default=None,
-        help="v4i3 subdir under --checkpoint-dir for round artifacts (default: v4i3_router_distill).",
+        help="v4i4post subdir under --checkpoint-dir for round artifacts (default: v4i4post_router_distill).",
     )
     parser.add_argument(
         "--no-progress-bar",
@@ -532,24 +537,34 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.opponent_randomize = True
     if getattr(args, "opponent_pool", None):
         cfg.opponent_pool = tuple(str(x).strip().upper() for x in args.opponent_pool if str(x).strip())
-    if "v4i1" in preset_key.lower():
-        # v4i1's whole thesis is that the strategic-pressure pool {OP5, OP6, OP7}
-        # is the experimental treatment. A stray ``--opponent-pool`` on the CLI
-        # would silently override the preset and invalidate the run. Refuse
-        # anything other than exactly {OP5, OP6, OP7} (any order) for this preset.
-        required_v4i1_pool = frozenset({"OP5", "OP6", "OP7"})
+    # Strategic-pressure pool guard. v4i1 (and everything that inherits its
+    # opponent-pool contract: v4i3 Summer-proof, v4i3 no-latent baseline,
+    # v4i4post periodic distill) requires opponent_pool == {OP5, OP6, OP7}
+    # exactly. A stray ``--opponent-pool`` on the CLI would silently
+    # override the preset and invalidate the strategic-pressure ablation.
+    _preset_key_lower = preset_key.lower()
+    _requires_v4i_pressure_pool = (
+        "v4i1" in _preset_key_lower
+        or "v4i3" in _preset_key_lower
+        or "v4i4post" in _preset_key_lower
+    )
+    if _requires_v4i_pressure_pool:
+        required_pool = frozenset({"OP5", "OP6", "OP7"})
         actual_pool = frozenset(str(x).upper() for x in (cfg.opponent_pool or ()))
-        if actual_pool != required_v4i1_pool:
+        if actual_pool != required_pool:
             raise ValueError(
-                "v4i1 preset requires opponent_pool == {OP5, OP6, OP7} exactly "
-                f"(got {sorted(actual_pool)!r}). Remove any --opponent-pool override "
-                "from the command line and let the preset own the pool, or pass "
-                "--opponent-pool OP5 OP6 OP7 explicitly."
+                f"Preset {preset_key!r} requires opponent_pool == {{OP5, OP6, OP7}} "
+                f"exactly (got {sorted(actual_pool)!r}). Remove any --opponent-pool "
+                "override from the command line and let the preset own the pool, "
+                "or pass --opponent-pool OP5 OP6 OP7 explicitly. (The v4i family's "
+                "thesis is that the strategic-pressure pool is the experimental "
+                "treatment; mutating it breaks the v4i3 Summer-proof ablation and "
+                "the v4i1 return-contrast story.)"
             )
         if not cfg.opponent_randomize:
             raise ValueError(
-                "v4i1 preset requires --opponent-randomize (preset sets this by "
-                "default). Do not disable it on the command line."
+                f"Preset {preset_key!r} requires --opponent-randomize (preset sets "
+                "this by default). Do not disable it on the command line."
             )
     if getattr(args, "opponent_pool_weights", None):
         wmap: dict[str, float] = {}
@@ -751,7 +766,7 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
     if args.periodic_checkpoint_steps is not None:
         cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
-    # --- v4i3 router-distill overrides ----------------------------------
+    # --- v4i4post router-distill overrides ------------------------------
     if getattr(args, "latent_router_distill_enabled", None):
         cfg.latent_router_distill_enabled = True
     if getattr(args, "latent_router_distill_every_n_steps", None) is not None:
@@ -791,7 +806,7 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
     if getattr(args, "latent_router_distill_artifacts_subdir", None):
         cfg.latent_router_distill_artifacts_subdir = str(
             args.latent_router_distill_artifacts_subdir
-        ).strip() or "v4i3_router_distill"
+        ).strip() or "v4i4post_router_distill"
     if args.no_progress_bar:
         cfg.enable_progress_bar = False
     if preset_key:

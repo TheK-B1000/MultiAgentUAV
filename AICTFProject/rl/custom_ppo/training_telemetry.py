@@ -498,15 +498,68 @@ class TrainingTelemetry:
                     f"MI_z_flag={mi_z_f:.4f} MI_z_outcome={mi_z_y:.4f} | "
                     + " ".join(opp_diag_bits)
                 )
-            # In episode-credit mode (latent_strategy_ppo_coef==0 + episode_strategy_ppo=True)
-            # the main-loop q_phi loss is gated to zero by Fix 5, so the main-loop gradient, policy
-            # loss, and ratio stats are structurally zero. To print meaningful active router metrics,
-            # we pull their values from the episode-credit update when episode_credit_on is True.
+            # Active q_phi credit path selection for the printed diag line.
+            #
+            # There are THREE mutually-relevant code paths that can deliver
+            # gradient to q_phi, and only one is "live" for any given
+            # preset. Picking the wrong one for the print makes the diag
+            # line print structural zeros and looks like q_phi is dead
+            # when it is actually learning:
+            #
+            #   * Per-step strategy-PPO (legacy v1/v2): active when
+            #     ``latent_strategy_ppo_coef > 0``. Writes
+            #     ``strategy_grad_norm`` / ``strategy_policy_loss`` /
+            #     ``strategy_ratio_std`` into the CSV.
+            #
+            #   * Episode-credit PPO (v3 episode_credit family): active
+            #     when ``latent_episode_strategy_ppo=True``. Writes
+            #     ``episode_credit_grad_norm`` /
+            #     ``latent_episode_pg_loss`` /
+            #     ``latent_episode_ratio_std``.
+            #
+            #   * Arc-credit PPO (v3i19+ / v4i1 / v4i3): active when
+            #     ``latent_arc_credit_enabled=True``. The router-only
+            #     grad (excluding the V(s,z) baseline head) lives at
+            #     ``q_phi_strategy_encoder_grad_norm`` -- this is the
+            #     "is z being trained?" signal. The combined
+            #     ``q_phi_grad_norm`` is dominated by the baseline value
+            #     head early in training and is NOT a good router gauge.
+            #     Policy loss / clip stats live at
+            #     ``latent_arc_policy_loss`` / ``latent_arc_clipfrac``.
+            #
+            # Priority for the print: episode_credit > arc_credit >
+            # per-step strategy_ppo. If multiple were on at once (no
+            # current preset does this) the print picks the highest-
+            # priority one; the CSV always has every field.
             episode_credit_on = bool(getattr(self.cfg, "latent_episode_strategy_ppo", False))
-            qphi_field_label = "qphi_grad_main" if episode_credit_on else "qphi_grad"
-            qphi_grad_val = float(row.get('episode_credit_grad_norm' if episode_credit_on else 'strategy_grad_norm', 0.0) or 0.0)
-            z_pi_val = float(row.get('latent_episode_pg_loss' if episode_credit_on else 'strategy_policy_loss', 0.0) or 0.0)
-            z_ratio_val = float(row.get('latent_episode_ratio_std' if episode_credit_on else 'strategy_ratio_std', 0.0) or 0.0)
+            arc_credit_on = bool(getattr(self.cfg, "latent_arc_credit_enabled", False))
+            if episode_credit_on:
+                qphi_field_label = "qphi_grad_main"
+                z_activity_field_label = "z_ratio"
+                qphi_grad_val = float(row.get("episode_credit_grad_norm", 0.0) or 0.0)
+                z_pi_val = float(row.get("latent_episode_pg_loss", 0.0) or 0.0)
+                z_activity_val = float(row.get("latent_episode_ratio_std", 0.0) or 0.0)
+            elif arc_credit_on:
+                # Router-only grad -- the value-head portion is the baseline,
+                # not the routing policy, so combining them masks router
+                # starvation behind a noisy baseline loss.
+                qphi_field_label = "qphi_grad_arc_router"
+                # Arc-credit does not store a ratio_std; clip fraction is
+                # the PPO-activity gauge that is actually written for this
+                # path, and we relabel so the printed name matches the
+                # printed value's semantics (clip fraction != ratio std).
+                z_activity_field_label = "z_clipfrac"
+                qphi_grad_val = float(
+                    row.get("q_phi_strategy_encoder_grad_norm", 0.0) or 0.0
+                )
+                z_pi_val = float(row.get("latent_arc_policy_loss", 0.0) or 0.0)
+                z_activity_val = float(row.get("latent_arc_clipfrac", 0.0) or 0.0)
+            else:
+                qphi_field_label = "qphi_grad"
+                z_activity_field_label = "z_ratio"
+                qphi_grad_val = float(row.get("strategy_grad_norm", 0.0) or 0.0)
+                z_pi_val = float(row.get("strategy_policy_loss", 0.0) or 0.0)
+                z_activity_val = float(row.get("strategy_ratio_std", 0.0) or 0.0)
             print(
                 f"[PPO|diag] steps={runtime.global_step} "
                 f"ev={row['explained_variance']:.3f} "
@@ -518,7 +571,7 @@ class TrainingTelemetry:
                 f"z_wr_spread={z_wr_spread:.3f} "
                 f"z_aux_ret={float(row.get('strategy_aux_return_loss', row.get('strategy_q_loss', 0.0))):.3f} "
                 f"z_pi={z_pi_val:.3f} "
-                f"z_ratio={z_ratio_val:.3f} "
+                f"{z_activity_field_label}={z_activity_val:.3f} "
                 f"z_occ=[{','.join(z_occ_parts)}] "
                 f"z_wr=[{','.join(z_wr_parts)}]"
                 f"{opp_suffix}"
@@ -535,6 +588,84 @@ class TrainingTelemetry:
                     f"      [Switch Near] cap={sw_cap:.3f} kill={sw_kill:.3f} ret={sw_ret:.3f} | "
                     f"div_role={div_role:.3f} div_spread={div_spread:.3f} "
                     f"div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
+                )
+                # Per-opponent z-WR spread + top per-z behavior spread.
+                #
+                # The global ``z_wr_spread`` averages over all opponents and
+                # tactical contexts; useful per-opponent specialization
+                # (e.g. z2 wins against OP5 but loses against OP7) can
+                # cancel out. ``[Z Slices]`` surfaces the SLICE max:
+                #
+                #   * per-opp WR spread = max_z(WR | opp) - min_z(WR | opp)
+                #     for each opponent the trainer saw this update.
+                #     ``op_max_spread`` is the worst-case slice -- if this
+                #     is large while global ``z_wr_spread`` is small, z is
+                #     specializing per opponent.
+                #
+                #   * behavior fingerprint spread = max over dims of
+                #     (max_z(mean) - min_z(mean)) / (mean|val| + eps) using
+                #     the ``latent_z{k}_behavior_{dim}_mean`` columns. If
+                #     this is > ~0.05, at least one behavioral dimension
+                #     diverges across z (z is doing something distinct);
+                #     if it stays < 0.02, z is decorative.
+                op_spreads: list[tuple[int, float]] = []
+                for o in range(SCRIPTED_OPPONENT_MI_COUNT):
+                    wrs: list[float] = []
+                    for k in range(hparams.latent_k):
+                        wr = row.get(f"episode_opp{o}_z{k}_win_rate", "")
+                        cnt = row.get(f"episode_opp{o}_z{k}_count", "")
+                        if wr == "" or cnt in ("", None) or float(cnt or 0) <= 0:
+                            continue
+                        wrs.append(float(wr))
+                    if len(wrs) >= 2:
+                        op_spreads.append((o, max(wrs) - min(wrs)))
+                if op_spreads:
+                    op_max = max(s for _, s in op_spreads)
+                    op_mean = sum(s for _, s in op_spreads) / len(op_spreads)
+                    per_op = " ".join(f"o{o}={s:.3f}" for o, s in op_spreads)
+                else:
+                    op_max = 0.0
+                    op_mean = 0.0
+                    per_op = "-"
+
+                bhv_spreads: list[tuple[str, float, float]] = []
+                bhv_keys = [
+                    key for key in row.keys()
+                    if key.startswith("latent_z0_behavior_") and key.endswith("_mean")
+                ]
+                for k0 in bhv_keys:
+                    dim = k0[len("latent_z0_behavior_") : -len("_mean")]
+                    vals: list[float] = []
+                    for k in range(hparams.latent_k):
+                        v = row.get(f"latent_z{k}_behavior_{dim}_mean", "")
+                        if v == "" or v is None:
+                            continue
+                        try:
+                            vals.append(float(v))
+                        except (TypeError, ValueError):
+                            continue
+                    if len(vals) >= 2:
+                        rng = max(vals) - min(vals)
+                        mn_abs = sum(abs(v) for v in vals) / len(vals)
+                        rel = rng / (mn_abs + 1e-8)
+                        bhv_spreads.append((dim, rng, rel))
+                bhv_spreads.sort(key=lambda t: t[2], reverse=True)
+                top_b = bhv_spreads[:3] if bhv_spreads else []
+                if top_b:
+                    top_b_s = " ".join(
+                        f"{d}=rel{r:.3f}/abs{a:.3f}" for d, a, r in top_b
+                    )
+                    max_rel = top_b[0][2]
+                else:
+                    top_b_s = "-"
+                    max_rel = 0.0
+
+                print(
+                    "      [Z Slices] "
+                    f"opp_wr_spread_max={op_max:.3f} mean={op_mean:.3f} "
+                    f"per_opp=[{per_op}] | "
+                    f"behavior_rel_spread_max={max_rel:.3f} "
+                    f"top3=[{top_b_s}]"
                 )
                 print(
                     "      [Actor Z] "
@@ -595,6 +726,64 @@ class TrainingTelemetry:
                         f"p:{reason_phase:.0f}/s:{reason_score:.0f} "
                         f"qarg_exec={agreement:.3f}"
                     )
+            # Arc-credit q_phi telemetry: under v3i19+ / v4i1 / v4i3
+            # (latent_arc_credit_enabled=True, latent_strategy_ppo_coef=0,
+            # latent_episode_strategy_ppo=False) the main learning signal
+            # for q_phi flows through ``apply_arc_strategy_ppo`` (PPO over
+            # arc-boundary z-decisions with the V(s,z) baseline). Print
+            # the dedicated arc-credit diagnostics so the diag stream can
+            # answer the question "is the ROUTER actually getting updated
+            # (vs the baseline value head soaking up the gradient)?".
+            #
+            #   * arc_v_loss             : V(s,z) MSE -- decreasing means the
+            #                              baseline is converging and freeing
+            #                              advantages to update the router.
+            #   * qphi_grad_arc_router   : L2 grad onto strategy_encoder
+            #                              (the actual policy over z).
+            #   * qphi_grad_arc_value    : L2 grad onto the V(s,z) head
+            #                              (the baseline, NOT the routing).
+            #   * qphi_router_frac       : router / (router + value).
+            #                              Tiny means the router is starved
+            #                              even though q_phi_grad_norm looks
+            #                              big -- watch this number rise as
+            #                              the baseline converges.
+            #   * arc_pi / arc_clipfrac  : PPO PG loss + clip activity
+            #                              specifically for z-decisions.
+            #   * arc_adv_mean/std       : arc-credit advantages going INTO
+            #                              the router update. Zero std means
+            #                              no usable contrast across z.
+            #   * arc_n                  : number of completed arcs used in
+            #                              the update window. Should be
+            #                              roughly n_envs * (rollout_steps /
+            #                              latent_resample_every_n).
+            if arc_credit_on:
+                arc_v_loss = float(row.get("latent_arc_value_loss", 0.0) or 0.0)
+                arc_pi = float(row.get("latent_arc_policy_loss", 0.0) or 0.0)
+                arc_clipfrac = float(row.get("latent_arc_clipfrac", 0.0) or 0.0)
+                arc_kl = float(row.get("latent_arc_approx_kl", 0.0) or 0.0)
+                arc_adv_mean = float(row.get("latent_arc_advantage_mean", 0.0) or 0.0)
+                arc_adv_std = float(row.get("latent_arc_advantage_std", 0.0) or 0.0)
+                arc_n = float(row.get("latent_arc_count", 0.0) or 0.0)
+                arc_len = float(row.get("latent_arc_mean_length", 0.0) or 0.0)
+                router_g = float(
+                    row.get("q_phi_strategy_encoder_grad_norm", 0.0) or 0.0
+                )
+                value_g = float(row.get("q_phi_value_head_grad_norm", 0.0) or 0.0)
+                router_frac = router_g / (router_g + value_g + 1e-8)
+                print(
+                    "      [Arc Credit] "
+                    f"arc_v_loss={arc_v_loss:.3f} "
+                    f"arc_pi={arc_pi:.6f} "
+                    f"arc_clipfrac={arc_clipfrac:.3f} "
+                    f"arc_kl={arc_kl:.4f} "
+                    f"arc_adv_mean={arc_adv_mean:+.4f} "
+                    f"arc_adv_std={arc_adv_std:.4f} "
+                    f"arc_n={arc_n:.0f} "
+                    f"arc_len={arc_len:.1f} | "
+                    f"qphi_grad_arc_router={router_g:.6f} "
+                    f"qphi_grad_arc_value={value_g:.6f} "
+                    f"qphi_router_frac={router_frac:.4f}"
+                )
             # Episode-credit q_phi telemetry: under v3 (latent_episode_strategy_ppo=True,
             # latent_strategy_ppo_coef=0) the qphi_grad_main / z_pi / z_ratio fields on the
             # main diag line are all structurally zero -- the per-step path is disabled by
