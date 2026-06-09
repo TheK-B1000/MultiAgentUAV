@@ -77,6 +77,20 @@ class _FakeStrategyValueHead(torch.nn.Module):
         return self.scale * (state[:, 0:1] - z_onehot.argmax(dim=-1, keepdim=True).float())
 
 
+class _FakeStrategyEncoder(torch.nn.Module):
+    """Tiny stand-in for the real ``strategy_encoder`` submodule.
+
+    The split-grad diagnostic looks up parameters under
+    ``model.strategy_encoder``; mirroring that attribute layout here means
+    the synthetic test exercises the same code path as the real model
+    instead of falling through to the "encoder is missing" branch.
+    """
+
+    def __init__(self, latent_k: int) -> None:
+        super().__init__()
+        self.logit_bias = torch.nn.Parameter(torch.zeros(int(latent_k)))
+
+
 class _FakeStrategyHead(torch.nn.Module):
     """Deterministic strategy_logits head: state column 0 picks the argmax z."""
 
@@ -87,14 +101,16 @@ class _FakeStrategyHead(torch.nn.Module):
         gen = torch.Generator(device="cpu")
         gen.manual_seed(0)
         self._sampling_gen_strategy = gen
-        # Parameter so the apply method can backward + optimizer.step.
-        self.logit_bias = torch.nn.Parameter(torch.zeros(self.latent_k))
+        # Router params live under ``strategy_encoder`` (matches the real
+        # model layout consumed by ``_strategy_encoder_params``).
+        self.strategy_encoder = _FakeStrategyEncoder(latent_k=latent_k)
         self.episode_strategy_value_head = _FakeStrategyValueHead(
             latent_k=latent_k, global_state_dim=global_state_dim
         )
 
     def strategy_logits(self, state: torch.Tensor) -> torch.Tensor:
-        logits = self.logit_bias.unsqueeze(0).expand(state.shape[0], -1).clone()
+        bias = self.strategy_encoder.logit_bias
+        logits = bias.unsqueeze(0).expand(state.shape[0], -1).clone()
         idx = state[:, 0].long().clamp(min=0, max=self.latent_k - 1)
         logits = logits.scatter(1, idx.unsqueeze(-1), logits.gather(1, idx.unsqueeze(-1)) + 5.0)
         return logits
@@ -432,6 +448,53 @@ class ArcCreditPPOUpdateTests(unittest.TestCase):
         self.assertGreater(stats["q_phi_mean_max_prob"], 1.0 / trainer.latent_k - 1e-5)
         self.assertLessEqual(stats["q_phi_mean_max_prob"], 1.0 + 1e-5)
 
+    def test_split_grad_norm_l2_sanity(self) -> None:
+        """sqrt(encoder^2 + value_head^2 + other^2) must approx total.
+
+        Verifies the split is an exhaustive partition under L2 -- i.e. the
+        encoder + value-head split fully accounts for q_phi's gradient and
+        the ``q_phi_other_grad_norm`` residual is zero for the current
+        model. If a future model change adds q_phi-equivalent parameters
+        not tracked by ``_strategy_encoder_params`` / ``_value_head_params``,
+        the residual will become nonzero and surface in the CSV.
+        """
+        trainer = _make_trainer(arc_enabled=True, arc_min_len=1, arc_n_epochs=1)
+        ls = LatentStrategyState(trainer)
+        ls.reset()
+        ls.arc_open(
+            torch.tensor([True, True]),
+            global_state=torch.tensor(
+                [[1.0, 0.0, 0.0, 0.0], [2.0, 0.0, 0.0, 0.0]], dtype=torch.float32
+            ),
+            z_idx=torch.tensor([0, 1], dtype=torch.long),
+            z_log_prob=torch.tensor([-0.5, -0.7], dtype=torch.float32),
+        )
+        for _ in range(3):
+            ls.arc_accumulate_step(torch.tensor([1.0, 5.0]))
+        ls.arc_finalize(torch.tensor([True, True]))
+        stats = ls.apply_arc_strategy_ppo()
+
+        enc = stats["q_phi_strategy_encoder_grad_norm"]
+        vh = stats["q_phi_value_head_grad_norm"]
+        other = stats["q_phi_other_grad_norm"]
+        total = stats["q_phi_grad_norm"]
+
+        # All three sub-norms are non-negative.
+        self.assertGreaterEqual(enc, 0.0)
+        self.assertGreaterEqual(vh, 0.0)
+        self.assertGreaterEqual(other, 0.0)
+        # Encoder and value-head should BOTH receive nonzero gradient for
+        # this synthetic setup (the encoder has the logit_bias parameter
+        # and the value head has its scale; both contribute to the loss).
+        self.assertGreater(enc, 0.0)
+        self.assertGreater(vh, 0.0)
+        # L2 sum-of-squares sanity. sqrt(enc^2 + vh^2 + other^2) ~= total.
+        import math
+        reconstructed = math.sqrt(enc ** 2 + vh ** 2 + other ** 2)
+        self.assertAlmostEqual(reconstructed, total, places=5)
+        # No drift today: q_phi = strategy_encoder + value_head exactly.
+        self.assertAlmostEqual(other, 0.0, places=5)
+
     def test_smoke_alarm_zeroed_when_disabled(self) -> None:
         trainer = _make_trainer(arc_enabled=False)
         ls = LatentStrategyState(trainer)
@@ -441,6 +504,9 @@ class ArcCreditPPOUpdateTests(unittest.TestCase):
         for k in (
             "q_phi_grad_norm",
             "latent_arc_grad_norm",
+            "q_phi_strategy_encoder_grad_norm",
+            "q_phi_value_head_grad_norm",
+            "q_phi_other_grad_norm",
             "q_phi_entropy",
             "q_phi_mean_max_prob",
             "latent_arc_credit_coef",

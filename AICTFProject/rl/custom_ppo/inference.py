@@ -194,7 +194,25 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "use_strategy_aux_return_head": bool(
                     cfg.get("latent_strategy_aux_return_head", False)
                 ),
-                "use_episode_strategy_value_head": bool(cfg.get("latent_episode_strategy_ppo", False)),
+                # Mirror the trainer-side gating in
+                # ``rl/custom_ppo/trainer_config.py``: the
+                # ``episode_strategy_value_head`` module is built when EITHER
+                # episode-level strategy PPO is on, OR arc-credit is enabled
+                # with the ``context_value`` baseline (which reuses this head
+                # as V_phi(ctx, z)). v3i19+ runs (incl. v4i1) trip the arc-
+                # credit branch; before this fix the loader was missing it
+                # and rejected those checkpoints with ``unexpected=[
+                # 'episode_strategy_value_head.*']``.
+                "use_episode_strategy_value_head": bool(
+                    cfg.get("latent_episode_strategy_ppo", False)
+                    or (
+                        cfg.get("latent_arc_credit_enabled", False)
+                        and str(
+                            cfg.get("latent_arc_credit_baseline", "context_value")
+                            or "context_value"
+                        ).lower() == "context_value"
+                    )
+                ),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
                 "latent_actor_z_onehot_enabled": bool(
                     cfg.get("latent_actor_z_onehot_enabled", False)

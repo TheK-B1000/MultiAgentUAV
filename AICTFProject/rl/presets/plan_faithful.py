@@ -1238,6 +1238,50 @@ def apply_plan_faithful_latent_v3i19_summer_consequence(cfg: PPOConfig) -> PPOCo
     return cfg
 
 
+def apply_plan_faithful_latent_v4i1_strategic_pressure_qprobe(cfg: PPOConfig) -> PPOConfig:
+    """v4i1: Strategic Pressure Benchmark + Offline Return Contrast Probe.
+
+    Inherits v3i19 verbatim. The only deltas are:
+
+    1. The opponent pool is restricted to ``{OP5, OP6, OP7}`` so different z
+       values have a strategic reason to differ. v3i18/v3i19 trained against
+       OP0..OP6 mixtures that included free-win opponents; the agent could
+       win without specializing, so the latent had no job. v4i1 removes
+       those easy opponents to force the environment to reward distinct
+       strategies (OP5 = aggressive flag rush, OP6 = defensive turtle,
+       OP7 = switcher / coordination-and-timing).
+    2. The run_tag is updated.
+
+    The latent machinery is **intentionally unchanged** -- v4i1 stops
+    changing the brain and changes the world instead. Same K=4, same q_phi,
+    same arc-credit, same FiLM+onehot actor conditioning, same entropy
+    schedule.
+
+    Primary metric for this run is computed OUT-OF-BAND by
+    ``tools/q_probe.py``:
+
+        return_contrast = max_z(R) - min_z(R)
+
+    where R is the mean undiscounted episode return per forced z across
+    matched probe seeds, per opponent. Failure: contrast < 0.05 means the
+    environment does not care about strategy (escalate to Environment v2).
+    Success: contrast >= 0.10-0.20 means different z choices create
+    different outcomes (proceed to v4i2 = latent regret specialization).
+
+    All existing in-trainer latent diagnostics (MI(z;*), policy_z_sensitivity_KL,
+    actor_z_jsd, H(z), behavior_by_z) keep emitting unchanged and are
+    demoted to secondary signals.
+    """
+    cfg = apply_plan_faithful_latent_v3i19_summer_consequence(cfg)
+
+    cfg.opponent_randomize = True
+    cfg.opponent_pool = ("OP5", "OP6", "OP7")
+    cfg.opponent_pool_weights = ()
+
+    cfg.run_tag = "v4i1_strategic_pressure_qprobe_OP5_OP6_OP7_2m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 

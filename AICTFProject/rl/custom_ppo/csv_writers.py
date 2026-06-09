@@ -286,6 +286,12 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("latent_arc_credit_coef")
         fields.append("latent_arc_grad_norm")
         fields.append("q_phi_grad_norm")
+        # Split grad-norm diagnostic: where does the arc-credit gradient
+        # actually land? Encoder controls pi(z|s); value head is the
+        # baseline only. L2 sanity: sqrt(enc^2 + vh^2 + other^2) ~= total.
+        fields.append("q_phi_strategy_encoder_grad_norm")
+        fields.append("q_phi_value_head_grad_norm")
+        fields.append("q_phi_other_grad_norm")
         fields.append("q_phi_entropy")
         fields.append("q_phi_mean_max_prob")
         fields.append("latent_mi_z_spread_bucket_nats")

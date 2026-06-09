@@ -1348,26 +1348,58 @@ class LatentStrategyState:
             "latent_arc_credit_coef": 0.0,
             "latent_arc_grad_norm": 0.0,
             "q_phi_grad_norm": 0.0,
+            # Split grad-norm diagnostic. Sanity check:
+            # sqrt(strategy_encoder_grad_norm^2 + value_head_grad_norm^2 +
+            #      other_grad_norm^2) approx q_phi_grad_norm.
+            # If strategy_encoder portion stays tiny while value_head
+            # dominates, arc credit is training only the baseline and the
+            # router will stay glued to uniform.
+            "q_phi_strategy_encoder_grad_norm": 0.0,
+            "q_phi_value_head_grad_norm": 0.0,
+            "q_phi_other_grad_norm": 0.0,
             "q_phi_entropy": 0.0,
             "q_phi_mean_max_prob": 0.0,
         }
 
-    def _q_phi_params(self) -> list[torch.nn.Parameter]:
-        """Return the q_phi parameter list (strategy_encoder + value head).
+    def _strategy_encoder_params(self) -> list[torch.nn.Parameter]:
+        """Return params of q_phi's routing network (``strategy_encoder``).
 
-        Used by ``apply_arc_strategy_ppo`` to compute ``q_phi_grad_norm``
-        AFTER backward and BEFORE optimizer.step(). Identical to the
-        router_optimizer's parameter set when a dedicated router LR is on.
+        These are the parameters that control ``pi(z | s)`` -- the actual
+        routing decision the smoke alarm should measure. Separated from the
+        value head so we can answer "where does the arc-credit gradient
+        land?" diagnostically.
         """
         trainer = self.trainer
-        params: list[torch.nn.Parameter] = []
         strategy_encoder = getattr(trainer.model, "strategy_encoder", None)
-        if strategy_encoder is not None:
-            params.extend(p for p in strategy_encoder.parameters() if p.requires_grad)
+        if strategy_encoder is None:
+            return []
+        return [p for p in strategy_encoder.parameters() if p.requires_grad]
+
+    def _value_head_params(self) -> list[torch.nn.Parameter]:
+        """Return params of ``episode_strategy_value_head`` (V_phi(s, z)).
+
+        These are the baseline params. Updated by the arc-credit ``v_loss``
+        but DO NOT influence ``pi(z | s)``. Splitting their grad norm out of
+        the combined q_phi norm tells us whether arc credit is training the
+        router (good) or just the baseline (decorative).
+        """
+        trainer = self.trainer
         value_head = getattr(trainer.model, "episode_strategy_value_head", None)
-        if value_head is not None:
-            params.extend(p for p in value_head.parameters() if p.requires_grad)
-        return params
+        if value_head is None:
+            return []
+        return [p for p in value_head.parameters() if p.requires_grad]
+
+    def _q_phi_params(self) -> list[torch.nn.Parameter]:
+        """Return the full q_phi parameter list (router + value head).
+
+        Used by ``apply_arc_strategy_ppo`` to compute the combined
+        ``q_phi_grad_norm`` AFTER backward and BEFORE optimizer.step().
+        The split into ``_strategy_encoder_params`` + ``_value_head_params``
+        is exhaustive given current model architecture, but we still emit a
+        ``q_phi_other_grad_norm`` field as a defensive drift detector in
+        case future model changes add unaccounted parameters.
+        """
+        return self._strategy_encoder_params() + self._value_head_params()
 
     @staticmethod
     def _grad_norm_l2(params: list[torch.nn.Parameter]) -> float:
@@ -1450,10 +1482,20 @@ class LatentStrategyState:
         clipfracs: list[float] = []
         kls: list[float] = []
         grad_norms: list[float] = []
+        encoder_grad_norms: list[float] = []
+        value_head_grad_norms: list[float] = []
+        other_grad_norms: list[float] = []
         q_phi_entropies: list[float] = []
         q_phi_max_probs: list[float] = []
 
-        q_phi_params = self._q_phi_params()
+        encoder_params = self._strategy_encoder_params()
+        value_head_params = self._value_head_params()
+        q_phi_params = encoder_params + value_head_params
+        # Param IDs for the "other" residual: anything in q_phi_params
+        # that isn't in the encoder OR value head subsets. Today this is
+        # empty by construction; tracking it defensively makes future
+        # model drift visible in the CSV instead of silent.
+        accounted_ids = {id(p) for p in encoder_params} | {id(p) for p in value_head_params}
 
         # Pre-compute the v3i19 "smoke alarm" coef telemetry so it appears
         # in the CSV even on rollouts where the inner loop is skipped
@@ -1508,10 +1550,22 @@ class LatentStrategyState:
             opt = router_opt if router_opt is not None else shared_opt
             opt.zero_grad(set_to_none=True)
             loss.backward()
-            # Capture q_phi grad norm AFTER backward and BEFORE step. This is
-            # the v3i19 smoke alarm: if coef==1.0 but this stays tiny across
-            # rollouts, the consequence channel is decorative.
-            grad_norms.append(self._grad_norm_l2(q_phi_params))
+            # Capture q_phi grad norm AFTER backward and BEFORE step. Split
+            # into router (strategy_encoder) vs baseline (value head) vs
+            # "other" residual so the CSV answers: where did the arc-credit
+            # gradient actually land? L2 sanity:
+            #   sqrt(encoder^2 + value_head^2 + other^2) ~= total.
+            enc_norm = self._grad_norm_l2(encoder_params)
+            vh_norm = self._grad_norm_l2(value_head_params)
+            # "Other" = grad norm over any q_phi-equivalent params that
+            # aren't tracked above. Computed as residual L2 to stay
+            # consistent with the split; clamped at 0 to absorb float noise.
+            total_norm = self._grad_norm_l2(q_phi_params)
+            other_sq = max(0.0, total_norm ** 2 - enc_norm ** 2 - vh_norm ** 2)
+            grad_norms.append(total_norm)
+            encoder_grad_norms.append(enc_norm)
+            value_head_grad_norms.append(vh_norm)
+            other_grad_norms.append(float(other_sq ** 0.5))
             opt.step()
 
             pg_losses.append(float(pg_loss.detach().cpu().item()))
@@ -1534,6 +1588,18 @@ class LatentStrategyState:
             grad_norm_mean = float(sum(grad_norms) / len(grad_norms))
             stats["latent_arc_grad_norm"] = grad_norm_mean
             stats["q_phi_grad_norm"] = grad_norm_mean
+        if encoder_grad_norms:
+            stats["q_phi_strategy_encoder_grad_norm"] = float(
+                sum(encoder_grad_norms) / len(encoder_grad_norms)
+            )
+        if value_head_grad_norms:
+            stats["q_phi_value_head_grad_norm"] = float(
+                sum(value_head_grad_norms) / len(value_head_grad_norms)
+            )
+        if other_grad_norms:
+            stats["q_phi_other_grad_norm"] = float(
+                sum(other_grad_norms) / len(other_grad_norms)
+            )
         if q_phi_entropies:
             stats["q_phi_entropy"] = float(sum(q_phi_entropies) / len(q_phi_entropies))
         if q_phi_max_probs:

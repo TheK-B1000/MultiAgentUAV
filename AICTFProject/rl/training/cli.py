@@ -460,6 +460,25 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.opponent_randomize = True
     if getattr(args, "opponent_pool", None):
         cfg.opponent_pool = tuple(str(x).strip().upper() for x in args.opponent_pool if str(x).strip())
+    if "v4i1" in preset_key.lower():
+        # v4i1's whole thesis is that the strategic-pressure pool {OP5, OP6, OP7}
+        # is the experimental treatment. A stray ``--opponent-pool`` on the CLI
+        # would silently override the preset and invalidate the run. Refuse
+        # anything other than exactly {OP5, OP6, OP7} (any order) for this preset.
+        required_v4i1_pool = frozenset({"OP5", "OP6", "OP7"})
+        actual_pool = frozenset(str(x).upper() for x in (cfg.opponent_pool or ()))
+        if actual_pool != required_v4i1_pool:
+            raise ValueError(
+                "v4i1 preset requires opponent_pool == {OP5, OP6, OP7} exactly "
+                f"(got {sorted(actual_pool)!r}). Remove any --opponent-pool override "
+                "from the command line and let the preset own the pool, or pass "
+                "--opponent-pool OP5 OP6 OP7 explicitly."
+            )
+        if not cfg.opponent_randomize:
+            raise ValueError(
+                "v4i1 preset requires --opponent-randomize (preset sets this by "
+                "default). Do not disable it on the command line."
+            )
     if getattr(args, "opponent_pool_weights", None):
         wmap: dict[str, float] = {}
         for entry in args.opponent_pool_weights:
