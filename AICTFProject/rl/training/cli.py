@@ -416,6 +416,78 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         default=None,
         help="Save checkpoint every N env steps during training (0 disables).",
     )
+    # --- v4i3: Periodic Return-Ranked Router Distillation ---------------
+    parser.add_argument(
+        "--latent-router-distill-enabled",
+        action="store_true",
+        default=None,
+        help=(
+            "v4i3: after each periodic checkpoint save, run tools/q_probe.py + "
+            "tools/router_distill_from_qprobe.py as subprocesses against the "
+            "just-saved checkpoint and hot-swap the distilled strategy_encoder "
+            "weights back into the running model. Off by default."
+        ),
+    )
+    parser.add_argument(
+        "--latent-router-distill-every-n-steps",
+        type=int,
+        default=None,
+        help="v4i3 cadence (default 250000). The hook fires on the first periodic-save boundary >= this.",
+    )
+    parser.add_argument(
+        "--latent-router-distill-n-seeds",
+        type=int,
+        default=None,
+        help="v4i3: matched-start seeds per (opponent, z) for the in-trainer q_probe.",
+    )
+    parser.add_argument(
+        "--latent-router-distill-base-seed",
+        type=int,
+        default=None,
+        help="v4i3: q_probe base seed; the hook uses seeds base..base+n_seeds-1.",
+    )
+    parser.add_argument(
+        "--latent-router-distill-opponents",
+        nargs="+",
+        default=None,
+        help="v4i3: opponent labels for the in-trainer q_probe (default: OP5 OP6 OP7).",
+    )
+    parser.add_argument(
+        "--latent-router-distill-epochs",
+        type=int,
+        default=None,
+        help="v4i3 distill epochs per round (default 100).",
+    )
+    parser.add_argument(
+        "--latent-router-distill-lr",
+        type=float,
+        default=None,
+        help="v4i3 distill learning rate (default 1e-4).",
+    )
+    parser.add_argument(
+        "--latent-router-distill-temperature",
+        type=float,
+        default=None,
+        help="v4i3 soft-target temperature (default 1.0).",
+    )
+    parser.add_argument(
+        "--latent-router-distill-weight-decay",
+        type=float,
+        default=None,
+        help="v4i3 distill optimizer weight decay (default 0.0).",
+    )
+    parser.add_argument(
+        "--latent-router-distill-device",
+        type=str,
+        default=None,
+        help="v4i3 subprocess device for q_probe + distill (default: cpu).",
+    )
+    parser.add_argument(
+        "--latent-router-distill-artifacts-subdir",
+        type=str,
+        default=None,
+        help="v4i3 subdir under --checkpoint-dir for round artifacts (default: v4i3_router_distill).",
+    )
     parser.add_argument(
         "--no-progress-bar",
         action="store_true",
@@ -679,6 +751,47 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
     if args.periodic_checkpoint_steps is not None:
         cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
+    # --- v4i3 router-distill overrides ----------------------------------
+    if getattr(args, "latent_router_distill_enabled", None):
+        cfg.latent_router_distill_enabled = True
+    if getattr(args, "latent_router_distill_every_n_steps", None) is not None:
+        cfg.latent_router_distill_every_n_steps = max(
+            1, int(args.latent_router_distill_every_n_steps)
+        )
+    if getattr(args, "latent_router_distill_n_seeds", None) is not None:
+        cfg.latent_router_distill_n_seeds = max(
+            1, int(args.latent_router_distill_n_seeds)
+        )
+    if getattr(args, "latent_router_distill_base_seed", None) is not None:
+        cfg.latent_router_distill_base_seed = int(args.latent_router_distill_base_seed)
+    if getattr(args, "latent_router_distill_opponents", None):
+        cfg.latent_router_distill_opponents = tuple(
+            str(o).strip().upper()
+            for o in args.latent_router_distill_opponents
+            if str(o).strip()
+        )
+    if getattr(args, "latent_router_distill_epochs", None) is not None:
+        cfg.latent_router_distill_epochs = max(
+            1, int(args.latent_router_distill_epochs)
+        )
+    if getattr(args, "latent_router_distill_lr", None) is not None:
+        cfg.latent_router_distill_lr = float(args.latent_router_distill_lr)
+    if getattr(args, "latent_router_distill_temperature", None) is not None:
+        cfg.latent_router_distill_temperature = float(
+            args.latent_router_distill_temperature
+        )
+    if getattr(args, "latent_router_distill_weight_decay", None) is not None:
+        cfg.latent_router_distill_weight_decay = float(
+            args.latent_router_distill_weight_decay
+        )
+    if getattr(args, "latent_router_distill_device", None):
+        cfg.latent_router_distill_device = str(
+            args.latent_router_distill_device
+        ).strip() or "cpu"
+    if getattr(args, "latent_router_distill_artifacts_subdir", None):
+        cfg.latent_router_distill_artifacts_subdir = str(
+            args.latent_router_distill_artifacts_subdir
+        ).strip() or "v4i3_router_distill"
     if args.no_progress_bar:
         cfg.enable_progress_bar = False
     if preset_key:

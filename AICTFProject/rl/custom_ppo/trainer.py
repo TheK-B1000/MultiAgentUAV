@@ -31,6 +31,7 @@ from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
 from rl.custom_ppo.return_normalization import ReturnNormalizer
 from rl.custom_ppo.rollout_collector import RolloutCollector
+from rl.custom_ppo.router_distill_hook import PeriodicRouterDistillHook
 from rl.custom_ppo.trainer_audit import log_decentralized_actor_contract_once
 from rl.custom_ppo.trainer_config import TrainerHyperparams, build_model_kwargs
 from rl.custom_ppo.training_telemetry import TrainingTelemetry
@@ -342,6 +343,17 @@ class CustomPPOTrainer:
             self.periodic_checkpoint_steps if self.periodic_checkpoint_steps > 0 else 0
         )
 
+        # v4i3 periodic router-distillation hook. Stays a no-op unless the
+        # ``latent_router_distill_enabled`` flag (or the ``v4i3`` preset)
+        # turns it on. The hook owns its own cadence counter, subprocess
+        # plumbing, and Adam-moment reset; the trainer just hands it a
+        # checkpoint path after each periodic save.
+        self.router_distill_hook = PeriodicRouterDistillHook(
+            cfg=cfg,
+            run_tag=str(getattr(cfg, "run_tag", "ppo")),
+            checkpoint_dir=str(getattr(cfg, "checkpoint_dir", "checkpoints")),
+        )
+
         self.global_step = 0
         self.last_stats: dict[str, float] = {}
         self.run_id = hparams.run_id
@@ -484,6 +496,16 @@ class CustomPPOTrainer:
             ckpt_path = os.path.join(str(getattr(self.cfg, "checkpoint_dir", "checkpoints")), ckpt_name)
             self.save(ckpt_path)
             print(f"[PPO] Periodic checkpoint saved: {ckpt_path}")
+            # v4i3 hook (no-op unless ``latent_router_distill_enabled``): run
+            # q_probe + router distillation against the just-saved checkpoint
+            # and hot-swap the distilled ``strategy_encoder.*`` weights back
+            # into the running model. Always best-effort: any failure here
+            # cannot block training.
+            self.router_distill_hook.maybe_run(
+                trainer=self,
+                ckpt_path=ckpt_path,
+                global_step=int(self.global_step),
+            )
             self._next_periodic_checkpoint_step += self.periodic_checkpoint_steps
 
     def learn(self, total_timesteps: int) -> dict[str, float]:

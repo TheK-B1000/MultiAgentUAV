@@ -419,5 +419,31 @@ class PPOConfig:
     reward_shaping_decay_steps: int = 0
     periodic_checkpoint_steps: int = 50_000
 
+    # --- v4i3: Periodic Return-Ranked Router Distillation during training ---
+    # When ``latent_router_distill_enabled`` is True, the trainer spawns
+    # ``tools/q_probe.py`` + ``tools/router_distill_from_qprobe.py`` as
+    # subprocesses against the just-saved checkpoint every
+    # ``latent_router_distill_every_n_steps`` global steps, then hot-swaps
+    # the distilled ``strategy_encoder.*`` weights into the running model
+    # and resets the corresponding Adam moments. PPO training is unchanged
+    # outside this hook: actor, critic, reward, opponents, maps, arc-credit
+    # math, entropy schedule, and the PPO loop itself are all untouched.
+    # The whole hook is best-effort: any subprocess or hot-swap failure
+    # is logged and PPO training continues with the pre-distill weights.
+    latent_router_distill_enabled: bool = False
+    latent_router_distill_every_n_steps: int = 250_000
+    latent_router_distill_n_seeds: int = 8
+    latent_router_distill_base_seed: int = 1000
+    latent_router_distill_opponents: tuple[str, ...] = ("OP5", "OP6", "OP7")
+    latent_router_distill_epochs: int = 100
+    latent_router_distill_lr: float = 1e-4
+    latent_router_distill_temperature: float = 1.0
+    latent_router_distill_weight_decay: float = 0.0
+    # The probe + distill runs run as separate subprocesses; ``cpu`` is the
+    # safe default so the PPO GPU is not contended.
+    latent_router_distill_device: str = "cpu"
+    # Subdirectory under ``checkpoint_dir`` for the v4i3 artifact tree.
+    latent_router_distill_artifacts_subdir: str = "v4i3_router_distill"
+
 
 __all__ = ["PPOConfig", "TrainMode"]

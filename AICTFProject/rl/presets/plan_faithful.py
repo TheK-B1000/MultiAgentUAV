@@ -1282,6 +1282,65 @@ def apply_plan_faithful_latent_v4i1_strategic_pressure_qprobe(cfg: PPOConfig) ->
     return cfg
 
 
+def apply_plan_faithful_latent_v4i3_periodic_router_distill(cfg: PPOConfig) -> PPOConfig:
+    """v4i3: Online / Periodic Return-Ranked Router Distillation.
+
+    Inherits the v4i1 strategic-pressure setup verbatim (same actor, critic,
+    reward, opponent pool ``{OP5, OP6, OP7}``, arc-credit math, entropy
+    schedule, and PPO loop). The only delta versus v4i1 is that the trainer
+    enables :class:`PeriodicRouterDistillHook`: every
+    ``latent_router_distill_every_n_steps`` global steps, the trainer pauses
+    after saving a checkpoint, spawns
+
+      1. ``tools/q_probe.py``  -- matched-start return contrast + saved
+         q_phi contexts on the just-saved checkpoint,
+      2. ``tools/router_distill_from_qprobe.py`` -- offline KL distillation
+         of ``strategy_encoder`` (q_phi) from those returns,
+
+    then hot-swaps the distilled ``strategy_encoder.*`` weights back into
+    the running model and clears the Adam moments for those params on both
+    the main optimizer and the dedicated router optimizer.
+
+    Pre-v4i3 story (recap):
+
+    * v4i1: matched-start forced-z probes prove latent modes exist
+      (large per-seed return contrasts across OP5/OP6/OP7).
+    * v4i2 (offline): ``router_distill_from_qprobe.py`` proves a small
+      offline distill round can teach q_phi to route into those modes
+      from saved contexts.
+
+    v4i3 lifts that loop into training so q_phi keeps catching up to the
+    actor as PPO drifts. The hook is **best-effort**: any subprocess or
+    hot-swap failure is logged and training continues with the pre-distill
+    weights, so v4i3 cannot deadlock or corrupt PPO state.
+
+    Defaults aimed at the 2M-step 4v4 budget:
+
+    * cadence:    250k steps  (8 distill rounds per 2M-step run)
+    * probe:      8 seeds x 3 opponents x latent_k=4 = 96 episodes per round
+    * distill:    100 epochs, lr 1e-4, temperature 1.0
+    * device:     cpu  (so the GPU is not contended; the round runs while
+                  the PPO process is paused after the periodic save)
+    * artifacts:  ``<checkpoint_dir>/v4i3_router_distill/step_<N>/``
+    """
+    cfg = apply_plan_faithful_latent_v4i1_strategic_pressure_qprobe(cfg)
+
+    cfg.latent_router_distill_enabled = True
+    cfg.latent_router_distill_every_n_steps = 250_000
+    cfg.latent_router_distill_n_seeds = 8
+    cfg.latent_router_distill_base_seed = 1000
+    cfg.latent_router_distill_opponents = ("OP5", "OP6", "OP7")
+    cfg.latent_router_distill_epochs = 100
+    cfg.latent_router_distill_lr = 1e-4
+    cfg.latent_router_distill_temperature = 1.0
+    cfg.latent_router_distill_weight_decay = 0.0
+    cfg.latent_router_distill_device = "cpu"
+    cfg.latent_router_distill_artifacts_subdir = "v4i3_router_distill"
+
+    cfg.run_tag = "v4i3_periodic_router_distill_OP5_OP6_OP7_2m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v3d_smart_router(cfg: PPOConfig) -> PPOConfig:
     """v3d: context-bucketed marginal baseline ("smart coach router").
 
