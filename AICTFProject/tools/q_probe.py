@@ -263,6 +263,43 @@ def _read_raw_rows(csv_path: Path) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Contexts NPZ I/O (v4i2 router distillation input)
+# ---------------------------------------------------------------------------
+
+def _read_contexts_npz(path: Path) -> dict[str, np.ndarray]:
+    """Load an existing ``_qprobe_contexts.npz`` if present; else return {}.
+
+    File layout (two parallel arrays):
+      * ``keys``     : object array of strings ``f"{steps}|{opp}|{seed}"``
+      * ``contexts`` : float32 array shaped ``(N, 170)``
+    """
+    if not path.exists():
+        return {}
+    try:
+        with np.load(path, allow_pickle=True) as data:
+            keys = [str(k) for k in data["keys"].tolist()]
+            ctx = np.asarray(data["contexts"], dtype=np.float32)
+        if ctx.shape[0] != len(keys):
+            return {}
+        return {keys[i]: ctx[i] for i in range(len(keys))}
+    except (OSError, KeyError, ValueError):
+        return {}
+
+
+def _write_contexts_npz(path: Path, merged: dict[str, np.ndarray]) -> None:
+    """Atomically write the merged contexts dict to ``path``."""
+    if not merged:
+        return
+    keys = sorted(merged.keys())
+    arr = np.stack([np.asarray(merged[k], dtype=np.float32) for k in keys], axis=0)
+    # ``np.savez`` auto-appends ``.npz`` to filenames that do not already end
+    # in ``.npz``, so we must build a tmp path that already ends in ``.npz``.
+    tmp = path.with_name(path.stem + ".tmp.npz")
+    np.savez(tmp, keys=np.array(keys, dtype=object), contexts=arr)
+    os.replace(tmp, path)
+
+
+# ---------------------------------------------------------------------------
 # Probe core
 # ---------------------------------------------------------------------------
 
@@ -315,6 +352,11 @@ def _run_one_episode(
     blue_score = 0
     red_score = 0
     blue_won = False
+    # First-step q_phi context (170-d global-state temporal stack), captured
+    # right after the very first ``model.predict`` so the temporal tracker has
+    # been primed once. Same value for every z within a matched (opp, seed)
+    # pair, so v4i2 router distillation can key it as one row per (opp, seed).
+    first_context: np.ndarray | None = None
 
     for step in range(max_steps):
         # ``CustomPPOInferencePolicy.predict`` expects per-env (un-batched)
@@ -331,6 +373,11 @@ def _run_one_episode(
         # Stochastic policy so the only difference across z is z itself
         # (deterministic sampling generators give matched RNG sequences).
         action, _ = model.predict(single, deterministic=False)
+        if step == 0 and first_context is None:
+            ctx_t = getattr(model, "_last_context_gs", None)
+            if ctx_t is not None:
+                arr = ctx_t.detach().cpu().numpy().astype(np.float32).reshape(-1)
+                first_context = arr
         env.step_async(action)
         obs, rewards, dones, infos = env.step_wait()
         episode_return += float(np.asarray(rewards).reshape(-1)[0])
@@ -352,6 +399,7 @@ def _run_one_episode(
         "blue_score": int(blue_score),
         "red_score": int(red_score),
         "blue_score_minus_red": int(blue_score - red_score),
+        "_first_context": first_context,
     }
 
 
@@ -365,12 +413,22 @@ def probe_checkpoint(
     agents: int,
     max_steps: int,
     skip_existing_keys: set[tuple[str, int, str, int]] | None = None,
-) -> list[dict[str, Any]]:
+    save_contexts: bool = False,
+    existing_context_keys: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, np.ndarray]]:
     """Run the full (opponent x z x seed) probe matrix on one checkpoint.
 
-    Returns the list of new raw rows produced (does NOT write them).
+    Returns ``(new_rows, new_contexts)``:
+
+    * ``new_rows``: list of raw episode dicts (does NOT write them).
+    * ``new_contexts``: when ``save_contexts`` is set, maps
+      ``f"{checkpoint_steps}|{opponent}|{probe_seed}"`` -> 170-d float32
+      context vector. Only keys not already present in
+      ``existing_context_keys`` are populated. Caller writes/merges the NPZ.
     """
     skip = skip_existing_keys or set()
+    ctx_skip = existing_context_keys or set()
+    new_contexts: dict[str, np.ndarray] = {}
     ckpt_path_s = str(entry.path)
 
     meta = read_custom_ppo_metadata(ckpt_path_s)
@@ -379,7 +437,7 @@ def probe_checkpoint(
             f"[q_probe] SKIP {entry.path.name}: not a latent checkpoint "
             "(use_latent_strategy=False)."
         )
-        return []
+        return [], new_contexts
     latent_k = int(meta.get("latent_k", 4))
     n_blue = int(meta.get("n_blue", agents))
 
@@ -431,6 +489,26 @@ def probe_checkpoint(
                         device=device,
                         max_steps=max_steps,
                     )
+                    # Capture first-step q_phi context once per
+                    # (entry.steps, opp, seed). It is identical across z
+                    # for matched seeds because the env is reset to the
+                    # same state, so we only record it on the first z that
+                    # finishes for this (opp, seed) pair.
+                    if save_contexts:
+                        ctx_key = (
+                            f"{int(entry.steps)}|{str(opp_label).upper()}|{int(probe_seed)}"
+                        )
+                        ctx_arr = ep.pop("_first_context", None)
+                        if (
+                            ctx_arr is not None
+                            and ctx_key not in ctx_skip
+                            and ctx_key not in new_contexts
+                        ):
+                            new_contexts[ctx_key] = np.asarray(
+                                ctx_arr, dtype=np.float32
+                            )
+                    else:
+                        ep.pop("_first_context", None)
                     row = {
                         "checkpoint_path": ckpt_path_s,
                         "checkpoint_steps": int(entry.steps),
@@ -452,7 +530,7 @@ def probe_checkpoint(
             env.close()
         except Exception as exc:
             print(f"[q_probe] WARNING: env.close() raised: {exc}")
-    return new_rows
+    return new_rows, new_contexts
 
 
 # ---------------------------------------------------------------------------
@@ -1078,17 +1156,22 @@ def run_probe_once(
     run_tag: str,
     success_threshold: float,
     failure_threshold: float,
+    save_contexts: bool = False,
 ) -> None:
     """Run the probe over a batch of checkpoint entries, write CSVs + report."""
     output_dir.mkdir(parents=True, exist_ok=True)
     raw_csv = output_dir / f"{run_tag}_qprobe.csv"
     summary_csv = output_dir / f"{run_tag}_qprobe_summary.csv"
     report_md = output_dir / f"{run_tag}_qprobe_report.md"
+    contexts_npz = output_dir / f"{run_tag}_qprobe_contexts.npz"
 
     existing_keys = _read_existing_raw_keys(raw_csv)
+    contexts_merged: dict[str, np.ndarray] = (
+        _read_contexts_npz(contexts_npz) if save_contexts else {}
+    )
 
     for entry in entries:
-        new_rows = probe_checkpoint(
+        new_rows, new_contexts = probe_checkpoint(
             entry=entry,
             opponents=opponents,
             n_seeds=n_seeds,
@@ -1097,6 +1180,8 @@ def run_probe_once(
             agents=agents,
             max_steps=max_steps,
             skip_existing_keys=existing_keys,
+            save_contexts=save_contexts,
+            existing_context_keys=set(contexts_merged.keys()) if save_contexts else None,
         )
         if new_rows:
             _append_raw_rows(raw_csv, new_rows)
@@ -1109,6 +1194,13 @@ def run_probe_once(
                         int(r["probe_seed"]),
                     )
                 )
+        if save_contexts and new_contexts:
+            contexts_merged.update(new_contexts)
+            _write_contexts_npz(contexts_npz, contexts_merged)
+            print(
+                f"[q_probe] contexts: wrote {contexts_npz.name} "
+                f"({len(contexts_merged)} total keys)"
+            )
 
     all_raw = _read_raw_rows(raw_csv)
     summary_rows = aggregate_summary(all_raw)
@@ -1185,6 +1277,17 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--watch-interval", type=float, default=60.0)
     p.add_argument("--success-threshold", type=float, default=0.10)
     p.add_argument("--failure-threshold", type=float, default=0.05)
+    p.add_argument(
+        "--save-contexts",
+        action="store_true",
+        help=(
+            "Also write <run_tag>_qprobe_contexts.npz containing the first-step "
+            "q_phi context vector (170-d) per (checkpoint_steps, opponent, "
+            "probe_seed). One context per matched starting world, shared "
+            "across z variants. Required input for v4i2 router distillation "
+            "(see tools/router_distill_from_qprobe.py)."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -1248,6 +1351,7 @@ def main(argv: list[str] | None = None) -> int:
             run_tag=run_tag,
             success_threshold=float(args.success_threshold),
             failure_threshold=float(args.failure_threshold),
+            save_contexts=bool(args.save_contexts),
         )
 
     if not do_watch:
@@ -1301,6 +1405,7 @@ def main(argv: list[str] | None = None) -> int:
             run_tag=run_tag,
             success_threshold=float(args.success_threshold),
             failure_threshold=float(args.failure_threshold),
+            save_contexts=bool(args.save_contexts),
         )
 
 
