@@ -57,6 +57,7 @@ from rl.behavior_telemetry import N_TELEMETRY
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
 from rl.custom_ppo.csv_writers import _opponent_id_int_from_info
+from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
 
 if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
@@ -794,6 +795,14 @@ class LatentStrategyState:
         self.rollout_completed_episode_count = 0
         self.rollout_tactical_bucket_fallback_count = 0
         self.rollout_tactical_bucket_sample_count = 0
+        # v5i3 per-z router telemetry. Counts the forced (uniformly-sampled
+        # exploration) episodes by z within the current rollout window. The
+        # router-sample count by z is derived from rollout_strategy_episode_records
+        # at telemetry time (forced episodes never enter that buffer; see the
+        # is_forced_z early-return in record_episode_strategy_outcome).
+        self.rollout_forced_z_episode_count_by_z = np.zeros(
+            (max(1, int(trainer.latent_k)),), dtype=np.int64
+        )
         self.latent_preference_buffer = deque(maxlen=20000)
 
         # Event refresh variables
@@ -1131,6 +1140,7 @@ class LatentStrategyState:
         self.rollout_completed_episode_count = 0
         self.rollout_tactical_bucket_fallback_count = 0
         self.rollout_tactical_bucket_sample_count = 0
+        self.rollout_forced_z_episode_count_by_z[:] = 0
 
     def behavior_contrast_coef(self) -> float:
         trainer = self.trainer
@@ -1858,9 +1868,9 @@ class LatentStrategyState:
             self.episode_contrast_bucket[start_idx] = _strategy_experience_bucket_ids(
                 global_state.index_select(0, start_idx)
             ).detach()
-            forced_frac = max(
-                0.0,
-                min(float(getattr(trainer, "latent_forced_z_episode_frac", 0.0) or 0.0), 1.0),
+            forced_frac = resolve_latent_forced_z_frac(
+                trainer.cfg,
+                global_step=int(getattr(trainer, "global_step", 0) or 0),
             )
             contrast_on = (
                 getattr(trainer, "latent_behavior_contrast", None) is not None
@@ -2359,7 +2369,7 @@ class LatentStrategyState:
             z_val = int(self.episode_forced_z_id[env_i].detach().cpu().item())
             count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
             emb = (self.episode_behavior_sum[env_i] / float(count)).detach().cpu().numpy().tolist()
-            
+
             forced_record = {
                 "context_bucket": tactical_bucket,
                 "opponent": opponent_id,
@@ -2370,6 +2380,12 @@ class LatentStrategyState:
                 "win_loss": episode_win,
             }
             self.latent_preference_buffer.append(forced_record)
+            # v5i3 per-z forced sample counter (per-rollout, reset by
+            # reset_behavior_contrast_rollout_stats). Independent of the
+            # behavior_contrast counter at line 2206 which only fires when
+            # a BehaviorContrastMemory is wired up.
+            if 0 <= z_val < int(self.rollout_forced_z_episode_count_by_z.shape[0]):
+                self.rollout_forced_z_episode_count_by_z[z_val] += 1
             return
 
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
@@ -3319,6 +3335,46 @@ class LatentStrategyState:
                     ) if adv.numel() > 1 else 0.0,
                 }
             )
+
+            # v5i3 per-z router telemetry. Lets the post-mortem distinguish
+            # "z_i is rarely sampled" (router_sample_count_by_z[i] low) from
+            # "z_i is sampled enough but receives noisy/weak credit"
+            # (count high, adv_std_by_z[i] high, adv_mean_by_z[i] near 0).
+            # All inputs come from the on-policy episode batch -- forced
+            # episodes are already filtered out by record_episode_strategy_outcome's
+            # is_forced_z branch (see line ~2348).
+            K = max(1, int(trainer.latent_k))
+            z_cpu = z.detach().cpu()
+            adv_cpu = adv.detach().cpu()
+            ret_cpu = episode_returns.detach().cpu()
+            ratio_cpu = ratio.detach().cpu()
+            clip_eps = float(getattr(trainer, "latent_episode_strategy_clip_eps", 0.2) or 0.2)
+            clipped_per_record = (torch.abs(ratio_cpu - 1.0) > clip_eps).float()
+            for z_i in range(K):
+                mask = (z_cpu == z_i)
+                count_i = int(mask.sum().item())
+                forced_i = int(self.rollout_forced_z_episode_count_by_z[z_i])
+                stats[f"router_sample_count_by_z_{z_i}"] = float(count_i)
+                stats[f"forced_sample_count_by_z_{z_i}"] = float(forced_i)
+                stats[f"episode_count_by_z_{z_i}"] = float(count_i + forced_i)
+                if count_i == 0:
+                    stats[f"mean_episode_advantage_by_z_{z_i}"] = 0.0
+                    stats[f"std_episode_advantage_by_z_{z_i}"] = 0.0
+                    stats[f"mean_return_by_z_{z_i}"] = 0.0
+                    stats[f"mean_logprob_ratio_by_z_{z_i}"] = 1.0
+                    stats[f"clip_fraction_by_z_{z_i}"] = 0.0
+                    continue
+                adv_i = adv_cpu[mask]
+                ret_i = ret_cpu[mask]
+                ratio_i = ratio_cpu[mask]
+                clip_i = clipped_per_record[mask]
+                stats[f"mean_episode_advantage_by_z_{z_i}"] = float(adv_i.mean().item())
+                stats[f"std_episode_advantage_by_z_{z_i}"] = (
+                    float(adv_i.std(unbiased=False).item()) if count_i > 1 else 0.0
+                )
+                stats[f"mean_return_by_z_{z_i}"] = float(ret_i.mean().item())
+                stats[f"mean_logprob_ratio_by_z_{z_i}"] = float(ratio_i.mean().item())
+                stats[f"clip_fraction_by_z_{z_i}"] = float(clip_i.mean().item())
 
             # v3d bucket-baseline telemetry. ``last_stats`` reflects the SINGLE
             # update_and_compute call made at the top of this rollout (outside

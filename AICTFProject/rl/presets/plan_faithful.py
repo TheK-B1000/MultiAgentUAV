@@ -1538,6 +1538,311 @@ def apply_plan_faithful_latent_v5_strict_summer(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_plan_faithful_latent_v5i1_reward_credit_router(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i1: reward-credit repair for the collapsed strict-Summer router.
+
+    ``v5_strict_summer`` proved that persistence plus entropy does not provide
+    task-return credit to q_phi. Persistence self-reinforces whichever latent
+    wins the early sampling race, while the entropy coefficient anneals too
+    quickly to keep all four choices alive.
+
+    This additive preset preserves v5's plain ``nn.Embedding`` actor contract
+    and all no-label/no-auxiliary-head guards, but makes q_phi trainable from
+    task reward:
+
+    * commit one z per episode after five context-building decision steps;
+    * optimize that sampled z from completed-episode return;
+    * subtract the detached z-marginal value baseline;
+    * use six router PPO epochs and a dedicated 5e-3 router learning rate;
+    * retain a 1e-3 entropy floor as collapse insurance.
+
+    No opponent ID, phase label, handcrafted strategy reward, preference
+    target, or distillation target enters the router.
+    """
+    cfg = apply_plan_faithful_latent_v5_strict_summer(cfg)
+
+    cfg.latent_resample_every_n = 0
+    cfg.latent_resample_on_flag = False
+    cfg.latent_lam_p = 0.0
+
+    cfg.latent_lam_h = 0.003
+    cfg.latent_lam_h_start = 0.003
+    cfg.latent_lam_h_end = 0.001
+    cfg.latent_entropy_anneal_start = 200_000
+    cfg.latent_entropy_anneal_end = 700_000
+
+    cfg.latent_episode_strategy_ppo = True
+    cfg.latent_episode_strategy_coef = 0.30
+    cfg.latent_episode_strategy_warmup_decision_steps = 5
+    cfg.latent_episode_strategy_n_epochs = 6
+    cfg.latent_episode_strategy_lr = 5e-3
+    cfg.latent_q_phi_marginal_baseline = True
+
+    cfg.run_tag = "v5i1_reward_credit_router_OP5_OP6_OP7_2m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v5i2_stronger_z_conditioning(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i2: strengthen actor controllability with embedding-driven FiLM.
+
+    This experiment inherits the v5i1 episode-level reward-credit router
+    unchanged. The only behavioral change is an actor-only FiLM projection
+    from the existing learned z embedding into the second hidden layer:
+
+        h' = gamma(z) * h + beta(z)
+
+    The projection starts near identity so the embedding-concat policy is
+    preserved at initialization while giving PPO a direct multiplicative and
+    additive path from z to the policy head. No specialization loss, diversity
+    reward, forced-z balancing, role assignment, critic change, or router
+    objective is added.
+    """
+    cfg = apply_plan_faithful_latent_v5i1_reward_credit_router(cfg)
+
+    cfg.enable_actor_z_film = True
+    cfg.actor_z_film_init_scale = 0.02
+    cfg.actor_z_film_layer = 2
+
+    cfg.run_tag = "v5i2_stronger_z_conditioning_OP5_OP6_OP7_2m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v5i4_end_to_end(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i4: the true paper-faithful end-to-end latent-routing baseline.
+
+    Built directly on ``v5_strict_summer`` (NOT on v5i1/v5i2/v5i3), with one
+    correction: the on-policy categorical PPO term on ``q_phi`` is enabled.
+
+    The Summer-plan claim that ``q_phi`` is "trained end-to-end from task
+    reward" requires a score-function gradient on the discrete latent --
+    persistence and entropy alone do not transmit task-reward information
+    into the router. The categorical strategy PPO term
+
+        L_strategy_PPO = - E[ min( rho(z) * A, clip(rho(z), 1+/-eps) * A ) ]
+
+    where ``A`` is the centralized critic's GAE advantage at each
+    resample step and ``rho(z) = pi_phi(z|s) / pi_phi_old(z|s)``, is the
+    operational implementation of that claim. It belongs inside
+
+        L_MARL = L_actor_PPO + c_V*L_critic + c_Z*L_strategy_PPO
+                 + lam_p*L_persist - lam_H*H(q_phi)
+
+    and is not an auxiliary prediction task, label, preference target,
+    role assignment, distillation target, or curriculum. The
+    ``latent_strategy_ppo_coef`` coefficient is the ``c_Z`` weight.
+
+    What's ON:
+    *  Discrete categorical ``z``, ``K = 4``, ``z_embed_dim = 16``.
+    *  Sparse resampling every 64 decisions (``latent_resample_every_n = 64``).
+    *  Actor reads ``z`` via a plain ``nn.Embedding(K, d_z)`` concatenated
+       to local CNN features + scalar ``vec`` (no FiLM, no adapter,
+       no one-hot, no opponent/phase info in the actor).
+    *  Centralized critic ``V(s, a, z)`` supplies the baseline.
+    *  Strategy persistence (``lam_p = 0.03``) and strategy entropy
+       (``lam_h`` 0.003 -> 0.0002 schedule inherited from v4i3).
+    *  Main-loop ``q_phi`` PPO with ``c_Z = 0.10`` (the paper's task-reward
+       gradient channel for the router).
+
+    What's OFF (and must stay off for the paper-faithful claim):
+    *  Episode-credit extension (v5i1's per-episode router PPO + dedicated
+       AdamW). Mutually exclusive with the per-step main-loop PG above.
+    *  FiLM and any other non-concat actor-z mechanism.
+    *  Forced-z exploration curriculum (v5i3) -- no labels, no scheduled
+       uniform sampling; the router learns purely from on-policy reward.
+    *  Arc-credit (v3i19), preference distillation, AWRD, router distill,
+       behavior contrast, specialist router, auxiliary return / phase
+       prediction heads, and any other post-Summer channel.
+    *  Event-triggered switching (``latent_resample_on_flag = False``).
+    *  Sparse-tactical refresh and event refresh disabled (inherited
+       from the v4i3 chain).
+
+    Relationship to the rest of the v5 ladder:
+
+    |  Run               | q_phi gradient channels                       |
+    |--------------------|-----------------------------------------------|
+    | v5_strict_summer   | entropy + persistence (NO task-reward signal) |
+    | v5i1               | + per-episode credit (dedicated AdamW)        |
+    | v5i2               | v5i1 + FiLM (actor-only, no q_phi change)     |
+    | v5i3               | v5i2 + forced-z anneal (actor coverage)       |
+    | v5i4 (this preset) | entropy + persistence + per-step main-loop PG |
+
+    v5i4 is the row that should be labeled "Summer-faithful, operational"
+    in the proof table because (a) the actor is the embedding-concat one
+    docs/algorithm.md specifies literally, (b) the q_phi gradient is the
+    main-loop categorical PPO that the paper's "learned end-to-end from
+    task reward" wording requires, and (c) no label or auxiliary
+    prediction target enters anywhere.
+
+    The launch-time audit banner is emitted by
+    ``rl.custom_ppo.training_telemetry`` when the resolved run_tag
+    contains ``v5i4_paper_faithful`` so a reviewer can verify the
+    invariants at the top of the log without diffing config snapshots.
+    """
+    cfg = apply_plan_faithful_latent_v5_strict_summer(cfg)
+
+    # ------------------------------------------------------------------
+    # Core paper design.
+    # ------------------------------------------------------------------
+    cfg.use_latent_strategy = True
+    cfg.latent_k = 4
+    cfg.fixed_latent_strategy = False
+    # Sparse switching every 64 decisions. v5_strict_summer already inherits
+    # 64 from v4i3, but re-assert here so a future v4i3 change does not
+    # silently shift v5i4's cadence.
+    cfg.latent_resample_every_n = 64
+    cfg.latent_resample_on_flag = False
+
+    # ------------------------------------------------------------------
+    # Literal actor architecture: only nn.Embedding(K, d_z) concat.
+    # ------------------------------------------------------------------
+    cfg.enable_actor_z_film = False
+    cfg.actor_z_film_init_scale = 0.0
+    cfg.latent_actor_z_adapter_enabled = False
+    cfg.latent_actor_z_adapter_scale = 0.0
+    cfg.latent_actor_z_onehot_enabled = False
+    cfg.latent_actor_z_onehot_scale = 0.0
+    cfg.latent_z_embed_dim = 16
+    cfg.latent_actor_z_embed_scale = 1.0
+
+    # ------------------------------------------------------------------
+    # Main-loop categorical PPO on q_phi (the paper's task-reward channel
+    # for the router). NOT the v5i1 episode-credit channel.
+    # ------------------------------------------------------------------
+    cfg.latent_strategy_ppo_coef = 0.10
+    # Defensive: keep the shared optimizer driving q_phi via the main-loop
+    # gate. Setting latent_episode_strategy_lr would create a dedicated
+    # AdamW that suppresses the main-loop PG (see
+    # ``apply_main_loop_qphi_loss`` in ppo_updater.update and the
+    # ``MainLoopGatingTests`` in test_marginal_baseline.py).
+    cfg.latent_episode_strategy_lr = None
+    cfg.latent_episode_strategy_ppo = False
+    cfg.latent_episode_strategy_coef = 0.0
+    cfg.latent_episode_strategy_warmup_decision_steps = 0
+    cfg.latent_episode_strategy_n_epochs = 1
+
+    # ------------------------------------------------------------------
+    # Paper regularizers.
+    # ------------------------------------------------------------------
+    cfg.latent_lam_p = 0.03
+    cfg.latent_lam_h = 0.003
+    cfg.latent_kl_consecutive = 0.0
+    # Entropy maximization is the default; pin explicitly so a future
+    # default flip cannot silently invert the sign in v5i4.
+    cfg.latent_entropy_objective = "maximize"
+
+    # ------------------------------------------------------------------
+    # Forced-z curriculum OFF (constant zero; resolver short-circuits to
+    # the legacy field because all four schedule fields are None).
+    # ------------------------------------------------------------------
+    cfg.latent_forced_z_episode_frac = 0.0
+    cfg.latent_forced_z_episode_frac_start = None
+    cfg.latent_forced_z_episode_frac_end = None
+    cfg.latent_forced_z_anneal_start = None
+    cfg.latent_forced_z_anneal_end = None
+
+    # ------------------------------------------------------------------
+    # Explicitly disable every non-paper q_phi channel inherited up the
+    # chain. Most are already zero in v5_strict_summer; re-asserted here
+    # so config-diff at PR time catches any future drift.
+    # ------------------------------------------------------------------
+    cfg.latent_arc_credit_enabled = False
+    cfg.latent_arc_credit_coef = 0.0
+    cfg.latent_strategy_aux_return_head = False
+    cfg.latent_strategy_aux_return_coef = 0.0
+    cfg.latent_strategy_aux_predict_phase_coef = 0.0
+    cfg.latent_router_distill_enabled = False
+    cfg.latent_v3i3_event_preference_enabled = False
+    cfg.latent_v3i3_event_preference_coef = 0.0
+    cfg.latent_behavior_contrast_coef = 0.0
+    cfg.latent_actor_z_separation_coef = 0.0
+    cfg.latent_actor_z_separation_start_coef = 0.0
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_preference_coef = 0.0
+    cfg.latent_preference_commit_coef = 0.0
+    cfg.latent_awrd_enabled = False
+    cfg.latent_awrd_coef = 0.0
+    cfg.latent_specialist_router_enabled = False
+    cfg.latent_marginal_balance_coef = 0.0
+    cfg.latent_conditional_entropy_min_coef = 0.0
+    cfg.latent_conditional_entropy_min_coef_start = 0.0
+    cfg.latent_context_mi_coef = 0.0
+
+    cfg.run_tag = "v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v5i3_balanced_warmup(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i3: forced-z anneal layered on top of v5i2.
+
+    Diagnosis of v5i2: the router collapsed (z2 dominant, z1 near-extinct)
+    even though FiLM was wired in. The actor's per-z sensitivity grew but
+    only on z values q_phi actually picked, so under-sampled latents stayed
+    blind regardless of conditioning bandwidth. v5i3 fixes the *coverage*
+    problem the same way exploration noise fixes argmax collapse in plain
+    PPO: force a fraction of episodes onto a uniformly-sampled z early in
+    training, then anneal that fraction to zero so late training is pure
+    router-vs-task-reward.
+
+    Schedule:
+
+    *  ``0 -- 200k``: forced fraction = 0.30. Every latent gets balanced
+       actor exposure across roughly the same opponent/phase mix.
+    *  ``200k -- 500k``: linearly anneal 0.30 -> 0.00.
+    *  ``500k -- 1M``: router-only sampling.
+
+    Forced episodes always route into ``latent_preference_buffer`` and are
+    excluded from ``rollout_strategy_episode_records`` (see the
+    ``is_forced_z`` branch in ``record_episode_strategy_outcome``), so
+    q_phi's PPO update only sees true on-policy episodes; off-policy bias
+    on the router is structurally avoided.
+
+    Summer-compatibility: forcing is unlabeled uniform exploration, not
+    role assignment. Latent meanings still emerge from task reward via the
+    inherited v5i1 episode-credit PPO. The preference-distillation hook
+    (``latent_v3i3_event_preference_*``) and router-distill hook stay
+    disabled.
+    """
+    cfg = apply_plan_faithful_latent_v5i2_stronger_z_conditioning(cfg)
+
+    # Anneal schedule. ``resolve_latent_forced_z_frac`` reads these four
+    # fields at every episode start; the legacy constant below is set to
+    # the start value as a safety so any code that inspects
+    # ``cfg.latent_forced_z_episode_frac`` directly (without the resolver)
+    # still observes a sane warmup value.
+    cfg.latent_forced_z_episode_frac_start = 0.30
+    cfg.latent_forced_z_episode_frac_end = 0.00
+    cfg.latent_forced_z_anneal_start = 200_000
+    cfg.latent_forced_z_anneal_end = 500_000
+    cfg.latent_forced_z_episode_frac = 0.30
+
+    # Defensive re-assertions: keep every supervised / preference / distill
+    # channel disabled. v5i3 must remain a pure forced-z coverage layer on
+    # top of v5i2's router-credit + FiLM stack.
+    cfg.latent_behavior_contrast_coef = 0.0
+    cfg.latent_actor_z_separation_coef = 0.0
+    cfg.latent_actor_z_separation_start_coef = 0.0
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_preference_coef = 0.0
+    cfg.latent_preference_commit_coef = 0.0
+    cfg.latent_awrd_enabled = False
+    cfg.latent_awrd_coef = 0.0
+    cfg.latent_v3i3_event_preference_enabled = False
+    cfg.latent_v3i3_event_preference_coef = 0.0
+    cfg.latent_router_distill_enabled = False
+    cfg.latent_specialist_router_enabled = False
+
+    cfg.run_tag = "v5i3_balanced_warmup_OP5_OP6_OP7_2m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v4i4post_periodic_router_distill(cfg: PPOConfig) -> PPOConfig:
     """v4i4 (post-Summer extension): Online / Periodic Return-Ranked Router Distillation.
 

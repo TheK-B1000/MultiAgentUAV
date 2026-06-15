@@ -34,6 +34,7 @@ from rl.custom_ppo.policy import (
     SharedActorCentralizedCritic,
     remap_legacy_actor_state_dict_keys,
 )
+from rl.custom_ppo.trainer_config import build_model_kwargs
 from rl.custom_ppo.latent_diagnostics import (
     _jsd_from_logits,
     _policy_z_sensitivity_kl,
@@ -106,6 +107,24 @@ def _build_latent_adapter_model(seed: int = 1234) -> SharedActorCentralizedCriti
         latent_actor_z_adapter_enabled=True,
         latent_actor_z_adapter_scale=0.35,
         latent_actor_z_adapter_init_std=0.03,
+    )
+    model.eval()
+    return model
+
+
+def _build_embedding_film_model(seed: int = 1234) -> SharedActorCentralizedCritic:
+    torch.manual_seed(seed)
+    model = SharedActorCentralizedCritic(
+        _obs_space(),
+        _action_space(),
+        actor_cnn_feature_dim=128,
+        latent_k=4,
+        z_embed_dim=16,
+        strategy_hidden_dim=128,
+        critic_hidden_dim=128,
+        enable_actor_z_film=True,
+        actor_z_film_init_scale=0.02,
+        actor_z_film_layer=2,
     )
     model.eval()
     return model
@@ -421,6 +440,83 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertEqual(tuple(logits_z0.shape), tuple(logits_z1.shape))
         self.assertEqual(tuple(logits_z0.shape), (2, 110))
         self.assertGreater(float((logits_z0 - logits_z1).abs().max().item()), 1e-6)
+
+    def test_embedding_film_changes_outputs_for_all_forced_z_values(self) -> None:
+        model = _build_embedding_film_model()
+        obs = _fixed_obs(batch=3)
+        logits_by_z = []
+        with torch.no_grad():
+            for z_id in range(4):
+                logits_by_z.append(
+                    model.policy_logits(
+                        obs,
+                        z_idx=torch.full((3,), z_id, dtype=torch.long),
+                    )
+                )
+
+        pairwise_jsd = []
+        for i in range(4):
+            for j in range(i + 1, 4):
+                pairwise_jsd.append(
+                    _jsd_from_logits(logits_by_z[i], logits_by_z[j]).mean()
+                )
+        mean_jsd = torch.stack(pairwise_jsd).mean()
+        self.assertGreater(float(mean_jsd.item()), 1e-7)
+
+    def test_embedding_film_initializes_near_identity(self) -> None:
+        model = _build_embedding_film_model()
+        film = model.latent_actor.actor_z_film
+        embedding = model.latent_actor.strategy_embedding
+        self.assertIsNotNone(film)
+        self.assertIsNotNone(embedding)
+        assert film is not None
+        assert embedding is not None
+        with torch.no_grad():
+            gamma, beta = film(embedding.weight).chunk(2, dim=-1)
+        self.assertLess(float((gamma - 1.0).abs().mean().item()), 0.1)
+        self.assertLess(float(beta.abs().mean().item()), 0.1)
+
+    def test_embedding_film_parameters_receive_policy_gradients(self) -> None:
+        model = _build_embedding_film_model()
+        obs = _fixed_obs(batch=4)
+        logits = model.policy_logits(
+            obs,
+            z_idx=torch.arange(4, dtype=torch.long),
+        )
+        loss = logits.square().mean()
+        loss.backward()
+
+        film = model.latent_actor.actor_z_film
+        self.assertIsNotNone(film)
+        assert film is not None
+        self.assertIsNotNone(film.weight.grad)
+        self.assertIsNotNone(film.bias.grad)
+        self.assertGreater(float(film.weight.grad.abs().sum().item()), 0.0)
+        self.assertGreater(float(film.bias.grad.abs().sum().item()), 0.0)
+
+    def test_v5i2_trainer_model_kwargs_enable_film_only_for_v5i2(self) -> None:
+        hparams = SimpleNamespace(use_latent_strategy=True, latent_k=4)
+        v5i1 = apply_preset(PPOConfig(), "v5i1")
+        v5i2 = apply_preset(PPOConfig(), "v5i2_stronger_z_conditioning")
+
+        v5i1_model = SharedActorCentralizedCritic(
+            _obs_space(),
+            _action_space(),
+            **build_model_kwargs(v5i1, hparams),
+        )
+        v5i2_model = SharedActorCentralizedCritic(
+            _obs_space(),
+            _action_space(),
+            **build_model_kwargs(v5i2, hparams),
+        )
+
+        self.assertIsNone(v5i1_model.latent_actor.actor_z_film)
+        self.assertIsNotNone(v5i2_model.latent_actor.actor_z_film)
+        self.assertEqual(v5i2_model.latent_actor.actor_z_film_layer, 2)
+        self.assertAlmostEqual(
+            v5i2_model.latent_actor.actor_z_film_init_scale,
+            0.02,
+        )
 
     def test_two_layer_film_keeps_v3i13_parameter_contract(self) -> None:
         one_layer = _build_film_only_model(film_layers=1)

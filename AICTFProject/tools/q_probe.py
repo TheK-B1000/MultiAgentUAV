@@ -119,6 +119,7 @@ _SUMMARY_FIELDS: tuple[str, ...] = (
     "n_seeds",
     "n_complete_seeds",
     "mean_return",
+    "forced_z_return",
     "std_return",
     "min_return",
     "max_return",
@@ -1114,6 +1115,7 @@ def aggregate_summary(raw_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             best_z_frac = (
                 float(best_z_count) / float(n_complete) if n_complete > 0 else 0.0
             )
+            mean_return = float(statistics.fmean(rets)) if rets else 0.0
             row = {
                 "checkpoint_path": ckpt_path,
                 "checkpoint_steps": int(steps),
@@ -1122,7 +1124,8 @@ def aggregate_summary(raw_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "z": int(z),
                 "n_seeds": len(rets),
                 "n_complete_seeds": n_complete,
-                "mean_return": float(statistics.fmean(rets)) if rets else 0.0,
+                "mean_return": mean_return,
+                "forced_z_return": mean_return,
                 "std_return": float(statistics.pstdev(rets)) if len(rets) >= 2 else 0.0,
                 "min_return": float(min(rets)) if rets else 0.0,
                 "max_return": float(max(rets)) if rets else 0.0,

@@ -205,6 +205,9 @@ class LatentConditionedActor(nn.Module):
         z_adapter_scale: float = 0.0,
         z_adapter_init_std: float = 0.02,
         z_film_layers: int = 1,
+        enable_actor_z_film: bool = False,
+        actor_z_film_init_scale: float = 0.0,
+        actor_z_film_layer: int = 2,
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -227,6 +230,13 @@ class LatentConditionedActor(nn.Module):
         self.z_film_layers = (
             max(1, min(2, int(z_film_layers))) if self.z_adapter_enabled else 0
         )
+        self.enable_actor_z_film = bool(enable_actor_z_film) and self.latent_k > 0
+        self.actor_z_film_layer = max(1, min(2, int(actor_z_film_layer)))
+        self.actor_z_film_init_scale = max(0.0, float(actor_z_film_init_scale))
+        if self.enable_actor_z_film and self.z_embed_dim <= 0:
+            raise ValueError(
+                "enable_actor_z_film requires a positive z_embed_dim."
+            )
 
         if self.latent_k > 0 and self.z_embed_dim > 0:
             # Doc IMPLEMENTATION §7: nn.Embedding(K, d_z); no special init in the spec.
@@ -251,6 +261,18 @@ class LatentConditionedActor(nn.Module):
             )
         else:
             self.z_adapter = None
+        if self.enable_actor_z_film:
+            self.actor_z_film = nn.Linear(self.z_embed_dim, self.hidden_dim * 2)
+            nn.init.normal_(
+                self.actor_z_film.weight,
+                mean=0.0,
+                std=self.actor_z_film_init_scale,
+            )
+            with torch.no_grad():
+                self.actor_z_film.bias[: self.hidden_dim].fill_(1.0)
+                self.actor_z_film.bias[self.hidden_dim :].zero_()
+        else:
+            self.actor_z_film = None
         self.action_head = nn.Linear(self.hidden_dim, self.action_dim)
 
     def _apply_z_film(self, hidden: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
@@ -260,6 +282,14 @@ class LatentConditionedActor(nn.Module):
         return hidden + self.z_adapter_scale * (
             hidden * torch.tanh(gamma) + beta
         )
+
+    def _apply_actor_z_film(
+        self, hidden: torch.Tensor, z_embedding: torch.Tensor
+    ) -> torch.Tensor:
+        if self.actor_z_film is None:
+            return hidden
+        gamma, beta = self.actor_z_film(z_embedding).chunk(2, dim=-1)
+        return gamma * hidden + beta
 
     def forward(
         self, local_features: torch.Tensor, z_idx: torch.Tensor | None = None
@@ -281,6 +311,7 @@ class LatentConditionedActor(nn.Module):
                 f"{int(self.local_feature_dim)}"
             )
         z = None
+        z_emb = None
         has_z = (self.strategy_embedding is not None) or self.z_onehot_enabled or (self.z_adapter is not None)
         if has_z:
             if z_idx is None:
@@ -306,14 +337,30 @@ class LatentConditionedActor(nn.Module):
             x = torch.cat(pieces, dim=-1) if len(pieces) > 1 else local_features.float()
         else:
             x = local_features.float()
-        if self.z_adapter is not None and self.z_film_layers >= 2:
+        if (
+            (self.z_adapter is not None and self.z_film_layers >= 2)
+            or (
+                self.actor_z_film is not None
+                and self.actor_z_film_layer in (1, 2)
+            )
+        ):
             if z is None:
-                raise ValueError("z_idx is required when z adapter is enabled.")
+                raise ValueError("z_idx is required when actor FiLM is enabled.")
             hidden = self.body[0](x)
-            hidden = self._apply_z_film(hidden, z)
+            if self.z_adapter is not None and self.z_film_layers >= 2:
+                hidden = self._apply_z_film(hidden, z)
+            if self.actor_z_film is not None and self.actor_z_film_layer == 1:
+                if z_emb is None:
+                    raise RuntimeError("actor z FiLM requires a strategy embedding.")
+                hidden = self._apply_actor_z_film(hidden, z_emb)
             hidden = self.body[1](hidden)
             hidden = self.body[2](hidden)
-            hidden = self._apply_z_film(hidden, z)
+            if self.z_adapter is not None and self.z_film_layers >= 2:
+                hidden = self._apply_z_film(hidden, z)
+            if self.actor_z_film is not None and self.actor_z_film_layer == 2:
+                if z_emb is None:
+                    raise RuntimeError("actor z FiLM requires a strategy embedding.")
+                hidden = self._apply_actor_z_film(hidden, z_emb)
             hidden = self.body[3](hidden)
         else:
             hidden = self.body(x)

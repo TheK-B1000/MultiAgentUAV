@@ -242,31 +242,52 @@ def _flag_return_indices(
 
 
 def _switch_proximity_fracs(out: dict[str, float], buffer: Any, length: int) -> None:
-    """Fraction of z-switches within 3 steps of a capture / kill / flag-return event."""
+    """Fraction of z-switches within 3 steps of a capture / kill / flag-return event.
+
+    Also surfaces the raw counts so a zero fraction is interpretable:
+
+    * ``latent_switch_near_eligible_count``: # of mid-episode z-switches in
+      the rollout (the fraction's denominator). Zero under presets that
+      only resample at episode start (e.g. v5_strict_summer, v5i1, v5i2,
+      v5i3) AND have event-refresh / sparse-tactical-refresh disabled,
+      in which case the cap/kill/ret fractions are not meaningful.
+    * ``latent_capture_event_count`` / ``..kill_event_count`` /
+      ``..return_event_count``: # of qualifying events in the rollout.
+      A zero fraction with eligible_count > 0 and event_count > 0 is a
+      real null result; a zero fraction with either count == 0 is a
+      missing-data artefact, not evidence of "switches do not align".
+    * ``latent_switch_near_capture_count`` / ``..kill_count`` /
+      ``..return_count``: the numerators (number of switches that
+      landed within 3 steps of the corresponding event).
+    """
     rsp = buffer.fields["reward_sparse_points"][:length].cpu().numpy()
     z_env = buffer.fields["z"][:length].cpu().numpy()
     pz_env = buffer.fields["prev_z"][:length].cpu().numpy()
     persist_env = buffer.fields["z_persist_mask"][:length].cpu().numpy()
     sw_env = persist_env & (z_env != pz_env)
     total = float(sw_env.sum())
-    if total <= 0.0:
-        out["latent_switch_near_capture_frac"] = 0.0
-        out["latent_switch_near_kill_frac"] = 0.0
-        out["latent_switch_near_return_frac"] = 0.0
-        return
 
     gs_env = buffer.fields["global_state"][:length].cpu().numpy()
     blue_cap_env = gs_env[:, :, 10] > 0.5
     red_cap_env = gs_env[:, :, 11] > 0.5
+
+    capture_event_count = 0
+    kill_event_count = 0
+    return_event_count = 0
     near_capture = near_kill = near_return = 0.0
+
     for b in range(int(buffer.n_envs)):
-        switch_idx = np.where(sw_env[:, b])[0]
-        if switch_idx.size == 0:
-            continue
         abs_rsp = np.abs(rsp[:, b])
         capture_idx = np.where(abs_rsp > 50.0)[0]
         kill_idx = np.where((abs_rsp > 1.0) & (abs_rsp < 40.0))[0]
         return_idx = _flag_return_indices(blue_cap_env[:, b], red_cap_env[:, b], abs_rsp)
+        capture_event_count += int(capture_idx.size)
+        kill_event_count += int(kill_idx.size)
+        return_event_count += int(return_idx.size)
+
+        switch_idx = np.where(sw_env[:, b])[0]
+        if switch_idx.size == 0:
+            continue
         for idx in switch_idx:
             if capture_idx.size and int(np.min(np.abs(capture_idx - idx))) <= 3:
                 near_capture += 1.0
@@ -274,9 +295,23 @@ def _switch_proximity_fracs(out: dict[str, float], buffer: Any, length: int) -> 
                 near_kill += 1.0
             if return_idx.size and int(np.min(np.abs(return_idx - idx))) <= 3:
                 near_return += 1.0
-    out["latent_switch_near_capture_frac"] = near_capture / total
-    out["latent_switch_near_kill_frac"] = near_kill / total
-    out["latent_switch_near_return_frac"] = near_return / total
+
+    if total > 0.0:
+        out["latent_switch_near_capture_frac"] = near_capture / total
+        out["latent_switch_near_kill_frac"] = near_kill / total
+        out["latent_switch_near_return_frac"] = near_return / total
+    else:
+        out["latent_switch_near_capture_frac"] = 0.0
+        out["latent_switch_near_kill_frac"] = 0.0
+        out["latent_switch_near_return_frac"] = 0.0
+
+    out["latent_switch_near_eligible_count"] = total
+    out["latent_switch_near_capture_count"] = near_capture
+    out["latent_switch_near_kill_count"] = near_kill
+    out["latent_switch_near_return_count"] = near_return
+    out["latent_capture_event_count"] = float(capture_event_count)
+    out["latent_kill_event_count"] = float(kill_event_count)
+    out["latent_return_event_count"] = float(return_event_count)
 
 
 def _latent_opponent_rollout_diag(trainer: Any, buffer: Any) -> dict[str, float]:
@@ -540,6 +575,7 @@ def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
         out["forced_z_macro_jsd_mean"] = float(np.mean(js_vals)) if js_vals else 0.0
     else:
         out["forced_z_macro_jsd_mean"] = 0.0
+    out["forced_z_macro_jsd"] = out["forced_z_macro_jsd_mean"]
     return out
 
 

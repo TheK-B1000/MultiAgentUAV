@@ -135,6 +135,7 @@ def print_training_banner(
         )
     if use_latent:
         _print_latent_strategy_banner(cfg)
+        _maybe_print_paper_faithful_audit(cfg)
     else:
         print("[PPO] Latent team strategy: disabled (vanilla local PPO baseline).")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
@@ -258,6 +259,120 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
                 f"[PPO] Entropy schedule: lambda_H {h_start:.4f} -> {h_end:.4f} over {anneal_end:,} steps "
                 "(collapse guard only; not the credit signal)"
             )
+
+
+def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
+    """Emit the v5i4 paper-faithful audit banner when the run is configured
+    per the v5i4 contract.
+
+    The audit is triggered by either:
+
+    * ``cfg.run_tag`` containing ``"v5i4_paper_faithful"`` (the canonical
+      tag set by ``apply_plan_faithful_latent_v5i4_end_to_end``), or
+    * an explicit ``cfg.latent_paper_faithful_audit = True`` opt-in flag
+      (used by future paper-faithful presets so they inherit the banner
+      without copying the run_tag string).
+
+    The banner lists every invariant the v5i4 design depends on so a
+    reviewer can verify them at the top of the log without diffing
+    config snapshots. None of these reads mutate ``cfg``.
+    """
+    run_tag = str(getattr(cfg, "run_tag", "") or "")
+    explicit_opt_in = bool(getattr(cfg, "latent_paper_faithful_audit", False))
+    if not explicit_opt_in and "v5i4_paper_faithful" not in run_tag.lower():
+        return
+
+    strategy_ppo_coef = float(getattr(cfg, "latent_strategy_ppo_coef", 0.0) or 0.0)
+    episode_credit_on = bool(getattr(cfg, "latent_episode_strategy_ppo", False))
+    film_on = bool(getattr(cfg, "enable_actor_z_film", False))
+    adapter_on = bool(getattr(cfg, "latent_actor_z_adapter_enabled", False))
+    onehot_on = bool(getattr(cfg, "latent_actor_z_onehot_enabled", False))
+    forced_z_legacy = float(getattr(cfg, "latent_forced_z_episode_frac", 0.0) or 0.0)
+    forced_z_start = getattr(cfg, "latent_forced_z_episode_frac_start", None)
+    forced_z_curriculum_on = forced_z_legacy > 0.0 or forced_z_start is not None
+    aux_return_on = bool(getattr(cfg, "latent_strategy_aux_return_head", False))
+    aux_phase_coef = float(
+        getattr(cfg, "latent_strategy_aux_predict_phase_coef", 0.0) or 0.0
+    )
+    aux_heads_on = aux_return_on or aux_phase_coef > 0.0
+    pref_on = bool(getattr(cfg, "latent_v3i3_event_preference_enabled", False)) or (
+        float(getattr(cfg, "latent_preference_coef", 0.0) or 0.0) > 0.0
+    )
+    distill_on = bool(getattr(cfg, "latent_router_distill_enabled", False))
+    arc_credit_on = bool(getattr(cfg, "latent_arc_credit_enabled", False))
+    persistence_on = float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0
+    entropy_obj = str(getattr(cfg, "latent_entropy_objective", "maximize") or "maximize")
+    entropy_max_on = (
+        entropy_obj == "maximize"
+        and float(getattr(cfg, "latent_lam_h", 0.0) or 0.0) > 0.0
+    )
+    resample_n = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
+    resample_on_flag = bool(getattr(cfg, "latent_resample_on_flag", False))
+    k = int(getattr(cfg, "latent_k", 0) or 0)
+
+    def _yn(flag: bool) -> str:
+        return "ON" if flag else "OFF"
+
+    print("[PPO] v5i4 paper-faithful audit:")
+    print(f"  discrete shared z: K={k}")
+    actor_label = "embedding-concat"
+    if film_on:
+        actor_label += " + FiLM"
+    if adapter_on:
+        actor_label += " + adapter"
+    if onehot_on:
+        actor_label += " + one-hot"
+    print(f"  actor conditioning: {actor_label}")
+    print(f"  FiLM: {_yn(film_on)}")
+    print(
+        "  q_phi task-reward PPO: "
+        f"{_yn(strategy_ppo_coef > 0.0)} (latent_strategy_ppo_coef={strategy_ppo_coef:.3f})"
+    )
+    print(f"  episode-credit extension: {_yn(episode_credit_on)}")
+    print(
+        "  forced-z curriculum: "
+        f"{_yn(forced_z_curriculum_on)} (legacy_frac={forced_z_legacy:.3f})"
+    )
+    print("  supervised targets: OFF")
+    print(f"  auxiliary heads: {_yn(aux_heads_on)}")
+    print(f"  arc-credit: {_yn(arc_credit_on)}")
+    print(f"  preferences/distillation: {_yn(pref_on or distill_on)}")
+    print(f"  persistence: {_yn(persistence_on)}")
+    print(
+        "  entropy maximization: "
+        f"{_yn(entropy_max_on)} (objective={entropy_obj})"
+    )
+    cadence_label = (
+        "episode start" if resample_n <= 0 else f"every {resample_n} decisions"
+    )
+    if resample_on_flag:
+        cadence_label += " + on-flag"
+    print(f"  resampling cadence: {cadence_label}")
+
+    # Diagnostics: surface mis-configurations that would silently void the
+    # paper-faithful claim, so reviewers see them at the top of the log.
+    if strategy_ppo_coef <= 0.0:
+        print(
+            "[PPO] v5i4 audit WARNING: latent_strategy_ppo_coef <= 0; "
+            "q_phi receives no task-reward gradient. This contradicts the "
+            "'learned end-to-end from task reward' claim."
+        )
+    if (
+        bool(getattr(cfg, "use_latent_strategy", False))
+        and not bool(getattr(cfg, "fixed_latent_strategy", False))
+        and getattr(cfg, "latent_episode_strategy_lr", None) is not None
+    ):
+        print(
+            "[PPO] v5i4 audit WARNING: latent_episode_strategy_lr is set; "
+            "the dedicated router optimizer suppresses the main-loop "
+            "categorical PPO term on q_phi. v5i4 requires this to be None."
+        )
+    if film_on or adapter_on or onehot_on:
+        print(
+            "[PPO] v5i4 audit WARNING: actor-z pathway is not concat-only; "
+            "v5i4 specifies plain nn.Embedding(K, d_z) concat. FiLM/adapter/"
+            "one-hot must all be OFF."
+        )
 
 
 def _print_metrics_csv_banner(cfg: PPOConfig) -> None:

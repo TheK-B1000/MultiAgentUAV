@@ -77,3 +77,43 @@ def resolve_latent_lam_h(cfg: Any, *, global_step: int | float, total_timesteps:
         int(anneal_start),
         int(anneal_end),
     )
+
+
+def resolve_latent_forced_z_frac(cfg: Any, *, global_step: int | float) -> float:
+    """Resolve the current forced-z episode fraction from a (possibly annealed) schedule.
+
+    Reads four optional config fields:
+
+    * ``latent_forced_z_episode_frac_start`` -- value before ``anneal_start``
+    * ``latent_forced_z_episode_frac_end`` -- value after ``anneal_end``
+    * ``latent_forced_z_anneal_start`` -- step at which the linear ramp begins
+    * ``latent_forced_z_anneal_end`` -- step at which the linear ramp finishes
+
+    If any of these is None, the resolver falls back to the legacy constant
+    ``latent_forced_z_episode_frac`` field. This keeps every pre-v5i3 preset
+    (including v5i2 with ``latent_forced_z_episode_frac = 0.0``) bit-for-bit
+    identical: zero start/end fields → constant legacy value at every step.
+
+    Resume-safety: the resolver is a pure function of ``cfg`` plus the
+    ``global_step`` passed in. The trainer's ``self.global_step`` is restored
+    from the checkpoint before the rollout loop resumes, so a run that
+    re-enters mid-anneal picks up the schedule from the restored step
+    rather than restarting from zero.
+    """
+    start = getattr(cfg, "latent_forced_z_episode_frac_start", None)
+    end = getattr(cfg, "latent_forced_z_episode_frac_end", None)
+    anneal_start = getattr(cfg, "latent_forced_z_anneal_start", None)
+    anneal_end = getattr(cfg, "latent_forced_z_anneal_end", None)
+
+    if start is None or end is None or anneal_start is None or anneal_end is None:
+        legacy = float(getattr(cfg, "latent_forced_z_episode_frac", 0.0) or 0.0)
+        return max(0.0, min(legacy, 1.0))
+
+    value = linear_anneal(
+        global_step,
+        float(start),
+        float(end),
+        int(anneal_start),
+        int(anneal_end),
+    )
+    return max(0.0, min(value, 1.0))

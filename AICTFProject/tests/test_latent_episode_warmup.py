@@ -100,10 +100,22 @@ def _make_trainer(
     device = torch.device("cpu")
     model = _FakeStrategyHead(latent_k=latent_k, global_state_dim=gs_dim)
     env = SimpleNamespace(num_envs=n_envs)
+    # Minimal cfg shim. resolve_latent_forced_z_frac reads its four schedule
+    # fields plus the legacy ``latent_forced_z_episode_frac`` constant from
+    # cfg, falling back to 0.0 when any field is missing.
+    cfg = SimpleNamespace(
+        latent_forced_z_episode_frac=0.0,
+        latent_forced_z_episode_frac_start=None,
+        latent_forced_z_episode_frac_end=None,
+        latent_forced_z_anneal_start=None,
+        latent_forced_z_anneal_end=None,
+    )
     trainer = SimpleNamespace(
         env=env,
         device=device,
         model=model,
+        cfg=cfg,
+        global_step=0,
         use_latent_strategy=True,
         fixed_latent_strategy=False,
         fixed_latent_strategy_id=0,

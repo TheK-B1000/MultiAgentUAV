@@ -583,12 +583,26 @@ class TrainingTelemetry:
                 sw_cap = float(row.get("latent_switch_near_capture_frac", 0.0) or 0.0)
                 sw_kill = float(row.get("latent_switch_near_kill_frac", 0.0) or 0.0)
                 sw_ret = float(row.get("latent_switch_near_return_frac", 0.0) or 0.0)
+                sw_elig = int(float(row.get("latent_switch_near_eligible_count", 0.0) or 0.0))
+                cap_n = int(float(row.get("latent_switch_near_capture_count", 0.0) or 0.0))
+                kill_n = int(float(row.get("latent_switch_near_kill_count", 0.0) or 0.0))
+                ret_n = int(float(row.get("latent_switch_near_return_count", 0.0) or 0.0))
+                cap_ev = int(float(row.get("latent_capture_event_count", 0.0) or 0.0))
+                kill_ev = int(float(row.get("latent_kill_event_count", 0.0) or 0.0))
+                ret_ev = int(float(row.get("latent_return_event_count", 0.0) or 0.0))
                 div_role = float(row.get("latent_role_diversity", 0.0) or 0.0)
                 div_spread = float(row.get("latent_spread_diversity", 0.0) or 0.0)
                 div_pres = float(row.get("latent_pressure_diversity", 0.0) or 0.0)
                 div_adr = float(row.get("latent_adr_diversity", 0.0) or 0.0)
+                # Tag rows where the eligible denominator is 0 so the
+                # fraction is not confused with a "no alignment" signal.
+                # Under v5_strict_summer / v5i1 / v5i2 / v5i3 this is the
+                # expected state (sample = episode start, refresh disabled).
+                elig_tag = "" if sw_elig > 0 else " [N/A: no mid-ep switches]"
                 print(
-                    f"      [Switch Near] cap={sw_cap:.3f} kill={sw_kill:.3f} ret={sw_ret:.3f} | "
+                    f"      [Switch Near] cap={sw_cap:.3f}({cap_n}/{sw_elig}|ev={cap_ev}) "
+                    f"kill={sw_kill:.3f}({kill_n}/{sw_elig}|ev={kill_ev}) "
+                    f"ret={sw_ret:.3f}({ret_n}/{sw_elig}|ev={ret_ev}){elig_tag} | "
                     f"div_role={div_role:.3f} div_spread={div_spread:.3f} "
                     f"div_pressure={div_pres:.3f} div_adr={div_adr:.3f}"
                 )

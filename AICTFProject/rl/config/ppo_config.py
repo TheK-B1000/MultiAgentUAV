@@ -104,6 +104,9 @@ class PPOConfig:
     latent_actor_z_adapter_scale: float = 0.0
     latent_actor_z_adapter_init_std: float = 0.02
     latent_actor_z_film_layers: int = 1
+    enable_actor_z_film: bool = False
+    actor_z_film_init_scale: float = 0.0
+    actor_z_film_layer: int = 2
     latent_actor_z_adapter_warmup_steps: int = 0
     latent_actor_z_adapter_ramp_steps: int = 0
     latent_vf_hidden: int = 128
@@ -293,6 +296,17 @@ class PPOConfig:
     # rewarded for separating from other z centroids in the same label-free
     # context bucket. This does not assign semantic roles to latents.
     latent_forced_z_episode_frac: float = 0.0
+    # v5i3: optional anneal schedule for ``latent_forced_z_episode_frac``.
+    # When all four fields are set, ``resolve_latent_forced_z_frac`` linearly
+    # interpolates from ``_start`` (before ``anneal_start``) to ``_end`` (after
+    # ``anneal_end``); otherwise the legacy constant value above is used.
+    # The forced episodes themselves are never routed into ``q_phi``'s PPO
+    # update -- they early-return into ``latent_preference_buffer`` -- so the
+    # schedule controls actor-side coverage exploration only.
+    latent_forced_z_episode_frac_start: Optional[float] = None
+    latent_forced_z_episode_frac_end: Optional[float] = None
+    latent_forced_z_anneal_start: Optional[int] = None
+    latent_forced_z_anneal_end: Optional[int] = None
     latent_behavior_contrast_coef: float = 0.0
     latent_behavior_contrast_margin: float = 0.25
     latent_behavior_contrast_ema: float = 0.9

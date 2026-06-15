@@ -235,6 +235,23 @@ class PresetResolutionTests(unittest.TestCase):
             "latent_v3i17_long_arc",
             "latent_v3i17b",
             "v3i17_long_arc",
+            # v5i1: additive reward-credit repair for the strict-Summer router.
+            "plan_faithful_latent_v5i1_reward_credit_router",
+            "latent_v5i1_reward_credit_router",
+            "v5i1_reward_credit_router",
+            "v5i1",
+            # v5i2 inherits v5i1's router and changes actor conditioning only.
+            "plan_faithful_latent_v5i2_stronger_z_conditioning",
+            "latent_v5i2_stronger_z_conditioning",
+            "v5i2_stronger_z_conditioning",
+            "v5i2",
+            # v5i3 inherits v5i2 and layers a forced-z anneal on top -- the
+            # episode-credit PPO path is unchanged.
+            "plan_faithful_latent_v5i3_balanced_warmup",
+            "latent_v5i3_balanced_warmup",
+            "v5i3_balanced_warmup",
+            "v5i3",
+            "balanced_warmup",
         }
         resolved = resolve_all_presets()
         for key, cfg in resolved.items():
@@ -1196,6 +1213,96 @@ class PresetResolutionTests(unittest.TestCase):
                 self.assertEqual(
                     cfg["run_tag"], "v3i19_summer_consequence_1m_4v4"
                 )
+
+    def test_v5i1_reward_credit_router_contract(self) -> None:
+        resolved = resolve_all_presets()
+        aliases = (
+            "plan_faithful_latent_v5i1_reward_credit_router",
+            "latent_v5i1_reward_credit_router",
+            "v5i1_reward_credit_router",
+            "v5i1",
+        )
+        first = resolved[aliases[0]]
+        for key in aliases:
+            with self.subTest(preset=key):
+                cfg = resolved[key]
+                self.assertEqual(cfg, first)
+
+                self.assertTrue(cfg["use_latent_strategy"])
+                self.assertEqual(cfg["latent_k"], 4)
+                self.assertEqual(cfg["latent_z_embed_dim"], 16)
+                self.assertFalse(cfg["latent_actor_z_onehot_enabled"])
+                self.assertFalse(cfg["latent_actor_z_adapter_enabled"])
+
+                self.assertEqual(cfg["latent_resample_every_n"], 0)
+                self.assertFalse(cfg["latent_resample_on_flag"])
+                self.assertAlmostEqual(cfg["latent_lam_p"], 0.0)
+                self.assertAlmostEqual(cfg["latent_lam_h_start"], 0.003)
+                self.assertAlmostEqual(cfg["latent_lam_h_end"], 0.001)
+                self.assertEqual(cfg["latent_entropy_anneal_start"], 200_000)
+                self.assertEqual(cfg["latent_entropy_anneal_end"], 700_000)
+
+                self.assertTrue(cfg["latent_episode_strategy_ppo"])
+                self.assertAlmostEqual(cfg["latent_episode_strategy_coef"], 0.30)
+                self.assertEqual(
+                    cfg["latent_episode_strategy_warmup_decision_steps"], 5
+                )
+                self.assertEqual(cfg["latent_episode_strategy_n_epochs"], 6)
+                self.assertAlmostEqual(cfg["latent_episode_strategy_lr"], 5e-3)
+                self.assertTrue(cfg["latent_q_phi_marginal_baseline"])
+                self.assertFalse(cfg["latent_arc_credit_enabled"])
+                self.assertAlmostEqual(cfg["latent_strategy_ppo_coef"], 0.0)
+
+                self.assertFalse(cfg["latent_strategy_aux_return_head"])
+                self.assertAlmostEqual(
+                    cfg["latent_strategy_aux_predict_phase_coef"], 0.0
+                )
+                self.assertAlmostEqual(cfg["latent_preference_coef"], 0.0)
+                self.assertFalse(cfg["latent_awrd_enabled"])
+                self.assertFalse(cfg["latent_specialist_router_enabled"])
+                self.assertFalse(cfg["latent_router_distill_enabled"])
+                self.assertEqual(
+                    cfg["run_tag"],
+                    "v5i1_reward_credit_router_OP5_OP6_OP7_2m_4v4",
+                )
+
+    def test_v5i2_stronger_z_conditioning_contract(self) -> None:
+        resolved = resolve_all_presets()
+        aliases = (
+            "plan_faithful_latent_v5i2_stronger_z_conditioning",
+            "latent_v5i2_stronger_z_conditioning",
+            "v5i2_stronger_z_conditioning",
+            "v5i2",
+        )
+        first = resolved[aliases[0]]
+        for key in aliases:
+            with self.subTest(preset=key):
+                self.assertEqual(resolved[key], first)
+
+        v5i1 = resolved["v5i1"]
+        ignored = {
+            "enable_actor_z_film",
+            "actor_z_film_init_scale",
+            "actor_z_film_layer",
+            "run_tag",
+        }
+        self.assertEqual(
+            {k: v for k, v in first.items() if k not in ignored},
+            {k: v for k, v in v5i1.items() if k not in ignored},
+        )
+        self.assertFalse(v5i1["enable_actor_z_film"])
+        self.assertAlmostEqual(v5i1["actor_z_film_init_scale"], 0.0)
+        self.assertEqual(v5i1["actor_z_film_layer"], 2)
+        self.assertTrue(first["enable_actor_z_film"])
+        self.assertAlmostEqual(first["actor_z_film_init_scale"], 0.02)
+        self.assertEqual(first["actor_z_film_layer"], 2)
+        self.assertAlmostEqual(first["latent_actor_z_separation_coef"], 0.0)
+        self.assertAlmostEqual(first["latent_behavior_contrast_coef"], 0.0)
+        self.assertAlmostEqual(first["latent_forced_z_episode_frac"], 0.0)
+        self.assertEqual(
+            first["run_tag"],
+            "v5i2_stronger_z_conditioning_OP5_OP6_OP7_2m_4v4",
+        )
 
     def test_latent_v3i11_remains_unchanged_by_v3i14_tuning(self) -> None:
         cfg = resolve_all_presets()["latent_v3i11"]

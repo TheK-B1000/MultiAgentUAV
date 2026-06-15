@@ -169,6 +169,7 @@ def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> No
     unexpected = list(getattr(result, "unexpected_keys", []))
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
+    allowed_missing.extend(k for k in missing if k.startswith("latent_actor.actor_z_film."))
     disallowed_missing = [k for k in missing if k not in allowed_missing]
     if disallowed_missing or unexpected:
         raise RuntimeError(
@@ -238,6 +239,15 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 ),
                 "latent_actor_z_film_layers": int(
                     cfg.get("latent_actor_z_film_layers", 1) or 1
+                ),
+                "enable_actor_z_film": bool(
+                    cfg.get("enable_actor_z_film", False)
+                ),
+                "actor_z_film_init_scale": float(
+                    cfg.get("actor_z_film_init_scale", 0.0) or 0.0
+                ),
+                "actor_z_film_layer": int(
+                    cfg.get("actor_z_film_layer", 2) or 2
                 ),
             }
         )

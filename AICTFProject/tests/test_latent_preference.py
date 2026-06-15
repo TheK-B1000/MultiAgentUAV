@@ -59,6 +59,7 @@ class LatentPreferenceTests(unittest.TestCase):
             "actor_z_jsd_head_1",
             "actor_z_entropy_z0",
             "actor_z_entropy_z3",
+            "forced_z_macro_jsd",
             "actor_input_dim",
             "z_embed_dim",
         ):

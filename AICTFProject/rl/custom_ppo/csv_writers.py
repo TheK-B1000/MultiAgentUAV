@@ -282,6 +282,25 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
                     f"strategy_resample_adv_n_z{idx}",
                 ]
             )
+        # v5i3 per-z router telemetry. Populated by apply_episode_strategy_ppo;
+        # absent or zero under v5_strict_summer (router PPO disabled).
+        for idx in range(latent_k):
+            fields.extend(
+                [
+                    f"router_sample_count_by_z_{idx}",
+                    f"forced_sample_count_by_z_{idx}",
+                    f"episode_count_by_z_{idx}",
+                    f"mean_episode_advantage_by_z_{idx}",
+                    f"std_episode_advantage_by_z_{idx}",
+                    f"mean_return_by_z_{idx}",
+                    f"mean_logprob_ratio_by_z_{idx}",
+                    f"clip_fraction_by_z_{idx}",
+                ]
+            )
+        # v5i3 forced-z anneal coefficient (the resolver output at the start
+        # of the rollout). Lets the post-mortem plot show the anneal
+        # trajectory next to the per-z sample counts.
+        fields.append("latent_forced_z_episode_frac_current")
         fields.append("latent_mi_z_opponent_nats")
         fields.append("latent_mi_z_phase_nats")
         fields.append("latent_mi_z_outcome_nats")
@@ -353,6 +372,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             for name in BEHAVIOR_TELEMETRY_NAMES:
                 fields.append(f"latent_z{z_idx}_behavior_{name}_mean")
         fields.append("forced_z_macro_jsd_mean")
+        fields.append("forced_z_macro_jsd")
         from rl.custom_ppo.inference import FORCED_Z_MACRO_ACTIONS
         for z_idx in range(latent_k):
             for _action_id, action_name in FORCED_Z_MACRO_ACTIONS:
@@ -375,6 +395,18 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_switch_near_capture_frac",
             "latent_switch_near_kill_frac",
             "latent_switch_near_return_frac",
+            # Denominator + numerators so a 0.000 fraction is interpretable.
+            # Without these, "cap=0.000" conflates "no effect" (eligible > 0,
+            # event > 0, near == 0) with "no qualifying events" (either count
+            # is 0) -- the latter is dominant under episode-start-only
+            # presets like v5i1/v5i2/v5i3 where eligible_count is structurally 0.
+            "latent_switch_near_eligible_count",
+            "latent_switch_near_capture_count",
+            "latent_switch_near_kill_count",
+            "latent_switch_near_return_count",
+            "latent_capture_event_count",
+            "latent_kill_event_count",
+            "latent_return_event_count",
         ])
         for f in range(4):
             for k in range(latent_k):

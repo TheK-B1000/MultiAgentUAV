@@ -632,6 +632,11 @@ class TrainPpoSmokeTests(unittest.TestCase):
             self.assertIn("latent_switch_near_capture_frac", rows[0])
             self.assertIn("latent_z0_behavior_team_spread_mean", rows[0])
             self.assertIn("forced_z_macro_jsd_mean", rows[0])
+            self.assertIn("forced_z_macro_jsd", rows[0])
+            self.assertAlmostEqual(
+                float(rows[0]["forced_z_macro_jsd"]),
+                float(rows[0]["forced_z_macro_jsd_mean"]),
+            )
             self.assertIn("forced_z0_macro_get_flag_prob", rows[0])
             self.assertIn("actor_z_jsd_mean", rows[0])
             self.assertIn("actor_z_jsd_max", rows[0])

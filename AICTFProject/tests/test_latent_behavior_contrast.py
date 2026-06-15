@@ -55,7 +55,9 @@ class ForcedZBehaviorContrastRuntimeTests(unittest.TestCase):
         trainer = _make_trainer(n_envs=3, warmup=0, episode_credit=True, gs_dim=34)
         trainer.env.core = SimpleNamespace(Nb=2)
         trainer.global_step = 0
-        trainer.latent_forced_z_episode_frac = 1.0
+        # Set the constant on cfg so resolve_latent_forced_z_frac picks it up
+        # via the legacy fallback (all four schedule fields stay None).
+        trainer.cfg.latent_forced_z_episode_frac = 1.0
         trainer.latent_behavior_contrast_coef = 0.05
         trainer.latent_behavior_contrast_anneal_after_steps = 0
         trainer.latent_behavior_contrast_anneal_to = 0.0

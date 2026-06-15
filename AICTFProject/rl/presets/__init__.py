@@ -47,6 +47,10 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v4i3_summer_proof,
     apply_plan_faithful_no_latent_v4i3_baseline,
     apply_plan_faithful_latent_v5_strict_summer,
+    apply_plan_faithful_latent_v5i1_reward_credit_router,
+    apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
+    apply_plan_faithful_latent_v5i3_balanced_warmup,
+    apply_plan_faithful_latent_v5i4_end_to_end,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
@@ -246,6 +250,34 @@ PRESET_REGISTRY = {
     "v5_strict": apply_plan_faithful_latent_v5_strict_summer,
     "v5": apply_plan_faithful_latent_v5_strict_summer,
     "strict_summer": apply_plan_faithful_latent_v5_strict_summer,
+    # v5i1: reward-derived router credit with the v5 embedding-only actor.
+    "plan_faithful_latent_v5i1_reward_credit_router": apply_plan_faithful_latent_v5i1_reward_credit_router,
+    "latent_v5i1_reward_credit_router": apply_plan_faithful_latent_v5i1_reward_credit_router,
+    "v5i1_reward_credit_router": apply_plan_faithful_latent_v5i1_reward_credit_router,
+    "v5i1": apply_plan_faithful_latent_v5i1_reward_credit_router,
+    # v5i2: v5i1 router plus actor-only embedding-driven FiLM.
+    "plan_faithful_latent_v5i2_stronger_z_conditioning": apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
+    "latent_v5i2_stronger_z_conditioning": apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
+    "v5i2_stronger_z_conditioning": apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
+    "v5i2": apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
+    # v5i3: v5i2 plus forced-z anneal (0.30 -> 0.00 across 200k -> 500k) to
+    # repair v5i2's router collapse without changing the loss objective.
+    "plan_faithful_latent_v5i3_balanced_warmup": apply_plan_faithful_latent_v5i3_balanced_warmup,
+    "latent_v5i3_balanced_warmup": apply_plan_faithful_latent_v5i3_balanced_warmup,
+    "v5i3_balanced_warmup": apply_plan_faithful_latent_v5i3_balanced_warmup,
+    "v5i3": apply_plan_faithful_latent_v5i3_balanced_warmup,
+    "balanced_warmup": apply_plan_faithful_latent_v5i3_balanced_warmup,
+    # v5i4: paper-faithful end-to-end. Strict-Summer concat actor + on-policy
+    # categorical strategy PPO on q_phi (the task-reward gradient channel that
+    # the paper's "trained end-to-end from task reward" wording requires).
+    # No FiLM, no episode-credit, no forced-z curriculum, no auxiliary heads.
+    "plan_faithful_latent_v5i4_end_to_end": apply_plan_faithful_latent_v5i4_end_to_end,
+    "latent_v5i4_end_to_end": apply_plan_faithful_latent_v5i4_end_to_end,
+    "latent_v5i4_paper_faithful": apply_plan_faithful_latent_v5i4_end_to_end,
+    "v5i4_end_to_end": apply_plan_faithful_latent_v5i4_end_to_end,
+    "v5i4_paper_faithful": apply_plan_faithful_latent_v5i4_end_to_end,
+    "paper_faithful_end_to_end": apply_plan_faithful_latent_v5i4_end_to_end,
+    "v5i4": apply_plan_faithful_latent_v5i4_end_to_end,
     # v4i4 post-Summer extension: periodic router distillation (was the old v4i3).
     "plan_faithful_latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     "latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,

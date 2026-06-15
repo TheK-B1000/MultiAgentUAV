@@ -368,6 +368,20 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         self.assertIn("latent_switch_near_capture_frac", out)
         self.assertIn("latent_switch_near_kill_frac", out)
         self.assertIn("latent_switch_near_return_frac", out)
+        # The denominator + numerator + event counts must accompany every
+        # switch_near_*_frac so a 0.000 fraction can be distinguished from
+        # "no qualifying events" -- critical under v5i*/strict-Summer
+        # presets that resample only at episode start (eligible_count == 0).
+        for key in (
+            "latent_switch_near_eligible_count",
+            "latent_switch_near_capture_count",
+            "latent_switch_near_kill_count",
+            "latent_switch_near_return_count",
+            "latent_capture_event_count",
+            "latent_kill_event_count",
+            "latent_return_event_count",
+        ):
+            self.assertIn(key, out)
         self.assertIn("latent_flag_state1_z1_frac", out)
         self.assertIn("latent_spread1_z2_frac", out)
         self.assertIn("latent_adr2_z2_frac", out)
@@ -379,6 +393,8 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         fields = _update_fieldnames(trainer.use_latent_strategy, trainer.latent_k)
         self.assertIn("latent_mi_z_flag_state_nats", fields)
         self.assertIn("latent_switch_near_capture_frac", fields)
+        self.assertIn("latent_switch_near_eligible_count", fields)
+        self.assertIn("latent_capture_event_count", fields)
         self.assertIn("latent_flag_state1_z1_frac", fields)
 
 

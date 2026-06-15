@@ -212,17 +212,183 @@ Behavior change: v3i19 / v4i1 / v4i3 now *actually* apply their configured `lam_
 
 | Row | Preset alias | `q_phi` gradient channels |
 |-----|-------------|---------------------------|
-| Strict-Summer | `v5_strict_summer` | entropy + persistence (+ KL) |
-| v4i3 + arc-credit | `latent_v4i3_summer_proof` | strict-Summer + per-arc clipped PG |
+| Strict-Summer (literal) | `v5_strict_summer` | entropy + persistence (+ KL) -- no task-reward signal on `q_phi` |
+| **Paper-faithful operational** | **`v5i4` / `v5i4_paper_faithful`** | **strict-Summer + per-step main-loop categorical PPO on `q_phi` (`latent_strategy_ppo_coef = 0.10`)** |
+| v4i3 + arc-credit | `latent_v4i3_summer_proof` | strict-Summer + per-arc clipped PG (post-Summer extension) |
+| v5i1 episode-credit | `latent_v5i1_reward_credit_router` | strict-Summer + per-episode clipped PG with a dedicated AdamW |
 | v3c episode-credit | `latent_episode_strategic` | per-episode clipped PG (dedicated optimizer) |
 | K=1 collapsed | `plan_faithful_latent_k1` | n/a (latent collapsed) |
 | No-latent | `no_latent_v4i3_baseline` | n/a |
 
-Same opponent pool (`OP5 OP6 OP7`), same seed set, same map, same total timesteps. The row that beats no-latent *only via §6.1* is the one that supports the literal Summer claim; the row that requires §6.2 or §6.3 supports the weaker claim "the Summer plan plus a task-reward PG channel on `q_phi` is sufficient."
+Same opponent pool (`OP5 OP6 OP7`), same seed set, same map, same total timesteps. `v5_strict_summer` tests whether the literal docs/algorithm.md loss alone can train `q_phi`; `v5i4` tests the same architecture plus the single missing piece -- an on-policy categorical PG term on `q_phi` -- without adding any forbidden channel (no labels, no aux heads, no preferences, no curriculum, no FiLM). The row that beats no-latent *only via §6.1* supports the literal Summer claim; the row that requires §6.2 or §6.3 supports the weaker claim "the Summer plan plus a task-reward PG channel on `q_phi` is sufficient."
+
+---
+
+## 6.6 v5i3 forced-z anneal (coverage fix, not a new gradient channel)
+
+v5i2 telemetry showed `q_phi` collapsing onto a single latent (`z2`) within the first 200k steps, with `z1` reaching <5% occupancy by 540k. The actor's per-z sensitivity grew steadily under FiLM, but only on the latents `q_phi` actually picked. Under-sampled latents stayed effectively untrained because the actor never saw enough of them to learn `pi(a|o, z_under)`, which made their episode returns arbitrary, which made `q_phi`'s gradient on them noise. This is a coverage problem, not a credit-assignment problem.
+
+`v5i3_balanced_warmup` adds the smallest possible fix that keeps the loss objective unchanged: an annealed *exploration* fraction of episodes is forced onto a uniformly-sampled `z` before the rollout begins. The schedule is:
+
+```text
+global_step      0 - 200k  : forced fraction = 0.30 (constant)
+                200k - 500k: linearly anneal 0.30 -> 0.00
+                500k - 1M  : forced fraction = 0.00 (router only)
+```
+
+Configuration fields in `PPOConfig` (resolved by `rl.custom_ppo.schedules.resolve_latent_forced_z_frac`):
+
+```text
+latent_forced_z_episode_frac_start = 0.30
+latent_forced_z_episode_frac_end   = 0.00
+latent_forced_z_anneal_start       = 200_000
+latent_forced_z_anneal_end         = 500_000
+```
+
+When any of these four fields is `None` the resolver falls back to the legacy constant `latent_forced_z_episode_frac`, so every pre-v5i3 preset (including v5i2 with its `0.0` constant) is bit-stable.
+
+### Off-policy / Summer-plan invariants preserved
+
+The forcing must not introduce off-policy bias into `q_phi`'s PPO update or convert v5i3 into a supervised-strategy preset. Both invariants are pinned by the existing routing in `rl/custom_ppo/latent_strategy_state.py`:
+
+1. Forced episodes still enter the normal rollout buffer for actor + critic learning (the actor's PPO update is on-policy with respect to whichever `z` was used; that `z` is observed at the actor's input so the update is well-defined regardless of how `z` was chosen).
+2. Forced episodes never set `episode_strategy_has_start`, so they are excluded from `rollout_strategy_episode_records`.
+3. They early-return into `latent_preference_buffer` instead, which `apply_episode_strategy_ppo` does NOT consume for the router PPO gradient (it only reads from `rollout_strategy_episode_records`).
+4. `latent_router_distill_enabled = False` and `latent_v3i3_event_preference_enabled = False` are pinned in the preset so the preference buffer is never read back into the router objective.
+
+The result: `q_phi`'s PPO update sees only router-sampled, on-policy episodes; the forced episodes contribute only via the actor learning to handle previously under-sampled `z` values. This remains Summer-compatible because the forcing is unlabeled uniform exploration, not supervised role assignment.
+
+### Resume safety
+
+`resolve_latent_forced_z_frac(cfg, global_step=...)` is a pure function of `cfg` and the passed `global_step`. The trainer restores `self.global_step` from the checkpoint before the rollout loop resumes (`rl/custom_ppo/trainer.py` `load()`), so resuming mid-anneal picks up the schedule at the restored step rather than re-starting from `_start`. Pinned by `ForcedZScheduleResolverTests.test_resume_uses_passed_global_step_not_internal_state` and `ForcedZRuntimeRoutingTests.test_resume_at_mid_anneal_resolves_correctly` in `tests/test_forced_z_anneal.py`.
+
+### Per-z router telemetry
+
+`apply_episode_strategy_ppo` now emits per-`z` aggregates over the on-policy batch:
+
+```text
+router_sample_count_by_z_{i}      : # of router-sampled episodes with z=i this rollout
+forced_sample_count_by_z_{i}      : # of forced episodes with z=i this rollout
+episode_count_by_z_{i}            : router + forced count
+mean_episode_advantage_by_z_{i}   : mean PPO advantage for episodes that chose z=i
+std_episode_advantage_by_z_{i}    : std of those advantages (noise indicator)
+mean_return_by_z_{i}              : mean raw episode return for those episodes
+mean_logprob_ratio_by_z_{i}       : mean PPO ratio at the final inner epoch
+clip_fraction_by_z_{i}            : fraction of those records that hit the clip
+latent_forced_z_episode_frac_current : schedule output at the start of the update
+```
+
+These distinguish two failure modes the v5i2 post-mortem could not separate:
+
+* `router_sample_count_by_z_1 == 0` + everything else 0: `z1` starved -- needs more exploration.
+* `router_sample_count_by_z_1 > 0` + `std_episode_advantage_by_z_1` huge + `mean_episode_advantage_by_z_1 ~ 0`: `z1` sampled enough but receives noisy/weak credit -- the actor still cannot execute it well, or its true return is genuinely similar to other `z`'s in this opponent mix.
+
+### Matched-schedule random-router evaluation
+
+`plot/eval_checkpoint.py --latent-selection` now exposes four modes:
+
+```text
+--latent-selection router          : trained q_phi(z|s) (default)
+--latent-selection random-matched  : uniform-random z, resampled at the same decision steps
+                                     the router would have (inherits the checkpoint's
+                                     latent_resample_every_n; override with --latent-resample-every)
+--latent-selection random-episode  : uniform-random z, episode start only
+                                     (forces strategy_interval=0 regardless of training config)
+--latent-selection fixed           : clamp every episode to --fixed-latent-id
+```
+
+The decisive comparison is `router` vs `random-matched` with the same checkpoint and the same `--seed`, which isolates routing quality from actor quality (the actor weights are identical; only the `z` distribution at each decision step differs).
+
+---
+
+## 6.7 v5i4 paper-faithful end-to-end (task-reward PG on `q_phi` as part of `L_MARL`)
+
+`v5_strict_summer` exposed an operational problem with the literal docs/algorithm.md loss: with only entropy and persistence on `q_phi`, the router has no signal that distinguishes which `z` improved performance. The paper's claim "the strategy inference network is trained end-to-end from task reward" requires a score-function gradient on the discrete latent. A discrete `q_phi` cannot inherit that gradient from the actor's PPO step merely because the actor consumes its sampled `z`; the gradient stops at the embedding-lookup. The standard fix is an on-policy categorical PPO term on `q_phi`, included **inside `L_MARL`**, not as an auxiliary task.
+
+`v5i4_paper_faithful_end_to_end` is the preset that turns `v5_strict_summer` into the operational paper-faithful baseline by enabling exactly that term. The loss in this run is:
+
+```text
+L = L_actor_PPO + c_V * L_critic + c_Z * L_strategy_PPO + lam_p * L_persist - lam_H * H(q_phi)
+```
+
+with
+
+```text
+L_strategy_PPO = - E_t [ min( rho_t(z) * A_t , clip(rho_t(z), 1 +/- eps) * A_t ) ]
+rho_t(z)       = pi_phi(z | s_t) / pi_phi_old(z | s_t)
+A_t            = GAE advantage from the centralized critic V(s, a, z)
+```
+
+evaluated only on the resample subset (the decision steps where a new `z` was sampled). The `c_Z` weight is `latent_strategy_ppo_coef = 0.10` and the term lives inside the same backward pass as the actor / critic / persistence / entropy terms (no dedicated router optimizer). The trainer's main-loop gate fires this PG term independently of `latent_episode_strategy_ppo` (which is the v5i1 episode-credit extension and stays OFF in v5i4); see `rl/custom_ppo/ppo_updater.py` and `MainLoopGatingTests` in `tests/test_marginal_baseline.py` for the gate semantics.
+
+### Inheritance and forbidden-channel contract
+
+| Channel | v5_strict_summer | **v5i4** | Why for v5i4 |
+|---------|------------------|----------|--------------|
+| Main-loop categorical strategy PPO (`latent_strategy_ppo_coef`) | 0.0 | **0.10** | The single change that makes the router actually learn from task reward. |
+| Episode-credit (`latent_episode_strategy_ppo` + dedicated AdamW) | OFF | OFF | Mutually exclusive with the main-loop PG above (the dedicated optimizer would silence the main-loop gate). v5i1's extension, not the paper's mechanism. |
+| Arc-credit (`latent_arc_credit_enabled`) | OFF | OFF | v3i19 / v4i3 extension. Not in the paper. |
+| FiLM (`enable_actor_z_film`) | OFF | OFF | v5i2 extension. The paper's actor reads `z` via plain `nn.Embedding(K, d_z)` concat. |
+| Forced-z curriculum (`latent_forced_z_episode_frac_*`) | OFF | OFF | v5i3 extension. The router learns purely from on-policy reward; no scheduled uniform sampling. |
+| Auxiliary heads (return / phase / opponent prediction) | OFF | OFF | Forbidden by "no auxiliary prediction tasks". |
+| Preferences / distillation (`latent_v3i3_event_preference_enabled`, `latent_router_distill_enabled`) | OFF | OFF | Post-Summer extensions with labels / teacher targets. |
+| Persistence (`latent_lam_p`) | 0.03 | 0.03 | Paper regularizer. |
+| Entropy maximization (`latent_lam_h`, `latent_entropy_objective = "maximize"`) | 0.003 | 0.003 | Paper regularizer; sign pinned so the entropy term is `- lam_H * H` (loss-minimization convention). |
+| Resampling cadence (`latent_resample_every_n`) | 64 | 64 | Sparse switching per the paper. |
+| Flag-triggered switching (`latent_resample_on_flag`) | False | False | Not in the paper's switching rule. |
+
+The aliases `v5i4`, `v5i4_paper_faithful`, `v5i4_end_to_end`, `paper_faithful_end_to_end`, `latent_v5i4_paper_faithful`, `latent_v5i4_end_to_end`, and `plan_faithful_latent_v5i4_end_to_end` all resolve to the same `PPOConfig`. Pinned by `V5i4AliasSnapshotTests.test_all_aliases_resolve_to_identical_config` and the snapshot in `tests/preset_snapshots.json`.
+
+### Launch-time audit banner
+
+`rl/training/banner.py::_maybe_print_paper_faithful_audit` emits an invariant block when `cfg.run_tag` contains `"v5i4_paper_faithful"` (or `cfg.latent_paper_faithful_audit = True`). It lists every channel above with its resolved ON/OFF state and emits explicit `[PPO] v5i4 audit WARNING` lines if any of the documented mis-configurations are detected:
+
+* `latent_strategy_ppo_coef <= 0` -- `q_phi` would receive no task-reward gradient.
+* `latent_episode_strategy_lr is not None` -- the dedicated router optimizer would silence the main-loop PG term.
+* FiLM / adapter / one-hot ON -- the actor-z pathway would no longer be the paper-literal concat one.
+
+The actor input-dim block should still print `cnn(128) + per_agent_vec(20) + z_emb(16) = 164`. No phase, opponent identity, or global state enters the actor pathway.
+
+### Required tests (pinned in `tests/test_v5i4_paper_faithful.py`)
+
+1. **Preset inheritance:** v5i4 derives from `v5_strict_summer`; `latent_strategy_ppo_coef` is the only main-loop PG channel flipped on; FiLM / episode-credit / forced-z all stay OFF (so v5i4 does NOT silently inherit v5i1 / v5i2 / v5i3 behavior).
+2. **Concat-only actor:** `enable_actor_z_film == False`, adapter / one-hot off, actor input dim `= cnn_feat(128) + 20 + z_embed_dim(16) = 164`.
+3. **No-curriculum:** `resolve_latent_forced_z_frac(cfg, global_step=step)` returns `0.0` at every step.
+4. **Router task-gradient is ON:** with nonzero advantages on the resample subset, `strategy_ppo_loss` produces a nonzero gradient through `log pi_phi(z|s)` that concentrates on the resample subset (the non-resample subset receives exactly zero gradient).
+5. **Zero-advantage produces zero policy_loss:** with zero advantages, the categorical PPO term contributes exactly zero policy_loss.
+6. **No forbidden channels:** episode-credit, arc-credit, aux heads, preferences, distillation, specialist router, behavior contrast, marginal balance, conditional entropy minimization are all OFF / zero-coef.
+7. **Sparse 64-step resampling:** `latent_resample_every_n == 64`, `latent_resample_on_flag is False`, `use_latent_strategy is True`, `fixed_latent_strategy is False`, `latent_k == 4`.
+8. **Alias snapshot:** all seven aliases resolve to byte-identical `PPOConfig` dicts.
+9. **Banner:** the audit fires for v5i4 and stays silent for `v5_strict_summer`; the three mis-configuration paths each trigger their warning line.
+
+### Launch command
+
+```powershell
+.\.venv\Scripts\python.exe rl/train_ppo.py `
+    --preset v5i4_paper_faithful `
+    --total-steps 1000000 `
+    --agents 4 `
+    --seed 0 `
+    --device cuda `
+    --n-envs 32 `
+    --n-epochs 6 `
+    --e3-step-telemetry `
+    --checkpoint-dir checkpoints/4v4 `
+    --fresh-metrics-csv `
+    --periodic-checkpoint-steps 50000
+```
+
+The decisive comparison for the paper's "explicit strategy abstraction improves win rate" claim is:
+
+* **v5_strict_summer** vs **v5i4** on the same opponent pool, seed set, and budget. The delta isolates the contribution of the on-policy categorical PG term on `q_phi`.
+* **v5i4** vs **no_latent_v4i3_baseline** on the same opponent pool, seed set, and budget. The delta isolates the contribution of the *entire* latent mechanism, with the literal Summer architecture and a single (and minimal) task-reward gradient channel on `q_phi`.
+* **v5i4 router** vs **v5i4 random-matched** at evaluation time (`plot/eval_checkpoint.py --latent-selection {router|random-matched}`). The delta isolates routing quality from actor quality at fixed actor weights.
 
 ---
 
 ## 7. Changelog
 
+- **v5i4 / paper-faithful end-to-end (task-reward PG on `q_phi` as part of `L_MARL`):** Added `apply_plan_faithful_latent_v5i4_end_to_end` (aliases `v5i4`, `v5i4_paper_faithful`, `v5i4_end_to_end`, `paper_faithful_end_to_end`, `latent_v5i4_paper_faithful`, `latent_v5i4_end_to_end`, `plan_faithful_latent_v5i4_end_to_end`) built directly on `v5_strict_summer`. The single semantic change is `latent_strategy_ppo_coef = 0.10`: this enables the per-step main-loop categorical PPO term on `q_phi` (`rl/latent_losses.py::strategy_ppo_loss`), which is the on-policy task-reward gradient channel the paper's "trained end-to-end from task reward" wording requires. The term lives inside `L_MARL` (no dedicated optimizer; the main-loop gate in `rl/custom_ppo/ppo_updater.py` drives it via the shared optimizer). Every post-Summer extension stays OFF: FiLM (v5i2), forced-z anneal (v5i3), episode-credit + dedicated router AdamW (v5i1), arc-credit (v3i19/v4i3), aux return / phase heads, preferences, router distillation. Added `_maybe_print_paper_faithful_audit` to `rl/training/banner.py` that emits the v5i4 invariant block when `cfg.run_tag` contains `"v5i4_paper_faithful"` (or `cfg.latent_paper_faithful_audit = True`), with explicit `WARNING` lines for the three documented mis-configurations (`strategy_ppo_coef <= 0`, dedicated router AdamW set, non-concat actor-z pathway). Added `tests/test_v5i4_paper_faithful.py` (22 tests) pinning inheritance, concat-only actor input dim (`164`), zero forced-z at every step, router task-gradient is enabled, zero-advantage = zero policy_loss, no forbidden channels, sparse 64-step resampling, alias snapshot equality, banner output. Regenerated `tests/preset_snapshots.json` (only structural changes: 7 new v5i4 aliases + previously un-snapshotted v5i1 / v5i2 / v5i3 aliases + 7 new schedule/FiLM fields added to all existing presets; zero scalar drift in any existing field, verified by `json.load` set-diff against the prior HEAD snapshot).
+- **v5i3 / forced-z anneal + per-z router telemetry + matched-schedule random-router eval:** Added `apply_plan_faithful_latent_v5i3_balanced_warmup` (aliases `v5i3`, `v5i3_balanced_warmup`, `balanced_warmup`, etc.) layering a `0.30 -> 0.00` forced-z anneal across `200k -> 500k` on top of v5i2. Added four `latent_forced_z_episode_frac_{start,end}` + `latent_forced_z_anneal_{start,end}` fields in `PPOConfig` and `resolve_latent_forced_z_frac` in `rl/custom_ppo/schedules.py`. Wired the resolved fraction into `latent_strategy_state.py` at the episode-start forcing decision; `trainer.global_step` restore makes resumes correct. Added 8 per-`z` telemetry columns to `_update_fieldnames` and `apply_episode_strategy_ppo`. Added `--latent-selection {router,random-matched,random-episode,fixed}` to `plot/eval_checkpoint.py` for the matched-schedule routing-quality ablation. Zero-config reproduction: any preset that does not set the four `_start/_end` fields gets `latent_forced_z_episode_frac` constant (v5i2 still resolves to 0.0 at every step).
 - **v5 / strict-Summer preset + main-loop gate fix:** Added `apply_plan_faithful_latent_v5_strict_summer` (aliases `v5`, `v5_strict_summer`, etc.) implementing the literal `docs/algorithm.md` loss with no auxiliary `q_phi` PG channels. Refactored the main-loop gate in `rl/custom_ppo/ppo_updater.py` so entropy / persistence / KL / strategy-PPO / aux-return each fire on their own coefficient; the double-step safeguard now triggers off `runtime.latent_router_optimizer is not None` instead of `latent_strategy_ppo_coef == 0`. Behavior change: v3i19 / v4i1 / v4i3 now actually apply their configured `lam_p` and `lam_h` schedules to `q_phi` via the main update (previously silently zeroed).
 - Add entries here when presets, `GLOBAL_STATE_DIM`, or OP5 tuning tags change so experiments stay reproducible.

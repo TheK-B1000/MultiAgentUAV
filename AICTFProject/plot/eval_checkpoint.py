@@ -100,8 +100,8 @@ def main() -> None:
         type=int,
         default=None,
         help=(
-            "Latent only: deployment ablation — clamp every episode to this strategy id "
-            "(0..K-1); skips q_phi(s) routing."
+            "Latent only: deployment ablation -- clamp every episode to this strategy id "
+            "(0..K-1); skips q_phi(s) routing. Implies --latent-selection fixed."
         ),
     )
     parser.add_argument(
@@ -113,11 +113,67 @@ def main() -> None:
             "(0 = episode start only, matching training default)."
         ),
     )
+    parser.add_argument(
+        "--latent-selection",
+        choices=["router", "random-matched", "random-episode", "fixed"],
+        default=None,
+        help=(
+            "How latents are chosen during evaluation. "
+            "'router' (default): use the trained q_phi(z|s). "
+            "'random-matched': replace q_phi with a uniform-random sampler that "
+            "resamples at the same decision steps the router would have "
+            "(inherits the checkpoint's latent_resample_every_n, overridable "
+            "via --latent-resample-every). This is the matched-schedule "
+            "control for 'learned router vs uniform router with identical "
+            "actor weights and identical latent timing'. "
+            "'random-episode': uniform-random once per episode (forces "
+            "strategy_interval=0 regardless of training config); changes "
+            "persistence, so use it for a different ablation question. "
+            "'fixed': clamp every episode to --fixed-latent-id."
+        ),
+    )
     args = parser.parse_args()
 
     checkpoint = os.path.abspath(args.checkpoint if args.checkpoint.endswith(".zip") else args.checkpoint + ".zip")
     if not os.path.isfile(checkpoint):
         sys.exit(f"[ERROR] checkpoint not found: {checkpoint}")
+
+    # Resolve --latent-selection into the (latent_eval_mode, fixed_latent_id,
+    # latent_resample_every_n) triple consumed by run_eval_episodes.
+    # Back-compat: if --latent-selection is omitted, infer from --fixed-latent-id.
+    selection = args.latent_selection
+    if selection is None:
+        selection = "fixed" if args.fixed_latent_id is not None else "router"
+    if selection == "fixed" and args.fixed_latent_id is None:
+        sys.exit("[ERROR] --latent-selection fixed requires --fixed-latent-id")
+
+    if selection == "router":
+        eval_latent_mode = "normal"
+        eval_fixed_id: int | None = None
+        eval_resample_every = args.latent_resample_every
+    elif selection == "random-matched":
+        eval_latent_mode = "uniform_random"
+        eval_fixed_id = None
+        # None means "inherit the checkpoint's training-time resample cadence";
+        # the inference policy already loads that from the checkpoint cfg.
+        eval_resample_every = args.latent_resample_every
+    elif selection == "random-episode":
+        eval_latent_mode = "uniform_random"
+        eval_fixed_id = None
+        # Force episode-start-only resamples regardless of training cadence.
+        # If the user also passed --latent-resample-every, honor it (advanced).
+        eval_resample_every = 0 if args.latent_resample_every is None else args.latent_resample_every
+    else:  # fixed
+        eval_latent_mode = "normal"
+        eval_fixed_id = int(args.fixed_latent_id)
+        eval_resample_every = args.latent_resample_every
+
+    print(
+        f"[eval_checkpoint] latent-selection={selection} "
+        f"latent_eval_mode={eval_latent_mode!r} "
+        f"fixed_latent_id={eval_fixed_id} "
+        f"resample_every={eval_resample_every}"
+    )
 
     meta = read_custom_ppo_metadata(checkpoint)
     agents = int(args.agents or meta.get("n_blue", 2))
@@ -160,8 +216,10 @@ def main() -> None:
                     deterministic=bool(args.deterministic),
                     coordination_metrics=not bool(args.no_coordination_metrics),
                     progress_every=max(1, int(args.episodes) // 10) if int(args.episodes) >= 10 else 0,
-                    fixed_latent_id=args.fixed_latent_id,
-                    latent_resample_every_n=args.latent_resample_every,
+                    fixed_latent_id=eval_fixed_id,
+                    latent_resample_every_n=eval_resample_every,
+                    latent_eval_mode=eval_latent_mode,
+                    latent_eval_seed=int(args.seed) + 1000 * map_idx + opp_idx,
                     e3_step_telemetry_path=e3_path,
                 )
             finally:

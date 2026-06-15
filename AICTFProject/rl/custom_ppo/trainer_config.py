@@ -754,6 +754,17 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                         int(getattr(cfg, "latent_actor_z_film_layers", 1) or 1),
                     ),
                 ),
+                "enable_actor_z_film": bool(
+                    getattr(cfg, "enable_actor_z_film", False)
+                ),
+                "actor_z_film_init_scale": max(
+                    0.0,
+                    float(getattr(cfg, "actor_z_film_init_scale", 0.0) or 0.0),
+                ),
+                "actor_z_film_layer": max(
+                    1,
+                    min(2, int(getattr(cfg, "actor_z_film_layer", 2) or 2)),
+                ),
             }
         )
     return model_kwargs

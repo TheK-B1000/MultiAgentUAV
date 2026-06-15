@@ -50,7 +50,7 @@ from rl.custom_ppo.return_normalization import (
     _normalize_value_targets,
     _update_strategy_return_stats,
 )
-from rl.custom_ppo.schedules import resolve_latent_lam_h
+from rl.custom_ppo.schedules import resolve_latent_forced_z_frac, resolve_latent_lam_h
 from rl.custom_ppo.trainer_config import TrainerHyperparams
 
 if TYPE_CHECKING:
@@ -783,6 +783,12 @@ class PPOUpdater:
         runtime.last_stats["latent_lam_h"] = float(latent_lam_h)
         runtime.last_stats["latent_actor_z_adapter_scale"] = float(curr_adapter_scale)
         runtime.last_stats["latent_actor_z_separation_coef"] = float(curr_sep_coef)
+        # v5i3 forced-z anneal telemetry: resolved fraction at the start of
+        # this update window. Reads the schedule from cfg + current global_step;
+        # constant under presets that leave the four anneal fields unset.
+        runtime.last_stats["latent_forced_z_episode_frac_current"] = float(
+            resolve_latent_forced_z_frac(self.cfg, global_step=int(runtime.global_step))
+        )
         if hparams.normalize_returns:
             rn = runtime.return_norm
             runtime.last_stats["return_norm_mean"] = float(rn.mean)
