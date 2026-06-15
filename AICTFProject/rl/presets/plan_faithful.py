@@ -1361,7 +1361,12 @@ def apply_plan_faithful_latent_v4i3_summer_proof(cfg: PPOConfig) -> PPOConfig:
     cfg.latent_strategy_aux_return_head = False
     cfg.latent_strategy_aux_return_coef = 0.0
 
-    cfg.run_tag = "v4i3_summer_proof_OP5_OP6_OP7_2m_4v4"
+    # Run tag is budget-agnostic on purpose: the preset locks the
+    # Summer-faithful machinery, NOT a specific ``--total-steps``. Probes
+    # at smaller budgets (e.g. 1M) and the locked 2M proof run share the
+    # same artifacts namespace; if you need separate trees, pass
+    # ``--run-tag`` to override.
+    cfg.run_tag = "v4i3_summer_proof_OP5_OP6_OP7_4v4"
     return cfg
 
 
@@ -1408,7 +1413,128 @@ def apply_plan_faithful_no_latent_v4i3_baseline(cfg: PPOConfig) -> PPOConfig:
     cfg.latent_router_distill_enabled = False
     cfg.latent_actor_z_onehot_enabled = False
 
-    cfg.run_tag = "v4i3_no_latent_baseline_OP5_OP6_OP7_2m_4v4"
+    # Same budget-agnostic naming convention as the latent preset above.
+    cfg.run_tag = "v4i3_no_latent_baseline_OP5_OP6_OP7_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v5_strict_summer(cfg: PPOConfig) -> PPOConfig:
+    """v5 (strict-Summer): the literal docs/algorithm.md objective.
+
+    The Summer plan's locked loss is::
+
+        L = L_PPO + lam_p * L_persist - lam_H * H(q_phi(z | s))
+
+    with the explicit clause "PPO clipped ratio uses action log-probs only;
+    q_phi is trained through strategy entropy and persistence, plus optional
+    consecutive KL." That excludes every auxiliary q_phi gradient channel
+    the post-Summer chain accumulated -- per-step strategy PPO
+    (``latent_strategy_ppo_coef``), per-episode credit
+    (``latent_episode_strategy_ppo``), per-arc credit
+    (``latent_arc_credit_enabled``), aux return prediction
+    (``latent_strategy_aux_return_head``), and aux phase prediction
+    (``latent_strategy_aux_predict_phase_coef``).
+
+    v4i3 inherited the v3i19 arc-credit channel (``coef = 1.0``,
+    ``baseline = context_value``). Useful for proving "credit can pull
+    q_phi off uniform when given a per-arc PG signal", but not literally
+    Summer-strict. v5 is the experiment that tests *whether the docs/
+    algorithm.md loss alone* (entropy + persistence on q_phi, with the
+    actor receiving z via a plain ``nn.Embedding(K, d_z)`` concat) is
+    enough to differentiate the four latent strategies.
+
+    Recipe (one-variable changes vs v4i3):
+
+    1. **No auxiliary q_phi PG channels.**
+       ``latent_arc_credit_enabled = False`` (coef = 0),
+       ``latent_episode_strategy_ppo = False`` (coef = 0),
+       ``latent_strategy_ppo_coef = 0.0``,
+       ``latent_strategy_aux_return_head = False``,
+       ``latent_strategy_aux_predict_phase_coef = 0.0``.
+    2. **Strict actor-z conditioning per algorithm.md.** Only
+       ``nn.Embedding(K, d_z)`` concatenated to per-agent features
+       (``latent_z_embed_dim = 16``). FiLM
+       (``latent_actor_z_adapter_enabled = False``) and z-onehot concat
+       (``latent_actor_z_onehot_enabled = False``) are disabled because
+       neither appears in the Summer plan's actor spec.
+    3. **Regularizers preserved.** ``latent_lam_p = 0.03``,
+       ``latent_lam_h`` schedule 0.003 -> 0.0002 over 300k steps,
+       ``latent_resample_every_n = 64``. Matches v4i3 exactly.
+
+    Required gate fix (already in place at this commit): the v5 gate in
+    ``ppo_updater.update`` no longer silences the main-loop q_phi loss
+    when ``latent_strategy_ppo_coef == 0``. It silences only when a
+    dedicated ``latent_router_optimizer`` is active (the v3c safeguard).
+    Without that fix, ``lam_p`` and ``lam_h`` would be silently zeroed
+    here and q_phi would receive zero gradient. See the comment block at
+    ``ppo_updater._gate_q_phi_main_loop`` / the ``MainLoopGatingTests``
+    in ``test_marginal_baseline.py``.
+
+    Plan-faithful contract (re-asserted):
+
+    * No labels, no opponent IDs, no phase/flag/outcome heads.
+    * No reconstruction loss, no auxiliary prediction heads.
+    * No handcrafted strategy rewards, no role-labelled bonuses.
+    * Critic-z, persistence, and entropy regularisation are explicitly
+      endorsed by the Summer plan.
+
+    Expected outcome (this preset's role in the proof table):
+
+    * If H(q_phi) collapses to a single z and/or stays at ln(K), and the
+      WR matches the no-latent v4i3 baseline, then the literal-strict
+      reading of docs/algorithm.md does NOT actually train q_phi from
+      reward. The arc-credit / episode-credit / per-step PG channels in
+      v4i3 / v3c were each an answer to this problem.
+    * If H(q_phi) sharpens and WR exceeds the no-latent baseline by a
+      paired-bootstrap-significant margin, the Summer plan is alive
+      *exactly as written*.
+
+    The same opponent pool / map / budget as v4i3 must be used to make
+    the comparison meaningful.
+    """
+    cfg = apply_plan_faithful_latent_v4i3_summer_proof(cfg)
+
+    # 1. Disable every auxiliary q_phi PG / supervision channel.
+    cfg.latent_arc_credit_enabled = False
+    cfg.latent_arc_credit_coef = 0.0
+    cfg.latent_episode_strategy_ppo = False
+    cfg.latent_episode_strategy_coef = 0.0
+    cfg.latent_strategy_ppo_coef = 0.0
+    cfg.latent_strategy_aux_return_head = False
+    cfg.latent_strategy_aux_return_coef = 0.0
+    cfg.latent_strategy_aux_predict_phase_coef = 0.0
+
+    # 2. Strict actor-z conditioning per docs/algorithm.md: nn.Embedding only.
+    cfg.latent_actor_z_onehot_enabled = False
+    cfg.latent_actor_z_onehot_scale = 0.0
+    cfg.latent_actor_z_adapter_enabled = False
+    cfg.latent_actor_z_adapter_scale = 0.0
+    cfg.latent_actor_z_film_layers = 1  # ignored when adapter disabled
+    cfg.latent_z_embed_dim = 16
+    cfg.latent_actor_z_embed_scale = 1.0
+
+    # 3. Defensive zero on every post-Summer separation / preference / specialist
+    #    loss inherited indirectly through the v3i19 chain. Most are already
+    #    zero in v4i3; re-asserted here so config-diff at PR time catches drift.
+    cfg.latent_forced_z_episode_frac = 0.0
+    cfg.latent_behavior_contrast_coef = 0.0
+    cfg.latent_actor_z_separation_coef = 0.0
+    cfg.latent_actor_z_separation_start_coef = 0.0
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_preference_coef = 0.0
+    cfg.latent_preference_commit_coef = 0.0
+    cfg.latent_awrd_enabled = False
+    cfg.latent_awrd_coef = 0.0
+    cfg.latent_specialist_router_enabled = False
+    cfg.latent_marginal_balance_coef = 0.0
+    cfg.latent_conditional_entropy_min_coef = 0.0
+    cfg.latent_conditional_entropy_min_coef_start = 0.0
+    cfg.latent_context_mi_coef = 0.0
+    cfg.latent_v3i3_event_preference_enabled = False
+    cfg.latent_v3i3_event_preference_coef = 0.0
+    cfg.latent_router_distill_enabled = False
+
+    cfg.run_tag = "v5_strict_summer_OP5_OP6_OP7_2m_4v4"
     return cfg
 
 

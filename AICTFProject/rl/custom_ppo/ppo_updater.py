@@ -422,12 +422,51 @@ class PPOUpdater:
                             "(latent_resample_every_n=0, on_flag off, no event refresh, "
                             "no sparse tactical refresh)"
                         )
-                    apply_main_loop_qphi_loss = float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
-                    apply_persistence_loss = (
-                        apply_main_loop_qphi_loss
-                        or hparams.latent_sparse_tactical_refresh_enabled
+                    # v5 decoupled q_phi gradient channels (replaces v3c "Fix 5"
+                    # coef-zero gate). Each main-loop term fires when its own
+                    # coefficient is > 0 AND no dedicated router optimizer exists.
+                    # Reproducibility safeguard: when ``latent_router_optimizer``
+                    # is set (v3c-style episode-credit chain), the strategy_encoder +
+                    # value_head params are stepped by that optimizer in
+                    # ``apply_episode_strategy_ppo`` / ``apply_arc_strategy_ppo``.
+                    # Suppress the main-loop q_phi gradient routes in that regime
+                    # to avoid double-stepping the same params from two optimizers
+                    # per update (the "650x duplicate entropy push" Fix 5 prevented).
+                    # When no dedicated router optimizer exists, the main-loop
+                    # path is the only thing that can train q_phi via entropy +
+                    # persistence + KL, so each fires on its own coefficient
+                    # (matches docs/algorithm.md: L = L_PPO + lam_p*L_persist - lam_H*H).
+                    has_dedicated_router_opt = (
+                        getattr(runtime, "latent_router_optimizer", None) is not None
                     )
-                    if not apply_main_loop_qphi_loss:
+                    apply_main_loop_qphi_loss = (
+                        float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
+                        and not has_dedicated_router_opt
+                    )
+                    apply_entropy_loss = (
+                        hparams.use_latent_strategy
+                        and not has_dedicated_router_opt
+                        and float(latent_lam_h or 0.0) > 0.0
+                        and str(
+                            getattr(cfg, "latent_entropy_objective", "maximize")
+                            or "maximize"
+                        ).lower()
+                        != "none"
+                    )
+                    apply_persistence_loss = (
+                        hparams.use_latent_strategy
+                        and not has_dedicated_router_opt
+                        and (
+                            float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0
+                            or hparams.latent_sparse_tactical_refresh_enabled
+                        )
+                    )
+                    apply_kl_loss = (
+                        hparams.use_latent_strategy
+                        and not has_dedicated_router_opt
+                        and float(hparams.latent_kl_consecutive or 0.0) > 0.0
+                    )
+                    if not apply_entropy_loss:
                         strategy_entropy_loss = torch.zeros_like(strategy_entropy_loss)
                     if not apply_persistence_loss:
                         persist_term_loss = torch.zeros_like(persist_term_loss)
@@ -444,7 +483,7 @@ class PPOUpdater:
                             batch["z_kl_prev_valid"],
                             coef=float(hparams.latent_kl_consecutive),
                         )
-                        if not apply_main_loop_qphi_loss:
+                        if not apply_kl_loss:
                             kl_loss = torch.zeros_like(kl_loss)
                         latent_loss = latent_loss + kl_loss
                         stats["strategy_kl"].append(kl_stats["kl_mean"])
@@ -459,7 +498,7 @@ class PPOUpdater:
                             batch["phase_id"],
                             coef=float(hparams.latent_strategy_aux_predict_phase_coef),
                         )
-                        if not apply_main_loop_qphi_loss:
+                        if has_dedicated_router_opt:
                             phase_loss_scaled = torch.zeros_like(phase_loss_scaled)
                         latent_loss = latent_loss + phase_loss_scaled
                         stats["strategy_phase_loss"].append(phase_stats["phase_term"])
@@ -563,6 +602,8 @@ class PPOUpdater:
                         "policy_loss",
                         torch.zeros((), dtype=torch.float32, device=device),
                     )
+                    # ``apply_main_loop_qphi_loss`` is computed above and already
+                    # incorporates the dedicated-router-optimizer safeguard.
                     if not apply_main_loop_qphi_loss:
                         strategy_policy_loss_scaled = torch.zeros_like(strategy_policy_loss_scaled)
                         strategy_policy_loss = torch.zeros_like(strategy_policy_loss)
@@ -599,7 +640,7 @@ class PPOUpdater:
                                 device=device,
                             )
                             strategy_aux_return_loss_value = aux_return_stats["aux_return_term"]
-                            if not apply_main_loop_qphi_loss:
+                            if has_dedicated_router_opt:
                                 aux_return_loss_scaled = torch.zeros_like(aux_return_loss_scaled)
                                 strategy_aux_return_loss_value = 0.0
                             latent_loss = latent_loss + aux_return_loss_scaled

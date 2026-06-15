@@ -156,9 +156,15 @@ class PPOConfig:
     # the router has the right gradient direction but cumulative step is too
     # small at the actor-tuned LR. A separate AdamW optimizer with this LR is
     # built at trainer init and steps strategy_encoder + episode_strategy_value
-    # parameters; the shared optimizer's step on those params is a no-op anyway
-    # under Fix 5 (``latent_strategy_ppo_coef == 0`` gates main-loop q_phi loss
-    # to zero), so there is no double-stepping.
+    # parameters. To avoid double-stepping the same params from the shared
+    # optimizer, ``ppo_updater.update`` detects the dedicated router optimizer
+    # (``runtime.latent_router_optimizer is not None``) and suppresses the
+    # main-loop q_phi gradient channels (entropy / persistence / KL /
+    # strategy-PPO / aux-return) for that update. This replaces the v3c
+    # "Fix 5" coef-zero gate; the dedicated-optimizer check is more precise
+    # because it doesn't silently zero ``lam_p`` and ``lam_h`` when a preset
+    # uses arc-credit only and runs the shared optimizer for everything else
+    # (the v3i19 / v4i1 / v4i3 case).
     latent_episode_strategy_lr: Optional[float] = None
     # ------------------------------------------------------------------
     # v3i19 arc-credit channel: per-z-arc PPO update on q_phi.

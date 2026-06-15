@@ -46,6 +46,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v4i1_strategic_pressure_qprobe,
     apply_plan_faithful_latent_v4i3_summer_proof,
     apply_plan_faithful_no_latent_v4i3_baseline,
+    apply_plan_faithful_latent_v5_strict_summer,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
@@ -237,6 +238,14 @@ PRESET_REGISTRY = {
     "no_latent_v4i3": apply_plan_faithful_no_latent_v4i3_baseline,
     "v4i3_no_latent": apply_plan_faithful_no_latent_v4i3_baseline,
     "v4i3_no_latent_baseline": apply_plan_faithful_no_latent_v4i3_baseline,
+    # v5 strict-Summer: literal docs/algorithm.md loss (no arc-credit, no
+    # per-step PG, no aux heads, plain z-embedding actor).
+    "plan_faithful_latent_v5_strict_summer": apply_plan_faithful_latent_v5_strict_summer,
+    "latent_v5_strict_summer": apply_plan_faithful_latent_v5_strict_summer,
+    "v5_strict_summer": apply_plan_faithful_latent_v5_strict_summer,
+    "v5_strict": apply_plan_faithful_latent_v5_strict_summer,
+    "v5": apply_plan_faithful_latent_v5_strict_summer,
+    "strict_summer": apply_plan_faithful_latent_v5_strict_summer,
     # v4i4 post-Summer extension: periodic router distillation (was the old v4i3).
     "plan_faithful_latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     "latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,

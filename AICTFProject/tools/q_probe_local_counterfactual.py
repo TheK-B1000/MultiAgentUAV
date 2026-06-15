@@ -40,7 +40,7 @@ the snapshot/restore is incomplete and the probe aborts. Pass
 Usage::
 
     .\\.venv\\Scripts\\python.exe tools/q_probe_local_counterfactual.py \\
-        --checkpoint checkpoints/4v4/final_v4i3_summer_proof_OP5_OP6_OP7_2m_4v4.zip \\
+        --checkpoint checkpoints/4v4/final_v4i3_summer_proof_OP5_OP6_OP7_4v4.zip \\
         --opponents OP5 OP6 OP7 --n-seeds 8 --base-seed 1000 \\
         --branch-arc-indices 0 1 \\
         --device cpu --output-dir checkpoints/4v4/v4i3_local_cf_smoke

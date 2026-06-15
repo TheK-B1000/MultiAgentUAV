@@ -18,8 +18,8 @@ have on disk, compute thresholds, and write a Markdown summary.
 Usage (after both training runs and both probes have finished)::
 
     .\\.venv\\Scripts\\python.exe tools/summer_proof_report.py \\
-        --latent-run-tag v4i3_summer_proof_OP5_OP6_OP7_2m_4v4 \\
-        --baseline-run-tag v4i3_no_latent_baseline_OP5_OP6_OP7_2m_4v4 \\
+        --latent-run-tag v4i3_summer_proof_OP5_OP6_OP7_4v4 \\
+        --baseline-run-tag v4i3_no_latent_baseline_OP5_OP6_OP7_4v4 \\
         --checkpoint-dir checkpoints/4v4 \\
         --qprobe-dir checkpoints/4v4/v4i3_qprobe \\
         --local-cf-dir checkpoints/4v4/v4i3_local_cf_32 \\
@@ -806,7 +806,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         required=True,
         help="Run tag of the v4i3 latent training run (e.g. "
-        "v4i3_summer_proof_OP5_OP6_OP7_2m_4v4).",
+        "v4i3_summer_proof_OP5_OP6_OP7_4v4).",
     )
     p.add_argument(
         "--baseline-run-tag",

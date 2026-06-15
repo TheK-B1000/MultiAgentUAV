@@ -25,7 +25,7 @@ respects ``--last-n-updates``; older updates are skipped row-by-row
 
 Usage:
     python tools/sliced_z_diagnostics.py \\
-        --run-tag v4i3_summer_proof_OP5_OP6_OP7_2m_4v4 \\
+        --run-tag v4i3_summer_proof_OP5_OP6_OP7_4v4 \\
         --checkpoint-dir checkpoints/4v4 \\
         --last-n-updates 8 \\
         --out checkpoints/4v4/v4i3_sliced_z_report.md
@@ -139,15 +139,23 @@ def _section_a1_z_by_opponent(
         lines.append("_(no per-(opponent, z) episode counts in the tail window)_")
         return "\n".join(lines)
 
+    # Canonical opponent_id -> OP-tag mapping (kept in sync with
+    # ``rl/custom_ppo/csv_writers.py::_opponent_id_int_from_info``). We
+    # don't import from the rl package here to keep this tool a
+    # standalone CSV reader with no torch/rl dependency.
+    op_tag_by_id = {0: "OP1", 1: "OP2", 2: "OP3", 3: "OP4", 4: "OP5", 5: "OP6", 6: "OP7"}
+
+    def _label(o: int) -> str:
+        return op_tag_by_id.get(o, f"opp{o}")
+
     lines.append(
-        "Columns labeled by **opponent_id** (the integer used in the rest of "
-        "the CSVs). In v4i-series presets the OP5/OP6/OP7 pool maps to "
-        "opponent_id 4/5/6 respectively."
+        "Column headers are the public OP tags; the underlying CSV columns "
+        "use the integer ``opponent_id`` (OP1->0 ... OP7->6 per `csv_writers.py`)."
     )
     lines.append("")
     lines.append(
         "| z | "
-        + " | ".join(f"opp{o} WR / n" for o in used_ops)
+        + " | ".join(f"{_label(o)} WR / n" for o in used_ops)
         + " | row total n |"
     )
     lines.append("|---|" + "|".join(["---"] * (len(used_ops) + 1)) + "|")

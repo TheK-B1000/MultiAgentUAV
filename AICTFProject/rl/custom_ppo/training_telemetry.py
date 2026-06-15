@@ -56,6 +56,7 @@ from rl.custom_ppo.csv_writers import (
     _opponent_id_csv_from_info,
     _opponent_id_int_from_info,
     _opponent_legend,
+    _opponent_tag_from_id,
     _update_fieldnames,
     _write_csv_row,
 )
@@ -492,7 +493,9 @@ class TrainingTelemetry:
                         continue
                     occ_s = ",".join(f"{x:.2f}" for x in occ_o)
                     wr_s = ",".join("-" if w == "" else f"{float(w):.2f}" for w in wr_o)
-                    opp_diag_bits.append(f"o{o}:z_occ=[{occ_s}] z_wr=[{wr_s}]")
+                    opp_diag_bits.append(
+                        f"{_opponent_tag_from_id(o)}:z_occ=[{occ_s}] z_wr=[{wr_s}]"
+                    )
                 opp_suffix = (
                     f" MI_z_o={mi_z_o:.4f} MI_z_phase={mi_z_p:.4f} "
                     f"MI_z_flag={mi_z_f:.4f} MI_z_outcome={mi_z_y:.4f} | "
@@ -622,7 +625,9 @@ class TrainingTelemetry:
                 if op_spreads:
                     op_max = max(s for _, s in op_spreads)
                     op_mean = sum(s for _, s in op_spreads) / len(op_spreads)
-                    per_op = " ".join(f"o{o}={s:.3f}" for o, s in op_spreads)
+                    per_op = " ".join(
+                        f"{_opponent_tag_from_id(o)}={s:.3f}" for o, s in op_spreads
+                    )
                 else:
                     op_max = 0.0
                     op_mean = 0.0

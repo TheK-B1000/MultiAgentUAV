@@ -72,6 +72,32 @@ def _opponent_id_csv_from_info(cfg: Any, info: dict[str, Any]) -> str:
     return str(int(oid)) if oid >= 0 else ""
 
 
+# Inverse of the ``_opponent_id_int_from_info`` lookup table. Kept in sync
+# manually -- if a new opponent tag is added there, add the matching entry
+# here as well. Used by diagnostics that need to print human-readable
+# opponent labels alongside or in place of the raw integer id.
+_OPPONENT_ID_TO_TAG: dict[int, str] = {
+    0: "OP1",
+    1: "OP2",
+    2: "OP3",
+    3: "OP4",
+    4: "OP5",
+    5: "OP6",
+    6: "OP7",
+}
+
+
+def _opponent_tag_from_id(opponent_id: int) -> str:
+    """Map an opponent-id integer back to its public OP tag.
+
+    Returns ``OP{N}`` for known ids and ``op{N}`` (lowercase fallback)
+    for unmapped ids so the caller can still print something stable.
+    """
+    if opponent_id in _OPPONENT_ID_TO_TAG:
+        return _OPPONENT_ID_TO_TAG[opponent_id]
+    return f"op{opponent_id}"
+
+
 def _opponent_legend(cfg: Any, info: dict[str, Any]) -> str:
     """Compact opponent string for logging (scripted:OP3, snapshot:name, ...)."""
     er = info.get("episode_result") or {}
