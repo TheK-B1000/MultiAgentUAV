@@ -1614,7 +1614,7 @@ def apply_plan_faithful_latent_v5i2_stronger_z_conditioning(
 def apply_plan_faithful_latent_v5i4_end_to_end(
     cfg: PPOConfig,
 ) -> PPOConfig:
-    """v5i4: the true paper-faithful end-to-end latent-routing baseline.
+    """v5i4: paper-faithful conditional-entropy reference row.
 
     Built directly on ``v5_strict_summer`` (NOT on v5i1/v5i2/v5i3), with one
     correction: the on-policy categorical PPO term on ``q_phi`` is enabled.
@@ -1670,17 +1670,19 @@ def apply_plan_faithful_latent_v5i4_end_to_end(
     | v5i1               | + per-episode credit (dedicated AdamW)        |
     | v5i2               | v5i1 + FiLM (actor-only, no q_phi change)     |
     | v5i3               | v5i2 + forced-z anneal (actor coverage)       |
-    | v5i4 (this preset) | entropy + persistence + per-step main-loop PG |
+    | v5i4 (this preset) | conditional entropy + persistence + per-step main-loop PG |
 
-    v5i4 is the row that should be labeled "Summer-faithful, operational"
-    in the proof table because (a) the actor is the embedding-concat one
-    docs/algorithm.md specifies literally, (b) the q_phi gradient is the
-    main-loop categorical PPO that the paper's "learned end-to-end from
-    task reward" wording requires, and (c) no label or auxiliary
-    prediction target enters anywhere.
+    v5i4 remains the conditional-entropy comparison row because (a) the
+    actor is the embedding-concat one docs/algorithm.md specifies
+    literally, (b) the q_phi gradient is the main-loop categorical PPO
+    that the paper's "learned end-to-end from task reward" wording
+    requires, and (c) no label or auxiliary prediction target enters
+    anywhere. v5i6 inherits this contract and becomes the canonical
+    Summer interpretation by changing only the entropy reduction to the
+    batch marginal.
 
     The launch-time audit banner is emitted by
-    ``rl.custom_ppo.training_telemetry`` when the resolved run_tag
+    ``rl.training.banner`` when the resolved run_tag
     contains ``v5i4_paper_faithful`` so a reviewer can verify the
     invariants at the top of the log without diffing config snapshots.
     """
@@ -1734,6 +1736,7 @@ def apply_plan_faithful_latent_v5i4_end_to_end(
     cfg.latent_kl_consecutive = 0.0
     # Entropy maximization is the default; pin explicitly so a future
     # default flip cannot silently invert the sign in v5i4.
+    cfg.latent_entropy_mode = "conditional"
     cfg.latent_entropy_objective = "maximize"
 
     # ------------------------------------------------------------------
@@ -1839,11 +1842,8 @@ def apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor(
     * FiLM / adapter / one-hot actor conditioning
     * behavior diversity rewards
     * handcrafted latent targets
-    * marginal-occupancy entropy reward (deferred to a hypothetical
-      ``v5i6_paper_faithful_marginal_entropy``)
-
-    If v5i5 still collapses toward one latent, the next experiment is
-    marginal-occupancy entropy, not stacking five fixes at once.
+    * marginal-occupancy entropy reward (covered by the separate v5i6
+      marginal-entropy interpretation)
     """
     cfg = apply_plan_faithful_latent_v5i4_end_to_end(cfg)
 
@@ -1859,6 +1859,36 @@ def apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor(
     # of 1_000_000 inherited from v5_strict_summer) so the artifact
     # namespace is parallel and the v5i4-vs-v5i5 comparison is clean.
     cfg.run_tag = "v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i6: paper-faithful marginal-entropy Summer interpretation.
+
+    Direct child of ``v5i4_paper_faithful_end_to_end``. This preset keeps
+    the v5i4 actor, critic, router PPO, persistence, sparse resampling,
+    opponent pool, and no-label/no-curriculum contract unchanged. The
+    scientific delta is only the entropy reduction:
+
+    * v5i4 / v5i5: maximize mean conditional entropy E_s[H(q_phi(z|s))].
+    * v5i6: maximize batch-marginal entropy H(E_s[q_phi(z|s)]) by
+      minimizing KL(E_s[q_phi(z|s)] || Uniform).
+
+    The marginal term is driven by the same lambda_H schedule used by v5i5
+    (0.003 -> 0.001 over 0..300k), so v5i6 tests the interpretation of
+    H(z) as aggregate strategy-repertoire entropy rather than stacking a
+    conditional-entropy bonus on top of a usage-balancing extension.
+    """
+    cfg = apply_plan_faithful_latent_v5i4_end_to_end(cfg)
+
+    cfg.latent_entropy_mode = "marginal"
+    cfg.latent_entropy_objective = "maximize"
+    cfg.latent_lam_h_end = 0.001
+    cfg.latent_usage_balance_coef = 0.0
+
+    cfg.run_tag = "v5i6_paper_faithful_marginal_entropy_OP5_OP6_OP7_1m_4v4"
     return cfg
 
 

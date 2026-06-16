@@ -107,10 +107,10 @@ The Summer Implementation Plan's latent strategy components are wired into `Cust
 - Persistence and strategy entropy are added to the PPO loss block:
 
 ```text
-L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))
+L = L_PPO + lambda_p * L_persist - lambda_H * H(E_s[q_phi(z | s)])
 ```
 
-`L_persist` is masked off for the initial strategy sample and applies only to later refreshes. With `latent_resample_every_n = 0` and no event-based resampling, there are no later refreshes in an episode, so the persistence term is zero. Minimization of `L` with a negative `lambda_H * H` term on strategy entropy is equivalent to rewarding higher strategy entropy.
+`L_persist` is masked off for the initial strategy sample and applies only to later refreshes. With `latent_resample_every_n = 0` and no event-based resampling, there are no later refreshes in an episode, so the persistence term is zero. The current canonical v5i6 row applies the entropy bonus to the batch-marginal strategy distribution; v5i4/v5i5 preserve the older mean conditional entropy implementation as comparison rows.
 
 **Experiments (paper E3 / controls):** the default run is the Summer latent implementation under `--mode FIXED_OPPONENT --fixed-opponent OP3`: latent strategy enabled, episode-start `z`, and no optional Section 12 extras. The curriculum baseline uses `--mode CURRICULUM` so training follows Jacob et al.'s OP1/OP2/OP3 scripted-opponent progression; curriculum mode always disables latent strategy. Opponent tags and phases are not supervision targets for `z`.
 

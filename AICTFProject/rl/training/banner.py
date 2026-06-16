@@ -263,12 +263,13 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
 
 def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     """Emit the paper-faithful audit banner when the run is configured per
-    a paper-faithful contract (currently the v5i4 / v5i5 family).
+    a paper-faithful contract (currently the v5i4 / v5i5 / v5i6 family).
 
     The audit is triggered by either:
 
     * ``cfg.run_tag`` containing one of the recognized paper-faithful
-      family tags (``v5i4_paper_faithful``, ``v5i5_paper_faithful``), or
+      family tags (``v5i4_paper_faithful``, ``v5i5_paper_faithful``,
+      ``v5i6_paper_faithful``), or
     * an explicit ``cfg.latent_paper_faithful_audit = True`` opt-in flag
       (used by future paper-faithful presets so they inherit the banner
       without relying on a specific run_tag string).
@@ -278,19 +279,17 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     config snapshots. None of these reads mutate ``cfg``.
 
     Family detection: the header / warning lines are prefixed with the
-    matched family (``v5i4`` or ``v5i5``) so existing v5i4 banner tests
+    matched family (``v5i4``, ``v5i5``, or ``v5i6``) so existing v5i4 banner tests
     still see ``"v5i4 paper-faithful audit"`` / ``"v5i4 audit WARNING"``
-    while v5i5 runs print the equivalent ``v5i5`` strings. The
-    invariants themselves are identical -- v5i5 differs from v5i4 only
-    in ``latent_lam_h_end`` (0.0002 -> 0.001), which is a hyperparameter
-    inside the documented Summer-plan entropy range, not a fidelity
-    flip.
+    while newer runs print the equivalent family strings.
     """
     run_tag = str(getattr(cfg, "run_tag", "") or "")
     explicit_opt_in = bool(getattr(cfg, "latent_paper_faithful_audit", False))
     run_tag_low = run_tag.lower()
     family: str | None = None
-    if "v5i5_paper_faithful" in run_tag_low:
+    if "v5i6_paper_faithful" in run_tag_low:
+        family = "v5i6"
+    elif "v5i5_paper_faithful" in run_tag_low:
         family = "v5i5"
     elif "v5i4_paper_faithful" in run_tag_low:
         family = "v5i4"
@@ -321,6 +320,7 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     arc_credit_on = bool(getattr(cfg, "latent_arc_credit_enabled", False))
     persistence_on = float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0
     entropy_obj = str(getattr(cfg, "latent_entropy_objective", "maximize") or "maximize")
+    entropy_mode = str(getattr(cfg, "latent_entropy_mode", "conditional") or "conditional")
     entropy_max_on = (
         entropy_obj == "maximize"
         and float(getattr(cfg, "latent_lam_h", 0.0) or 0.0) > 0.0
@@ -357,9 +357,11 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     print(f"  arc-credit: {_yn(arc_credit_on)}")
     print(f"  preferences/distillation: {_yn(pref_on or distill_on)}")
     print(f"  persistence: {_yn(persistence_on)}")
+    aggregation_label = "rollout" if entropy_mode.lower() == "marginal" else "per-state"
     print(
         "  entropy maximization: "
-        f"{_yn(entropy_max_on)} (objective={entropy_obj})"
+        f"{_yn(entropy_max_on)} (mode={entropy_mode}, "
+        f"aggregation={aggregation_label}, objective={entropy_obj})"
     )
     cadence_label = (
         "episode start" if resample_n <= 0 else f"every {resample_n} decisions"
@@ -391,6 +393,12 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
             f"[PPO] {family} audit WARNING: actor-z pathway is not concat-only; "
             f"{family} specifies plain nn.Embedding(K, d_z) concat. FiLM/adapter/"
             "one-hot must all be OFF."
+        )
+    expected_entropy_mode = "marginal" if family == "v5i6" else "conditional"
+    if entropy_mode.lower() != expected_entropy_mode:
+        print(
+            f"[PPO] {family} audit WARNING: latent_entropy_mode={entropy_mode!r}; "
+            f"{family} requires {expected_entropy_mode!r} entropy mode."
         )
 
 

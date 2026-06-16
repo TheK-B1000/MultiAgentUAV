@@ -7,15 +7,19 @@ inline inside ``CustomPPOTrainer.update``.
 """
 from __future__ import annotations
 
+import math
 import unittest
 
 import torch
 import torch.nn.functional as F
 
 from rl.latent_losses import (
+    rollout_marginal_entropy_loss,
+    rollout_router_soft_diagnostics,
     strategy_aux_return_loss,
     strategy_entropy_loss,
     strategy_kl_consecutive_loss,
+    strategy_marginal_entropy_loss,
     strategy_persistence_loss,
     strategy_phase_aux_loss,
     strategy_ppo_loss,
@@ -71,6 +75,274 @@ class StrategyEntropyLossTests(unittest.TestCase):
         loss, stats = strategy_entropy_loss(h, mask, objective="maximize", lam_h=0.01, device=DEVICE)
         self.assertEqual(loss.item(), 0.0)
         self.assertEqual(stats["strategy_entropy_term_mean"], 0.0)
+
+
+class StrategyMarginalEntropyLossTests(unittest.TestCase):
+    def test_maximize_objective_minimizes_batch_marginal_kl_to_uniform(self) -> None:
+        _set_seed(0)
+        logits = torch.randn(6, 4)
+        mask = torch.tensor([True, False, True, True, False, True])
+        loss, stats = strategy_marginal_entropy_loss(
+            logits,
+            mask,
+            objective="maximize",
+            lam_h=0.003,
+            latent_k=4,
+            device=DEVICE,
+        )
+        p_bar = torch.softmax(logits[mask], dim=-1).mean(dim=0).clamp_min(1e-8)
+        ref_kl = (p_bar * (torch.log(p_bar) + torch.log(p_bar.new_tensor(4.0)))).sum()
+        ref_h = -(p_bar * torch.log(p_bar)).sum()
+        self.assertTrue(_exact_eq(loss, 0.003 * ref_kl))
+        self.assertAlmostEqual(stats["strategy_marginal_entropy_kl"], float(ref_kl))
+        self.assertAlmostEqual(stats["strategy_marginal_entropy_nats"], float(ref_h))
+
+    def test_minimize_objective_flips_marginal_kl_sign(self) -> None:
+        logits = torch.tensor(
+            [[3.0, 0.0, 0.0, 0.0], [0.0, 3.0, 0.0, 0.0]],
+            dtype=torch.float32,
+        )
+        mask = torch.tensor([True, True])
+        loss, _ = strategy_marginal_entropy_loss(
+            logits,
+            mask,
+            objective="minimize",
+            lam_h=0.01,
+            latent_k=4,
+            device=DEVICE,
+        )
+        p_bar = torch.softmax(logits, dim=-1).mean(dim=0).clamp_min(1e-8)
+        ref_kl = (p_bar * (torch.log(p_bar) + torch.log(p_bar.new_tensor(4.0)))).sum()
+        self.assertTrue(_exact_eq(loss, -0.01 * ref_kl))
+
+    def test_empty_mask_returns_zero_no_grad(self) -> None:
+        logits = torch.randn(3, 4, requires_grad=True)
+        mask = torch.zeros(3, dtype=torch.bool)
+        loss, stats = strategy_marginal_entropy_loss(
+            logits,
+            mask,
+            objective="maximize",
+            lam_h=0.01,
+            latent_k=4,
+            device=DEVICE,
+        )
+        self.assertEqual(loss.item(), 0.0)
+        self.assertFalse(loss.requires_grad)
+        self.assertEqual(stats["strategy_marginal_entropy_kl"], 0.0)
+        self.assertEqual(stats["strategy_marginal_entropy_nats"], 0.0)
+
+
+class RolloutMarginalEntropyLossTests(unittest.TestCase):
+    """v5i6 rollout-level marginal entropy loss.
+
+    Distinct from ``StrategyMarginalEntropyLossTests`` above (which pins the
+    deprecated per-minibatch helper kept only for parity). These tests pin
+    the gradient path that v5i6 actually optimizes.
+    """
+
+    def test_maximize_objective_minimizes_rollout_marginal_kl_to_uniform(self) -> None:
+        _set_seed(0)
+        logits = torch.randn(32, 4)
+        loss, stats = rollout_marginal_entropy_loss(
+            logits,
+            objective="maximize",
+            lam_h=0.003,
+            latent_k=4,
+            device=DEVICE,
+        )
+        probs = torch.softmax(logits, dim=-1)
+        p_bar = probs.mean(dim=0).clamp_min(1e-8)
+        ref_kl = (p_bar * (torch.log(p_bar) + torch.log(p_bar.new_tensor(4.0)))).sum()
+        ref_h_marg = -(p_bar * torch.log(p_bar)).sum()
+        ref_h_cond = -(probs.clamp_min(1e-8) * torch.log(probs.clamp_min(1e-8))).sum(dim=-1).mean()
+        self.assertTrue(_exact_eq(loss, 0.003 * ref_kl))
+        self.assertAlmostEqual(stats["rollout_marginal_entropy_kl"], float(ref_kl), places=5)
+        self.assertAlmostEqual(stats["rollout_marginal_entropy_nats"], float(ref_h_marg), places=5)
+        self.assertAlmostEqual(stats["rollout_conditional_entropy_nats"], float(ref_h_cond), places=5)
+        self.assertAlmostEqual(
+            stats["rollout_mi_proxy_nats"],
+            float(ref_h_marg - ref_h_cond),
+            places=5,
+        )
+        self.assertAlmostEqual(stats["rollout_resample_count"], 32.0)
+
+    def test_minimize_objective_flips_sign(self) -> None:
+        logits = torch.tensor(
+            [[3.0, 0.0, 0.0, 0.0], [0.0, 3.0, 0.0, 0.0]],
+            dtype=torch.float32,
+        )
+        loss, _ = rollout_marginal_entropy_loss(
+            logits,
+            objective="minimize",
+            lam_h=0.01,
+            latent_k=4,
+            device=DEVICE,
+        )
+        p_bar = torch.softmax(logits, dim=-1).mean(dim=0).clamp_min(1e-8)
+        ref_kl = (p_bar * (torch.log(p_bar) + torch.log(p_bar.new_tensor(4.0)))).sum()
+        self.assertTrue(_exact_eq(loss, -0.01 * ref_kl))
+
+    def test_empty_input_returns_zero_no_grad(self) -> None:
+        logits = torch.zeros((0, 4), dtype=torch.float32, requires_grad=True)
+        loss, stats = rollout_marginal_entropy_loss(
+            logits,
+            objective="maximize",
+            lam_h=0.01,
+            latent_k=4,
+            device=DEVICE,
+        )
+        self.assertEqual(loss.item(), 0.0)
+        self.assertFalse(loss.requires_grad)
+        self.assertEqual(stats["rollout_marginal_entropy_kl"], 0.0)
+        self.assertEqual(stats["rollout_marginal_entropy_nats"], 0.0)
+        self.assertEqual(stats["rollout_conditional_entropy_nats"], 0.0)
+        self.assertEqual(stats["rollout_mi_proxy_nats"], 0.0)
+        self.assertEqual(stats["rollout_resample_count"], 0.0)
+
+    def test_gradient_flows_to_logits(self) -> None:
+        logits = torch.randn(8, 4, requires_grad=True)
+        loss, _ = rollout_marginal_entropy_loss(
+            logits,
+            objective="maximize",
+            lam_h=0.5,
+            latent_k=4,
+            device=DEVICE,
+        )
+        loss.backward()
+        self.assertIsNotNone(logits.grad)
+        # Gradient must be nonzero for non-uniform p_bar (otherwise nothing
+        # learns).
+        self.assertGreater(float(logits.grad.abs().sum().item()), 0.0)
+
+    def test_jensen_demo_per_minibatch_upper_bounds_rollout_level(self) -> None:
+        """Demonstrates the bug the rollout-level path fixes.
+
+        Construct 4 minibatches of 1 state each, with one-hot logits such
+        that the true rollout-marginal is exactly uniform but every
+        per-minibatch marginal is one-hot (max KL). Per-minibatch mean KL
+        is ``log K = ln 4`` while the rollout-level KL is exactly 0 — the
+        Jensen gap that the per-minibatch loss systematically over-applies.
+        """
+        K = 4
+        large = 1e3  # effectively one-hot under softmax
+        per_minibatch_logits = [
+            torch.tensor([[large, 0.0, 0.0, 0.0]]),
+            torch.tensor([[0.0, large, 0.0, 0.0]]),
+            torch.tensor([[0.0, 0.0, large, 0.0]]),
+            torch.tensor([[0.0, 0.0, 0.0, large]]),
+        ]
+
+        per_mb_kls: list[float] = []
+        for mb in per_minibatch_logits:
+            _, mb_stats = strategy_marginal_entropy_loss(
+                mb,
+                torch.ones(mb.shape[0], dtype=torch.bool),
+                objective="maximize",
+                lam_h=1.0,
+                latent_k=K,
+                device=DEVICE,
+            )
+            per_mb_kls.append(float(mb_stats["strategy_marginal_entropy_kl"]))
+
+        rollout_logits = torch.cat(per_minibatch_logits, dim=0)
+        _, rollout_stats = rollout_marginal_entropy_loss(
+            rollout_logits,
+            objective="maximize",
+            lam_h=1.0,
+            latent_k=K,
+            device=DEVICE,
+        )
+
+        mean_per_minibatch_kl = sum(per_mb_kls) / len(per_mb_kls)
+        rollout_kl = float(rollout_stats["rollout_marginal_entropy_kl"])
+        # Per-minibatch mean is ln(K); rollout-level is essentially 0.
+        self.assertAlmostEqual(mean_per_minibatch_kl, math.log(K), places=4)
+        self.assertLess(rollout_kl, 1e-4)
+        self.assertGreater(mean_per_minibatch_kl, rollout_kl + 1.0)
+
+
+class RolloutRouterSoftDiagnosticsTests(unittest.TestCase):
+    def test_perfect_specialization_yields_uniform_p_bar_and_zero_conditional(self) -> None:
+        """v5i6 happy path: 4 z's, perfectly disjoint state subsets,
+        confident logits. Rollout-level diagnostics should report
+        ``H_marginal = log K`` and ``H_conditional ~= 0``.
+        """
+        K = 4
+        large = 50.0
+        logits = torch.zeros((4 * 16, K), dtype=torch.float32)
+        for z in range(K):
+            logits[z * 16 : (z + 1) * 16, z] = large
+        diag = rollout_router_soft_diagnostics(logits, latent_k=K)
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_marginal_entropy_nats"],
+            math.log(K),
+            places=4,
+        )
+        self.assertLess(diag["router_rollout_soft_conditional_entropy_nats"], 1e-4)
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_mi_proxy_nats"],
+            math.log(K),
+            places=4,
+        )
+        for z in range(K):
+            self.assertAlmostEqual(
+                diag[f"router_rollout_soft_p_bar_z{z}"], 0.25, places=4
+            )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_argmax_occupancy_max"], 0.25, places=4
+        )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_argmax_occupancy_min"], 0.25, places=4
+        )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_argmax_occupancy_ratio"], 1.0, places=4
+        )
+        self.assertEqual(diag["router_rollout_resample_count"], 64.0)
+
+    def test_total_collapse_yields_one_hot_p_bar(self) -> None:
+        K = 4
+        logits = torch.zeros((32, K), dtype=torch.float32)
+        logits[:, 1] = 50.0  # everyone picks z=1
+        diag = rollout_router_soft_diagnostics(logits, latent_k=K)
+        self.assertAlmostEqual(diag["router_rollout_soft_p_bar_z1"], 1.0, places=4)
+        self.assertLess(diag["router_rollout_soft_marginal_entropy_nats"], 1e-4)
+        self.assertLess(diag["router_rollout_soft_conditional_entropy_nats"], 1e-4)
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_mi_proxy_nats"], 0.0, places=4
+        )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_argmax_occupancy_max"], 1.0, places=4
+        )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_argmax_occupancy_min"], 0.0, places=4
+        )
+        # min == 0 -> ratio is the finite cap, not inf.
+        self.assertGreater(diag["router_rollout_soft_argmax_occupancy_ratio"], 0.0)
+        self.assertTrue(math.isfinite(diag["router_rollout_soft_argmax_occupancy_ratio"]))
+
+    def test_uniform_logits_yield_log_k_marginal_and_log_k_conditional(self) -> None:
+        K = 4
+        logits = torch.zeros((32, K), dtype=torch.float32)
+        diag = rollout_router_soft_diagnostics(logits, latent_k=K)
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_marginal_entropy_nats"], math.log(K), places=4
+        )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_conditional_entropy_nats"], math.log(K), places=4
+        )
+        self.assertAlmostEqual(
+            diag["router_rollout_soft_mi_proxy_nats"], 0.0, places=4
+        )
+
+    def test_empty_input_returns_zeros(self) -> None:
+        logits = torch.zeros((0, 4), dtype=torch.float32)
+        diag = rollout_router_soft_diagnostics(logits, latent_k=4)
+        self.assertEqual(diag["router_rollout_soft_marginal_entropy_nats"], 0.0)
+        self.assertEqual(diag["router_rollout_soft_conditional_entropy_nats"], 0.0)
+        self.assertEqual(diag["router_rollout_soft_mi_proxy_nats"], 0.0)
+        self.assertEqual(diag["router_rollout_resample_count"], 0.0)
+        for z in range(4):
+            self.assertEqual(diag[f"router_rollout_soft_p_bar_z{z}"], 0.0)
 
 
 class StrategyPersistenceLossTests(unittest.TestCase):

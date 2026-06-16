@@ -139,7 +139,7 @@ unresolved."
   `nn.Embedding(K, d_z)` concatenated to the local CNN+vec features.
   FiLM, adapter, and one-hot conditioning are post-Summer extensions
   (see §10).
-* For the canonical operational preset (`v5i4_paper_faithful_end_to_end`),
+* For the canonical operational preset (`v5i6_paper_faithful_marginal_entropy`),
   the resolved actor input width is
 
   ```text
@@ -209,7 +209,7 @@ These flags must all be `False` for any preset classified as
 ### Implementation choice for the canonical preset
 
 * `latent_resample_every_n = 64` decisions
-  (`PPOConfig.latent_resample_every_n = 64` for v5i4).
+  (`PPOConfig.latent_resample_every_n = 64` for v5i4 / v5i5 / v5i6).
 * `latent_resample_on_flag = False`.
 * `latent_event_refresh_enabled = False`.
 * `latent_sparse_tactical_refresh_enabled = False`.
@@ -232,8 +232,17 @@ L = L_actor_PPO
   + c_V · L_critic
   + c_Z · L_strategy_PPO
   + λ_p · L_persist
-  − λ_H · H(q_phi(z | s))
+  − λ_H · H(q_bar)
+
+q_bar(z) = E_s[q_phi(z | s)]
 ```
+
+This clarifies the originally underspecified `H(z)` notation as entropy
+of the aggregate strategy distribution over the router training batch.
+The canonical row therefore protects the global strategy repertoire while
+allowing confident state-conditioned router decisions. The prior
+mean-conditional interpretation, `E_s[H(q_phi(z | s))]`, remains preserved
+as the v5i4 row, with v5i5 as its higher-floor ablation.
 
 ### Component definitions and gradient paths
 
@@ -243,7 +252,7 @@ L = L_actor_PPO
 | `c_V · L_critic`    | Clipped value loss on `V_φ(s, a, z)`.                             | No.                                             | [`rl/ppo_core.py::ppo_value_loss`](../rl/ppo_core.py) |
 | `c_Z · L_strategy_PPO` | Clipped categorical PPO on `q_phi`, on-policy, evaluated only on the resample subset. `c_Z = latent_strategy_ppo_coef = 0.10` for v5i4. | **Yes — this is the task-reward channel for `q_phi`.** | [`rl/latent_losses.py::strategy_ppo_loss`](../rl/latent_losses.py) |
 | `λ_p · L_persist`   | Soft persistence: `1 − p_φ(z_t = z_{t-1} | s_t)`, averaged over `z_persist_mask` (mid-episode resample steps only). `λ_p = 0.03`. | Yes (regularizer).                              | [`rl/latent_losses.py::strategy_persistence_loss`](../rl/latent_losses.py) |
-| `−λ_H · H(q_phi)`   | Entropy maximization, averaged over `z_resampled` steps. `λ_H` follows a 0.003 → 0.0002 anneal over 0..300k. | Yes (regularizer).                              | [`rl/latent_losses.py::strategy_entropy_loss`](../rl/latent_losses.py) |
+| `−λ_H · H(q_bar)`   | Rollout-level marginal entropy maximization over expected router probabilities at every resample-decision point in the rollout. Implemented as `KL(q_bar \|\| Uniform)` minimization where `q_bar = N⁻¹ Σ_i q_phi(z\|s_i)` is computed in a single forward pass over the **full rollout resample subset** (not per-PPO-minibatch — see §8.1). `λ_H` follows a 0.003 → 0.001 anneal over 0..300k for v5i6. | Yes (regularizer). | [`rl/latent_losses.py::rollout_marginal_entropy_loss`](../rl/latent_losses.py) |
 
 `L_strategy_PPO` is
 
@@ -260,50 +269,117 @@ sampled (episode-start draws and 64-step refreshes). The non-resample
 subset receives exactly zero gradient through this term — pinned by
 [`tests/test_v5i4_paper_faithful.py::V5i4RouterTaskGradientTests`](../tests/test_v5i4_paper_faithful.py).
 
-### Operational coefficients (v5i4 / v5i5)
+### Operational coefficients (v5i4 / v5i5 / v5i6)
 
-The v5i4 row is the canonical paper-faithful operational preset. The
-v5i5 row is a single-axis follow-up (entropy-floor experiment) that is
-also `PAPER-FAITHFUL`; the **only** scalar field that differs is
-`latent_lam_h_end` (raised from `0.0002` to `0.001`, still inside the
-documented `[0.001, 0.01]` Summer-plan entropy range). Both rows
-satisfy R1..R42 in
-[`summer-fidelity-rules.md`](summer-fidelity-rules.md).
+The v5i6 row is the canonical paper-faithful operational preset. v5i4
+is the preserved conditional-entropy interpretation, and v5i5 is the
+higher conditional-entropy-floor ablation. All three rows keep the same
+actor, critic, router PPO, persistence, resampling, opponent pool, and
+no-label/no-curriculum contract.
 
-| Field                          | v5i4 value    | v5i5 value    | Notes |
-|--------------------------------|---------------|---------------|-------|
-| `latent_k`                     | `4`           | `4`           | Discrete shared latent. |
-| `latent_z_embed_dim`           | `16`          | `16`          | Embedding width. |
-| `latent_resample_every_n`      | `64`          | `64`          | Sparse refresh cadence (decision steps). |
-| `latent_resample_on_flag`      | `False`       | `False`       | Forbidden in literal method. |
-| `latent_lam_p`                 | `0.03`        | `0.03`        | Persistence regularizer. |
-| `latent_lam_h`                 | `0.003`       | `0.003`       | Initial entropy weight. |
-| **`latent_lam_h_end`**         | **`0.0002`**  | **`0.001`**   | **Single-axis change.** v5i5 raises the floor 5× to combat the v5i4 router's late-training occupancy collapse. |
-| `latent_entropy_anneal_start`  | `0`           | `0`           | Anneal window start. |
-| `latent_entropy_anneal_end`    | `300_000`     | `300_000`     | Anneal window end. |
-| `latent_entropy_objective`     | `"maximize"`  | `"maximize"`  | Sign of the entropy term in the minimized loss. |
-| `latent_strategy_ppo_coef`     | `0.10`        | `0.10`        | `c_Z`. |
-| `latent_episode_strategy_ppo`  | `False`       | `False`       | v5i1 extension OFF. |
-| `latent_episode_strategy_lr`   | `None`        | `None`        | No dedicated router optimizer. |
-| `latent_arc_credit_enabled`    | `False`       | `False`       | v3i19 extension OFF. |
-| `enable_actor_z_film`          | `False`       | `False`       | v5i2 extension OFF. |
-| `latent_actor_z_adapter_enabled` | `False`     | `False`       | OFF. |
-| `latent_actor_z_onehot_enabled`| `False`       | `False`       | OFF. |
-| `latent_forced_z_episode_frac` | `0.0`         | `0.0`         | v5i3 curriculum OFF; the resolver ([`rl/custom_ppo/schedules.py`](../rl/custom_ppo/schedules.py)) returns `0.0` at every step because the four `_start/_end` fields are `None`. |
-| `latent_router_distill_enabled`| `False`       | `False`       | v4i4post extension OFF. |
-| `latent_strategy_aux_return_head` | `False`    | `False`       | Auxiliary head OFF. |
-| `latent_strategy_aux_predict_phase_coef` | `0.0` | `0.0`     | Auxiliary head OFF. |
-| `latent_v3i3_event_preference_enabled` | `False` | `False`    | Preference learning OFF. |
-| `latent_preference_coef`       | `0.0`         | `0.0`         | Preference learning OFF. |
+| Field                          | v5i4 value    | v5i5 value    | v5i6 value    | Notes |
+|--------------------------------|---------------|---------------|---------------|-------|
+| `latent_k`                     | `4`           | `4`           | `4`           | Discrete shared latent. |
+| `latent_z_embed_dim`           | `16`          | `16`          | `16`          | Embedding width. |
+| `latent_resample_every_n`      | `64`          | `64`          | `64`          | Sparse refresh cadence. |
+| `latent_lam_p`                 | `0.03`        | `0.03`        | `0.03`        | Persistence regularizer. |
+| `latent_lam_h`                 | `0.003`       | `0.003`       | `0.003`       | Initial entropy weight. |
+| `latent_lam_h_end`             | `0.0002`      | `0.001`       | `0.001`       | v5i6 uses the v5i5 entropy floor. |
+| `latent_entropy_anneal_start`  | `0`           | `0`           | `0`           | Anneal window start. |
+| `latent_entropy_anneal_end`    | `300_000`     | `300_000`     | `300_000`     | Anneal window end. |
+| `latent_entropy_mode`          | `"conditional"` | `"conditional"` | `"marginal"` | v5i6 replaces mean conditional entropy with batch-marginal entropy. |
+| `latent_entropy_objective`     | `"maximize"`  | `"maximize"`  | `"maximize"`  | Sign of the entropy term in the minimized loss. |
+| `latent_strategy_ppo_coef`     | `0.10`        | `0.10`        | `0.10`        | `c_Z`. |
+| `latent_episode_strategy_ppo`  | `False`       | `False`       | `False`       | v5i1 extension OFF. |
+| `latent_episode_strategy_lr`   | `None`        | `None`        | `None`        | No dedicated router optimizer. |
+| `latent_arc_credit_enabled`    | `False`       | `False`       | `False`       | v3i19 extension OFF. |
+| `enable_actor_z_film`          | `False`       | `False`       | `False`       | v5i2 extension OFF. |
+| `latent_actor_z_adapter_enabled` | `False`     | `False`       | `False`       | OFF. |
+| `latent_actor_z_onehot_enabled`| `False`       | `False`       | `False`       | OFF. |
+| `latent_forced_z_episode_frac` | `0.0`         | `0.0`         | `0.0`         | v5i3 curriculum OFF. |
+| `latent_usage_balance_coef`    | `0.0`         | `0.0`         | `0.0`         | v5i6's marginal entropy is driven by `lambda_H`, not the legacy episode-router usage coefficient. |
+| `latent_router_distill_enabled`| `False`       | `False`       | `False`       | v4i4post extension OFF. |
+| `latent_strategy_aux_return_head` | `False`    | `False`       | `False`       | Auxiliary head OFF. |
+| `latent_strategy_aux_predict_phase_coef` | `0.0` | `0.0`     | `0.0`         | Auxiliary head OFF. |
+| `latent_v3i3_event_preference_enabled` | `False` | `False`    | `False`       | Preference learning OFF. |
+| `latent_preference_coef`       | `0.0`         | `0.0`         | `0.0`         | Preference learning OFF. |
 
-The v5i4 column matches
-`AICTFProject/checkpoints/4v4/v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4_run_config.json::resolved_ppo_config`
-captured at run start; see also
-[`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.7.
-The v5i5 column is pinned by
-[`tests/test_v5i5_paper_faithful_entropy_floor.py::V5i5PresetInheritanceTests`](../tests/test_v5i5_paper_faithful_entropy_floor.py),
-which asserts the resolved-config diff between v5i4 and v5i5 is
-exactly `{latent_lam_h_end, run_tag}`.
+The v5i6 resolved-config diff against v5i4 is exactly
+`{latent_entropy_mode, latent_lam_h_end, run_tag}`. Its diff against
+v5i5 is exactly `{latent_entropy_mode, run_tag}`. These contracts are
+pinned by
+[`tests/test_v5i6_paper_faithful_marginal_entropy.py`](../tests/test_v5i6_paper_faithful_marginal_entropy.py).
+
+### 8.1. Aggregation unit for the v5i6 marginal entropy loss
+
+The marginal entropy loss
+
+```text
+L_marg = λ_H · KL( q_bar || Uniform )
+q_bar(z) = N⁻¹ · Σ_{i=1..N} q_phi(z | s_i)
+```
+
+is taken over the **full set of router-decision points in the rollout**
+(every `s_i` such that `z_resampled[i] = True`), not the per-PPO-minibatch
+subset.
+
+The choice is a correctness one, not a performance optimization. KL is
+convex in `q_bar`, so by Jensen
+
+```text
+E_B[ KL(q_bar_B || U) ] ≥ KL( E_B[q_bar_B] || U ) = KL( q_bar_rollout || U )
+```
+
+with equality iff every minibatch's marginal `q_bar_B` equals the rollout
+marginal. The per-minibatch loss is therefore a strict upper bound on the
+intended objective whenever the per-minibatch marginals differ; the bias
+is closed by the gradient softening individual `q_phi(z | s_i)` rows
+toward uniform — the conditional-entropy regression v5i6 was designed to
+replace. With the production rollout (`32 envs × 2048 steps × 1/64
+resample cadence ≈ 1024` resample-decision points split across 64
+PPO minibatches of ~16 resample samples each), the gap is large enough
+to materially affect specialization. See
+[`tests/test_latent_losses.py::RolloutMarginalEntropyLossTests::test_jensen_demo_per_minibatch_upper_bounds_rollout_level`](../tests/test_latent_losses.py)
+for a 4-z, one-hot-per-minibatch demonstration where the per-minibatch
+mean KL is `ln K = 1.386` while the rollout-level KL is exactly `0`.
+
+Implementation:
+
+* The trainer
+  ([`rl/custom_ppo/ppo_updater.py`](../rl/custom_ppo/ppo_updater.py))
+  gathers the rollout-level resample states once at the start of every
+  PPO inner epoch, runs a single differentiable forward pass through
+  `model.strategy_logits`, calls
+  [`rl/latent_losses.py::rollout_marginal_entropy_loss`](../rl/latent_losses.py),
+  and adds the resulting tensor to the **first minibatch's** `latent_loss`
+  for that epoch. Subsequent minibatches in the same epoch contribute zero
+  to the marginal term — its gradient was already realized by that
+  optimizer step. With `n_epochs = 6` the marginal entropy term thus
+  fires 6 times per PPO update, each time against fresh `q_phi`
+  parameters, against the rollout-level `q_bar`.
+* The deprecated per-minibatch helper
+  [`rl/latent_losses.py::strategy_marginal_entropy_loss`](../rl/latent_losses.py)
+  is retained only for parity tests and as a baseline. Production v5i6
+  must not invoke it; the audit banner emits
+  `entropy maximization: ON (mode=marginal, aggregation=rollout, ...)`
+  on every run header.
+* Telemetry (`router_rollout_soft_*` columns) reports
+  `H(q_bar)`, `mean_i H(q_phi(·|s_i))`, their difference (the MI proxy),
+  the per-z entries of `q_bar`, and the soft-`argmax` occupancy
+  distribution from the same forward pass — all over the same rollout
+  resample subset, so the three-pattern decoder
+  (high marg / low cond = "broad and state-specific";
+   high marg / high cond = "broad but indecisive";
+   low marg / low cond = "global collapse")
+  is computable from a single CSV row.
+
+The labels for sampled-z empirical occupancy
+(`latent_marginal_entropy_nats`, `latent_occupancy_min/max/ratio`,
+`effective_num_latents`) are intentionally distinct from the
+`router_rollout_soft_*` family above; the former are one-sample-per-state
+empirical histograms over the categorical samples, the latter are soft
+expectations over the differentiable router. Both are emitted every
+update so cross-checks are immediate.
 
 ---
 
@@ -369,38 +445,32 @@ machine-scannable list and decision tree.
 ## 12. Canonical preset and aliases
 
 The canonical preset for the operational paper-faithful method is
-**`v5i4_paper_faithful_end_to_end`**, registered in
+**`v5i6_paper_faithful_marginal_entropy`**, registered in
 [`rl/presets/__init__.py::PRESET_REGISTRY`](../rl/presets/__init__.py).
 Its aliases (all resolve to the same `PPOConfig`):
 
 ```text
-v5i4
-v5i4_paper_faithful
-v5i4_end_to_end
-paper_faithful_end_to_end
-latent_v5i4_paper_faithful
-latent_v5i4_end_to_end
-plan_faithful_latent_v5i4_end_to_end
+v5i6
+v5i6_paper_faithful
+v5i6_paper_faithful_marginal_entropy
+v5i6_marginal_entropy
+paper_faithful_marginal_entropy
+latent_v5i6_paper_faithful
+latent_v5i6_paper_faithful_marginal_entropy
+latent_v5i6_marginal_entropy
+plan_faithful_latent_v5i6_paper_faithful_marginal_entropy
+plan_faithful_latent_v5i6_marginal_entropy
 ```
 
-The single-axis paper-faithful follow-up to v5i4 is
-**`v5i5_paper_faithful_entropy_floor`** (function
-`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`),
-which raises `latent_lam_h_end` from `0.0002` to `0.001` to combat the
-v5i4 router's late-training occupancy collapse without changing the
-loss objective or any actor / critic / sampling mechanism. Aliases:
+The preserved conditional-entropy interpretation is
+**`v5i4_paper_faithful_end_to_end`**. The higher-floor conditional
+ablation is **`v5i5_paper_faithful_entropy_floor`**. In result tables,
+use:
 
 ```text
-v5i5
-v5i5_paper_faithful
-v5i5_paper_faithful_entropy_floor
-v5i5_entropy_floor
-paper_faithful_entropy_floor
-latent_v5i5_paper_faithful
-latent_v5i5_paper_faithful_entropy_floor
-latent_v5i5_entropy_floor
-plan_faithful_latent_v5i5_paper_faithful_entropy_floor
-plan_faithful_latent_v5i5_entropy_floor
+v5i4  = paper-faithful conditional-entropy interpretation
+v5i5  = higher conditional-entropy-floor ablation
+v5i6  = canonical paper-faithful marginal-entropy interpretation
 ```
 
 The literal-strict ablation (`L = L_PPO + λ_p · L_persist − λ_H · H(q_phi)`,
@@ -444,6 +514,12 @@ claim is made about them.
    nonzero, that's an implementation choice that may matter for the
    "task-reward only" claim. Inspect the resolved
    `env_*` and `reward_shaping_*` fields per run.
+6. **Entropy reduction.** The paper notation `H(z)` did not specify
+   whether entropy is reduced per state and then averaged, or computed
+   on the aggregate strategy distribution. This repository now treats
+   the batch-marginal interpretation as canonical (`v5i6`) because it
+   discourages global latent collapse without forcing uncertainty inside
+   every state. The conditional interpretation is retained as v5i4/v5i5.
 
 ---
 

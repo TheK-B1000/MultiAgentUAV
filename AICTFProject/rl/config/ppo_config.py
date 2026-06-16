@@ -115,6 +115,7 @@ class PPOConfig:
     # ``maximize`` matches the plan (encourage exploratory / diverse q_phi). ``minimize`` adds +λ_H·H to the
     # minimized loss and sharpens q_phi (recommended when telemetry shows strategy_entropy≈ln K with no persistence grad).
     # ``none`` removes the H term (strategy_encoder receives no gradient from λ_H when λ_p/KL are also inactive).
+    latent_entropy_mode: Literal["conditional", "marginal"] = "conditional"
     latent_entropy_objective: Literal["maximize", "minimize", "none"] = "maximize"
     latent_lam_h: float = 0.005
     latent_lam_h_start: Optional[float] = None

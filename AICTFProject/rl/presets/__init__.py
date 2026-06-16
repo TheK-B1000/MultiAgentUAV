@@ -52,6 +52,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i3_balanced_warmup,
     apply_plan_faithful_latent_v5i4_end_to_end,
     apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
@@ -293,6 +294,19 @@ PRESET_REGISTRY = {
     "v5i5_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
     "v5i5": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
     "paper_faithful_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    # v5i6: canonical marginal-entropy interpretation. Inherits v5i4 and
+    # replaces conditional entropy with batch-marginal entropy under the
+    # same lambda_H schedule as v5i5.
+    "plan_faithful_latent_v5i6_paper_faithful_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "plan_faithful_latent_v5i6_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "latent_v5i6_paper_faithful_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "latent_v5i6_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "latent_v5i6_paper_faithful": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "v5i6_paper_faithful_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "v5i6_paper_faithful": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "v5i6_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "v5i6": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
+    "paper_faithful_marginal_entropy": apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
     # v4i4 post-Summer extension: periodic router distillation (was the old v4i3).
     "plan_faithful_latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     "latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,

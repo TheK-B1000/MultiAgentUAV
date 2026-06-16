@@ -442,6 +442,30 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         ])
         fields.extend([
             "strategy_entropy_resample_mean",
+            "strategy_marginal_entropy_loss",
+            "strategy_marginal_entropy_nats",
+            "strategy_marginal_entropy_kl",
+            # v5i6 rollout-level (pre-Jensen-bias-fix) router diagnostics.
+            # All seven below are computed from a single forward pass over
+            # ALL rollout resample-decision points per inner epoch — i.e.
+            # the same population the rollout-level KL-to-uniform loss is
+            # taken over. They are explicitly distinct from the sampled-z
+            # ``latent_marginal_entropy_nats`` / ``latent_occupancy_*``
+            # columns, which are one-sample-per-state empirical
+            # histograms. Use these for the v5i6 H_marginal / H_conditional
+            # / MI_proxy three-pattern decoder.
+            "router_rollout_soft_marginal_entropy_nats",
+            "router_rollout_soft_conditional_entropy_nats",
+            "router_rollout_soft_mi_proxy_nats",
+            "router_rollout_soft_argmax_occupancy_max",
+            "router_rollout_soft_argmax_occupancy_min",
+            "router_rollout_soft_argmax_occupancy_ratio",
+            "router_rollout_resample_count",
+        ])
+        fields.extend(
+            f"router_rollout_soft_p_bar_z{z}" for z in range(latent_k)
+        )
+        fields.extend([
             "qphi_margin_resample_mean",
             "episode_credit_grad_norm",
             "episode_credit_adv_mean",

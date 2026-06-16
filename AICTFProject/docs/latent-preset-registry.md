@@ -2,8 +2,9 @@
 
 **Owner:** This file is the single source of truth for per-preset facts:
 ancestry, aliases, classification, run-tag(s) shipped on disk, and the
-resolved-configuration delta versus the canonical paper-faithful baseline
-(`v5i4_paper_faithful_end_to_end`). Other docs link here rather than
+resolved-configuration deltas for the paper-faithful ladder. The current
+canonical paper-faithful baseline is
+`v5i6_paper_faithful_marginal_entropy`. Other docs link here rather than
 restating preset facts.
 
 > **Read first:**
@@ -25,8 +26,8 @@ restating preset facts.
   [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §3.
 * **Adding a new preset.** Complete the *Proposed Preset Review* template
   in [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §8, then add
-  a row to §3 here, then add a delta row to §6 (deltas vs canonical
-  paper-faithful), and update §5 (alias map) and §7 (artifact run-tag
+  a row to §3 here, then add a delta row to §6, and update §5 (alias map)
+  and §7 (artifact run-tag
   history) if applicable. Tests in `tests/test_preset_resolution.py`
   pin alias resolution.
 * **Computing the resolved delta.** Never infer from the preset name.
@@ -44,20 +45,21 @@ restating preset facts.
 
 ## 2. Canonical paper-faithful preset
 
-The canonical operational paper-faithful row is **v5i4**:
+The canonical operational paper-faithful row is **v5i6**:
 
 | Property                | Value                                                                                                  |
 |-------------------------|--------------------------------------------------------------------------------------------------------|
-| Function                | `apply_plan_faithful_latent_v5i4_end_to_end`                                                           |
-| File                    | [`rl/presets/plan_faithful.py`](../rl/presets/plan_faithful.py) (line 1614 at the time of writing)     |
-| Parent (inheritance)    | `apply_plan_faithful_latent_v5_strict_summer` (literal-strict ablation)                                |
+| Function                | `apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`                                      |
+| File                    | [`rl/presets/plan_faithful.py`](../rl/presets/plan_faithful.py)                                        |
+| Parent (inheritance)    | `apply_plan_faithful_latent_v5i4_end_to_end`                                                           |
 | Classification          | `PAPER-FAITHFUL`                                                                                        |
 | `latent_k`              | `4`                                                                                                     |
 | `latent_z_embed_dim`    | `16`                                                                                                    |
 | Actor conditioning      | `nn.Embedding(K, d_z)` concat (`latent_actor_conditioning = "concat"`; FiLM / adapter / one-hot OFF)   |
 | `latent_strategy_ppo_coef` (`c_Z`) | `0.10`                                                                                      |
 | `latent_lam_p`          | `0.03`                                                                                                  |
-| `latent_lam_h` schedule | `0.003 → 0.0002` linear over `0..300_000` global steps                                                 |
+| `latent_lam_h` schedule | `0.003 → 0.001` linear over `0..300_000` global steps                                                  |
+| Entropy mode            | Batch-marginal strategy entropy (`latent_entropy_mode = "marginal"`)                                   |
 | `latent_resample_every_n` | `64`                                                                                                  |
 | `latent_resample_on_flag` | `False`                                                                                               |
 | `latent_episode_strategy_lr` | `None` (no dedicated router optimizer)                                                            |
@@ -65,22 +67,25 @@ The canonical operational paper-faithful row is **v5i4**:
 | `total_timesteps`       | `1_000_000` (PPOConfig default; v5i4 does not override)                                                |
 | `opponent_pool`         | `("OP5", "OP6", "OP7")` (inherited from v4i1)                                                          |
 | `opponent_randomize`    | `True` (inherited from v4i1)                                                                            |
-| Audit banner            | Fires when `cfg.run_tag` contains `"v5i4_paper_faithful"` (or `cfg.latent_paper_faithful_audit = True`) |
+| Audit banner            | Fires when `cfg.run_tag` contains `"v5i6_paper_faithful"` (or `cfg.latent_paper_faithful_audit = True`) |
 
-**Aliases (all seven resolve to the same `PPOConfig`):**
+**Aliases (all ten resolve to the same `PPOConfig`):**
 
 ```text
-v5i4
-v5i4_paper_faithful
-v5i4_end_to_end
-paper_faithful_end_to_end
-latent_v5i4_paper_faithful
-latent_v5i4_end_to_end
-plan_faithful_latent_v5i4_end_to_end
+v5i6
+v5i6_paper_faithful
+v5i6_paper_faithful_marginal_entropy
+v5i6_marginal_entropy
+paper_faithful_marginal_entropy
+latent_v5i6_paper_faithful
+latent_v5i6_paper_faithful_marginal_entropy
+latent_v5i6_marginal_entropy
+plan_faithful_latent_v5i6_paper_faithful_marginal_entropy
+plan_faithful_latent_v5i6_marginal_entropy
 ```
 
 Pinned by
-[`tests/test_v5i4_paper_faithful.py::V5i4AliasSnapshotTests`](../tests/test_v5i4_paper_faithful.py)
+[`tests/test_v5i6_paper_faithful_marginal_entropy.py::V5i6AliasSnapshotTests`](../tests/test_v5i6_paper_faithful_marginal_entropy.py)
 and the snapshot in
 [`tests/preset_snapshots.json`](../tests/preset_snapshots.json).
 
@@ -104,8 +109,9 @@ recent v4 / v3i19 presets are tabulated; older `v3iN`, `phaseN`, and
 | `v5i1_reward_credit_router` | `apply_plan_faithful_latent_v5i1_reward_credit_router` | `v5_strict_summer` | `SUMMER-COMPATIBLE EXTENSION` | Adds per-episode router PPO on `q_phi` with dedicated AdamW (`latent_episode_strategy_lr = 5e-3`). Compound delta: also flips `latent_resample_every_n = 0`, `latent_lam_p = 0`, entropy schedule, marginal baseline ON. |
 | `v5i2_stronger_z_conditioning` | `apply_plan_faithful_latent_v5i2_stronger_z_conditioning` | `v5i1_reward_credit_router` | `SUMMER-COMPATIBLE EXTENSION` | v5i1 + actor-only FiLM (`enable_actor_z_film = True`, `actor_z_film_init_scale = 0.02`, `actor_z_film_layer = 2`). FiLM is a post-Summer actor-conditioning extension. |
 | `v5i3_balanced_warmup` | `apply_plan_faithful_latent_v5i3_balanced_warmup` | `v5i2_stronger_z_conditioning` | `SUMMER-COMPATIBLE EXTENSION` | v5i2 + forced-z anneal (`0.30 → 0.00` across `200_000 → 500_000`). Forcing is unlabeled uniform exploration, not role assignment; routed via `latent_preference_buffer` so `q_phi`'s PPO update stays on-policy. |
-| **`v5i4_end_to_end`** | **`apply_plan_faithful_latent_v5i4_end_to_end`** | **`v5_strict_summer`** | **`PAPER-FAITHFUL`** | **Canonical paper-faithful operational row.** v5_strict_summer + `latent_strategy_ppo_coef = 0.10` (the on-policy categorical PPO term on `q_phi` that is the paper's "trained end-to-end from task reward" gradient channel). No FiLM, no episode-credit, no forced-z, no aux heads. |
-| **`v5i5_paper_faithful_entropy_floor`** | **`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`** | **`v5i4_end_to_end`** | **`PAPER-FAITHFUL`** | **Single-axis follow-up to v5i4** to combat the v5i4 router's late-training occupancy collapse (~64% on z2 / ~7% on z3 at 1 M steps). Resolved diff vs v5i4 is exactly `{latent_lam_h_end: 0.0002 → 0.001, run_tag}`. The new floor stays inside the documented Summer-plan `[0.001, 0.01]` entropy range, so no fidelity rule (R1..R42) flips state. Adds occupancy-collapse diagnostics (`effective_num_latents`, `latent_occupancy_{min,max,ratio}`, `mean_strategy_duration`) but no new gradient channel and no new objective term. |
+| **`v5i4_end_to_end`** | **`apply_plan_faithful_latent_v5i4_end_to_end`** | **`v5_strict_summer`** | **`PAPER-FAITHFUL`** | Preserved conditional-entropy interpretation: v5_strict_summer + `latent_strategy_ppo_coef = 0.10`, with mean conditional entropy `E_s[H(q_phi(z|s))]`. No FiLM, no episode-credit, no forced-z, no aux heads. |
+| **`v5i5_paper_faithful_entropy_floor`** | **`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`** | **`v5i4_end_to_end`** | **`PAPER-FAITHFUL`** | Higher conditional-entropy-floor ablation. Resolved diff vs v5i4 is exactly `{latent_lam_h_end: 0.0002 → 0.001, run_tag}`; entropy mode remains `conditional`. |
+| **`v5i6_paper_faithful_marginal_entropy`** | **`apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`** | **`v5i4_end_to_end`** | **`PAPER-FAITHFUL`** | **Canonical paper-faithful marginal-entropy interpretation.** Replaces mean conditional entropy with **rollout-level** marginal entropy `KL(N⁻¹Σ_i q_phi(z\|s_i) \|\| U)` over every resample-decision point in the rollout (`latent_entropy_mode = "marginal"`, aggregation = `rollout`, computed once per PPO inner epoch — see method spec §8.1 for the Jensen rationale), uses the v5i5 `λ_H` floor (`0.001`), and changes no actor, critic, sampling, task-PPO, persistence, curriculum, label, or auxiliary channel. |
 
 ### 3.2 v4 family (Summer-proof + post-Summer extension)
 
@@ -190,6 +196,7 @@ pins the alias map; any deletion or rename must be reflected there.
 | `apply_plan_faithful_latent_v5i3_balanced_warmup`           | `plan_faithful_latent_v5i3_balanced_warmup`, `latent_v5i3_balanced_warmup`, `v5i3_balanced_warmup`, `v5i3`, `balanced_warmup`                                                                  |
 | **`apply_plan_faithful_latent_v5i4_end_to_end`**            | **`plan_faithful_latent_v5i4_end_to_end`, `latent_v5i4_end_to_end`, `latent_v5i4_paper_faithful`, `v5i4_end_to_end`, `v5i4_paper_faithful`, `paper_faithful_end_to_end`, `v5i4`**              |
 | **`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`** | **`plan_faithful_latent_v5i5_paper_faithful_entropy_floor`, `plan_faithful_latent_v5i5_entropy_floor`, `latent_v5i5_paper_faithful_entropy_floor`, `latent_v5i5_entropy_floor`, `latent_v5i5_paper_faithful`, `v5i5_paper_faithful_entropy_floor`, `v5i5_paper_faithful`, `v5i5_entropy_floor`, `v5i5`, `paper_faithful_entropy_floor`** |
+| **`apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`** | **`plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`, `plan_faithful_latent_v5i6_marginal_entropy`, `latent_v5i6_paper_faithful_marginal_entropy`, `latent_v5i6_marginal_entropy`, `latent_v5i6_paper_faithful`, `v5i6_paper_faithful_marginal_entropy`, `v5i6_paper_faithful`, `v5i6_marginal_entropy`, `v5i6`, `paper_faithful_marginal_entropy`** |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
 
 The full alias surface lives in
@@ -197,11 +204,14 @@ The full alias surface lives in
 
 ---
 
-## 6. Resolved-configuration delta vs canonical paper-faithful (v5i4)
+## 6. Resolved-configuration deltas vs v5i4 reference row
 
 Each row lists fields whose resolved value differs from v5i4 (i.e. from
 `dataclasses.asdict(apply_preset(PPOConfig(), "v5i4"))`). All other
 scalar fields match v5i4 (re-asserted defensively inside each preset).
+v5i6 is the current canonical row; this section keeps v5i4 as the
+reference to preserve the existing historical delta table and to make
+the entropy-interpretation change easy to audit.
 
 Fields not listed have the v5i4 value. Boolean fields are written as
 `True` / `False`; numeric fields preserve type. The "Forbidden flag?"
@@ -324,17 +334,59 @@ identical (main-loop categorical PPO term at `latent_strategy_ppo_coef
 
 | Column                          | Source                                                                  | Range / interpretation                            |
 |---------------------------------|-------------------------------------------------------------------------|---------------------------------------------------|
-| `latent_marginal_entropy_nats`  | `H` of rollout-marginal `z` distribution                                | `0` (full collapse) to `ln(K)` (uniform).         |
-| `effective_num_latents`         | `exp(latent_marginal_entropy_nats)`                                     | `1` (full collapse) to `K` (uniform).             |
-| `latent_occupancy_min`          | `min_k strategy_occupancy_k`                                            | `[0, 1]`.                                         |
-| `latent_occupancy_max`          | `max_k strategy_occupancy_k`                                            | `[1/K, 1]`.                                       |
+| `latent_marginal_entropy_nats`  | `H` of **sampled-z** rollout-marginal histogram (one categorical sample per state). Distinct from `router_rollout_soft_marginal_entropy_nats`, which is the soft `H(E_s[q_phi(z\|s)])` over the same population. | `0` (full collapse) to `ln(K)` (uniform).         |
+| `effective_num_latents`         | `exp(latent_marginal_entropy_nats)` (sampled).                           | `1` (full collapse) to `K` (uniform).             |
+| `latent_occupancy_min`          | `min_k strategy_occupancy_k` over **sampled** `z`.                       | `[0, 1]`.                                         |
+| `latent_occupancy_max`          | `max_k strategy_occupancy_k` over **sampled** `z`.                       | `[1/K, 1]`.                                       |
 | `latent_occupancy_ratio`        | `latent_occupancy_max / max(latent_occupancy_min, 1e-8)`                | `1.0` = uniform; `>>1` = severe imbalance.        |
 | `mean_strategy_duration`        | `total_decisions / max(1, strategy_resample_count)`                      | Mean dwell length (decisions) per latent arc.     |
 
 These are pure functions of the per-z counts already computed for v5i4;
 they add **no** new gradient channel and **no** new objective term.
 
-### 6.9 plan_faithful_latent_k1 (ABLATION)
+### 6.9 v5i6_paper_faithful_marginal_entropy (PAPER-FAITHFUL — canonical)
+
+The v5i4 → v5i6 resolved-config diff is exactly three keys
+(`latent_entropy_mode`, `latent_lam_h_end`, `run_tag`). The v5i5 → v5i6
+diff is exactly two keys (`latent_entropy_mode`, `run_tag`). These are
+enforced by
+[`tests/test_v5i6_paper_faithful_marginal_entropy.py::V5i6PresetInheritanceTests`](../tests/test_v5i6_paper_faithful_marginal_entropy.py).
+
+| Field                  | v5i4 value | This preset | Forbidden flag? | Note |
+|------------------------|------------|-------------|-----------------|------|
+| `latent_entropy_mode`  | `conditional` | `marginal` | No (R21 ✓) | Replaces mean conditional entropy with rollout-level marginal entropy `KL(q_bar \|\| U)` where `q_bar = N⁻¹ Σ_i q_phi(z\|s_i)` is averaged across **every** resample-decision point in the rollout, computed once per PPO inner epoch via [`rollout_marginal_entropy_loss`](../rl/latent_losses.py). The deprecated per-minibatch helper is kept only for parity tests. |
+| `latent_lam_h_end`     | `0.0002`   | `0.001`     | No (R20 ✓) | Uses the v5i5 floor so v5i6 isolates entropy reduction against v5i5. |
+| `run_tag`              | `v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_1m_4v4` | `v5i6_paper_faithful_marginal_entropy_OP5_OP6_OP7_1m_4v4` | — | Family-aware audit banner detects this tag automatically and emits `aggregation=rollout`. |
+
+All other v5i4 fidelity fields match: concat-only actor, `K = 4`,
+`latent_strategy_ppo_coef = 0.10`, `latent_lam_p = 0.03`, sparse
+64-decision resampling, no episode-credit optimizer, no forced-z
+curriculum, no auxiliary heads, no labels, no FiLM, no preferences, and
+no distillation. `latent_usage_balance_coef` remains `0.0`; the
+marginal entropy term is the lambda_H-driven canonical entropy path, not
+the legacy episode-router usage-balance coefficient.
+
+**v5i6 telemetry added on top of v5i5's sampled-z columns** (computed in
+the same forward pass that produces the rollout-level marginal-entropy
+gradient; soft, not sampled):
+
+| Column                                              | Source                                                                                                          | Range                              |
+|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|------------------------------------|
+| `router_rollout_soft_marginal_entropy_nats`         | `H(N⁻¹ Σ_i q_phi(z\|s_i))` over rollout resample subset                                                          | `[0, ln(K)]`                       |
+| `router_rollout_soft_conditional_entropy_nats`      | `N⁻¹ Σ_i H(q_phi(z\|s_i))` over the same subset                                                                  | `[0, ln(K)]`                       |
+| `router_rollout_soft_mi_proxy_nats`                 | Difference of the two above                                                                                     | `[0, ln(K)]`                       |
+| `router_rollout_soft_p_bar_z<k>` (one per `z`)      | `[N⁻¹ Σ_i q_phi(z\|s_i)]_k`                                                                                      | `[0, 1]` per entry, sum to `1`     |
+| `router_rollout_soft_argmax_occupancy_max`          | `max_z mean_i 1[argmax q_phi(·\|s_i) = z]` (soft-argmax population fraction)                                     | `[1/K, 1]`                         |
+| `router_rollout_soft_argmax_occupancy_min`          | corresponding `min_z`                                                                                           | `[0, 1/K]`                         |
+| `router_rollout_soft_argmax_occupancy_ratio`        | `max / max(min, ε)` — soft-decision imbalance (cf. sampled `latent_occupancy_ratio`)                            | `1` = uniform, ≫ 1 = imbalance     |
+| `router_rollout_resample_count`                     | `N` (rollout-level resample-decision count). 0 indicates no resampling occurred (defensive).                    | `≥ 0`                              |
+
+The desired Summer pattern is **high marginal, low conditional** (broad
+strategy repertoire, state-specific routing). Low marginal + low
+conditional = global collapse; high marginal + high conditional = broad
+but indecisive routing.
+
+### 6.10 plan_faithful_latent_k1 (ABLATION)
 
 | Field        | v5i4 value | This preset | Forbidden flag? | Note                                                       |
 |--------------|------------|-------------|-----------------|------------------------------------------------------------|
@@ -420,6 +472,8 @@ same artifact namespace; pass `--run-tag` to disambiguate when needed.
 | Preset              | Banner fires?                                                            |
 |---------------------|--------------------------------------------------------------------------|
 | `v5i4_paper_faithful_end_to_end` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i4_paper_faithful"`. |
+| `v5i5_paper_faithful_entropy_floor` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i5_paper_faithful"`. |
+| `v5i6_paper_faithful_marginal_entropy` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i6_paper_faithful"`. |
 | Any other preset    | Only if `cfg.latent_paper_faithful_audit = True` is set on the resolved config. |
 
 The banner content and trigger logic live in

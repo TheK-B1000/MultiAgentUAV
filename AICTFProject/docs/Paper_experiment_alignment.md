@@ -213,14 +213,16 @@ Behavior change: v3i19 / v4i1 / v4i3 now *actually* apply their configured `lam_
 | Row | Preset alias | `q_phi` gradient channels |
 |-----|-------------|---------------------------|
 | Strict-Summer (literal) | `v5_strict_summer` | entropy + persistence (+ KL) -- no task-reward signal on `q_phi` |
-| **Paper-faithful operational** | **`v5i4` / `v5i4_paper_faithful`** | **strict-Summer + per-step main-loop categorical PPO on `q_phi` (`latent_strategy_ppo_coef = 0.10`)** |
+| Conditional-entropy paper-faithful | `v5i4` / `v5i4_paper_faithful` | strict-Summer + per-step main-loop categorical PPO on `q_phi` (`latent_strategy_ppo_coef = 0.10`) + mean conditional entropy |
+| Conditional entropy-floor ablation | `v5i5` / `v5i5_paper_faithful_entropy_floor` | v5i4 with `latent_lam_h_end = 0.001`; still mean conditional entropy |
+| **Paper-faithful canonical** | **`v5i6` / `v5i6_paper_faithful`** | **v5i4 with batch-marginal entropy `H(E_s[q_phi(z|s)])` and the v5i5 lambda_H floor; no new labels, curriculum, actor path, or auxiliary channel** |
 | v4i3 + arc-credit | `latent_v4i3_summer_proof` | strict-Summer + per-arc clipped PG (post-Summer extension) |
 | v5i1 episode-credit | `latent_v5i1_reward_credit_router` | strict-Summer + per-episode clipped PG with a dedicated AdamW |
 | v3c episode-credit | `latent_episode_strategic` | per-episode clipped PG (dedicated optimizer) |
 | K=1 collapsed | `plan_faithful_latent_k1` | n/a (latent collapsed) |
 | No-latent | `no_latent_v4i3_baseline` | n/a |
 
-Same opponent pool (`OP5 OP6 OP7`), same seed set, same map, same total timesteps. `v5_strict_summer` tests whether the literal docs/algorithm.md loss alone can train `q_phi`; `v5i4` tests the same architecture plus the single missing piece -- an on-policy categorical PG term on `q_phi` -- without adding any forbidden channel (no labels, no aux heads, no preferences, no curriculum, no FiLM). The row that beats no-latent *only via §6.1* supports the literal Summer claim; the row that requires §6.2 or §6.3 supports the weaker claim "the Summer plan plus a task-reward PG channel on `q_phi` is sufficient."
+Same opponent pool (`OP5 OP6 OP7`), same seed set, same map, same total timesteps. `v5_strict_summer` tests whether the literal docs/algorithm.md loss alone can train `q_phi`; `v5i4` tests the same architecture plus the on-policy categorical PG term on `q_phi`; `v5i6` keeps that task-reward channel and clarifies `H(z)` as batch-marginal entropy over the router training batch. The row that beats no-latent under v5i6 supports the canonical Summer interpretation; v5i6 vs v5i4/v5i5 isolates the entropy reduction choice.
 
 ---
 
@@ -305,10 +307,10 @@ The decisive comparison is `router` vs `random-matched` with the same checkpoint
 
 `v5_strict_summer` exposed an operational problem with the literal docs/algorithm.md loss: with only entropy and persistence on `q_phi`, the router has no signal that distinguishes which `z` improved performance. The paper's claim "the strategy inference network is trained end-to-end from task reward" requires a score-function gradient on the discrete latent. A discrete `q_phi` cannot inherit that gradient from the actor's PPO step merely because the actor consumes its sampled `z`; the gradient stops at the embedding-lookup. The standard fix is an on-policy categorical PPO term on `q_phi`, included **inside `L_MARL`**, not as an auxiliary task.
 
-`v5i4_paper_faithful_end_to_end` is the preset that turns `v5_strict_summer` into the operational paper-faithful baseline by enabling exactly that term. The loss in this run is:
+`v5i4_paper_faithful_end_to_end` is the conditional-entropy reference row that turns `v5_strict_summer` into an end-to-end task-reward row by enabling exactly that term. The canonical operational row is now `v5i6`, which keeps this task-reward channel and changes the entropy reduction to the batch marginal. The v5i4 loss is:
 
 ```text
-L = L_actor_PPO + c_V * L_critic + c_Z * L_strategy_PPO + lam_p * L_persist - lam_H * H(q_phi)
+L = L_actor_PPO + c_V * L_critic + c_Z * L_strategy_PPO + lam_p * L_persist - lam_H * E_s[H(q_phi(z | s))]
 ```
 
 with
@@ -386,8 +388,60 @@ The decisive comparison for the paper's "explicit strategy abstraction improves 
 
 ---
 
+## 6.8 v5i6 canonical marginal-entropy interpretation
+
+`v5i6_paper_faithful_marginal_entropy` inherits v5i4 directly and changes
+the entropy reduction, not the actor, critic, router PPO, persistence,
+sampling cadence, reward, or supervision surface. The canonical loss is:
+
+```text
+L = L_actor_PPO + c_V * L_critic + c_Z * L_strategy_PPO
+    + lam_p * L_persist + lam_H * KL(q_bar || Uniform)
+
+q_bar(z) = E_s[q_phi(z | s)]
+```
+
+Minimizing `KL(q_bar || Uniform)` is equivalent to maximizing
+`H(q_bar)` up to the constant `log(K)`. The term is implemented in
+`rl/latent_losses.py::strategy_marginal_entropy_loss` and is selected
+by `latent_entropy_mode = "marginal"` inside
+`rl/custom_ppo/ppo_updater.py`.
+
+Resolved-config contract:
+
+```text
+v5i4 -> v5i6: latent_entropy_mode, latent_lam_h_end, run_tag
+v5i5 -> v5i6: latent_entropy_mode, run_tag
+```
+
+`latent_usage_balance_coef` stays `0.0`; v5i6 uses the shared
+`lambda_H` schedule for marginal entropy rather than the legacy
+episode-router usage-balance coefficient. The audit banner prints
+`v5i6 paper-faithful audit` and reports `mode=marginal`.
+
+---
+
 ## 7. Changelog
 
+- **v5i6 / canonical marginal-entropy interpretation:** Added
+  `apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`
+  (aliases `v5i6`, `v5i6_paper_faithful`,
+  `v5i6_paper_faithful_marginal_entropy`,
+  `paper_faithful_marginal_entropy`, and long plan/latent aliases)
+  built directly on v5i4. Added `PPOConfig.latent_entropy_mode` with
+  default `"conditional"` and the main-loop marginal entropy loss path
+  in `rl/custom_ppo/ppo_updater.py`, backed by
+  `rl/latent_losses.py::strategy_marginal_entropy_loss`. v5i6 sets
+  `latent_entropy_mode = "marginal"` and `latent_lam_h_end = 0.001`,
+  so the diff vs v5i4 is exactly `{latent_entropy_mode,
+  latent_lam_h_end, run_tag}` and the diff vs v5i5 is exactly
+  `{latent_entropy_mode, run_tag}`. Updated the audit banner, metrics
+  CSV schema (`strategy_marginal_entropy_{loss,nats,kl}`), registry,
+  fidelity rules, protocol docs, and progress tracker. Added
+  `tests/test_v5i6_paper_faithful_marginal_entropy.py`; regenerated
+  `tests/preset_snapshots.json` (adds 10 v5i6 aliases and the new
+  `latent_entropy_mode` field to all snapshot entries; existing
+  presets keep default `conditional`).
 - **Launch-log consistency: pool-mode initial opponent + v5i4 budget tag:** Two logging inconsistencies surfaced in the v5i4 launch log. (1) `rl/train_ppo.py::_resolve_initial_opponent_and_phase` used `cfg.fixed_opponent_tag` (default `"OP3"`) to seed the very first env reset in `OPPONENT_POOL` / `opponent_randomize` mode, leaking an out-of-pool opponent into the first telemetry slice for every preset in the v4i1 / v4i3 / v5* chain (whose pool is `("OP5", "OP6", "OP7")`). The resolver now falls back to the first `cfg.opponent_pool` entry when the legacy `fixed_opponent_tag` is out-of-pool; an explicit in-pool `fixed_opponent_tag` still wins. (2) `v5i4.run_tag` flipped `_2m_ -> _1m_` so the tag agrees with the actual `total_timesteps = 1_000_000` budget (the rest of the v5 chain keeps the misleading `_2m_` suffix to preserve existing artifact paths). Pinned by 4 new tests in `tests/test_v5i4_paper_faithful.py::V5i4RunTagAndInitialOpponentConsistencyTests`; regenerated `tests/preset_snapshots.json` (single delta: 7 v5i4 aliases' `run_tag` updated, no other scalar drift).
 - **v5i4 / paper-faithful end-to-end (task-reward PG on `q_phi` as part of `L_MARL`):** Added `apply_plan_faithful_latent_v5i4_end_to_end` (aliases `v5i4`, `v5i4_paper_faithful`, `v5i4_end_to_end`, `paper_faithful_end_to_end`, `latent_v5i4_paper_faithful`, `latent_v5i4_end_to_end`, `plan_faithful_latent_v5i4_end_to_end`) built directly on `v5_strict_summer`. The single semantic change is `latent_strategy_ppo_coef = 0.10`: this enables the per-step main-loop categorical PPO term on `q_phi` (`rl/latent_losses.py::strategy_ppo_loss`), which is the on-policy task-reward gradient channel the paper's "trained end-to-end from task reward" wording requires. The term lives inside `L_MARL` (no dedicated optimizer; the main-loop gate in `rl/custom_ppo/ppo_updater.py` drives it via the shared optimizer). Every post-Summer extension stays OFF: FiLM (v5i2), forced-z anneal (v5i3), episode-credit + dedicated router AdamW (v5i1), arc-credit (v3i19/v4i3), aux return / phase heads, preferences, router distillation. Added `_maybe_print_paper_faithful_audit` to `rl/training/banner.py` that emits the v5i4 invariant block when `cfg.run_tag` contains `"v5i4_paper_faithful"` (or `cfg.latent_paper_faithful_audit = True`), with explicit `WARNING` lines for the three documented mis-configurations (`strategy_ppo_coef <= 0`, dedicated router AdamW set, non-concat actor-z pathway). Added `tests/test_v5i4_paper_faithful.py` (22 tests) pinning inheritance, concat-only actor input dim (`164`), zero forced-z at every step, router task-gradient is enabled, zero-advantage = zero policy_loss, no forbidden channels, sparse 64-step resampling, alias snapshot equality, banner output. Regenerated `tests/preset_snapshots.json` (only structural changes: 7 new v5i4 aliases + previously un-snapshotted v5i1 / v5i2 / v5i3 aliases + 7 new schedule/FiLM fields added to all existing presets; zero scalar drift in any existing field, verified by `json.load` set-diff against the prior HEAD snapshot).
 - **v5i3 / forced-z anneal + per-z router telemetry + matched-schedule random-router eval:** Added `apply_plan_faithful_latent_v5i3_balanced_warmup` (aliases `v5i3`, `v5i3_balanced_warmup`, `balanced_warmup`, etc.) layering a `0.30 -> 0.00` forced-z anneal across `200k -> 500k` on top of v5i2. Added four `latent_forced_z_episode_frac_{start,end}` + `latent_forced_z_anneal_{start,end}` fields in `PPOConfig` and `resolve_latent_forced_z_frac` in `rl/custom_ppo/schedules.py`. Wired the resolved fraction into `latent_strategy_state.py` at the episode-start forcing decision; `trainer.global_step` restore makes resumes correct. Added 8 per-`z` telemetry columns to `_update_fieldnames` and `apply_episode_strategy_ppo`. Added `--latent-selection {router,random-matched,random-episode,fixed}` to `plot/eval_checkpoint.py` for the matched-schedule routing-quality ablation. Zero-config reproduction: any preset that does not set the four `_start/_end` fields gets `latent_forced_z_episode_frac` constant (v5i2 still resolves to 0.0 at every step).

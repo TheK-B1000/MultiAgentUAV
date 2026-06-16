@@ -1,11 +1,11 @@
-"""Focused tests for the v5i4 paper-faithful end-to-end preset.
+"""Focused tests for the v5i4 paper-faithful conditional-entropy row.
 
-v5i4 is the "Summer-faithful, operational" row of the proof table. It is
-built directly on v5_strict_summer (NOT on v5i1/v5i2/v5i3) with one
-correction: the on-policy categorical PPO term on ``q_phi`` is enabled
-via ``latent_strategy_ppo_coef = 0.10`` so the router actually learns
-from task reward, which is the literal claim in
-:mod:`docs.algorithm` / the Summer plan.
+v5i4 is built directly on v5_strict_summer (NOT on v5i1/v5i2/v5i3) with
+one correction: the on-policy categorical PPO term on ``q_phi`` is
+enabled via ``latent_strategy_ppo_coef = 0.10`` so the router actually
+learns from task reward. v5i6 inherits this contract and is the current
+canonical Summer interpretation because it changes the entropy reduction
+to batch-marginal entropy.
 
 These tests pin the v5i4 contract end-to-end:
 

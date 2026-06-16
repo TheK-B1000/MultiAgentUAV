@@ -64,8 +64,8 @@ from the preset name.
 | # | Field / property                                  | Required value                                                                              |
 |---|---------------------------------------------------|----------------------------------------------------------------------------------------------|
 | R19 | `latent_lam_p`                                   | `> 0` (canonical: `0.03`; allowed plan range `[0.01, 0.05]`)                                 |
-| R20 | `latent_lam_h`                                   | `> 0` (canonical: `0.003 → 0.0002` anneal over 0..300k)                                      |
-| R21 | `latent_entropy_objective`                       | `"maximize"` (sign in the minimized loss is `−λ_H · H̄`)                                     |
+| R20 | `latent_lam_h`                                   | `> 0` (canonical v5i6: `0.003 → 0.001` anneal over 0..300k)                                  |
+| R21 | `latent_entropy_mode` / `latent_entropy_objective` | `"marginal"` / `"maximize"` for the canonical row. v5i4/v5i5 preserve the conditional-entropy interpretation as comparison rows. |
 | R22 | `latent_kl_consecutive`                          | `0.0` (the consecutive-KL term is "optional §12"; off in the canonical row)                  |
 
 ### 1.6 Resampling cadence
@@ -96,7 +96,7 @@ from the preset name.
 | R39 | `latent_context_mi_coef`                         | `0.0`                                                                                        |
 | R40 | `latent_actor_z_separation_coef` and `_start_coef` | `0.0`                                                                                      |
 | R41 | `latent_behavior_contrast_coef`                  | `0.0`                                                                                        |
-| R42 | `latent_usage_balance_coef`                      | `0.0`                                                                                        |
+| R42 | `latent_usage_balance_coef`                      | `0.0` for v5i6's lambda_H-driven marginal-entropy implementation; nonzero only allowed as a documented equivalent marginal-entropy implementation with conditional entropy disabled. |
 
 ---
 
@@ -118,6 +118,10 @@ preset that claims to be `PAPER-FAITHFUL`, the classification is invalid.
 * Hand-designed strategic rewards (`env_*` and `reward_shaping_*` deltas
   must be reviewed; if a literal-strict paper row is desired, these
   should match the no-latent baseline).
+* Simultaneous conditional-entropy maximization and marginal-entropy
+  balancing in the primary paper-faithful row. v5i6 uses one canonical
+  entropy objective: batch-marginal entropy over expected router
+  probabilities.
 * Hard-coded `z`→role mapping in code or doc.
 * Event-triggered hard switching (R24, R25).
 * Options / hierarchical sub-policies.
@@ -169,11 +173,13 @@ diagnostics, and Summer-compatible extensions.
 
 ## 5. Required audit banner
 
-A paper-faithful run must emit the v5i4 audit banner at training start
+A paper-faithful run must emit the paper-faithful audit banner at training start
 ([`rl/training/banner.py::_maybe_print_paper_faithful_audit`](../rl/training/banner.py)).
 The banner is fired by either of:
 
-* `cfg.run_tag` containing `"v5i4_paper_faithful"`, or
+* `cfg.run_tag` containing a recognized paper-faithful family tag
+  (`"v5i4_paper_faithful"`, `"v5i5_paper_faithful"`,
+  `"v5i6_paper_faithful"`), or
 * `cfg.latent_paper_faithful_audit = True` (opt-in flag for future
   paper-faithful presets).
 
@@ -189,7 +195,7 @@ The banner must include lines containing:
 * `arc-credit: OFF`
 * `preferences/distillation: OFF`
 * `persistence: ON`
-* `entropy maximization: ON (objective=<str>)`
+* `entropy maximization: ON (mode=<conditional|marginal>, objective=<str>)`
 * `resampling cadence: every 64 decisions`
 
 Banner output is pinned by
@@ -237,7 +243,10 @@ tests that confirm:
 10. **Preference and distillation channels disabled.** R31–R34.
 11. **Auxiliary prediction heads disabled.** R7–R8.
 12. **Persistence enabled within documented range.** R19.
-13. **Entropy maximization enabled with correct sign.** R20–R21.
+13. **Entropy maximization enabled with correct sign and reduction.**
+    Canonical v5i6 requires `latent_entropy_mode == "marginal"` and
+    `latent_entropy_objective == "maximize"`; conditional-entropy rows
+    must be named and documented as v5i4/v5i5 comparison rows.
 14. **Resampling cadence matches the paper method.** `latent_resample_every_n
     == 64`, `latent_resample_on_flag is False`.
 15. **No flag-triggered resampling.** `latent_event_refresh_enabled ==
@@ -270,7 +279,8 @@ here so future agents do not silently re-interpret them.
 | O3  | `c_Z` value (`latent_strategy_ppo_coef = 0.10`) is an implementation choice; paper doesn't lock a number      | preset code                                                                                          | Documented in v5i4 docstring; pinned by tests |
 | O4  | Resample cadence (`64`) is an implementation choice; paper requires "sparse"                                  | preset code                                                                                          | Documented; pinned by tests |
 | O5  | Reward shaping coefficients inherited from upstream presets (`v4i1`/`v4i3`) — not strictly "task-reward only" | `apply_plan_faithful_latent_v4i1_strategic_pressure_qprobe` and ancestors                           | Open: any nonzero `env_*` or `reward_shaping_*` field should be reviewed before publishing a "task reward only" claim |
-| O6  | Backwards-compat docs in `docs/algorithm.md` and `Paper_experiment_alignment.md` predate v5i4                  | older sections describe v4i3 / v3i19 as "Summer-faithful proof"                                      | v5i4 is the operational paper-faithful baseline; v4i3 is `SUMMER-COMPATIBLE EXTENSION` because of arc-credit |
+| O6  | Backwards-compat docs in `docs/algorithm.md` and `Paper_experiment_alignment.md` predate v5i6                  | older sections describe v4i3 / v3i19 as "Summer-faithful proof" or v5i4 as the operational baseline  | v5i6 is the canonical paper-faithful row; v5i4/v5i5 are conditional-entropy comparison rows and v4i3 is `SUMMER-COMPATIBLE EXTENSION` because of arc-credit |
+| O7  | `H(z)` reduction: mean conditional entropy vs batch-marginal entropy                                           | original notation did not specify whether entropy is reduced before or after averaging over states    | Resolved for this repo: v5i6 is canonical and uses `latent_entropy_mode = "marginal"`; v5i4/v5i5 remain conditional-entropy comparison rows |
 
 ---
 

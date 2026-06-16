@@ -129,19 +129,36 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
     Added for v5i5 (occupancy-collapse diagnostics requested with the
     entropy-floor experiment; no new gradient channel, no new objective):
 
-    * ``effective_num_latents`` -- ``exp(H)`` of the rollout-marginal
-      latent distribution (counts ``z_t`` over all timesteps).
-      Equals ``K`` for uniform; equals 1 for full collapse.
-    * ``latent_marginal_entropy_nats`` -- the underlying ``H``.
-    * ``latent_occupancy_min`` / ``latent_occupancy_max`` -- the lowest
-      and highest per-z occupancies in this rollout.
-    * ``latent_occupancy_ratio`` -- ``max / max(min, 1e-8)``. Large
-      values = severe imbalance; ``1.0`` = perfect uniformity.
+    * ``effective_num_latents`` -- ``exp(H)`` of the **sampled-z**
+      rollout-marginal distribution (one categorical sample per state,
+      ``argmax``-style). Equals ``K`` for uniform sampled occupancy;
+      equals 1 for full collapse.
+    * ``latent_marginal_entropy_nats`` -- the underlying ``H`` of the
+      **sampled-z empirical histogram** (NOT ``H(E_s[q_phi(z|s)])``;
+      see ``router_rollout_soft_marginal_entropy_nats`` for the soft
+      analogue computed from differentiable router probabilities).
+    * ``latent_occupancy_min`` / ``latent_occupancy_max`` --
+      **sampled-z** per-z population fractions; one categorical sample
+      per state. Distinct from ``router_rollout_soft_argmax_occupancy_*``
+      which is computed from ``argmax_z q_phi(z|s)`` over the same
+      states (no sampling noise but still a hard decision; both labels
+      are kept for cross-checking).
+    * ``latent_occupancy_ratio`` -- ``max / max(min, 1e-8)`` of the
+      sampled-z occupancy. Large = severe sampled imbalance; ``1.0`` =
+      perfect uniform sampling.
     * ``mean_strategy_duration`` -- mean dwell length in decision steps
       between latent switches. Computed as
       ``num_decision_steps / max(1, num_arc_boundaries)`` where
       ``num_arc_boundaries = strategy_resample_count``. Stays a
       diagnostic; not used in any loss.
+
+    All five v5i5 diagnostics above are derived from one-sample-per-state
+    empirical histograms over the categorical samples ``z_t`` written to
+    the rollout buffer. The soft-router analogues (``H(\bar q)``,
+    ``mean_i H(q_i)``, MI proxy, soft-argmax occupancy, per-z ``\bar q``)
+    live in the ``router_rollout_soft_*`` columns and are emitted by
+    ``rl/latent_losses.py::rollout_router_soft_diagnostics`` from the
+    same population the v5i6 marginal-entropy loss is taken over.
     """
     if not trainer.use_latent_strategy or "z" not in buffer.fields:
         return {}

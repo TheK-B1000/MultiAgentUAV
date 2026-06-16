@@ -134,8 +134,10 @@ The training objective is:
 Checkpoints saved before the 19-float global-state expansion are intentionally not load-compatible with the current critic/q_phi input shape. Start a fresh run or load a checkpoint trained after that change.
 
 ```text
-L = L_PPO + lambda_p * L_persist - lambda_H * H(q_phi(z | s))
+L = L_PPO + lambda_p * L_persist - lambda_H * H(E_s[q_phi(z | s)])
 ```
+
+The canonical v5i6 interpretation applies entropy to the batch-marginal router distribution. Older v5i4/v5i5 rows keep the mean conditional entropy form for comparison; see `summer-method-spec.md` for the owning definition.
 
 Do not resample `z` every timestep. Use once-per-episode or sparse refresh intervals such as every 20 steps.
 

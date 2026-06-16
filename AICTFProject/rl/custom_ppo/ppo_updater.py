@@ -24,9 +24,12 @@ import torch
 import torch.nn.functional as F
 
 from rl.latent_losses import (
+    rollout_marginal_entropy_loss as _latent_rollout_marginal_entropy_loss,
+    rollout_router_soft_diagnostics as _latent_rollout_router_soft_diagnostics,
     strategy_aux_return_loss as _latent_strategy_aux_return_loss,
     strategy_entropy_loss as _latent_strategy_entropy_loss,
     strategy_kl_consecutive_loss as _latent_strategy_kl_consecutive_loss,
+    strategy_marginal_entropy_loss as _latent_strategy_marginal_entropy_loss,
     strategy_persistence_loss as _latent_strategy_persistence_loss,
     strategy_phase_aux_loss as _latent_strategy_phase_aux_loss,
     strategy_ppo_loss as _latent_strategy_ppo_loss,
@@ -355,15 +358,105 @@ class PPOUpdater:
             "strategy_resample_fraction": [],
             "strategy_kl": [],
             "strategy_phase_loss": [],
+            "strategy_marginal_entropy_loss": [],
+            "strategy_marginal_entropy_nats": [],
+            "strategy_marginal_entropy_kl": [],
+            "router_rollout_soft_marginal_entropy_nats": [],
+            "router_rollout_soft_conditional_entropy_nats": [],
+            "router_rollout_soft_mi_proxy_nats": [],
+            "router_rollout_soft_argmax_occupancy_max": [],
+            "router_rollout_soft_argmax_occupancy_min": [],
+            "router_rollout_soft_argmax_occupancy_ratio": [],
+            "router_rollout_resample_count": [],
             "latent_actor_z_separation_loss": [],
             "latent_actor_z_separation_jsd": [],
             "latent_actor_z_separation_active": [],
         }
+        for _k_idx in range(int(hparams.latent_k)):
+            stats[f"router_rollout_soft_p_bar_z{_k_idx}"] = []
+        # Pre-resolved per-update entropy mode / coefficient. Constant across
+        # the n_epochs * n_minibatches inner loop because it depends only on
+        # cfg and the per-update lambda_H schedule. Used to gate the
+        # rollout-level marginal entropy pass below.
+        h_mode_global = str(
+            getattr(cfg, "latent_entropy_mode", "conditional") or "conditional"
+        ).lower()
+        h_goal_global = str(
+            getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
+        ).lower()
+        has_dedicated_router_opt_global = (
+            getattr(runtime, "latent_router_optimizer", None) is not None
+        )
+        apply_rollout_marginal = (
+            hparams.use_latent_strategy
+            and h_mode_global == "marginal"
+            and not has_dedicated_router_opt_global
+            and float(latent_lam_h or 0.0) > 0.0
+            and h_goal_global != "none"
+            and not bool(getattr(hparams, "fixed_latent_strategy", False))
+        )
+        rollout_resample_states_full: torch.Tensor | None = None
+        if apply_rollout_marginal:
+            try:
+                T_full = int(buffer.pos)
+                if T_full > 0 and "global_state" in buffer.fields and "z_resampled" in buffer.fields:
+                    gs_full = buffer.fields["global_state"][:T_full]
+                    gs_full = gs_full.reshape(
+                        T_full * buffer.n_envs, *gs_full.shape[2:]
+                    )
+                    rs_full = buffer.fields["z_resampled"][:T_full]
+                    rs_full = rs_full.reshape(-1).bool()
+                    if rs_full.numel() == gs_full.shape[0] and bool(rs_full.any()):
+                        rollout_resample_states_full = gs_full[rs_full]
+            except Exception:
+                rollout_resample_states_full = None
+        # Most-recent rollout-level diagnostics from the current PPO update.
+        # Computed once per epoch (when apply_rollout_marginal is True);
+        # forward-filled into every minibatch row's CSV so analysis keeps a
+        # single time-series even though the underlying quantity updates 6
+        # times per PPO update.
+        last_rollout_marginal_stats: dict[str, float] = {}
+        last_rollout_soft_diag: dict[str, float] = {}
         stop_update = False
         target_kl = getattr(cfg, "target_kl", None)
         model = self.model
-        for _ in range(hparams.n_epochs):
-            for batch in buffer.iter_minibatches(hparams.batch_size, shuffle=True):
+        for _epoch_idx in range(hparams.n_epochs):
+            # Once-per-epoch rollout-level marginal-entropy forward+loss for v5i6.
+            #
+            # Why per-epoch and not per-minibatch:
+            #   The minibatch path (strategy_marginal_entropy_loss) computes
+            #   p_bar over ~16 resample samples per minibatch. KL is convex in
+            #   p_bar, so by Jensen the per-minibatch loss is a strict upper
+            #   bound on the rollout-level objective; the gap is closed by
+            #   softening individual q(z|s) toward uniform — exactly the
+            #   conditional-entropy regression v5i6 was designed to avoid.
+            #   Aggregating over all rollout resample points before applying
+            #   KL recovers the intended objective:
+            #     L = lam_H * KL( N^{-1} sum_i q_phi(z|s_i) || U )
+            #
+            # Why per-epoch and not per-update:
+            #   q_phi parameters drift across the n_epochs inner loop. Refresh
+            #   the rollout-level p_bar at the start of each epoch so the
+            #   gradient is computed against current parameters.
+            rollout_marginal_loss_for_epoch: torch.Tensor | None = None
+            if apply_rollout_marginal and rollout_resample_states_full is not None:
+                rollout_logits = model.strategy_logits(rollout_resample_states_full)
+                rml, rml_stats = _latent_rollout_marginal_entropy_loss(
+                    rollout_logits,
+                    objective=h_goal_global,
+                    lam_h=float(latent_lam_h),
+                    latent_k=int(hparams.latent_k),
+                    device=device,
+                )
+                rollout_marginal_loss_for_epoch = rml
+                last_rollout_marginal_stats = rml_stats
+                last_rollout_soft_diag = _latent_rollout_router_soft_diagnostics(
+                    rollout_logits.detach(),
+                    latent_k=int(hparams.latent_k),
+                )
+            for _mb_idx, batch in enumerate(
+                buffer.iter_minibatches(hparams.batch_size, shuffle=True)
+            ):
                 obs_batch = {
                     "grid": batch["obs_grid"],
                     "vec": batch["obs_vec"],
@@ -394,16 +487,40 @@ class PPOUpdater:
                     log_prob = action_log_prob
                     strategy_log_prob = aux["strategy_log_prob"]
                     strategy_entropy = aux["strategy_entropy"]
+                    h_mode = str(
+                        getattr(cfg, "latent_entropy_mode", "conditional")
+                        or "conditional"
+                    ).lower()
                     h_goal = str(
                         getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
                     ).lower()
-                    strategy_entropy_loss, _ = _latent_strategy_entropy_loss(
-                        strategy_entropy,
-                        resample,
-                        objective=h_goal,
-                        lam_h=latent_lam_h,
-                        device=device,
-                    )
+                    if h_mode == "marginal":
+                        # v5i6 marginal entropy is computed once per inner
+                        # epoch over the FULL rollout resample subset
+                        # (rollout_marginal_loss_for_epoch above), not
+                        # per-minibatch. Per-minibatch p_bar over ~N/64
+                        # samples is upper-biased vs the rollout-level
+                        # objective by Jensen and is not the loss we want
+                        # to optimize. Suppress here; the true loss is
+                        # added to the first minibatch's latent_loss
+                        # below.
+                        strategy_entropy_loss = torch.zeros(
+                            (), dtype=torch.float32, device=device
+                        )
+                        entropy_mode_stats = {
+                            "strategy_marginal_entropy_nats": 0.0,
+                            "strategy_marginal_entropy_kl": 0.0,
+                        }
+                    else:
+                        strategy_entropy_loss, entropy_mode_stats = (
+                            _latent_strategy_entropy_loss(
+                                strategy_entropy,
+                                resample,
+                                objective=h_goal,
+                                lam_h=latent_lam_h,
+                                device=device,
+                            )
+                        )
                     persist_term_loss, persist_stats = _latent_strategy_persistence_loss(
                         aux["strategy_logits"],
                         batch["prev_z"],
@@ -468,6 +585,34 @@ class PPOUpdater:
                     )
                     if not apply_entropy_loss:
                         strategy_entropy_loss = torch.zeros_like(strategy_entropy_loss)
+                    # v5i6 reports the rollout-level scalar loss, KL, and
+                    # marginal entropy in the existing
+                    # ``strategy_marginal_entropy_*`` columns so a single
+                    # time series captures "what entropy term is currently
+                    # active". Other modes / non-v5i6 presets continue to
+                    # report 0 for these rows. The redundant
+                    # ``router_rollout_soft_*`` columns (added separately)
+                    # keep an unambiguous label for the same rollout-level
+                    # quantities for downstream analysis.
+                    if (
+                        h_mode == "marginal"
+                        and apply_entropy_loss
+                        and apply_rollout_marginal
+                        and last_rollout_marginal_stats
+                    ):
+                        strategy_marginal_entropy_loss_value = float(
+                            last_rollout_marginal_stats.get("rollout_marginal_entropy_kl", 0.0)
+                        ) * float(latent_lam_h)
+                        strategy_marginal_entropy_nats_value = float(
+                            last_rollout_marginal_stats.get("rollout_marginal_entropy_nats", 0.0)
+                        )
+                        strategy_marginal_entropy_kl_value = float(
+                            last_rollout_marginal_stats.get("rollout_marginal_entropy_kl", 0.0)
+                        )
+                    else:
+                        strategy_marginal_entropy_loss_value = 0.0
+                        strategy_marginal_entropy_nats_value = 0.0
+                        strategy_marginal_entropy_kl_value = 0.0
                     if not apply_persistence_loss:
                         persist_term_loss = torch.zeros_like(persist_term_loss)
                     persist_loss_value = (
@@ -476,6 +621,17 @@ class PPOUpdater:
                         else 0.0
                     )
                     latent_loss = persist_term_loss + strategy_entropy_loss
+                    # First minibatch of the inner epoch carries the
+                    # rollout-level marginal entropy gradient. Subsequent
+                    # minibatches in the same epoch contribute zero to the
+                    # marginal term (its gradient was already realized).
+                    if (
+                        _mb_idx == 0
+                        and apply_entropy_loss
+                        and apply_rollout_marginal
+                        and rollout_marginal_loss_for_epoch is not None
+                    ):
+                        latent_loss = latent_loss + rollout_marginal_loss_for_epoch
                     if hparams.latent_kl_consecutive > 0.0:
                         kl_loss, kl_stats = _latent_strategy_kl_consecutive_loss(
                             batch["z_logits"],
@@ -509,6 +665,9 @@ class PPOUpdater:
                         strategy_entropy = torch.zeros_like(entropy)
                         persist_loss_value = 0.0
                         latent_loss = torch.zeros((), dtype=torch.float32, device=device)
+                        strategy_marginal_entropy_loss_value = 0.0
+                        strategy_marginal_entropy_nats_value = 0.0
+                        strategy_marginal_entropy_kl_value = 0.0
                     if (
                         curr_sep_coef > 0.0
                         and not hparams.fixed_latent_strategy
@@ -576,6 +735,9 @@ class PPOUpdater:
                     persist_loss_value = 0.0
                     latent_loss = torch.zeros((), dtype=torch.float32, device=device)
                     resample = torch.zeros_like(entropy, dtype=torch.bool)
+                    strategy_marginal_entropy_loss_value = 0.0
+                    strategy_marginal_entropy_nats_value = 0.0
+                    strategy_marginal_entropy_kl_value = 0.0
                     stats["strategy_kl"].append(0.0)
                     stats["strategy_phase_loss"].append(0.0)
 
@@ -707,6 +869,60 @@ class PPOUpdater:
                 )
                 stats["strategy_aux_return_loss"].append(float(strategy_aux_return_loss_value))
                 stats["strategy_persist_loss"].append(float(persist_loss_value))
+                stats["strategy_marginal_entropy_loss"].append(
+                    float(strategy_marginal_entropy_loss_value)
+                )
+                stats["strategy_marginal_entropy_nats"].append(
+                    float(strategy_marginal_entropy_nats_value)
+                )
+                stats["strategy_marginal_entropy_kl"].append(
+                    float(strategy_marginal_entropy_kl_value)
+                )
+                # Rollout-level soft router diagnostics. Computed once per
+                # inner epoch (forward-filled into every minibatch row);
+                # zero on non-marginal modes / non-v5i6 presets so the
+                # column schema is stable.
+                stats["router_rollout_soft_marginal_entropy_nats"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_soft_marginal_entropy_nats", 0.0
+                    ))
+                )
+                stats["router_rollout_soft_conditional_entropy_nats"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_soft_conditional_entropy_nats", 0.0
+                    ))
+                )
+                stats["router_rollout_soft_mi_proxy_nats"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_soft_mi_proxy_nats", 0.0
+                    ))
+                )
+                stats["router_rollout_soft_argmax_occupancy_max"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_soft_argmax_occupancy_max", 0.0
+                    ))
+                )
+                stats["router_rollout_soft_argmax_occupancy_min"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_soft_argmax_occupancy_min", 0.0
+                    ))
+                )
+                stats["router_rollout_soft_argmax_occupancy_ratio"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_soft_argmax_occupancy_ratio", 0.0
+                    ))
+                )
+                stats["router_rollout_resample_count"].append(
+                    float(last_rollout_soft_diag.get(
+                        "router_rollout_resample_count", 0.0
+                    ))
+                )
+                for _k_idx in range(int(hparams.latent_k)):
+                    stats[f"router_rollout_soft_p_bar_z{_k_idx}"].append(
+                        float(last_rollout_soft_diag.get(
+                            f"router_rollout_soft_p_bar_z{_k_idx}", 0.0
+                        ))
+                    )
                 stats["strategy_grad_norm"].append(strategy_grad_norm)
                 stats["strategy_resample_fraction"].append(
                     float(resample.float().mean().detach().cpu().item())

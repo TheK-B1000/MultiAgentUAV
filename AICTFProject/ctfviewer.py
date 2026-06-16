@@ -34,7 +34,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
 # Default matches a typical local PPO run: `python -m rl.train_ppo --agents 2 --run-tag my_smoke_2v2`
 # (override with: python ctfviewer.py --ppo-model checkpoints/2v2/your_run.zip)
-DEFAULT_PPO_MODEL_PATH = "checkpoints/2v2/final_ppo_latent_fixed_op3_2v2.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints/4v4/final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4.zip"
 N_MACROS = 5
 N_TARGETS = 50
 

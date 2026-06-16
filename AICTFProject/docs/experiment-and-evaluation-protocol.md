@@ -38,7 +38,7 @@ flag on the resulting claim.
 | `n_envs`                                                         | `32`                                                                          |
 | `n_steps`                                                        | `2048` (`PPOConfig` default)                                                  |
 | `n_epochs`                                                       | `6`                                                                           |
-| Seed                                                             | Fixed integer (`--seed 0` for the v5i4 in-flight run)                         |
+| Seed                                                             | Fixed integer (`--seed 0` for the v5i6 first launch; v5i4 used seed 0)        |
 | Device                                                           | `cuda`                                                                        |
 | Map / env config                                                 | Default (`GPUFieldConfig` defaults)                                           |
 | Periodic checkpoint cadence                                      | `--periodic-checkpoint-steps 50000`                                           |
@@ -46,20 +46,19 @@ flag on the resulting claim.
 | Fresh metrics CSV                                                | ON (`--fresh-metrics-csv`)                                                    |
 | Checkpoint directory                                             | `checkpoints/4v4`                                                             |
 
-The v5i4 launch command in
-[`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.7
-is the canonical reference. Any new launch in the v5 / v4 ladder must
-match it except for `--preset` and (if intentional) `--run-tag`.
+The v5i6 launch command below is the canonical reference. Any new
+launch in the v5 / v4 ladder must match it except for `--preset` and
+(if intentional) `--run-tag`.
 
 ---
 
 ## 2. Launch protocol
 
-### 2.1 Canonical paper-faithful launch (v5i4)
+### 2.1 Canonical paper-faithful launch (v5i6)
 
 ```powershell
 .\.venv\Scripts\python.exe rl/train_ppo.py `
-    --preset v5i4_paper_faithful `
+    --preset v5i6_paper_faithful `
     --total-steps 1000000 `
     --agents 4 `
     --seed 0 `
@@ -86,8 +85,10 @@ Before pressing enter on any latent training launch:
    [`tests/preset_snapshots.json`](../tests/preset_snapshots.json). The
    resolved dict is the only authoritative source.
 3. **Confirm audit banner trigger.** For any preset that should print
-   the v5i4 invariant block at training start, verify either
-   `cfg.run_tag` contains `"v5i4_paper_faithful"` or
+   the paper-faithful invariant block at training start, verify either
+   `cfg.run_tag` contains a recognized family tag
+   (`"v5i4_paper_faithful"`, `"v5i5_paper_faithful"`,
+   `"v5i6_paper_faithful"`) or
    `cfg.latent_paper_faithful_audit = True`. The banner code lives in
    [`rl/training/banner.py::_maybe_print_paper_faithful_audit`](../rl/training/banner.py).
 4. **Confirm `run_tag` matches the actual budget.** v5i4 corrected
@@ -114,7 +115,9 @@ Before pressing enter on any latent training launch:
 
 | Preset                              | `--preset` value             | Extra notes                                                                                                                          |
 |-------------------------------------|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| Canonical paper-faithful (v5i4)     | `v5i4_paper_faithful`        | Default audit banner fires. Use any of the seven aliases (§5 in registry) — all resolve identically.                                 |
+| Canonical paper-faithful (v5i6)     | `v5i6_paper_faithful`        | Default audit banner fires. Use any of the ten aliases (§5 in registry) — all resolve identically.                                  |
+| Conditional-entropy interpretation  | `v5i4_paper_faithful`        | Preserved comparison row with mean conditional entropy.                                                                              |
+| Conditional entropy-floor ablation  | `v5i5_paper_faithful_entropy_floor` | Same conditional entropy as v5i4, but `latent_lam_h_end = 0.001`.                                                              |
 | Literal-strict ablation             | `v5_strict_summer`           | Same launch flags. Tag will carry `_2m_4v4` (historical); pass `--run-tag` to override.                                              |
 | No-latent baseline (matched control)| `no_latent_v4i3_baseline`    | Same launch flags. `use_latent_strategy = False`. Tag is budget-agnostic.                                                            |
 | Arc-credit row                      | `v4i3_summer_proof`          | Same launch flags. Tag is budget-agnostic; preset is `SUMMER-COMPATIBLE EXTENSION`, **not** literal paper-faithful (arc-credit ON).  |
@@ -130,18 +133,20 @@ improves CTF coordination"]) is three rows under §1's locked invariants:
 
 | Comparison                                                                                | Isolates                                                  |
 |-------------------------------------------------------------------------------------------|-----------------------------------------------------------|
-| **v5i4** vs **no_latent_v4i3_baseline**                                                   | The contribution of the entire latent mechanism, with the paper-literal architecture and a single (minimal) task-reward gradient channel on `q_phi`. |
-| **v5i4** vs **v5_strict_summer**                                                          | The contribution of the on-policy categorical PPO term on `q_phi` (i.e. whether persistence + entropy alone train `q_phi`). |
-| **v5i4 router** vs **v5i4 random-matched** (at eval time, same checkpoint)                | Routing quality from actor quality at fixed actor weights. |
+| **v5i6** vs **no_latent_v4i3_baseline**                                                   | The contribution of the entire latent mechanism under the canonical marginal-entropy interpretation. |
+| **v5i6** vs **v5_strict_summer**                                                          | The contribution of the on-policy categorical PPO term on `q_phi` plus the canonical entropy interpretation, relative to persistence + entropy alone. |
+| **v5i6 router** vs **v5i6 random-matched** (at eval time, same checkpoint)                | Routing quality from actor quality at fixed actor weights. |
 
 Optional rows for paper depth (already in the registry):
 
 | Comparison                                | Isolates                                                                              |
 |-------------------------------------------|---------------------------------------------------------------------------------------|
-| **v5i4** vs **v4i3_summer_proof**         | Arc-credit (v3i19 extension) vs main-loop per-step PG. Both train `q_phi` from task reward; the temporal aggregation differs. |
-| **v5i4** vs **v5i1_reward_credit_router** | Per-step main-loop PG vs per-episode router PG with dedicated AdamW. Mutually exclusive (R10). |
-| **v5i4** vs **plan_faithful_latent_k1**   | Whether latent *capacity* itself contributes (controls for any K>1 effect).            |
-| **v5i4** vs **v4i4post_periodic_router_distill** | Whether counterfactual distillation (offline q_probe targets) adds anything to the literal paper-faithful run. |
+| **v5i6** vs **v5i4**                       | Marginal entropy vs mean conditional entropy at the same actor / critic / router-PPO / persistence / sampling contract. |
+| **v5i6** vs **v5i5**                       | Entropy reduction only: both use the same `0.003 → 0.001` lambda_H schedule. |
+| **v5i6** vs **v4i3_summer_proof**          | Arc-credit (v3i19 extension) vs main-loop per-step PG plus marginal entropy. |
+| **v5i6** vs **v5i1_reward_credit_router**  | Per-step main-loop PG plus marginal entropy vs per-episode router PG with dedicated AdamW. |
+| **v5i6** vs **plan_faithful_latent_k1**    | Whether latent *capacity* itself contributes. |
+| **v5i6** vs **v4i4post_periodic_router_distill** | Whether counterfactual distillation adds anything to the canonical paper-faithful run. |
 
 ---
 
@@ -326,7 +331,7 @@ forced-`z` causal probe (§6.4 / §6.5).
 ### 6.7 Summary report (`tools/summer_proof_report.py`)
 
 [`tools/summer_proof_report.py`](../tools/summer_proof_report.py)
-assembles the v4i3 / v5i4 Summer-Proof gates from the metrics CSV,
+assembles the v4i3 / v5i4 / v5i6 Summer-Proof gates from the metrics CSV,
 the q_probe outputs, and the local counterfactual outputs into a single
 Markdown report. The thresholds default to `0.10` (forced-z return
 contrast and local Q-contrast); override with `--gate2-threshold`
@@ -355,9 +360,9 @@ Even before evaluation, the training run must satisfy:
 1. **Audit banner fires for any paper-faithful preset** and lists
    every channel ON/OFF state per
    [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §5. Pinned by
-   [`tests/test_v5i4_paper_faithful.py::V5i4PaperFaithfulAuditBannerTests`](../tests/test_v5i4_paper_faithful.py).
+   the v5i4/v5i5/v5i6 banner tests.
 2. **The actor input dim line reads** `cnn(128) + per_agent_vec(20) +
-   z_emb(16) = 164` for v5i4. Any other resolved width means the actor
+   z_emb(16) = 164` for v5i4 / v5i5 / v5i6. Any other resolved width means the actor
    pathway has been altered; stop the run.
 3. **`qphi_grad` per-update telemetry is nonzero on the resample
    subset** in any paper-faithful run. If it is zero, either
@@ -393,7 +398,7 @@ preserve:
   truncated. Trainer-side append guards exist in
   [`rl/custom_ppo/csv_writers.py`](../rl/custom_ppo/csv_writers.py).
 * **Latent state-dict back-compat.** Older checkpoints can be loaded
-  by the v5i4 actor as long as the actor input width matches; the
+  by the v5i4/v5i6 actor as long as the actor input width matches; the
   legacy remap lives in
   [`rl/custom_ppo/policy.py`](../rl/custom_ppo/policy.py). Pinned by
   [`tests/test_custom_ppo_policy_parity.py`](../tests/test_custom_ppo_policy_parity.py).

@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-06-15 (UTC-4)
+> **Last updated:** 2026-06-16 (UTC-4)
 
 ---
 
@@ -45,15 +45,15 @@ All rows use the §1 invariants of
 unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 `n_epochs=6`, `--seed 0`, `--device cuda`).
 
-### 2.1 v5i4 (canonical paper-faithful) — `COMPLETED`
+### 2.1 v5i4 (conditional-entropy paper-faithful interpretation) — `COMPLETED`
 
 | Property                                | Value                                                                                                 |
 |-----------------------------------------|-------------------------------------------------------------------------------------------------------|
-| Preset                                  | `v5i4_paper_faithful` (canonical paper-faithful)                                                      |
+| Preset                                  | `v5i4_paper_faithful` (conditional-entropy paper-faithful interpretation)                             |
 | Classification                          | `PAPER-FAITHFUL`                                                                                       |
 | Status                                  | `COMPLETED` — 1,000,000 / 1,000,000 decision steps (2 h 05 m wall).                                   |
 | Run tag on disk (artifact filename)     | `v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4`                                                   |
-| Canonical run tag (post-fix preset)     | `v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_1m_4v4`                                                   |
+| Post-fix preset run tag                 | `v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_1m_4v4`                                                   |
 | Discrepancy                             | Run was launched before the `_2m_` → `_1m_` tag fix; artifacts retain `_2m_`. See [`latent-preset-registry.md`](latent-preset-registry.md) §7.1. |
 | Final checkpoint                        | `AICTFProject/checkpoints/4v4/final_v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4.zip`            |
 | Periodic checkpoints                    | 50k stride → `ckpt_..._50000.zip` … `ckpt_..._1000000.zip`                                            |
@@ -99,8 +99,8 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 5. Compare to `no_latent_v4i3_baseline` (a re-launched 1 M-step
    baseline at the same seed; the existing v4i3 baseline is at the
    v4i3 budget).
-6. Decide whether the router collapse warrants a `PLANNED` entropy-floor
-   ablation (see §3.1 below) before adding seeds.
+6. Use this row as the conditional-entropy reference for v5i6 comparisons
+   before adding more v5i4 seeds.
 
 ### 2.2 v5_strict_summer (literal-Summer ablation) — `COMPLETED` (earlier)
 
@@ -170,7 +170,85 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
 
-### 3.1 v5i5 — entropy-floor against router collapse (IMPLEMENTED, PENDING_LAUNCH)
+### 3.1 v5i6 — canonical marginal-entropy interpretation (IMPLEMENTED, PENDING_LAUNCH)
+
+**Status:** `IMPLEMENTED, PENDING_LAUNCH`. Preset committed as
+`v5i6_paper_faithful_marginal_entropy` (apply function
+`apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`
+in `rl/presets/plan_faithful.py`). Aliases registered in
+`rl/presets/__init__.py`. Fidelity tests live in
+`tests/test_v5i6_paper_faithful_marginal_entropy.py`. Snapshot
+regenerated. Audit banner prints `[PPO] v5i6 paper-faithful audit:`
+and reports
+`entropy maximization: ON (mode=marginal, aggregation=rollout, objective=maximize)`.
+
+**Scientific delta:** v5i6 inherits v5i4 directly and replaces mean
+conditional entropy `E_s[H(q_phi(z|s))]` with **rollout-level**
+marginal entropy `H(E_s[q_phi(z|s)])` aggregated over **every**
+resample-decision point in the rollout (not per-PPO-minibatch — see
+`summer-method-spec.md` §8.1 for the Jensen rationale). The marginal
+loss is computed once per PPO inner epoch by
+[`rl/latent_losses.py::rollout_marginal_entropy_loss`](../rl/latent_losses.py),
+applied to the first minibatch of that epoch's `latent_loss`, and uses
+the same `lambda_H` schedule as v5i5 (`0.003 -> 0.001` over
+`0..300_000`) so the v5i6-vs-v5i5 comparison isolates only the
+entropy-reduction interpretation. No actor, critic, sampling,
+router-PPO, persistence, curriculum, label, FiLM, episode-credit,
+preference, distillation, or auxiliary-head channel changes.
+
+**Resolved diffs:** v5i4 -> v5i6 is exactly
+`{latent_entropy_mode, latent_lam_h_end, run_tag}`. v5i5 -> v5i6 is
+exactly `{latent_entropy_mode, run_tag}`.
+
+**Aggregation contract (post-Jensen-bias-fix):** the marginal entropy
+loss must be taken over the **full** rollout resample subset (~1024
+states for the standard 32-env × 2048-step rollout with cadence 64).
+The deprecated per-minibatch helper `strategy_marginal_entropy_loss`
+(active in earlier v5i6 prototypes) systematically over-applied the
+loss by Jensen `E_B[KL(q_bar_B || U)] >= KL(q_bar_rollout || U)` and
+the gap was closed by the gradient softening individual `q_phi(z|s)`
+toward uniform — the conditional-entropy regression v5i6 was meant
+to replace. The current rollout-level path is pinned by
+`tests/test_latent_losses.py::RolloutMarginalEntropyLossTests` and
+`tests/test_v5i6_paper_faithful_marginal_entropy.py::V5i6RolloutMarginalEntropyContractTests`.
+
+**Required evidence to declare v5i6 successful:**
+
+1. High aggregate usage: `router_rollout_soft_marginal_entropy_nats /
+   ln(K)` (and the sampled-z analogue `latent_marginal_entropy_nats /
+   ln(K)` / `effective_num_latents`) remain high late in training.
+2. Confident routing: `router_rollout_soft_conditional_entropy_nats`
+   (per-state `H(q_phi(z|s))` averaged over the same rollout resample
+   subset) stays meaningfully below the marginal value, producing
+   positive `router_rollout_soft_mi_proxy_nats` rather than uniform
+   per-state indecision. This is the "broad and state-specific"
+   pattern; the failure mode "broad but indecisive" appears as both
+   marginal and conditional approaching `ln(K)`.
+3. Soft-argmax occupancy stays balanced:
+   `router_rollout_soft_argmax_occupancy_max < ~0.50` and
+   `router_rollout_soft_argmax_occupancy_ratio` close to `1`.
+4. Forced-z evaluations show distinct behaviors under matched seeds.
+5. `router` beats `random-matched` at eval time without a meaningful
+   win-rate loss versus v5i4/v5i5.
+
+**Launch command:**
+
+```bash
+python rl/train_ppo.py \
+  --preset v5i6_paper_faithful \
+  --total-steps 1000000 \
+  --agents 4 \
+  --seed 0 \
+  --device cuda \
+  --n-envs 32 \
+  --n-epochs 6 \
+  --e3-step-telemetry \
+  --checkpoint-dir checkpoints/4v4 \
+  --fresh-metrics-csv \
+  --periodic-checkpoint-steps 50000
+```
+
+### 3.2 v5i5 — conditional entropy-floor ablation (IMPLEMENTED, PENDING_LAUNCH)
 
 **Status:** `IMPLEMENTED, PENDING_LAUNCH`. Preset committed as
 `v5i5_paper_faithful_entropy_floor` (apply function
@@ -248,7 +326,7 @@ python rl/train_ppo.py \
 `--latent-strategy-ppo-coef`, `--latent-lam-p`, etc., or the v5i5
 contract is broken.)
 
-### 3.2 v5i4 multi-seed (PLANNED)
+### 3.3 v5i4 multi-seed (PLANNED)
 
 **Status:** `PLANNED`. After the v5i4 single-seed eval matrix
 (§2.1) and the `no_latent_v4i3_baseline` matched-budget re-launch,
@@ -256,7 +334,7 @@ add **two more v5i4 seeds** (`--seed 1`, `--seed 2`) and two more
 `no_latent_v4i3_baseline` seeds to reach the §5.4 headline minimum
 of three seeds per row.
 
-### 3.3 v5i4 random-matched eval (PLANNED, eval-time only)
+### 3.4 v5i4 random-matched eval (PLANNED, eval-time only)
 
 **Status:** `PLANNED`, no training cost. Run
 `plot/eval_checkpoint.py --latent-selection router` and
@@ -265,7 +343,7 @@ checkpoint with identical `--seed` and identical `--episodes`. The
 delta is the matched-schedule routing-quality control
 ([`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md) §4.2).
 
-### 3.4 v4i4post_periodic_router_distill comparison (DEFERRED)
+### 3.5 v4i4post_periodic_router_distill comparison (DEFERRED)
 
 **Status:** `DEFERRED`. Counter-factual router distillation is the
 honest next step *only* if v5i4 fails its gates (§2.1 eval matrix +
@@ -279,10 +357,10 @@ deprioritized.
 
 | ID  | Question                                                                                                          | Owner action                                                                                                                                |
 |-----|-------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| D1  | Should v5i5 raise the entropy floor *or* delay the anneal *or* both?                                              | File the *Proposed Preset Review* template (§3.1); the §8 template forces a one-axis choice or an explicit compound-extension classification. |
+| D1  | Should the canonical entropy interpretation be conditional or marginal?                                           | Closed: v5i6 makes batch-marginal entropy canonical; v5i4/v5i5 remain conditional comparison rows. |
 | D2  | The `_2m_` artifact-history suffix on the v5i4 in-flight run — rename or leave?                                   | Leave. Renaming changes embedded `run_tag` metadata; per [`latent-preset-registry.md`](latent-preset-registry.md) §7.1 we route by filename. |
 | D3  | Re-launch `no_latent_v4i3_baseline` at v5i4's exact budget / seed, or rely on the v4i3-budget baseline already on disk? | Re-launch. The §1 invariants in `experiment-and-evaluation-protocol.md` require matched budget and seed for a headline comparison.           |
-| D4  | If v5i4's routing-quality control (`router` vs `random-matched`) does **not** show a significant Δ, does the paper claim survive? | Open. Acceptable answers: (a) drop the operational claim and report v5i4 as `PAPER-FAITHFUL but inconclusive`; (b) escalate to v5i5 (entropy floor) and rerun. |
+| D4  | If v5i6's routing-quality control (`router` vs `random-matched`) does **not** show a significant Δ, does the paper claim survive? | Open. Acceptable answers: (a) report the canonical row as `PAPER-FAITHFUL but inconclusive`; (b) escalate to an explicitly named extension and rerun. |
 | D5  | Should `latent_strategy_ppo_coef = 0.10` (`c_Z`) be swept?                                                        | Open. Recorded as O3 in `summer-fidelity-rules.md` §7. A sweep is `SUMMER-COMPATIBLE EXTENSION` if any value ≠ `0.10` is used in a headline row. |
 | D6  | Update [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §3's `GLOBAL_STATE_DIM = 19` paragraph to match the current `GLOBAL_STATE_DIM = 34` / `CONTEXT_STATE_DIM = 170`. | Open (O1 in `summer-fidelity-rules.md` §7). Code is authoritative; doc paragraph needs an update note.                                       |
 
@@ -292,38 +370,36 @@ deprioritized.
 
 | ID  | Decision                                                                                                                              | Date         | Where recorded                                                                                                                                                       |
 |-----|----------------------------------------------------------------------------------------------------------------------------------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| C1  | v5i4 is the canonical paper-faithful preset; v4i3 is the arc-credit row, not the headline paper-faithful row.                          | 2026-06-15   | [`AGENTS.md`](../../AGENTS.md) §3, [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.7.                                                            |
+| C1  | v5i4 became the first operational paper-faithful conditional-entropy row; v4i3 is the arc-credit row, not the headline paper-faithful row. Superseded for canonical launch priority by C7. | 2026-06-15   | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.7. |
 | C2  | The main-loop gate must trigger off `latent_router_optimizer is not None`, not off `latent_strategy_ppo_coef == 0`.                    | (pre-v5i4)   | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.4; `tests/test_marginal_baseline.py::MainLoopGatingTests`.                                       |
 | C3  | The actor must read `z` only via `nn.Embedding(K, d_z)` concat in any paper-faithful row (FiLM / adapter / one-hot OFF).               | (with v5i4)  | [`summer-method-spec.md`](summer-method-spec.md) §5; `tests/test_v5i4_paper_faithful.py::V5i4ConcatOnlyActorTests`.                                                  |
 | C4  | The forced-z resolver must be a pure function of `cfg` and the passed `global_step` (so resumes pick up the schedule correctly).       | (with v5i3)  | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.6; `tests/test_forced_z_anneal.py`.                                                              |
 | C5  | v5i4's `run_tag` flips `_2m_` → `_1m_` so the tag advertises the actual `total_timesteps`. v5_strict_summer / v5i1 / v5i2 / v5i3 keep `_2m_` to preserve artifact paths. | 2026-06-15   | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §7; [`latent-preset-registry.md`](latent-preset-registry.md) §7; `tests/test_v5i4_paper_faithful.py::V5i4RunTagAndInitialOpponentConsistencyTests`. |
 | C6  | In pool mode, the first env reset must use the first pool entry, not `cfg.fixed_opponent_tag` when the latter is out-of-pool.          | 2026-06-15   | `rl/train_ppo.py::_resolve_initial_opponent_and_phase`; `tests/test_v5i4_paper_faithful.py::V5i4RunTagAndInitialOpponentConsistencyTests`.                          |
+| C7  | v5i6 is the canonical paper-faithful Summer interpretation: entropy protects the batch-marginal strategy repertoire while v5i4/v5i5 remain conditional-entropy comparison rows. | 2026-06-16   | [`summer-method-spec.md`](summer-method-spec.md) §8/§12; [`latent-preset-registry.md`](latent-preset-registry.md) §2/§6.9; `tests/test_v5i6_paper_faithful_marginal_entropy.py`. |
+| C8  | v5i6's marginal entropy MUST be aggregated over the **full rollout** resample subset, not per-PPO-minibatch. The per-minibatch path is provably an upper bound on the intended objective by Jensen and the gap is closed by softening individual `q_phi(z\|s)` toward uniform — the conditional regression v5i6 was designed to replace. Implementation: [`rl/latent_losses.py::rollout_marginal_entropy_loss`](../rl/latent_losses.py) called once per PPO inner epoch from [`rl/custom_ppo/ppo_updater.py`](../rl/custom_ppo/ppo_updater.py); deprecated `strategy_marginal_entropy_loss` kept only for parity tests. | 2026-06-16 | [`summer-method-spec.md`](summer-method-spec.md) §8.1; `tests/test_latent_losses.py::RolloutMarginalEntropyLossTests` (Jensen demo); `tests/test_v5i6_paper_faithful_marginal_entropy.py::V5i6RolloutMarginalEntropyContractTests`. |
 
 ---
 
 ## 6. Recommended next experiments (priority-ordered)
 
-1. **v5i4 eval matrix (no training cost).** Run the §4 protocol in
-   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md)
-   on the existing `final_v5i4_...zip` checkpoint. Includes the
-   `router` vs `random-matched` routing-quality control.
-2. **`no_latent_v4i3_baseline` re-launch at v5i4's exact budget /
-   seed.** Closes D3 and unlocks the headline `v5i4 vs no-latent`
+1. **Launch v5i6 seed 0 (§3.1).** This is now the canonical
+   paper-faithful row. Preserve the §1 invariants in
+   `experiment-and-evaluation-protocol.md`.
+2. **Run the v5i6 eval matrix and random-matched control.** Use
+   `plot/eval_checkpoint.py --latent-selection router` and
+   `--latent-selection random-matched` on the same checkpoint, seed, and
+   episode budget.
+3. **Run forced-z behavioral probes for v5i6.** Use matched seeds across
+   `z=0..K-1` before making causal behavior claims.
+4. **Run v5i6 vs v5i4/v5i5 comparisons.** v5i6 vs v5i4 tests the full
+   marginal-entropy switch; v5i6 vs v5i5 isolates entropy reduction at
+   the same lambda_H floor.
+5. **`no_latent_v4i3_baseline` re-launch at v5i6's exact budget /
+   seed.** Closes D3 for the new headline `v5i6 vs no-latent`
    comparison.
-3. **v5i5 entropy-floor IMPLEMENTED (§3.1).** Preset, aliases, audit
-   banner, snapshot, and fidelity tests are committed and green.
-   Launch with `--config v5i5_paper_faithful_entropy_floor --seed 0`
-   once the v5i4 routing control closes (so the comparison is paired
-   on a like-for-like v5i4 reference). The new occupancy-collapse
-   diagnostics (`effective_num_latents`,
-   `latent_occupancy_{min,max,ratio}`, `mean_strategy_duration`)
-   are emitted to the metrics CSV for both v5i4 and v5i5 going
-   forward, so the comparison can be made directly without
-   post-processing.
-4. **v5i4 multi-seed (§3.2).** Two additional seeds, same budget.
-5. **`tools/summer_proof_report.py` v5i4 vs no_latent rerun** with the
-   newly produced eval CSVs. This is the Markdown artifact that should
-   accompany any v5i4 headline claim.
+6. **v5i6 multi-seed.** Add seeds 1 and 2 only after seed 0 passes the
+   router-quality and no-loss checks.
 
 ---
 

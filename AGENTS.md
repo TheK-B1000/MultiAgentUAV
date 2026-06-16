@@ -110,6 +110,51 @@ launch-time audit banner is family-aware and prints
 `[PPO] v5i5 paper-faithful audit:` for v5i5 runs (see
 `rl/training/banner.py`).
 
+**Canonical paper-faithful row (v5i6).** The current canonical
+operational paper-faithful preset is
+`v5i6_paper_faithful_marginal_entropy`, registered as:
+
+```text
+function: apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy
+file:     rl/presets/plan_faithful.py
+run_tag:  v5i6_paper_faithful_marginal_entropy_OP5_OP6_OP7_1m_4v4
+aliases:  v5i6
+          v5i6_paper_faithful
+          v5i6_paper_faithful_marginal_entropy
+          v5i6_marginal_entropy
+          paper_faithful_marginal_entropy
+          latent_v5i6_paper_faithful
+          latent_v5i6_paper_faithful_marginal_entropy
+          latent_v5i6_marginal_entropy
+          plan_faithful_latent_v5i6_paper_faithful_marginal_entropy
+          plan_faithful_latent_v5i6_marginal_entropy
+```
+
+v5i6's resolved-config diff against v5i4 is exactly **three keys**
+(`latent_entropy_mode`, `latent_lam_h_end`, `run_tag`) and against v5i5
+exactly **two keys** (`latent_entropy_mode`, `run_tag`). The single
+scientific change versus v5i5 is the entropy interpretation: mean
+conditional entropy `E_s[H(q_phi(z|s))]` becomes **rollout-level**
+marginal entropy `H(E_s[q_phi(z|s)])`.
+
+> **Aggregation contract — read before touching v5i6's loss path.**
+> The marginal entropy loss MUST be aggregated over the **entire**
+> rollout resample subset (~1024 states for the standard rollout),
+> not per-PPO-minibatch. KL is convex in `q_bar` so the per-minibatch
+> aggregation is a strict upper bound on the intended rollout-level
+> objective by Jensen, and the bias is closed by the gradient softening
+> individual `q_phi(z|s)` toward uniform — the conditional regression
+> v5i6 was meant to replace. Implementation lives in
+> `rl/latent_losses.py::rollout_marginal_entropy_loss` (called once
+> per PPO inner epoch from `rl/custom_ppo/ppo_updater.py`); the
+> deprecated per-minibatch helper `strategy_marginal_entropy_loss` is
+> retained ONLY for parity tests and must NOT be wired into a v5i6
+> production path. Pinned by
+> `tests/test_latent_losses.py::RolloutMarginalEntropyLossTests` (Jensen
+> demo) and
+> `tests/test_v5i6_paper_faithful_marginal_entropy.py::V5i6RolloutMarginalEntropyContractTests`.
+> See `docs/summer-method-spec.md` §8.1 for the rationale.
+
 **Run-tag history (`_2m_` → `_1m_`):** v5_strict_summer / v5i1 / v5i2 /
 v5i3 inherited a misleading `_2m_4v4` suffix from v4i1 without ever
 overriding `total_timesteps` from its `PPOConfig` default of
@@ -225,7 +270,9 @@ existing pinning tests green. The relevant ones are:
 | `tests/test_preset_resolution.py`                    | Preset registry alias resolution. |
 | `tests/test_marginal_baseline.py`                    | Main-loop gating semantics (the dedicated-optimizer fix that made `lam_p`/`lam_h` actually flow into `q_phi`). |
 | `tests/test_forced_z_anneal.py`                      | Forced-z resolver and resume safety (only meaningful for v5i3-class presets; v5i4 must resolve to 0 at every step). |
-| `tests/test_latent_losses.py`                        | Pure-tensor checks on `strategy_ppo_loss`, `strategy_persistence_loss`, `strategy_entropy_loss`, `strategy_kl_consecutive_loss`, `strategy_aux_return_loss`. |
+| `tests/test_latent_losses.py`                        | Pure-tensor checks on `strategy_ppo_loss`, `strategy_persistence_loss`, `strategy_entropy_loss`, `strategy_kl_consecutive_loss`, `strategy_aux_return_loss`, `strategy_marginal_entropy_loss` (deprecated per-minibatch path; parity-only), `rollout_marginal_entropy_loss` (canonical v5i6 path), `rollout_router_soft_diagnostics`, plus the Jensen demo (`RolloutMarginalEntropyLossTests::test_jensen_demo_per_minibatch_upper_bounds_rollout_level`). |
+| `tests/test_v5i5_paper_faithful_entropy_floor.py`    | v5i5 inheritance, single-axis diff vs v5i4 (`latent_lam_h_end` + `run_tag` only), audit banner family detection, sampled-z occupancy diagnostic schema. |
+| `tests/test_v5i6_paper_faithful_marginal_entropy.py` | v5i6 inheritance, single-axis diffs (vs v5i4 = 3 keys, vs v5i5 = 2 keys), `latent_entropy_mode = "marginal"` contract, audit banner reports `aggregation=rollout`, rollout-level marginal-entropy correctness on perfect-specialization and collapse cases, `router_rollout_soft_*` CSV schema. |
 | `tests/test_latent_strategy_alignment.py`            | Spec-trace alignment of the latent stack. |
 | `tests/test_train_ppo_smoke.py`                      | One-update training smoke. |
 | `tests/test_audit_regressions.py`                    | Trainer audit banner shape / content. |

@@ -22,6 +22,7 @@ no autograd shortcuts. The only goal is "same numbers, tested in isolation."
 
 from __future__ import annotations
 
+import math
 from typing import Dict, Tuple
 
 import torch
@@ -69,6 +70,218 @@ def strategy_entropy_loss(
     if obj == "minimize":
         return lam_h * h_mean, {"strategy_entropy_term_mean": float(h_mean.detach().cpu().item())}
     return -lam_h * h_mean, {"strategy_entropy_term_mean": float(h_mean.detach().cpu().item())}
+
+
+def strategy_marginal_entropy_loss(
+    strategy_logits: Tensor,
+    resample_mask: Tensor,
+    *,
+    objective: str,
+    lam_h: float,
+    latent_k: int,
+    device: torch.device,
+) -> Tuple[Tensor, _LossStats]:
+    """Per-minibatch marginal entropy loss (PARITY-ONLY, NOT USED IN v5i6).
+
+    Computes ``KL(mean_s q_phi(z|s) || Uniform)`` over the resample subset of
+    the *current PPO minibatch*. The mean is taken over fewer than 1 / N of
+    the rollout's resample-decision points, and KL is convex in ``p_bar``, so
+    by Jensen ``E_B[KL(p_bar_B || U)] >= KL(E_B[p_bar_B] || U)``: the
+    per-minibatch loss is a strict upper bound on the rollout-level marginal
+    KL whenever the per-minibatch ``p_bar_B`` are not constant. The bias is
+    closed by the gradient softening individual ``q_phi(z|s)`` rows toward
+    uniform — the conditional-entropy regression v5i6 was designed to avoid.
+
+    .. deprecated:: v5i6 (rollout-level aggregation)
+       Retained ONLY for parity tests against the historical implementation
+       and as a comparison baseline. Production code MUST use
+       ``rollout_marginal_entropy_loss`` (computed once per PPO inner epoch
+       over the full rollout resample subset). The PPO updater no longer
+       wires this function into any production preset; if you find it
+       active in a v5i6-family run, that is a regression.
+    """
+    obj = str(objective or "maximize").lower()
+    if not bool(resample_mask.any()):
+        return _zero_scalar(device), {
+            "strategy_marginal_entropy_nats": 0.0,
+            "strategy_marginal_entropy_kl": 0.0,
+        }
+
+    probs = torch.softmax(strategy_logits[resample_mask], dim=-1)
+    p_bar = probs.mean(dim=0).clamp_min(1e-8)
+    marginal_entropy = -(p_bar * torch.log(p_bar)).sum()
+    usage_kl = (
+        p_bar
+        * (torch.log(p_bar) + torch.log(p_bar.new_tensor(float(latent_k))))
+    ).sum()
+
+    if obj == "none" or lam_h <= 0.0:
+        loss = _zero_scalar(device)
+    elif obj == "minimize":
+        loss = -float(lam_h) * usage_kl
+    else:
+        loss = float(lam_h) * usage_kl
+    return loss, {
+        "strategy_marginal_entropy_nats": float(
+            marginal_entropy.detach().cpu().item()
+        ),
+        "strategy_marginal_entropy_kl": float(usage_kl.detach().cpu().item()),
+    }
+
+
+def rollout_marginal_entropy_loss(
+    rollout_resample_logits: Tensor,
+    *,
+    objective: str,
+    lam_h: float,
+    latent_k: int,
+    device: torch.device,
+) -> Tuple[Tensor, _LossStats]:
+    """Rollout-level marginal entropy loss for the v5i6 contract.
+
+    Caller responsibilities:
+        ``rollout_resample_logits`` MUST be the differentiable router logits
+        evaluated at *every* router-decision point in the current rollout
+        (i.e. all rows where ``z_resampled == True``), not just those landing
+        in the current PPO minibatch. The caller is responsible for gathering
+        these states from the rollout buffer and running ONE forward pass
+        through ``q_phi`` so gradients can flow.
+
+    Loss math (for ``objective="maximize"``):
+
+    .. math::
+
+        \\bar q = \\frac{1}{N}\\sum_{i=1}^{N} \\mathrm{softmax}(\\ell_i)
+
+        L = \\lambda_H \\cdot \\mathrm{KL}(\\bar q \\,\\Vert\\, U)
+              = \\lambda_H \\cdot (\\log K - H(\\bar q))
+
+    Minimizing ``L`` maximizes the *rollout-aggregated* marginal entropy
+    ``H(\\bar q)``. Because the average is taken over the entire rollout
+    population in a single forward+backward, this implementation does NOT
+    suffer the per-minibatch Jensen bias of ``strategy_marginal_entropy_loss``
+    (see that function's docstring).
+
+    Stats include rollout-level diagnostics from the same population:
+
+    * ``rollout_marginal_entropy_nats``: ``H(\\bar q)``
+    * ``rollout_marginal_entropy_kl``: ``KL(\\bar q || U)``
+    * ``rollout_conditional_entropy_nats``: ``mean_i H(softmax(\\ell_i))``
+    * ``rollout_mi_proxy_nats``:
+      ``rollout_marginal_entropy_nats - rollout_conditional_entropy_nats``
+    * ``rollout_resample_count``: ``N`` (so analysis can spot empty rollouts)
+    """
+    obj = str(objective or "maximize").lower()
+    if rollout_resample_logits.numel() == 0 or rollout_resample_logits.shape[0] == 0:
+        return _zero_scalar(device), {
+            "rollout_marginal_entropy_nats": 0.0,
+            "rollout_marginal_entropy_kl": 0.0,
+            "rollout_conditional_entropy_nats": 0.0,
+            "rollout_mi_proxy_nats": 0.0,
+            "rollout_resample_count": 0.0,
+        }
+
+    probs = torch.softmax(rollout_resample_logits, dim=-1)
+    p_bar = probs.mean(dim=0).clamp_min(1e-8)
+    marginal_entropy = -(p_bar * torch.log(p_bar)).sum()
+    usage_kl = (
+        p_bar
+        * (torch.log(p_bar) + torch.log(p_bar.new_tensor(float(latent_k))))
+    ).sum()
+    per_state_entropy = -(probs.clamp_min(1e-8) * torch.log(probs.clamp_min(1e-8))).sum(dim=-1)
+    conditional_entropy = per_state_entropy.mean()
+    mi_proxy = marginal_entropy - conditional_entropy
+
+    if obj == "none" or lam_h <= 0.0:
+        loss = _zero_scalar(device)
+    elif obj == "minimize":
+        loss = -float(lam_h) * usage_kl
+    else:
+        loss = float(lam_h) * usage_kl
+    return loss, {
+        "rollout_marginal_entropy_nats": float(marginal_entropy.detach().cpu().item()),
+        "rollout_marginal_entropy_kl": float(usage_kl.detach().cpu().item()),
+        "rollout_conditional_entropy_nats": float(
+            conditional_entropy.detach().cpu().item()
+        ),
+        "rollout_mi_proxy_nats": float(mi_proxy.detach().cpu().item()),
+        "rollout_resample_count": float(rollout_resample_logits.shape[0]),
+    }
+
+
+def rollout_router_soft_diagnostics(
+    rollout_resample_logits: Tensor,
+    *,
+    latent_k: int,
+) -> _LossStats:
+    """Non-gradient soft router diagnostics over the rollout resample subset.
+
+    Returns the same ``H_marginal``, ``H_conditional``, ``MI_proxy`` measured
+    by ``rollout_marginal_entropy_loss``, plus soft-decision occupancy:
+
+    * ``router_rollout_soft_marginal_entropy_nats``: ``H(\\bar q)``
+    * ``router_rollout_soft_conditional_entropy_nats``: ``mean_i H(q_i)``
+    * ``router_rollout_soft_mi_proxy_nats``: difference of the two above
+    * ``router_rollout_soft_p_bar_z<k>``: per-z entries of ``\\bar q``
+    * ``router_rollout_soft_argmax_occupancy_max``: max over z of
+      ``mean_i 1[\\arg\\max q_i = z]`` (soft-argmax population fraction)
+    * ``router_rollout_soft_argmax_occupancy_min``: corresponding min
+    * ``router_rollout_soft_argmax_occupancy_ratio``: max / max(min, eps)
+
+    These are intentionally distinct from the *sampled-z* counterparts in
+    ``rl/custom_ppo/latent_diagnostics.py`` (``latent_occupancy_*``,
+    ``latent_marginal_entropy_nats``, ``effective_num_latents``), which are
+    one-sample-per-state empirical histograms over the categorical samples.
+
+    No gradients are computed; safe to call inside a ``no_grad`` context.
+    """
+    K = int(latent_k)
+    if (
+        rollout_resample_logits.numel() == 0
+        or rollout_resample_logits.shape[0] == 0
+    ):
+        out: _LossStats = {
+            "router_rollout_soft_marginal_entropy_nats": 0.0,
+            "router_rollout_soft_conditional_entropy_nats": 0.0,
+            "router_rollout_soft_mi_proxy_nats": 0.0,
+            "router_rollout_soft_argmax_occupancy_max": 0.0,
+            "router_rollout_soft_argmax_occupancy_min": 0.0,
+            "router_rollout_soft_argmax_occupancy_ratio": 0.0,
+            "router_rollout_resample_count": 0.0,
+        }
+        for k in range(K):
+            out[f"router_rollout_soft_p_bar_z{k}"] = 0.0
+        return out
+
+    with torch.no_grad():
+        probs = torch.softmax(rollout_resample_logits, dim=-1)
+        p_bar = probs.mean(dim=0).clamp_min(1e-12)
+        marg_h = -(p_bar * torch.log(p_bar)).sum()
+        cond_h = -(probs.clamp_min(1e-12) * torch.log(probs.clamp_min(1e-12))).sum(dim=-1).mean()
+
+        argmax = probs.argmax(dim=-1)
+        counts = torch.bincount(argmax, minlength=K).to(torch.float32)
+        occ = counts / max(1, int(argmax.shape[0]))
+        occ_max = float(occ.max().item())
+        occ_min = float(occ.min().item())
+        occ_ratio = occ_max / max(occ_min, 1e-12) if occ_min > 0.0 else float("inf")
+        # ``inf`` is unfriendly to CSV consumers; cap at a large sentinel and
+        # rely on ``occ_min`` to disambiguate true zero-population z's.
+        if not math.isfinite(occ_ratio):
+            occ_ratio = float(K) * float(occ_max) * 1e6
+
+    out = {
+        "router_rollout_soft_marginal_entropy_nats": float(marg_h.item()),
+        "router_rollout_soft_conditional_entropy_nats": float(cond_h.item()),
+        "router_rollout_soft_mi_proxy_nats": float((marg_h - cond_h).item()),
+        "router_rollout_soft_argmax_occupancy_max": occ_max,
+        "router_rollout_soft_argmax_occupancy_min": occ_min,
+        "router_rollout_soft_argmax_occupancy_ratio": occ_ratio,
+        "router_rollout_resample_count": float(int(argmax.shape[0])),
+    }
+    for k in range(K):
+        out[f"router_rollout_soft_p_bar_z{k}"] = float(p_bar[k].item())
+    return out
 
 
 def strategy_persistence_loss(
@@ -212,7 +425,10 @@ def strategy_aux_return_loss(
 
 
 __all__ = [
+    "rollout_marginal_entropy_loss",
+    "rollout_router_soft_diagnostics",
     "strategy_entropy_loss",
+    "strategy_marginal_entropy_loss",
     "strategy_persistence_loss",
     "strategy_kl_consecutive_loss",
     "strategy_phase_aux_loss",
