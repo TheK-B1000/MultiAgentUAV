@@ -1773,7 +1773,12 @@ def apply_plan_faithful_latent_v5i4_end_to_end(
     cfg.latent_conditional_entropy_min_coef_start = 0.0
     cfg.latent_context_mi_coef = 0.0
 
-    cfg.run_tag = "v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4"
+    # NOTE: budget tag matches the actual PPOConfig default (1_000_000 timesteps).
+    # The v5_strict_summer / v5i1 / v5i2 / v5i3 chain inherited a misleading
+    # "_2m_" suffix from v4i1's run_tag even though none of those presets ever
+    # overrode total_timesteps from its 1M default. v5i4 corrects the tag so
+    # the run-tag and the trainer's reported total_timesteps agree.
+    cfg.run_tag = "v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_1m_4v4"
     return cfg
 
 

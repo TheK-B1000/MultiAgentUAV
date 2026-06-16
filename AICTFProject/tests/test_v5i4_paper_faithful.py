@@ -49,6 +49,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i3_balanced_warmup,
     apply_plan_faithful_latent_v5i4_end_to_end,
 )
+from rl.train_ppo import _resolve_initial_opponent_and_phase
 from rl.training.banner import _maybe_print_paper_faithful_audit
 
 
@@ -342,6 +343,74 @@ class V5i4AliasSnapshotTests(unittest.TestCase):
                 f"alias {name!r} must resolve to the same config as "
                 f"{V5I4_ALIASES[0]!r}",
             )
+
+
+class V5i4RunTagAndInitialOpponentConsistencyTests(unittest.TestCase):
+    """Two logging inconsistencies the user flagged in the v5i4 launch log:
+
+    1. The run_tag contained ``_2m_`` but the trainer reported 1,000,000
+       total timesteps. v5_strict_summer / v5i1 / v5i2 / v5i3 inherited
+       a misleading ``_2m_`` suffix from v4i1 without ever overriding
+       ``total_timesteps`` from its 1M default. v5i4 corrects the tag.
+    2. The first telemetry slice contained an OP3 entry even though the
+       audit banner correctly reported the configured pool as
+       ``("OP5", "OP6", "OP7")``. The cause was
+       ``_resolve_initial_opponent_and_phase`` using
+       ``cfg.fixed_opponent_tag`` (default ``"OP3"``) as the seeding
+       opponent for the first env reset, regardless of the configured
+       pool. The fix falls back to the first pool entry when the legacy
+       ``fixed_opponent_tag`` is out-of-pool.
+    """
+
+    def test_run_tag_advertises_actual_total_timesteps_budget(self) -> None:
+        cfg = _resolved("v5i4")
+        # Default PPOConfig budget; no v5* preset overrides it.
+        self.assertEqual(int(cfg.total_timesteps), 1_000_000)
+        # Tag must agree with the budget so reviewers do not have to
+        # cross-check the printed "Total timesteps" line against the tag.
+        self.assertIn("_1m_", cfg.run_tag)
+        self.assertNotIn(
+            "_2m_",
+            cfg.run_tag,
+            "v5i4 run_tag must not carry the misleading _2m_ suffix "
+            "the v4i1 / v5_strict_summer chain inherited.",
+        )
+
+    def test_initial_opponent_falls_back_to_pool_first_entry(self) -> None:
+        """In pool mode, the seeding opponent must come from the pool.
+
+        v5i4 inherits ``fixed_opponent_tag = "OP3"`` from the
+        plan-faithful base, but ``opponent_pool = ("OP5", "OP6", "OP7")``.
+        The first env reset must NOT use OP3, otherwise the first
+        telemetry slice contradicts the audit banner.
+        """
+        cfg = _resolved("v5i4")
+        self.assertEqual(str(cfg.fixed_opponent_tag).upper(), "OP3")
+        self.assertNotIn("OP3", cfg.opponent_pool)
+        _curr, _phase, tag = _resolve_initial_opponent_and_phase(cfg, max_agents=4)
+        self.assertIn(
+            tag,
+            cfg.opponent_pool,
+            "initial_opponent_tag must come from the configured pool",
+        )
+        self.assertEqual(tag, "OP5")
+
+    def test_initial_opponent_respects_explicit_in_pool_fixed_tag(self) -> None:
+        """A user who explicitly sets ``fixed_opponent_tag`` to an in-pool
+        opponent should still win -- the fallback only fires when the
+        legacy default ``OP3`` is out-of-pool."""
+        cfg = _resolved("v5i4")
+        cfg.fixed_opponent_tag = "OP6"
+        _curr, _phase, tag = _resolve_initial_opponent_and_phase(cfg, max_agents=4)
+        self.assertEqual(tag, "OP6")
+
+    def test_initial_opponent_unchanged_for_fixed_mode_presets(self) -> None:
+        """For ``FIXED_OPPONENT`` mode without ``opponent_randomize``,
+        the legacy behavior must be preserved bit-for-bit."""
+        cfg = PPOConfig()  # defaults: mode=FIXED_OPPONENT, fixed_opponent_tag="OP3", opponent_randomize=False
+        self.assertFalse(bool(cfg.opponent_randomize))
+        _curr, _phase, tag = _resolve_initial_opponent_and_phase(cfg, max_agents=4)
+        self.assertEqual(tag, "OP3")
 
 
 class V5i4PaperFaithfulAuditBannerTests(unittest.TestCase):

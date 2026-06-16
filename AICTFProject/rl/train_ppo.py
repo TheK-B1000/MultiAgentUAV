@@ -113,9 +113,25 @@ def _resolve_initial_opponent_and_phase(
     """Pick the initial scripted opponent tag and phase for the run.
 
     In ``CURRICULUM`` mode this also constructs the :class:`CurriculumState`
-    that the trainer will advance between phases. Returns
-    ``(curriculum, initial_phase, initial_opponent_tag)``; ``curriculum`` is
-    ``None`` outside curriculum mode.
+    that the trainer will advance between phases.
+
+    In ``OPPONENT_POOL`` mode (or with ``opponent_randomize=True``) the
+    very first env reset uses ``set_next_opponent("SCRIPTED", initial_tag)``
+    to seed the env before pool sampling takes over on subsequent resets.
+    If ``cfg.fixed_opponent_tag`` is not in ``cfg.opponent_pool`` (the
+    common case: the v4i1/v4i3/v5* chain leaves ``fixed_opponent_tag``
+    at the ``"OP3"`` default while configuring a pool like
+    ``("OP5", "OP6", "OP7")``), that first episode would leak the
+    out-of-pool opponent into the very first telemetry slice, producing
+    a misleading "OP3 slice" diagnostic even though the audit banner
+    correctly reports the configured pool. To make the first episode
+    consistent with the audit, fall back to the first pool entry when
+    the legacy ``fixed_opponent_tag`` is out-of-pool. An explicit in-pool
+    ``fixed_opponent_tag`` still wins (so users who want to seed a
+    specific opener can do so).
+
+    Returns ``(curriculum, initial_phase, initial_opponent_tag)``;
+    ``curriculum`` is ``None`` outside curriculum mode.
     """
     curriculum: Optional[CurriculumState] = None
     initial_opponent_tag = str(cfg.fixed_opponent_tag).upper()
@@ -124,6 +140,15 @@ def _resolve_initial_opponent_and_phase(
         curriculum = jacob_paper_curriculum_state(max_agents)
         initial_opponent_tag = curriculum.phase
         initial_phase = curriculum.phase
+        return curriculum, initial_phase, initial_opponent_tag
+    pool_mode = cfg.mode == TrainMode.OPPONENT_POOL.value or bool(
+        getattr(cfg, "opponent_randomize", False)
+    )
+    if pool_mode:
+        pool = tuple(str(tag).upper() for tag in (getattr(cfg, "opponent_pool", ()) or ()))
+        if pool and initial_opponent_tag not in pool:
+            initial_opponent_tag = pool[0]
+            initial_phase = phase_from_tag(initial_opponent_tag)
     return curriculum, initial_phase, initial_opponent_tag
 
 
