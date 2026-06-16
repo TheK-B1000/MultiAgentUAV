@@ -12,7 +12,7 @@ from gymnasium import spaces
 from rl.global_state import build_global_state_batch
 
 from ._config import GPUFieldConfig
-from ._constants import CNN_COLS, CNN_ROWS, NUM_CNN_CHANNELS, VEC_OBS_DIM
+from ._constants import CNN_COLS, CNN_ROWS, VEC_OBS_DIM
 from ._core_class import BatchedCTFCore
 from ._episode_payload import _build_episode_result_payload
 from ._specs import VecEnv
@@ -27,9 +27,10 @@ class GPUCTFVecEnv(VecEnv):
         self._n_macros = int(cfg.n_macros)
         self._n_targets = int(cfg.n_targets)
         self._n_blue = int(cfg.max_blue_agents)
+        self._grid_channels = int(cfg.num_cnn_channels)
         obs_space = spaces.Dict(
             {
-                "grid": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue, self._grid_channels, CNN_ROWS, CNN_COLS), dtype=np.float32),
                 "vec": spaces.Box(low=-1.0, high=1.0, shape=(self._n_blue, VEC_OBS_DIM), dtype=np.float32),
                 "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue,), dtype=np.float32),
                 "mask": spaces.Box(low=0.0, high=1.0, shape=(self._n_blue * (self._n_macros + self._n_targets),), dtype=np.float32),

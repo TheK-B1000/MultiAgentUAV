@@ -84,7 +84,7 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         "--n-envs",
         type=int,
         default=None,
-        help="Number of vectorized GPU env instances (default: PPOConfig.n_envs=8). Increase to keep the GPU busy.",
+        help="Number of vectorized GPU env instances (default: PPOConfig.n_envs=32). Increase to keep the GPU busy.",
     )
     parser.add_argument(
         "--n-steps",
@@ -149,6 +149,13 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--map-set", type=str, choices=["train", "eval"], default=None)
+    parser.add_argument(
+        "--map-layout",
+        type=str,
+        choices=["map_a_open", "map_b_split_lane", "map_b_split_lane_v2", "open", "split_lane", "split_lane_v2"],
+        default=None,
+        help="Environment geometry layout. map_a_open preserves the historical open arena; map_b_split_lane enables the split-lane chokepoint; map_b_split_lane_v2 uses the lower-friction task-pressure variant.",
+    )
     parser.add_argument("--agents", type=int, choices=[2, 4, 6, 8], default=None)
     parser.add_argument("--max-blue-agents", type=int, default=None)
     parser.add_argument("--device", type=str, default=None)
@@ -600,6 +607,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.allow_op4_in_training_pool = True
     if args.map_set is not None:
         cfg.map_set = str(args.map_set).lower()
+    if args.map_layout is not None:
+        cfg.map_layout = str(args.map_layout).lower()
     if args.latent_strategy:
         cfg.use_latent_strategy = True
     if args.no_latent_strategy:

@@ -78,6 +78,13 @@ def main() -> None:
     parser.add_argument("--agents", type=int, default=None, help="Agents per team; default reads checkpoint metadata")
     parser.add_argument("--opponents", nargs="+", default=["OP3", "OP4", "OP5_RUSHER"], help="Scripted opponents to evaluate")
     parser.add_argument("--map-sets", nargs="+", default=["train", "eval"], choices=["train", "eval"], help="Map splits to evaluate")
+    parser.add_argument(
+        "--map-layout",
+        type=str,
+        default="map_a_open",
+        choices=["map_a_open", "map_b_split_lane", "map_b_split_lane_v2", "open", "split_lane", "split_lane_v2"],
+        help="GPUFieldConfig.map_layout used for the evaluation environment.",
+    )
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--seed", type=int, default=42)
@@ -174,6 +181,13 @@ def main() -> None:
         f"fixed_latent_id={eval_fixed_id} "
         f"resample_every={eval_resample_every}"
     )
+    map_layout = str(args.map_layout).strip().lower()
+    latent_suffix = f"{selection}"
+    if selection == "fixed":
+        latent_suffix = f"fixed_z{int(eval_fixed_id)}"
+    if eval_resample_every is not None:
+        latent_suffix = f"{latent_suffix}_r{int(eval_resample_every)}"
+    latent_suffix = _slug(latent_suffix)
 
     meta = read_custom_ppo_metadata(checkpoint)
     agents = int(args.agents or meta.get("n_blue", 2))
@@ -196,6 +210,7 @@ def main() -> None:
                 max_blue_agents=agents,
                 max_red_agents=agents,
                 map_set=map_set,
+                map_layout=map_layout,
                 max_decision_steps=400,
                 aquaticus_profile=True,
                 rules_profile="OURS",
@@ -203,10 +218,16 @@ def main() -> None:
                 seed=int(args.seed) + 1000 * map_idx + opp_idx,
             )
             env = GPUCTFVecEnv(cfg)
-            episode_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_{map_set}_{opponent}_{int(args.episodes)}ep.csv")
+            episode_path = os.path.join(
+                out_dir,
+                f"eval_{label_slug}_{mode}_{map_set}_{map_layout}_{opponent}_{latent_suffix}_{int(args.episodes)}ep.csv",
+            )
             e3_path = episode_path.replace(".csv", "_e3_steps.csv") if args.e3_step_telemetry else None
             try:
-                print(f"[eval_checkpoint] {label} {mode} map={map_set} vs {opponent}: {args.episodes} episode(s)")
+                print(
+                    f"[eval_checkpoint] {label} {mode} map_set={map_set} "
+                    f"map_layout={map_layout} vs {opponent}: {args.episodes} episode(s)"
+                )
                 episodes = run_eval_episodes(
                     checkpoint,
                     env,
@@ -230,13 +251,21 @@ def main() -> None:
                 row["label"] = label
                 row["setting"] = mode
                 row["map_set"] = map_set
+                row["map_layout"] = map_layout
+                row["latent_selection"] = selection
+                row["fixed_latent_id"] = "" if eval_fixed_id is None else int(eval_fixed_id)
+                row["latent_resample_every"] = "" if eval_resample_every is None else int(eval_resample_every)
                 row["opponent"] = opponent
                 row["checkpoint"] = checkpoint
 
             _write_rows(
                 episode_path,
                 episodes,
-                ["label", "setting", "map_set", "opponent", "episode_id", "success", "blue_score", "red_score", "steps", "return"],
+                [
+                    "label", "setting", "map_set", "map_layout", "latent_selection",
+                    "fixed_latent_id", "latent_resample_every", "opponent", "episode_id",
+                    "success", "blue_score", "red_score", "steps", "return",
+                ],
             )
             w, l, d = count_wld(episodes)
             agg = compute_aggregates(episodes)
@@ -244,6 +273,10 @@ def main() -> None:
                 "label": label,
                 "setting": mode,
                 "map_set": map_set,
+                "map_layout": map_layout,
+                "latent_selection": selection,
+                "fixed_latent_id": "" if eval_fixed_id is None else int(eval_fixed_id),
+                "latent_resample_every": "" if eval_resample_every is None else int(eval_resample_every),
                 "opponent": opponent,
                 "checkpoint": checkpoint,
                 "episodes": len(episodes),
@@ -258,11 +291,15 @@ def main() -> None:
                 f"episodes: {episode_path}"
             )
 
-    aggregate_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_aggregate.csv")
+    aggregate_path = os.path.join(out_dir, f"eval_{label_slug}_{mode}_{map_layout}_{latent_suffix}_aggregate.csv")
     _write_rows(
         aggregate_path,
         aggregate_rows,
-        ["label", "setting", "map_set", "opponent", "episodes", "wins", "losses", "draws", "success_rate", "success_rate_std"],
+        [
+            "label", "setting", "map_set", "map_layout", "latent_selection",
+            "fixed_latent_id", "latent_resample_every", "opponent", "episodes",
+            "wins", "losses", "draws", "success_rate", "success_rate_std",
+        ],
     )
     print(f"[eval_checkpoint] aggregate: {aggregate_path}")
 

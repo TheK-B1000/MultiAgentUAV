@@ -12,6 +12,7 @@ from ._constants import (
 )
 from ._config import GPUFieldConfig, RewardConfig, RewardProfile
 from ._core_class import BatchedCTFCore
+from ._maps import MAP_A_OPEN, MAP_B_SPLIT_LANE, MAP_B_SPLIT_LANE_V2, MAP_LAYOUTS
 from ._adapter import GPUEnvAdapter
 from ._envs import GPUCTFSingleEnv, GPUCTFVecEnv
 
@@ -32,4 +33,8 @@ __all__ = [
     "METRIC_ZONE_ROWS",
     "METRIC_ZONE_COLS",
     "GPUEnvAdapter",
+    "MAP_A_OPEN",
+    "MAP_B_SPLIT_LANE",
+    "MAP_B_SPLIT_LANE_V2",
+    "MAP_LAYOUTS",
 ]

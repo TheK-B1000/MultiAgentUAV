@@ -1,0 +1,154 @@
+[PPO] Training preset: 'v5i5'
+[PPO] Agents: 4 per team (4v4) | mode=OPPONENT_POOL | run_tag='v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 1,000,000
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.
+[PPO] Opponent randomization: enabled (OPPONENT_POOL mode; uniform per completed episode over pool=['OP5', 'OP6', 'OP7']; pre-reset hook — opponent logged for each episode is the one played during that episode).
+[PPO] Latent team strategy: enabled (K=4, sample=every 64 decision steps, on_flag=False, lambda_p=0.0300, lambda_H=0.0030 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=0.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] Checkpoint dir: checkpoints\4v4
+[PPO] Update metrics CSV: checkpoints\4v4\v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_metrics.csv
+[PPO] Episode metrics CSV: checkpoints\4v4\v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_episodes.csv
+[PPO] Run lock acquired: checkpoints\4v4\v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.run.lock
+[PPO] Run config written: checkpoints\4v4\v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=OPPONENT_POOL, scripted opponent tag=randomized pool ['OP5', 'OP6', 'OP7']).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] 4v4: using lr=1.35e-04 for stability.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=220 z_onehot_dim=4 critic_extra_dim=224 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF — plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP5', 'OP6', 'OP7'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_50000.zip
+[PPO|diag] steps=65536 ev=0.001 v_loss=0.889 shape/out=-0.001/-0.008 qphi_grad=0.04801762 lamH=0.002563 zH=1.380(1.00) z_wr_spread=0.089 z_aux_ret=0.000 z_pi=-0.002 z_ratio=0.065 z_occ=[0.240,0.243,0.275,0.242] z_wr=[0.589,0.500,0.565,0.543] MI_z_o=0.0046 MI_z_phase=0.0006 MI_z_flag=0.0007 MI_z_outcome=0.0017 | OP5:z_occ=[0.20,0.26,0.30,0.25] z_wr=[0.51,0.33,0.36,0.38] OP6:z_occ=[0.25,0.23,0.28,0.24] z_wr=[0.47,0.50,0.65,0.64] OP7:z_occ=[0.29,0.24,0.24,0.24] z_wr=[0.78,0.84,0.85,0.66]
+      [Switch Near] cap=0.433(260/600|ev=5019) kill=0.000(0/600|ev=0) ret=0.235(141/600|ev=2396) | div_role=1.313 div_spread=0.532 div_pressure=0.220 div_adr=0.695
+      [Z Slices] opp_wr_spread_max=0.197 mean=0.183 per_opp=[OP5=0.181 OP6=0.170 OP7=0.197] | behavior_rel_spread_max=0.097 top3=[num_defenders=rel0.097/abs0.023 n_intercept_near_enemy_carrier=rel0.094/abs0.080 carrier_escort_count=rel0.067/abs0.047]
+      [Actor Z] sensitivity_KL=5.78272933e-03 sep_JSD=1.80601812e-04 max_JSD=4.89414297e-03 argmax_disagree=0.133820 logit_l2=1.41075283e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.02741673e-04,2.58461921e-04] entropy_by_z=[8.19694400e-01,8.19898844e-01,8.19706440e-01,8.19567323e-01]
+[PPO|return_norm] update=1 mean=-1.9050 std=1.4319 count=65536
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_100000.zip
+[PPO|diag] steps=131072 ev=0.154 v_loss=0.783 shape/out=-0.000/-0.006 qphi_grad=0.05780348 lamH=0.002126 zH=1.377(0.99) z_wr_spread=0.041 z_aux_ret=0.000 z_pi=-0.005 z_ratio=0.074 z_occ=[0.259,0.263,0.282,0.196] z_wr=[0.579,0.594,0.590,0.620] MI_z_o=0.0007 MI_z_phase=0.0012 MI_z_flag=0.0012 MI_z_outcome=0.0022 | OP5:z_occ=[0.26,0.25,0.29,0.20] z_wr=[0.45,0.36,0.29,0.40] OP6:z_occ=[0.25,0.26,0.28,0.20] z_wr=[0.47,0.58,0.58,0.69] OP7:z_occ=[0.27,0.28,0.28,0.18] z_wr=[0.80,0.80,0.83,0.77]
+      [Switch Near] cap=0.438(256/584|ev=4958) kill=0.000(0/584|ev=0) ret=0.204(119/584|ev=2392) | div_role=1.320 div_spread=0.556 div_pressure=0.209 div_adr=0.695
+      [Z Slices] opp_wr_spread_max=0.226 mean=0.152 per_opp=[OP5=0.167 OP6=0.226 OP7=0.064] | behavior_rel_spread_max=0.177 top3=[n_intercept_near_enemy_carrier=rel0.177/abs0.155 carrier_escort_count=rel0.110/abs0.080 nearest_blue_to_enemy_carrier=rel0.075/abs0.068]
+      [Actor Z] sensitivity_KL=1.06896587e-02 sep_JSD=3.33713368e-04 max_JSD=1.26100257e-02 argmax_disagree=0.127060 logit_l2=1.84955478e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[2.57724256e-04,4.09702479e-04] entropy_by_z=[8.06381583e-01,8.06488574e-01,8.06539893e-01,8.06495070e-01]
+[PPO|return_norm] update=2 mean=-2.5011 std=1.6618 count=131072
+[PPO] ep=1000 mode=OPPONENT_POOL opp=SCRIPTED:OP6 W=564 L=427 D=9 WR=56.4%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_150000.zip
+[PPO|diag] steps=196608 ev=0.314 v_loss=0.642 shape/out=-0.001/-0.008 qphi_grad=0.06365745 lamH=0.001689 zH=1.374(0.99) z_wr_spread=0.119 z_aux_ret=0.000 z_pi=-0.003 z_ratio=0.068 z_occ=[0.231,0.263,0.312,0.194] z_wr=[0.557,0.606,0.509,0.629] MI_z_o=0.0014 MI_z_phase=0.0007 MI_z_flag=0.0007 MI_z_outcome=0.0020 | OP5:z_occ=[0.23,0.24,0.33,0.20] z_wr=[0.49,0.46,0.49,0.45] OP6:z_occ=[0.24,0.27,0.29,0.20] z_wr=[0.47,0.55,0.38,0.58] OP7:z_occ=[0.22,0.28,0.32,0.18] z_wr=[0.73,0.82,0.67,0.85]
+      [Switch Near] cap=0.434(256/590|ev=4998) kill=0.000(0/590|ev=0) ret=0.224(132/590|ev=2344) | div_role=1.328 div_spread=0.546 div_pressure=0.203 div_adr=0.696
+      [Z Slices] opp_wr_spread_max=0.198 mean=0.138 per_opp=[OP5=0.033 OP6=0.198 OP7=0.182] | behavior_rel_spread_max=0.105 top3=[num_defenders=rel0.105/abs0.025 carrier_escort_count=rel0.080/abs0.057 nearest_blue_to_carrier=rel0.063/abs0.054]
+      [Actor Z] sensitivity_KL=1.57728651e-02 sep_JSD=4.92230174e-04 max_JSD=2.65622884e-02 argmax_disagree=0.130000 logit_l2=2.18934357e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[4.40138858e-04,5.44321432e-04] entropy_by_z=[8.84597182e-01,8.84851635e-01,8.85022283e-01,8.84996891e-01]
+[PPO|return_norm] update=3 mean=-2.8735 std=1.7980 count=196608
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_200000.zip
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_250000.zip
+[PPO|diag] steps=262144 ev=0.477 v_loss=0.461 shape/out=0.001/-0.004 qphi_grad=0.06449986 lamH=0.001252 zH=1.371(0.99) z_wr_spread=0.063 z_aux_ret=0.000 z_pi=-0.006 z_ratio=0.093 z_occ=[0.240,0.270,0.309,0.181] z_wr=[0.615,0.612,0.551,0.602] MI_z_o=0.0018 MI_z_phase=0.0007 MI_z_flag=0.0004 MI_z_outcome=0.0032 | OP5:z_occ=[0.25,0.26,0.33,0.16] z_wr=[0.41,0.41,0.55,0.50] OP6:z_occ=[0.25,0.29,0.29,0.17] z_wr=[0.60,0.61,0.41,0.48] OP7:z_occ=[0.23,0.26,0.31,0.20] z_wr=[0.78,0.76,0.69,0.77]
+      [Switch Near] cap=0.439(266/606|ev=4948) kill=0.000(0/606|ev=0) ret=0.254(154/606|ev=2372) | div_role=1.310 div_spread=0.530 div_pressure=0.212 div_adr=0.692
+      [Z Slices] opp_wr_spread_max=0.201 mean=0.143 per_opp=[OP5=0.141 OP6=0.201 OP7=0.086] | behavior_rel_spread_max=0.120 top3=[n_intercept_near_enemy_carrier=rel0.120/abs0.099 num_defenders=rel0.101/abs0.024 carrier_escort_count=rel0.070/abs0.051]
+      [Actor Z] sensitivity_KL=1.74482324e-02 sep_JSD=5.44356182e-04 max_JSD=2.92443782e-02 argmax_disagree=0.116750 logit_l2=2.24610016e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[5.25185606e-04,5.63526701e-04] entropy_by_z=[8.11247230e-01,8.11233878e-01,8.11799288e-01,8.11697543e-01]
+[PPO|return_norm] update=4 mean=-3.1116 std=1.8786 count=262144
+[PPO] ep=2000 mode=OPPONENT_POOL opp=SCRIPTED:OP7 W=1169 L=818 D=13 WR=58.5%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_300000.zip
+[PPO|diag] steps=327680 ev=0.537 v_loss=0.481 shape/out=-0.001/-0.008 qphi_grad=0.06500060 lamH=0.001000 zH=1.370(0.99) z_wr_spread=0.118 z_aux_ret=0.000 z_pi=-0.006 z_ratio=0.088 z_occ=[0.221,0.237,0.346,0.196] z_wr=[0.547,0.629,0.578,0.511] MI_z_o=0.0057 MI_z_phase=0.0006 MI_z_flag=0.0008 MI_z_outcome=0.0014 | OP5:z_occ=[0.19,0.21,0.39,0.21] z_wr=[0.39,0.50,0.39,0.48] OP6:z_occ=[0.23,0.28,0.32,0.17] z_wr=[0.50,0.55,0.52,0.44] OP7:z_occ=[0.24,0.21,0.33,0.22] z_wr=[0.75,0.84,0.84,0.63]
+      [Switch Near] cap=0.424(241/569|ev=5036) kill=0.000(0/569|ev=0) ret=0.232(132/569|ev=2354) | div_role=1.313 div_spread=0.577 div_pressure=0.203 div_adr=0.696
+      [Z Slices] opp_wr_spread_max=0.211 mean=0.144 per_opp=[OP5=0.112 OP6=0.108 OP7=0.211] | behavior_rel_spread_max=0.146 top3=[num_defenders=rel0.146/abs0.035 n_intercept_near_enemy_carrier=rel0.119/abs0.099 carrier_escort_count=rel0.114/abs0.084]
+      [Actor Z] sensitivity_KL=2.13104502e-02 sep_JSD=6.64633117e-04 max_JSD=3.52121070e-02 argmax_disagree=0.115382 logit_l2=2.44774982e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[6.88103959e-04,6.41162158e-04] entropy_by_z=[8.60298693e-01,8.60132098e-01,8.60762596e-01,8.60873997e-01]
+[PPO|return_norm] update=5 mean=-3.3414 std=1.9999 count=327680
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_350000.zip
+[PPO|diag] steps=393216 ev=0.623 v_loss=0.395 shape/out=0.002/-0.001 qphi_grad=0.06602072 lamH=0.001000 zH=1.363(0.98) z_wr_spread=0.105 z_aux_ret=0.000 z_pi=-0.004 z_ratio=0.070 z_occ=[0.243,0.210,0.320,0.227] z_wr=[0.531,0.613,0.636,0.589] MI_z_o=0.0013 MI_z_phase=0.0008 MI_z_flag=0.0011 MI_z_outcome=0.0015 | OP5:z_occ=[0.23,0.23,0.31,0.24] z_wr=[0.38,0.43,0.33,0.46] OP6:z_occ=[0.27,0.20,0.32,0.22] z_wr=[0.50,0.71,0.69,0.54] OP7:z_occ=[0.23,0.20,0.33,0.23] z_wr=[0.73,0.71,0.83,0.81]
+      [Switch Near] cap=0.429(248/578|ev=5060) kill=0.000(0/578|ev=0) ret=0.213(123/578|ev=2294) | div_role=1.305 div_spread=0.583 div_pressure=0.210 div_adr=0.692
+      [Z Slices] opp_wr_spread_max=0.214 mean=0.157 per_opp=[OP5=0.134 OP6=0.214 OP7=0.122] | behavior_rel_spread_max=0.136 top3=[n_intercept_near_enemy_carrier=rel0.136/abs0.111 carrier_escort_count=rel0.113/abs0.085 nearest_blue_to_carrier=rel0.069/abs0.058]
+      [Actor Z] sensitivity_KL=2.27770073e-02 sep_JSD=7.10171647e-04 max_JSD=3.84928472e-02 argmax_disagree=0.107691 logit_l2=2.47786015e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[7.73673994e-04,6.46669301e-04] entropy_by_z=[8.22396994e-01,8.22337985e-01,8.22689593e-01,8.22887540e-01]
+[PPO|return_norm] update=6 mean=-3.4875 std=2.0718 count=393216
+[PPO] ep=3000 mode=OPPONENT_POOL opp=SCRIPTED:OP7 W=1742 L=1236 D=22 WR=58.1%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_400000.zip
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_450000.zip
+[PPO|diag] steps=458752 ev=0.651 v_loss=0.407 shape/out=0.000/-0.006 qphi_grad=0.06393988 lamH=0.001000 zH=1.354(0.98) z_wr_spread=0.054 z_aux_ret=0.000 z_pi=-0.005 z_ratio=0.072 z_occ=[0.240,0.233,0.304,0.223] z_wr=[0.598,0.545,0.570,0.553] MI_z_o=0.0039 MI_z_phase=0.0010 MI_z_flag=0.0011 MI_z_outcome=0.0022 | OP5:z_occ=[0.22,0.23,0.33,0.22] z_wr=[0.60,0.36,0.44,0.27] OP6:z_occ=[0.24,0.23,0.34,0.19] z_wr=[0.45,0.51,0.44,0.50] OP7:z_occ=[0.26,0.23,0.26,0.25] z_wr=[0.73,0.80,0.79,0.82]
+      [Switch Near] cap=0.441(253/574|ev=5111) kill=0.000(0/574|ev=0) ret=0.261(150/574|ev=2390) | div_role=1.315 div_spread=0.556 div_pressure=0.208 div_adr=0.697
+      [Z Slices] opp_wr_spread_max=0.335 mean=0.168 per_opp=[OP5=0.335 OP6=0.077 OP7=0.091] | behavior_rel_spread_max=0.166 top3=[num_defenders=rel0.166/abs0.036 carrier_escort_count=rel0.095/abs0.068 nearest_blue_to_carrier=rel0.061/abs0.052]
+      [Actor Z] sensitivity_KL=2.68863433e-02 sep_JSD=8.37905332e-04 max_JSD=5.08869961e-02 argmax_disagree=0.107534 logit_l2=2.63218731e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[9.65214334e-04,7.10596563e-04] entropy_by_z=[8.41688871e-01,8.41730237e-01,8.42219293e-01,8.42354894e-01]
+[PPO|return_norm] update=7 mean=-3.6147 std=2.1478 count=458752
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_500000.zip
+[PPO|diag] steps=524288 ev=0.674 v_loss=0.377 shape/out=-0.000/-0.007 qphi_grad=0.07210499 lamH=0.001000 zH=1.308(0.94) z_wr_spread=0.069 z_aux_ret=0.000 z_pi=-0.005 z_ratio=0.094 z_occ=[0.226,0.194,0.394,0.185] z_wr=[0.598,0.598,0.529,0.590] MI_z_o=0.0020 MI_z_phase=0.0005 MI_z_flag=0.0008 MI_z_outcome=0.0013 | OP5:z_occ=[0.21,0.23,0.37,0.19] z_wr=[0.36,0.38,0.29,0.48] OP6:z_occ=[0.24,0.20,0.39,0.18] z_wr=[0.58,0.59,0.48,0.55] OP7:z_occ=[0.23,0.17,0.41,0.19] z_wr=[0.81,0.86,0.78,0.73]
+      [Switch Near] cap=0.433(251/580|ev=4965) kill=0.000(0/580|ev=0) ret=0.234(136/580|ev=2362) | div_role=1.312 div_spread=0.553 div_pressure=0.209 div_adr=0.698
+      [Z Slices] opp_wr_spread_max=0.193 mean=0.143 per_opp=[OP5=0.193 OP6=0.109 OP7=0.126] | behavior_rel_spread_max=0.131 top3=[num_defenders=rel0.131/abs0.030 n_intercept_near_enemy_carrier=rel0.131/abs0.106 nearest_blue_to_enemy_carrier=rel0.066/abs0.063]
+      [Actor Z] sensitivity_KL=2.81289985e-02 sep_JSD=8.76272912e-04 max_JSD=6.17530793e-02 argmax_disagree=0.098272 logit_l2=2.65889764e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.04238163e-03,7.10163964e-04] entropy_by_z=[8.00300956e-01,8.00390482e-01,8.00945163e-01,8.01190317e-01]
+[PPO|return_norm] update=8 mean=-3.7257 std=2.2096 count=524288
+[PPO] ep=4000 mode=OPPONENT_POOL opp=SCRIPTED:OP5 W=2307 L=1662 D=31 WR=57.7%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_550000.zip
+[PPO|diag] steps=589824 ev=0.679 v_loss=0.385 shape/out=0.001/-0.006 qphi_grad=0.08087927 lamH=0.001000 zH=1.274(0.92) z_wr_spread=0.120 z_aux_ret=0.000 z_pi=-0.004 z_ratio=0.084 z_occ=[0.244,0.195,0.382,0.179] z_wr=[0.650,0.560,0.546,0.530] MI_z_o=0.0015 MI_z_phase=0.0004 MI_z_flag=0.0005 MI_z_outcome=0.0006 | OP5:z_occ=[0.26,0.19,0.36,0.18] z_wr=[0.44,0.24,0.44,0.46] OP6:z_occ=[0.25,0.20,0.37,0.18] z_wr=[0.59,0.66,0.50,0.45] OP7:z_occ=[0.22,0.19,0.42,0.17] z_wr=[0.87,0.85,0.73,0.72]
+      [Switch Near] cap=0.478(262/548|ev=5246) kill=0.000(0/548|ev=0) ret=0.257(141/548|ev=2429) | div_role=1.331 div_spread=0.562 div_pressure=0.212 div_adr=0.696
+      [Z Slices] opp_wr_spread_max=0.219 mean=0.188 per_opp=[OP5=0.219 OP6=0.202 OP7=0.144] | behavior_rel_spread_max=0.072 top3=[n_intercept_near_enemy_carrier=rel0.072/abs0.065 nearest_blue_to_enemy_carrier=rel0.051/abs0.045 num_attackers=rel0.039/abs0.064]
+      [Actor Z] sensitivity_KL=3.03646674e-02 sep_JSD=9.45498934e-04 max_JSD=7.49981254e-02 argmax_disagree=0.095322 logit_l2=2.73884475e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.14127039e-03,7.49727653e-04] entropy_by_z=[7.88642406e-01,7.88163066e-01,7.88996816e-01,7.89065182e-01]
+[PPO|return_norm] update=9 mean=-3.8054 std=2.2634 count=589824
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_600000.zip
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_650000.zip
+[PPO|diag] steps=655360 ev=0.667 v_loss=0.403 shape/out=0.000/-0.006 qphi_grad=0.08246989 lamH=0.001000 zH=1.227(0.89) z_wr_spread=0.127 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.055 z_occ=[0.241,0.136,0.486,0.137] z_wr=[0.515,0.536,0.642,0.545] MI_z_o=0.0060 MI_z_phase=0.0011 MI_z_flag=0.0020 MI_z_outcome=0.0013 | OP5:z_occ=[0.24,0.16,0.48,0.12] z_wr=[0.38,0.30,0.48,0.43] OP6:z_occ=[0.22,0.16,0.47,0.16] z_wr=[0.47,0.70,0.51,0.42] OP7:z_occ=[0.27,0.09,0.50,0.14] z_wr=[0.70,0.69,0.89,0.88]
+      [Switch Near] cap=0.437(235/538|ev=5023) kill=0.000(0/538|ev=0) ret=0.234(126/538|ev=2433) | div_role=1.326 div_spread=0.568 div_pressure=0.212 div_adr=0.696
+      [Z Slices] opp_wr_spread_max=0.277 mean=0.217 per_opp=[OP5=0.173 OP6=0.277 OP7=0.201] | behavior_rel_spread_max=0.151 top3=[n_intercept_near_enemy_carrier=rel0.151/abs0.138 num_defenders=rel0.109/abs0.025 nearest_blue_to_enemy_carrier=rel0.105/abs0.093]
+      [Actor Z] sensitivity_KL=3.26852825e-02 sep_JSD=1.01741613e-03 max_JSD=8.41424912e-02 argmax_disagree=0.091370 logit_l2=2.86211669e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.21062924e-03,8.24202783e-04] entropy_by_z=[7.94175148e-01,7.94175029e-01,7.94552445e-01,7.95042694e-01]
+[PPO|return_norm] update=10 mean=-3.8711 std=2.3094 count=655360
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_700000.zip
+[PPO|diag] steps=720896 ev=0.669 v_loss=0.381 shape/out=0.001/-0.004 qphi_grad=0.08947389 lamH=0.001000 zH=1.179(0.85) z_wr_spread=0.117 z_aux_ret=0.000 z_pi=-0.002 z_ratio=0.046 z_occ=[0.217,0.146,0.498,0.139] z_wr=[0.557,0.543,0.658,0.660] MI_z_o=0.0027 MI_z_phase=0.0005 MI_z_flag=0.0008 MI_z_outcome=0.0026 | OP5:z_occ=[0.20,0.15,0.52,0.14] z_wr=[0.34,0.54,0.51,0.40] OP6:z_occ=[0.22,0.17,0.46,0.15] z_wr=[0.54,0.48,0.57,0.81] OP7:z_occ=[0.23,0.12,0.51,0.13] z_wr=[0.85,0.62,0.88,0.82]
+      [Switch Near] cap=0.454(239/526|ev=5184) kill=0.000(0/526|ev=0) ret=0.238(125/526|ev=2346) | div_role=1.328 div_spread=0.589 div_pressure=0.211 div_adr=0.698
+      [Z Slices] opp_wr_spread_max=0.333 mean=0.263 per_opp=[OP5=0.199 OP6=0.333 OP7=0.256] | behavior_rel_spread_max=0.101 top3=[n_intercept_near_enemy_carrier=rel0.101/abs0.085 num_attackers=rel0.085/abs0.141 nearest_blue_to_enemy_carrier=rel0.076/abs0.072]
+      [Actor Z] sensitivity_KL=3.42401541e-02 sep_JSD=1.06556620e-03 max_JSD=6.73364699e-02 argmax_disagree=0.090398 logit_l2=2.91817963e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.28178997e-03,8.49342381e-04] entropy_by_z=[7.99777746e-01,7.99580216e-01,8.00273955e-01,8.00523221e-01]
+[PPO|return_norm] update=11 mean=-3.9178 std=2.3413 count=720896
+[PPO] ep=5000 mode=OPPONENT_POOL opp=SCRIPTED:OP7 W=2902 L=2063 D=35 WR=58.0%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_750000.zip
+[PPO|diag] steps=786432 ev=0.665 v_loss=0.396 shape/out=-0.000/-0.007 qphi_grad=0.08618662 lamH=0.001000 zH=1.076(0.78) z_wr_spread=0.101 z_aux_ret=0.000 z_pi=-0.007 z_ratio=0.111 z_occ=[0.233,0.142,0.495,0.129] z_wr=[0.585,0.500,0.601,0.510] MI_z_o=0.0037 MI_z_phase=0.0017 MI_z_flag=0.0022 MI_z_outcome=0.0044 | OP5:z_occ=[0.21,0.13,0.52,0.14] z_wr=[0.44,0.44,0.47,0.42] OP6:z_occ=[0.28,0.14,0.47,0.11] z_wr=[0.59,0.40,0.54,0.38] OP7:z_occ=[0.21,0.16,0.50,0.13] z_wr=[0.70,0.73,0.77,0.75]
+      [Switch Near] cap=0.443(228/515|ev=5025) kill=0.000(0/515|ev=0) ret=0.264(136/515|ev=2427) | div_role=1.326 div_spread=0.535 div_pressure=0.208 div_adr=0.698
+      [Z Slices] opp_wr_spread_max=0.212 mean=0.110 per_opp=[OP5=0.046 OP6=0.212 OP7=0.072] | behavior_rel_spread_max=0.193 top3=[n_intercept_near_enemy_carrier=rel0.193/abs0.161 num_defenders=rel0.120/abs0.025 nearest_blue_to_enemy_carrier=rel0.087/abs0.082]
+      [Actor Z] sensitivity_KL=3.26789087e-02 sep_JSD=1.01667619e-03 max_JSD=8.89204890e-02 argmax_disagree=0.084641 logit_l2=2.84662127e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.22094806e-03,8.12404091e-04] entropy_by_z=[7.43798018e-01,7.43672311e-01,7.44114280e-01,7.44241238e-01]
+[PPO|return_norm] update=12 mean=-3.9679 std=2.3744 count=786432
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_800000.zip
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_850000.zip
+[PPO|diag] steps=851968 ev=0.643 v_loss=0.427 shape/out=0.001/-0.003 qphi_grad=0.08527896 lamH=0.001000 zH=1.007(0.73) z_wr_spread=0.057 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.057 z_occ=[0.158,0.132,0.606,0.104] z_wr=[0.594,0.605,0.625,0.568] MI_z_o=0.0022 MI_z_phase=0.0016 MI_z_flag=0.0016 MI_z_outcome=0.0021 | OP5:z_occ=[0.14,0.16,0.60,0.10] z_wr=[0.48,0.47,0.47,0.22] OP6:z_occ=[0.16,0.13,0.60,0.11] z_wr=[0.50,0.56,0.58,0.50] OP7:z_occ=[0.17,0.12,0.61,0.10] z_wr=[0.72,0.90,0.80,0.75]
+      [Switch Near] cap=0.458(205/448|ev=5091) kill=0.000(0/448|ev=0) ret=0.230(103/448|ev=2362) | div_role=1.329 div_spread=0.592 div_pressure=0.217 div_adr=0.697
+      [Z Slices] opp_wr_spread_max=0.254 mean=0.170 per_opp=[OP5=0.254 OP6=0.081 OP7=0.176] | behavior_rel_spread_max=0.169 top3=[n_intercept_near_enemy_carrier=rel0.169/abs0.136 num_defenders=rel0.167/abs0.036 carrier_escort_count=rel0.133/abs0.097]
+      [Actor Z] sensitivity_KL=3.60585439e-02 sep_JSD=1.12181390e-03 max_JSD=7.70517215e-02 argmax_disagree=0.089218 logit_l2=3.01876187e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.33590936e-03,9.07718553e-04] entropy_by_z=[8.04782271e-01,8.04069400e-01,8.05414081e-01,8.05488765e-01]
+[PPO|return_norm] update=13 mean=-4.0014 std=2.4029 count=851968
+[PPO] ep=6000 mode=OPPONENT_POOL opp=SCRIPTED:OP6 W=3496 L=2461 D=43 WR=58.3%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_900000.zip
+[PPO|diag] steps=917504 ev=0.651 v_loss=0.392 shape/out=0.000/-0.006 qphi_grad=0.08975303 lamH=0.001000 zH=0.931(0.67) z_wr_spread=0.180 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.046 z_occ=[0.177,0.109,0.604,0.109] z_wr=[0.708,0.604,0.537,0.528] MI_z_o=0.0025 MI_z_phase=0.0005 MI_z_flag=0.0007 MI_z_outcome=0.0012 | OP5:z_occ=[0.17,0.10,0.64,0.09] z_wr=[0.59,0.53,0.45,0.50] OP6:z_occ=[0.16,0.11,0.59,0.13] z_wr=[0.64,0.47,0.46,0.47] OP7:z_occ=[0.20,0.11,0.58,0.11] z_wr=[0.87,0.86,0.72,0.62]
+      [Switch Near] cap=0.412(173/420|ev=5130) kill=0.000(0/420|ev=0) ret=0.238(100/420|ev=2413) | div_role=1.338 div_spread=0.573 div_pressure=0.217 div_adr=0.697
+      [Z Slices] opp_wr_spread_max=0.254 mean=0.191 per_opp=[OP5=0.140 OP6=0.178 OP7=0.254] | behavior_rel_spread_max=0.218 top3=[num_defenders=rel0.218/abs0.046 carrier_escort_count=rel0.108/abs0.077 n_intercept_near_enemy_carrier=rel0.095/abs0.079]
+      [Actor Z] sensitivity_KL=3.55589481e-02 sep_JSD=1.10593066e-03 max_JSD=7.93341249e-02 argmax_disagree=0.083430 logit_l2=2.95334250e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.34241756e-03,8.69443815e-04] entropy_by_z=[7.54835963e-01,7.54259109e-01,7.55185246e-01,7.55069494e-01]
+[PPO|return_norm] update=14 mean=-4.0337 std=2.4213 count=917504
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_950000.zip
+[PPO|diag] steps=983040 ev=0.674 v_loss=0.385 shape/out=0.002/-0.003 qphi_grad=0.08288408 lamH=0.001000 zH=0.843(0.61) z_wr_spread=0.300 z_aux_ret=0.000 z_pi=-0.003 z_ratio=0.065 z_occ=[0.163,0.089,0.649,0.098] z_wr=[0.736,0.500,0.624,0.800] MI_z_o=0.0014 MI_z_phase=0.0009 MI_z_flag=0.0011 MI_z_outcome=0.0023 | OP5:z_occ=[0.15,0.10,0.66,0.09] z_wr=[0.67,0.50,0.45,1.00] OP6:z_occ=[0.15,0.07,0.67,0.10] z_wr=[0.54,0.67,0.57,0.86] OP7:z_occ=[0.18,0.09,0.63,0.10] z_wr=[0.91,0.40,0.85,0.50]
+      [Switch Near] cap=0.442(182/412|ev=5109) kill=0.000(0/412|ev=0) ret=0.250(103/412|ev=2381) | div_role=1.341 div_spread=0.569 div_pressure=0.212 div_adr=0.698
+      [Z Slices] opp_wr_spread_max=0.549 mean=0.459 per_opp=[OP5=0.549 OP6=0.319 OP7=0.509] | behavior_rel_spread_max=0.218 top3=[num_defenders=rel0.218/abs0.046 carrier_escort_count=rel0.178/abs0.129 n_intercept_near_enemy_carrier=rel0.172/abs0.138]
+      [Actor Z] sensitivity_KL=3.62293017e-02 sep_JSD=1.12659275e-03 max_JSD=9.87497047e-02 argmax_disagree=0.080363 logit_l2=2.99710274e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.36387395e-03,8.89311545e-04] entropy_by_z=[7.69912064e-01,7.69417882e-01,7.70214319e-01,7.70003319e-01]
+[PPO|return_norm] update=15 mean=-4.0584 std=2.4421 count=983040
+[PPO] ep=7000 mode=OPPONENT_POOL opp=SCRIPTED:OP5 W=4107 L=2845 D=48 WR=58.7%
+[PPO] Periodic checkpoint saved: checkpoints\4v4\ckpt_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4_1000000.zip
+[PPO|diag] steps=1048576 ev=0.663 v_loss=0.403 shape/out=0.001/-0.006 qphi_grad=0.08165534 lamH=0.001000 zH=0.755(0.54) z_wr_spread=0.094 z_aux_ret=0.000 z_pi=-0.000 z_ratio=0.036 z_occ=[0.139,0.088,0.713,0.059] z_wr=[0.522,0.609,0.616,0.583] MI_z_o=0.0016 MI_z_phase=0.0006 MI_z_flag=0.0010 MI_z_outcome=0.0025 | OP5:z_occ=[0.12,0.09,0.72,0.07] z_wr=[0.32,0.50,0.49,0.50] OP6:z_occ=[0.15,0.09,0.70,0.06] z_wr=[0.62,0.56,0.60,0.33] OP7:z_occ=[0.15,0.08,0.72,0.05] z_wr=[0.73,0.75,0.78,0.80]
+      [Switch Near] cap=0.426(149/350|ev=5169) kill=0.000(0/350|ev=0) ret=0.220(77/350|ev=2412) | div_role=1.338 div_spread=0.575 div_pressure=0.210 div_adr=0.698
+      [Z Slices] opp_wr_spread_max=0.292 mean=0.183 per_opp=[OP5=0.184 OP6=0.292 OP7=0.073] | behavior_rel_spread_max=0.176 top3=[num_defenders=rel0.176/abs0.038 n_intercept_near_enemy_carrier=rel0.161/abs0.126 carrier_escort_count=rel0.158/abs0.114]
+      [Actor Z] sensitivity_KL=4.11488242e-02 sep_JSD=1.27936783e-03 max_JSD=1.06494807e-01 argmax_disagree=0.091187 logit_l2=3.18968743e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.56795920e-03,9.90776345e-04] entropy_by_z=[8.41754973e-01,8.41619611e-01,8.42575729e-01,8.42412710e-01]
+[PPO|return_norm] update=16 mean=-4.0824 std=2.4621 count=1048576
+ 100% --------------------- 1,000,000/1,000,000  [ 2:32:35 < 0:00:00 , ? it/s ]
+[PPO] Final stats: policy_loss=-0.0259, value_loss=0.4033, approx_kl=0.00338
+[PPO] Training complete. Final checkpoint saved to: checkpoints\4v4\final_v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.zip
+[PPO] Run lock released: checkpoints\4v4\v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.run.lock

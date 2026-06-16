@@ -215,6 +215,7 @@ Behavior change: v3i19 / v4i1 / v4i3 now *actually* apply their configured `lam_
 | Strict-Summer (literal) | `v5_strict_summer` | entropy + persistence (+ KL) -- no task-reward signal on `q_phi` |
 | Conditional-entropy paper-faithful | `v5i4` / `v5i4_paper_faithful` | strict-Summer + per-step main-loop categorical PPO on `q_phi` (`latent_strategy_ppo_coef = 0.10`) + mean conditional entropy |
 | Conditional entropy-floor ablation | `v5i5` / `v5i5_paper_faithful_entropy_floor` | v5i4 with `latent_lam_h_end = 0.001`; still mean conditional entropy |
+| Summer-faithful split-lane row | `v5i7` / `v5i7_summer_faithful_split_lane` | v5i5 entropy-floor contract on `map_b_split_lane`; resolved diff vs v5i5 is exactly `map_layout` and `run_tag` |
 | **Paper-faithful canonical** | **`v5i6` / `v5i6_paper_faithful`** | **v5i4 with batch-marginal entropy `H(E_s[q_phi(z|s)])` and the v5i5 lambda_H floor; no new labels, curriculum, actor path, or auxiliary channel** |
 | v4i3 + arc-credit | `latent_v4i3_summer_proof` | strict-Summer + per-arc clipped PG (post-Summer extension) |
 | v5i1 episode-credit | `latent_v5i1_reward_credit_router` | strict-Summer + per-episode clipped PG with a dedicated AdamW |
@@ -423,6 +424,35 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v5i8 / Summer-faithful split-lane v2 task-pressure row:** Added
+  `apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure` (aliases
+  `v5i8`, `v5i8_split_lane_v2`, `v5i8_split_lane_v2_task_pressure`,
+  `v5i8_summer_faithful_split_lane_v2`, and long plan/latent aliases)
+  built directly on v5i7. The resolved diff vs v5i7 is exactly
+  `{map_layout, run_tag}`: `map_layout = "map_b_split_lane_v2"` and
+  `run_tag = "v5i8_summer_faithful_split_lane_v2_task_pressure_OP5_OP6_OP7_1m_4v4"`.
+  It keeps conditional entropy, the v5i5 `lambda_H` floor, concat-only
+  actor conditioning, sparse 64-decision resampling, no forced-z
+  curriculum, no marginal entropy, no auxiliary heads, and no new
+  `q_phi` gradient channel. Added lower-friction split-lane v2 geometry,
+  route-context telemetry (`attack` / `return` / `intercept` crossings),
+  OP5/OP6/OP7 lane-pressure patterns inside scripted opponent movement,
+  the audit trigger, and `tests/test_v5i8_split_lane_v2_task_pressure.py`;
+  regenerated `tests/preset_snapshots.json`.
+- **v5i7 / Summer-faithful entropy-floor split-lane row:** Added
+  `apply_plan_faithful_latent_v5i7_entropy_floor_split_lane` (aliases
+  `v5i7`, `v5i7_split_lane`, `v5i7_entropy_floor_split_lane`,
+  `v5i7_summer_faithful_entropy_floor_split_lane`,
+  `v5i7_summer_faithful_split_lane`, and long plan/latent aliases)
+  built directly on v5i5. The resolved diff vs v5i5 is exactly
+  `{map_layout, run_tag}`: `map_layout = "map_b_split_lane"` and
+  `run_tag = "v5i7_summer_faithful_entropy_floor_split_lane_OP5_OP6_OP7_1m_4v4"`.
+  It keeps conditional entropy, the v5i5 `lambda_H` floor, concat-only
+  actor conditioning, sparse 64-decision resampling, no forced-z
+  curriculum, no marginal entropy, no auxiliary heads, and no new
+  `q_phi` gradient channel. Added the audit trigger and
+  `tests/test_v5i7_entropy_floor_split_lane.py`; regenerated
+  `tests/preset_snapshots.json`.
 - **v5i6 / canonical marginal-entropy interpretation:** Added
   `apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`
   (aliases `v5i6`, `v5i6_paper_faithful`,

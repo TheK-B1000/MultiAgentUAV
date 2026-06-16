@@ -309,6 +309,7 @@ def _aggregate_by_z(records: list[EpisodeRecord]) -> list[dict[str, Any]]:
             slot = by_key.setdefault(
                 key,
                 {
+                    "map_layout": str(r.get("map_layout", "")),
                     "opponent": ep.opponent,
                     "mode": ep.mode,
                     "z": z_eff,
@@ -357,6 +358,7 @@ def _aggregate_by_z(records: list[EpisodeRecord]) -> list[dict[str, Any]]:
         n_eps = len(outcomes)
         wr = float(sum(outcomes) / n_eps) if n_eps else 0.0
         row = {
+            "map_layout": slot.get("map_layout", ""),
             "opponent": slot["opponent"],
             "mode": slot["mode"],
             "z": slot["z"],
@@ -387,7 +389,7 @@ def _aggregate_by_z(records: list[EpisodeRecord]) -> list[dict[str, Any]]:
 
 def _step_csv_fieldnames(latent_k: int, n_blue: int, n_red: int) -> list[str]:
     base = [
-        "opponent", "mode", "fixed_z_id", "episode_idx", "step",
+        "map_layout", "opponent", "mode", "fixed_z_id", "episode_idx", "step",
         "z_active", "z_resampled", "q_phi_entropy",
         "blue_score", "red_score", "blue_score_delta", "red_score_delta",
         "blue_carrier_count", "red_carrier_count",
@@ -425,6 +427,93 @@ def _write_rollout_by_z_csv(path: Path, rows: list[dict[str, Any]]) -> None:
             writer.writerow(r)
 
 
+def _write_strategy_evidence_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(rows[0].keys())
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _forced_behavior_spread(rows: list[dict[str, Any]]) -> float:
+    if len(rows) < 2:
+        return 0.0
+    ranges: list[float] = []
+    for name in BEHAVIOR_TELEMETRY_NAMES:
+        vals = [float(r.get(f"{name}_mean", 0.0)) for r in rows]
+        ranges.append(max(vals) - min(vals))
+    return float(np.mean(ranges)) if ranges else 0.0
+
+
+def _strategy_spread_label(spread: float) -> str:
+    if spread >= 0.25:
+        return "high"
+    if spread >= 0.10:
+        return "medium"
+    return "low"
+
+
+def _strategy_interpretation(perf_spread: float, behavior_spread: float) -> str:
+    if behavior_spread >= 0.10 and perf_spread >= 0.05:
+        return "latent specialization"
+    if behavior_spread >= 0.10:
+        return "behavior differs; performance unclear"
+    if perf_spread >= 0.05:
+        return "performance differs; strategy meaning unclear"
+    return "no causal strategy"
+
+
+def _build_strategy_evidence_rows(
+    records: list[EpisodeRecord],
+    agg_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    natural_by_opp: dict[str, list[EpisodeRecord]] = {}
+    for ep in records:
+        if ep.mode == "natural":
+            natural_by_opp.setdefault(ep.opponent, []).append(ep)
+
+    fixed_by_opp: dict[str, list[dict[str, Any]]] = {}
+    for row in agg_rows:
+        if row.get("mode") == "fixed_z":
+            fixed_by_opp.setdefault(str(row.get("opponent", "")), []).append(row)
+
+    rows_out: list[dict[str, Any]] = []
+    for opponent in sorted(set(natural_by_opp) | set(fixed_by_opp)):
+        natural_eps = natural_by_opp.get(opponent, [])
+        natural_wr = (
+            float(sum(1 for ep in natural_eps if ep.outcome_blue_won) / len(natural_eps))
+            if natural_eps
+            else float("nan")
+        )
+        forced_rows = sorted(fixed_by_opp.get(opponent, []), key=lambda r: int(r.get("z", -1)))
+        if not forced_rows:
+            continue
+        best = max(forced_rows, key=lambda r: float(r.get("blue_win_rate", 0.0)))
+        worst = min(forced_rows, key=lambda r: float(r.get("blue_win_rate", 0.0)))
+        best_wr = float(best.get("blue_win_rate", 0.0))
+        worst_wr = float(worst.get("blue_win_rate", 0.0))
+        behavior_spread = _forced_behavior_spread(forced_rows)
+        perf_spread = best_wr - worst_wr
+        rows_out.append(
+            {
+                "opponent": opponent,
+                "natural_win_rate": natural_wr,
+                "best_z": int(best.get("z", -1)),
+                "best_forced_z_win_rate": best_wr,
+                "worst_z": int(worst.get("z", -1)),
+                "worst_forced_z_win_rate": worst_wr,
+                "forced_z_performance_spread": perf_spread,
+                "forced_z_behavior_spread": behavior_spread,
+                "strategy_spread": _strategy_spread_label(behavior_spread),
+                "interpretation": _strategy_interpretation(perf_spread, behavior_spread),
+            }
+        )
+    return rows_out
+
+
 def _markdown_table(rows: list[dict[str, Any]], cols: list[str]) -> str:
     if not rows:
         return "_(empty)_\n"
@@ -456,6 +545,7 @@ def _write_summary_md(
     deterministic: bool,
     seed: int,
     is_latent: bool = True,
+    map_layout: str = "map_a_open",
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
@@ -470,6 +560,7 @@ def _write_summary_md(
     )
     lines.append(
         f"{latent_line} | blue agents: **{n_blue}** | red agents: **{n_red}**\n"
+        f"- map layout: **{map_layout}**\n"
         f"- opponents evaluated: **{', '.join(opponents)}**\n"
         f"- deterministic policy: **{deterministic}** | seed: **{seed}**\n"
         f"- total episodes: **{len(records)}**\n"
@@ -478,8 +569,35 @@ def _write_summary_md(
     # Episode-level summary per (opponent, mode, z) — natural vs fixed.
     natural_rows = [r for r in agg_rows if r["mode"] == "natural"]
     fixed_rows = [r for r in agg_rows if r["mode"] == "fixed_z"]
+    evidence_rows = _build_strategy_evidence_rows(records, agg_rows)
 
     if is_latent:
+        lines.append("## Strategy evidence table\n")
+        lines.append(
+            "Natural router win rate is compared against the best and worst "
+            "forced-z rollouts for the same opponent. ``forced_z_behavior_spread`` "
+            "is the mean per-feature range across the 13 behavior telemetry "
+            "signals. Latent strategy evidence requires both forced-z behavior "
+            "differences and opponent-dependent performance or macro-behavior "
+            "differences.\n"
+        )
+        lines.append(
+            _markdown_table(
+                evidence_rows,
+                [
+                    "opponent",
+                    "natural_win_rate",
+                    "best_z",
+                    "best_forced_z_win_rate",
+                    "worst_z",
+                    "worst_forced_z_win_rate",
+                    "forced_z_behavior_spread",
+                    "strategy_spread",
+                    "interpretation",
+                ],
+            )
+        )
+
         lines.append("## Win rate by (opponent, z) -- fixed-z mode\n")
         lines.append(
             "Each row forces ``z`` to a single value for the entire episode. "
@@ -633,6 +751,7 @@ def run(
     modes: list[str],
     deterministic: bool,
     max_steps: int,
+    map_layout: str = "map_a_open",
 ) -> dict[str, Path]:
     if not checkpoint.exists():
         raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
@@ -662,12 +781,16 @@ def run(
     cfg.device = str(device)
     cfg.max_blue_agents = n_blue
     cfg.n_agents_per_team = n_blue
+    cfg.map_layout = str(map_layout).strip().lower()
     if is_latent:
         cfg.latent_k = latent_k
 
     flavour = f"latent_k={latent_k}" if is_latent else "no_latent (baseline)"
     print(f"[qualitative] checkpoint: {checkpoint}")
-    print(f"[qualitative] {flavour}  agents={n_blue}v{n_red}  device={device}  seed={seed}")
+    print(
+        f"[qualitative] {flavour}  agents={n_blue}v{n_red}  "
+        f"map_layout={cfg.map_layout}  device={device}  seed={seed}"
+    )
     print(f"[qualitative] modes={effective_modes}  episodes_per_mode={episodes_per_mode}")
     print(f"[qualitative] opponents={opponents}")
 
@@ -711,6 +834,8 @@ def run(
                             max_steps=max_steps,
                             latent_k=latent_k,
                         )
+                        for row in rec.rows:
+                            row["map_layout"] = cfg.map_layout
                         records.append(rec)
                         global_ep_counter += 1
                         print(
@@ -735,6 +860,8 @@ def run(
                                 max_steps=max_steps,
                                 latent_k=latent_k,
                             )
+                            for row in rec.rows:
+                                row["map_layout"] = cfg.map_layout
                             records.append(rec)
                             global_ep_counter += 1
                             print(
@@ -750,6 +877,7 @@ def run(
         stem = checkpoint.stem
         steps_csv = out_dir / f"{stem}_qualitative_steps.csv"
         by_z_csv = out_dir / f"{stem}_qualitative_rollout_by_z.csv"
+        evidence_csv = out_dir / f"{stem}_strategy_evidence.csv"
         summary_md = out_dir / f"{stem}_qualitative_rollout_summary.md"
 
         fieldnames = _step_csv_fieldnames(latent_k, n_blue, n_red)
@@ -757,6 +885,8 @@ def run(
 
         agg_rows = _aggregate_by_z(records)
         _write_rollout_by_z_csv(by_z_csv, agg_rows)
+        evidence_rows = _build_strategy_evidence_rows(records, agg_rows)
+        _write_strategy_evidence_csv(evidence_csv, evidence_rows)
         _write_summary_md(
             summary_md,
             records=records,
@@ -769,10 +899,12 @@ def run(
             deterministic=deterministic,
             seed=seed,
             is_latent=is_latent,
+            map_layout=cfg.map_layout,
         )
 
         outputs = {
             "rollout_by_z": by_z_csv,
+            "strategy_evidence": evidence_csv,
             "rollout_summary": summary_md,
             "steps": steps_csv,
         }
@@ -825,6 +957,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
+        "--map-layout",
+        type=str,
+        default="map_a_open",
+        choices=["map_a_open", "map_b_split_lane", "map_b_split_lane_v2", "open", "split_lane", "split_lane_v2"],
+        help="GPUFieldConfig.map_layout used for the evaluation environment.",
+    )
+    parser.add_argument(
         "--out-dir",
         type=str,
         default=None,
@@ -862,6 +1001,7 @@ def main(argv: list[str] | None = None) -> int:
         modes=list(args.modes),
         deterministic=not bool(args.stochastic),
         max_steps=int(args.max_steps),
+        map_layout=str(args.map_layout),
     )
     return 0
 

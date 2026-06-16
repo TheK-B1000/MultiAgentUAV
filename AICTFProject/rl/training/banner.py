@@ -263,13 +263,14 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
 
 def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     """Emit the paper-faithful audit banner when the run is configured per
-    a paper-faithful contract (currently the v5i4 / v5i5 / v5i6 family).
+    a paper-faithful contract (currently the v5i4 / v5i5 / v5i6 / v5i7 / v5i8 family).
 
     The audit is triggered by either:
 
     * ``cfg.run_tag`` containing one of the recognized paper-faithful
       family tags (``v5i4_paper_faithful``, ``v5i5_paper_faithful``,
-      ``v5i6_paper_faithful``), or
+      ``v5i6_paper_faithful``, ``v5i7_summer_faithful``,
+      ``v5i8_summer_faithful``), or
     * an explicit ``cfg.latent_paper_faithful_audit = True`` opt-in flag
       (used by future paper-faithful presets so they inherit the banner
       without relying on a specific run_tag string).
@@ -279,15 +280,19 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     config snapshots. None of these reads mutate ``cfg``.
 
     Family detection: the header / warning lines are prefixed with the
-    matched family (``v5i4``, ``v5i5``, or ``v5i6``) so existing v5i4 banner tests
-    still see ``"v5i4 paper-faithful audit"`` / ``"v5i4 audit WARNING"``
-    while newer runs print the equivalent family strings.
+    matched family (``v5i4``, ``v5i5``, ``v5i6``, ``v5i7``, or ``v5i8``) so existing v5i4
+    banner tests still see ``"v5i4 paper-faithful audit"`` /
+    ``"v5i4 audit WARNING"`` while newer runs print the equivalent family strings.
     """
     run_tag = str(getattr(cfg, "run_tag", "") or "")
     explicit_opt_in = bool(getattr(cfg, "latent_paper_faithful_audit", False))
     run_tag_low = run_tag.lower()
     family: str | None = None
-    if "v5i6_paper_faithful" in run_tag_low:
+    if "v5i8_summer_faithful" in run_tag_low:
+        family = "v5i8"
+    elif "v5i7_summer_faithful" in run_tag_low:
+        family = "v5i7"
+    elif "v5i6_paper_faithful" in run_tag_low:
         family = "v5i6"
     elif "v5i5_paper_faithful" in run_tag_low:
         family = "v5i5"

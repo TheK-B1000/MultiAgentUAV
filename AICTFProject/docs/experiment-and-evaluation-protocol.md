@@ -46,9 +46,12 @@ flag on the resulting claim.
 | Fresh metrics CSV                                                | ON (`--fresh-metrics-csv`)                                                    |
 | Checkpoint directory                                             | `checkpoints/4v4`                                                             |
 
-The v5i6 launch command below is the canonical reference. Any new
-launch in the v5 / v4 ladder must match it except for `--preset` and
-(if intentional) `--run-tag`.
+The v5i6 launch command below is the canonical open-map reference. Any
+new launch in the v5 / v4 ladder must match it except for `--preset` and
+(if intentional) `--run-tag`. v5i7 intentionally changes `map_layout` to
+`map_b_split_lane`; v5i8 intentionally changes `map_layout` to
+`map_b_split_lane_v2`. Compare map-specific rows only against matched-map
+controls.
 
 ---
 
@@ -88,7 +91,7 @@ Before pressing enter on any latent training launch:
    the paper-faithful invariant block at training start, verify either
    `cfg.run_tag` contains a recognized family tag
    (`"v5i4_paper_faithful"`, `"v5i5_paper_faithful"`,
-   `"v5i6_paper_faithful"`) or
+   `"v5i6_paper_faithful"`, `"v5i7_summer_faithful"`) or
    `cfg.latent_paper_faithful_audit = True`. The banner code lives in
    [`rl/training/banner.py::_maybe_print_paper_faithful_audit`](../rl/training/banner.py).
 4. **Confirm `run_tag` matches the actual budget.** v5i4 corrected
@@ -118,6 +121,8 @@ Before pressing enter on any latent training launch:
 | Canonical paper-faithful (v5i6)     | `v5i6_paper_faithful`        | Default audit banner fires. Use any of the ten aliases (§5 in registry) — all resolve identically.                                  |
 | Conditional-entropy interpretation  | `v5i4_paper_faithful`        | Preserved comparison row with mean conditional entropy.                                                                              |
 | Conditional entropy-floor ablation  | `v5i5_paper_faithful_entropy_floor` | Same conditional entropy as v5i4, but `latent_lam_h_end = 0.001`.                                                              |
+| Summer-faithful split-lane row      | `v5i7`                      | Inherits v5i5 and changes only `map_layout = "map_b_split_lane"` plus `run_tag`; compare only to split-lane matched controls.        |
+| Summer-faithful split-lane v2 task-pressure row | `v5i8` | Inherits v5i7 and changes only `map_layout = "map_b_split_lane_v2"` plus `run_tag`; compare only to split-lane-v2 matched controls. |
 | Literal-strict ablation             | `v5_strict_summer`           | Same launch flags. Tag will carry `_2m_4v4` (historical); pass `--run-tag` to override.                                              |
 | No-latent baseline (matched control)| `no_latent_v4i3_baseline`    | Same launch flags. `use_latent_strategy = False`. Tag is budget-agnostic.                                                            |
 | Arc-credit row                      | `v4i3_summer_proof`          | Same launch flags. Tag is budget-agnostic; preset is `SUMMER-COMPATIBLE EXTENSION`, **not** literal paper-faithful (arc-credit ON).  |
@@ -309,6 +314,32 @@ return for each forced `z`. Thresholds (per the v4i1 design):
 Pass `--watch` to poll a checkpoint directory and append rolling
 contrast estimates as new checkpoints arrive.
 
+### 6.4a v5i8 forced-z behavioral evaluation (`tools/v5i8_forced_z_eval.py`)
+
+[`tools/v5i8_forced_z_eval.py`](../tools/v5i8_forced_z_eval.py) is the
+post-training protocol for the split-lane-v2 latent row. It freezes one
+checkpoint, runs `natural` router rollouts and `fixed_z` rollouts for
+every latent ID, and writes a manifest, per-step trajectory CSV,
+`rollout_by_z` aggregate CSV, and Markdown readout.
+
+This is evaluation only: no backward pass, no supervised strategy labels,
+and no training-time dependency on what each `z` means.
+
+```bash
+python tools/v5i8_forced_z_eval.py `
+    --checkpoint checkpoints/4v4/<v5i8_final>.zip `
+    --metrics-csv checkpoints/4v4/<v5i8_metrics>.csv `
+    --map-layout map_b_split_lane_v2 `
+    --opponents OP5 OP6 OP7 `
+    --episodes-per-mode 100 `
+    --device cuda
+```
+
+Interpretation: if forced `z` changes behavior telemetry and trajectories
+for the same opponent, latent strategies emerged. If it changes only win
+rate or return, `z` affects performance but strategy meaning remains
+unclear. If it changes neither behavior nor outcome, `z` usage is cosmetic.
+
 ### 6.5 Local counterfactual probe (`tools/q_probe_local_counterfactual.py`)
 
 [`tools/q_probe_local_counterfactual.py`](../tools/q_probe_local_counterfactual.py)
@@ -360,9 +391,9 @@ Even before evaluation, the training run must satisfy:
 1. **Audit banner fires for any paper-faithful preset** and lists
    every channel ON/OFF state per
    [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §5. Pinned by
-   the v5i4/v5i5/v5i6 banner tests.
+   the v5i4/v5i5/v5i6/v5i7 banner tests.
 2. **The actor input dim line reads** `cnn(128) + per_agent_vec(20) +
-   z_emb(16) = 164` for v5i4 / v5i5 / v5i6. Any other resolved width means the actor
+   z_emb(16) = 164` for v5i4 / v5i5 / v5i6 / v5i7. Any other resolved width means the actor
    pathway has been altered; stop the run.
 3. **`qphi_grad` per-update telemetry is nonzero on the resample
    subset** in any paper-faithful run. If it is zero, either

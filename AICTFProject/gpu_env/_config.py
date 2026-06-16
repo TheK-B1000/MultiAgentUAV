@@ -15,6 +15,8 @@ from game_manager import (
 )
 
 from ._constants import MAP_SET_SEED_OFFSETS
+from ._constants import NUM_CNN_CHANNELS
+from ._maps import MAP_A_OPEN, normalize_map_layout
 
 
 @dataclass(frozen=True)
@@ -68,8 +70,15 @@ class GPUFieldConfig:
     max_blue_agents: int = 2
     max_red_agents: int = 2
     map_set: str = "train"
+    map_layout: str = MAP_A_OPEN
     map_rows: int = 20
     map_cols: int = 20
+    obstacle_obs_channel: Optional[bool] = None
+    map_b_vertical_mirror_prob: float = 0.5
+    map_b_wall_x_min_norm: float = 0.44
+    map_b_wall_x_max_norm: float = 0.56
+    map_b_wall_y_min_norm: float = 0.25
+    map_b_wall_y_max_norm: float = 0.72
     # Paper-aligned timing (Table 3):
     #   - maxGameTime ~= 200 s
     #   - dt_sim ~= 0.5 s
@@ -209,6 +218,21 @@ class GPUFieldConfig:
         if self.map_set not in MAP_SET_SEED_OFFSETS:
             allowed = ", ".join(sorted(MAP_SET_SEED_OFFSETS))
             raise ValueError(f"map_set must be one of {{{allowed}}}, got {self.map_set!r}")
+        self.map_layout = normalize_map_layout(self.map_layout)
+        if self.obstacle_obs_channel is None:
+            self.obstacle_obs_channel = self.map_layout != MAP_A_OPEN
+        self.map_b_vertical_mirror_prob = max(0.0, min(1.0, float(self.map_b_vertical_mirror_prob)))
+        for name in (
+            "map_b_wall_x_min_norm",
+            "map_b_wall_x_max_norm",
+            "map_b_wall_y_min_norm",
+            "map_b_wall_y_max_norm",
+        ):
+            setattr(self, name, max(0.0, min(1.0, float(getattr(self, name)))))
+
+    @property
+    def num_cnn_channels(self) -> int:
+        return int(NUM_CNN_CHANNELS) + (1 if bool(self.obstacle_obs_channel) else 0)
 
 
 assert REWARD_FIELD_NAMES <= set(dir(GPUFieldConfig()))

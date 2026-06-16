@@ -104,6 +104,8 @@ class _StepMixin:
                     rtx = torch.where(snapshot_agent_mask, red_snapshot_tx, rtx)
                     rty = torch.where(snapshot_agent_mask, red_snapshot_ty, rty)
         btx, bty, rtx, rty = self._redirect_tagged_to_home(btx, bty, rtx, rty)
+        btx, bty = self._route_targets_around_obstacles(self.blue_x, self.blue_y, btx, bty)
+        rtx, rty = self._route_targets_around_obstacles(self.red_x, self.red_y, rtx, rty)
         return {"btx": btx, "bty": bty, "rtx": rtx, "rty": rty, "red_macro": red_macro, "red_control_mask": red_control_mask}
 
     def _advance_dynamics_phase(self, targets: Dict[str, torch.Tensor], snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
@@ -126,9 +128,55 @@ class _StepMixin:
         self.red_x, self.red_y, self.red_heading, self.red_speed, red_oob, _ = self._integrate_side(
             self.red_x, self.red_y, self.red_heading, self.red_speed, self.red_alive, targets["rtx"], targets["rty"], speed_cap=red_speed_cap
         )
+        self.blue_x, self.blue_y, self.blue_speed, blue_wall_hit = self._revert_obstacle_hits(
+            snapshot["prev_blue_x"],
+            snapshot["prev_blue_y"],
+            self.blue_x,
+            self.blue_y,
+            self.blue_speed,
+            self.blue_alive,
+        )
+        self.red_x, self.red_y, self.red_speed, red_wall_hit = self._revert_obstacle_hits(
+            snapshot["prev_red_x"],
+            snapshot["prev_red_y"],
+            self.red_x,
+            self.red_y,
+            self.red_speed,
+            self.red_alive,
+        )
+        if blue_wall_hit.any() or red_wall_hit.any():
+            self.metric_obstacle_collision_events += (
+                blue_wall_hit.sum(dim=1).to(torch.int32)
+                + red_wall_hit.sum(dim=1).to(torch.int32)
+            )
+        pre_guard_blue_x = self.blue_x.clone()
+        pre_guard_blue_y = self.blue_y.clone()
+        pre_guard_red_x = self.red_x.clone()
+        pre_guard_red_y = self.red_y.clone()
         self._apply_avoid_collision_guard(
             snapshot["prev_blue_x"], snapshot["prev_blue_y"], snapshot["prev_red_x"], snapshot["prev_red_y"]
         )
+        self.blue_x, self.blue_y, self.blue_speed, blue_guard_hit = self._revert_obstacle_hits(
+            pre_guard_blue_x,
+            pre_guard_blue_y,
+            self.blue_x,
+            self.blue_y,
+            self.blue_speed,
+            self.blue_alive,
+        )
+        self.red_x, self.red_y, self.red_speed, red_guard_hit = self._revert_obstacle_hits(
+            pre_guard_red_x,
+            pre_guard_red_y,
+            self.red_x,
+            self.red_y,
+            self.red_speed,
+            self.red_alive,
+        )
+        if blue_guard_hit.any() or red_guard_hit.any():
+            self.metric_obstacle_collision_events += (
+                blue_guard_hit.sum(dim=1).to(torch.int32)
+                + red_guard_hit.sum(dim=1).to(torch.int32)
+            )
         return {"blue_oob": blue_oob, "red_oob": red_oob, "yaw_cmd_blue": yaw_cmd_blue}
 
     def _advance_combat_phase(self, blue_oob: torch.Tensor, red_oob: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -160,7 +208,13 @@ class _StepMixin:
     def _advance_flags_phase(self, snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()
         first_score_mask = (self.blue_score > snapshot["prev_blue_score"]) | (self.red_score > snapshot["prev_red_score"])
-        self._update_episode_metrics(first_score_mask)
+        self._update_episode_metrics(
+            first_score_mask,
+            prev_blue_x=snapshot["prev_blue_x"],
+            prev_blue_y=snapshot["prev_blue_y"],
+            prev_red_x=snapshot["prev_red_x"],
+            prev_red_y=snapshot["prev_red_y"],
+        )
         return {
             "blue_grab_env": blue_grab_env,
             "red_grab_env": red_grab_env,

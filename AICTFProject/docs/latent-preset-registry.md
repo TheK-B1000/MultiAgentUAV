@@ -113,6 +113,9 @@ recent v4 / v3i19 presets are tabulated; older `v3iN`, `phaseN`, and
 | **`v5i5_paper_faithful_entropy_floor`** | **`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`** | **`v5i4_end_to_end`** | **`PAPER-FAITHFUL`** | Higher conditional-entropy-floor ablation. Resolved diff vs v5i4 is exactly `{latent_lam_h_end: 0.0002 → 0.001, run_tag}`; entropy mode remains `conditional`. |
 | **`v5i6_paper_faithful_marginal_entropy`** | **`apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`** | **`v5i4_end_to_end`** | **`PAPER-FAITHFUL`** | **Canonical paper-faithful marginal-entropy interpretation.** Replaces mean conditional entropy with **rollout-level** marginal entropy `KL(N⁻¹Σ_i q_phi(z\|s_i) \|\| U)` over every resample-decision point in the rollout (`latent_entropy_mode = "marginal"`, aggregation = `rollout`, computed once per PPO inner epoch — see method spec §8.1 for the Jensen rationale), uses the v5i5 `λ_H` floor (`0.001`), and changes no actor, critic, sampling, task-PPO, persistence, curriculum, label, or auxiliary channel. |
 
+| `v5i7_summer_faithful_entropy_floor_split_lane` | `apply_plan_faithful_latent_v5i7_entropy_floor_split_lane` | `v5i5_paper_faithful_entropy_floor` | `PAPER-FAITHFUL` | v5i5 entropy-floor method on `map_b_split_lane`. The only resolved diff vs v5i5 is `{map_layout: map_a_open -> map_b_split_lane, run_tag}`. This tests whether lane/chokepoint geometry creates enough return contrast for deployed latent routing without adding labels, curriculum, auxiliary losses, FiLM, marginal entropy, or new `q_phi` gradient channels. |
+| `v5i8_split_lane_v2_task_pressure` | `apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure` | `v5i7_summer_faithful_entropy_floor_split_lane` | `PAPER-FAITHFUL` | v5i7 latent contract on `map_b_split_lane_v2`. The only resolved diff vs v5i7 is `{map_layout: map_b_split_lane -> map_b_split_lane_v2, run_tag}`. This tests whether lower-friction, higher-route-contrast geometry creates enough task-return structure for deployed latent routing without changing latent coefficients, objectives, sampling, labels, or actor conditioning. |
+
 ### 3.2 v4 family (Summer-proof + post-Summer extension)
 
 | Preset (apply fn) | Parent | Classification | One-line reason |
@@ -197,6 +200,8 @@ pins the alias map; any deletion or rename must be reflected there.
 | **`apply_plan_faithful_latent_v5i4_end_to_end`**            | **`plan_faithful_latent_v5i4_end_to_end`, `latent_v5i4_end_to_end`, `latent_v5i4_paper_faithful`, `v5i4_end_to_end`, `v5i4_paper_faithful`, `paper_faithful_end_to_end`, `v5i4`**              |
 | **`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`** | **`plan_faithful_latent_v5i5_paper_faithful_entropy_floor`, `plan_faithful_latent_v5i5_entropy_floor`, `latent_v5i5_paper_faithful_entropy_floor`, `latent_v5i5_entropy_floor`, `latent_v5i5_paper_faithful`, `v5i5_paper_faithful_entropy_floor`, `v5i5_paper_faithful`, `v5i5_entropy_floor`, `v5i5`, `paper_faithful_entropy_floor`** |
 | **`apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`** | **`plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`, `plan_faithful_latent_v5i6_marginal_entropy`, `latent_v5i6_paper_faithful_marginal_entropy`, `latent_v5i6_marginal_entropy`, `latent_v5i6_paper_faithful`, `v5i6_paper_faithful_marginal_entropy`, `v5i6_paper_faithful`, `v5i6_marginal_entropy`, `v5i6`, `paper_faithful_marginal_entropy`** |
+| **`apply_plan_faithful_latent_v5i7_entropy_floor_split_lane`** | **`plan_faithful_latent_v5i7_entropy_floor_split_lane`, `plan_faithful_latent_v5i7_summer_faithful_entropy_floor_split_lane`, `plan_faithful_latent_v5i7_summer_faithful_split_lane`, `plan_faithful_latent_v5i7_split_lane`, `latent_v5i7_entropy_floor_split_lane`, `latent_v5i7_summer_faithful_entropy_floor_split_lane`, `latent_v5i7_summer_faithful_split_lane`, `latent_v5i7_split_lane`, `v5i7_entropy_floor_split_lane`, `v5i7_summer_faithful_entropy_floor_split_lane`, `v5i7_summer_faithful_split_lane`, `v5i7_split_lane`, `v5i7`** |
+| **`apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure`** | **`plan_faithful_latent_v5i8_split_lane_v2_task_pressure`, `plan_faithful_latent_v5i8_summer_faithful_split_lane_v2`, `plan_faithful_latent_v5i8_split_lane_v2`, `latent_v5i8_split_lane_v2_task_pressure`, `latent_v5i8_summer_faithful_split_lane_v2`, `latent_v5i8_split_lane_v2`, `v5i8_split_lane_v2_task_pressure`, `v5i8_summer_faithful_split_lane_v2`, `v5i8_split_lane_v2`, `v5i8`** |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
 
 The full alias surface lives in
@@ -386,7 +391,56 @@ strategy repertoire, state-specific routing). Low marginal + low
 conditional = global collapse; high marginal + high conditional = broad
 but indecisive routing.
 
-### 6.10 plan_faithful_latent_k1 (ABLATION)
+### 6.10 v5i7_summer_faithful_entropy_floor_split_lane (PAPER-FAITHFUL)
+
+The v5i5 -> v5i7 resolved-config diff is exactly two keys
+(`map_layout`, `run_tag`). This is enforced by
+[`tests/test_v5i7_entropy_floor_split_lane.py::V5i7PresetInheritanceTests::test_v5i7_diff_vs_v5i5_is_map_layout_and_tag_only`](../tests/test_v5i7_entropy_floor_split_lane.py).
+
+| Field                  | v5i5 value | This preset | Forbidden flag? | Note |
+|------------------------|------------|-------------|-----------------|------|
+| `map_layout`           | `map_a_open` | `map_b_split_lane` | No | Adds lane/chokepoint route geometry while preserving v5i5's latent contract. |
+| `run_tag`              | `v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4` | `v5i7_summer_faithful_entropy_floor_split_lane_OP5_OP6_OP7_1m_4v4` | - | Artifact namespace advertises the split-lane Summer-faithful row. |
+
+All other v5i5 fidelity fields match: concat-only actor, conditional
+entropy maximization with `latent_lam_h_end = 0.001`, `K = 4`,
+`latent_strategy_ppo_coef = 0.10`, `latent_lam_p = 0.03`, sparse
+64-decision resampling, no episode-credit optimizer, no forced-z
+curriculum, no marginal entropy, no FiLM/adapter/one-hot actor path, no
+preferences/distillation, no arc-credit, and no auxiliary heads.
+
+Comparisons against v5i5, v5i6, or no-latent controls must use matched
+map geometry. A default-open-map row and a split-lane row answer different
+environment questions.
+
+### 6.11 v5i8_split_lane_v2_task_pressure (PAPER-FAITHFUL)
+
+The v5i7 -> v5i8 resolved-config diff is exactly two keys
+(`map_layout`, `run_tag`). This is enforced by
+[`tests/test_v5i8_split_lane_v2_task_pressure.py::V5i8PresetInheritanceTests::test_v5i8_diff_vs_v5i7_is_map_layout_and_tag_only`](../tests/test_v5i8_split_lane_v2_task_pressure.py).
+
+| Field                  | v5i7 value | This preset | Forbidden flag? | Note |
+|------------------------|------------|-------------|-----------------|------|
+| `map_layout`           | `map_b_split_lane` | `map_b_split_lane_v2` | No | Uses a narrower/shorter central wall, wider route openings, route-aware clearance, and OP5/OP6/OP7 lane-pressure patterns while preserving the v5i7 latent contract. |
+| `run_tag`              | `v5i7_summer_faithful_entropy_floor_split_lane_OP5_OP6_OP7_1m_4v4` | `v5i8_summer_faithful_split_lane_v2_task_pressure_OP5_OP6_OP7_1m_4v4` | - | Artifact namespace advertises the split-lane v2 task-pressure row. |
+
+All other v5i7 fidelity fields match: concat-only actor, conditional
+entropy maximization with `latent_lam_h_end = 0.001`, `K = 4`,
+`latent_strategy_ppo_coef = 0.10`, `latent_lam_p = 0.03`, sparse
+64-decision resampling, no episode-credit optimizer, no forced-z
+curriculum, no marginal entropy, no FiLM/adapter/one-hot actor path, no
+preferences/distillation, no arc-credit, and no auxiliary heads.
+
+The environment adds route-context episode telemetry
+(`*_attack_*_crossings`, `*_return_*_crossings`, and
+`*_intercept_*_crossings`) so analyses can group route behavior by
+`latent_z` without assigning hard-coded meanings to any `z` index.
+
+Comparisons against v5i7 or no-latent controls must use matched map
+geometry. A split-lane v1 row and split-lane v2 row answer an environment
+question, not a latent-objective question.
+
+### 6.12 plan_faithful_latent_k1 (ABLATION)
 
 | Field        | v5i4 value | This preset | Forbidden flag? | Note                                                       |
 |--------------|------------|-------------|-----------------|------------------------------------------------------------|
@@ -474,6 +528,8 @@ same artifact namespace; pass `--run-tag` to disambiguate when needed.
 | `v5i4_paper_faithful_end_to_end` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i4_paper_faithful"`. |
 | `v5i5_paper_faithful_entropy_floor` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i5_paper_faithful"`. |
 | `v5i6_paper_faithful_marginal_entropy` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i6_paper_faithful"`. |
+| `v5i7_summer_faithful_entropy_floor_split_lane` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i7_summer_faithful"`. |
+| `v5i8_split_lane_v2_task_pressure` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i8_summer_faithful"`. |
 | Any other preset    | Only if `cfg.latent_paper_faithful_audit = True` is set on the resolved config. |
 
 The banner content and trigger logic live in

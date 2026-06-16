@@ -26,6 +26,7 @@ from game_field_gpu import (
     NUM_CNN_CHANNELS,
     VEC_OBS_DIM,
 )
+from gpu_env import MAP_A_OPEN, MAP_B_SPLIT_LANE
 from rl.stress_schedule import STRESS_BY_PHASE
 from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 
@@ -37,6 +38,23 @@ METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
 DEFAULT_PPO_MODEL_PATH = "checkpoints/4v4/final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4.zip"
 N_MACROS = 5
 N_TARGETS = 50
+MAP_LAYOUT_CHOICES = ("map_a_open", "map_b_split_lane", "open", "split_lane")
+
+
+def _normalize_viewer_map_layout(value: str) -> str:
+    key = str(value or MAP_A_OPEN).strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "map_a_open": MAP_A_OPEN,
+        "map_a": MAP_A_OPEN,
+        "open": MAP_A_OPEN,
+        "map_b_split_lane": MAP_B_SPLIT_LANE,
+        "map_b": MAP_B_SPLIT_LANE,
+        "split_lane": MAP_B_SPLIT_LANE,
+    }
+    if key not in aliases:
+        allowed = ", ".join(MAP_LAYOUT_CHOICES)
+        raise ValueError(f"map_layout must be one of {{{allowed}}}, got {value!r}")
+    return aliases[key]
 
 
 def _try_paths(*candidates: str) -> Optional[str]:
@@ -234,6 +252,22 @@ class CoreRenderer:
         pg.draw.line(surface, (190, 190, 210),
                      (mid_x, rect.top), (mid_x, rect.bottom), 2)
 
+        # Obstacles / walls
+        if getattr(c, "obstacle_rects", None) is not None:
+            rects = c.obstacle_rects[0].detach().cpu().numpy()
+            active = c.obstacle_active[0].detach().cpu().numpy()
+            for ob, is_active in zip(rects, active):
+                if not bool(is_active):
+                    continue
+                x0, y0, x1, y1 = [float(v) for v in ob]
+                px0 = rect.left + int(x0 * cw)
+                px1 = rect.left + int((x1 + 1.0) * cw)
+                py0 = rect.top + int(y0 * ch)
+                py1 = rect.top + int((y1 + 1.0) * ch)
+                wall = pg.Rect(min(px0, px1), min(py0, py1), abs(px1 - px0), abs(py1 - py0))
+                pg.draw.rect(surface, (72, 78, 92), wall)
+                pg.draw.rect(surface, (210, 215, 226), wall, width=1)
+
         # Flags
         bf = self._t(c.blue_flag_pos)
         rf = self._t(c.red_flag_pos)
@@ -372,10 +406,12 @@ class CoreRenderer:
 class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
                  device: str = "cpu",
-                 deterministic: bool = True):
+                 deterministic: bool = True,
+                 map_layout: str = MAP_A_OPEN):
         self.device = str(device)
         self.ppo_model_path = str(ppo_model_path)
         self.deterministic = bool(deterministic)
+        self.map_layout = _normalize_viewer_map_layout(map_layout)
         model_meta = _read_model_metadata(ppo_model_path)
         initial_agents = max(1, int(model_meta.get("n_blue", 4)))
         paper_steps = 400
@@ -388,6 +424,7 @@ class CTFViewer:
             stalemate_max_steps=paper_steps,
             rules_profile="OURS",
             score_limit=3,
+            map_layout=self.map_layout,
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
@@ -395,7 +432,7 @@ class CTFViewer:
         self.cfg.stalemate_max_steps = paper_steps
         self.core.max_steps = paper_steps
         self.core.rules_profile = "OURS"
-        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: OURS")
+        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: OURS | map: {self.map_layout}")
         try:
             self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
@@ -700,6 +737,7 @@ class CTFViewer:
     def _rebuild_core(self, agents_per_team: int) -> None:
         """Recreate the core with a new number of agents per team."""
         agents = max(1, int(agents_per_team))
+        self.cfg.map_layout = self.map_layout
         self.cfg.max_blue_agents = agents
         self.cfg.max_red_agents = agents
         self.cfg.max_decision_steps = 400
@@ -729,7 +767,7 @@ class CTFViewer:
                 self._ppo_mismatch_warned = False
         else:
             self._ppo_mismatch_warned = False
-        print(f"[Viewer] Agents per team -> {agents} v {agents}")
+        print(f"[Viewer] Agents per team -> {agents} v {agents} | map: {self.map_layout}")
 
     def _handle_key(self, event: Any) -> None:
         k = event.key
@@ -795,7 +833,7 @@ class CTFViewer:
         }.get(self.blue_mode, (230, 230, 240))
         txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 (cycle) | 2/3/4/8: set team size | F3: PPO/Demo | F4: det/stoch | ESC: Quit",
             30, 10, (200, 200, 220))
-        txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)}",
+        txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)} | Map: {self.map_layout}",
             30, 36, mode_clr)
 
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
@@ -826,6 +864,8 @@ if __name__ == "__main__":
                         help="Headless evaluation (no display)")
     parser.add_argument("--device", type=str, default="cpu",
                         help="Torch device (cpu / cuda)")
+    parser.add_argument("--map-layout", type=str, choices=MAP_LAYOUT_CHOICES, default=MAP_A_OPEN,
+                        help="Environment geometry layout")
     parser.add_argument("--stochastic", action="store_true",
                         help="Use stochastic PPO actions instead of deterministic inference")
     args = parser.parse_args()
@@ -834,6 +874,7 @@ if __name__ == "__main__":
         ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
         device=args.device,
         deterministic=not args.stochastic,
+        map_layout=args.map_layout,
     )
 
     if args.eval is not None:

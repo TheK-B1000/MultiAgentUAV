@@ -81,6 +81,42 @@ class StrictFaithfulDictWrapper(dict):
         return super().get(key, default)
 
 
+def _populate_main_loop_qphi_telemetry(
+    row: dict[str, float],
+    *,
+    cfg: Any,
+    hparams: Any,
+    runtime: Any,
+    latent_lam_h: float,
+) -> None:
+    """Expose main-loop q_phi activity in the generic q_phi smoke fields.
+
+    The original ``q_phi_grad_norm`` / ``latent_q_phi_train_active`` columns
+    were populated by episode-credit / arc-credit extension paths. In the
+    paper-faithful v5 path, q_phi is trained in the main PPO backward pass, so
+    the corresponding gradient norm is ``strategy_grad_norm``.
+    """
+    active = (
+        bool(getattr(hparams, "use_latent_strategy", False))
+        and not bool(getattr(hparams, "fixed_latent_strategy", False))
+        and getattr(runtime, "latent_router_optimizer", None) is None
+        and (
+            float(getattr(cfg, "latent_strategy_ppo_coef", 0.0) or 0.0) > 0.0
+            or float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0
+            or float(latent_lam_h or 0.0) > 0.0
+            or float(getattr(hparams, "latent_kl_consecutive", 0.0) or 0.0) > 0.0
+        )
+    )
+    grad = float(row.get("strategy_grad_norm", 0.0) or 0.0)
+    row["main_loop_q_phi_train_active"] = 1.0 if active else 0.0
+    row["main_loop_q_phi_grad_norm"] = grad
+    if active and float(row.get("latent_q_phi_train_active", 0.0) or 0.0) <= 0.0:
+        row["latent_q_phi_train_active"] = 1.0
+    if grad > 0.0 and float(row.get("q_phi_grad_norm", 0.0) or 0.0) <= 0.0:
+        row["q_phi_grad_norm"] = grad
+        row["q_phi_strategy_encoder_grad_norm"] = grad
+
+
 def _warmup_ramp_value(
     *,
     global_step: int,
@@ -1024,6 +1060,13 @@ class PPOUpdater:
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(arc_strategy_stats)
+        _populate_main_loop_qphi_telemetry(
+            runtime.last_stats,
+            cfg=cfg,
+            hparams=hparams,
+            runtime=runtime,
+            latent_lam_h=float(latent_lam_h),
+        )
         runtime.last_stats.update(rollout_specialist_stats)
         runtime.last_stats.update(strategy_experience_stats)
         runtime.last_stats.update(refresh_log_stats)

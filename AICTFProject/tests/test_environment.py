@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+from collections import deque
 import unittest
 
 import numpy as np
 import torch
 
-from game_field_gpu import GPUCTFSingleEnv, GPUCTFVecEnv, GPUFieldConfig, RewardConfig, VEC_OBS_DIM
+from game_field_gpu import (
+    GPUCTFSingleEnv,
+    GPUCTFVecEnv,
+    GPUFieldConfig,
+    MAP_A_OPEN,
+    MAP_B_SPLIT_LANE,
+    MAP_B_SPLIT_LANE_V2,
+    RewardConfig,
+    VEC_OBS_DIM,
+)
 from game_manager import (
     SPARSE_FLAG_CAPTURE_POINTS,
     SPARSE_MINE_TAG_POINTS,
@@ -154,6 +164,263 @@ class EnvironmentContractTests(unittest.TestCase):
                     self.assertEqual(env.state().shape, (GLOBAL_STATE_DIM,))
                 finally:
                     env.close()
+
+    def test_default_layout_preserves_map_a_open_arena_contract(self) -> None:
+        env = GPUCTFSingleEnv(GPUFieldConfig(n_envs=1, n_agents_per_team=2, device="cpu", seed=51))
+        try:
+            obs, _ = env.reset(seed=51)
+            self.assertEqual(env.vec.core.map_layout, MAP_A_OPEN)
+            self.assertEqual(env.vec.core.cfg.num_cnn_channels, 7)
+            self.assertEqual(obs["grid"].shape, (2, 7, 20, 20))
+            self.assertFalse(bool(env.vec.core.obstacle_active.any().item()))
+            self.assertFalse(bool(env.vec.core.cfg.obstacle_obs_channel))
+        finally:
+            env.close()
+
+    def test_map_b_split_lane_obstacles_and_observation_channel(self) -> None:
+        cfg = GPUFieldConfig(
+            n_envs=1,
+            n_agents_per_team=2,
+            device="cpu",
+            seed=52,
+            map_layout=MAP_B_SPLIT_LANE,
+            map_b_vertical_mirror_prob=0.0,
+        )
+        env = GPUCTFSingleEnv(cfg)
+        try:
+            obs, _ = env.reset(seed=52)
+            core = env.vec.core
+            self.assertEqual(core.map_layout, MAP_B_SPLIT_LANE)
+            self.assertEqual(core.cfg.num_cnn_channels, 8)
+            self.assertEqual(obs["grid"].shape, (2, 8, 20, 20))
+            self.assertTrue(bool(core.obstacle_active[0, 0].item()))
+            wall_channel = obs["grid"][:, 7, :, :]
+            self.assertGreater(float(wall_channel.sum()), 0.0)
+            flag_x = torch.stack([core.blue_flag_home[:, 0], core.red_flag_home[:, 0]], dim=1)
+            flag_y = torch.stack([core.blue_flag_home[:, 1], core.red_flag_home[:, 1]], dim=1)
+            self.assertFalse(bool(core._points_in_obstacles(flag_x, flag_y).any().item()))
+            self.assertFalse(bool(core._points_in_obstacles(core.blue_x, core.blue_y).any().item()))
+            self.assertFalse(bool(core._points_in_obstacles(core.red_x, core.red_y).any().item()))
+        finally:
+            env.close()
+
+    def test_map_b_vertical_mirror_swaps_wall_band(self) -> None:
+        base = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=53,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        mirrored = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=53,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=1.0,
+            )
+        )
+        try:
+            base.core.reset_all()
+            mirrored.core.reset_all()
+            base_rect = base.core.obstacle_rects[0, 0].detach().cpu().numpy()
+            mirror_rect = mirrored.core.obstacle_rects[0, 0].detach().cpu().numpy()
+            self.assertFalse(bool(base.core.map_vertical_mirror[0].item()))
+            self.assertTrue(bool(mirrored.core.map_vertical_mirror[0].item()))
+            self.assertAlmostEqual(float(base_rect[0]), float(mirror_rect[0]), places=5)
+            self.assertAlmostEqual(float(base_rect[2]), float(mirror_rect[2]), places=5)
+            self.assertGreater(float(mirror_rect[1]), float(base_rect[1]))
+            self.assertGreater(float(mirror_rect[3]), float(base_rect[3]))
+        finally:
+            base.close()
+            mirrored.close()
+
+    def test_map_b_obstacle_collision_reverts_wall_entry(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=54,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        try:
+            core = env.core
+            rect = core.obstacle_rects[0, 0]
+            y_mid = ((rect[1] + rect[3]) * 0.5).item()
+            prev_x = torch.tensor([[float(rect[0].item()) - 0.5, 2.0]], device=core.device)
+            prev_y = torch.tensor([[y_mid, 2.0]], device=core.device)
+            next_x = torch.tensor([[float(rect[0].item()) + 0.2, 2.0]], device=core.device)
+            next_y = prev_y.clone()
+            speed = torch.ones_like(prev_x)
+            alive = torch.ones_like(prev_x, dtype=torch.bool)
+            out_x, out_y, out_speed, hit = core._revert_obstacle_hits(prev_x, prev_y, next_x, next_y, speed, alive)
+            self.assertTrue(bool(hit[0, 0].item()))
+            self.assertAlmostEqual(float(out_x[0, 0].item()), float(prev_x[0, 0].item()), places=5)
+            self.assertAlmostEqual(float(out_y[0, 0].item()), float(prev_y[0, 0].item()), places=5)
+            self.assertAlmostEqual(float(out_speed[0, 0].item()), 0.0, places=5)
+        finally:
+            env.close()
+
+    def test_map_b_route_targets_redirect_across_wall(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=55,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        try:
+            core = env.core
+            rect = core.obstacle_rects[0, 0]
+            own_x = torch.tensor([[float(rect[0].item()) - 2.0, float(rect[0].item()) - 2.0]], device=core.device)
+            own_y = torch.tensor([[(float(rect[1].item()) + float(rect[3].item())) * 0.5, 2.0]], device=core.device)
+            target_x = torch.tensor([[float(rect[2].item()) + 6.0, float(rect[2].item()) + 6.0]], device=core.device)
+            target_y = torch.tensor([[(float(rect[1].item()) + float(rect[3].item())) * 0.5, 2.0]], device=core.device)
+            routed_x, routed_y = core._route_targets_around_obstacles(own_x, own_y, target_x, target_y)
+            self.assertNotAlmostEqual(float(routed_y[0, 0].item()), float(target_y[0, 0].item()), places=5)
+            self.assertTrue(
+                float(routed_y[0, 0].item()) < float(rect[1].item())
+                or float(routed_y[0, 0].item()) > float(rect[3].item())
+            )
+            self.assertAlmostEqual(float(routed_x[0, 1].item()), float(target_x[0, 1].item()), places=5)
+            self.assertAlmostEqual(float(routed_y[0, 1].item()), float(target_y[0, 1].item()), places=5)
+        finally:
+            env.close()
+
+    def test_map_b_grid_reachability_has_upper_and_lower_routes(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=56,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        try:
+            core = env.core
+            blocked = core._obstacle_grid_mask(side="blue")[0].detach().cpu().numpy() > 0.5
+            rect = core.obstacle_rects[0, 0].detach().cpu().numpy()
+            mid_col = blocked.shape[1] // 2
+            open_rows = np.where(~blocked[:, mid_col])[0]
+            self.assertTrue(np.any(open_rows < int(np.floor(rect[1]))))
+            self.assertTrue(np.any(open_rows > int(np.ceil(rect[3]))))
+
+            start = tuple(np.rint(core.blue_flag_home[0].detach().cpu().numpy()).astype(int)[::-1])
+            goal = tuple(np.rint(core.red_flag_home[0].detach().cpu().numpy()).astype(int)[::-1])
+            q: deque[tuple[int, int]] = deque([start])
+            seen = {start}
+            reachable = False
+            while q:
+                r, c = q.popleft()
+                if (r, c) == goal:
+                    reachable = True
+                    break
+                for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nr, nc = r + dr, c + dc
+                    if nr < 0 or nc < 0 or nr >= blocked.shape[0] or nc >= blocked.shape[1]:
+                        continue
+                    if blocked[nr, nc] or (nr, nc) in seen:
+                        continue
+                    seen.add((nr, nc))
+                    q.append((nr, nc))
+            self.assertTrue(reachable)
+        finally:
+            env.close()
+
+    def test_map_b_render_and_terminal_payload_include_wall_route_telemetry(self) -> None:
+        env = GPUCTFSingleEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                max_decision_steps=1,
+                device="cpu",
+                seed=57,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        try:
+            obs, _ = env.reset(seed=57)
+            frame = env.render(mode="rgb_array")
+            self.assertGreater(int(((frame == np.array([70, 76, 86], dtype=np.uint8)).all(axis=2)).sum()), 0)
+            action = np.zeros(env.action_space.shape, dtype=np.int64)
+            _, _, _, truncated, info = env.step(action)
+            self.assertTrue(truncated)
+            self.assertEqual(info["map_layout"], MAP_B_SPLIT_LANE)
+            self.assertIn("obstacle_collision_events_per_episode", info)
+            self.assertIn("blue_route_upper_crossings", info)
+            self.assertIn("blue_route_lower_crossings", info)
+            self.assertIn("episode_result", info)
+            self.assertEqual(info["episode_result"]["map_layout"], MAP_B_SPLIT_LANE)
+            self.assertIn("obstacle_collision_events_per_episode", info["episode_result"])
+            self.assertEqual(obs["grid"].shape[1], 8)
+        finally:
+            env.close()
+
+    def test_map_b_v2_uses_lower_friction_wall_and_context_route_telemetry(self) -> None:
+        base = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=58,
+                map_layout=MAP_B_SPLIT_LANE,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        v2 = GPUCTFSingleEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                max_decision_steps=1,
+                device="cpu",
+                seed=58,
+                map_layout=MAP_B_SPLIT_LANE_V2,
+                map_b_vertical_mirror_prob=0.0,
+            )
+        )
+        try:
+            base.core.reset_all()
+            obs, _ = v2.reset(seed=58)
+            core = v2.vec.core
+            self.assertEqual(core.map_layout, MAP_B_SPLIT_LANE_V2)
+            self.assertEqual(obs["grid"].shape, (2, 8, 20, 20))
+            base_rect = base.core.obstacle_rects[0, 0].detach().cpu().numpy()
+            v2_rect = core.obstacle_rects[0, 0].detach().cpu().numpy()
+            base_area = float((base_rect[2] - base_rect[0]) * (base_rect[3] - base_rect[1]))
+            v2_area = float((v2_rect[2] - v2_rect[0]) * (v2_rect[3] - v2_rect[1]))
+            self.assertLess(v2_area, base_area)
+
+            action = np.zeros(v2.action_space.shape, dtype=np.int64)
+            _, _, _, truncated, info = v2.step(action)
+            self.assertTrue(truncated)
+            self.assertEqual(info["map_layout"], MAP_B_SPLIT_LANE_V2)
+            for key in (
+                "blue_attack_upper_crossings",
+                "blue_return_lower_crossings",
+                "blue_intercept_upper_crossings",
+                "red_attack_lower_crossings",
+                "red_return_upper_crossings",
+                "red_intercept_lower_crossings",
+            ):
+                self.assertIn(key, info)
+                self.assertIn(key, info["episode_result"])
+        finally:
+            base.close()
+            v2.close()
 
     def test_time_limit_uses_truncated_not_terminated(self) -> None:
         env = GPUCTFSingleEnv(

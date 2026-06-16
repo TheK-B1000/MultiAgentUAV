@@ -65,7 +65,7 @@ from the preset name.
 |---|---------------------------------------------------|----------------------------------------------------------------------------------------------|
 | R19 | `latent_lam_p`                                   | `> 0` (canonical: `0.03`; allowed plan range `[0.01, 0.05]`)                                 |
 | R20 | `latent_lam_h`                                   | `> 0` (canonical v5i6: `0.003 → 0.001` anneal over 0..300k)                                  |
-| R21 | `latent_entropy_mode` / `latent_entropy_objective` | `"marginal"` / `"maximize"` for the canonical row. v5i4/v5i5 preserve the conditional-entropy interpretation as comparison rows. |
+| R21 | `latent_entropy_mode` / `latent_entropy_objective` | `"marginal"` / `"maximize"` for the canonical row. v5i4/v5i5 preserve the conditional-entropy interpretation as comparison rows; v5i7 inherits v5i5's conditional interpretation on the split-lane map. |
 | R22 | `latent_kl_consecutive`                          | `0.0` (the consecutive-KL term is "optional §12"; off in the canonical row)                  |
 
 ### 1.6 Resampling cadence
@@ -179,7 +179,8 @@ The banner is fired by either of:
 
 * `cfg.run_tag` containing a recognized paper-faithful family tag
   (`"v5i4_paper_faithful"`, `"v5i5_paper_faithful"`,
-  `"v5i6_paper_faithful"`), or
+  `"v5i6_paper_faithful"`, `"v5i7_summer_faithful"`,
+  `"v5i8_summer_faithful"`), or
 * `cfg.latent_paper_faithful_audit = True` (opt-in flag for future
   paper-faithful presets).
 
@@ -246,7 +247,8 @@ tests that confirm:
 13. **Entropy maximization enabled with correct sign and reduction.**
     Canonical v5i6 requires `latent_entropy_mode == "marginal"` and
     `latent_entropy_objective == "maximize"`; conditional-entropy rows
-    must be named and documented as v5i4/v5i5 comparison rows.
+    must be named and documented as v5i4/v5i5 comparison rows or as the
+    v5i7 split-lane row inherited from v5i5.
 14. **Resampling cadence matches the paper method.** `latent_resample_every_n
     == 64`, `latent_resample_on_flag is False`.
 15. **No flag-triggered resampling.** `latent_event_refresh_enabled ==

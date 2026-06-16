@@ -29,10 +29,19 @@ from .._constants import (
     VEC_OBS_DIM,
 )
 from .._episode_payload import _build_episode_result_payload
+from .._maps import is_split_lane_layout
 
 
 class _MetricsMixin:
-    def _update_episode_metrics(self, first_score_mask: torch.Tensor) -> None:
+    def _update_episode_metrics(
+        self,
+        first_score_mask: torch.Tensor,
+        *,
+        prev_blue_x: Optional[torch.Tensor] = None,
+        prev_blue_y: Optional[torch.Tensor] = None,
+        prev_red_x: Optional[torch.Tensor] = None,
+        prev_red_y: Optional[torch.Tensor] = None,
+    ) -> None:
         """Accumulate outcome-neutral episode telemetry from current positions."""
         step_index = self.step_count.to(torch.float32) + 1.0
         self.metric_time_to_first_score = torch.where(
@@ -80,6 +89,130 @@ class _MetricsMixin:
         env_idx = torch.arange(self.B, device=self.device).view(self.B, 1).expand(self.B, self.Nb)
         live = self.blue_alive
         self.metric_blue_zone_visited[env_idx[live], zone_idx[live]] = True
+        if (
+            prev_blue_x is not None
+            and prev_blue_y is not None
+            and prev_red_x is not None
+            and prev_red_y is not None
+        ):
+            self._update_route_crossing_metrics(prev_blue_x, prev_blue_y, prev_red_x, prev_red_y)
+
+    def _route_crossings(
+        self,
+        prev_x: torch.Tensor,
+        prev_y: torch.Tensor,
+        cur_x: torch.Tensor,
+        cur_y: torch.Tensor,
+        alive: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        mid_x = float(max(0, self.cols - 1)) * 0.5
+        mid_y = float(max(0, self.rows - 1)) * 0.5
+        denom = cur_x - prev_x
+        safe_denom = torch.where(torch.abs(denom) < 1e-6, torch.full_like(denom, 1e-6), denom)
+        t = (mid_x - prev_x) / safe_denom
+        crossed = (
+            (((prev_x < mid_x) & (cur_x >= mid_x)) | ((prev_x > mid_x) & (cur_x <= mid_x)))
+            & (t >= 0.0)
+            & (t <= 1.0)
+            & alive
+        )
+        cross_y = prev_y + (cur_y - prev_y) * t
+        upper = crossed & (cross_y < mid_y)
+        lower = crossed & (~upper)
+        return upper.sum(dim=1).to(torch.int32), lower.sum(dim=1).to(torch.int32)
+
+    def _route_crossings_by_context(
+        self,
+        prev_x: torch.Tensor,
+        prev_y: torch.Tensor,
+        cur_x: torch.Tensor,
+        cur_y: torch.Tensor,
+        alive: torch.Tensor,
+        carrying: torch.Tensor,
+        enemy_carrying: torch.Tensor,
+        *,
+        side: str,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        mid_x = float(max(0, self.cols - 1)) * 0.5
+        mid_y = float(max(0, self.rows - 1)) * 0.5
+        denom = cur_x - prev_x
+        safe_denom = torch.where(torch.abs(denom) < 1e-6, torch.full_like(denom, 1e-6), denom)
+        t = (mid_x - prev_x) / safe_denom
+        crossed = (
+            (((prev_x < mid_x) & (cur_x >= mid_x)) | ((prev_x > mid_x) & (cur_x <= mid_x)))
+            & (t >= 0.0)
+            & (t <= 1.0)
+            & alive
+        )
+        cross_y = prev_y + (cur_y - prev_y) * t
+        upper = crossed & (cross_y < mid_y)
+        lower = crossed & (~upper)
+        if side == "blue":
+            toward_enemy = prev_x < cur_x
+            toward_home = prev_x > cur_x
+        else:
+            toward_enemy = prev_x > cur_x
+            toward_home = prev_x < cur_x
+        any_enemy_carrier = enemy_carrying.any(dim=1, keepdim=True)
+        attack = (~carrying) & (~any_enemy_carrier) & toward_enemy
+        return_ctx = carrying & toward_home
+        intercept = (~carrying) & any_enemy_carrier
+
+        def _sum(mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+            return (upper & mask).sum(dim=1).to(torch.int32), (lower & mask).sum(dim=1).to(torch.int32)
+
+        attack_u, attack_l = _sum(attack)
+        return_u, return_l = _sum(return_ctx)
+        intercept_u, intercept_l = _sum(intercept)
+        return attack_u, attack_l, return_u, return_l, intercept_u, intercept_l
+
+    def _update_route_crossing_metrics(
+        self,
+        prev_blue_x: torch.Tensor,
+        prev_blue_y: torch.Tensor,
+        prev_red_x: torch.Tensor,
+        prev_red_y: torch.Tensor,
+    ) -> None:
+        if not is_split_lane_layout(str(getattr(self, "map_layout", ""))):
+            return
+        bu, bl = self._route_crossings(prev_blue_x, prev_blue_y, self.blue_x, self.blue_y, self.blue_alive)
+        ru, rl = self._route_crossings(prev_red_x, prev_red_y, self.red_x, self.red_y, self.red_alive)
+        self.metric_blue_route_upper_crossings += bu
+        self.metric_blue_route_lower_crossings += bl
+        self.metric_red_route_upper_crossings += ru
+        self.metric_red_route_lower_crossings += rl
+        bau, bal, bru, brl, biu, bil = self._route_crossings_by_context(
+            prev_blue_x,
+            prev_blue_y,
+            self.blue_x,
+            self.blue_y,
+            self.blue_alive,
+            self.blue_carrying,
+            self.red_carrying,
+            side="blue",
+        )
+        rau, ral, rru, rrl, riu, ril = self._route_crossings_by_context(
+            prev_red_x,
+            prev_red_y,
+            self.red_x,
+            self.red_y,
+            self.red_alive,
+            self.red_carrying,
+            self.blue_carrying,
+            side="red",
+        )
+        self.metric_blue_attack_upper_crossings += bau
+        self.metric_blue_attack_lower_crossings += bal
+        self.metric_blue_return_upper_crossings += bru
+        self.metric_blue_return_lower_crossings += brl
+        self.metric_blue_intercept_upper_crossings += biu
+        self.metric_blue_intercept_lower_crossings += bil
+        self.metric_red_attack_upper_crossings += rau
+        self.metric_red_attack_lower_crossings += ral
+        self.metric_red_return_upper_crossings += rru
+        self.metric_red_return_lower_crossings += rrl
+        self.metric_red_intercept_upper_crossings += riu
+        self.metric_red_intercept_lower_crossings += ril
 
     def _build_info(
         self,
@@ -108,6 +241,7 @@ class _MetricsMixin:
                 self.metric_inter_robot_dist_sum,
                 self.metric_inter_robot_dist_count.to(torch.float32),
                 self.metric_collision_events.to(torch.float32),
+                self.metric_obstacle_collision_events.to(torch.float32),
                 self.metric_near_misses.to(torch.float32),
                 self.metric_blue_zone_visited.to(torch.float32).mean(dim=1),
                 dense.to(torch.float32),
@@ -144,6 +278,7 @@ class _MetricsMixin:
             dist_sum,
             dist_count,
             collision_events,
+            obstacle_collision_events,
             near_misses,
             zone_coverage,
             d_np,
@@ -183,6 +318,8 @@ class _MetricsMixin:
                     "opponent_key": self._opponent_key[i],
                     "rules_profile": self.rules_profile,
                     "map_set": self.map_set,
+                    "map_layout": str(getattr(self, "map_layout", "map_a_open")),
+                    "map_vertical_mirror": bool(self.map_vertical_mirror[i].item()),
                     "dense_reward": float(d_np[i]),
                     "sparse_points": float(s_np[i]),
                     "reward_terminal": float(rt_np[i]),
@@ -195,8 +332,25 @@ class _MetricsMixin:
                     "reward_total": float(rtot_np[i]),
                     "time_to_first_score": ttfs,
                     "collision_events_per_episode": int(collision_events[i]),
+                    "obstacle_collision_events_per_episode": int(obstacle_collision_events[i]),
                     "collision_free_episode": 1 if int(collision_events[i]) == 0 else 0,
                     "near_misses_per_episode": int(near_misses[i]),
+                    "blue_route_upper_crossings": int(self.metric_blue_route_upper_crossings[i].item()),
+                    "blue_route_lower_crossings": int(self.metric_blue_route_lower_crossings[i].item()),
+                    "red_route_upper_crossings": int(self.metric_red_route_upper_crossings[i].item()),
+                    "red_route_lower_crossings": int(self.metric_red_route_lower_crossings[i].item()),
+                    "blue_attack_upper_crossings": int(self.metric_blue_attack_upper_crossings[i].item()),
+                    "blue_attack_lower_crossings": int(self.metric_blue_attack_lower_crossings[i].item()),
+                    "blue_return_upper_crossings": int(self.metric_blue_return_upper_crossings[i].item()),
+                    "blue_return_lower_crossings": int(self.metric_blue_return_lower_crossings[i].item()),
+                    "blue_intercept_upper_crossings": int(self.metric_blue_intercept_upper_crossings[i].item()),
+                    "blue_intercept_lower_crossings": int(self.metric_blue_intercept_lower_crossings[i].item()),
+                    "red_attack_upper_crossings": int(self.metric_red_attack_upper_crossings[i].item()),
+                    "red_attack_lower_crossings": int(self.metric_red_attack_lower_crossings[i].item()),
+                    "red_return_upper_crossings": int(self.metric_red_return_upper_crossings[i].item()),
+                    "red_return_lower_crossings": int(self.metric_red_return_lower_crossings[i].item()),
+                    "red_intercept_upper_crossings": int(self.metric_red_intercept_upper_crossings[i].item()),
+                    "red_intercept_lower_crossings": int(self.metric_red_intercept_lower_crossings[i].item()),
                     "mean_inter_robot_dist": mean_dist,
                     "zone_coverage": float(zone_coverage[i]),
                     "terminated": bool(term_np[i]),

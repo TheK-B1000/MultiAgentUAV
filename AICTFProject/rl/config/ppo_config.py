@@ -32,7 +32,7 @@ class TrainMode(str, Enum):
 class PPOConfig:
     seed: int = 42
     total_timesteps: int = 1_000_000
-    n_envs: int = 8
+    n_envs: int = 32
     n_steps: int = 2048
     batch_size: int = 1024
     n_epochs: int = 6
@@ -70,6 +70,7 @@ class PPOConfig:
 
     max_decision_steps: int = 400
     map_set: str = "train"
+    map_layout: str = "map_a_open"
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     # Uniform random scripted opponent per episode: either mode=OPPONENT_POOL or FIXED_OPPONENT + True.

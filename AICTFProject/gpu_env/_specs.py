@@ -28,13 +28,13 @@ class VecEnv:
         return self.step_wait()
 
 
-def _make_obs_action_spaces(n_agents: int, n_macros: int, n_targets: int):
+def _make_obs_action_spaces(n_agents: int, n_macros: int, n_targets: int, *, num_cnn_channels: int = NUM_CNN_CHANNELS):
     obs_space = spaces.Dict(
         {
             "grid": spaces.Box(
                 low=0.0,
                 high=1.0,
-                shape=(n_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS),
+                shape=(n_agents, int(num_cnn_channels), CNN_ROWS, CNN_COLS),
                 dtype=np.float32,
             ),
             "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_agents, VEC_OBS_DIM), dtype=np.float32),

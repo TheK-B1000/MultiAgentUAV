@@ -125,6 +125,7 @@ def build_training_env(
         n_envs=max(1, int(cfg.n_envs)),
         n_agents_per_team=max_agents,
         map_set=str(getattr(cfg, "map_set", "train")).lower(),
+        map_layout=str(getattr(cfg, "map_layout", "map_a_open")).lower(),
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
         rules_profile="OURS",

@@ -326,7 +326,111 @@ python rl/train_ppo.py \
 `--latent-strategy-ppo-coef`, `--latent-lam-p`, etc., or the v5i5
 contract is broken.)
 
-### 3.3 v5i4 multi-seed (PLANNED)
+### 3.3 v5i7 — Summer-faithful entropy-floor split-lane row (IMPLEMENTED, PENDING_LAUNCH)
+
+**Status:** `IMPLEMENTED, PENDING_LAUNCH`. Preset committed as
+`v5i7_summer_faithful_entropy_floor_split_lane` (apply function
+`apply_plan_faithful_latent_v5i7_entropy_floor_split_lane` in
+`rl/presets/plan_faithful.py`). Aliases registered in
+`rl/presets/__init__.py`. Fidelity tests live in
+`tests/test_v5i7_entropy_floor_split_lane.py`. Snapshot regenerated.
+Audit banner prints `[PPO] v5i7 paper-faithful audit:` and reports
+`entropy maximization: ON (mode=conditional, aggregation=per-state, objective=maximize)`.
+
+**Scientific delta:** v5i7 inherits v5i5 directly and changes only the
+environment geometry to `map_b_split_lane`. It keeps v5i5's conditional
+entropy floor (`0.003 -> 0.001`), concat-only actor, main-loop
+categorical PPO term on `q_phi`, persistence, sparse 64-decision
+resampling, opponent pool, no forced-z curriculum, no FiLM/adapter, no
+marginal entropy, no auxiliary heads, and no extra `q_phi` gradient
+channel.
+
+**Resolved diff:** v5i5 -> v5i7 is exactly `{map_layout, run_tag}`.
+
+**Required evidence to declare v5i7 successful:** use the v5i5 occupancy
+criteria plus matched-seed forced-z and router-vs-random-matched evals on
+the split-lane map. Compare only against split-lane matched controls when
+making causal claims about the latent method.
+
+**Launch command:**
+
+```bash
+python rl/train_ppo.py \
+  --preset v5i7 \
+  --total-steps 1000000 \
+  --agents 4 \
+  --seed 0 \
+  --device cuda \
+  --n-envs 32 \
+  --checkpoint-dir checkpoints/4v4
+```
+
+### 3.4 v5i8 - Summer-faithful split-lane v2 task-pressure row (IMPLEMENTED, PENDING_LAUNCH)
+
+**Status:** `IMPLEMENTED, PENDING_LAUNCH`. Preset committed as
+`v5i8_split_lane_v2_task_pressure` (apply function
+`apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure` in
+`rl/presets/plan_faithful.py`). Aliases registered in
+`rl/presets/__init__.py`. Fidelity tests live in
+`tests/test_v5i8_split_lane_v2_task_pressure.py`. Snapshot regenerated.
+Audit banner prints `[PPO] v5i8 paper-faithful audit:` and reports
+`entropy maximization: ON (mode=conditional, aggregation=per-state, objective=maximize)`.
+
+**Scientific delta:** v5i8 inherits v5i7 directly and changes only the
+environment geometry to `map_b_split_lane_v2`. It keeps v5i7's v5i5
+conditional entropy floor (`0.003 -> 0.001`), concat-only actor,
+main-loop categorical PPO term on `q_phi`, persistence, sparse
+64-decision resampling, opponent pool, no forced-z curriculum, no
+FiLM/adapter, no marginal entropy, no auxiliary heads, and no extra
+`q_phi` gradient channel.
+
+**Resolved diff:** v5i7 -> v5i8 is exactly `{map_layout, run_tag}`.
+
+**Map-side intent:** reduce wall-bump noise and make route choices more
+legible. The v2 wall is narrower/shorter than v5i7's split-lane wall,
+route guidance uses larger clearance around the obstacle, and OP5/OP6/OP7
+stress different lane-pressure patterns through normal scripted opponent
+movement. The episode CSV adds route-context counters for attack, return,
+and intercept crossings so route behavior can be grouped by `latent_z`
+without assigning meanings to latent IDs.
+
+**Required evidence to declare v5i8 successful:** use the v5i7 occupancy
+criteria plus lower obstacle-collision counts, nontrivial attack/return/
+intercept route distributions by `latent_z`, matched-seed forced-z evals,
+and router-vs-random-matched evals on the split-lane-v2 map. Compare only
+against split-lane-v2 matched controls when making causal claims about the
+latent method.
+
+**Launch command:**
+
+```bash
+python rl/train_ppo.py \
+  --preset v5i8 \
+  --total-steps 1000000 \
+  --agents 4 \
+  --seed 0 \
+  --device cuda \
+  --n-envs 32 \
+  --checkpoint-dir checkpoints/4v4
+```
+
+**Post-training forced-z evaluation command:**
+
+```bash
+python tools/v5i8_forced_z_eval.py \
+  --checkpoint checkpoints/4v4/<v5i8_final>.zip \
+  --metrics-csv checkpoints/4v4/<v5i8_metrics>.csv \
+  --map-layout map_b_split_lane_v2 \
+  --opponents OP5 OP6 OP7 \
+  --episodes-per-mode 100 \
+  --device cuda
+```
+
+This is the required evidence harness for the v5i8 latent-strategy claim.
+It keeps training unsupervised and tests learned `z` behavior after the
+checkpoint is frozen.
+
+### 3.5 v5i4 multi-seed (PLANNED)
 
 **Status:** `PLANNED`. After the v5i4 single-seed eval matrix
 (§2.1) and the `no_latent_v4i3_baseline` matched-budget re-launch,
@@ -334,7 +438,7 @@ add **two more v5i4 seeds** (`--seed 1`, `--seed 2`) and two more
 `no_latent_v4i3_baseline` seeds to reach the §5.4 headline minimum
 of three seeds per row.
 
-### 3.4 v5i4 random-matched eval (PLANNED, eval-time only)
+### 3.6 v5i4 random-matched eval (PLANNED, eval-time only)
 
 **Status:** `PLANNED`, no training cost. Run
 `plot/eval_checkpoint.py --latent-selection router` and
@@ -343,7 +447,7 @@ checkpoint with identical `--seed` and identical `--episodes`. The
 delta is the matched-schedule routing-quality control
 ([`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md) §4.2).
 
-### 3.5 v4i4post_periodic_router_distill comparison (DEFERRED)
+### 3.7 v4i4post_periodic_router_distill comparison (DEFERRED)
 
 **Status:** `DEFERRED`. Counter-factual router distillation is the
 honest next step *only* if v5i4 fails its gates (§2.1 eval matrix +
@@ -383,22 +487,25 @@ deprioritized.
 
 ## 6. Recommended next experiments (priority-ordered)
 
-1. **Launch v5i6 seed 0 (§3.1).** This is now the canonical
-   paper-faithful row. Preserve the §1 invariants in
+1. **Launch v5i7 seed 0 (§3.3) if the immediate target is the best
+   Summer-faithful latent model on split-lane geometry.** Compare only to
+   split-lane matched controls.
+2. **Launch v5i6 seed 0 (§3.1) for the canonical open-map paper-faithful
+   row.** Preserve the §1 invariants in
    `experiment-and-evaluation-protocol.md`.
-2. **Run the v5i6 eval matrix and random-matched control.** Use
+3. **Run the v5i6 eval matrix and random-matched control.** Use
    `plot/eval_checkpoint.py --latent-selection router` and
    `--latent-selection random-matched` on the same checkpoint, seed, and
    episode budget.
-3. **Run forced-z behavioral probes for v5i6.** Use matched seeds across
+4. **Run forced-z behavioral probes for v5i6/v5i7.** Use matched seeds across
    `z=0..K-1` before making causal behavior claims.
-4. **Run v5i6 vs v5i4/v5i5 comparisons.** v5i6 vs v5i4 tests the full
+5. **Run v5i6 vs v5i4/v5i5 comparisons.** v5i6 vs v5i4 tests the full
    marginal-entropy switch; v5i6 vs v5i5 isolates entropy reduction at
    the same lambda_H floor.
-5. **`no_latent_v4i3_baseline` re-launch at v5i6's exact budget /
+6. **`no_latent_v4i3_baseline` re-launch at v5i6's exact budget /
    seed.** Closes D3 for the new headline `v5i6 vs no-latent`
    comparison.
-6. **v5i6 multi-seed.** Add seeds 1 and 2 only after seed 0 passes the
+7. **v5i6/v5i7 multi-seed.** Add seeds 1 and 2 only after seed 0 passes the
    router-quality and no-loss checks.
 
 ---

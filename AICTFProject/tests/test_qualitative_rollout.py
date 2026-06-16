@@ -56,7 +56,7 @@ def test_step_csv_fieldnames_includes_required_signals():
 
     # User-requested per-step signals:
     required_metadata = {
-        "opponent", "mode", "fixed_z_id", "episode_idx", "step",
+        "map_layout", "opponent", "mode", "fixed_z_id", "episode_idx", "step",
         "z_active", "z_resampled", "q_phi_entropy",
         "blue_score", "red_score", "blue_score_delta", "red_score_delta",
         "blue_carrier_count", "red_carrier_count",
@@ -129,6 +129,7 @@ def _make_record(
     for step, z in enumerate(z_timeline):
         row: dict[str, float | int] = {
             "opponent": opponent,
+            "map_layout": "map_b_split_lane_v2",
             "mode": mode,
             "fixed_z_id": fixed_z,
             "episode_idx": episode_idx,
@@ -169,6 +170,7 @@ def test_aggregate_by_z_fixed_mode_groups_per_forced_z():
     assert (("OP3", "fixed_z", 1)) in by_z
 
     z0 = by_z[("OP3", "fixed_z", 0)]
+    assert z0["map_layout"] == "map_b_split_lane_v2"
     assert z0["n_episodes_touched"] == 2
     assert z0["n_steps"] == 6  # 2 episodes * 3 steps each
     # 1 of 2 episodes won.
@@ -217,6 +219,37 @@ def test_aggregate_by_z_natural_wr_per_episode_visited():
     assert by_z[0]["blue_win_rate"] == pytest.approx(0.5)
     assert by_z[1]["n_episodes_touched"] == 1
     assert by_z[1]["blue_win_rate"] == pytest.approx(0.0)
+
+
+def test_strategy_evidence_rows_report_natural_best_worst_and_spread():
+    records = [
+        _make_record("OP5", "natural", -1, 0, [0, 1], blue_won=True),
+        _make_record("OP5", "natural", -1, 1, [1, 2], blue_won=False),
+        _make_record("OP5", "fixed_z", 0, 0, [0, 0], blue_won=False),
+        _make_record("OP5", "fixed_z", 1, 0, [1, 1], blue_won=True),
+        _make_record("OP5", "fixed_z", 1, 1, [1, 1], blue_won=True),
+    ]
+    agg = qr._aggregate_by_z(records)
+    rows = qr._build_strategy_evidence_rows(records, agg)
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["opponent"] == "OP5"
+    assert row["natural_win_rate"] == pytest.approx(0.5)
+    assert row["best_z"] == 1
+    assert row["best_forced_z_win_rate"] == pytest.approx(1.0)
+    assert row["worst_z"] == 0
+    assert row["worst_forced_z_win_rate"] == pytest.approx(0.0)
+    assert row["forced_z_performance_spread"] == pytest.approx(1.0)
+    assert row["forced_z_behavior_spread"] == pytest.approx(1.0)
+    assert row["strategy_spread"] == "high"
+    assert row["interpretation"] == "latent specialization"
+
+
+def test_strategy_interpretation_requires_behavior_for_specialization():
+    assert qr._strategy_interpretation(0.20, 0.02) == "performance differs; strategy meaning unclear"
+    assert qr._strategy_interpretation(0.00, 0.20) == "behavior differs; performance unclear"
+    assert qr._strategy_interpretation(0.00, 0.00) == "no causal strategy"
 
 
 # ---------------------------------------------------------------------------
@@ -279,12 +312,14 @@ def test_write_summary_md_baseline_no_latent_path(tmp_path: Path):
         deterministic=True,
         seed=42,
         is_latent=False,
+        map_layout="map_b_split_lane_v2",
     )
     text = out_md.read_text(encoding="utf-8")
 
     # Non-latent flag in header.
     assert "(baseline -- no latent strategy)" in text
     assert "no_latent baseline" in text
+    assert "map layout: **map_b_split_lane_v2**" in text
 
     # Baseline-only section names.
     assert "## Per-opponent WR -- baseline (no z)" in text
@@ -319,6 +354,7 @@ def test_write_summary_md_includes_required_sections(tmp_path: Path):
         opponents=["OP3"],
         deterministic=True,
         seed=42,
+        map_layout="map_b_split_lane_v2",
     )
     text = out_md.read_text(encoding="utf-8")
     # Section headers we care about for review.
@@ -326,7 +362,10 @@ def test_write_summary_md_includes_required_sections(tmp_path: Path):
     assert "## Win rate by (opponent, z) -- fixed-z mode" in text
     assert "## Natural q_phi routing" in text
     assert "## Behavioral fingerprint per z" in text
+    assert "## Strategy evidence table" in text
     assert "## Summer-faithful audit" in text
+    assert "map layout: **map_b_split_lane_v2**" in text
+    assert "Latent strategy evidence requires both forced-z behavior" in text
     # Explicitly states no supervised labels / no backward.
     assert "No backward pass" in text
     assert "No phase / flag / outcome prediction loss" in text

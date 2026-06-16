@@ -25,7 +25,7 @@ from .._constants import (
     GLOBAL_STATE_CHANNELS,
     METRIC_ZONE_COLS,
     METRIC_ZONE_ROWS,
-    NUM_CNN_CHANNELS,
+    OBSTACLE_CHANNEL_INDEX,
     VEC_OBS_DIM,
 )
 from .._episode_payload import _build_episode_result_payload
@@ -38,6 +38,15 @@ class _ObservationsMixin:
         b_idx = torch.arange(self.B, device=self.device).view(self.B, 1).expand(-1, cx.shape[1])
         if live.any():
             grid[b_idx[live], ch, cy[live], cx[live]] = 1.0
+
+    def _obstacle_grid_mask(self, side: str = "blue") -> torch.Tensor:
+        obs_x = torch.linspace(0.0, float(max(0, self.cols - 1)), CNN_COLS, dtype=torch.float32, device=self.device)
+        obs_y = torch.linspace(0.0, float(max(0, self.rows - 1)), CNN_ROWS, dtype=torch.float32, device=self.device)
+        gy, gx = torch.meshgrid(obs_y, obs_x, indexing="ij")
+        world_x = self._mirror_x(gx, side)
+        px = world_x.reshape(1, -1).expand(self.B, -1)
+        py = gy.reshape(1, -1).expand(self.B, -1)
+        return self._points_in_obstacles(px, py).reshape(self.B, CNN_ROWS, CNN_COLS).to(torch.float32)
 
     def _build_grid_obs(self, side: str = "blue") -> torch.Tensor:
         side_t = self._side_tensors(side)
@@ -53,7 +62,11 @@ class _ObservationsMixin:
         own_flag = side_t["own_flag"]
         enemy_flag = side_t["enemy_flag"]
         n_agents = int(own_x.shape[1])
-        grid = torch.zeros((self.B, n_agents, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=torch.float32, device=self.device)
+        grid = torch.zeros(
+            (self.B, n_agents, int(self.cfg.num_cnn_channels), CNN_ROWS, CNN_COLS),
+            dtype=torch.float32,
+            device=self.device,
+        )
         own_x_obs = self._mirror_x(own_x, side)
         enemy_x_obs = self._mirror_x(enemy_x, side)
         own_mine_x_obs = self._mirror_x(own_mine_x, side)
@@ -101,6 +114,8 @@ class _ObservationsMixin:
 
             self._scatter_points(grid[:, i], 5, own_flag_x_obs, own_flag[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
             self._scatter_points(grid[:, i], 6, enemy_flag_x_obs, enemy_flag[:, 1:2], torch.ones((self.B, 1), dtype=torch.bool, device=self.device))
+        if bool(getattr(self.cfg, "obstacle_obs_channel", False)) and grid.shape[2] > OBSTACLE_CHANNEL_INDEX:
+            grid[:, :, OBSTACLE_CHANNEL_INDEX, :, :] = self._obstacle_grid_mask(side=side)[:, None, :, :]
         return grid
 
     def _build_vec_obs(self, side: str = "blue") -> torch.Tensor:
@@ -277,6 +292,16 @@ class _ObservationsMixin:
             target_mask = torch.zeros_like(mask[:, :, self.cfg.n_macros :])
             target_mask.scatter_(2, commit_target.unsqueeze(-1), 1.0)
             mask[:, :, self.cfg.n_macros :] = torch.where(committed.unsqueeze(-1), target_mask, mask[:, :, self.cfg.n_macros :])
+        if self.map_layout == "map_b_split_lane" and bool(self.obstacle_active.any().item()):
+            target_x = self._macro_targets[:, 0].reshape(1, -1).expand(self.B, -1)
+            target_y = self._macro_targets[:, 1].reshape(1, -1).expand(self.B, -1)
+            if side == "red":
+                target_x = self._mirror_x(target_x, side)
+            blocked_targets = self._points_in_obstacles(target_x, target_y)
+            if blocked_targets.any():
+                target_slice = mask[:, :, self.cfg.n_macros :]
+                target_slice = torch.where(blocked_targets[:, None, :], torch.zeros_like(target_slice), target_slice)
+                mask[:, :, self.cfg.n_macros :] = target_slice
         return mask.reshape(self.B, -1)
 
     def get_obs_tensors(self, side: str = "blue") -> Dict[str, torch.Tensor]:
@@ -313,6 +338,21 @@ class _ObservationsMixin:
         frame = np.full((h, w, 3), 238, dtype=np.uint8)
         frame[:, : max(1, w // 2), :] = np.array([232, 242, 255], dtype=np.uint8)
         frame[:, max(1, w // 2) :, :] = np.array([255, 235, 235], dtype=np.uint8)
+
+        if getattr(self, "obstacle_rects", None) is not None:
+            rects = self.obstacle_rects[env_i].detach().cpu().numpy()
+            active = self.obstacle_active[env_i].detach().cpu().numpy()
+            for rect, is_active in zip(rects, active):
+                if not bool(is_active):
+                    continue
+                x0, y0, x1, y1 = [float(v) for v in rect]
+                px0 = int(round(x0 / max(1.0, float(self.cols - 1)) * float(w - 1)))
+                px1 = int(round(x1 / max(1.0, float(self.cols - 1)) * float(w - 1)))
+                py0 = int(round(y0 / max(1.0, float(self.rows - 1)) * float(h - 1)))
+                py1 = int(round(y1 / max(1.0, float(self.rows - 1)) * float(h - 1)))
+                x_lo, x_hi = max(0, min(px0, px1)), min(w, max(px0, px1) + 1)
+                y_lo, y_hi = max(0, min(py0, py1)), min(h, max(py0, py1) + 1)
+                frame[y_lo:y_hi, x_lo:x_hi, :] = np.array([70, 76, 86], dtype=np.uint8)
 
         def draw_point(x: float, y: float, color: tuple[int, int, int], radius: int = 2) -> None:
             cx = int(round(float(x) / max(1.0, float(self.cols - 1)) * float(w - 1)))

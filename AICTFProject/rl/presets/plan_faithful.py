@@ -1892,6 +1892,104 @@ def apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy(
     return cfg
 
 
+def apply_plan_faithful_latent_v5i7_entropy_floor_split_lane(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i7: v5i5 entropy floor on the split-lane map geometry.
+
+    ## Proposed Preset Review
+
+    ### Identity
+    - Proposed name: v5i7_entropy_floor_split_lane
+    - Parent preset: v5i5_paper_faithful_entropy_floor
+    - Classification: PAPER-FAITHFUL
+    - Research question: Does the v5i5 entropy-floor fix produce deployed
+      latent routing when the task geometry contains lane/chokepoint choices?
+
+    ### Intended delta
+    - Fields changed: map_layout, run_tag
+    - Why this change is necessary: v5i5's entropy floor can keep a latent
+      repertoire alive, but the open map may not create enough return contrast
+      for different z choices to matter.
+    - Why an existing preset cannot answer the question: v5i5 tests the same
+      latent method on the default open arena; it does not test whether explicit
+      route geometry makes strategy choice useful.
+
+    ### Fidelity impact
+    - Actor architecture changed: NO
+    - Router objective changed: NO
+    - Exploration schedule changed: NO
+    - Reward changed: NO
+    - Supervision added: NO
+    - Auxiliary task added: NO
+    - Resampling changed: NO
+
+    ### Exact deviations from the paper-faithful preset
+    - map_layout: map_a_open -> map_b_split_lane; reason: add lane/chokepoint
+      structure while preserving the v5i5 latent loss and training contract.
+    - run_tag: v5i5... -> v5i7_summer_faithful_entropy_floor_split_lane...; reason:
+      artifact namespace must advertise the environment geometry deviation.
+
+    This remains Summer-faithful by inheriting v5i5's actor, critic, q_phi
+    losses, entropy schedule, persistence, sparse resampling, opponent pool,
+    and no-label/no-curriculum contract. Any comparison against v5i5/no-latent
+    must disclose and match map geometry rather than attributing deltas to the
+    latent alone.
+    """
+    cfg = apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor(cfg)
+
+    cfg.map_layout = "map_b_split_lane"
+    cfg.run_tag = "v5i7_summer_faithful_entropy_floor_split_lane_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i8: v5i7 latent contract on the split-lane v2 task-pressure map.
+
+    ## Proposed Preset Review
+
+    ### Identity
+    - Proposed name: v5i8_split_lane_v2_task_pressure
+    - Parent preset: v5i7_summer_faithful_entropy_floor_split_lane
+    - Classification: PAPER-FAITHFUL
+    - Research question: Does lower-friction, higher-route-contrast split-lane
+      geometry create enough task-return structure for the existing v5i5
+      Summer-faithful latent PPO objective to learn deployed strategies?
+
+    ### Intended delta
+    - Fields changed: map_layout, run_tag
+    - Why this change is necessary: v5i7's first split-lane geometry produced
+      high obstacle-collision counts, so navigation friction may drown out the
+      strategic route signal.
+    - Why an existing preset cannot answer the question: v5i7 tests the first
+      split-lane geometry; v5i8 isolates a task-side geometry revision with no
+      latent coefficient or objective change.
+
+    ### Fidelity impact
+    - Actor architecture changed: NO
+    - Router objective changed: NO
+    - Exploration schedule changed: NO
+    - Reward changed: NO
+    - Supervision added: NO
+    - Auxiliary task added: NO
+    - Resampling changed: NO
+
+    ### Exact deviations from the paper-faithful preset
+    - map_layout: map_b_split_lane -> map_b_split_lane_v2; reason: reduce wall
+      bump noise and expose clearer route-pressure choices while preserving the
+      latent loss and training contract.
+    - run_tag: v5i7... -> v5i8_summer_faithful_split_lane_v2_task_pressure...; reason:
+      artifact namespace must advertise the environment geometry revision.
+    """
+    cfg = apply_plan_faithful_latent_v5i7_entropy_floor_split_lane(cfg)
+
+    cfg.map_layout = "map_b_split_lane_v2"
+    cfg.run_tag = "v5i8_summer_faithful_split_lane_v2_task_pressure_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v5i3_balanced_warmup(
     cfg: PPOConfig,
 ) -> PPOConfig:

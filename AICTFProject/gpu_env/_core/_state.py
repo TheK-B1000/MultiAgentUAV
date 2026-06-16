@@ -9,6 +9,14 @@ import torch
 
 from .._config import GPUFieldConfig
 from .._constants import MAP_SET_SEED_OFFSETS, METRIC_ZONE_COLS, METRIC_ZONE_ROWS
+from .._maps import (
+    MAP_B_SPLIT_LANE,
+    MAP_B_SPLIT_LANE_V2,
+    is_split_lane_layout,
+    norm_rect_to_cells,
+    split_lane_rect_norm,
+    split_lane_v2_rect_norm,
+)
 from .._paths import _resolve_snapshot_path
 from .._specs import _make_obs_action_spaces
 
@@ -39,6 +47,7 @@ class _StateMixin:
         self.dt = float(cfg.decision_interval_seconds) * 0.99
         self.max_dist = math.sqrt(float(self.cols * self.cols + self.rows * self.rows))
         self.map_set = str(cfg.map_set).lower()
+        self.map_layout = str(cfg.map_layout).lower()
         self._map_seed_offset = int(MAP_SET_SEED_OFFSETS[self.map_set])
 
         self._rng = torch.Generator(device=self.device)
@@ -87,11 +96,18 @@ class _StateMixin:
         f32 = torch.float32
 
         self._alloc_episode_state(B, Nb, Nr, dev)
+        self._alloc_map_state(B, dev, f32)
         self._alloc_agent_state(B, Nb, Nr, dev, f32)
         self._alloc_flags_and_scores(B, dev, f32)
         self._alloc_runtime_buffers(B, Nb, Nr, dev, f32)
         self._alloc_mine_state(B, Nb, Nr, dev, f32)
         self._alloc_metric_buffers(B, dev, f32)
+
+    def _alloc_map_state(self, B: int, dev: torch.device, f32: torch.dtype) -> None:
+        self.max_obstacles = 1
+        self.map_vertical_mirror = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.obstacle_rects = torch.zeros((B, self.max_obstacles, 4), dtype=f32, device=dev)
+        self.obstacle_active = torch.zeros((B, self.max_obstacles), dtype=torch.bool, device=dev)
 
     def _alloc_episode_state(self, B: int, Nb: int, Nr: int, dev: torch.device) -> None:
         self.step_count = torch.zeros((B,), dtype=torch.int32, device=dev)
@@ -213,7 +229,24 @@ class _StateMixin:
         self.metric_inter_robot_dist_sum = torch.zeros((B,), dtype=f32, device=dev)
         self.metric_inter_robot_dist_count = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.metric_collision_events = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_obstacle_collision_events = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.metric_near_misses = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_route_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_route_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_route_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_route_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_attack_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_attack_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_return_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_return_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_intercept_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_blue_intercept_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_attack_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_attack_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_return_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_return_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_intercept_upper_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
+        self.metric_red_intercept_lower_crossings = torch.zeros((B,), dtype=torch.int32, device=dev)
         self.metric_blue_zone_visited = torch.zeros(
             (B, METRIC_ZONE_ROWS * METRIC_ZONE_COLS),
             dtype=torch.bool,
@@ -283,7 +316,12 @@ class _StateMixin:
         try:
             from rl.custom_ppo import load_custom_ppo_policy
 
-            obs_space, action_space = _make_obs_action_spaces(self.Nr, self.cfg.n_macros, self.cfg.n_targets)
+            obs_space, action_space = _make_obs_action_spaces(
+                self.Nr,
+                self.cfg.n_macros,
+                self.cfg.n_targets,
+                num_cnn_channels=int(self.cfg.num_cnn_channels),
+            )
             model = load_custom_ppo_policy(resolved, obs_space, action_space, device=self.device)
         except Exception:
             model = None
@@ -309,6 +347,7 @@ class _StateMixin:
         self.stalemate_steps[idx] = 0
         self.blue_score[idx] = 0
         self.red_score[idx] = 0
+        self._reset_map_layout(env_mask)
         self.blue_flag_pos[idx] = self.blue_flag_home[idx].clone()
         self.red_flag_pos[idx] = self.red_flag_home[idx].clone()
         self.blue_carrying[idx] = False
@@ -382,12 +421,184 @@ class _StateMixin:
         self.metric_inter_robot_dist_sum[idx] = 0.0
         self.metric_inter_robot_dist_count[idx] = 0
         self.metric_collision_events[idx] = 0
+        self.metric_obstacle_collision_events[idx] = 0
         self.metric_near_misses[idx] = 0
+        self.metric_blue_route_upper_crossings[idx] = 0
+        self.metric_blue_route_lower_crossings[idx] = 0
+        self.metric_red_route_upper_crossings[idx] = 0
+        self.metric_red_route_lower_crossings[idx] = 0
+        self.metric_blue_attack_upper_crossings[idx] = 0
+        self.metric_blue_attack_lower_crossings[idx] = 0
+        self.metric_blue_return_upper_crossings[idx] = 0
+        self.metric_blue_return_lower_crossings[idx] = 0
+        self.metric_blue_intercept_upper_crossings[idx] = 0
+        self.metric_blue_intercept_lower_crossings[idx] = 0
+        self.metric_red_attack_upper_crossings[idx] = 0
+        self.metric_red_attack_lower_crossings[idx] = 0
+        self.metric_red_return_upper_crossings[idx] = 0
+        self.metric_red_return_lower_crossings[idx] = 0
+        self.metric_red_intercept_upper_crossings[idx] = 0
+        self.metric_red_intercept_lower_crossings[idx] = 0
         self.metric_blue_zone_visited[idx] = False
         self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
         self._apply_train_domain_randomization(env_mask)
+
+    def _reset_map_layout(self, env_mask: torch.Tensor) -> None:
+        idx = torch.where(env_mask)[0]
+        if idx.numel() == 0:
+            return
+        self.map_vertical_mirror[idx] = False
+        self.obstacle_rects[idx] = 0.0
+        self.obstacle_active[idx] = False
+        if not is_split_lane_layout(self.map_layout):
+            return
+        mirror_p = max(0.0, min(1.0, float(getattr(self.cfg, "map_b_vertical_mirror_prob", 0.5))))
+        mirrors = torch.rand((idx.numel(),), generator=self._rng, device=self.device) < mirror_p
+        self.map_vertical_mirror[idx] = mirrors
+        if self.map_layout == MAP_B_SPLIT_LANE_V2:
+            base_norm = split_lane_v2_rect_norm(mirror_y=False)
+            mirror_norm = split_lane_v2_rect_norm(mirror_y=True)
+        else:
+            base_norm = split_lane_rect_norm(
+                x_min=float(self.cfg.map_b_wall_x_min_norm),
+                x_max=float(self.cfg.map_b_wall_x_max_norm),
+                y_min=float(self.cfg.map_b_wall_y_min_norm),
+                y_max=float(self.cfg.map_b_wall_y_max_norm),
+                mirror_y=False,
+            )
+            mirror_norm = split_lane_rect_norm(
+                x_min=float(self.cfg.map_b_wall_x_min_norm),
+                x_max=float(self.cfg.map_b_wall_x_max_norm),
+                y_min=float(self.cfg.map_b_wall_y_min_norm),
+                y_max=float(self.cfg.map_b_wall_y_max_norm),
+                mirror_y=True,
+            )
+        base_rect = norm_rect_to_cells(
+            base_norm,
+            cols=self.cols,
+            rows=self.rows,
+        )
+        mirror_rect = norm_rect_to_cells(
+            mirror_norm,
+            cols=self.cols,
+            rows=self.rows,
+        )
+        base = torch.tensor(base_rect, dtype=self.obstacle_rects.dtype, device=self.device)
+        mirrored = torch.tensor(mirror_rect, dtype=self.obstacle_rects.dtype, device=self.device)
+        rects = torch.where(mirrors[:, None], mirrored[None, :], base[None, :])
+        self.obstacle_rects[idx, 0, :] = rects
+        self.obstacle_active[idx, 0] = True
+
+    def _points_in_obstacles(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        if not hasattr(self, "obstacle_active") or not bool(self.obstacle_active.any().item()):
+            return torch.zeros_like(x, dtype=torch.bool)
+        rects = self.obstacle_rects.to(dtype=x.dtype, device=x.device)
+        active = self.obstacle_active.to(device=x.device)
+        px = x[..., None]
+        py = y[..., None]
+        inside = (
+            active[:, None, :]
+            & (px >= rects[:, None, :, 0])
+            & (px <= rects[:, None, :, 2])
+            & (py >= rects[:, None, :, 1])
+            & (py <= rects[:, None, :, 3])
+        )
+        return inside.any(dim=-1)
+
+    def _segments_hit_obstacles(
+        self,
+        prev_x: torch.Tensor,
+        prev_y: torch.Tensor,
+        next_x: torch.Tensor,
+        next_y: torch.Tensor,
+    ) -> torch.Tensor:
+        if not hasattr(self, "obstacle_active") or not bool(self.obstacle_active.any().item()):
+            return torch.zeros_like(next_x, dtype=torch.bool)
+        hit = torch.zeros_like(next_x, dtype=torch.bool)
+        for frac in (0.25, 0.5, 0.75, 1.0):
+            sx = prev_x + (next_x - prev_x) * float(frac)
+            sy = prev_y + (next_y - prev_y) * float(frac)
+            hit = hit | self._points_in_obstacles(sx, sy)
+        return hit
+
+    def _revert_obstacle_hits(
+        self,
+        prev_x: torch.Tensor,
+        prev_y: torch.Tensor,
+        next_x: torch.Tensor,
+        next_y: torch.Tensor,
+        speed: torch.Tensor,
+        alive: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        hit = self._segments_hit_obstacles(prev_x, prev_y, next_x, next_y) & alive
+        x_out = torch.where(hit, prev_x, next_x)
+        y_out = torch.where(hit, prev_y, next_y)
+        speed_out = torch.where(hit, torch.zeros_like(speed), speed)
+        return x_out, y_out, speed_out, hit
+
+    def _route_targets_around_obstacles(
+        self,
+        own_x: torch.Tensor,
+        own_y: torch.Tensor,
+        target_x: torch.Tensor,
+        target_y: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if not is_split_lane_layout(self.map_layout) or not bool(self.obstacle_active.any().item()):
+            return target_x, target_y
+        rect = self.obstacle_rects[:, 0, :].to(dtype=target_x.dtype, device=target_x.device)
+        active = self.obstacle_active[:, 0].to(device=target_x.device)
+        x0 = rect[:, 0:1]
+        y0 = rect[:, 1:2]
+        x1 = rect[:, 2:3]
+        y1 = rect[:, 3:4]
+        center_y = (y0 + y1) * 0.5
+        denom = target_x - own_x
+        safe_denom = torch.where(torch.abs(denom) < 1e-6, torch.full_like(denom, 1e-6), denom)
+        wall_x = (x0 + x1) * 0.5
+        t = (wall_x - own_x) / safe_denom
+        line_y = own_y + (target_y - own_y) * t
+        crosses_wall_x = (t >= 0.0) & (t <= 1.0)
+        crosses_blocked_y = (line_y >= y0) & (line_y <= y1)
+        target_inside = self._points_in_obstacles(target_x, target_y)
+        needs_route = active[:, None] & ((crosses_wall_x & crosses_blocked_y) | target_inside)
+        if not bool(needs_route.any().item()):
+            return target_x, target_y
+
+        clearance = 2.0 if self.map_layout == MAP_B_SPLIT_LANE_V2 else 1.0
+        upper_y = torch.clamp(y0 - clearance, 0.0, float(max(0, self.rows - 1)))
+        lower_y = torch.clamp(y1 + clearance, 0.0, float(max(0, self.rows - 1)))
+        prefer_upper = torch.where(
+            target_y < y0,
+            torch.ones_like(target_y, dtype=torch.bool),
+            torch.where(target_y > y1, torch.zeros_like(target_y, dtype=torch.bool), own_y <= center_y),
+        )
+        route_y = torch.where(prefer_upper, upper_y, lower_y)
+        current_left = own_x < x0
+        current_right = own_x > x1
+        target_right = target_x > x1
+        target_left = target_x < x0
+        moving_right = current_left & target_right
+        moving_left = current_right & target_left
+        current_side_x = torch.where(
+            current_left,
+            torch.clamp(x0 - clearance, 0.0, float(max(0, self.cols - 1))),
+            torch.where(current_right, torch.clamp(x1 + clearance, 0.0, float(max(0, self.cols - 1))), own_x),
+        )
+        far_side_x = torch.where(
+            moving_right,
+            torch.clamp(x1 + clearance, 0.0, float(max(0, self.cols - 1))),
+            torch.where(moving_left, torch.clamp(x0 - clearance, 0.0, float(max(0, self.cols - 1))), current_side_x),
+        )
+        y_staging = (
+            (torch.abs(own_y - route_y) > 0.75)
+            & (own_y >= (y0 - (clearance * 0.5)))
+            & (own_y <= (y1 + (clearance * 0.5)))
+        )
+        waypoint_x = torch.where(y_staging, current_side_x, far_side_x)
+        waypoint_y = route_y
+        return torch.where(needs_route, waypoint_x, target_x), torch.where(needs_route, waypoint_y, target_y)
 
     def _apply_train_domain_randomization(self, env_mask: torch.Tensor) -> None:
         """Resample per-episode sim/observation jitter for masked env rows."""
