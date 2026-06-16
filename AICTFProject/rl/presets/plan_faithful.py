@@ -1782,6 +1782,86 @@ def apply_plan_faithful_latent_v5i4_end_to_end(
     return cfg
 
 
+def apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i5: paper-faithful entropy floor.
+
+    Single-axis follow-up to ``v5i4_paper_faithful_end_to_end``. The v5i4
+    run shows the actor uses ``z`` and ``q_phi`` receives gradients, but the
+    rollout occupancy concentrates heavily on a single latent (~64% on z2
+    vs ~7% on z3 at the 150k checkpoint). The smallest intervention aimed
+    directly at that failure mode -- without changing the loss objective or
+    introducing any new gradient channel -- is to raise the entropy floor
+    so the entropy regularizer keeps a stronger pull on under-sampled
+    latents late in training.
+
+    Recipe (one-variable change vs v5i4):
+
+    1. ``latent_lam_h_end = 0.001`` (was ``0.0002``). Five times the v5i4
+       floor while still inside the documented Summer-plan
+       ``lambda_H in [0.001, 0.01]`` range.
+    2. Everything else identical to v5i4: concat-only actor (no FiLM /
+       adapter / one-hot), ``latent_strategy_ppo_coef = 0.10`` main-loop
+       categorical PPO term on ``q_phi``, ``latent_lam_p = 0.03``,
+       ``latent_resample_every_n = 64``, no curriculum, no preferences,
+       no aux heads, no arc-credit, no episode-credit.
+
+    Classification: PAPER-FAITHFUL. The single change is a hyperparameter
+    inside the plan-allowed entropy range; no fidelity rule (R1..R42 in
+    ``docs/summer-fidelity-rules.md``) flips state. The run still fires
+    the v5i4-family paper-faithful audit banner.
+
+    Decisive comparison: v5i4 vs v5i5 with identical seed, learning rate,
+    timesteps, opponent pool {OP5, OP6, OP7}, maps, reward function,
+    resampling interval, network architecture, n_envs, and PPO epochs.
+    Multiple seeds recommended for headline claims.
+
+    Diagnostics (added in this PR, no new losses):
+
+    * ``effective_num_latents`` = ``exp(strategy_entropy_marginal_nats)``
+    * ``latent_occupancy_min`` / ``latent_occupancy_max`` /
+      ``latent_occupancy_ratio = max / max(min, eps)``
+    * ``mean_strategy_duration`` (rollout-level mean dwell length in
+      decisions per latent arc)
+
+    These let a reviewer separate "stronger entropy preserves useful
+    diversity" from "stronger entropy makes the router randomly
+    uncertain" without needing a new objective term.
+
+    What's deliberately NOT included (would be a different experiment):
+
+    * episode-credit extension (``latent_episode_strategy_ppo``)
+    * forced-z curriculum (v5i3-style ``latent_forced_z_episode_frac_*``)
+    * supervised phase or opponent labels
+    * opponent-ID input to the actor
+    * auxiliary return prediction head
+    * FiLM / adapter / one-hot actor conditioning
+    * behavior diversity rewards
+    * handcrafted latent targets
+    * marginal-occupancy entropy reward (deferred to a hypothetical
+      ``v5i6_paper_faithful_marginal_entropy``)
+
+    If v5i5 still collapses toward one latent, the next experiment is
+    marginal-occupancy entropy, not stacking five fixes at once.
+    """
+    cfg = apply_plan_faithful_latent_v5i4_end_to_end(cfg)
+
+    # Single-variable change: raise the lam_H floor 0.0002 -> 0.001.
+    # ``latent_lam_h_start`` (= 0.003), ``latent_entropy_anneal_start``
+    # (= 0), and ``latent_entropy_anneal_end`` (= 300_000) are all
+    # inherited unchanged from v5i4 -> v5_strict_summer -> v4i3.
+    cfg.latent_lam_h_end = 0.001
+
+    # Run tag rolled forward. The audit banner fires when the tag
+    # contains ``v5i5_paper_faithful``; the suffix mirrors v5i4's
+    # ``_OP5_OP6_OP7_1m_4v4`` (same opponent pool, same total_timesteps
+    # of 1_000_000 inherited from v5_strict_summer) so the artifact
+    # namespace is parallel and the v5i4-vs-v5i5 comparison is clean.
+    cfg.run_tag = "v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v5i3_balanced_warmup(
     cfg: PPOConfig,
 ) -> PPOConfig:

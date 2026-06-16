@@ -81,6 +81,35 @@ aliases:  v5i4
 All seven aliases resolve to the same `PPOConfig`. This invariant is
 pinned by `tests/test_v5i4_paper_faithful.py::V5i4AliasSnapshotTests`.
 
+**Single-axis paper-faithful follow-up (v5i5).** The first paper-faithful
+follow-up to v5i4 is `v5i5_paper_faithful_entropy_floor`, registered as:
+
+```text
+function: apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor
+file:     rl/presets/plan_faithful.py
+run_tag:  v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4
+aliases:  v5i5
+          v5i5_paper_faithful
+          v5i5_paper_faithful_entropy_floor
+          v5i5_entropy_floor
+          paper_faithful_entropy_floor
+          latent_v5i5_paper_faithful
+          latent_v5i5_paper_faithful_entropy_floor
+          latent_v5i5_entropy_floor
+          plan_faithful_latent_v5i5_paper_faithful_entropy_floor
+          plan_faithful_latent_v5i5_entropy_floor
+```
+
+The resolved-config diff between v5i4 and v5i5 is **exactly two keys**:
+`latent_lam_h_end` (raised from `0.0002` to `0.001`) and `run_tag`. This
+single-axis property is pinned by
+`tests/test_v5i5_paper_faithful_entropy_floor.py::V5i5PresetInheritanceTests::test_v5i5_minimal_diff_vs_v5i4`.
+The new entropy floor stays inside the documented Summer-plan
+`[0.001, 0.01]` range, so v5i5 is also `PAPER-FAITHFUL`. The
+launch-time audit banner is family-aware and prints
+`[PPO] v5i5 paper-faithful audit:` for v5i5 runs (see
+`rl/training/banner.py`).
+
 **Run-tag history (`_2m_` → `_1m_`):** v5_strict_summer / v5i1 / v5i2 /
 v5i3 inherited a misleading `_2m_4v4` suffix from v4i1 without ever
 overriding `total_timesteps` from its `PPOConfig` default of

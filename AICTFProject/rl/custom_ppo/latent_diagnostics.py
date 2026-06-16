@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import math
 import os
 from typing import Any, Callable
 
@@ -116,7 +117,32 @@ def _shannon_entropy_nats(arr: np.ndarray | None, num_categories: int) -> float:
 
 
 def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
-    """Summarize strategy occupancy and switching for the latest rollout."""
+    """Summarize strategy occupancy and switching for the latest rollout.
+
+    Existing keys (CSV-pinned, do not rename or remove):
+
+    * ``strategy_unique_count``, ``strategy_dominant``,
+      ``strategy_switch_count``, ``strategy_switch_fraction``,
+      ``strategy_resample_count``, ``strategy_resample_fraction_rollout``,
+      ``strategy_occupancy_{0..K-1}``.
+
+    Added for v5i5 (occupancy-collapse diagnostics requested with the
+    entropy-floor experiment; no new gradient channel, no new objective):
+
+    * ``effective_num_latents`` -- ``exp(H)`` of the rollout-marginal
+      latent distribution (counts ``z_t`` over all timesteps).
+      Equals ``K`` for uniform; equals 1 for full collapse.
+    * ``latent_marginal_entropy_nats`` -- the underlying ``H``.
+    * ``latent_occupancy_min`` / ``latent_occupancy_max`` -- the lowest
+      and highest per-z occupancies in this rollout.
+    * ``latent_occupancy_ratio`` -- ``max / max(min, 1e-8)``. Large
+      values = severe imbalance; ``1.0`` = perfect uniformity.
+    * ``mean_strategy_duration`` -- mean dwell length in decision steps
+      between latent switches. Computed as
+      ``num_decision_steps / max(1, num_arc_boundaries)`` where
+      ``num_arc_boundaries = strategy_resample_count``. Stays a
+      diagnostic; not used in any loss.
+    """
     if not trainer.use_latent_strategy or "z" not in buffer.fields:
         return {}
     length = int(buffer.pos)
@@ -129,6 +155,7 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
     persist_mask = buffer.fields["z_persist_mask"][:length].reshape(-1).bool()
     resampled = buffer.fields["z_resampled"][:length].reshape(-1).bool()
     switched = persist_mask & (z != prev_z)
+    resample_count = float(resampled.sum().detach().cpu().item())
     out = {
         "strategy_unique_count": float((counts > 0).sum().detach().cpu().item()),
         "strategy_dominant": float(torch.argmax(counts).detach().cpu().item()),
@@ -136,11 +163,33 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
         "strategy_switch_fraction": float(
             (switched.float().sum() / persist_mask.float().sum().clamp_min(1.0)).detach().cpu().item()
         ),
-        "strategy_resample_count": float(resampled.sum().detach().cpu().item()),
+        "strategy_resample_count": resample_count,
         "strategy_resample_fraction_rollout": float(resampled.float().mean().detach().cpu().item()),
     }
     for idx, value in enumerate(occupancy.detach().cpu().tolist()):
         out[f"strategy_occupancy_{idx}"] = float(value)
+
+    # v5i5 occupancy diagnostics. Pure functions of the existing per-z
+    # counts, no new tensors / autograd edges. Values use natural log so
+    # ``effective_num_latents`` is in [1, K].
+    occ = occupancy.detach().cpu()
+    occ_clamped = occ.clamp_min(1e-12)
+    marginal_entropy = float((-(occ_clamped * occ_clamped.log()).sum()).item())
+    occ_list = [float(v) for v in occ.tolist()]
+    occ_min = float(min(occ_list)) if occ_list else 0.0
+    occ_max = float(max(occ_list)) if occ_list else 0.0
+    out["latent_marginal_entropy_nats"] = marginal_entropy
+    out["effective_num_latents"] = float(math.exp(marginal_entropy))
+    out["latent_occupancy_min"] = occ_min
+    out["latent_occupancy_max"] = occ_max
+    out["latent_occupancy_ratio"] = float(occ_max / max(occ_min, 1e-8))
+    # Mean decision-steps per latent arc. Dividing by ``resample_count``
+    # treats every resample (episode start or sparse refresh) as an arc
+    # boundary, so this is a stable stand-in for "mean strategy
+    # duration" without needing a separate accumulator.
+    total_decisions = float(z.numel())
+    arc_boundaries = max(1.0, resample_count)
+    out["mean_strategy_duration"] = total_decisions / arc_boundaries
     return out
 
 

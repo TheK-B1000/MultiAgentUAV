@@ -264,6 +264,16 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("actor_input_dim")
         fields.append("z_embed_dim")
         fields.extend(f"strategy_occupancy_{idx}" for idx in range(latent_k))
+        # v5i5 occupancy-collapse diagnostics (added with the entropy-floor
+        # follow-up to v5i4; pure functions of existing per-z counts, no
+        # new gradient channel). See ``_latent_rollout_stats`` in
+        # ``rl/custom_ppo/latent_diagnostics.py``.
+        fields.append("latent_marginal_entropy_nats")
+        fields.append("effective_num_latents")
+        fields.append("latent_occupancy_min")
+        fields.append("latent_occupancy_max")
+        fields.append("latent_occupancy_ratio")
+        fields.append("mean_strategy_duration")
         for idx in range(latent_k):
             fields.extend(
                 [

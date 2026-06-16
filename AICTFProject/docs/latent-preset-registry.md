@@ -300,7 +300,41 @@ Post-Summer extension by classification: distillation against an offline
 q_probe target reintroduces an auxiliary supervised objective on `q_phi`,
 which the Summer plan forbids in the literal row.
 
-### 6.8 plan_faithful_latent_k1 (ABLATION)
+### 6.8 v5i5_paper_faithful_entropy_floor (PAPER-FAITHFUL — single-axis)
+
+The v5i4 → v5i5 resolved-config diff is **exactly two keys**
+(`latent_lam_h_end`, `run_tag`). This is enforced by
+[`tests/test_v5i5_paper_faithful_entropy_floor.py::V5i5PresetInheritanceTests::test_v5i5_minimal_diff_vs_v5i4`](../tests/test_v5i5_paper_faithful_entropy_floor.py).
+
+| Field                  | v5i4 value | This preset | Forbidden flag? | Note                                                                                  |
+|------------------------|------------|-------------|-----------------|---------------------------------------------------------------------------------------|
+| `latent_lam_h_end`     | `0.0002`   | `0.001`     | No (R20 ✓)      | Single-axis change: raise the entropy floor 5× to combat the v5i4 occupancy collapse. |
+| `run_tag`              | `v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_1m_4v4` | `v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4` | — | Family-aware audit banner detects this tag automatically. |
+
+`latent_lam_h_start` stays at `0.003`. The anneal window stays
+`[0, 300_000]`. The new floor `0.001` is **inside** the documented
+Summer-plan `[0.001, 0.01]` entropy range, so R20 (`λ_H > 0`) and R21
+(`latent_entropy_objective = "maximize"`) remain satisfied. The actor
+pathway is identical to v5i4 (no FiLM, no adapter, no one-hot;
+embedding-concat only at input dim 164). The router gradient channel is
+identical (main-loop categorical PPO term at `latent_strategy_ppo_coef
+= 0.10`). No forbidden mechanism is enabled.
+
+**New diagnostics** (see also [`summer-method-spec.md`](summer-method-spec.md) §"Telemetry"):
+
+| Column                          | Source                                                                  | Range / interpretation                            |
+|---------------------------------|-------------------------------------------------------------------------|---------------------------------------------------|
+| `latent_marginal_entropy_nats`  | `H` of rollout-marginal `z` distribution                                | `0` (full collapse) to `ln(K)` (uniform).         |
+| `effective_num_latents`         | `exp(latent_marginal_entropy_nats)`                                     | `1` (full collapse) to `K` (uniform).             |
+| `latent_occupancy_min`          | `min_k strategy_occupancy_k`                                            | `[0, 1]`.                                         |
+| `latent_occupancy_max`          | `max_k strategy_occupancy_k`                                            | `[1/K, 1]`.                                       |
+| `latent_occupancy_ratio`        | `latent_occupancy_max / max(latent_occupancy_min, 1e-8)`                | `1.0` = uniform; `>>1` = severe imbalance.        |
+| `mean_strategy_duration`        | `total_decisions / max(1, strategy_resample_count)`                      | Mean dwell length (decisions) per latent arc.     |
+
+These are pure functions of the per-z counts already computed for v5i4;
+they add **no** new gradient channel and **no** new objective term.
+
+### 6.9 plan_faithful_latent_k1 (ABLATION)
 
 | Field        | v5i4 value | This preset | Forbidden flag? | Note                                                       |
 |--------------|------------|-------------|-----------------|------------------------------------------------------------|

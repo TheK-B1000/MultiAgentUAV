@@ -51,6 +51,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
     apply_plan_faithful_latent_v5i3_balanced_warmup,
     apply_plan_faithful_latent_v5i4_end_to_end,
+    apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
@@ -278,6 +279,20 @@ PRESET_REGISTRY = {
     "v5i4_paper_faithful": apply_plan_faithful_latent_v5i4_end_to_end,
     "paper_faithful_end_to_end": apply_plan_faithful_latent_v5i4_end_to_end,
     "v5i4": apply_plan_faithful_latent_v5i4_end_to_end,
+    # v5i5: paper-faithful entropy-floor follow-up. Inherits v5i4 verbatim
+    # and changes a single field, ``latent_lam_h_end`` 0.0002 -> 0.001,
+    # to combat the v5i4 router's late-training occupancy collapse without
+    # introducing any new gradient channel. Stays PAPER-FAITHFUL.
+    "plan_faithful_latent_v5i5_paper_faithful_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "plan_faithful_latent_v5i5_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "latent_v5i5_paper_faithful_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "latent_v5i5_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "latent_v5i5_paper_faithful": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "v5i5_paper_faithful_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "v5i5_paper_faithful": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "v5i5_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "v5i5": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
+    "paper_faithful_entropy_floor": apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor,
     # v4i4 post-Summer extension: periodic router distillation (was the old v4i3).
     "plan_faithful_latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     "latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,

@@ -260,38 +260,50 @@ sampled (episode-start draws and 64-step refreshes). The non-resample
 subset receives exactly zero gradient through this term — pinned by
 [`tests/test_v5i4_paper_faithful.py::V5i4RouterTaskGradientTests`](../tests/test_v5i4_paper_faithful.py).
 
-### Operational coefficients (v5i4)
+### Operational coefficients (v5i4 / v5i5)
 
-| Field                          | Value         | Notes |
-|--------------------------------|---------------|-------|
-| `latent_k`                     | `4`           | Discrete shared latent. |
-| `latent_z_embed_dim`           | `16`          | Embedding width. |
-| `latent_resample_every_n`      | `64`          | Sparse refresh cadence (decision steps). |
-| `latent_resample_on_flag`      | `False`       | Forbidden in literal method. |
-| `latent_lam_p`                 | `0.03`        | Persistence regularizer. |
-| `latent_lam_h`                 | `0.003`       | Initial entropy weight. |
-| `latent_lam_h_end`             | `0.0002`      | Anneal floor. |
-| `latent_entropy_anneal_start`  | `0`           | Anneal window start. |
-| `latent_entropy_anneal_end`    | `300000`      | Anneal window end. |
-| `latent_entropy_objective`     | `"maximize"`  | Sign of the entropy term in the minimized loss. |
-| `latent_strategy_ppo_coef`     | `0.10`        | `c_Z`. |
-| `latent_episode_strategy_ppo`  | `False`       | v5i1 extension OFF. |
-| `latent_episode_strategy_lr`   | `None`        | No dedicated router optimizer. |
-| `latent_arc_credit_enabled`    | `False`       | v3i19 extension OFF. |
-| `enable_actor_z_film`          | `False`       | v5i2 extension OFF. |
-| `latent_actor_z_adapter_enabled` | `False`     | OFF. |
-| `latent_actor_z_onehot_enabled`| `False`       | OFF. |
-| `latent_forced_z_episode_frac` | `0.0`         | v5i3 curriculum OFF; the resolver ([`rl/custom_ppo/schedules.py`](../rl/custom_ppo/schedules.py)) returns `0.0` at every step because the four `_start/_end` fields are `None`. |
-| `latent_router_distill_enabled`| `False`       | v4i4post extension OFF. |
-| `latent_strategy_aux_return_head` | `False`    | Auxiliary head OFF. |
-| `latent_strategy_aux_predict_phase_coef` | `0.0` | Auxiliary head OFF. |
-| `latent_v3i3_event_preference_enabled` | `False` | Preference learning OFF. |
-| `latent_preference_coef`       | `0.0`         | Preference learning OFF. |
+The v5i4 row is the canonical paper-faithful operational preset. The
+v5i5 row is a single-axis follow-up (entropy-floor experiment) that is
+also `PAPER-FAITHFUL`; the **only** scalar field that differs is
+`latent_lam_h_end` (raised from `0.0002` to `0.001`, still inside the
+documented `[0.001, 0.01]` Summer-plan entropy range). Both rows
+satisfy R1..R42 in
+[`summer-fidelity-rules.md`](summer-fidelity-rules.md).
 
-These values are reproduced from
+| Field                          | v5i4 value    | v5i5 value    | Notes |
+|--------------------------------|---------------|---------------|-------|
+| `latent_k`                     | `4`           | `4`           | Discrete shared latent. |
+| `latent_z_embed_dim`           | `16`          | `16`          | Embedding width. |
+| `latent_resample_every_n`      | `64`          | `64`          | Sparse refresh cadence (decision steps). |
+| `latent_resample_on_flag`      | `False`       | `False`       | Forbidden in literal method. |
+| `latent_lam_p`                 | `0.03`        | `0.03`        | Persistence regularizer. |
+| `latent_lam_h`                 | `0.003`       | `0.003`       | Initial entropy weight. |
+| **`latent_lam_h_end`**         | **`0.0002`**  | **`0.001`**   | **Single-axis change.** v5i5 raises the floor 5× to combat the v5i4 router's late-training occupancy collapse. |
+| `latent_entropy_anneal_start`  | `0`           | `0`           | Anneal window start. |
+| `latent_entropy_anneal_end`    | `300_000`     | `300_000`     | Anneal window end. |
+| `latent_entropy_objective`     | `"maximize"`  | `"maximize"`  | Sign of the entropy term in the minimized loss. |
+| `latent_strategy_ppo_coef`     | `0.10`        | `0.10`        | `c_Z`. |
+| `latent_episode_strategy_ppo`  | `False`       | `False`       | v5i1 extension OFF. |
+| `latent_episode_strategy_lr`   | `None`        | `None`        | No dedicated router optimizer. |
+| `latent_arc_credit_enabled`    | `False`       | `False`       | v3i19 extension OFF. |
+| `enable_actor_z_film`          | `False`       | `False`       | v5i2 extension OFF. |
+| `latent_actor_z_adapter_enabled` | `False`     | `False`       | OFF. |
+| `latent_actor_z_onehot_enabled`| `False`       | `False`       | OFF. |
+| `latent_forced_z_episode_frac` | `0.0`         | `0.0`         | v5i3 curriculum OFF; the resolver ([`rl/custom_ppo/schedules.py`](../rl/custom_ppo/schedules.py)) returns `0.0` at every step because the four `_start/_end` fields are `None`. |
+| `latent_router_distill_enabled`| `False`       | `False`       | v4i4post extension OFF. |
+| `latent_strategy_aux_return_head` | `False`    | `False`       | Auxiliary head OFF. |
+| `latent_strategy_aux_predict_phase_coef` | `0.0` | `0.0`     | Auxiliary head OFF. |
+| `latent_v3i3_event_preference_enabled` | `False` | `False`    | Preference learning OFF. |
+| `latent_preference_coef`       | `0.0`         | `0.0`         | Preference learning OFF. |
+
+The v5i4 column matches
 `AICTFProject/checkpoints/4v4/v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4_run_config.json::resolved_ppo_config`
 captured at run start; see also
 [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md) §6.7.
+The v5i5 column is pinned by
+[`tests/test_v5i5_paper_faithful_entropy_floor.py::V5i5PresetInheritanceTests`](../tests/test_v5i5_paper_faithful_entropy_floor.py),
+which asserts the resolved-config diff between v5i4 and v5i5 is
+exactly `{latent_lam_h_end, run_tag}`.
 
 ---
 
@@ -369,6 +381,26 @@ paper_faithful_end_to_end
 latent_v5i4_paper_faithful
 latent_v5i4_end_to_end
 plan_faithful_latent_v5i4_end_to_end
+```
+
+The single-axis paper-faithful follow-up to v5i4 is
+**`v5i5_paper_faithful_entropy_floor`** (function
+`apply_plan_faithful_latent_v5i5_paper_faithful_entropy_floor`),
+which raises `latent_lam_h_end` from `0.0002` to `0.001` to combat the
+v5i4 router's late-training occupancy collapse without changing the
+loss objective or any actor / critic / sampling mechanism. Aliases:
+
+```text
+v5i5
+v5i5_paper_faithful
+v5i5_paper_faithful_entropy_floor
+v5i5_entropy_floor
+paper_faithful_entropy_floor
+latent_v5i5_paper_faithful
+latent_v5i5_paper_faithful_entropy_floor
+latent_v5i5_entropy_floor
+plan_faithful_latent_v5i5_paper_faithful_entropy_floor
+plan_faithful_latent_v5i5_entropy_floor
 ```
 
 The literal-strict ablation (`L = L_PPO + λ_p · L_persist − λ_H · H(q_phi)`,
