@@ -423,6 +423,68 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         default=None,
         help="Save checkpoint every N env steps during training (0 disables).",
     )
+    # --- v5i9 CSIA extension: detached causal strategic-impact reward.
+    parser.add_argument(
+        "--csia-enabled",
+        action="store_true",
+        help=(
+            "v5i9 extension: enable detached CSIA reward from frozen forced-z "
+            "evaluation evidence. Requires --csia-payoff-csv for a nonzero bonus."
+        ),
+    )
+    parser.add_argument(
+        "--csia-reward-coef",
+        type=float,
+        default=None,
+        help="Scale on centered causal strategic-impact advantage S(opponent,z).",
+    )
+    parser.add_argument(
+        "--csia-payoff-csv",
+        type=str,
+        default=None,
+        help="Path to *_qualitative_rollout_by_z.csv from tools/v5i8_forced_z_eval.py.",
+    )
+    parser.add_argument(
+        "--csia-strategy-evidence-csv",
+        type=str,
+        default=None,
+        help="Path to *_strategy_evidence.csv for natural router baseline and behavior-spread gate.",
+    )
+    parser.add_argument(
+        "--csia-probe-interval",
+        type=int,
+        default=None,
+        help="Reload CSIA evidence every N PPO updates; 0 loads once.",
+    )
+    parser.add_argument(
+        "--csia-min-behavior-spread",
+        type=float,
+        default=None,
+        help="Gate A threshold on forced-z behavioral spread.",
+    )
+    parser.add_argument(
+        "--csia-min-interaction-strength",
+        type=float,
+        default=None,
+        help="Gate B threshold on centered opponent-latent interaction strength.",
+    )
+    parser.add_argument(
+        "--csia-quality-floor-delta",
+        type=float,
+        default=None,
+        help="Gate C tolerance below natural-router baseline for every forced-z cell.",
+    )
+    parser.add_argument(
+        "--csia-min-count-per-cell",
+        type=int,
+        default=None,
+        help="Minimum forced-z episodes required before a payoff matrix cell is used.",
+    )
+    parser.add_argument(
+        "--no-csia-require-gates",
+        action="store_true",
+        help="Allow CSIA reward whenever evidence exists, even if gates fail. Diagnostic only.",
+    )
     # --- v4i4post (post-Summer extension): Periodic Return-Ranked Router
     # Distillation. These flags used to live under the v4i3 banner before
     # v4i3 was rescoped to the Summer Proof Suite. The CANONICAL v4i3
@@ -775,6 +837,26 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
     if args.periodic_checkpoint_steps is not None:
         cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
+    if getattr(args, "csia_enabled", False):
+        cfg.csia_enabled = True
+    if getattr(args, "csia_reward_coef", None) is not None:
+        cfg.csia_reward_coef = max(0.0, float(args.csia_reward_coef))
+    if getattr(args, "csia_payoff_csv", None):
+        cfg.csia_payoff_csv_path = str(args.csia_payoff_csv)
+    if getattr(args, "csia_strategy_evidence_csv", None):
+        cfg.csia_strategy_evidence_csv_path = str(args.csia_strategy_evidence_csv)
+    if getattr(args, "csia_probe_interval", None) is not None:
+        cfg.csia_probe_interval = max(0, int(args.csia_probe_interval))
+    if getattr(args, "csia_min_behavior_spread", None) is not None:
+        cfg.csia_min_behavior_spread = max(0.0, float(args.csia_min_behavior_spread))
+    if getattr(args, "csia_min_interaction_strength", None) is not None:
+        cfg.csia_min_interaction_strength = max(0.0, float(args.csia_min_interaction_strength))
+    if getattr(args, "csia_quality_floor_delta", None) is not None:
+        cfg.csia_quality_floor_delta = max(0.0, float(args.csia_quality_floor_delta))
+    if getattr(args, "csia_min_count_per_cell", None) is not None:
+        cfg.csia_min_count_per_cell = max(1, int(args.csia_min_count_per_cell))
+    if getattr(args, "no_csia_require_gates", False):
+        cfg.csia_require_gates = False
     # --- v4i4post router-distill overrides ------------------------------
     if getattr(args, "latent_router_distill_enabled", None):
         cfg.latent_router_distill_enabled = True

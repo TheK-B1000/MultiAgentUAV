@@ -55,6 +55,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
     apply_plan_faithful_latent_v5i7_entropy_floor_split_lane,
     apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
+    apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
@@ -336,6 +337,15 @@ PRESET_REGISTRY = {
     "v5i8_summer_faithful_split_lane_v2": apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
     "v5i8_split_lane_v2": apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
     "v5i8": apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
+    # v5i9: post-Summer extension. Uses forced-z CSIA evidence as a detached
+    # gated reward bonus. It is not a paper-/Summer-faithful row.
+    "plan_faithful_latent_v5i9_csia_guided_specialization": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    "plan_faithful_latent_v5i9_csia": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    "latent_v5i9_csia_guided_specialization": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    "latent_v5i9_csia": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    "v5i9_csia_guided_specialization": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    "v5i9_csia": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    "v5i9": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     # v4i4 post-Summer extension: periodic router distillation (was the old v4i3).
     "plan_faithful_latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     "latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
@@ -453,5 +463,6 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             "'latent_v3i16_summer_z_embed', "
             "'plan_faithful_latent_v3i16_z_embed', "
             "'v3i16_plan_faithful_z_embed'."
+            " 'v5i9' / 'v5i9_csia_guided_specialization' for the CSIA post-Summer extension."
         )
     return fn(cfg)

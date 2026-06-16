@@ -314,6 +314,24 @@ class PPOConfig:
     latent_behavior_contrast_ema: float = 0.9
     latent_behavior_contrast_anneal_after_steps: int = 0
     latent_behavior_contrast_anneal_to: float = 0.0
+    # v5i9 CSIA extension: detached reward feedback from frozen forced-z
+    # evaluation evidence. Default-off so every existing preset reproduces
+    # its original reward path unless a preset/CLI explicitly enables it.
+    csia_enabled: bool = False
+    csia_reward_coef: float = 0.0
+    # Expected payoff CSV: tools/qualitative_rollout.py
+    # ``*_qualitative_rollout_by_z.csv`` with fixed_z rows.
+    csia_payoff_csv_path: Optional[str] = None
+    # Optional evidence CSV: ``*_strategy_evidence.csv`` for natural router
+    # baseline and forced-z behavior spread gates.
+    csia_strategy_evidence_csv_path: Optional[str] = None
+    # Number of PPO updates between evidence reloads. 0 = load once.
+    csia_probe_interval: int = 1
+    csia_min_behavior_spread: float = 0.10
+    csia_min_interaction_strength: float = 0.05
+    csia_quality_floor_delta: float = 0.10
+    csia_require_gates: bool = True
+    csia_min_count_per_cell: int = 1
     latent_actor_z_separation_coef: float = 0.0
     latent_actor_z_separation_start_coef: float = 0.0
     latent_actor_z_separation_margin: float = 0.02

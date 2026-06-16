@@ -424,6 +424,25 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v5i9 / CSIA-guided specialization extension:** Added
+  `apply_plan_faithful_latent_v5i9_csia_guided_specialization` (aliases
+  `v5i9`, `v5i9_csia`, `v5i9_csia_guided_specialization`, and long
+  plan/latent aliases) built directly on v5i8. The resolved diff vs
+  v5i8 is exactly `{csia_enabled, csia_reward_coef, run_tag}`:
+  `csia_enabled = True`, `csia_reward_coef = 0.02`, and
+  `run_tag = "v5i9_csia_guided_specialization_OP5_OP6_OP7_1m_4v4"`.
+  v5i9 is `SUMMER-COMPATIBLE EXTENSION`, not original
+  Summer-/paper-faithful. Added `rl/csia.py` for forced-z payoff
+  matrices, centered interaction `S(opponent,z)`, gates A/B/C, and
+  router-vs-random-vs-oracle metrics. Wired a detached `reward_csia`
+  component into rollout collection and update CSV telemetry
+  (`csia_interaction_strength`, `centered_advantage_matrix`,
+  `oracle_best_z_per_opponent`, `router_oracle_gap`, `routing_gain`,
+  `gate_A_pass`, `gate_B_pass`, `gate_C_pass`, `csia_bonus_active`).
+  Added CLI overrides (`--csia-*`) and focused tests in
+  `tests/test_csia.py` and
+  `tests/test_v5i9_csia_guided_specialization.py`; regenerated
+  `tests/preset_snapshots.json`.
 - **v5i8 / Summer-faithful split-lane v2 task-pressure row:** Added
   `apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure` (aliases
   `v5i8`, `v5i8_split_lane_v2`, `v5i8_split_lane_v2_task_pressure`,

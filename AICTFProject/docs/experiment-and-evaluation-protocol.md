@@ -123,6 +123,7 @@ Before pressing enter on any latent training launch:
 | Conditional entropy-floor ablation  | `v5i5_paper_faithful_entropy_floor` | Same conditional entropy as v5i4, but `latent_lam_h_end = 0.001`.                                                              |
 | Summer-faithful split-lane row      | `v5i7`                      | Inherits v5i5 and changes only `map_layout = "map_b_split_lane"` plus `run_tag`; compare only to split-lane matched controls.        |
 | Summer-faithful split-lane v2 task-pressure row | `v5i8` | Inherits v5i7 and changes only `map_layout = "map_b_split_lane_v2"` plus `run_tag`; compare only to split-lane-v2 matched controls. |
+| CSIA guided specialization extension | `v5i9` | Inherits v5i8 and adds detached CSIA reward from forced-z evidence. Not a Summer-faithful row; compare against v5i8 with matched seed/map/opponents. |
 | Literal-strict ablation             | `v5_strict_summer`           | Same launch flags. Tag will carry `_2m_4v4` (historical); pass `--run-tag` to override.                                              |
 | No-latent baseline (matched control)| `no_latent_v4i3_baseline`    | Same launch flags. `use_latent_strategy = False`. Tag is budget-agnostic.                                                            |
 | Arc-credit row                      | `v4i3_summer_proof`          | Same launch flags. Tag is budget-agnostic; preset is `SUMMER-COMPATIBLE EXTENSION`, **not** literal paper-faithful (arc-credit ON).  |
@@ -339,6 +340,58 @@ Interpretation: if forced `z` changes behavior telemetry and trajectories
 for the same opponent, latent strategies emerged. If it changes only win
 rate or return, `z` affects performance but strategy meaning remains
 unclear. If it changes neither behavior nor outcome, `z` usage is cosmetic.
+
+### 6.4b v5i9 CSIA training extension
+
+v5i9 is a post-Summer training extension. It consumes the frozen forced-z
+evidence produced by the v5i8 harness and adds a small detached reward
+bonus only when causal strategy evidence is strong enough.
+
+The required input files are:
+
+```text
+<forced_z_out_dir>/<checkpoint_stem>_qualitative_rollout_by_z.csv
+<forced_z_out_dir>/<checkpoint_stem>_strategy_evidence.csv
+```
+
+Launch shape:
+
+```bash
+python rl/train_ppo.py `
+    --preset v5i9 `
+    --agents 4 `
+    --total-steps 1000000 `
+    --opponent-randomize `
+    --opponent-pool OP5 OP6 OP7 `
+    --map-layout map_b_split_lane_v2 `
+    --csia-payoff-csv checkpoints/4v4/qualitative/<stem>_qualitative_rollout_by_z.csv `
+    --csia-strategy-evidence-csv checkpoints/4v4/qualitative/<stem>_strategy_evidence.csv `
+    --fresh-metrics-csv
+```
+
+The payoff matrix is `M[o,z] = E[Return | opponent=o, do(Z=z)]`, not a
+natural-router correlation. The centered causal signal is
+`S[o,z] = M[o,z] - mean_z M[o,*] - mean_o M[*,z] + mean M`.
+
+The bonus is inactive unless all gates pass:
+
+* Gate A: forced-z behavioral spread exceeds `csia_min_behavior_spread`.
+* Gate B: centered opponent-latent interaction strength exceeds
+  `csia_min_interaction_strength`.
+* Gate C: every forced-z cell stays within `csia_quality_floor_delta` of
+  the natural-router baseline for that opponent.
+
+Update metrics include `reward_csia_mean`, `csia_interaction_strength`,
+`centered_advantage_matrix`, `oracle_best_z_per_opponent`,
+`router_oracle_gap`, `routing_gain`, `gate_A_pass`, `gate_B_pass`,
+`gate_C_pass`, and `csia_bonus_active`.
+
+Interpretation rule: v5i9 can support the extension claim "causal
+strategic-impact feedback improves opponent-adaptive specialization" only
+if it beats matched v5i8 controls and the forced-z evaluation after
+training still shows behavior plus opponent-dependent differences. A
+v5i9 win-rate gain without forced-z behavioral spread is performance
+shaping, not evidence of learned latent strategies.
 
 ### 6.5 Local counterfactual probe (`tools/q_probe_local_counterfactual.py`)
 

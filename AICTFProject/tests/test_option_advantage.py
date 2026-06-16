@@ -109,6 +109,7 @@ class OptionAdvantageTests(unittest.TestCase):
                 "reward_sparse_points": torch.zeros((2,)),
                 "reward_failure": torch.zeros((2,)),
                 "reward_behavior_contrast": torch.zeros((2,)),
+                "reward_csia": torch.zeros((2,)),
                 "reward_total": torch.zeros((2,)),
                 "terminated": torch.zeros((2,), dtype=torch.bool),
                 "truncated": torch.zeros((2,), dtype=torch.bool),

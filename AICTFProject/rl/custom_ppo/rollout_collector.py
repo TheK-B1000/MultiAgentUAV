@@ -61,6 +61,7 @@ from rl.ppo_core import (
     TensorDictRolloutBuffer,
     align_next_values_to_rollout_actions,
 )
+from rl.csia import CSIARewardModel
 from rl.custom_ppo.csv_writers import _opponent_id_int_from_info
 from rl.custom_ppo.curriculum_runtime import _update_curriculum_after_episode
 from rl.custom_ppo.option_returns import compute_option_returns
@@ -113,6 +114,7 @@ class RolloutCollector:
         self._reward_shaping_coef_fn = reward_shaping_coef
         self.runtime = runtime
         self.step_recorder = RolloutStepRecorder(runtime)
+        self.csia_reward_model = CSIARewardModel.from_config(cfg)
 
     # ------------------------------------------------------------------
     # Step-level helpers (also called from inside ``next_values``).
@@ -191,6 +193,7 @@ class RolloutCollector:
         buffer.register_field("reward_sparse_points")
         buffer.register_field("reward_failure")
         buffer.register_field("reward_behavior_contrast")
+        buffer.register_field("reward_csia")
         buffer.register_field("reward_total")
         buffer.register_field("terminated", dtype=torch.bool)
         buffer.register_field("truncated", dtype=torch.bool)
@@ -521,16 +524,28 @@ class RolloutCollector:
                 (int(env.num_envs),), dtype=torch.float32, device=self.device
             )
 
-        if self.hparams.use_latent_strategy:
-            self._update_latent_episode_returns(
-                reward_component=reward_component, dones=dones, infos=infos
-            )
-
         opp_row = torch.as_tensor(
             [_opponent_id_int_from_info(self.cfg, dict(info)) for info in infos],
             dtype=torch.long,
             device=self.device,
         )
+        reward_component["reward_csia"] = torch.zeros(
+            (int(env.num_envs),), dtype=torch.float32, device=self.device
+        )
+        if self.hparams.use_latent_strategy and z_t is not None:
+            csia_bonus = self.csia_reward_model.bonus(
+                opp_row,
+                z_t,
+                device=self.device,
+                update=int(runtime._updates_completed),
+            )
+            reward_component["reward_csia"] = csia_bonus
+            reward_component["reward_total"] = reward_component["reward_total"] + csia_bonus
+
+        if self.hparams.use_latent_strategy:
+            self._update_latent_episode_returns(
+                reward_component=reward_component, dones=dones, infos=infos
+            )
 
         frame = StepFrame(
             obs=obs,

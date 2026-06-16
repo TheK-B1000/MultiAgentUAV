@@ -430,7 +430,61 @@ This is the required evidence harness for the v5i8 latent-strategy claim.
 It keeps training unsupervised and tests learned `z` behavior after the
 checkpoint is frozen.
 
-### 3.5 v5i4 multi-seed (PLANNED)
+### 3.5 v5i9 - CSIA guided specialization extension (IMPLEMENTED, PENDING_EVIDENCE)
+
+**Status:** `IMPLEMENTED, PENDING_EVIDENCE`. Preset committed as
+`v5i9_csia_guided_specialization` (apply function
+`apply_plan_faithful_latent_v5i9_csia_guided_specialization` in
+`rl/presets/plan_faithful.py`). Aliases registered in
+`rl/presets/__init__.py`. Focused tests live in
+`tests/test_csia.py` and
+`tests/test_v5i9_csia_guided_specialization.py`.
+
+**Classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. v5i9 inherits v5i8 but enables detached CSIA reward
+feedback. Once gates pass, PPO trains on `reward_total + reward_csia`.
+
+**Scientific delta:** v5i9 asks whether causal strategic-impact feedback
+from frozen forced-z evaluation improves opponent-adaptive latent
+specialization. It does not add labels, role targets, opponent ID inputs,
+auxiliary heads, actor FiLM/adapters, forced-z curriculum, or a new
+router optimizer.
+
+**Resolved diff:** v5i8 -> v5i9 is exactly
+`{csia_enabled, csia_reward_coef, run_tag}`.
+
+**Required evidence before launch:** run the v5i8 forced-z harness and
+save both:
+
+```text
+*_qualitative_rollout_by_z.csv
+*_strategy_evidence.csv
+```
+
+**Launch command:**
+
+```bash
+python rl/train_ppo.py \
+  --preset v5i9 \
+  --total-steps 1000000 \
+  --agents 4 \
+  --seed 0 \
+  --device cuda \
+  --n-envs 32 \
+  --checkpoint-dir checkpoints/4v4 \
+  --csia-payoff-csv checkpoints/4v4/qualitative/<stem>_qualitative_rollout_by_z.csv \
+  --csia-strategy-evidence-csv checkpoints/4v4/qualitative/<stem>_strategy_evidence.csv \
+  --fresh-metrics-csv
+```
+
+**Success criteria:** `csia_bonus_active = 1`, gates A/B/C pass, and
+post-training forced-z eval shows behavioral differences plus
+opponent-dependent performance or macro-behavior differences. If v5i9
+only improves win rate without forced-z behavior spread, the extension
+improved performance shaping but did not prove latent strategy
+specialization.
+
+### 3.6 v5i4 multi-seed (PLANNED)
 
 **Status:** `PLANNED`. After the v5i4 single-seed eval matrix
 (§2.1) and the `no_latent_v4i3_baseline` matched-budget re-launch,
@@ -438,7 +492,7 @@ add **two more v5i4 seeds** (`--seed 1`, `--seed 2`) and two more
 `no_latent_v4i3_baseline` seeds to reach the §5.4 headline minimum
 of three seeds per row.
 
-### 3.6 v5i4 random-matched eval (PLANNED, eval-time only)
+### 3.7 v5i4 random-matched eval (PLANNED, eval-time only)
 
 **Status:** `PLANNED`, no training cost. Run
 `plot/eval_checkpoint.py --latent-selection router` and
@@ -447,7 +501,7 @@ checkpoint with identical `--seed` and identical `--episodes`. The
 delta is the matched-schedule routing-quality control
 ([`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md) §4.2).
 
-### 3.7 v4i4post_periodic_router_distill comparison (DEFERRED)
+### 3.8 v4i4post_periodic_router_distill comparison (DEFERRED)
 
 **Status:** `DEFERRED`. Counter-factual router distillation is the
 honest next step *only* if v5i4 fails its gates (§2.1 eval matrix +

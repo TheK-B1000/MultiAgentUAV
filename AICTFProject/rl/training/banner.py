@@ -231,6 +231,23 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
         )
     if fixed:
         print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
+    if bool(getattr(cfg, "csia_enabled", False)) and not fixed:
+        payoff_path = str(getattr(cfg, "csia_payoff_csv_path", "") or "").strip()
+        evidence_path = str(getattr(cfg, "csia_strategy_evidence_csv_path", "") or "").strip()
+        print(
+            "[PPO] CSIA reward extension: enabled "
+            f"(coef={float(getattr(cfg, 'csia_reward_coef', 0.0) or 0.0):.4f}, "
+            f"probe_interval={int(getattr(cfg, 'csia_probe_interval', 1) or 0)}, "
+            f"require_gates={bool(getattr(cfg, 'csia_require_gates', True))}, "
+            f"min_behavior_spread={float(getattr(cfg, 'csia_min_behavior_spread', 0.0) or 0.0):.3f}, "
+            f"min_interaction={float(getattr(cfg, 'csia_min_interaction_strength', 0.0) or 0.0):.3f}, "
+            f"quality_floor_delta={float(getattr(cfg, 'csia_quality_floor_delta', 0.0) or 0.0):.3f})"
+        )
+        print(
+            "[PPO] CSIA evidence paths: "
+            f"payoff_csv={payoff_path or '<unset>'}, "
+            f"strategy_evidence_csv={evidence_path or '<unset>'}"
+        )
     if bool(getattr(cfg, "latent_arc_credit_enabled", False)) and not fixed:
         arc_coef = float(getattr(cfg, "latent_arc_credit_coef", 1.0) or 0.0)
         arc_baseline = str(

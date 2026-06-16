@@ -156,6 +156,7 @@ class RolloutStepRecorder:
             reward_sparse_points=rc["reward_sparse_points"],
             reward_failure=rc["reward_failure"],
             reward_behavior_contrast=rc["reward_behavior_contrast"],
+            reward_csia=rc["reward_csia"],
             reward_total=rc["reward_total"],
             terminated=torch.as_tensor(frame.terminated, dtype=torch.bool, device=device),
             truncated=torch.as_tensor(frame.truncated, dtype=torch.bool, device=device),

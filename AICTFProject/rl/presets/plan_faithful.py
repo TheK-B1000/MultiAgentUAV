@@ -1990,6 +1990,65 @@ def apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(
     return cfg
 
 
+def apply_plan_faithful_latent_v5i9_csia_guided_specialization(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i9: CSIA-guided latent specialization extension on v5i8.
+
+    ## Proposed Preset Review
+
+    ### Identity
+    - Proposed name: v5i9_csia_guided_specialization
+    - Parent preset: v5i8_split_lane_v2_task_pressure
+    - Classification: SUMMER-COMPATIBLE EXTENSION
+    - Research question: Can causal strategic-impact feedback from frozen
+      forced-z evaluations improve opponent-adaptive latent specialization?
+
+    ### Intended delta
+    - Fields changed: csia_enabled, csia_reward_coef, run_tag. The CSIA
+      gate thresholds use the PPOConfig defaults unless overridden by CLI.
+    - Why this change is necessary: v5i8 can prove whether forced z causes
+      strategy differences, but it does not feed that causal evidence back
+      into training when specialization is useful but weak or unstable.
+    - Why an existing preset cannot answer the question: v5i8 is a
+      task-pressure/evaluation row only. It keeps the original reward path
+      unchanged and therefore cannot test causal-impact feedback.
+
+    ### Fidelity impact
+    - Actor architecture changed: NO
+    - Router objective changed: NO
+    - Exploration schedule changed: NO
+    - Reward changed: YES, via detached CSIA bonus after gates pass
+    - Supervision added: NO
+    - Auxiliary task added: NO
+    - Resampling changed: NO
+
+    ### Exact deviations from the parent
+    - csia_enabled: False -> True; reason: enable the v5i9 extension.
+    - csia_reward_coef: 0.0 -> 0.02; reason: add a small detached bonus
+      proportional to centered causal strategic-impact advantage S(o,z).
+    - run_tag: v5i8... -> v5i9_csia_guided_specialization...; reason:
+      artifact namespace must advertise the post-Summer reward extension.
+
+    This preset must not be described as the original Summer plan. It keeps
+    v5i8's actor, critic, q_phi loss, entropy floor, persistence, resampling,
+    opponent pool, and map geometry, but the trainer-side reward is no longer
+    the paper-faithful reward once CSIA gates activate.
+    """
+    cfg = apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(cfg)
+
+    cfg.csia_enabled = True
+    cfg.csia_reward_coef = 0.02
+    cfg.csia_probe_interval = 1
+    cfg.csia_min_behavior_spread = 0.10
+    cfg.csia_min_interaction_strength = 0.05
+    cfg.csia_quality_floor_delta = 0.10
+    cfg.csia_require_gates = True
+    cfg.csia_min_count_per_cell = 1
+    cfg.run_tag = "v5i9_csia_guided_specialization_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v5i3_balanced_warmup(
     cfg: PPOConfig,
 ) -> PPOConfig:

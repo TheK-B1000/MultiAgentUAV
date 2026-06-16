@@ -157,7 +157,7 @@ description.
 | Classification           | Allowed in preset name / aliases / run_tag                                                                                                       |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | `PAPER-FAITHFUL`         | `paper_faithful`, `summer_faithful`, `plan_faithful`, `end_to_end` — only when verified by tests against the resolved configuration              |
-| `SUMMER-COMPATIBLE EXTENSION` | The preset name must explicitly identify the deviation (e.g. `_film`, `_episode_credit`, `_balanced_warmup`, `_arc_credit`, `_router_distill`) |
+| `SUMMER-COMPATIBLE EXTENSION` | The preset name must explicitly identify the deviation (e.g. `_film`, `_episode_credit`, `_balanced_warmup`, `_arc_credit`, `_router_distill`, `_csia`) |
 | `ABLATION`               | Should include `_ablate_*` or `_no_*` (e.g. `phase3b_ablate_k1`, `phase3b_ablate_no_persistence`, `no_latent_v4i3_baseline`)                     |
 | `DIAGNOSTIC`             | Should include a clear scope tag (e.g. `_qprobe`, `_smoke`, `_collapsed`)                                                                        |
 | `DEPRECATED`             | The original name is retained for reproducibility. Mark `DEPRECATED` in the registry, never the preset name                                      |
@@ -208,6 +208,10 @@ mis-configurations:
 * `latent_episode_strategy_lr is set` (dedicated router AdamW silences
   the main-loop PG term)
 * actor-z pathway is not concat-only (FiLM / adapter / one-hot ON)
+
+`v5i9_csia_guided_specialization` must not fire this banner. CSIA changes
+the trainer-side reward after forced-z evidence gates pass, so it is a
+`SUMMER-COMPATIBLE EXTENSION`, not a `PAPER-FAITHFUL` row.
 
 ---
 

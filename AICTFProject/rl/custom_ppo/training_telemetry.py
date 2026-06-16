@@ -409,6 +409,7 @@ class TrainingTelemetry:
             "reward_sparse_points",
             "reward_failure",
             "reward_behavior_contrast",
+            "reward_csia",
             "reward_total",
         ):
             vals = buffer.fields[key][: int(buffer.pos)].detach().float().reshape(-1)
@@ -425,6 +426,10 @@ class TrainingTelemetry:
         row["reward_shaping_to_outcome_abs_ratio"] = abs(reward_shaping) / (abs(reward_outcome) + 1e-6)
         row["reward_shaping_coef"] = float(self._reward_shaping_coef_fn())
         row["reward_failure_to_outcome_abs"] = abs(reward_failure) / (abs(reward_outcome) + 1e-6)
+        collector = getattr(runtime, "rollout_collector", None)
+        csia_model = getattr(collector, "csia_reward_model", None)
+        if csia_model is not None:
+            row.update(csia_model.stats())
         row.update(stats)
         if hparams.use_latent_strategy:
             input_contract = runtime.model.input_dim_contract()

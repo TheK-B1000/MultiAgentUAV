@@ -115,6 +115,7 @@ recent v4 / v3i19 presets are tabulated; older `v3iN`, `phaseN`, and
 
 | `v5i7_summer_faithful_entropy_floor_split_lane` | `apply_plan_faithful_latent_v5i7_entropy_floor_split_lane` | `v5i5_paper_faithful_entropy_floor` | `PAPER-FAITHFUL` | v5i5 entropy-floor method on `map_b_split_lane`. The only resolved diff vs v5i5 is `{map_layout: map_a_open -> map_b_split_lane, run_tag}`. This tests whether lane/chokepoint geometry creates enough return contrast for deployed latent routing without adding labels, curriculum, auxiliary losses, FiLM, marginal entropy, or new `q_phi` gradient channels. |
 | `v5i8_split_lane_v2_task_pressure` | `apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure` | `v5i7_summer_faithful_entropy_floor_split_lane` | `PAPER-FAITHFUL` | v5i7 latent contract on `map_b_split_lane_v2`. The only resolved diff vs v5i7 is `{map_layout: map_b_split_lane -> map_b_split_lane_v2, run_tag}`. This tests whether lower-friction, higher-route-contrast geometry creates enough task-return structure for deployed latent routing without changing latent coefficients, objectives, sampling, labels, or actor conditioning. |
+| `v5i9_csia_guided_specialization` | `apply_plan_faithful_latent_v5i9_csia_guided_specialization` | `v5i8_split_lane_v2_task_pressure` | `SUMMER-COMPATIBLE EXTENSION` | v5i8 plus detached CSIA reward from frozen forced-z evaluation evidence. The resolved diff vs v5i8 is `{csia_enabled: False -> True, csia_reward_coef: 0.0 -> 0.02, run_tag}`. This is not the original Summer plan: once gates pass, PPO reward includes `reward_csia = lambda_csia * S(opponent,z)`. |
 
 ### 3.2 v4 family (Summer-proof + post-Summer extension)
 
@@ -202,6 +203,7 @@ pins the alias map; any deletion or rename must be reflected there.
 | **`apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`** | **`plan_faithful_latent_v5i6_paper_faithful_marginal_entropy`, `plan_faithful_latent_v5i6_marginal_entropy`, `latent_v5i6_paper_faithful_marginal_entropy`, `latent_v5i6_marginal_entropy`, `latent_v5i6_paper_faithful`, `v5i6_paper_faithful_marginal_entropy`, `v5i6_paper_faithful`, `v5i6_marginal_entropy`, `v5i6`, `paper_faithful_marginal_entropy`** |
 | **`apply_plan_faithful_latent_v5i7_entropy_floor_split_lane`** | **`plan_faithful_latent_v5i7_entropy_floor_split_lane`, `plan_faithful_latent_v5i7_summer_faithful_entropy_floor_split_lane`, `plan_faithful_latent_v5i7_summer_faithful_split_lane`, `plan_faithful_latent_v5i7_split_lane`, `latent_v5i7_entropy_floor_split_lane`, `latent_v5i7_summer_faithful_entropy_floor_split_lane`, `latent_v5i7_summer_faithful_split_lane`, `latent_v5i7_split_lane`, `v5i7_entropy_floor_split_lane`, `v5i7_summer_faithful_entropy_floor_split_lane`, `v5i7_summer_faithful_split_lane`, `v5i7_split_lane`, `v5i7`** |
 | **`apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure`** | **`plan_faithful_latent_v5i8_split_lane_v2_task_pressure`, `plan_faithful_latent_v5i8_summer_faithful_split_lane_v2`, `plan_faithful_latent_v5i8_split_lane_v2`, `latent_v5i8_split_lane_v2_task_pressure`, `latent_v5i8_summer_faithful_split_lane_v2`, `latent_v5i8_split_lane_v2`, `v5i8_split_lane_v2_task_pressure`, `v5i8_summer_faithful_split_lane_v2`, `v5i8_split_lane_v2`, `v5i8`** |
+| `apply_plan_faithful_latent_v5i9_csia_guided_specialization` | `plan_faithful_latent_v5i9_csia_guided_specialization`, `plan_faithful_latent_v5i9_csia`, `latent_v5i9_csia_guided_specialization`, `latent_v5i9_csia`, `v5i9_csia_guided_specialization`, `v5i9_csia`, `v5i9` |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
 
 The full alias surface lives in
@@ -440,7 +442,38 @@ Comparisons against v5i7 or no-latent controls must use matched map
 geometry. A split-lane v1 row and split-lane v2 row answer an environment
 question, not a latent-objective question.
 
-### 6.12 plan_faithful_latent_k1 (ABLATION)
+### 6.12 v5i9_csia_guided_specialization (SUMMER-COMPATIBLE EXTENSION)
+
+The v5i8 -> v5i9 resolved-config diff is exactly three keys
+(`csia_enabled`, `csia_reward_coef`, `run_tag`). This is enforced by
+[`tests/test_v5i9_csia_guided_specialization.py::V5i9PresetInheritanceTests::test_v5i9_diff_vs_v5i8_is_csia_and_tag_only`](../tests/test_v5i9_csia_guided_specialization.py).
+
+| Field              | v5i8 value | This preset | Forbidden flag? | Note |
+|--------------------|------------|-------------|-----------------|------|
+| `csia_enabled`     | `False` | `True` | Yes for paper-faithful | Enables detached reward feedback from forced-z causal evidence. |
+| `csia_reward_coef` | `0.0` | `0.02` | Yes for paper-faithful | Adds `reward_csia = 0.02 * S(opponent,z)` after the CSIA gates pass. |
+| `run_tag`          | `v5i8_summer_faithful_split_lane_v2_task_pressure_OP5_OP6_OP7_1m_4v4` | `v5i9_csia_guided_specialization_OP5_OP6_OP7_1m_4v4` | - | Artifact namespace advertises the post-Summer reward extension and deliberately avoids `paper_faithful` / `summer_faithful`. |
+
+All other v5i8 latent and environment fields match: concat-only actor,
+conditional entropy floor, `K = 4`, `latent_strategy_ppo_coef = 0.10`,
+`latent_lam_p = 0.03`, sparse 64-decision resampling, no episode-credit
+optimizer, no forced-z curriculum, no marginal entropy, no
+FiLM/adapter/one-hot actor path, no preferences/distillation, no
+arc-credit, and no auxiliary heads.
+
+CSIA evidence comes from frozen forced-z evaluation outputs:
+`*_qualitative_rollout_by_z.csv` supplies `M[o,z] = E[Return |
+opponent=o, do(Z=z)]`, and `*_strategy_evidence.csv` supplies natural
+router baseline plus forced-z behavioral spread. The centered interaction
+is `S[o,z] = M[o,z] - mean_z M[o,*] - mean_o M[*,z] + mean M`.
+
+The bonus is gated. Gate A requires forced-z behavioral spread; Gate B
+requires nonzero opponent-latent interaction strength; Gate C requires
+every observed forced-z payoff to stay within `csia_quality_floor_delta`
+of the natural-router baseline. Raw diversity, occupancy, entropy, MI,
+or a globally superior latent cannot activate v5i9 by themselves.
+
+### 6.13 plan_faithful_latent_k1 (ABLATION)
 
 | Field        | v5i4 value | This preset | Forbidden flag? | Note                                                       |
 |--------------|------------|-------------|-----------------|------------------------------------------------------------|
@@ -530,6 +563,7 @@ same artifact namespace; pass `--run-tag` to disambiguate when needed.
 | `v5i6_paper_faithful_marginal_entropy` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i6_paper_faithful"`. |
 | `v5i7_summer_faithful_entropy_floor_split_lane` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i7_summer_faithful"`. |
 | `v5i8_split_lane_v2_task_pressure` (any alias) | **Yes.** `cfg.run_tag` contains `"v5i8_summer_faithful"`. |
+| `v5i9_csia_guided_specialization` (any alias) | **No.** It is a reward extension, and `cfg.run_tag` deliberately omits `paper_faithful` / `summer_faithful`. |
 | Any other preset    | Only if `cfg.latent_paper_faithful_audit = True` is set on the resolved config. |
 
 The banner content and trigger logic live in

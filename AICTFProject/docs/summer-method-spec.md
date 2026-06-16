@@ -418,6 +418,9 @@ machine-scannable list and decision tree.
 * Forced-z curriculum (`latent_forced_z_episode_frac > 0` or any of the
   four anneal fields set).
 * Hand-designed strategic rewards or per-z handcrafted bonuses.
+* CSIA / causal-impact reward feedback (`csia_enabled = True` or
+  `csia_reward_coef > 0`). This uses forced-z evaluation evidence to
+  alter the trainer-side reward and is a post-Summer extension.
 * Hard-coded role/strategy meanings (interpreting `z` indices as
   "attack," "defense," etc., in code or documentation).
 * Hard-coded switching rules (event-triggered hard switches).
@@ -437,6 +440,9 @@ machine-scannable list and decision tree.
   shapes `q_phi`.
 * It is not a curriculum method. The literal row uses no scripted
   exploration schedule for `z`.
+* It is not a causal-feedback reward-shaping method. v5i9 / CSIA is a
+  valid extension experiment, but it is not the original Summer
+  objective `L = L_PPO + lambda_p L_persist - lambda_H H(z)`.
 * `q_phi` is not a classifier; its targets are not labels. Any preset
   that adds supervised targets is, by definition, a different method.
 
