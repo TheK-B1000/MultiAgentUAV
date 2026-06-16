@@ -262,24 +262,43 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
 
 
 def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
-    """Emit the v5i4 paper-faithful audit banner when the run is configured
-    per the v5i4 contract.
+    """Emit the paper-faithful audit banner when the run is configured per
+    a paper-faithful contract (currently the v5i4 / v5i5 family).
 
     The audit is triggered by either:
 
-    * ``cfg.run_tag`` containing ``"v5i4_paper_faithful"`` (the canonical
-      tag set by ``apply_plan_faithful_latent_v5i4_end_to_end``), or
+    * ``cfg.run_tag`` containing one of the recognized paper-faithful
+      family tags (``v5i4_paper_faithful``, ``v5i5_paper_faithful``), or
     * an explicit ``cfg.latent_paper_faithful_audit = True`` opt-in flag
       (used by future paper-faithful presets so they inherit the banner
-      without copying the run_tag string).
+      without relying on a specific run_tag string).
 
-    The banner lists every invariant the v5i4 design depends on so a
-    reviewer can verify them at the top of the log without diffing
+    The banner lists every invariant the paper-faithful design depends on
+    so a reviewer can verify them at the top of the log without diffing
     config snapshots. None of these reads mutate ``cfg``.
+
+    Family detection: the header / warning lines are prefixed with the
+    matched family (``v5i4`` or ``v5i5``) so existing v5i4 banner tests
+    still see ``"v5i4 paper-faithful audit"`` / ``"v5i4 audit WARNING"``
+    while v5i5 runs print the equivalent ``v5i5`` strings. The
+    invariants themselves are identical -- v5i5 differs from v5i4 only
+    in ``latent_lam_h_end`` (0.0002 -> 0.001), which is a hyperparameter
+    inside the documented Summer-plan entropy range, not a fidelity
+    flip.
     """
     run_tag = str(getattr(cfg, "run_tag", "") or "")
     explicit_opt_in = bool(getattr(cfg, "latent_paper_faithful_audit", False))
-    if not explicit_opt_in and "v5i4_paper_faithful" not in run_tag.lower():
+    run_tag_low = run_tag.lower()
+    family: str | None = None
+    if "v5i5_paper_faithful" in run_tag_low:
+        family = "v5i5"
+    elif "v5i4_paper_faithful" in run_tag_low:
+        family = "v5i4"
+    elif explicit_opt_in:
+        # Opt-in flag without a recognized run_tag: default to the v5i4
+        # label so reviewers see a stable header.
+        family = "v5i4"
+    if family is None:
         return
 
     strategy_ppo_coef = float(getattr(cfg, "latent_strategy_ppo_coef", 0.0) or 0.0)
@@ -313,7 +332,7 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     def _yn(flag: bool) -> str:
         return "ON" if flag else "OFF"
 
-    print("[PPO] v5i4 paper-faithful audit:")
+    print(f"[PPO] {family} paper-faithful audit:")
     print(f"  discrete shared z: K={k}")
     actor_label = "embedding-concat"
     if film_on:
@@ -353,7 +372,7 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
     # paper-faithful claim, so reviewers see them at the top of the log.
     if strategy_ppo_coef <= 0.0:
         print(
-            "[PPO] v5i4 audit WARNING: latent_strategy_ppo_coef <= 0; "
+            f"[PPO] {family} audit WARNING: latent_strategy_ppo_coef <= 0; "
             "q_phi receives no task-reward gradient. This contradicts the "
             "'learned end-to-end from task reward' claim."
         )
@@ -363,14 +382,14 @@ def _maybe_print_paper_faithful_audit(cfg: PPOConfig) -> None:
         and getattr(cfg, "latent_episode_strategy_lr", None) is not None
     ):
         print(
-            "[PPO] v5i4 audit WARNING: latent_episode_strategy_lr is set; "
+            f"[PPO] {family} audit WARNING: latent_episode_strategy_lr is set; "
             "the dedicated router optimizer suppresses the main-loop "
-            "categorical PPO term on q_phi. v5i4 requires this to be None."
+            f"categorical PPO term on q_phi. {family} requires this to be None."
         )
     if film_on or adapter_on or onehot_on:
         print(
-            "[PPO] v5i4 audit WARNING: actor-z pathway is not concat-only; "
-            "v5i4 specifies plain nn.Embedding(K, d_z) concat. FiLM/adapter/"
+            f"[PPO] {family} audit WARNING: actor-z pathway is not concat-only; "
+            f"{family} specifies plain nn.Embedding(K, d_z) concat. FiLM/adapter/"
             "one-hot must all be OFF."
         )
 

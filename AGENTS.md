@@ -68,7 +68,7 @@ repository as:
 ```text
 function: apply_plan_faithful_latent_v5i4_end_to_end
 file:     rl/presets/plan_faithful.py
-run_tag:  v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4
+run_tag:  v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_1m_4v4
 aliases:  v5i4
           v5i4_paper_faithful
           v5i4_end_to_end
@@ -80,6 +80,23 @@ aliases:  v5i4
 
 All seven aliases resolve to the same `PPOConfig`. This invariant is
 pinned by `tests/test_v5i4_paper_faithful.py::V5i4AliasSnapshotTests`.
+
+**Run-tag history (`_2m_` → `_1m_`):** v5_strict_summer / v5i1 / v5i2 /
+v5i3 inherited a misleading `_2m_4v4` suffix from v4i1 without ever
+overriding `total_timesteps` from its `PPOConfig` default of
+`1_000_000`. v5i4's preset now sets the suffix to `_1m_4v4` so the tag
+agrees with the actual budget; pinned by
+`tests/test_v5i4_paper_faithful.py::V5i4RunTagAndInitialOpponentConsistencyTests::test_run_tag_advertises_actual_total_timesteps_budget`.
+Checkpoints, metrics CSVs, and lock files produced by v5i4 launches
+*before* the tag fix carry the old `_2m_4v4` suffix on disk (see
+`AICTFProject/checkpoints/4v4/ckpt_v5i4_paper_faithful_end_to_end_OP5_OP6_OP7_2m_4v4_*.zip`).
+Those artifacts are valid evaluation inputs for the completed 1 M-step
+paper-faithful run; only the filename string disagrees with the trainer's
+reported budget. Do not retroactively rename — embedded `run_tag`
+metadata in the CSV / checkpoint files would break tag-based CSV
+consumers. See
+`AICTFProject/docs/latent-preset-registry.md` §7 for the full
+artifact-history table.
 
 `v4i3_summer_proof` is **not** the operational paper-faithful preset for
 new headline claims: it inherits the v3i19 arc-credit channel, which is
