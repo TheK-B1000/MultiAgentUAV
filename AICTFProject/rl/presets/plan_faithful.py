@@ -2090,6 +2090,61 @@ def apply_plan_faithful_latent_v5i9_csia_guided_specialization(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i1 production staged team-intent curriculum on split-lane v2.
+
+    Inherits v5i8 map/opponent geometry and latent contract, then enables the
+    V6I1 phase controller with enforce-mode boundary evaluation and probe.
+    Forced-z fraction, CF coefficient, usage KL, and exploration epsilon are
+    resolved at runtime from ``resolve_v6i1_*`` schedules — do not set the v5i3
+    ``latent_forced_z_anneal_*`` fields on this preset.
+    """
+    cfg = apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(cfg)
+
+    cfg.use_v6i1_curriculum = True
+    cfg.training_mode = "staged_team_intent_curriculum"
+    cfg.experiment_family = "v6"
+    cfg.experiment_id = "v6i1"
+    cfg.phase_boundary_gate_mode = "enforce"
+    cfg.curriculum_gate_run_boundary_eval = True
+    cfg.curriculum_gate_run_probe = True
+    cfg.curriculum_nominal_timesteps = int(cfg.total_timesteps)
+    cfg.latent_cf_coef_max = 0.01
+    cfg.latent_episode_strategy_ppo = True
+    cfg.latent_episode_strategy_lr = None
+    cfg.latent_usage_balance_coef = 0.0
+    cfg.latent_actor_z_separation_coef = 0.0
+    cfg.latent_actor_z_separation_start_coef = 0.0
+    cfg.run_tag = "v6i1_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i1_repertoire_only_ablation(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i1 repertoire-only ablation: uniform forced-z, no staged controller.
+
+    Shares the v6i1 experiment id for artifact grouping but must never mount
+    the staged curriculum controller because ``use_v6i1_curriculum=False`` and
+    ``training_mode=repertoire_only_ablation``.
+    """
+    cfg = apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(cfg)
+
+    cfg.use_v6i1_curriculum = False
+    cfg.training_mode = "repertoire_only_ablation"
+    cfg.experiment_family = "v6"
+    cfg.experiment_id = "v6i1"
+    cfg.latent_forced_z_episode_frac_start = 1.0
+    cfg.latent_forced_z_episode_frac_end = 1.0
+    cfg.latent_forced_z_anneal_start = 0
+    cfg.latent_forced_z_anneal_end = int(cfg.total_timesteps)
+    cfg.latent_forced_z_episode_frac = 1.0
+    cfg.run_tag = "v6i1_repertoire_only_ablation_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v5i3_balanced_warmup(
     cfg: PPOConfig,
 ) -> PPOConfig:

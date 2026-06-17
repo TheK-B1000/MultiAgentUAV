@@ -8,7 +8,12 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from rl.global_state import GLOBAL_STATE_DIM
-from rl.latent_marl import LatentConditionedActor, StrategyEncoder, CONTEXT_STATE_DIM
+from rl.latent_marl import (
+    CONTEXT_STATE_DIM,
+    LatentConditionedActor,
+    RecurrentSelectorCell,
+    StrategyEncoder,
+)
 from rl.latent_phase_labels import TEAM_PHASES
 from rl.networks import CNNEncoder, CentralizedCritic
 
@@ -138,6 +143,8 @@ class SharedActorCentralizedCritic(nn.Module):
         strategy_hidden_dim: int = 128,
         use_strategy_aux_return_head: bool = False,
         use_episode_strategy_value_head: bool = False,
+        use_recurrent_selector: bool = False,
+        recurrent_selector_hidden_dim: int = 32,
         strategy_tau: float = 1.0,
         latent_actor_z_onehot_enabled: bool = False,
         latent_actor_z_onehot_scale: float = 1.0,
@@ -189,11 +196,26 @@ class SharedActorCentralizedCritic(nn.Module):
         )
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
         self.use_episode_strategy_value_head = bool(use_episode_strategy_value_head) and self.uses_latent_strategy
+        self.use_recurrent_selector = bool(use_recurrent_selector) and self.uses_latent_strategy
+        self.recurrent_selector_hidden_dim = (
+            max(1, int(recurrent_selector_hidden_dim)) if self.use_recurrent_selector else 0
+        )
         self.strategy_tau = max(1e-3, float(strategy_tau))
 
         self.global_state_dim = CONTEXT_STATE_DIM if self.uses_latent_strategy else GLOBAL_STATE_DIM
+        q_phi_input_dim = int(self.global_state_dim)
+        if self.use_recurrent_selector:
+            q_phi_input_dim += int(self.recurrent_selector_hidden_dim)
+        self.q_phi_input_dim = q_phi_input_dim
 
         if self.uses_latent_strategy:
+            if self.use_recurrent_selector:
+                self.selector_gru = RecurrentSelectorCell(
+                    input_dim=int(self.global_state_dim),
+                    hidden_dim=int(self.recurrent_selector_hidden_dim),
+                )
+            else:
+                self.selector_gru = None
             # Step 5: ``StrategyEncoder`` (q_phi(z|s), the latent team-strategy policy)
             # and the optional A2 auxiliary per-z return regression head are now
             # ALWAYS distinct ``nn.Module`` instances when both are enabled. Before
@@ -203,7 +225,7 @@ class SharedActorCentralizedCritic(nn.Module):
             # See ``_migrate_legacy_aliased_strategy_modules`` for the on-disk
             # checkpoint migration.
             self.strategy_encoder = StrategyEncoder(
-                state_dim=self.global_state_dim,
+                state_dim=self.q_phi_input_dim,
                 latent_k=self.latent_k,
                 hidden=int(strategy_hidden_dim),
             )
@@ -218,6 +240,7 @@ class SharedActorCentralizedCritic(nn.Module):
             self.phase_predictor = nn.Linear(self.z_embed_dim, len(TEAM_PHASES))
         else:
             self.strategy_encoder = None
+            self.selector_gru = None
             self.strategy_aux_return_head = None
             self.phase_predictor = None
 
@@ -443,7 +466,31 @@ class SharedActorCentralizedCritic(nn.Module):
             return torch.multinomial(probs, 1, replacement=True, generator=generator).squeeze(-1)
         return dist.sample()
 
-    def strategy_logits(self, global_state: torch.Tensor) -> torch.Tensor:
+    def _forward_q_phi(
+        self,
+        global_state: torch.Tensor,
+        selector_hidden: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.global_state_dim):
+            raise AssertionError(
+                f"q_phi expected context shape (B, {self.global_state_dim}), got {tuple(global_state.shape)}"
+            )
+        if self.strategy_encoder is None:
+            raise RuntimeError("strategy encoder is not initialized.")
+        if self.selector_gru is None:
+            return self.strategy_encoder(global_state.float()), None
+        if selector_hidden is None:
+            raise RuntimeError("selector_hidden is required when the recurrent selector is enabled.")
+        h_new = self.selector_gru(global_state, selector_hidden)
+        encoder_in = torch.cat([global_state.float(), h_new], dim=-1)
+        return self.strategy_encoder(encoder_in), h_new
+
+    def strategy_logits(
+        self,
+        global_state: torch.Tensor,
+        *,
+        selector_hidden: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Return ``q_phi(z | s)`` logits for latent strategy mode.
 
         Since Step 5 the latent policy and the optional A2 aux-return head are
@@ -457,13 +504,8 @@ class SharedActorCentralizedCritic(nn.Module):
         """
         if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
-        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.q_phi_input_dim):
-            raise AssertionError(
-                f"q_phi expected context shape (B, {self.q_phi_input_dim}), got {tuple(global_state.shape)}"
-            )
-        if self.strategy_encoder is None:
-            raise RuntimeError("strategy encoder is not initialized.")
-        return self.strategy_encoder(global_state.float())
+        logits, _ = self._forward_q_phi(global_state, selector_hidden)
+        return logits
 
     def strategy_aux_return_predictions(self, global_state: torch.Tensor) -> torch.Tensor:
         """A2 auxiliary: per-z scalar predictions from the shared trunk, shape ``(B, K)``.
@@ -497,14 +539,15 @@ class SharedActorCentralizedCritic(nn.Module):
         global_state: torch.Tensor,
         *,
         deterministic: bool = False,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        selector_hidden: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
         """Sample or greedily choose team strategy indices from ``q_phi(z | s)``."""
-        logits = self.strategy_logits(global_state)
+        logits, h_new = self._forward_q_phi(global_state, selector_hidden)
         dist = Categorical(logits=logits)
         z_idx = self._categorical_argmax_or_sample(
             dist, deterministic=deterministic, generator=self._sampling_gen_strategy
         )
-        return z_idx.long(), dist.log_prob(z_idx), dist.entropy(), logits
+        return z_idx.long(), dist.log_prob(z_idx), dist.entropy(), logits, h_new
 
     def phase_logits_from_strategy_logits(self, z_logits: torch.Tensor) -> torch.Tensor:
         """Predict team phase through q_phi's soft z distribution."""
@@ -661,7 +704,7 @@ class SharedActorCentralizedCritic(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily select actions and return values/log-probs/entropy."""
         if self.uses_latent_strategy and z_idx is None:
-            z_idx, _, _, _ = self.sample_strategy(global_state, deterministic=deterministic)
+            z_idx, _, _, _, _ = self.sample_strategy(global_state, deterministic=deterministic)
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         actions = []
         g_act = self._sampling_gen_action

@@ -710,18 +710,26 @@ class RolloutCollector:
         # arc accumulates over the open z-arc only and is finalized at z change
         # OR at episode end (handled below). No-op when arc credit is disabled.
         latent_state.arc_accumulate_step(reward_total)
+        latent_state.macro_accumulate_step(reward_total)
         if not bool(done_t.any().item()):
             return
         episode_strategy_ppo_on = bool(self.hparams.latent_episode_strategy_ppo)
+        from rl.custom_ppo.v6i1_phase_runtime import (
+            is_v6i1_staged_trainer,
+            resolve_v6i1_episode_forced_frac,
+        )
         from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
 
-        forced_z_logging_on = (
-            resolve_latent_forced_z_frac(
-                self.cfg,
-                global_step=int(getattr(self.runtime, "global_step", 0) or 0),
+        if is_v6i1_staged_trainer(self.runtime):
+            forced_z_logging_on = resolve_v6i1_episode_forced_frac(self.runtime) > 0.0
+        else:
+            forced_z_logging_on = (
+                resolve_latent_forced_z_frac(
+                    self.cfg,
+                    global_step=int(getattr(self.runtime, "global_step", 0) or 0),
+                )
+                > 0.0
             )
-            > 0.0
-        )
         # v3i3 finalization is gated on either the preference loss or the
         # per-refresh CSV log being enabled. Independent of episode-credit so
         # the proof-layer log works even without ``latent_episode_strategy_ppo``.
@@ -757,6 +765,7 @@ class RolloutCollector:
         # ``arc_has_open=True`` and overwrite the snapshot).
         if bool(getattr(self.hparams, "latent_arc_credit_enabled", False)):
             latent_state.arc_finalize(done_t, reason="episode_end")
+        latent_state.macro_finalize(done_t, reason="episode_end")
 
     def _append_global_state_probe_rows(
         self,

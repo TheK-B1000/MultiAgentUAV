@@ -286,8 +286,14 @@ def set_model_requires_grad_for_phase(model: Any, phase: str) -> None:
     # Router parameters: strategy_encoder, strategy_aux_return_head, phase_predictor
     for name, p in model.named_parameters():
         is_actor = "actor_cnn" in name or "latent_actor" in name
-        is_critic = "critic" in name or "episode_strategy_value_head" in name
-        is_router = "strategy_encoder" in name or "strategy_aux_return_head" in name or "phase_predictor" in name
+        is_critic = "critic" in name and "episode_strategy_value_head" not in name
+        is_router = (
+            "strategy_encoder" in name
+            or "strategy_aux_return_head" in name
+            or "phase_predictor" in name
+            or "selector_gru" in name
+            or "episode_strategy_value_head" in name
+        )
         
         if phase == "A":
             if is_actor:
@@ -302,6 +308,8 @@ def set_model_requires_grad_for_phase(model: Any, phase: str) -> None:
             elif is_critic:
                 p.requires_grad = True
             elif is_router:
+                p.requires_grad = True
+            elif "selector_gru" in name:
                 p.requires_grad = True
         elif phase == "C":
             if is_actor:
@@ -367,8 +375,26 @@ class PPOUpdater:
             0.0, min(float(getattr(cfg, "lr_floor_frac", 0.1) or 0.0), 1.0)
         )
         lr = hparams.learning_rate * max(progress_remaining, lr_floor_frac)
-        for group in self.optimizer.param_groups:
-            group["lr"] = lr
+        from rl.custom_ppo.v6i1_phase_runtime import (
+            apply_v6i1_learning_rates,
+            is_v6i1_staged_trainer,
+            resolve_v6i1_cf_coef_current,
+            resolve_v6i1_episode_forced_frac,
+            resolve_v6i1_rollout_usage_coef,
+            step_v6i1_optimizers,
+            v6i1_macro_router_active,
+            v6i1_schedule_context,
+        )
+
+        v6i1_lr_stats: dict[str, float] = {}
+        if getattr(runtime, "v6i1_three_optimizer_mode", False):
+            v6i1_lr_stats = apply_v6i1_learning_rates(
+                runtime, base_lr=float(hparams.learning_rate), progress_remaining=progress_remaining
+            )
+            lr = float(v6i1_lr_stats.get("actor_lr", lr))
+        else:
+            for group in self.optimizer.param_groups:
+                group["lr"] = lr
         ent_coef = hparams.ent_coef if progress_remaining > 0.75 else 0.5 * hparams.ent_coef
         latent_lam_h = self.compute_latent_lam_h(runtime.global_step, total_timesteps)
 
@@ -383,13 +409,16 @@ class PPOUpdater:
         curriculum = getattr(runtime, "v6i1_curriculum", None)
         if curriculum is not None:
             set_model_requires_grad_for_phase(self.model, curriculum.resolve_phase(step))
-        curr_sep_coef = _warmup_ramp_value(
-            global_step=step,
-            warmup_steps=sep_warmup,
-            ramp_steps=sep_ramp,
-            start_value=sep_start_coef,
-            target_value=sep_coef,
-        )
+        if is_v6i1_staged_trainer(runtime):
+            curr_sep_coef = float(resolve_v6i1_cf_coef_current(runtime))
+        else:
+            curr_sep_coef = _warmup_ramp_value(
+                global_step=step,
+                warmup_steps=sep_warmup,
+                ramp_steps=sep_ramp,
+                start_value=sep_start_coef,
+                target_value=sep_coef,
+            )
 
         # Dynamic scheduling for z_adapter_scale
         if getattr(hparams, "use_latent_strategy", False) and getattr(hparams, "latent_actor_z_adapter_enabled", False):
@@ -459,6 +488,9 @@ class PPOUpdater:
         has_dedicated_router_opt_global = (
             getattr(runtime, "latent_router_optimizer", None) is not None
         )
+        v6i1_usage_coef = (
+            float(resolve_v6i1_rollout_usage_coef(runtime)) if is_v6i1_staged_trainer(runtime) else 0.0
+        )
         apply_rollout_marginal = (
             hparams.use_latent_strategy
             and h_mode_global == "marginal"
@@ -466,7 +498,13 @@ class PPOUpdater:
             and float(latent_lam_h or 0.0) > 0.0
             and h_goal_global != "none"
             and not bool(getattr(hparams, "fixed_latent_strategy", False))
+        ) or (
+            hparams.use_latent_strategy
+            and v6i1_usage_coef > 0.0
+            and has_dedicated_router_opt_global
+            and not bool(getattr(hparams, "fixed_latent_strategy", False))
         )
+        rollout_marginal_coef = float(latent_lam_h if v6i1_usage_coef <= 0.0 else v6i1_usage_coef)
         rollout_resample_states_full: torch.Tensor | None = None
         if apply_rollout_marginal:
             try:
@@ -515,8 +553,8 @@ class PPOUpdater:
                 rollout_logits = model.strategy_logits(rollout_resample_states_full)
                 rml, rml_stats = _latent_rollout_marginal_entropy_loss(
                     rollout_logits,
-                    objective=h_goal_global,
-                    lam_h=float(latent_lam_h),
+                    objective="maximize" if v6i1_usage_coef > 0.0 else h_goal_global,
+                    lam_h=float(rollout_marginal_coef),
                     latent_k=int(hparams.latent_k),
                     device=device,
                 )
@@ -631,11 +669,17 @@ class PPOUpdater:
                     apply_main_loop_qphi_loss = (
                         float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
                         and not has_dedicated_router_opt
+                        and not v6i1_macro_router_active(runtime)
                     )
                     apply_entropy_loss = (
                         hparams.use_latent_strategy
-                        and not has_dedicated_router_opt
-                        and float(latent_lam_h or 0.0) > 0.0
+                        and (
+                            (
+                                not has_dedicated_router_opt
+                                and float(latent_lam_h or 0.0) > 0.0
+                            )
+                            or float(v6i1_usage_coef) > 0.0
+                        )
                         and str(
                             getattr(cfg, "latent_entropy_objective", "maximize")
                             or "maximize"
@@ -899,26 +943,55 @@ class PPOUpdater:
                 entropy_loss = -entropy.mean()
                 loss = policy_loss + hparams.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
 
-                self.optimizer.zero_grad(set_to_none=True)
-                loss.backward()
-                strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
-                # Clip value/critic parameters and policy/router parameters separately
-                policy_router_params = [
-                    p for name, p in model.named_parameters()
-                    if p.requires_grad and not ("critic" in name or "value" in name)
-                ]
-                value_params = [
-                    p for name, p in model.named_parameters()
-                    if p.requires_grad and ("critic" in name or "value" in name)
-                ]
-                grad_norm_policy = torch.nn.utils.clip_grad_norm_(
-                    policy_router_params, float(cfg.max_grad_norm)
-                )
-                grad_norm_value = torch.nn.utils.clip_grad_norm_(
-                    value_params, float(cfg.max_grad_norm)
-                )
-                grad_norm = max(float(grad_norm_policy), float(grad_norm_value))
-                self.optimizer.step()
+                v6i1_three_opt = bool(getattr(runtime, "v6i1_three_optimizer_mode", False))
+                if v6i1_three_opt:
+                    phase, _, _, _ = v6i1_schedule_context(runtime)
+                    runtime.actor_optimizer.zero_grad(set_to_none=True)
+                    runtime.critic_optimizer.zero_grad(set_to_none=True)
+                    runtime.router_optimizer.zero_grad(set_to_none=True)
+                    actor_loss = policy_loss + ent_coef * entropy_loss
+                    critic_loss = hparams.vf_coef * value_loss
+                    if phase != "B":
+                        actor_loss.backward(retain_graph=True)
+                    critic_loss.backward(retain_graph=True)
+                    if phase in ("B", "C") and float(latent_loss.detach().cpu().item() or 0.0) != 0.0:
+                        latent_loss.backward()
+                    elif phase in ("B", "C") and latent_loss.requires_grad:
+                        latent_loss.backward()
+                    strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
+                    v6i1_grads = step_v6i1_optimizers(
+                        runtime,
+                        phase=phase,
+                        actor_step=phase != "B",
+                        critic_step=True,
+                        router_step=phase in ("B", "C"),
+                        max_grad_norm=float(cfg.max_grad_norm),
+                    )
+                    grad_norm = max(
+                        float(v6i1_grads.get("actor_grad_norm", 0.0)),
+                        float(v6i1_grads.get("critic_grad_norm", 0.0)),
+                        float(v6i1_grads.get("router_grad_norm", 0.0)),
+                    )
+                else:
+                    self.optimizer.zero_grad(set_to_none=True)
+                    loss.backward()
+                    strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
+                    policy_router_params = [
+                        p for name, p in model.named_parameters()
+                        if p.requires_grad and not ("critic" in name or "value" in name)
+                    ]
+                    value_params = [
+                        p for name, p in model.named_parameters()
+                        if p.requires_grad and ("critic" in name or "value" in name)
+                    ]
+                    grad_norm_policy = torch.nn.utils.clip_grad_norm_(
+                        policy_router_params, float(cfg.max_grad_norm)
+                    )
+                    grad_norm_value = torch.nn.utils.clip_grad_norm_(
+                        value_params, float(cfg.max_grad_norm)
+                    )
+                    grad_norm = max(float(grad_norm_policy), float(grad_norm_value))
+                    self.optimizer.step()
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
                 stats["policy_loss"].append(float(policy_loss.detach().cpu().item()))
@@ -1017,16 +1090,17 @@ class PPOUpdater:
         episode_strategy_stats = self.latent_state.apply_episode_strategy_ppo(
             latent_lam_h=latent_lam_h
         )
+        macro_strategy_stats: dict[str, float] = {}
+        if is_v6i1_staged_trainer(runtime) and v6i1_macro_router_active(runtime):
+            macro_strategy_stats = self.latent_state.apply_macro_strategy_ppo()
         # v3i19 arc-credit PPO update. Runs as a separate inner-PPO pass on
         # q_phi over per-arc records (one per z-arc, not one per episode).
         # No-op when ``latent_arc_credit_enabled`` is False so legacy presets
         # remain untouched; mutually compatible with episode-credit (both can
         # be on, though v3i19 explicitly turns episode-credit off).
         arc_strategy_stats = self.latent_state.apply_arc_strategy_ppo()
-        # Drain the rollout's arc records once the PPO update is done so the
-        # next rollout starts with a clean buffer. Per-env open-arc state is
-        # preserved (arcs can span rollout boundaries).
         self.latent_state.reset_arc_credit_rollout_state()
+        self.latent_state.reset_macro_rollout_state()
         rollout_specialist_stats = (
             self.latent_state.apply_rollout_specialist_router(buffer)
         )
@@ -1071,12 +1145,23 @@ class PPOUpdater:
         runtime.last_stats["latent_lam_h"] = float(latent_lam_h)
         runtime.last_stats["latent_actor_z_adapter_scale"] = float(curr_adapter_scale)
         runtime.last_stats["latent_actor_z_separation_coef"] = float(curr_sep_coef)
-        # v5i3 forced-z anneal telemetry: resolved fraction at the start of
-        # this update window. Reads the schedule from cfg + current global_step;
-        # constant under presets that leave the four anneal fields unset.
-        runtime.last_stats["latent_forced_z_episode_frac_current"] = float(
-            resolve_latent_forced_z_frac(self.cfg, global_step=int(runtime.global_step))
-        )
+        if is_v6i1_staged_trainer(runtime):
+            phase, step_sched, t_a, nominal = v6i1_schedule_context(runtime)
+            runtime.last_stats["v6i1_phase"] = float({"A": 0.0, "B": 1.0, "C": 2.0}.get(phase, -1.0))
+            runtime.last_stats["v6i1_cf_coef_current"] = float(resolve_v6i1_cf_coef_current(runtime))
+            runtime.last_stats["v6i1_usage_coef_current"] = float(resolve_v6i1_rollout_usage_coef(runtime))
+            runtime.last_stats["latent_forced_z_episode_frac_current"] = float(
+                resolve_v6i1_episode_forced_frac(runtime)
+            )
+            if v6i1_lr_stats:
+                runtime.last_stats.update(v6i1_lr_stats)
+        else:
+            # v5i3 forced-z anneal telemetry: resolved fraction at the start of
+            # this update window. Reads the schedule from cfg + current global_step;
+            # constant under presets that leave the four anneal fields unset.
+            runtime.last_stats["latent_forced_z_episode_frac_current"] = float(
+                resolve_latent_forced_z_frac(self.cfg, global_step=int(runtime.global_step))
+            )
         if hparams.normalize_returns:
             rn = runtime.return_norm
             runtime.last_stats["return_norm_mean"] = float(rn.mean)
@@ -1099,6 +1184,11 @@ class PPOUpdater:
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(arc_strategy_stats)
+        runtime.last_stats.update(macro_strategy_stats)
+        if v6i1_lr_stats:
+            runtime.last_stats.update(v6i1_lr_stats)
+        if v6i1_usage_coef > 0.0:
+            runtime.last_stats["v6i1_rollout_usage_coef"] = float(v6i1_usage_coef)
         _populate_main_loop_qphi_telemetry(
             runtime.last_stats,
             cfg=cfg,

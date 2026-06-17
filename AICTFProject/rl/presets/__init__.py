@@ -57,6 +57,8 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
     apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
     apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_phase1_coupling,
@@ -352,6 +354,17 @@ PRESET_REGISTRY = {
     "v5i9_csia_guided_specialization": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     "v5i9_csia": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     "v5i9": apply_plan_faithful_latent_v5i9_csia_guided_specialization,
+    # v6i1 staged team-intent curriculum (production row).
+    "plan_faithful_latent_v6i1_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    "latent_v6i1_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    "v6i1_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    "v6i1_staged": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    "v6i1": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    # v6i1 repertoire-only ablation (no staged controller).
+    "plan_faithful_latent_v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
+    "latent_v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
+    "v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
+    "v6i1_repertoire_only": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
     # v4i4 post-Summer extension: periodic router distillation (was the old v4i3).
     "plan_faithful_latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     "latent_v4i4post_periodic_router_distill": apply_plan_faithful_latent_v4i4post_periodic_router_distill,

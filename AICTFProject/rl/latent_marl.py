@@ -143,6 +143,27 @@ def paper_strategy_switch_indicator(z_idx: torch.Tensor, prev_z_idx: torch.Tenso
     return (z != p).to(dtype=torch.float32)
 
 
+class RecurrentSelectorCell(nn.Module):
+    """Per-env GRU hidden state for V6I1 macro-router q_phi (not the EMA context stack)."""
+
+    def __init__(self, input_dim: int, hidden_dim: int) -> None:
+        super().__init__()
+        self.input_dim = int(input_dim)
+        self.hidden_dim = int(hidden_dim)
+        self.cell = nn.GRUCell(self.input_dim, self.hidden_dim)
+
+    def forward(self, context: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
+        if context.dim() != 2 or int(context.shape[1]) != self.input_dim:
+            raise AssertionError(
+                f"RecurrentSelectorCell expected context (B, {self.input_dim}), got {tuple(context.shape)}"
+            )
+        if hidden.dim() != 2 or int(hidden.shape[1]) != self.hidden_dim:
+            raise AssertionError(
+                f"RecurrentSelectorCell expected hidden (B, {self.hidden_dim}), got {tuple(hidden.shape)}"
+            )
+        return self.cell(context.float(), hidden.float())
+
+
 class StrategyEncoder(nn.Module):
     """
     ``q_\\phi(z | s)`` as in *Summer Implementation Plan.docx* IMPLEMENTATION §4: only

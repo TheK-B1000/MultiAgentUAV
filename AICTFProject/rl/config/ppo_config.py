@@ -132,6 +132,16 @@ class PPOConfig:
     training_mode: str = "default"
     experiment_family: str = "v6"
     experiment_id: str = "v6i1"
+    # V6I1 Phase B/C macro-router and rehearsal controls.
+    v6i1_recurrent_selector_hidden: int = 32
+    v6i1_macro_strategy_ppo_coef: float = 1.0
+    v6i1_macro_strategy_n_epochs: int = 4
+    v6i1_macro_strategy_clip_eps: float = 0.2
+    v6i1_macro_strategy_value_coef: float = 0.5
+    v6i1_macro_strategy_return_norm: bool = True
+    v6i1_router_lr: Optional[float] = 5e-3
+    v6i1_phase_c_actor_lr_frac: float = 0.05
+    v6i1_router_rehearsal_episode_frac: float = 0.25
 
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
     # ``maximize`` matches the plan (encourage exploratory / diverse q_phi). ``minimize`` adds +λ_H·H to the

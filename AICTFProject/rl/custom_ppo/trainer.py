@@ -143,10 +143,22 @@ class CustomPPOTrainer:
         apply_deterministic_sampling_generators(
             self.model, int(getattr(cfg, "seed", 0) or 0), device=self.device
         )
-        self.optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=hparams.learning_rate, eps=1e-5
-        )
-        self.base_learning_rate = hparams.learning_rate
+        from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
+
+        if is_staged_v6i1_curriculum(cfg):
+            from rl.custom_ppo.v6i1_phase_runtime import build_v6i1_optimizers
+
+            build_v6i1_optimizers(self, base_lr=hparams.learning_rate)
+            self.base_learning_rate = hparams.learning_rate
+        else:
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=hparams.learning_rate, eps=1e-5
+            )
+            self.base_learning_rate = hparams.learning_rate
+            self.v6i1_three_optimizer_mode = False
+            self.actor_optimizer = self.optimizer
+            self.critic_optimizer = self.optimizer
+            self.router_optimizer = None
 
         # Dedicated optimizer for the q_phi strategy encoder and the
         # episode_strategy_value_head when ``latent_episode_strategy_lr`` is set.
@@ -159,7 +171,8 @@ class CustomPPOTrainer:
         # main-loop coef-gate), so there is no double-stepping concern.
         self.latent_router_optimizer: Optional[torch.optim.Optimizer] = None
         if (
-            hparams.latent_episode_strategy_lr is not None
+            not getattr(self, "v6i1_three_optimizer_mode", False)
+            and hparams.latent_episode_strategy_lr is not None
             and hparams.use_latent_strategy
             and not hparams.fixed_latent_strategy
         ):
@@ -386,9 +399,15 @@ class CustomPPOTrainer:
         self.latent_state = LatentStrategyState(self)
         self.episode_strategy_recorder = self.latent_state.episode_strategy_recorder
         if bool(getattr(cfg, "use_v6i1_curriculum", False)):
-            from rl.custom_ppo.curriculum_gates import V6I1CurriculumController
+            from rl.custom_ppo.curriculum_gates import V6I1CurriculumController, is_staged_v6i1_curriculum
 
-            self.v6i1_curriculum = V6I1CurriculumController(self)
+            if is_staged_v6i1_curriculum(cfg):
+                from rl.custom_ppo.v6i1_phase_runtime import build_v6i1_optimizers
+
+                self.v6i1_curriculum = V6I1CurriculumController(self)
+                build_v6i1_optimizers(self, base_lr=hparams.learning_rate)
+            else:
+                self.v6i1_curriculum = None
         else:
             self.v6i1_curriculum = None
         self.rollout_collector = RolloutCollector(
@@ -531,6 +550,7 @@ class CustomPPOTrainer:
                 self._save_periodic_checkpoint()
                 self.telemetry.print_update_diagnostics(row, stats)
                 if getattr(self, "v6i1_curriculum", None) is not None:
+                    self.v6i1_curriculum.maybe_apply_phase_transitions()
                     self.v6i1_curriculum.check_and_run_gate()
                     self.v6i1_curriculum.check_terminal_failure()
         finally:
@@ -546,28 +566,39 @@ class CustomPPOTrainer:
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         rn = self.return_norm.state_dict()
         srn = self.strategy_return_norm.state_dict()
-        torch.save(
-            {
-                "model_state_dict": self.model.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "global_step": self.global_step,
-                "updates_completed": self._updates_completed,
-                "return_norm_mean": rn["mean"],
-                "return_norm_var": rn["var"],
-                "return_norm_count": rn["count"],
-                "strategy_return_mean": srn["mean"],
-                "strategy_return_var": srn["var"],
-                "strategy_return_count": srn["count"],
-                "cfg": asdict(self.cfg),
-                "last_stats": self.last_stats,
-                "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
-                "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
-                "actor_cnn_feature_dim": int(self.model.actor_cnn_feature_dim),
-                "global_state_dim": int(self.model.global_state_dim),
-                "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
-            },
-            path,
-        )
+        payload: dict[str, Any] = {
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "global_step": self.global_step,
+            "updates_completed": self._updates_completed,
+            "return_norm_mean": rn["mean"],
+            "return_norm_var": rn["var"],
+            "return_norm_count": rn["count"],
+            "strategy_return_mean": srn["mean"],
+            "strategy_return_var": srn["var"],
+            "strategy_return_count": srn["count"],
+            "cfg": asdict(self.cfg),
+            "last_stats": self.last_stats,
+            "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
+            "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
+            "actor_cnn_feature_dim": int(self.model.actor_cnn_feature_dim),
+            "global_state_dim": int(self.model.global_state_dim),
+            "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
+        }
+        if getattr(self, "v6i1_three_optimizer_mode", False):
+            from rl.custom_ppo.v6i1_phase_runtime import (
+                latent_state_v6i1_checkpoint,
+                v6i1_curriculum_state_dict,
+            )
+
+            payload["v6i1_three_optimizer_mode"] = True
+            payload["actor_optimizer_state_dict"] = self.actor_optimizer.state_dict()
+            payload["critic_optimizer_state_dict"] = self.critic_optimizer.state_dict()
+            payload["router_optimizer_state_dict"] = self.router_optimizer.state_dict()
+            if getattr(self, "v6i1_curriculum", None) is not None:
+                payload["v6i1_curriculum_state"] = v6i1_curriculum_state_dict(self.v6i1_curriculum)
+            payload["latent_state_v6i1"] = latent_state_v6i1_checkpoint(self.latent_state)
+        torch.save(payload, path)
 
     def load(self, path: str) -> None:
         """Restore a checkpoint produced by :meth:`save`."""
@@ -575,6 +606,22 @@ class CustomPPOTrainer:
         _assert_compatible_global_state_dim(payload, path)
         _load_model_state_dict_compat(self.model, payload["model_state_dict"])
         self.optimizer.load_state_dict(payload["optimizer_state_dict"])
+        v6i1_latent_payload: dict[str, Any] = dict(payload.get("latent_state_v6i1", {}) or {})
+        if bool(payload.get("v6i1_three_optimizer_mode", False)):
+            from rl.custom_ppo.v6i1_phase_runtime import (
+                load_v6i1_curriculum_state,
+                restore_latent_state_v6i1_checkpoint,
+            )
+
+            if getattr(self, "actor_optimizer", None) is not None and "actor_optimizer_state_dict" in payload:
+                self.actor_optimizer.load_state_dict(payload["actor_optimizer_state_dict"])
+            if getattr(self, "critic_optimizer", None) is not None and "critic_optimizer_state_dict" in payload:
+                self.critic_optimizer.load_state_dict(payload["critic_optimizer_state_dict"])
+            if getattr(self, "router_optimizer", None) is not None and "router_optimizer_state_dict" in payload:
+                self.router_optimizer.load_state_dict(payload["router_optimizer_state_dict"])
+                self.latent_router_optimizer = self.router_optimizer
+            if getattr(self, "v6i1_curriculum", None) is not None and "v6i1_curriculum_state" in payload:
+                load_v6i1_curriculum_state(self.v6i1_curriculum, payload["v6i1_curriculum_state"])
         self.global_step = int(payload.get("global_step", 0))
         self._updates_completed = int(payload.get("updates_completed", 0))
         self.return_norm.load_state_dict(
@@ -597,3 +644,7 @@ class CustomPPOTrainer:
         self.latent_state.current_z = None
         if self.use_latent_strategy:
             self.latent_state.reset()
+        if v6i1_latent_payload:
+            from rl.custom_ppo.v6i1_phase_runtime import restore_latent_state_v6i1_checkpoint
+
+            restore_latent_state_v6i1_checkpoint(self.latent_state, v6i1_latent_payload)

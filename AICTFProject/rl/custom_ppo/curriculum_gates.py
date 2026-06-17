@@ -250,6 +250,7 @@ def rank_candidates_lexicographic(candidates: list[dict[str, Any]]) -> list[dict
         ranking = row.get("ranking_components", {})
         return (
             -int(ranking.get("gate_families_passed", 0)),
+            -int(ranking.get("gate_families_measured", 0)),
             -float(ranking.get("min_competence", 0.0)),
             -int(ranking.get("pairs_above_margin", 0)),
             -float(ranking.get("weakest_pair_normalized_separation", 0.0)),
@@ -267,7 +268,7 @@ def rank_candidates_lexicographic(candidates: list[dict[str, Any]]) -> list[dict
 
 def build_lexicographic_ranking_components(
     *,
-    gate_families: dict[str, bool],
+    gate_results: dict[str, GateFamilyResult],
     online_report: dict[str, Any],
     matched_report: dict[str, Any],
     probe_report: dict[str, Any],
@@ -298,7 +299,8 @@ def build_lexicographic_ranking_components(
     occ_imbalance = float(occ.max() - occ.min()) if occ.size else 1.0
 
     return {
-        "gate_families_passed": sum(1 for name in GATE_FAMILY_NAMES if gate_families.get(name, False)),
+        "gate_families_passed": count_gate_families_passed(gate_results),
+        "gate_families_measured": count_gate_families_measured(gate_results),
         "min_competence": float(np.min(comp_scores)) if len(comp_scores) else 0.0,
         "pairs_above_margin": int(pairs_above),
         "weakest_pair_normalized_separation": float(weakest_norm),
@@ -323,6 +325,10 @@ class V6I1CurriculumController:
         self.nominal_steps = int(self.cfg.curriculum_nominal_timesteps)
         self.phase_a_min_end = int(0.40 * self.nominal_steps)
         self.phase_a_max_end = int(0.55 * self.nominal_steps)
+        self.phase_b_nominal_start = self.phase_a_min_end
+        self.phase_c_nominal_start = int(0.70 * self.nominal_steps)
+        self.next_gate_step = self.phase_a_min_end
+        self.last_gate_step_run = -1
         self.gate_check_history: list[dict[str, Any]] = []
         self.protected_candidate_checkpoints: list[str] = []
         self.best_candidate_report: Optional[dict[str, Any]] = None
@@ -330,14 +336,56 @@ class V6I1CurriculumController:
     def resolve_phase(self, global_step: int | None = None) -> str:
         return self.phase
 
+    def maybe_apply_phase_transitions(self) -> bool:
+        """Apply nominal Phase B→C schedule transitions."""
+        return self.maybe_apply_nominal_phase_transition()
+
+    def maybe_apply_nominal_phase_transition(self) -> bool:
+        """Apply fixed schedule transitions in observe_only mode."""
+        mode = str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")).lower()
+        if mode != "observe_only":
+            return False
+        step = int(self.trainer.global_step)
+        transitioned = False
+        if self.phase == "A" and step >= self.phase_b_nominal_start:
+            self._transition_to_phase_b(step, nominal=True)
+            transitioned = True
+        if self.phase == "B":
+            phase_b_end = self.t_A + int(0.30 * self.nominal_steps) if self.t_A >= 0 else self.phase_c_nominal_start
+            if step >= phase_b_end or step >= self.phase_c_nominal_start:
+                self._transition_to_phase_c(step, nominal=True)
+                transitioned = True
+        return transitioned
+
     def should_run_phase_a_gate(self, global_step: int | None = None) -> bool:
         step = int(global_step if global_step is not None else self.trainer.global_step)
         if self.phase != "A":
             return False
-        if step < self.phase_a_min_end or step > self.phase_a_max_end:
+        if step < self.phase_a_min_end:
+            return False
+        if step > self.phase_a_max_end and self.last_gate_step_run >= self.phase_a_max_end:
+            return False
+        if step == self.last_gate_step_run:
             return False
         interval = max(1, int(self.cfg.phase_a_gate_check_interval))
-        return (step - self.phase_a_min_end) % interval == 0
+        due_by_schedule = step >= self.next_gate_step
+        due_at_final_boundary = step >= self.phase_a_max_end and self.last_gate_step_run < self.phase_a_max_end
+        if not (due_by_schedule or due_at_final_boundary):
+            return False
+        if step > self.phase_a_max_end and not due_at_final_boundary:
+            return False
+        return True
+
+    def _schedule_next_gate_step(self, step: int) -> None:
+        interval = max(1, int(self.cfg.phase_a_gate_check_interval))
+        if step >= self.phase_a_max_end:
+            self.next_gate_step = self.phase_a_max_end + 1
+            return
+        candidate = step + interval
+        if candidate > self.phase_a_max_end:
+            self.next_gate_step = self.phase_a_max_end
+        else:
+            self.next_gate_step = candidate
 
     def check_and_run_gate(self) -> bool:
         """Run a Phase A gate attempt when scheduled. Returns True if promoted to Phase B."""
@@ -347,115 +395,143 @@ class V6I1CurriculumController:
 
         print(f"\n[Curriculum Controller] Phase A gate check at step {step}...")
         isolation = TrainingIsolationSnapshot.capture(self.trainer)
+        promoted = False
+        try:
+            candidate_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_candidate_{step}.zip")
+            self.trainer.save(candidate_ckpt)
+            self.protected_candidate_checkpoints.append(candidate_ckpt)
+            print(f"[Curriculum Controller] Protected candidate: {candidate_ckpt}")
 
-        candidate_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_candidate_{step}.zip")
-        self.trainer.save(candidate_ckpt)
-        self.protected_candidate_checkpoints.append(candidate_ckpt)
-        print(f"[Curriculum Controller] Protected candidate: {candidate_ckpt}")
+            gate_results: dict[str, GateFamilyResult] = {}
+            online_report = self._evaluate_online_gates(gate_results)
+            matched_result = self._run_matched_seed_eval()
+            gate_results["matched_seed_behavior"] = matched_result
+            probe_result = self._run_learnability_probe()
+            gate_results["selector_learnability_probe"] = probe_result
 
-        gate_families: dict[str, bool] = {}
-        online_report = self._evaluate_online_gates(gate_families)
-        matched_passed, matched_report = self._run_matched_seed_eval()
-        gate_families["matched_seed_behavior"] = bool(matched_passed)
-        probe_passed, probe_report = self._run_learnability_probe()
-        gate_families["selector_learnability_probe"] = bool(probe_passed)
+            mode = str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")).lower()
+            boundary_enabled = bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False))
+            probe_enabled = bool(getattr(self.cfg, "curriculum_gate_run_probe", False))
+            overall_passed = overall_gate_passed_for_promotion(gate_results, mode=mode)
+            should_promote = overall_passed and mode == "enforce"
+            if mode == "enforce" and should_promote and not (boundary_enabled and probe_enabled):
+                raise RuntimeError(
+                    "Internal error: Phase A promotion requested without full heavy gate configuration."
+                )
 
-        overall_passed = all(gate_families.get(name, False) for name in GATE_FAMILY_NAMES)
-        mode = str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")).lower()
-        boundary_enabled = bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False))
-        probe_enabled = bool(getattr(self.cfg, "curriculum_gate_run_probe", False))
-        should_promote = overall_passed and mode == "enforce"
-        if mode == "enforce" and should_promote and not (boundary_enabled and probe_enabled):
-            raise RuntimeError(
-                "Internal error: Phase A promotion requested without full heavy gate configuration."
+            ranking_components = build_lexicographic_ranking_components(
+                gate_results=gate_results,
+                online_report=online_report,
+                matched_report=matched_result.details,
+                probe_report=probe_result.details,
+                global_step=step,
             )
-        if mode == "observe_only":
-            should_promote = False
-
-        ranking_components = build_lexicographic_ranking_components(
-            gate_families=gate_families,
-            online_report=online_report,
-            matched_report=matched_report,
-            probe_report=probe_report,
-            global_step=step,
-        )
-        report = {
-            "global_step": step,
-            "checkpoint": candidate_ckpt,
-            "phase_boundary_gate_mode": mode,
-            "curriculum_gate_run_boundary_eval": boundary_enabled,
-            "curriculum_gate_run_probe": probe_enabled,
-            "gate_families": gate_families,
-            "overall_gate_passed": overall_passed,
-            "promoted_to_phase_b": should_promote,
-            "online_report": online_report,
-            "matched_eval_report": matched_report,
-            "probe_report": probe_report,
-            "ranking_components": ranking_components,
-            "phase_a_gate_passed": False,
-            "phase_a_end_step": None,
-        }
-        ranked_row = dict(report)
-        self.gate_check_history.append(ranked_row)
-        self._write_gate_report(step, report)
-
-        ranked = rank_candidates_lexicographic(list(self.gate_check_history))
-        if ranked:
-            self.best_candidate_report = ranked[0]
-
-        isolation.assert_unchanged(self.trainer)
-        isolation.restore_rng()
-        self.trainer.model.train(isolation.model_was_training)
-
-        print(f"[Curriculum Controller] Gate families: {gate_families}")
-        print(f"[Curriculum Controller] Overall: {'PASS' if overall_passed else 'FAIL'} (mode={mode})")
-
-        if should_promote:
-            self.phase = "B"
-            self.t_A = step
-            self.phase_a_end_step = step
-            self.phase_a_gate_passed = True
-            report["phase_a_gate_passed"] = True
-            report["phase_a_end_step"] = step
+            gate_families_report = {name: gate_results[name].to_dict() for name in GATE_FAMILY_NAMES if name in gate_results}
+            report = {
+                "global_step": step,
+                "checkpoint": candidate_ckpt,
+                "phase_boundary_gate_mode": mode,
+                "curriculum_gate_run_boundary_eval": boundary_enabled,
+                "curriculum_gate_run_probe": probe_enabled,
+                "gate_families": gate_families_report,
+                "overall_gate_passed": overall_passed,
+                "promoted_to_phase_b": False,
+                "nominal_transition_to_phase_b": False,
+                "online_report": online_report,
+                "matched_eval_report": matched_result.details,
+                "probe_report": probe_result.details,
+                "ranking_components": ranking_components,
+                "phase_a_gate_passed": False,
+                "phase_a_end_step": None,
+            }
+            ranked_row = dict(report)
+            self.gate_check_history.append(ranked_row)
             self._write_gate_report(step, report)
-            boundary_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_phase_a_boundary_{step}.zip")
-            self.trainer.save(boundary_ckpt)
-            self.protected_candidate_checkpoints.append(boundary_ckpt)
-            print(f"[Curriculum Controller] PROMOTED to Phase B at step {step}")
-            return True
 
-        print("[Curriculum Controller] Phase A continues.")
-        return False
+            ranked = rank_candidates_lexicographic(list(self.gate_check_history))
+            if ranked:
+                self.best_candidate_report = ranked[0]
+
+            isolation.assert_unchanged(self.trainer)
+
+            print(f"[Curriculum Controller] Gate families: {gate_families_report}")
+            print(f"[Curriculum Controller] Overall: {'PASS' if overall_passed else 'FAIL'} (mode={mode})")
+
+            if should_promote:
+                self._transition_to_phase_b(step, nominal=False, gate_report=report)
+                report["promoted_to_phase_b"] = True
+                self._write_gate_report(step, report)
+                promoted = True
+            else:
+                print("[Curriculum Controller] Phase A continues.")
+        finally:
+            isolation.restore_rng()
+            self.trainer.model.train(isolation.model_was_training)
+
+        self.last_gate_step_run = step
+        self._schedule_next_gate_step(step)
+        return promoted
+
+    def _transition_to_phase_b(
+        self,
+        step: int,
+        *,
+        nominal: bool,
+        gate_report: dict[str, Any] | None = None,
+    ) -> None:
+        if self.phase != "A":
+            return
+        self.phase = "B"
+        self.t_A = step
+        self.phase_a_end_step = step
+        self.phase_a_gate_passed = not nominal
+        boundary_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_phase_a_boundary_{step}.zip")
+        self.trainer.save(boundary_ckpt)
+        self.protected_candidate_checkpoints.append(boundary_ckpt)
+        label = "NOMINAL" if nominal else "GATE-PASSED"
+        print(f"[Curriculum Controller] {label} transition to Phase B at step {step}")
+        if gate_report is not None:
+            gate_report["phase_a_gate_passed"] = True
+            gate_report["phase_a_end_step"] = step
+
+    def _transition_to_phase_c(self, step: int, *, nominal: bool) -> None:
+        if self.phase != "B":
+            return
+        self.phase = "C"
+        label = "NOMINAL" if nominal else "SCHEDULED"
+        print(f"[Curriculum Controller] {label} transition to Phase C at step {step}")
 
     def check_terminal_failure(self) -> None:
+        mode = str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")).lower()
+        if mode == "observe_only":
+            return
         step = int(self.trainer.global_step)
         if self.phase == "A" and step >= self.phase_a_max_end and not self.phase_a_gate_passed:
             self._handle_terminal_failure()
 
-    def _evaluate_online_gates(self, gate_families: dict[str, bool]) -> dict[str, Any]:
-        coverage_passed, coverage_report = self._evaluate_coverage_gate()
-        competence_passed, competence_report = self._evaluate_competence_gate()
-        intervention_passed, intervention_report = self._evaluate_intervention_gate()
-        integrity_passed, integrity_report = self._evaluate_training_integrity_gate()
+    def _evaluate_online_gates(self, gate_results: dict[str, GateFamilyResult]) -> dict[str, Any]:
+        coverage_result = self._evaluate_coverage_gate()
+        competence_result = self._evaluate_competence_gate()
+        intervention_result = self._evaluate_intervention_gate()
+        integrity_result = self._evaluate_training_integrity_gate()
 
-        gate_families["coverage"] = coverage_passed
-        gate_families["competence"] = competence_passed
-        gate_families["counterfactual_intervention"] = intervention_passed
-        gate_families["training_integrity"] = integrity_passed
+        gate_results["coverage"] = coverage_result
+        gate_results["competence"] = competence_result
+        gate_results["counterfactual_intervention"] = intervention_result
+        gate_results["training_integrity"] = integrity_result
 
-        report = {
-            **coverage_report,
-            **competence_report,
-            **intervention_report,
-            **integrity_report,
-            "coverage_passed": coverage_passed,
-            "competence_passed": competence_passed,
-            "intervention_passed": intervention_passed,
-            "integrity_passed": integrity_passed,
-        }
+        report: dict[str, Any] = {}
+        for name, result in (
+            ("coverage", coverage_result),
+            ("competence", competence_result),
+            ("counterfactual_intervention", intervention_result),
+            ("training_integrity", integrity_result),
+        ):
+            report.update(result.details)
+            report[f"{name}_status"] = result.status
         return report
 
-    def _evaluate_coverage_gate(self) -> tuple[bool, dict[str, Any]]:
+    def _evaluate_coverage_gate(self) -> GateFamilyResult:
         latent_state = self.trainer.latent_state
         min_eps = int(self.cfg.latent_cf_min_episodes_per_z)
         ep_counts = latent_state.cf_episode_counts.tolist()
@@ -469,28 +545,34 @@ class V6I1CurriculumController:
             rolling_occ = [c / len(hist) for c in rolling_occ]
         occupancy_passed = all(0.20 <= o <= 0.30 for o in rolling_occ)
 
-        return coverage_passed and occupancy_passed, {
-            "cf_episode_counts": ep_counts,
-            "recent_z_occupancy": rolling_occ,
-            "latent_cf_min_episodes_per_z": min_eps,
-        }
+        return gate_family_result_from_bool(
+            coverage_passed and occupancy_passed,
+            details={
+                "cf_episode_counts": ep_counts,
+                "recent_z_occupancy": rolling_occ,
+                "latent_cf_min_episodes_per_z": min_eps,
+            },
+        )
 
-    def _evaluate_competence_gate(self) -> tuple[bool, dict[str, Any]]:
+    def _evaluate_competence_gate(self) -> GateFamilyResult:
         latent_state = self.trainer.latent_state
         comp_scores, competence_ready = latent_state.compute_competence_scores()
         competence_passed = bool(competence_ready) and all(float(s) >= 0.50 for s in comp_scores)
         J = latent_state.cf_J.tolist()
         ret_std = float(np.sqrt(max(1e-8, latent_state.cf_return_var)))
-        return competence_passed, {
-            "cf_competence_ready": bool(competence_ready),
-            "competence_scores": [float(s) for s in comp_scores.tolist()],
-            "return_ema_z": {f"z{i}": float(J[i]) for i in range(len(J))},
-            "competence_z": {f"z{i}": float(comp_scores[i]) for i in range(len(comp_scores))},
-            "best_minus_worst_return": float(np.max(J) - np.min(J)) if J else 0.0,
-            "return_standard_deviation": ret_std,
-        }
+        return gate_family_result_from_bool(
+            competence_passed,
+            details={
+                "cf_competence_ready": bool(competence_ready),
+                "competence_scores": [float(s) for s in comp_scores.tolist()],
+                "return_ema_z": {f"z{i}": float(J[i]) for i in range(len(J))},
+                "competence_z": {f"z{i}": float(comp_scores[i]) for i in range(len(comp_scores))},
+                "best_minus_worst_return": float(np.max(J) - np.min(J)) if J else 0.0,
+                "return_standard_deviation": ret_std,
+            },
+        )
 
-    def _evaluate_intervention_gate(self) -> tuple[bool, dict[str, Any]]:
+    def _evaluate_intervention_gate(self) -> GateFamilyResult:
         latent_state = self.trainer.latent_state
         margin = float(self.cfg.latent_cf_jsd_margin)
         pair_jsd = latent_state.pair_jsd_ema.tolist()
@@ -499,18 +581,32 @@ class V6I1CurriculumController:
         required_consecutive = int(getattr(self.cfg, "latent_cf_gate_consecutive_updates", 5))
         update_ok = num_valid >= 5 and min_jsd >= 0.5 * margin
         passed = update_ok and int(latent_state.jsd_gate_consecutive_updates) >= required_consecutive
-        return passed, {
-            "pair_jsd_ema": pair_jsd,
-            "jsd_margin": margin,
-            "num_pairs_above_margin": int(num_valid),
-            "min_pair_jsd_ema": min_jsd,
-            "min_pair_floor": 0.5 * margin,
-            "single_update_ok": bool(update_ok),
-            "jsd_consecutive_updates": int(latent_state.jsd_gate_consecutive_updates),
-            "latent_cf_gate_consecutive_updates": required_consecutive,
+        pair_details = {
+            f"forced_z_pair_jsd_{idx}": float(pair_jsd[idx]) if idx < len(pair_jsd) else 0.0
+            for idx, pair in enumerate(LATENT_PAIR_INDEX)
         }
+        pair_identity = {
+            f"pair_{idx}_z{pair[0]}_z{pair[1]}": pair_details[f"forced_z_pair_jsd_{idx}"]
+            for idx, pair in enumerate(LATENT_PAIR_INDEX)
+        }
+        return gate_family_result_from_bool(
+            passed,
+            details={
+                "pair_jsd_ema": pair_jsd,
+                "pair_order": [list(pair) for pair in LATENT_PAIR_INDEX],
+                **pair_details,
+                **pair_identity,
+                "jsd_margin": margin,
+                "num_pairs_above_margin": int(num_valid),
+                "min_pair_jsd_ema": min_jsd,
+                "min_pair_floor": 0.5 * margin,
+                "single_update_ok": bool(update_ok),
+                "jsd_consecutive_updates": int(latent_state.jsd_gate_consecutive_updates),
+                "latent_cf_gate_consecutive_updates": required_consecutive,
+            },
+        )
 
-    def _evaluate_training_integrity_gate(self) -> tuple[bool, dict[str, Any]]:
+    def _evaluate_training_integrity_gate(self) -> GateFamilyResult:
         stats = dict(getattr(self.trainer, "last_stats", {}) or {})
         k = int(self.trainer.latent_k)
         forced_frac = float(stats.get("latent_forced_z_step_fraction", 0.0))
@@ -534,18 +630,24 @@ class V6I1CurriculumController:
             and qphi_grad < 1e-7
             and switch_count == 0.0
         )
-        return passed, {
-            "forced_z_fraction": forced_frac,
-            "router_sample_count": router_samples,
-            "router_optimizer_step_count": router_opt_steps,
-            "q_phi_grad_norm": qphi_grad,
-            "strategy_switch_count": switch_count,
-        }
+        return gate_family_result_from_bool(
+            passed,
+            details={
+                "forced_z_fraction": forced_frac,
+                "router_sample_count": router_samples,
+                "router_optimizer_step_count": router_opt_steps,
+                "q_phi_grad_norm": qphi_grad,
+                "strategy_switch_count": switch_count,
+            },
+        )
 
-    def _run_matched_seed_eval(self) -> tuple[bool, dict[str, Any]]:
+    def _run_matched_seed_eval(self) -> GateFamilyResult:
         """Boundary matched-seed evaluation (skipped when heavy eval disabled)."""
         if not bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False)):
-            return False, {"skipped": True, "reason": "curriculum_gate_run_boundary_eval=False"}
+            return GateFamilyResult(
+                status=GATE_STATUS_NOT_RUN,
+                reason="curriculum_gate_run_boundary_eval=false",
+            )
 
         from rl.training.env_factory import build_training_env
 
@@ -650,7 +752,10 @@ class V6I1CurriculumController:
                 finally:
                     env.close()
 
-        return all_passed, {"opponents": op_reports, "matched_eval_passed": all_passed}
+        return gate_family_result_from_bool(
+            all_passed,
+            details={"opponents": op_reports, "matched_eval_passed": all_passed},
+        )
 
     @staticmethod
     def _capture_reset_state(core: Any, info: dict[str, Any]) -> dict[str, Any]:
@@ -666,147 +771,162 @@ class V6I1CurriculumController:
             "map_layout": str(getattr(core, "map_layout", "")),
         }
 
-    def _run_learnability_probe(self) -> tuple[bool, dict[str, Any]]:
+    def _run_learnability_probe(self) -> GateFamilyResult:
         if not bool(getattr(self.cfg, "curriculum_gate_run_probe", False)):
-            return False, {"skipped": True, "reason": "curriculum_gate_run_probe=False"}
+            return GateFamilyResult(
+                status=GATE_STATUS_NOT_RUN,
+                reason="curriculum_gate_run_probe=false",
+            )
 
         print("[Curriculum Controller] Selector-learnability probe...")
         isolation = TrainingIsolationSnapshot.capture(self.trainer)
+        try:
+            from rl.training.env_factory import build_training_env
 
-        from rl.training.env_factory import build_training_env
+            opponents = ["OP5", "OP6", "OP7"]
+            seeds = list(range(3000, 3050))
+            latent_k = int(self.trainer.latent_k)
+            gs_dim = int(self.trainer.model.global_state_dim)
+            tie_margin = float(getattr(self.cfg, "probe_utility_tie_margin", 0.05))
 
-        opponents = ["OP5", "OP6", "OP7"]
-        seeds = list(range(3000, 3050))
-        latent_k = int(self.trainer.latent_k)
-        gs_dim = int(self.trainer.model.global_state_dim)
-        tie_margin = float(getattr(self.cfg, "probe_utility_tie_margin", 0.05))
+            eval_cfg = PPOConfig()
+            for key, value in self.cfg.__dict__.items():
+                setattr(eval_cfg, key, value)
+            eval_cfg.n_envs = 1
 
-        eval_cfg = PPOConfig()
-        for key, value in self.cfg.__dict__.items():
-            setattr(eval_cfg, key, value)
-        eval_cfg.n_envs = 1
+            contexts: list[np.ndarray] = []
+            labels: list[int] = []
+            all_returns: list[list[float]] = []
+            ambiguous = 0
 
-        contexts: list[np.ndarray] = []
-        labels: list[int] = []
-        all_returns: list[list[float]] = []
-        ambiguous = 0
-
-        with _preserve_model_training_mode(self.trainer.model):
-            for opp in opponents:
-                env = build_training_env(eval_cfg, initial_phase="PHASE1", initial_opponent_tag=opp)
-                try:
-                    for seed in seeds:
-                        torch.manual_seed(seed)
-                        np.random.seed(seed)
-                        if hasattr(env, "seed"):
-                            env.seed(seed)
-                        obs = env.reset()
-                        bootstrap_actions: list[Any] = []
-                        done = False
-                        step_i = 0
-                        while not done and step_i < 64:
-                            single = {k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v for k, v in obs.items()}
-                            if hasattr(self.trainer.model, "fixed_latent_strategy"):
-                                self.trainer.model.fixed_latent_strategy = True
-                                self.trainer.model.fixed_latent_strategy_id = 0
-                            act, _ = self.trainer.model.predict(single, deterministic=True)
-                            bootstrap_actions.append(act)
-                            env.step_async(act)
-                            obs, _, done_arr, _ = env.step_wait()
-                            done = bool(done_arr[0])
-                            step_i += 1
-                        if done:
-                            continue
-
-                        context_h = env.state()[0].copy()
-                        z_returns: list[float] = []
-                        for z_branch in range(latent_k):
+            with _preserve_model_training_mode(self.trainer.model):
+                for opp in opponents:
+                    env = build_training_env(eval_cfg, initial_phase="PHASE1", initial_opponent_tag=opp)
+                    try:
+                        for seed in seeds:
                             torch.manual_seed(seed)
                             np.random.seed(seed)
                             if hasattr(env, "seed"):
                                 env.seed(seed)
-                            obs_b = env.reset()
-                            for b_act in bootstrap_actions:
-                                env.step_async(b_act)
-                                obs_b, _, _, _ = env.step_wait()
-                            if hasattr(self.trainer.model, "fixed_latent_strategy"):
-                                self.trainer.model.fixed_latent_strategy = True
-                                self.trainer.model.fixed_latent_strategy_id = z_branch
-                            ret_accum = 0.0
-                            b_done = False
-                            b_step = 0
-                            while not b_done and b_step < 64:
-                                single = {k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v for k, v in obs_b.items()}
+                            obs = env.reset()
+                            bootstrap_actions: list[Any] = []
+                            done = False
+                            step_i = 0
+                            while not done and step_i < 64:
+                                single = {
+                                    k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v for k, v in obs.items()
+                                }
+                                if hasattr(self.trainer.model, "fixed_latent_strategy"):
+                                    self.trainer.model.fixed_latent_strategy = True
+                                    self.trainer.model.fixed_latent_strategy_id = 0
                                 act, _ = self.trainer.model.predict(single, deterministic=True)
+                                bootstrap_actions.append(act)
                                 env.step_async(act)
-                                obs_b, rewards, done_arr, _ = env.step_wait()
-                                ret_accum += float(rewards[0])
-                                b_done = bool(done_arr[0])
-                                b_step += 1
-                            z_returns.append(ret_accum)
+                                obs, _, done_arr, _ = env.step_wait()
+                                done = bool(done_arr[0])
+                                step_i += 1
+                            if done:
+                                continue
 
-                        order = np.argsort(z_returns)[::-1]
-                        if len(order) >= 2 and (z_returns[order[0]] - z_returns[order[1]]) < tie_margin:
-                            ambiguous += 1
-                            continue
-                        contexts.append(context_h)
-                        labels.append(int(order[0]))
-                        all_returns.append(z_returns)
-                finally:
-                    env.close()
+                            context_h = env.state()[0].copy()
+                            z_returns: list[float] = []
+                            for z_branch in range(latent_k):
+                                torch.manual_seed(seed)
+                                np.random.seed(seed)
+                                if hasattr(env, "seed"):
+                                    env.seed(seed)
+                                obs_b = env.reset()
+                                for b_act in bootstrap_actions:
+                                    env.step_async(b_act)
+                                    obs_b, _, _, _ = env.step_wait()
+                                if hasattr(self.trainer.model, "fixed_latent_strategy"):
+                                    self.trainer.model.fixed_latent_strategy = True
+                                    self.trainer.model.fixed_latent_strategy_id = z_branch
+                                ret_accum = 0.0
+                                b_done = False
+                                b_step = 0
+                                while not b_done and b_step < 64:
+                                    single = {
+                                        k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v
+                                        for k, v in obs_b.items()
+                                    }
+                                    act, _ = self.trainer.model.predict(single, deterministic=True)
+                                    env.step_async(act)
+                                    obs_b, rewards, done_arr, _ = env.step_wait()
+                                    ret_accum += float(rewards[0])
+                                    b_done = bool(done_arr[0])
+                                    b_step += 1
+                                z_returns.append(ret_accum)
 
-        n_examples = len(contexts)
-        if n_examples < 10:
+                            order = np.argsort(z_returns)[::-1]
+                            if len(order) >= 2 and (z_returns[order[0]] - z_returns[order[1]]) < tie_margin:
+                                ambiguous += 1
+                                continue
+                            contexts.append(context_h)
+                            labels.append(int(order[0]))
+                            all_returns.append(z_returns)
+                    finally:
+                        env.close()
+
+            n_examples = len(contexts)
+            if n_examples < 10:
+                return GateFamilyResult(
+                    status=GATE_STATUS_ERROR,
+                    reason="insufficient_probe_examples",
+                    details={"num_examples": n_examples},
+                )
+
+            train_size = max(1, int(0.80 * n_examples))
+            X = torch.tensor(np.asarray(contexts, dtype=np.float32))
+            y = torch.tensor(labels, dtype=torch.long)
+            R = torch.tensor(all_returns, dtype=torch.float32)
+            X_train, X_val = X[:train_size], X[train_size:]
+            y_train, y_val = y[:train_size], y[train_size:]
+            R_val = R[train_size:]
+
+            _, val_accuracy, preds = self._train_probe_classifier(X_train, y_train, X_val, y_val, gs_dim)
+
+            val_oracle = R_val.max(dim=-1)[0]
+            oracle_mean = float(val_oracle.mean().item())
+            probe_rets = R_val[torch.arange(len(y_val)), preds]
+            probe_mean = float(probe_rets.mean().item())
+            probe_regret = oracle_mean - probe_mean
+
+            majority = int(torch.bincount(y_train).argmax().item())
+            majority_acc = float((y_val == majority).float().mean().item())
+            uniform_acc = 1.0 / float(latent_k)
+
+            global_best_z = int(R[:train_size].sum(dim=0).argmax().item())
+            fixed_mean = float(R_val[:, global_best_z].mean().item())
+            fixed_regret = oracle_mean - fixed_mean
+
+            accuracy_passed = val_accuracy >= (majority_acc + 0.05)
+            regret_passed = probe_regret <= (0.90 * fixed_regret)
+            gate_passed = accuracy_passed and regret_passed
+
+            isolation.assert_unchanged(self.trainer)
+
+            return gate_family_result_from_bool(
+                gate_passed,
+                details={
+                    "num_examples": n_examples,
+                    "ambiguous_context_fraction": float(ambiguous / max(1, len(seeds) * len(opponents))),
+                    "uniform_accuracy_baseline": uniform_acc,
+                    "majority_accuracy_baseline": majority_acc,
+                    "probe_validation_accuracy": val_accuracy,
+                    "oracle_return_mean": oracle_mean,
+                    "probe_selected_return_mean": probe_mean,
+                    "global_best_fixed_z_return_mean": fixed_mean,
+                    "probe_regret": probe_regret,
+                    "global_best_fixed_z_regret": fixed_regret,
+                    "regret_reduction": fixed_regret - probe_regret,
+                    "accuracy_passed": accuracy_passed,
+                    "regret_passed": regret_passed,
+                    "gate_passed": gate_passed,
+                },
+            )
+        finally:
             isolation.restore_rng()
-            return False, {"error": "insufficient_probe_examples", "num_examples": n_examples}
-
-        train_size = max(1, int(0.80 * n_examples))
-        X = torch.tensor(np.asarray(contexts, dtype=np.float32))
-        y = torch.tensor(labels, dtype=torch.long)
-        R = torch.tensor(all_returns, dtype=torch.float32)
-        X_train, X_val = X[:train_size], X[train_size:]
-        y_train, y_val = y[:train_size], y[train_size:]
-        R_val = R[train_size:]
-
-        _, val_accuracy, preds = self._train_probe_classifier(X_train, y_train, X_val, y_val, gs_dim)
-
-        val_oracle = R_val.max(dim=-1)[0]
-        oracle_mean = float(val_oracle.mean().item())
-        probe_rets = R_val[torch.arange(len(y_val)), preds]
-        probe_mean = float(probe_rets.mean().item())
-        probe_regret = oracle_mean - probe_mean
-
-        majority = int(torch.bincount(y_train).argmax().item())
-        majority_acc = float((y_val == majority).float().mean().item())
-        uniform_acc = 1.0 / float(latent_k)
-
-        global_best_z = int(R[:train_size].sum(dim=0).argmax().item())
-        fixed_mean = float(R_val[:, global_best_z].mean().item())
-        fixed_regret = oracle_mean - fixed_mean
-
-        accuracy_passed = val_accuracy >= (majority_acc + 0.05)
-        regret_passed = probe_regret <= (0.90 * fixed_regret)
-        gate_passed = accuracy_passed and regret_passed
-
-        isolation.assert_unchanged(self.trainer)
-        isolation.restore_rng()
-
-        return gate_passed, {
-            "num_examples": n_examples,
-            "ambiguous_context_fraction": float(ambiguous / max(1, len(seeds) * len(opponents))),
-            "uniform_accuracy_baseline": uniform_acc,
-            "majority_accuracy_baseline": majority_acc,
-            "probe_validation_accuracy": val_accuracy,
-            "oracle_return_mean": oracle_mean,
-            "probe_selected_return_mean": probe_mean,
-            "global_best_fixed_z_return_mean": fixed_mean,
-            "probe_regret": probe_regret,
-            "global_best_fixed_z_regret": fixed_regret,
-            "regret_reduction": fixed_regret - probe_regret,
-            "accuracy_passed": accuracy_passed,
-            "regret_passed": regret_passed,
-            "gate_passed": gate_passed,
-        }
 
     def _train_probe_classifier(
         self,
@@ -878,11 +998,22 @@ class V6I1CurriculumController:
 
 __all__ = [
     "GATE_FAMILY_NAMES",
+    "GATE_STATUS_ERROR",
+    "GATE_STATUS_FAIL",
+    "GATE_STATUS_NOT_RUN",
+    "GATE_STATUS_PASS",
     "LATENT_PAIR_INDEX",
+    "PAIR_ORDER",
+    "GateFamilyResult",
     "LearnabilityClassifier",
     "TrainingIsolationSnapshot",
     "V6I1CurriculumController",
     "build_lexicographic_ranking_components",
+    "count_gate_families_measured",
+    "count_gate_families_passed",
+    "gate_family_result_from_bool",
+    "is_staged_v6i1_curriculum",
+    "overall_gate_passed_for_promotion",
     "rank_candidates_lexicographic",
     "validate_v6i1_enforce_config",
 ]

@@ -34,6 +34,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
+
 
 @dataclass(frozen=True)
 class TrainerHyperparams:
@@ -698,6 +700,7 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
         "actor_hidden_dim": int(getattr(cfg, "actor_hidden_dim", 256)),
     }
     if hparams.use_latent_strategy:
+        v6i1_staged = is_staged_v6i1_curriculum(cfg)
         model_kwargs.update(
             {
                 "latent_k": hparams.latent_k,
@@ -717,6 +720,7 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 # fixed_latent``) lives on ``hparams.latent_episode_strategy_ppo``.
                 "use_episode_strategy_value_head": bool(
                     getattr(cfg, "latent_episode_strategy_ppo", False)
+                    or v6i1_staged
                     or (
                         getattr(cfg, "latent_arc_credit_enabled", False)
                         and str(
@@ -724,6 +728,10 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                             or "context_value"
                         ).lower() == "context_value"
                     )
+                ),
+                "use_recurrent_selector": bool(v6i1_staged),
+                "recurrent_selector_hidden_dim": int(
+                    getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32
                 ),
                 "strategy_tau": max(
                     1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)
