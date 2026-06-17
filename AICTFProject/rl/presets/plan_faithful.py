@@ -1990,6 +1990,47 @@ def apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(
     return cfg
 
 
+def apply_plan_faithful_latent_v5i8_repertoire_uniform_z(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v5i8 repertoire Stage-1 diagnostic: sustained uniform forced-z coverage.
+
+    ## Proposed Preset Review
+
+    ### Identity
+    - Proposed name: v5i8_repertoire_uniform_z
+    - Parent preset: v5i8_split_lane_v2_task_pressure
+    - Classification: DIAGNOSTIC
+    - Research question: Is repertoire failure on v5i8 caused mainly by router
+      collapse and unequal per-z experience?
+
+    ### Intended delta
+    - Fields changed: ``latent_forced_z_episode_frac*``, ``latent_forced_z_anneal_*``,
+      ``run_tag`` only.
+    - Why this change is necessary: joint router+actor training lets one z
+      dominate experience; this ablation removes router choice for the full run
+      so every latent receives uniform episode exposure.
+    - Why an existing preset cannot answer the question: v5i8 keeps router
+      sampling; v5i3 anneals forced coverage back to zero and inherits FiLM.
+
+    ### Fidelity impact
+    - Router objective changed: NO (router receives no on-policy episodes while
+      forced fraction is 1.0; this is intentional coverage isolation).
+    - Exploration schedule changed: YES (100% uniform forced-z episodes).
+    - Reward / actor / map / opponents unchanged vs v5i8.
+    """
+    cfg = apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(cfg)
+
+    cfg.latent_forced_z_episode_frac_start = 1.0
+    cfg.latent_forced_z_episode_frac_end = 1.0
+    cfg.latent_forced_z_anneal_start = 0
+    cfg.latent_forced_z_anneal_end = int(cfg.total_timesteps)
+    cfg.latent_forced_z_episode_frac = 1.0
+
+    cfg.run_tag = "v5i8_repertoire_uniform_z_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v5i9_csia_guided_specialization(
     cfg: PPOConfig,
 ) -> PPOConfig:

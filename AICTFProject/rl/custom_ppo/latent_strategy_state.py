@@ -56,7 +56,7 @@ from rl.ppo_core import ppo_policy_loss
 from rl.behavior_telemetry import N_TELEMETRY
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo.latent_value_baselines import compute_z_marginal_strategy_value
-from rl.custom_ppo.csv_writers import _opponent_id_int_from_info
+from rl.custom_ppo.csv_writers import SCRIPTED_OPPONENT_MI_COUNT, _opponent_id_int_from_info
 from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
 
 if TYPE_CHECKING:
@@ -803,6 +803,13 @@ class LatentStrategyState:
         self.rollout_forced_z_episode_count_by_z = np.zeros(
             (max(1, int(trainer.latent_k)),), dtype=np.int64
         )
+        self.rollout_forced_episode_count_by_opp_z = np.zeros(
+            (
+                int(SCRIPTED_OPPONENT_MI_COUNT),
+                max(1, int(trainer.latent_k)),
+            ),
+            dtype=np.int64,
+        )
         self.latent_preference_buffer = deque(maxlen=20000)
 
         # Event refresh variables
@@ -1141,6 +1148,7 @@ class LatentStrategyState:
         self.rollout_tactical_bucket_fallback_count = 0
         self.rollout_tactical_bucket_sample_count = 0
         self.rollout_forced_z_episode_count_by_z[:] = 0
+        self.rollout_forced_episode_count_by_opp_z[:] = 0
 
     def behavior_contrast_coef(self) -> float:
         trainer = self.trainer
@@ -1872,12 +1880,7 @@ class LatentStrategyState:
                 trainer.cfg,
                 global_step=int(getattr(trainer, "global_step", 0) or 0),
             )
-            contrast_on = (
-                getattr(trainer, "latent_behavior_contrast", None) is not None
-                and self.behavior_contrast_coef() > 0.0
-                and forced_frac > 0.0
-            )
-            if contrast_on:
+            if forced_frac > 0.0:
                 gen = trainer.model._sampling_gen_strategy
                 rand_kwargs = {
                     "dtype": torch.float32,
@@ -2236,7 +2239,7 @@ class LatentStrategyState:
         count = max(1, int(self.rollout_behavior_contrast_count))
         completed = max(1, int(self.rollout_completed_episode_count))
         forced = max(1, int(self.rollout_forced_z_episode_count))
-        return {
+        stats: dict[str, float] = {
             "latent_forced_z_episode_fraction": float(self.rollout_forced_z_episode_count) / float(completed),
             "latent_behavior_contrast_bonus_mean": float(self.rollout_behavior_contrast_bonus_sum) / float(forced),
             "latent_behavior_contrast_distance_mean": float(self.rollout_behavior_contrast_distance_sum) / float(count),
@@ -2247,6 +2250,17 @@ class LatentStrategyState:
                 / float(max(1, self.rollout_tactical_bucket_sample_count))
             ),
         }
+        k = max(1, int(self.trainer.latent_k))
+        for z_i in range(k):
+            forced_i = int(self.rollout_forced_z_episode_count_by_z[z_i])
+            stats[f"forced_sample_count_by_z_{z_i}"] = float(forced_i)
+            stats[f"episode_count_by_z_{z_i}"] = float(forced_i)
+        for o_idx in range(int(SCRIPTED_OPPONENT_MI_COUNT)):
+            for z_i in range(k):
+                stats[f"forced_episode_opp{o_idx}_z{z_i}_count"] = float(
+                    self.rollout_forced_episode_count_by_opp_z[o_idx, z_i]
+                )
+        return stats
 
     # ------------------------------------------------------------------
     # Episode outcome → completed-record buffer
@@ -2333,19 +2347,54 @@ class LatentStrategyState:
         mean automatically.
         """
         trainer = self.trainer
-        if not trainer.latent_episode_strategy_ppo:
-            return
         env_i = int(env_index)
         if env_i < 0 or env_i >= int(self.episode_strategy_has_start.numel()):
             return
 
         is_forced_z = bool(self.episode_forced_z[env_i].detach().cpu().item())
-        if (
-            not is_forced_z
-            and not bool(
-                self.episode_strategy_has_start[env_i].detach().cpu().item()
-            )
-        ):
+        if is_forced_z:
+            try:
+                opponent_id = int(_opponent_id_int_from_info(self.trainer.cfg, info))
+            except Exception:
+                opponent_id = -1
+
+            er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
+            bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
+            rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
+            episode_win = 1 if bs > rs else 0
+
+            z_val = int(self.episode_forced_z_id[env_i].detach().cpu().item())
+            count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
+            emb = (self.episode_behavior_sum[env_i] / float(count)).detach().cpu().numpy().tolist()
+            tactical_bucket = self.representative_tactical_bucket(env_i)
+
+            if trainer.latent_episode_strategy_ppo:
+                forced_record = {
+                    "context_bucket": tactical_bucket,
+                    "opponent": opponent_id,
+                    "phase_flag_state": tactical_bucket,
+                    "z": z_val,
+                    "return": float(episode_return),
+                    "behavior_embedding": emb,
+                    "win_loss": episode_win,
+                }
+                self.latent_preference_buffer.append(forced_record)
+
+            self.rollout_completed_episode_count += 1
+            self.rollout_forced_z_episode_count += 1
+            if 0 <= z_val < int(self.rollout_forced_z_episode_count_by_z.shape[0]):
+                self.rollout_forced_z_episode_count_by_z[z_val] += 1
+            if (
+                0 <= opponent_id < int(self.rollout_forced_episode_count_by_opp_z.shape[0])
+                and 0 <= z_val < int(self.rollout_forced_episode_count_by_opp_z.shape[1])
+            ):
+                self.rollout_forced_episode_count_by_opp_z[opponent_id, z_val] += 1
+            return
+
+        if not trainer.latent_episode_strategy_ppo:
+            return
+
+        if not bool(self.episode_strategy_has_start[env_i].detach().cpu().item()):
             return
         used_tactical_fallback = (
             int(self.episode_tactical_bucket_counts[env_i].sum().item()) <= 0
@@ -2355,38 +2404,6 @@ class LatentStrategyState:
             used_tactical_fallback
         )
         tactical_bucket = self.representative_tactical_bucket(env_i)
-        if is_forced_z:
-            try:
-                opponent_id = int(_opponent_id_int_from_info(self.trainer.cfg, info))
-            except Exception:
-                opponent_id = -1
-            
-            er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
-            bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
-            rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
-            episode_win = 1 if bs > rs else 0
-            
-            z_val = int(self.episode_forced_z_id[env_i].detach().cpu().item())
-            count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
-            emb = (self.episode_behavior_sum[env_i] / float(count)).detach().cpu().numpy().tolist()
-
-            forced_record = {
-                "context_bucket": tactical_bucket,
-                "opponent": opponent_id,
-                "phase_flag_state": tactical_bucket,
-                "z": z_val,
-                "return": float(episode_return),
-                "behavior_embedding": emb,
-                "win_loss": episode_win,
-            }
-            self.latent_preference_buffer.append(forced_record)
-            # v5i3 per-z forced sample counter (per-rollout, reset by
-            # reset_behavior_contrast_rollout_stats). Independent of the
-            # behavior_contrast counter at line 2206 which only fires when
-            # a BehaviorContrastMemory is wired up.
-            if 0 <= z_val < int(self.rollout_forced_z_episode_count_by_z.shape[0]):
-                self.rollout_forced_z_episode_count_by_z[z_val] += 1
-            return
 
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
         bs = int(er.get("blue_score", info.get("blue_score", 0)) or 0)
@@ -3375,6 +3392,11 @@ class LatentStrategyState:
                 stats[f"mean_return_by_z_{z_i}"] = float(ret_i.mean().item())
                 stats[f"mean_logprob_ratio_by_z_{z_i}"] = float(ratio_i.mean().item())
                 stats[f"clip_fraction_by_z_{z_i}"] = float(clip_i.mean().item())
+            for o_idx in range(int(SCRIPTED_OPPONENT_MI_COUNT)):
+                for z_i in range(K):
+                    stats[f"forced_episode_opp{o_idx}_z{z_i}_count"] = float(
+                        self.rollout_forced_episode_count_by_opp_z[o_idx, z_i]
+                    )
 
             # v3d bucket-baseline telemetry. ``last_stats`` reflects the SINGLE
             # update_and_compute call made at the top of this rollout (outside

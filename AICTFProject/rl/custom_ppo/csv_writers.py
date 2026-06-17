@@ -433,6 +433,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
                     [
                         f"episode_opp{o_idx}_z{z_idx}_count",
                         f"episode_opp{o_idx}_z{z_idx}_win_rate",
+                        f"forced_episode_opp{o_idx}_z{z_idx}_count",
                     ]
                 )
         # Append new diagnostic columns

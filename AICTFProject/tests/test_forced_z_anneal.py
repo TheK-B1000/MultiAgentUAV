@@ -241,6 +241,20 @@ class ForcedZRuntimeRoutingTests(unittest.TestCase):
 
         self.assertFalse(bool(aux["z_forced"].any().item()))
 
+    def test_forced_episodes_work_without_behavior_contrast_memory(self) -> None:
+        trainer = _make_trainer(n_envs=4, warmup=0, episode_credit=True, gs_dim=4)
+        trainer.cfg.latent_forced_z_episode_frac_start = 1.0
+        trainer.cfg.latent_forced_z_episode_frac_end = 1.0
+        trainer.cfg.latent_forced_z_anneal_start = 0
+        trainer.cfg.latent_forced_z_anneal_end = 1_000_000
+        latent_state = LatentStrategyState(trainer)
+        latent_state.reset()
+
+        _, _, aux = latent_state.strategy_for_step(self._state(4, 4))
+
+        self.assertTrue(bool(aux["z_forced"].all().item()))
+        self.assertFalse(bool(latent_state.episode_strategy_has_start.any().item()))
+
     def test_resume_at_mid_anneal_resolves_correctly(self) -> None:
         """Trainer.global_step restoration drives the schedule deterministically."""
         trainer = _make_trainer(n_envs=2, warmup=0, episode_credit=True, gs_dim=4)
@@ -280,6 +294,9 @@ class PerZRouterTelemetryTests(unittest.TestCase):
             self.assertIn(f"mean_return_by_z_{z}", fields)
             self.assertIn(f"mean_logprob_ratio_by_z_{z}", fields)
             self.assertIn(f"clip_fraction_by_z_{z}", fields)
+        for o in range(7):
+            for z in range(4):
+                self.assertIn(f"forced_episode_opp{o}_z{z}_count", fields)
         self.assertIn("latent_forced_z_episode_frac_current", fields)
 
     def test_per_z_fields_absent_for_non_latent_runs(self) -> None:

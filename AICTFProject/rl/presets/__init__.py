@@ -55,6 +55,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i6_paper_faithful_marginal_entropy,
     apply_plan_faithful_latent_v5i7_entropy_floor_split_lane,
     apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
+    apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
     apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
@@ -337,6 +338,11 @@ PRESET_REGISTRY = {
     "v5i8_summer_faithful_split_lane_v2": apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
     "v5i8_split_lane_v2": apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
     "v5i8": apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure,
+    # v5i8 Stage-1 repertoire diagnostic: 100% uniform forced-z for full run.
+    "plan_faithful_latent_v5i8_repertoire_uniform_z": apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
+    "latent_v5i8_repertoire_uniform_z": apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
+    "v5i8_repertoire_uniform_z": apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
+    "repertoire_uniform_z": apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
     # v5i9: post-Summer extension. Uses forced-z CSIA evidence as a detached
     # gated reward bonus. It is not a paper-/Summer-faithful row.
     "plan_faithful_latent_v5i9_csia_guided_specialization": apply_plan_faithful_latent_v5i9_csia_guided_specialization,

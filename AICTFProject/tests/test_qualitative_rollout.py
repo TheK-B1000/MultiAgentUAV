@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES
+from rl.route_telemetry import ROUTE_CROSSING_KEYS, ROUTE_DERIVED_NAMES, ROUTE_TELEMETRY_NAMES
 from tools import qualitative_rollout as qr
 
 
@@ -75,6 +76,11 @@ def test_step_csv_fieldnames_includes_required_signals():
         "team_spread", "num_attackers", "intercept_pressure", "attack_defense_ratio",
     ):
         assert required in fields, f"required behavior signal {required!r} missing"
+
+    for name in ROUTE_TELEMETRY_NAMES:
+        assert name in fields, f"required route telemetry column {name!r} missing"
+    for name in ROUTE_CROSSING_KEYS + ROUTE_DERIVED_NAMES:
+        assert name in fields
 
     # q_phi probability columns must exist for K classes.
     for k in range(4):
@@ -362,6 +368,7 @@ def test_write_summary_md_includes_required_sections(tmp_path: Path):
     assert "## Win rate by (opponent, z) -- fixed-z mode" in text
     assert "## Natural q_phi routing" in text
     assert "## Behavioral fingerprint per z" in text
+    assert "## Route fingerprint per z" in text
     assert "## Strategy evidence table" in text
     assert "## Summer-faithful audit" in text
     assert "map layout: **map_b_split_lane_v2**" in text

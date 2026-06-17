@@ -713,6 +713,15 @@ class RolloutCollector:
         if not bool(done_t.any().item()):
             return
         episode_strategy_ppo_on = bool(self.hparams.latent_episode_strategy_ppo)
+        from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
+
+        forced_z_logging_on = (
+            resolve_latent_forced_z_frac(
+                self.cfg,
+                global_step=int(getattr(self.runtime, "global_step", 0) or 0),
+            )
+            > 0.0
+        )
         # v3i3 finalization is gated on either the preference loss or the
         # per-refresh CSV log being enabled. Independent of episode-credit so
         # the proof-layer log works even without ``latent_episode_strategy_ppo``.
@@ -720,7 +729,7 @@ class RolloutCollector:
             self.hparams.latent_v3i3_event_preference_enabled
             or self.hparams.latent_v3i3_refresh_log_enabled
         )
-        if episode_strategy_ppo_on or v3i3_finalize_on:
+        if episode_strategy_ppo_on or v3i3_finalize_on or forced_z_logging_on:
             for env_i, done_i in enumerate(dones):
                 if not bool(done_i):
                     continue
@@ -735,7 +744,7 @@ class RolloutCollector:
                     latent_state.finalize_v3i3_refresh_records(
                         env_i, info_dict, episode_return=episode_return
                     )
-                if episode_strategy_ppo_on:
+                if episode_strategy_ppo_on or forced_z_logging_on:
                     latent_state.record_episode_strategy_outcome(
                         env_i, info_dict, episode_return=episode_return
                     )

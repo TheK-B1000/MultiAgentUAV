@@ -24,6 +24,10 @@ Per step we log:
 * behavior fingerprint -- ``team_spread``, ``num_attackers``, ``num_defenders``,
   ``intercept_pressure``, ``defense_pressure``, ``attack_defense_ratio``,
   plus the rest of ``BEHAVIOR_TELEMETRY_NAMES`` (13 signals total).
+* route fingerprint (split-lane maps) -- per-step lane crossing deltas
+  (``blue_attack_upper_crossings``, …) plus derived fractions
+  (``upper_attack_fraction``, ``route_switch_rate``, …) from
+  ``rl.route_telemetry.ROUTE_TELEMETRY_NAMES``.
 
 Outputs (in ``--out-dir``, default ``<checkpoint_dir>/qualitative/``):
 
@@ -64,6 +68,14 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES, compute_behavior_telemetry_batch
+from rl.route_telemetry import (
+    ROUTE_CROSSING_KEYS,
+    ROUTE_TELEMETRY_NAMES,
+    attach_route_telemetry_to_row,
+    cumulative_route_crossings_from_info,
+    route_step_crossings,
+    zero_route_cumulative,
+)
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.inference import load_custom_ppo_policy, read_custom_ppo_metadata
 from rl.training.env_factory import build_training_env
@@ -192,6 +204,8 @@ def _run_episode(
     prev_red_score = 0
     prev_blue_carrying_any = False
     prev_red_carrying_any = False
+    prev_route_cumulative = zero_route_cumulative()
+    prev_dominant_route_lane: int | None = None
 
     for step in range(max_steps):
         single = {
@@ -263,6 +277,17 @@ def _run_episode(
         env.step_async(act)
         obs, _, done, infos = env.step_wait()
 
+        info0 = infos[0] if len(infos) > 0 else {}
+        ep_info = info0.get("episode_result", info0) or info0
+        route_cumulative = cumulative_route_crossings_from_info(ep_info)
+        route_deltas = route_step_crossings(prev_route_cumulative, route_cumulative)
+        prev_dominant_route_lane = attach_route_telemetry_to_row(
+            rec.rows[-1],
+            step_crossings=route_deltas,
+            prev_dominant_lane=prev_dominant_route_lane,
+        )
+        prev_route_cumulative = route_cumulative
+
         # Latch this step's observed state so the next iteration's deltas
         # measure the change between consecutive observations.
         prev_blue_score = blue_score
@@ -323,12 +348,15 @@ def _aggregate_by_z(records: list[EpisodeRecord]) -> list[dict[str, Any]]:
                     "blue_score_deltas": 0,
                     "red_score_deltas": 0,
                     "behavior_sum": np.zeros(len(BEHAVIOR_TELEMETRY_NAMES), dtype=np.float64),
+                    "route_sum": np.zeros(len(ROUTE_TELEMETRY_NAMES), dtype=np.float64),
                 },
             )
             slot["step_count"] += 1
             slot["episodes_touched"].add(int(ep.episode_idx))
             for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
                 slot["behavior_sum"][j] += float(r[name])
+            for j, name in enumerate(ROUTE_TELEMETRY_NAMES):
+                slot["route_sum"][j] += float(r.get(name, 0.0))
             slot["blue_picks"] += int(r["blue_picked_up_now"])
             slot["red_picks"] += int(r["red_picked_up_now"])
             if int(r["blue_score_delta"]) > 0:
@@ -376,6 +404,8 @@ def _aggregate_by_z(records: list[EpisodeRecord]) -> list[dict[str, Any]]:
         }
         for j, name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
             row[f"{name}_mean"] = float(slot["behavior_sum"][j] / steps)
+        for j, name in enumerate(ROUTE_TELEMETRY_NAMES):
+            row[f"{name}_mean"] = float(slot["route_sum"][j] / steps)
         rows_out.append(row)
 
     rows_out.sort(key=lambda r: (r["opponent"], r["mode"], r["z"]))
@@ -398,6 +428,7 @@ def _step_csv_fieldnames(latent_k: int, n_blue: int, n_red: int) -> list[str]:
     ]
     base += [f"q_phi_prob_{k}" for k in range(latent_k)]
     base += list(BEHAVIOR_TELEMETRY_NAMES)
+    base += list(ROUTE_TELEMETRY_NAMES)
     for prefix in ("blue_x", "blue_y", "blue_alive", "blue_carrying"):
         base += [f"{prefix}_{i}" for i in range(n_blue)]
     for prefix in ("red_x", "red_y", "red_alive", "red_carrying"):
@@ -443,6 +474,16 @@ def _forced_behavior_spread(rows: list[dict[str, Any]]) -> float:
         return 0.0
     ranges: list[float] = []
     for name in BEHAVIOR_TELEMETRY_NAMES:
+        vals = [float(r.get(f"{name}_mean", 0.0)) for r in rows]
+        ranges.append(max(vals) - min(vals))
+    return float(np.mean(ranges)) if ranges else 0.0
+
+
+def _forced_route_spread(rows: list[dict[str, Any]]) -> float:
+    if len(rows) < 2:
+        return 0.0
+    ranges: list[float] = []
+    for name in ROUTE_TELEMETRY_NAMES:
         vals = [float(r.get(f"{name}_mean", 0.0)) for r in rows]
         ranges.append(max(vals) - min(vals))
     return float(np.mean(ranges)) if ranges else 0.0
@@ -496,6 +537,7 @@ def _build_strategy_evidence_rows(
         best_wr = float(best.get("blue_win_rate", 0.0))
         worst_wr = float(worst.get("blue_win_rate", 0.0))
         behavior_spread = _forced_behavior_spread(forced_rows)
+        route_spread = _forced_route_spread(forced_rows)
         perf_spread = best_wr - worst_wr
         rows_out.append(
             {
@@ -507,6 +549,7 @@ def _build_strategy_evidence_rows(
                 "worst_forced_z_win_rate": worst_wr,
                 "forced_z_performance_spread": perf_spread,
                 "forced_z_behavior_spread": behavior_spread,
+                "forced_z_route_spread": route_spread,
                 "strategy_spread": _strategy_spread_label(behavior_spread),
                 "interpretation": _strategy_interpretation(perf_spread, behavior_spread),
             }
@@ -689,6 +732,64 @@ def _write_summary_md(
                 picks = ", ".join(
                     f"`{BEHAVIOR_TELEMETRY_NAMES[j]}` "
                     f"({means[i, j]:+.3f} vs avg {avg[0, j]:+.3f})"
+                    for j in order
+                )
+                lines.append(f"- **z{int(r['z'])}**: {picks}")
+            lines.append("")
+
+        by_z_route: dict[int, dict[str, float]] = {}
+        by_z_route_count: dict[int, int] = {}
+        for r in agg_rows:
+            z = int(r["z"])
+            if z < 0:
+                continue
+            if z not in by_z_route:
+                by_z_route[z] = {name: 0.0 for name in ROUTE_TELEMETRY_NAMES}
+                by_z_route_count[z] = 0
+            w = int(r["n_steps"])
+            for name in ROUTE_TELEMETRY_NAMES:
+                by_z_route[z][name] += float(r.get(f"{name}_mean", 0.0)) * w
+            by_z_route_count[z] += w
+
+        route_rows: list[dict[str, Any]] = []
+        for z in sorted(by_z_route):
+            denom = max(by_z_route_count[z], 1)
+            row = {"z": z, "total_steps": by_z_route_count[z]}
+            for name in ROUTE_TELEMETRY_NAMES:
+                row[name] = by_z_route[z][name] / denom
+            route_rows.append(row)
+
+        lines.append("## Route fingerprint per z (split-lane crossings, step-weighted)\n")
+        lines.append(
+            "Per-step lane crossing rates and derived fractions from "
+            "``ROUTE_TELEMETRY_NAMES``. Meaningful on split-lane maps; open-map "
+            "runs should read ~0. Compare fixed-z rows to test repertoire "
+            "differentiation on attack/return/intercept lanes.\n"
+        )
+        route_display_cols = [
+            "z",
+            "total_steps",
+            *ROUTE_CROSSING_KEYS,
+            "upper_attack_fraction",
+            "lower_attack_fraction",
+            "intercept_lane_fraction",
+            "route_switch_rate",
+        ]
+        lines.append(_markdown_table(route_rows, route_display_cols))
+
+        if len(route_rows) > 1:
+            route_means = np.asarray(
+                [[r[name] for name in ROUTE_TELEMETRY_NAMES] for r in route_rows],
+                dtype=np.float64,
+            )
+            route_avg = route_means.mean(axis=0, keepdims=True)
+            route_dev = route_means - route_avg
+            lines.append("## Top 3 distinguishing route features per z\n")
+            for i, r in enumerate(route_rows):
+                order = np.argsort(-np.abs(route_dev[i]))[:3]
+                picks = ", ".join(
+                    f"`{ROUTE_TELEMETRY_NAMES[j]}` "
+                    f"({route_means[i, j]:+.3f} vs avg {route_avg[0, j]:+.3f})"
                     for j in order
                 )
                 lines.append(f"- **z{int(r['z'])}**: {picks}")
