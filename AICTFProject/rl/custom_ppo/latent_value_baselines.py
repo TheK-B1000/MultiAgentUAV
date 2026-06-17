@@ -26,7 +26,7 @@ the choice of baseline inside the existing q_phi policy-gradient update.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import torch
 import torch.nn.functional as F
@@ -38,16 +38,16 @@ def compute_z_marginal_strategy_value(
     latent_k: int,
     *,
     policy_weighted: bool = True,
+    selector_hidden: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """Return the z-marginal value baseline ``E_{z' ~ q_phi}[V(s, z')]``.
 
     Parameters
     ----------
     model
-        Object exposing ``episode_strategy_value(states, z_idx)`` and
-        ``strategy_logits(states)``. Concretely this is the policy network
-        produced by :class:`SharedActorCentralizedCritic` (it carries both
-        the q_phi logits head and the episode-strategy value head).
+        Object exposing ``episode_strategy_value(states, z_idx, selector_hidden)``
+        and ``strategy_logits(states, selector_hidden=...)``. Concretely this is
+        the policy network produced by :class:`SharedActorCentralizedCritic`.
     states
         ``(B, q_phi_input_dim)`` context tensor that q_phi consumes (ctx170
         in the current setup). Must already live on the model's device.
@@ -60,6 +60,9 @@ def compute_z_marginal_strategy_value(
         ``(1/K) * sum_k V(s, k)`` is used; both are valid baselines (zero
         bias on the policy gradient), but the policy-weighted version has
         lower variance once q_phi specializes.
+    selector_hidden
+        Optional pre-forward recurrent selector state ``(B, H)`` aligned with
+        ``states``. Required when the model uses a recurrent selector.
 
     Returns
     -------
@@ -78,7 +81,9 @@ def compute_z_marginal_strategy_value(
         raise ValueError(f"latent_k must be >= 1; got {latent_k}")
     if latent_k == 1:
         z_only = torch.zeros((states.shape[0],), dtype=torch.long, device=states.device)
-        return model.episode_strategy_value(states, z_only).detach().reshape(-1)
+        return model.episode_strategy_value(
+            states, z_only, selector_hidden=selector_hidden
+        ).detach().reshape(-1)
 
     batch = int(states.shape[0])
     device = states.device
@@ -86,7 +91,10 @@ def compute_z_marginal_strategy_value(
     z_grid = torch.arange(latent_k, dtype=torch.long, device=device)
     z_all = z_grid.repeat_interleave(batch)
     s_rep = states.repeat(latent_k, 1)
-    v_all = model.episode_strategy_value(s_rep, z_all)
+    hidden_rep = None
+    if selector_hidden is not None:
+        hidden_rep = selector_hidden.repeat(latent_k, 1)
+    v_all = model.episode_strategy_value(s_rep, z_all, selector_hidden=hidden_rep)
     if v_all.dim() > 1:
         v_all = v_all.squeeze(-1)
     v_all = v_all.reshape(latent_k, batch).detach()
@@ -94,7 +102,7 @@ def compute_z_marginal_strategy_value(
     if not policy_weighted:
         return v_all.mean(dim=0)
 
-    logits = model.strategy_logits(states).detach()
+    logits = model.strategy_logits(states, selector_hidden=selector_hidden).detach()
     probs = F.softmax(logits, dim=-1)
     weights = probs.transpose(0, 1)
     return (weights * v_all).sum(dim=0)

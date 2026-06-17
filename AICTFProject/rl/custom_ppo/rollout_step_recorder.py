@@ -183,7 +183,7 @@ class RolloutStepRecorder:
             )
         phase_t, outcome_t = self._phase_outcome_ids(frame)
         sa = frame.strategy_aux
-        return dict(
+        items = dict(
             z=sa["z"],
             prev_z=sa["prev_z"],
             z_log_probs=sa["z_log_prob"],
@@ -200,6 +200,9 @@ class RolloutStepRecorder:
             attack_defense_ratio_bucket_id=frame.attack_defense_ratio_bucket,
             blue_ahead=frame.blue_ahead,
         )
+        if "selector_hidden" in sa:
+            items["selector_hidden"] = sa["selector_hidden"]
+        return items
 
     def _latent_kl_extras(
         self, frame: StepFrame

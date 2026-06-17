@@ -63,6 +63,20 @@ if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
+def _stack_selector_hidden_records(
+    records: list[dict[str, Any]],
+    *,
+    device: torch.device,
+) -> Optional[torch.Tensor]:
+    """Stack per-record pre-forward selector hidden states for router replay."""
+    if not records or "selector_hidden_0" not in records[0]:
+        return None
+    return torch.stack(
+        [r["selector_hidden_0"].detach().float() for r in records],
+        dim=0,
+    ).to(device)
+
+
 def _v3i3_target_from_items(
     items: list[tuple[int, float]],
     *,
@@ -693,8 +707,9 @@ class EpisodeStrategyRecorder:
         z_logprob_old: torch.Tensor,
         bucket_id: int,
         q_phi_probs: Iterable[float],
+        selector_hidden_0: torch.Tensor | None = None,
     ) -> None:
-        self.pending[int(env_index)] = {
+        record: dict[str, Any] = {
             "episode_id": int(episode_id),
             "global_state_0": global_state_0.detach().clone(),
             "z": int(z.detach().cpu().item()),
@@ -705,6 +720,9 @@ class EpisodeStrategyRecorder:
             "opponent_id": -1,
             "q_phi_probs": [float(x) for x in q_phi_probs],
         }
+        if selector_hidden_0 is not None:
+            record["selector_hidden_0"] = selector_hidden_0.detach().clone().cpu()
+        self.pending[int(env_index)] = record
 
     def record_outcome(
         self,
@@ -751,6 +769,7 @@ class LatentStrategyState:
         self.episode_strategy_state = torch.zeros(
             (n_envs, int(trainer.model.global_state_dim)), dtype=torch.float32, device=device
         )
+        self.episode_strategy_selector_hidden: Optional[torch.Tensor] = None
         self.episode_strategy_z = torch.zeros((n_envs,), dtype=torch.long, device=device)
         self.episode_strategy_log_prob = torch.zeros((n_envs,), dtype=torch.float32, device=device)
         self.episode_strategy_probs = torch.zeros(
@@ -934,8 +953,20 @@ class LatentStrategyState:
             self.selector_hidden = torch.zeros(
                 (n_envs, hidden_dim), dtype=torch.float32, device=device
             )
+            self.macro_open_selector_hidden = torch.zeros(
+                (n_envs, hidden_dim), dtype=torch.float32, device=device
+            )
+            self.arc_open_selector_hidden = torch.zeros(
+                (n_envs, hidden_dim), dtype=torch.float32, device=device
+            )
+            self.episode_strategy_selector_hidden = torch.zeros(
+                (n_envs, hidden_dim), dtype=torch.float32, device=device
+            )
         else:
             self.selector_hidden = None
+            self.macro_open_selector_hidden = None
+            self.arc_open_selector_hidden = None
+            self.episode_strategy_selector_hidden = None
         self.v6i1_episode_rehearsal = torch.zeros((n_envs,), dtype=torch.bool, device=device)
 
         # V6I1 Staged Curriculum & Competence tracking variables
@@ -1021,6 +1052,12 @@ class LatentStrategyState:
         self.macro_return_running_count = 0
         if self.selector_hidden is not None:
             self.selector_hidden.zero_()
+        if self.macro_open_selector_hidden is not None:
+            self.macro_open_selector_hidden.zero_()
+        if self.arc_open_selector_hidden is not None:
+            self.arc_open_selector_hidden.zero_()
+        if self.episode_strategy_selector_hidden is not None:
+            self.episode_strategy_selector_hidden.zero_()
         self.v6i1_episode_rehearsal.zero_()
         self.reset_event_refresh_rollout_stats()
         self.reset_sparse_tactical_refresh_rollout_stats()
@@ -1091,8 +1128,7 @@ class LatentStrategyState:
             if steps < 1:
                 self.rollout_macro_dropped_short_count += 1
                 continue
-            self.rollout_strategy_macro_records.append(
-                {
+            rec = {
                     "global_state_0": self.macro_open_ctx[env_i].detach().clone().cpu(),
                     "z": int(self.macro_open_z[env_i].detach().cpu().item()),
                     "z_logprob_old": float(self.macro_open_log_prob[env_i].detach().cpu().item()),
@@ -1100,7 +1136,11 @@ class LatentStrategyState:
                     "macro_length": steps,
                     "reason": str(reason),
                 }
-            )
+            if self.macro_open_selector_hidden is not None:
+                rec["selector_hidden_0"] = (
+                    self.macro_open_selector_hidden[env_i].detach().clone().cpu()
+                )
+            self.rollout_strategy_macro_records.append(rec)
             pushed += 1
         self.macro_has_open[idx] = False
         self.macro_return_accum[idx] = 0.0
@@ -1114,6 +1154,7 @@ class LatentStrategyState:
         global_state: torch.Tensor,
         z_idx: torch.Tensor,
         z_log_prob: torch.Tensor,
+        selector_hidden: torch.Tensor | None = None,
     ) -> int:
         if not self._v6i1_macro_enabled():
             return 0
@@ -1134,6 +1175,8 @@ class LatentStrategyState:
         self.macro_open_ctx[idx] = gs
         self.macro_open_z[idx] = z_idx.index_select(0, idx).detach().long()
         self.macro_open_log_prob[idx] = z_log_prob.index_select(0, idx).detach().float()
+        if selector_hidden is not None and self.macro_open_selector_hidden is not None:
+            self.macro_open_selector_hidden[idx] = selector_hidden.index_select(0, idx).detach()
         self.macro_has_open[idx] = True
         return int(idx.numel())
 
@@ -1181,6 +1224,7 @@ class LatentStrategyState:
         old_log_prob = torch.as_tensor(
             [float(r["z_logprob_old"]) for r in records], dtype=torch.float32, device=device
         )
+        selector_hidden = _stack_selector_hidden_records(records, device=device)
         macro_returns = torch.as_tensor(
             [float(r["macro_return"]) for r in records], dtype=torch.float32, device=device
         )
@@ -1210,14 +1254,16 @@ class LatentStrategyState:
         )
         opt = router_opt if router_opt is not None else trainer.optimizer
         for _ in range(n_epochs):
-            logits = trainer.model.strategy_logits(states)
+            logits = trainer.model.strategy_logits(states, selector_hidden=selector_hidden)
             dist = Categorical(logits=logits)
             new_log_prob = dist.log_prob(z)
             if trainer.model.episode_strategy_value_head is None:
                 baseline = torch.zeros_like(macro_returns)
                 v_z = baseline
             else:
-                v_z = trainer.model.episode_strategy_value(states, z)
+                v_z = trainer.model.episode_strategy_value(
+                    states, z, selector_hidden=selector_hidden
+                )
                 baseline = v_z.detach()
             adv = macro_returns - baseline
             if return_norm and adv.numel() > 1:
@@ -1425,6 +1471,7 @@ class LatentStrategyState:
         z_idx: torch.Tensor,
         z_log_prob: torch.Tensor,
         z_logits: torch.Tensor,
+        selector_hidden: torch.Tensor | None = None,
     ) -> None:
         """Snapshot the exact actor-controlling z at episode start for q_phi PPO credit."""
         trainer = self.trainer
@@ -1436,10 +1483,15 @@ class LatentStrategyState:
         self.episode_strategy_state[idx] = global_state.index_select(0, idx).detach()
         self.episode_strategy_z[idx] = z_idx.index_select(0, idx).detach()
         self.episode_strategy_log_prob[idx] = z_log_prob.index_select(0, idx).detach()
+        if selector_hidden is not None and self.episode_strategy_selector_hidden is not None:
+            self.episode_strategy_selector_hidden[idx] = selector_hidden.index_select(0, idx).detach()
         self.episode_strategy_probs[idx, : trainer.latent_k] = probs.index_select(0, idx)
         self.episode_strategy_bucket[idx] = buckets
         self.episode_strategy_has_start[idx] = True
         for row_i, env_i in enumerate(idx.detach().cpu().tolist()):
+            hidden_row = None
+            if self.episode_strategy_selector_hidden is not None:
+                hidden_row = self.episode_strategy_selector_hidden[int(env_i)]
             self.episode_strategy_recorder.record_start(
                 env_index=int(env_i),
                 episode_id=int(self.next_strategy_episode_id),
@@ -1448,6 +1500,7 @@ class LatentStrategyState:
                 z_logprob_old=z_log_prob[int(env_i)],
                 bucket_id=int(buckets[row_i].detach().cpu().item()),
                 q_phi_probs=probs[int(env_i), : trainer.latent_k].detach().cpu().tolist(),
+                selector_hidden_0=hidden_row,
             )
             self.next_strategy_episode_id += 1
 
@@ -1529,8 +1582,7 @@ class LatentStrategyState:
                 if opponent_ids is not None
                 else int(self.arc_open_opponent_id[env_i].detach().cpu().item())
             )
-            self.rollout_strategy_arc_records.append(
-                {
+            rec = {
                     "global_state_0": self.arc_open_ctx[env_i].detach().clone().cpu(),
                     "z": int(self.arc_open_z[env_i].detach().cpu().item()),
                     "z_logprob_old": float(self.arc_open_log_prob[env_i].detach().cpu().item()),
@@ -1540,7 +1592,11 @@ class LatentStrategyState:
                     "bucket_id": int(self.arc_open_bucket_id[env_i].detach().cpu().item()),
                     "reason": str(reason),
                 }
-            )
+            if self.arc_open_selector_hidden is not None:
+                rec["selector_hidden_0"] = (
+                    self.arc_open_selector_hidden[env_i].detach().clone().cpu()
+                )
+            self.rollout_strategy_arc_records.append(rec)
             pushed += 1
         # Mark the open-arc slot as closed for these envs. The arc_open_*
         # snapshots remain in place but ``arc_has_open`` going False means
@@ -1559,6 +1615,7 @@ class LatentStrategyState:
         z_idx: torch.Tensor,
         z_log_prob: torch.Tensor,
         opponent_ids: Optional[torch.Tensor] = None,
+        selector_hidden: torch.Tensor | None = None,
     ) -> int:
         """Snapshot a new arc start for each env in ``open_mask``.
 
@@ -1591,6 +1648,8 @@ class LatentStrategyState:
         self.arc_open_ctx[idx] = gs
         self.arc_open_z[idx] = z_idx.index_select(0, idx).detach().long()
         self.arc_open_log_prob[idx] = z_log_prob.index_select(0, idx).detach().float()
+        if selector_hidden is not None and self.arc_open_selector_hidden is not None:
+            self.arc_open_selector_hidden[idx] = selector_hidden.index_select(0, idx).detach()
         buckets = _strategy_experience_bucket_ids(gs).detach()
         self.arc_open_bucket_id[idx] = buckets
         if opponent_ids is not None:
@@ -1740,6 +1799,7 @@ class LatentStrategyState:
         arc_returns = torch.as_tensor(
             [float(r["arc_return"]) for r in records], dtype=torch.float32, device=device
         )
+        selector_hidden = _stack_selector_hidden_records(records, device=device)
         stats["latent_arc_count"] = float(arc_returns.numel())
 
         baseline_mode = str(
@@ -1784,7 +1844,7 @@ class LatentStrategyState:
         stats["latent_arc_credit_coef"] = coef
 
         for _ in range(n_epochs):
-            logits = trainer.model.strategy_logits(states)
+            logits = trainer.model.strategy_logits(states, selector_hidden=selector_hidden)
             dist = Categorical(logits=logits)
             new_log_prob = dist.log_prob(z)
             # q_phi posterior diagnostics: entropy + max-prob averaged over
@@ -1805,7 +1865,9 @@ class LatentStrategyState:
                     baseline = torch.zeros_like(arc_returns)
                     v_z = baseline
                 else:
-                    v_z = trainer.model.episode_strategy_value(states, z)
+                    v_z = trainer.model.episode_strategy_value(
+                        states, z, selector_hidden=selector_hidden
+                    )
                     baseline = v_z.detach()
 
             adv = arc_returns - baseline
@@ -2129,6 +2191,9 @@ class LatentStrategyState:
         z_idx = self.current_z.clone()
         persist_mask = resample_mask & (~self.needs_strategy_sample) & (~commit_now)
 
+        selector_hidden_pre = (
+            self.selector_hidden.clone() if self.selector_hidden is not None else None
+        )
         selector_hidden = self.selector_hidden
         if selector_hidden is not None:
             z_logits = trainer.model.strategy_logits(global_state, selector_hidden=selector_hidden)
@@ -2412,6 +2477,7 @@ class LatentStrategyState:
                 global_state=global_state,
                 z_idx=z_idx,
                 z_log_prob=z_log_prob,
+                selector_hidden=selector_hidden_pre,
             )
         macro_boundary_mask = resample_mask | (forced_active & episode_start_mask)
         if bool(macro_boundary_mask.any().item()):
@@ -2421,6 +2487,7 @@ class LatentStrategyState:
                 global_state=global_state,
                 z_idx=z_idx,
                 z_log_prob=z_log_prob,
+                selector_hidden=selector_hidden_pre,
             )
         if bool((resample_mask | (forced_active & episode_start_mask)).any().item()):
             if self.selector_hidden is not None:
@@ -2471,6 +2538,7 @@ class LatentStrategyState:
             z_idx=z_idx,
             z_log_prob=z_log_prob,
             z_logits=z_logits,
+            selector_hidden=selector_hidden_pre,
         )
 
         # Exclude step 0 from q_phi PPO training when warmup is active.
@@ -2493,6 +2561,8 @@ class LatentStrategyState:
             "z_persist_mask": persist_mask,
             "z_forced": forced_active,
         }
+        if selector_hidden_pre is not None:
+            aux["selector_hidden"] = selector_hidden_pre.detach().clone()
         return z_idx, prev_z, aux
 
     def mark_strategy_step_done(self, dones: np.ndarray) -> None:
@@ -2789,8 +2859,7 @@ class LatentStrategyState:
             self.rollout_strategy_episode_records.append(record)
             return
         probs = self.episode_strategy_probs[env_i, : trainer.latent_k].detach().cpu().tolist()
-        self.rollout_strategy_episode_records.append(
-            {
+        fallback: dict[str, Any] = {
                 "episode_id": int(trainer.episode_stats.episodes_completed),
                 "global_state_0": self.episode_strategy_state[env_i].detach().clone(),
                 "z": int(self.episode_strategy_z[env_i].detach().cpu().item()),
@@ -2801,7 +2870,11 @@ class LatentStrategyState:
                 "opponent_id": opponent_id,
                 "q_phi_probs": [float(x) for x in probs],
             }
-        )
+        if self.episode_strategy_selector_hidden is not None:
+            fallback["selector_hidden_0"] = (
+                self.episode_strategy_selector_hidden[env_i].detach().clone().cpu()
+            )
+        self.rollout_strategy_episode_records.append(fallback)
 
     def compute_competence_scores(self) -> tuple[np.ndarray, bool]:
         """Compute sigmoid competence scores for each latent."""
@@ -2966,7 +3039,8 @@ class LatentStrategyState:
             dtype=torch.long,
             device=device,
         )
-        return {
+        selector_hidden = _stack_selector_hidden_records(records, device=device)
+        batch = {
             "states": states,
             "z": z,
             "old_log_prob": old_log_prob,
@@ -2974,6 +3048,9 @@ class LatentStrategyState:
             "opponent_ids": opponent_ids,
             "bucket_ids": bucket_ids,
         }
+        if selector_hidden is not None:
+            batch["selector_hidden"] = selector_hidden
+        return batch
 
     def apply_episode_strategy_ppo(self, *, latent_lam_h: float) -> dict[str, float]:
         """Run inner-epoch PPO update(s) on q_phi using completed episode records.
@@ -3007,6 +3084,7 @@ class LatentStrategyState:
         episode_returns = batch["episode_returns"]
         opponent_ids = batch.get("opponent_ids")
         bucket_ids = batch.get("bucket_ids")
+        selector_hidden = batch.get("selector_hidden")
         stats["latent_episode_count"] = float(episode_returns.numel())
         train_after = max(
             0, int(getattr(trainer, "latent_q_phi_train_after_steps", 0) or 0)
@@ -3439,7 +3517,7 @@ class LatentStrategyState:
             "approx_kl": torch.zeros((), dtype=torch.float32, device=trainer.device),
             "clip_fraction": torch.zeros((), dtype=torch.float32, device=trainer.device),
         }
-        logits = trainer.model.strategy_logits(states)
+        logits = trainer.model.strategy_logits(states, selector_hidden=selector_hidden)
         episode_credit_grad_norm = 0.0
         usage_loss = torch.zeros((), dtype=torch.float32, device=trainer.device)
         usage_kl = torch.zeros((), dtype=torch.float32, device=trainer.device)
@@ -3461,10 +3539,12 @@ class LatentStrategyState:
         }
 
         for _ in range(n_inner_epochs):
-            logits = trainer.model.strategy_logits(states)
+            logits = trainer.model.strategy_logits(states, selector_hidden=selector_hidden)
             dist = Categorical(logits=logits)
             new_log_prob = dist.log_prob(z)
-            v_z = trainer.model.episode_strategy_value(states, z)
+            v_z = trainer.model.episode_strategy_value(
+                states, z, selector_hidden=selector_hidden
+            )
 
             # q_phi advantage baseline. Three modes, in priority order:
             #
@@ -3492,7 +3572,11 @@ class LatentStrategyState:
                 v_baseline = bucket_baseline_vector
             elif getattr(trainer.cfg, "latent_q_phi_marginal_baseline", False):
                 v_baseline = compute_z_marginal_strategy_value(
-                    trainer.model, states, trainer.latent_k, policy_weighted=False
+                    trainer.model,
+                    states,
+                    trainer.latent_k,
+                    policy_weighted=False,
+                    selector_hidden=selector_hidden,
                 )
             else:
                 v_baseline = v_z.detach()

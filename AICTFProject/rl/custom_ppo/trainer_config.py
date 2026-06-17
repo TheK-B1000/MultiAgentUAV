@@ -22,10 +22,10 @@ Backward compatibility:
       ``trainer.cfg`` for values that don't need pre-resolution (e.g.
       ``cfg.gamma``, ``cfg.gae_lambda``, ``cfg.max_grad_norm``,
       ``cfg.target_kl``, ``cfg.run_tag``).
-    * The trainer also keeps every ``self.<name>`` attribute it
-      historically exposed (``self.use_latent_strategy``,
-      ``self.latent_k``, etc.); they are now set from
-      ``self.hparams.<name>`` rather than from inline ``getattr`` reads.
+    * The trainer also keeps ``self.hparams`` as the single source of truth
+      for resolved hyperparameters; legacy ``trainer.<name>`` attribute reads
+      are forwarded from :attr:`hparams` via
+      :meth:`~rl.custom_ppo.trainer.CustomPPOTrainer.__getattr__`.
 """
 
 from __future__ import annotations
@@ -42,8 +42,9 @@ class TrainerHyperparams:
     """Immutable resolved trainer hyperparameters.
 
     Built once from the raw ``PPOConfig`` (or a cfg-dict) via
-    :meth:`from_ppo_config`. Trainer reads these and copies them onto its
-    historical ``self.<name>`` attributes for backward compatibility.
+    :meth:`from_ppo_config`. The trainer stores the result on
+    :attr:`~rl.custom_ppo.trainer.CustomPPOTrainer.hparams` and serves
+    legacy ``trainer.<name>`` reads through :meth:`~rl.custom_ppo.trainer.CustomPPOTrainer.__getattr__`.
 
     All fields are derived; nothing is owned by the trainer that mutates
     them (use ``trainer.global_step`` / ``trainer.last_stats`` / etc. for

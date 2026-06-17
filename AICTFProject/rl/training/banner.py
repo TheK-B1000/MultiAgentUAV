@@ -142,6 +142,13 @@ def print_training_banner(
     _print_metrics_csv_banner(cfg)
 
 
+def _episode_credit_training_active(cfg: PPOConfig) -> bool:
+    """True when the legacy episode-level q_phi objective can affect gradients."""
+    return bool(getattr(cfg, "latent_episode_strategy_ppo", False)) and float(
+        getattr(cfg, "latent_episode_strategy_coef", 0.0) or 0.0
+    ) > 0.0
+
+
 def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
     """Print the ``[PPO] Latent team strategy: enabled (...)`` line (and notes)."""
     interval = int(getattr(cfg, "latent_resample_every_n", 0) or 0)
@@ -191,9 +198,12 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
     h_obj = getattr(cfg, "latent_entropy_objective", "maximize") or "maximize"
     aux_head = bool(getattr(cfg, "latent_strategy_aux_return_head", False))
     episode_credit = bool(getattr(cfg, "latent_episode_strategy_ppo", False))
+    episode_credit_active = _episode_credit_training_active(cfg)
     ep_warmup = int(getattr(cfg, "latent_episode_strategy_warmup_decision_steps", 0) or 0)
     warmup_label = (
-        f", episode_warmup_steps={ep_warmup}" if episode_credit and ep_warmup > 0 else ""
+        f", episode_warmup_steps={ep_warmup}"
+        if episode_credit_active and ep_warmup > 0
+        else ""
     )
     print(
         "[PPO] Latent team strategy: enabled "
@@ -209,12 +219,12 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
         f"bootstrap_z_deterministic={bool(getattr(cfg, 'latent_bootstrap_z_deterministic', True))}"
         f"{fixed_label})"
     )
-    if episode_credit and ep_warmup > 0:
+    if episode_credit_active and ep_warmup > 0:
         print(
             f"[PPO] Episode-credit warmup: provisional z drives steps 0..{ep_warmup - 1}; "
             f"committed z + ctx170 snapshot taken at decision step {ep_warmup} (after EMAs see opponent dynamics)."
         )
-    if episode_credit and ep_warmup == 0:
+    if episode_credit_active and ep_warmup == 0:
         print(
             "[PPO] WARNING: episode_credit on with warmup_decision_steps=0; q_phi snapshot uses step-0 context "
             "(canonical initial geometry + zeroed EMAs => opponent-blind). MI(z; opponent) structurally bounded near zero."

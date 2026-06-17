@@ -18,6 +18,51 @@ from rl.latent_phase_labels import TEAM_PHASES
 from rl.networks import CNNEncoder, CentralizedCritic
 
 
+def _validate_indices(values: torch.Tensor, upper_bound: int, name: str) -> torch.Tensor:
+    """Validate categorical indices and raise on out-of-range values."""
+    if upper_bound <= 0:
+        raise ValueError(f"{name}: upper_bound must be positive, got {upper_bound}")
+    flat = values.long().reshape(-1)
+    if torch.any(flat < 0) or torch.any(flat >= upper_bound):
+        lo = int(flat.min().item())
+        hi = int(flat.max().item())
+        raise ValueError(
+            f"{name} must be in [0, {upper_bound - 1}], got range [{lo}, {hi}]"
+        )
+    return flat
+
+
+def _migrate_action_conditioned_critic_weights(
+    state_dict: Dict[str, Any],
+    *,
+    prefix: str,
+    global_state_dim: int,
+    joint_action_dim: int,
+    latent_k: int,
+) -> Dict[str, Any]:
+    """Drop joint-action columns from legacy action-conditioned critic checkpoints."""
+    if latent_k <= 0 or joint_action_dim <= 0:
+        return state_dict
+    key = prefix + "critic.net.0.weight"
+    if key not in state_dict:
+        return state_dict
+    weight = state_dict[key]
+    old_in = int(global_state_dim + joint_action_dim + latent_k)
+    new_in = int(global_state_dim + latent_k)
+    if int(weight.shape[1]) != old_in:
+        return state_dict
+    migrated = torch.cat(
+        [weight[:, :global_state_dim], weight[:, global_state_dim + joint_action_dim :]],
+        dim=1,
+    )
+    out = dict(state_dict)
+    out[key] = migrated
+    bias_key = prefix + "critic.net.0.bias"
+    if bias_key in out:
+        out[bias_key] = state_dict[bias_key]
+    return out
+
+
 # Legacy state-dict keys mapped to the new composed submodule paths under
 # ``latent_actor``. Pre-composition checkpoints stored these tensors directly
 # at the top of ``SharedActorCentralizedCritic``; the model now owns them via
@@ -103,8 +148,35 @@ def _migrate_legacy_aliased_strategy_modules(
     if not legacy_aux_keys:
         return out
     if has_canonical_encoder:
-        # New-layout checkpoint already has both heads; if the model expects no
-        # aux head we'd drop those keys below, but state_dict load handles that.
+        enc_first_key = enc_full_prefix + "net.0.weight"
+        aux_first_key = aux_full_prefix + "net.0.weight"
+        enc_weight = state_dict.get(enc_first_key)
+        aux_weight = state_dict.get(aux_first_key)
+        if not has_strategy_aux_return_head:
+            for k in legacy_aux_keys:
+                out.pop(k, None)
+        elif (
+            enc_weight is not None
+            and aux_weight is not None
+            and tuple(enc_weight.shape) != tuple(aux_weight.shape)
+        ):
+            for k in legacy_aux_keys:
+                out.pop(k, None)
+        return out
+
+    enc_first_key = enc_full_prefix + "net.0.weight"
+    aux_first_key = aux_full_prefix + "net.0.weight"
+    enc_weight = state_dict.get(enc_first_key)
+    aux_weight = state_dict.get(aux_first_key)
+    if (
+        enc_weight is not None
+        and aux_weight is not None
+        and tuple(enc_weight.shape) != tuple(aux_weight.shape)
+    ):
+        # Recurrent selector checkpoints need a wider encoder input than the
+        # legacy aux-only head; keep canonical encoder keys and drop aux aliases.
+        for k in legacy_aux_keys:
+            out.pop(k, None)
         return out
 
     # Mirror legacy aux-head weights into strategy_encoder so q_phi(z|s) is
@@ -273,14 +345,14 @@ class SharedActorCentralizedCritic(nn.Module):
             actor_z_film_layer=int(actor_z_film_layer),
             latent_actor_conditioning=latent_actor_conditioning,
         )
-        critic_extra_dim = self.joint_action_onehot_dim + self.latent_k if self.uses_latent_strategy else 0
+        critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
             global_state_dim=self.global_state_dim,
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
         )
         if self.use_episode_strategy_value_head:
-            episode_value_in = int(self.global_state_dim + self.latent_k)
+            episode_value_in = int(self.q_phi_input_dim + self.latent_k)
             self.episode_strategy_value_head = nn.Sequential(
                 nn.Linear(episode_value_in, int(critic_hidden_dim)),
                 nn.ReLU(),
@@ -293,7 +365,7 @@ class SharedActorCentralizedCritic(nn.Module):
         self.q_phi_input_dim = self._strategy_context_dim()
         self.critic_context_dim = int(self.critic.global_state_dim)
         self.critic_z_dim = int(self.latent_k) if self.uses_latent_strategy else 0
-        self.critic_joint_action_dim = int(self.joint_action_onehot_dim) if self.uses_latent_strategy else 0
+        self.critic_joint_action_dim = 0
         self.actor_input_dim = int(self._decentralized_actor_in_dim)
         self._assert_input_contracts()
         # Optional: separate ``torch.Generator`` streams so q_\phi(z|s) sampling does not advance
@@ -355,6 +427,13 @@ class SharedActorCentralizedCritic(nn.Module):
             has_strategy_encoder=self.strategy_encoder is not None,
             has_strategy_aux_return_head=self.strategy_aux_return_head is not None,
         )
+        migrated = _migrate_action_conditioned_critic_weights(
+            migrated,
+            prefix=prefix,
+            global_state_dim=int(self.global_state_dim),
+            joint_action_dim=int(self.joint_action_onehot_dim),
+            latent_k=int(self.latent_k),
+        )
         state_dict.clear()
         state_dict.update(migrated)
         return super()._load_from_state_dict(
@@ -388,41 +467,53 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
         if self.uses_latent_strategy:
             actor_expected += int(self.z_embed_dim) + int(self.z_onehot_dim)
-            assert int(self.global_state_dim) == int(CONTEXT_STATE_DIM), (
-                f"latent global_state_dim must be {CONTEXT_STATE_DIM}, got {self.global_state_dim}"
-            )
-            assert int(self.q_phi_input_dim) == int(CONTEXT_STATE_DIM), (
-                f"q_phi_input_dim must be {CONTEXT_STATE_DIM}, got {self.q_phi_input_dim}"
-            )
-            assert int(self.critic.global_state_dim) == int(CONTEXT_STATE_DIM), (
-                f"critic global_state_dim must be {CONTEXT_STATE_DIM}, got {self.critic.global_state_dim}"
-            )
-            assert int(self._decentralized_actor_in_dim) == actor_expected, f"latent actor input dim must be {actor_expected}, got {self._decentralized_actor_in_dim}"
-            expected_extra = int(self.joint_action_onehot_dim + self.latent_k)
-            assert int(self.critic.extra_dim) == expected_extra, (
-                f"critic extra_dim must be joint_action_onehot_dim + latent_k = {expected_extra}, got {self.critic.extra_dim}"
-            )
+            if int(self.global_state_dim) != int(CONTEXT_STATE_DIM):
+                raise ValueError(
+                    f"latent global_state_dim must be {CONTEXT_STATE_DIM}, got {self.global_state_dim}"
+                )
+            expected_q_phi_dim = int(CONTEXT_STATE_DIM)
+            if self.use_recurrent_selector:
+                expected_q_phi_dim += int(self.recurrent_selector_hidden_dim)
+            if int(self.q_phi_input_dim) != expected_q_phi_dim:
+                raise ValueError(
+                    f"q_phi_input_dim must be {expected_q_phi_dim}, got {self.q_phi_input_dim}"
+                )
+            if int(self.critic.global_state_dim) != int(CONTEXT_STATE_DIM):
+                raise ValueError(
+                    f"critic global_state_dim must be {CONTEXT_STATE_DIM}, got {self.critic.global_state_dim}"
+                )
+            if int(self._decentralized_actor_in_dim) != actor_expected:
+                raise ValueError(
+                    f"latent actor input dim must be {actor_expected}, got {self._decentralized_actor_in_dim}"
+                )
+            expected_extra = int(self.latent_k)
+            if int(self.critic.extra_dim) != expected_extra:
+                raise ValueError(
+                    f"critic extra_dim must be latent_k = {expected_extra}, got {self.critic.extra_dim}"
+                )
         else:
-            assert int(self.global_state_dim) == int(GLOBAL_STATE_DIM), (
-                f"no-latent global_state_dim must be {GLOBAL_STATE_DIM}, got {self.global_state_dim}"
-            )
-            assert int(self.critic.global_state_dim) == int(GLOBAL_STATE_DIM), (
-                f"no-latent critic global_state_dim must be {GLOBAL_STATE_DIM}, got {self.critic.global_state_dim}"
-            )
-            assert int(self._decentralized_actor_in_dim) == 148, f"no-latent actor input dim must be 148, got {self._decentralized_actor_in_dim}"
-            assert int(self.critic.extra_dim) == 0, f"no-latent critic extra_dim must be 0, got {self.critic.extra_dim}"
+            if int(self.global_state_dim) != int(GLOBAL_STATE_DIM):
+                raise ValueError(
+                    f"no-latent global_state_dim must be {GLOBAL_STATE_DIM}, got {self.global_state_dim}"
+                )
+            if int(self.critic.global_state_dim) != int(GLOBAL_STATE_DIM):
+                raise ValueError(
+                    f"no-latent critic global_state_dim must be {GLOBAL_STATE_DIM}, got {self.critic.global_state_dim}"
+                )
+            if int(self.critic.extra_dim) != 0:
+                raise ValueError(f"no-latent critic extra_dim must be 0, got {self.critic.extra_dim}")
 
         if int(self._decentralized_actor_in_dim) != actor_expected:
-            raise AssertionError(
+            raise ValueError(
                 f"actor_input_dim={self._decentralized_actor_in_dim} must equal local obs + z embedding width "
                 f"{actor_expected}"
             )
         first_actor = self.actor_body[0]
         if not isinstance(first_actor, nn.Linear) or int(first_actor.in_features) != actor_expected:
             got = getattr(first_actor, "in_features", None)
-            raise AssertionError(f"actor MLP first layer input {got} != decentralized actor input {actor_expected}")
+            raise ValueError(f"actor MLP first layer input {got} != decentralized actor input {actor_expected}")
         if int(self._decentralized_actor_in_dim) == int(CONTEXT_STATE_DIM):
-            raise AssertionError(
+            raise ValueError(
                 f"actor_input_dim={self._decentralized_actor_in_dim} equals temporal_context_dim={CONTEXT_STATE_DIM}; "
                 "actor must consume local obs + z embedding only, never the centralized temporal context."
             )
@@ -472,7 +563,7 @@ class SharedActorCentralizedCritic(nn.Module):
         selector_hidden: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.global_state_dim):
-            raise AssertionError(
+            raise ValueError(
                 f"q_phi expected context shape (B, {self.global_state_dim}), got {tuple(global_state.shape)}"
             )
         if self.strategy_encoder is None:
@@ -505,7 +596,33 @@ class SharedActorCentralizedCritic(nn.Module):
         if not self.uses_latent_strategy:
             raise RuntimeError("strategy_logits is only available when latent strategy is enabled.")
         logits, _ = self._forward_q_phi(global_state, selector_hidden)
-        return logits
+        return logits / self.strategy_tau
+
+    def _validate_z_idx(self, z_idx: torch.Tensor) -> torch.Tensor:
+        return _validate_indices(z_idx, self.latent_k, "z_idx")
+
+    def _build_selector_context(
+        self,
+        global_state: torch.Tensor,
+        selector_hidden: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        gs = global_state.float()
+        if gs.dim() != 2 or int(gs.shape[1]) != int(self.global_state_dim):
+            raise ValueError(
+                f"selector context expected global_state shape (B, {self.global_state_dim}), "
+                f"got {tuple(gs.shape)}"
+            )
+        if not self.use_recurrent_selector:
+            return gs
+        if selector_hidden is None:
+            raise ValueError("selector_hidden is required when the recurrent selector is enabled.")
+        hidden = selector_hidden.float()
+        expected_hidden = (int(gs.shape[0]), int(self.recurrent_selector_hidden_dim))
+        if tuple(hidden.shape) != expected_hidden:
+            raise ValueError(
+                f"selector_hidden must have shape {expected_hidden}, got {tuple(hidden.shape)}"
+            )
+        return torch.cat([gs, hidden], dim=-1)
 
     def strategy_aux_return_predictions(self, global_state: torch.Tensor) -> torch.Tensor:
         """A2 auxiliary: per-z scalar predictions from the shared trunk, shape ``(B, K)``.
@@ -520,19 +637,27 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         return self.strategy_aux_return_head(global_state.float())
 
-    def episode_strategy_value(self, global_state: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
-        """Episode-level baseline V_phi(s0, z) for PPO credit on q_phi's sampled strategy action."""
+    def episode_strategy_value(
+        self,
+        global_state: torch.Tensor,
+        z_idx: torch.Tensor,
+        *,
+        selector_hidden: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Episode-level baseline V_phi(context, z) for router PPO credit."""
         if not self.uses_latent_strategy or self.episode_strategy_value_head is None:
             raise RuntimeError("episode_strategy_value is only available for episode-level strategy PPO.")
-        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.q_phi_input_dim):
-            raise AssertionError(
-                f"episode strategy value expected context shape (B, {self.q_phi_input_dim}), got {tuple(global_state.shape)}"
+        context = self._build_selector_context(global_state, selector_hidden)
+        if context.dim() != 2 or int(context.shape[1]) != int(self.q_phi_input_dim):
+            raise ValueError(
+                f"episode strategy value expected context shape (B, {self.q_phi_input_dim}), "
+                f"got {tuple(context.shape)}"
             )
-        z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
-        if int(z.shape[0]) != int(global_state.shape[0]):
-            raise ValueError(f"z_idx must have shape ({int(global_state.shape[0])},), got {tuple(z_idx.shape)}")
-        z_one_hot = F.one_hot(z, num_classes=self.latent_k).to(dtype=torch.float32, device=global_state.device)
-        return self.episode_strategy_value_head(torch.cat([global_state.float(), z_one_hot], dim=-1)).squeeze(-1)
+        z = self._validate_z_idx(z_idx)
+        if int(z.shape[0]) != int(context.shape[0]):
+            raise ValueError(f"z_idx must have shape ({int(context.shape[0])},), got {tuple(z_idx.shape)}")
+        z_one_hot = F.one_hot(z, num_classes=self.latent_k).to(dtype=torch.float32, device=context.device)
+        return self.episode_strategy_value_head(torch.cat([context, z_one_hot], dim=-1)).squeeze(-1)
 
     def sample_strategy(
         self,
@@ -543,18 +668,21 @@ class SharedActorCentralizedCritic(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
         """Sample or greedily choose team strategy indices from ``q_phi(z | s)``."""
         logits, h_new = self._forward_q_phi(global_state, selector_hidden)
-        dist = Categorical(logits=logits)
+        tempered = logits / self.strategy_tau
+        dist = Categorical(logits=tempered)
         z_idx = self._categorical_argmax_or_sample(
             dist, deterministic=deterministic, generator=self._sampling_gen_strategy
         )
-        return z_idx.long(), dist.log_prob(z_idx), dist.entropy(), logits, h_new
+        return z_idx.long(), dist.log_prob(z_idx), dist.entropy(), tempered, h_new
 
     def phase_logits_from_strategy_logits(self, z_logits: torch.Tensor) -> torch.Tensor:
         """Predict team phase through q_phi's soft z distribution."""
         if not self.uses_latent_strategy or self.strategy_embedding is None or self.phase_predictor is None:
             raise RuntimeError("phase logits are only available when latent strategy is enabled.")
         if z_logits.dim() != 2 or int(z_logits.shape[1]) != int(self.latent_k):
-            raise AssertionError(f"phase predictor expected z logits shape (B, {self.latent_k}), got {tuple(z_logits.shape)}")
+            raise ValueError(
+                f"phase predictor expected z logits shape (B, {self.latent_k}), got {tuple(z_logits.shape)}"
+            )
         z_probs = torch.softmax(z_logits.float(), dim=-1)
         expected_z_emb = z_probs @ self.strategy_embedding.weight
         return self.phase_predictor(expected_z_emb)
@@ -605,7 +733,7 @@ class SharedActorCentralizedCritic(nn.Module):
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
-            z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+            z = self._validate_z_idx(z_idx)
             if z.shape[0] != batch:
                 raise ValueError(f"z_idx must have shape ({batch},), got {tuple(z_idx.shape)}")
             z_per_agent = z.unsqueeze(1).expand(batch, self.n_agents).reshape(batch * self.n_agents)
@@ -621,29 +749,23 @@ class SharedActorCentralizedCritic(nn.Module):
         actions = actions.long()
         if actions.dim() == 1:
             actions = actions.unsqueeze(0)
+        if actions.shape[1] != len(self.action_dims):
+            raise ValueError(
+                f"actions must have shape (B, {len(self.action_dims)}), got {tuple(actions.shape)}"
+            )
         chunks = []
         for col, dim in enumerate(self.action_dims):
-            action = actions[:, col].clamp(min=0, max=dim - 1)
-            chunks.append(F.one_hot(action, num_classes=dim).float())
+            action = _validate_indices(actions[:, col], int(dim), f"actions[:, {col}]")
+            chunks.append(F.one_hot(action, num_classes=int(dim)).float())
         return torch.cat(chunks, dim=-1)
 
-    def _critic_extra(self, actions: Optional[torch.Tensor], z_idx: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+    def _critic_extra(self, z_idx: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
         if not self.uses_latent_strategy:
             return None
-        assert z_idx is not None, "z_idx is required for critic conditioning in latent strategy mode"
-        if actions is None:
-            raise ValueError("actions are required by the latent action-conditioned **value** critic.")
-        z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
-        z_one_hot = F.one_hot(z, num_classes=self.latent_k).float()
-        extra = torch.cat([self._joint_action_one_hot(actions).to(z_one_hot.device), z_one_hot], dim=-1)
-        expected = int(self.joint_action_onehot_dim + self.latent_k)
-        if extra.dim() != 2 or int(extra.shape[1]) != expected:
-            raise AssertionError(f"critic extra must be joint_action_onehot + z_onehot width {expected}, got {tuple(extra.shape)}")
-        z_slice = extra[:, -self.latent_k :]
-        z_sum = z_slice.sum(dim=-1)
-        if int(z_slice.shape[1]) != int(self.latent_k) or not torch.allclose(z_sum, torch.ones_like(z_sum), atol=1e-6):
-            raise AssertionError("critic input is missing the terminal z one-hot slice")
-        return extra
+        if z_idx is None:
+            raise ValueError("z_idx is required for critic conditioning in latent strategy mode.")
+        z = self._validate_z_idx(z_idx)
+        return F.one_hot(z, num_classes=self.latent_k).float()
 
     def values(
         self,
@@ -651,12 +773,16 @@ class SharedActorCentralizedCritic(nn.Module):
         actions: Optional[torch.Tensor] = None,
         z_idx: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Return scalar :math:`V_\\phi(s,\\mathbf{a},z)` with shape ``(B,)`` (PPO/GAE target)."""
+        """Return scalar :math:`V_\\phi(s, z)` with shape ``(B,)`` (PPO/GAE baseline)."""
         if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.critic_context_dim):
-            raise AssertionError(
+            raise ValueError(
                 f"critic expected context shape (B, {self.critic_context_dim}), got {tuple(global_state.shape)}"
             )
-        return self.critic(global_state.float(), extra=self._critic_extra(actions, z_idx)).squeeze(-1)
+        if self.uses_latent_strategy and actions is not None:
+            raise ValueError(
+                "The PPO value critic is conditioned on z only; pass z_idx and omit actions."
+            )
+        return self.critic(global_state.float(), extra=self._critic_extra(z_idx)).squeeze(-1)
 
     def _mask_logits(self, logits: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
         if mask is None:
@@ -664,17 +790,19 @@ class SharedActorCentralizedCritic(nn.Module):
         if mask.dim() == 1:
             mask = mask.unsqueeze(0)
         mask = mask.float()
+        if mask.shape != logits.shape:
+            raise ValueError(
+                f"action mask must have shape {tuple(logits.shape)}, got {tuple(mask.shape)}"
+            )
         masked_chunks = []
         offset = 0
         for dim in self.action_dims:
             chunk = logits[:, offset : offset + dim]
             mask_chunk = mask[:, offset : offset + dim]
-            if mask_chunk.shape[1] < dim:
-                pad = torch.ones((mask.shape[0], dim - mask_chunk.shape[1]), device=mask.device)
-                mask_chunk = torch.cat([mask_chunk, pad], dim=1)
             all_invalid = mask_chunk.sum(dim=1, keepdim=True) <= 0.0
-            safe_mask = torch.where(all_invalid, torch.ones_like(mask_chunk), mask_chunk)
-            masked_chunks.append(chunk.masked_fill(safe_mask <= 0.0, -1e8))
+            if bool(all_invalid.any().item()):
+                raise ValueError("action mask has a head with no valid actions")
+            masked_chunks.append(chunk.masked_fill(mask_chunk <= 0.0, -1e8))
             offset += dim
         return torch.cat(masked_chunks, dim=1)
 
@@ -689,7 +817,7 @@ class SharedActorCentralizedCritic(nn.Module):
         log_probs = []
         entropies = []
         for col, dist in enumerate(self._categoricals(logits)):
-            action = actions[:, col].clamp(min=0, max=dist.logits.shape[1] - 1)
+            action = _validate_indices(actions[:, col], int(dist.logits.shape[1]), f"actions[:, {col}]")
             log_probs.append(dist.log_prob(action))
             entropies.append(dist.entropy())
         return torch.stack(log_probs, dim=0).sum(dim=0), torch.stack(entropies, dim=0).sum(dim=0)
@@ -704,7 +832,7 @@ class SharedActorCentralizedCritic(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily select actions and return values/log-probs/entropy."""
         if self.uses_latent_strategy and z_idx is None:
-            z_idx, _, _, _, _ = self.sample_strategy(global_state, deterministic=deterministic)
+            raise ValueError("Sample and provide z_idx before calling act() when latent strategy is enabled.")
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         actions = []
         g_act = self._sampling_gen_action
@@ -716,7 +844,7 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         action_tensor = torch.stack(actions, dim=1)
         log_prob, entropy = self._log_prob_entropy(logits, action_tensor)
-        values = self.values(global_state, actions=action_tensor, z_idx=z_idx)
+        values = self.values(global_state, z_idx=z_idx)
         return action_tensor, values, log_prob, entropy
 
     def evaluate_actions(
@@ -726,18 +854,27 @@ class SharedActorCentralizedCritic(nn.Module):
         actions: torch.Tensor,
         *,
         z_idx: Optional[torch.Tensor] = None,
+        selector_hidden: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Evaluate fixed actions under the current policy."""
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         log_prob, entropy = self._log_prob_entropy(logits, actions)
-        values = self.values(global_state, actions=actions, z_idx=z_idx)
+        values = self.values(global_state, z_idx=z_idx)
         aux: dict[str, torch.Tensor] = {}
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
-            z_logits = self.strategy_logits(global_state)
+            if self.use_recurrent_selector:
+                if selector_hidden is None:
+                    raise ValueError(
+                        "selector_hidden from rollout collection is required "
+                        "when evaluating recurrent strategy actions."
+                    )
+                z_logits = self.strategy_logits(global_state, selector_hidden=selector_hidden)
+            else:
+                z_logits = self.strategy_logits(global_state)
             z_dist = Categorical(logits=z_logits)
-            z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+            z = self._validate_z_idx(z_idx)
             aux["strategy_logits"] = z_logits
             aux["strategy_log_prob"] = z_dist.log_prob(z)
             aux["strategy_entropy"] = z_dist.entropy()

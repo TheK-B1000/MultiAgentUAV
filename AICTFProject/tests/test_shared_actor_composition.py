@@ -632,12 +632,10 @@ class LatentConditionedActorContractTests(unittest.TestCase):
             {"obs", "z_idx"},
         )
         actions = torch.zeros((4, len(model.action_dims)), dtype=torch.long)
-        critic_extra = model._critic_extra(
-            actions,
-            torch.arange(4, dtype=torch.long),
-        )
+        z_idx = torch.arange(4, dtype=torch.long)
+        critic_extra = model._critic_extra(z_idx)
         assert critic_extra is not None
-        torch.testing.assert_close(critic_extra[:, -4:], torch.eye(4))
+        torch.testing.assert_close(critic_extra, torch.eye(4))
 
         obs = _fixed_obs(batch=4)
         buffer = SimpleNamespace(

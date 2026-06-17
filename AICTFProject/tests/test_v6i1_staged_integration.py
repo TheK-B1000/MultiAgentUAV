@@ -27,6 +27,21 @@ from rl.custom_ppo.v6i1_phase_runtime import (
     resolve_v6i1_rollout_usage_coef,
 )
 from rl.presets import apply_preset
+from rl.training.banner import _episode_credit_training_active, _print_latent_strategy_banner
+
+
+def _actor_param_requires_grad(model: nn.Module) -> bool:
+    for name, param in model.named_parameters():
+        if "actor_cnn" in name or "latent_actor" in name:
+            return bool(param.requires_grad)
+    raise AssertionError("actor parameters not found")
+
+
+def _router_param_requires_grad(model: nn.Module) -> bool:
+    for name, param in model.named_parameters():
+        if "strategy_encoder" in name or "selector_gru" in name:
+            return bool(param.requires_grad)
+    raise AssertionError("router parameters not found")
 
 
 def _v6i1_smoke_cfg(*, observe_only: bool = True) -> PPOConfig:
@@ -64,11 +79,70 @@ class V6I1PresetTests(unittest.TestCase):
         self.assertTrue(cfg.curriculum_gate_run_boundary_eval)
         self.assertTrue(cfg.curriculum_gate_run_probe)
 
+    def test_production_preset_disables_legacy_episode_credit(self) -> None:
+        cfg = apply_preset(PPOConfig(), "v6i1")
+        self.assertFalse(cfg.latent_episode_strategy_ppo)
+        self.assertEqual(cfg.latent_episode_strategy_coef, 0.0)
+        self.assertEqual(cfg.latent_episode_strategy_warmup_decision_steps, 0)
+
     def test_repertoire_ablation_does_not_activate_staged_controller(self) -> None:
         cfg = apply_preset(PPOConfig(), "v6i1_repertoire_only_ablation")
         self.assertFalse(is_staged_v6i1_curriculum(cfg))
         self.assertEqual(cfg.training_mode, "repertoire_only_ablation")
         self.assertEqual(cfg.latent_forced_z_episode_frac_start, 1.0)
+
+
+class V6I1EpisodeCreditBannerTests(unittest.TestCase):
+    def test_v6i1_preset_does_not_emit_opponent_blind_warning(self) -> None:
+        import io
+        import contextlib
+
+        cfg = apply_preset(PPOConfig(), "v6i1")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _print_latent_strategy_banner(cfg)
+        out = buf.getvalue()
+        self.assertNotIn("MI(z; opponent) structurally bounded", out)
+
+    def test_episode_credit_warning_requires_nonzero_coef(self) -> None:
+        cfg = PPOConfig()
+        cfg.use_latent_strategy = True
+        cfg.latent_episode_strategy_ppo = True
+        cfg.latent_episode_strategy_coef = 0.0
+        self.assertFalse(_episode_credit_training_active(cfg))
+
+        cfg.latent_episode_strategy_coef = 0.30
+        self.assertTrue(_episode_credit_training_active(cfg))
+
+    def test_bookkeeping_flag_without_coef_does_not_warn(self) -> None:
+        import io
+        import contextlib
+
+        cfg = PPOConfig()
+        cfg.use_latent_strategy = True
+        cfg.latent_k = 4
+        cfg.latent_episode_strategy_ppo = True
+        cfg.latent_episode_strategy_coef = 0.0
+        cfg.latent_episode_strategy_warmup_decision_steps = 0
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _print_latent_strategy_banner(cfg)
+        self.assertNotIn("MI(z; opponent) structurally bounded", buf.getvalue())
+
+    def test_active_episode_credit_without_warmup_warns(self) -> None:
+        import io
+        import contextlib
+
+        cfg = PPOConfig()
+        cfg.use_latent_strategy = True
+        cfg.latent_k = 4
+        cfg.latent_episode_strategy_ppo = True
+        cfg.latent_episode_strategy_coef = 0.30
+        cfg.latent_episode_strategy_warmup_decision_steps = 0
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            _print_latent_strategy_banner(cfg)
+        self.assertIn("MI(z; opponent) structurally bounded", buf.getvalue())
 
 
 class V6I1ScheduleResolverTests(unittest.TestCase):
@@ -190,11 +264,11 @@ class V6I1TrainerSmokeTests(unittest.TestCase):
                     float(resolve_v6i1_cf_coef_current(trainer)),
                 )
                 if phase == "B":
-                    self.assertFalse(trainer.model.actor_cnn.weight.requires_grad)
-                    self.assertTrue(trainer.model.strategy_encoder.weight.requires_grad)
+                    self.assertFalse(_actor_param_requires_grad(trainer.model))
+                    self.assertTrue(_router_param_requires_grad(trainer.model))
                     self.assertGreater(float(stats.get("v6i1_usage_coef_current", 0.0)), 0.0)
                 if phase == "C":
-                    self.assertTrue(trainer.model.actor_cnn.weight.requires_grad)
+                    self.assertTrue(_actor_param_requires_grad(trainer.model))
                     self.assertAlmostEqual(
                         float(stats.get("v6i1_usage_coef_current", -1.0)),
                         float(resolve_v6i1_rollout_usage_coef(trainer)),

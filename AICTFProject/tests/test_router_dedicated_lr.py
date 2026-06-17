@@ -30,7 +30,7 @@ These tests pin:
    (the dedicated one when present, else the shared one). Pinned via
    source-text inspection -- the only safe way to assert this without
    instantiating a full trainer.
-5. The dedicated-optimizer init block in ``trainer.py`` is gated on
+5. The dedicated-optimizer build in ``trainer_optimizers.py`` is gated on
    ``latent_episode_strategy_lr is not None`` AND on the latent strategy being
    enabled (no surprise optimizer when latent is off or fixed_z is on).
 """
@@ -47,6 +47,9 @@ _LATENT_STATE_SRC = (_REPO_ROOT / "rl" / "custom_ppo" / "latent_strategy_state.p
     encoding="utf-8"
 )
 _TRAINER_SRC = (_REPO_ROOT / "rl" / "custom_ppo" / "trainer.py").read_text(encoding="utf-8")
+_OPTIMIZER_BUNDLE_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "trainer_optimizers.py"
+).read_text(encoding="utf-8")
 
 
 class V3cConfigDefaultsTests(unittest.TestCase):
@@ -266,50 +269,42 @@ class V3cTrainerInitTests(unittest.TestCase):
 
     def test_dedicated_optimizer_gated_on_lr_not_none(self):
         self.assertRegex(
-            _TRAINER_SRC,
-            r"if\s*\(\s*\n?\s*hparams\.latent_episode_strategy_lr\s+is\s+not\s+None",
+            _OPTIMIZER_BUNDLE_SRC,
+            r"if\s*\(\s*\n?\s*hparams\.latent_episode_strategy_lr\s+is\s+None",
             msg=(
-                "Trainer init must gate the dedicated optimizer on "
+                "TrainerOptimizerBundle must gate the dedicated router optimizer on "
                 "hparams.latent_episode_strategy_lr is not None."
             ),
         )
 
     def test_dedicated_optimizer_gated_on_latent_enabled(self):
-        # Two AND clauses: use_latent_strategy AND not fixed_latent_strategy.
-        # Without these guards, asking for a router LR while latent is off
-        # would crash on model.strategy_encoder == None.
         self.assertIn(
-            "hparams.use_latent_strategy", _TRAINER_SRC,
+            "hparams.use_latent_strategy", _OPTIMIZER_BUNDLE_SRC,
             msg="Dedicated optimizer init must guard on use_latent_strategy",
         )
         self.assertIn(
-            "not hparams.fixed_latent_strategy", _TRAINER_SRC,
+            "hparams.fixed_latent_strategy", _OPTIMIZER_BUNDLE_SRC,
             msg="Dedicated optimizer init must guard on not fixed_latent_strategy",
         )
 
     def test_dedicated_optimizer_targets_strategy_encoder_and_value_head(self):
-        # The two param groups that q_phi's loss can actually update.
-        # Excluding either silently leaves it stuck at the shared (slow) LR.
-        self.assertIn("strategy_encoder", _TRAINER_SRC)
-        self.assertIn("episode_strategy_value_head", _TRAINER_SRC)
-        # And the optimizer constructor must be AdamW (matches the analyst's
-        # spec: q_phi benefits from decoupled weight decay at high LRs).
+        self.assertIn("strategy_encoder", _OPTIMIZER_BUNDLE_SRC)
+        self.assertIn("episode_strategy_value_head", _OPTIMIZER_BUNDLE_SRC)
         self.assertRegex(
-            _TRAINER_SRC,
+            _OPTIMIZER_BUNDLE_SRC,
             r"torch\.optim\.AdamW\(\s*\n?\s*router_params",
             msg="Dedicated optimizer must be AdamW over the router params list",
         )
 
     def test_dedicated_optimizer_attribute_initialized_to_none(self):
-        # Even when LR is None, the attribute must exist (set to None) so the
-        # `getattr(trainer, "latent_router_optimizer", None)` lookup in
-        # apply_episode_strategy_ppo finds it without an AttributeError.
+        self.assertIn('"latent_router_optimizer"', _TRAINER_SRC)
+        self.assertIn("optimizers.latent_router_optimizer", _TRAINER_SRC)
         self.assertRegex(
-            _TRAINER_SRC,
-            r"self\.latent_router_optimizer\s*:\s*Optional\[\s*torch\.optim\.Optimizer\s*\]\s*=\s*None",
+            _OPTIMIZER_BUNDLE_SRC,
+            r"def\s+latent_router_optimizer\s*\(\s*self\s*\)\s*->",
             msg=(
-                "self.latent_router_optimizer must be declared (default None) "
-                "in trainer.__init__ so attribute lookup is always safe."
+                "TrainerOptimizerBundle.latent_router_optimizer must exist so "
+                "trainer.__getattr__ can forward legacy lookups safely."
             ),
         )
 

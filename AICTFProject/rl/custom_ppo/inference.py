@@ -505,7 +505,7 @@ class CustomPPOInferencePolicy:
                         or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
                     )
                     if needs_strategy:
-                        z_idx, _, z_ent, _ = self.model.sample_strategy(context_gs, deterministic=deterministic)
+                        z_idx, _, z_ent, _, _ = self.model.sample_strategy(context_gs, deterministic=deterministic)
                         self._prev_z = z_idx.detach()
                         self._strategy_age = 0
                     else:
@@ -551,7 +551,7 @@ class CustomPPOInferencePolicy:
                     global_state = self._global_state_tensor(batched, batch)
                     tracker = self._get_temporal_tracker(batch)
                     context_gs = tracker.get_current_context(global_state)
-                    z_idx, _, z_entropy, _ = self.model.sample_strategy(context_gs, deterministic=True)
+                    z_idx, _, z_entropy, _, _ = self.model.sample_strategy(context_gs, deterministic=True)
             logits = self.model._mask_logits(self.model.policy_logits(obs_t, z_idx=z_idx), obs_t.get("mask"))
             entropy = torch.stack([dist.entropy() for dist in self.model._categoricals(logits)], dim=0).sum(dim=0)
         return float((entropy + z_entropy).mean().detach().cpu().item())

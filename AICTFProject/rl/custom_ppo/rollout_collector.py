@@ -217,6 +217,10 @@ class RolloutCollector:
             if hparams.latent_kl_consecutive > 0.0:
                 buffer.register_field("z_logits_prev", (hparams.latent_k,))
                 buffer.register_field("z_kl_prev_valid")
+            if bool(getattr(self.model, "use_recurrent_selector", False)):
+                hidden_dim = int(getattr(self.model, "recurrent_selector_hidden_dim", 0) or 0)
+                if hidden_dim > 0:
+                    buffer.register_field("selector_hidden", (hidden_dim,))
         return buffer
 
     def z_for_bootstrap(
@@ -247,9 +251,16 @@ class RolloutCollector:
         if bool(resample_next.any().item()):
             idx = torch.where(resample_next)[0]
             gs_sub = next_context_gs_t.index_select(0, idx)
-            sampled_z, _, _, _ = self.model.sample_strategy(
+            hidden_sub = None
+            if bool(getattr(self.model, "use_recurrent_selector", False)):
+                selector_hidden = getattr(self.latent_state, "selector_hidden", None)
+                if selector_hidden is None:
+                    raise RuntimeError("recurrent selector bootstrap requires latent_state.selector_hidden")
+                hidden_sub = selector_hidden.index_select(0, idx)
+            sampled_z, _, _, _, _ = self.model.sample_strategy(
                 gs_sub,
                 deterministic=bool(hparams.latent_bootstrap_z_deterministic),
+                selector_hidden=hidden_sub,
             )
             z_next[idx] = sampled_z.long()
         return z_next

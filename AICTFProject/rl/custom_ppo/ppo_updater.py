@@ -61,8 +61,17 @@ if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
+_VALID_CURRICULUM_PHASES = frozenset({"A", "B", "C"})
+
+
 class StrictFaithfulDictWrapper(dict):
-    """Safeguard dict wrapper ensuring evaluation-only keys are never accessed in loss functions."""
+    """Block privileged obs keys from the forced-z actor separation path only.
+
+    ``phase_id`` is excluded here so separation cannot read deployment-hidden
+    labels through the actor observation dict. Phase-supervised router training
+    (``latent_strategy_aux_predict_phase_coef``) is a separate, explicitly
+    configured ablation that reads ``batch["phase_id"]`` directly.
+    """
     disallowed_keys = {
         "opponent_id", "phase_id", "phase", "outcome_id", "role_bucket_id",
         "spread_bucket_id", "pressure_bucket_id", "attack_defense_ratio_bucket_id",
@@ -101,8 +110,8 @@ def _populate_main_loop_qphi_telemetry(
         and not bool(getattr(hparams, "fixed_latent_strategy", False))
         and getattr(runtime, "latent_router_optimizer", None) is None
         and (
-            float(getattr(cfg, "latent_strategy_ppo_coef", 0.0) or 0.0) > 0.0
-            or float(getattr(cfg, "latent_lam_p", 0.0) or 0.0) > 0.0
+            float(getattr(hparams, "latent_strategy_ppo_coef", 0.0) or 0.0) > 0.0
+            or float(getattr(hparams, "latent_lam_p", 0.0) or 0.0) > 0.0
             or float(latent_lam_h or 0.0) > 0.0
             or float(getattr(hparams, "latent_kl_consecutive", 0.0) or 0.0) > 0.0
         )
@@ -179,6 +188,69 @@ def _z_separation_gate_mask(
     return mask
 
 
+def _extract_rollout_resample_subset(
+    buffer: TensorDictRolloutBuffer,
+    *,
+    require_selector_hidden: bool,
+) -> tuple[torch.Tensor | None, torch.Tensor | None, str | None]:
+    """Return rollout resample rows for the marginal-entropy objective."""
+    t_full = int(buffer.pos)
+    if t_full <= 0:
+        return None, None, "empty_rollout"
+    if "global_state" not in buffer.fields:
+        raise KeyError("rollout marginal entropy requires global_state in buffer.fields")
+    if "z_resampled" not in buffer.fields:
+        raise KeyError("rollout marginal entropy requires z_resampled in buffer.fields")
+
+    gs_full = buffer.fields["global_state"][:t_full]
+    gs_full = gs_full.reshape(t_full * buffer.n_envs, *gs_full.shape[2:])
+    rs_full = buffer.fields["z_resampled"][:t_full].reshape(-1).bool()
+    if rs_full.numel() != gs_full.shape[0]:
+        raise ValueError(
+            f"z_resampled length {rs_full.numel()} != global_state rows {gs_full.shape[0]}"
+        )
+    if not bool(rs_full.any()):
+        return None, None, "no_resample_rows"
+
+    states = gs_full[rs_full]
+    hidden: torch.Tensor | None = None
+    if require_selector_hidden:
+        if "selector_hidden" not in buffer.fields:
+            raise KeyError(
+                "recurrent selector rollout marginal entropy requires "
+                "selector_hidden in buffer.fields"
+            )
+        sh_full = buffer.fields["selector_hidden"][:t_full]
+        sh_full = sh_full.reshape(t_full * buffer.n_envs, *sh_full.shape[2:])
+        if sh_full.shape[0] != gs_full.shape[0]:
+            raise ValueError("selector_hidden rows misaligned with global_state")
+        hidden = sh_full[rs_full]
+    return states, hidden, None
+
+
+def _clip_global_grad_norm(model: torch.nn.Module, max_norm: float) -> float:
+    """Clip all parameters that currently have gradients (true global cap)."""
+    params = [p for p in model.parameters() if p.grad is not None]
+    if not params:
+        return 0.0
+    return float(torch.nn.utils.clip_grad_norm_(params, float(max_norm)))
+
+
+def _assert_finite_loss(total_loss: torch.Tensor, *, epoch_idx: int, mb_idx: int) -> None:
+    if not torch.isfinite(total_loss).all():
+        raise FloatingPointError(
+            f"Non-finite PPO loss at epoch={epoch_idx}, minibatch={mb_idx}"
+        )
+
+
+def _assert_finite_gradients(model: torch.nn.Module, *, epoch_idx: int, mb_idx: int) -> None:
+    for name, param in model.named_parameters():
+        if param.grad is not None and not torch.isfinite(param.grad).all():
+            raise FloatingPointError(
+                f"Non-finite gradient in {name} at epoch={epoch_idx}, minibatch={mb_idx}"
+            )
+
+
 def _policy_z_separation_loss(
     model: Any,
     obs_batch: dict[str, torch.Tensor],
@@ -187,8 +259,9 @@ def _policy_z_separation_loss(
     latent_k: int,
     margin: float,
     active_mask: torch.Tensor | None = None,
+    subsample_generator: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-    """Penalize identical action distributions under forced z values using average pairwise JSD."""
+    """Penalize collapsed z policies via per-pair JSD hinge (hinge before averaging)."""
     if int(latent_k) <= 1 or z_idx.numel() <= 0:
         zero = torch.zeros((), dtype=torch.float32, device=z_idx.device)
         return zero, {"jsd": zero, "active": zero}
@@ -223,7 +296,9 @@ def _policy_z_separation_loss(
     # Cap batch size for JSD computation to avoid CUDA memory pressure/OOM
     max_jsd_rows = 512
     if batch_size > max_jsd_rows:
-        indices = torch.randperm(batch_size, device=device)[:max_jsd_rows]
+        indices = torch.randperm(
+            batch_size, device=device, generator=subsample_generator
+        )[:max_jsd_rows]
         obs_sub = {}
         for k, v in obs_batch.items():
             if isinstance(v, torch.Tensor) and v.shape[0] == batch_size:
@@ -243,7 +318,7 @@ def _policy_z_separation_loss(
         logits_k = model._mask_logits(model.policy_logits(obs_sub, z_idx=z_k), obs_sub.get("mask"))
         logits_list.append(logits_k)
 
-    js_terms: list[torch.Tensor] = []
+    all_pairwise_js: list[torch.Tensor] = []
     offset = 0
     for _agent_idx in range(int(model.n_agents)):
         for dim in model.per_agent_action_dims:
@@ -256,31 +331,41 @@ def _policy_z_separation_loss(
                 p_k = torch.softmax(a_k, dim=-1).clamp_min(1e-8)
                 p_list.append(p_k)
 
-            # Compute all pairwise JS divergences
-            pairwise_js = []
-            for i in range(latent_k):
-                for j in range(i + 1, latent_k):
-                    p_i = p_list[i]
-                    p_j = p_list[j]
-                    m = 0.5 * (p_i + p_j)
-                    js = 0.5 * (p_i * (p_i.log() - m.log())).sum(dim=-1)
-                    js = js + 0.5 * (p_j * (p_j.log() - m.log())).sum(dim=-1)
-                    pairwise_js.append(js)
-
-            if pairwise_js:
-                js_terms.append(torch.stack(pairwise_js, dim=0).mean(dim=0))
+            # Compute all pairwise JS divergences via broadcasting over (K, K).
+            p_stacked = torch.stack(p_list, dim=0)  # (K, batch, width)
+            p_i = p_stacked.unsqueeze(1)
+            p_j = p_stacked.unsqueeze(0)
+            m = 0.5 * (p_i + p_j)
+            kl_i = (p_i * (p_i.log() - m.log())).sum(dim=-1)
+            kl_j = (p_j * (p_j.log() - m.log())).sum(dim=-1)
+            js_matrix = 0.5 * kl_i + 0.5 * kl_j
+            pair_i, pair_j = torch.triu_indices(int(latent_k), int(latent_k), offset=1, device=device)
+            pairwise_js = js_matrix[pair_i, pair_j]
+            if pairwise_js.numel() > 0:
+                all_pairwise_js.append(pairwise_js)
             offset += width
 
-    if not js_terms:
+    if not all_pairwise_js:
         zero = torch.zeros((), dtype=torch.float32, device=z_idx.device)
-        return zero, {"jsd": zero, "active": zero}
+        return zero, {"jsd": zero, "min_jsd": zero, "active": zero}
 
-    jsd = torch.stack(js_terms, dim=0).mean()
-    loss = F.relu(jsd.new_tensor(float(max(0.0, margin))) - jsd)
-    return loss, {"jsd": jsd.detach(), "active": active_fraction.detach()}
+    stacked = torch.cat(all_pairwise_js, dim=0)
+    margin_t = stacked.new_tensor(float(max(0.0, margin)))
+    per_pair_penalty = F.relu(margin_t - stacked)
+    loss = per_pair_penalty.mean()
+    jsd = stacked.mean()
+    return loss, {
+        "jsd": jsd.detach(),
+        "min_jsd": stacked.min().detach(),
+        "active": active_fraction.detach(),
+    }
 
 
 def set_model_requires_grad_for_phase(model: Any, phase: str) -> None:
+    if phase not in _VALID_CURRICULUM_PHASES:
+        raise ValueError(
+            f"Unknown training phase {phase!r}; expected one of {sorted(_VALID_CURRICULUM_PHASES)}"
+        )
     # Actor parameters: actor_cnn and latent_actor
     # Critic parameters: critic and episode_strategy_value_head
     # Router parameters: strategy_encoder, strategy_aux_return_head, phase_predictor
@@ -308,8 +393,6 @@ def set_model_requires_grad_for_phase(model: Any, phase: str) -> None:
             elif is_critic:
                 p.requires_grad = True
             elif is_router:
-                p.requires_grad = True
-            elif "selector_gru" in name:
                 p.requires_grad = True
         elif phase == "C":
             if is_actor:
@@ -352,6 +435,9 @@ class PPOUpdater:
         self.latent_state = latent_state
         self.runtime = runtime
         self.cf_grad_ratio_violations = 0
+        seed = int(getattr(cfg, "seed", 0) or 0) + 31_337
+        self._z_separation_generator = torch.Generator(device=device)
+        self._z_separation_generator.manual_seed(seed)
 
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
         """Return the current latent entropy coefficient for this rollout."""
@@ -407,8 +493,10 @@ class PPOUpdater:
         sep_ramp = int(getattr(hparams, "latent_actor_z_separation_ramp_steps", 0) or 0)
         step = int(runtime.global_step)
         curriculum = getattr(runtime, "v6i1_curriculum", None)
+        phase_key = "__legacy__"
         if curriculum is not None:
-            set_model_requires_grad_for_phase(self.model, curriculum.resolve_phase(step))
+            phase_key = str(curriculum.resolve_phase(step))
+            set_model_requires_grad_for_phase(self.model, phase_key)
         if is_v6i1_staged_trainer(runtime):
             curr_sep_coef = float(resolve_v6i1_cf_coef_current(runtime))
         else:
@@ -441,6 +529,8 @@ class PPOUpdater:
 
         _update_strategy_return_stats(runtime, buffer)
 
+        zero_scalar = torch.zeros((), dtype=torch.float32, device=device)
+
         stats: dict[str, list[float]] = {
             "policy_loss": [],
             "value_loss": [],
@@ -472,6 +562,7 @@ class PPOUpdater:
             "latent_actor_z_separation_loss": [],
             "latent_actor_z_separation_jsd": [],
             "latent_actor_z_separation_active": [],
+            "latent_actor_z_separation_train_active": [],
         }
         for _k_idx in range(int(hparams.latent_k)):
             stats[f"router_rollout_soft_p_bar_z{_k_idx}"] = []
@@ -506,20 +597,16 @@ class PPOUpdater:
         )
         rollout_marginal_coef = float(latent_lam_h if v6i1_usage_coef <= 0.0 else v6i1_usage_coef)
         rollout_resample_states_full: torch.Tensor | None = None
+        rollout_resample_hidden_full: torch.Tensor | None = None
+        rollout_marginal_skip_reason: str | None = None
         if apply_rollout_marginal:
-            try:
-                T_full = int(buffer.pos)
-                if T_full > 0 and "global_state" in buffer.fields and "z_resampled" in buffer.fields:
-                    gs_full = buffer.fields["global_state"][:T_full]
-                    gs_full = gs_full.reshape(
-                        T_full * buffer.n_envs, *gs_full.shape[2:]
-                    )
-                    rs_full = buffer.fields["z_resampled"][:T_full]
-                    rs_full = rs_full.reshape(-1).bool()
-                    if rs_full.numel() == gs_full.shape[0] and bool(rs_full.any()):
-                        rollout_resample_states_full = gs_full[rs_full]
-            except Exception:
-                rollout_resample_states_full = None
+            require_hidden = bool(getattr(self.model, "use_recurrent_selector", False))
+            rollout_resample_states_full, rollout_resample_hidden_full, rollout_marginal_skip_reason = (
+                _extract_rollout_resample_subset(
+                    buffer,
+                    require_selector_hidden=require_hidden,
+                )
+            )
         # Most-recent rollout-level diagnostics from the current PPO update.
         # Computed once per epoch (when apply_rollout_marginal is True);
         # forward-filled into every minibatch row's CSV so analysis keeps a
@@ -529,6 +616,9 @@ class PPOUpdater:
         last_rollout_soft_diag: dict[str, float] = {}
         stop_update = False
         target_kl = getattr(cfg, "target_kl", None)
+        strategy_target_kl = getattr(cfg, "strategy_target_kl", None)
+        if strategy_target_kl is None:
+            strategy_target_kl = target_kl
         model = self.model
         for _epoch_idx in range(hparams.n_epochs):
             # Once-per-epoch rollout-level marginal-entropy forward+loss for v5i6.
@@ -550,7 +640,13 @@ class PPOUpdater:
             #   gradient is computed against current parameters.
             rollout_marginal_loss_for_epoch: torch.Tensor | None = None
             if apply_rollout_marginal and rollout_resample_states_full is not None:
-                rollout_logits = model.strategy_logits(rollout_resample_states_full)
+                if bool(getattr(model, "use_recurrent_selector", False)):
+                    rollout_logits = model.strategy_logits(
+                        rollout_resample_states_full,
+                        selector_hidden=rollout_resample_hidden_full,
+                    )
+                else:
+                    rollout_logits = model.strategy_logits(rollout_resample_states_full)
                 rml, rml_stats = _latent_rollout_marginal_entropy_loss(
                     rollout_logits,
                     objective="maximize" if v6i1_usage_coef > 0.0 else h_goal_global,
@@ -574,22 +670,36 @@ class PPOUpdater:
                     "mask": batch["obs_mask"],
                 }
                 z_idx = batch["z"] if hparams.use_latent_strategy else None
+                if (
+                    hparams.use_latent_strategy
+                    and bool(getattr(model, "use_recurrent_selector", False))
+                ):
+                    if "selector_hidden" not in batch:
+                        raise KeyError(
+                            "selector_hidden missing from rollout buffer; required for "
+                            "recurrent strategy PPO replay"
+                        )
+                    selector_hidden = batch["selector_hidden"]
+                else:
+                    selector_hidden = None
                 values_norm, action_log_prob, entropy, aux = model.evaluate_actions(
                     obs_batch,
                     batch["global_state"],
                     batch["actions"],
                     z_idx=z_idx,
+                    selector_hidden=selector_hidden,
                 )
                 advantages = batch["advantages"]
                 if advantages.numel() > 1:
                     advantages = (advantages - advantages.mean()) / (
                         advantages.std(unbiased=False) + 1e-8
                     )
-                z_sep_loss = torch.zeros((), dtype=torch.float32, device=device)
+                z_sep_loss = zero_scalar
                 z_sep_stats = {
-                    "jsd": torch.zeros((), dtype=torch.float32, device=device),
-                    "active": torch.zeros((), dtype=torch.float32, device=device),
+                    "jsd": zero_scalar,
+                    "active": zero_scalar,
                 }
+                z_sep_train_active = 0.0
 
                 if hparams.use_latent_strategy:
                     resample = batch["z_resampled"].bool()
@@ -614,9 +724,7 @@ class PPOUpdater:
                         # to optimize. Suppress here; the true loss is
                         # added to the first minibatch's latent_loss
                         # below.
-                        strategy_entropy_loss = torch.zeros(
-                            (), dtype=torch.float32, device=device
-                        )
+                        strategy_entropy_loss = zero_scalar
                         entropy_mode_stats = {
                             "strategy_marginal_entropy_nats": 0.0,
                             "strategy_marginal_entropy_kl": 0.0,
@@ -667,7 +775,7 @@ class PPOUpdater:
                         getattr(runtime, "latent_router_optimizer", None) is not None
                     )
                     apply_main_loop_qphi_loss = (
-                        float(getattr(cfg, "latent_strategy_ppo_coef", 0.1) or 0.0) > 0.0
+                        float(hparams.latent_strategy_ppo_coef or 0.0) > 0.0
                         and not has_dedicated_router_opt
                         and not v6i1_macro_router_active(runtime)
                     )
@@ -718,7 +826,7 @@ class PPOUpdater:
                     ):
                         strategy_marginal_entropy_loss_value = float(
                             last_rollout_marginal_stats.get("rollout_marginal_entropy_kl", 0.0)
-                        ) * float(latent_lam_h)
+                        ) * float(rollout_marginal_coef)
                         strategy_marginal_entropy_nats_value = float(
                             last_rollout_marginal_stats.get("rollout_marginal_entropy_nats", 0.0)
                         )
@@ -750,7 +858,7 @@ class PPOUpdater:
                         latent_loss = latent_loss + rollout_marginal_loss_for_epoch
                     if hparams.latent_kl_consecutive > 0.0:
                         kl_loss, kl_stats = _latent_strategy_kl_consecutive_loss(
-                            batch["z_logits"],
+                            aux["strategy_logits"],
                             batch["z_logits_prev"],
                             batch["z_kl_prev_valid"],
                             coef=float(hparams.latent_kl_consecutive),
@@ -762,6 +870,7 @@ class PPOUpdater:
                     else:
                         stats["strategy_kl"].append(0.0)
                     if hparams.latent_strategy_aux_predict_phase_coef > 0.0:
+                        # Explicit ablation: privileged phase labels supervise q_phi.
                         phase_logits = model.phase_logits_from_strategy_logits(
                             aux["strategy_logits"]
                         )
@@ -780,12 +889,13 @@ class PPOUpdater:
                     if hparams.fixed_latent_strategy:
                         strategy_entropy = torch.zeros_like(entropy)
                         persist_loss_value = 0.0
-                        latent_loss = torch.zeros((), dtype=torch.float32, device=device)
+                        latent_loss = zero_scalar
                         strategy_marginal_entropy_loss_value = 0.0
                         strategy_marginal_entropy_nats_value = 0.0
                         strategy_marginal_entropy_kl_value = 0.0
                     if (
                         curr_sep_coef > 0.0
+                        and phase_key != "B"
                         and not hparams.fixed_latent_strategy
                         and z_idx is not None
                     ):
@@ -843,13 +953,15 @@ class PPOUpdater:
                                 or 0.0
                             ),
                             active_mask=separation_gate,
+                            subsample_generator=self._z_separation_generator,
                         )
+                        z_sep_train_active = 1.0
                         latent_loss = latent_loss + curr_sep_coef * z_sep_loss
                 else:
                     log_prob = action_log_prob
                     strategy_entropy = torch.zeros_like(entropy)
                     persist_loss_value = 0.0
-                    latent_loss = torch.zeros((), dtype=torch.float32, device=device)
+                    latent_loss = zero_scalar
                     resample = torch.zeros_like(entropy, dtype=torch.bool)
                     strategy_marginal_entropy_loss_value = 0.0
                     strategy_marginal_entropy_nats_value = 0.0
@@ -878,7 +990,7 @@ class PPOUpdater:
                     # production path always populates this key.
                     strategy_policy_loss = strategy_ppo_stats.pop(
                         "policy_loss",
-                        torch.zeros((), dtype=torch.float32, device=device),
+                        zero_scalar,
                     )
                     # ``apply_main_loop_qphi_loss`` is computed above and already
                     # incorporates the dedicated-router-optimizer safeguard.
@@ -923,11 +1035,11 @@ class PPOUpdater:
                                 strategy_aux_return_loss_value = 0.0
                             latent_loss = latent_loss + aux_return_loss_scaled
                 else:
-                    strategy_policy_loss = torch.zeros((), dtype=torch.float32, device=device)
+                    strategy_policy_loss = zero_scalar
                     strategy_aux_return_loss_value = 0.0
                     strategy_ppo_stats = {
-                        "approx_kl": torch.zeros((), dtype=torch.float32, device=device),
-                        "clip_fraction": torch.zeros((), dtype=torch.float32, device=device),
+                        "approx_kl": zero_scalar,
+                        "clip_fraction": zero_scalar,
                         "ratio": torch.ones((1,), dtype=torch.float32, device=device),
                     }
                 policy_loss, ppo_stats = ppo_policy_loss(
@@ -949,15 +1061,14 @@ class PPOUpdater:
                     runtime.actor_optimizer.zero_grad(set_to_none=True)
                     runtime.critic_optimizer.zero_grad(set_to_none=True)
                     runtime.router_optimizer.zero_grad(set_to_none=True)
-                    actor_loss = policy_loss + ent_coef * entropy_loss
-                    critic_loss = hparams.vf_coef * value_loss
+                    total_loss = hparams.vf_coef * value_loss
                     if phase != "B":
-                        actor_loss.backward(retain_graph=True)
-                    critic_loss.backward(retain_graph=True)
-                    if phase in ("B", "C") and float(latent_loss.detach().cpu().item() or 0.0) != 0.0:
-                        latent_loss.backward()
-                    elif phase in ("B", "C") and latent_loss.requires_grad:
-                        latent_loss.backward()
+                        total_loss = total_loss + policy_loss + ent_coef * entropy_loss
+                    if latent_loss.requires_grad:
+                        total_loss = total_loss + latent_loss
+                    _assert_finite_loss(total_loss, epoch_idx=_epoch_idx, mb_idx=_mb_idx)
+                    total_loss.backward()
+                    _assert_finite_gradients(model, epoch_idx=_epoch_idx, mb_idx=_mb_idx)
                     strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
                     v6i1_grads = step_v6i1_optimizers(
                         runtime,
@@ -974,23 +1085,11 @@ class PPOUpdater:
                     )
                 else:
                     self.optimizer.zero_grad(set_to_none=True)
+                    _assert_finite_loss(loss, epoch_idx=_epoch_idx, mb_idx=_mb_idx)
                     loss.backward()
+                    _assert_finite_gradients(model, epoch_idx=_epoch_idx, mb_idx=_mb_idx)
                     strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
-                    policy_router_params = [
-                        p for name, p in model.named_parameters()
-                        if p.requires_grad and not ("critic" in name or "value" in name)
-                    ]
-                    value_params = [
-                        p for name, p in model.named_parameters()
-                        if p.requires_grad and ("critic" in name or "value" in name)
-                    ]
-                    grad_norm_policy = torch.nn.utils.clip_grad_norm_(
-                        policy_router_params, float(cfg.max_grad_norm)
-                    )
-                    grad_norm_value = torch.nn.utils.clip_grad_norm_(
-                        value_params, float(cfg.max_grad_norm)
-                    )
-                    grad_norm = max(float(grad_norm_policy), float(grad_norm_value))
+                    grad_norm = _clip_global_grad_norm(model, float(cfg.max_grad_norm))
                     self.optimizer.step()
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
@@ -1081,7 +1180,16 @@ class PPOUpdater:
                 stats["latent_actor_z_separation_active"].append(
                     float(z_sep_stats["active"].detach().cpu().item())
                 )
-                if target_kl is not None and approx_kl_value > 1.5 * float(target_kl):
+                stats["latent_actor_z_separation_train_active"].append(float(z_sep_train_active))
+                strategy_kl_value = float(strategy_ppo_stats["approx_kl"].detach().cpu().item())
+                stop_for_action = (
+                    target_kl is not None and approx_kl_value > 1.5 * float(target_kl)
+                )
+                stop_for_strategy = (
+                    strategy_target_kl is not None
+                    and strategy_kl_value > 1.5 * float(strategy_target_kl)
+                )
+                if stop_for_action or stop_for_strategy:
                     stop_update = True
                     break
             if stop_update:
@@ -1189,6 +1297,13 @@ class PPOUpdater:
             runtime.last_stats.update(v6i1_lr_stats)
         if v6i1_usage_coef > 0.0:
             runtime.last_stats["v6i1_rollout_usage_coef"] = float(v6i1_usage_coef)
+        runtime.last_stats["rollout_marginal_active"] = (
+            1.0 if apply_rollout_marginal and rollout_resample_states_full is not None else 0.0
+        )
+        if rollout_marginal_skip_reason is not None:
+            runtime.last_stats["rollout_marginal_skip_reason"] = float(
+                {"empty_rollout": 1.0, "no_resample_rows": 2.0}.get(rollout_marginal_skip_reason, 0.0)
+            )
         _populate_main_loop_qphi_telemetry(
             runtime.last_stats,
             cfg=cfg,

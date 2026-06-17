@@ -61,8 +61,8 @@ class E3BaselineParityTests(unittest.TestCase):
         self.assertEqual(m0.critic.extra_dim, 0, "No-latent critic: global state only (no joint/z extra)")
         self.assertEqual(
             m_l.critic.extra_dim,
-            m_l.joint_action_onehot_dim + k,
-            "Latent critic extra = joint action one-hots + z one-hot (K)",
+            k,
+            "Latent critic extra = z one-hot (K) only; PPO baseline is V(s, z)",
         )
 
     def test_same_optimizer_hyperparam_surface(self) -> None:

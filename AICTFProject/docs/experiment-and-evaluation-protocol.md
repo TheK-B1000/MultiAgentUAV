@@ -124,6 +124,7 @@ Before pressing enter on any latent training launch:
 | Summer-faithful split-lane row      | `v5i7`                      | Inherits v5i5 and changes only `map_layout = "map_b_split_lane"` plus `run_tag`; compare only to split-lane matched controls.        |
 | Summer-faithful split-lane v2 task-pressure row | `v5i8` | Inherits v5i7 and changes only `map_layout = "map_b_split_lane_v2"` plus `run_tag`; compare only to split-lane-v2 matched controls. |
 | CSIA guided specialization extension | `v5i9` | Inherits v5i8 and adds detached CSIA reward from forced-z evidence. Not a Summer-faithful row; compare against v5i8 with matched seed/map/opponents. |
+| v6i1 staged curriculum (when launched) | `v6i1` | Repertoire-before-routing; evaluate per §6.8. Headline requires `G_available > 0` and `G_realized > 0`, not occupancy alone. |
 | Literal-strict ablation             | `v5_strict_summer`           | Same launch flags. Tag will carry `_2m_4v4` (historical); pass `--run-tag` to override.                                              |
 | No-latent baseline (matched control)| `no_latent_v4i3_baseline`    | Same launch flags. `use_latent_strategy = False`. Tag is budget-agnostic.                                                            |
 | Arc-credit row                      | `v4i3_summer_proof`          | Same launch flags. Tag is budget-agnostic; preset is `SUMMER-COMPATIBLE EXTENSION`, **not** literal paper-faithful (arc-credit ON).  |
@@ -306,11 +307,14 @@ return_contrast = max_z(R) - min_z(R)
 per `(opponent, seed)`, where `R` is the mean undiscounted episode
 return for each forced `z`. Thresholds (per the v4i1 design):
 
-* `return_contrast < 0.05`: the environment does not care about
-  strategy. Escalate to environment v2 before claiming the latent
-  helps.
-* `return_contrast >= 0.10`: different `z` choices create different
-  outcomes. Proceed to routing-quality comparison (§4.2).
+* `return_contrast < 0.05`: under the current checkpoint and evaluation
+  design, forced `z` produces little measurable return spread. This does
+  **not** by itself prove the bare MDP lacks latent opportunity — see
+  §6.8 for the full decomposition. Escalate environment or repertoire
+  probes before claiming the latent helps.
+* `return_contrast >= 0.10`: different `z` choices create measurably
+  different outcomes in the learned policy family. Proceed to routing-
+  quality comparison (§4.2) and the specialization ledger (§6.8).
 
 Pass `--watch` to poll a checkpoint directory and append rolling
 contrast estimates as new checkpoints arrive.
@@ -435,6 +439,162 @@ python tools/summer_proof_report.py `
 for the completed in-flight v5i4 run; see
 [`latent-preset-registry.md`](latent-preset-registry.md) §7.1.)
 
+### 6.8 v6i1 latent specialization evaluation hierarchy
+
+This section is the **owning interpretation** for whether a latent router
+result demonstrates context-dependent strategic value. It applies to
+v6i1 and to any headline claim that the learned router specializes
+across contexts.
+
+**Do not** equate occupancy entropy, marginal balance, or "all four latents
+were used" with specialization. The headline requires evidence that
+routing is strategically valuable, not merely diverse.
+
+#### 6.8.1 What forced-z actually measures
+
+Forced-z evaluation estimates the **learned** latent return surface:
+
+```text
+Q_theta(s, z) = E[ R | s, do(Z=z), pi_theta ]
+```
+
+It is the joint result of task opportunity, the learned repertoire
+`pi_theta(·|o,z)`, evaluation design, and statistical power. It does
+**not** isolate the bare MDP.
+
+Observed crossover depends jointly on those factors:
+
+```text
+observed crossover = f(task opportunity, learned repertoire,
+                     evaluation design, statistical power)
+```
+
+This is **conceptual**, not an additive variance decomposition. Perfect
+evaluation cannot reveal an opportunity the repertoire never instantiated.
+
+Phase A (v6i1 repertoire-before-routing) primarily targets the
+**repertoire** term. Phase B/C ask whether the router can harvest
+crossover that the learned family already exhibits.
+
+#### 6.8.2 Evidence levels (evaluate in order)
+
+| Level | Question | Primary evidence |
+|-------|----------|------------------|
+| **1. Controllability** | Does `do(Z=z_i) ≠ do(Z=z_j)` change behavior? | Matched-seed behavioral distances, route/lane/role telemetry, pairwise JSD or policy-level separation |
+| **2. Competence** | Are all `z` usable, not one good policy plus broken curiosities? | Minimum forced-z return/WR gates, no catastrophic latent, within-latent stability |
+| **3. Comparative advantage** | Are different `z` preferable in different observable contexts? | Pairwise advantage sign reversals, different `argmax_z M[o,z]` across slices, reliable opponent×latent interaction, `Delta_specialization > 0` |
+| **4. Router utilization** | Does `q_phi` exploit available advantage? | Routing-gain ledger (§6.8.3): beat random **and** beat best constant `z` |
+
+**Level 3 nuance.** Non-rank-1 opponent×latent payoff matrices and
+nonzero centered advantages are **not** sufficient for crossover. A matrix
+can have interaction yet share the same best `z` for every opponent.
+Stronger evidence is **preference reversal**, e.g.
+
+```text
+argmax_z M[o1, z] ≠ argmax_z M[o2, z]
+```
+
+or sign reversal for some pair `(z_i, z_j)`:
+
+```text
+M[o1, zi] - M[o1, zj] > 0   while   M[o2, zi] - M[o2, zj] < 0
+```
+
+Use `M[o,z] = E[Return | opponent=o, do(Z=z)]` from forced-z evaluation
+(§6.4a), not natural-router correlation. Centered advantages
+`A[o,z] = M[o,z] - mean_z M[o,*] - mean_o M[*,z] + mean M` remove
+global opponent difficulty and globally strong latents but still require
+slice-level preference checks.
+
+#### 6.8.3 Specialization gain and routing ledger
+
+**Available specialization gain** (context-conditioned oracle vs best
+constant latent), weighted by the evaluation opponent distribution
+`p_eval(o)`:
+
+```text
+Delta_specialization
+  = sum_o p_eval(o) * max_z M[o,z]
+    - max_z sum_o p_eval(o) * M[o,z]
+```
+
+`Delta_specialization >= 0` always (the oracle can imitate the best
+constant `z`). It measures gain available from conditioning on the
+chosen context slice **among the evaluated learned policies**.
+
+For the locked uniform `(OP5, OP6, OP7)` protocol, `p_eval(o) = 1/3`
+and this reduces to the unweighted mean over opponents.
+
+Map return metrics to the ledger (all on the **same** evaluation
+distribution):
+
+| Symbol | Definition | Question answered |
+|--------|------------|-------------------|
+| `G_available` | `J(q_oracle) - J(z_global-best)` | Is there anything useful to route over? |
+| `G_realized` | `J(q_phi) - J(z_global-best)` | Does learned routing beat the best fixed `z`? |
+| `G_random` | `J(q_phi) - J(q_random)` | Does learned routing beat uninformed selection? |
+| `G_oracle-gap` | `J(q_oracle) - J(q_phi)` | How much exploitable value is left on the table? |
+
+Identity:
+
+```text
+G_available = G_realized + G_oracle-gap
+```
+
+Repository CSV columns `routing_gain`, `router_oracle_gap`, and related
+oracle fields should be reported against this ledger. Beating random
+alone (`G_random > 0`) is weak evidence of context dependence; a router
+that always picks the globally strongest latent can satisfy that without
+specializing.
+
+**Interpretation guard.** `G_oracle-gap ≈ 0` means little measurable
+return advantage from switching `z` among **learned** policies under the
+eval distribution. It does **not** prove the task lacks specialization
+potential (identical per-`z` policies, Phase A failure, coarse slicing,
+within-episode crossover, variance, or undiscovered alternatives are all
+consistent with a small gap).
+
+#### 6.8.4 Diagnostic table (repertoire × crossover × router)
+
+| Repertoire | Crossover in learned Q_theta | Router outcome | Interpretation |
+|------------|------------------------------|----------------|----------------|
+| No | Unknown | Collapses | Phase A / representation failure |
+| Yes | No | Collapses | Rational collapse under current repertoire |
+| Yes | Yes | Collapses | Router, credit, observability, or optimization failure |
+| Yes | Yes | Beats random only | May identify global-best `z` without context dependence |
+| Yes | Yes | `G_realized > 0` | Genuine context-dependent routing value |
+| Yes | Yes | Near oracle (`G_oracle-gap ≈ 0`) | Strong end-to-end latent result |
+
+#### 6.8.5 Canonical decision logic and headline claim
+
+1. **No controllability** — actor did not create meaningful
+   latent-conditioned behaviors.
+2. **Controllability, poor competence** — `z` affects behavior but some
+   options are unusable.
+3. **Competent repertoire, no available routing gain** —
+   `Delta_specialization ≈ 0`; rational constant-`z` behavior.
+4. **Available gain, no realized gain** — `G_available > 0` but
+   `G_realized ≈ 0`; router/observability/credit/optimization failure.
+5. **Positive realized gain** — `G_realized > 0`; genuine
+   context-dependent routing over the best constant `z`.
+6. **Router near oracle** — `G_oracle-gap ≈ 0` with positive
+   `G_realized`; strong Summer latent result.
+
+**Headline claim** (supported by Levels 1–2 evidence):
+
+```text
+G_available > 0   AND   G_realized > 0
+```
+
+Entropy and usage regularization do not create comparative advantage;
+they only preserve access to latent options while learning searches the
+task–policy combination. The testable target is:
+
+```text
+The learned repertoire exhibits observable, statistically reliable
+context-dependent crossover; the router harvests part of that crossover.
+```
+
 ---
 
 ## 7. Audit-banner and trainer-side invariants
@@ -503,6 +663,7 @@ Before producing any table cell or claim from a comparison:
 * [ ] Paired-bootstrap 95% CI on Δ for every comparison.
 * [ ] OP5 tuning tag recorded in the table caption.
 * [ ] Multi-seed: ≥ 3 seeds for any headline row.
+* [ ] v6i1 / specialization claims: Levels 1–2 pass and `G_available > 0`, `G_realized > 0` per §6.8.
 * [ ] Resolved-config diff between the two rows attached to the comparison (so a reviewer can see what *did* change).
 
 ---

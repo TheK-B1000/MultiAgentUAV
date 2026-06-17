@@ -101,7 +101,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
             "mask": torch.ones(3, 110),
         }
         global_state = torch.rand(3, CONTEXT_STATE_DIM)
-        z, z_log_prob, z_entropy, z_logits = model.sample_strategy(global_state)
+        z, z_log_prob, z_entropy, z_logits, _ = model.sample_strategy(global_state)
         actions, values, action_log_prob, action_entropy = model.act(obs, global_state, z_idx=z)
 
         self.assertEqual(tuple(z.shape), (3,))
@@ -117,13 +117,56 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         self.assertEqual(tuple(eval_values.shape), (3,))
         self.assertEqual(tuple(eval_log_prob.shape), (3,))
         self.assertIn("strategy_log_prob", aux)
-        extra = model._critic_extra(actions, z)
-        self.assertEqual(tuple(extra[:, -4:].shape), (3, 4))
-        self.assertTrue(torch.allclose(extra[:, -4:].sum(dim=-1), torch.ones(3)))
-        with self.assertRaisesRegex(AssertionError, "critic expected context"):
+        extra = model._critic_extra(z)
+        self.assertEqual(tuple(extra.shape), (3, 4))
+        self.assertTrue(torch.allclose(extra.sum(dim=-1), torch.ones(3)))
+        with self.assertRaisesRegex(ValueError, "critic expected context"):
             model.values(torch.rand(3, GLOBAL_STATE_DIM), actions=actions, z_idx=z)
-        with self.assertRaisesRegex(AssertionError, "q_phi expected context"):
+        with self.assertRaisesRegex(ValueError, "q_phi expected context"):
             model.sample_strategy(torch.rand(3, GLOBAL_STATE_DIM))
+
+    def test_strategy_tau_scales_router_categorical(self) -> None:
+        obs_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
+            }
+        )
+        action_space = spaces.MultiDiscrete([5, 50, 5, 50])
+        cold = SharedActorCentralizedCritic(
+            obs_space, action_space, latent_k=4, z_embed_dim=16, strategy_tau=1.0
+        )
+        hot = SharedActorCentralizedCritic(
+            obs_space, action_space, latent_k=4, z_embed_dim=16, strategy_tau=2.0
+        )
+        hot.load_state_dict(cold.state_dict())
+        global_state = torch.rand(5, CONTEXT_STATE_DIM)
+        probs_cold = torch.softmax(cold.strategy_logits(global_state), dim=-1)
+        probs_hot = torch.softmax(hot.strategy_logits(global_state), dim=-1)
+        self.assertFalse(torch.allclose(probs_cold, probs_hot, atol=1e-6))
+
+    def test_act_requires_caller_sampled_z(self) -> None:
+        obs_space = spaces.Dict(
+            {
+                "grid": spaces.Box(low=0.0, high=1.0, shape=(2, 7, 20, 20), dtype=np.float32),
+                "vec": spaces.Box(low=-1.0, high=1.0, shape=(2, VEC_OBS_DIM), dtype=np.float32),
+                "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+                "mask": spaces.Box(low=0.0, high=1.0, shape=(110,), dtype=np.float32),
+            }
+        )
+        action_space = spaces.MultiDiscrete([5, 50, 5, 50])
+        model = SharedActorCentralizedCritic(obs_space, action_space, latent_k=4, z_embed_dim=16)
+        obs = {
+            "grid": torch.rand(2, 2, 7, 20, 20),
+            "vec": torch.rand(2, 2, VEC_OBS_DIM),
+            "agent_mask": torch.ones(2, 2),
+            "mask": torch.ones(2, 110),
+        }
+        global_state = torch.rand(2, CONTEXT_STATE_DIM)
+        with self.assertRaisesRegex(ValueError, "provide z_idx"):
+            model.act(obs, global_state)
 
     def test_phase_aux_loss_backpropagates_into_q_phi(self):
         obs_space = spaces.Dict(
@@ -268,7 +311,7 @@ class LatentStrategyAlignmentTests(unittest.TestCase):
         original_q_phi = model.q_phi_input_dim
         try:
             model.q_phi_input_dim = 94
-            with self.assertRaises(AssertionError):
+            with self.assertRaises(ValueError):
                 model._assert_input_contracts()
         finally:
             model.q_phi_input_dim = original_q_phi

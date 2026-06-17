@@ -56,8 +56,8 @@ from the preset name.
 
 | # | Field / property                                  | Required value                                                                              |
 |---|---------------------------------------------------|----------------------------------------------------------------------------------------------|
-| R17 | critic input                                     | `concat(temporal_context, joint_action_onehot, z_onehot)` when latent is on                  |
-| R18 | critic is scalar `V_φ(s, a, z)`                  | not a counterfactual `Q(s, a', z)` (see `rl/networks.py::CentralizedCritic`)                 |
+| R17 | critic input                                     | `concat(temporal_context, z_onehot)` when latent is on (`extra_dim = latent_k`)              |
+| R18 | critic is scalar `V_φ(s, z)`                     | not action-conditioned `Q(s, a, z)` and not a counterfactual `Q(s, a', z)` (see `rl/networks.py::CentralizedCritic`) |
 
 ### 1.5 Regularizers
 
@@ -229,8 +229,9 @@ tests that confirm:
 3. **Actor uses embedding concatenation.** `enable_actor_z_film == False`,
    adapter / one-hot off, actor input width matches the field formula
    in R14.
-4. **Critic receives global state, joint actions, and `z`.** Critic
-   `extra_dim = joint_action_onehot_dim + latent_k`.
+4. **Critic receives global state and `z` only (PPO baseline).** Critic
+   `extra_dim = latent_k`; joint-action conditioning is forbidden on the
+   step-level PPO value head.
 5. **Strategy PPO coefficient is positive.** `latent_strategy_ppo_coef > 0`.
 6. **Task-derived strategy advantages produce a nonzero router policy
    gradient** (cf.

@@ -7,6 +7,7 @@ from typing import Any, Optional
 import torch
 
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
+from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
 from rl.custom_ppo.schedules import (
     resolve_v6i1_cf_coef,
     resolve_v6i1_exploration_epsilon,
@@ -111,24 +112,17 @@ def _collect_params(model: torch.nn.Module, name_parts: tuple[str, ...]) -> list
 
 def build_v6i1_optimizers(trainer: Any, *, base_lr: float) -> None:
     """Attach actor / critic / router optimizers for staged V6I1 training."""
-    model = trainer.model
-    router_lr = float(
-        getattr(trainer.cfg, "v6i1_router_lr", None)
-        or getattr(trainer, "latent_episode_strategy_lr", None)
-        or 5e-3
+    bundle = TrainerOptimizerBundle._build_v6i1(
+        model=trainer.model,
+        cfg=trainer.cfg,
+        hparams=trainer.hparams,
+        base_lr=float(base_lr),
     )
-    actor_params = _collect_params(model, actor_param_names())
-    critic_params = _collect_params(model, critic_param_names())
-    router_params = _collect_params(model, router_param_names())
-    if not actor_params or not critic_params or not router_params:
-        raise RuntimeError("V6I1 three-optimizer setup requires actor, critic, and router parameters.")
+    trainer.optimizers = bundle
 
-    trainer.actor_optimizer = torch.optim.Adam(actor_params, lr=float(base_lr), eps=1e-5)
-    trainer.critic_optimizer = torch.optim.Adam(critic_params, lr=float(base_lr), eps=1e-5)
-    trainer.router_optimizer = torch.optim.AdamW(router_params, lr=router_lr, eps=1e-5)
-    trainer.latent_router_optimizer = trainer.router_optimizer
-    trainer.optimizer = trainer.actor_optimizer
-    trainer.v6i1_three_optimizer_mode = True
+
+def _optimizer_bundle(trainer: Any) -> TrainerOptimizerBundle:
+    return trainer.optimizers
 
 
 def apply_v6i1_learning_rates(
@@ -138,7 +132,8 @@ def apply_v6i1_learning_rates(
     progress_remaining: float,
 ) -> dict[str, float]:
     """Set per-phase learning rates on the three V6I1 optimizers."""
-    if not getattr(trainer, "v6i1_three_optimizer_mode", False):
+    bundle = _optimizer_bundle(trainer)
+    if not bundle.v6i1_three_optimizer_mode:
         return {"actor_lr": float(base_lr), "critic_lr": float(base_lr), "router_lr": 0.0}
 
     phase, _, _, _ = v6i1_schedule_context(trainer)
@@ -146,16 +141,16 @@ def apply_v6i1_learning_rates(
     scaled = float(base_lr) * max(float(progress_remaining), lr_floor_frac)
     actor_lr = scaled
     critic_lr = scaled
-    router_lr = float(trainer.router_optimizer.param_groups[0]["lr"])
+    router_lr = float(bundle.router.param_groups[0]["lr"]) if bundle.router is not None else 0.0
     if phase == "C":
         actor_frac = float(getattr(trainer.cfg, "v6i1_phase_c_actor_lr_frac", 0.05) or 0.05)
         actor_lr = scaled * actor_frac
     elif phase == "B":
         actor_lr = 0.0
 
-    for group in trainer.actor_optimizer.param_groups:
+    for group in bundle.actor.param_groups:
         group["lr"] = actor_lr
-    for group in trainer.critic_optimizer.param_groups:
+    for group in bundle.critic.param_groups:
         group["lr"] = critic_lr
     return {"actor_lr": actor_lr, "critic_lr": critic_lr, "router_lr": router_lr}
 
@@ -170,31 +165,32 @@ def step_v6i1_optimizers(
     max_grad_norm: float,
 ) -> dict[str, float]:
     """Clip and step the three optimizers independently."""
+    bundle = _optimizer_bundle(trainer)
     grad_norms: dict[str, float] = {"actor_grad_norm": 0.0, "critic_grad_norm": 0.0, "router_grad_norm": 0.0}
     if actor_step and phase != "B":
         grad_norms["actor_grad_norm"] = float(
             torch.nn.utils.clip_grad_norm_(
-                [p for p in trainer.actor_optimizer.param_groups[0]["params"] if p.grad is not None],
+                [p for p in bundle.actor.param_groups[0]["params"] if p.grad is not None],
                 max_grad_norm,
             )
         )
-        trainer.actor_optimizer.step()
+        bundle.actor.step()
     if critic_step:
         grad_norms["critic_grad_norm"] = float(
             torch.nn.utils.clip_grad_norm_(
-                [p for p in trainer.critic_optimizer.param_groups[0]["params"] if p.grad is not None],
+                [p for p in bundle.critic.param_groups[0]["params"] if p.grad is not None],
                 max_grad_norm,
             )
         )
-        trainer.critic_optimizer.step()
-    if router_step and phase in ("B", "C"):
+        bundle.critic.step()
+    if router_step and phase in ("B", "C") and bundle.router is not None:
         grad_norms["router_grad_norm"] = float(
             torch.nn.utils.clip_grad_norm_(
-                [p for p in trainer.router_optimizer.param_groups[0]["params"] if p.grad is not None],
+                [p for p in bundle.router.param_groups[0]["params"] if p.grad is not None],
                 max_grad_norm,
             )
         )
-        trainer.router_optimizer.step()
+        bundle.router.step()
     return grad_norms
 
 

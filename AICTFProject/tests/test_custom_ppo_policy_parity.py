@@ -98,23 +98,19 @@ def _ref_policy_logits(
     return model.actor_head(hidden).reshape(batch, model.n_agents * model.per_agent_logits)
 
 
-def _ref_critic_extra(model: SharedActorCentralizedCritic, actions: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
-    chunks = []
-    for col, dim in enumerate(model.action_dims):
-        action = actions[:, col].long().clamp(min=0, max=int(dim) - 1)
-        chunks.append(F.one_hot(action, num_classes=int(dim)).float())
-    z = z_idx.long().reshape(-1).clamp(min=0, max=model.latent_k - 1)
-    chunks.append(F.one_hot(z, num_classes=model.latent_k).float())
-    return torch.cat(chunks, dim=-1)
+def _ref_critic_extra(model: SharedActorCentralizedCritic, z_idx: torch.Tensor) -> torch.Tensor:
+    z = z_idx.long().reshape(-1)
+    if torch.any(z < 0) or torch.any(z >= model.latent_k):
+        raise ValueError("z_idx out of range")
+    return F.one_hot(z, num_classes=model.latent_k).float()
 
 
 def _ref_values(
     model: SharedActorCentralizedCritic,
     global_state: torch.Tensor,
-    actions: torch.Tensor,
     z_idx: torch.Tensor,
 ) -> torch.Tensor:
-    return model.critic(global_state.float(), extra=_ref_critic_extra(model, actions, z_idx)).squeeze(-1)
+    return model.critic(global_state.float(), extra=_ref_critic_extra(model, z_idx)).squeeze(-1)
 
 
 def _write_fixed_checkpoint(path: Path) -> SharedActorCentralizedCritic:
@@ -189,11 +185,11 @@ class CustomPpoPolicyParityTests(unittest.TestCase):
                 production_masked = loaded_model._mask_logits(production_logits, obs["mask"])
                 reference_masked = loaded_model._mask_logits(reference_logits, obs["mask"])
 
-                original_values = original_model.values(global_state, actions=actions, z_idx=z_idx)
-                production_values = loaded_model.values(global_state, actions=actions, z_idx=z_idx)
-                reference_values = _ref_values(loaded_model, global_state, actions, z_idx)
+                original_values = original_model.values(global_state, z_idx=z_idx)
+                production_values = loaded_model.values(global_state, z_idx=z_idx)
+                reference_values = _ref_values(loaded_model, global_state, z_idx)
 
-                production_z, production_z_log_prob, production_z_entropy, production_z_logits = (
+                production_z, production_z_log_prob, production_z_entropy, production_z_logits, _ = (
                     loaded_model.sample_strategy(global_state, deterministic=True)
                 )
                 reference_z_logits = loaded_model.strategy_encoder(global_state.float())

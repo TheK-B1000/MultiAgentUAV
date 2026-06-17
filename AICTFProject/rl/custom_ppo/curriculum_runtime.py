@@ -1,9 +1,61 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import partial
+from types import SimpleNamespace
 from typing import Any, Optional
+
 import numpy as np
 
 from rl.curriculum import phase_from_tag
+
+
+@dataclass
+class TrainingOpponentPool:
+    """Training-time scripted opponent pool sampler (OPPONENT_POOL mode)."""
+
+    enabled: bool
+    tags: list[str]
+    weights: Optional[list[float]]
+    rng: np.random.Generator
+
+    @classmethod
+    def from_hparams(cls, cfg: Any, hparams: Any) -> TrainingOpponentPool:
+        tags = list(hparams.opponent_pool_tags)
+        weights = list(hparams.opponent_pool_weights) if hparams.opponent_pool_weights else None
+        if weights is not None and len(weights) != len(tags):
+            raise ValueError(
+                f"opponent_pool_weights length {len(weights)} does not match "
+                f"opponent_pool_tags length {len(tags)}."
+            )
+        if bool(hparams.opponent_randomize_training) and not tags:
+            raise ValueError(
+                "Opponent pool training (mode=OPPONENT_POOL or opponent_randomize) requires a non-empty "
+                "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
+            )
+        return cls(
+            enabled=bool(hparams.opponent_randomize_training),
+            tags=tags,
+            weights=weights,
+            rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 901),
+        )
+
+    def attach_before_reset_hook(self, env: Any, trainer: Any) -> None:
+        if not self.enabled:
+            return
+        env._before_reset_indices_hook = partial(_hook_sample_training_opponent_before_reset, trainer)
+
+
+def _resolve_training_opponent_pool(trainer: Any) -> Any:
+    pool = getattr(trainer, "opponent_pool", None)
+    if pool is not None:
+        return pool
+    return SimpleNamespace(
+        enabled=bool(getattr(trainer, "_opponent_randomize_training", False)),
+        tags=list(getattr(trainer, "_opponent_pool_tags", []) or []),
+        weights=getattr(trainer, "_opponent_pool_weights", None),
+        rng=getattr(trainer, "_rng_opponent", None),
+    )
 
 
 def _set_curriculum_opponent(trainer: Any, phase: str, env_index: Optional[int] = None) -> None:
@@ -50,16 +102,19 @@ def _update_curriculum_after_episode(
 
 def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, infos: list) -> None:
     """Sample the *next* episode's scripted opponent per finished sub-env (GPUCTFVecEnv hook)."""
-    if trainer.curriculum is not None or not trainer._opponent_randomize_training:
+    if trainer.curriculum is not None:
         return
-    weights = getattr(trainer, "_opponent_pool_weights", None)
+    pool = _resolve_training_opponent_pool(trainer)
+    if not pool.enabled:
+        return
+    weights = pool.weights
     for env_i, done_i in enumerate(done):
         if not bool(done_i):
             continue
         if weights is not None:
-            tag = str(trainer._rng_opponent.choice(trainer._opponent_pool_tags, p=weights)).upper()
+            tag = str(pool.rng.choice(pool.tags, p=weights)).upper()
         else:
-            tag = str(trainer._rng_opponent.choice(trainer._opponent_pool_tags)).upper()
+            tag = str(pool.rng.choice(pool.tags)).upper()
         phase_s = phase_from_tag(tag)
         try:
             trainer.env.env_method("set_next_opponent", "SCRIPTED", tag, indices=[env_i])

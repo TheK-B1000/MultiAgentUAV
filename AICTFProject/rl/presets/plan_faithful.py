@@ -2100,6 +2100,10 @@ def apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(
     Forced-z fraction, CF coefficient, usage KL, and exploration epsilon are
     resolved at runtime from ``resolve_v6i1_*`` schedules — do not set the v5i3
     ``latent_forced_z_anneal_*`` fields on this preset.
+
+    Phase B/C selector learning uses the macro-router path only
+    (``apply_macro_strategy_ppo``). Legacy episode-level strategy PPO stays
+    off so q_phi is not trained through two overlapping credit channels.
     """
     cfg = apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure(cfg)
 
@@ -2112,7 +2116,9 @@ def apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(
     cfg.curriculum_gate_run_probe = True
     cfg.curriculum_nominal_timesteps = int(cfg.total_timesteps)
     cfg.latent_cf_coef_max = 0.01
-    cfg.latent_episode_strategy_ppo = True
+    cfg.latent_episode_strategy_ppo = False
+    cfg.latent_episode_strategy_coef = 0.0
+    cfg.latent_episode_strategy_warmup_decision_steps = 0
     cfg.latent_episode_strategy_lr = None
     cfg.latent_usage_balance_coef = 0.0
     cfg.latent_actor_z_separation_coef = 0.0

@@ -47,7 +47,13 @@ class _TinyModel(nn.Module):
     def strategy_logits(self, global_state: torch.Tensor, *, selector_hidden=None) -> torch.Tensor:
         return self.strategy_encoder(global_state)
 
-    def episode_strategy_value(self, global_state: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
+    def episode_strategy_value(
+        self,
+        global_state: torch.Tensor,
+        z_idx: torch.Tensor,
+        *,
+        selector_hidden=None,
+    ) -> torch.Tensor:
         z_one_hot = torch.nn.functional.one_hot(z_idx.long(), num_classes=4).float()
         return self.episode_strategy_value_head(torch.cat([global_state, z_one_hot], dim=-1)).squeeze(-1)
 
@@ -78,6 +84,14 @@ class V6I1ScheduleWiringTests(unittest.TestCase):
 
 
 class MacroRouterLifecycleTests(unittest.TestCase):
+    def test_tiny_model_episode_strategy_value_accepts_selector_hidden(self) -> None:
+        model = _TinyModel()
+        gs = torch.zeros(1, 4)
+        z = torch.tensor([2], dtype=torch.long)
+        hidden = torch.zeros(1, 8)
+        v = model.episode_strategy_value(gs, z, selector_hidden=hidden)
+        self.assertEqual(int(v.numel()), 1)
+
     def _make_state(self, *, phase: str = "B") -> LatentStrategyState:
         cfg = _v6i1_cfg()
         model = _TinyModel()
@@ -141,16 +155,15 @@ class ThreeOptimizerAndCheckpointTests(unittest.TestCase):
         trainer = SimpleNamespace(
             cfg=cfg,
             model=model,
-            base_learning_rate=3e-4,
-            latent_episode_strategy_lr=5e-3,
-            v6i1_three_optimizer_mode=False,
-            latent_router_optimizer=None,
+            hparams=SimpleNamespace(latent_episode_strategy_lr=5e-3),
         )
+        from rl.custom_ppo.v6i1_phase_runtime import build_v6i1_optimizers
+
         build_v6i1_optimizers(trainer, base_lr=3e-4)
-        self.assertTrue(trainer.v6i1_three_optimizer_mode)
-        self.assertIsNotNone(trainer.actor_optimizer)
-        self.assertIsNotNone(trainer.critic_optimizer)
-        self.assertIsNotNone(trainer.router_optimizer)
+        self.assertTrue(trainer.optimizers.v6i1_three_optimizer_mode)
+        self.assertIsNotNone(trainer.optimizers.actor)
+        self.assertIsNotNone(trainer.optimizers.critic)
+        self.assertIsNotNone(trainer.optimizers.router)
 
     def test_phase_c_actor_lr_scaled(self) -> None:
         cfg = _v6i1_cfg()
@@ -166,8 +179,10 @@ class ThreeOptimizerAndCheckpointTests(unittest.TestCase):
             model=model,
             global_step=800_000,
             v6i1_curriculum=curriculum,
-            v6i1_three_optimizer_mode=True,
+            hparams=SimpleNamespace(latent_episode_strategy_lr=5e-3),
         )
+        from rl.custom_ppo.v6i1_phase_runtime import build_v6i1_optimizers
+
         build_v6i1_optimizers(trainer, base_lr=1e-3)
         stats = apply_v6i1_learning_rates(trainer, base_lr=1e-3, progress_remaining=1.0)
         self.assertAlmostEqual(stats["actor_lr"], 0.05 * 1e-3)

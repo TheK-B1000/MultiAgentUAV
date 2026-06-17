@@ -42,14 +42,14 @@ class _FakeModel(torch.nn.Module):
         self.theta = torch.nn.Parameter(torch.zeros(()))
 
     def episode_strategy_value(
-        self, states: torch.Tensor, z_idx: torch.Tensor
+        self, states: torch.Tensor, z_idx: torch.Tensor, *, selector_hidden=None
     ) -> torch.Tensor:
         self._value_calls += 1
         z = z_idx.long().reshape(-1)
         v = self._per_z[z].to(states.device) + self.theta
         return v
 
-    def strategy_logits(self, states: torch.Tensor) -> torch.Tensor:
+    def strategy_logits(self, states: torch.Tensor, *, selector_hidden=None) -> torch.Tensor:
         self._logits_calls += 1
         return self._logits.to(states.device).unsqueeze(0).expand(states.shape[0], -1)
 
@@ -245,8 +245,7 @@ class MainLoopGatingTests(unittest.TestCase):
 
         # Strategy-PPO term must still be gated by ``coef > 0 AND not dedicated``.
         ppo_gate_pattern = re.compile(
-            r"apply_main_loop_qphi_loss\s*=\s*\(\s*\n\s*float\(\s*getattr\(\s*cfg\s*,\s*"
-            r"['\"]latent_strategy_ppo_coef['\"][^)]*\)\s*or\s*0\.0\s*\)\s*>\s*0\.0\s*\n\s*"
+            r"apply_main_loop_qphi_loss\s*=\s*\(\s*\n\s*float\(\s*hparams\.latent_strategy_ppo_coef\s*or\s*0\.0\s*\)\s*>\s*0\.0\s*\n\s*"
             r"and not has_dedicated_router_opt"
         )
         self.assertRegex(
