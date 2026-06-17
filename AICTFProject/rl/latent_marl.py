@@ -208,6 +208,7 @@ class LatentConditionedActor(nn.Module):
         enable_actor_z_film: bool = False,
         actor_z_film_init_scale: float = 0.0,
         actor_z_film_layer: int = 2,
+        latent_actor_conditioning: str = "concat",
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -233,6 +234,7 @@ class LatentConditionedActor(nn.Module):
         self.enable_actor_z_film = bool(enable_actor_z_film) and self.latent_k > 0
         self.actor_z_film_layer = max(1, min(2, int(actor_z_film_layer)))
         self.actor_z_film_init_scale = max(0.0, float(actor_z_film_init_scale))
+        self.latent_actor_conditioning = latent_actor_conditioning
         if self.enable_actor_z_film and self.z_embed_dim <= 0:
             raise ValueError(
                 "enable_actor_z_film requires a positive z_embed_dim."
@@ -244,7 +246,19 @@ class LatentConditionedActor(nn.Module):
         else:
             self.strategy_embedding = None
 
-        in_dim = self.local_feature_dim + self.z_embed_dim + self.z_onehot_dim
+        if self.latent_actor_conditioning == "film_v6":
+            in_dim = self.local_feature_dim
+            self.film_layer1 = nn.Linear(self.z_embed_dim, self.hidden_dim * 2)
+            self.film_layer2 = nn.Linear(self.z_embed_dim, self.hidden_dim * 2)
+            nn.init.normal_(self.film_layer1.weight, mean=0.0, std=0.01)
+            nn.init.constant_(self.film_layer1.bias, 0.0)
+            nn.init.normal_(self.film_layer2.weight, mean=0.0, std=0.01)
+            nn.init.constant_(self.film_layer2.bias, 0.0)
+        else:
+            in_dim = self.local_feature_dim + self.z_embed_dim + self.z_onehot_dim
+            self.film_layer1 = None
+            self.film_layer2 = None
+
         # Doc IMPLEMENTATION §7: 256–256 MLP; no custom init in the spec (default Linear init).
         self.body = nn.Sequential(
             nn.Linear(in_dim, self.hidden_dim),
@@ -312,6 +326,29 @@ class LatentConditionedActor(nn.Module):
             )
         z = None
         z_emb = None
+        if self.latent_actor_conditioning == "film_v6":
+            if z_idx is None:
+                raise ValueError("z_idx is required when latent actor z conditioning is enabled.")
+            z = z_idx.long().reshape(-1).clamp(
+                min=0, max=self.latent_k - 1
+            )
+            z_emb = self.strategy_embedding(z) * self.z_embed_scale
+            
+            # Forward pass through film_v6 layers:
+            hidden1 = self.body[0](local_features.float())
+            gamma1_hat, beta1 = self.film_layer1(z_emb).chunk(2, dim=-1)
+            gamma1 = 1.0 + 0.1 * torch.tanh(gamma1_hat)
+            hidden1 = gamma1 * hidden1 + beta1
+            hidden1 = self.body[1](hidden1)
+            
+            hidden2 = self.body[2](hidden1)
+            gamma2_hat, beta2 = self.film_layer2(z_emb).chunk(2, dim=-1)
+            gamma2 = 1.0 + 0.1 * torch.tanh(gamma2_hat)
+            hidden2 = gamma2 * hidden2 + beta2
+            hidden2 = self.body[3](hidden2)
+            
+            return self.action_head(hidden2)
+
         has_z = (self.strategy_embedding is not None) or self.z_onehot_enabled or (self.z_adapter is not None)
         if has_z:
             if z_idx is None:

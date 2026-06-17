@@ -765,6 +765,7 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                     1,
                     min(2, int(getattr(cfg, "actor_z_film_layer", 2) or 2)),
                 ),
+                "latent_actor_conditioning": getattr(cfg, "latent_actor_conditioning", "concat"),
             }
         )
     return model_kwargs

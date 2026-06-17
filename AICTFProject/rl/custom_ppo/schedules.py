@@ -117,3 +117,67 @@ def resolve_latent_forced_z_frac(cfg: Any, *, global_step: int | float) -> float
         int(anneal_end),
     )
     return max(0.0, min(value, 1.0))
+
+
+def resolve_v6i1_cf_coef(phase: str, step: int | float, t_A: int | float, N: int | float, coef_max: float) -> float:
+    """Resolve the counterfactual separation coefficient for v6i1 staged curriculum."""
+    step_f = float(step)
+    N_f = float(N)
+    if phase == "A":
+        if step_f < 0.20 * N_f:
+            return 0.0
+        elif step_f < 0.40 * N_f:
+            return linear_anneal(step_f, 0.0, coef_max, int(0.20 * N_f), int(0.40 * N_f))
+        else:
+            return float(coef_max)
+    elif phase == "B":
+        return 0.0
+    elif phase == "C":
+        return 0.25 * float(coef_max)
+    return 0.0
+
+
+def resolve_v6i1_forced_fraction(phase: str, step: int | float, t_A: int | float, N: int | float) -> float:
+    """Resolve the forced uniform episode fraction for v6i1 staged curriculum."""
+    step_f = float(step)
+    t_A_i = int(t_A)
+    N_f = float(N)
+    if phase == "A":
+        return 1.0
+    elif phase == "B":
+        # Linearly anneal from 0.50 to 0.25 across Phase B duration (0.30N)
+        return linear_anneal(step_f, 0.50, 0.25, t_A_i, t_A_i + int(0.30 * N_f))
+    elif phase == "C":
+        return 0.25
+    return 0.0
+
+
+def resolve_v6i1_exploration_epsilon(phase: str, step: int | float, t_A: int | float, N: int | float) -> float:
+    """Resolve the selector exploration floor epsilon for v6i1 staged curriculum."""
+    step_f = float(step)
+    t_A_i = int(t_A)
+    N_f = float(N)
+    if phase == "A":
+        return 0.0
+    elif phase == "B":
+        # Linearly anneal from 0.20 to 0.05 across Phase B duration (0.30N)
+        return linear_anneal(step_f, 0.20, 0.05, t_A_i, t_A_i + int(0.30 * N_f))
+    elif phase == "C":
+        return 0.05
+    return 0.05
+
+
+def resolve_v6i1_usage_coef(phase: str, step: int | float, t_A: int | float, N: int | float) -> float:
+    """Resolve the marginal usage objective coefficient lambda_usage for v6i1 staged curriculum."""
+    step_f = float(step)
+    t_A_i = int(t_A)
+    N_f = float(N)
+    if phase == "A":
+        return 0.0
+    elif phase == "B":
+        # Linearly anneal from 0.003 to 0.001 across Phase B duration (0.30N)
+        return linear_anneal(step_f, 0.003, 0.001, t_A_i, t_A_i + int(0.30 * N_f))
+    elif phase == "C":
+        return 0.001
+    return 0.0
+

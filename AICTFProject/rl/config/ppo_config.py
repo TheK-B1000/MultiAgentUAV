@@ -97,7 +97,7 @@ class PPOConfig:
     use_latent_strategy: bool = True
     latent_k: int = 4
     latent_z_embed_dim: int = 16
-    latent_actor_conditioning: Literal["concat"] = "concat"
+    latent_actor_conditioning: Literal["concat", "film_v6"] = "concat"
     latent_actor_z_onehot_enabled: bool = False
     latent_actor_z_onehot_scale: float = 1.0
     latent_actor_z_embed_scale: float = 1.0
@@ -112,6 +112,27 @@ class PPOConfig:
     latent_actor_z_adapter_ramp_steps: int = 0
     latent_vf_hidden: int = 128
     latent_strategy_hidden: int = 128
+
+    # v6i1 staged curriculum parameters
+    curriculum_nominal_timesteps: int = 1_000_000
+    phase_a_gate_check_interval: int = 25_000
+    latent_cf_min_episodes_per_z: int = 50
+    latent_cf_jsd_margin: float = 0.01
+    latent_cf_jsd_ema_alpha: float = 0.10
+    latent_cf_gate_consecutive_updates: int = 5
+    latent_cf_competence_delta: float = 5.0
+    latent_cf_competence_gate_tc: float = 1.0
+    latent_cf_competence_ema_alpha: float = 0.05
+    phase_boundary_gate_mode: str = "enforce"
+    latent_cf_coef_max: float = 0.01
+    probe_utility_tie_margin: float = 0.05
+    curriculum_gate_run_boundary_eval: bool = False
+    curriculum_gate_run_probe: bool = False
+    use_v6i1_curriculum: bool = False
+    training_mode: str = "default"
+    experiment_family: str = "v6"
+    experiment_id: str = "v6i1"
+
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
     # ``maximize`` matches the plan (encourage exploratory / diverse q_phi). ``minimize`` adds +λ_H·H to the
     # minimized loss and sharpens q_phi (recommended when telemetry shows strategy_entropy≈ln K with no persistence grad).

@@ -280,6 +280,38 @@ def _policy_z_separation_loss(
     return loss, {"jsd": jsd.detach(), "active": active_fraction.detach()}
 
 
+def set_model_requires_grad_for_phase(model: Any, phase: str) -> None:
+    # Actor parameters: actor_cnn and latent_actor
+    # Critic parameters: critic and episode_strategy_value_head
+    # Router parameters: strategy_encoder, strategy_aux_return_head, phase_predictor
+    for name, p in model.named_parameters():
+        is_actor = "actor_cnn" in name or "latent_actor" in name
+        is_critic = "critic" in name or "episode_strategy_value_head" in name
+        is_router = "strategy_encoder" in name or "strategy_aux_return_head" in name or "phase_predictor" in name
+        
+        if phase == "A":
+            if is_actor:
+                p.requires_grad = True
+            elif is_critic:
+                p.requires_grad = True
+            elif is_router:
+                p.requires_grad = False
+        elif phase == "B":
+            if is_actor:
+                p.requires_grad = False
+            elif is_critic:
+                p.requires_grad = True
+            elif is_router:
+                p.requires_grad = True
+        elif phase == "C":
+            if is_actor:
+                p.requires_grad = True
+            elif is_critic:
+                p.requires_grad = True
+            elif is_router:
+                p.requires_grad = True
+
+
 class PPOUpdater:
     """PPO epoch/minibatch loop owner.
 
@@ -311,6 +343,7 @@ class PPOUpdater:
         self.hparams = hparams
         self.latent_state = latent_state
         self.runtime = runtime
+        self.cf_grad_ratio_violations = 0
 
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
         """Return the current latent entropy coefficient for this rollout."""
@@ -347,6 +380,9 @@ class PPOUpdater:
         sep_warmup = int(getattr(hparams, "latent_actor_z_separation_warmup_steps", 0) or 0)
         sep_ramp = int(getattr(hparams, "latent_actor_z_separation_ramp_steps", 0) or 0)
         step = int(runtime.global_step)
+        curriculum = getattr(runtime, "v6i1_curriculum", None)
+        if curriculum is not None:
+            set_model_requires_grad_for_phase(self.model, curriculum.resolve_phase(step))
         curr_sep_coef = _warmup_ramp_value(
             global_step=step,
             warmup_steps=sep_warmup,
@@ -1056,7 +1092,10 @@ class PPOUpdater:
         runtime.last_stats.update(_latent_rollout_stats(runtime, buffer))
         runtime.last_stats.update(_latent_opponent_rollout_diag(runtime, buffer))
         runtime.last_stats.update(_behavior_diversity_stats(runtime, buffer))
-        runtime.last_stats.update(_forced_z_behavior_profile(runtime, buffer))
+        forced_z_profile = _forced_z_behavior_profile(runtime, buffer)
+        runtime.last_stats.update(forced_z_profile)
+        if forced_z_profile:
+            runtime.latent_state.update_intervention_gate_from_profile(forced_z_profile)
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(arc_strategy_stats)

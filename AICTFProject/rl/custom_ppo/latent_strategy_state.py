@@ -913,6 +913,18 @@ class LatentStrategyState:
         self.arc_return_running_mean = 0.0
         self.arc_return_running_count = 0
 
+        # V6I1 Staged Curriculum & Competence tracking variables
+        self.cf_J = np.zeros((max(1, int(trainer.latent_k)),), dtype=np.float32)
+        self.cf_episode_counts = np.zeros((max(1, int(trainer.latent_k)),), dtype=np.int64)
+        self.cf_has_experience = np.zeros((max(1, int(trainer.latent_k)),), dtype=np.bool_)
+        self.cf_return_mean = 0.0
+        self.cf_return_var = 1.0
+
+        self.recent_z_history = deque(maxlen=200)
+        self.pair_jsd_ema = np.zeros((6,), dtype=np.float32)
+        self.jsd_gate_consecutive_updates = 0
+        self.router_optimizer_step_count = 0
+
     # ------------------------------------------------------------------
     # Reset / per-step sampling
     # ------------------------------------------------------------------
@@ -2352,6 +2364,9 @@ class LatentStrategyState:
             return
 
         is_forced_z = bool(self.episode_forced_z[env_i].detach().cpu().item())
+        z_val = int(self.episode_forced_z_id[env_i].detach().cpu().item()) if is_forced_z else int(self.current_z[env_i].detach().cpu().item())
+        self.recent_z_history.append(z_val)
+
         if is_forced_z:
             try:
                 opponent_id = int(_opponent_id_int_from_info(self.trainer.cfg, info))
@@ -2363,7 +2378,6 @@ class LatentStrategyState:
             rs = int(er.get("red_score", info.get("red_score", 0)) or 0)
             episode_win = 1 if bs > rs else 0
 
-            z_val = int(self.episode_forced_z_id[env_i].detach().cpu().item())
             count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
             emb = (self.episode_behavior_sum[env_i] / float(count)).detach().cpu().numpy().tolist()
             tactical_bucket = self.representative_tactical_bucket(env_i)
@@ -2389,6 +2403,16 @@ class LatentStrategyState:
                 and 0 <= z_val < int(self.rollout_forced_episode_count_by_opp_z.shape[1])
             ):
                 self.rollout_forced_episode_count_by_opp_z[opponent_id, z_val] += 1
+
+            # Update V6I1 competence running metrics
+            alpha = float(getattr(trainer.cfg, "latent_cf_competence_ema_alpha", 0.05))
+            self.cf_J[z_val] = (1.0 - alpha) * self.cf_J[z_val] + alpha * float(episode_return)
+            self.cf_episode_counts[z_val] += 1
+            self.cf_has_experience[z_val] = True
+            
+            old_mean = self.cf_return_mean
+            self.cf_return_mean = (1.0 - alpha) * old_mean + alpha * float(episode_return)
+            self.cf_return_var = (1.0 - alpha) * self.cf_return_var + alpha * (float(episode_return) - old_mean) * (float(episode_return) - self.cf_return_mean)
             return
 
         if not trainer.latent_episode_strategy_ppo:
@@ -2445,6 +2469,46 @@ class LatentStrategyState:
                 "q_phi_probs": [float(x) for x in probs],
             }
         )
+
+    def compute_competence_scores(self) -> tuple[np.ndarray, bool]:
+        """Compute sigmoid competence scores for each latent."""
+        trainer = self.trainer
+        min_eps = int(getattr(trainer.cfg, "latent_cf_min_episodes_per_z", 50))
+        delta = float(getattr(trainer.cfg, "latent_cf_competence_delta", 5.0))
+        T_c = float(getattr(trainer.cfg, "latent_cf_competence_gate_tc", 1.0))
+        
+        # If any latent has fewer than min_eps completed episodes, they are not ready
+        if any(count < min_eps for count in self.cf_episode_counts):
+            return np.zeros((self.trainer.latent_k,), dtype=np.float32), False
+            
+        J_best = float(np.max(self.cf_J))
+        sigma_J = float(np.sqrt(max(1e-8, self.cf_return_var)))
+        scale = max(T_c, sigma_J, 1e-8)
+        
+        # c_z = sigmoid( (J_z - J_best + delta) / scale )
+        c_z = 1.0 / (1.0 + np.exp(- (self.cf_J - J_best + delta) / scale))
+        return c_z, True
+
+    def update_intervention_gate_from_profile(self, profile_stats: dict[str, float]) -> None:
+        """EMA-update per-pair forced-z JSD telemetry and consecutive gate counter."""
+        trainer = self.trainer
+        margin = float(getattr(trainer.cfg, "latent_cf_jsd_margin", 0.01))
+        alpha = float(getattr(trainer.cfg, "latent_cf_jsd_ema_alpha", 0.10))
+        pair_vals = [
+            float(profile_stats.get(f"forced_z_pair_jsd_{i}", 0.0) or 0.0) for i in range(6)
+        ]
+        if not any(pair_vals):
+            mean_jsd = float(profile_stats.get("forced_z_macro_jsd_mean", 0.0) or 0.0)
+            pair_vals = [mean_jsd] * 6
+        pair_arr = np.asarray(pair_vals, dtype=np.float32)
+        self.pair_jsd_ema = (1.0 - alpha) * self.pair_jsd_ema + alpha * pair_arr
+        num_valid = int(np.sum(self.pair_jsd_ema >= margin))
+        min_jsd = float(np.min(self.pair_jsd_ema)) if self.pair_jsd_ema.size else 0.0
+        update_ok = num_valid >= 5 and min_jsd >= 0.5 * margin
+        if update_ok:
+            self.jsd_gate_consecutive_updates += 1
+        else:
+            self.jsd_gate_consecutive_updates = 0
 
     # ------------------------------------------------------------------
     # Episode-strategy PPO update (consumes the completed-record buffer)
@@ -3313,6 +3377,7 @@ class LatentStrategyState:
             episode_credit_grad_norm = self.strategy_encoder_grad_norm()
             torch.nn.utils.clip_grad_norm_(clip_params, float(trainer.cfg.max_grad_norm))
             router_optimizer.step()
+            self.router_optimizer_step_count += 1
 
         ratio = ppo_stats["ratio"].detach().float()
         with torch.no_grad():

@@ -631,13 +631,17 @@ def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
 
     if len(mean_macros) >= 2:
         js_vals: list[float] = []
+        pair_idx = 0
         for i in range(len(mean_macros)):
             for j in range(i + 1, len(mean_macros)):
                 p = mean_macros[i].clamp_min(1e-8)
                 q = mean_macros[j].clamp_min(1e-8)
                 m = 0.5 * (p + q)
                 js = 0.5 * (p * (p.log() - m.log())).sum() + 0.5 * (q * (q.log() - m.log())).sum()
-                js_vals.append(float(js.detach().cpu().item()))
+                js_val = float(js.detach().cpu().item())
+                js_vals.append(js_val)
+                out[f"forced_z_pair_jsd_{pair_idx}"] = js_val
+                pair_idx += 1
         out["forced_z_macro_jsd_mean"] = float(np.mean(js_vals)) if js_vals else 0.0
     else:
         out["forced_z_macro_jsd_mean"] = 0.0

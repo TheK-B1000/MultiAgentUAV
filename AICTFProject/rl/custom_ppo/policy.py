@@ -149,6 +149,7 @@ class SharedActorCentralizedCritic(nn.Module):
         enable_actor_z_film: bool = False,
         actor_z_film_init_scale: float = 0.0,
         actor_z_film_layer: int = 2,
+        latent_actor_conditioning: str = "concat",
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -247,6 +248,7 @@ class SharedActorCentralizedCritic(nn.Module):
             enable_actor_z_film=bool(enable_actor_z_film),
             actor_z_film_init_scale=float(actor_z_film_init_scale),
             actor_z_film_layer=int(actor_z_film_layer),
+            latent_actor_conditioning=latent_actor_conditioning,
         )
         critic_extra_dim = self.joint_action_onehot_dim + self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(

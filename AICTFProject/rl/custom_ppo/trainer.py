@@ -385,6 +385,12 @@ class CustomPPOTrainer:
         self.latent_kl_consecutive = hparams.latent_kl_consecutive
         self.latent_state = LatentStrategyState(self)
         self.episode_strategy_recorder = self.latent_state.episode_strategy_recorder
+        if bool(getattr(cfg, "use_v6i1_curriculum", False)):
+            from rl.custom_ppo.curriculum_gates import V6I1CurriculumController
+
+            self.v6i1_curriculum = V6I1CurriculumController(self)
+        else:
+            self.v6i1_curriculum = None
         self.rollout_collector = RolloutCollector(
             model=self.model,
             env=self.env,
@@ -524,6 +530,9 @@ class CustomPPOTrainer:
                 row = self.telemetry.write_update_metrics(stats, rollout)
                 self._save_periodic_checkpoint()
                 self.telemetry.print_update_diagnostics(row, stats)
+                if getattr(self, "v6i1_curriculum", None) is not None:
+                    self.v6i1_curriculum.check_and_run_gate()
+                    self.v6i1_curriculum.check_terminal_failure()
         finally:
             if self._sb3_rollout_pbar is not None:
                 self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]
