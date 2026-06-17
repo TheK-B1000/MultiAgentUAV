@@ -24,12 +24,19 @@ from rl.custom_ppo.curriculum_gates import (
     TrainingIsolationSnapshot,
     V6I1CurriculumController,
     build_lexicographic_ranking_components,
+    format_v6i1_gate_stdout_block,
     gate_family_result_from_bool,
     is_staged_v6i1_curriculum,
     overall_gate_passed_for_promotion,
     rank_candidates_lexicographic,
     validate_v6i1_enforce_config,
 )
+from rl.custom_ppo.csv_writers import V6I1_INTERVENTION_PAIR_COUNT, _update_fieldnames
+from rl.custom_ppo.v6i1_phase_runtime import (
+    format_v6i1_rollout_stdout_line,
+    v6i1_intervention_csv_stats,
+)
+from rl.custom_ppo.inference import CustomPPOInferencePolicy
 from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import set_model_requires_grad_for_phase
 
@@ -513,6 +520,126 @@ class TrainingIntegrityGateTests(unittest.TestCase):
         result = ctrl._run_matched_seed_eval()
         self.assertEqual(result.status, GATE_STATUS_NOT_RUN)
         self.assertIn("curriculum_gate_run_boundary_eval=false", result.reason)
+
+    def test_gate_eval_predict_uses_inference_wrapper(self) -> None:
+        ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.trainer.device = torch.device("cpu")
+        policy = mock.Mock()
+        policy.predict.return_value = (np.zeros(4, dtype=np.int64), None)
+        ctrl._gate_eval_policy = policy
+        act = ctrl._gate_eval_predict({"grid": np.zeros((1, 2, 7, 20, 20), dtype=np.float32)})
+        policy.predict.assert_called_once()
+        self.assertEqual(act.shape, (4,))
+
+    def test_gate_eval_configure_fixed_z_sets_policy_state(self) -> None:
+        ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.trainer.device = torch.device("cpu")
+        policy = mock.Mock(spec=CustomPPOInferencePolicy)
+        ctrl._gate_eval_policy = policy
+        ctrl._gate_eval_configure_fixed_z(2)
+        self.assertTrue(policy.fixed_latent_strategy)
+        self.assertEqual(policy.fixed_latent_strategy_id, 2)
+        policy.reset_strategy.assert_called_once()
+
+
+class V6I1MetricsCsvFieldTests(unittest.TestCase):
+    def test_update_csv_includes_v6i1_intervention_columns(self) -> None:
+        fields = _update_fieldnames(use_latent_strategy=True, latent_k=4)
+        for name in (
+            "v6i1_phase_label",
+            "v6i1_cf_coef_current",
+            "v6i1_usage_coef_current",
+            "jsd_gate_consecutive_updates",
+            "cf_competence_ready",
+            "latent_actor_z_separation_train_active",
+        ):
+            self.assertIn(name, fields)
+        for idx in range(V6I1_INTERVENTION_PAIR_COUNT):
+            self.assertIn(f"forced_z_pair_jsd_{idx}", fields)
+            self.assertIn(f"pair_jsd_ema_{idx}", fields)
+
+    def test_intervention_csv_stats_exports_pair_ema(self) -> None:
+        state = SimpleNamespace(
+            pair_jsd_ema=np.array([0.02, 0.02, 0.02, 0.02, 0.02, 0.006], dtype=np.float32),
+            jsd_gate_consecutive_updates=3,
+            cf_J=np.array([10.0, 9.0, 8.0, 7.0], dtype=np.float32),
+            cf_episode_counts=np.array([60, 60, 60, 60], dtype=np.int64),
+            latent_k=4,
+            trainer=SimpleNamespace(latent_k=4),
+        )
+        state.compute_competence_scores = lambda: (
+            np.array([0.55, 0.52, 0.51, 0.50], dtype=np.float32),
+            True,
+        )
+        stats = v6i1_intervention_csv_stats(
+            state,
+            profile_stats={"forced_z_pair_jsd_5": 0.006},
+            cfg=SimpleNamespace(
+                latent_cf_jsd_margin=0.01,
+                latent_cf_gate_consecutive_updates=5,
+            ),
+        )
+        self.assertEqual(stats["jsd_gate_consecutive_updates"], 3.0)
+        self.assertEqual(stats["cf_competence_ready"], 1.0)
+        self.assertAlmostEqual(stats["pair_jsd_ema_5"], 0.006)
+
+    def test_rollout_stdout_line_includes_cf_and_pair_ema(self) -> None:
+        row = {
+            "v6i1_cf_coef_current": 0.01,
+            "latent_actor_z_separation_train_active": 1.0,
+            "jsd_gate_consecutive_updates": 2.0,
+            "cf_competence_ready": 0.0,
+            "pair_jsd_ema_0": 0.02,
+            "pair_jsd_ema_5": 0.006,
+        }
+        text = format_v6i1_rollout_stdout_line(row, phase="A", required_consecutive=5)
+        self.assertIn("[V6I1]", text)
+        self.assertIn("cf_coef=0.0100", text)
+        self.assertIn("sep_train=1", text)
+        self.assertIn("jsd_consec=2/5", text)
+        self.assertIn("pair_ema=[", text)
+
+
+class V6I1GateStdoutTests(unittest.TestCase):
+    def test_gate_stdout_block_contains_family_statuses(self) -> None:
+        gate_results = {
+            name: GateFamilyResult(status=GATE_STATUS_PASS)
+            for name in GATE_FAMILY_NAMES
+        }
+        gate_results["matched_seed_behavior"] = GateFamilyResult(status=GATE_STATUS_FAIL)
+        gate_results["counterfactual_intervention"] = GateFamilyResult(
+            GATE_STATUS_PASS,
+            details={
+                "num_pairs_above_margin": 5,
+                "min_pair_jsd_ema": 0.006,
+                "jsd_consecutive_updates": 5,
+            },
+        )
+        text = format_v6i1_gate_stdout_block(
+            step=458_752,
+            phase="A",
+            overall_passed=False,
+            mode="enforce",
+            gate_results=gate_results,
+            online_report={
+                "pair_jsd_ema": [0.02, 0.02, 0.02, 0.02, 0.02, 0.006],
+                "jsd_consecutive_updates": 5,
+                "min_pair_jsd_ema": 0.006,
+                "recent_z_occupancy": [0.25, 0.25, 0.25, 0.25],
+                "competence_scores": [0.55, 0.52, 0.51, 0.50],
+            },
+            ranking_components={
+                "matched_seed_effect_size": 0.04,
+                "probe_regret_reduction": 0.12,
+            },
+            cf_coef=0.01,
+            required_consecutive=5,
+        )
+        self.assertIn("[V6I1 Gate]", text)
+        self.assertIn("phase=A", text)
+        self.assertIn("matched_eval=FAIL", text)
+        self.assertIn("jsd_consec=5/5", text)
+        self.assertIn("cf_coef=0.0100", text)
 
 
 if __name__ == "__main__":

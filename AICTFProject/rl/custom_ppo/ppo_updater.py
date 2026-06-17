@@ -55,6 +55,7 @@ from rl.custom_ppo.return_normalization import (
 )
 from rl.custom_ppo.schedules import resolve_latent_forced_z_frac, resolve_latent_lam_h
 from rl.custom_ppo.trainer_config import TrainerHyperparams
+from rl.custom_ppo.v6i1_cf_loss import actor_cf_grad_norm, v6i1_cf_separation_loss
 
 if TYPE_CHECKING:
     from rl.custom_ppo.latent_strategy_state import LatentStrategyState
@@ -563,6 +564,9 @@ class PPOUpdater:
             "latent_actor_z_separation_jsd": [],
             "latent_actor_z_separation_active": [],
             "latent_actor_z_separation_train_active": [],
+            "cf_actor_grad_norm": [],
+            "ppo_actor_grad_norm": [],
+            "cf_to_ppo_grad_ratio": [],
         }
         for _k_idx in range(int(hparams.latent_k)):
             stats[f"router_rollout_soft_p_bar_z{_k_idx}"] = []
@@ -899,62 +903,78 @@ class PPOUpdater:
                         and not hparams.fixed_latent_strategy
                         and z_idx is not None
                     ):
-                        max_action_entropy = float(model.n_agents) * sum(
-                            math.log(max(1, int(dim)))
-                            for dim in model.per_agent_action_dims
+                        cf_margin = float(
+                            getattr(cfg, "latent_cf_jsd_margin", 0.01)
+                            or getattr(
+                                hparams,
+                                "latent_actor_z_separation_margin",
+                                0.02,
+                            )
+                            or 0.01
                         )
-                        separation_gate = _z_separation_gate_mask(
-                            advantages=advantages,
-                            action_entropy=entropy,
-                            global_state=batch["global_state"],
-                            max_action_entropy=max_action_entropy,
-                            min_abs_advantage=float(
-                                getattr(
-                                    hparams,
-                                    "latent_actor_z_separation_min_abs_advantage",
-                                    0.0,
-                                )
-                                or 0.0
-                            ),
-                            min_decision_frac=float(
-                                getattr(
-                                    hparams,
-                                    "latent_actor_z_separation_min_decision_frac",
-                                    0.0,
-                                )
-                                or 0.0
-                            ),
-                            max_entropy_frac=float(
-                                getattr(
-                                    hparams,
-                                    "latent_actor_z_separation_max_entropy_frac",
-                                    1.0,
-                                )
-                                if getattr(
-                                    hparams,
-                                    "latent_actor_z_separation_max_entropy_frac",
-                                    1.0,
-                                )
-                                is not None
-                                else 1.0
-                            ),
-                        )
-                        z_sep_loss, z_sep_stats = _policy_z_separation_loss(
-                            model,
-                            obs_batch,
-                            z_idx.long(),
-                            latent_k=int(hparams.latent_k),
-                            margin=float(
-                                getattr(
-                                    hparams,
-                                    "latent_actor_z_separation_margin",
-                                    0.02,
-                                )
-                                or 0.0
-                            ),
-                            active_mask=separation_gate,
-                            subsample_generator=self._z_separation_generator,
-                        )
+                        if is_v6i1_staged_trainer(runtime):
+                            competence, competence_ready = (
+                                self.latent_state.compute_competence_scores()
+                            )
+                            z_sep_loss, z_sep_stats = v6i1_cf_separation_loss(
+                                model,
+                                obs_batch,
+                                latent_k=int(hparams.latent_k),
+                                margin=cf_margin,
+                                competence=competence,
+                                competence_ready=bool(competence_ready),
+                                subsample_generator=self._z_separation_generator,
+                            )
+                        else:
+                            max_action_entropy = float(model.n_agents) * sum(
+                                math.log(max(1, int(dim)))
+                                for dim in model.per_agent_action_dims
+                            )
+                            separation_gate = _z_separation_gate_mask(
+                                advantages=advantages,
+                                action_entropy=entropy,
+                                global_state=batch["global_state"],
+                                max_action_entropy=max_action_entropy,
+                                min_abs_advantage=float(
+                                    getattr(
+                                        hparams,
+                                        "latent_actor_z_separation_min_abs_advantage",
+                                        0.0,
+                                    )
+                                    or 0.0
+                                ),
+                                min_decision_frac=float(
+                                    getattr(
+                                        hparams,
+                                        "latent_actor_z_separation_min_decision_frac",
+                                        0.0,
+                                    )
+                                    or 0.0
+                                ),
+                                max_entropy_frac=float(
+                                    getattr(
+                                        hparams,
+                                        "latent_actor_z_separation_max_entropy_frac",
+                                        1.0,
+                                    )
+                                    if getattr(
+                                        hparams,
+                                        "latent_actor_z_separation_max_entropy_frac",
+                                        1.0,
+                                    )
+                                    is not None
+                                    else 1.0
+                                ),
+                            )
+                            z_sep_loss, z_sep_stats = _policy_z_separation_loss(
+                                model,
+                                obs_batch,
+                                z_idx.long(),
+                                latent_k=int(hparams.latent_k),
+                                margin=cf_margin,
+                                active_mask=separation_gate,
+                                subsample_generator=self._z_separation_generator,
+                            )
                         z_sep_train_active = 1.0
                         latent_loss = latent_loss + curr_sep_coef * z_sep_loss
                 else:
@@ -1056,6 +1076,15 @@ class PPOUpdater:
                 loss = policy_loss + hparams.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
 
                 v6i1_three_opt = bool(getattr(runtime, "v6i1_three_optimizer_mode", False))
+                cf_actor_grad_norm_val = 0.0
+                if (
+                    z_sep_train_active > 0.0
+                    and float(curr_sep_coef) > 0.0
+                    and z_sep_loss.requires_grad
+                ):
+                    cf_actor_grad_norm_val = actor_cf_grad_norm(
+                        float(curr_sep_coef) * z_sep_loss, model
+                    )
                 if v6i1_three_opt:
                     phase, _, _, _ = v6i1_schedule_context(runtime)
                     runtime.actor_optimizer.zero_grad(set_to_none=True)
@@ -1091,6 +1120,19 @@ class PPOUpdater:
                     strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
                     grad_norm = _clip_global_grad_norm(model, float(cfg.max_grad_norm))
                     self.optimizer.step()
+
+                ppo_actor_grad_norm_val = 0.0
+                for name, param in model.named_parameters():
+                    if (
+                        param.grad is not None
+                        and param.requires_grad
+                        and ("actor_cnn" in name or "latent_actor" in name)
+                    ):
+                        ppo_actor_grad_norm_val += float(
+                            param.grad.detach().pow(2).sum().cpu().item()
+                        )
+                ppo_actor_grad_norm_val = float(ppo_actor_grad_norm_val**0.5)
+                cf_to_ppo_ratio = cf_actor_grad_norm_val / (ppo_actor_grad_norm_val + 1e-8)
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
                 stats["policy_loss"].append(float(policy_loss.detach().cpu().item()))
@@ -1181,6 +1223,9 @@ class PPOUpdater:
                     float(z_sep_stats["active"].detach().cpu().item())
                 )
                 stats["latent_actor_z_separation_train_active"].append(float(z_sep_train_active))
+                stats["cf_actor_grad_norm"].append(float(cf_actor_grad_norm_val))
+                stats["ppo_actor_grad_norm"].append(float(ppo_actor_grad_norm_val))
+                stats["cf_to_ppo_grad_ratio"].append(float(cf_to_ppo_ratio))
                 strategy_kl_value = float(strategy_ppo_stats["approx_kl"].detach().cpu().item())
                 stop_for_action = (
                     target_kl is not None and approx_kl_value > 1.5 * float(target_kl)
@@ -1289,6 +1334,15 @@ class PPOUpdater:
         runtime.last_stats.update(forced_z_profile)
         if forced_z_profile:
             runtime.latent_state.update_intervention_gate_from_profile(forced_z_profile)
+        from rl.custom_ppo.v6i1_phase_runtime import v6i1_intervention_csv_stats
+
+        runtime.last_stats.update(
+            v6i1_intervention_csv_stats(
+                runtime.latent_state,
+                profile_stats=forced_z_profile,
+                cfg=runtime.cfg,
+            )
+        )
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(arc_strategy_stats)

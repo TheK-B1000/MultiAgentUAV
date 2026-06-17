@@ -44,6 +44,9 @@ E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
 # When renaming metrics columns, old CSV headers may still use the legacy name; see ``_write_csv_row``.
 _METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {"strategy_aux_return_loss": "strategy_q_loss"}
 
+# v6i1 staged-curriculum intervention telemetry (six unordered z-pairs for K=4).
+V6I1_INTERVENTION_PAIR_COUNT: int = 6
+
 # Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1 … OP5_RUSHER, OP6, OP7).
 SCRIPTED_OPPONENT_MI_COUNT: int = 7
 
@@ -523,6 +526,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_actor_z_separation_loss",
             "latent_actor_z_separation_jsd",
             "latent_actor_z_separation_active",
+            "latent_actor_z_separation_train_active",
             "latent_actor_z_separation_coef",
             "latent_actor_z_adapter_scale",
             "latent_usage_balance_loss",
@@ -612,6 +616,38 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_v3i3_event_pref_fallback_o",
             "latent_v3i3_event_pref_rollout_records",
         ])
+        fields.extend(_v6i1_metrics_fieldnames())
+    return fields
+
+
+def _v6i1_metrics_fieldnames() -> list[str]:
+    """Per-update v6i1 curriculum / intervention-gate columns (zeroed off v6i1)."""
+    fields = [
+        "v6i1_phase",
+        "v6i1_phase_label",
+        "v6i1_cf_coef_current",
+        "v6i1_usage_coef_current",
+        "jsd_pairs_above_margin",
+        "jsd_min_pair",
+        "jsd_gate_update_pass",
+        "jsd_gate_consecutive_updates",
+        "jsd_gate_consecutive_required",
+        "cf_competence_ready",
+        "cf_competence_z0",
+        "cf_competence_z1",
+        "cf_competence_z2",
+        "cf_competence_z3",
+        "cf_actor_grad_norm",
+        "ppo_actor_grad_norm",
+        "cf_to_ppo_grad_ratio",
+    ]
+    pair_suffixes = ("01", "02", "03", "12", "13", "23")
+    for idx in range(V6I1_INTERVENTION_PAIR_COUNT):
+        fields.append(f"forced_z_pair_jsd_{idx}")
+        fields.append(f"pair_jsd_ema_{idx}")
+    for suffix in pair_suffixes:
+        fields.append(f"forced_z_pair_jsd_{suffix}")
+        fields.append(f"pair_jsd_ema_{suffix}")
     return fields
 
 

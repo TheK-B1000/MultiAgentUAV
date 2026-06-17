@@ -328,6 +328,7 @@ class CustomPPOInferencePolicy:
         self._last_strategy_logits = None
         self._last_context_gs = None
         self._temporal_tracker = None
+        self._selector_hidden: torch.Tensor | None = None
         self.latent_eval_mode = "normal"
         self._latent_eval_marginal = None
         self._latent_eval_rng = None
@@ -426,8 +427,36 @@ class CustomPPOInferencePolicy:
         self._last_strategy_resampled = False
         self._last_strategy_logits = None
         self._last_context_gs = None
+        self._selector_hidden = None
         if self._temporal_tracker is not None:
             self._temporal_tracker.reset()
+
+    def _uses_recurrent_selector(self) -> bool:
+        return bool(getattr(self.model, "use_recurrent_selector", False))
+
+    def _selector_hidden_dim(self) -> int:
+        return int(getattr(self.model, "recurrent_selector_hidden_dim", 0) or 0)
+
+    def _ensure_selector_hidden(self, batch: int) -> torch.Tensor | None:
+        if not self._uses_recurrent_selector():
+            return None
+        hidden_dim = self._selector_hidden_dim()
+        if hidden_dim <= 0:
+            return None
+        if self._selector_hidden is None or int(self._selector_hidden.shape[0]) != batch:
+            self._selector_hidden = torch.zeros(
+                (batch, hidden_dim), dtype=torch.float32, device=self.device
+            )
+        return self._selector_hidden
+
+    def _strategy_logits_forward(self, context_gs: torch.Tensor) -> torch.Tensor:
+        """Advance recurrent selector state and return tempered q_phi logits."""
+        hidden = self._ensure_selector_hidden(int(context_gs.shape[0]))
+        if hidden is None:
+            return self.model.strategy_logits(context_gs)
+        logits, h_new = self.model._forward_q_phi(context_gs, hidden)
+        self._selector_hidden = h_new.detach()
+        return logits / self.model.strategy_tau
 
     def _tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
         return {
@@ -477,40 +506,47 @@ class CustomPPOInferencePolicy:
                 if self.fixed_latent_strategy:
                     z_idx = self._fixed_strategy_tensor(batch)
                     self._prev_z = z_idx.detach()
-                    z_logits = self.model.strategy_logits(context_gs)
+                    z_logits = self._strategy_logits_forward(context_gs)
                     z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
                     z_probs = self._fixed_strategy_probs(batch)
                     needs_strategy = False
                 elif destructive:
-                    z_logits = self.model.strategy_logits(context_gs)
                     needs_strategy = (
                         self._prev_z is None
                         or int(self._prev_z.numel()) != batch
                         or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
                     )
                     if needs_strategy:
+                        z_logits = self._strategy_logits_forward(context_gs)
                         z_idx = self._destructive_latent_z(batch)
                         self._prev_z = z_idx.detach()
                         self._strategy_age = 0
                     else:
+                        z_logits = self._strategy_logits_forward(context_gs)
                         z_idx = self._prev_z.to(self.device)
                     z_ent = Categorical(logits=z_logits).entropy()
                     z_probs = torch.softmax(z_logits, dim=-1)
                 else:
-                    z_logits = self.model.strategy_logits(context_gs)
-                    z_dist = Categorical(logits=z_logits)
                     needs_strategy = (
                         self._prev_z is None
                         or int(self._prev_z.numel()) != batch
                         or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
                     )
                     if needs_strategy:
-                        z_idx, _, z_ent, _, _ = self.model.sample_strategy(context_gs, deterministic=deterministic)
+                        hidden = self._ensure_selector_hidden(batch)
+                        z_idx, _, z_ent, z_logits, h_new = self.model.sample_strategy(
+                            context_gs,
+                            deterministic=deterministic,
+                            selector_hidden=hidden,
+                        )
+                        if h_new is not None:
+                            self._selector_hidden = h_new.detach()
                         self._prev_z = z_idx.detach()
                         self._strategy_age = 0
                     else:
+                        z_logits = self._strategy_logits_forward(context_gs)
                         z_idx = self._prev_z.to(self.device)
-                        z_ent = z_dist.entropy()
+                        z_ent = Categorical(logits=z_logits).entropy()
                     z_probs = torch.softmax(z_logits, dim=-1)
                 self._last_strategy_z = z_idx.detach().cpu()
                 self._last_strategy_probs = z_probs.detach().cpu()
@@ -551,7 +587,14 @@ class CustomPPOInferencePolicy:
                     global_state = self._global_state_tensor(batched, batch)
                     tracker = self._get_temporal_tracker(batch)
                     context_gs = tracker.get_current_context(global_state)
-                    z_idx, _, z_entropy, _, _ = self.model.sample_strategy(context_gs, deterministic=True)
+                    hidden = self._ensure_selector_hidden(batch)
+                    z_idx, _, z_entropy, _, h_new = self.model.sample_strategy(
+                        context_gs,
+                        deterministic=True,
+                        selector_hidden=hidden,
+                    )
+                    if h_new is not None:
+                        self._selector_hidden = h_new.detach()
             logits = self.model._mask_logits(self.model.policy_logits(obs_t, z_idx=z_idx), obs_t.get("mask"))
             entropy = torch.stack([dist.entropy() for dist in self.model._categoricals(logits)], dim=0).sum(dim=0)
         return float((entropy + z_entropy).mean().detach().cpu().item())

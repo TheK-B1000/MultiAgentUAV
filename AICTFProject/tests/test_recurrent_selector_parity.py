@@ -12,6 +12,7 @@ from torch.distributions import Categorical
 from game_field_gpu import VEC_OBS_DIM
 from rl.custom_ppo import SharedActorCentralizedCritic
 from rl.custom_ppo.latent_strategy_state import LatentStrategyState, _stack_selector_hidden_records
+from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import CONTEXT_STATE_DIM
 
 
@@ -235,6 +236,31 @@ class RecurrentSelectorParityTests(unittest.TestCase):
         self.assertEqual(tuple(v.shape), (5,))
         torch.testing.assert_close(v, expected, rtol=0.0, atol=1e-6)
         self.assertFalse(torch.allclose(logits, torch.zeros_like(logits)))
+
+
+class RecurrentInferencePolicyTests(unittest.TestCase):
+    def test_fixed_z_predict_advances_recurrent_hidden(self) -> None:
+        from rl.custom_ppo.inference import CustomPPOInferencePolicy
+
+        model = _recurrent_model()
+        model.eval()
+        policy = CustomPPOInferencePolicy(model, device="cpu", cfg={"latent_k": 4})
+        policy.fixed_latent_strategy = True
+        policy.fixed_latent_strategy_id = 1
+        obs_space = _obs_space()
+        obs = {
+            "grid": np.zeros((2, 7, 20, 20), dtype=np.float32),
+            "vec": np.zeros((2, VEC_OBS_DIM), dtype=np.float32),
+            "agent_mask": np.ones((2,), dtype=np.float32),
+            "mask": np.ones((110,), dtype=np.float32),
+            "global_state": np.zeros((GLOBAL_STATE_DIM,), dtype=np.float32),
+        }
+
+        actions, _ = policy.predict(obs, deterministic=True)
+        self.assertEqual(actions.shape, (4,))
+        actions2, _ = policy.predict(obs, deterministic=True)
+        self.assertEqual(actions2.shape, (4,))
+        self.assertIsNotNone(policy._selector_hidden)
 
 
 if __name__ == "__main__":

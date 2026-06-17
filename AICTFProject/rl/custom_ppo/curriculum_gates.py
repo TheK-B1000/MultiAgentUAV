@@ -16,7 +16,7 @@ import json
 import os
 import random
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Iterator, Optional
 
 import numpy as np
@@ -26,6 +26,7 @@ import torch.optim as optim
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.csv_writers import _OPPONENT_ID_TO_TAG
+from rl.custom_ppo.inference import CustomPPOInferencePolicy
 
 # Fixed pair index for forced_z_pair_jsd_{i}: (0,1)=0 … (2,3)=5
 LATENT_PAIR_INDEX: tuple[tuple[int, int], ...] = (
@@ -311,6 +312,73 @@ def build_lexicographic_ranking_components(
     }
 
 
+_GATE_FAMILY_STDOUT_LABELS: dict[str, str] = {
+    "coverage": "cov",
+    "competence": "comp",
+    "counterfactual_intervention": "interv",
+    "training_integrity": "integ",
+    "matched_seed_behavior": "match",
+    "selector_learnability_probe": "probe",
+}
+
+
+def format_v6i1_gate_stdout_block(
+    *,
+    step: int,
+    phase: str,
+    overall_passed: bool,
+    mode: str,
+    gate_results: dict[str, GateFamilyResult],
+    online_report: dict[str, Any],
+    ranking_components: dict[str, Any],
+    cf_coef: float,
+    required_consecutive: int,
+    report_path: str | None = None,
+) -> str:
+    """Compact stdout block for a Phase A gate attempt."""
+    def _st(name: str) -> str:
+        return gate_results[name].status if name in gate_results else GATE_STATUS_NOT_RUN
+
+    intervention = gate_results.get("counterfactual_intervention")
+    interv_details = intervention.details if intervention is not None else {}
+    num_above = int(interv_details.get("num_pairs_above_margin", 0))
+    min_ema = float(
+        interv_details.get("min_pair_jsd_ema", online_report.get("min_pair_jsd_ema", 0.0)) or 0.0
+    )
+    jsd_consec = int(
+        interv_details.get(
+            "jsd_consecutive_updates",
+            online_report.get(
+                "jsd_consecutive_updates",
+                online_report.get("jsd_gate_consecutive_updates", 0),
+            ),
+        )
+        or 0
+    )
+    action = "PROMOTE_PHASE_B" if overall_passed and mode == "enforce" else "CONTINUE_PHASE_A"
+    report_line = f"[V6I1 Gate] report={report_path}" if report_path else ""
+    lines = [
+        f"[V6I1 Gate] step={step} phase={phase} mode={mode}",
+        (
+            f"[V6I1 Gate] coverage={_st('coverage')} competence={_st('competence')} "
+            f"integrity={_st('training_integrity')}"
+        ),
+        (
+            f"[V6I1 Gate] intervention={_st('counterfactual_intervention')} "
+            f"pairs>=margin={num_above}/6 min_jsd={min_ema:.5f} "
+            f"jsd_consec={jsd_consec}/{required_consecutive}"
+        ),
+        (
+            f"[V6I1 Gate] matched_eval={_st('matched_seed_behavior')} "
+            f"probe={_st('selector_learnability_probe')}"
+        ),
+        f"[V6I1 Gate] overall={'PASS' if overall_passed else 'FAIL'} action={action} cf_coef={cf_coef:.4f}",
+    ]
+    if report_line:
+        lines.append(report_line)
+    return "\n".join(lines)
+
+
 class V6I1CurriculumController:
     """Manages V6I1 staged curriculum transitions, boundary evaluations, and diagnostic probes."""
 
@@ -332,6 +400,36 @@ class V6I1CurriculumController:
         self.gate_check_history: list[dict[str, Any]] = []
         self.protected_candidate_checkpoints: list[str] = []
         self.best_candidate_report: Optional[dict[str, Any]] = None
+        self._gate_eval_policy: CustomPPOInferencePolicy | None = None
+
+    def _gate_eval_policy_wrapper(self) -> CustomPPOInferencePolicy:
+        if self._gate_eval_policy is None:
+            cfg_payload = asdict(self.cfg) if hasattr(self.cfg, "__dataclass_fields__") else dict(vars(self.cfg))
+            self._gate_eval_policy = CustomPPOInferencePolicy(
+                self.trainer.model,
+                device=self.trainer.device,
+                cfg=cfg_payload,
+            )
+        return self._gate_eval_policy
+
+    @staticmethod
+    def _unwrap_vec_obs(obs: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value[0] if hasattr(value, "shape") and getattr(value, "ndim", 0) >= 2 else value
+            for key, value in obs.items()
+        }
+
+    def _gate_eval_configure_fixed_z(self, z_id: int) -> CustomPPOInferencePolicy:
+        policy = self._gate_eval_policy_wrapper()
+        policy.fixed_latent_strategy = True
+        policy.fixed_latent_strategy_id = int(z_id)
+        policy.reset_strategy()
+        return policy
+
+    def _gate_eval_predict(self, obs: dict[str, Any]) -> np.ndarray:
+        policy = self._gate_eval_policy_wrapper()
+        act, _ = policy.predict(self._unwrap_vec_obs(obs), deterministic=True)
+        return act
 
     def resolve_phase(self, global_step: int | None = None) -> str:
         return self.phase
@@ -446,7 +544,7 @@ class V6I1CurriculumController:
             }
             ranked_row = dict(report)
             self.gate_check_history.append(ranked_row)
-            self._write_gate_report(step, report)
+            report_path = self._write_gate_report(step, report)
 
             ranked = rank_candidates_lexicographic(list(self.gate_check_history))
             if ranked:
@@ -454,6 +552,31 @@ class V6I1CurriculumController:
 
             isolation.assert_unchanged(self.trainer)
 
+            from rl.custom_ppo.v6i1_phase_runtime import (
+                is_v6i1_staged_trainer,
+                resolve_v6i1_cf_coef_current,
+            )
+
+            cf_coef = (
+                float(resolve_v6i1_cf_coef_current(self.trainer))
+                if is_v6i1_staged_trainer(self.trainer)
+                else 0.0
+            )
+            print(
+                format_v6i1_gate_stdout_block(
+                    step=step,
+                    phase=self.phase,
+                    overall_passed=overall_passed,
+                    mode=mode,
+                    gate_results=gate_results,
+                    online_report=online_report,
+                    ranking_components=ranking_components,
+                    cf_coef=cf_coef,
+                    required_consecutive=int(getattr(self.cfg, "latent_cf_gate_consecutive_updates", 5)),
+                    report_path=report_path,
+                ),
+                flush=True,
+            )
             print(f"[Curriculum Controller] Gate families: {gate_families_report}")
             print(f"[Curriculum Controller] Overall: {'PASS' if overall_passed else 'FAIL'} (mode={mode})")
 
@@ -684,10 +807,7 @@ class V6I1CurriculumController:
                             core = env.core
                             reset_states.append(self._capture_reset_state(core, info={}))
 
-                            self.trainer.model.eval()
-                            if hasattr(self.trainer.model, "fixed_latent_strategy"):
-                                self.trainer.model.fixed_latent_strategy = True
-                                self.trainer.model.fixed_latent_strategy_id = z_val
+                            self._gate_eval_configure_fixed_z(z_val)
 
                             history_pos: list[tuple[float, float]] = []
                             history_beh: list[float] = []
@@ -695,8 +815,7 @@ class V6I1CurriculumController:
                             step_i = 0
                             blue_won = False
                             while not done and step_i < 120:
-                                single = {k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v for k, v in obs.items()}
-                                act, _ = self.trainer.model.predict(single, deterministic=True)
+                                act = self._gate_eval_predict(obs)
                                 env.step_async(act)
                                 obs, _, done_arr, infos = env.step_wait()
                                 done = bool(done_arr[0])
@@ -809,18 +928,12 @@ class V6I1CurriculumController:
                             if hasattr(env, "seed"):
                                 env.seed(seed)
                             obs = env.reset()
+                            self._gate_eval_configure_fixed_z(0)
                             bootstrap_actions: list[Any] = []
                             done = False
                             step_i = 0
                             while not done and step_i < 64:
-                                single = {
-                                    k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v for k, v in obs.items()
-                                }
-                                if hasattr(self.trainer.model, "fixed_latent_strategy"):
-                                    self.trainer.model.fixed_latent_strategy = True
-                                    self.trainer.model.fixed_latent_strategy_id = 0
-                                act, _ = self.trainer.model.predict(single, deterministic=True)
-                                bootstrap_actions.append(act)
+                                bootstrap_actions.append(self._gate_eval_predict(obs))
                                 env.step_async(act)
                                 obs, _, done_arr, _ = env.step_wait()
                                 done = bool(done_arr[0])
@@ -839,18 +952,12 @@ class V6I1CurriculumController:
                                 for b_act in bootstrap_actions:
                                     env.step_async(b_act)
                                     obs_b, _, _, _ = env.step_wait()
-                                if hasattr(self.trainer.model, "fixed_latent_strategy"):
-                                    self.trainer.model.fixed_latent_strategy = True
-                                    self.trainer.model.fixed_latent_strategy_id = z_branch
+                                self._gate_eval_configure_fixed_z(z_branch)
                                 ret_accum = 0.0
                                 b_done = False
                                 b_step = 0
                                 while not b_done and b_step < 64:
-                                    single = {
-                                        k: v[0] if hasattr(v, "shape") and v.ndim >= 2 else v
-                                        for k, v in obs_b.items()
-                                    }
-                                    act, _ = self.trainer.model.predict(single, deterministic=True)
+                                    act = self._gate_eval_predict(obs_b)
                                     env.step_async(act)
                                     obs_b, rewards, done_arr, _ = env.step_wait()
                                     ret_accum += float(rewards[0])
@@ -1011,6 +1118,7 @@ __all__ = [
     "build_lexicographic_ranking_components",
     "count_gate_families_measured",
     "count_gate_families_passed",
+    "format_v6i1_gate_stdout_block",
     "gate_family_result_from_bool",
     "is_staged_v6i1_curriculum",
     "overall_gate_passed_for_promotion",

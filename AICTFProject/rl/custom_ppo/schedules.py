@@ -120,16 +120,31 @@ def resolve_latent_forced_z_frac(cfg: Any, *, global_step: int | float) -> float
 
 
 def resolve_v6i1_cf_coef(phase: str, step: int | float, t_A: int | float, N: int | float, coef_max: float) -> float:
-    """Resolve the counterfactual separation coefficient for v6i1 staged curriculum."""
+    """Resolve the counterfactual separation coefficient for v6i1 staged curriculum.
+
+    Phase A locked schedule (fractions of nominal budget ``N``):
+
+    * ``0.00N–0.10N``: CF = 0
+    * ``0.10N–0.20N``: linear ramp to ``coef_max``
+    * ``0.20N`` onward: CF = ``coef_max``
+
+    Runs started before this schedule used ``0.20N–0.40N`` ramp; retain those
+    artifacts under their original run IDs rather than retroactively relabeling.
+    """
     step_f = float(step)
     N_f = float(N)
     if phase == "A":
-        if step_f < 0.20 * N_f:
+        if step_f < 0.10 * N_f:
             return 0.0
-        elif step_f < 0.40 * N_f:
-            return linear_anneal(step_f, 0.0, coef_max, int(0.20 * N_f), int(0.40 * N_f))
-        else:
-            return float(coef_max)
+        if step_f < 0.20 * N_f:
+            return linear_anneal(
+                step_f,
+                0.0,
+                coef_max,
+                int(0.10 * N_f),
+                int(0.20 * N_f),
+            )
+        return float(coef_max)
     elif phase == "B":
         return 0.0
     elif phase == "C":

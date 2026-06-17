@@ -391,7 +391,15 @@ class TrainingTelemetry:
             "explained_variance": self.explained_variance(values, returns),
         }
         row.update(self.rollout_episode_summary())
-        if self.curriculum is not None:
+        v6i1_curriculum = getattr(runtime, "v6i1_curriculum", None)
+        if v6i1_curriculum is not None:
+            row.update(
+                {
+                    "curriculum_phase": str(v6i1_curriculum.phase),
+                    "v6i1_phase_label": str(v6i1_curriculum.phase),
+                }
+            )
+        elif self.curriculum is not None:
             row.update(
                 {
                     "curriculum_phase": str(self.curriculum.phase),
@@ -725,6 +733,21 @@ class TrainingTelemetry:
                     f"jsd_per_head=[{row.get('actor_z_jsd_per_head', '')}] "
                     f"entropy_by_z=[{row.get('actor_z_entropy_by_z', '')}]"
                 )
+                v6i1_curriculum = getattr(runtime, "v6i1_curriculum", None)
+                if v6i1_curriculum is not None:
+                    from rl.custom_ppo.v6i1_phase_runtime import format_v6i1_rollout_stdout_line
+
+                    required_consecutive = int(
+                        getattr(self.cfg, "latent_cf_gate_consecutive_updates", 5) or 5
+                    )
+                    print(
+                        format_v6i1_rollout_stdout_line(
+                            row,
+                            phase=str(v6i1_curriculum.phase),
+                            required_consecutive=required_consecutive,
+                        ),
+                        flush=True,
+                    )
                 if hparams.latent_sparse_tactical_refresh_enabled:
                     z_change = float(row.get("z_change_count", 0.0) or 0.0)
                     z_dwell = float(row.get("z_dwell_mean", 0.0) or 0.0)

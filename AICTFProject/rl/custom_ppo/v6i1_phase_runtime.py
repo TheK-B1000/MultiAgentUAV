@@ -7,6 +7,7 @@ from typing import Any, Optional
 import torch
 
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
+from rl.custom_ppo.v6i1_cf_loss import v6i1_pair_suffix
 from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
 from rl.custom_ppo.schedules import (
     resolve_v6i1_cf_coef,
@@ -269,6 +270,79 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
         )
 
 
+def v6i1_intervention_csv_stats(
+    latent_state: Any,
+    *,
+    profile_stats: dict[str, float] | None = None,
+    cfg: Any | None = None,
+) -> dict[str, float]:
+    """V6I1 intervention / competence / gate telemetry for metrics CSV rows."""
+    profile_stats = profile_stats or {}
+    cfg = cfg or getattr(getattr(latent_state, "trainer", None), "cfg", None)
+    margin = float(getattr(cfg, "latent_cf_jsd_margin", 0.01) or 0.01) if cfg is not None else 0.01
+    required_consecutive = (
+        int(getattr(cfg, "latent_cf_gate_consecutive_updates", 5) or 5) if cfg is not None else 5
+    )
+
+    pair_ema = getattr(latent_state, "pair_jsd_ema", None)
+    ema_list = (
+        [float(pair_ema[i]) for i in range(min(6, int(pair_ema.size)))]
+        if pair_ema is not None
+        else [0.0] * 6
+    )
+    while len(ema_list) < 6:
+        ema_list.append(0.0)
+
+    num_above = int(sum(1 for v in ema_list if float(v) >= margin))
+    min_pair = float(min(ema_list)) if ema_list else 0.0
+    update_ok = num_above >= 5 and min_pair >= 0.5 * margin
+    streak = int(getattr(latent_state, "jsd_gate_consecutive_updates", 0) or 0)
+
+    comp_scores, competence_ready = latent_state.compute_competence_scores()
+    out: dict[str, float] = {
+        "jsd_gate_consecutive_updates": float(streak),
+        "jsd_pairs_above_margin": float(num_above),
+        "jsd_min_pair": min_pair,
+        "jsd_gate_update_pass": 1.0 if update_ok else 0.0,
+        "jsd_gate_consecutive_required": float(required_consecutive),
+        "cf_competence_ready": 1.0 if competence_ready else 0.0,
+    }
+    latent_k = int(getattr(latent_state.trainer, "latent_k", 4) or 4)
+    for z in range(latent_k):
+        out[f"cf_competence_z{z}"] = float(comp_scores[z]) if z < len(comp_scores) else 0.0
+
+    for idx in range(6):
+        suffix = v6i1_pair_suffix(idx)
+        raw = float(profile_stats.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0)
+        ema = float(ema_list[idx])
+        out[f"forced_z_pair_jsd_{idx}"] = raw
+        out[f"forced_z_pair_jsd_{suffix}"] = raw
+        out[f"pair_jsd_ema_{idx}"] = ema
+        out[f"pair_jsd_ema_{suffix}"] = ema
+    return out
+
+
+def format_v6i1_rollout_stdout_line(
+    row: dict[str, Any],
+    *,
+    phase: str,
+    required_consecutive: int,
+) -> str:
+    """Per-update intervention telemetry (distinct from gate-attempt block)."""
+    pair_bits = ",".join(
+        f"{float(row.get(f'pair_jsd_ema_{idx}', 0.0) or 0.0):.4f}" for idx in range(6)
+    )
+    return (
+        f"      [V6I1] phase={phase} "
+        f"cf_coef={float(row.get('v6i1_cf_coef_current', 0.0) or 0.0):.4f} "
+        f"sep_train={int(float(row.get('latent_actor_z_separation_train_active', 0.0) or 0.0))} "
+        f"jsd_consec={int(float(row.get('jsd_gate_consecutive_updates', 0.0) or 0.0))}"
+        f"/{int(required_consecutive)} "
+        f"comp_ready={int(float(row.get('cf_competence_ready', 0.0) or 0.0))} "
+        f"pair_ema=[{pair_bits}]"
+    )
+
+
 __all__ = [
     "apply_v6i1_learning_rates",
     "build_v6i1_optimizers",
@@ -283,6 +357,8 @@ __all__ = [
     "resolve_v6i1_rollout_usage_coef",
     "step_v6i1_optimizers",
     "v6i1_curriculum_state_dict",
+    "format_v6i1_rollout_stdout_line",
+    "v6i1_intervention_csv_stats",
     "v6i1_macro_router_active",
     "v6i1_schedule_context",
 ]
