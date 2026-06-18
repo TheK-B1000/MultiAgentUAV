@@ -47,24 +47,42 @@ def inject_message_grid_channels(
     *,
     message_channels: torch.Tensor | None,
     cfg: Any,
+    expected_grid_channels: int | None = None,
 ) -> dict[str, np.ndarray]:
     """Concatenate transport message channels onto the env grid observation."""
     comm = resolve_comm_config(cfg)
     if not comm.enabled:
         return obs
     grid = np.asarray(obs["grid"], dtype=np.float32)
-    if message_channels is None:
-        bsz, n_agents = int(grid.shape[0]), int(grid.shape[1])
-        extra = int(comm.message_grid_channels)
-        h, w = int(grid.shape[-2]), int(grid.shape[-1])
-        zeros = np.zeros((bsz, n_agents, extra, h, w), dtype=np.float32)
-        return {**obs, "grid": np.concatenate([grid, zeros], axis=2)}
-    msg = message_channels.detach().cpu().numpy().astype(np.float32)
-    if msg.shape[:2] != grid.shape[:2]:
+    extra = int(comm.message_grid_channels)
+    current_channels = int(grid.shape[2])
+    if expected_grid_channels is None:
+        expected_channels = current_channels + extra
+    else:
+        expected_channels = int(expected_grid_channels)
+    base_channels = expected_channels - extra
+    if base_channels <= 0:
+        raise ValueError(f"expected_grid_channels={expected_channels} is too small for extra={extra}")
+    if current_channels == base_channels:
+        base_grid = grid
+    elif current_channels == expected_channels:
+        base_grid = grid[:, :, :base_channels, :, :]
+    else:
         raise ValueError(
-            f"message_channels batch/agents {msg.shape[:2]} != grid {grid.shape[:2]}"
+            f"grid channel count {current_channels} is incompatible with "
+            f"expected={expected_channels} base={base_channels} extra={extra}"
         )
-    return {**obs, "grid": np.concatenate([grid, msg], axis=2)}
+    if message_channels is None:
+        bsz, n_agents = int(base_grid.shape[0]), int(base_grid.shape[1])
+        h, w = int(base_grid.shape[-2]), int(base_grid.shape[-1])
+        zeros = np.zeros((bsz, n_agents, extra, h, w), dtype=np.float32)
+        return {**obs, "grid": np.concatenate([base_grid, zeros], axis=2)}
+    msg = message_channels.detach().cpu().numpy().astype(np.float32)
+    if msg.shape[:2] != base_grid.shape[:2]:
+        raise ValueError(
+            f"message_channels batch/agents {msg.shape[:2]} != grid {base_grid.shape[:2]}"
+        )
+    return {**obs, "grid": np.concatenate([base_grid, msg], axis=2)}
 
 
 __all__ = [

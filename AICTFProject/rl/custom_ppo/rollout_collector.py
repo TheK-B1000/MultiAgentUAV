@@ -302,6 +302,13 @@ class RolloutCollector:
             if next_obs is None or prev_z is None:
                 raise ValueError("latent next value bootstrap requires next_obs and prev_z.")
             obs_rows = self.obs_rows_from_next(next_obs, infos)
+            comm = getattr(runtime, "comm_runtime", None)
+            if comm is not None and comm.enabled:
+                comm.bind_env_core(self.env.core)
+                obs_rows = comm.prepare_obs(
+                    obs_rows,
+                    expected_grid_channels=int(self.model.grid_shape[0]),
+                )
             next_obs_t = self.tensor_obs(obs_rows)
             if dones is None:
                 raise ValueError("latent next value bootstrap requires dones for z lookahead.")
@@ -386,7 +393,10 @@ class RolloutCollector:
         comm = getattr(self.runtime, "comm_runtime", None)
         if comm is not None and comm.enabled:
             comm.bind_env_core(self.env.core)
-            obs = comm.prepare_obs(obs)
+            obs = comm.prepare_obs(
+                obs,
+                expected_grid_channels=int(self.model.grid_shape[0]),
+            )
         buffer = self.make_buffer(obs)
         for step_idx in range(int(self.cfg.n_steps)):
             obs, global_state, context_state = self._step_once(
@@ -442,7 +452,10 @@ class RolloutCollector:
         comm = getattr(runtime, "comm_runtime", None)
         if comm is not None and comm.enabled:
             comm.bind_env_core(self.env.core)
-            obs = comm.prepare_obs(obs)
+            obs = comm.prepare_obs(
+                obs,
+                expected_grid_channels=int(self.model.grid_shape[0]),
+            )
         return obs, global_state, context_state
 
     def _finalize_buffer(self, buffer: TensorDictRolloutBuffer) -> None:
@@ -511,7 +524,10 @@ class RolloutCollector:
         decision_global_state_np = np.asarray(global_state, dtype=np.float32)
         if comm is not None and comm.enabled:
             comm.bind_env_core(env.core)
-            obs = comm.prepare_obs(obs)
+            obs = comm.prepare_obs(
+                obs,
+                expected_grid_channels=int(self.model.grid_shape[0]),
+            )
         obs_t = self.tensor_obs(obs)
         comm_boundary = (
             comm.current_boundary_mask()

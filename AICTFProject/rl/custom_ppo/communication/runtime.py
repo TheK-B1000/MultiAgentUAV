@@ -82,13 +82,19 @@ class CommRolloutRuntime:
         is_boundary = bool(self.transport.is_comm_boundary())
         return torch.full((bsz,), is_boundary, dtype=torch.bool, device=self.device)
 
-    def prepare_obs(self, obs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    def prepare_obs(
+        self,
+        obs: dict[str, np.ndarray],
+        *,
+        expected_grid_channels: int | None = None,
+    ) -> dict[str, np.ndarray]:
         if not self.enabled:
             return obs
         return inject_message_grid_channels(
             obs,
             message_channels=self._message_channels,
             cfg=self.cfg,
+            expected_grid_channels=expected_grid_channels,
         )
 
     def submit_sampled_messages(

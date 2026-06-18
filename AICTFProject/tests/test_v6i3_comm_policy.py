@@ -10,6 +10,7 @@ from gymnasium import spaces
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.communication import extend_observation_space_if_needed, extra_cnn_channels
+from rl.custom_ppo.communication.observation import inject_message_grid_channels
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
 from rl.custom_ppo.trainer_optimizers import collect_actor_parameters
 
@@ -53,6 +54,31 @@ class CommPolicyTests(unittest.TestCase):
         base = _base_obs_space(c=7)
         extended = extend_observation_space_if_needed(base, cfg)
         self.assertEqual(int(extended.spaces["grid"].shape[1]), 7 + int(extra_cnn_channels(cfg)))
+
+    def test_message_injection_matches_policy_expected_channels(self) -> None:
+        cfg = PPOConfig(communication_enabled=True)
+        bsz, n, h, w = 2, 4, 20, 20
+        extra = int(extra_cnn_channels(cfg))
+        expected = 12
+        base = np.zeros((bsz, n, expected - extra, h, w), dtype=np.float32)
+        msg = torch.ones((bsz, n, extra, h, w), dtype=torch.float32)
+        appended = inject_message_grid_channels(
+            {"grid": base},
+            message_channels=msg,
+            cfg=cfg,
+            expected_grid_channels=expected,
+        )
+        self.assertEqual(tuple(appended["grid"].shape), (bsz, n, expected, h, w))
+
+        already_extended = np.zeros((bsz, n, expected, h, w), dtype=np.float32)
+        replaced = inject_message_grid_channels(
+            {"grid": already_extended},
+            message_channels=msg,
+            cfg=cfg,
+            expected_grid_channels=expected,
+        )
+        self.assertEqual(tuple(replaced["grid"].shape), (bsz, n, expected, h, w))
+        self.assertTrue(np.allclose(replaced["grid"][:, :, -extra:, :, :], 1.0))
 
     def test_message_head_in_actor_optimizer(self) -> None:
         model = _comm_model()
