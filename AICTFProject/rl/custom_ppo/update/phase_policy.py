@@ -89,9 +89,48 @@ class PhaseTrainingPolicy:
         )
 
 
+_VALID_CURRICULUM_PHASES = frozenset({"A", "B", "C"})
+
+
+def set_model_requires_grad_for_phase(model: Any, phase: str) -> None:
+    if phase not in _VALID_CURRICULUM_PHASES:
+        raise ValueError(
+            f"Unknown training phase {phase!r}; expected one of {sorted(_VALID_CURRICULUM_PHASES)}"
+        )
+    for name, p in model.named_parameters():
+        is_actor = "actor_cnn" in name or "latent_actor" in name
+        is_critic = "critic" in name and "episode_strategy_value_head" not in name
+        is_router = (
+            "strategy_encoder" in name
+            or "strategy_aux_return_head" in name
+            or "phase_predictor" in name
+            or "selector_gru" in name
+            or "episode_strategy_value_head" in name
+        )
+        if phase == "A":
+            if is_actor:
+                p.requires_grad = True
+            elif is_critic:
+                p.requires_grad = True
+            elif is_router:
+                p.requires_grad = False
+        elif phase == "B":
+            if is_actor:
+                p.requires_grad = False
+            elif is_critic:
+                p.requires_grad = True
+            elif is_router:
+                p.requires_grad = True
+        elif phase == "C":
+            if is_actor:
+                p.requires_grad = True
+            elif is_critic:
+                p.requires_grad = True
+            elif is_router:
+                p.requires_grad = True
+
+
 def apply_phase_requires_grad(model: Any, phase: str) -> None:
     """Freeze/unfreeze parameter groups for curriculum phase."""
-    from rl.custom_ppo.ppo_updater import set_model_requires_grad_for_phase
-
     if phase in {"A", "B", "C"}:
         set_model_requires_grad_for_phase(model, phase)

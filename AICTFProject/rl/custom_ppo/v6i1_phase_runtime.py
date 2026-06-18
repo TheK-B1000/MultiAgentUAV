@@ -198,6 +198,8 @@ def step_v6i1_optimizers(
 
 
 def v6i1_curriculum_state_dict(curriculum: Any) -> dict[str, Any]:
+    if hasattr(curriculum, "state_dict"):
+        return curriculum.state_dict()
     return {
         "phase": str(curriculum.phase),
         "t_A": int(curriculum.t_A),
@@ -212,6 +214,9 @@ def v6i1_curriculum_state_dict(curriculum: Any) -> dict[str, Any]:
 
 
 def load_v6i1_curriculum_state(curriculum: Any, payload: dict[str, Any]) -> None:
+    if hasattr(curriculum, "load_state_dict"):
+        curriculum.load_state_dict(payload)
+        return
     curriculum.phase = str(payload.get("phase", curriculum.phase))
     curriculum.t_A = int(payload.get("t_A", curriculum.t_A))
     curriculum.phase_a_end_step = int(payload.get("phase_a_end_step", curriculum.phase_a_end_step))

@@ -1,0 +1,465 @@
+"""Staged V6I1 curriculum controller — orchestration only."""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Optional
+
+import torch
+import torch.nn as nn
+
+from rl.config.ppo_config import PPOConfig
+from rl.custom_ppo.csv_writers import _OPPONENT_ID_TO_TAG
+from rl.custom_ppo.curriculum.context import GateContext
+from rl.custom_ppo.curriculum.evaluators.learnability import run_learnability_probe
+from rl.custom_ppo.curriculum.evaluators.matched_seed import evaluate_matched_seed_behavior
+from rl.custom_ppo.curriculum.evaluators.online import (
+    evaluate_competence,
+    evaluate_coverage,
+    evaluate_training_integrity,
+    v6i1_intervention,
+    v6i2_actor_intervention,
+)
+from rl.custom_ppo.curriculum.isolation import GateIsolationBoundary
+from rl.custom_ppo.curriculum.protocols import build_gate_protocol
+from rl.custom_ppo.curriculum.ranking import rank_candidates_lexicographic
+from rl.custom_ppo.curriculum.reporting import (
+    SCHEMA_VERSION,
+    atomic_write_json,
+    build_final_gate_report,
+    format_v6i1_gate_stdout_block,
+    write_gate_report,
+)
+from rl.custom_ppo.curriculum.schedule import (
+    resolve_schedule,
+    schedule_next_gate_step,
+    should_run_phase_a_gate,
+    should_trigger_terminal_failure,
+)
+from rl.custom_ppo.curriculum.types import (
+    CurriculumPhase,
+    GateAttempt,
+    GateFamilyResult,
+    GateMode,
+    GateResult,
+    all_required_families_passed,
+)
+from rl.custom_ppo.gate_protocol import (
+    gate_family_names,
+    is_v6i2_gate_protocol,
+    resolve_gate_protocol_version,
+    validate_protocol_config,
+)
+from rl.custom_ppo.inference import CustomPPOInferencePolicy
+
+_STATE_SCHEMA_VERSION = 1
+
+
+def is_staged_v6i1_curriculum(cfg: PPOConfig) -> bool:
+    """True only for the staged team-intent V6I1 curriculum, not repertoire ablations."""
+    return (
+        bool(getattr(cfg, "use_v6i1_curriculum", False))
+        and str(getattr(cfg, "training_mode", "default")) == "staged_team_intent_curriculum"
+        and str(getattr(cfg, "experiment_family", "v6")) == "v6"
+        and str(getattr(cfg, "experiment_id", "v6i1")) == "v6i1"
+    )
+
+
+def validate_v6i1_enforce_config(cfg: PPOConfig) -> None:
+    """Fail fast when enforce mode cannot run the full Phase A gate for staged v6 rows."""
+    validate_protocol_config(cfg)
+
+
+def _to_family_result(result: GateResult) -> GateFamilyResult:
+    return GateFamilyResult(
+        status=result.status,
+        reason=result.reason,
+        details=dict(result.details),
+    )
+
+
+def _build_online_report(online_results: dict[str, GateResult]) -> dict[str, Any]:
+    report: dict[str, Any] = {}
+    for name, result in online_results.items():
+        report.update(result.details)
+        report[f"{name}_status"] = result.status
+    return report
+
+
+class V6I1CurriculumController:
+    """Manages V6I1 staged curriculum transitions, boundary evaluations, and diagnostic probes."""
+
+    def __init__(self, trainer: Any) -> None:
+        self.trainer = trainer
+        self.cfg: PPOConfig = trainer.cfg
+        validate_v6i1_enforce_config(self.cfg)
+        self.schedule = resolve_schedule(self.cfg)
+        self.nominal_steps = self.schedule.nominal_steps
+        self.phase_a_min_end = self.schedule.phase_a_min_end
+        self.phase_a_max_end = self.schedule.phase_a_max_end
+        self.phase_b_nominal_start = self.schedule.phase_b_nominal_start
+        self.phase_c_nominal_start = self.schedule.phase_c_nominal_start
+        self.phase = CurriculumPhase.A.value
+        self.t_A = -1
+        self.phase_a_end_step = -1
+        self.phase_a_gate_passed = False
+        self.protocol_version = resolve_gate_protocol_version(self.cfg)
+        self.protocol = build_gate_protocol(self.cfg)
+        self.active_families = gate_family_names(self.cfg)
+        self.next_gate_step = self.phase_a_min_end
+        self.last_gate_step_run = -1
+        self.gate_check_history: list[dict[str, Any]] = []
+        self.protected_candidate_checkpoints: list[str] = []
+        self.best_candidate_report: Optional[dict[str, Any]] = None
+        self._gate_eval_policy: CustomPPOInferencePolicy | None = None
+
+    def _make_eval_context(self, step: int | None = None) -> GateContext:
+        eval_model = getattr(self.trainer, "model", None)
+        if eval_model is None:
+            eval_model = nn.Module()
+        return GateContext(
+            trainer=self.trainer,
+            cfg=self.cfg,
+            step=int(step if step is not None else self.trainer.global_step),
+            eval_model=eval_model,
+            eval_policy=self._gate_eval_policy,
+            latent_k=int(self.trainer.latent_k),
+        )
+
+    def _gate_eval_policy_wrapper(self) -> CustomPPOInferencePolicy:
+        if self._gate_eval_policy is None:
+            from dataclasses import asdict
+
+            cfg_payload = (
+                asdict(self.cfg)
+                if hasattr(self.cfg, "__dataclass_fields__")
+                else dict(vars(self.cfg))
+            )
+            self._gate_eval_policy = CustomPPOInferencePolicy(
+                eval_model,
+                device=getattr(self.trainer, "device", torch.device("cpu")),
+                cfg=cfg_payload,
+            )
+        return self._gate_eval_policy
+
+    def _gate_eval_configure_fixed_z(self, z_id: int) -> CustomPPOInferencePolicy:
+        return self._make_eval_context().configure_fixed_z(z_id)
+
+    def _gate_eval_predict(self, obs: dict[str, Any]) -> Any:
+        return self._make_eval_context().predict(obs)
+
+    def _evaluate_coverage_gate(self) -> GateFamilyResult:
+        return _to_family_result(evaluate_coverage(self._make_eval_context()))
+
+    def _evaluate_competence_gate(self) -> GateFamilyResult:
+        return _to_family_result(evaluate_competence(self._make_eval_context()))
+
+    def _evaluate_intervention_gate(self) -> GateFamilyResult:
+        return _to_family_result(v6i1_intervention(self._make_eval_context()))
+
+    def _evaluate_actor_intervention_gate(self) -> GateFamilyResult:
+        return _to_family_result(v6i2_actor_intervention(self._make_eval_context()))
+
+    def _evaluate_training_integrity_gate(self) -> GateFamilyResult:
+        return _to_family_result(evaluate_training_integrity(self._make_eval_context()))
+
+    def _evaluate_online_gates(
+        self,
+        gate_results: dict[str, GateFamilyResult],
+        context: GateContext | None = None,
+    ) -> dict[str, Any]:
+        ctx = context or self._make_eval_context()
+        online_raw = self.protocol.evaluate_online(ctx)
+        for name, result in online_raw.items():
+            gate_results[name] = _to_family_result(result)
+        return _build_online_report(online_raw)
+
+    def _evaluate_behavioral_realization_gate(self, context: GateContext | None = None) -> GateFamilyResult:
+        ctx = context or self._make_eval_context()
+        boundary_raw = self.protocol.evaluate_boundary(ctx)
+        return _to_family_result(boundary_raw["behavioral_realization"])
+
+    def _run_matched_seed_eval(self, context: GateContext | None = None) -> GateFamilyResult:
+        ctx = context or self._make_eval_context()
+        return _to_family_result(evaluate_matched_seed_behavior(ctx))
+
+    def _run_learnability_probe(self, context: GateContext | None = None) -> GateFamilyResult:
+        ctx = context or self._make_eval_context()
+        return _to_family_result(run_learnability_probe(ctx))
+
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": _STATE_SCHEMA_VERSION,
+            "gate_protocol_version": self.protocol_version,
+            "phase": str(self.phase),
+            "t_A": int(self.t_A),
+            "phase_a_end_step": int(self.phase_a_end_step),
+            "phase_a_gate_passed": bool(self.phase_a_gate_passed),
+            "next_gate_step": int(self.next_gate_step),
+            "last_gate_step_run": int(self.last_gate_step_run),
+            "gate_check_history": list(self.gate_check_history),
+            "protected_candidate_checkpoints": list(self.protected_candidate_checkpoints),
+            "best_candidate_report": self.best_candidate_report,
+        }
+
+    def load_state_dict(self, payload: dict[str, Any]) -> None:
+        self.phase = str(payload.get("phase", self.phase))
+        self.t_A = int(payload.get("t_A", self.t_A))
+        self.phase_a_end_step = int(payload.get("phase_a_end_step", self.phase_a_end_step))
+        self.phase_a_gate_passed = bool(payload.get("phase_a_gate_passed", self.phase_a_gate_passed))
+        self.next_gate_step = int(payload.get("next_gate_step", self.next_gate_step))
+        self.last_gate_step_run = int(payload.get("last_gate_step_run", self.last_gate_step_run))
+        self.gate_check_history = list(payload.get("gate_check_history", []))
+        self.protected_candidate_checkpoints = list(
+            payload.get("protected_candidate_checkpoints", [])
+        )
+        self.best_candidate_report = payload.get("best_candidate_report", self.best_candidate_report)
+
+    def resolve_phase(self, global_step: int | None = None) -> str:
+        return self.phase
+
+    def maybe_apply_phase_transitions(self) -> bool:
+        return self.maybe_apply_nominal_phase_transition()
+
+    def maybe_apply_nominal_phase_transition(self) -> bool:
+        """Apply schedule-driven phase transitions (A→B observe-only; B→C all modes)."""
+        mode = GateMode.normalize(str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")))
+        step = int(self.trainer.global_step)
+        transitioned = False
+        if mode == GateMode.OBSERVE_ONLY.value and self.phase == CurriculumPhase.A.value:
+            if step >= self.phase_b_nominal_start:
+                self._transition_to_phase_b(step, nominal=True)
+                transitioned = True
+        if self.phase == CurriculumPhase.B.value:
+            phase_b_end = (
+                self.t_A + int(0.30 * self.nominal_steps)
+                if self.t_A >= 0
+                else self.phase_c_nominal_start
+            )
+            if step >= phase_b_end or step >= self.phase_c_nominal_start:
+                self._transition_to_phase_c(step, nominal=(mode == GateMode.OBSERVE_ONLY.value))
+                transitioned = True
+        return transitioned
+
+    def should_run_phase_a_gate(self, global_step: int | None = None) -> bool:
+        step = int(global_step if global_step is not None else self.trainer.global_step)
+        return should_run_phase_a_gate(
+            schedule=self.schedule,
+            phase=self.phase,
+            global_step=step,
+            last_gate_step_run=self.last_gate_step_run,
+            next_gate_step=self.next_gate_step,
+        )
+
+    def check_and_run_gate(self) -> bool:
+        """Run a Phase A gate attempt when scheduled. Returns True if promoted to Phase B."""
+        step = int(self.trainer.global_step)
+        if not self.should_run_phase_a_gate(step):
+            return False
+
+        print(f"\n[Curriculum Controller] Phase A gate check at step {step}...")
+        promoted = False
+        with GateIsolationBoundary(self.trainer) as boundary:
+            context = GateContext(
+                trainer=self.trainer,
+                cfg=self.cfg,
+                step=step,
+                eval_model=boundary.eval_model,
+                eval_policy=boundary.policy(),
+                latent_k=int(self.trainer.latent_k),
+            )
+
+            candidate_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_candidate_{step}.zip")
+            self.trainer.save(candidate_ckpt)
+            self.protected_candidate_checkpoints.append(candidate_ckpt)
+            print(f"[Curriculum Controller] Protected candidate: {candidate_ckpt}")
+
+            gate_results: dict[str, GateFamilyResult] = {}
+            online_report = self._evaluate_online_gates(gate_results, context)
+            if is_v6i2_gate_protocol(self.cfg):
+                matched_result = self._evaluate_behavioral_realization_gate(context)
+                gate_results["behavioral_realization"] = matched_result
+            else:
+                matched_result = self._run_matched_seed_eval(context)
+                gate_results["matched_seed_behavior"] = matched_result
+            probe_result = self._run_learnability_probe(context)
+            gate_results["selector_learnability_probe"] = probe_result
+
+            families = self.active_families
+            mode = GateMode.normalize(str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")))
+            boundary_enabled = bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False))
+            probe_enabled = bool(getattr(self.cfg, "curriculum_gate_run_probe", False))
+            gate_passed = all_required_families_passed(gate_results, families=families)
+            promotion_allowed = mode == GateMode.ENFORCE.value
+            should_promote = promotion_allowed and gate_passed
+            if should_promote and not (boundary_enabled and probe_enabled):
+                raise RuntimeError(
+                    "Internal error: Phase A promotion requested without full heavy gate configuration."
+                )
+            overall_passed = gate_passed
+
+            ranking_components = self.protocol.build_ranking(
+                gate_results=gate_results,
+                online_report=online_report,
+                matched_report=matched_result.details,
+                probe_report=probe_result.details,
+                global_step=step,
+                cfg=self.cfg,
+            )
+
+            attempt = GateAttempt(
+                global_step=step,
+                phase=self.phase,
+                checkpoint=candidate_ckpt,
+                gate_protocol_version=self.protocol_version,
+                required_families=families,
+                mode=mode,
+                boundary_enabled=boundary_enabled,
+                probe_enabled=probe_enabled,
+                gate_results=gate_results,
+                online_report=online_report,
+                matched_report=matched_result.details,
+                probe_report=probe_result.details,
+                ranking_components=ranking_components,
+                gate_passed=gate_passed,
+                promotion_allowed=promotion_allowed,
+                overall_gate_passed=overall_passed,
+            )
+            report = build_final_gate_report(attempt)
+            ranked_row = dict(report)
+            self.gate_check_history.append(ranked_row)
+            report_path = write_gate_report(self.cfg, step, report)
+
+            ranked = rank_candidates_lexicographic(list(self.gate_check_history))
+            if ranked:
+                self.best_candidate_report = ranked[0]
+
+            boundary.assert_unchanged()
+
+            from rl.custom_ppo.v6i1_phase_runtime import (
+                is_v6i1_staged_trainer,
+                resolve_v6i1_cf_coef_current,
+            )
+
+            cf_coef = (
+                float(resolve_v6i1_cf_coef_current(self.trainer))
+                if is_v6i1_staged_trainer(self.trainer)
+                else 0.0
+            )
+            req_consec = (
+                int(self.cfg.actor_jsd_consecutive_updates)
+                if is_v6i2_gate_protocol(self.cfg)
+                else int(self.cfg.latent_cf_gate_consecutive_updates)
+            )
+            gate_families_report = {
+                name: gate_results[name].to_dict() for name in families if name in gate_results
+            }
+            print(
+                format_v6i1_gate_stdout_block(
+                    step=step,
+                    phase=self.phase,
+                    overall_passed=overall_passed,
+                    mode=mode,
+                    gate_results=gate_results,
+                    online_report=online_report,
+                    ranking_components=ranking_components,
+                    cf_coef=cf_coef,
+                    required_consecutive=req_consec,
+                    report_path=report_path,
+                    gate_protocol=self.protocol_version,
+                ),
+                flush=True,
+            )
+            print(f"[Curriculum Controller] Gate families: {gate_families_report}")
+            print(f"[Curriculum Controller] Overall: {'PASS' if overall_passed else 'FAIL'} (mode={mode})")
+
+            if should_promote:
+                self._transition_to_phase_b(step, nominal=False, gate_report=report)
+                report["promoted_to_phase_b"] = True
+                write_gate_report(self.cfg, step, report)
+                promoted = True
+            else:
+                print("[Curriculum Controller] Phase A continues.")
+
+        self.last_gate_step_run = step
+        self.next_gate_step = schedule_next_gate_step(self.schedule, step=step)
+        return promoted
+
+    def _transition_to_phase_b(
+        self,
+        step: int,
+        *,
+        nominal: bool,
+        gate_report: dict[str, Any] | None = None,
+    ) -> None:
+        if self.phase != CurriculumPhase.A.value:
+            return
+        self.phase = CurriculumPhase.B.value
+        self.t_A = step
+        self.phase_a_end_step = step
+        self.phase_a_gate_passed = not nominal
+        boundary_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_phase_a_boundary_{step}.zip")
+        self.trainer.save(boundary_ckpt)
+        self.protected_candidate_checkpoints.append(boundary_ckpt)
+        label = "NOMINAL" if nominal else "GATE-PASSED"
+        print(f"[Curriculum Controller] {label} transition to Phase B at step {step}")
+        if gate_report is not None:
+            gate_report["phase_a_gate_passed"] = True
+            gate_report["phase_a_end_step"] = step
+
+    def _transition_to_phase_c(self, step: int, *, nominal: bool) -> None:
+        if self.phase != CurriculumPhase.B.value:
+            return
+        self.phase = CurriculumPhase.C.value
+        label = "NOMINAL" if nominal else "SCHEDULED"
+        print(f"[Curriculum Controller] {label} transition to Phase C at step {step}")
+
+    def check_terminal_failure(self) -> None:
+        mode = GateMode.normalize(str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")))
+        step = int(self.trainer.global_step)
+        if not should_trigger_terminal_failure(
+            mode=mode,
+            phase=self.phase,
+            global_step=step,
+            phase_a_max_end=self.phase_a_max_end,
+            last_gate_step_run=self.last_gate_step_run,
+            phase_a_gate_passed=self.phase_a_gate_passed,
+        ):
+            return
+        self._handle_terminal_failure()
+
+    def _handle_terminal_failure(self) -> None:
+        print("\n[Curriculum Controller] phase_a_research_gate_failed")
+        ranked = rank_candidates_lexicographic(list(self.gate_check_history))
+        best_ckpt = ranked[0]["checkpoint"] if ranked else None
+
+        terminal_ckpt = os.path.join(self.cfg.checkpoint_dir, "ckpt_phase_a_research_gate_failed.zip")
+        self.trainer.save(terminal_ckpt)
+        self.protected_candidate_checkpoints.append(terminal_ckpt)
+
+        failure_report = {
+            "schema_version": SCHEMA_VERSION,
+            "status": "phase_a_research_gate_failed",
+            "nominal_timesteps": self.nominal_steps,
+            "actual_timesteps": int(self.trainer.global_step),
+            "protected_candidate_checkpoints": list(self.protected_candidate_checkpoints),
+            "gate_check_history": self.gate_check_history,
+            "lexicographic_ranking": ranked,
+            "best_candidate_checkpoint": best_ckpt,
+            "opponent_id_map": dict(_OPPONENT_ID_TO_TAG),
+        }
+        failure_path = os.path.join(self.cfg.checkpoint_dir, "phase_a_failure_report.json")
+        atomic_write_json(failure_path, failure_report)
+        print(f"[Curriculum Controller] Failure report: {failure_path}")
+
+        if best_ckpt and os.path.exists(best_ckpt):
+            self.trainer.load(best_ckpt)
+
+        raise RuntimeError("phase_a_research_gate_failed")
+
+
+__all__ = [
+    "V6I1CurriculumController",
+    "is_staged_v6i1_curriculum",
+    "validate_v6i1_enforce_config",
+]

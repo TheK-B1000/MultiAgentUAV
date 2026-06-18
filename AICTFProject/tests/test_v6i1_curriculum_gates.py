@@ -34,6 +34,7 @@ from rl.custom_ppo.curriculum_gates import (
     rank_candidates_lexicographic,
     validate_v6i1_enforce_config,
 )
+from rl.custom_ppo.curriculum.isolation import GateIsolationError
 from rl.custom_ppo.csv_writers import V6I1_INTERVENTION_PAIR_COUNT, _update_fieldnames
 from rl.custom_ppo.v6i1_phase_runtime import (
     format_v6i1_rollout_stdout_line,
@@ -270,7 +271,7 @@ class OnlineGateLogicTests(unittest.TestCase):
         ctrl.trainer.model = mock.Mock(training=True)
         ctrl.trainer.model.train = mock.Mock()
         with mock.patch(
-            "rl.custom_ppo.curriculum_gates.TrainingIsolationSnapshot.capture",
+            "rl.custom_ppo.curriculum.isolation.TrainingIsolationSnapshot.capture",
             return_value=snap,
         ), mock.patch.object(ctrl, "_evaluate_online_gates", return_value={}):
             promoted = ctrl.check_and_run_gate()
@@ -574,7 +575,7 @@ class TrainingIsolationSnapshotTests(unittest.TestCase):
         snap = TrainingIsolationSnapshot.capture(trainer)
         with torch.no_grad():
             layer.weight.add_(1.0)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(GateIsolationError):
             snap.assert_unchanged(trainer)
 
     def test_assert_unchanged_detects_eval_mode_mutation(self) -> None:
@@ -589,7 +590,7 @@ class TrainingIsolationSnapshotTests(unittest.TestCase):
         )
         snap = TrainingIsolationSnapshot.capture(trainer)
         model.eval()
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(GateIsolationError):
             snap.assert_unchanged(trainer)
 
     def test_rng_restored_after_evaluator_exception(self) -> None:
@@ -696,26 +697,19 @@ class TrainingIntegrityGateTests(unittest.TestCase):
             def close(self) -> None:
                 return None
 
-        real_range = range
+        ctrl.cfg.curriculum_gate_probe_seed_count = 1
+        policy = mock.Mock()
+        policy.predict.return_value = (expected_act, None)
+        ctrl._gate_eval_policy = policy
 
-        def _short_probe_seed_range(start: int, stop: int | None = None, step: int | None = None):
-            if start == 3000:
-                return real_range(3000, 3001)
-            return real_range(start, stop) if step is None else real_range(start, stop, step)
-
-        with mock.patch.object(ctrl, "_gate_eval_predict", return_value=expected_act), mock.patch.object(
-            ctrl, "_gate_eval_configure_fixed_z", return_value=mock.Mock()
-        ), mock.patch(
+        with mock.patch(
             "rl.training.env_factory.build_training_env",
             return_value=_ProbeEnv(),
         ), mock.patch(
-            "rl.custom_ppo.curriculum_gates.range",
-            side_effect=_short_probe_seed_range,
-        ), mock.patch(
-            "rl.custom_ppo.curriculum_gates.TrainingIsolationSnapshot.capture",
+            "rl.custom_ppo.curriculum.isolation.TrainingIsolationSnapshot.capture",
             return_value=mock.Mock(restore_rng=mock.Mock(), model_was_training=True),
         ), mock.patch(
-            "rl.custom_ppo.curriculum_gates._preserve_model_training_mode",
+            "rl.custom_ppo.curriculum.context.preserve_model_training_mode",
             return_value=mock.MagicMock(),
         ):
             ctrl.trainer.model = mock.Mock(training=True, global_state_dim=170)
