@@ -2138,10 +2138,15 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     schedule. Only the Phase A evidence and promotion protocol differs: Gate A
     measures CF-batch actor intervention; Gate B composites matched-seed
     behavioral realization (macro pair JSD is diagnostic only).
+
+    Confirmatory v6i2 uses ``latent_cf_coef_max = 1.0`` (calibrated strong CF);
+    v6i1 retains the weak ``0.01`` baseline for threshold calibration.
     """
     cfg = apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(cfg)
 
     cfg.experiment_id = "v6i2"
+    # Confirmatory v6i2: calibrated strong CF ceiling (v6i1 weak baseline keeps 0.01).
+    cfg.latent_cf_coef_max = 1.0
     cfg.gate_protocol_version = "v6i2_dual_evidence"
     cfg.phase_a_max_end_fraction = 0.70
     # Placeholders until calibration against λ_cf=0.01 / 1.0 baselines; freeze before confirmatory run.

@@ -551,6 +551,12 @@ deprioritized.
 | Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **REQUIRED before confirmatory** |
 | Full fresh enforce confirmatory run (1.0M → up to 1.3M) | **PLANNED** after freeze |
 
+**2026-06-18 preset fix:** default `v6i2` previously inherited `latent_cf_coef_max = 0.01`
+from v6i1 (weak CF). Preset now sets `1.0`. The in-flight
+`v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` run at ~393k trained under
+weak CF unless restarted with the fixed preset or `--latent-cf-coef-max 1.0`; treat it
+as wiring/smoke evidence, not confirmatory strong-CF.
+
 ### V6I3 local communication (spec locked — implementation started)
 
 | Slice | Status |

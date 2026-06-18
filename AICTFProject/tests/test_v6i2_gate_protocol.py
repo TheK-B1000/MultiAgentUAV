@@ -19,6 +19,7 @@ from rl.custom_ppo.curriculum_gates import (
     V6I1CurriculumController,
     overall_gate_passed_for_promotion,
 )
+from rl.custom_ppo.schedules import resolve_v6i1_cf_coef
 from rl.custom_ppo.gate_protocol import (
     GATE_FAMILY_NAMES_V6I1,
     GATE_FAMILY_NAMES_V6I2,
@@ -55,17 +56,33 @@ class V6i2PresetTests(unittest.TestCase):
         allowed = {
             "experiment_id",
             "gate_protocol_version",
+            "latent_cf_coef_max",
             "phase_a_max_end_fraction",
             "run_tag",
         }
         self.assertEqual({k for k in v6i1 if v6i1[k] != v6i2[k]}, allowed)
         self.assertEqual(v6i2["gate_protocol_version"], V6I2_GATE_PROTOCOL)
+        self.assertEqual(v6i2["latent_cf_coef_max"], 1.0)
         self.assertEqual(v6i2["actor_jsd_consecutive_updates"], 3)
 
     def test_v6i2_mounts_staged_controller(self):
         cfg = _v6i2_cfg()
         self.assertTrue(is_staged_v6_team_intent_curriculum(cfg))
         self.assertTrue(is_v6i2_gate_protocol(cfg))
+
+    def test_v6i2_strong_cf_schedule_uses_coef_max_one(self):
+        cfg = _v6i2_cfg()
+        N = int(cfg.curriculum_nominal_timesteps)
+        coef_max = float(cfg.latent_cf_coef_max)
+        self.assertEqual(coef_max, 1.0)
+        cases = [
+            (131_000, 0.31),
+            (196_000, 0.96),
+            (262_000, 1.0),
+        ]
+        for step, expected_min in cases:
+            coef = resolve_v6i1_cf_coef("A", step, 0, N, coef_max)
+            self.assertAlmostEqual(coef, expected_min, places=1)
 
 
 class ProtocolIsolationTests(unittest.TestCase):
