@@ -63,7 +63,9 @@ def receiver_macro_jsd_by_message(
             base_channels=int(base_channels),
         )
         logits = model.policy_logits(obs_i, z_idx=z_idx)
-        macro_logits = logits[:, int(receiver_agent) * model.heads_per_agent]
+        per_agent_start = int(receiver_agent) * int(model.per_agent_logits)
+        macro_dim = int(model.per_agent_action_dims[0])
+        macro_logits = logits[:, per_agent_start : per_agent_start + macro_dim]
         probs.append(torch.softmax(macro_logits, dim=-1))
     pair_jsds: list[float] = []
     for i in range(int(num_symbols)):

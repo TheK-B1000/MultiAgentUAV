@@ -10,6 +10,7 @@ from gymnasium import spaces
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.communication import extend_observation_space_if_needed, extra_cnn_channels
+from rl.custom_ppo.communication.listener import receiver_macro_jsd_by_message
 from rl.custom_ppo.communication.observation import inject_message_grid_channels
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
 from rl.custom_ppo.trainer_optimizers import collect_actor_parameters
@@ -79,6 +80,60 @@ class CommPolicyTests(unittest.TestCase):
         )
         self.assertEqual(tuple(replaced["grid"].shape), (bsz, n, expected, h, w))
         self.assertTrue(np.allclose(replaced["grid"][:, :, -extra:, :, :], 1.0))
+
+    def test_received_message_channels_reach_cnn_and_logits(self) -> None:
+        torch.manual_seed(7)
+        model = _comm_model()
+        bsz, n = 2, 4
+        obs0 = {
+            "grid": torch.zeros((bsz, n, *model.grid_shape), dtype=torch.float32),
+            "vec": torch.zeros((bsz, n, model.vec_dim), dtype=torch.float32),
+            "agent_mask": torch.ones((bsz, n), dtype=torch.float32),
+            "mask": torch.ones((bsz, model.per_agent_logits * n), dtype=torch.float32),
+        }
+        obs1 = dict(obs0)
+        obs1["grid"] = obs0["grid"].clone()
+        base_channels = int(model.grid_shape[0]) - 4
+        obs1["grid"][:, 0, base_channels + 1, 0, 0] = 1.0
+
+        _, cnn0, _ = model._encode_local_obs(obs0)
+        _, cnn1, _ = model._encode_local_obs(obs1)
+        self.assertGreater(float((cnn1[:, 0] - cnn0[:, 0]).abs().max().item()), 0.0)
+
+        z = torch.zeros((bsz,), dtype=torch.long)
+        logits0 = model.policy_logits(obs0, z_idx=z)
+        logits1 = model.policy_logits(obs1, z_idx=z)
+        receiver_start = int(model.per_agent_logits) * 0
+        receiver_end = receiver_start + int(model.per_agent_logits)
+        self.assertEqual(
+            tuple(logits0[:, receiver_start:receiver_end].shape),
+            (bsz, int(model.per_agent_logits)),
+        )
+        self.assertGreater(
+            float((logits1[:, receiver_start:receiver_end] - logits0[:, receiver_start:receiver_end]).abs().max().item()),
+            0.0,
+        )
+
+    def test_listener_diagnostic_uses_receiver_macro_distribution(self) -> None:
+        model = _comm_model()
+        bsz, n = 3, 4
+        obs = {
+            "grid": torch.zeros((bsz, n, *model.grid_shape), dtype=torch.float32),
+            "vec": torch.zeros((bsz, n, model.vec_dim), dtype=torch.float32),
+            "agent_mask": torch.ones((bsz, n), dtype=torch.float32),
+            "mask": torch.ones((bsz, model.per_agent_logits * n), dtype=torch.float32),
+        }
+        z = torch.zeros((bsz,), dtype=torch.long)
+        stats = receiver_macro_jsd_by_message(
+            model,
+            obs,
+            z_idx=z,
+            receiver_agent=0,
+            num_symbols=4,
+            base_channels=int(model.grid_shape[0]) - 4,
+        )
+        self.assertEqual(stats["receiver_listener_pairs"], 6.0)
+        self.assertGreaterEqual(stats["receiver_action_jsd_by_message_pair_mean"], 0.0)
 
     def test_message_head_in_actor_optimizer(self) -> None:
         model = _comm_model()
