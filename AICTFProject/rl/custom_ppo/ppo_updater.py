@@ -55,7 +55,11 @@ from rl.custom_ppo.return_normalization import (
 )
 from rl.custom_ppo.schedules import resolve_latent_forced_z_frac, resolve_latent_lam_h
 from rl.custom_ppo.trainer_config import TrainerHyperparams
-from rl.custom_ppo.v6i1_cf_loss import actor_cf_grad_norm, v6i1_cf_separation_loss
+from rl.custom_ppo.trainer_optimizers import (
+    collect_actor_optimizer_parameters,
+    collect_actor_parameters,
+)
+from rl.custom_ppo.v6i1_cf_loss import actor_cf_ppo_grad_diagnostics, v6i1_cf_separation_loss
 
 if TYPE_CHECKING:
     from rl.custom_ppo.latent_strategy_state import LatentStrategyState
@@ -562,12 +566,23 @@ class PPOUpdater:
             "router_rollout_resample_count": [],
             "latent_actor_z_separation_loss": [],
             "latent_actor_z_separation_jsd": [],
+            "latent_actor_z_separation_jsd_min": [],
             "latent_actor_z_separation_active": [],
             "latent_actor_z_separation_train_active": [],
             "cf_actor_grad_norm": [],
             "ppo_actor_grad_norm": [],
             "cf_to_ppo_grad_ratio": [],
+            "cf_batch_pairs_below_margin": [],
+            "cf_hinge_active": [],
+            "cf_hinge_effective": [],
+            "cf_valid_team_groups": [],
+            "cf_weight_sum": [],
+            "cf_effective_pairs": [],
+            "cf_loss_requires_grad": [],
+            "latent_actor_z_separation_jsd_max": [],
         }
+        for _pair_idx in range(6):
+            stats[f"cf_batch_pair_jsd_{_pair_idx}"] = []
         for _k_idx in range(int(hparams.latent_k)):
             stats[f"router_rollout_soft_p_bar_z{_k_idx}"] = []
         # Pre-resolved per-update entropy mode / coefficient. Constant across
@@ -624,6 +639,7 @@ class PPOUpdater:
         if strategy_target_kl is None:
             strategy_target_kl = target_kl
         model = self.model
+        actor_grad_diag_done = False
         for _epoch_idx in range(hparams.n_epochs):
             # Once-per-epoch rollout-level marginal-entropy forward+loss for v5i6.
             #
@@ -1073,18 +1089,34 @@ class PPOUpdater:
                     values_norm, batch["values_norm"], value_targets, hparams.value_clip_range
                 )
                 entropy_loss = -entropy.mean()
+                ppo_actor_loss = policy_loss + ent_coef * entropy_loss
                 loss = policy_loss + hparams.vf_coef * value_loss + ent_coef * entropy_loss + latent_loss
 
                 v6i1_three_opt = bool(getattr(runtime, "v6i1_three_optimizer_mode", False))
-                cf_actor_grad_norm_val = 0.0
                 if (
-                    z_sep_train_active > 0.0
+                    not actor_grad_diag_done
+                    and z_sep_train_active > 0.0
                     and float(curr_sep_coef) > 0.0
                     and z_sep_loss.requires_grad
                 ):
-                    cf_actor_grad_norm_val = actor_cf_grad_norm(
-                        float(curr_sep_coef) * z_sep_loss, model
+                    if v6i1_three_opt:
+                        actor_parameters = collect_actor_optimizer_parameters(
+                            runtime.actor_optimizer
+                        )
+                    else:
+                        actor_parameters = collect_actor_parameters(model)
+                    scaled_cf_loss = float(curr_sep_coef) * z_sep_loss
+                    cf_actor_grad_norm_val, ppo_actor_grad_norm_val, cf_to_ppo_ratio = (
+                        actor_cf_ppo_grad_diagnostics(
+                            scaled_cf_loss=scaled_cf_loss,
+                            ppo_actor_loss=ppo_actor_loss,
+                            actor_parameters=actor_parameters,
+                        )
                     )
+                    stats["cf_actor_grad_norm"].append(cf_actor_grad_norm_val)
+                    stats["ppo_actor_grad_norm"].append(ppo_actor_grad_norm_val)
+                    stats["cf_to_ppo_grad_ratio"].append(cf_to_ppo_ratio)
+                    actor_grad_diag_done = True
                 if v6i1_three_opt:
                     phase, _, _, _ = v6i1_schedule_context(runtime)
                     runtime.actor_optimizer.zero_grad(set_to_none=True)
@@ -1120,19 +1152,6 @@ class PPOUpdater:
                     strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
                     grad_norm = _clip_global_grad_norm(model, float(cfg.max_grad_norm))
                     self.optimizer.step()
-
-                ppo_actor_grad_norm_val = 0.0
-                for name, param in model.named_parameters():
-                    if (
-                        param.grad is not None
-                        and param.requires_grad
-                        and ("actor_cnn" in name or "latent_actor" in name)
-                    ):
-                        ppo_actor_grad_norm_val += float(
-                            param.grad.detach().pow(2).sum().cpu().item()
-                        )
-                ppo_actor_grad_norm_val = float(ppo_actor_grad_norm_val**0.5)
-                cf_to_ppo_ratio = cf_actor_grad_norm_val / (ppo_actor_grad_norm_val + 1e-8)
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
                 stats["policy_loss"].append(float(policy_loss.detach().cpu().item()))
@@ -1219,13 +1238,64 @@ class PPOUpdater:
                 stats["latent_actor_z_separation_jsd"].append(
                     float(z_sep_stats["jsd"].detach().cpu().item())
                 )
+                _min_jsd = z_sep_stats.get("min_jsd", z_sep_stats.get("jsd", zero_scalar))
+                stats["latent_actor_z_separation_jsd_min"].append(
+                    float(_min_jsd.detach().cpu().item())
+                    if isinstance(_min_jsd, torch.Tensor)
+                    else float(_min_jsd)
+                )
+                _max_jsd = z_sep_stats.get("max_jsd", z_sep_stats.get("jsd", zero_scalar))
+                stats["latent_actor_z_separation_jsd_max"].append(
+                    float(_max_jsd.detach().cpu().item())
+                    if isinstance(_max_jsd, torch.Tensor)
+                    else float(_max_jsd)
+                )
                 stats["latent_actor_z_separation_active"].append(
                     float(z_sep_stats["active"].detach().cpu().item())
                 )
                 stats["latent_actor_z_separation_train_active"].append(float(z_sep_train_active))
-                stats["cf_actor_grad_norm"].append(float(cf_actor_grad_norm_val))
-                stats["ppo_actor_grad_norm"].append(float(ppo_actor_grad_norm_val))
-                stats["cf_to_ppo_grad_ratio"].append(float(cf_to_ppo_ratio))
+                pair_jsd_batch = z_sep_stats.get("pair_jsd")
+                if pair_jsd_batch is not None:
+                    for _pair_idx in range(min(6, int(pair_jsd_batch.numel()))):
+                        stats[f"cf_batch_pair_jsd_{_pair_idx}"].append(
+                            float(pair_jsd_batch[_pair_idx].detach().cpu().item())
+                        )
+                else:
+                    for _pair_idx in range(6):
+                        stats[f"cf_batch_pair_jsd_{_pair_idx}"].append(0.0)
+                stats["cf_batch_pairs_below_margin"].append(
+                    float(z_sep_stats.get("pairs_below_margin", zero_scalar).detach().cpu().item())
+                    if isinstance(z_sep_stats.get("pairs_below_margin"), torch.Tensor)
+                    else float(z_sep_stats.get("pairs_below_margin", 0.0) or 0.0)
+                )
+                stats["cf_hinge_active"].append(
+                    float(z_sep_stats.get("cf_hinge_active", zero_scalar).detach().cpu().item())
+                    if isinstance(z_sep_stats.get("cf_hinge_active"), torch.Tensor)
+                    else float(z_sep_stats.get("cf_hinge_active", 0.0) or 0.0)
+                )
+                stats["cf_hinge_effective"].append(
+                    float(z_sep_stats.get("cf_hinge_effective", zero_scalar).detach().cpu().item())
+                    if isinstance(z_sep_stats.get("cf_hinge_effective"), torch.Tensor)
+                    else float(z_sep_stats.get("cf_hinge_effective", 0.0) or 0.0)
+                )
+                stats["cf_valid_team_groups"].append(
+                    float(z_sep_stats.get("cf_valid_team_groups", zero_scalar).detach().cpu().item())
+                    if isinstance(z_sep_stats.get("cf_valid_team_groups"), torch.Tensor)
+                    else float(z_sep_stats.get("cf_valid_team_groups", 0.0) or 0.0)
+                )
+                stats["cf_weight_sum"].append(
+                    float(z_sep_stats.get("cf_weight_sum", zero_scalar).detach().cpu().item())
+                    if isinstance(z_sep_stats.get("cf_weight_sum"), torch.Tensor)
+                    else float(z_sep_stats.get("cf_weight_sum", 0.0) or 0.0)
+                )
+                stats["cf_effective_pairs"].append(
+                    float(z_sep_stats.get("cf_effective_pairs", zero_scalar).detach().cpu().item())
+                    if isinstance(z_sep_stats.get("cf_effective_pairs"), torch.Tensor)
+                    else float(z_sep_stats.get("cf_effective_pairs", 0.0) or 0.0)
+                )
+                stats["cf_loss_requires_grad"].append(
+                    1.0 if bool(z_sep_loss.requires_grad) else 0.0
+                )
                 strategy_kl_value = float(strategy_ppo_stats["approx_kl"].detach().cpu().item())
                 stop_for_action = (
                     target_kl is not None and approx_kl_value > 1.5 * float(target_kl)
@@ -1333,7 +1403,14 @@ class PPOUpdater:
         forced_z_profile = _forced_z_behavior_profile(runtime, buffer)
         runtime.last_stats.update(forced_z_profile)
         if forced_z_profile:
-            runtime.latent_state.update_intervention_gate_from_profile(forced_z_profile)
+            ema_updated = runtime.latent_state.update_intervention_gate_from_profile(
+                forced_z_profile
+            )
+            runtime.last_stats["pairwise_profile_available"] = (
+                1.0 if ema_updated else 0.0
+            )
+        else:
+            runtime.last_stats["pairwise_profile_available"] = 0.0
         from rl.custom_ppo.v6i1_phase_runtime import v6i1_intervention_csv_stats
 
         runtime.last_stats.update(
@@ -1343,6 +1420,14 @@ class PPOUpdater:
                 cfg=runtime.cfg,
             )
         )
+        if is_v6i1_staged_trainer(runtime):
+            from rl.custom_ppo.v6i1_cf_loss import v6i1_pair_suffix
+
+            for _pair_idx in range(6):
+                _suffix = v6i1_pair_suffix(_pair_idx)
+                _batch_key = f"cf_batch_pair_jsd_{_pair_idx}"
+                if _batch_key in runtime.last_stats:
+                    runtime.last_stats[f"cf_batch_pair_jsd_{_suffix}"] = runtime.last_stats[_batch_key]
         runtime.last_stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         runtime.last_stats.update(episode_strategy_stats)
         runtime.last_stats.update(arc_strategy_stats)

@@ -197,6 +197,12 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--latent-lam-p", type=float, default=None, help="Strategy persistence penalty weight.")
     parser.add_argument("--latent-lam-h", type=float, default=None, help="Strategy entropy weight (see --latent-entropy-objective).")
     parser.add_argument(
+        "--latent-cf-coef-max",
+        type=float,
+        default=None,
+        help="V6I1 counterfactual separation ceiling (latent_cf_coef_max); schedule still ramps 0→max in Phase A.",
+    )
+    parser.add_argument(
         "--latent-strategy-ppo-coef",
         type=float,
         default=None,
@@ -688,6 +694,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.latent_lam_p = max(0.0, float(args.latent_lam_p))
     if args.latent_lam_h is not None:
         cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
+    if args.latent_cf_coef_max is not None:
+        cfg.latent_cf_coef_max = max(0.0, float(args.latent_cf_coef_max))
     if args.latent_strategy_ppo_coef is not None:
         cfg.latent_strategy_ppo_coef = max(0.0, float(args.latent_strategy_ppo_coef))
     if args.latent_episode_strategy_ppo:

@@ -637,17 +637,31 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         "cf_competence_z1",
         "cf_competence_z2",
         "cf_competence_z3",
+        "pairwise_profile_available",
+        "pairwise_ema_valid_updates",
+        "pairwise_ema_last_update_step",
         "cf_actor_grad_norm",
         "ppo_actor_grad_norm",
         "cf_to_ppo_grad_ratio",
+        "cf_batch_pairs_below_margin",
+        "cf_hinge_active",
+        "cf_hinge_effective",
+        "cf_valid_team_groups",
+        "cf_weight_sum",
+        "cf_effective_pairs",
+        "cf_loss_requires_grad",
+        "latent_actor_z_separation_jsd_min",
+        "latent_actor_z_separation_jsd_max",
     ]
     pair_suffixes = ("01", "02", "03", "12", "13", "23")
     for idx in range(V6I1_INTERVENTION_PAIR_COUNT):
         fields.append(f"forced_z_pair_jsd_{idx}")
         fields.append(f"pair_jsd_ema_{idx}")
+        fields.append(f"cf_batch_pair_jsd_{idx}")
     for suffix in pair_suffixes:
         fields.append(f"forced_z_pair_jsd_{suffix}")
         fields.append(f"pair_jsd_ema_{suffix}")
+        fields.append(f"cf_batch_pair_jsd_{suffix}")
     return fields
 
 

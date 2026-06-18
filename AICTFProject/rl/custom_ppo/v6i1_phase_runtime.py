@@ -232,6 +232,8 @@ def latent_state_v6i1_checkpoint(state: Any) -> dict[str, Any]:
         "cf_return_var": float(state.cf_return_var),
         "pair_jsd_ema": state.pair_jsd_ema.copy(),
         "jsd_gate_consecutive_updates": int(state.jsd_gate_consecutive_updates),
+        "pairwise_ema_valid_updates": int(getattr(state, "pairwise_ema_valid_updates", 0)),
+        "pairwise_ema_last_update_step": int(getattr(state, "pairwise_ema_last_update_step", -1)),
         "router_optimizer_step_count": int(state.router_optimizer_step_count),
         "macro_return_running_mean": float(getattr(state, "macro_return_running_mean", 0.0)),
         "macro_return_running_count": int(getattr(state, "macro_return_running_count", 0)),
@@ -251,6 +253,12 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
     state.pair_jsd_ema = payload.get("pair_jsd_ema", state.pair_jsd_ema)
     state.jsd_gate_consecutive_updates = int(
         payload.get("jsd_gate_consecutive_updates", state.jsd_gate_consecutive_updates)
+    )
+    state.pairwise_ema_valid_updates = int(
+        payload.get("pairwise_ema_valid_updates", getattr(state, "pairwise_ema_valid_updates", 0))
+    )
+    state.pairwise_ema_last_update_step = int(
+        payload.get("pairwise_ema_last_update_step", getattr(state, "pairwise_ema_last_update_step", -1))
     )
     state.router_optimizer_step_count = int(
         payload.get("router_optimizer_step_count", state.router_optimizer_step_count)
@@ -277,12 +285,16 @@ def v6i1_intervention_csv_stats(
     cfg: Any | None = None,
 ) -> dict[str, float]:
     """V6I1 intervention / competence / gate telemetry for metrics CSV rows."""
+    from rl.custom_ppo.v6i1_cf_loss import forced_z_pairwise_profile_available
+
     profile_stats = profile_stats or {}
     cfg = cfg or getattr(getattr(latent_state, "trainer", None), "cfg", None)
     margin = float(getattr(cfg, "latent_cf_jsd_margin", 0.01) or 0.01) if cfg is not None else 0.01
     required_consecutive = (
         int(getattr(cfg, "latent_cf_gate_consecutive_updates", 5) or 5) if cfg is not None else 5
     )
+    profile_available = forced_z_pairwise_profile_available(profile_stats)
+    valid_updates = int(getattr(latent_state, "pairwise_ema_valid_updates", 0) or 0)
 
     pair_ema = getattr(latent_state, "pair_jsd_ema", None)
     ema_list = (
@@ -300,6 +312,11 @@ def v6i1_intervention_csv_stats(
 
     comp_scores, competence_ready = latent_state.compute_competence_scores()
     out: dict[str, float] = {
+        "pairwise_profile_available": 1.0 if profile_available else 0.0,
+        "pairwise_ema_valid_updates": float(valid_updates),
+        "pairwise_ema_last_update_step": float(
+            getattr(latent_state, "pairwise_ema_last_update_step", -1) or -1
+        ),
         "jsd_gate_consecutive_updates": float(streak),
         "jsd_pairs_above_margin": float(num_above),
         "jsd_min_pair": min_pair,
@@ -313,13 +330,28 @@ def v6i1_intervention_csv_stats(
 
     for idx in range(6):
         suffix = v6i1_pair_suffix(idx)
-        raw = float(profile_stats.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0)
+        raw = float(profile_stats.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0) if profile_available else 0.0
         ema = float(ema_list[idx])
         out[f"forced_z_pair_jsd_{idx}"] = raw
         out[f"forced_z_pair_jsd_{suffix}"] = raw
         out[f"pair_jsd_ema_{idx}"] = ema
         out[f"pair_jsd_ema_{suffix}"] = ema
     return out
+
+
+def _format_pair_jsd_values(values: list[float]) -> str:
+    """Format pair JSD/EMA values; use extra precision below the 0.01 gate margin."""
+    margin = 0.01
+    parts: list[str] = []
+    for value in values:
+        v = float(value)
+        if v <= 0.0:
+            parts.append("0")
+        elif v < margin:
+            parts.append(f"{v:.6f}")
+        else:
+            parts.append(f"{v:.4f}")
+    return ",".join(parts)
 
 
 def format_v6i1_rollout_stdout_line(
@@ -329,17 +361,43 @@ def format_v6i1_rollout_stdout_line(
     required_consecutive: int,
 ) -> str:
     """Per-update intervention telemetry (distinct from gate-attempt block)."""
-    pair_bits = ",".join(
-        f"{float(row.get(f'pair_jsd_ema_{idx}', 0.0) or 0.0):.4f}" for idx in range(6)
-    )
+    ema_vals = [float(row.get(f"pair_jsd_ema_{idx}", 0.0) or 0.0) for idx in range(6)]
+    raw_vals = [float(row.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0) for idx in range(6)]
+    macro_mean = float(row.get("forced_z_macro_jsd_mean", 0.0) or 0.0)
+    actor_jsd_mean = float(row.get("actor_z_jsd_mean", 0.0) or 0.0)
+    actor_jsd_max = float(row.get("actor_z_jsd_max", 0.0) or 0.0)
+    cf_grad = float(row.get("cf_actor_grad_norm", 0.0) or 0.0)
+    cf_ratio = float(row.get("cf_to_ppo_grad_ratio", 0.0) or 0.0)
+    sep_jsd = float(row.get("latent_actor_z_separation_jsd", 0.0) or 0.0)
+    sep_min_batch = float(row.get("latent_actor_z_separation_jsd_min", row.get("jsd_min_pair", 0.0)) or 0.0)
+    pairs_below = int(float(row.get("cf_batch_pairs_below_margin", 0.0) or 0.0))
+    hinge_active = int(float(row.get("cf_hinge_active", 0.0) or 0.0))
+    hinge_effective = int(float(row.get("cf_hinge_effective", 0.0) or 0.0))
+    profile_ok = int(float(row.get("pairwise_profile_available", 0.0) or 0.0))
+    cf_requires_grad = int(float(row.get("cf_loss_requires_grad", 0.0) or 0.0))
+    cf_weight_sum = float(row.get("cf_weight_sum", 0.0) or 0.0)
+    cf_effective_pairs = int(float(row.get("cf_effective_pairs", 0.0) or 0.0))
+    cf_valid_groups = int(float(row.get("cf_valid_team_groups", 0.0) or 0.0))
+    sep_jsd_max = float(row.get("latent_actor_z_separation_jsd_max", 0.0) or 0.0)
+    cf_batch_pairs = [
+        float(row.get(f"cf_batch_pair_jsd_{idx}", 0.0) or 0.0) for idx in range(6)
+    ]
     return (
         f"      [V6I1] phase={phase} "
         f"cf_coef={float(row.get('v6i1_cf_coef_current', 0.0) or 0.0):.4f} "
         f"sep_train={int(float(row.get('latent_actor_z_separation_train_active', 0.0) or 0.0))} "
+        f"pairwise_ok={profile_ok} "
         f"jsd_consec={int(float(row.get('jsd_gate_consecutive_updates', 0.0) or 0.0))}"
         f"/{int(required_consecutive)} "
         f"comp_ready={int(float(row.get('cf_competence_ready', 0.0) or 0.0))} "
-        f"pair_ema=[{pair_bits}]"
+        f"macro_jsd={macro_mean:.6f} pair_raw=[{_format_pair_jsd_values(raw_vals)}] "
+        f"pair_ema=[{_format_pair_jsd_values(ema_vals)}] "
+        f"actor_jsd={actor_jsd_mean:.6f}/{actor_jsd_max:.6f} "
+        f"cf_batch=[{_format_pair_jsd_values(cf_batch_pairs)}] "
+        f"hinge={hinge_active} eff={hinge_effective} pairs_below={pairs_below}/6 "
+        f"cf_wsum={cf_weight_sum:.4f} eff_pairs={cf_effective_pairs} groups={cf_valid_groups} "
+        f"sep_jsd={sep_jsd:.6f}/{sep_jsd_max:.6f} min={sep_min_batch:.6f} "
+        f"cf_req_grad={cf_requires_grad} cf_grad={cf_grad:.2e} cf/ppo={cf_ratio:.3f}"
     )
 
 
@@ -358,6 +416,7 @@ __all__ = [
     "step_v6i1_optimizers",
     "v6i1_curriculum_state_dict",
     "format_v6i1_rollout_stdout_line",
+    "_format_pair_jsd_values",
     "v6i1_intervention_csv_stats",
     "v6i1_macro_router_active",
     "v6i1_schedule_context",

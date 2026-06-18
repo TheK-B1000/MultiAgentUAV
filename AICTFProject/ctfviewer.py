@@ -26,7 +26,8 @@ from game_field_gpu import (
     NUM_CNN_CHANNELS,
     VEC_OBS_DIM,
 )
-from gpu_env import MAP_A_OPEN, MAP_B_SPLIT_LANE
+from gpu_env import MAP_A_OPEN, MAP_LAYOUTS
+from gpu_env._maps import normalize_map_layout
 from rl.stress_schedule import STRESS_BY_PHASE
 from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 
@@ -38,23 +39,18 @@ METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
 DEFAULT_PPO_MODEL_PATH = "checkpoints/4v4/final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4.zip"
 N_MACROS = 5
 N_TARGETS = 50
-MAP_LAYOUT_CHOICES = ("map_a_open", "map_b_split_lane", "open", "split_lane")
+MAP_LAYOUT_CHOICES = MAP_LAYOUTS + (
+    "open",
+    "split_lane",
+    "split_lane_v2",
+    "split_lane_task_pressure",
+    "map_b",
+    "map_b_v2",
+)
 
 
 def _normalize_viewer_map_layout(value: str) -> str:
-    key = str(value or MAP_A_OPEN).strip().lower().replace("-", "_").replace(" ", "_")
-    aliases = {
-        "map_a_open": MAP_A_OPEN,
-        "map_a": MAP_A_OPEN,
-        "open": MAP_A_OPEN,
-        "map_b_split_lane": MAP_B_SPLIT_LANE,
-        "map_b": MAP_B_SPLIT_LANE,
-        "split_lane": MAP_B_SPLIT_LANE,
-    }
-    if key not in aliases:
-        allowed = ", ".join(MAP_LAYOUT_CHOICES)
-        raise ValueError(f"map_layout must be one of {{{allowed}}}, got {value!r}")
-    return aliases[key]
+    return normalize_map_layout(value)
 
 
 def _try_paths(*candidates: str) -> Optional[str]:
@@ -864,8 +860,8 @@ if __name__ == "__main__":
                         help="Headless evaluation (no display)")
     parser.add_argument("--device", type=str, default="cpu",
                         help="Torch device (cpu / cuda)")
-    parser.add_argument("--map-layout", type=str, choices=MAP_LAYOUT_CHOICES, default=MAP_A_OPEN,
-                        help="Environment geometry layout")
+    parser.add_argument("--map-layout", type=str, default=MAP_A_OPEN,
+                        help=f"Environment geometry layout (canonical: {', '.join(MAP_LAYOUTS)})")
     parser.add_argument("--stochastic", action="store_true",
                         help="Use stochastic PPO actions instead of deterministic inference")
     args = parser.parse_args()

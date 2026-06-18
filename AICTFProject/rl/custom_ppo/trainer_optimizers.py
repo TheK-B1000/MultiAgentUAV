@@ -10,6 +10,25 @@ import torch
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
 
 
+def collect_actor_parameters(model: torch.nn.Module) -> list[torch.nn.Parameter]:
+    """Explicit actor parameter list shared by the actor optimizer and CF diagnostics."""
+    return _collect_params(model, ("actor_cnn", "latent_actor"))
+
+
+def collect_actor_optimizer_parameters(
+    optimizer: torch.optim.Optimizer,
+) -> list[torch.nn.Parameter]:
+    """Flatten every actor-optimizer parameter group (with duplicate guard)."""
+    params = [
+        parameter
+        for group in optimizer.param_groups
+        for parameter in group["params"]
+    ]
+    if len({id(p) for p in params}) != len(params):
+        raise RuntimeError("Actor optimizer parameter groups contain duplicates.")
+    return params
+
+
 def _collect_params(model: torch.nn.Module, name_parts: tuple[str, ...]) -> list[torch.nn.Parameter]:
     params: list[torch.nn.Parameter] = []
     for name, param in model.named_parameters():
@@ -93,7 +112,7 @@ class TrainerOptimizerBundle:
             or getattr(hparams, "latent_episode_strategy_lr", None)
             or 5e-3
         )
-        actor_params = _collect_params(model, ("actor_cnn", "latent_actor"))
+        actor_params = collect_actor_parameters(model)
         critic_params = _collect_params(model, ("critic",))
         router_params = _collect_params(model, _router_param_names())
         if not actor_params or not critic_params or not router_params:
@@ -130,4 +149,8 @@ class TrainerOptimizerBundle:
             self.router.load_state_dict(payload["router_optimizer_state_dict"])
 
 
-__all__ = ["TrainerOptimizerBundle"]
+__all__ = [
+    "TrainerOptimizerBundle",
+    "collect_actor_optimizer_parameters",
+    "collect_actor_parameters",
+]

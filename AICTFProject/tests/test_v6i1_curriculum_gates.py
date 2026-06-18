@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 
 from rl.config.ppo_config import PPOConfig
+from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
 from rl.custom_ppo.curriculum_gates import (
     GATE_FAMILY_NAMES,
     GATE_STATUS_FAIL,
@@ -34,6 +35,8 @@ from rl.custom_ppo.curriculum_gates import (
 from rl.custom_ppo.csv_writers import V6I1_INTERVENTION_PAIR_COUNT, _update_fieldnames
 from rl.custom_ppo.v6i1_phase_runtime import (
     format_v6i1_rollout_stdout_line,
+    latent_state_v6i1_checkpoint,
+    restore_latent_state_v6i1_checkpoint,
     v6i1_intervention_csv_stats,
 )
 from rl.custom_ppo.inference import CustomPPOInferencePolicy
@@ -165,6 +168,7 @@ class OnlineGateLogicTests(unittest.TestCase):
             recent_z_history=deque([0, 1, 2, 3] * 25),
             pair_jsd_ema=np.array([0.02, 0.02, 0.02, 0.02, 0.02, 0.006], dtype=np.float32),
             jsd_gate_consecutive_updates=5,
+            pairwise_ema_valid_updates=5,
             cf_J=np.array([10.0, 9.5, 9.0, 8.5], dtype=np.float32),
             cf_return_var=1.0,
             router_optimizer_step_count=0,
@@ -363,11 +367,19 @@ class EnforceConfigValidationTests(unittest.TestCase):
 
 class InterventionGateProfileTests(unittest.TestCase):
     def _bare_latent_state(self) -> LatentStrategyState:
-        trainer = SimpleNamespace(cfg=PPOConfig())
+        trainer = SimpleNamespace(cfg=PPOConfig(), global_step=0)
         state = LatentStrategyState.__new__(LatentStrategyState)
         state.trainer = trainer
         state.pair_jsd_ema = np.zeros(6, dtype=np.float32)
         state.jsd_gate_consecutive_updates = 0
+        state.pairwise_ema_valid_updates = 0
+        state.pairwise_ema_last_update_step = -1
+        state.cf_J = np.zeros(4, dtype=np.float32)
+        state.cf_episode_counts = np.zeros(4, dtype=np.int64)
+        state.cf_has_experience = np.zeros(4, dtype=np.int64)
+        state.cf_return_mean = 0.0
+        state.cf_return_var = 1.0
+        state.router_optimizer_step_count = 0
         return state
 
     def test_weak_sixth_pair_resets_consecutive_counter(self) -> None:
@@ -389,6 +401,7 @@ class InterventionGateProfileTests(unittest.TestCase):
         self.assertEqual(state.jsd_gate_consecutive_updates, 5)
         ctrl = OnlineGateLogicTests()._make_controller()
         ctrl.trainer.latent_state = state
+        ctrl.trainer.latent_state.pairwise_ema_valid_updates = 5
         result = ctrl._evaluate_intervention_gate()
         self.assertTrue(result.details["single_update_ok"])
         self.assertGreaterEqual(result.details["min_pair_jsd_ema"], result.details["min_pair_floor"])
@@ -397,6 +410,7 @@ class InterventionGateProfileTests(unittest.TestCase):
     def test_five_of_six_without_floor_fails_single_update(self) -> None:
         state = self._bare_latent_state()
         state.pair_jsd_ema = np.array([0.02, 0.02, 0.02, 0.02, 0.02, 0.004], dtype=np.float32)
+        state.pairwise_ema_valid_updates = 3
         ctrl = OnlineGateLogicTests()._make_controller()
         ctrl.trainer.latent_state = state
         result = ctrl._evaluate_intervention_gate()
@@ -406,11 +420,125 @@ class InterventionGateProfileTests(unittest.TestCase):
     def test_pair_order_mapping_is_stable(self) -> None:
         self.assertEqual(PAIR_ORDER, LATENT_PAIR_INDEX)
         ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.trainer.latent_state.pairwise_ema_valid_updates = 1
         result = ctrl._evaluate_intervention_gate()
         for idx, pair in enumerate(LATENT_PAIR_INDEX):
             key = f"pair_{idx}_z{pair[0]}_z{pair[1]}"
             self.assertIn(key, result.details)
-            self.assertEqual(result.details[f"forced_z_pair_jsd_{idx}"], result.details[key])
+            self.assertEqual(result.details[f"pair_jsd_ema_{idx}"], result.details[key])
+
+    def test_macro_mean_without_pairs_does_not_update_ema(self) -> None:
+        state = self._bare_latent_state()
+        state.trainer.cfg.latent_cf_jsd_ema_alpha = 1.0
+        profile = {"forced_z_macro_jsd_mean": 0.02, "forced_z_macro_jsd": 0.02}
+        updated = LatentStrategyState.update_intervention_gate_from_profile(state, profile)
+        self.assertFalse(updated)
+        self.assertEqual(state.pairwise_ema_valid_updates, 0)
+        self.assertTrue(np.allclose(state.pair_jsd_ema, 0.0))
+        self.assertEqual(state.jsd_gate_consecutive_updates, 0)
+
+    def test_genuine_zero_pairs_update_ema(self) -> None:
+        state = self._bare_latent_state()
+        state.trainer.cfg.latent_cf_jsd_ema_alpha = 1.0
+        profile = {f"forced_z_pair_jsd_{i}": 0.0 for i in range(6)}
+        updated = LatentStrategyState.update_intervention_gate_from_profile(state, profile)
+        self.assertTrue(updated)
+        self.assertTrue(np.allclose(state.pair_jsd_ema, 0.0))
+        self.assertEqual(state.pairwise_ema_valid_updates, 1)
+
+    def test_intervention_gate_not_run_without_ema_updates(self) -> None:
+        ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.trainer.latent_state.pairwise_ema_valid_updates = 0
+        result = ctrl._evaluate_intervention_gate()
+        self.assertEqual(result.status, GATE_STATUS_NOT_RUN)
+        self.assertIn("no_pairwise_profile_ema_updates", result.reason)
+
+    def test_missing_one_pair_key_leaves_ema_unchanged_and_resets_streak(self) -> None:
+        state = self._bare_latent_state()
+        state.trainer.cfg.latent_cf_jsd_ema_alpha = 1.0
+        state.pair_jsd_ema = np.array([0.03] * 6, dtype=np.float32)
+        state.jsd_gate_consecutive_updates = 3
+        profile = {f"forced_z_pair_jsd_{i}": 0.02 for i in range(5)}
+        updated = LatentStrategyState.update_intervention_gate_from_profile(state, profile)
+        self.assertFalse(updated)
+        self.assertTrue(np.allclose(state.pair_jsd_ema, 0.03))
+        self.assertEqual(state.pairwise_ema_valid_updates, 0)
+        self.assertEqual(state.jsd_gate_consecutive_updates, 0)
+        ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.trainer.latent_state = state
+        result = ctrl._evaluate_intervention_gate()
+        self.assertEqual(result.status, GATE_STATUS_NOT_RUN)
+
+    def test_nan_or_inf_pair_invalidates_profile(self) -> None:
+        profile = {f"forced_z_pair_jsd_{i}": 0.02 for i in range(6)}
+        profile["forced_z_pair_jsd_2"] = float("nan")
+        self.assertIsNone(extract_forced_z_pair_values(profile))
+        profile["forced_z_pair_jsd_2"] = float("inf")
+        self.assertIsNone(extract_forced_z_pair_values(profile))
+        state = self._bare_latent_state()
+        state.jsd_gate_consecutive_updates = 2
+        updated = LatentStrategyState.update_intervention_gate_from_profile(state, profile)
+        self.assertFalse(updated)
+        self.assertEqual(state.jsd_gate_consecutive_updates, 0)
+
+    def test_valid_profile_after_missing_restarts_streak(self) -> None:
+        state = self._bare_latent_state()
+        state.trainer.cfg.latent_cf_jsd_ema_alpha = 1.0
+        state.jsd_gate_consecutive_updates = 4
+        incomplete = {"forced_z_macro_jsd_mean": 0.02}
+        self.assertFalse(
+            LatentStrategyState.update_intervention_gate_from_profile(state, incomplete)
+        )
+        self.assertEqual(state.jsd_gate_consecutive_updates, 0)
+        complete = {f"forced_z_pair_jsd_{i}": 0.02 for i in range(6)}
+        self.assertTrue(
+            LatentStrategyState.update_intervention_gate_from_profile(state, complete)
+        )
+        self.assertEqual(state.jsd_gate_consecutive_updates, 1)
+
+    def test_stale_ema_values_without_valid_updates_yield_not_run(self) -> None:
+        ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.trainer.latent_state.pair_jsd_ema = np.array(
+            [0.02, 0.02, 0.02, 0.02, 0.02, 0.02], dtype=np.float32
+        )
+        ctrl.trainer.latent_state.jsd_gate_consecutive_updates = 5
+        ctrl.trainer.latent_state.pairwise_ema_valid_updates = 0
+        result = ctrl._evaluate_intervention_gate()
+        self.assertEqual(result.status, GATE_STATUS_NOT_RUN)
+
+    def test_broadcast_mean_never_mutates_pair_ema(self) -> None:
+        state = self._bare_latent_state()
+        state.trainer.cfg.latent_cf_jsd_ema_alpha = 1.0
+        state.pair_jsd_ema = np.array([0.001] * 6, dtype=np.float32)
+        profile = {
+            "forced_z_macro_jsd_mean": 0.5,
+            "forced_z_macro_jsd": 0.5,
+            "forced_z_pair_jsd_0": 0.02,
+        }
+        for _ in range(3):
+            LatentStrategyState.update_intervention_gate_from_profile(state, profile)
+        self.assertTrue(np.allclose(state.pair_jsd_ema, 0.001))
+        self.assertEqual(state.pairwise_ema_valid_updates, 0)
+
+    def test_checkpoint_roundtrip_preserves_gate_state(self) -> None:
+        state = self._bare_latent_state()
+        state.cf_J = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+        state.cf_episode_counts = np.array([10, 20, 30, 40], dtype=np.int64)
+        state.cf_has_experience = np.array([1, 1, 0, 0], dtype=np.int64)
+        state.cf_return_mean = 1.5
+        state.cf_return_var = 0.25
+        state.pair_jsd_ema = np.array([0.02, 0.02, 0.02, 0.02, 0.02, 0.006], dtype=np.float32)
+        state.jsd_gate_consecutive_updates = 3
+        state.pairwise_ema_valid_updates = 7
+        state.pairwise_ema_last_update_step = 458_752
+        state.router_optimizer_step_count = 0
+        payload = latent_state_v6i1_checkpoint(state)
+        restored = self._bare_latent_state()
+        restore_latent_state_v6i1_checkpoint(restored, payload)
+        self.assertTrue(np.allclose(restored.pair_jsd_ema, state.pair_jsd_ema))
+        self.assertEqual(restored.jsd_gate_consecutive_updates, 3)
+        self.assertEqual(restored.pairwise_ema_valid_updates, 7)
+        self.assertEqual(restored.pairwise_ema_last_update_step, 458_752)
 
 
 class TrainingIsolationSnapshotTests(unittest.TestCase):
@@ -551,7 +679,14 @@ class V6I1MetricsCsvFieldTests(unittest.TestCase):
             "v6i1_usage_coef_current",
             "jsd_gate_consecutive_updates",
             "cf_competence_ready",
-            "latent_actor_z_separation_train_active",
+            "cf_hinge_active",
+            "cf_hinge_effective",
+            "cf_valid_team_groups",
+            "cf_weight_sum",
+            "cf_effective_pairs",
+            "cf_loss_requires_grad",
+            "latent_actor_z_separation_jsd_min",
+            "latent_actor_z_separation_jsd_max",
         ):
             self.assertIn(name, fields)
         for idx in range(V6I1_INTERVENTION_PAIR_COUNT):
@@ -589,15 +724,38 @@ class V6I1MetricsCsvFieldTests(unittest.TestCase):
             "latent_actor_z_separation_train_active": 1.0,
             "jsd_gate_consecutive_updates": 2.0,
             "cf_competence_ready": 0.0,
+            "forced_z_macro_jsd_mean": 0.000678,
+            "forced_z_pair_jsd_0": 0.0005,
+            "forced_z_pair_jsd_5": 0.0009,
             "pair_jsd_ema_0": 0.02,
             "pair_jsd_ema_5": 0.006,
+            "actor_z_jsd_mean": 0.000678,
+            "actor_z_jsd_max": 0.0473,
+            "cf_hinge_active": 1.0,
+            "cf_hinge_effective": 1.0,
+            "cf_batch_pairs_below_margin": 4.0,
+            "cf_weight_sum": 2.0,
+            "cf_effective_pairs": 3.0,
+            "cf_valid_team_groups": 512.0,
+            "latent_actor_z_separation_jsd": 0.0012,
+            "latent_actor_z_separation_jsd_min": 0.0004,
+            "latent_actor_z_separation_jsd_max": 0.0031,
+            "cf_loss_requires_grad": 1.0,
+            "cf_actor_grad_norm": 0.00042,
+            "cf_to_ppo_grad_ratio": 0.15,
         }
         text = format_v6i1_rollout_stdout_line(row, phase="A", required_consecutive=5)
         self.assertIn("[V6I1]", text)
         self.assertIn("cf_coef=0.0100", text)
         self.assertIn("sep_train=1", text)
         self.assertIn("jsd_consec=2/5", text)
+        self.assertIn("macro_jsd=0.000678", text)
+        self.assertIn("pair_raw=[", text)
         self.assertIn("pair_ema=[", text)
+        self.assertIn("0.000500", text)
+        self.assertIn("actor_jsd=0.000678/0.047300", text)
+        self.assertIn("hinge=1 eff=1", text)
+        self.assertIn("cf_req_grad=1", text)
 
 
 class V6I1GateStdoutTests(unittest.TestCase):

@@ -698,6 +698,16 @@ class V6I1CurriculumController:
     def _evaluate_intervention_gate(self) -> GateFamilyResult:
         latent_state = self.trainer.latent_state
         margin = float(self.cfg.latent_cf_jsd_margin)
+        valid_updates = int(getattr(latent_state, "pairwise_ema_valid_updates", 0) or 0)
+        if valid_updates <= 0:
+            return GateFamilyResult(
+                status=GATE_STATUS_NOT_RUN,
+                reason="no_pairwise_profile_ema_updates",
+                details={
+                    "pairwise_ema_valid_updates": valid_updates,
+                    "jsd_margin": margin,
+                },
+            )
         pair_jsd = latent_state.pair_jsd_ema.tolist()
         num_valid = sum(1 for jsd in pair_jsd if float(jsd) >= margin)
         min_jsd = float(min(pair_jsd)) if pair_jsd else 0.0
@@ -705,11 +715,11 @@ class V6I1CurriculumController:
         update_ok = num_valid >= 5 and min_jsd >= 0.5 * margin
         passed = update_ok and int(latent_state.jsd_gate_consecutive_updates) >= required_consecutive
         pair_details = {
-            f"forced_z_pair_jsd_{idx}": float(pair_jsd[idx]) if idx < len(pair_jsd) else 0.0
+            f"pair_jsd_ema_{idx}": float(pair_jsd[idx]) if idx < len(pair_jsd) else 0.0
             for idx, pair in enumerate(LATENT_PAIR_INDEX)
         }
         pair_identity = {
-            f"pair_{idx}_z{pair[0]}_z{pair[1]}": pair_details[f"forced_z_pair_jsd_{idx}"]
+            f"pair_{idx}_z{pair[0]}_z{pair[1]}": pair_details[f"pair_jsd_ema_{idx}"]
             for idx, pair in enumerate(LATENT_PAIR_INDEX)
         }
         return gate_family_result_from_bool(
@@ -719,6 +729,7 @@ class V6I1CurriculumController:
                 "pair_order": [list(pair) for pair in LATENT_PAIR_INDEX],
                 **pair_details,
                 **pair_identity,
+                "pairwise_ema_valid_updates": valid_updates,
                 "jsd_margin": margin,
                 "num_pairs_above_margin": int(num_valid),
                 "min_pair_jsd_ema": min_jsd,

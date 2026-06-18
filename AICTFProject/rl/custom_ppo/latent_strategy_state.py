@@ -979,6 +979,8 @@ class LatentStrategyState:
         self.recent_z_history = deque(maxlen=200)
         self.pair_jsd_ema = np.zeros((6,), dtype=np.float32)
         self.jsd_gate_consecutive_updates = 0
+        self.pairwise_ema_valid_updates = 0
+        self.pairwise_ema_last_update_step = -1
         self.router_optimizer_step_count = 0
 
     # ------------------------------------------------------------------
@@ -2895,19 +2897,27 @@ class LatentStrategyState:
         c_z = 1.0 / (1.0 + np.exp(- (self.cf_J - J_best + delta) / scale))
         return c_z, True
 
-    def update_intervention_gate_from_profile(self, profile_stats: dict[str, float]) -> None:
-        """EMA-update per-pair forced-z JSD telemetry and consecutive gate counter."""
+    def update_intervention_gate_from_profile(self, profile_stats: dict[str, float]) -> bool:
+        """EMA-update per-pair forced-z JSD when all six pair keys are present.
+
+        Returns True when the EMA advanced. Incomplete profiles (including
+        ``forced_z_macro_jsd_mean`` without all six pair keys) are ignored:
+        no EMA mutation, consecutive gate counter reset, no mean broadcast.
+        """
+        from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
+
+        pair_vals = extract_forced_z_pair_values(profile_stats)
+        if pair_vals is None:
+            self.jsd_gate_consecutive_updates = 0
+            return False
+
         trainer = self.trainer
         margin = float(getattr(trainer.cfg, "latent_cf_jsd_margin", 0.01))
         alpha = float(getattr(trainer.cfg, "latent_cf_jsd_ema_alpha", 0.10))
-        pair_vals = [
-            float(profile_stats.get(f"forced_z_pair_jsd_{i}", 0.0) or 0.0) for i in range(6)
-        ]
-        if not any(pair_vals):
-            mean_jsd = float(profile_stats.get("forced_z_macro_jsd_mean", 0.0) or 0.0)
-            pair_vals = [mean_jsd] * 6
         pair_arr = np.asarray(pair_vals, dtype=np.float32)
         self.pair_jsd_ema = (1.0 - alpha) * self.pair_jsd_ema + alpha * pair_arr
+        self.pairwise_ema_valid_updates = int(self.pairwise_ema_valid_updates) + 1
+        self.pairwise_ema_last_update_step = int(getattr(trainer, "global_step", -1))
         num_valid = int(np.sum(self.pair_jsd_ema >= margin))
         min_jsd = float(np.min(self.pair_jsd_ema)) if self.pair_jsd_ema.size else 0.0
         update_ok = num_valid >= 5 and min_jsd >= 0.5 * margin
@@ -2915,6 +2925,7 @@ class LatentStrategyState:
             self.jsd_gate_consecutive_updates += 1
         else:
             self.jsd_gate_consecutive_updates = 0
+        return True
 
     # ------------------------------------------------------------------
     # Episode-strategy PPO update (consumes the completed-record buffer)
