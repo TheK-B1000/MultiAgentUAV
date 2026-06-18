@@ -8,7 +8,11 @@ import numpy as np
 import torch
 
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
-from rl.custom_ppo.gate_protocol import is_staged_v6_team_intent_curriculum, is_v6i2_gate_protocol
+from rl.custom_ppo.gate_protocol import (
+    is_staged_v6_team_intent_curriculum,
+    is_v6i2_gate_protocol,
+    is_v6i3_gate_protocol,
+)
 from rl.custom_ppo.v6i1_cf_loss import v6i1_pair_suffix
 from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
 from rl.custom_ppo.schedules import (
@@ -327,15 +331,10 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
         return
     trainer = getattr(state, "trainer", None)
     cfg = getattr(trainer, "cfg", None) if trainer is not None else None
+    from rl.custom_ppo.latent.checkpoint import restore_latent_checkpoint_payload
+
+    restore_latent_checkpoint_payload(state, payload)
     if cfg is not None:
-        for key in (
-            "gate_config_mismatch_override_used",
-            "gate_config_fingerprint_checkpoint",
-            "gate_config_fingerprint_active",
-            "confirmatory_gate_lineage_valid",
-        ):
-            if key in payload:
-                setattr(cfg, key, payload[key])
         from rl.custom_ppo.gate_protocol import (
             gate_config_fingerprint,
             is_v6i2_gate_protocol,
@@ -370,7 +369,7 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
             for line in format_gate_mismatch_override_warning(cfg):
                 print(line, flush=True)
         enforce = str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower() == "enforce"
-        if enforce and is_v6i2_gate_protocol(cfg):
+        if enforce and (is_v6i2_gate_protocol(cfg) or is_v6i3_gate_protocol(cfg)):
             required = (
                 "gate_protocol_version",
                 "cf_pair_jsd_ema",
@@ -381,11 +380,8 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
             missing = [key for key in required if key not in payload]
             if missing:
                 raise ValueError(
-                    f"v6i2 enforce resume missing checkpoint gate state: {missing}"
+                    f"v6i2/v6i3 enforce resume missing checkpoint gate state: {missing}"
                 )
-    from rl.custom_ppo.latent.checkpoint import restore_latent_checkpoint_payload
-
-    restore_latent_checkpoint_payload(state, payload)
 
 
 def v6i1_intervention_csv_stats(
@@ -399,7 +395,7 @@ def v6i1_intervention_csv_stats(
 
     profile_stats = profile_stats or {}
     cfg = cfg or getattr(getattr(latent_state, "trainer", None), "cfg", None)
-    from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol
+    from rl.custom_ppo.gate_protocol import is_staged_v6_team_intent_curriculum, is_v6i2_gate_protocol, is_v6i3_gate_protocol
 
     if is_v6i2_gate_protocol(cfg) if cfg is not None else False:
         margin = float(cfg.actor_jsd_margin)
@@ -545,8 +541,12 @@ def format_v6i1_rollout_stdout_line(
     *,
     phase: str,
     required_consecutive: int,
+    gate_protocol: str | None = None,
 ) -> str:
     """Per-update intervention telemetry (distinct from gate-attempt block)."""
+    from rl.custom_ppo.gate_protocol import staged_latent_stdout_tag
+
+    tag = staged_latent_stdout_tag(gate_protocol)
     ema_vals = [float(row.get(f"pair_jsd_ema_{idx}", 0.0) or 0.0) for idx in range(6)]
     raw_vals = [float(row.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0) for idx in range(6)]
     macro_mean = float(row.get("forced_z_macro_jsd_mean", 0.0) or 0.0)
@@ -569,7 +569,7 @@ def format_v6i1_rollout_stdout_line(
         float(row.get(f"cf_batch_pair_jsd_{idx}", 0.0) or 0.0) for idx in range(6)
     ]
     return (
-        f"      [V6I1] phase={phase} "
+        f"      [{tag}] phase={phase} "
         f"cf_coef={float(row.get('v6i1_cf_coef_current', 0.0) or 0.0):.4f} "
         f"sep_train={int(float(row.get('latent_actor_z_separation_train_active', 0.0) or 0.0))} "
         f"pairwise_ok={profile_ok} "

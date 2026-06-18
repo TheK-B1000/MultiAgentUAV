@@ -12,7 +12,10 @@ from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
 
 def collect_actor_parameters(model: torch.nn.Module) -> list[torch.nn.Parameter]:
     """Explicit actor parameter list shared by the actor optimizer and CF diagnostics."""
-    return _collect_params(model, ("actor_cnn", "latent_actor"))
+    parts = ("actor_cnn", "latent_actor")
+    if bool(getattr(model, "communication_enabled", False)):
+        parts = ("actor_cnn", "latent_actor", "message_head")
+    return _collect_params(model, parts)
 
 
 def collect_actor_optimizer_parameters(

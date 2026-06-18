@@ -221,6 +221,12 @@ class RolloutCollector:
                 hidden_dim = int(getattr(self.model, "recurrent_selector_hidden_dim", 0) or 0)
                 if hidden_dim > 0:
                     buffer.register_field("selector_hidden", (hidden_dim,))
+        if bool(getattr(self.model, "communication_enabled", False)):
+            n_agents = int(self.model.n_agents)
+            buffer.register_field("message_symbols", (n_agents,), dtype=torch.long)
+            buffer.register_field("message_log_probs")
+            buffer.register_field("message_entropy")
+            buffer.register_field("message_boundary_mask", dtype=torch.bool)
         return buffer
 
     def z_for_bootstrap(
@@ -377,6 +383,10 @@ class RolloutCollector:
         self.latent_state.reset_event_refresh_rollout_stats()
         self.latent_state.reset_sparse_tactical_refresh_rollout_stats()
         obs, global_state, context_state = self._initial_step_state()
+        comm = getattr(self.runtime, "comm_runtime", None)
+        if comm is not None and comm.enabled:
+            comm.bind_env_core(self.env.core)
+            obs = comm.prepare_obs(obs)
         buffer = self.make_buffer(obs)
         for step_idx in range(int(self.cfg.n_steps)):
             obs, global_state, context_state = self._step_once(
@@ -411,6 +421,12 @@ class RolloutCollector:
             obs = self.env.reset()
             global_state = self.env.state().astype(np.float32)
             self.latent_state.reset()
+            if getattr(runtime, "comm_runtime", None) is not None and runtime.comm_runtime.enabled:
+                runtime.comm_runtime.reset(
+                    batch_size=int(self.env.num_envs),
+                    num_agents=int(self.model.n_agents),
+                )
+                runtime.comm_runtime.bind_env_core(self.env.core)
             if use_latent:
                 gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=device)
                 context_state = self.temporal_tracker.update(gs_t)
@@ -423,6 +439,10 @@ class RolloutCollector:
             context_state = runtime._last_context_state
         else:
             context_state = torch.as_tensor(global_state, dtype=torch.float32, device=device)
+        comm = getattr(runtime, "comm_runtime", None)
+        if comm is not None and comm.enabled:
+            comm.bind_env_core(self.env.core)
+            obs = comm.prepare_obs(obs)
         return obs, global_state, context_state
 
     def _finalize_buffer(self, buffer: TensorDictRolloutBuffer) -> None:
@@ -487,10 +507,38 @@ class RolloutCollector:
         """
         runtime = self.runtime
         env = self.env
+        comm = getattr(runtime, "comm_runtime", None)
         decision_global_state_np = np.asarray(global_state, dtype=np.float32)
+        if comm is not None and comm.enabled:
+            comm.bind_env_core(env.core)
+            obs = comm.prepare_obs(obs)
         obs_t = self.tensor_obs(obs)
+        comm_boundary = (
+            comm.current_boundary_mask()
+            if comm is not None and comm.enabled
+            else None
+        )
         with torch.no_grad():
             z_t, prev_z_t, strategy_aux = self.latent_state.strategy_for_step(context_state)
+            message_aux = None
+            if comm is not None and comm.enabled:
+                assert comm_boundary is not None
+                if bool(comm_boundary.any()):
+                    message_aux = self.model._sample_messages(
+                        obs_t,
+                        z_idx=z_t,
+                        comm_boundary_mask=comm_boundary,
+                    )
+                    comm.submit_sampled_messages(
+                        symbols=message_aux["message_symbols"],
+                        boundary_mask=message_aux["message_boundary_mask"],
+                        env_core=env.core,
+                    )
+                else:
+                    message_aux = comm.non_boundary_message_aux(
+                        boundary_mask=comm_boundary,
+                        num_agents=int(self.model.n_agents),
+                    )
             actions_t, values_norm_t, log_probs_t, _ = self.model.act(
                 obs_t, context_state, z_idx=z_t
             )
@@ -501,6 +549,10 @@ class RolloutCollector:
 
         env.step_async(actions_np)
         next_obs, _rewards, dones, infos = env.step_wait()
+        if comm is not None and comm.enabled:
+            comm.advance_after_step(env.core)
+            if bool(np.asarray(dones).any()):
+                comm.reset_env_indices(np.asarray(dones))
         step_after = runtime.global_step + int(env.num_envs)
 
         z_np = z_t.detach().cpu().numpy() if z_t is not None else None
@@ -579,6 +631,7 @@ class RolloutCollector:
             pressure_bucket=pb,
             attack_defense_ratio_bucket=adb,
             blue_ahead=blue_ahead_t,
+            message_aux=message_aux,
         )
         self.step_recorder.record(buffer, frame)
 

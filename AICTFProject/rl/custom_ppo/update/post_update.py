@@ -91,6 +91,24 @@ class PostUpdatePipeline:
         latent_state.clear_rollout_refresh_records()
 
         stats = accumulator.finalize()
+        comm_runtime = getattr(runtime, "comm_runtime", None)
+        if comm_runtime is not None and comm_runtime.enabled:
+            from rl.custom_ppo.communication.listener import rollout_listener_telemetry
+            from rl.custom_ppo.communication.telemetry import collect_rollout_comm_telemetry
+
+            transport_stats: dict[str, float] = {}
+            if comm_runtime.transport is not None:
+                transport_stats = comm_runtime.transport.telemetry.to_dict(
+                    num_symbols=int(getattr(cfg, "comm_num_symbols", 4) or 4)
+                )
+            stats.update(
+                collect_rollout_comm_telemetry(
+                    buffer,
+                    cfg=cfg,
+                    transport_stats=transport_stats,
+                )
+            )
+            stats.update(rollout_listener_telemetry(runtime.model, buffer, cfg=cfg))
         value_losses = np.asarray(accumulator.raw_rows.get("value_loss", []), dtype=np.float32)
         if value_losses.size > 0:
             stats.update(

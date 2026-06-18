@@ -162,6 +162,30 @@ class PPOConfig:
     behavioral_realization_adverse_threshold: float = -0.01
     behavioral_matched_seed_min_seeds_per_opponent: int = 20
     curriculum_probe_min_examples: int = 10
+    # V6I3 local emergent communication (off by default — v6i2 unchanged when False).
+    communication_enabled: bool = False
+    comm_protocol_version: str = "v6i3_strategy_local_comm_v1"
+    comm_num_symbols: int = 4
+    comm_interval_steps: int = 32
+    comm_delivery_delay_steps: int = 1
+    comm_radius_cells: float = 6.0
+    comm_dropout_probability: float = 0.10
+    comm_entropy_coef: float = 0.001
+    comm_hold_last_message: bool = True
+    comm_local_only: bool = True
+    comm_include_sender_position: bool = True
+    comm_message_grid_channels: int = 4
+    comm_cf_include_message_head: bool = False
+    # V6I3 evidence placeholders (calibrate before confirmatory).
+    comm_min_valid_boundaries: int = 0
+    comm_min_deliveries: int = 0
+    comm_min_symbols_used: int = 3
+    comm_entropy_floor: float = 0.0
+    comm_symbol_dominance_ceiling: float = 1.0
+    comm_listener_jsd_margin: float = 0.0
+    comm_listener_min_passing_pairs: int = 0
+    comm_listener_min_states: int = 0
+    comm_listener_consecutive_updates: int = 0
     # V6I1 Phase B/C macro-router and rehearsal controls.
     v6i1_recurrent_selector_hidden: int = 32
     v6i1_macro_strategy_ppo_coef: float = 1.0

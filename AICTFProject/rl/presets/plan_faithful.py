@@ -2163,6 +2163,47 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i3_strategy_local_comm(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i3: v6i2 staged curriculum plus local emergent communication.
+
+    Inherits v6i2 dual-evidence gates and adds communication_usage +
+    listener_causal_response families. Communication is enabled with the
+  locked V6I3 transport contract; evidence thresholds remain placeholders
+    until calibration.
+    """
+    cfg = apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(cfg)
+
+    cfg.experiment_id = "v6i3"
+    cfg.gate_protocol_version = "v6i3_strategy_local_comm_v1"
+    cfg.communication_enabled = True
+    cfg.comm_protocol_version = "v6i3_strategy_local_comm_v1"
+    cfg.comm_num_symbols = 4
+    cfg.comm_interval_steps = 32
+    cfg.comm_delivery_delay_steps = 1
+    cfg.comm_radius_cells = 6.0
+    cfg.comm_dropout_probability = 0.10
+    cfg.comm_entropy_coef = 0.001
+    cfg.comm_hold_last_message = True
+    cfg.comm_local_only = True
+    cfg.comm_include_sender_position = True
+    cfg.comm_message_grid_channels = 4
+    cfg.comm_cf_include_message_head = False
+    # Evidence placeholders — calibrate before confirmatory V6I3 run.
+    cfg.comm_min_valid_boundaries = 0
+    cfg.comm_min_deliveries = 0
+    cfg.comm_min_symbols_used = 3
+    cfg.comm_entropy_floor = 0.0
+    cfg.comm_symbol_dominance_ceiling = 1.0
+    cfg.comm_listener_jsd_margin = 0.0
+    cfg.comm_listener_min_passing_pairs = 0
+    cfg.comm_listener_min_states = 0
+    cfg.comm_listener_consecutive_updates = 0
+    cfg.run_tag = "v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i1_repertoire_only_ablation(
     cfg: PPOConfig,
 ) -> PPOConfig:

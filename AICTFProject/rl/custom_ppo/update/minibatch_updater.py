@@ -111,13 +111,23 @@ class MinibatchUpdater:
                 )
             selector_hidden = batch["selector_hidden"]
 
+        message_symbols = batch.get("message_symbols")
+        message_boundary_mask = batch.get("message_boundary_mask")
         values_norm, action_log_prob, entropy, aux = model.evaluate_actions(
             obs_batch,
             batch["global_state"],
             batch["actions"],
             z_idx=z_idx,
             selector_hidden=selector_hidden,
+            message_symbols=message_symbols,
+            message_boundary_mask=message_boundary_mask,
         )
+        message_log_prob = aux.get("message_log_probs")
+        message_entropy = aux.get("message_entropy")
+        # Message PPO is boundary-only: held symbols persist in obs transport for
+        # comm_interval_steps, but log-probs are stored/evaluated only on send rows.
+        if message_log_prob is not None:
+            action_log_prob = action_log_prob + message_log_prob
         advantages = batch["advantages"]
         if advantages.numel() > 1:
             advantages = (advantages - advantages.mean()) / (
@@ -256,9 +266,13 @@ class MinibatchUpdater:
                 latent_loss = latent_loss + separation_result.loss.scaled_loss
 
         log_prob = action_log_prob
+        old_log_probs = batch["log_probs"]
+        if message_log_prob is not None and "message_log_probs" in batch:
+            log_prob = action_log_prob + message_log_prob
+            old_log_probs = old_log_probs + batch["message_log_probs"]
         policy_loss, ppo_stats = ppo_policy_loss(
             log_prob,
-            batch["log_probs"],
+            old_log_probs,
             advantages,
             hparams.clip_range,
         )
@@ -267,11 +281,20 @@ class MinibatchUpdater:
             values_norm, batch["values_norm"], value_targets, hparams.value_clip_range
         )
         entropy_loss = -entropy.mean()
-        ppo_actor_loss = policy_loss + ent_coef * entropy_loss
+        comm_entropy_coef = float(getattr(cfg, "comm_entropy_coef", 0.0) or 0.0)
+        message_entropy_loss = zero_scalar
+        if (
+            bool(getattr(model, "communication_enabled", False))
+            and message_entropy is not None
+            and comm_entropy_coef > 0.0
+        ):
+            message_entropy_loss = -message_entropy.mean()
+        ppo_actor_loss = policy_loss + ent_coef * entropy_loss + comm_entropy_coef * message_entropy_loss
         total_loss = (
             policy_loss
             + hparams.vf_coef * value_loss
             + ent_coef * entropy_loss
+            + comm_entropy_coef * message_entropy_loss
             + latent_loss
         )
 

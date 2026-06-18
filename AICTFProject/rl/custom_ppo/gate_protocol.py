@@ -17,6 +17,7 @@ from rl.config.ppo_config import PPOConfig
 
 V6I1_GATE_PROTOCOL = "v6i1_single_macro_intervention"
 V6I2_GATE_PROTOCOL = "v6i2_dual_evidence"
+V6I3_GATE_PROTOCOL = "v6i3_strategy_local_comm_v1"
 
 GATE_STATUS_PASS = "PASS"
 GATE_STATUS_FAIL = "FAIL"
@@ -41,7 +42,12 @@ GATE_FAMILY_NAMES_V6I2: tuple[str, ...] = (
     "selector_learnability_probe",
 )
 
-KNOWN_GATE_PROTOCOLS = frozenset({V6I1_GATE_PROTOCOL, V6I2_GATE_PROTOCOL})
+GATE_FAMILY_NAMES_V6I3: tuple[str, ...] = GATE_FAMILY_NAMES_V6I2 + (
+    "communication_usage",
+    "listener_causal_response",
+)
+
+KNOWN_GATE_PROTOCOLS = frozenset({V6I1_GATE_PROTOCOL, V6I2_GATE_PROTOCOL, V6I3_GATE_PROTOCOL})
 
 # Serializable gate keys — single source for checkpoint fingerprinting.
 _GATE_CONFIG_KEYS_COMMON: tuple[str, ...] = (
@@ -80,11 +86,37 @@ _GATE_CONFIG_KEYS_V6I2: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
     "behavioral_realization_adverse_threshold",
 )
 
+_GATE_CONFIG_KEYS_V6I3: tuple[str, ...] = _GATE_CONFIG_KEYS_V6I2 + (
+    "communication_enabled",
+    "comm_protocol_version",
+    "comm_num_symbols",
+    "comm_interval_steps",
+    "comm_delivery_delay_steps",
+    "comm_radius_cells",
+    "comm_dropout_probability",
+    "comm_entropy_coef",
+    "comm_cf_include_message_head",
+    "comm_min_valid_boundaries",
+    "comm_min_deliveries",
+    "comm_min_symbols_used",
+    "comm_entropy_floor",
+    "comm_symbol_dominance_ceiling",
+    "comm_listener_jsd_margin",
+    "comm_listener_min_passing_pairs",
+    "comm_listener_min_states",
+    "comm_listener_consecutive_updates",
+)
+
 
 def resolved_gate_config_dict(cfg: PPOConfig) -> dict[str, Any]:
     """Resolved gate configuration for checkpointing and audit (no hidden defaults)."""
     protocol = resolve_gate_protocol_version(cfg)
-    keys = _GATE_CONFIG_KEYS_V6I2 if protocol == V6I2_GATE_PROTOCOL else _GATE_CONFIG_KEYS_V6I1
+    if protocol == V6I3_GATE_PROTOCOL:
+        keys = _GATE_CONFIG_KEYS_V6I3
+    elif protocol == V6I2_GATE_PROTOCOL:
+        keys = _GATE_CONFIG_KEYS_V6I2
+    else:
+        keys = _GATE_CONFIG_KEYS_V6I1
     return {key: getattr(cfg, key) for key in keys}
 
 
@@ -162,7 +194,13 @@ def is_v6i2_gate_protocol(cfg: PPOConfig) -> bool:
     return resolve_gate_protocol_version(cfg) == V6I2_GATE_PROTOCOL
 
 
+def is_v6i3_gate_protocol(cfg: PPOConfig) -> bool:
+    return resolve_gate_protocol_version(cfg) == V6I3_GATE_PROTOCOL
+
+
 def get_gate_family_names(cfg: PPOConfig) -> tuple[str, ...]:
+    if is_v6i3_gate_protocol(cfg):
+        return GATE_FAMILY_NAMES_V6I3
     if is_v6i2_gate_protocol(cfg):
         return GATE_FAMILY_NAMES_V6I2
     return GATE_FAMILY_NAMES_V6I1
@@ -178,8 +216,14 @@ def validate_protocol_config(cfg: PPOConfig) -> None:
     exp_id = str(getattr(cfg, "experiment_id", "v6i1"))
     if exp_id == "v6i2" and protocol != V6I2_GATE_PROTOCOL:
         raise ValueError(f"v6i2 runs must set gate_protocol_version={V6I2_GATE_PROTOCOL!r}.")
+    if exp_id == "v6i3" and protocol != V6I3_GATE_PROTOCOL:
+        raise ValueError(f"v6i3 runs must set gate_protocol_version={V6I3_GATE_PROTOCOL!r}.")
+    if exp_id == "v6i3" and not bool(getattr(cfg, "communication_enabled", False)):
+        raise ValueError("v6i3 runs must set communication_enabled=True.")
     if exp_id == "v6i1" and protocol == V6I2_GATE_PROTOCOL:
         raise ValueError("v6i1 experiment_id cannot use v6i2_dual_evidence protocol.")
+    if exp_id in ("v6i1", "v6i2") and protocol == V6I3_GATE_PROTOCOL:
+        raise ValueError("v6i1/v6i2 experiment_id cannot use v6i3 gate protocol.")
 
     mode = str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower()
     if mode != "enforce":
@@ -196,7 +240,7 @@ def is_staged_v6_team_intent_curriculum(cfg: PPOConfig) -> bool:
         bool(getattr(cfg, "use_v6i1_curriculum", False))
         and str(getattr(cfg, "training_mode", "default")) == "staged_team_intent_curriculum"
         and str(getattr(cfg, "experiment_family", "v6")) == "v6"
-        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2")
+        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2", "v6i3")
     )
 
 
@@ -470,9 +514,17 @@ def evaluate_behavioral_realization(
     )
 
 
+def staged_latent_stdout_tag(gate_protocol: str | None) -> str:
+    """Short stdout label for staged-latent rollout/gate diagnostics."""
+    if gate_protocol == V6I2_GATE_PROTOCOL:
+        return "V6I2"
+    return "V6I1"
+
+
 __all__ = [
     "GATE_FAMILY_NAMES_V6I1",
     "GATE_FAMILY_NAMES_V6I2",
+    "GATE_FAMILY_NAMES_V6I3",
     "GATE_STATUS_ERROR",
     "GATE_STATUS_FAIL",
     "GATE_STATUS_NOT_RUN",
@@ -481,18 +533,21 @@ __all__ = [
     "KNOWN_GATE_PROTOCOLS",
     "V6I1_GATE_PROTOCOL",
     "V6I2_GATE_PROTOCOL",
+    "V6I3_GATE_PROTOCOL",
     "apply_gate_config_mismatch_override",
     "evaluate_actor_intervention",
     "evaluate_behavioral_realization",
     "evaluate_macro_profile_support",
     "evaluate_matched_seed_semantics",
     "format_gate_mismatch_override_warning",
+    "staged_latent_stdout_tag",
     "gate_config_fingerprint",
     "gate_family_names",
     "gate_lineage_audit_fields",
     "get_gate_family_names",
     "is_staged_v6_team_intent_curriculum",
     "is_v6i2_gate_protocol",
+    "is_v6i3_gate_protocol",
     "resolve_gate_protocol_version",
     "resolved_gate_config_dict",
     "validate_protocol_config",

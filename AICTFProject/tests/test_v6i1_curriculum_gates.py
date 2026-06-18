@@ -13,7 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from rl.config.ppo_config import PPOConfig
+from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL
 from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
 from rl.custom_ppo.curriculum_gates import (
     GATE_FAMILY_NAMES,
@@ -808,6 +808,17 @@ class V6I1MetricsCsvFieldTests(unittest.TestCase):
         self.assertIn("actor_jsd=0.000678/0.047300", text)
         self.assertIn("hinge=1 eff=1", text)
         self.assertIn("cf_req_grad=1", text)
+
+    def test_rollout_stdout_line_uses_v6i2_tag_for_dual_evidence_protocol(self) -> None:
+        row = {"v6i1_cf_coef_current": 0.01, "jsd_gate_consecutive_updates": 0.0}
+        text = format_v6i1_rollout_stdout_line(
+            row,
+            phase="A",
+            required_consecutive=3,
+            gate_protocol=V6I2_GATE_PROTOCOL,
+        )
+        self.assertIn("[V6I2] phase=A", text)
+        self.assertNotIn("[V6I1]", text)
 
 
 class V6I1GateStdoutTests(unittest.TestCase):

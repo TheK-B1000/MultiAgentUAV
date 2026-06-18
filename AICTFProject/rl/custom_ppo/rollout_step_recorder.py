@@ -91,6 +91,7 @@ class StepFrame:
     pressure_bucket: Optional[torch.Tensor] = None
     attack_defense_ratio_bucket: Optional[torch.Tensor] = None
     blue_ahead: Optional[torch.Tensor] = None
+    message_aux: Optional[Dict[str, torch.Tensor]] = None
 
 
 class RolloutStepRecorder:
@@ -125,6 +126,8 @@ class RolloutStepRecorder:
             kl_extras = self._latent_kl_extras(frame)
             if kl_extras is not None:
                 items.update(kl_extras)
+        if bool(getattr(self.trainer.model, "communication_enabled", False)):
+            items.update(self._communication_items(frame))
         buffer.add(**items)
 
     # ------------------------------------------------------------------
@@ -203,6 +206,17 @@ class RolloutStepRecorder:
         if "selector_hidden" in sa:
             items["selector_hidden"] = sa["selector_hidden"]
         return items
+
+    def _communication_items(self, frame: StepFrame) -> Dict[str, torch.Tensor]:
+        if frame.message_aux is None:
+            raise ValueError("Communication rollout step requires StepFrame.message_aux.")
+        aux = frame.message_aux
+        return dict(
+            message_symbols=aux["message_symbols"],
+            message_log_probs=aux["message_log_probs"],
+            message_entropy=aux["message_entropy"],
+            message_boundary_mask=aux["message_boundary_mask"],
+        )
 
     def _latent_kl_extras(
         self, frame: StepFrame

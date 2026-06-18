@@ -13,7 +13,7 @@ from rl.custom_ppo.curriculum.types import (
     GateAttempt,
     GateFamilyResult,
 )
-from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL
+from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL, staged_latent_stdout_tag
 from rl.forced_z_behavior_vectors import INTERVENTION_QUADRANT_GENUINE
 
 SCHEMA_VERSION = 2
@@ -97,7 +97,7 @@ def format_v6i1_gate_stdout_block(
 ) -> str:
     """Compact stdout block for a Phase A gate attempt."""
     protocol = gate_protocol or "v6i1_single_macro_intervention"
-    tag = "V6I2" if protocol == V6I2_GATE_PROTOCOL else "V6I1"
+    tag = staged_latent_stdout_tag(protocol)
 
     def _st(name: str) -> str:
         return gate_results[name].status if name in gate_results else GATE_STATUS_NOT_RUN
@@ -161,24 +161,24 @@ def format_v6i1_gate_stdout_block(
         or 0
     )
     action = "PROMOTE_PHASE_B" if overall_passed and mode == "enforce" else "CONTINUE_PHASE_A"
-    report_line = f"[V6I1 Gate] report={report_path}" if report_path else ""
+    report_line = f"[{tag} Gate] report={report_path}" if report_path else ""
     lines = [
-        f"[V6I1 Gate] step={step} phase={phase} mode={mode}",
+        f"[{tag} Gate] step={step} phase={phase} mode={mode} protocol={protocol}",
         (
-            f"[V6I1 Gate] coverage={_st('coverage')} competence={_st('competence')} "
+            f"[{tag} Gate] coverage={_st('coverage')} competence={_st('competence')} "
             f"integrity={_st('training_integrity')}"
         ),
         (
-            f"[V6I1 Gate] intervention={_st('counterfactual_intervention')} "
+            f"[{tag} Gate] intervention={_st('counterfactual_intervention')} "
             f"pairs>=margin={num_above}/6 min_jsd={min_ema:.5f} "
             f"jsd_consec={jsd_consec}/{required_consecutive}"
         ),
         (
-            f"[V6I1 Gate] matched_eval={_st('matched_seed_behavior')} "
+            f"[{tag} Gate] matched_eval={_st('matched_seed_behavior')} "
             f"probe={_st('selector_learnability_probe')}"
         ),
         _format_phase_a_behavior_line(online_report),
-        f"[V6I1 Gate] overall={'PASS' if overall_passed else 'FAIL'} action={action} cf_coef={cf_coef:.4f}",
+        f"[{tag} Gate] overall={'PASS' if overall_passed else 'FAIL'} action={action} cf_coef={cf_coef:.4f}",
     ]
     if report_line:
         lines.append(report_line)

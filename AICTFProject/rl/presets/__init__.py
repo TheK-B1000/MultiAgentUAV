@@ -59,6 +59,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
     apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
+    apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
@@ -367,6 +368,12 @@ PRESET_REGISTRY = {
     "v6i2_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
     "v6i2_staged": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
     "v6i2": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
+    # v6i3 strategy + local communication on v6i2 dual-evidence curriculum.
+    "plan_faithful_latent_v6i3_strategy_local_comm": apply_plan_faithful_latent_v6i3_strategy_local_comm,
+    "latent_v6i3_strategy_local_comm": apply_plan_faithful_latent_v6i3_strategy_local_comm,
+    "v6i3_strategy_local_comm": apply_plan_faithful_latent_v6i3_strategy_local_comm,
+    "v6i3_local_comm": apply_plan_faithful_latent_v6i3_strategy_local_comm,
+    "v6i3": apply_plan_faithful_latent_v6i3_strategy_local_comm,
     # v6i1 repertoire-only ablation (no staged controller).
     "plan_faithful_latent_v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
     "latent_v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,

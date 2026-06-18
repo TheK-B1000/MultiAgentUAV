@@ -229,6 +229,8 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_z_film_init_scale: float = 0.0,
         actor_z_film_layer: int = 2,
         latent_actor_conditioning: str = "concat",
+        communication_enabled: bool = False,
+        comm_num_symbols: int = 4,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -367,6 +369,15 @@ class SharedActorCentralizedCritic(nn.Module):
         self.critic_z_dim = int(self.latent_k) if self.uses_latent_strategy else 0
         self.critic_joint_action_dim = 0
         self.actor_input_dim = int(self._decentralized_actor_in_dim)
+        self.communication_enabled = bool(communication_enabled)
+        self.comm_num_symbols = max(1, int(comm_num_symbols)) if self.communication_enabled else 0
+        self._message_head_in_dim = int(self._local_actor_in_dim)
+        if self.uses_latent_strategy:
+            self._message_head_in_dim += int(self.z_embed_dim)
+        if self.communication_enabled:
+            self.message_head = nn.Linear(self._message_head_in_dim, int(self.comm_num_symbols))
+        else:
+            self.message_head = None
         self._assert_input_contracts()
         # Optional: separate ``torch.Generator`` streams so q_\phi(z|s) sampling does not advance
         # the same RNG as per-head action Categoricals (fairer E3 vs no-latent; see docs).
@@ -687,18 +698,11 @@ class SharedActorCentralizedCritic(nn.Module):
         expected_z_emb = z_probs @ self.strategy_embedding.weight
         return self.phase_predictor(expected_z_emb)
 
-    def policy_logits(self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
-
-        Feature pipeline:
-
-        1. ``actor_cnn`` encodes per-agent grids → ``cnn_features``.
-        2. Optional agent mask zeroes out padded agents' features / scalars.
-        3. ``local_features = concat(cnn_features, scalars)`` per-agent.
-        4. ``self.latent_actor`` handles the strategy embedding (when present)
-           and the 256-256 MLP + action head. Per-agent ``z`` is shared across
-           the team — the same ``z_idx`` row is broadcast across all agents.
-        """
+    def _encode_local_obs(
+        self,
+        obs: Dict[str, torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Return ``(local_in, cnn_features, agent_mask)`` with shape ``(B*N, F)``."""
         grid = obs["grid"].float()
         vec = obs["vec"].float()
         if grid.dim() != 5:
@@ -723,6 +727,8 @@ class SharedActorCentralizedCritic(nn.Module):
             mask = agent_mask.float().unsqueeze(-1)
             cnn_features = cnn_features * mask
             vloc = vloc * mask
+        else:
+            mask = torch.ones((batch, self.n_agents, 1), dtype=torch.float32, device=grid.device)
         local_obs = torch.cat([cnn_features, vloc], dim=-1)
         local_in = local_obs.reshape(batch * self.n_agents, -1)
         if int(local_in.shape[-1]) != int(self._local_actor_in_dim):
@@ -730,6 +736,176 @@ class SharedActorCentralizedCritic(nn.Module):
                 f"local actor input width {int(local_in.shape[-1])} != expected "
                 f"{int(self._local_actor_in_dim)}"
             )
+        return local_in, cnn_features, mask.squeeze(-1)
+
+    def _message_head_input(
+        self,
+        local_in: torch.Tensor,
+        *,
+        batch: int,
+        z_idx: Optional[torch.Tensor],
+    ) -> torch.Tensor:
+        if not self.communication_enabled or self.message_head is None:
+            raise RuntimeError("message head requested but communication is disabled")
+        features = local_in.reshape(batch, self.n_agents, -1)
+        if self.uses_latent_strategy:
+            if z_idx is None:
+                raise ValueError("z_idx is required for message head when latent strategy is enabled.")
+            z = self._validate_z_idx(z_idx)
+            z_per_agent = z.unsqueeze(1).expand(batch, self.n_agents)
+            z_emb = self.latent_actor.strategy_embedding(z_per_agent.reshape(-1))
+            features = torch.cat([features, z_emb.reshape(batch, self.n_agents, -1)], dim=-1)
+        flat = features.reshape(batch * self.n_agents, -1)
+        if int(flat.shape[-1]) != int(self._message_head_in_dim):
+            raise AssertionError(
+                f"message head input width {int(flat.shape[-1])} != expected {self._message_head_in_dim}"
+            )
+        return flat
+
+    def message_logits(
+        self,
+        obs: Dict[str, torch.Tensor],
+        *,
+        z_idx: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Per-agent message logits with shape ``(B, N, comm_num_symbols)``."""
+        local_in, _, _ = self._encode_local_obs(obs)
+        batch = int(obs["grid"].shape[0])
+        head_in = self._message_head_input(local_in, batch=batch, z_idx=z_idx)
+        logits = self.message_head(head_in).reshape(batch, self.n_agents, int(self.comm_num_symbols))
+        return logits
+
+    def _sample_messages(
+        self,
+        obs: Dict[str, torch.Tensor],
+        *,
+        z_idx: Optional[torch.Tensor],
+        comm_boundary_mask: Optional[torch.Tensor],
+        deterministic: bool = False,
+    ) -> dict[str, torch.Tensor]:
+        """Sample outbound symbols and PPO log-probs for one env step.
+
+        Message PPO credit is **boundary-only**: held symbols persist in the
+        transport for ``comm_interval_steps`` decision steps, but
+        ``message_log_probs`` / ``message_entropy`` are nonzero only when
+        ``comm_boundary_mask`` is true. Non-boundary rows must not duplicate
+        policy loss for the same held symbol.
+        """
+        if not self.communication_enabled:
+            batch = int(obs["grid"].shape[0])
+            device = obs["grid"].device
+            return {
+                "message_symbols": torch.zeros((batch, self.n_agents), dtype=torch.long, device=device),
+                "message_log_probs": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "message_entropy": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "message_boundary_mask": torch.zeros((batch,), dtype=torch.bool, device=device),
+            }
+        logits = self.message_logits(obs, z_idx=z_idx)
+        batch = int(logits.shape[0])
+        device = logits.device
+        boundary = (
+            comm_boundary_mask.bool().reshape(batch)
+            if comm_boundary_mask is not None
+            else torch.zeros((batch,), dtype=torch.bool, device=device)
+        )
+        dist = Categorical(logits=logits.reshape(batch * self.n_agents, -1))
+        flat_logits = logits.reshape(batch * self.n_agents, -1)
+        flat_dist = Categorical(logits=flat_logits)
+        if deterministic:
+            symbols = flat_dist.probs.argmax(dim=-1)
+        else:
+            g_act = self._sampling_gen_action
+            symbols = self._categorical_argmax_or_sample(
+                flat_dist, deterministic=False, generator=g_act
+            )
+        symbols = symbols.reshape(batch, self.n_agents)
+        per_agent_logprob = flat_dist.log_prob(symbols.reshape(-1)).reshape(batch, self.n_agents)
+        per_agent_entropy = flat_dist.entropy().reshape(batch, self.n_agents)
+        alive = obs.get("agent_mask")
+        if alive is not None:
+            alive_mask = alive.float()
+            if alive_mask.dim() == 1:
+                alive_mask = alive_mask.unsqueeze(0)
+            per_agent_logprob = per_agent_logprob * alive_mask
+            per_agent_entropy = per_agent_entropy * alive_mask
+        message_log_probs = per_agent_logprob.sum(dim=-1)
+        message_entropy = per_agent_entropy.sum(dim=-1)
+        boundary_f = boundary.to(dtype=torch.float32, device=device)
+        return {
+            "message_symbols": symbols,
+            "message_log_probs": message_log_probs * boundary_f,
+            "message_entropy": message_entropy * boundary_f,
+            "message_boundary_mask": boundary,
+        }
+
+    def _evaluate_messages(
+        self,
+        obs: Dict[str, torch.Tensor],
+        *,
+        message_symbols: torch.Tensor,
+        message_boundary_mask: torch.Tensor,
+        z_idx: Optional[torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if not self.communication_enabled:
+            batch = int(obs["grid"].shape[0])
+            device = obs["grid"].device
+            return (
+                torch.zeros((batch,), dtype=torch.float32, device=device),
+                torch.zeros((batch,), dtype=torch.float32, device=device),
+            )
+        batch = int(obs["grid"].shape[0])
+        device = obs["grid"].device
+        boundary = message_boundary_mask.bool().reshape(batch)
+        zero = torch.zeros((batch,), dtype=torch.float32, device=device)
+        if not bool(boundary.any()):
+            return zero, zero
+
+        active_idx = torch.where(boundary)[0]
+        obs_active: Dict[str, torch.Tensor] = {}
+        for key, value in obs.items():
+            if isinstance(value, torch.Tensor) and int(value.shape[0]) == batch:
+                obs_active[key] = value.index_select(0, active_idx)
+            else:
+                obs_active[key] = value
+        symbols_active = message_symbols.long().index_select(0, active_idx)
+        z_active = None
+        if z_idx is not None:
+            z_active = z_idx.index_select(0, active_idx)
+
+        logits = self.message_logits(obs_active, z_idx=z_active)
+        n_active = int(active_idx.shape[0])
+        dist = Categorical(logits=logits.reshape(n_active * self.n_agents, -1))
+        per_agent_logprob = dist.log_prob(symbols_active.reshape(-1)).reshape(
+            n_active, self.n_agents
+        )
+        per_agent_entropy = dist.entropy().reshape(n_active, self.n_agents)
+        alive = obs_active.get("agent_mask")
+        if alive is not None:
+            alive_mask = alive.float()
+            if alive_mask.dim() == 1:
+                alive_mask = alive_mask.unsqueeze(0)
+            per_agent_logprob = per_agent_logprob * alive_mask
+            per_agent_entropy = per_agent_entropy * alive_mask
+        active_log_probs = per_agent_logprob.sum(dim=-1)
+        active_entropy = per_agent_entropy.sum(dim=-1)
+        message_log_probs = zero.scatter(0, active_idx, active_log_probs)
+        message_entropy = zero.scatter(0, active_idx, active_entropy)
+        return message_log_probs, message_entropy
+
+    def policy_logits(self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
+
+        Feature pipeline:
+
+        1. ``actor_cnn`` encodes per-agent grids → ``cnn_features``.
+        2. Optional agent mask zeroes out padded agents' features / scalars.
+        3. ``local_features = concat(cnn_features, scalars)`` per-agent.
+        4. ``self.latent_actor`` handles the strategy embedding (when present)
+           and the 256-256 MLP + action head. Per-agent ``z`` is shared across
+           the team — the same ``z_idx`` row is broadcast across all agents.
+        """
+        local_in, _, _ = self._encode_local_obs(obs)
+        batch = int(obs["grid"].shape[0])
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
@@ -855,12 +1031,23 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         z_idx: Optional[torch.Tensor] = None,
         selector_hidden: Optional[torch.Tensor] = None,
+        message_symbols: Optional[torch.Tensor] = None,
+        message_boundary_mask: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Evaluate fixed actions under the current policy."""
         logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
         log_prob, entropy = self._log_prob_entropy(logits, actions)
         values = self.values(global_state, z_idx=z_idx)
         aux: dict[str, torch.Tensor] = {}
+        if self.communication_enabled and message_symbols is not None and message_boundary_mask is not None:
+            msg_log_prob, msg_entropy = self._evaluate_messages(
+                obs,
+                message_symbols=message_symbols,
+                message_boundary_mask=message_boundary_mask,
+                z_idx=z_idx,
+            )
+            aux["message_log_probs"] = msg_log_prob
+            aux["message_entropy"] = msg_entropy
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")

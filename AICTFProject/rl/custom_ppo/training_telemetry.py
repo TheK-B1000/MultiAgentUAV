@@ -745,6 +745,9 @@ class TrainingTelemetry:
                             row,
                             phase=str(v6i1_curriculum.phase),
                             required_consecutive=required_consecutive,
+                            gate_protocol=getattr(
+                                self.cfg, "gate_protocol_version", None
+                            ),
                         ),
                         flush=True,
                     )

@@ -11,6 +11,7 @@ from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import TemporalStateTracker
 from rl.ppo_core import TensorDictRolloutBuffer
 
+from rl.custom_ppo.communication import CommRolloutRuntime, extend_observation_space_if_needed
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
 from rl.custom_ppo.inference import (
     _torch_load_checkpoint,
@@ -140,9 +141,16 @@ class CustomPPOTrainer:
         self.curriculum = curriculum
         self.device = torch.device(str(cfg.device))
 
+        policy_obs_space = extend_observation_space_if_needed(env.observation_space, cfg)
         self.model = SharedActorCentralizedCritic(
-            env.observation_space, env.action_space, **build_model_kwargs(cfg, hparams)
+            policy_obs_space, env.action_space, **build_model_kwargs(cfg, hparams)
         ).to(self.device)
+        self.comm_runtime = CommRolloutRuntime(cfg, device=self.device)
+        self.comm_runtime.reset(
+            batch_size=int(env.num_envs),
+            num_agents=int(self.model.n_agents),
+        )
+        self.comm_runtime.bind_env_core(env.core)
         apply_deterministic_sampling_generators(
             self.model, int(getattr(cfg, "seed", 0) or 0), device=self.device
         )
@@ -389,6 +397,8 @@ class CustomPPOTrainer:
 
             payload["v6i1_curriculum_state"] = v6i1_curriculum_state_dict(self.v6i1_curriculum)
             payload["latent_state_v6i1"] = latent_state_v6i1_checkpoint(self.latent_state)
+        if self.comm_runtime.enabled:
+            payload["comm_runtime_state"] = self.comm_runtime.state_dict()
         payload["ppo_updater_state"] = self.updater.state_dict()
         torch.save(payload, path)
 
@@ -429,4 +439,6 @@ class CustomPPOTrainer:
             from rl.custom_ppo.v6i1_phase_runtime import restore_latent_state_v6i1_checkpoint
 
             restore_latent_state_v6i1_checkpoint(self.latent_state, v6i1_latent_payload)
+        if self.comm_runtime.enabled and "comm_runtime_state" in payload:
+            self.comm_runtime.load_state_dict(dict(payload.get("comm_runtime_state", {}) or {}))
         self.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))

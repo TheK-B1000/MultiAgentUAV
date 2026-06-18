@@ -743,6 +743,34 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         fields.append(f"pair_jsd_ema_{suffix}")
         fields.append(f"cf_batch_pair_jsd_{suffix}")
     fields.extend(_v6i2_gate_metrics_fieldnames())
+    fields.extend(_v6i3_comm_metrics_fieldnames())
+    return fields
+
+
+def _v6i3_comm_metrics_fieldnames() -> list[str]:
+    fields = [
+        "comm_valid_boundaries",
+        "comm_send_count",
+        "comm_delivery_count",
+        "comm_dropout_count",
+        "comm_no_receiver_count",
+        "comm_symbol_entropy",
+        "comm_symbol_entropy_normalized",
+        "comm_symbols_used",
+        "comm_symbol_dominance",
+        "comm_message_logprob_mean",
+        "mi_message_z",
+        "mi_message_phase",
+        "mi_message_role",
+        "mi_message_next_macro_action",
+        "receiver_action_jsd_by_message_pair_mean",
+        "receiver_argmax_disagreement_frac",
+        "receiver_listener_pairs",
+        "communication_usage_status",
+        "listener_causal_response_status",
+    ]
+    for i in range(4):
+        fields.append(f"comm_symbol_occupancy_{i}")
     return fields
 
 

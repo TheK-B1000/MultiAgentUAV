@@ -793,6 +793,12 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "latent_actor_conditioning": getattr(cfg, "latent_actor_conditioning", "concat"),
             }
         )
+    model_kwargs.update(
+        {
+            "communication_enabled": bool(getattr(cfg, "communication_enabled", False)),
+            "comm_num_symbols": int(getattr(cfg, "comm_num_symbols", 4) or 4),
+        }
+    )
     return model_kwargs
 
 

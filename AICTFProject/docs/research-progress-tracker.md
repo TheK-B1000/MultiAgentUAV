@@ -551,6 +551,18 @@ deprioritized.
 | Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **REQUIRED before confirmatory** |
 | Full fresh enforce confirmatory run (1.0M → up to 1.3M) | **PLANNED** after freeze |
 
+### V6I3 local communication (spec locked — implementation started)
+
+| Slice | Status |
+|-------|--------|
+| Spec owner doc | **DONE** — [`v6i3-local-communication-spec.md`](v6i3-local-communication-spec.md) |
+| Slice 1 transport + unit tests | **DONE** — `rl/custom_ppo/communication/` |
+| Slice 2 policy / rollout / PPO | **PLANNED** |
+| Slice 3–6 phases / telemetry / corruption / gates | **PLANNED** |
+| v6i3 preset + registry row | **PLANNED** (after Proposed Preset Review) |
+
+V6I3 must not modify active v6i1 runs or frozen v6i2 lineages. `communication_enabled=False` preserves v6i2 behavior.
+
 Calibration uses v6i1 runs as evidence only. Confirmatory launch must consume the
 frozen table unchanged (`--fresh-metrics-csv`, `confirmatory_gate_lineage_valid=True`).
 

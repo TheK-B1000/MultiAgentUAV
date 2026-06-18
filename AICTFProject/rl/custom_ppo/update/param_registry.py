@@ -10,7 +10,7 @@ import torch
 
 def classify_parameter_name(name: str) -> str | None:
     """Return ``actor``, ``critic``, ``router``, or ``None`` for unclassified params."""
-    if "actor_cnn" in name or "latent_actor" in name:
+    if "actor_cnn" in name or "latent_actor" in name or "message_head" in name:
         return "actor"
     if "critic" in name and "episode_strategy_value_head" not in name:
         return "critic"

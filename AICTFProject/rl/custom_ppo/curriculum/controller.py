@@ -61,7 +61,7 @@ def is_staged_v6i1_curriculum(cfg: PPOConfig) -> bool:
         bool(getattr(cfg, "use_v6i1_curriculum", False))
         and str(getattr(cfg, "training_mode", "default")) == "staged_team_intent_curriculum"
         and str(getattr(cfg, "experiment_family", "v6")) == "v6"
-        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2")
+        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2", "v6i3")
     )
 
 
