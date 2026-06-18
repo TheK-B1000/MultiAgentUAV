@@ -30,6 +30,10 @@ ACTOR_INTERVENTION_REASON_CODES: dict[str, float] = {
     "not_v6i2_protocol": 3.0,
     "invalid_measurement": 4.0,
     "missing_pair_values": 5.0,
+    "separation_disabled": 6.0,
+    "phase_counterfactual_inactive": 7.0,
+    "no_active_rows": 8.0,
+    "invalid_pair_jsd": 9.0,
 }
 
 
@@ -319,13 +323,11 @@ class MinibatchUpdater:
         measurement = separation_result.pairwise_measurement
 
         pair_telemetry: dict[str, float] = {}
-        pair_jsd_batch = z_sep_stats.get("pair_jsd")
-        for idx in range(pair_count):
-            key = f"cf_batch_pair_jsd_{idx}"
-            if pair_jsd_batch is not None and idx < int(pair_jsd_batch.numel()):
-                pair_telemetry[key] = float(pair_jsd_batch[idx].detach().cpu().item())
-            else:
-                pair_telemetry[key] = 0.0
+        if measurement.valid and measurement.values is not None:
+            values = measurement.values.detach().reshape(-1)
+            for idx in range(pair_count):
+                if idx < int(values.numel()):
+                    pair_telemetry[f"cf_batch_pair_jsd_{idx}"] = float(values[idx].cpu().item())
 
         soft = epoch_state.soft_diag
         telemetry: dict[str, float] = {

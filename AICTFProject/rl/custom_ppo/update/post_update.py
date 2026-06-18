@@ -28,6 +28,11 @@ from rl.custom_ppo.update.loss_result import measurement_from_pair_tensor
 from rl.custom_ppo.update.minibatch_updater import ACTOR_INTERVENTION_REASON_CODES
 from rl.custom_ppo.update.telemetry import UpdateStatsAccumulator
 from rl.custom_ppo.update.update_context import PPOUpdateContext
+from rl.forced_z_behavior_vectors import (
+    PhaseABehaviorTrendTracker,
+    opportunity_conditioned_z_returns,
+    phase_a_diagnostic_telemetry,
+)
 from rl.ppo_core import TensorDictRolloutBuffer
 
 
@@ -148,6 +153,21 @@ class PostUpdatePipeline:
         stats.update(_behavior_diversity_stats(runtime, buffer))
         forced_z_profile = _forced_z_behavior_profile(runtime, buffer)
         stats.update(forced_z_profile)
+        if not hasattr(runtime, "_phase_a_trend_tracker") or runtime._phase_a_trend_tracker is None:
+            runtime._phase_a_trend_tracker = PhaseABehaviorTrendTracker()
+        stats.update(
+            phase_a_diagnostic_telemetry(
+                stats,
+                trend_tracker=runtime._phase_a_trend_tracker,
+                global_step=int(runtime.global_step),
+                actor_jsd_margin=float(getattr(cfg, "latent_cf_jsd_margin", 0.01) or 0.01),
+            )
+        )
+        stats.update(
+            opportunity_conditioned_z_returns(
+                buffer, latent_k=int(hparams.latent_k)
+            )
+        )
         if forced_z_profile:
             ema_updated = latent_state.update_intervention_gate_from_profile(forced_z_profile)
             stats["pairwise_profile_available"] = 1.0 if ema_updated else 0.0
@@ -176,6 +196,9 @@ class PostUpdatePipeline:
         )
         stats["actor_intervention_gate_updated"] = 1.0 if evidence.gate_updated else 0.0
         stats["actor_intervention_valid_minibatches"] = float(actor_intervention_valid_minibatches)
+        stats["cf_batch_evidence_valid"] = (
+            1.0 if actor_intervention_valid_minibatches > 0 and evidence.measurement_valid else 0.0
+        )
         stats["actor_intervention_invalid_reason_code"] = float(last_invalid_reason_code)
         if evidence.reason and not evidence.measurement_valid:
             stats["actor_intervention_invalid_reason_code"] = ACTOR_INTERVENTION_REASON_CODES.get(

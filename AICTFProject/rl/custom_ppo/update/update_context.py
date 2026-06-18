@@ -76,8 +76,10 @@ class PPOUpdateContextBuilder:
         hparams = self.hparams
         cfg = self.cfg
         global_step = int(runtime.global_step)
-        progress_remaining = max(
-            0.0, 1.0 - float(global_step) / max(1.0, float(total_timesteps))
+        from rl.custom_ppo.v6i1_phase_runtime import resolve_v6i1_lr_progress_remaining
+
+        progress_remaining = resolve_v6i1_lr_progress_remaining(
+            runtime, training_terminal=int(total_timesteps)
         )
         latent_k = int(hparams.latent_k)
         validate_v6_protocol_latent_k(cfg, latent_k)

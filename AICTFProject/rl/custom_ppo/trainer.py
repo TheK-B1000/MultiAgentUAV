@@ -25,7 +25,7 @@ from rl.custom_ppo.inference import (
 from rl.custom_ppo.curriculum_runtime import TrainingOpponentPool
 from rl.custom_ppo.episode_stats import EpisodeStats
 from rl.custom_ppo.latent_behavior_contrast import BehaviorContrastMemory
-from rl.custom_ppo.latent_strategy_state import LatentStrategyState
+from rl.custom_ppo.latent.state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
 from rl.custom_ppo.return_normalization import ReturnNormalizer
 from rl.custom_ppo.rollout_collector import RolloutCollector
@@ -328,6 +328,8 @@ class CustomPPOTrainer:
     def learn(self, total_timesteps: int) -> dict[str, float]:
         """Train until at least ``total_timesteps`` environment transitions have been collected."""
         total = int(total_timesteps)
+        if self.v6i1_curriculum is not None:
+            total = max(total, int(self.v6i1_curriculum.effective_training_terminal_step()))
         self._sb3_rollout_pbar = _open_sb3_style_progress(
             self.cfg, total_timesteps=total, current_num_timesteps=self.global_step
         )
@@ -343,6 +345,10 @@ class CustomPPOTrainer:
                     self.v6i1_curriculum.maybe_apply_phase_transitions()
                     self.v6i1_curriculum.check_and_run_gate()
                     self.v6i1_curriculum.check_terminal_failure()
+                    total = max(
+                        total,
+                        int(self.v6i1_curriculum.effective_training_terminal_step()),
+                    )
         finally:
             if self._sb3_rollout_pbar is not None:
                 self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]

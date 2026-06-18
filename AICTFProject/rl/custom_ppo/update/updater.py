@@ -83,26 +83,28 @@ class PPOUpdater:
         hparams = self.hparams
         cfg = self.cfg
         step = int(runtime.global_step)
-        progress_remaining = max(
-            0.0, 1.0 - float(step) / max(1.0, float(total_timesteps))
+        from rl.custom_ppo.v6i1_phase_runtime import (
+            apply_v6i1_learning_rates,
+            is_v6i1_staged_trainer,
+            resolve_v6i1_entropy_schedule_total_timesteps,
+            resolve_v6i1_lr_progress_remaining,
+            resolve_v6i1_rollout_usage_coef,
+        )
+
+        progress_remaining = resolve_v6i1_lr_progress_remaining(
+            runtime, training_terminal=int(total_timesteps)
         )
         lr_floor_frac = max(
             0.0, min(float(getattr(cfg, "lr_floor_frac", 0.1) or 0.0), 1.0)
         )
         lr = hparams.learning_rate * max(progress_remaining, lr_floor_frac)
 
-        from rl.custom_ppo.v6i1_phase_runtime import (
-            apply_v6i1_learning_rates,
-            is_v6i1_staged_trainer,
-            resolve_v6i1_rollout_usage_coef,
-        )
-
         v6i1_lr_stats: dict[str, float] = {}
         if getattr(runtime, "v6i1_three_optimizer_mode", False):
             v6i1_lr_stats = apply_v6i1_learning_rates(
                 runtime,
                 base_lr=float(hparams.learning_rate),
-                progress_remaining=progress_remaining,
+                training_terminal=int(total_timesteps),
             )
             lr = float(v6i1_lr_stats.get("actor_lr", lr))
         else:
@@ -110,7 +112,12 @@ class PPOUpdater:
                 group["lr"] = lr
 
         ent_coef = hparams.ent_coef if progress_remaining > 0.75 else 0.5 * hparams.ent_coef
-        latent_lam_h = self.compute_latent_lam_h(step, total_timesteps)
+        latent_schedule_total = (
+            resolve_v6i1_entropy_schedule_total_timesteps(runtime)
+            if is_v6i1_staged_trainer(runtime)
+            else int(total_timesteps)
+        )
+        latent_lam_h = self.compute_latent_lam_h(step, latent_schedule_total)
         curr_sep_coef = resolve_separation_coef(self, step=step)
         curr_adapter_scale = resolve_adapter_scale(self, step=step)
 

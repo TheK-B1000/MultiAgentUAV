@@ -6,6 +6,8 @@ consumes those values and must not maintain a parallel default set.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,6 +42,102 @@ GATE_FAMILY_NAMES_V6I2: tuple[str, ...] = (
 )
 
 KNOWN_GATE_PROTOCOLS = frozenset({V6I1_GATE_PROTOCOL, V6I2_GATE_PROTOCOL})
+
+# Serializable gate keys — single source for checkpoint fingerprinting.
+_GATE_CONFIG_KEYS_COMMON: tuple[str, ...] = (
+    "gate_protocol_version",
+    "phase_a_earliest_end_fraction",
+    "phase_a_max_end_fraction",
+    "phase_b_fixed_fraction",
+    "phase_c_fixed_fraction",
+    "phase_c_start_fraction",
+    "curriculum_extend_terminal_on_late_promotion",
+    "phase_boundary_gate_mode",
+    "curriculum_gate_run_boundary_eval",
+    "curriculum_gate_run_probe",
+    "curriculum_probe_min_examples",
+    "behavioral_matched_seed_min_seeds_per_opponent",
+)
+
+_GATE_CONFIG_KEYS_V6I1: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
+    "latent_cf_jsd_margin",
+    "latent_cf_jsd_ema_alpha",
+    "latent_cf_gate_consecutive_updates",
+)
+
+_GATE_CONFIG_KEYS_V6I2: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
+    "actor_jsd_margin",
+    "actor_jsd_floor_fraction",
+    "actor_jsd_min_passing_pairs",
+    "actor_jsd_consecutive_updates",
+    "actor_jsd_ema_decay",
+    "macro_jsd_margin",
+    "macro_jsd_floor_fraction",
+    "macro_jsd_min_passing_pairs",
+    "macro_jsd_ema_decay",
+    "behavioral_realization_min_opponents_pass",
+    "behavioral_realization_effect_threshold",
+    "behavioral_realization_adverse_threshold",
+)
+
+
+def resolved_gate_config_dict(cfg: PPOConfig) -> dict[str, Any]:
+    """Resolved gate configuration for checkpointing and audit (no hidden defaults)."""
+    protocol = resolve_gate_protocol_version(cfg)
+    keys = _GATE_CONFIG_KEYS_V6I2 if protocol == V6I2_GATE_PROTOCOL else _GATE_CONFIG_KEYS_V6I1
+    return {key: getattr(cfg, key) for key in keys}
+
+
+def gate_config_fingerprint(cfg: PPOConfig) -> str:
+    """Deterministic hash of resolved gate configuration."""
+    payload = resolved_gate_config_dict(cfg)
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def apply_gate_config_mismatch_override(
+    cfg: PPOConfig,
+    *,
+    checkpoint_fingerprint: str,
+    active_fingerprint: str,
+) -> None:
+    """Mark a resume that relaxed gate-config parity as non-confirmatory."""
+    cfg.gate_config_mismatch_override_used = True
+    cfg.gate_config_fingerprint_checkpoint = str(checkpoint_fingerprint)
+    cfg.gate_config_fingerprint_active = str(active_fingerprint)
+    cfg.confirmatory_gate_lineage_valid = False
+    if str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower() == "enforce":
+        cfg.phase_boundary_gate_mode = "observe_only"
+
+
+def gate_lineage_audit_fields(cfg: PPOConfig) -> dict[str, Any]:
+    """Serializable lineage flags for checkpoints and gate reports."""
+    return {
+        "gate_config_mismatch_override_used": bool(
+            getattr(cfg, "gate_config_mismatch_override_used", False)
+        ),
+        "gate_config_fingerprint_checkpoint": str(
+            getattr(cfg, "gate_config_fingerprint_checkpoint", "") or ""
+        ),
+        "gate_config_fingerprint_active": str(
+            getattr(cfg, "gate_config_fingerprint_active", "") or ""
+        ),
+        "confirmatory_gate_lineage_valid": bool(
+            getattr(cfg, "confirmatory_gate_lineage_valid", True)
+        ),
+    }
+
+
+def format_gate_mismatch_override_warning(cfg: PPOConfig) -> list[str]:
+    if not bool(getattr(cfg, "gate_config_mismatch_override_used", False)):
+        return []
+    ckpt_fp = str(getattr(cfg, "gate_config_fingerprint_checkpoint", "") or "")
+    active_fp = str(getattr(cfg, "gate_config_fingerprint_active", "") or "")
+    return [
+        "[PPO] *** GATE CONFIG MISMATCH OVERRIDE — NOT CONFIRMATORY ***",
+        f"[PPO] checkpoint fingerprint={ckpt_fp} active fingerprint={active_fp}",
+        "[PPO] enforce promotion disabled; run is observe-only for gate lineage.",
+    ]
 
 
 @dataclass
@@ -227,6 +325,33 @@ def evaluate_macro_profile_support(cfg: PPOConfig, latent_state: Any) -> GateEva
     )
 
 
+def _opponent_semantic_verdict(
+    rep: dict[str, Any],
+    *,
+    effect_thresh: float,
+    adverse_thresh: float,
+) -> tuple[bool, str]:
+    """Return (strong_pass, auditable verdict code) for one opponent."""
+    route = float(rep.get("avg_route_distance", 0.0))
+    behav = float(rep.get("avg_behavior_distance", 0.0))
+    wr_spread = float(rep.get("forced_z_performance_spread", 0.0))
+    ci_low = float(rep.get("ci_95_low", 0.0))
+    ci_high = float(rep.get("ci_95_high", 0.0))
+    semantic = max(route, behav, float(rep.get("effect_size", 0.0)))
+
+    if semantic < adverse_thresh:
+        return False, "FAIL_ADVERSE_PERFORMANCE"
+    if semantic < effect_thresh:
+        return False, "FAIL_BELOW_EFFECT_THRESHOLD"
+    if behav >= effect_thresh:
+        return True, "PASS_BEHAVIOR_AND_PERFORMANCE"
+    if ci_low > effect_thresh:
+        return True, "PASS_ROUTE_CONFIDENCE"
+    if wr_spread >= 0.03:
+        return True, "PASS_PERFORMANCE_SPREAD"
+    return False, "FAIL_INSUFFICIENT_CONFIDENCE"
+
+
 def evaluate_matched_seed_semantics(
     cfg: PPOConfig,
     op_reports: dict[str, Any],
@@ -260,9 +385,10 @@ def evaluate_matched_seed_semantics(
         behav = float(rep.get("avg_behavior_distance", 0.0))
         wr_spread = float(rep.get("forced_z_performance_spread", 0.0))
         ci_low = float(rep.get("ci_95_low", 0.0))
+        ci_high = float(rep.get("ci_95_high", 0.0))
         semantic = max(route, behav, float(rep.get("effect_size", 0.0)))
-        strong = semantic >= effect_thresh and (
-            ci_low > effect_thresh or wr_spread >= 0.03 or behav >= effect_thresh
+        strong, verdict = _opponent_semantic_verdict(
+            rep, effect_thresh=effect_thresh, adverse_thresh=adverse_thresh
         )
         semantic_effects.append(semantic)
         if strong:
@@ -271,6 +397,13 @@ def evaluate_matched_seed_semantics(
             **rep,
             "semantic_effect": semantic,
             "semantic_pass": bool(strong),
+            "semantic_verdict": verdict,
+            "route_effect": route,
+            "route_ci_low": ci_low,
+            "route_ci_high": ci_high,
+            "behavior_effect": behav,
+            "performance_spread": wr_spread,
+            "num_seeds": n_seeds,
         }
 
     aggregate = float(np.mean(semantic_effects)) if semantic_effects else 0.0
@@ -348,14 +481,19 @@ __all__ = [
     "KNOWN_GATE_PROTOCOLS",
     "V6I1_GATE_PROTOCOL",
     "V6I2_GATE_PROTOCOL",
+    "apply_gate_config_mismatch_override",
     "evaluate_actor_intervention",
     "evaluate_behavioral_realization",
     "evaluate_macro_profile_support",
     "evaluate_matched_seed_semantics",
+    "format_gate_mismatch_override_warning",
+    "gate_config_fingerprint",
     "gate_family_names",
+    "gate_lineage_audit_fields",
     "get_gate_family_names",
     "is_staged_v6_team_intent_curriculum",
     "is_v6i2_gate_protocol",
     "resolve_gate_protocol_version",
+    "resolved_gate_config_dict",
     "validate_protocol_config",
 ]

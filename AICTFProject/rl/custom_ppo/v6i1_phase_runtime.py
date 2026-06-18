@@ -17,11 +17,15 @@ from rl.custom_ppo.schedules import (
     resolve_v6i1_forced_fraction,
     resolve_v6i1_usage_coef,
 )
+from rl.custom_ppo.curriculum.schedule import resolve_schedule
 
 
 def is_v6i1_staged_trainer(trainer: Any) -> bool:
+    cfg = getattr(trainer, "cfg", None)
+    if cfg is None:
+        return False
     return (
-        is_staged_v6_team_intent_curriculum(trainer.cfg)
+        is_staged_v6_team_intent_curriculum(cfg)
         and getattr(trainer, "v6i1_curriculum", None) is not None
     )
 
@@ -34,6 +38,68 @@ def v6i1_schedule_context(trainer: Any) -> tuple[str, int, int, int]:
     t_a = int(getattr(curriculum, "t_A", -1))
     nominal = int(getattr(curriculum, "nominal_steps", getattr(trainer.cfg, "curriculum_nominal_timesteps", 1_000_000)))
     return phase, step, t_a, nominal
+
+
+def resolve_v6i1_entropy_schedule_total_timesteps(trainer: Any) -> int:
+    """Entropy anneal clock: fixed nominal curriculum budget for staged rows."""
+    if not is_v6i1_staged_trainer(trainer):
+        return int(getattr(trainer.cfg, "total_timesteps", 1) or 1)
+    _, _, _, nominal = v6i1_schedule_context(trainer)
+    return int(nominal)
+
+
+def resolve_v6i1_lr_progress_remaining(
+    trainer: Any,
+    *,
+    training_terminal: int | None = None,
+) -> float:
+    """LR progress clock with phase-local denominators (immune to terminal extension).
+
+    Staged curriculum rows use separate clocks:
+
+    * Phase A actor/critic: fixed nominal ``curriculum_nominal_timesteps``
+    * Phase B critic/router: local progress over ``phase_b_budget_steps`` from ``t_A``
+    * Phase C actor/critic/router: local progress over ``phase_c_budget_steps`` from
+      the end of Phase B
+
+    The dynamic ``training_terminal`` is used only for non-staged trainers.
+    """
+    if not is_v6i1_staged_trainer(trainer):
+        cfg = getattr(trainer, "cfg", None)
+        terminal = int(
+            training_terminal
+            if training_terminal is not None
+            else getattr(cfg, "total_timesteps", 1) or 1
+        )
+        step = int(getattr(trainer, "global_step", 0) or 0)
+        return max(0.0, 1.0 - float(step) / max(1.0, float(terminal)))
+
+    phase, step, t_a, nominal = v6i1_schedule_context(trainer)
+    schedule = resolve_schedule(trainer.cfg)
+    if phase == "A":
+        return max(0.0, 1.0 - float(step) / max(1.0, float(nominal)))
+    if phase == "B":
+        if t_a < 0:
+            return max(0.0, 1.0 - float(step) / max(1.0, float(nominal)))
+        local_step = max(0, int(step) - int(t_a))
+        budget = max(1, int(schedule.phase_b_budget_steps))
+        return max(0.0, 1.0 - float(local_step) / float(budget))
+    if phase == "C":
+        if t_a < 0:
+            return max(0.0, 1.0 - float(step) / max(1.0, float(nominal)))
+        phase_b_end = int(t_a) + int(schedule.phase_b_budget_steps)
+        local_step = max(0, int(step) - phase_b_end)
+        budget = max(1, int(schedule.phase_c_budget_steps))
+        return max(0.0, 1.0 - float(local_step) / float(budget))
+    return max(0.0, 1.0 - float(step) / max(1.0, float(nominal)))
+
+
+def _resolve_v6i1_router_base_lr(trainer: Any) -> float:
+    return float(
+        getattr(trainer.cfg, "v6i1_router_lr", None)
+        or getattr(trainer.hparams, "latent_episode_strategy_lr", None)
+        or 5e-3
+    )
 
 
 def v6i1_macro_router_active(trainer: Any, *, phase: str | None = None) -> bool:
@@ -132,21 +198,29 @@ def apply_v6i1_learning_rates(
     trainer: Any,
     *,
     base_lr: float,
-    progress_remaining: float,
+    training_terminal: int | None = None,
+    progress_remaining: float | None = None,
 ) -> dict[str, float]:
     """Set per-phase learning rates on the three V6I1 optimizers."""
     bundle = _optimizer_bundle(trainer)
     if not bundle.v6i1_three_optimizer_mode:
         return {"actor_lr": float(base_lr), "critic_lr": float(base_lr), "router_lr": 0.0}
 
+    if progress_remaining is None:
+        progress_remaining = resolve_v6i1_lr_progress_remaining(
+            trainer, training_terminal=training_terminal
+        )
     phase, _, _, _ = v6i1_schedule_context(trainer)
     lr_floor_frac = max(0.0, min(float(getattr(trainer.cfg, "lr_floor_frac", 0.1) or 0.0), 1.0))
     scaled = float(base_lr) * max(float(progress_remaining), lr_floor_frac)
     actor_lr = scaled
     critic_lr = scaled
-    router_lr = float(bundle.router.param_groups[0]["lr"]) if bundle.router is not None else 0.0
+    router_base = _resolve_v6i1_router_base_lr(trainer)
+    router_lr = 0.0
+    if phase in ("B", "C") and bundle.router is not None:
+        router_lr = router_base * max(float(progress_remaining), lr_floor_frac)
+    actor_frac = float(getattr(trainer.cfg, "v6i1_phase_c_actor_lr_frac", 0.05) or 0.05)
     if phase == "C":
-        actor_frac = float(getattr(trainer.cfg, "v6i1_phase_c_actor_lr_frac", 0.05) or 0.05)
         actor_lr = scaled * actor_frac
     elif phase == "B":
         actor_lr = 0.0
@@ -155,7 +229,15 @@ def apply_v6i1_learning_rates(
         group["lr"] = actor_lr
     for group in bundle.critic.param_groups:
         group["lr"] = critic_lr
-    return {"actor_lr": actor_lr, "critic_lr": critic_lr, "router_lr": router_lr}
+    if bundle.router is not None and phase in ("B", "C"):
+        for group in bundle.router.param_groups:
+            group["lr"] = router_lr
+    return {
+        "actor_lr": actor_lr,
+        "critic_lr": critic_lr,
+        "router_lr": router_lr,
+        "v6i1_lr_progress_remaining": float(progress_remaining),
+    }
 
 
 def step_v6i1_optimizers(
@@ -231,39 +313,13 @@ def load_v6i1_curriculum_state(curriculum: Any, payload: dict[str, Any]) -> None
 
 
 def latent_state_v6i1_checkpoint(state: Any) -> dict[str, Any]:
-    trainer = getattr(state, "trainer", None)
-    cfg = getattr(trainer, "cfg", None) if trainer is not None else None
-    from rl.custom_ppo.gate_protocol import resolve_gate_protocol_version
+    from rl.custom_ppo.latent.checkpoint import latent_checkpoint_payload
 
-    payload = {
-        "gate_protocol_version": (
-            resolve_gate_protocol_version(cfg) if cfg is not None else "v6i1_single_macro_intervention"
-        ),
-        "cf_J": state.cf_J.copy(),
-        "cf_episode_counts": state.cf_episode_counts.copy(),
-        "cf_has_experience": state.cf_has_experience.copy(),
-        "cf_return_mean": float(state.cf_return_mean),
-        "cf_return_var": float(state.cf_return_var),
-        "pair_jsd_ema": state.pair_jsd_ema.copy(),
-        "jsd_gate_consecutive_updates": int(state.jsd_gate_consecutive_updates),
-        "pairwise_ema_valid_updates": int(getattr(state, "pairwise_ema_valid_updates", 0)),
-        "pairwise_ema_last_update_step": int(getattr(state, "pairwise_ema_last_update_step", -1)),
-        "cf_pair_jsd_ema": getattr(state, "cf_pair_jsd_ema", np.zeros(6, dtype=np.float32)).copy(),
-        "cf_pair_jsd_valid_updates": int(getattr(state, "cf_pair_jsd_valid_updates", 0)),
-        "cf_pair_jsd_last_update_step": int(getattr(state, "cf_pair_jsd_last_update_step", -1)),
-        "actor_intervention_consecutive_updates": int(
-            getattr(state, "actor_intervention_consecutive_updates", 0)
-        ),
-        "macro_pair_jsd_ema": getattr(state, "macro_pair_jsd_ema", np.zeros(6, dtype=np.float32)).copy(),
-        "macro_pair_jsd_valid_updates": int(getattr(state, "macro_pair_jsd_valid_updates", 0)),
-        "macro_pair_jsd_last_update_step": int(getattr(state, "macro_pair_jsd_last_update_step", -1)),
-        "router_optimizer_step_count": int(state.router_optimizer_step_count),
-        "macro_return_running_mean": float(getattr(state, "macro_return_running_mean", 0.0)),
-        "macro_return_running_count": int(getattr(state, "macro_return_running_count", 0)),
-        "selector_hidden": getattr(state, "selector_hidden", None),
-        "v6i1_episode_rehearsal": getattr(state, "v6i1_episode_rehearsal", None),
-    }
-    return payload
+    payload = latent_checkpoint_payload(state)
+    flat = {k: v for k, v in payload.items() if k not in ("intervention", "router_runtime")}
+    flat.update(payload.get("intervention", {}))
+    flat.update(payload.get("router_runtime", {}))
+    return flat
 
 
 def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) -> None:
@@ -272,7 +328,19 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
     trainer = getattr(state, "trainer", None)
     cfg = getattr(trainer, "cfg", None) if trainer is not None else None
     if cfg is not None:
-        from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol, resolve_gate_protocol_version
+        for key in (
+            "gate_config_mismatch_override_used",
+            "gate_config_fingerprint_checkpoint",
+            "gate_config_fingerprint_active",
+            "confirmatory_gate_lineage_valid",
+        ):
+            if key in payload:
+                setattr(cfg, key, payload[key])
+        from rl.custom_ppo.gate_protocol import (
+            gate_config_fingerprint,
+            is_v6i2_gate_protocol,
+            resolve_gate_protocol_version,
+        )
 
         active_protocol = resolve_gate_protocol_version(cfg)
         ckpt_protocol = str(payload.get("gate_protocol_version", active_protocol))
@@ -281,6 +349,26 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
                 f"gate_protocol_version mismatch on resume: checkpoint={ckpt_protocol!r} "
                 f"active={active_protocol!r}"
             )
+        ckpt_fp = str(payload.get("gate_config_fingerprint", "") or "")
+        active_fp = gate_config_fingerprint(cfg)
+        if ckpt_fp and ckpt_fp != active_fp:
+            if not bool(getattr(cfg, "allow_gate_config_mismatch_on_resume", False)):
+                raise ValueError(
+                    f"gate_config_fingerprint mismatch on resume: checkpoint={ckpt_fp!r} "
+                    f"active={active_fp!r}"
+                )
+            from rl.custom_ppo.gate_protocol import (
+                apply_gate_config_mismatch_override,
+                format_gate_mismatch_override_warning,
+            )
+
+            apply_gate_config_mismatch_override(
+                cfg,
+                checkpoint_fingerprint=ckpt_fp,
+                active_fingerprint=active_fp,
+            )
+            for line in format_gate_mismatch_override_warning(cfg):
+                print(line, flush=True)
         enforce = str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower() == "enforce"
         if enforce and is_v6i2_gate_protocol(cfg):
             required = (
@@ -295,64 +383,9 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
                 raise ValueError(
                     f"v6i2 enforce resume missing checkpoint gate state: {missing}"
                 )
-    state.cf_J = payload.get("cf_J", state.cf_J)
-    state.cf_episode_counts = payload.get("cf_episode_counts", state.cf_episode_counts)
-    state.cf_has_experience = payload.get("cf_has_experience", state.cf_has_experience)
-    state.cf_return_mean = float(payload.get("cf_return_mean", state.cf_return_mean))
-    state.cf_return_var = float(payload.get("cf_return_var", state.cf_return_var))
-    state.pair_jsd_ema = payload.get("pair_jsd_ema", state.pair_jsd_ema)
-    state.jsd_gate_consecutive_updates = int(
-        payload.get("jsd_gate_consecutive_updates", state.jsd_gate_consecutive_updates)
-    )
-    state.pairwise_ema_valid_updates = int(
-        payload.get("pairwise_ema_valid_updates", getattr(state, "pairwise_ema_valid_updates", 0))
-    )
-    state.pairwise_ema_last_update_step = int(
-        payload.get("pairwise_ema_last_update_step", getattr(state, "pairwise_ema_last_update_step", -1))
-    )
-    if "cf_pair_jsd_ema" in payload:
-        state.cf_pair_jsd_ema = payload.get(
-            "cf_pair_jsd_ema",
-            getattr(state, "cf_pair_jsd_ema", np.zeros(6, dtype=np.float32)),
-        )
-        state.cf_pair_jsd_valid_updates = int(
-            payload.get("cf_pair_jsd_valid_updates", getattr(state, "cf_pair_jsd_valid_updates", 0))
-        )
-        state.cf_pair_jsd_last_update_step = int(
-            payload.get("cf_pair_jsd_last_update_step", getattr(state, "cf_pair_jsd_last_update_step", -1))
-        )
-        state.actor_intervention_consecutive_updates = int(
-            payload.get(
-                "actor_intervention_consecutive_updates",
-                getattr(state, "actor_intervention_consecutive_updates", 0),
-            )
-        )
-        state.macro_pair_jsd_ema = payload.get(
-            "macro_pair_jsd_ema",
-            getattr(state, "macro_pair_jsd_ema", np.zeros(6, dtype=np.float32)),
-        )
-        state.macro_pair_jsd_valid_updates = int(
-            payload.get("macro_pair_jsd_valid_updates", getattr(state, "macro_pair_jsd_valid_updates", 0))
-        )
-        state.macro_pair_jsd_last_update_step = int(
-            payload.get("macro_pair_jsd_last_update_step", getattr(state, "macro_pair_jsd_last_update_step", -1))
-        )
-    state.router_optimizer_step_count = int(
-        payload.get("router_optimizer_step_count", state.router_optimizer_step_count)
-    )
-    if hasattr(state, "macro_return_running_mean"):
-        state.macro_return_running_mean = float(payload.get("macro_return_running_mean", 0.0))
-    if hasattr(state, "macro_return_running_count"):
-        state.macro_return_running_count = int(payload.get("macro_return_running_count", 0))
-    hidden = payload.get("selector_hidden")
-    if hidden is not None and hasattr(state, "selector_hidden"):
-        state.selector_hidden = hidden.to(device=state.selector_hidden.device, dtype=state.selector_hidden.dtype)
-    rehearsal = payload.get("v6i1_episode_rehearsal")
-    if rehearsal is not None and hasattr(state, "v6i1_episode_rehearsal"):
-        state.v6i1_episode_rehearsal = rehearsal.to(
-            device=state.v6i1_episode_rehearsal.device,
-            dtype=state.v6i1_episode_rehearsal.dtype,
-        )
+    from rl.custom_ppo.latent.checkpoint import restore_latent_checkpoint_payload
+
+    restore_latent_checkpoint_payload(state, payload)
 
 
 def v6i1_intervention_csv_stats(
@@ -419,9 +452,14 @@ def v6i1_intervention_csv_stats(
         latent_k = int(getattr(latent_state.trainer, "latent_k", 4) or 4)
         for z in range(latent_k):
             out[f"cf_competence_z{z}"] = float(comp_scores[z]) if z < len(comp_scores) else 0.0
+        batch_evidence_valid = float(last_stats.get("cf_batch_evidence_valid", 0.0) or 0.0) > 0.0
         for idx in range(6):
             suffix = v6i1_pair_suffix(idx)
-            cf_raw = float(last_stats.get(f"cf_batch_pair_jsd_{idx}", 0.0) or 0.0)
+            batch_key = f"cf_batch_pair_jsd_{idx}"
+            if batch_evidence_valid and batch_key in last_stats:
+                cf_raw = float(last_stats[batch_key])
+            else:
+                cf_raw = float("nan")
             macro_raw = (
                 float(profile_stats.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0)
                 if profile_stats
@@ -556,7 +594,8 @@ __all__ = [
     "latent_state_v6i1_checkpoint",
     "load_v6i1_curriculum_state",
     "restore_latent_state_v6i1_checkpoint",
-    "resolve_v6i1_cf_coef_current",
+    "resolve_v6i1_entropy_schedule_total_timesteps",
+    "resolve_v6i1_lr_progress_remaining",
     "resolve_v6i1_episode_forced_frac",
     "resolve_v6i1_episode_rehearsal_prob",
     "resolve_v6i1_exploration_epsilon_current",

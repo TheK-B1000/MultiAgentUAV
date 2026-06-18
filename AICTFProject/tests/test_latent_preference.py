@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 
 from rl.custom_ppo.csv_writers import _update_fieldnames
+from rl.custom_ppo.latent.types import RouterActionSource
 from rl.custom_ppo.latent_strategy_state import (
     LatentStrategyState,
     _advantage_weighted_target_from_records,
@@ -726,7 +727,19 @@ class LatentPreferenceTests(unittest.TestCase):
         latent_state.episode_strategy_z[1] = 1
         latent_state.episode_strategy_log_prob[1] = -0.5
         latent_state.episode_strategy_bucket[1] = 6
-        
+        latent_state.episode_strategy_recorder.record_start(
+            env_index=1,
+            episode_id=1,
+            global_state_0=torch.zeros(trainer.model.global_state_dim),
+            proposed_z=1,
+            executed_z=1,
+            behavior_log_prob=-0.5,
+            router_log_prob=-0.5,
+            action_source=RouterActionSource.ROUTER,
+            bucket_id=6,
+            q_phi_probs=[0.25] * trainer.latent_k,
+        )
+
         # Record outcome for env 0 (forced-z)
         info_forced = {"scripted_tag": "OP3"}
         latent_state.record_episode_strategy_outcome(0, info_forced, episode_return=5.5)
@@ -787,9 +800,9 @@ class LatentPreferenceTests(unittest.TestCase):
                 self.global_state_dim = 4
                 self.strategy_encoder = torch.nn.Linear(4, 4)
                 self.episode_strategy_value_head = torch.nn.Linear(4, 1)
-            def strategy_logits(self, state):
+            def strategy_logits(self, state, selector_hidden=None, **kwargs):
                 return self.strategy_encoder(state)
-            def episode_strategy_value(self, state, z):
+            def episode_strategy_value(self, state, z, selector_hidden=None, **kwargs):
                 return self.episode_strategy_value_head(state).squeeze(-1)
         
         mock_model = MockModel()
@@ -896,9 +909,9 @@ class LatentPreferenceTests(unittest.TestCase):
                 with torch.no_grad():
                     self.strategy_encoder.weight.zero_()
                     self.strategy_encoder.bias.copy_(torch.tensor([1.0, 2.0, 3.0, 4.0]))
-            def strategy_logits(self, state):
+            def strategy_logits(self, state, selector_hidden=None, **kwargs):
                 return self.strategy_encoder(state)
-            def episode_strategy_value(self, state, z):
+            def episode_strategy_value(self, state, z, selector_hidden=None, **kwargs):
                 return self.episode_strategy_value_head(state).squeeze(-1)
         
         mock_model = MockModel()
@@ -1023,9 +1036,9 @@ class LatentPreferenceTests(unittest.TestCase):
                 with torch.no_grad():
                     self.strategy_encoder.weight.zero_()
                     self.strategy_encoder.bias.copy_(torch.tensor([0.0, 0.0, 0.0, 0.0]))
-            def strategy_logits(self, state):
+            def strategy_logits(self, state, selector_hidden=None, **kwargs):
                 return self.strategy_encoder(state)
-            def episode_strategy_value(self, state, z):
+            def episode_strategy_value(self, state, z, selector_hidden=None, **kwargs):
                 return self.episode_strategy_value_head(state).squeeze(-1)
         
         mock_model = MockModel()
@@ -1093,9 +1106,9 @@ class LatentPreferenceTests(unittest.TestCase):
                 self.global_state_dim = 4
                 self.strategy_encoder = torch.nn.Linear(4, 4)
                 self.episode_strategy_value_head = torch.nn.Linear(4, 1)
-            def strategy_logits(self, state):
+            def strategy_logits(self, state, selector_hidden=None, **kwargs):
                 return self.strategy_encoder(state)
-            def episode_strategy_value(self, state, z):
+            def episode_strategy_value(self, state, z, selector_hidden=None, **kwargs):
                 return self.episode_strategy_value_head(state).squeeze(-1)
 
         trainer.model = MockModel()
@@ -1195,9 +1208,9 @@ class LatentPreferenceTests(unittest.TestCase):
                 self.global_state_dim = 4
                 self.strategy_encoder = torch.nn.Linear(4, 4)
                 self.episode_strategy_value_head = torch.nn.Linear(4, 1)
-            def strategy_logits(self, state):
+            def strategy_logits(self, state, selector_hidden=None, **kwargs):
                 return self.strategy_encoder(state)
-            def episode_strategy_value(self, state, z):
+            def episode_strategy_value(self, state, z, selector_hidden=None, **kwargs):
                 return self.episode_strategy_value_head(state).squeeze(-1)
 
         trainer.model = MockModel()
@@ -1297,9 +1310,9 @@ class LatentPreferenceTests(unittest.TestCase):
                 self.global_state_dim = 4
                 self.strategy_encoder = torch.nn.Linear(4, 4)
                 self.episode_strategy_value_head = torch.nn.Linear(4, 1)
-            def strategy_logits(self, state):
+            def strategy_logits(self, state, selector_hidden=None, **kwargs):
                 return self.strategy_encoder(state)
-            def episode_strategy_value(self, state, z):
+            def episode_strategy_value(self, state, z, selector_hidden=None, **kwargs):
                 return self.episode_strategy_value_head(state).squeeze(-1)
 
         trainer.model = MockModel()

@@ -25,6 +25,7 @@ from rl.custom_ppo.gate_protocol import (
     V6I2_GATE_PROTOCOL,
     evaluate_actor_intervention,
     evaluate_behavioral_realization,
+    evaluate_matched_seed_semantics,
     evaluate_macro_profile_support,
     gate_family_names,
     is_staged_v6_team_intent_curriculum,
@@ -280,10 +281,178 @@ class BehavioralRealizationTests(unittest.TestCase):
         self.assertEqual(macro.status, GATE_STATUS_FAIL)
 
 
-class ResumeSafetyTests(unittest.TestCase):
-    def test_protocol_mismatch_rejected(self):
+class SafeguardTests(unittest.TestCase):
+    def test_duplicate_timestep_cf_ema_rejected(self):
         cfg = _v6i2_cfg()
-        state = SimpleNamespace(
+        state = ActorEmaTests()._make_state(cfg)
+        vals = [0.002] * 6
+        self.assertTrue(state.update_cf_pair_jsd_ema(vals, 500))
+        self.assertFalse(state.update_cf_pair_jsd_ema(vals, 500))
+        self.assertEqual(state.cf_pair_jsd_valid_updates, 1)
+
+    def test_older_timestep_cf_ema_rejected(self):
+        cfg = _v6i2_cfg()
+        state = ActorEmaTests()._make_state(cfg)
+        vals = [0.002] * 6
+        self.assertTrue(state.update_cf_pair_jsd_ema(vals, 500))
+        before_ema = state.cf_pair_jsd_ema.copy()
+        self.assertFalse(state.update_cf_pair_jsd_ema(vals, 400))
+        np.testing.assert_array_equal(state.cf_pair_jsd_ema, before_ema)
+        self.assertEqual(state.cf_pair_jsd_valid_updates, 1)
+        self.assertEqual(state.cf_pair_jsd_last_update_step, 500)
+
+    def test_older_timestep_macro_ema_rejected(self):
+        cfg = _v6i2_cfg()
+        state = MacroEmaTests()._make_state(cfg)
+        vals = [0.0002] * 6
+        self.assertTrue(state.update_macro_pair_jsd_ema(vals, 300))
+        before = state.macro_pair_jsd_ema.copy()
+        self.assertFalse(state.update_macro_pair_jsd_ema(vals, 200))
+        np.testing.assert_array_equal(state.macro_pair_jsd_ema, before)
+
+    def test_gate_config_fingerprint_changes_with_threshold(self):
+        cfg1 = _v6i2_cfg()
+        cfg2 = _v6i2_cfg()
+        cfg2.actor_jsd_margin = 0.002
+        from rl.custom_ppo.gate_protocol import gate_config_fingerprint
+
+        self.assertNotEqual(gate_config_fingerprint(cfg1), gate_config_fingerprint(cfg2))
+
+    def test_fingerprint_mismatch_rejected_on_resume(self):
+        cfg = _v6i2_cfg()
+        state = ResumeSafetyTests()._make_minimal_state(cfg)
+        payload = latent_state_v6i1_checkpoint(state)
+        cfg2 = _v6i2_cfg()
+        cfg2.actor_jsd_margin = 0.002
+        state2 = ResumeSafetyTests()._make_minimal_state(cfg2)
+        with self.assertRaises(ValueError):
+            restore_latent_state_v6i1_checkpoint(state2, payload)
+
+    def test_fingerprint_override_marks_non_confirmatory(self):
+        cfg = _v6i2_cfg()
+        cfg.allow_gate_config_mismatch_on_resume = True
+        cfg.phase_boundary_gate_mode = "enforce"
+        state = ResumeSafetyTests()._make_minimal_state(cfg)
+        payload = latent_state_v6i1_checkpoint(state)
+        cfg2 = _v6i2_cfg()
+        cfg2.allow_gate_config_mismatch_on_resume = True
+        cfg2.actor_jsd_margin = 0.002
+        state2 = ResumeSafetyTests()._make_minimal_state(cfg2)
+        restore_latent_state_v6i1_checkpoint(state2, payload)
+        self.assertTrue(cfg2.gate_config_mismatch_override_used)
+        self.assertFalse(cfg2.confirmatory_gate_lineage_valid)
+        self.assertEqual(cfg2.phase_boundary_gate_mode, "observe_only")
+        self.assertNotEqual(cfg2.gate_config_fingerprint_checkpoint, "")
+
+    def test_semantics_pass_macro_fail(self):
+        cfg = _v6i2_cfg()
+        latent = SimpleNamespace(
+            macro_pair_jsd_ema=np.zeros(6, dtype=np.float32),
+            macro_pair_jsd_valid_updates=5,
+        )
+        op_reports = {
+            "OP5": {
+                "avg_route_distance": 0.03,
+                "avg_behavior_distance": 0.01,
+                "ci_95_low": 0.025,
+                "ci_95_high": 0.04,
+                "forced_z_performance_spread": 0.04,
+                "effect_size": 0.03,
+                "num_seeds": 20,
+            },
+            "OP6": {
+                "avg_route_distance": 0.03,
+                "avg_behavior_distance": 0.04,
+                "ci_95_low": 0.02,
+                "ci_95_high": 0.05,
+                "forced_z_performance_spread": 0.05,
+                "effect_size": 0.04,
+                "num_seeds": 20,
+            },
+            "OP7": {
+                "avg_route_distance": 0.01,
+                "avg_behavior_distance": 0.005,
+                "ci_95_low": 0.0,
+                "ci_95_high": 0.02,
+                "forced_z_performance_spread": 0.01,
+                "effect_size": 0.01,
+                "num_seeds": 20,
+            },
+        }
+        result = evaluate_behavioral_realization(cfg, latent, op_reports, boundary_eval_enabled=True)
+        self.assertEqual(result.details["matched_seed_semantics"], GATE_STATUS_PASS)
+        self.assertEqual(result.details["macro_profile"], GATE_STATUS_FAIL)
+        self.assertEqual(result.status, GATE_STATUS_PASS)
+
+    def test_semantics_fail_macro_pass(self):
+        cfg = _v6i2_cfg()
+        latent = SimpleNamespace(
+            macro_pair_jsd_ema=np.full(6, 0.001, dtype=np.float32),
+            macro_pair_jsd_valid_updates=5,
+        )
+        op_reports = {
+            "OP5": {
+                "avg_route_distance": 0.001,
+                "avg_behavior_distance": 0.001,
+                "ci_95_low": -0.01,
+                "ci_95_high": 0.01,
+                "forced_z_performance_spread": 0.01,
+                "effect_size": 0.001,
+                "num_seeds": 20,
+            },
+            "OP6": {
+                "avg_route_distance": 0.001,
+                "avg_behavior_distance": 0.001,
+                "ci_95_low": -0.01,
+                "ci_95_high": 0.01,
+                "forced_z_performance_spread": 0.01,
+                "effect_size": 0.001,
+                "num_seeds": 20,
+            },
+            "OP7": {
+                "avg_route_distance": 0.001,
+                "avg_behavior_distance": 0.001,
+                "ci_95_low": -0.01,
+                "ci_95_high": 0.01,
+                "forced_z_performance_spread": 0.01,
+                "effect_size": 0.001,
+                "num_seeds": 20,
+            },
+        }
+        result = evaluate_behavioral_realization(cfg, latent, op_reports, boundary_eval_enabled=True)
+        self.assertEqual(result.details["macro_profile"], GATE_STATUS_PASS)
+        self.assertEqual(result.details["matched_seed_semantics"], GATE_STATUS_FAIL)
+        self.assertEqual(result.status, GATE_STATUS_FAIL)
+
+    def test_insufficient_seed_count_not_run(self):
+        cfg = _v6i2_cfg()
+        result = evaluate_matched_seed_semantics(
+            cfg,
+            {
+                "OP5": {
+                    "avg_route_distance": 0.03,
+                    "avg_behavior_distance": 0.01,
+                    "ci_95_low": 0.025,
+                    "forced_z_performance_spread": 0.04,
+                    "effect_size": 0.03,
+                    "num_seeds": 5,
+                }
+            },
+        )
+        self.assertEqual(result.status, GATE_STATUS_NOT_RUN)
+
+    def test_checkpoint_includes_fingerprint(self):
+        cfg = _v6i2_cfg()
+        state = ActorEmaTests()._make_state(cfg)
+        payload = latent_state_v6i1_checkpoint(state)
+        self.assertIn("gate_config_fingerprint", payload)
+        self.assertIn("resolved_gate_config", payload)
+        self.assertIn("actor_jsd_margin", payload["resolved_gate_config"])
+
+
+class ResumeSafetyTests(unittest.TestCase):
+    def _make_minimal_state(self, cfg: PPOConfig) -> SimpleNamespace:
+        return SimpleNamespace(
             cf_J=np.zeros(4),
             cf_episode_counts=np.zeros(4, dtype=int),
             cf_has_experience=np.zeros(4, dtype=bool),
@@ -293,9 +462,20 @@ class ResumeSafetyTests(unittest.TestCase):
             jsd_gate_consecutive_updates=0,
             pairwise_ema_valid_updates=0,
             pairwise_ema_last_update_step=-1,
+            cf_pair_jsd_ema=np.zeros(6, dtype=np.float32),
+            cf_pair_jsd_valid_updates=0,
+            cf_pair_jsd_last_update_step=-1,
+            actor_intervention_consecutive_updates=0,
+            macro_pair_jsd_ema=np.zeros(6, dtype=np.float32),
+            macro_pair_jsd_valid_updates=0,
+            macro_pair_jsd_last_update_step=-1,
             router_optimizer_step_count=0,
             trainer=_trainer_stub(cfg, None),
         )
+
+    def test_protocol_mismatch_rejected(self):
+        cfg = _v6i2_cfg()
+        state = self._make_minimal_state(cfg)
         payload = latent_state_v6i1_checkpoint(state)
         payload["gate_protocol_version"] = "v6i1_single_macro_intervention"
         with self.assertRaises(ValueError):
@@ -303,19 +483,7 @@ class ResumeSafetyTests(unittest.TestCase):
 
     def test_v6i2_enforce_resume_missing_fields_rejected(self):
         cfg = _v6i2_cfg()
-        state = SimpleNamespace(
-            cf_J=np.zeros(4),
-            cf_episode_counts=np.zeros(4, dtype=int),
-            cf_has_experience=np.zeros(4, dtype=bool),
-            cf_return_mean=0.0,
-            cf_return_var=1.0,
-            pair_jsd_ema=np.zeros(6, dtype=np.float32),
-            jsd_gate_consecutive_updates=0,
-            pairwise_ema_valid_updates=0,
-            pairwise_ema_last_update_step=-1,
-            router_optimizer_step_count=0,
-            trainer=_trainer_stub(cfg, None),
-        )
+        state = self._make_minimal_state(cfg)
         payload = {
             "gate_protocol_version": V6I2_GATE_PROTOCOL,
             "cf_J": state.cf_J,
@@ -329,7 +497,36 @@ class ResumeSafetyTests(unittest.TestCase):
             restore_latent_state_v6i1_checkpoint(state, payload)
 
 
-class PromotionTests(unittest.TestCase):
+class TerminalBudgetTests(unittest.TestCase):
+    def test_late_phase_a_extends_terminal_step(self):
+        from rl.custom_ppo.curriculum.schedule import resolve_schedule
+
+        cfg = _v6i2_cfg()
+        schedule = resolve_schedule(cfg)
+        self.assertEqual(schedule.terminal_step_if_promoted_at(700_000), 1_300_000)
+
+    def test_startup_banner_shows_effective_terminal(self):
+        from rl.custom_ppo.curriculum.schedule import format_staged_curriculum_budget_contract
+
+        cfg = _v6i2_cfg()
+        cfg.total_timesteps = 1_250_000
+        lines = format_staged_curriculum_budget_contract(cfg)
+        self.assertTrue(any("Current effective terminal: 1,250,000" in line for line in lines))
+
+    def test_extension_banner_lines(self):
+        from rl.custom_ppo.curriculum.schedule import (
+            format_terminal_extension_banner,
+            resolve_schedule,
+        )
+
+        cfg = _v6i2_cfg()
+        schedule = resolve_schedule(cfg)
+        lines = format_terminal_extension_banner(
+            schedule, phase_a_end_step=700_000, effective_terminal=1_300_000
+        )
+        self.assertTrue(any("700,000" in line for line in lines))
+        self.assertTrue(any("1,300,000" in line for line in lines))
+
     def test_overall_promotion_uses_v6i2_families(self):
         cfg = _v6i2_cfg()
         families = gate_family_names(cfg)

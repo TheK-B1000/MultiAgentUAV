@@ -22,6 +22,10 @@ from rl.custom_ppo.csv_writers import (
     _v3i3_refresh_log_fieldnames,
 )
 from rl.custom_ppo.inference import FORCED_Z_MACRO_ACTIONS, FORCED_Z_PROFILE_MAX_ROWS
+from rl.forced_z_behavior_vectors import (
+    build_behavior_distance_profile,
+    behavior_vector_from_macro_probs,
+)
 from rl.discrete_mi import discrete_mi_plugin
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_phase_labels import TEAM_PHASES
@@ -611,6 +615,7 @@ def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
     }
     out: dict[str, float] = {}
     mean_macros: list[torch.Tensor] = []
+    behavior_vectors: list[np.ndarray] = []
     with torch.no_grad():
         for z_id in range(int(trainer.latent_k)):
             z_idx = torch.full((int(row_idx.numel()),), z_id, dtype=torch.long, device=trainer.device)
@@ -628,6 +633,16 @@ def _forced_z_behavior_profile(trainer: Any, buffer: Any) -> dict[str, float]:
                 else:
                     out[f"forced_z{z_id}_macro_{action_name}_prob"] = 0.0
             out[f"forced_z{z_id}_macro_entropy"] = float(macro_entropy.detach().cpu().item())
+            behavior_vectors.append(behavior_vector_from_macro_probs(mean_macro))
+
+    out.update(
+        build_behavior_distance_profile(
+            behavior_vectors,
+            source="macro",
+            pair_count=int(trainer.latent_k) * (int(trainer.latent_k) - 1) // 2,
+            latent_k=int(trainer.latent_k),
+        )
+    )
 
     if len(mean_macros) >= 2:
         js_vals: list[float] = []

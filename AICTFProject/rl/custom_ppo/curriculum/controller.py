@@ -56,12 +56,12 @@ _STATE_SCHEMA_VERSION = 1
 
 
 def is_staged_v6i1_curriculum(cfg: PPOConfig) -> bool:
-    """True only for the staged team-intent V6I1 curriculum, not repertoire ablations."""
+    """True for staged team-intent V6 rows (v6i1 and v6i2), not repertoire ablations."""
     return (
         bool(getattr(cfg, "use_v6i1_curriculum", False))
         and str(getattr(cfg, "training_mode", "default")) == "staged_team_intent_curriculum"
         and str(getattr(cfg, "experiment_family", "v6")) == "v6"
-        and str(getattr(cfg, "experiment_id", "v6i1")) == "v6i1"
+        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2")
     )
 
 
@@ -106,6 +106,9 @@ class V6I1CurriculumController:
         self.protocol_version = resolve_gate_protocol_version(self.cfg)
         self.protocol = build_gate_protocol(self.cfg)
         self.active_families = gate_family_names(self.cfg)
+        self.training_terminal_step = int(
+            getattr(self.cfg, "total_timesteps", None) or self.nominal_steps
+        )
         self.next_gate_step = self.phase_a_min_end
         self.last_gate_step_run = -1
         self.gate_check_history: list[dict[str, Any]] = []
@@ -200,6 +203,7 @@ class V6I1CurriculumController:
             "gate_check_history": list(self.gate_check_history),
             "protected_candidate_checkpoints": list(self.protected_candidate_checkpoints),
             "best_candidate_report": self.best_candidate_report,
+            "training_terminal_step": int(self.training_terminal_step),
         }
 
     def load_state_dict(self, payload: dict[str, Any]) -> None:
@@ -214,6 +218,44 @@ class V6I1CurriculumController:
             payload.get("protected_candidate_checkpoints", [])
         )
         self.best_candidate_report = payload.get("best_candidate_report", self.best_candidate_report)
+        self.training_terminal_step = int(
+            payload.get("training_terminal_step", getattr(self, "training_terminal_step", self.nominal_steps))
+        )
+
+    def effective_training_terminal_step(self) -> int:
+        return int(self.training_terminal_step)
+
+    def _extend_terminal_on_phase_b_entry(self, step: int) -> None:
+        before = int(self.training_terminal_step)
+        if not bool(getattr(self.cfg, "curriculum_extend_terminal_on_late_promotion", True)):
+            return
+        extended = self.schedule.terminal_step_if_promoted_at(step)
+        if extended > self.training_terminal_step:
+            self.training_terminal_step = extended
+            self.cfg.total_timesteps = extended
+            from rl.custom_ppo.curriculum.schedule import format_terminal_extension_banner
+
+            for line in format_terminal_extension_banner(
+                self.schedule,
+                phase_a_end_step=step,
+                effective_terminal=self.training_terminal_step,
+            ):
+                print(line, flush=True)
+            if before != extended:
+                print(
+                    f"[Curriculum Controller] Training terminal raised from {before:,} to {extended:,}",
+                    flush=True,
+                )
+
+    def _phase_b_end_step(self) -> int:
+        if self.t_A >= 0:
+            return self.t_A + self.schedule.phase_b_budget_steps
+        return self.phase_c_nominal_start
+
+    def _phase_c_end_step(self) -> int:
+        if self.t_A >= 0:
+            return self.schedule.terminal_step_if_promoted_at(self.t_A)
+        return self.nominal_steps
 
     def resolve_phase(self, global_step: int | None = None) -> str:
         return self.phase
@@ -231,11 +273,7 @@ class V6I1CurriculumController:
                 self._transition_to_phase_b(step, nominal=True)
                 transitioned = True
         if self.phase == CurriculumPhase.B.value:
-            phase_b_end = (
-                self.t_A + int(0.30 * self.nominal_steps)
-                if self.t_A >= 0
-                else self.phase_c_nominal_start
-            )
+            phase_b_end = self._phase_b_end_step()
             if step >= phase_b_end or step >= self.phase_c_nominal_start:
                 self._transition_to_phase_c(step, nominal=(mode == GateMode.OBSERVE_ONLY.value))
                 transitioned = True
@@ -276,6 +314,10 @@ class V6I1CurriculumController:
 
             gate_results: dict[str, GateFamilyResult] = {}
             online_report = self._evaluate_online_gates(gate_results, context)
+            from rl.forced_z_behavior_vectors import phase_a_stats_snapshot
+
+            last_stats = dict(getattr(self.trainer, "last_stats", {}) or {})
+            online_report.update(phase_a_stats_snapshot(last_stats, gate_step=step))
             if is_v6i2_gate_protocol(self.cfg):
                 matched_result = self._evaluate_behavioral_realization_gate(context)
                 gate_results["behavioral_realization"] = matched_result
@@ -326,6 +368,15 @@ class V6I1CurriculumController:
                 overall_gate_passed=overall_passed,
             )
             report = build_final_gate_report(attempt)
+            from rl.custom_ppo.gate_protocol import (
+                gate_config_fingerprint,
+                gate_lineage_audit_fields,
+                resolved_gate_config_dict,
+            )
+
+            report["gate_config_fingerprint"] = gate_config_fingerprint(self.cfg)
+            report["resolved_gate_config"] = resolved_gate_config_dict(self.cfg)
+            report.update(gate_lineage_audit_fields(self.cfg))
             ranked_row = dict(report)
             self.gate_check_history.append(ranked_row)
             report_path = write_gate_report(self.cfg, step, report)
@@ -398,6 +449,7 @@ class V6I1CurriculumController:
         self.t_A = step
         self.phase_a_end_step = step
         self.phase_a_gate_passed = not nominal
+        self._extend_terminal_on_phase_b_entry(step)
         boundary_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_phase_a_boundary_{step}.zip")
         self.trainer.save(boundary_ckpt)
         self.protected_candidate_checkpoints.append(boundary_ckpt)

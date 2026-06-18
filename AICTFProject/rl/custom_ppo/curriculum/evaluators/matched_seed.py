@@ -80,9 +80,15 @@ def _aggregate_seed_metrics(
     ]
     wr_spread = float(max(wr_means) - min(wr_means)) if wr_means else 0.0
     excludes_zero = ci_low > route_ci_threshold and avg_route > route_ci_threshold
+    route_std_se = float(se)
+    behav_mean = float(np.mean(behavior_dists)) if behavior_dists else 0.0
+    behav_std = float(np.std(behavior_dists)) if behavior_dists else 0.0
+    behav_se = behav_std / np.sqrt(len(behavior_dists)) if behavior_dists else 0.0
     return {
         "avg_route_distance": avg_route,
-        "avg_behavior_distance": float(np.mean(behavior_dists)) if behavior_dists else 0.0,
+        "avg_behavior_distance": behav_mean,
+        "route_std_error": route_std_se,
+        "behavior_std_error": float(behav_se),
         "ci_95_low": float(ci_low),
         "ci_95_high": float(ci_high),
         "paired_ci_excludes_zero": bool(excludes_zero),

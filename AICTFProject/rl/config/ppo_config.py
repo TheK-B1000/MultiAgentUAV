@@ -136,7 +136,15 @@ class PPOConfig:
     gate_protocol_version: str = "v6i1_single_macro_intervention"
     phase_a_earliest_end_fraction: float = 0.40
     phase_a_max_end_fraction: float = 0.55
+    phase_b_fixed_fraction: float = 0.30
+    phase_c_fixed_fraction: float = 0.30
     phase_c_start_fraction: float = 0.70
+    curriculum_extend_terminal_on_late_promotion: bool = True
+    allow_gate_config_mismatch_on_resume: bool = False
+    gate_config_mismatch_override_used: bool = False
+    gate_config_fingerprint_checkpoint: str = ""
+    gate_config_fingerprint_active: str = ""
+    confirmatory_gate_lineage_valid: bool = True
     # v6i2 actor-intervention track (CF-batch pair JSD EMA).
     actor_jsd_margin: float = 0.001
     actor_jsd_floor_fraction: float = 0.5

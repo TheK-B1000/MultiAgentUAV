@@ -69,6 +69,25 @@ def print_training_banner(
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={cfg.mode} | run_tag={cfg.run_tag!r}")
     print("[PPO] Algorithm backend: custom local PPO")
     print(f"[PPO] Total timesteps: {int(cfg.total_timesteps):,}")
+    from rl.custom_ppo.gate_protocol import is_staged_v6_team_intent_curriculum
+
+    if is_staged_v6_team_intent_curriculum(cfg):
+        from rl.custom_ppo.curriculum.schedule import format_staged_curriculum_budget_contract
+        from rl.custom_ppo.gate_protocol import format_gate_mismatch_override_warning
+
+        for line in format_staged_curriculum_budget_contract(
+            cfg, effective_terminal=int(cfg.total_timesteps)
+        ):
+            print(line)
+        print(f"[PPO] Gate protocol: {str(getattr(cfg, 'gate_protocol_version', ''))}")
+        confirmatory = bool(getattr(cfg, "confirmatory_gate_lineage_valid", True))
+        mode = str(getattr(cfg, "phase_boundary_gate_mode", "enforce"))
+        print(
+            f"[PPO] Confirmatory gate lineage: {'VALID' if confirmatory else 'INVALID'} "
+            f"(phase_boundary_gate_mode={mode})"
+        )
+        for line in format_gate_mismatch_override_warning(cfg):
+            print(line)
     base_gs_dim = GLOBAL_STATE_DIM
     use_latent = bool(getattr(cfg, "use_latent_strategy", False))
     temp_ctx_dim = CONTEXT_STATE_DIM if use_latent else 0

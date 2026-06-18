@@ -14,6 +14,7 @@ from rl.custom_ppo.curriculum.types import (
     GateFamilyResult,
 )
 from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL
+from rl.forced_z_behavior_vectors import INTERVENTION_QUADRANT_GENUINE
 
 SCHEMA_VERSION = 2
 
@@ -136,6 +137,7 @@ def format_v6i1_gate_stdout_block(
                 f"strong_opponents={strong_ops}/3 aggregate_effect={agg_effect:.4f} "
                 f"probe={_st('selector_learnability_probe')}"
             ),
+            _format_phase_a_behavior_line(online_report),
             f"[{tag} Gate] overall={'PASS' if overall_passed else 'FAIL'} action={action} cf_coef={cf_coef:.4f}",
         ]
         if report_line:
@@ -175,11 +177,37 @@ def format_v6i1_gate_stdout_block(
             f"[V6I1 Gate] matched_eval={_st('matched_seed_behavior')} "
             f"probe={_st('selector_learnability_probe')}"
         ),
+        _format_phase_a_behavior_line(online_report),
         f"[V6I1 Gate] overall={'PASS' if overall_passed else 'FAIL'} action={action} cf_coef={cf_coef:.4f}",
     ]
     if report_line:
         lines.append(report_line)
     return "\n".join(lines)
+
+
+def _format_phase_a_behavior_line(online_report: dict[str, Any]) -> str:
+    """Actor intervention vs behavioral realization 2x2 snapshot."""
+    if not bool(float(online_report.get("phase_a_snapshot_usable", 0.0) or 0.0) >= 0.5):
+        stale = bool(float(online_report.get("phase_a_stats_stale", 0.0) or 0.0) >= 0.5)
+        reason = "stale" if stale else "invalid_or_incomplete"
+        return f"[Phase A] behavior_diag=NOT_RUN reason={reason}"
+
+    actor_jsd = float(online_report.get("phase_a_actor_jsd_mean", 0.0) or 0.0)
+    beh_dist = float(online_report.get("phase_a_behavior_distance_min", 0.0) or 0.0)
+    beh_mean = float(online_report.get("phase_a_behavior_distance_mean", 0.0) or 0.0)
+    quad = str(online_report.get("phase_a_intervention_quadrant_label", "unknown"))
+    regime = str(online_report.get("phase_a_cf_regime_label", "unknown"))
+    corridor = bool(float(online_report.get("phase_a_corridor_viable", 0.0) or 0.0) >= 0.5)
+    opp_fork = float(online_report.get("opportunity_fork_fraction_valid", 0.0) or 0.0)
+    actor_pairs = int(online_report.get("phase_a_actor_pairs_above_margin", 0.0) or 0.0)
+    beh_pairs = int(online_report.get("phase_a_behavior_pairs_above_threshold", 0.0) or 0.0)
+    genuine = int(online_report.get("phase_a_intervention_quadrant", -1)) == INTERVENTION_QUADRANT_GENUINE
+    return (
+        f"[Phase A] actor_jsd={actor_jsd:.4f} behavior_min={beh_dist:.4f} behavior_mean={beh_mean:.4f} "
+        f"quadrant={quad} cf_regime={regime} corridor_viable={corridor} "
+        f"actor_pairs>margin={actor_pairs}/6 behavior_pairs>thr={beh_pairs}/6 "
+        f"opp_fork_valid={opp_fork:.3f} genuine_control={genuine}"
+    )
 
 
 __all__ = [

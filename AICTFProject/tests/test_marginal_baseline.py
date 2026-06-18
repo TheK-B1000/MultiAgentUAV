@@ -182,116 +182,44 @@ class V3bPresetWiringTests(unittest.TestCase):
 
 
 class MainLoopGatingTests(unittest.TestCase):
-    """Pin the v5 decoupled q_phi gating semantics in ``ppo_updater.py``.
+    """Pin v5 decoupled q_phi gating semantics in ``rl.custom_ppo.update``."""
 
-    Background (v3c "Fix 5", now superseded):
-        v3c added an episode-credit channel (``apply_episode_strategy_ppo``)
-        that steps the strategy_encoder + value head through a dedicated
-        ``latent_router_optimizer``. Without a guard, the shared optimizer's
-        main-loop pass would *also* step the same params via the entropy /
-        persistence / strategy-PPO / KL / aux-return terms in the same
-        update, doubling (and at high lam_h, ~650x amplifying) the entropy
-        push. Fix 5 silenced ALL of those main-loop terms when
-        ``latent_strategy_ppo_coef == 0``.
-
-    Why v5 replaces Fix 5:
-        Fix 5's trigger conflated "should the per-step PPO PG run?" with
-        "is a dedicated router optimizer active?". v3i19 / v4i1 / v4i3 set
-        ``latent_strategy_ppo_coef = 0`` *without* a dedicated router
-        optimizer; they expected ``lam_p`` and ``lam_h`` to fire via the
-        main loop (matching docs/algorithm.md), but Fix 5 silently zeroed
-        them. The v5 gate triggers off ``latent_router_optimizer is not
-        None`` instead, so the main-loop regularizers fire whenever they
-        are the only path to q_phi.
-
-    The runtime path is now::
-
-        has_dedicated_router_opt = runtime.latent_router_optimizer is not None
-        apply_main_loop_qphi_loss = latent_strategy_ppo_coef > 0 and not has_dedicated_router_opt
-        apply_entropy_loss      = use_latent_strategy and not has_dedicated_router_opt and lam_h > 0 and objective != "none"
-        apply_persistence_loss  = use_latent_strategy and not has_dedicated_router_opt and (lam_p > 0 or sparse_tactical_refresh)
-        apply_kl_loss           = use_latent_strategy and not has_dedicated_router_opt and lam_kl_consecutive > 0
-
-    This test reads ``ppo_updater.py`` source so silent drift is caught at
-    review time, not at runtime via a 650x entropy push.
-    """
-
-    def test_main_loop_gate_uses_dedicated_router_opt_safeguard(self):
+    def test_main_loop_gate_uses_dedicated_router_opt_safeguard(self) -> None:
         import pathlib
         import re
 
-        source = (
-            pathlib.Path(__file__).resolve().parent.parent
-            / "rl"
-            / "custom_ppo"
-            / "ppo_updater.py"
-        ).read_text(encoding="utf-8")
+        update_pkg = pathlib.Path(__file__).resolve().parent.parent / "rl" / "custom_ppo" / "update"
+        context_src = (update_pkg / "update_context.py").read_text(encoding="utf-8")
+        minibatch_src = (update_pkg / "minibatch_updater.py").read_text(encoding="utf-8")
+        strategy_src = (update_pkg / "strategy_objectives.py").read_text(encoding="utf-8")
 
-        # The "safeguard" must inspect the dedicated router optimizer, NOT
-        # the strategy PPO coefficient. This is the core v5 change.
         safeguard_pattern = re.compile(
-            r"has_dedicated_router_opt\s*=\s*\(\s*getattr\(\s*runtime\s*,\s*"
+            r"has_dedicated_router_optimizer\s*=\s*\(\s*getattr\(\s*runtime\s*,\s*"
             r"['\"]latent_router_optimizer['\"][^)]*\)\s*is not None\s*\)"
         )
-        self.assertRegex(
-            source,
-            safeguard_pattern,
-            msg=(
-                "v5 gate must compute `has_dedicated_router_opt` from "
-                "`runtime.latent_router_optimizer`. If this regex fails, the "
-                "double-step safeguard for v3c-style episode-credit runs is gone."
-            ),
-        )
+        self.assertRegex(context_src, safeguard_pattern)
 
-        # Strategy-PPO term must still be gated by ``coef > 0 AND not dedicated``.
         ppo_gate_pattern = re.compile(
             r"apply_main_loop_qphi_loss\s*=\s*\(\s*\n\s*float\(\s*hparams\.latent_strategy_ppo_coef\s*or\s*0\.0\s*\)\s*>\s*0\.0\s*\n\s*"
-            r"and not has_dedicated_router_opt"
+            r"and not has_dedicated_router_optimizer"
         )
-        self.assertRegex(
-            source,
-            ppo_gate_pattern,
-            msg=(
-                "Per-step strategy PPO loss must gate on `latent_strategy_ppo_coef > 0` "
-                "AND `not has_dedicated_router_opt`."
-            ),
-        )
+        self.assertRegex(context_src, ppo_gate_pattern)
+        self.assertIn("float(latent_lam_h or 0.0) > 0.0", minibatch_src)
 
-        # Entropy gates on lam_h > 0 (and objective != 'none').
-        self.assertIn(
-            'float(latent_lam_h or 0.0) > 0.0',
-            source,
-            msg="Entropy term must gate on `latent_lam_h > 0`, not on `latent_strategy_ppo_coef`.",
-        )
-
-        # Persistence gates on lam_p > 0 OR sparse tactical refresh.
         persist_gate_pattern = re.compile(
             r"apply_persistence_loss\s*=\s*\([\s\S]*?"
             r"float\(\s*getattr\(\s*cfg\s*,\s*['\"]latent_lam_p['\"][^)]*\)\s*or\s*0\.0\s*\)\s*>\s*0\.0[\s\S]*?"
             r"or hparams\.latent_sparse_tactical_refresh_enabled",
             re.MULTILINE,
         )
-        self.assertRegex(
-            source,
-            persist_gate_pattern,
-            msg=(
-                "Persistence term must gate on `latent_lam_p > 0 OR "
-                "latent_sparse_tactical_refresh_enabled`, not on `latent_strategy_ppo_coef`."
-            ),
-        )
+        self.assertRegex(minibatch_src, persist_gate_pattern)
 
-        # Double-step safeguard: each guarded term still gets zeroed when the
-        # dedicated router optimizer is the active q_phi gradient sink.
         for guarded_term in (
-            "strategy_entropy_loss = torch.zeros_like(strategy_entropy_loss)",
             "persist_term_loss = torch.zeros_like(persist_term_loss)",
             "strategy_policy_loss_scaled = torch.zeros_like(strategy_policy_loss_scaled)",
+            "strategy_policy_loss = torch.zeros_like(strategy_policy_loss)",
         ):
-            self.assertIn(
-                guarded_term,
-                source,
-                msg=f"v5 gate must still zero `{guarded_term}` when its apply_* flag is False.",
-            )
+            self.assertIn(guarded_term, strategy_src)
 
 
 if __name__ == "__main__":

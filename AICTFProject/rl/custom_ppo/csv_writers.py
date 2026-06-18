@@ -5,6 +5,7 @@ import os
 from typing import Any, Optional
 
 from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES
+from rl.forced_z_behavior_vectors import FORCED_Z_BEHAVIOR_VECTOR_NAMES, OPPORTUNITY_MAX_CELLS_REPORTED
 from rl.latent_phase_labels import TEAM_PHASES
 from rl.latent_marl import CONTEXT_STATE_DIM
 
@@ -427,6 +428,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             for _action_id, action_name in FORCED_Z_MACRO_ACTIONS:
                 fields.append(f"forced_z{z_idx}_macro_{action_name}_prob")
             fields.append(f"forced_z{z_idx}_macro_entropy")
+        fields.extend(_forced_z_behavior_metrics_fieldnames(latent_k))
+        fields.extend(_phase_a_diagnostic_fieldnames())
         for o_idx in range(SCRIPTED_OPPONENT_MI_COUNT):
             for z_idx in range(latent_k):
                 fields.append(f"strategy_occupancy_op{o_idx}_z{z_idx}")
@@ -617,6 +620,83 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_v3i3_event_pref_rollout_records",
         ])
         fields.extend(_v6i1_metrics_fieldnames())
+    return fields
+
+
+def _forced_z_behavior_metrics_fieldnames(latent_k: int) -> list[str]:
+    fields: list[str] = []
+    for z_idx in range(latent_k):
+        for name in FORCED_Z_BEHAVIOR_VECTOR_NAMES:
+            fields.append(f"forced_z{z_idx}_behavior_{name}")
+    pair_count = latent_k * (latent_k - 1) // 2
+    for idx in range(pair_count):
+        fields.append(f"forced_z_behavior_pair_distance_{idx}")
+        for name in FORCED_Z_BEHAVIOR_VECTOR_NAMES:
+            fields.append(f"forced_z_pair_{name}_distance_{idx}")
+    fields.extend(
+        [
+            "forced_z_behavior_pair_distance_mean",
+            "forced_z_behavior_pair_distance_max",
+            "forced_z_behavior_pair_distance_min",
+            "forced_z_behavior_pairs_above_threshold",
+            "forced_z_behavior_all_z_represented",
+            "forced_z_behavior_components_valid",
+        ]
+    )
+    for name in FORCED_Z_BEHAVIOR_VECTOR_NAMES:
+        fields.append(f"behavior_component_scale_{name}")
+        fields.append(f"behavior_component_valid_{name}")
+    return fields
+
+
+def _phase_a_diagnostic_fieldnames() -> list[str]:
+    latent_k = 4
+    fields = [
+        "phase_a_stats_source_step",
+        "phase_a_actor_jsd_mean",
+        "phase_a_actor_jsd_slope_20",
+        "phase_a_cf_actor_jsd_mean",
+        "phase_a_behavior_distance_mean",
+        "phase_a_behavior_distance_min",
+        "phase_a_behavior_distance_slope_20",
+        "phase_a_intervention_quadrant",
+        "phase_a_intervention_quadrant_name",
+        "phase_a_cf_regime",
+        "phase_a_cf_regime_name",
+        "phase_a_competence_min",
+        "phase_a_cf_ratio",
+        "phase_a_competence_floor_pass",
+        "phase_a_cf_ratio_in_band",
+        "phase_a_actor_intervention_trending_up",
+        "phase_a_behavioral_realization_trending_up",
+        "phase_a_corridor_viable",
+        "phase_a_behavior_measurement_valid",
+        "phase_a_actor_jsd_valid_updates",
+        "phase_a_behavior_valid_updates",
+        "phase_a_actor_pairs_above_margin",
+        "phase_a_actor_weakest_pair_jsd",
+        "phase_a_actor_pair_gate_pass",
+        "phase_a_behavior_pairs_above_threshold",
+        "phase_a_behavior_weakest_pair_distance",
+        "phase_a_behavior_pair_gate_pass",
+        "opportunity_cell_count",
+        "opportunity_eligible_cell_count",
+        "opportunity_fork_fraction",
+        "opportunity_fork_fraction_valid",
+        "opportunity_homogeneous_fraction",
+        "opportunity_best_z_unique",
+        "opportunity_measurement_valid",
+        "opportunity_fork_fraction_forced",
+        "opportunity_fork_fraction_valid_forced",
+        "opportunity_best_z_unique_forced",
+    ]
+    for c in range(OPPORTUNITY_MAX_CELLS_REPORTED):
+        for z in range(latent_k):
+            fields.append(f"opportunity_cell_{c}_count_z{z}")
+            fields.append(f"opportunity_cell_{c}_return_mean_z{z}")
+            fields.append(f"opportunity_cell_{c}_return_se_z{z}")
+        fields.append(f"opportunity_cell_{c}_best_margin")
+        fields.append(f"opportunity_cell_{c}_eligible")
     return fields
 
 

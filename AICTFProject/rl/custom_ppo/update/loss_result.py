@@ -76,8 +76,17 @@ def measurement_from_pair_tensor(
             active_fraction=float(active_fraction),
             valid_groups=int(valid_groups),
         )
+    flat = pair_jsd.detach().reshape(-1)
+    if not bool(torch.isfinite(flat).all()):
+        return PairwiseSeparationMeasurement(
+            values=None,
+            valid=False,
+            reason="invalid_pair_jsd",
+            active_fraction=float(active_fraction),
+            valid_groups=int(valid_groups),
+        )
     return PairwiseSeparationMeasurement(
-        values=pair_jsd.detach(),
+        values=flat,
         valid=True,
         reason=None,
         active_fraction=float(active_fraction),

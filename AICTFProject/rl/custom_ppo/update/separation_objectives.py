@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import torch
@@ -255,16 +255,37 @@ class SeparationObjective:
                 metrics={},
             ),
             pairwise_measurement=measurement_from_pair_tensor(
-                None, active_fraction=0.0, valid_groups=0, reason="missing_pair_jsd"
+                None,
+                active_fraction=0.0,
+                valid_groups=0,
+                reason="missing_pair_jsd",
             ),
             diagnostics={},
             train_active=0.0,
             raw_stats={"jsd": zero_scalar, "active": zero_scalar},
         )
+        if float(separation_coef) <= 0.0:
+            return replace(
+                inactive,
+                pairwise_measurement=measurement_from_pair_tensor(
+                    None,
+                    active_fraction=0.0,
+                    valid_groups=0,
+                    reason="separation_disabled",
+                ),
+            )
+        if not counterfactual_active:
+            return replace(
+                inactive,
+                pairwise_measurement=measurement_from_pair_tensor(
+                    None,
+                    active_fraction=0.0,
+                    valid_groups=0,
+                    reason="phase_counterfactual_inactive",
+                ),
+            )
         if (
-            float(separation_coef) <= 0.0
-            or not counterfactual_active
-            or self.hparams.fixed_latent_strategy
+            self.hparams.fixed_latent_strategy
             or z_idx is None
         ):
             return inactive
@@ -319,17 +340,21 @@ class SeparationObjective:
 
         scaled = float(separation_coef) * z_sep_loss
         pair_jsd = z_sep_stats.get("pair_jsd")
+        active_frac = float(z_sep_stats["active"].detach().cpu().item())
         valid_groups = z_sep_stats.get("cf_valid_team_groups", zero_scalar)
         valid_groups_int = (
             int(valid_groups.detach().cpu().item())
             if isinstance(valid_groups, torch.Tensor)
             else int(valid_groups or 0)
         )
+        missing_reason = None
+        if pair_jsd is None:
+            missing_reason = "no_active_rows" if active_frac <= 0.0 else "missing_pair_jsd"
         measurement = measurement_from_pair_tensor(
             pair_jsd,
-            active_fraction=float(z_sep_stats["active"].detach().cpu().item()),
+            active_fraction=active_frac,
             valid_groups=valid_groups_int,
-            reason=None if pair_jsd is not None else "missing_pair_jsd",
+            reason=missing_reason,
         )
         return SeparationResult(
             loss=LossComponent(

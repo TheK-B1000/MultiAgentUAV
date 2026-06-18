@@ -146,7 +146,12 @@ class StrategyObjective:
             )
 
         if components:
-            latent_loss = sum(c.scaled_loss for c in components if c.active)
+            active_scaled = [c.scaled_loss for c in components if c.active]
+            latent_loss = (
+                sum(active_scaled[1:], start=active_scaled[0])
+                if active_scaled
+                else zero_scalar
+            )
         else:
             latent_loss = zero_scalar
 

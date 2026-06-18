@@ -164,7 +164,7 @@ class OptionAdvantageTests(unittest.TestCase):
         buffer.fields["option_advantages"].fill_(9.9)
         buffer.fields["option_returns"].fill_(9.9)
         
-        with patch("rl.custom_ppo.ppo_updater._latent_strategy_ppo_loss") as mock_loss:
+        with patch("rl.custom_ppo.update.strategy_objectives.strategy_ppo_loss") as mock_loss:
             mock_loss.return_value = (torch.tensor(0.0), _mock_strategy_ppo_stats())
             trainer.update(buffer, total_timesteps=100)
             
@@ -326,7 +326,7 @@ class OptionAdvantageTests(unittest.TestCase):
         buffer.fields["option_advantages"].fill_(9.99)
         buffer.fields["option_returns"].fill_(9.99)
         
-        with patch("rl.custom_ppo.ppo_updater.ppo_policy_loss") as mock_action_loss:
+        with patch("rl.custom_ppo.update.minibatch_updater.ppo_policy_loss") as mock_action_loss:
             mock_action_loss.return_value = (
                 torch.tensor(0.0, requires_grad=True),
                 {"ratio": torch.ones(1), "approx_kl": torch.tensor(0.0), "clip_fraction": torch.tensor(0.0)},
@@ -375,7 +375,7 @@ class OptionAdvantageTests(unittest.TestCase):
         buffer.fields["option_advantages"].fill_(9.99)
         buffer.fields["option_returns"].fill_(9.99)
         
-        with patch("rl.custom_ppo.ppo_updater._latent_strategy_ppo_loss") as mock_loss:
+        with patch("rl.custom_ppo.update.strategy_objectives.strategy_ppo_loss") as mock_loss:
             mock_loss.return_value = (torch.tensor(0.0), _mock_strategy_ppo_stats())
             trainer.update(buffer, total_timesteps=100)
             

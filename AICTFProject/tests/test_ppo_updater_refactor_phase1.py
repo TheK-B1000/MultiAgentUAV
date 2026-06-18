@@ -14,9 +14,11 @@ from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL
 from rl.custom_ppo.ppo_updater import PPOUpdater
 from rl.custom_ppo.update.actor_intervention import ActorInterventionEvidenceUpdater
 from rl.custom_ppo.update.loss_result import measurement_from_pair_tensor
-from rl.custom_ppo.update.optimizer_stepper import clip_optimizer_grad_norm
+from rl.custom_ppo.update.minibatch_updater import ACTOR_INTERVENTION_REASON_CODES
+from rl.custom_ppo.update.optimizer_stepper import ThreeOptimizerStepper, clip_optimizer_grad_norm
 from rl.custom_ppo.update.pair_utils import latent_pair_count, validate_v6_protocol_latent_k
 from rl.custom_ppo.update.phase_policy import PhaseTrainingPolicy, resolve_training_phase
+from rl.custom_ppo.update.separation_objectives import SeparationObjective
 from rl.custom_ppo.update.update_context import PPOUpdateContextBuilder
 
 
@@ -201,3 +203,160 @@ class UpdateContextTests(unittest.TestCase):
         )
         self.assertFalse(ctx.action_kl_stop_enabled)
         self.assertEqual(ctx.phase, "B")
+
+
+class PairTelemetryValidityTests(unittest.TestCase):
+    def test_missing_measurement_is_not_valid(self) -> None:
+        m = measurement_from_pair_tensor(
+            None, active_fraction=0.0, valid_groups=0, reason="missing_pair_jsd"
+        )
+        self.assertFalse(m.valid)
+        self.assertIsNone(m.as_list())
+
+    def test_zero_jsd_is_valid_measurement(self) -> None:
+        pairs = torch.zeros(6, dtype=torch.float32)
+        m = measurement_from_pair_tensor(pairs, active_fraction=1.0, valid_groups=4)
+        self.assertTrue(m.valid)
+        self.assertEqual(m.as_list(), [0.0] * 6)
+
+    def test_non_finite_pair_jsd_is_invalid(self) -> None:
+        pairs = torch.tensor([0.1, float("nan"), 0.2, 0.3, 0.4, 0.5])
+        m = measurement_from_pair_tensor(pairs, active_fraction=1.0, valid_groups=4)
+        self.assertFalse(m.valid)
+        self.assertEqual(m.reason, "invalid_pair_jsd")
+
+
+class ActorInterventionScenarioTests(unittest.TestCase):
+    def _separation(
+        self,
+        *,
+        separation_coef: float,
+        counterfactual_active: bool,
+    ) -> SimpleNamespace:
+        device = torch.device("cpu")
+        zero = torch.zeros((), dtype=torch.float32, device=device)
+        objective = SeparationObjective(
+            model=nn.Linear(2, 2),
+            cfg=PPOConfig(),
+            hparams=_minimal_hparams(),
+            runtime=SimpleNamespace(global_step=0),
+            latent_state=SimpleNamespace(
+                compute_competence_scores=lambda: (torch.zeros(4), True)
+            ),
+            subsample_generator=torch.Generator(device=device),
+        )
+        return objective.compute(
+            obs_batch={
+                "grid": torch.zeros(2, 2, 7, 20, 20),
+                "vec": torch.zeros(2, 10),
+                "agent_mask": torch.ones(2, 4),
+                "mask": torch.ones(2, 4),
+            },
+            batch={"global_state": torch.zeros(2, 20)},
+            advantages=torch.zeros(2),
+            entropy=torch.zeros(2),
+            z_idx=torch.zeros(2, dtype=torch.long),
+            separation_coef=separation_coef,
+            counterfactual_active=counterfactual_active,
+            device=device,
+            zero_scalar=zero,
+        )
+
+    def test_separation_disabled_does_not_produce_valid_measurement(self) -> None:
+        result = self._separation(separation_coef=0.0, counterfactual_active=True)
+        self.assertFalse(result.pairwise_measurement.valid)
+        self.assertEqual(result.pairwise_measurement.reason, "separation_disabled")
+
+    def test_phase_b_counterfactual_inactive_does_not_produce_valid_measurement(self) -> None:
+        result = self._separation(separation_coef=0.01, counterfactual_active=False)
+        self.assertFalse(result.pairwise_measurement.valid)
+        self.assertEqual(result.pairwise_measurement.reason, "phase_counterfactual_inactive")
+
+    def test_valid_finite_pairs_can_update_gate(self) -> None:
+        latent = SimpleNamespace(update_cf_pair_jsd_ema=mock.Mock(return_value=True))
+        cfg = PPOConfig()
+        cfg.gate_protocol_version = V6I2_GATE_PROTOCOL
+        cfg.experiment_id = "v6i2"
+        pairs = torch.tensor([0.002] * 6)
+        measurement = measurement_from_pair_tensor(pairs, active_fraction=1.0, valid_groups=8)
+        evidence = ActorInterventionEvidenceUpdater().update(
+            latent, measurement, cfg=cfg, global_step=100
+        )
+        self.assertTrue(evidence.measurement_valid)
+        self.assertTrue(evidence.gate_updated)
+        latent.update_cf_pair_jsd_ema.assert_called_once()
+
+    def test_reason_codes_cover_separation_paths(self) -> None:
+        self.assertIn("separation_disabled", ACTOR_INTERVENTION_REASON_CODES)
+        self.assertIn("phase_counterfactual_inactive", ACTOR_INTERVENTION_REASON_CODES)
+        self.assertIn("no_active_rows", ACTOR_INTERVENTION_REASON_CODES)
+
+
+class PhaseOptimizerStepTests(unittest.TestCase):
+    @mock.patch("rl.custom_ppo.v6i1_phase_runtime.step_v6i1_optimizers")
+    def test_phase_policy_controls_optimizer_steps(self, mock_step) -> None:
+        mock_step.return_value = {
+            "actor_grad_norm": 0.1,
+            "critic_grad_norm": 0.2,
+            "router_grad_norm": 0.3,
+        }
+        model = nn.Linear(2, 1)
+        x = torch.randn(3, 2)
+        loss = model(x).sum()
+        runtime = SimpleNamespace(
+            v6i1_three_optimizer_mode=True,
+            actor_optimizer=mock.Mock(),
+            critic_optimizer=mock.Mock(),
+            router_optimizer=mock.Mock(),
+        )
+        stepper = ThreeOptimizerStepper(runtime)
+        ctx = SimpleNamespace(phase="A")
+        policy = PhaseTrainingPolicy.from_phase("A")
+        stepper.step(
+            total_loss=loss,
+            ppo_actor_loss=loss,
+            value_loss=loss,
+            policy_loss=loss,
+            entropy_loss=loss,
+            latent_loss=torch.tensor(0.0),
+            ent_coef=0.01,
+            vf_coef=0.5,
+            context=ctx,
+            phase_policy=policy,
+            model=model,
+            latent_state=SimpleNamespace(strategy_encoder_grad_norm=lambda: 0.0),
+            epoch_idx=0,
+            mb_idx=0,
+            max_grad_norm=0.5,
+        )
+        mock_step.assert_called_once()
+        kwargs = mock_step.call_args.kwargs
+        self.assertTrue(kwargs["actor_step"])
+        self.assertTrue(kwargs["critic_step"])
+        self.assertFalse(kwargs["router_step"])
+
+        mock_step.reset_mock()
+        model.zero_grad(set_to_none=True)
+        loss = model(x).sum()
+        policy_b = PhaseTrainingPolicy.from_phase("B")
+        stepper.step(
+            total_loss=loss,
+            ppo_actor_loss=loss,
+            value_loss=loss,
+            policy_loss=loss,
+            entropy_loss=loss,
+            latent_loss=torch.tensor(0.0),
+            ent_coef=0.01,
+            vf_coef=0.5,
+            context=SimpleNamespace(phase="B"),
+            phase_policy=policy_b,
+            model=model,
+            latent_state=SimpleNamespace(strategy_encoder_grad_norm=lambda: 0.0),
+            epoch_idx=0,
+            mb_idx=0,
+            max_grad_norm=0.5,
+        )
+        kwargs_b = mock_step.call_args.kwargs
+        self.assertFalse(kwargs_b["actor_step"])
+        self.assertTrue(kwargs_b["critic_step"])
+        self.assertTrue(kwargs_b["router_step"])

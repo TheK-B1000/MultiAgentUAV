@@ -40,6 +40,9 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 _LATENT_STATE_SRC = (
     _REPO_ROOT / "rl" / "custom_ppo" / "latent_strategy_state.py"
 ).read_text(encoding="utf-8")
+_EPISODE_CREDIT_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "credit" / "episode_credit.py"
+).read_text(encoding="utf-8")
 
 
 class BucketBaselineMathTests(unittest.TestCase):
@@ -312,8 +315,9 @@ class V3dRuntimeWiringTests(unittest.TestCase):
         # per rollout (it advances the EMA state). If it's inside the inner
         # epoch loop, N=6 advances the EMA 6x per update -- silently corrupts
         # the smoothing schedule.
-        compute_pos = _LATENT_STATE_SRC.find("bucket_baseline_helper.update_and_compute")
-        for_loop_pos = _LATENT_STATE_SRC.find("for _ in range(n_inner_epochs)")
+        src = _EPISODE_CREDIT_SRC
+        compute_pos = src.find("bucket_baseline_helper.update_and_compute")
+        for_loop_pos = src.find("for _ in range(n_inner_epochs)")
         self.assertGreater(compute_pos, 0, "BucketBaseline.update_and_compute must be called")
         self.assertGreater(for_loop_pos, 0, "n_inner_epochs loop must exist")
         self.assertLess(
@@ -329,7 +333,7 @@ class V3dRuntimeWiringTests(unittest.TestCase):
         # Priority: bucket (v3d) > marginal (v3b/v3c) > legacy V(s, z_picked).
         # Implemented as an if/elif chain on bucket_baseline_vector first.
         self.assertRegex(
-            _LATENT_STATE_SRC,
+            _EPISODE_CREDIT_SRC,
             r"if\s+bucket_baseline_vector\s+is\s+not\s+None\s*:\s*\n\s*v_baseline\s*=\s*bucket_baseline_vector\s*\n\s*elif\s+getattr\(\s*trainer\.cfg\s*,\s*['\"]latent_q_phi_marginal_baseline['\"]",
             msg=(
                 "v_baseline selection must check bucket_baseline_vector first "
@@ -340,23 +344,24 @@ class V3dRuntimeWiringTests(unittest.TestCase):
     def test_batch_exposes_opponent_ids_and_bucket_ids(self):
         # episode_strategy_training_batch must surface both ids for use by
         # resolve_bucket_ids in any bucket mode.
-        self.assertIn("opponent_ids", _LATENT_STATE_SRC)
-        self.assertIn("bucket_ids", _LATENT_STATE_SRC)
+        src = _EPISODE_CREDIT_SRC
+        self.assertIn("opponent_ids", src)
+        self.assertIn("bucket_ids", src)
         self.assertRegex(
-            _LATENT_STATE_SRC,
+            src,
             r"['\"]opponent_ids['\"]\s*:\s*opponent_ids",
             msg="Training batch dict must include opponent_ids key for v3d.",
         )
 
     def test_opponent_id_captured_in_episode_record(self):
         # record_episode_strategy_outcome must extract opponent_id from info
-        # via _opponent_id_int_from_info and persist into the episode record.
+        # via opponent_id_int_from_info and persist into the episode record.
         self.assertRegex(
-            _LATENT_STATE_SRC,
-            r"opponent_id\s*=\s*int\(\s*_opponent_id_int_from_info\(\s*trainer\.cfg\s*,\s*info\s*\)\s*\)",
+            _EPISODE_CREDIT_SRC,
+            r"opponent_id\s*=\s*int\(\s*opponent_id_int_from_info\(\s*trainer\.cfg\s*,\s*info\s*\)\s*\)",
             msg=(
                 "record_episode_strategy_outcome must extract opponent_id "
-                "from info using _opponent_id_int_from_info(cfg, info)."
+                "from info using opponent_id_int_from_info(cfg, info)."
             ),
         )
 
@@ -367,16 +372,17 @@ class V3dRuntimeWiringTests(unittest.TestCase):
         self.assertIn("self.latent_bucket_baseline", trainer_src)
         self.assertRegex(
             trainer_src,
-            r"if\s+self\.latent_q_phi_bucket_baseline\s+is\s+not\s+None\s*:",
+            r"if\s+hparams\.latent_q_phi_bucket_baseline\s+is\s+not\s+None\s*:",
             msg="Trainer init must gate BucketBaseline construction on mode being set.",
         )
 
     def test_per_bucket_advantage_normalization_wiring(self):
-        # Verify the per-bucket advantage normalization logic exists in latent_strategy_state.py.
-        self.assertIn("resolve_bucket_ids", _LATENT_STATE_SRC)
-        self.assertIn("mode=str(bucket_mode)", _LATENT_STATE_SRC)
-        self.assertIn("sub_adv = adv[mask]", _LATENT_STATE_SRC)
-        self.assertIn("normalized_adv[mask] = (sub_adv - sub_adv.mean()) / (sub_adv.std(unbiased=False) + 1e-8)", _LATENT_STATE_SRC)
+        # Verify the per-bucket advantage normalization logic exists in episode_credit.
+        src = _EPISODE_CREDIT_SRC
+        self.assertIn("episode_bucket_baseline_keys", src)
+        self.assertIn("mode=str(bucket_mode)", src)
+        self.assertIn("sub_adv = adv[mask]", src)
+        self.assertIn("normalized_adv[mask] = (sub_adv - sub_adv.mean()) / (sub_adv.std(unbiased=False) + 1e-8)", src)
 
 
 if __name__ == "__main__":

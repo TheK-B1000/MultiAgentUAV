@@ -541,25 +541,41 @@ deprioritized.
 
 ## 6. Recommended next experiments (priority-ordered)
 
-1. **Launch v5i7 seed 0 (§3.3) if the immediate target is the best
+### V6I2 staged gate protocol (infrastructure ready — calibration blocked)
+
+| Step | Status |
+|------|--------|
+| v6i2 gate infrastructure + schedule clocks | **DONE** — 108+ gate/curriculum tests green |
+| Short v6i2 smoke (wiring only) | **DONE** — `tests/test_v6i2_staged_integration.py` |
+| Threshold calibration from v6i1 λ_cf=0.01 / 1.0 runs | **REQUIRED** |
+| Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **REQUIRED before confirmatory** |
+| Full fresh enforce confirmatory run (1.0M → up to 1.3M) | **PLANNED** after freeze |
+
+Calibration uses v6i1 runs as evidence only. Confirmatory launch must consume the
+frozen table unchanged (`--fresh-metrics-csv`, `confirmatory_gate_lineage_valid=True`).
+
+1. **Calibrate and freeze v6i2 gate thresholds** — see
+   [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md).
+2. **Launch full v6i2 enforce confirmatory run** — not a shortened budget.
+3. **Launch v5i7 seed 0 (§3.3) if the immediate target is the best
    Summer-faithful latent model on split-lane geometry.** Compare only to
    split-lane matched controls.
-2. **Launch v5i6 seed 0 (§3.1) for the canonical open-map paper-faithful
+4. **Launch v5i6 seed 0 (§3.1) for the canonical open-map paper-faithful
    row.** Preserve the §1 invariants in
    `experiment-and-evaluation-protocol.md`.
-3. **Run the v5i6 eval matrix and random-matched control.** Use
+5. **Run the v5i6 eval matrix and random-matched control.** Use
    `plot/eval_checkpoint.py --latent-selection router` and
    `--latent-selection random-matched` on the same checkpoint, seed, and
    episode budget.
-4. **Run forced-z behavioral probes for v5i6/v5i7.** Use matched seeds across
+6. **Run forced-z behavioral probes for v5i6/v5i7.** Use matched seeds across
    `z=0..K-1` before making causal behavior claims.
-5. **Run v5i6 vs v5i4/v5i5 comparisons.** v5i6 vs v5i4 tests the full
+7. **Run v5i6 vs v5i4/v5i5 comparisons.** v5i6 vs v5i4 tests the full
    marginal-entropy switch; v5i6 vs v5i5 isolates entropy reduction at
    the same lambda_H floor.
-6. **`no_latent_v4i3_baseline` re-launch at v5i6's exact budget /
+8. **`no_latent_v4i3_baseline` re-launch at v5i6's exact budget /
    seed.** Closes D3 for the new headline `v5i6 vs no-latent`
    comparison.
-7. **v5i6/v5i7 multi-seed.** Add seeds 1 and 2 only after seed 0 passes the
+9. **v5i6/v5i7 multi-seed.** Add seeds 1 and 2 only after seed 0 passes the
    router-quality and no-loss checks.
 
 ---
@@ -573,5 +589,6 @@ deprioritized.
 | Fidelity rules / classification / proposal form   | [`summer-fidelity-rules.md`](summer-fidelity-rules.md)                              |
 | Per-preset facts, aliases, deltas, run tags       | [`latent-preset-registry.md`](latent-preset-registry.md)                            |
 | Launch / eval / statistical protocols             | [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md)    |
+| v6i2 frozen gate thresholds (pre-confirmatory)  | [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md)                    |
 | Code↔manuscript trace                             | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md)                    |
 | Algorithm sketch                                  | [`../../docs/algorithm.md`](../../docs/algorithm.md)                                |

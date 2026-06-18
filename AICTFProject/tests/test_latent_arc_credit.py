@@ -108,14 +108,20 @@ class _FakeStrategyHead(torch.nn.Module):
             latent_k=latent_k, global_state_dim=global_state_dim
         )
 
-    def strategy_logits(self, state: torch.Tensor) -> torch.Tensor:
+    def strategy_logits(self, state: torch.Tensor, selector_hidden=None, **kwargs) -> torch.Tensor:
         bias = self.strategy_encoder.logit_bias
         logits = bias.unsqueeze(0).expand(state.shape[0], -1).clone()
         idx = state[:, 0].long().clamp(min=0, max=self.latent_k - 1)
         logits = logits.scatter(1, idx.unsqueeze(-1), logits.gather(1, idx.unsqueeze(-1)) + 5.0)
         return logits
 
-    def episode_strategy_value(self, state: torch.Tensor, z_idx: torch.Tensor) -> torch.Tensor:
+    def episode_strategy_value(
+        self,
+        state: torch.Tensor,
+        z_idx: torch.Tensor,
+        selector_hidden=None,
+        **kwargs,
+    ) -> torch.Tensor:
         z_onehot = torch.zeros(
             (state.shape[0], self.latent_k), dtype=torch.float32, device=state.device
         )

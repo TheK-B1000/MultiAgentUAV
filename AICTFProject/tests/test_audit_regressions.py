@@ -179,27 +179,22 @@ class TestFinding2RouterGradientSuppression(unittest.TestCase):
     """
 
     def test_ppo_updater_uses_separate_clipping_groups(self) -> None:
-        """Verify that the PPOUpdater clips gradients in separate groups
-        for strategy/router parameters vs policy/value parameters.
-
-        Currently FAILS because all parameters are clipped jointly.
-        """
+        """Verify per-optimizer gradient clipping in the update package."""
         import inspect
-        from rl.custom_ppo.ppo_updater import PPOUpdater
 
-        source = inspect.getsource(PPOUpdater.update)
+        from rl.custom_ppo.update.optimizer_stepper import clip_optimizer_grad_norm
+        from rl.custom_ppo.v6i1_phase_runtime import step_v6i1_optimizers
 
-        # After the fix, the update method should have at least 2 separate
-        # clip_grad_norm_ calls — one for strategy/router params and one
-        # for the rest.
-        clip_count = source.count("clip_grad_norm_")
+        clip_source = inspect.getsource(clip_optimizer_grad_norm)
+        self.assertIn("optimizer.param_groups", clip_source)
 
+        step_source = inspect.getsource(step_v6i1_optimizers)
+        clip_count = step_source.count("clip_grad_norm_")
         self.assertGreaterEqual(
             clip_count,
             2,
-            f"PPOUpdater.update has only {clip_count} clip_grad_norm_ call(s). "
-            f"Expected >= 2 (separate groups for strategy/router vs policy/value). "
-            f"Currently all parameters are clipped jointly, suppressing router gradients.",
+            f"step_v6i1_optimizers has only {clip_count} clip_grad_norm_ call(s); "
+            "expected separate actor/critic/router clipping.",
         )
 
     def test_joint_clipping_suppresses_router_gradients(self) -> None:
