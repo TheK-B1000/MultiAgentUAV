@@ -143,18 +143,36 @@ class LatentStrategyState(LatentStrategyStateCore):
         *,
         start_mask: torch.Tensor,
         global_state: torch.Tensor,
-        z_idx: torch.Tensor,
-        z_log_prob: torch.Tensor,
-        z_logits: torch.Tensor,
+        router_action,
         selector_hidden: torch.Tensor | None = None,
+        action_sources=None,
+        z_logits: torch.Tensor | None = None,
+        # Legacy kwargs (tests / callers not yet migrated)
+        z_idx: torch.Tensor | None = None,
+        z_log_prob: torch.Tensor | None = None,
     ) -> None:
+        from rl.custom_ppo.latent.types import RouterAction, RouterActionSource
+
+        if not isinstance(router_action, RouterAction):
+            if z_idx is not None and z_log_prob is not None:
+                router_action = RouterAction(
+                    proposed_z=z_idx,
+                    executed_z=z_idx,
+                    router_probs=torch.softmax(z_logits, dim=-1) if z_logits is not None else torch.zeros(z_idx.shape[0], self.trainer.latent_k),
+                    behavior_probs=torch.softmax(z_logits, dim=-1) if z_logits is not None else torch.zeros(z_idx.shape[0], self.trainer.latent_k),
+                    behavior_log_prob=z_log_prob,
+                    router_log_prob=z_log_prob,
+                    source=RouterActionSource.ROUTER,
+                )
+            else:
+                raise TypeError("store_episode_strategy_start requires RouterAction or legacy z_idx/z_log_prob")
         self.episode_credit.store_episode_strategy_start(
             start_mask=start_mask,
             global_state=global_state,
-            z_idx=z_idx,
-            z_log_prob=z_log_prob,
-            z_logits=z_logits,
+            router_action=router_action,
             selector_hidden=selector_hidden,
+            action_sources=action_sources,
+            z_logits=z_logits,
         )
 
     def apply_episode_strategy_ppo(self, *, latent_lam_h: float) -> dict[str, float]:

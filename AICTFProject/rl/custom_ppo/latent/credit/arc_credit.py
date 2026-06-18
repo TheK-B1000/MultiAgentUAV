@@ -389,7 +389,12 @@ class ArcCreditManager:
                 stats["q_phi_strategy_encoder_grad_norm"] = float(sum(enc_norms) / len(enc_norms))
             if vh_norms:
                 stats["q_phi_value_head_grad_norm"] = float(sum(vh_norms) / len(vh_norms))
-            if grad_norms and enc_norms and vh_norms:
+            if (
+                grad_norms
+                and enc_norms
+                and vh_norms
+                and getattr(trainer, "latent_router_optimizer", None) is not None
+            ):
                 other = [
                     max(
                         0.0,
@@ -399,6 +404,8 @@ class ArcCreditManager:
                     for g, e, v in zip(grad_norms, enc_norms, vh_norms)
                 ]
                 stats["q_phi_other_grad_norm"] = float(sum(other) / len(other))
+            elif grad_norms and enc_norms and vh_norms:
+                stats["q_phi_other_grad_norm"] = 0.0
             entropies = [float(s.q_phi_entropy) for s in step_results if s.stepped]
             max_probs = [float(s.q_phi_mean_max_prob) for s in step_results if s.stepped]
             if entropies:

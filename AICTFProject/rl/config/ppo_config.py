@@ -426,6 +426,9 @@ class PPOConfig:
     latent_awrd_soft_margin_gating: bool = False
     latent_awrd_warmup_steps: int = 0
     latent_awrd_ramp_steps: int = 0
+    latent_awrd_boost_after_steps: int = 0
+    latent_awrd_boost_after_fraction: float = 0.0
+    latent_awrd_boost_multiplier: float = 1.0
     # v3i9: balanced specialist router. Keeps the marginal q_phi usage
     # distribution high-entropy across the batch while reducing conditional
     # entropy inside opponent/context buckets. No role labels or scripted

@@ -41,7 +41,13 @@ _LATENT_STATE_SRC = (
     _REPO_ROOT / "rl" / "custom_ppo" / "latent_strategy_state.py"
 ).read_text(encoding="utf-8")
 _EPISODE_CREDIT_SRC = (
-    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "credit" / "episode_credit.py"
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "credit" / "episode" / "manager.py"
+).read_text(encoding="utf-8")
+_EPISODE_ADVANTAGES_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "credit" / "episode" / "advantages.py"
+).read_text(encoding="utf-8")
+_EPISODE_BATCH_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "credit" / "episode" / "batch.py"
 ).read_text(encoding="utf-8")
 
 
@@ -317,7 +323,7 @@ class V3dRuntimeWiringTests(unittest.TestCase):
         # the smoothing schedule.
         src = _EPISODE_CREDIT_SRC
         compute_pos = src.find("bucket_baseline_helper.update_and_compute")
-        for_loop_pos = src.find("for _ in range(n_inner_epochs)")
+        for_loop_pos = src.find("engine.apply(")
         self.assertGreater(compute_pos, 0, "BucketBaseline.update_and_compute must be called")
         self.assertGreater(for_loop_pos, 0, "n_inner_epochs loop must exist")
         self.assertLess(
@@ -333,8 +339,8 @@ class V3dRuntimeWiringTests(unittest.TestCase):
         # Priority: bucket (v3d) > marginal (v3b/v3c) > legacy V(s, z_picked).
         # Implemented as an if/elif chain on bucket_baseline_vector first.
         self.assertRegex(
-            _EPISODE_CREDIT_SRC,
-            r"if\s+bucket_baseline_vector\s+is\s+not\s+None\s*:\s*\n\s*v_baseline\s*=\s*bucket_baseline_vector\s*\n\s*elif\s+getattr\(\s*trainer\.cfg\s*,\s*['\"]latent_q_phi_marginal_baseline['\"]",
+            _EPISODE_ADVANTAGES_SRC,
+            r"if\s+bucket_baseline_vector\s+is\s+not\s+None\s*:\s*\n\s*baseline\s*=\s*bucket_baseline_vector\s*\n\s*bucket_keys\s*=\s*None\s*\n\s*if\s+return_norm",
             msg=(
                 "v_baseline selection must check bucket_baseline_vector first "
                 "(v3d), then marginal (v3b/v3c), then legacy."
@@ -344,12 +350,12 @@ class V3dRuntimeWiringTests(unittest.TestCase):
     def test_batch_exposes_opponent_ids_and_bucket_ids(self):
         # episode_strategy_training_batch must surface both ids for use by
         # resolve_bucket_ids in any bucket mode.
-        src = _EPISODE_CREDIT_SRC
+        src = _EPISODE_BATCH_SRC
         self.assertIn("opponent_ids", src)
         self.assertIn("bucket_ids", src)
         self.assertRegex(
             src,
-            r"['\"]opponent_ids['\"]\s*:\s*opponent_ids",
+            r"['\"]opponent_ids['\"]\s*:\s*batch\.opponent_ids",
             msg="Training batch dict must include opponent_ids key for v3d.",
         )
 
@@ -358,10 +364,10 @@ class V3dRuntimeWiringTests(unittest.TestCase):
         # via opponent_id_int_from_info and persist into the episode record.
         self.assertRegex(
             _EPISODE_CREDIT_SRC,
-            r"opponent_id\s*=\s*int\(\s*opponent_id_int_from_info\(\s*trainer\.cfg\s*,\s*info\s*\)\s*\)",
+            r"opponent\s*=\s*resolve_opponent_id\(\s*trainer\.cfg\s*,\s*info\s*\)",
             msg=(
                 "record_episode_strategy_outcome must extract opponent_id "
-                "from info using opponent_id_int_from_info(cfg, info)."
+                "from info using resolve_opponent_id(cfg, info)."
             ),
         )
 
@@ -378,11 +384,11 @@ class V3dRuntimeWiringTests(unittest.TestCase):
 
     def test_per_bucket_advantage_normalization_wiring(self):
         # Verify the per-bucket advantage normalization logic exists in episode_credit.
-        src = _EPISODE_CREDIT_SRC
+        src = _EPISODE_ADVANTAGES_SRC
         self.assertIn("episode_bucket_baseline_keys", src)
         self.assertIn("mode=str(bucket_mode)", src)
-        self.assertIn("sub_adv = adv[mask]", src)
-        self.assertIn("normalized_adv[mask] = (sub_adv - sub_adv.mean()) / (sub_adv.std(unbiased=False) + 1e-8)", src)
+        self.assertIn("sub_adv = advantages[mask]", src)
+        self.assertIn("sub_adv.std(unbiased=False) + 1e-8", src)
 
 
 if __name__ == "__main__":

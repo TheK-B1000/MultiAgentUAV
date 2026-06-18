@@ -520,6 +520,8 @@ def apply_plan_faithful_latent_v3i8_commander_lockin(cfg: PPOConfig) -> PPOConfi
     cfg.latent_awrd_min_margin = 0.08
     cfg.latent_awrd_margin_scale = 3.0
     cfg.latent_awrd_soft_margin_gating = True
+    cfg.latent_awrd_boost_after_fraction = 0.7
+    cfg.latent_awrd_boost_multiplier = 1.5
 
     cfg.latent_behavior_contrast_coef = 0.05
     cfg.latent_behavior_contrast_margin = 0.25

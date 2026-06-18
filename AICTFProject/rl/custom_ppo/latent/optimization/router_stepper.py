@@ -21,7 +21,9 @@ class RouterOptimizerStepper:
         batch_name: str,
         grad_split_groups: dict[str, list[torch.nn.Parameter]] | None = None,
         q_phi_shape: tuple[float, float] | None = None,
+        max_grad_norm: float = 0.5,
     ) -> RouterStepResult:
+        del epoch, batch_name
         from rl.custom_ppo.latent.optimization.router_ppo import grad_norm_l2
 
         if not torch.isfinite(loss).all():
@@ -45,7 +47,7 @@ class RouterOptimizerStepper:
         splits: dict[str, float] | None = None
         if grad_split_groups:
             splits = {name: float(grad_norm_l2(params)) for name, params in grad_split_groups.items()}
-        torch.nn.utils.clip_grad_norm_(self.registry.router_parameters, 0.5)
+        torch.nn.utils.clip_grad_norm_(self.registry.router_parameters, max_grad_norm)
         self.registry.step()
         self.optimizer_steps += 1
         entropy, max_prob = (0.0, 0.0) if q_phi_shape is None else q_phi_shape

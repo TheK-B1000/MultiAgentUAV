@@ -33,6 +33,13 @@ class LatentOptimizerRegistry:
             raise RuntimeError("Router optimizer has no trainable parameters.")
         return cls(router=opt, router_parameters=params)
 
+    def require_router_optimizer(self, *, staged_v6: bool) -> torch.optim.Optimizer:
+        if staged_v6 and self.router is None:
+            raise RuntimeError(
+                "V6 staged curriculum requires a dedicated router optimizer; none is registered."
+            )
+        return self.router
+
     def step(self) -> None:
         self.router.step()
 

@@ -12,7 +12,9 @@ from rl.global_state import GLOBAL_STATE_DIM
 from rl.custom_ppo.latent.behavior_policy import (
     behavior_log_prob_from_probs,
     epsilon_behavior_probs,
+    resolve_action_sources,
 )
+from rl.custom_ppo.latent.types import RouterAction, RouterActionSource
 from rl.custom_ppo.latent.context_buckets import (
     carrier_progress_bucket_ids,
     flag_state_bucket_ids,
@@ -324,6 +326,7 @@ class RouterSamplingState:
                     self.host.episode_forced_z_id[forced_idx] = forced_z
 
         forced_active = self.host.episode_forced_z.clone()
+        proposed_z = z_idx.clone()
         resample_mask = resample_mask & (~forced_active)
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
@@ -414,6 +417,7 @@ class RouterSamplingState:
                         self.host.pending_refresh_records.setdefault(env_i, []).append(record)
 
             z_idx[idx] = sampled_z
+            proposed_z[idx] = sampled_z
             self.host.current_z = z_idx.clone()
             self.host.strategy_age[idx] = 0
             self.host.needs_strategy_sample[idx] = False
@@ -605,10 +609,25 @@ class RouterSamplingState:
         self.host.store_episode_strategy_start(
             start_mask=snapshot_mask,
             global_state=global_state,
-            z_idx=z_idx,
-            z_log_prob=z_log_prob,
-            z_logits=z_logits,
+            router_action=RouterAction(
+                proposed_z=proposed_z,
+                executed_z=z_idx,
+                router_probs=router_probs,
+                behavior_probs=behavior_probs,
+                behavior_log_prob=behavior_log_prob,
+                router_log_prob=router_log_prob,
+                source=RouterActionSource.ROUTER,
+            ),
+            action_sources=resolve_action_sources(
+                forced_mask=forced_active,
+                rehearsal_mask=self.host.v6i1_episode_rehearsal,
+                epsilon_override_mask=proposed_z != z_idx,
+                event_refresh_mask=trigger_refresh & resample_mask,
+                batch_size=int(z_idx.shape[0]),
+                device=device,
+            ),
             selector_hidden=selector_hidden_pre,
+            z_logits=z_logits,
         )
 
         # Exclude step 0 from q_phi PPO training when warmup is active.
