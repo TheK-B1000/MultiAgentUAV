@@ -944,7 +944,8 @@ class V6I1CurriculumController:
                             done = False
                             step_i = 0
                             while not done and step_i < 64:
-                                bootstrap_actions.append(self._gate_eval_predict(obs))
+                                act = self._gate_eval_predict(obs)
+                                bootstrap_actions.append(act)
                                 env.step_async(act)
                                 obs, _, done_arr, _ = env.step_wait()
                                 done = bool(done_arr[0])

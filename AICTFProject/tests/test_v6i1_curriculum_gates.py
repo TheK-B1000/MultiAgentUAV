@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from collections import deque
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 
 import numpy as np
@@ -16,6 +17,7 @@ from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
 from rl.custom_ppo.curriculum_gates import (
     GATE_FAMILY_NAMES,
+    GATE_STATUS_ERROR,
     GATE_STATUS_FAIL,
     GATE_STATUS_NOT_RUN,
     GATE_STATUS_PASS,
@@ -668,6 +670,62 @@ class TrainingIntegrityGateTests(unittest.TestCase):
         self.assertTrue(policy.fixed_latent_strategy)
         self.assertEqual(policy.fixed_latent_strategy_id, 2)
         policy.reset_strategy.assert_called_once()
+
+    def test_learnability_probe_bootstrap_passes_predicted_action_to_step_async(self) -> None:
+        ctrl = OnlineGateLogicTests()._make_controller()
+        ctrl.cfg.curriculum_gate_run_probe = True
+        expected_act = np.arange(8, dtype=np.int64)
+        step_async_actions: list[np.ndarray] = []
+
+        class _ProbeEnv:
+            def seed(self, _seed: int) -> None:
+                return None
+
+            def reset(self) -> dict[str, Any]:
+                return {}
+
+            def step_async(self, act: np.ndarray) -> None:
+                step_async_actions.append(np.asarray(act, dtype=np.int64).copy())
+
+            def step_wait(self):
+                return {}, np.zeros(1), np.array([True]), [{}]
+
+            def state(self) -> np.ndarray:
+                return np.zeros((1, 170), dtype=np.float32)
+
+            def close(self) -> None:
+                return None
+
+        real_range = range
+
+        def _short_probe_seed_range(start: int, stop: int | None = None, step: int | None = None):
+            if start == 3000:
+                return real_range(3000, 3001)
+            return real_range(start, stop) if step is None else real_range(start, stop, step)
+
+        with mock.patch.object(ctrl, "_gate_eval_predict", return_value=expected_act), mock.patch.object(
+            ctrl, "_gate_eval_configure_fixed_z", return_value=mock.Mock()
+        ), mock.patch(
+            "rl.training.env_factory.build_training_env",
+            return_value=_ProbeEnv(),
+        ), mock.patch(
+            "rl.custom_ppo.curriculum_gates.range",
+            side_effect=_short_probe_seed_range,
+        ), mock.patch(
+            "rl.custom_ppo.curriculum_gates.TrainingIsolationSnapshot.capture",
+            return_value=mock.Mock(restore_rng=mock.Mock(), model_was_training=True),
+        ), mock.patch(
+            "rl.custom_ppo.curriculum_gates._preserve_model_training_mode",
+            return_value=mock.MagicMock(),
+        ):
+            ctrl.trainer.model = mock.Mock(training=True, global_state_dim=170)
+            ctrl.trainer.model.train = mock.Mock()
+            result = ctrl._run_learnability_probe()
+
+        self.assertGreaterEqual(len(step_async_actions), 1)
+        np.testing.assert_array_equal(step_async_actions[0], expected_act)
+        self.assertEqual(result.status, GATE_STATUS_ERROR)
+        self.assertEqual(result.reason, "insufficient_probe_examples")
 
 
 class V6I1MetricsCsvFieldTests(unittest.TestCase):
