@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import numpy as np
 import torch
 
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
+from rl.custom_ppo.gate_protocol import is_staged_v6_team_intent_curriculum, is_v6i2_gate_protocol
 from rl.custom_ppo.v6i1_cf_loss import v6i1_pair_suffix
 from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
 from rl.custom_ppo.schedules import (
@@ -19,7 +21,7 @@ from rl.custom_ppo.schedules import (
 
 def is_v6i1_staged_trainer(trainer: Any) -> bool:
     return (
-        is_staged_v6i1_curriculum(trainer.cfg)
+        is_staged_v6_team_intent_curriculum(trainer.cfg)
         and getattr(trainer, "v6i1_curriculum", None) is not None
     )
 
@@ -224,7 +226,14 @@ def load_v6i1_curriculum_state(curriculum: Any, payload: dict[str, Any]) -> None
 
 
 def latent_state_v6i1_checkpoint(state: Any) -> dict[str, Any]:
-    return {
+    trainer = getattr(state, "trainer", None)
+    cfg = getattr(trainer, "cfg", None) if trainer is not None else None
+    from rl.custom_ppo.gate_protocol import resolve_gate_protocol_version
+
+    payload = {
+        "gate_protocol_version": (
+            resolve_gate_protocol_version(cfg) if cfg is not None else "v6i1_single_macro_intervention"
+        ),
         "cf_J": state.cf_J.copy(),
         "cf_episode_counts": state.cf_episode_counts.copy(),
         "cf_has_experience": state.cf_has_experience.copy(),
@@ -234,17 +243,53 @@ def latent_state_v6i1_checkpoint(state: Any) -> dict[str, Any]:
         "jsd_gate_consecutive_updates": int(state.jsd_gate_consecutive_updates),
         "pairwise_ema_valid_updates": int(getattr(state, "pairwise_ema_valid_updates", 0)),
         "pairwise_ema_last_update_step": int(getattr(state, "pairwise_ema_last_update_step", -1)),
+        "cf_pair_jsd_ema": getattr(state, "cf_pair_jsd_ema", np.zeros(6, dtype=np.float32)).copy(),
+        "cf_pair_jsd_valid_updates": int(getattr(state, "cf_pair_jsd_valid_updates", 0)),
+        "cf_pair_jsd_last_update_step": int(getattr(state, "cf_pair_jsd_last_update_step", -1)),
+        "actor_intervention_consecutive_updates": int(
+            getattr(state, "actor_intervention_consecutive_updates", 0)
+        ),
+        "macro_pair_jsd_ema": getattr(state, "macro_pair_jsd_ema", np.zeros(6, dtype=np.float32)).copy(),
+        "macro_pair_jsd_valid_updates": int(getattr(state, "macro_pair_jsd_valid_updates", 0)),
+        "macro_pair_jsd_last_update_step": int(getattr(state, "macro_pair_jsd_last_update_step", -1)),
         "router_optimizer_step_count": int(state.router_optimizer_step_count),
         "macro_return_running_mean": float(getattr(state, "macro_return_running_mean", 0.0)),
         "macro_return_running_count": int(getattr(state, "macro_return_running_count", 0)),
         "selector_hidden": getattr(state, "selector_hidden", None),
         "v6i1_episode_rehearsal": getattr(state, "v6i1_episode_rehearsal", None),
     }
+    return payload
 
 
 def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) -> None:
     if not payload:
         return
+    trainer = getattr(state, "trainer", None)
+    cfg = getattr(trainer, "cfg", None) if trainer is not None else None
+    if cfg is not None:
+        from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol, resolve_gate_protocol_version
+
+        active_protocol = resolve_gate_protocol_version(cfg)
+        ckpt_protocol = str(payload.get("gate_protocol_version", active_protocol))
+        if ckpt_protocol != active_protocol:
+            raise ValueError(
+                f"gate_protocol_version mismatch on resume: checkpoint={ckpt_protocol!r} "
+                f"active={active_protocol!r}"
+            )
+        enforce = str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower() == "enforce"
+        if enforce and is_v6i2_gate_protocol(cfg):
+            required = (
+                "gate_protocol_version",
+                "cf_pair_jsd_ema",
+                "macro_pair_jsd_ema",
+                "cf_pair_jsd_valid_updates",
+                "macro_pair_jsd_valid_updates",
+            )
+            missing = [key for key in required if key not in payload]
+            if missing:
+                raise ValueError(
+                    f"v6i2 enforce resume missing checkpoint gate state: {missing}"
+                )
     state.cf_J = payload.get("cf_J", state.cf_J)
     state.cf_episode_counts = payload.get("cf_episode_counts", state.cf_episode_counts)
     state.cf_has_experience = payload.get("cf_has_experience", state.cf_has_experience)
@@ -260,6 +305,33 @@ def restore_latent_state_v6i1_checkpoint(state: Any, payload: dict[str, Any]) ->
     state.pairwise_ema_last_update_step = int(
         payload.get("pairwise_ema_last_update_step", getattr(state, "pairwise_ema_last_update_step", -1))
     )
+    if "cf_pair_jsd_ema" in payload:
+        state.cf_pair_jsd_ema = payload.get(
+            "cf_pair_jsd_ema",
+            getattr(state, "cf_pair_jsd_ema", np.zeros(6, dtype=np.float32)),
+        )
+        state.cf_pair_jsd_valid_updates = int(
+            payload.get("cf_pair_jsd_valid_updates", getattr(state, "cf_pair_jsd_valid_updates", 0))
+        )
+        state.cf_pair_jsd_last_update_step = int(
+            payload.get("cf_pair_jsd_last_update_step", getattr(state, "cf_pair_jsd_last_update_step", -1))
+        )
+        state.actor_intervention_consecutive_updates = int(
+            payload.get(
+                "actor_intervention_consecutive_updates",
+                getattr(state, "actor_intervention_consecutive_updates", 0),
+            )
+        )
+        state.macro_pair_jsd_ema = payload.get(
+            "macro_pair_jsd_ema",
+            getattr(state, "macro_pair_jsd_ema", np.zeros(6, dtype=np.float32)),
+        )
+        state.macro_pair_jsd_valid_updates = int(
+            payload.get("macro_pair_jsd_valid_updates", getattr(state, "macro_pair_jsd_valid_updates", 0))
+        )
+        state.macro_pair_jsd_last_update_step = int(
+            payload.get("macro_pair_jsd_last_update_step", getattr(state, "macro_pair_jsd_last_update_step", -1))
+        )
     state.router_optimizer_step_count = int(
         payload.get("router_optimizer_step_count", state.router_optimizer_step_count)
     )
@@ -289,6 +361,77 @@ def v6i1_intervention_csv_stats(
 
     profile_stats = profile_stats or {}
     cfg = cfg or getattr(getattr(latent_state, "trainer", None), "cfg", None)
+    from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol
+
+    if is_v6i2_gate_protocol(cfg) if cfg is not None else False:
+        margin = float(cfg.actor_jsd_margin)
+        floor_frac = float(cfg.actor_jsd_floor_fraction)
+        min_pairs = int(cfg.actor_jsd_min_passing_pairs)
+        required_consecutive = int(cfg.actor_jsd_consecutive_updates)
+        cf_valid = int(getattr(latent_state, "cf_pair_jsd_valid_updates", 0) or 0)
+        macro_valid = int(getattr(latent_state, "macro_pair_jsd_valid_updates", 0) or 0)
+        cf_ema = getattr(latent_state, "cf_pair_jsd_ema", None)
+        macro_ema = getattr(latent_state, "macro_pair_jsd_ema", None)
+        cf_list = (
+            [float(cf_ema[i]) for i in range(min(6, int(cf_ema.size)))]
+            if cf_ema is not None
+            else [0.0] * 6
+        )
+        macro_list = (
+            [float(macro_ema[i]) for i in range(min(6, int(macro_ema.size)))]
+            if macro_ema is not None
+            else [0.0] * 6
+        )
+        while len(cf_list) < 6:
+            cf_list.append(0.0)
+        while len(macro_list) < 6:
+            macro_list.append(0.0)
+        num_above = int(sum(1 for v in cf_list if float(v) >= margin))
+        min_cf = float(min(cf_list)) if cf_list else 0.0
+        floor = floor_frac * margin
+        update_ok = num_above >= min_pairs and min_cf >= floor
+        actor_streak = int(getattr(latent_state, "actor_intervention_consecutive_updates", 0) or 0)
+        comp_scores, competence_ready = latent_state.compute_competence_scores()
+        trainer = getattr(latent_state, "trainer", None)
+        last_stats = dict(getattr(trainer, "last_stats", {}) or {})
+        out: dict[str, float] = {
+            "pairwise_profile_available": 1.0 if profile_stats else 0.0,
+            "cf_pair_jsd_valid_updates": float(cf_valid),
+            "cf_pair_jsd_last_update_step": float(
+                getattr(latent_state, "cf_pair_jsd_last_update_step", -1) or -1
+            ),
+            "macro_pair_jsd_valid_updates": float(macro_valid),
+            "macro_pair_jsd_last_update_step": float(
+                getattr(latent_state, "macro_pair_jsd_last_update_step", -1) or -1
+            ),
+            "actor_intervention_consecutive_updates": float(actor_streak),
+            "actor_intervention_gate_update_pass": 1.0 if update_ok else 0.0,
+            "actor_intervention_consecutive_required": float(required_consecutive),
+            "cf_pairs_above_actor_margin": float(num_above),
+            "cf_min_pair_ema": min_cf,
+            "cf_competence_ready": 1.0 if competence_ready else 0.0,
+        }
+        latent_k = int(getattr(latent_state.trainer, "latent_k", 4) or 4)
+        for z in range(latent_k):
+            out[f"cf_competence_z{z}"] = float(comp_scores[z]) if z < len(comp_scores) else 0.0
+        for idx in range(6):
+            suffix = v6i1_pair_suffix(idx)
+            cf_raw = float(last_stats.get(f"cf_batch_pair_jsd_{idx}", 0.0) or 0.0)
+            macro_raw = (
+                float(profile_stats.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0)
+                if profile_stats
+                else 0.0
+            )
+            out[f"cf_pair_jsd_{idx}"] = cf_raw
+            out[f"cf_pair_jsd_{suffix}"] = cf_raw
+            out[f"cf_pair_jsd_ema_{idx}"] = float(cf_list[idx])
+            out[f"cf_pair_jsd_ema_{suffix}"] = float(cf_list[idx])
+            out[f"macro_pair_jsd_{idx}"] = macro_raw
+            out[f"macro_pair_jsd_{suffix}"] = macro_raw
+            out[f"macro_pair_jsd_ema_{idx}"] = float(macro_list[idx])
+            out[f"macro_pair_jsd_ema_{suffix}"] = float(macro_list[idx])
+        return out
+
     margin = float(getattr(cfg, "latent_cf_jsd_margin", 0.01) or 0.01) if cfg is not None else 0.01
     required_consecutive = (
         int(getattr(cfg, "latent_cf_gate_consecutive_updates", 5) or 5) if cfg is not None else 5

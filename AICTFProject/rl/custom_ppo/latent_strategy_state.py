@@ -977,10 +977,19 @@ class LatentStrategyState:
         self.cf_return_var = 1.0
 
         self.recent_z_history = deque(maxlen=200)
+        # v6i1 macro intervention EMA (legacy single-gate protocol).
         self.pair_jsd_ema = np.zeros((6,), dtype=np.float32)
         self.jsd_gate_consecutive_updates = 0
         self.pairwise_ema_valid_updates = 0
         self.pairwise_ema_last_update_step = -1
+        # v6i2 dual-gate protocol: separate actor-CF and macro-rollout EMA tracks.
+        self.cf_pair_jsd_ema = np.zeros((6,), dtype=np.float32)
+        self.cf_pair_jsd_valid_updates = 0
+        self.cf_pair_jsd_last_update_step = -1
+        self.actor_intervention_consecutive_updates = 0
+        self.macro_pair_jsd_ema = np.zeros((6,), dtype=np.float32)
+        self.macro_pair_jsd_valid_updates = 0
+        self.macro_pair_jsd_last_update_step = -1
         self.router_optimizer_step_count = 0
 
     # ------------------------------------------------------------------
@@ -2897,7 +2906,91 @@ class LatentStrategyState:
         c_z = 1.0 / (1.0 + np.exp(- (self.cf_J - J_best + delta) / scale))
         return c_z, True
 
+    @staticmethod
+    def _coerce_six_finite_pair_values(pair_values: list[float] | tuple[float, ...]) -> np.ndarray | None:
+        if len(pair_values) != 6:
+            return None
+        arr = np.asarray(pair_values, dtype=np.float32)
+        if arr.shape != (6,) or not np.all(np.isfinite(arr)):
+            return None
+        return arr
+
+    def update_cf_pair_jsd_ema(self, pair_values: list[float], timestep: int) -> bool:
+        """EMA CF-loss actor pair JSD. Invalid input: no mutation, streak reset."""
+        pair_arr = self._coerce_six_finite_pair_values(pair_values)
+        if pair_arr is None:
+            self.actor_intervention_consecutive_updates = 0
+            return False
+
+        cfg = self.trainer.cfg
+        alpha = float(cfg.actor_jsd_ema_decay)
+        if int(self.cf_pair_jsd_valid_updates) <= 0:
+            self.cf_pair_jsd_ema = pair_arr.copy()
+        else:
+            self.cf_pair_jsd_ema = (1.0 - alpha) * self.cf_pair_jsd_ema + alpha * pair_arr
+        self.cf_pair_jsd_valid_updates = int(self.cf_pair_jsd_valid_updates) + 1
+        self.cf_pair_jsd_last_update_step = int(timestep)
+
+        margin = float(cfg.actor_jsd_margin)
+        floor = float(cfg.actor_jsd_floor_fraction) * margin
+        min_pairs = int(cfg.actor_jsd_min_passing_pairs)
+        num_above = int(np.sum(self.cf_pair_jsd_ema >= margin))
+        min_ema = float(np.min(self.cf_pair_jsd_ema))
+        update_ok = num_above >= min_pairs and min_ema >= floor
+        if update_ok:
+            self.actor_intervention_consecutive_updates += 1
+        else:
+            self.actor_intervention_consecutive_updates = 0
+        return True
+
+    def update_macro_pair_jsd_ema(self, pair_values: list[float], timestep: int) -> bool:
+        """EMA forced-z rollout macro pair JSD. Invalid input: no mutation."""
+        pair_arr = self._coerce_six_finite_pair_values(pair_values)
+        if pair_arr is None:
+            return False
+
+        cfg = self.trainer.cfg
+        alpha = float(cfg.macro_jsd_ema_decay)
+        if int(self.macro_pair_jsd_valid_updates) <= 0:
+            self.macro_pair_jsd_ema = pair_arr.copy()
+        else:
+            self.macro_pair_jsd_ema = (1.0 - alpha) * self.macro_pair_jsd_ema + alpha * pair_arr
+        self.macro_pair_jsd_valid_updates = int(self.macro_pair_jsd_valid_updates) + 1
+        self.macro_pair_jsd_last_update_step = int(timestep)
+        return True
+
     def update_intervention_gate_from_profile(self, profile_stats: dict[str, float]) -> bool:
+        """v6i1: legacy macro gate EMA. v6i2: macro supporting track only."""
+        from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol
+        from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
+
+        pair_vals = extract_forced_z_pair_values(profile_stats)
+        if pair_vals is None:
+            if not is_v6i2_gate_protocol(self.trainer.cfg):
+                self.jsd_gate_consecutive_updates = 0
+            return False
+
+        if is_v6i2_gate_protocol(self.trainer.cfg):
+            timestep = int(getattr(self.trainer, "global_step", -1))
+            return self.update_macro_pair_jsd_ema(pair_vals, timestep)
+        return self._update_legacy_macro_intervention_ema(profile_stats)
+
+    def update_actor_intervention_gate_from_cf_pairs(self, pair_vals: list[float]) -> bool:
+        """Deprecated alias — use ``update_cf_pair_jsd_ema``."""
+        timestep = int(getattr(self.trainer, "global_step", -1))
+        return self.update_cf_pair_jsd_ema(pair_vals, timestep)
+
+    def update_macro_pair_jsd_ema_from_profile(self, profile_stats: dict[str, float]) -> bool:
+        """Deprecated alias — use ``update_macro_pair_jsd_ema``."""
+        from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
+
+        pair_vals = extract_forced_z_pair_values(profile_stats)
+        if pair_vals is None:
+            return False
+        timestep = int(getattr(self.trainer, "global_step", -1))
+        return self.update_macro_pair_jsd_ema(pair_vals, timestep)
+
+    def _update_legacy_macro_intervention_ema(self, profile_stats: dict[str, float]) -> bool:
         """EMA-update per-pair forced-z JSD when all six pair keys are present.
 
         Returns True when the EMA advanced. Incomplete profiles (including

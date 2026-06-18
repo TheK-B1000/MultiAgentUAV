@@ -26,6 +26,15 @@ import torch.optim as optim
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.csv_writers import _OPPONENT_ID_TO_TAG
+from rl.custom_ppo.gate_protocol import (
+    V6I2_GATE_PROTOCOL,
+    evaluate_actor_intervention,
+    evaluate_behavioral_realization,
+    gate_family_names,
+    is_v6i2_gate_protocol,
+    resolve_gate_protocol_version,
+    validate_protocol_config,
+)
 from rl.custom_ppo.inference import CustomPPOInferencePolicy
 
 # Fixed pair index for forced_z_pair_jsd_{i}: (0,1)=0 … (2,3)=5
@@ -65,14 +74,8 @@ def is_staged_v6i1_curriculum(cfg: PPOConfig) -> bool:
 
 
 def validate_v6i1_enforce_config(cfg: PPOConfig) -> None:
-    """Fail fast when enforce mode cannot run the full six-family Phase A gate."""
-    mode = str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower()
-    if mode != "enforce":
-        return
-    if not bool(getattr(cfg, "curriculum_gate_run_boundary_eval", False)):
-        raise ValueError("V6I1 enforce mode requires matched-seed boundary evaluation.")
-    if not bool(getattr(cfg, "curriculum_gate_run_probe", False)):
-        raise ValueError("V6I1 enforce mode requires the selector-learnability probe.")
+    """Fail fast when enforce mode cannot run the full Phase A gate for staged v6 rows."""
+    validate_protocol_config(cfg)
 
 
 @contextmanager
@@ -146,27 +149,52 @@ def gate_family_result_from_bool(passed: bool, *, details: dict[str, Any] | None
     )
 
 
-def count_gate_families_passed(gate_results: dict[str, GateFamilyResult]) -> int:
-    return sum(1 for name in GATE_FAMILY_NAMES if gate_results.get(name, GateFamilyResult(GATE_STATUS_NOT_RUN)).passed)
+def count_gate_families_passed(
+    gate_results: dict[str, GateFamilyResult],
+    *,
+    families: tuple[str, ...] | None = None,
+) -> int:
+    names = families if families is not None else GATE_FAMILY_NAMES
+    return sum(
+        1 for name in names if gate_results.get(name, GateFamilyResult(GATE_STATUS_NOT_RUN)).passed
+    )
 
 
-def count_gate_families_measured(gate_results: dict[str, GateFamilyResult]) -> int:
-    return sum(1 for name in GATE_FAMILY_NAMES if gate_results.get(name, GateFamilyResult(GATE_STATUS_NOT_RUN)).measured)
+def count_gate_families_measured(
+    gate_results: dict[str, GateFamilyResult],
+    *,
+    families: tuple[str, ...] | None = None,
+) -> int:
+    names = families if families is not None else GATE_FAMILY_NAMES
+    return sum(
+        1 for name in names if gate_results.get(name, GateFamilyResult(GATE_STATUS_NOT_RUN)).measured
+    )
+
+
+def all_required_families_passed(
+    gate_results: dict[str, GateFamilyResult],
+    *,
+    families: tuple[str, ...] | None = None,
+) -> bool:
+    """True when every required family has status PASS (independent of gate mode)."""
+    names = families if families is not None else GATE_FAMILY_NAMES
+    for name in names:
+        result = gate_results.get(name, GateFamilyResult(GATE_STATUS_NOT_RUN))
+        if result.status != GATE_STATUS_PASS:
+            return False
+    return True
 
 
 def overall_gate_passed_for_promotion(
     gate_results: dict[str, GateFamilyResult],
     *,
     mode: str,
+    families: tuple[str, ...] | None = None,
 ) -> bool:
-    """In enforce mode every family must be PASS; NOT_RUN blocks promotion."""
+    """In enforce mode every family must be PASS; NOT_RUN and ERROR block promotion."""
     if str(mode).lower() != "enforce":
         return False
-    for name in GATE_FAMILY_NAMES:
-        result = gate_results.get(name, GateFamilyResult(GATE_STATUS_NOT_RUN))
-        if result.status != GATE_STATUS_PASS:
-            return False
-    return True
+    return all_required_families_passed(gate_results, families=families)
 
 
 @dataclass
@@ -262,9 +290,7 @@ def rank_candidates_lexicographic(candidates: list[dict[str, Any]]) -> list[dict
         )
 
     ranked = sorted(candidates, key=_key)
-    for rank, row in enumerate(ranked):
-        row["lexicographic_rank"] = rank
-    return ranked
+    return [{**row, "lexicographic_rank": rank} for rank, row in enumerate(ranked)]
 
 
 def build_lexicographic_ranking_components(
@@ -274,11 +300,17 @@ def build_lexicographic_ranking_components(
     matched_report: dict[str, Any],
     probe_report: dict[str, Any],
     global_step: int,
+    cfg: PPOConfig | None = None,
 ) -> dict[str, Any]:
+    families = gate_family_names(cfg) if cfg is not None else GATE_FAMILY_NAMES
     comp_scores = online_report.get("competence_scores", [0.0, 0.0, 0.0, 0.0])
-    pair_jsd = online_report.get("pair_jsd_ema", [0.0] * 6)
-    margin = float(online_report.get("jsd_margin", 0.01))
-    occupancy = online_report.get("occupancy", [0.25, 0.25, 0.25, 0.25])
+    if is_v6i2_gate_protocol(cfg) if cfg is not None else False:
+        pair_jsd = online_report.get("cf_pair_jsd_ema", [0.0] * 6)
+        margin = float(online_report.get("actor_jsd_margin", 0.001))
+    else:
+        pair_jsd = online_report.get("pair_jsd_ema", [0.0] * 6)
+        margin = float(online_report.get("jsd_margin", 0.01))
+    occupancy = online_report.get("recent_z_occupancy", online_report.get("occupancy", [0.25, 0.25, 0.25, 0.25]))
     pairs_above = sum(1 for v in pair_jsd if float(v) >= margin)
     weakest_norm = 0.0
     if pair_jsd and margin > 0:
@@ -286,22 +318,32 @@ def build_lexicographic_ranking_components(
         weakest_norm = min(weakest_norm, 1.0)
 
     effect_sizes = [
-        float(v.get("effect_size", 0.0))
+        float(v.get("semantic_effect", v.get("effect_size", 0.0)))
         for v in matched_report.get("opponents", {}).values()
         if isinstance(v, dict)
     ]
     matched_effect = max(effect_sizes) if effect_sizes else 0.0
 
-    fixed_regret = float(probe_report.get("fixed_regret", 0.0))
+    fixed_regret = float(
+        probe_report.get(
+            "fixed_policy_regret",
+            probe_report.get(
+                "fixed_regret",
+                probe_report.get("global_best_fixed_z_regret", 0.0),
+            ),
+        )
+    )
     probe_regret = float(probe_report.get("probe_regret", 0.0))
-    regret_reduction = fixed_regret - probe_regret
+    regret_reduction = float(
+        probe_report.get("regret_reduction", fixed_regret - probe_regret)
+    )
 
     occ = np.asarray(occupancy, dtype=np.float64)
     occ_imbalance = float(occ.max() - occ.min()) if occ.size else 1.0
 
     return {
-        "gate_families_passed": count_gate_families_passed(gate_results),
-        "gate_families_measured": count_gate_families_measured(gate_results),
+        "gate_families_passed": count_gate_families_passed(gate_results, families=families),
+        "gate_families_measured": count_gate_families_measured(gate_results, families=families),
         "min_competence": float(np.min(comp_scores)) if len(comp_scores) else 0.0,
         "pairs_above_margin": int(pairs_above),
         "weakest_pair_normalized_separation": float(weakest_norm),
@@ -312,12 +354,12 @@ def build_lexicographic_ranking_components(
     }
 
 
-_GATE_FAMILY_STDOUT_LABELS: dict[str, str] = {
+_GATE_FAMILY_STDOUT_LABELS_V6I2: dict[str, str] = {
     "coverage": "cov",
     "competence": "comp",
-    "counterfactual_intervention": "interv",
+    "actor_intervention": "actor",
+    "behavioral_realization": "behav",
     "training_integrity": "integ",
-    "matched_seed_behavior": "match",
     "selector_learnability_probe": "probe",
 }
 
@@ -334,10 +376,53 @@ def format_v6i1_gate_stdout_block(
     cf_coef: float,
     required_consecutive: int,
     report_path: str | None = None,
+    gate_protocol: str | None = None,
 ) -> str:
     """Compact stdout block for a Phase A gate attempt."""
+    protocol = gate_protocol or "v6i1_single_macro_intervention"
+    tag = "V6I2" if protocol == V6I2_GATE_PROTOCOL else "V6I1"
+
     def _st(name: str) -> str:
         return gate_results[name].status if name in gate_results else GATE_STATUS_NOT_RUN
+
+    action = "PROMOTE_PHASE_B" if overall_passed and mode == "enforce" else "CONTINUE_PHASE_A"
+    report_line = f"[{tag} Gate] report={report_path}" if report_path else ""
+
+    if protocol == V6I2_GATE_PROTOCOL:
+        actor = gate_results.get("actor_intervention")
+        actor_details = actor.details if actor is not None else {}
+        num_above = int(actor_details.get("num_pairs_above_margin", 0))
+        min_ema = float(actor_details.get("min_cf_pair_jsd_ema", 0.0) or 0.0)
+        actor_consec = int(actor_details.get("actor_intervention_consecutive_updates", 0) or 0)
+        behav = gate_results.get("behavioral_realization")
+        behav_details = behav.details if behav is not None else {}
+        sem_details = behav_details.get("matched_seed_semantics_details", {})
+        strong_ops = int(sem_details.get("strong_opponent_count", behav_details.get("strong_opponent_count", 0)))
+        agg_effect = float(
+            sem_details.get("aggregate_semantic_effect", behav_details.get("aggregate_semantic_effect", 0.0))
+            or 0.0
+        )
+        lines = [
+            f"[{tag} Gate] step={step} phase={phase} mode={mode} protocol={protocol}",
+            (
+                f"[{tag} Gate] coverage={_st('coverage')} competence={_st('competence')} "
+                f"integrity={_st('training_integrity')}"
+            ),
+            (
+                f"[{tag} Gate] actor_intervention={_st('actor_intervention')} "
+                f"cf_pairs>=margin={num_above}/6 min_cf_ema={min_ema:.6f} "
+                f"actor_consec={actor_consec}/{required_consecutive}"
+            ),
+            (
+                f"[{tag} Gate] behavioral_realization={_st('behavioral_realization')} "
+                f"strong_opponents={strong_ops}/3 aggregate_effect={agg_effect:.4f} "
+                f"probe={_st('selector_learnability_probe')}"
+            ),
+            f"[{tag} Gate] overall={'PASS' if overall_passed else 'FAIL'} action={action} cf_coef={cf_coef:.4f}",
+        ]
+        if report_line:
+            lines.append(report_line)
+        return "\n".join(lines)
 
     intervention = gate_results.get("counterfactual_intervention")
     interv_details = intervention.details if intervention is not None else {}
@@ -391,10 +476,15 @@ class V6I1CurriculumController:
         self.phase_a_end_step = -1
         self.phase_a_gate_passed = False
         self.nominal_steps = int(self.cfg.curriculum_nominal_timesteps)
-        self.phase_a_min_end = int(0.40 * self.nominal_steps)
-        self.phase_a_max_end = int(0.55 * self.nominal_steps)
+        min_frac = float(getattr(self.cfg, "phase_a_earliest_end_fraction", 0.40) or 0.40)
+        max_frac = float(getattr(self.cfg, "phase_a_max_end_fraction", 0.55) or 0.55)
+        c_frac = float(getattr(self.cfg, "phase_c_start_fraction", 0.70) or 0.70)
+        self.phase_a_min_end = int(min_frac * self.nominal_steps)
+        self.phase_a_max_end = int(max_frac * self.nominal_steps)
         self.phase_b_nominal_start = self.phase_a_min_end
-        self.phase_c_nominal_start = int(0.70 * self.nominal_steps)
+        self.phase_c_nominal_start = int(c_frac * self.nominal_steps)
+        self.protocol_version = resolve_gate_protocol_version(self.cfg)
+        self.active_families = gate_family_names(self.cfg)
         self.next_gate_step = self.phase_a_min_end
         self.last_gate_step_run = -1
         self.gate_check_history: list[dict[str, Any]] = []
@@ -439,19 +529,21 @@ class V6I1CurriculumController:
         return self.maybe_apply_nominal_phase_transition()
 
     def maybe_apply_nominal_phase_transition(self) -> bool:
-        """Apply fixed schedule transitions in observe_only mode."""
+        """Apply schedule-driven phase transitions (A→B observe-only; B→C all modes)."""
         mode = str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")).lower()
-        if mode != "observe_only":
-            return False
         step = int(self.trainer.global_step)
         transitioned = False
-        if self.phase == "A" and step >= self.phase_b_nominal_start:
+        if mode == "observe_only" and self.phase == "A" and step >= self.phase_b_nominal_start:
             self._transition_to_phase_b(step, nominal=True)
             transitioned = True
         if self.phase == "B":
-            phase_b_end = self.t_A + int(0.30 * self.nominal_steps) if self.t_A >= 0 else self.phase_c_nominal_start
+            phase_b_end = (
+                self.t_A + int(0.30 * self.nominal_steps)
+                if self.t_A >= 0
+                else self.phase_c_nominal_start
+            )
             if step >= phase_b_end or step >= self.phase_c_nominal_start:
-                self._transition_to_phase_c(step, nominal=True)
+                self._transition_to_phase_c(step, nominal=(mode == "observe_only"))
                 transitioned = True
         return transitioned
 
@@ -501,21 +593,29 @@ class V6I1CurriculumController:
             print(f"[Curriculum Controller] Protected candidate: {candidate_ckpt}")
 
             gate_results: dict[str, GateFamilyResult] = {}
+            families = self.active_families
             online_report = self._evaluate_online_gates(gate_results)
-            matched_result = self._run_matched_seed_eval()
-            gate_results["matched_seed_behavior"] = matched_result
+            if is_v6i2_gate_protocol(self.cfg):
+                behavioral_result = self._evaluate_behavioral_realization_gate()
+                gate_results["behavioral_realization"] = behavioral_result
+                matched_result = behavioral_result
+            else:
+                matched_result = self._run_matched_seed_eval()
+                gate_results["matched_seed_behavior"] = matched_result
             probe_result = self._run_learnability_probe()
             gate_results["selector_learnability_probe"] = probe_result
 
             mode = str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")).lower()
             boundary_enabled = bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False))
             probe_enabled = bool(getattr(self.cfg, "curriculum_gate_run_probe", False))
-            overall_passed = overall_gate_passed_for_promotion(gate_results, mode=mode)
-            should_promote = overall_passed and mode == "enforce"
-            if mode == "enforce" and should_promote and not (boundary_enabled and probe_enabled):
+            gate_passed = all_required_families_passed(gate_results, families=families)
+            promotion_allowed = mode == "enforce"
+            should_promote = promotion_allowed and gate_passed
+            if should_promote and not (boundary_enabled and probe_enabled):
                 raise RuntimeError(
                     "Internal error: Phase A promotion requested without full heavy gate configuration."
                 )
+            overall_passed = gate_passed
 
             ranking_components = build_lexicographic_ranking_components(
                 gate_results=gate_results,
@@ -523,15 +623,22 @@ class V6I1CurriculumController:
                 matched_report=matched_result.details,
                 probe_report=probe_result.details,
                 global_step=step,
+                cfg=self.cfg,
             )
-            gate_families_report = {name: gate_results[name].to_dict() for name in GATE_FAMILY_NAMES if name in gate_results}
+            gate_families_report = {
+                name: gate_results[name].to_dict() for name in families if name in gate_results
+            }
             report = {
                 "global_step": step,
                 "checkpoint": candidate_ckpt,
+                "gate_protocol_version": self.protocol_version,
+                "required_families": list(families),
                 "phase_boundary_gate_mode": mode,
                 "curriculum_gate_run_boundary_eval": boundary_enabled,
                 "curriculum_gate_run_probe": probe_enabled,
                 "gate_families": gate_families_report,
+                "gate_passed": gate_passed,
+                "promotion_allowed": promotion_allowed,
                 "overall_gate_passed": overall_passed,
                 "promoted_to_phase_b": False,
                 "nominal_transition_to_phase_b": False,
@@ -562,6 +669,11 @@ class V6I1CurriculumController:
                 if is_v6i1_staged_trainer(self.trainer)
                 else 0.0
             )
+            req_consec = (
+                int(self.cfg.actor_jsd_consecutive_updates)
+                if is_v6i2_gate_protocol(self.cfg)
+                else int(self.cfg.latent_cf_gate_consecutive_updates)
+            )
             print(
                 format_v6i1_gate_stdout_block(
                     step=step,
@@ -572,8 +684,9 @@ class V6I1CurriculumController:
                     online_report=online_report,
                     ranking_components=ranking_components,
                     cf_coef=cf_coef,
-                    required_consecutive=int(getattr(self.cfg, "latent_cf_gate_consecutive_updates", 5)),
+                    required_consecutive=req_consec,
                     report_path=report_path,
+                    gate_protocol=resolve_gate_protocol_version(self.cfg),
                 ),
                 flush=True,
             )
@@ -629,27 +742,45 @@ class V6I1CurriculumController:
         if mode == "observe_only":
             return
         step = int(self.trainer.global_step)
-        if self.phase == "A" and step >= self.phase_a_max_end and not self.phase_a_gate_passed:
+        final_gate_completed = self.last_gate_step_run >= self.phase_a_max_end
+        if (
+            self.phase == "A"
+            and step >= self.phase_a_max_end
+            and final_gate_completed
+            and not self.phase_a_gate_passed
+        ):
             self._handle_terminal_failure()
 
     def _evaluate_online_gates(self, gate_results: dict[str, GateFamilyResult]) -> dict[str, Any]:
         coverage_result = self._evaluate_coverage_gate()
         competence_result = self._evaluate_competence_gate()
-        intervention_result = self._evaluate_intervention_gate()
         integrity_result = self._evaluate_training_integrity_gate()
 
         gate_results["coverage"] = coverage_result
         gate_results["competence"] = competence_result
-        gate_results["counterfactual_intervention"] = intervention_result
         gate_results["training_integrity"] = integrity_result
 
+        if is_v6i2_gate_protocol(self.cfg):
+            intervention_result = self._evaluate_actor_intervention_gate()
+            gate_results["actor_intervention"] = intervention_result
+            report_pairs = (
+                ("coverage", coverage_result),
+                ("competence", competence_result),
+                ("actor_intervention", intervention_result),
+                ("training_integrity", integrity_result),
+            )
+        else:
+            intervention_result = self._evaluate_intervention_gate()
+            gate_results["counterfactual_intervention"] = intervention_result
+            report_pairs = (
+                ("coverage", coverage_result),
+                ("competence", competence_result),
+                ("counterfactual_intervention", intervention_result),
+                ("training_integrity", integrity_result),
+            )
+
         report: dict[str, Any] = {}
-        for name, result in (
-            ("coverage", coverage_result),
-            ("competence", competence_result),
-            ("counterfactual_intervention", intervention_result),
-            ("training_integrity", integrity_result),
-        ):
+        for name, result in report_pairs:
             report.update(result.details)
             report[f"{name}_status"] = result.status
         return report
@@ -673,6 +804,7 @@ class V6I1CurriculumController:
             details={
                 "cf_episode_counts": ep_counts,
                 "recent_z_occupancy": rolling_occ,
+                "occupancy": rolling_occ,
                 "latent_cf_min_episodes_per_z": min_eps,
             },
         )
@@ -740,6 +872,40 @@ class V6I1CurriculumController:
             },
         )
 
+    def _gate_eval_to_family(self, result: Any) -> GateFamilyResult:
+        return GateFamilyResult(
+            status=result.status,
+            reason=result.reason,
+            details=dict(result.details),
+        )
+
+    def _evaluate_actor_intervention_gate(self) -> GateFamilyResult:
+        return self._gate_eval_to_family(
+            evaluate_actor_intervention(self.cfg, self.trainer.latent_state)
+        )
+
+    def _evaluate_behavioral_realization_gate(self) -> GateFamilyResult:
+        if not bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False)):
+            return GateFamilyResult(
+                status=GATE_STATUS_NOT_RUN,
+                reason="curriculum_gate_run_boundary_eval=false",
+                details={
+                    "macro_profile": GATE_STATUS_NOT_RUN,
+                    "matched_seed_semantics": GATE_STATUS_NOT_RUN,
+                    "aggregate_result": GATE_STATUS_NOT_RUN,
+                },
+            )
+        print("[Curriculum Controller] Behavioral-realization boundary evaluation...")
+        op_reports = self._collect_matched_seed_boundary_metrics()
+        return self._gate_eval_to_family(
+            evaluate_behavioral_realization(
+                self.cfg,
+                self.trainer.latent_state,
+                op_reports,
+                boundary_eval_enabled=True,
+            )
+        )
+
     def _evaluate_training_integrity_gate(self) -> GateFamilyResult:
         stats = dict(getattr(self.trainer, "last_stats", {}) or {})
         k = int(self.trainer.latent_k)
@@ -783,13 +949,33 @@ class V6I1CurriculumController:
                 reason="curriculum_gate_run_boundary_eval=false",
             )
 
+        print("[Curriculum Controller] Matched-seed boundary evaluation...")
+        op_reports = self._collect_matched_seed_boundary_metrics()
+        if not op_reports:
+            return GateFamilyResult(
+                status=GATE_STATUS_ERROR,
+                reason="matched_seed_eval_failed",
+            )
+
+        all_passed = True
+        for rep in op_reports.values():
+            excludes_zero = bool(rep.get("paired_ci_excludes_zero", False))
+            wr_spread = float(rep.get("forced_z_performance_spread", 0.0))
+            if not (excludes_zero and wr_spread >= 0.03):
+                all_passed = False
+
+        return gate_family_result_from_bool(
+            all_passed,
+            details={"opponents": op_reports, "matched_eval_passed": all_passed},
+        )
+
+    def _collect_matched_seed_boundary_metrics(self) -> dict[str, Any]:
+        """Run matched-seed forced-z branches; return per-opponent metric dict."""
         from rl.training.env_factory import build_training_env
 
-        print("[Curriculum Controller] Matched-seed boundary evaluation...")
         opponents = ["OP5", "OP6", "OP7"]
         seeds = list(range(2000, 2020))
         latent_k = int(self.trainer.latent_k)
-        all_passed = True
         op_reports: dict[str, Any] = {}
 
         eval_cfg = PPOConfig()
@@ -855,7 +1041,9 @@ class V6I1CurriculumController:
                                     route_dists.append(float(np.mean(np.linalg.norm(diff, axis=-1))))
                                 b_len = min(len(traj_beh[z_a]), len(traj_beh[z_b]))
                                 if b_len > 0:
-                                    behavior_dists.append(float(np.mean(np.abs(traj_beh[z_a][:b_len] - traj_beh[z_b][:b_len]))))
+                                    behavior_dists.append(
+                                        float(np.mean(np.abs(traj_beh[z_a][:b_len] - traj_beh[z_b][:b_len])))
+                                    )
 
                     avg_route = float(np.mean(route_dists)) if route_dists else 0.0
                     std_route = float(np.std(route_dists)) if route_dists else 0.0
@@ -876,16 +1064,11 @@ class V6I1CurriculumController:
                         "paired_ci_excludes_zero": bool(excludes_zero),
                         "forced_z_performance_spread": wr_spread,
                         "effect_size": avg_route,
+                        "num_seeds": len(seeds),
                     }
-                    if not (excludes_zero and wr_spread >= 0.03):
-                        all_passed = False
                 finally:
                     env.close()
-
-        return gate_family_result_from_bool(
-            all_passed,
-            details={"opponents": op_reports, "matched_eval_passed": all_passed},
-        )
+        return op_reports
 
     @staticmethod
     def _capture_reset_state(core: Any, info: dict[str, Any]) -> dict[str, Any]:
@@ -988,11 +1171,12 @@ class V6I1CurriculumController:
                         env.close()
 
             n_examples = len(contexts)
-            if n_examples < 10:
+            min_examples = int(getattr(self.cfg, "curriculum_probe_min_examples", 10) or 10)
+            if n_examples < min_examples:
                 return GateFamilyResult(
                     status=GATE_STATUS_ERROR,
                     reason="insufficient_probe_examples",
-                    details={"num_examples": n_examples},
+                    details={"num_examples": n_examples, "min_examples": min_examples},
                 )
 
             train_size = max(1, int(0.80 * n_examples))
@@ -1038,6 +1222,7 @@ class V6I1CurriculumController:
                     "global_best_fixed_z_return_mean": fixed_mean,
                     "probe_regret": probe_regret,
                     "global_best_fixed_z_regret": fixed_regret,
+                    "fixed_policy_regret": fixed_regret,
                     "regret_reduction": fixed_regret - probe_regret,
                     "accuracy_passed": accuracy_passed,
                     "regret_passed": regret_passed,
@@ -1133,6 +1318,7 @@ __all__ = [
     "format_v6i1_gate_stdout_block",
     "gate_family_result_from_bool",
     "is_staged_v6i1_curriculum",
+    "all_required_families_passed",
     "overall_gate_passed_for_promotion",
     "rank_candidates_lexicographic",
     "validate_v6i1_enforce_config",

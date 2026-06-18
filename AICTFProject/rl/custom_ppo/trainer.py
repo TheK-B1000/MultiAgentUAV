@@ -242,9 +242,10 @@ class CustomPPOTrainer:
     def _build_v6i1_curriculum(self, cfg: Any) -> Any:
         if not bool(getattr(cfg, "use_v6i1_curriculum", False)):
             return None
-        from rl.custom_ppo.curriculum_gates import V6I1CurriculumController, is_staged_v6i1_curriculum
+        from rl.custom_ppo.curriculum_gates import V6I1CurriculumController
+        from rl.custom_ppo.gate_protocol import is_staged_v6_team_intent_curriculum
 
-        if not is_staged_v6i1_curriculum(cfg):
+        if not is_staged_v6_team_intent_curriculum(cfg):
             return None
         return V6I1CurriculumController(self)
 
@@ -382,6 +383,7 @@ class CustomPPOTrainer:
 
             payload["v6i1_curriculum_state"] = v6i1_curriculum_state_dict(self.v6i1_curriculum)
             payload["latent_state_v6i1"] = latent_state_v6i1_checkpoint(self.latent_state)
+        payload["ppo_updater_state"] = self.updater.state_dict()
         torch.save(payload, path)
 
     def load(self, path: str) -> None:
@@ -421,3 +423,4 @@ class CustomPPOTrainer:
             from rl.custom_ppo.v6i1_phase_runtime import restore_latent_state_v6i1_checkpoint
 
             restore_latent_state_v6i1_checkpoint(self.latent_state, v6i1_latent_payload)
+        self.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))

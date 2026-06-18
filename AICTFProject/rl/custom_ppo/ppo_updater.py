@@ -60,6 +60,11 @@ from rl.custom_ppo.trainer_optimizers import (
     collect_actor_parameters,
 )
 from rl.custom_ppo.v6i1_cf_loss import actor_cf_ppo_grad_diagnostics, v6i1_cf_separation_loss
+from rl.custom_ppo.update.actor_intervention import ActorInterventionEvidenceUpdater
+from rl.custom_ppo.update.loss_result import measurement_from_pair_tensor
+from rl.custom_ppo.update.optimizer_stepper import clip_optimizer_grad_norm
+from rl.custom_ppo.update.phase_policy import apply_phase_requires_grad
+from rl.custom_ppo.update.update_context import PPOUpdateContextBuilder
 
 if TYPE_CHECKING:
     from rl.custom_ppo.latent_strategy_state import LatentStrategyState
@@ -67,6 +72,14 @@ if TYPE_CHECKING:
 
 
 _VALID_CURRICULUM_PHASES = frozenset({"A", "B", "C"})
+
+_ACTOR_INTERVENTION_REASON_CODES: dict[str, float] = {
+    "missing_pair_jsd": 1.0,
+    "no_valid_minibatch": 2.0,
+    "not_v6i2_protocol": 3.0,
+    "invalid_measurement": 4.0,
+    "missing_pair_values": 5.0,
+}
 
 
 class StrictFaithfulDictWrapper(dict):
@@ -443,6 +456,17 @@ class PPOUpdater:
         seed = int(getattr(cfg, "seed", 0) or 0) + 31_337
         self._z_separation_generator = torch.Generator(device=device)
         self._z_separation_generator.manual_seed(seed)
+        self._intervention_evidence = ActorInterventionEvidenceUpdater()
+
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "z_separation_generator": self._z_separation_generator.get_state(),
+        }
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        gen_state = state.get("z_separation_generator")
+        if gen_state is not None:
+            self._z_separation_generator.set_state(gen_state)
 
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
         """Return the current latent entropy coefficient for this rollout."""
@@ -474,7 +498,6 @@ class PPOUpdater:
             resolve_v6i1_rollout_usage_coef,
             step_v6i1_optimizers,
             v6i1_macro_router_active,
-            v6i1_schedule_context,
         )
 
         v6i1_lr_stats: dict[str, float] = {}
@@ -497,11 +520,6 @@ class PPOUpdater:
         sep_warmup = int(getattr(hparams, "latent_actor_z_separation_warmup_steps", 0) or 0)
         sep_ramp = int(getattr(hparams, "latent_actor_z_separation_ramp_steps", 0) or 0)
         step = int(runtime.global_step)
-        curriculum = getattr(runtime, "v6i1_curriculum", None)
-        phase_key = "__legacy__"
-        if curriculum is not None:
-            phase_key = str(curriculum.resolve_phase(step))
-            set_model_requires_grad_for_phase(self.model, phase_key)
         if is_v6i1_staged_trainer(runtime):
             curr_sep_coef = float(resolve_v6i1_cf_coef_current(runtime))
         else:
@@ -533,6 +551,30 @@ class PPOUpdater:
             curr_adapter_scale = 0.0
 
         _update_strategy_return_stats(runtime, buffer)
+
+        v6i1_usage_coef = (
+            float(resolve_v6i1_rollout_usage_coef(runtime))
+            if is_v6i1_staged_trainer(runtime)
+            else 0.0
+        )
+        update_context = PPOUpdateContextBuilder(
+            cfg=cfg, hparams=hparams, runtime=runtime
+        ).build(
+            total_timesteps=total_timesteps,
+            primary_lr=lr,
+            latent_lam_h=latent_lam_h,
+            curr_sep_coef=curr_sep_coef,
+            curr_adapter_scale=curr_adapter_scale,
+            v6i1_usage_coef=v6i1_usage_coef,
+            v6i1_lr_stats=v6i1_lr_stats,
+            buffer=buffer,
+        )
+        phase_key = update_context.phase
+        phase_policy = update_context.phase_policy
+        if phase_key in {"A", "B", "C"}:
+            apply_phase_requires_grad(self.model, phase_key)
+        pair_count = update_context.pair_count
+        v6i1_usage_coef = update_context.rollout_usage_coefficient
 
         zero_scalar = torch.zeros((), dtype=torch.float32, device=device)
 
@@ -580,8 +622,9 @@ class PPOUpdater:
             "cf_effective_pairs": [],
             "cf_loss_requires_grad": [],
             "latent_actor_z_separation_jsd_max": [],
+            "actor_intervention_measurement_valid": [],
         }
-        for _pair_idx in range(6):
+        for _pair_idx in range(pair_count):
             stats[f"cf_batch_pair_jsd_{_pair_idx}"] = []
         for _k_idx in range(int(hparams.latent_k)):
             stats[f"router_rollout_soft_p_bar_z{_k_idx}"] = []
@@ -597,9 +640,6 @@ class PPOUpdater:
         ).lower()
         has_dedicated_router_opt_global = (
             getattr(runtime, "latent_router_optimizer", None) is not None
-        )
-        v6i1_usage_coef = (
-            float(resolve_v6i1_rollout_usage_coef(runtime)) if is_v6i1_staged_trainer(runtime) else 0.0
         )
         apply_rollout_marginal = (
             hparams.use_latent_strategy
@@ -634,10 +674,9 @@ class PPOUpdater:
         last_rollout_marginal_stats: dict[str, float] = {}
         last_rollout_soft_diag: dict[str, float] = {}
         stop_update = False
-        target_kl = getattr(cfg, "target_kl", None)
-        strategy_target_kl = getattr(cfg, "strategy_target_kl", None)
-        if strategy_target_kl is None:
-            strategy_target_kl = target_kl
+        valid_cf_pair_measurements: list[torch.Tensor] = []
+        actor_intervention_valid_minibatches = 0
+        last_invalid_reason_code = 0.0
         model = self.model
         actor_grad_diag_done = False
         for _epoch_idx in range(hparams.n_epochs):
@@ -915,7 +954,7 @@ class PPOUpdater:
                         strategy_marginal_entropy_kl_value = 0.0
                     if (
                         curr_sep_coef > 0.0
-                        and phase_key != "B"
+                        and phase_policy.counterfactual_active
                         and not hparams.fixed_latent_strategy
                         and z_idx is not None
                     ):
@@ -1118,12 +1157,11 @@ class PPOUpdater:
                     stats["cf_to_ppo_grad_ratio"].append(cf_to_ppo_ratio)
                     actor_grad_diag_done = True
                 if v6i1_three_opt:
-                    phase, _, _, _ = v6i1_schedule_context(runtime)
                     runtime.actor_optimizer.zero_grad(set_to_none=True)
                     runtime.critic_optimizer.zero_grad(set_to_none=True)
                     runtime.router_optimizer.zero_grad(set_to_none=True)
                     total_loss = hparams.vf_coef * value_loss
-                    if phase != "B":
+                    if phase_policy.actor_step_enabled:
                         total_loss = total_loss + policy_loss + ent_coef * entropy_loss
                     if latent_loss.requires_grad:
                         total_loss = total_loss + latent_loss
@@ -1133,10 +1171,10 @@ class PPOUpdater:
                     strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
                     v6i1_grads = step_v6i1_optimizers(
                         runtime,
-                        phase=phase,
-                        actor_step=phase != "B",
-                        critic_step=True,
-                        router_step=phase in ("B", "C"),
+                        phase=phase_key,
+                        actor_step=phase_policy.actor_step_enabled,
+                        critic_step=phase_policy.critic_step_enabled,
+                        router_step=phase_policy.router_step_enabled,
                         max_grad_norm=float(cfg.max_grad_norm),
                     )
                     grad_norm = max(
@@ -1150,7 +1188,9 @@ class PPOUpdater:
                     loss.backward()
                     _assert_finite_gradients(model, epoch_idx=_epoch_idx, mb_idx=_mb_idx)
                     strategy_grad_norm = self.latent_state.strategy_encoder_grad_norm()
-                    grad_norm = _clip_global_grad_norm(model, float(cfg.max_grad_norm))
+                    grad_norm = clip_optimizer_grad_norm(
+                        self.optimizer, float(cfg.max_grad_norm)
+                    )
                     self.optimizer.step()
 
                 approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
@@ -1255,13 +1295,39 @@ class PPOUpdater:
                 )
                 stats["latent_actor_z_separation_train_active"].append(float(z_sep_train_active))
                 pair_jsd_batch = z_sep_stats.get("pair_jsd")
+                _valid_groups = z_sep_stats.get("cf_valid_team_groups", zero_scalar)
+                valid_groups_int = (
+                    int(_valid_groups.detach().cpu().item())
+                    if isinstance(_valid_groups, torch.Tensor)
+                    else int(_valid_groups or 0)
+                )
+                mb_measurement = measurement_from_pair_tensor(
+                    pair_jsd_batch,
+                    active_fraction=float(z_sep_stats["active"].detach().cpu().item()),
+                    valid_groups=valid_groups_int,
+                    reason=None if pair_jsd_batch is not None else "missing_pair_jsd",
+                )
+                stats["actor_intervention_measurement_valid"].append(
+                    1.0 if mb_measurement.valid else 0.0
+                )
+                if mb_measurement.valid and mb_measurement.values is not None:
+                    valid_cf_pair_measurements.append(mb_measurement.values)
+                    actor_intervention_valid_minibatches += 1
+                    last_invalid_reason_code = 0.0
+                elif mb_measurement.reason is not None:
+                    last_invalid_reason_code = _ACTOR_INTERVENTION_REASON_CODES.get(
+                        mb_measurement.reason, 99.0
+                    )
                 if pair_jsd_batch is not None:
-                    for _pair_idx in range(min(6, int(pair_jsd_batch.numel()))):
-                        stats[f"cf_batch_pair_jsd_{_pair_idx}"].append(
-                            float(pair_jsd_batch[_pair_idx].detach().cpu().item())
-                        )
+                    for _pair_idx in range(pair_count):
+                        if _pair_idx < int(pair_jsd_batch.numel()):
+                            stats[f"cf_batch_pair_jsd_{_pair_idx}"].append(
+                                float(pair_jsd_batch[_pair_idx].detach().cpu().item())
+                            )
+                        else:
+                            stats[f"cf_batch_pair_jsd_{_pair_idx}"].append(0.0)
                 else:
-                    for _pair_idx in range(6):
+                    for _pair_idx in range(pair_count):
                         stats[f"cf_batch_pair_jsd_{_pair_idx}"].append(0.0)
                 stats["cf_batch_pairs_below_margin"].append(
                     float(z_sep_stats.get("pairs_below_margin", zero_scalar).detach().cpu().item())
@@ -1298,11 +1364,14 @@ class PPOUpdater:
                 )
                 strategy_kl_value = float(strategy_ppo_stats["approx_kl"].detach().cpu().item())
                 stop_for_action = (
-                    target_kl is not None and approx_kl_value > 1.5 * float(target_kl)
+                    update_context.action_kl_stop_enabled
+                    and update_context.target_action_kl is not None
+                    and approx_kl_value > 1.5 * update_context.target_action_kl
                 )
                 stop_for_strategy = (
-                    strategy_target_kl is not None
-                    and strategy_kl_value > 1.5 * float(strategy_target_kl)
+                    update_context.strategy_kl_stop_enabled
+                    and update_context.target_strategy_kl is not None
+                    and strategy_kl_value > 1.5 * update_context.target_strategy_kl
                 )
                 if stop_for_action or stop_for_strategy:
                     stop_update = True
@@ -1369,7 +1438,7 @@ class PPOUpdater:
         runtime.last_stats["latent_actor_z_adapter_scale"] = float(curr_adapter_scale)
         runtime.last_stats["latent_actor_z_separation_coef"] = float(curr_sep_coef)
         if is_v6i1_staged_trainer(runtime):
-            phase, step_sched, t_a, nominal = v6i1_schedule_context(runtime)
+            phase = update_context.phase
             runtime.last_stats["v6i1_phase"] = float({"A": 0.0, "B": 1.0, "C": 2.0}.get(phase, -1.0))
             runtime.last_stats["v6i1_cf_coef_current"] = float(resolve_v6i1_cf_coef_current(runtime))
             runtime.last_stats["v6i1_usage_coef_current"] = float(resolve_v6i1_rollout_usage_coef(runtime))
@@ -1411,6 +1480,41 @@ class PPOUpdater:
             )
         else:
             runtime.last_stats["pairwise_profile_available"] = 0.0
+        if valid_cf_pair_measurements:
+            mean_pairs = torch.stack(valid_cf_pair_measurements).mean(dim=0)
+            roll_measurement = measurement_from_pair_tensor(
+                mean_pairs,
+                active_fraction=1.0,
+                valid_groups=len(valid_cf_pair_measurements),
+            )
+        else:
+            roll_measurement = measurement_from_pair_tensor(
+                None,
+                active_fraction=0.0,
+                valid_groups=0,
+                reason="no_valid_minibatch",
+            )
+        evidence = self._intervention_evidence.update(
+            runtime.latent_state,
+            roll_measurement,
+            cfg=runtime.cfg,
+            global_step=int(runtime.global_step),
+        )
+        runtime.last_stats["actor_intervention_gate_updated"] = (
+            1.0 if evidence.gate_updated else 0.0
+        )
+        runtime.last_stats["actor_intervention_valid_minibatches"] = float(
+            actor_intervention_valid_minibatches
+        )
+        runtime.last_stats["actor_intervention_invalid_reason_code"] = float(
+            last_invalid_reason_code
+        )
+        if "actor_intervention_measurement_valid" in stats:
+            runtime.last_stats["actor_intervention_measurement_valid"] = float(
+                np.mean(stats["actor_intervention_measurement_valid"])
+                if stats["actor_intervention_measurement_valid"]
+                else 0.0
+            )
         from rl.custom_ppo.v6i1_phase_runtime import v6i1_intervention_csv_stats
 
         runtime.last_stats.update(
@@ -1423,7 +1527,7 @@ class PPOUpdater:
         if is_v6i1_staged_trainer(runtime):
             from rl.custom_ppo.v6i1_cf_loss import v6i1_pair_suffix
 
-            for _pair_idx in range(6):
+            for _pair_idx in range(pair_count):
                 _suffix = v6i1_pair_suffix(_pair_idx)
                 _batch_key = f"cf_batch_pair_jsd_{_pair_idx}"
                 if _batch_key in runtime.last_stats:

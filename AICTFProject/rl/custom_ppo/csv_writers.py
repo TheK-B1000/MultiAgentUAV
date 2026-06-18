@@ -662,6 +662,34 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         fields.append(f"forced_z_pair_jsd_{suffix}")
         fields.append(f"pair_jsd_ema_{suffix}")
         fields.append(f"cf_batch_pair_jsd_{suffix}")
+    fields.extend(_v6i2_gate_metrics_fieldnames())
+    return fields
+
+
+def _v6i2_gate_metrics_fieldnames() -> list[str]:
+    """v6i2 dual-gate telemetry (zeroed unless gate_protocol_version is v6i2)."""
+    fields = [
+        "cf_pair_jsd_valid_updates",
+        "cf_pair_jsd_last_update_step",
+        "macro_pair_jsd_valid_updates",
+        "macro_pair_jsd_last_update_step",
+        "actor_intervention_consecutive_updates",
+        "actor_intervention_gate_update_pass",
+        "actor_intervention_consecutive_required",
+        "cf_pairs_above_actor_margin",
+        "cf_min_pair_ema",
+    ]
+    pair_suffixes = ("01", "02", "03", "12", "13", "23")
+    for idx in range(V6I1_INTERVENTION_PAIR_COUNT):
+        fields.append(f"cf_pair_jsd_{idx}")
+        fields.append(f"cf_pair_jsd_ema_{idx}")
+        fields.append(f"macro_pair_jsd_{idx}")
+        fields.append(f"macro_pair_jsd_ema_{idx}")
+    for suffix in pair_suffixes:
+        fields.append(f"cf_pair_jsd_{suffix}")
+        fields.append(f"cf_pair_jsd_ema_{suffix}")
+        fields.append(f"macro_pair_jsd_{suffix}")
+        fields.append(f"macro_pair_jsd_ema_{suffix}")
     return fields
 
 

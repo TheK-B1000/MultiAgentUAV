@@ -58,6 +58,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v5i8_repertoire_uniform_z,
     apply_plan_faithful_latent_v5i9_csia_guided_specialization,
     apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
     apply_plan_faithful_latent_no_entropy,
@@ -360,6 +361,12 @@ PRESET_REGISTRY = {
     "v6i1_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
     "v6i1_staged": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
     "v6i1": apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
+    # v6i2 dual-gate staged team-intent curriculum.
+    "plan_faithful_latent_v6i2_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
+    "latent_v6i2_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
+    "v6i2_staged_team_intent_curriculum": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
+    "v6i2_staged": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
+    "v6i2": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
     # v6i1 repertoire-only ablation (no staged controller).
     "plan_faithful_latent_v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
     "latent_v6i1_repertoire_only_ablation": apply_plan_faithful_latent_v6i1_repertoire_only_ablation,

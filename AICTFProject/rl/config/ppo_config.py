@@ -132,6 +132,28 @@ class PPOConfig:
     training_mode: str = "default"
     experiment_family: str = "v6"
     experiment_id: str = "v6i1"
+    # Gate promotion protocol (v6i1 = single macro intervention; v6i2 = dual evidence).
+    gate_protocol_version: str = "v6i1_single_macro_intervention"
+    phase_a_earliest_end_fraction: float = 0.40
+    phase_a_max_end_fraction: float = 0.55
+    phase_c_start_fraction: float = 0.70
+    # v6i2 actor-intervention track (CF-batch pair JSD EMA).
+    actor_jsd_margin: float = 0.001
+    actor_jsd_floor_fraction: float = 0.5
+    actor_jsd_min_passing_pairs: int = 5
+    actor_jsd_consecutive_updates: int = 3
+    actor_jsd_ema_decay: float = 0.10
+    # v6i2 macro-rollout supporting profile (forced-z rollout pair JSD EMA).
+    macro_jsd_margin: float = 0.0001
+    macro_jsd_floor_fraction: float = 0.5
+    macro_jsd_min_passing_pairs: int = 1
+    macro_jsd_ema_decay: float = 0.10
+    # v6i2 behavioral-realization matched-seed composite.
+    behavioral_realization_min_opponents_pass: int = 2
+    behavioral_realization_effect_threshold: float = 0.02
+    behavioral_realization_adverse_threshold: float = -0.01
+    behavioral_matched_seed_min_seeds_per_opponent: int = 20
+    curriculum_probe_min_examples: int = 10
     # V6I1 Phase B/C macro-router and rehearsal controls.
     v6i1_recurrent_selector_hidden: int = 32
     v6i1_macro_strategy_ppo_coef: float = 1.0

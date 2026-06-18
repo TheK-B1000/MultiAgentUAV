@@ -2127,6 +2127,40 @@ def apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i2 staged team-intent curriculum: dual actor/behavioral gate protocol.
+
+    Inherits the v6i1 actor, critic, router, CF objective, and A/B/C phase
+    schedule. Only the Phase A evidence and promotion protocol differs: Gate A
+    measures CF-batch actor intervention; Gate B composites matched-seed
+    behavioral realization (macro pair JSD is diagnostic only).
+    """
+    cfg = apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(cfg)
+
+    cfg.experiment_id = "v6i2"
+    cfg.gate_protocol_version = "v6i2_dual_evidence"
+    cfg.phase_a_max_end_fraction = 0.70
+    # Placeholders until calibration against λ_cf=0.01 / 1.0 baselines; freeze before confirmatory run.
+    cfg.actor_jsd_margin = 0.001
+    cfg.actor_jsd_floor_fraction = 0.5
+    cfg.actor_jsd_min_passing_pairs = 5
+    cfg.actor_jsd_consecutive_updates = 3
+    cfg.actor_jsd_ema_decay = 0.10
+    cfg.macro_jsd_margin = 0.0001
+    cfg.macro_jsd_floor_fraction = 0.5
+    cfg.macro_jsd_min_passing_pairs = 1
+    cfg.macro_jsd_ema_decay = 0.10
+    cfg.behavioral_realization_min_opponents_pass = 2
+    cfg.behavioral_realization_effect_threshold = 0.02
+    cfg.behavioral_realization_adverse_threshold = -0.01
+    cfg.behavioral_matched_seed_min_seeds_per_opponent = 20
+    cfg.curriculum_probe_min_examples = 10
+    cfg.run_tag = "v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i1_repertoire_only_ablation(
     cfg: PPOConfig,
 ) -> PPOConfig:
