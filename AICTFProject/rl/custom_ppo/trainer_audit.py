@@ -46,11 +46,17 @@ def log_input_dim_contract(trainer: "CustomPPOTrainer") -> None:
     m = trainer.model
     assert isinstance(m, SharedActorCentralizedCritic)
     dims = m.input_dim_contract()
+    q_phi_clause = f"q_phi_input_dim={dims['q_phi_input_dim']}"
+    if bool(getattr(m, "use_recurrent_selector", False)):
+        q_phi_clause += (
+            f" (ctx{dims['temporal_context_dim']}"
+            f"+selector_h{int(m.recurrent_selector_hidden_dim)})"
+        )
     print(
         "[PPO] Input dims: "
         f"base_global_state_dim={dims['base_global_state_dim']} "
         f"temporal_context_dim={dims['temporal_context_dim']} "
-        f"q_phi_input_dim={dims['q_phi_input_dim']} "
+        f"{q_phi_clause} "
         f"critic_context_dim={dims['critic_context_dim']} "
         f"actor_input_dim={dims['actor_input_dim']}"
     )

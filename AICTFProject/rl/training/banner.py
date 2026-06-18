@@ -49,6 +49,7 @@ from rl.curriculum import CurriculumState
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import CONTEXT_STATE_DIM
 from rl.training.run_artifacts import _metrics_csv_nonempty
+from rl.custom_ppo.trainer_config import resolve_q_phi_input_dim_from_cfg
 
 
 def print_training_banner(
@@ -71,7 +72,7 @@ def print_training_banner(
     base_gs_dim = GLOBAL_STATE_DIM
     use_latent = bool(getattr(cfg, "use_latent_strategy", False))
     temp_ctx_dim = CONTEXT_STATE_DIM if use_latent else 0
-    q_phi_dim = CONTEXT_STATE_DIM if use_latent else 0
+    q_phi_dim = resolve_q_phi_input_dim_from_cfg(cfg)
     crit_dim = CONTEXT_STATE_DIM if use_latent else GLOBAL_STATE_DIM
     actor_cnn_feat = int(getattr(cfg, "actor_cnn_feature_dim", 128))
     z_embed = int(getattr(cfg, "latent_z_embed_dim", 16))

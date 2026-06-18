@@ -26,6 +26,8 @@ from rl.custom_ppo.v6i1_phase_runtime import (
     resolve_v6i1_episode_forced_frac,
     resolve_v6i1_rollout_usage_coef,
 )
+from rl.custom_ppo.trainer_config import resolve_q_phi_input_dim_from_cfg
+from rl.latent_marl import CONTEXT_STATE_DIM
 from rl.presets import apply_preset
 from rl.training.banner import _episode_credit_training_active, _print_latent_strategy_banner
 
@@ -88,6 +90,52 @@ class V6I1PresetTests(unittest.TestCase):
     def test_repertoire_ablation_does_not_activate_staged_controller(self) -> None:
         cfg = apply_preset(PPOConfig(), "v6i1_repertoire_only_ablation")
         self.assertFalse(is_staged_v6i1_curriculum(cfg))
+
+
+class V6I1RouterInputContractTests(unittest.TestCase):
+    def test_staged_preset_adds_recurrent_selector_hidden_to_q_phi_input(self) -> None:
+        cfg = apply_preset(PPOConfig(), "v6i1")
+        hidden = int(cfg.v6i1_recurrent_selector_hidden)
+        self.assertEqual(
+            resolve_q_phi_input_dim_from_cfg(cfg),
+            int(CONTEXT_STATE_DIM) + hidden,
+        )
+
+    def test_trainer_model_matches_resolved_q_phi_input_dim(self) -> None:
+        cfg = _v6i1_smoke_cfg()
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                max_decision_steps=64,
+                device="cpu",
+                seed=0,
+                map_layout=cfg.map_layout,
+            )
+        )
+        try:
+            trainer = CustomPPOTrainer(
+                env,
+                cfg,
+                learning_rate=3e-4,
+                clip_range=0.2,
+                ent_coef=0.01,
+                n_epochs=1,
+                batch_size=16,
+                value_clip_range=0.2,
+            )
+            self.assertTrue(bool(trainer.model.use_recurrent_selector))
+            self.assertEqual(
+                int(trainer.model.q_phi_input_dim),
+                resolve_q_phi_input_dim_from_cfg(cfg),
+            )
+            self.assertEqual(int(trainer.model.global_state_dim), int(CONTEXT_STATE_DIM))
+        finally:
+            env.close()
+
+    def test_repertoire_ablation_keeps_q_phi_input_at_ctx_only(self) -> None:
+        cfg = apply_preset(PPOConfig(), "v6i1_repertoire_only_ablation")
+        self.assertEqual(resolve_q_phi_input_dim_from_cfg(cfg), int(CONTEXT_STATE_DIM))
         self.assertEqual(cfg.training_mode, "repertoire_only_ablation")
         self.assertEqual(cfg.latent_forced_z_episode_frac_start, 1.0)
 

@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
+from rl.latent_marl import CONTEXT_STATE_DIM
 
 
 @dataclass(frozen=True)
@@ -687,6 +688,21 @@ class TrainerHyperparams:
             opponent_pool_weights=opp_weights,
         )
 
+def resolve_q_phi_input_dim_from_cfg(cfg: Any) -> int:
+    """Resolved q_phi / strategy_encoder input width before the model is built.
+
+    Matches ``SharedActorCentralizedCritic`` + ``build_model_kwargs``: ctx170
+    for all latent runs, plus ``v6i1_recurrent_selector_hidden`` when the staged
+    V6I1 curriculum mounts the recurrent selector GRU.
+    """
+    if not bool(getattr(cfg, "use_latent_strategy", False)):
+        return 0
+    dim = int(CONTEXT_STATE_DIM)
+    if is_staged_v6i1_curriculum(cfg):
+        dim += int(getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32)
+    return dim
+
+
 def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
     """Compose ``SharedActorCentralizedCritic`` kwargs from cfg + hparams.
 
@@ -780,4 +796,4 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
     return model_kwargs
 
 
-__all__ = ["TrainerHyperparams", "build_model_kwargs"]
+__all__ = ["TrainerHyperparams", "build_model_kwargs", "resolve_q_phi_input_dim_from_cfg"]
