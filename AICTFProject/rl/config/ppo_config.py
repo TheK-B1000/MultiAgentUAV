@@ -55,7 +55,7 @@ class PPOConfig:
     metrics_csv_path: Optional[str] = None
     episode_csv_path: Optional[str] = None
     strategy_experience_csv_path: Optional[str] = None
-    # If True before training, existing non-empty metrics/episode CSVs are rotated aside so a new run
+    # If True before training, existing non-empty telemetry CSVs are rotated aside so a new run
     # does not append duplicate timesteps under the same --run-tag.
     fresh_metrics_csv: bool = False
     # Set from CLI ``--preset`` only (reproducibility / run_config.json); behavior is already merged into fields below.

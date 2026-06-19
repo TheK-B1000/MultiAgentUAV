@@ -191,6 +191,21 @@ def _resolve_metrics_csv_paths(cfg: PPOConfig) -> None:
         cfg.latent_v3i3_refresh_log_path = None
 
 
+def _rotate_fresh_run_telemetry(cfg: PPOConfig) -> None:
+    """Rotate telemetry files that would otherwise be appended on a fresh run."""
+    if not (bool(getattr(cfg, "enable_metrics_csv", True)) and cfg.fresh_metrics_csv):
+        return
+    _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
+    _rotate_csv_aside(cfg.episode_csv_path, label="episode")
+    _rotate_csv_aside(cfg.strategy_experience_csv_path, label="strategy experience")
+    _rotate_csv_aside(
+        getattr(cfg, "latent_v3i3_refresh_log_path", None), label="v3i3 refresh log"
+    )
+    _rotate_csv_aside(
+        getattr(cfg, "e3_step_telemetry_path", None), label="E3 step telemetry"
+    )
+
+
 def _clamp_runtime_config_for_team_size(cfg: PPOConfig, max_agents: int) -> None:
     """Reduce rollout / episode-length knobs for the 6v6 / 8v8 memory profile."""
     if max_agents == 6:
@@ -233,13 +248,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     )
 
     run_lock = _acquire_run_lock(cfg)
-    if bool(getattr(cfg, "enable_metrics_csv", True)) and cfg.fresh_metrics_csv:
-        _rotate_csv_aside(cfg.metrics_csv_path, label="metrics")
-        _rotate_csv_aside(cfg.episode_csv_path, label="episode")
-        _rotate_csv_aside(cfg.strategy_experience_csv_path, label="strategy experience")
-        _rotate_csv_aside(
-            getattr(cfg, "latent_v3i3_refresh_log_path", None), label="v3i3 refresh log"
-        )
+    _rotate_fresh_run_telemetry(cfg)
     try:
         rc_path = write_run_config_json(cfg)
         print(f"[PPO] Run config written: {rc_path}")

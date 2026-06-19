@@ -34,6 +34,7 @@ from rl.train_ppo import (
     _acquire_run_lock,
     _apply_training_preset,
     _gpu_env_reward_kwargs,
+    _rotate_fresh_run_telemetry,
     _strip_eval_only_opponents_from_training_pool,
     train_ppo,
 )
@@ -450,6 +451,37 @@ class TrainPpoSmokeTests(unittest.TestCase):
         finally:
             if path.exists():
                 path.unlink()
+
+    def test_fresh_metrics_rotates_e3_step_telemetry_csv(self) -> None:
+        _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)
+        tag = "fresh_rotates_e3"
+        paths = {
+            "metrics": _WORKSPACE_TMP / f"{tag}_metrics.csv",
+            "episode": _WORKSPACE_TMP / f"{tag}_episodes.csv",
+            "e3": _WORKSPACE_TMP / f"{tag}_e3_steps.csv",
+        }
+        try:
+            for path in paths.values():
+                path.write_text("a,b\n1,2\n", encoding="utf-8")
+            cfg = PPOConfig()
+            cfg.enable_metrics_csv = True
+            cfg.fresh_metrics_csv = True
+            cfg.metrics_csv_path = str(paths["metrics"])
+            cfg.episode_csv_path = str(paths["episode"])
+            cfg.strategy_experience_csv_path = None
+            cfg.e3_step_telemetry_path = str(paths["e3"])
+
+            _rotate_fresh_run_telemetry(cfg)
+
+            for path in paths.values():
+                self.assertFalse(path.exists())
+                self.assertTrue(list(path.parent.glob(f"{path.name}.bak.*")))
+        finally:
+            for path in paths.values():
+                if path.exists():
+                    path.unlink()
+                for bak in path.parent.glob(f"{path.name}.bak.*"):
+                    bak.unlink()
 
     def test_run_lock_blocks_duplicate_run_tag(self) -> None:
         _WORKSPACE_TMP.mkdir(parents=True, exist_ok=True)

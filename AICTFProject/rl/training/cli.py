@@ -68,7 +68,7 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--fresh-metrics-csv",
         action="store_true",
-        help="Rotate aside existing metrics/episode CSVs for this run_tag so telemetry is not appended.",
+        help="Rotate aside existing metrics/episode/E3 CSVs for this run_tag so telemetry is not appended.",
     )
     parser.add_argument("--load", type=str, default=None)
     parser.add_argument("--learning-rate", type=float, default=None, help="PPO learning rate.")
