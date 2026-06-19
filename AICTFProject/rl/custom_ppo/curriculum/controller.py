@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Any, Optional
 
 import torch
@@ -42,6 +43,8 @@ from rl.custom_ppo.curriculum.types import (
     GateFamilyResult,
     GateMode,
     GateResult,
+    GATE_STATUS_FAIL,
+    GATE_STATUS_NOT_RUN,
     all_required_families_passed,
 )
 from rl.custom_ppo.gate_protocol import (
@@ -85,6 +88,31 @@ def _build_online_report(online_results: dict[str, GateResult]) -> dict[str, Any
         report.update(result.details)
         report[f"{name}_status"] = result.status
     return report
+
+
+def _not_run(reason: str, details: dict[str, Any] | None = None) -> GateFamilyResult:
+    return GateFamilyResult(
+        status=GATE_STATUS_NOT_RUN,
+        reason=reason,
+        details=dict(details or {}),
+    )
+
+
+def _failed(reason: str, details: dict[str, Any] | None = None) -> GateFamilyResult:
+    return GateFamilyResult(
+        status=GATE_STATUS_FAIL,
+        reason=reason,
+        details=dict(details or {}),
+    )
+
+
+def _remove_file_if_exists(path: str) -> bool:
+    if not path:
+        return False
+    if not os.path.exists(path):
+        return False
+    os.remove(path)
+    return True
 
 
 class V6I1CurriculumController:
@@ -178,8 +206,25 @@ class V6I1CurriculumController:
             gate_results[name] = _to_family_result(result)
         return _build_online_report(online_raw)
 
-    def _evaluate_behavioral_realization_gate(self, context: GateContext | None = None) -> GateFamilyResult:
+    def _evaluate_behavioral_realization_gate(
+        self,
+        context: GateContext | None = None,
+        *,
+        deadline_monotonic: float | None = None,
+        progress_path: str | None = None,
+        progress_interval_seconds: float = 60.0,
+    ) -> GateFamilyResult:
         ctx = context or self._make_eval_context()
+        evaluator = getattr(self.protocol, "_evaluate_behavioral_realization", None)
+        if callable(evaluator):
+            return _to_family_result(
+                evaluator(
+                    ctx,
+                    deadline_monotonic=deadline_monotonic,
+                    progress_path=progress_path,
+                    progress_interval_seconds=progress_interval_seconds,
+                )
+            )
         boundary_raw = self.protocol.evaluate_boundary(ctx)
         return _to_family_result(boundary_raw["behavioral_realization"])
 
@@ -190,6 +235,47 @@ class V6I1CurriculumController:
     def _run_learnability_probe(self, context: GateContext | None = None) -> GateFamilyResult:
         ctx = context or self._make_eval_context()
         return _to_family_result(run_learnability_probe(ctx))
+
+    def _phase_a_progress_path(self, step: int) -> str:
+        report_dir = os.path.join(self.cfg.checkpoint_dir, "phase_a_gate_reports")
+        return os.path.join(report_dir, f"gate_step_{int(step)}_progress.json")
+
+    def _online_prerequisites_failure(
+        self,
+        gate_results: dict[str, GateFamilyResult],
+        online_report: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        required = ("coverage", "competence", "training_integrity")
+        if not is_v6i2_dual_evidence_protocol(self.cfg):
+            required = required + ("counterfactual_intervention",)
+
+        failed = {}
+        for name in required:
+            result = gate_results.get(name)
+            if result is None:
+                failed[name] = GATE_STATUS_NOT_RUN
+            elif result.status != "PASS":
+                failed[name] = result.status
+        if failed:
+            return {"failed_online_gate_statuses": failed}
+
+        return None
+
+    def _mark_actor_intervention_gate_skipped(self, step: int) -> None:
+        state = getattr(self.trainer, "latent_state", None)
+        if state is None:
+            return
+        marker = getattr(state, "mark_actor_intervention_gate_skipped", None)
+        if callable(marker):
+            marker(int(step))
+            return
+        last_skip = int(getattr(state, "actor_intervention_last_skipped_gate_step", -1) or -1)
+        if last_skip == int(step):
+            return
+        state.actor_intervention_skipped_gate_count = int(
+            getattr(state, "actor_intervention_skipped_gate_count", 0) or 0
+        ) + 1
+        state.actor_intervention_last_skipped_gate_step = int(step)
 
     def state_dict(self) -> dict[str, Any]:
         return {
@@ -309,35 +395,147 @@ class V6I1CurriculumController:
             )
 
             candidate_ckpt = os.path.join(self.cfg.checkpoint_dir, f"ckpt_candidate_{step}.zip")
-            self.trainer.save(candidate_ckpt)
-            self.protected_candidate_checkpoints.append(candidate_ckpt)
-            print(f"[Curriculum Controller] Protected candidate: {candidate_ckpt}")
+            candidate_saved = False
 
             gate_results: dict[str, GateFamilyResult] = {}
+            gate_started = time.monotonic()
+            max_seconds = float(getattr(self.cfg, "phase_a_gate_max_seconds", 900) or 0.0)
+            deadline = gate_started + max_seconds if max_seconds > 0.0 else None
+            progress_interval = float(
+                getattr(self.cfg, "phase_a_gate_progress_interval_seconds", 60) or 60
+            )
+            progress_path = self._phase_a_progress_path(step)
             online_report = self._evaluate_online_gates(gate_results, context)
             from rl.forced_z_behavior_vectors import phase_a_stats_snapshot
 
             last_stats = dict(getattr(self.trainer, "last_stats", {}) or {})
             online_report.update(phase_a_stats_snapshot(last_stats, gate_step=step))
-            if is_v6i2_dual_evidence_protocol(self.cfg):
-                matched_result = self._evaluate_behavioral_realization_gate(context)
-                gate_results["behavioral_realization"] = matched_result
-            else:
-                matched_result = self._run_matched_seed_eval(context)
-                gate_results["matched_seed_behavior"] = matched_result
-            probe_result = self._run_learnability_probe(context)
-            gate_results["selector_learnability_probe"] = probe_result
 
             families = self.active_families
             mode = GateMode.normalize(str(getattr(self.cfg, "phase_boundary_gate_mode", "enforce")))
             boundary_enabled = bool(getattr(self.cfg, "curriculum_gate_run_boundary_eval", False))
             probe_enabled = bool(getattr(self.cfg, "curriculum_gate_run_probe", False))
+            selector_blocks_phase_a = bool(
+                getattr(self.cfg, "curriculum_gate_selector_blocks_phase_a", False)
+            )
+            matched_family = (
+                "behavioral_realization"
+                if is_v6i2_dual_evidence_protocol(self.cfg)
+                else "matched_seed_behavior"
+            )
+            if selector_blocks_phase_a and probe_enabled:
+                families = tuple(dict.fromkeys((*families, "selector_learnability_probe")))
+            matched_result = _not_run("not_evaluated")
+            probe_result = _not_run("selector_probe_phase_a_diagnostic_only")
+            prereq_failure = (
+                self._online_prerequisites_failure(gate_results, online_report)
+                if boundary_enabled
+                else None
+            )
+            if not boundary_enabled:
+                matched_result = _not_run("curriculum_gate_run_boundary_eval=false")
+                probe_result = _not_run(
+                    "curriculum_gate_run_probe=false"
+                    if not probe_enabled
+                    else "selector_probe_phase_a_diagnostic_only"
+                )
+            elif prereq_failure is not None:
+                self._mark_actor_intervention_gate_skipped(step)
+                matched_result = _not_run(
+                    "online_prerequisites_failed",
+                    {
+                        **prereq_failure,
+                        "behavior_evidence_status": "paused_prerequisites_failed",
+                        "resume_training": True,
+                    },
+                )
+                probe_result = _not_run("skipped_expensive_gate_prerequisites_failed", prereq_failure)
+                atomic_write_json(
+                    progress_path,
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "gate_status": "skipped_prerequisites_failed",
+                        "global_step": step,
+                        "promotion": False,
+                        "resume_training": True,
+                        "elapsed_seconds": round(time.monotonic() - gate_started, 3),
+                        **prereq_failure,
+                    },
+                )
+            elif deadline is not None and time.monotonic() >= deadline:
+                matched_result = _failed(
+                    "inconclusive_timeout",
+                    {
+                        "timed_out": True,
+                        "phase_a_gate_max_seconds": max_seconds,
+                        "resume_training": True,
+                    },
+                )
+                atomic_write_json(
+                    progress_path,
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "gate_status": "inconclusive_timeout",
+                        "global_step": step,
+                        "promotion": False,
+                        "resume_training": True,
+                        "elapsed_seconds": round(time.monotonic() - gate_started, 3),
+                    },
+                )
+            else:
+                self.trainer.save(candidate_ckpt)
+                candidate_saved = True
+                self.protected_candidate_checkpoints.append(candidate_ckpt)
+                print(f"[Curriculum Controller] Protected candidate: {candidate_ckpt}")
+
+            if (
+                boundary_enabled
+                and prereq_failure is None
+                and matched_result.reason == "not_evaluated"
+                and is_v6i2_dual_evidence_protocol(self.cfg)
+            ):
+                matched_result = self._evaluate_behavioral_realization_gate(
+                    context,
+                    deadline_monotonic=deadline,
+                    progress_path=progress_path,
+                    progress_interval_seconds=progress_interval,
+                )
+            elif (
+                boundary_enabled
+                and prereq_failure is None
+                and matched_result.reason == "not_evaluated"
+            ):
+                matched_result = self._run_matched_seed_eval(context)
+            gate_results[matched_family] = matched_result
+
+            if boundary_enabled and prereq_failure is None:
+                if selector_blocks_phase_a and probe_enabled:
+                    if deadline is not None and time.monotonic() >= deadline:
+                        probe_result = _not_run(
+                            "skipped_selector_probe_gate_budget_expired",
+                            {
+                                "timed_out": True,
+                                "phase_a_gate_max_seconds": max_seconds,
+                                "resume_training": True,
+                            },
+                        )
+                    else:
+                        probe_result = self._run_learnability_probe(context)
+                elif probe_enabled:
+                    probe_result = _not_run(
+                        "selector_probe_phase_a_diagnostic_only",
+                        {"curriculum_gate_selector_blocks_phase_a": False},
+                    )
+                else:
+                    probe_result = _not_run("curriculum_gate_run_probe=false")
+            gate_results["selector_learnability_probe"] = probe_result
+
             gate_passed = all_required_families_passed(gate_results, families=families)
             promotion_allowed = mode == GateMode.ENFORCE.value
             should_promote = promotion_allowed and gate_passed
-            if should_promote and not (boundary_enabled and probe_enabled):
+            if should_promote and not boundary_enabled:
                 raise RuntimeError(
-                    "Internal error: Phase A promotion requested without full heavy gate configuration."
+                    "Internal error: Phase A promotion requested without boundary evaluation enabled."
                 )
             overall_passed = gate_passed
 
@@ -353,7 +551,7 @@ class V6I1CurriculumController:
             attempt = GateAttempt(
                 global_step=step,
                 phase=self.phase,
-                checkpoint=candidate_ckpt,
+                checkpoint=candidate_ckpt if candidate_saved else "",
                 gate_protocol_version=self.protocol_version,
                 required_families=families,
                 mode=mode,
@@ -431,6 +629,16 @@ class V6I1CurriculumController:
                 write_gate_report(self.cfg, step, report)
                 promoted = True
             else:
+                keep_failed = bool(
+                    getattr(self.cfg, "curriculum_keep_failed_gate_candidates", False)
+                )
+                if candidate_saved and not keep_failed:
+                    removed = _remove_file_if_exists(candidate_ckpt)
+                    if candidate_ckpt in self.protected_candidate_checkpoints:
+                        self.protected_candidate_checkpoints.remove(candidate_ckpt)
+                    report["candidate_checkpoint_removed"] = bool(removed)
+                    report["checkpoint"] = ""
+                    write_gate_report(self.cfg, step, report)
                 print("[Curriculum Controller] Phase A continues.")
 
         self.last_gate_step_run = step

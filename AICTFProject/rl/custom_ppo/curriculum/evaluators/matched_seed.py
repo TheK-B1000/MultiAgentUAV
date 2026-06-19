@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -10,6 +11,7 @@ import torch
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.curriculum.context import GateContext, preserve_model_training_mode
+from rl.custom_ppo.curriculum.reporting import atomic_write_json
 from rl.custom_ppo.curriculum.types import (
     GATE_STATUS_ERROR,
     GATE_STATUS_NOT_RUN,
@@ -19,6 +21,14 @@ from rl.custom_ppo.curriculum.types import (
 
 _DEFAULT_OPPONENTS: tuple[str, ...] = ("OP5", "OP6", "OP7")
 _DEFAULT_SEEDS: tuple[int, ...] = tuple(range(2000, 2020))
+
+
+class GateEvaluationTimeout(RuntimeError):
+    """Raised when an online gate evaluator exceeds its wall-clock budget."""
+
+    def __init__(self, details: dict[str, Any]):
+        super().__init__("inconclusive_timeout")
+        self.details = dict(details)
 
 
 @dataclass
@@ -43,6 +53,40 @@ class MatchedSeedEvalConfig:
             seeds=seeds,
             max_episode_steps=int(getattr(cfg, "curriculum_gate_matched_seed_max_steps", 120)),
         )
+
+    @classmethod
+    def online_from_cfg(cls, cfg: PPOConfig) -> MatchedSeedEvalConfig:
+        base = cls.from_cfg(cfg)
+        seed_count = int(getattr(cfg, "curriculum_gate_online_matched_seed_count", 5) or 5)
+        max_steps = int(getattr(cfg, "curriculum_gate_online_matched_seed_max_steps", 64) or 64)
+        base.seeds = base.seeds[: max(0, seed_count)]
+        base.max_episode_steps = max_steps
+        return base
+
+
+def _format_matched_seed_progress(label: str, current: int, total: int) -> str:
+    return f"[Matched Seed Eval] {label} {int(current)}/{int(total)}"
+
+
+def _print_matched_seed_progress(label: str, current: int, total: int) -> None:
+    print(_format_matched_seed_progress(label, current, total), flush=True)
+
+
+def _maybe_write_progress(
+    *,
+    progress_path: str | None,
+    payload: dict[str, Any],
+    force: bool,
+    last_write_at: float,
+    interval_seconds: float,
+) -> float:
+    if not progress_path:
+        return last_write_at
+    now = time.monotonic()
+    if not force and (now - last_write_at) < float(interval_seconds):
+        return last_write_at
+    atomic_write_json(progress_path, payload)
+    return now
 
 
 def capture_reset_state(core: Any, info: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -102,6 +146,10 @@ def _aggregate_seed_metrics(
 def collect_matched_seed_metrics(
     context: GateContext,
     config: MatchedSeedEvalConfig | None = None,
+    *,
+    deadline_monotonic: float | None = None,
+    progress_path: str | None = None,
+    progress_interval_seconds: float = 60.0,
 ) -> tuple[dict[str, Any], bool]:
     """Run matched-seed forced-z rollouts; return per-opponent metrics and mismatch flag."""
     from rl.training.env_factory import build_training_env
@@ -110,6 +158,58 @@ def collect_matched_seed_metrics(
     latent_k = int(context.latent_k)
     op_reports: dict[str, Any] = {}
     any_reset_mismatch = False
+    total_opponents = len(eval_config.opponents)
+    total_seeds = len(eval_config.seeds)
+    total_branches = max(1, total_opponents * total_seeds * latent_k)
+    branches_done = 0
+    started_at = time.monotonic()
+    last_progress_write = 0.0
+
+    def _progress_payload(
+        *,
+        stage: str,
+        opponent_index: int,
+        seed_index: int,
+        z_index: int,
+        opponent: str | None,
+    ) -> dict[str, Any]:
+        elapsed = time.monotonic() - started_at
+        return {
+            "stage": stage,
+            "global_step": int(context.step),
+            "opponent_index": int(opponent_index),
+            "opponent_total": int(total_opponents),
+            "seed_index": int(seed_index),
+            "seed_total": int(total_seeds),
+            "z_index": int(z_index),
+            "z_total": int(latent_k),
+            "branches_done": int(branches_done),
+            "branches_total": int(total_branches),
+            "elapsed_seconds": float(elapsed),
+            "deadline_seconds_remaining": (
+                max(0.0, float(deadline_monotonic) - time.monotonic())
+                if deadline_monotonic is not None
+                else None
+            ),
+            "opponent": opponent,
+        }
+
+    def _check_deadline(payload: dict[str, Any]) -> None:
+        if deadline_monotonic is None:
+            return
+        if time.monotonic() <= float(deadline_monotonic):
+            return
+        timeout_payload = dict(payload)
+        timeout_payload["gate_status"] = "inconclusive_timeout"
+        timeout_payload["timed_out"] = True
+        _maybe_write_progress(
+            progress_path=progress_path,
+            payload=timeout_payload,
+            force=True,
+            last_write_at=last_progress_write,
+            interval_seconds=progress_interval_seconds,
+        )
+        raise GateEvaluationTimeout(timeout_payload)
 
     eval_cfg = PPOConfig()
     for key, value in context.cfg.__dict__.items():
@@ -117,20 +217,67 @@ def collect_matched_seed_metrics(
     eval_cfg.n_envs = 1
 
     with preserve_model_training_mode(context.eval_model):
-        for opp in eval_config.opponents:
+        for opp_index, opp in enumerate(eval_config.opponents, start=1):
+            payload = _progress_payload(
+                stage="behavioral",
+                opponent_index=opp_index,
+                seed_index=0,
+                z_index=0,
+                opponent=opp,
+            )
+            _check_deadline(payload)
+            last_progress_write = _maybe_write_progress(
+                progress_path=progress_path,
+                payload=payload,
+                force=opp_index == 1,
+                last_write_at=last_progress_write,
+                interval_seconds=progress_interval_seconds,
+            )
+            _print_matched_seed_progress("opponent", opp_index, total_opponents)
             env = build_training_env(eval_cfg, initial_phase="PHASE1", initial_opponent_tag=opp)
             route_dists: list[float] = []
             behavior_dists: list[float] = []
             wr_by_z: dict[int, list[float]] = {z: [] for z in range(latent_k)}
             valid_seed_count = 0
             try:
-                for seed in eval_config.seeds:
+                for seed_index, seed in enumerate(eval_config.seeds, start=1):
+                    payload = _progress_payload(
+                        stage="behavioral",
+                        opponent_index=opp_index,
+                        seed_index=seed_index,
+                        z_index=0,
+                        opponent=opp,
+                    )
+                    _check_deadline(payload)
+                    last_progress_write = _maybe_write_progress(
+                        progress_path=progress_path,
+                        payload=payload,
+                        force=False,
+                        last_write_at=last_progress_write,
+                        interval_seconds=progress_interval_seconds,
+                    )
+                    _print_matched_seed_progress("seed", seed_index, total_seeds)
                     reset_states: list[dict[str, Any]] = []
                     traj_pos: dict[int, np.ndarray] = {}
                     traj_beh: dict[int, np.ndarray] = {}
                     seed_mismatch = False
 
                     for z_val in range(latent_k):
+                        payload = _progress_payload(
+                            stage="behavioral",
+                            opponent_index=opp_index,
+                            seed_index=seed_index,
+                            z_index=int(z_val) + 1,
+                            opponent=opp,
+                        )
+                        _check_deadline(payload)
+                        last_progress_write = _maybe_write_progress(
+                            progress_path=progress_path,
+                            payload=payload,
+                            force=False,
+                            last_write_at=last_progress_write,
+                            interval_seconds=progress_interval_seconds,
+                        )
                         torch.manual_seed(seed)
                         np.random.seed(seed)
                         if hasattr(env, "seed"):
@@ -157,6 +304,16 @@ def collect_matched_seed_metrics(
                             history_pos.append((bx, by))
                             history_beh.append(float(info0.get("dense_reward", 0.0)))
                             step_i += 1
+                            if step_i % 16 == 0:
+                                _check_deadline(
+                                    _progress_payload(
+                                        stage="behavioral",
+                                        opponent_index=opp_index,
+                                        seed_index=seed_index,
+                                        z_index=int(z_val) + 1,
+                                        opponent=opp,
+                                    )
+                                )
                         er = (infos[0].get("episode_result", infos[0]) if infos else {}) or {}
                         bs = int(er.get("blue_score", core.blue_score[0].item()))
                         rs = int(er.get("red_score", core.red_score[0].item()))
@@ -164,6 +321,21 @@ def collect_matched_seed_metrics(
                         traj_pos[z_val] = np.asarray(history_pos, dtype=np.float64)
                         traj_beh[z_val] = np.asarray(history_beh, dtype=np.float64)
                         wr_by_z[z_val].append(1.0 if blue_won else 0.0)
+                        branches_done += 1
+                        _print_matched_seed_progress("branches", branches_done, total_branches)
+                        last_progress_write = _maybe_write_progress(
+                            progress_path=progress_path,
+                            payload=_progress_payload(
+                                stage="behavioral",
+                                opponent_index=opp_index,
+                                seed_index=seed_index,
+                                z_index=int(z_val) + 1,
+                                opponent=opp,
+                            ),
+                            force=False,
+                            last_write_at=last_progress_write,
+                            interval_seconds=progress_interval_seconds,
+                        )
 
                     if reset_states and any(s != reset_states[0] for s in reset_states[1:]):
                         print(
@@ -207,6 +379,20 @@ def collect_matched_seed_metrics(
             finally:
                 env.close()
 
+    _maybe_write_progress(
+        progress_path=progress_path,
+        payload={
+            "stage": "behavioral",
+            "global_step": int(context.step),
+            "gate_status": "complete",
+            "branches_done": int(branches_done),
+            "branches_total": int(total_branches),
+            "elapsed_seconds": float(time.monotonic() - started_at),
+        },
+        force=True,
+        last_write_at=last_progress_write,
+        interval_seconds=progress_interval_seconds,
+    )
     return op_reports, any_reset_mismatch
 
 
@@ -247,6 +433,8 @@ def evaluate_matched_seed_behavior(context: GateContext) -> GateResult:
 
 __all__ = [
     "MatchedSeedEvalConfig",
+    "GateEvaluationTimeout",
+    "_format_matched_seed_progress",
     "capture_reset_state",
     "collect_matched_seed_metrics",
     "evaluate_matched_seed_behavior",

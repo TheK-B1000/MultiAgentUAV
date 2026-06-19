@@ -304,6 +304,10 @@ class SeparationObjective:
                 margin=cf_margin,
                 competence=competence,
                 competence_ready=bool(competence_ready),
+                weak_pair_ema=getattr(self.latent_state, "cf_pair_jsd_ema", None),
+                weak_pair_boost=float(getattr(self.cfg, "latent_cf_weak_pair_boost", 0.0) or 0.0),
+                worst_pair_coef=float(getattr(self.cfg, "latent_cf_worst_pair_coef", 0.0) or 0.0),
+                require_competence=bool(getattr(self.cfg, "latent_cf_require_competence", False)),
                 subsample_generator=self.subsample_generator,
             )
         else:

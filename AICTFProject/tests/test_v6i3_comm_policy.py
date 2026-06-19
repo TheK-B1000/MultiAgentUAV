@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 import unittest
 
 import numpy as np
 import torch
+import torch.nn as nn
 from gymnasium import spaces
 
 from rl.config.ppo_config import PPOConfig
@@ -14,6 +16,9 @@ from rl.custom_ppo.communication.listener import receiver_macro_jsd_by_message
 from rl.custom_ppo.communication.observation import inject_message_grid_channels
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
 from rl.custom_ppo.trainer_optimizers import collect_actor_parameters
+from rl.custom_ppo.update.minibatch_updater import combine_action_and_message_log_probs
+from rl.custom_ppo.update.optimizer_stepper import ThreeOptimizerStepper
+from rl.custom_ppo.update.phase_policy import PhaseTrainingPolicy
 
 
 def _base_obs_space(*, n_agents: int = 4, c: int = 7) -> spaces.Dict:
@@ -317,6 +322,72 @@ class CommPolicyTests(unittest.TestCase):
             float(p.grad.norm().item()) for p in model.message_head.parameters() if p.grad is not None
         )
         self.assertEqual(grad_norm2, 0.0)
+
+    def test_message_logprob_combined_once_for_ppo_ratio(self) -> None:
+        action_lp = torch.tensor([1.0, 2.0])
+        old_action_lp = torch.tensor([0.5, 1.5])
+        message_lp = torch.tensor([0.25, 0.75])
+        old_message_lp = torch.tensor([0.10, 0.20])
+
+        new_lp, old_lp = combine_action_and_message_log_probs(
+            action_log_prob=action_lp,
+            old_action_log_prob=old_action_lp,
+            message_log_prob=message_lp,
+            old_message_log_prob=old_message_lp,
+        )
+
+        torch.testing.assert_close(new_lp, action_lp + message_lp)
+        torch.testing.assert_close(old_lp, old_action_lp + old_message_lp)
+        self.assertFalse(torch.allclose(new_lp, action_lp + 2.0 * message_lp))
+
+    def test_three_optimizer_stepper_uses_composed_actor_loss(self) -> None:
+        class TinyModel(nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.actor_param = nn.Parameter(torch.tensor(1.0))
+                self.critic_param = nn.Parameter(torch.tensor(1.0))
+                self.router_param = nn.Parameter(torch.tensor(1.0))
+
+        class TinyLatentState:
+            def strategy_encoder_grad_norm(self) -> float:
+                return 0.0
+
+        model = TinyModel()
+        runtime = SimpleNamespace(
+            optimizers=SimpleNamespace(
+                actor=torch.optim.SGD([model.actor_param], lr=0.1),
+                critic=torch.optim.SGD([model.critic_param], lr=0.1),
+                router=torch.optim.SGD([model.router_param], lr=0.1),
+            ),
+            actor_optimizer=torch.optim.SGD([model.actor_param], lr=0.1),
+            critic_optimizer=torch.optim.SGD([model.critic_param], lr=0.1),
+            router_optimizer=torch.optim.SGD([model.router_param], lr=0.1),
+        )
+        runtime.optimizers.actor = runtime.actor_optimizer
+        runtime.optimizers.critic = runtime.critic_optimizer
+        runtime.optimizers.router = runtime.router_optimizer
+        stepper = ThreeOptimizerStepper(runtime)
+        before = float(model.actor_param.detach().item())
+
+        stepper.step(
+            total_loss=model.actor_param * 0.0,
+            ppo_actor_loss=model.actor_param * 2.0,
+            value_loss=model.critic_param * 0.0,
+            policy_loss=model.actor_param * 0.0,
+            entropy_loss=model.actor_param * 0.0,
+            latent_loss=model.router_param * 0.0,
+            ent_coef=0.0,
+            vf_coef=1.0,
+            context=SimpleNamespace(phase="A"),
+            phase_policy=PhaseTrainingPolicy.from_phase("A"),
+            model=model,
+            latent_state=TinyLatentState(),
+            epoch_idx=0,
+            mb_idx=0,
+            max_grad_norm=10.0,
+        )
+
+        self.assertLess(float(model.actor_param.detach().item()), before)
 
 
 if __name__ == "__main__":

@@ -239,9 +239,14 @@ class PostUpdatePipeline:
 
             for idx in range(pair_count):
                 suffix = v6i1_pair_suffix(idx)
-                batch_key = f"cf_batch_pair_jsd_{idx}"
-                if batch_key in stats:
-                    stats[f"cf_batch_pair_jsd_{suffix}"] = stats[batch_key]
+                for prefix in (
+                    "cf_batch_pair_jsd",
+                    "cf_pair_hinge",
+                    "cf_pair_weight",
+                ):
+                    batch_key = f"{prefix}_{idx}"
+                    if batch_key in stats:
+                        stats[f"{prefix}_{suffix}"] = stats[batch_key]
 
         stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         stats.update(episode_strategy_stats)

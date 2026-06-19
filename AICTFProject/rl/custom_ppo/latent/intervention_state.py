@@ -93,27 +93,40 @@ class InterventionEMAController:
             return False
         pair_arr = self._coerce_six_finite_pair_values(pair_values)
         if pair_arr is None:
-            host.actor_intervention_consecutive_updates = 0
             return False
         cfg = host.trainer.cfg
         alpha = float(cfg.actor_jsd_ema_decay)
+        host.cf_pair_jsd_last_batch = pair_arr.copy()
         if int(host.cf_pair_jsd_valid_updates) <= 0:
             host.cf_pair_jsd_ema = pair_arr.copy()
         else:
             host.cf_pair_jsd_ema = (1.0 - alpha) * host.cf_pair_jsd_ema + alpha * pair_arr
         host.cf_pair_jsd_valid_updates = int(host.cf_pair_jsd_valid_updates) + 1
         host.cf_pair_jsd_last_update_step = step
+        host.actor_intervention_skipped_gate_count = 0
+        host.actor_intervention_last_skipped_gate_step = -1
         margin = float(cfg.actor_jsd_margin)
         floor = float(cfg.actor_jsd_floor_fraction) * margin
         min_pairs = int(cfg.actor_jsd_min_passing_pairs)
-        num_above = int(np.sum(host.cf_pair_jsd_ema >= margin))
-        min_ema = float(np.min(host.cf_pair_jsd_ema))
-        update_ok = num_above >= min_pairs and min_ema >= floor
+        batch_pairs_above_margin = int(np.sum(pair_arr >= margin))
+        ema_pairs_above_floor = int(np.sum(host.cf_pair_jsd_ema >= floor))
+        update_ok = batch_pairs_above_margin >= min_pairs and ema_pairs_above_floor >= min_pairs
         if update_ok:
             host.actor_intervention_consecutive_updates += 1
         else:
             host.actor_intervention_consecutive_updates = 0
         return True
+
+    def mark_actor_intervention_gate_skipped(self, timestep: int) -> None:
+        host = self.host
+        step = int(timestep)
+        last_skip = int(getattr(host, "actor_intervention_last_skipped_gate_step", -1) or -1)
+        if last_skip == step:
+            return
+        host.actor_intervention_skipped_gate_count = int(
+            getattr(host, "actor_intervention_skipped_gate_count", 0) or 0
+        ) + 1
+        host.actor_intervention_last_skipped_gate_step = step
 
     def update_macro_pair_jsd_ema(self, pair_values: list[float], timestep: int) -> bool:
         host = self.host

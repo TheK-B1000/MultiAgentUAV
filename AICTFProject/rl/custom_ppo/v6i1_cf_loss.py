@@ -41,12 +41,21 @@ def _zero_cf_diag(device: torch.device) -> dict[str, torch.Tensor]:
         "min_jsd": zero,
         "active": zero,
         "pair_jsd": zero.new_zeros((len(PAIR_ORDER),)),
+        "cf_pair_hinge": zero.new_zeros((len(PAIR_ORDER),)),
+        "cf_pair_weight": zero.new_zeros((len(PAIR_ORDER),)),
         "pairs_below_margin": zero,
         "cf_hinge_active": zero,
         "cf_hinge_effective": zero,
         "cf_valid_team_groups": zero,
         "cf_weight_sum": zero,
         "cf_effective_pairs": zero,
+        "cf_mean_pair_hinge": zero,
+        "cf_worst_pair_hinge": zero,
+        "cf_worst_pair_index": zero,
+        "cf_worst_pair_coef": zero,
+        "cf_weak_pair_boost": zero,
+        "cf_competence_required": zero,
+        "cf_competence_ready": zero,
     }
 
 
@@ -59,7 +68,14 @@ def _build_cf_diag_stats(
     latent_k: int,
     valid_team_groups: int,
     weight_sum: torch.Tensor,
-    weights: list[torch.Tensor],
+    pair_hinge_means: torch.Tensor,
+    pair_weights: torch.Tensor,
+    worst_pair_hinge: torch.Tensor,
+    worst_pair_index: int,
+    worst_pair_coef: float,
+    weak_pair_boost: float,
+    competence_ready: bool,
+    competence_required: bool,
 ) -> dict[str, torch.Tensor]:
     """Diagnostics for CF hinge / gradient interpretation (see tests)."""
     margin_f = float(margin)
@@ -69,7 +85,7 @@ def _build_cf_diag_stats(
     for pair_idx, (zi, zj) in enumerate(PAIR_ORDER):
         if zi >= int(latent_k) or zj >= int(latent_k):
             continue
-        w = float(torch.sqrt(competence[int(zi)] * competence[int(zj)]).clamp_min(0.0).item())
+        w = float(pair_weights[pair_idx].detach().cpu().item())
         if w > 1e-8 and float(pair_batch_means[pair_idx].item()) < margin_f:
             effective_pairs += 1
     weight_sum_f = float(weight_sum.item())
@@ -82,12 +98,23 @@ def _build_cf_diag_stats(
         "min_jsd": pair_batch_means.min().detach(),
         "active": pair_batch_means.new_tensor(1.0),
         "pair_jsd": pair_batch_means.detach(),
+        "cf_pair_hinge": pair_hinge_means.detach(),
+        "cf_pair_weight": pair_weights.detach(),
         "pairs_below_margin": pair_batch_means.new_tensor(float(pairs_below)),
         "cf_hinge_active": pair_batch_means.new_tensor(1.0 if cf_hinge_active else 0.0),
         "cf_hinge_effective": pair_batch_means.new_tensor(1.0 if cf_hinge_effective else 0.0),
         "cf_valid_team_groups": pair_batch_means.new_tensor(float(valid_team_groups)),
         "cf_weight_sum": pair_batch_means.new_tensor(weight_sum_f),
         "cf_effective_pairs": pair_batch_means.new_tensor(float(effective_pairs)),
+        "cf_mean_pair_hinge": pair_hinge_means.mean().detach(),
+        "cf_worst_pair_hinge": worst_pair_hinge.detach(),
+        "cf_worst_pair_index": pair_batch_means.new_tensor(float(worst_pair_index)),
+        "cf_worst_pair_coef": pair_batch_means.new_tensor(float(worst_pair_coef)),
+        "cf_weak_pair_boost": pair_batch_means.new_tensor(float(weak_pair_boost)),
+        "cf_competence_required": pair_batch_means.new_tensor(
+            1.0 if competence_required else 0.0
+        ),
+        "cf_competence_ready": pair_batch_means.new_tensor(1.0 if competence_ready else 0.0),
     }
 
 
@@ -172,6 +199,10 @@ def v6i1_cf_separation_loss(
     margin: float,
     competence: np.ndarray,
     competence_ready: bool,
+    weak_pair_ema: np.ndarray | None = None,
+    weak_pair_boost: float = 0.0,
+    worst_pair_coef: float = 0.0,
+    require_competence: bool = False,
     subsample_generator: torch.Generator | None = None,
     max_rows: int = 512,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -179,13 +210,18 @@ def v6i1_cf_separation_loss(
 
     For each batch row the same observations are evaluated under all ``K`` forced ``z``
     values. For each unordered pair ``(z, z')`` the divergence ``D`` is the mean JS
-  divergence across all agents and action heads. The loss is
+    divergence across all agents and action heads. The mean-pair loss is
 
       sum_{z<z'} sqrt(c_z c_z') ReLU(m - D) / (sum_{z<z'} sqrt(c_z c_z') + eps)
 
-    Competence scores are detached; they do not receive gradients.
+    v6i2 may add a worst-pair hinge term and persistent weak-pair multipliers.
+    Competence scores and weak-pair EMA values are detached.
     """
     device = obs_batch.get("mask", torch.tensor(0.0)).device
+    if bool(require_competence) and not bool(competence_ready):
+        diag = _zero_cf_diag(device)
+        diag["cf_competence_required"] = torch.ones((), dtype=torch.float32, device=device)
+        return torch.zeros((), dtype=torch.float32, device=device), diag
     if int(latent_k) <= 1:
         return torch.zeros((), dtype=torch.float32, device=device), _zero_cf_diag(device)
 
@@ -275,19 +311,47 @@ def v6i1_cf_separation_loss(
 
     margin_t = pair_d_t.new_tensor(float(max(0.0, margin)))
     weights: list[torch.Tensor] = []
+    pair_hinge_means: list[torch.Tensor] = []
     penalties: list[torch.Tensor] = []
+    zero_pair = pair_d_t.new_zeros(())
+    pair_weights_full: list[torch.Tensor] = [zero_pair for _ in range(pair_count)]
+    pair_hinge_full: list[torch.Tensor] = [zero_pair for _ in range(pair_count)]
+    weak_pair_ema_t: torch.Tensor | None = None
+    if weak_pair_ema is not None:
+        weak_pair_ema_t = torch.as_tensor(
+            weak_pair_ema, device=device, dtype=torch.float32
+        ).reshape(-1)
     for pair_idx, (zi, zj) in enumerate(PAIR_ORDER):
         if zi >= int(latent_k) or zj >= int(latent_k):
             continue
         weight = torch.sqrt(c[int(zi)] * c[int(zj)]).clamp_min(0.0)
+        if weak_pair_ema_t is not None and pair_idx < int(weak_pair_ema_t.numel()):
+            denom = margin_t.clamp_min(1e-8)
+            weakness = ((margin_t - weak_pair_ema_t[pair_idx].detach()) / denom).clamp(
+                min=0.0,
+                max=1.0,
+            )
+            weight = weight * (1.0 + float(max(0.0, weak_pair_boost)) * weakness)
+        pair_hinge = F.relu(margin_t - pair_d_t[pair_idx]).mean()
         weights.append(weight)
-        penalties.append(weight * F.relu(margin_t - pair_d_t[pair_idx]).mean())
+        pair_hinge_means.append(pair_hinge)
+        pair_weights_full[pair_idx] = weight
+        pair_hinge_full[pair_idx] = pair_hinge
+        penalties.append(weight * pair_hinge)
 
     if not penalties:
         return torch.zeros((), dtype=torch.float32, device=device), _zero_cf_diag(device)
 
-    weight_sum = torch.stack(weights).sum().clamp_min(1e-8)
+    pair_weights_t = torch.stack(weights)
+    pair_hinge_means_t = torch.stack(pair_hinge_means)
+    pair_weights_full_t = torch.stack(pair_weights_full)
+    pair_hinge_full_t = torch.stack(pair_hinge_full)
+    weight_sum_raw = pair_weights_t.sum()
+    weight_sum = weight_sum_raw.clamp_min(1e-8)
     loss = torch.stack(penalties).sum() / weight_sum
+    worst_pair_hinge, worst_pair_local_idx = pair_hinge_means_t.max(dim=0)
+    if float(worst_pair_coef) > 0.0:
+        loss = loss + float(worst_pair_coef) * worst_pair_hinge
     pair_batch_means = pair_d_t.mean(dim=-1)
     head_jsd_means: list[float] = []
     for head_idx in range(n_heads):
@@ -306,8 +370,15 @@ def v6i1_cf_separation_loss(
         competence=c,
         latent_k=int(latent_k),
         valid_team_groups=int(curr_batch_size),
-        weight_sum=weight_sum,
-        weights=weights,
+        weight_sum=weight_sum_raw,
+        pair_hinge_means=pair_hinge_full_t,
+        pair_weights=pair_weights_full_t,
+        worst_pair_hinge=worst_pair_hinge,
+        worst_pair_index=int(worst_pair_local_idx.item()),
+        worst_pair_coef=float(worst_pair_coef),
+        weak_pair_boost=float(weak_pair_boost),
+        competence_ready=bool(competence_ready),
+        competence_required=bool(require_competence),
     )
     if head_jsd_means:
         diag["cf_batch_macro_jsd"] = pair_d_t.new_tensor(head_jsd_means[0])

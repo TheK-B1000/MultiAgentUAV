@@ -79,8 +79,8 @@ receiver's egocentric grid for the appropriate symbol channel. No hidden-state b
 | Parent | `apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum` |
 | Classification | `SUMMER-COMPATIBLE EXTENSION` |
 | Confirmatory role | Official v6i3 local-communication row only for runs launched after this freeze |
-| Parent gate fingerprint | `85506ab324d464c5` |
-| V6I3 gate fingerprint | `f458d26cd040232d` |
+| Parent gate fingerprint | `224f1aea9ab36319` |
+| V6I3 gate fingerprint | `9ef168d941f046fb` |
 | Run tag | `v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4` |
 
 The resolved diff against v6i2 is exactly the communication protocol and
@@ -88,6 +88,7 @@ artifact identity surface: `experiment_id`, `gate_protocol_version`,
 `communication_enabled`, `comm_protocol_version`, the communication
 channel fields in section 2, the frozen communication gate fields in
 section 5, and `run_tag`. v6i3 inherits v6i2's strong-CF ceiling,
+competence-gated pairwise actor-CF objective, weak-pair/worst-pair pressure,
 dual-evidence strategy gates, A/B/C schedule, opponent pool, split-lane-v2
 map, latent contract, and confirmatory resume safety.
 
@@ -155,8 +156,8 @@ python rl/train_ppo.py \
 
 The run is confirmatory only if `confirmatory_gate_lineage_valid=True`,
 `allow_gate_config_mismatch_on_resume=False`, the recorded
-`gate_config_fingerprint` is `f458d26cd040232d`, and the v6i2 parent
-fingerprint is still `85506ab324d464c5`. Resuming with a gate-config
+`gate_config_fingerprint` is `9ef168d941f046fb`, and the v6i2 parent
+fingerprint is still `224f1aea9ab36319`. Resuming with a gate-config
 mismatch override makes the run exploratory.
 
 ### 8. Implementation slices

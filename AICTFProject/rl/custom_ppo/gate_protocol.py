@@ -30,7 +30,6 @@ GATE_FAMILY_NAMES_V6I1: tuple[str, ...] = (
     "counterfactual_intervention",
     "training_integrity",
     "matched_seed_behavior",
-    "selector_learnability_probe",
 )
 
 GATE_FAMILY_NAMES_V6I2: tuple[str, ...] = (
@@ -39,7 +38,6 @@ GATE_FAMILY_NAMES_V6I2: tuple[str, ...] = (
     "actor_intervention",
     "behavioral_realization",
     "training_integrity",
-    "selector_learnability_probe",
 )
 
 GATE_FAMILY_NAMES_V6I3: tuple[str, ...] = GATE_FAMILY_NAMES_V6I2 + (
@@ -58,8 +56,13 @@ _GATE_CONFIG_KEYS_COMMON: tuple[str, ...] = (
     "phase_c_start_fraction",
     "curriculum_extend_terminal_on_late_promotion",
     "phase_boundary_gate_mode",
+    "phase_a_gate_max_seconds",
+    "phase_a_gate_progress_interval_seconds",
+    "curriculum_gate_online_matched_seed_count",
+    "curriculum_gate_online_matched_seed_max_steps",
     "curriculum_gate_run_boundary_eval",
     "curriculum_gate_run_probe",
+    "curriculum_gate_selector_blocks_phase_a",
     "curriculum_probe_min_examples",
     "behavioral_matched_seed_min_seeds_per_opponent",
 )
@@ -76,6 +79,7 @@ _GATE_CONFIG_KEYS_V6I2: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
     "actor_jsd_min_passing_pairs",
     "actor_jsd_consecutive_updates",
     "actor_jsd_ema_decay",
+    "actor_jsd_stale_gate_grace",
     "macro_jsd_margin",
     "macro_jsd_floor_fraction",
     "macro_jsd_min_passing_pairs",
@@ -83,6 +87,15 @@ _GATE_CONFIG_KEYS_V6I2: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
     "behavioral_realization_min_opponents_pass",
     "behavioral_realization_effect_threshold",
     "behavioral_realization_adverse_threshold",
+    "behavioral_route_distance_scale",
+    "behavioral_task_behavior_distance_scale",
+    "behavioral_performance_spread_scale",
+    "behavioral_route_distance_weight",
+    "behavioral_task_behavior_distance_weight",
+    "behavioral_performance_spread_weight",
+    "behavioral_aggregate_effect_threshold",
+    "behavioral_min_task_behavior_distance",
+    "behavioral_min_performance_spread",
 )
 
 _GATE_CONFIG_KEYS_V6I3: tuple[str, ...] = _GATE_CONFIG_KEYS_V6I2 + (
@@ -117,7 +130,10 @@ def resolved_gate_config_dict(cfg: PPOConfig) -> dict[str, Any]:
         keys = _GATE_CONFIG_KEYS_V6I2
     else:
         keys = _GATE_CONFIG_KEYS_V6I1
-    return {key: getattr(cfg, key) for key in keys}
+    resolved = {key: getattr(cfg, key) for key in keys}
+    if protocol in {V6I2_GATE_PROTOCOL, V6I3_GATE_PROTOCOL}:
+        resolved["actor_intervention_gate_rule"] = "batch_margin_ema_floor_v1"
+    return resolved
 
 
 def gate_config_fingerprint(cfg: PPOConfig) -> str:
@@ -235,7 +251,8 @@ def validate_protocol_config(cfg: PPOConfig) -> None:
         return
     if not bool(getattr(cfg, "curriculum_gate_run_boundary_eval", False)):
         raise ValueError("V6 staged enforce mode requires matched-seed boundary evaluation.")
-    if not bool(getattr(cfg, "curriculum_gate_run_probe", False)):
+    selector_blocks = bool(getattr(cfg, "curriculum_gate_selector_blocks_phase_a", False))
+    if selector_blocks and not bool(getattr(cfg, "curriculum_gate_run_probe", False)):
         raise ValueError("V6 staged enforce mode requires the selector-learnability probe.")
 
 
@@ -269,8 +286,45 @@ def _macro_thresholds(cfg: PPOConfig) -> tuple[float, float, int]:
     return margin, floor, min_pairs
 
 
+def _latent_pair_labels(latent_k: int = 4) -> list[str]:
+    labels: list[str] = []
+    for i in range(int(latent_k)):
+        for j in range(i + 1, int(latent_k)):
+            labels.append(f"z{i}-z{j}")
+    return labels
+
+
+def _actor_pair_ledger(
+    *,
+    raw_pairs: list[float],
+    ema_pairs: list[float],
+    margin: float,
+    floor: float,
+    streak_before: int,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for idx, label in enumerate(_latent_pair_labels(4)):
+        raw = float(raw_pairs[idx]) if idx < len(raw_pairs) else float("nan")
+        ema = float(ema_pairs[idx]) if idx < len(ema_pairs) else float("nan")
+        rows.append(
+            {
+                "opponent": "ALL",
+                "pair": label,
+                "pair_index": idx,
+                "raw_score": raw,
+                "ema": ema,
+                "margin": float(margin),
+                "floor": float(floor),
+                "raw_pass": bool(np.isfinite(raw) and raw >= float(margin)),
+                "ema_pass": bool(np.isfinite(ema) and ema >= float(floor)),
+                "streak": int(streak_before),
+            }
+        )
+    return rows
+
+
 def evaluate_actor_intervention(cfg: PPOConfig, latent_state: Any) -> GateEvalResult:
-    """Gate A (v6i2): CF-batch actor pair JSD EMA only — never reads macro or legacy EMA."""
+    """Gate A (v6i2): current CF-batch strength plus actor-CF EMA floor stability."""
     margin, floor, min_pairs, required_consecutive = _actor_thresholds(cfg)
     valid_updates = int(getattr(latent_state, "cf_pair_jsd_valid_updates", 0) or 0)
     if valid_updates <= 0:
@@ -298,10 +352,76 @@ def evaluate_actor_intervention(cfg: PPOConfig, latent_state: Any) -> GateEvalRe
             details={"cf_pair_jsd_ema": pair_jsd},
         )
 
-    num_above = sum(1 for v in pair_jsd if v >= margin)
+    cf_batch = getattr(latent_state, "cf_pair_jsd_last_batch", None)
+    if cf_batch is None:
+        return GateEvalResult(
+            status=GATE_STATUS_NOT_RUN,
+            reason="missing_cf_pair_jsd_last_batch",
+            details={"cf_pair_jsd_valid_updates": valid_updates},
+        )
+    batch_jsd = [float(v) for v in cf_batch.tolist()]
+    if len(batch_jsd) != 6 or not all(np.isfinite(batch_jsd)):
+        return GateEvalResult(
+            status=GATE_STATUS_ERROR,
+            reason="corrupt_cf_pair_jsd_last_batch",
+            details={"cf_pair_jsd_last_batch": batch_jsd},
+        )
+
+    batch_pairs_above_margin = sum(1 for v in batch_jsd if v >= margin)
+    ema_pairs_above_margin = sum(1 for v in pair_jsd if v >= margin)
+    ema_pairs_above_floor = sum(1 for v in pair_jsd if v >= floor)
     min_ema = float(min(pair_jsd))
-    update_ok = num_above >= min_pairs and min_ema >= floor
+    batch_pass = batch_pairs_above_margin >= min_pairs
+    ema_floor_pass = ema_pairs_above_floor >= min_pairs
+    update_ok = batch_pass and ema_floor_pass
     streak = int(getattr(latent_state, "actor_intervention_consecutive_updates", 0) or 0)
+    skipped_gate_count = int(getattr(latent_state, "actor_intervention_skipped_gate_count", 0) or 0)
+    stale_grace = int(getattr(cfg, "actor_jsd_stale_gate_grace", 1) or 1)
+    streak_before = max(0, streak - 1 if update_ok and streak > 0 else streak)
+    ledger = _actor_pair_ledger(
+        raw_pairs=batch_jsd,
+        ema_pairs=pair_jsd,
+        margin=margin,
+        floor=floor,
+        streak_before=streak_before,
+    )
+    weakest_pairs = [
+        f"ALL:{row['pair']}"
+        for row in sorted(
+            ledger,
+            key=lambda row: (bool(row["raw_pass"] and row["ema_pass"]), float(row["ema"])),
+        )[:3]
+    ]
+    if skipped_gate_count > 0:
+        return GateEvalResult(
+            status=GATE_STATUS_NOT_RUN,
+            reason="actor_pair_evidence_stale_after_skipped_gate",
+            details={
+                "cf_pair_jsd_ema": pair_jsd,
+                "cf_pair_jsd_last_batch": batch_jsd,
+                "actor_pair_ledger": ledger,
+                "opponent_specific_pair_ledger": False,
+                "actor_intervention_gate_status": GATE_STATUS_NOT_RUN,
+                "cf_pair_jsd_valid_updates": valid_updates,
+                "cf_pair_jsd_last_update_step": int(
+                    getattr(latent_state, "cf_pair_jsd_last_update_step", -1) or -1
+                ),
+                "actor_jsd_margin": margin,
+                "actor_jsd_floor": floor,
+                "actor_jsd_min_passing_pairs": min_pairs,
+                "passing_pairs": int(ema_pairs_above_floor),
+                "total_pairs": 6,
+                "required_pairs": int(min_pairs),
+                "weakest_pairs": weakest_pairs,
+                "behavior_eval_valid": False,
+                "behavior_evidence_status": "stale_requires_fresh_actor_pair_update",
+                "actor_intervention_skipped_gate_count": skipped_gate_count,
+                "actor_jsd_stale_gate_grace": stale_grace,
+                "actor_pair_streak_preserved": streak,
+                "actor_intervention_consecutive_updates": streak,
+                "actor_jsd_consecutive_updates": required_consecutive,
+            },
+        )
     passed = update_ok and streak >= required_consecutive
     status = GATE_STATUS_PASS if passed else GATE_STATUS_FAIL
 
@@ -309,6 +429,9 @@ def evaluate_actor_intervention(cfg: PPOConfig, latent_state: Any) -> GateEvalRe
         status=status,
         details={
             "cf_pair_jsd_ema": pair_jsd,
+            "cf_pair_jsd_last_batch": batch_jsd,
+            "actor_pair_ledger": ledger,
+            "opponent_specific_pair_ledger": False,
             "actor_intervention_gate_status": status,
             "cf_pair_jsd_valid_updates": valid_updates,
             "cf_pair_jsd_last_update_step": int(
@@ -317,8 +440,20 @@ def evaluate_actor_intervention(cfg: PPOConfig, latent_state: Any) -> GateEvalRe
             "actor_jsd_margin": margin,
             "actor_jsd_floor": floor,
             "actor_jsd_min_passing_pairs": min_pairs,
-            "num_pairs_above_margin": int(num_above),
+            "passing_pairs": int(ema_pairs_above_floor),
+            "total_pairs": 6,
+            "required_pairs": int(min_pairs),
+            "weakest_pairs": weakest_pairs,
+            "behavior_eval_valid": True,
+            "streak_before": streak_before,
+            "streak_after": streak,
+            "num_pairs_above_margin": int(batch_pairs_above_margin),
+            "batch_pairs_above_margin": int(batch_pairs_above_margin),
+            "ema_pairs_above_margin": int(ema_pairs_above_margin),
+            "ema_pairs_above_floor": int(ema_pairs_above_floor),
             "min_cf_pair_jsd_ema": min_ema,
+            "batch_pass": bool(batch_pass),
+            "ema_floor_pass": bool(ema_floor_pass),
             "single_update_ok": bool(update_ok),
             "actor_intervention_consecutive_updates": streak,
             "actor_jsd_consecutive_updates": required_consecutive,
@@ -377,28 +512,68 @@ def evaluate_macro_profile_support(cfg: PPOConfig, latent_state: Any) -> GateEva
 def _opponent_semantic_verdict(
     rep: dict[str, Any],
     *,
-    effect_thresh: float,
+    cfg: PPOConfig,
     adverse_thresh: float,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, dict[str, float | bool]]:
     """Return (strong_pass, auditable verdict code) for one opponent."""
     route = float(rep.get("avg_route_distance", 0.0))
     behav = float(rep.get("avg_behavior_distance", 0.0))
     wr_spread = float(rep.get("forced_z_performance_spread", 0.0))
-    ci_low = float(rep.get("ci_95_low", 0.0))
-    ci_high = float(rep.get("ci_95_high", 0.0))
-    semantic = max(route, behav, float(rep.get("effect_size", 0.0)))
+    route_scale = max(1e-8, float(getattr(cfg, "behavioral_route_distance_scale", 0.03)))
+    behavior_scale = max(
+        1e-8,
+        float(getattr(cfg, "behavioral_task_behavior_distance_scale", 0.02)),
+    )
+    performance_scale = max(
+        1e-8,
+        float(getattr(cfg, "behavioral_performance_spread_scale", 0.03)),
+    )
+    route_weight = float(getattr(cfg, "behavioral_route_distance_weight", 0.25))
+    behavior_weight = float(getattr(cfg, "behavioral_task_behavior_distance_weight", 0.50))
+    performance_weight = float(getattr(cfg, "behavioral_performance_spread_weight", 0.25))
+    normalized_route = route / route_scale
+    normalized_behavior = behav / behavior_scale
+    normalized_performance = wr_spread / performance_scale
+    aggregate = (
+        route_weight * normalized_route
+        + behavior_weight * normalized_behavior
+        + performance_weight * normalized_performance
+    )
+    aggregate_thresh = float(getattr(cfg, "behavioral_aggregate_effect_threshold", 0.75))
+    min_behavior = float(getattr(cfg, "behavioral_min_task_behavior_distance", 0.01))
+    min_performance = float(getattr(cfg, "behavioral_min_performance_spread", 0.01))
+    behavior_floor_pass = behav >= min_behavior
+    performance_floor_pass = wr_spread >= min_performance
+    component_floor_pass = bool(behavior_floor_pass and performance_floor_pass)
+    details: dict[str, float | bool] = {
+        "route_distance": route,
+        "task_behavior_distance": behav,
+        "performance_spread": wr_spread,
+        "normalized_route_distance": normalized_route,
+        "normalized_task_behavior_distance": normalized_behavior,
+        "normalized_performance_spread": normalized_performance,
+        "aggregate_effect": aggregate,
+        "behavioral_route_distance_scale": route_scale,
+        "behavioral_task_behavior_distance_scale": behavior_scale,
+        "behavioral_performance_spread_scale": performance_scale,
+        "behavioral_route_distance_weight": route_weight,
+        "behavioral_task_behavior_distance_weight": behavior_weight,
+        "behavioral_performance_spread_weight": performance_weight,
+        "behavioral_aggregate_effect_threshold": aggregate_thresh,
+        "behavioral_min_task_behavior_distance": min_behavior,
+        "behavioral_min_performance_spread": min_performance,
+        "behavior_component_floor_pass": bool(behavior_floor_pass),
+        "performance_component_floor_pass": bool(performance_floor_pass),
+        "component_floor_pass": component_floor_pass,
+    }
 
-    if semantic < adverse_thresh:
-        return False, "FAIL_ADVERSE_PERFORMANCE"
-    if semantic < effect_thresh:
-        return False, "FAIL_BELOW_EFFECT_THRESHOLD"
-    if behav >= effect_thresh:
-        return True, "PASS_BEHAVIOR_AND_PERFORMANCE"
-    if ci_low > effect_thresh:
-        return True, "PASS_ROUTE_CONFIDENCE"
-    if wr_spread >= 0.03:
-        return True, "PASS_PERFORMANCE_SPREAD"
-    return False, "FAIL_INSUFFICIENT_CONFIDENCE"
+    if wr_spread < adverse_thresh:
+        return False, "FAIL_ADVERSE_PERFORMANCE", details
+    if not component_floor_pass:
+        return False, "FAIL_COMPONENT_FLOOR", details
+    if aggregate < aggregate_thresh:
+        return False, "FAIL_BELOW_NORMALIZED_AGGREGATE", details
+    return True, "PASS_NORMALIZED_COMPONENTS", details
 
 
 def evaluate_matched_seed_semantics(
@@ -412,8 +587,9 @@ def evaluate_matched_seed_semantics(
             reason="empty_matched_seed_reports",
         )
 
-    effect_thresh = float(cfg.behavioral_realization_effect_threshold)
     adverse_thresh = float(cfg.behavioral_realization_adverse_threshold)
+    effect_thresh = float(cfg.behavioral_realization_effect_threshold)
+    aggregate_thresh = float(getattr(cfg, "behavioral_aggregate_effect_threshold", 0.75))
     min_strong = int(cfg.behavioral_realization_min_opponents_pass)
     min_seeds = int(getattr(cfg, "behavioral_matched_seed_min_seeds_per_opponent", 20))
 
@@ -435,29 +611,36 @@ def evaluate_matched_seed_semantics(
         wr_spread = float(rep.get("forced_z_performance_spread", 0.0))
         ci_low = float(rep.get("ci_95_low", 0.0))
         ci_high = float(rep.get("ci_95_high", 0.0))
-        semantic = max(route, behav, float(rep.get("effect_size", 0.0)))
-        strong, verdict = _opponent_semantic_verdict(
-            rep, effect_thresh=effect_thresh, adverse_thresh=adverse_thresh
+        strong, verdict, component_details = _opponent_semantic_verdict(
+            rep, cfg=cfg, adverse_thresh=adverse_thresh
         )
-        semantic_effects.append(semantic)
+        aggregate_effect = float(component_details["aggregate_effect"])
+        semantic_effects.append(aggregate_effect)
         if strong:
             strong_count += 1
         per_opponent[opp] = {
             **rep,
-            "semantic_effect": semantic,
+            "semantic_effect": aggregate_effect,
+            "aggregate_effect": aggregate_effect,
             "semantic_pass": bool(strong),
             "semantic_verdict": verdict,
             "route_effect": route,
+            "route_distance": route,
             "route_ci_low": ci_low,
             "route_ci_high": ci_high,
             "behavior_effect": behav,
+            "task_behavior_distance": behav,
             "performance_spread": wr_spread,
             "num_seeds": n_seeds,
+            **component_details,
         }
 
     aggregate = float(np.mean(semantic_effects)) if semantic_effects else 0.0
-    no_adverse = all(e >= adverse_thresh for e in semantic_effects)
-    passed = strong_count >= min_strong and no_adverse and aggregate >= effect_thresh
+    no_adverse = all(
+        float(row.get("performance_spread", 0.0)) >= adverse_thresh
+        for row in per_opponent.values()
+    )
+    passed = strong_count >= min_strong and no_adverse and aggregate >= aggregate_thresh
     status = GATE_STATUS_PASS if passed else GATE_STATUS_FAIL
 
     return GateEvalResult(
@@ -467,8 +650,10 @@ def evaluate_matched_seed_semantics(
             "opponents": per_opponent,
             "strong_opponent_count": int(strong_count),
             "aggregate_semantic_effect": aggregate,
+            "aggregate_effect": aggregate,
             "no_adverse_opponent": bool(no_adverse),
             "behavioral_realization_effect_threshold": effect_thresh,
+            "behavioral_aggregate_effect_threshold": aggregate_thresh,
             "behavioral_realization_adverse_threshold": adverse_thresh,
         },
     )

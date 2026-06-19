@@ -125,9 +125,17 @@ class PPOConfig:
     latent_cf_competence_ema_alpha: float = 0.05
     phase_boundary_gate_mode: str = "enforce"
     latent_cf_coef_max: float = 0.01
+    latent_cf_worst_pair_coef: float = 0.0
+    latent_cf_weak_pair_boost: float = 0.0
+    latent_cf_require_competence: bool = False
     probe_utility_tie_margin: float = 0.05
+    phase_a_gate_max_seconds: int = 900
+    phase_a_gate_progress_interval_seconds: int = 60
+    curriculum_gate_online_matched_seed_count: int = 5
+    curriculum_gate_online_matched_seed_max_steps: int = 64
     curriculum_gate_run_boundary_eval: bool = False
     curriculum_gate_run_probe: bool = False
+    curriculum_gate_selector_blocks_phase_a: bool = False
     use_v6i1_curriculum: bool = False
     training_mode: str = "default"
     experiment_family: str = "v6"
@@ -151,6 +159,7 @@ class PPOConfig:
     actor_jsd_min_passing_pairs: int = 5
     actor_jsd_consecutive_updates: int = 3
     actor_jsd_ema_decay: float = 0.10
+    actor_jsd_stale_gate_grace: int = 1
     # v6i2 macro-rollout supporting profile (forced-z rollout pair JSD EMA).
     macro_jsd_margin: float = 0.0001
     macro_jsd_floor_fraction: float = 0.5
@@ -160,6 +169,15 @@ class PPOConfig:
     behavioral_realization_min_opponents_pass: int = 2
     behavioral_realization_effect_threshold: float = 0.02
     behavioral_realization_adverse_threshold: float = -0.01
+    behavioral_route_distance_scale: float = 0.03
+    behavioral_task_behavior_distance_scale: float = 0.02
+    behavioral_performance_spread_scale: float = 0.03
+    behavioral_route_distance_weight: float = 0.25
+    behavioral_task_behavior_distance_weight: float = 0.50
+    behavioral_performance_spread_weight: float = 0.25
+    behavioral_aggregate_effect_threshold: float = 0.75
+    behavioral_min_task_behavior_distance: float = 0.01
+    behavioral_min_performance_spread: float = 0.01
     behavioral_matched_seed_min_seeds_per_opponent: int = 20
     curriculum_probe_min_examples: int = 10
     # V6I3 local emergent communication (off by default — v6i2 unchanged when False).

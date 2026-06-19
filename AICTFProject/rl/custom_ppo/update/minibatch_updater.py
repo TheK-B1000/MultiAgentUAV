@@ -43,6 +43,21 @@ ACTOR_INTERVENTION_REASON_CODES: dict[str, float] = {
 }
 
 
+def combine_action_and_message_log_probs(
+    *,
+    action_log_prob: torch.Tensor,
+    old_action_log_prob: torch.Tensor,
+    message_log_prob: torch.Tensor | None,
+    old_message_log_prob: torch.Tensor | None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Combine action and boundary-message log-probs exactly once for PPO."""
+    if message_log_prob is None:
+        return action_log_prob, old_action_log_prob
+    if old_message_log_prob is None:
+        raise KeyError("message_log_probs missing from rollout batch for communication PPO.")
+    return action_log_prob + message_log_prob, old_action_log_prob + old_message_log_prob
+
+
 @dataclass
 class MinibatchUpdaterState:
     actor_grad_diag_done: bool = False
@@ -130,10 +145,6 @@ class MinibatchUpdater:
         )
         message_log_prob = aux.get("message_log_probs")
         message_entropy = aux.get("message_entropy")
-        # Message PPO is boundary-only: held symbols persist in obs transport for
-        # comm_interval_steps, but log-probs are stored/evaluated only on send rows.
-        if message_log_prob is not None:
-            action_log_prob = action_log_prob + message_log_prob
         advantages = batch["advantages"]
         if advantages.numel() > 1:
             advantages = (advantages - advantages.mean()) / (
@@ -271,11 +282,14 @@ class MinibatchUpdater:
             if separation_result.loss.active:
                 latent_loss = latent_loss + separation_result.loss.scaled_loss
 
-        log_prob = action_log_prob
-        old_log_probs = batch["log_probs"]
-        if message_log_prob is not None and "message_log_probs" in batch:
-            log_prob = action_log_prob + message_log_prob
-            old_log_probs = old_log_probs + batch["message_log_probs"]
+        # Message PPO is boundary-only: held symbols persist in obs transport for
+        # comm_interval_steps, but log-probs are stored/evaluated only on send rows.
+        log_prob, old_log_probs = combine_action_and_message_log_probs(
+            action_log_prob=action_log_prob,
+            old_action_log_prob=batch["log_probs"],
+            message_log_prob=message_log_prob,
+            old_message_log_prob=batch.get("message_log_probs"),
+        )
         policy_loss, ppo_stats = ppo_policy_loss(
             log_prob,
             old_log_probs,
@@ -389,6 +403,18 @@ class MinibatchUpdater:
             for idx in range(pair_count):
                 if idx < int(values.numel()):
                     pair_telemetry[f"cf_batch_pair_jsd_{idx}"] = float(values[idx].cpu().item())
+        pair_hinge = z_sep_stats.get("cf_pair_hinge")
+        if isinstance(pair_hinge, torch.Tensor):
+            values = pair_hinge.detach().reshape(-1)
+            for idx in range(pair_count):
+                if idx < int(values.numel()):
+                    pair_telemetry[f"cf_pair_hinge_{idx}"] = float(values[idx].cpu().item())
+        pair_weight = z_sep_stats.get("cf_pair_weight")
+        if isinstance(pair_weight, torch.Tensor):
+            values = pair_weight.detach().reshape(-1)
+            for idx in range(pair_count):
+                if idx < int(values.numel()):
+                    pair_telemetry[f"cf_pair_weight_{idx}"] = float(values[idx].cpu().item())
 
         soft = epoch_state.soft_diag
         telemetry: dict[str, float] = {
@@ -459,6 +485,12 @@ class MinibatchUpdater:
             "cf_valid_team_groups": tensor_stat(z_sep_stats.get("cf_valid_team_groups")),
             "cf_weight_sum": tensor_stat(z_sep_stats.get("cf_weight_sum")),
             "cf_effective_pairs": tensor_stat(z_sep_stats.get("cf_effective_pairs")),
+            "cf_mean_pair_hinge": tensor_stat(z_sep_stats.get("cf_mean_pair_hinge")),
+            "cf_worst_pair_hinge": tensor_stat(z_sep_stats.get("cf_worst_pair_hinge")),
+            "cf_worst_pair_index": tensor_stat(z_sep_stats.get("cf_worst_pair_index")),
+            "cf_worst_pair_coef": tensor_stat(z_sep_stats.get("cf_worst_pair_coef")),
+            "cf_weak_pair_boost": tensor_stat(z_sep_stats.get("cf_weak_pair_boost")),
+            "cf_competence_required": tensor_stat(z_sep_stats.get("cf_competence_required")),
             "cf_loss_requires_grad": (
                 1.0 if bool(separation_result.loss.scaled_loss.requires_grad) else 0.0
             ),

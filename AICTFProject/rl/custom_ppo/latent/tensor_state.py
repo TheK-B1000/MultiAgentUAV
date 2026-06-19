@@ -244,9 +244,12 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
     host.pairwise_ema_last_update_step = -1
     # v6i2 dual-gate protocol: separate actor-CF and macro-rollout EMA tracks.
     host.cf_pair_jsd_ema = np.zeros((6,), dtype=np.float32)
+    host.cf_pair_jsd_last_batch = np.zeros((6,), dtype=np.float32)
     host.cf_pair_jsd_valid_updates = 0
     host.cf_pair_jsd_last_update_step = -1
     host.actor_intervention_consecutive_updates = 0
+    host.actor_intervention_skipped_gate_count = 0
+    host.actor_intervention_last_skipped_gate_step = -1
     host.macro_pair_jsd_ema = np.zeros((6,), dtype=np.float32)
     host.macro_pair_jsd_valid_updates = 0
     host.macro_pair_jsd_last_update_step = -1
@@ -255,4 +258,3 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
     host.lifecycle = EpisodeLifecycleState(n_envs=n_envs, device=device)
     host.selector_memory = SelectorMemory(n_envs=n_envs, hidden_dim=hidden_dim, device=device)
     host.missing_episode_record_count = 0
-

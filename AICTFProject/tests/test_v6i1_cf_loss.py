@@ -128,6 +128,21 @@ class V6I1CfLossTests(unittest.TestCase):
         self.assertGreater(float(loss.item()), 0.0)
         self.assertLess(float(stats["min_jsd"].item()), 0.02)
 
+    def test_require_competence_holds_cf_loss_inactive_until_ready(self) -> None:
+        obs = {"mask": torch.ones((2, 3), dtype=torch.float32)}
+        loss, stats = v6i1_cf_separation_loss(
+            _CfModel(),
+            obs,
+            latent_k=4,
+            margin=0.02,
+            competence=np.ones(4, dtype=np.float32),
+            competence_ready=False,
+            require_competence=True,
+        )
+        self.assertAlmostEqual(float(loss.item()), 0.0, places=6)
+        self.assertEqual(float(stats["active"].item()), 0.0)
+        self.assertEqual(float(stats["cf_competence_required"].item()), 1.0)
+        self.assertEqual(float(stats["cf_competence_ready"].item()), 0.0)
 
     def test_cf_loss_exports_per_pair_batch_stats(self) -> None:
         obs = {"mask": torch.ones((2, 3), dtype=torch.float32)}
@@ -142,6 +157,39 @@ class V6I1CfLossTests(unittest.TestCase):
         self.assertEqual(int(stats["pair_jsd"].numel()), 6)
         self.assertGreater(float(stats["pairs_below_margin"].item()), 0.0)
         self.assertEqual(float(stats["cf_hinge_active"].item()), 1.0)
+        self.assertEqual(int(stats["cf_pair_hinge"].numel()), 6)
+        self.assertEqual(int(stats["cf_pair_weight"].numel()), 6)
+
+    def test_worst_pair_and_weak_pair_weighting_are_reported(self) -> None:
+        obs = {"mask": torch.ones((4, 3), dtype=torch.float32)}
+        weak_ema = np.array([0.02, 0.02, 0.0, 0.02, 0.0, 0.0], dtype=np.float32)
+        loss_plain, stats_plain = v6i1_cf_separation_loss(
+            _CfModel(),
+            obs,
+            latent_k=4,
+            margin=0.02,
+            competence=np.ones(4, dtype=np.float32),
+            competence_ready=True,
+        )
+        loss_boosted, stats = v6i1_cf_separation_loss(
+            _CfModel(),
+            obs,
+            latent_k=4,
+            margin=0.02,
+            competence=np.ones(4, dtype=np.float32),
+            competence_ready=True,
+            weak_pair_ema=weak_ema,
+            weak_pair_boost=1.0,
+            worst_pair_coef=0.5,
+        )
+        self.assertGreater(float(loss_boosted.item()), float(loss_plain.item()))
+        self.assertGreater(float(stats["cf_worst_pair_hinge"].item()), 0.0)
+        self.assertEqual(float(stats["cf_worst_pair_coef"].item()), 0.5)
+        self.assertEqual(float(stats["cf_weak_pair_boost"].item()), 1.0)
+        self.assertGreater(
+            float(stats["cf_pair_weight"].max().item()),
+            float(stats_plain["cf_pair_weight"].max().item()),
+        )
 
     def test_identical_distributions_hinge_active_grad_may_be_zero(self) -> None:
         obs = {"mask": torch.ones((4, 3), dtype=torch.float32)}

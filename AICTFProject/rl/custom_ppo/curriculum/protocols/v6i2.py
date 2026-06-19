@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.curriculum.context import GateContext
 from rl.custom_ppo.curriculum.evaluators.learnability import run_learnability_probe
-from rl.custom_ppo.curriculum.evaluators.matched_seed import collect_matched_seed_metrics
+from rl.custom_ppo.curriculum.evaluators.matched_seed import (
+    GateEvaluationTimeout,
+    MatchedSeedEvalConfig,
+    collect_matched_seed_metrics,
+)
 from rl.custom_ppo.curriculum.evaluators.online import (
     evaluate_competence,
     evaluate_coverage,
@@ -48,7 +53,14 @@ class V6I2GateProtocol:
             "selector_learnability_probe": run_learnability_probe(context),
         }
 
-    def _evaluate_behavioral_realization(self, context: GateContext) -> GateResult:
+    def _evaluate_behavioral_realization(
+        self,
+        context: GateContext,
+        *,
+        deadline_monotonic: float | None = None,
+        progress_path: str | None = None,
+        progress_interval_seconds: float = 60.0,
+    ) -> GateResult:
         if not bool(getattr(context.cfg, "curriculum_gate_run_boundary_eval", False)):
             return GateResult(
                 status=GATE_STATUS_NOT_RUN,
@@ -61,7 +73,27 @@ class V6I2GateProtocol:
             )
 
         print("[Curriculum Controller] Behavioral-realization boundary evaluation...")
-        op_reports, any_mismatch = collect_matched_seed_metrics(context)
+        eval_config = MatchedSeedEvalConfig.online_from_cfg(context.cfg)
+        try:
+            op_reports, any_mismatch = collect_matched_seed_metrics(
+                context,
+                config=eval_config,
+                deadline_monotonic=deadline_monotonic,
+                progress_path=progress_path,
+                progress_interval_seconds=progress_interval_seconds,
+            )
+        except GateEvaluationTimeout as exc:
+            return GateResult(
+                status=GATE_STATUS_ERROR,
+                reason="inconclusive_timeout",
+                details={
+                    "macro_profile": GATE_STATUS_NOT_RUN,
+                    "matched_seed_semantics": "inconclusive_timeout",
+                    "aggregate_result": "inconclusive_timeout",
+                    "timed_out": True,
+                    **dict(exc.details),
+                },
+            )
         if any_mismatch:
             return GateResult(
                 status=GATE_STATUS_ERROR,
@@ -74,8 +106,10 @@ class V6I2GateProtocol:
                 },
             )
 
+        eval_cfg = copy.copy(context.cfg)
+        eval_cfg.behavioral_matched_seed_min_seeds_per_opponent = len(eval_config.seeds)
         eval_result = evaluate_behavioral_realization(
-            context.cfg,
+            eval_cfg,
             context.trainer.latent_state,
             op_reports,
             boundary_eval_enabled=True,

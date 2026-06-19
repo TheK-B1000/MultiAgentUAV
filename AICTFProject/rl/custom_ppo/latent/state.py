@@ -225,6 +225,10 @@ class LatentStrategyState(LatentStrategyStateCore):
         self._wire_managers()
         return self.intervention_ema.update_actor_intervention_gate_from_cf_pairs(pair_vals)
 
+    def mark_actor_intervention_gate_skipped(self, timestep: int) -> None:
+        self._wire_managers()
+        self.intervention_ema.mark_actor_intervention_gate_skipped(timestep)
+
     def update_macro_pair_jsd_ema_from_profile(self, profile_stats: dict[str, float]) -> bool:
         self._wire_managers()
         return self.intervention_ema.update_macro_pair_jsd_ema_from_profile(profile_stats)

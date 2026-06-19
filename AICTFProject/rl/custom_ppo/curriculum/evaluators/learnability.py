@@ -50,6 +50,14 @@ class ProbeExample:
     z_returns: list[float] = field(default_factory=list)
 
 
+def _format_selector_probe_progress(label: str, current: int, total: int) -> str:
+    return f"[Selector Probe] {label} {int(current)}/{int(total)}"
+
+
+def _print_selector_probe_progress(label: str, current: int, total: int) -> None:
+    print(_format_selector_probe_progress(label, current, total), flush=True)
+
+
 def grouped_stratified_split(
     examples: list[ProbeExample],
     *,
@@ -167,12 +175,17 @@ def _collect_probe_examples(context: GateContext) -> tuple[list[ProbeExample], i
 
     examples: list[ProbeExample] = []
     ambiguous = 0
+    total_opponents = len(opponents)
+    total_seeds = len(seeds)
+    target_examples = max(1, total_opponents * total_seeds)
 
     with preserve_model_training_mode(context.eval_model):
-        for opp in opponents:
+        for opp_index, opp in enumerate(opponents, start=1):
+            _print_selector_probe_progress("opponent", opp_index, total_opponents)
             env = build_training_env(eval_cfg, initial_phase="PHASE1", initial_opponent_tag=opp)
             try:
-                for seed in seeds:
+                for seed_index, seed in enumerate(seeds, start=1):
+                    _print_selector_probe_progress("seed", seed_index, total_seeds)
                     torch.manual_seed(seed)
                     np.random.seed(seed)
                     if hasattr(env, "seed"):
@@ -190,6 +203,7 @@ def _collect_probe_examples(context: GateContext) -> tuple[list[ProbeExample], i
                         done = bool(done_arr[0])
                         step_i += 1
                     if done:
+                        _print_selector_probe_progress("examples", len(examples), target_examples)
                         continue
 
                     context_h = env.state()[0].copy()
@@ -219,6 +233,7 @@ def _collect_probe_examples(context: GateContext) -> tuple[list[ProbeExample], i
                     order = np.argsort(z_returns)[::-1]
                     if len(order) >= 2 and (z_returns[order[0]] - z_returns[order[1]]) < tie_margin:
                         ambiguous += 1
+                        _print_selector_probe_progress("examples", len(examples), target_examples)
                         continue
                     examples.append(
                         ProbeExample(
@@ -229,6 +244,7 @@ def _collect_probe_examples(context: GateContext) -> tuple[list[ProbeExample], i
                             z_returns=list(z_returns),
                         )
                     )
+                    _print_selector_probe_progress("examples", len(examples), target_examples)
             finally:
                 env.close()
 
@@ -347,6 +363,7 @@ def run_learnability_probe(context: GateContext) -> GateResult:
 __all__ = [
     "LearnabilityClassifier",
     "ProbeExample",
+    "_format_selector_probe_progress",
     "grouped_stratified_split",
     "run_learnability_probe",
     "validate_probe_dataset",

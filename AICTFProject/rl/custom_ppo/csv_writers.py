@@ -745,6 +745,12 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         "cf_valid_team_groups",
         "cf_weight_sum",
         "cf_effective_pairs",
+        "cf_mean_pair_hinge",
+        "cf_worst_pair_hinge",
+        "cf_worst_pair_index",
+        "cf_worst_pair_coef",
+        "cf_weak_pair_boost",
+        "cf_competence_required",
         "cf_loss_requires_grad",
         "latent_actor_z_separation_jsd_min",
         "latent_actor_z_separation_jsd_max",
@@ -754,10 +760,14 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         fields.append(f"forced_z_pair_jsd_{idx}")
         fields.append(f"pair_jsd_ema_{idx}")
         fields.append(f"cf_batch_pair_jsd_{idx}")
+        fields.append(f"cf_pair_hinge_{idx}")
+        fields.append(f"cf_pair_weight_{idx}")
     for suffix in pair_suffixes:
         fields.append(f"forced_z_pair_jsd_{suffix}")
         fields.append(f"pair_jsd_ema_{suffix}")
         fields.append(f"cf_batch_pair_jsd_{suffix}")
+        fields.append(f"cf_pair_hinge_{suffix}")
+        fields.append(f"cf_pair_weight_{suffix}")
     fields.extend(_v6i2_gate_metrics_fieldnames())
     fields.extend(_v6i3_comm_metrics_fieldnames())
     return fields

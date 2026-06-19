@@ -172,8 +172,8 @@ checkpoint metadata records the matching gate fingerprint and
 
 | Preset (apply fn) | Parent | Classification | One-line reason |
 |---|---|---|---|
-| `v6i2_staged_team_intent_curriculum` | `v6i1_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Staged team-intent curriculum with dual evidence gates: actor CF pair-JSD EMA plus matched-seed behavioral realization. Confirmatory gate fingerprint: `85506ab324d464c5`. |
-| `v6i3_strategy_local_comm` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | v6i2 plus local learned communication. Phase A requires communication transport without total active-symbol collapse; listener value remains diagnostic until final matched-seed communication evaluation. Confirmatory gate fingerprint: `81e177461e32f5a7`. |
+| `v6i2_staged_team_intent_curriculum` | `v6i1_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Staged team-intent curriculum with dual evidence gates: actor CF pair-JSD EMA plus bounded online matched-seed behavioral realization. Confirmatory gate fingerprint: `224f1aea9ab36319`. |
+| `v6i3_strategy_local_comm` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | v6i2 plus local learned communication. Phase A requires communication transport without total active-symbol collapse; listener value remains diagnostic until final matched-seed communication evaluation. Confirmatory gate fingerprint: `9ef168d941f046fb`. |
 
 ---
 
@@ -501,22 +501,34 @@ dual-evidence gate protocol documented in
 [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md). The
 resolved-config diff vs v6i1 is exactly
 `{experiment_id, gate_protocol_version, latent_cf_coef_max,
-phase_a_max_end_fraction, run_tag}`. Gate threshold fields match the
-frozen `PPOConfig` defaults and are part of the fingerprint.
+latent_cf_require_competence, latent_cf_weak_pair_boost,
+latent_cf_worst_pair_coef, phase_a_max_end_fraction, run_tag}`. Gate
+threshold fields match the frozen `PPOConfig` defaults and are part of
+the fingerprint.
 
 | Field | v6i1 value | This preset | Note |
 |-------|------------|-------------|------|
 | `experiment_id` | `v6i1` | `v6i2` | Artifact and protocol identity. |
 | `gate_protocol_version` | `v6i1_single_macro_intervention` | `v6i2_dual_evidence` | Actor-intervention + behavioral-realization gate families. |
 | `latent_cf_coef_max` | `0.01` | `1.0` | Strong-CF confirmatory ceiling. |
+| `latent_cf_require_competence` | `False` | `True` | Actor pair separation applies only after competence is established. |
+| `latent_cf_weak_pair_boost` | `0.0` | `1.0` | Persistent weak pairs get extra hinge weight from actor-CF pair EMA. |
+| `latent_cf_worst_pair_coef` | `0.0` | `0.5` | Adds a worst-pair hinge term so one collapsed pair cannot hide under the mean. |
 | `phase_a_max_end_fraction` | `0.55` | `0.70` | Allows more Phase-A evidence before forced transition. |
 | `run_tag` | `v6i1_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | `v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | Artifact namespace. |
-| `gate_config_fingerprint` | n/a | `85506ab324d464c5` | Confirmatory v6i2 lineage hash. |
+| `gate_config_fingerprint` | n/a | `224f1aea9ab36319` | Confirmatory v6i2 lineage hash. |
 
 Core frozen gates: 5 of 6 actor pairs above `actor_jsd_margin = 0.001`,
 all 6 above `0.5 * margin`, 3 consecutive valid actor updates,
-matched-seed behavioral effect `>= 0.02`, adverse threshold `>= -0.01`,
-at least 2 opponents passing, and at least 20 matched seeds per opponent.
+matched-seed normalized aggregate effect `>= 0.75`, raw
+`task_behavior_distance >= 0.01`, raw `performance_spread >= 0.01`,
+adverse threshold `>= -0.01`, and at least 2 opponents passing. The
+aggregate reports raw `route_distance`, `task_behavior_distance`,
+`performance_spread`, and normalized `aggregate_effect` independently so
+route distance cannot compensate for zero task behavior. The online Phase
+A gate is bounded to 5 seeds per opponent, 64-step horizons, and 900
+seconds; the full 20-seed matched-seed and selector analyses are
+confirmatory/offline.
 
 ### 6.15 v6i3_strategy_local_comm (SUMMER-COMPATIBLE EXTENSION)
 
@@ -549,7 +561,7 @@ exploratory.
 | `comm_listener_min_states` | `0` | `64` | Minimum listener intervention states. |
 | `comm_listener_consecutive_updates` | `0` | `1` | Diagnostic listener-intervention batch count. |
 | `run_tag` | `v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | `v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4` | Artifact namespace. |
-| `gate_config_fingerprint` | `85506ab324d464c5` | `81e177461e32f5a7` | Confirmatory v6i3 lineage hash. |
+| `gate_config_fingerprint` | `224f1aea9ab36319` | `9ef168d941f046fb` | Confirmatory v6i3 lineage hash. |
 
 Post-training communication dependence requires a matched-seed corruption
 test: natural-minus-corrupted mean episode return must be `>= 0.02` for

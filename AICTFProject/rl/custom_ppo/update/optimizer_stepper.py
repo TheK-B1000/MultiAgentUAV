@@ -115,14 +115,14 @@ class ThreeOptimizerStepper:
         mb_idx: int,
         max_grad_norm: float,
     ) -> OptimizerStepResult:
-        del ppo_actor_loss
+        del policy_loss, entropy_loss, ent_coef
         runtime = self.runtime
         runtime.actor_optimizer.zero_grad(set_to_none=True)
         runtime.critic_optimizer.zero_grad(set_to_none=True)
         runtime.router_optimizer.zero_grad(set_to_none=True)
         assembled = vf_coef * value_loss
         if phase_policy.actor_step_enabled:
-            assembled = assembled + policy_loss + ent_coef * entropy_loss
+            assembled = assembled + ppo_actor_loss
         if isinstance(latent_loss, torch.Tensor) and latent_loss.requires_grad:
             assembled = assembled + latent_loss
         assert_finite_loss(assembled, epoch_idx=epoch_idx, mb_idx=mb_idx)

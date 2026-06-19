@@ -2139,14 +2139,19 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     measures CF-batch actor intervention; Gate B composites matched-seed
     behavioral realization (macro pair JSD is diagnostic only).
 
-    Confirmatory v6i2 uses ``latent_cf_coef_max = 1.0`` (calibrated strong CF);
-    v6i1 retains the weak ``0.01`` baseline for threshold calibration.
+    Confirmatory v6i2 uses ``latent_cf_coef_max = 1.0`` (calibrated strong CF)
+    plus competence-gated pairwise hinge pressure with a worst-pair term and
+    persistent weak-pair weighting; v6i1 retains the weak ``0.01`` baseline for
+    threshold calibration.
     """
     cfg = apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum(cfg)
 
     cfg.experiment_id = "v6i2"
     # Confirmatory v6i2: calibrated strong CF ceiling (v6i1 weak baseline keeps 0.01).
     cfg.latent_cf_coef_max = 1.0
+    cfg.latent_cf_worst_pair_coef = 0.5
+    cfg.latent_cf_weak_pair_boost = 1.0
+    cfg.latent_cf_require_competence = True
     cfg.gate_protocol_version = "v6i2_dual_evidence"
     cfg.phase_a_max_end_fraction = 0.70
     # Frozen v6i2 confirmatory gate thresholds; mirrored in docs/v6i2-gate-protocol-freeze.md.
@@ -2162,6 +2167,15 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     cfg.behavioral_realization_min_opponents_pass = 2
     cfg.behavioral_realization_effect_threshold = 0.02
     cfg.behavioral_realization_adverse_threshold = -0.01
+    cfg.behavioral_route_distance_scale = 0.03
+    cfg.behavioral_task_behavior_distance_scale = 0.02
+    cfg.behavioral_performance_spread_scale = 0.03
+    cfg.behavioral_route_distance_weight = 0.25
+    cfg.behavioral_task_behavior_distance_weight = 0.50
+    cfg.behavioral_performance_spread_weight = 0.25
+    cfg.behavioral_aggregate_effect_threshold = 0.75
+    cfg.behavioral_min_task_behavior_distance = 0.01
+    cfg.behavioral_min_performance_spread = 0.01
     cfg.behavioral_matched_seed_min_seeds_per_opponent = 20
     cfg.curriculum_probe_min_examples = 10
     cfg.run_tag = "v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4"

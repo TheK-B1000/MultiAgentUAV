@@ -29,10 +29,19 @@ def _component_intervention(state: Any) -> dict[str, Any]:
         "pairwise_ema_valid_updates": int(getattr(state, "pairwise_ema_valid_updates", 0)),
         "pairwise_ema_last_update_step": int(getattr(state, "pairwise_ema_last_update_step", -1)),
         "cf_pair_jsd_ema": getattr(state, "cf_pair_jsd_ema", np.zeros(6, dtype=np.float32)).copy(),
+        "cf_pair_jsd_last_batch": getattr(
+            state, "cf_pair_jsd_last_batch", np.zeros(6, dtype=np.float32)
+        ).copy(),
         "cf_pair_jsd_valid_updates": int(getattr(state, "cf_pair_jsd_valid_updates", 0)),
         "cf_pair_jsd_last_update_step": int(getattr(state, "cf_pair_jsd_last_update_step", -1)),
         "actor_intervention_consecutive_updates": int(
             getattr(state, "actor_intervention_consecutive_updates", 0)
+        ),
+        "actor_intervention_skipped_gate_count": int(
+            getattr(state, "actor_intervention_skipped_gate_count", 0)
+        ),
+        "actor_intervention_last_skipped_gate_step": int(
+            getattr(state, "actor_intervention_last_skipped_gate_step", -1)
         ),
         "macro_pair_jsd_ema": getattr(state, "macro_pair_jsd_ema", np.zeros(6, dtype=np.float32)).copy(),
         "macro_pair_jsd_valid_updates": int(getattr(state, "macro_pair_jsd_valid_updates", 0)),
@@ -117,6 +126,7 @@ def _restore_flat_v6i1_fields(state: Any, payload: dict[str, Any]) -> None:
         ("cf_has_experience", "cf_has_experience"),
         ("pair_jsd_ema", "pair_jsd_ema"),
         ("cf_pair_jsd_ema", "cf_pair_jsd_ema"),
+        ("cf_pair_jsd_last_batch", "cf_pair_jsd_last_batch"),
         ("macro_pair_jsd_ema", "macro_pair_jsd_ema"),
         ("selector_hidden", "selector_hidden"),
         ("v6i1_episode_rehearsal", "v6i1_episode_rehearsal"),
@@ -133,6 +143,8 @@ def _restore_flat_v6i1_fields(state: Any, payload: dict[str, Any]) -> None:
         ("cf_pair_jsd_valid_updates", "cf_pair_jsd_valid_updates", int),
         ("cf_pair_jsd_last_update_step", "cf_pair_jsd_last_update_step", int),
         ("actor_intervention_consecutive_updates", "actor_intervention_consecutive_updates", int),
+        ("actor_intervention_skipped_gate_count", "actor_intervention_skipped_gate_count", int),
+        ("actor_intervention_last_skipped_gate_step", "actor_intervention_last_skipped_gate_step", int),
         ("macro_pair_jsd_valid_updates", "macro_pair_jsd_valid_updates", int),
         ("macro_pair_jsd_last_update_step", "macro_pair_jsd_last_update_step", int),
         ("router_optimizer_step_count", "router_optimizer_step_count", int),

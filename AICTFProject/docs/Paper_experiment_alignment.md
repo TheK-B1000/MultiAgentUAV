@@ -439,8 +439,8 @@ episode-router usage-balance coefficient. The audit banner prints
   evaluated and logged during Phase A but is no longer a required gate
   family; final V6I3 communication-value claims require matched-seed
   listener response plus silence/shuffle degradation over v6i2. The v6i3
-  gate fingerprint is `81e177461e32f5a7`; the v6i2 parent fingerprint is
-  `85506ab324d464c5`. Updated listener/transport telemetry for the
+  gate fingerprint is `9ef168d941f046fb`; the v6i2 parent fingerprint is
+  `224f1aea9ab36319`. Updated listener/transport telemetry for the
   silence-plus-four-active-symbol vocabulary, extended the v6i3 CSV
   schema with silence counters and symbol occupancy 0..4, added focused
   v6i3 integration tests, updated `tests/preset_snapshots.json` for the
@@ -519,4 +519,15 @@ episode-router usage-balance coefficient. The audit banner prints
 - **v5i3 / forced-z anneal + per-z router telemetry + matched-schedule random-router eval:** Added `apply_plan_faithful_latent_v5i3_balanced_warmup` (aliases `v5i3`, `v5i3_balanced_warmup`, `balanced_warmup`, etc.) layering a `0.30 -> 0.00` forced-z anneal across `200k -> 500k` on top of v5i2. Added four `latent_forced_z_episode_frac_{start,end}` + `latent_forced_z_anneal_{start,end}` fields in `PPOConfig` and `resolve_latent_forced_z_frac` in `rl/custom_ppo/schedules.py`. Wired the resolved fraction into `latent_strategy_state.py` at the episode-start forcing decision; `trainer.global_step` restore makes resumes correct. Added 8 per-`z` telemetry columns to `_update_fieldnames` and `apply_episode_strategy_ppo`. Added `--latent-selection {router,random-matched,random-episode,fixed}` to `plot/eval_checkpoint.py` for the matched-schedule routing-quality ablation. Zero-config reproduction: any preset that does not set the four `_start/_end` fields gets `latent_forced_z_episode_frac` constant (v5i2 still resolves to 0.0 at every step).
 - **v5 / strict-Summer preset + main-loop gate fix:** Added `apply_plan_faithful_latent_v5_strict_summer` (aliases `v5`, `v5_strict_summer`, etc.) implementing the literal `docs/algorithm.md` loss with no auxiliary `q_phi` PG channels. Refactored the main-loop gate in `rl/custom_ppo/ppo_updater.py` so entropy / persistence / KL / strategy-PPO / aux-return each fire on their own coefficient; the double-step safeguard now triggers off `runtime.latent_router_optimizer is not None` instead of `latent_strategy_ppo_coef == 0`. Behavior change: v3i19 / v4i1 / v4i3 now actually apply their configured `lam_p` and `lam_h` schedules to `q_phi` via the main update (previously silently zeroed).
 - Add entries here when presets, `GLOBAL_STATE_DIM`, or OP5 tuning tags change so experiments stay reproducible.
+- **v6i2 pairwise CF objective and normalized behavior gate:** Added
+  `latent_cf_require_competence`, `latent_cf_weak_pair_boost`, and
+  `latent_cf_worst_pair_coef` to v6i2 so actor-CF pressure starts only after
+  competence, persistent weak pairs receive direct hinge weight, and the worst
+  latent pair cannot be hidden by mean-pair loss. CSV telemetry now includes
+  per-pair hinge and weight fields. The behavioral-realization gate now reports
+  raw `route_distance`, `task_behavior_distance`, `performance_spread`, and
+  normalized `aggregate_effect`; frozen component floors block route-only
+  passes. Pinned by `tests/test_v6i1_cf_loss.py::V6I1CfLossTests` and
+  `tests/test_v6i2_gate_protocol.py::SafeguardTests`; regenerated
+  `tests/preset_snapshots.json`.
 - **v6i2 `latent_cf_coef_max` fix (strong CF confirmatory):** `apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum` inherited `latent_cf_coef_max = 0.01` from v6i1 without override, so default `--preset v6i2` launches capped CF at 0.01 through Phase A (not the calibrated 1.0 ceiling). Preset now sets `latent_cf_coef_max = 1.0`; diff vs v6i1 is `{experiment_id, gate_protocol_version, latent_cf_coef_max, phase_a_max_end_fraction, run_tag}` plus v6i2 gate-threshold fields that match `PPOConfig` defaults. v6i3 inherits the strong ceiling via v6i2. Pinned by `tests/test_v6i2_gate_protocol.py::V6i2PresetTests`; regenerated `tests/preset_snapshots.json` (v6i2 alias entries only: `latent_cf_coef_max` `0.01` → `1.0`). Active runs started before this fix trained under weak CF unless `--latent-cf-coef-max 1.0` was passed explicitly.

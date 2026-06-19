@@ -548,7 +548,7 @@ deprioritized.
 | v6i2 gate infrastructure + schedule clocks | **DONE** — 108+ gate/curriculum tests green |
 | Short v6i2 smoke (wiring only) | **DONE** — `tests/test_v6i2_staged_integration.py` |
 | Threshold calibration from v6i1 λ_cf=0.01 / 1.0 runs | **DONE** — frozen thresholds recorded |
-| Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **DONE** — fingerprint `85506ab324d464c5` |
+| Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **DONE** — stale-aware bounded online gate fingerprint `224f1aea9ab36319` |
 | Full fresh enforce confirmatory run (1.0M → up to 1.3M) | **PLANNED** with frozen fingerprint |
 
 **2026-06-18 preset fix:** default `v6i2` previously inherited `latent_cf_coef_max = 0.01`
@@ -556,6 +556,14 @@ from v6i1 (weak CF). Preset now sets `1.0`. The in-flight
 `v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` run at ~393k trained under
 weak CF unless restarted with the fixed preset or `--latent-cf-coef-max 1.0`; treat it
 as wiring/smoke evidence, not confirmatory strong-CF.
+
+**2026-06-19 pairwise objective/gate refinement:** v6i2 now requires competence
+before actor-CF separation, tracks per-pair hinge/weight telemetry, applies
+persistent weak-pair weighting, and adds a worst-pair hinge term. Matched-seed
+behavioral realization reports route, task-behavior, performance, and aggregate
+components independently; normalized aggregation uses frozen scales and raw
+component floors so route distance cannot carry a pass. Gate fingerprint remains
+`224f1aea9ab36319`.
 
 ### V6I3 local communication (frozen contract — confirmatory run pending)
 
@@ -565,14 +573,14 @@ as wiring/smoke evidence, not confirmatory strong-CF.
 | Slice 1 transport + unit tests | **DONE** — `rl/custom_ppo/communication/` |
 | Slice 2 policy / rollout / PPO | **DONE** |
 | Slice 3–6 phases / telemetry / corruption / gates | **DONE** |
-| v6i3 preset + registry row | **DONE** — fingerprint `81e177461e32f5a7` |
+| v6i3 preset + registry row | **DONE** — fingerprint `9ef168d941f046fb` |
 | Full fresh v6i3 confirmatory run | **PLANNED** — pre-freeze v6i3 artifacts are exploratory only |
 
 V6I3 must not modify active v6i1 runs or frozen v6i2 lineages. `communication_enabled=False` preserves v6i2 behavior.
 
 Calibration uses v6i1/v6i2 evidence only. Confirmatory launch must consume the
 frozen table unchanged (`--fresh-metrics-csv`, `confirmatory_gate_lineage_valid=True`,
-gate fingerprint `f458d26cd040232d`).
+gate fingerprint `9ef168d941f046fb`).
 
 1. **Launch full v6i2 enforce confirmatory run** — not a shortened budget.
 2. **Launch full fresh v6i3 confirmatory run** after v6i2 lineage is accepted;

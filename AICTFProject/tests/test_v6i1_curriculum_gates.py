@@ -15,6 +15,10 @@ import torch.nn as nn
 
 from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL
+from rl.custom_ppo.curriculum.evaluators.matched_seed import (
+    MatchedSeedEvalConfig,
+    _format_matched_seed_progress,
+)
 from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
 from rl.custom_ppo.curriculum_gates import (
     GATE_FAMILY_NAMES,
@@ -44,6 +48,7 @@ from rl.custom_ppo.v6i1_phase_runtime import (
     v6i1_intervention_csv_stats,
 )
 from rl.custom_ppo.inference import CustomPPOInferencePolicy
+from rl.custom_ppo.curriculum.evaluators.learnability import _format_selector_probe_progress
 from rl.custom_ppo.latent_strategy_state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import set_model_requires_grad_for_phase
 
@@ -280,7 +285,7 @@ class OnlineGateLogicTests(unittest.TestCase):
         self.assertEqual(ctrl.phase, "A")
         report = ctrl.gate_check_history[-1]
         self.assertEqual(report["gate_families"]["matched_seed_behavior"]["status"], GATE_STATUS_NOT_RUN)
-        self.assertEqual(report["gate_families"]["selector_learnability_probe"]["status"], GATE_STATUS_NOT_RUN)
+        self.assertEqual(report["probe_report"], {})
 
     def test_enforce_not_run_blocks_promotion(self) -> None:
         gate_results = {
@@ -346,11 +351,20 @@ class EnforceConfigValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "matched-seed boundary evaluation"):
             validate_v6i1_enforce_config(cfg)
 
-    def test_enforce_mode_requires_probe_at_startup(self) -> None:
+    def test_enforce_mode_allows_selector_probe_disabled_by_default(self) -> None:
         cfg = PPOConfig()
         cfg.phase_boundary_gate_mode = "enforce"
         cfg.curriculum_gate_run_boundary_eval = True
         cfg.curriculum_gate_run_probe = False
+        cfg.curriculum_gate_selector_blocks_phase_a = False
+        validate_v6i1_enforce_config(cfg)
+
+    def test_enforce_mode_requires_probe_only_when_selector_blocks_phase_a(self) -> None:
+        cfg = PPOConfig()
+        cfg.phase_boundary_gate_mode = "enforce"
+        cfg.curriculum_gate_run_boundary_eval = True
+        cfg.curriculum_gate_run_probe = False
+        cfg.curriculum_gate_selector_blocks_phase_a = True
         with self.assertRaisesRegex(ValueError, "selector-learnability probe"):
             validate_v6i1_enforce_config(cfg)
 
@@ -640,6 +654,44 @@ class PhaseRequiresGradTests(unittest.TestCase):
 
 
 class TrainingIntegrityGateTests(unittest.TestCase):
+    def test_matched_seed_progress_format(self) -> None:
+        self.assertEqual(
+            _format_matched_seed_progress("opponent", 1, 3),
+            "[Matched Seed Eval] opponent 1/3",
+        )
+        self.assertEqual(
+            _format_matched_seed_progress("seed", 8, 20),
+            "[Matched Seed Eval] seed 8/20",
+        )
+        self.assertEqual(
+            _format_matched_seed_progress("branches", 64, 240),
+            "[Matched Seed Eval] branches 64/240",
+        )
+
+    def test_selector_probe_progress_format(self) -> None:
+        self.assertEqual(
+            _format_selector_probe_progress("opponent", 1, 3),
+            "[Selector Probe] opponent 1/3",
+        )
+        self.assertEqual(
+            _format_selector_probe_progress("seed", 8, 20),
+            "[Selector Probe] seed 8/20",
+        )
+        self.assertEqual(
+            _format_selector_probe_progress("examples", 64, 100),
+            "[Selector Probe] examples 64/100",
+        )
+
+    def test_online_matched_seed_config_caps_workload(self) -> None:
+        cfg = PPOConfig()
+        cfg.curriculum_gate_matched_seed_count = 20
+        cfg.curriculum_gate_matched_seed_max_steps = 120
+        cfg.curriculum_gate_online_matched_seed_count = 5
+        cfg.curriculum_gate_online_matched_seed_max_steps = 64
+        eval_config = MatchedSeedEvalConfig.online_from_cfg(cfg)
+        self.assertEqual(len(eval_config.seeds), 5)
+        self.assertEqual(eval_config.max_episode_steps, 64)
+
     def test_router_optimizer_step_count_blocks_gate(self) -> None:
         ctrl = OnlineGateLogicTests()._make_controller()
         ctrl.trainer.latent_state.router_optimizer_step_count = 3
