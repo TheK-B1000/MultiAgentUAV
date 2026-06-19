@@ -50,15 +50,32 @@ def evaluate_listener_causal_response(cfg: PPOConfig, telemetry: dict[str, float
     margin = float(getattr(cfg, "comm_listener_jsd_margin", 0.0) or 0.0)
     min_pairs = int(getattr(cfg, "comm_listener_min_passing_pairs", 0) or 0)
     min_states = int(getattr(cfg, "comm_listener_min_states", 0) or 0)
+    required_consecutive = int(getattr(cfg, "comm_listener_consecutive_updates", 0) or 0)
     jsd = float(telemetry.get("receiver_action_jsd_by_message_pair_mean", 0.0) or 0.0)
     pairs = float(telemetry.get("receiver_listener_pairs", 0.0) or 0.0)
+    pairs_above = float(
+        telemetry.get(
+            "receiver_listener_pairs_above_margin",
+            pairs if (margin <= 0.0 or jsd >= margin) else 0.0,
+        )
+        or 0.0
+    )
     disagree = float(telemetry.get("receiver_argmax_disagreement_frac", 0.0) or 0.0)
-    states = float(telemetry.get("comm_valid_boundaries", 0.0) or 0.0)
+    states = float(telemetry.get("receiver_listener_states", telemetry.get("comm_valid_boundaries", 0.0)) or 0.0)
+    current_streak = int(
+        telemetry.get(
+            "listener_causal_response_consecutive_updates",
+            1 if (jsd >= margin and pairs_above >= float(min_pairs) and states >= float(min_states)) else 0,
+        )
+        or 0
+    )
     checks = {
         "jsd_margin": jsd >= margin if margin > 0.0 else True,
         "min_pairs": pairs >= float(min_pairs) if min_pairs > 0 else True,
+        "min_passing_pairs": pairs_above >= float(min_pairs) if min_pairs > 0 else True,
         "min_states": states >= float(min_states) if min_states > 0 else True,
         "disagreement": disagree > 0.0 if margin > 0.0 else True,
+        "consecutive_updates": current_streak >= required_consecutive if required_consecutive > 0 else True,
     }
     passed = all(checks.values())
     return GateEvalResult(
@@ -70,6 +87,10 @@ def evaluate_listener_causal_response(cfg: PPOConfig, telemetry: dict[str, float
             "comm_listener_jsd_margin": margin,
             "comm_listener_min_passing_pairs": min_pairs,
             "comm_listener_min_states": min_states,
+            "comm_listener_consecutive_updates": required_consecutive,
+            "receiver_listener_pairs_above_margin": pairs_above,
+            "receiver_listener_states": states,
+            "listener_causal_response_consecutive_updates": current_streak,
         },
     )
 

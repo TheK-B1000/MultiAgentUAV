@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-06-16 (UTC-4)
+> **Last updated:** 2026-06-18 (UTC-4)
 
 ---
 
@@ -541,15 +541,15 @@ deprioritized.
 
 ## 6. Recommended next experiments (priority-ordered)
 
-### V6I2 staged gate protocol (infrastructure ready — calibration blocked)
+### V6I2 staged gate protocol (frozen — confirmatory run pending)
 
 | Step | Status |
 |------|--------|
 | v6i2 gate infrastructure + schedule clocks | **DONE** — 108+ gate/curriculum tests green |
 | Short v6i2 smoke (wiring only) | **DONE** — `tests/test_v6i2_staged_integration.py` |
-| Threshold calibration from v6i1 λ_cf=0.01 / 1.0 runs | **REQUIRED** |
-| Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **REQUIRED before confirmatory** |
-| Full fresh enforce confirmatory run (1.0M → up to 1.3M) | **PLANNED** after freeze |
+| Threshold calibration from v6i1 λ_cf=0.01 / 1.0 runs | **DONE** — frozen thresholds recorded |
+| Freeze [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md) | **DONE** — fingerprint `85506ab324d464c5` |
+| Full fresh enforce confirmatory run (1.0M → up to 1.3M) | **PLANNED** with frozen fingerprint |
 
 **2026-06-18 preset fix:** default `v6i2` previously inherited `latent_cf_coef_max = 0.01`
 from v6i1 (weak CF). Preset now sets `1.0`. The in-flight
@@ -557,24 +557,26 @@ from v6i1 (weak CF). Preset now sets `1.0`. The in-flight
 weak CF unless restarted with the fixed preset or `--latent-cf-coef-max 1.0`; treat it
 as wiring/smoke evidence, not confirmatory strong-CF.
 
-### V6I3 local communication (spec locked — implementation started)
+### V6I3 local communication (frozen contract — confirmatory run pending)
 
 | Slice | Status |
 |-------|--------|
 | Spec owner doc | **DONE** — [`v6i3-local-communication-spec.md`](v6i3-local-communication-spec.md) |
 | Slice 1 transport + unit tests | **DONE** — `rl/custom_ppo/communication/` |
-| Slice 2 policy / rollout / PPO | **PLANNED** |
-| Slice 3–6 phases / telemetry / corruption / gates | **PLANNED** |
-| v6i3 preset + registry row | **PLANNED** (after Proposed Preset Review) |
+| Slice 2 policy / rollout / PPO | **DONE** |
+| Slice 3–6 phases / telemetry / corruption / gates | **DONE** |
+| v6i3 preset + registry row | **DONE** — fingerprint `81e177461e32f5a7` |
+| Full fresh v6i3 confirmatory run | **PLANNED** — pre-freeze v6i3 artifacts are exploratory only |
 
 V6I3 must not modify active v6i1 runs or frozen v6i2 lineages. `communication_enabled=False` preserves v6i2 behavior.
 
-Calibration uses v6i1 runs as evidence only. Confirmatory launch must consume the
-frozen table unchanged (`--fresh-metrics-csv`, `confirmatory_gate_lineage_valid=True`).
+Calibration uses v6i1/v6i2 evidence only. Confirmatory launch must consume the
+frozen table unchanged (`--fresh-metrics-csv`, `confirmatory_gate_lineage_valid=True`,
+gate fingerprint `f458d26cd040232d`).
 
-1. **Calibrate and freeze v6i2 gate thresholds** — see
-   [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md).
-2. **Launch full v6i2 enforce confirmatory run** — not a shortened budget.
+1. **Launch full v6i2 enforce confirmatory run** — not a shortened budget.
+2. **Launch full fresh v6i3 confirmatory run** after v6i2 lineage is accepted;
+   do not reuse pre-freeze v6i3 metrics as official.
 3. **Launch v5i7 seed 0 (§3.3) if the immediate target is the best
    Summer-faithful latent model on split-lane geometry.** Compare only to
    split-lane matched controls.

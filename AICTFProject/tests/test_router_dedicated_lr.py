@@ -43,9 +43,18 @@ import unittest
 
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-_LATENT_STATE_SRC = (_REPO_ROOT / "rl" / "custom_ppo" / "latent_strategy_state.py").read_text(
-    encoding="utf-8"
-)
+_EPISODE_CREDIT_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "credit" / "episode" / "manager.py"
+).read_text(encoding="utf-8")
+_ROUTER_PPO_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "optimization" / "router_ppo.py"
+).read_text(encoding="utf-8")
+_ROUTER_REGISTRY_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "optimization" / "router_registry.py"
+).read_text(encoding="utf-8")
+_ROUTER_STEPPER_SRC = (
+    _REPO_ROOT / "rl" / "custom_ppo" / "latent" / "optimization" / "router_stepper.py"
+).read_text(encoding="utf-8")
 _TRAINER_SRC = (_REPO_ROOT / "rl" / "custom_ppo" / "trainer.py").read_text(encoding="utf-8")
 _OPTIMIZER_BUNDLE_SRC = (
     _REPO_ROOT / "rl" / "custom_ppo" / "trainer_optimizers.py"
@@ -209,57 +218,46 @@ class V3cRuntimePathTests(unittest.TestCase):
 
     def test_apply_episode_strategy_ppo_has_inner_epoch_loop(self):
         self.assertRegex(
-            _LATENT_STATE_SRC,
-            r"n_inner_epochs\s*=\s*max\(\s*1\s*,\s*int\(\s*getattr\(\s*trainer\s*,\s*"
+            _EPISODE_CREDIT_SRC,
+            r"n_epochs\s*=\s*max\(\s*1\s*,\s*int\(\s*getattr\(\s*trainer\s*,\s*"
             r"['\"]latent_episode_strategy_n_epochs['\"]\s*,\s*1\s*\)\s*or\s*1\s*\)\s*\)",
             msg=(
-                "apply_episode_strategy_ppo must derive n_inner_epochs from "
+                "apply_episode_strategy_ppo must derive n_epochs from "
                 "trainer.latent_episode_strategy_n_epochs (with floor of 1). "
                 "If this regex fails the inner loop was removed or rewired."
             ),
         )
-        # The body must be wrapped in `for _ in range(n_inner_epochs):` --
-        # otherwise N=6 still runs only once and v3c is silently dead.
         self.assertRegex(
-            _LATENT_STATE_SRC,
-            r"for\s+_\s+in\s+range\(\s*n_inner_epochs\s*\)\s*:",
+            _ROUTER_PPO_SRC,
+            r"for\s+epoch\s+in\s+range\(\s*max\(\s*1\s*,\s*int\(\s*config\.epochs\s*\)\s*\)\s*\)\s*:",
             msg=(
-                "Inner-epoch loop missing in apply_episode_strategy_ppo. "
+                "Inner-epoch loop missing in RouterPPOEngine.run. "
                 "Without it, latent_episode_strategy_n_epochs > 1 has no effect."
             ),
         )
 
     def test_apply_episode_strategy_ppo_routes_through_router_optimizer(self):
-        # The dedicated optimizer is created in trainer.__init__ only when LR
-        # is set; apply_episode_strategy_ppo must prefer it when present and
-        # fall back to the shared optimizer otherwise.
         self.assertRegex(
-            _LATENT_STATE_SRC,
-            r"router_optimizer\s*=\s*\(\s*getattr\(\s*trainer\s*,\s*"
-            r"['\"]latent_router_optimizer['\"]\s*,\s*None\s*\)\s*or\s*trainer\.optimizer\s*\)",
+            _ROUTER_REGISTRY_SRC,
+            r"getattr\(\s*trainer\s*,\s*['\"]router_optimizer['\"]\s*,\s*None\s*\)\s*or\s*getattr\(\s*"
+            r"trainer\s*,\s*['\"]latent_router_optimizer['\"]\s*,\s*None\s*\)",
             msg=(
-                "apply_episode_strategy_ppo must use trainer.latent_router_optimizer "
-                "when present, fallback to trainer.optimizer otherwise. "
+                "LatentOptimizerRegistry must prefer trainer.router_optimizer, "
+                "then trainer.latent_router_optimizer. "
                 "Without this, the v3c dedicated LR has no effect."
             ),
         )
-        # And the backward/step must actually go through router_optimizer.
-        self.assertIn("router_optimizer.zero_grad(set_to_none=True)", _LATENT_STATE_SRC)
-        self.assertIn("router_optimizer.step()", _LATENT_STATE_SRC)
+        self.assertIn("self.registry.zero_grad(set_to_none=True)", _ROUTER_STEPPER_SRC)
+        self.assertIn("self.registry.step()", _ROUTER_STEPPER_SRC)
 
     def test_clip_grad_norm_scope_is_router_params_when_dedicated(self):
-        """When using the dedicated optimizer, clip only its params -- not the whole model.
-
-        Clipping ``trainer.model.parameters()`` is safe (non-router params have
-        zero gradients from this backward) but slower and confusing. With a
-        dedicated optimizer, the natural scope is its own param groups.
-        """
+        """When using the dedicated optimizer, clip only its params -- not the whole model."""
         self.assertRegex(
-            _LATENT_STATE_SRC,
-            r"if\s+getattr\(\s*trainer\s*,\s*['\"]latent_router_optimizer['\"]\s*,\s*None\s*\)\s+is\s+not\s+None\s*:",
+            _ROUTER_STEPPER_SRC,
+            r"clip_grad_norm_\(\s*self\.registry\.router_parameters",
             msg=(
-                "Missing branch that switches clip_grad scope based on whether "
-                "the dedicated optimizer is in use."
+                "RouterOptimizerStepper must clip only router optimizer params, "
+                "not trainer.model.parameters()."
             ),
         )
 

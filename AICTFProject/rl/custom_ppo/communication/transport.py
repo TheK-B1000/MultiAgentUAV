@@ -8,7 +8,7 @@ from typing import Any
 import torch
 
 from rl.custom_ppo.communication.channels import scatter_symbol_channels
-from rl.custom_ppo.communication.config import CommConfig
+from rl.custom_ppo.communication.config import CommConfig, raw_symbol_to_channel
 
 
 @dataclass
@@ -19,24 +19,46 @@ class CommTelemetry:
     no_receiver_count: int = 0
     symbol_counts: list[int] = field(default_factory=list)
 
-    def to_dict(self, *, num_symbols: int = 4) -> dict[str, float]:
+    def to_dict(
+        self,
+        *,
+        num_symbols: int = 4,
+        silence_symbol: int = -1,
+        message_grid_channels: int | None = None,
+    ) -> dict[str, float]:
         counts = list(self.symbol_counts[: int(num_symbols)])
         while len(counts) < int(num_symbols):
             counts.append(0)
-        total = max(1, sum(counts))
+        total_raw = max(1, sum(counts))
+        grid_channels = int(message_grid_channels or num_symbols)
+        active_counts = [0] * grid_channels
+        for sym, count in enumerate(counts):
+            channel = raw_symbol_to_channel(
+                sym,
+                num_symbols=int(num_symbols),
+                message_grid_channels=grid_channels,
+                silence_symbol=int(silence_symbol),
+            )
+            if channel >= 0:
+                active_counts[channel] += int(count)
+        total_active = max(1, sum(active_counts))
         import math
 
-        probs = [c / total for c in counts if c > 0]
+        probs = [c / total_active for c in active_counts if c > 0]
         entropy = -sum(p * math.log(p + 1e-12) for p in probs if p > 0)
-        max_ent = math.log(max(1, int(num_symbols)))
+        max_ent = math.log(max(1, grid_channels))
+        silence_count = counts[int(silence_symbol)] if 0 <= int(silence_symbol) < len(counts) else 0
         return {
             "comm_send_count": float(self.send_count),
             "comm_delivery_count": float(self.delivery_count),
             "comm_dropout_count": float(self.dropout_count),
             "comm_no_receiver_count": float(self.no_receiver_count),
+            "comm_silence_count": float(silence_count),
+            "comm_active_send_count": float(sum(active_counts)),
+            "comm_silence_share": float(silence_count / total_raw),
             "comm_symbol_entropy": float(entropy),
             "comm_symbol_entropy_normalized": float(entropy / max_ent) if max_ent > 0 else 0.0,
-            "comm_symbols_used": float(sum(1 for c in counts if c > 0)),
+            "comm_symbols_used": float(sum(1 for c in active_counts if c > 0)),
             **{f"comm_symbol_occupancy_{i}": float(counts[i]) for i in range(int(num_symbols))},
         }
 
@@ -149,8 +171,17 @@ class LocalCommTransport:
                     continue
                 if sym < 0 or sym >= int(self.cfg.num_symbols):
                     continue
+                self.telemetry.symbol_counts[sym] += 1
                 self.held_outbound[env, sender] = sym
                 self.active_signal[env, :, sender] = -1
+                channel_sym = raw_symbol_to_channel(
+                    sym,
+                    num_symbols=int(self.cfg.num_symbols),
+                    message_grid_channels=int(self.cfg.message_grid_channels),
+                    silence_symbol=int(self.cfg.silence_symbol),
+                )
+                if channel_sym < 0:
+                    continue
 
                 dx = sender_x[env, sender] - sender_x[env]
                 dy = sender_y[env, sender] - sender_y[env]
@@ -172,13 +203,12 @@ class LocalCommTransport:
                         deliver_step=deliver_step,
                         env_idx=env,
                         sender=sender,
-                        symbol=sym,
+                        symbol=channel_sym,
                         receivers=receivers.clone(),
                         dropped=dropped.clone(),
                     )
                 )
                 self.telemetry.send_count += 1
-                self.telemetry.symbol_counts[sym] += 1
 
     def advance_step(
         self,
@@ -231,7 +261,7 @@ class LocalCommTransport:
             sender_alive=alive.bool(),
             active_symbol=self.active_signal,
             in_range=in_range,
-            num_symbols=int(self.cfg.num_symbols),
+            num_symbols=int(self.cfg.message_grid_channels),
             cols=float(cols),
             rows=float(rows),
         )
@@ -241,7 +271,11 @@ class LocalCommTransport:
             "global_step": int(self.global_step),
             "held_outbound": None if self.held_outbound is None else self.held_outbound.cpu(),
             "active_signal": None if self.active_signal is None else self.active_signal.cpu(),
-            "telemetry": self.telemetry.to_dict(num_symbols=int(self.cfg.num_symbols)),
+            "telemetry": self.telemetry.to_dict(
+                num_symbols=int(self.cfg.num_symbols),
+                silence_symbol=int(self.cfg.silence_symbol),
+                message_grid_channels=int(self.cfg.message_grid_channels),
+            ),
         }
 
     def reset_env_indices(self, env_mask: torch.Tensor) -> None:

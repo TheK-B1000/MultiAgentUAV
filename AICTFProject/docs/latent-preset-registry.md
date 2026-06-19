@@ -96,8 +96,8 @@ and the snapshot in
 Six classifications, per
 [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §3:
 `PAPER-FAITHFUL`, `SUMMER-COMPATIBLE EXTENSION`, `ABLATION`,
-`DIAGNOSTIC`, `DEPRECATED`, `UNKNOWN`. Only the v5 ladder and the most
-recent v4 / v3i19 presets are tabulated; older `v3iN`, `phaseN`, and
+`DIAGNOSTIC`, `DEPRECATED`, `UNKNOWN`. The v5 ladder, v6 staged lineage,
+and the most recent v4 / v3i19 presets are tabulated; older `v3iN`, `phaseN`, and
 `hypothesis_*` presets are kept reachable for reproducibility under
 `DEPRECATED` (§4).
 
@@ -162,6 +162,19 @@ ad-hoc experiments. Mark `DEPRECATED` for new headline claims; consult
 `rl/presets/hypothesis.py` and `rl/presets/other.py` for invocations
 that still depend on them.
 
+### 3.6 v6 staged specialization and local communication lineage
+
+These rows are not `PAPER-FAITHFUL` Summer rows. They are registered
+v6 extensions with frozen gate contracts for confirmatory experiments.
+Pre-freeze artifacts under these run tags are exploratory unless the
+checkpoint metadata records the matching gate fingerprint and
+`confirmatory_gate_lineage_valid=True`.
+
+| Preset (apply fn) | Parent | Classification | One-line reason |
+|---|---|---|---|
+| `v6i2_staged_team_intent_curriculum` | `v6i1_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Staged team-intent curriculum with dual evidence gates: actor CF pair-JSD EMA plus matched-seed behavioral realization. Confirmatory gate fingerprint: `85506ab324d464c5`. |
+| `v6i3_strategy_local_comm` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | v6i2 plus local learned communication. Phase A requires communication transport without total active-symbol collapse; listener value remains diagnostic until final matched-seed communication evaluation. Confirmatory gate fingerprint: `81e177461e32f5a7`. |
+
 ---
 
 ## 4. Deprecated naming surface (kept reachable, do not extend)
@@ -204,6 +217,8 @@ pins the alias map; any deletion or rename must be reflected there.
 | **`apply_plan_faithful_latent_v5i7_entropy_floor_split_lane`** | **`plan_faithful_latent_v5i7_entropy_floor_split_lane`, `plan_faithful_latent_v5i7_summer_faithful_entropy_floor_split_lane`, `plan_faithful_latent_v5i7_summer_faithful_split_lane`, `plan_faithful_latent_v5i7_split_lane`, `latent_v5i7_entropy_floor_split_lane`, `latent_v5i7_summer_faithful_entropy_floor_split_lane`, `latent_v5i7_summer_faithful_split_lane`, `latent_v5i7_split_lane`, `v5i7_entropy_floor_split_lane`, `v5i7_summer_faithful_entropy_floor_split_lane`, `v5i7_summer_faithful_split_lane`, `v5i7_split_lane`, `v5i7`** |
 | **`apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure`** | **`plan_faithful_latent_v5i8_split_lane_v2_task_pressure`, `plan_faithful_latent_v5i8_summer_faithful_split_lane_v2`, `plan_faithful_latent_v5i8_split_lane_v2`, `latent_v5i8_split_lane_v2_task_pressure`, `latent_v5i8_summer_faithful_split_lane_v2`, `latent_v5i8_split_lane_v2`, `v5i8_split_lane_v2_task_pressure`, `v5i8_summer_faithful_split_lane_v2`, `v5i8_split_lane_v2`, `v5i8`** |
 | `apply_plan_faithful_latent_v5i9_csia_guided_specialization` | `plan_faithful_latent_v5i9_csia_guided_specialization`, `plan_faithful_latent_v5i9_csia`, `latent_v5i9_csia_guided_specialization`, `latent_v5i9_csia`, `v5i9_csia_guided_specialization`, `v5i9_csia`, `v5i9` |
+| `apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum` | `plan_faithful_latent_v6i2_staged_team_intent_curriculum`, `latent_v6i2_staged_team_intent_curriculum`, `v6i2_staged_team_intent_curriculum`, `v6i2_staged`, `v6i2` |
+| `apply_plan_faithful_latent_v6i3_strategy_local_comm` | `plan_faithful_latent_v6i3_strategy_local_comm`, `latent_v6i3_strategy_local_comm`, `v6i3_strategy_local_comm`, `v6i3_local_comm`, `v6i3` |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
 
 The full alias surface lives in
@@ -478,6 +493,69 @@ or a globally superior latent cannot activate v5i9 by themselves.
 | Field        | v5i4 value | This preset | Forbidden flag? | Note                                                       |
 |--------------|------------|-------------|-----------------|------------------------------------------------------------|
 | `latent_k`   | `4`        | `1`         | —               | Collapsed-latent ablation (R2 says `4` is canonical; `1` is a deliberate single-axis change to measure whether latent capacity matters at all). |
+
+### 6.14 v6i2_staged_team_intent_curriculum (SUMMER-COMPATIBLE EXTENSION)
+
+v6i2 inherits v6i1's staged team-intent curriculum and freezes the
+dual-evidence gate protocol documented in
+[`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md). The
+resolved-config diff vs v6i1 is exactly
+`{experiment_id, gate_protocol_version, latent_cf_coef_max,
+phase_a_max_end_fraction, run_tag}`. Gate threshold fields match the
+frozen `PPOConfig` defaults and are part of the fingerprint.
+
+| Field | v6i1 value | This preset | Note |
+|-------|------------|-------------|------|
+| `experiment_id` | `v6i1` | `v6i2` | Artifact and protocol identity. |
+| `gate_protocol_version` | `v6i1_single_macro_intervention` | `v6i2_dual_evidence` | Actor-intervention + behavioral-realization gate families. |
+| `latent_cf_coef_max` | `0.01` | `1.0` | Strong-CF confirmatory ceiling. |
+| `phase_a_max_end_fraction` | `0.55` | `0.70` | Allows more Phase-A evidence before forced transition. |
+| `run_tag` | `v6i1_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | `v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | Artifact namespace. |
+| `gate_config_fingerprint` | n/a | `85506ab324d464c5` | Confirmatory v6i2 lineage hash. |
+
+Core frozen gates: 5 of 6 actor pairs above `actor_jsd_margin = 0.001`,
+all 6 above `0.5 * margin`, 3 consecutive valid actor updates,
+matched-seed behavioral effect `>= 0.02`, adverse threshold `>= -0.01`,
+at least 2 opponents passing, and at least 20 matched seeds per opponent.
+
+### 6.15 v6i3_strategy_local_comm (SUMMER-COMPATIBLE EXTENSION)
+
+v6i3 inherits v6i2 directly and adds local learned communication. The
+final preset contract is frozen in
+[`v6i3-local-communication-spec.md`](v6i3-local-communication-spec.md).
+It is confirmatory only for fresh runs launched after the frozen
+fingerprint below; earlier artifacts under the same run tag are
+exploratory.
+
+| Field | v6i2 value | This preset | Note |
+|-------|------------|-------------|------|
+| `experiment_id` | `v6i2` | `v6i3` | Artifact and protocol identity. |
+| `gate_protocol_version` | `v6i2_dual_evidence` | `v6i3_strategy_local_comm_v1` | Adds communication transport evidence to the v6i2 gate set. |
+| `communication_enabled` | `False` | `True` | Enables local message head, transport, and message observation channels. |
+| `comm_num_symbols` | `4` | `5` | `SILENCE` plus four active two-bit symbols. |
+| `comm_silence_symbol` | `-1` | `0` | Symbol 0 sends no rendered message. |
+| `comm_interval_steps` | `32` | `32` | Boundary-only message-head PPO credit. |
+| `comm_delivery_delay_steps` | `1` | `1` | One decision-step delay. |
+| `comm_radius_cells` | `6.0` | `6.0` | Local recipient radius. |
+| `comm_dropout_probability` | `0.10` | `0.10` | Training-only sender-receiver dropout. |
+| `comm_entropy_coef` | `0.001` | `0.001` | Message entropy regularizer. |
+| `comm_min_valid_boundaries` | `0` | `1024` | Usage gate is nontrivial. |
+| `comm_min_deliveries` | `0` | `4096` | Requires delivered messages. |
+| `comm_min_symbols_used` | `3` | `2` | Prevents total active-symbol collapse without requiring full semantics. |
+| `comm_entropy_floor` | `0.0` | `0.0` | Diagnostic during Phase A. |
+| `comm_symbol_dominance_ceiling` | `1.0` | `1.0` | Diagnostic during Phase A. |
+| `comm_listener_jsd_margin` | `0.0` | `0.001` | Diagnostic listener-response intervention threshold. |
+| `comm_listener_min_passing_pairs` | `0` | `3` | Diagnostic: at least 3 of 10 silence/active symbol pairs clear the margin. |
+| `comm_listener_min_states` | `0` | `64` | Minimum listener intervention states. |
+| `comm_listener_consecutive_updates` | `0` | `1` | Diagnostic listener-intervention batch count. |
+| `run_tag` | `v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | `v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4` | Artifact namespace. |
+| `gate_config_fingerprint` | `85506ab324d464c5` | `81e177461e32f5a7` | Confirmatory v6i3 lineage hash. |
+
+Post-training communication dependence requires a matched-seed corruption
+test: natural-minus-corrupted mean episode return must be `>= 0.02` for
+at least two corruption modes, with the paired-bootstrap 95 percent CI
+excluding zero. A WR-only report may use an absolute WR drop `>= 0.03`
+with the same CI requirement.
 
 ---
 

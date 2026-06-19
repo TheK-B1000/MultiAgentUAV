@@ -13,7 +13,7 @@ from rl.custom_ppo.curriculum.types import (
     count_gate_families_measured,
     count_gate_families_passed,
 )
-from rl.custom_ppo.gate_protocol import gate_family_names, is_v6i2_gate_protocol
+from rl.custom_ppo.gate_protocol import gate_family_names, is_v6i2_dual_evidence_protocol
 
 
 def _ranking_sort_key(row: dict[str, Any]) -> tuple[Any, ...]:
@@ -51,7 +51,7 @@ def build_lexicographic_ranking_components(
 ) -> dict[str, Any]:
     families = gate_family_names(cfg) if cfg is not None else GATE_FAMILY_NAMES
     comp_scores = online_report.get("competence_scores", [0.0, 0.0, 0.0, 0.0])
-    if is_v6i2_gate_protocol(cfg) if cfg is not None else False:
+    if is_v6i2_dual_evidence_protocol(cfg) if cfg is not None else False:
         pair_jsd = online_report.get("cf_pair_jsd_ema", [0.0] * 6)
         margin = float(online_report.get("actor_jsd_margin", 0.001))
     else:

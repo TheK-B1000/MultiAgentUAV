@@ -297,6 +297,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("actor_z_jsd_per_head")
         fields.append("actor_z_argmax_disagree")
         fields.append("actor_z_logit_l2")
+        fields.append("actor_z_trunk_l2")
+        fields.append("actor_z_film_mod_l2")
         fields.append("actor_z_entropy_by_z")
         fields.append("actor_z_jsd_head_0")
         fields.append("actor_z_jsd_head_1")
@@ -723,6 +725,20 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         "cf_actor_grad_norm",
         "ppo_actor_grad_norm",
         "cf_to_ppo_grad_ratio",
+        "cf_batch_macro_jsd",
+        "cf_batch_waypoint_jsd",
+        "cf_macro_grad_norm",
+        "cf_waypoint_grad_norm",
+        "z_embed_grad_from_cf",
+        "z_embed_grad_from_ppo",
+        "film_grad_from_cf",
+        "film_grad_from_ppo",
+        "trunk_grad_from_cf",
+        "trunk_grad_from_ppo",
+        "action_head_grad_from_cf",
+        "action_head_grad_from_ppo",
+        "actor_cnn_grad_from_cf",
+        "actor_cnn_grad_from_ppo",
         "cf_batch_pairs_below_margin",
         "cf_hinge_active",
         "cf_hinge_effective",
@@ -754,6 +770,9 @@ def _v6i3_comm_metrics_fieldnames() -> list[str]:
         "comm_delivery_count",
         "comm_dropout_count",
         "comm_no_receiver_count",
+        "comm_silence_count",
+        "comm_active_send_count",
+        "comm_silence_share",
         "comm_symbol_entropy",
         "comm_symbol_entropy_normalized",
         "comm_symbols_used",
@@ -764,12 +783,16 @@ def _v6i3_comm_metrics_fieldnames() -> list[str]:
         "mi_message_role",
         "mi_message_next_macro_action",
         "receiver_action_jsd_by_message_pair_mean",
+        "receiver_action_jsd_by_message_pair_min",
+        "receiver_action_jsd_by_message_pair_max",
         "receiver_argmax_disagreement_frac",
         "receiver_listener_pairs",
+        "receiver_listener_pairs_above_margin",
+        "receiver_listener_states",
         "communication_usage_status",
         "listener_causal_response_status",
     ]
-    for i in range(4):
+    for i in range(5):
         fields.append(f"comm_symbol_occupancy_{i}")
     return fields
 

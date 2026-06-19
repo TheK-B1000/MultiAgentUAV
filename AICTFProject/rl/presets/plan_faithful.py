@@ -2149,7 +2149,7 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     cfg.latent_cf_coef_max = 1.0
     cfg.gate_protocol_version = "v6i2_dual_evidence"
     cfg.phase_a_max_end_fraction = 0.70
-    # Placeholders until calibration against λ_cf=0.01 / 1.0 baselines; freeze before confirmatory run.
+    # Frozen v6i2 confirmatory gate thresholds; mirrored in docs/v6i2-gate-protocol-freeze.md.
     cfg.actor_jsd_margin = 0.001
     cfg.actor_jsd_floor_fraction = 0.5
     cfg.actor_jsd_min_passing_pairs = 5
@@ -2173,10 +2173,9 @@ def apply_plan_faithful_latent_v6i3_strategy_local_comm(
 ) -> PPOConfig:
     """v6i3: v6i2 staged curriculum plus local emergent communication.
 
-    Inherits v6i2 dual-evidence gates and adds communication_usage +
-    listener_causal_response families. Communication is enabled with the
-  locked V6I3 transport contract; evidence thresholds remain placeholders
-    until calibration.
+    Inherits v6i2 dual-evidence gates and adds communication transport as
+    Phase A evidence. Listener causal response remains a diagnostic until
+    final matched-seed communication-value evaluation.
     """
     cfg = apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(cfg)
 
@@ -2184,7 +2183,8 @@ def apply_plan_faithful_latent_v6i3_strategy_local_comm(
     cfg.gate_protocol_version = "v6i3_strategy_local_comm_v1"
     cfg.communication_enabled = True
     cfg.comm_protocol_version = "v6i3_strategy_local_comm_v1"
-    cfg.comm_num_symbols = 4
+    cfg.comm_num_symbols = 5
+    cfg.comm_silence_symbol = 0
     cfg.comm_interval_steps = 32
     cfg.comm_delivery_delay_steps = 1
     cfg.comm_radius_cells = 6.0
@@ -2195,16 +2195,16 @@ def apply_plan_faithful_latent_v6i3_strategy_local_comm(
     cfg.comm_include_sender_position = True
     cfg.comm_message_grid_channels = 4
     cfg.comm_cf_include_message_head = False
-    # Evidence placeholders — calibrate before confirmatory V6I3 run.
-    cfg.comm_min_valid_boundaries = 0
-    cfg.comm_min_deliveries = 0
-    cfg.comm_min_symbols_used = 3
+    # Frozen v6i3 Phase A communication evidence gates; listener response is diagnostic.
+    cfg.comm_min_valid_boundaries = 1024
+    cfg.comm_min_deliveries = 4096
+    cfg.comm_min_symbols_used = 2
     cfg.comm_entropy_floor = 0.0
     cfg.comm_symbol_dominance_ceiling = 1.0
-    cfg.comm_listener_jsd_margin = 0.0
-    cfg.comm_listener_min_passing_pairs = 0
-    cfg.comm_listener_min_states = 0
-    cfg.comm_listener_consecutive_updates = 0
+    cfg.comm_listener_jsd_margin = 0.001
+    cfg.comm_listener_min_passing_pairs = 3
+    cfg.comm_listener_min_states = 64
+    cfg.comm_listener_consecutive_updates = 1
     cfg.run_tag = "v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4"
     return cfg
 

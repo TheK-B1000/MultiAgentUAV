@@ -424,6 +424,29 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i3 frozen confirmatory local-communication lineage:** Updated
+  `apply_plan_faithful_latent_v6i3_strategy_local_comm` so Phase A
+  promotion separates communication access from proof of communication
+  value. The five v6i3 aliases now resolve to `comm_num_symbols = 5`,
+  `comm_silence_symbol = 0`, `comm_message_grid_channels = 4`,
+  `comm_min_valid_boundaries = 1024`, `comm_min_deliveries = 4096`,
+  `comm_min_symbols_used = 2`, `comm_entropy_floor = 0.0`,
+  `comm_symbol_dominance_ceiling = 1.0`,
+  `comm_listener_jsd_margin = 0.001`,
+  `comm_listener_min_passing_pairs = 3`,
+  `comm_listener_min_states = 64`, and
+  `comm_listener_consecutive_updates = 1`. Listener causal response is
+  evaluated and logged during Phase A but is no longer a required gate
+  family; final V6I3 communication-value claims require matched-seed
+  listener response plus silence/shuffle degradation over v6i2. The v6i3
+  gate fingerprint is `81e177461e32f5a7`; the v6i2 parent fingerprint is
+  `85506ab324d464c5`. Updated listener/transport telemetry for the
+  silence-plus-four-active-symbol vocabulary, extended the v6i3 CSV
+  schema with silence counters and symbol occupancy 0..4, added focused
+  v6i3 integration tests, updated `tests/preset_snapshots.json` for the
+  five v6i3 aliases, and recorded the frozen lineage in
+  `v6i2-gate-protocol-freeze.md`, `v6i3-local-communication-spec.md`,
+  `latent-preset-registry.md`, and `research-progress-tracker.md`.
 - **v5i9 / CSIA-guided specialization extension:** Added
   `apply_plan_faithful_latent_v5i9_csia_guided_specialization` (aliases
   `v5i9`, `v5i9_csia`, `v5i9_csia_guided_specialization`, and long

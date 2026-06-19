@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol
+from rl.custom_ppo.gate_protocol import is_v6i2_dual_evidence_protocol
 from rl.custom_ppo.update.loss_result import PairwiseSeparationMeasurement
 
 
@@ -27,7 +27,7 @@ class ActorInterventionEvidenceUpdater:
         cfg: Any,
         global_step: int,
     ) -> GateEvidenceUpdate:
-        if not is_v6i2_gate_protocol(cfg):
+        if not is_v6i2_dual_evidence_protocol(cfg):
             return GateEvidenceUpdate(
                 gate_updated=False,
                 measurement_valid=False,

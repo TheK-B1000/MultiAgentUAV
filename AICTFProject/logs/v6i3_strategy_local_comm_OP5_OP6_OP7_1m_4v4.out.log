@@ -1,0 +1,78 @@
+[PPO] Training preset: 'v6i3'
+[PPO] Agents: 4 per team (4v4) | mode=FIXED_OPPONENT | run_tag='v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 1,000,000
+[PPO] Nominal curriculum budget: 1,000,000
+[PPO] Current effective terminal: 1,000,000
+[PPO] Phase A window: 400,000–700,000
+[PPO] Post-promotion Phase B budget: 300,000
+[PPO] Post-promotion Phase C budget: 300,000
+[PPO] Maximum terminal step if Phase A ends at max window: 1,300,000
+[PPO] Gate protocol: v6i3_strategy_local_comm_v1
+[PPO] Confirmatory gate lineage: VALID (phase_boundary_gate_mode=enforce)
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=202 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.
+[PPO] Opponent randomization: enabled (opponent_randomize flag; uniform per completed episode over pool=['OP5', 'OP6', 'OP7']; pre-reset hook — opponent logged for each episode is the one played during that episode).
+[PPO] Latent team strategy: enabled (K=4, sample=every 64 decision steps, on_flag=False, lambda_p=0.0300, lambda_H=0.0030 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=0.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] Checkpoint dir: checkpoints/4v4
+[PPO] Update metrics CSV: checkpoints/4v4\v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_metrics.csv
+[PPO] Episode metrics CSV: checkpoints/4v4\v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_episodes.csv
+[PPO] E3 step telemetry CSV (per-step z, team_phase, behavior telemetry, buckets, MI-related fields): checkpoints/4v4\v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_e3_steps.csv
+[PPO] Run lock acquired: checkpoints/4v4\v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4.run.lock
+[PPO] Run config written: checkpoints/4v4\v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=randomized pool ['OP5', 'OP6', 'OP7']).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] 4v4: using lr=1.35e-04 for stability.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=202 (ctx170+selector_h32) critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF — plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP5', 'OP6', 'OP7'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Periodic checkpoint saved: checkpoints/4v4\ckpt_v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_50000.zip
+[PPO|diag] steps=65536 ev=-0.001 v_loss=1.021 shape/out=-0.006/-0.021 qphi_grad=0.00000000 lamH=0.002563 zH=1.386(1.00) z_wr_spread=0.117 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.267,0.252,0.198,0.282] z_wr=[0.514,0.539,0.422,0.462] MI_z_o=0.0016 MI_z_phase=0.0007 MI_z_flag=0.0012 MI_z_outcome=0.0033 | OP5:z_occ=[0.26,0.27,0.19,0.28] z_wr=[0.30,0.34,0.32,0.23] OP6:z_occ=[0.29,0.24,0.19,0.27] z_wr=[0.47,0.54,0.32,0.43] OP7:z_occ=[0.25,0.24,0.21,0.30] z_wr=[0.82,0.85,0.65,0.73]
+      [Switch Near] cap=0.000(0/0|ev=6384) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=2969) [N/A: no mid-ep switches] | div_role=1.371 div_spread=0.734 div_pressure=0.224 div_adr=0.692
+      [Z Slices] opp_wr_spread_max=0.212 mean=0.176 per_opp=[OP5=0.109 OP6=0.212 OP7=0.206] | behavior_rel_spread_max=0.116 top3=[num_defenders=rel0.116/abs0.028 n_intercept_near_enemy_carrier=rel0.104/abs0.105 nearest_blue_to_enemy_carrier=rel0.078/abs0.072]
+      [Actor Z] sensitivity_KL=9.27854688e-04 sep_JSD=2.89939271e-05 max_JSD=3.67799774e-04 argmax_disagree=0.106939 logit_l2=5.87287955e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.47916726e-05,4.31961817e-05] entropy_by_z=[9.12744284e-01,9.12788391e-01,9.12577868e-01,9.12780762e-01]
+      [V6I1] phase=A cf_coef=0.0000 sep_train=0 pairwise_ok=1 jsd_consec=0/5 comp_ready=1 macro_jsd=0.000005 pair_raw=[0.000002,0.000014,0.000001,0.000005,0.000000,0.000008] pair_ema=[0.000000,0.000001,0.000000,0.000001,0.000000,0.000001] actor_jsd=0.000029/0.000368 cf_batch=[0,0,0,0,0,0] hinge=0 eff=0 pairs_below=0/6 cf_wsum=0.0000 eff_pairs=0 groups=0 sep_jsd=0.000000/0.000000 min=0.000000 cf_req_grad=0 cf_grad=0.00e+00 cf/ppo=0.000
+[PPO|return_norm] update=1 mean=-2.8869 std=1.8385 count=65536
+[PPO] ep=1000 mode=FIXED_OPPONENT opp=SCRIPTED:OP7 W=473 L=516 D=11 WR=47.3%
+[PPO] Periodic checkpoint saved: checkpoints/4v4\ckpt_v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_100000.zip
+[PPO|diag] steps=131072 ev=0.001 v_loss=1.182 shape/out=-0.007/-0.023 qphi_grad=0.00000000 lamH=0.002126 zH=1.386(1.00) z_wr_spread=0.109 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.263,0.255,0.223,0.259] z_wr=[0.510,0.434,0.402,0.474] MI_z_o=0.0074 MI_z_phase=0.0003 MI_z_flag=0.0003 MI_z_outcome=0.0015 | OP5:z_occ=[0.24,0.25,0.27,0.24] z_wr=[0.28,0.37,0.24,0.26] OP6:z_occ=[0.30,0.28,0.16,0.26] z_wr=[0.59,0.39,0.23,0.48] OP7:z_occ=[0.24,0.24,0.24,0.27] z_wr=[0.70,0.59,0.76,0.68]
+      [Switch Near] cap=0.000(0/0|ev=6384) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=2946) [N/A: no mid-ep switches] | div_role=1.366 div_spread=0.719 div_pressure=0.226 div_adr=0.693
+      [Z Slices] opp_wr_spread_max=0.353 mean=0.213 per_opp=[OP5=0.125 OP6=0.353 OP7=0.162] | behavior_rel_spread_max=0.060 top3=[carrier_escort_count=rel0.060/abs0.046 num_defenders=rel0.051/abs0.012 n_intercept_near_enemy_carrier=rel0.036/abs0.038]
+      [Actor Z] sensitivity_KL=8.50834481e-04 sep_JSD=2.65868148e-05 max_JSD=2.84967013e-04 argmax_disagree=0.101847 logit_l2=5.64910173e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[9.50663707e-06,4.36669907e-05] entropy_by_z=[8.47528338e-01,8.47559094e-01,8.47443819e-01,8.47535014e-01]
+      [V6I1] phase=A cf_coef=0.3107 sep_train=1 pairwise_ok=1 jsd_consec=0/5 comp_ready=1 macro_jsd=0.000003 pair_raw=[0.000003,0.000008,0.000004,0.000001,0,0.000001] pair_ema=[0.000000,0.000002,0.000000,0.000001,0.000000,0.000001] actor_jsd=0.000027/0.000285 cf_batch=[0.000018,0.000030,0.000025,0.000027,0.000016,0.000042] hinge=1 eff=1 pairs_below=6/6 cf_wsum=4.6899 eff_pairs=6 groups=512 sep_jsd=0.000026/0.000042 min=0.000016 cf_req_grad=0 cf_grad=1.54e-04 cf/ppo=0.001
+[PPO|return_norm] update=2 mean=-3.3922 std=2.0416 count=131072
+[PPO] Periodic checkpoint saved: checkpoints/4v4\ckpt_v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_150000.zip
+[PPO|diag] steps=196608 ev=0.001 v_loss=1.156 shape/out=-0.007/-0.021 qphi_grad=0.00000000 lamH=0.001689 zH=1.386(1.00) z_wr_spread=0.092 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.242,0.242,0.230,0.286] z_wr=[0.500,0.473,0.528,0.436] MI_z_o=0.0101 MI_z_phase=0.0007 MI_z_flag=0.0007 MI_z_outcome=0.0023 | OP5:z_occ=[0.22,0.26,0.24,0.27] z_wr=[0.34,0.28,0.36,0.26] OP6:z_occ=[0.23,0.25,0.29,0.24] z_wr=[0.44,0.39,0.41,0.45] OP7:z_occ=[0.27,0.22,0.17,0.34] z_wr=[0.69,0.81,0.91,0.58]
+      [Switch Near] cap=0.000(0/0|ev=6410) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=2921) [N/A: no mid-ep switches] | div_role=1.368 div_spread=0.731 div_pressure=0.225 div_adr=0.694
+      [Z Slices] opp_wr_spread_max=0.328 mean=0.165 per_opp=[OP5=0.104 OP6=0.061 OP7=0.328] | behavior_rel_spread_max=0.117 top3=[carrier_escort_count=rel0.117/abs0.091 num_defenders=rel0.116/abs0.028 nearest_blue_to_carrier=rel0.057/abs0.050]
+      [Actor Z] sensitivity_KL=8.50404268e-04 sep_JSD=2.65730487e-05 max_JSD=2.91306642e-04 argmax_disagree=0.099711 logit_l2=5.54458722e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.02358781e-05,4.29102220e-05] entropy_by_z=[7.98549891e-01,7.98563421e-01,7.98493505e-01,7.98524737e-01]
+      [V6I1] phase=A cf_coef=0.9661 sep_train=1 pairwise_ok=1 jsd_consec=0/5 comp_ready=1 macro_jsd=0.000003 pair_raw=[0.000005,0.000005,0.000007,0.000000,0.000000,0.000000] pair_ema=[0.000001,0.000002,0.000001,0.000001,0.000000,0.000001] actor_jsd=0.000027/0.000291 cf_batch=[0.000021,0.000029,0.000033,0.000024,0.000018,0.000042] hinge=1 eff=1 pairs_below=6/6 cf_wsum=4.4542 eff_pairs=6 groups=512 sep_jsd=0.000028/0.000042 min=0.000018 cf_req_grad=0 cf_grad=4.49e-04 cf/ppo=0.003
+[PPO|return_norm] update=3 mean=-3.6391 std=2.1346 count=196608
+[PPO] ep=2000 mode=FIXED_OPPONENT opp=SCRIPTED:OP6 W=950 L=1026 D=24 WR=47.5%
+[PPO] Periodic checkpoint saved: checkpoints/4v4\ckpt_v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_200000.zip
+[PPO] Periodic checkpoint saved: checkpoints/4v4\ckpt_v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_250000.zip
+[PPO|diag] steps=262144 ev=0.003 v_loss=1.100 shape/out=-0.008/-0.024 qphi_grad=0.00000000 lamH=0.001252 zH=1.386(1.00) z_wr_spread=0.045 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.278,0.230,0.286,0.206] z_wr=[0.459,0.500,0.455,0.491] MI_z_o=0.0055 MI_z_phase=0.0003 MI_z_flag=0.0002 MI_z_outcome=0.0008 | OP5:z_occ=[0.23,0.24,0.30,0.22] z_wr=[0.24,0.30,0.27,0.34] OP6:z_occ=[0.31,0.25,0.24,0.21] z_wr=[0.51,0.50,0.57,0.46] OP7:z_occ=[0.29,0.20,0.32,0.19] z_wr=[0.59,0.74,0.53,0.73]
+      [Switch Near] cap=0.000(0/0|ev=6461) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=2945) [N/A: no mid-ep switches] | div_role=1.370 div_spread=0.733 div_pressure=0.223 div_adr=0.694
+      [Z Slices] opp_wr_spread_max=0.208 mean=0.140 per_opp=[OP5=0.103 OP6=0.109 OP7=0.208] | behavior_rel_spread_max=0.055 top3=[carrier_escort_count=rel0.055/abs0.043 num_defenders=rel0.047/abs0.011 num_go_to=rel0.038/abs0.073]
+      [Actor Z] sensitivity_KL=1.01565964e-03 sep_JSD=3.17364611e-05 max_JSD=2.91477307e-04 argmax_disagree=0.107168 logit_l2=6.09217063e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.47933160e-05,4.86796125e-05] entropy_by_z=[8.78672957e-01,8.78655195e-01,8.78634334e-01,8.78608406e-01]
+      [V6I1] phase=A cf_coef=1.0000 sep_train=1 pairwise_ok=1 jsd_consec=0/5 comp_ready=1 macro_jsd=0.000005 pair_raw=[0.000009,0.000004,0.000012,0.000001,0.000000,0.000002] pair_ema=[0.000002,0.000003,0.000002,0.000001,0.000000,0.000001] actor_jsd=0.000032/0.000291 cf_batch=[0.000024,0.000026,0.000041,0.000021,0.000017,0.000041] hinge=1 eff=1 pairs_below=6/6 cf_wsum=4.0596 eff_pairs=6 groups=512 sep_jsd=0.000028/0.000041 min=0.000017 cf_req_grad=0 cf_grad=4.88e-04 cf/ppo=0.004
+[PPO|return_norm] update=4 mean=-3.8044 std=2.1915 count=262144
+[PPO] Periodic checkpoint saved: checkpoints/4v4\ckpt_v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_300000.zip
+[PPO|diag] steps=327680 ev=0.005 v_loss=1.000 shape/out=-0.007/-0.022 qphi_grad=0.00000000 lamH=0.001000 zH=1.386(1.00) z_wr_spread=0.127 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.224,0.267,0.258,0.250] z_wr=[0.551,0.500,0.423,0.489] MI_z_o=0.0031 MI_z_phase=0.0011 MI_z_flag=0.0011 MI_z_outcome=0.0021 | OP5:z_occ=[0.26,0.25,0.22,0.27] z_wr=[0.33,0.30,0.19,0.28] OP6:z_occ=[0.20,0.26,0.28,0.26] z_wr=[0.61,0.53,0.37,0.50] OP7:z_occ=[0.22,0.29,0.26,0.23] z_wr=[0.76,0.64,0.64,0.68]
+      [Switch Near] cap=0.000(0/0|ev=6305) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=2961) [N/A: no mid-ep switches] | div_role=1.369 div_spread=0.716 div_pressure=0.227 div_adr=0.694
+      [Z Slices] opp_wr_spread_max=0.233 mean=0.160 per_opp=[OP5=0.131 OP6=0.233 OP7=0.117] | behavior_rel_spread_max=0.116 top3=[n_intercept_near_enemy_carrier=rel0.116/abs0.114 nearest_blue_to_enemy_carrier=rel0.063/abs0.059 num_defenders=rel0.063/abs0.015]
+      [Actor Z] sensitivity_KL=1.02211806e-03 sep_JSD=3.19382525e-05 max_JSD=3.02002474e-04 argmax_disagree=0.088572 logit_l2=6.02565557e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[1.65601905e-05,4.73163091e-05] entropy_by_z=[8.38906884e-01,8.38873625e-01,8.38894129e-01,8.38831544e-01]
+      [V6I1] phase=A cf_coef=1.0000 sep_train=1 pairwise_ok=1 jsd_consec=0/5 comp_ready=1 macro_jsd=0.000005 pair_raw=[0.000010,0.000002,0.000012,0.000003,0.000000,0.000004] pair_ema=[0.000003,0.000003,0.000003,0.000001,0.000000,0.000001] actor_jsd=0.000032/0.000302 cf_batch=[0.000028,0.000025,0.000047,0.000021,0.000018,0.000044] hinge=1 eff=1 pairs_below=6/6 cf_wsum=4.6085 eff_pairs=6 groups=512 sep_jsd=0.000030/0.000047 min=0.000018 cf_req_grad=0 cf_grad=5.67e-04 cf/ppo=0.005

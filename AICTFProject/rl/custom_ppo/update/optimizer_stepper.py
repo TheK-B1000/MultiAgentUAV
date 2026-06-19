@@ -123,7 +123,7 @@ class ThreeOptimizerStepper:
         assembled = vf_coef * value_loss
         if phase_policy.actor_step_enabled:
             assembled = assembled + policy_loss + ent_coef * entropy_loss
-        if latent_loss.requires_grad:
+        if isinstance(latent_loss, torch.Tensor) and latent_loss.requires_grad:
             assembled = assembled + latent_loss
         assert_finite_loss(assembled, epoch_idx=epoch_idx, mb_idx=mb_idx)
         assembled.backward()

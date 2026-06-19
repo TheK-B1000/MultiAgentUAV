@@ -892,7 +892,13 @@ class SharedActorCentralizedCritic(nn.Module):
         message_entropy = zero.scatter(0, active_idx, active_entropy)
         return message_log_probs, message_entropy
 
-    def policy_logits(self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def policy_logits(
+        self,
+        obs: Dict[str, torch.Tensor],
+        z_idx: Optional[torch.Tensor] = None,
+        *,
+        detach_local_features: bool = False,
+    ) -> torch.Tensor:
         """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
 
         Feature pipeline:
@@ -905,6 +911,8 @@ class SharedActorCentralizedCritic(nn.Module):
            the team — the same ``z_idx`` row is broadcast across all agents.
         """
         local_in, _, _ = self._encode_local_obs(obs)
+        if detach_local_features:
+            local_in = local_in.detach()
         batch = int(obs["grid"].shape[0])
         if self.uses_latent_strategy:
             if z_idx is None:
@@ -920,6 +928,24 @@ class SharedActorCentralizedCritic(nn.Module):
         if int(per_agent_logits.shape[-1]) == 0:
             raise AssertionError("latent_actor produced zero-width logits; check action_dim wiring")
         return per_agent_logits.reshape(batch, self.n_agents * self.per_agent_logits)
+
+    def policy_trunk_features(
+        self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """Return per-agent trunk features with shape ``(B, n_agents, hidden_dim)``."""
+        local_in, _, _ = self._encode_local_obs(obs)
+        batch = int(obs["grid"].shape[0])
+        if self.uses_latent_strategy:
+            if z_idx is None:
+                raise ValueError("z_idx is required when latent strategy is enabled.")
+            z = self._validate_z_idx(z_idx)
+            if z.shape[0] != batch:
+                raise ValueError(f"z_idx must have shape ({batch},), got {tuple(z_idx.shape)}")
+            z_per_agent = z.unsqueeze(1).expand(batch, self.n_agents).reshape(batch * self.n_agents)
+            hidden = self.latent_actor.trunk_features(local_in, z_per_agent)
+        else:
+            hidden = self.latent_actor.trunk_features(local_in)
+        return hidden.reshape(batch, self.n_agents, int(self.latent_actor.hidden_dim))
 
     def _joint_action_one_hot(self, actions: torch.Tensor) -> torch.Tensor:
         actions = actions.long()

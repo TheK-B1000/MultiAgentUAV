@@ -428,6 +428,101 @@ class LatentConditionedActor(nn.Module):
                 hidden = self._apply_z_film(hidden, z)
         return self.action_head(hidden)
 
+    def trunk_features(
+        self, local_features: torch.Tensor, z_idx: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """Return pre-action-head hidden states for fixed-state z intervention probes."""
+        if local_features.dim() != 2:
+            raise ValueError(
+                f"local_features must be (N, local_feature_dim), got {tuple(local_features.shape)}"
+            )
+        z = None
+        z_emb = None
+        if self.latent_actor_conditioning == "film_v6":
+            if z_idx is None:
+                raise ValueError("z_idx is required when latent actor z conditioning is enabled.")
+            z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+            z_emb = self.strategy_embedding(z) * self.z_embed_scale
+            hidden1 = self.body[0](local_features.float())
+            gamma1_hat, beta1 = self.film_layer1(z_emb).chunk(2, dim=-1)
+            gamma1 = 1.0 + 0.1 * torch.tanh(gamma1_hat)
+            hidden1 = gamma1 * hidden1 + beta1
+            hidden1 = self.body[1](hidden1)
+            hidden2 = self.body[2](hidden1)
+            gamma2_hat, beta2 = self.film_layer2(z_emb).chunk(2, dim=-1)
+            gamma2 = 1.0 + 0.1 * torch.tanh(gamma2_hat)
+            return gamma2 * hidden2 + beta2
+
+        has_z = (self.strategy_embedding is not None) or self.z_onehot_enabled or (self.z_adapter is not None)
+        if has_z:
+            if z_idx is None:
+                raise ValueError("z_idx is required when latent actor z conditioning is enabled.")
+            z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+            pieces = [local_features.float()]
+            if self.strategy_embedding is not None:
+                z_emb = self.strategy_embedding(z) * self.z_embed_scale
+                pieces.append(z_emb)
+            if self.z_onehot_enabled:
+                z_onehot = F.one_hot(z, num_classes=self.latent_k).to(
+                    dtype=local_features.dtype,
+                    device=local_features.device,
+                )
+                pieces.append(z_onehot * self.z_onehot_scale)
+            x = torch.cat(pieces, dim=-1) if len(pieces) > 1 else local_features.float()
+        else:
+            x = local_features.float()
+        if (
+            (self.z_adapter is not None and self.z_film_layers >= 2)
+            or (
+                self.actor_z_film is not None
+                and self.actor_z_film_layer in (1, 2)
+            )
+        ):
+            if z is None:
+                raise ValueError("z_idx is required when actor FiLM is enabled.")
+            hidden = self.body[0](x)
+            if self.z_adapter is not None and self.z_film_layers >= 2:
+                hidden = self._apply_z_film(hidden, z)
+            if self.actor_z_film is not None and self.actor_z_film_layer == 1:
+                if z_emb is None:
+                    raise RuntimeError("actor z FiLM requires a strategy embedding.")
+                hidden = self._apply_actor_z_film(hidden, z_emb)
+            hidden = self.body[1](hidden)
+            hidden = self.body[2](hidden)
+            if self.z_adapter is not None and self.z_film_layers >= 2:
+                hidden = self._apply_z_film(hidden, z)
+            if self.actor_z_film is not None and self.actor_z_film_layer == 2:
+                if z_emb is None:
+                    raise RuntimeError("actor z FiLM requires a strategy embedding.")
+                hidden = self._apply_actor_z_film(hidden, z_emb)
+            return self.body[3](hidden)
+        hidden = self.body(x)
+        if self.z_adapter is not None:
+            if z is None:
+                raise ValueError("z_idx is required when z adapter is enabled.")
+            hidden = self._apply_z_film(hidden, z)
+        return hidden
+
+    def film_modulation_l2(
+        self, z_idx_a: torch.Tensor, z_idx_b: torch.Tensor
+    ) -> float:
+        """Mean L2 distance between z-conditioning vectors for two forced z values."""
+        if self.strategy_embedding is None:
+            return 0.0
+        za = z_idx_a.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+        zb = z_idx_b.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+        emb_a = self.strategy_embedding(za) * self.z_embed_scale
+        emb_b = self.strategy_embedding(zb) * self.z_embed_scale
+        if self.latent_actor_conditioning == "film_v6":
+            mod_a = torch.cat([self.film_layer1(emb_a), self.film_layer2(emb_a)], dim=-1)
+            mod_b = torch.cat([self.film_layer1(emb_b), self.film_layer2(emb_b)], dim=-1)
+            return float(torch.linalg.vector_norm(mod_a - mod_b, dim=-1).mean().item())
+        if self.actor_z_film is not None:
+            mod_a = self.actor_z_film(emb_a)
+            mod_b = self.actor_z_film(emb_b)
+            return float(torch.linalg.vector_norm(mod_a - mod_b, dim=-1).mean().item())
+        return float(torch.linalg.vector_norm(emb_a - emb_b, dim=-1).mean().item())
+
 
 __all__ = [
     "StrategyEncoder",

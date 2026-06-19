@@ -44,7 +44,6 @@ GATE_FAMILY_NAMES_V6I2: tuple[str, ...] = (
 
 GATE_FAMILY_NAMES_V6I3: tuple[str, ...] = GATE_FAMILY_NAMES_V6I2 + (
     "communication_usage",
-    "listener_causal_response",
 )
 
 KNOWN_GATE_PROTOCOLS = frozenset({V6I1_GATE_PROTOCOL, V6I2_GATE_PROTOCOL, V6I3_GATE_PROTOCOL})
@@ -90,6 +89,7 @@ _GATE_CONFIG_KEYS_V6I3: tuple[str, ...] = _GATE_CONFIG_KEYS_V6I2 + (
     "communication_enabled",
     "comm_protocol_version",
     "comm_num_symbols",
+    "comm_silence_symbol",
     "comm_interval_steps",
     "comm_delivery_delay_steps",
     "comm_radius_cells",
@@ -196,6 +196,11 @@ def is_v6i2_gate_protocol(cfg: PPOConfig) -> bool:
 
 def is_v6i3_gate_protocol(cfg: PPOConfig) -> bool:
     return resolve_gate_protocol_version(cfg) == V6I3_GATE_PROTOCOL
+
+
+def is_v6i2_dual_evidence_protocol(cfg: PPOConfig) -> bool:
+    """True for v6i2 and v6i3 rows that share actor-intervention + behavioral-realization gates."""
+    return is_v6i2_gate_protocol(cfg) or is_v6i3_gate_protocol(cfg)
 
 
 def get_gate_family_names(cfg: PPOConfig) -> tuple[str, ...]:
@@ -516,6 +521,8 @@ def evaluate_behavioral_realization(
 
 def staged_latent_stdout_tag(gate_protocol: str | None) -> str:
     """Short stdout label for staged-latent rollout/gate diagnostics."""
+    if gate_protocol == V6I3_GATE_PROTOCOL:
+        return "V6I3"
     if gate_protocol == V6I2_GATE_PROTOCOL:
         return "V6I2"
     return "V6I1"
@@ -546,6 +553,7 @@ __all__ = [
     "gate_lineage_audit_fields",
     "get_gate_family_names",
     "is_staged_v6_team_intent_curriculum",
+    "is_v6i2_dual_evidence_protocol",
     "is_v6i2_gate_protocol",
     "is_v6i3_gate_protocol",
     "resolve_gate_protocol_version",

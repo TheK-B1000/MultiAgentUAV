@@ -20,7 +20,13 @@ from rl.custom_ppo.update.phase_policy import PhaseTrainingPolicy
 from rl.custom_ppo.update.separation_objectives import SeparationObjective
 from rl.custom_ppo.update.strategy_objectives import StrategyObjective
 from rl.custom_ppo.update.update_context import PPOUpdateContext
-from rl.custom_ppo.v6i1_cf_loss import actor_cf_ppo_grad_diagnostics
+from rl.custom_ppo.update.actor_pathway_diagnostics import actor_pathway_grad_diagnostics_for_model
+from rl.custom_ppo.v6i1_cf_loss import (
+    actor_cf_ppo_grad_diagnostics,
+    actor_diagnostic_grad_norm,
+    v6i1_cf_separation_loss_for_action_head,
+)
+from rl.custom_ppo.v6i1_phase_runtime import is_v6i1_staged_trainer
 from rl.ppo_core import ppo_policy_loss, ppo_value_loss
 
 
@@ -320,6 +326,38 @@ class MinibatchUpdater:
                 "ppo_actor_grad_norm": ppo_norm,
                 "cf_to_ppo_grad_ratio": ratio,
             }
+            cf_telemetry.update(
+                actor_pathway_grad_diagnostics_for_model(
+                    model=model,
+                    scaled_cf_loss=separation_result.loss.scaled_loss,
+                    ppo_actor_loss=ppo_actor_loss,
+                )
+            )
+            if is_v6i1_staged_trainer(runtime):
+                cf_margin = float(
+                    getattr(cfg, "latent_cf_jsd_margin", 0.01)
+                    or getattr(hparams, "latent_actor_z_separation_margin", 0.02)
+                    or 0.01
+                )
+                competence, competence_ready = self.latent_state.compute_competence_scores()
+                for head_idx, head_key in enumerate(("macro", "waypoint")):
+                    if head_idx >= len(model.per_agent_action_dims):
+                        break
+                    head_loss = v6i1_cf_separation_loss_for_action_head(
+                        model,
+                        obs_batch,
+                        action_head_idx=head_idx,
+                        latent_k=int(hparams.latent_k),
+                        margin=cf_margin,
+                        competence=competence,
+                        competence_ready=bool(competence_ready),
+                        subsample_generator=self.separation_objective.subsample_generator,
+                    )
+                    scaled_head = float(curr_sep_coef) * head_loss
+                    cf_telemetry[f"cf_{head_key}_grad_norm"] = actor_diagnostic_grad_norm(
+                        scaled_head,
+                        actor_parameters,
+                    )
             updater_state.actor_grad_diag_done = True
 
         step_result = self.optimizer_stepper.step(
@@ -421,7 +459,13 @@ class MinibatchUpdater:
             "cf_valid_team_groups": tensor_stat(z_sep_stats.get("cf_valid_team_groups")),
             "cf_weight_sum": tensor_stat(z_sep_stats.get("cf_weight_sum")),
             "cf_effective_pairs": tensor_stat(z_sep_stats.get("cf_effective_pairs")),
-            "cf_loss_requires_grad": 1.0 if bool(z_sep_loss.requires_grad) else 0.0,
+            "cf_loss_requires_grad": (
+                1.0 if bool(separation_result.loss.scaled_loss.requires_grad) else 0.0
+            ),
+            "cf_batch_macro_jsd": tensor_stat(z_sep_stats.get("cf_batch_macro_jsd", zero_scalar)),
+            "cf_batch_waypoint_jsd": tensor_stat(
+                z_sep_stats.get("cf_batch_waypoint_jsd", zero_scalar)
+            ),
             "strategy_kl": float(strategy_kl_value),
             "strategy_phase_loss": float(strategy_phase_loss_value),
             "actor_intervention_measurement_valid": 1.0 if measurement.valid else 0.0,

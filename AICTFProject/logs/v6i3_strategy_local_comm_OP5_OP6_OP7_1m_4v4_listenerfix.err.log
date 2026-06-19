@@ -1,0 +1,37 @@
+Traceback (most recent call last):
+  File "K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py", line 402, in <module>
+    main()
+  File "K:\MultiAgentUAV\AICTFProject\rl\training\cli.py", line 947, in main
+    train_ppo(cfg)
+  File "K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py", line 301, in train_ppo
+    stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\trainer.py", line 354, in learn
+    self.v6i1_curriculum.check_and_run_gate()
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum\controller.py", line 325, in check_and_run_gate
+    matched_result = self._run_matched_seed_eval(context)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum\controller.py", line 187, in _run_matched_seed_eval
+    return _to_family_result(evaluate_matched_seed_behavior(ctx))
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum\evaluators\matched_seed.py", line 222, in evaluate_matched_seed_behavior
+    op_reports, any_mismatch = collect_matched_seed_metrics(context)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum\evaluators\matched_seed.py", line 150, in collect_matched_seed_metrics
+    act = context.predict(obs)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum\context.py", line 69, in predict
+    act, _ = policy.predict(self.unwrap_vec_obs(obs), deterministic=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\inference.py", line 557, in predict
+    action_tensor, _, _, _ = self.model.act(
+                             ^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\policy.py", line 1012, in act
+    logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\policy.py", line 907, in policy_logits
+    local_in, _, _ = self._encode_local_obs(obs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\policy.py", line 714, in _encode_local_obs
+    raise ValueError(
+ValueError: grid must have shape (B, 4, 12, 20, 20), got (1, 4, 8, 20, 20)

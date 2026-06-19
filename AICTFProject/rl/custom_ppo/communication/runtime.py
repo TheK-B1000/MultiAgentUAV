@@ -167,7 +167,7 @@ class CommRolloutRuntime:
         if self._message_channels is not None:
             self._symbol_marginal = symbol_marginal_from_channels(
                 self._message_channels,
-                num_symbols=int(self.comm.num_symbols),
+                num_symbols=int(self.comm.message_grid_channels),
             )
             channels = apply_message_channel_corruption(
                 self._message_channels,

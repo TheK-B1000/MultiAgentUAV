@@ -24,7 +24,7 @@ class _CfModel(nn.Module):
     n_agents = 1
     per_agent_action_dims = (3,)
 
-    def policy_logits(self, obs, z_idx=None):
+    def policy_logits(self, obs, z_idx=None, *, detach_local_features=False):
         z = z_idx.long().reshape(-1).clamp(min=0, max=3)
         logits = torch.zeros((int(z.shape[0]), 3), dtype=torch.float32)
         logits[z == 0] = torch.tensor([4.0, -4.0, -4.0])
@@ -48,7 +48,7 @@ class _TrainableZLogitsModel(nn.Module):
         super().__init__()
         self.latent_actor = nn.Parameter(torch.tensor(z_logits, dtype=torch.float32))
 
-    def policy_logits(self, obs, z_idx=None):
+    def policy_logits(self, obs, z_idx=None, *, detach_local_features=False):
         z = z_idx.long().reshape(-1).clamp(min=0, max=self.latent_actor.shape[0] - 1)
         return self.latent_actor[z]
 
@@ -370,6 +370,47 @@ class ActorGradDiagnosticTests(unittest.TestCase):
     def test_global_grad_norm_sums_across_tensors(self) -> None:
         g1 = torch.tensor([3.0, 4.0])
         self.assertAlmostEqual(global_grad_norm([g1]), 5.0)
+
+
+class _TwoHeadCfModel(nn.Module):
+    n_agents = 1
+    per_agent_action_dims = (3, 4)
+
+    def policy_logits(self, obs, z_idx=None, *, detach_local_features=False):
+        z = z_idx.long().reshape(-1).clamp(min=0, max=3)
+        batch = int(z.shape[0])
+        logits = torch.zeros((batch, 7), dtype=torch.float32)
+        for zi in range(4):
+            mask = z == zi
+            if not bool(mask.any()):
+                continue
+            row = torch.zeros(7)
+            row[0] = float(zi)
+            row[3] = float(zi) * 2.0
+            logits[mask] = row
+        return logits
+
+    @staticmethod
+    def _mask_logits(logits, mask):
+        return logits
+
+
+class V6i1CfPerHeadDiagnosticsTests(unittest.TestCase):
+    def test_cf_batch_macro_and_waypoint_jsd_emitted(self) -> None:
+        model = _TwoHeadCfModel()
+        obs = {"mask": torch.ones((8, 1))}
+        _, stats = v6i1_cf_separation_loss(
+            model,
+            obs,
+            latent_k=4,
+            margin=0.01,
+            competence=np.ones(4, dtype=np.float32),
+            competence_ready=True,
+        )
+        self.assertIn("cf_batch_macro_jsd", stats)
+        self.assertIn("cf_batch_waypoint_jsd", stats)
+        self.assertGreater(float(stats["cf_batch_macro_jsd"].item()), 0.0)
+        self.assertGreater(float(stats["cf_batch_waypoint_jsd"].item()), 0.0)
 
 
 if __name__ == "__main__":

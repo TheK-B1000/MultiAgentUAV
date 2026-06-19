@@ -26,6 +26,7 @@ def rollout_comm_usage_telemetry(
     buffer: TensorDictRolloutBuffer,
     *,
     num_symbols: int = 4,
+    silence_symbol: int = -1,
 ) -> dict[str, float]:
     """Usage counters from one rollout buffer."""
     if "message_boundary_mask" not in buffer.fields:
@@ -42,11 +43,23 @@ def rollout_comm_usage_telemetry(
         idx = int(sym)
         if 0 <= idx < int(num_symbols):
             counts[idx] += 1
-    entropy, entropy_norm, used = _entropy_from_counts(counts, num_symbols=int(num_symbols))
-    dominance = max(counts) / max(1, sum(counts)) if counts else 1.0
+    active_counts = [
+        c for i, c in enumerate(counts) if not (int(silence_symbol) >= 0 and i == int(silence_symbol))
+    ]
+    entropy, entropy_norm, used = _entropy_from_counts(
+        active_counts,
+        num_symbols=max(1, len(active_counts)),
+    )
+    active_total = sum(active_counts)
+    raw_total = sum(counts)
+    dominance = max(active_counts) / max(1, active_total) if active_counts else 1.0
+    silence_count = counts[int(silence_symbol)] if 0 <= int(silence_symbol) < len(counts) else 0
     out = {
         "comm_valid_boundaries": float(valid_boundaries),
         "comm_send_count": float(valid_boundaries * int(symbols.shape[1])),
+        "comm_silence_count": float(silence_count),
+        "comm_active_send_count": float(active_total),
+        "comm_silence_share": float(silence_count / max(1, raw_total)),
         "comm_symbol_entropy": float(entropy),
         "comm_symbol_entropy_normalized": float(entropy_norm),
         "comm_symbols_used": float(used),
@@ -147,7 +160,11 @@ def collect_rollout_comm_telemetry(
     if not bool(getattr(cfg, "communication_enabled", False)):
         return {}
     num_symbols = int(getattr(cfg, "comm_num_symbols", 4) or 4)
-    usage = rollout_comm_usage_telemetry(buffer, num_symbols=num_symbols)
+    usage = rollout_comm_usage_telemetry(
+        buffer,
+        num_symbols=num_symbols,
+        silence_symbol=int(getattr(cfg, "comm_silence_symbol", -1)),
+    )
     info = rollout_comm_information_telemetry(buffer, num_symbols=num_symbols)
     merged = merge_transport_telemetry(dict(transport_stats or {}), usage)
     merged.update(info)

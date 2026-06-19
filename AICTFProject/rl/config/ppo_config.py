@@ -166,6 +166,7 @@ class PPOConfig:
     communication_enabled: bool = False
     comm_protocol_version: str = "v6i3_strategy_local_comm_v1"
     comm_num_symbols: int = 4
+    comm_silence_symbol: int = -1
     comm_interval_steps: int = 32
     comm_delivery_delay_steps: int = 1
     comm_radius_cells: float = 6.0
@@ -176,7 +177,7 @@ class PPOConfig:
     comm_include_sender_position: bool = True
     comm_message_grid_channels: int = 4
     comm_cf_include_message_head: bool = False
-    # V6I3 evidence placeholders (calibrate before confirmatory).
+    # V6I3 evidence gates. Defaults are inert for non-communication rows; v6i3 freezes overrides.
     comm_min_valid_boundaries: int = 0
     comm_min_deliveries: int = 0
     comm_min_symbols_used: int = 3

@@ -217,7 +217,7 @@ def v6i1_cf_separation_loss(
     for k in range(int(latent_k)):
         z_k = torch.full((curr_batch_size,), k, dtype=torch.long, device=device)
         logits_k = model._mask_logits(
-            model.policy_logits(obs_batch, z_idx=z_k),
+            model.policy_logits(obs_batch, z_idx=z_k, detach_local_features=True),
             obs_batch.get("mask"),
         )
         logits_list.append(logits_k)
@@ -225,10 +225,16 @@ def v6i1_cf_separation_loss(
     pair_count = len(PAIR_ORDER)
     pair_js_sum = [logits_list[0].new_zeros((curr_batch_size,)) for _ in range(pair_count)]
     pair_js_count = [0 for _ in range(pair_count)]
+    n_heads = len(model.per_agent_action_dims)
+    head_pair_js_sum = [
+        [logits_list[0].new_zeros((curr_batch_size,)) for _ in range(pair_count)]
+        for _ in range(n_heads)
+    ]
+    head_pair_js_count = [[0 for _ in range(pair_count)] for _ in range(n_heads)]
 
     offset = 0
     for _agent_idx in range(int(model.n_agents)):
-        for dim in model.per_agent_action_dims:
+        for head_idx, dim in enumerate(model.per_agent_action_dims):
             width = int(dim)
             p_stacked = []
             for k in range(int(latent_k)):
@@ -246,6 +252,10 @@ def v6i1_cf_separation_loss(
                     continue
                 pair_js_sum[pair_idx] = pair_js_sum[pair_idx] + js_matrix[zi, zj]
                 pair_js_count[pair_idx] += 1
+                head_pair_js_sum[head_idx][pair_idx] = (
+                    head_pair_js_sum[head_idx][pair_idx] + js_matrix[zi, zj]
+                )
+                head_pair_js_count[head_idx][pair_idx] += 1
             offset += width
 
     if not any(pair_js_count):
@@ -279,6 +289,16 @@ def v6i1_cf_separation_loss(
     weight_sum = torch.stack(weights).sum().clamp_min(1e-8)
     loss = torch.stack(penalties).sum() / weight_sum
     pair_batch_means = pair_d_t.mean(dim=-1)
+    head_jsd_means: list[float] = []
+    for head_idx in range(n_heads):
+        head_pair_d = []
+        for pair_idx in range(pair_count):
+            denom = max(1, head_pair_js_count[head_idx][pair_idx])
+            head_pair_d.append(head_pair_js_sum[head_idx][pair_idx] / float(denom))
+        if head_pair_d:
+            head_jsd_means.append(float(torch.stack(head_pair_d).mean().item()))
+        else:
+            head_jsd_means.append(0.0)
     diag = _build_cf_diag_stats(
         device=device,
         pair_batch_means=pair_batch_means,
@@ -289,7 +309,127 @@ def v6i1_cf_separation_loss(
         weight_sum=weight_sum,
         weights=weights,
     )
+    if head_jsd_means:
+        diag["cf_batch_macro_jsd"] = pair_d_t.new_tensor(head_jsd_means[0])
+        if len(head_jsd_means) > 1:
+            diag["cf_batch_waypoint_jsd"] = pair_d_t.new_tensor(
+                float(np.mean(head_jsd_means[1:]))
+            )
+        else:
+            diag["cf_batch_waypoint_jsd"] = pair_d_t.new_tensor(0.0)
     return loss, diag
+
+
+def v6i1_cf_separation_loss_for_action_head(
+    model: Any,
+    obs_batch: dict[str, torch.Tensor],
+    *,
+    action_head_idx: int,
+    latent_k: int,
+    margin: float,
+    competence: np.ndarray,
+    competence_ready: bool,
+    subsample_generator: torch.Generator | None = None,
+    max_rows: int = 512,
+) -> torch.Tensor:
+    """CF separation restricted to one per-agent action head (macro=0, waypoint=1+)."""
+    device = obs_batch.get("mask", torch.tensor(0.0)).device
+    if int(latent_k) <= 1:
+        return torch.zeros((), dtype=torch.float32, device=device)
+
+    obs_batch = _FaithfulObsGuard(obs_batch)
+    batch_size = 0
+    for value in obs_batch.values():
+        if isinstance(value, torch.Tensor) and value.dim() >= 1:
+            batch_size = int(value.shape[0])
+            break
+    if batch_size <= 0:
+        return torch.zeros((), dtype=torch.float32, device=device)
+
+    if batch_size > max_rows:
+        indices = torch.randperm(batch_size, device=device, generator=subsample_generator)[
+            :max_rows
+        ]
+        obs_sub: dict[str, Any] = {}
+        for key, value in obs_batch.items():
+            if isinstance(value, torch.Tensor) and int(value.shape[0]) == batch_size:
+                obs_sub[key] = value.index_select(0, indices)
+            else:
+                obs_sub[key] = value
+        obs_batch = _FaithfulObsGuard(obs_sub)
+        curr_batch_size = max_rows
+    else:
+        curr_batch_size = batch_size
+
+    logits_list = []
+    for k in range(int(latent_k)):
+        z_k = torch.full((curr_batch_size,), k, dtype=torch.long, device=device)
+        logits_k = model._mask_logits(
+            model.policy_logits(obs_batch, z_idx=z_k, detach_local_features=True),
+            obs_batch.get("mask"),
+        )
+        logits_list.append(logits_k)
+
+    pair_count = len(PAIR_ORDER)
+    pair_js_sum = [logits_list[0].new_zeros((curr_batch_size,)) for _ in range(pair_count)]
+    pair_js_count = [0 for _ in range(pair_count)]
+    head_idx = int(action_head_idx)
+
+    offset = 0
+    for _agent_idx in range(int(model.n_agents)):
+        for local_head_idx, dim in enumerate(model.per_agent_action_dims):
+            width = int(dim)
+            if local_head_idx != head_idx:
+                offset += width
+                continue
+            p_stacked = []
+            for k in range(int(latent_k)):
+                a_k = logits_list[k][:, offset : offset + width]
+                p_stacked.append(torch.softmax(a_k, dim=-1).clamp_min(1e-8))
+            p_stacked_t = torch.stack(p_stacked, dim=0)
+            p_i = p_stacked_t.unsqueeze(1)
+            p_j = p_stacked_t.unsqueeze(0)
+            m = 0.5 * (p_i + p_j)
+            kl_i = (p_i * (p_i.log() - m.log())).sum(dim=-1)
+            kl_j = (p_j * (p_j.log() - m.log())).sum(dim=-1)
+            js_matrix = 0.5 * kl_i + 0.5 * kl_j
+            for pair_idx, (zi, zj) in enumerate(PAIR_ORDER):
+                if zi >= int(latent_k) or zj >= int(latent_k):
+                    continue
+                pair_js_sum[pair_idx] = pair_js_sum[pair_idx] + js_matrix[zi, zj]
+                pair_js_count[pair_idx] += 1
+            offset += width
+
+    if not any(pair_js_count):
+        return torch.zeros((), dtype=torch.float32, device=device)
+
+    pair_d = []
+    for pair_idx in range(pair_count):
+        denom = max(1, pair_js_count[pair_idx])
+        pair_d.append(pair_js_sum[pair_idx] / float(denom))
+    pair_d_t = torch.stack(pair_d, dim=0)
+
+    if competence_ready:
+        c = torch.as_tensor(competence, device=device, dtype=torch.float32).reshape(-1)
+    else:
+        c = torch.ones((int(latent_k),), device=device, dtype=torch.float32)
+    c = c.detach()
+
+    margin_t = pair_d_t.new_tensor(float(max(0.0, margin)))
+    penalties: list[torch.Tensor] = []
+    weights: list[torch.Tensor] = []
+    for pair_idx, (zi, zj) in enumerate(PAIR_ORDER):
+        if zi >= int(latent_k) or zj >= int(latent_k):
+            continue
+        weight = torch.sqrt(c[int(zi)] * c[int(zj)]).clamp_min(0.0)
+        weights.append(weight)
+        penalties.append(weight * F.relu(margin_t - pair_d_t[pair_idx]).mean())
+
+    if not penalties:
+        return torch.zeros((), dtype=torch.float32, device=device)
+
+    weight_sum = torch.stack(weights).sum().clamp_min(1e-8)
+    return torch.stack(penalties).sum() / weight_sum
 
 
 __all__ = [
@@ -301,5 +441,6 @@ __all__ = [
     "forced_z_pairwise_profile_available",
     "global_grad_norm",
     "v6i1_cf_separation_loss",
+    "v6i1_cf_separation_loss_for_action_head",
     "v6i1_pair_suffix",
 ]

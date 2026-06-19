@@ -46,6 +46,7 @@ from rl.custom_ppo.curriculum.types import (
 )
 from rl.custom_ppo.gate_protocol import (
     gate_family_names,
+    is_v6i2_dual_evidence_protocol,
     is_v6i2_gate_protocol,
     resolve_gate_protocol_version,
     validate_protocol_config,
@@ -318,7 +319,7 @@ class V6I1CurriculumController:
 
             last_stats = dict(getattr(self.trainer, "last_stats", {}) or {})
             online_report.update(phase_a_stats_snapshot(last_stats, gate_step=step))
-            if is_v6i2_gate_protocol(self.cfg):
+            if is_v6i2_dual_evidence_protocol(self.cfg):
                 matched_result = self._evaluate_behavioral_realization_gate(context)
                 gate_results["behavioral_realization"] = matched_result
             else:
@@ -399,7 +400,7 @@ class V6I1CurriculumController:
             )
             req_consec = (
                 int(self.cfg.actor_jsd_consecutive_updates)
-                if is_v6i2_gate_protocol(self.cfg)
+                if is_v6i2_dual_evidence_protocol(self.cfg)
                 else int(self.cfg.latent_cf_gate_consecutive_updates)
             )
             gate_families_report = {

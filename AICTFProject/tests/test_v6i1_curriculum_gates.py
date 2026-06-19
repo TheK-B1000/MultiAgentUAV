@@ -13,6 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL
 from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
 from rl.custom_ppo.curriculum_gates import (

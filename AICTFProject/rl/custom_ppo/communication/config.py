@@ -11,6 +11,7 @@ class CommConfig:
     enabled: bool = False
     protocol_version: str = "v6i3_strategy_local_comm_v1"
     num_symbols: int = 4
+    silence_symbol: int = -1
     interval_steps: int = 32
     delivery_delay_steps: int = 1
     radius_cells: float = 6.0
@@ -27,6 +28,7 @@ class CommConfig:
             "communication_enabled",
             "comm_protocol_version",
             "comm_num_symbols",
+            "comm_silence_symbol",
             "comm_interval_steps",
             "comm_delivery_delay_steps",
             "comm_radius_cells",
@@ -47,6 +49,7 @@ def resolve_comm_config(cfg: Any) -> CommConfig:
             getattr(cfg, "comm_protocol_version", "v6i3_strategy_local_comm_v1") or ""
         ),
         num_symbols=int(getattr(cfg, "comm_num_symbols", 4) or 4),
+        silence_symbol=int(getattr(cfg, "comm_silence_symbol", -1)),
         interval_steps=int(getattr(cfg, "comm_interval_steps", 32) or 32),
         delivery_delay_steps=int(getattr(cfg, "comm_delivery_delay_steps", 1) or 1),
         radius_cells=float(getattr(cfg, "comm_radius_cells", 6.0) or 6.0),
@@ -67,4 +70,31 @@ def extra_cnn_channels(cfg: Any) -> int:
     return int(comm.message_grid_channels)
 
 
-__all__ = ["CommConfig", "extra_cnn_channels", "resolve_comm_config"]
+def raw_symbol_to_channel(
+    symbol: int,
+    *,
+    num_symbols: int,
+    message_grid_channels: int,
+    silence_symbol: int = -1,
+) -> int:
+    """Map a sampled communication symbol to a rendered message channel."""
+    sym = int(symbol)
+    if sym < 0 or sym >= int(num_symbols):
+        return -1
+    if int(silence_symbol) >= 0 and sym == int(silence_symbol):
+        return -1
+    if int(silence_symbol) == 0 and int(num_symbols) == int(message_grid_channels) + 1:
+        channel = sym - 1
+    else:
+        channel = sym
+    if channel < 0 or channel >= int(message_grid_channels):
+        return -1
+    return int(channel)
+
+
+__all__ = [
+    "CommConfig",
+    "extra_cnn_channels",
+    "raw_symbol_to_channel",
+    "resolve_comm_config",
+]

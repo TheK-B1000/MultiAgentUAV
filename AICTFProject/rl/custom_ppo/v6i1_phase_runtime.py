@@ -395,9 +395,13 @@ def v6i1_intervention_csv_stats(
 
     profile_stats = profile_stats or {}
     cfg = cfg or getattr(getattr(latent_state, "trainer", None), "cfg", None)
-    from rl.custom_ppo.gate_protocol import is_staged_v6_team_intent_curriculum, is_v6i2_gate_protocol, is_v6i3_gate_protocol
+    from rl.custom_ppo.gate_protocol import (
+        is_staged_v6_team_intent_curriculum,
+        is_v6i2_dual_evidence_protocol,
+        is_v6i3_gate_protocol,
+    )
 
-    if is_v6i2_gate_protocol(cfg) if cfg is not None else False:
+    if is_v6i2_dual_evidence_protocol(cfg) if cfg is not None else False:
         margin = float(cfg.actor_jsd_margin)
         floor_frac = float(cfg.actor_jsd_floor_fraction)
         min_pairs = int(cfg.actor_jsd_min_passing_pairs)
@@ -547,7 +551,14 @@ def format_v6i1_rollout_stdout_line(
     from rl.custom_ppo.gate_protocol import staged_latent_stdout_tag
 
     tag = staged_latent_stdout_tag(gate_protocol)
-    ema_vals = [float(row.get(f"pair_jsd_ema_{idx}", 0.0) or 0.0) for idx in range(6)]
+    from rl.custom_ppo.gate_protocol import V6I2_GATE_PROTOCOL, V6I3_GATE_PROTOCOL
+
+    if gate_protocol in (V6I2_GATE_PROTOCOL, V6I3_GATE_PROTOCOL):
+        ema_vals = [float(row.get(f"cf_pair_jsd_ema_{idx}", 0.0) or 0.0) for idx in range(6)]
+        ema_label = "cf_pair_ema"
+    else:
+        ema_vals = [float(row.get(f"pair_jsd_ema_{idx}", 0.0) or 0.0) for idx in range(6)]
+        ema_label = "pair_ema"
     raw_vals = [float(row.get(f"forced_z_pair_jsd_{idx}", 0.0) or 0.0) for idx in range(6)]
     macro_mean = float(row.get("forced_z_macro_jsd_mean", 0.0) or 0.0)
     actor_jsd_mean = float(row.get("actor_z_jsd_mean", 0.0) or 0.0)
@@ -577,7 +588,7 @@ def format_v6i1_rollout_stdout_line(
         f"/{int(required_consecutive)} "
         f"comp_ready={int(float(row.get('cf_competence_ready', 0.0) or 0.0))} "
         f"macro_jsd={macro_mean:.6f} pair_raw=[{_format_pair_jsd_values(raw_vals)}] "
-        f"pair_ema=[{_format_pair_jsd_values(ema_vals)}] "
+        f"{ema_label}=[{_format_pair_jsd_values(ema_vals)}] "
         f"actor_jsd={actor_jsd_mean:.6f}/{actor_jsd_max:.6f} "
         f"cf_batch=[{_format_pair_jsd_values(cf_batch_pairs)}] "
         f"hinge={hinge_active} eff={hinge_effective} pairs_below={pairs_below}/6 "

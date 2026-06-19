@@ -562,7 +562,7 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertIsNotNone(model.latent_actor.z_adapter)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
-            {"obs", "z_idx"},
+            {"obs", "z_idx", "detach_local_features"},
         )
 
     def test_v3i15_sparse_refresh_keeps_v3i14_actor_contract(self) -> None:
@@ -592,7 +592,7 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertIsNotNone(model.latent_actor.z_adapter)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
-            {"obs", "z_idx"},
+            {"obs", "z_idx", "detach_local_features"},
         )
 
     def test_v3i16_direct_z_embedding_expands_local_actor_only(self) -> None:
@@ -629,7 +629,7 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertEqual(model.latent_actor.z_film_layers, 0)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
-            {"obs", "z_idx"},
+            {"obs", "z_idx", "detach_local_features"},
         )
         actions = torch.zeros((4, len(model.action_dims)), dtype=torch.long)
         z_idx = torch.arange(4, dtype=torch.long)

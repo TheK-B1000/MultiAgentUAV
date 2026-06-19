@@ -46,7 +46,11 @@ class V6I3GateProtocol(V6I2GateProtocol):
         if comm_runtime is not None and comm_runtime.enabled and comm_runtime.transport is not None:
             stats.update(
                 comm_runtime.transport.telemetry.to_dict(
-                    num_symbols=int(getattr(context.cfg, "comm_num_symbols", 4) or 4)
+                    num_symbols=int(getattr(context.cfg, "comm_num_symbols", 4) or 4),
+                    silence_symbol=int(getattr(context.cfg, "comm_silence_symbol", -1)),
+                    message_grid_channels=int(
+                        getattr(context.cfg, "comm_message_grid_channels", 4) or 4
+                    ),
                 )
             )
         return {k: float(v) for k, v in stats.items() if k.startswith("comm_") or k.startswith("mi_") or k.startswith("receiver_")}

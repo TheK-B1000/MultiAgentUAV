@@ -569,6 +569,23 @@ def _macro_probs_from_logits(trainer: Any, logits: torch.Tensor) -> torch.Tensor
     return torch.stack(macro_chunks, dim=1)
 
 
+def _batched_policy_trunk_features(
+    trainer: Any, obs_batch: dict[str, torch.Tensor], z_idx: torch.Tensor
+) -> torch.Tensor:
+    """Batched ``policy_trunk_features`` with the same chunking as policy logits."""
+    total = z_idx.shape[0]
+    batch_size = min(1024, int(getattr(trainer.cfg, "batch_size", 1024)))
+    if total <= batch_size:
+        return trainer.model.policy_trunk_features(obs_batch, z_idx=z_idx)
+    chunks: list[torch.Tensor] = []
+    for start in range(0, total, batch_size):
+        end = min(start + batch_size, total)
+        slice_obs = {k: v[start:end] for k, v in obs_batch.items()}
+        slice_z = z_idx[start:end]
+        chunks.append(trainer.model.policy_trunk_features(slice_obs, z_idx=slice_z))
+    return torch.cat(chunks, dim=0)
+
+
 def _batched_policy_logits(
     trainer: Any, obs_batch: dict[str, torch.Tensor], z_idx: torch.Tensor
 ) -> torch.Tensor:
@@ -911,6 +928,8 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
         "actor_z_argmax_disagree": 0.0,
         "actor_z_logit_l2": 0.0,
         "actor_z_entropy_by_z": "",
+        "actor_z_trunk_l2": 0.0,
+        "actor_z_film_mod_l2": 0.0,
     }
     if not trainer.use_latent_strategy or trainer.latent_k <= 1:
         return zero_stats
@@ -941,6 +960,7 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
     }
 
     logits_by_z: list[torch.Tensor] = []
+    trunk_by_z: list[torch.Tensor] = []
     dists_by_z: list[list[torch.distributions.Categorical]] = []
     with torch.no_grad():
         for z_id in range(int(trainer.latent_k)):
@@ -948,6 +968,7 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
             logits = _batched_policy_logits(trainer, obs_batch, z_idx=z_idx)
             logits = trainer.model._mask_logits(logits, obs_batch.get("mask"))
             logits_by_z.append(logits.float())
+            trunk_by_z.append(_batched_policy_trunk_features(trainer, obs_batch, z_idx=z_idx).float())
             dists_by_z.append(list(trainer.model._categoricals(logits)))
 
     kl_values: list[float] = []
@@ -1048,6 +1069,23 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
     for head_idx, value in enumerate(per_head_jsd):
         zero_stats[f"actor_z_jsd_head_{head_idx}"] = value
 
+    trunk_l2_values: list[torch.Tensor] = []
+    for i in range(latent_k):
+        for j in range(i + 1, latent_k):
+            diff = trunk_by_z[i] - trunk_by_z[j]
+            trunk_l2_values.append(torch.linalg.vector_norm(diff.reshape(diff.shape[0], -1), dim=-1))
+    trunk_l2_mean = (
+        float(torch.cat(trunk_l2_values).mean().item())
+        if trunk_l2_values
+        else 0.0
+    )
+    latent_actor = getattr(trainer.model, "latent_actor", None)
+    film_mod_l2 = 0.0
+    if latent_actor is not None and hasattr(latent_actor, "film_modulation_l2"):
+        z0 = torch.zeros((1,), dtype=torch.long, device=trainer.device)
+        z1 = torch.ones((1,), dtype=torch.long, device=trainer.device)
+        film_mod_l2 = float(latent_actor.film_modulation_l2(z0, z1))
+
     zero_stats.update(
         {
             "policy_z_sensitivity_KL": mean_kl,
@@ -1061,6 +1099,8 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
             "actor_z_entropy_by_z": ",".join(
                 f"{value:.8e}" for value in entropy_by_z
             ),
+            "actor_z_trunk_l2": trunk_l2_mean,
+            "actor_z_film_mod_l2": film_mod_l2,
         }
     )
     return zero_stats

@@ -134,15 +134,15 @@ class InterventionEMAController:
         return True
 
     def update_intervention_gate_from_profile(self, profile_stats: dict[str, float]) -> bool:
-        from rl.custom_ppo.gate_protocol import is_v6i2_gate_protocol
+        from rl.custom_ppo.gate_protocol import is_v6i2_dual_evidence_protocol
         from rl.custom_ppo.v6i1_cf_loss import extract_forced_z_pair_values
 
         pair_vals = extract_forced_z_pair_values(profile_stats)
         if pair_vals is None:
-            if not is_v6i2_gate_protocol(self.host.trainer.cfg):
+            if not is_v6i2_dual_evidence_protocol(self.host.trainer.cfg):
                 self.host.jsd_gate_consecutive_updates = 0
             return False
-        if is_v6i2_gate_protocol(self.host.trainer.cfg):
+        if is_v6i2_dual_evidence_protocol(self.host.trainer.cfg):
             timestep = int(getattr(self.host.trainer, "global_step", -1))
             return self.update_macro_pair_jsd_ema(pair_vals, timestep)
         return self._update_legacy_macro_intervention_ema(profile_stats)

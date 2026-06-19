@@ -325,13 +325,15 @@ class TestFinding1Step0EventRefreshGuard(unittest.TestCase):
         for episode-start environments via the active_envs mask.
         """
         import inspect
-        from rl.custom_ppo.latent_strategy_state import LatentStrategyState
+        from rl.custom_ppo.latent.router_sampling import RouterSamplingState
 
-        source = inspect.getsource(LatentStrategyState.strategy_for_step)
+        source = inspect.getsource(RouterSamplingState.strategy_for_step)
 
         # The guard: active_envs = ~episode_start_mask
         has_active_envs_guard = "~episode_start_mask" in source
-        has_prev_state_check = "self.prev_global_state is not None" in source
+        has_prev_state_check = (
+            "prev_global_state is not None" in source
+        )
 
         self.assertTrue(
             has_active_envs_guard and has_prev_state_check,
