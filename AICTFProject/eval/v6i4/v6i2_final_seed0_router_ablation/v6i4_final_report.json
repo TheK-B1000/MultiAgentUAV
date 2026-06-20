@@ -1,0 +1,10 @@
+{
+  "classification": "Summer-plan-faithful evaluation-only router ablation protocol over promoted v6i2 checkpoint",
+  "interpretation": "V6I4 tests whether learned q_phi selection and switching causally outperform simpler latent-selection rules. It does not train or modify the checkpoint.",
+  "manifest_path": "eval\\v6i4\\v6i2_final_seed0_router_ablation\\v6i4_manifest.json",
+  "n_episodes": 288,
+  "n_paired_comparisons": 20,
+  "n_summary_rows": 56,
+  "primary_success_rule": "learned_qphi_switching must beat uniform_episode_fixed, uniform_random_at_router_opportunities, preselected_global_fixed_z, qphi_initial_only_no_switch, and shuffled_qphi_outputs with paired evidence. Posthoc oracle rows are non-deployable upper bounds.",
+  "protocol_version": "v6i4_router_ablation_v1"
+}
