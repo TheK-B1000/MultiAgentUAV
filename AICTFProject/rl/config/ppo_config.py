@@ -117,6 +117,8 @@ class PPOConfig:
     curriculum_nominal_timesteps: int = 1_000_000
     phase_a_gate_check_interval: int = 25_000
     latent_cf_min_episodes_per_z: int = 50
+    latent_cf_occupancy_min: float = 0.18
+    latent_cf_occupancy_max: float = 0.34
     latent_cf_jsd_margin: float = 0.01
     latent_cf_jsd_ema_alpha: float = 0.10
     latent_cf_gate_consecutive_updates: int = 5

@@ -27,25 +27,43 @@ def _gate_eval_to_result(result: Any) -> GateResult:
 
 def evaluate_coverage(context: GateContext) -> GateResult:
     latent_state = context.trainer.latent_state
+    latent_k = int(context.latent_k)
     min_eps = int(context.cfg.latent_cf_min_episodes_per_z)
+    occ_min = float(getattr(context.cfg, "latent_cf_occupancy_min", 0.18) or 0.18)
+    occ_max = float(getattr(context.cfg, "latent_cf_occupancy_max", 0.34) or 0.34)
     ep_counts = latent_state.cf_episode_counts.tolist()
     coverage_passed = all(int(c) >= min_eps for c in ep_counts)
 
-    rolling_occ = [0.0] * int(context.latent_k)
+    rolling_occ = [0.0] * latent_k
+    window_count = int(len(latent_state.recent_z_history))
     if len(latent_state.recent_z_history) > 0:
         hist = list(latent_state.recent_z_history)
         for z in hist:
             rolling_occ[int(z)] += 1.0
         rolling_occ = [c / len(hist) for c in rolling_occ]
-    occupancy_passed = all(0.20 <= o <= 0.30 for o in rolling_occ)
+    occupancy_passed = all(occ_min <= o <= occ_max for o in rolling_occ)
+    uniform = 1.0 / float(max(1, latent_k))
+    max_deviation = max((abs(float(o) - uniform) for o in rolling_occ), default=0.0)
+    positive_occ = [float(o) for o in rolling_occ if float(o) > 0.0]
+    entropy = -sum(o * float(np.log(o)) for o in positive_occ)
+    max_entropy = float(np.log(max(1, latent_k)))
+    normalized_entropy = entropy / max_entropy if max_entropy > 0.0 else 1.0
+    effective_latent_count = float(np.exp(entropy)) if positive_occ else 0.0
 
     return gate_family_result_from_bool(
         coverage_passed and occupancy_passed,
         details={
+            "coverage_unit": "episode_assignment",
             "cf_episode_counts": ep_counts,
             "recent_z_occupancy": rolling_occ,
             "occupancy": rolling_occ,
+            "window_count": window_count,
+            "max_deviation_from_uniform": max_deviation,
+            "normalized_entropy": normalized_entropy,
+            "effective_latent_count": effective_latent_count,
             "latent_cf_min_episodes_per_z": min_eps,
+            "latent_cf_occupancy_min": occ_min,
+            "latent_cf_occupancy_max": occ_max,
         },
     )
 

@@ -14,6 +14,7 @@ from typing import Any
 import numpy as np
 
 from rl.config.ppo_config import PPOConfig
+from rl.gate_telemetry import phase_a_actor_pair_telemetry_from_actor_gate_details
 
 V6I1_GATE_PROTOCOL = "v6i1_single_macro_intervention"
 V6I2_GATE_PROTOCOL = "v6i2_dual_evidence"
@@ -68,12 +69,16 @@ _GATE_CONFIG_KEYS_COMMON: tuple[str, ...] = (
 )
 
 _GATE_CONFIG_KEYS_V6I1: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
+    "latent_cf_occupancy_min",
+    "latent_cf_occupancy_max",
     "latent_cf_jsd_margin",
     "latent_cf_jsd_ema_alpha",
     "latent_cf_gate_consecutive_updates",
 )
 
 _GATE_CONFIG_KEYS_V6I2: tuple[str, ...] = _GATE_CONFIG_KEYS_COMMON + (
+    "latent_cf_occupancy_min",
+    "latent_cf_occupancy_max",
     "actor_jsd_margin",
     "actor_jsd_floor_fraction",
     "actor_jsd_min_passing_pairs",
@@ -741,6 +746,7 @@ __all__ = [
     "is_v6i2_dual_evidence_protocol",
     "is_v6i2_gate_protocol",
     "is_v6i3_gate_protocol",
+    "phase_a_actor_pair_telemetry_from_actor_gate_details",
     "resolve_gate_protocol_version",
     "resolved_gate_config_dict",
     "validate_protocol_config",

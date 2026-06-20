@@ -20,6 +20,7 @@ from rl.custom_ppo.latent_diagnostics import (
     _write_strategy_experience_table,
     _policy_z_sensitivity_kl,
 )
+from rl.custom_ppo.gate_protocol import evaluate_actor_intervention
 from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
 from rl.custom_ppo.update.actor_intervention import ActorInterventionEvidenceUpdater
 from rl.custom_ppo.update.entropy_objectives import RolloutMarginalPrep
@@ -174,14 +175,6 @@ class PostUpdatePipeline:
         if not hasattr(runtime, "_phase_a_trend_tracker") or runtime._phase_a_trend_tracker is None:
             runtime._phase_a_trend_tracker = PhaseABehaviorTrendTracker()
         stats.update(
-            phase_a_diagnostic_telemetry(
-                stats,
-                trend_tracker=runtime._phase_a_trend_tracker,
-                global_step=int(runtime.global_step),
-                actor_jsd_margin=float(getattr(cfg, "latent_cf_jsd_margin", 0.01) or 0.01),
-            )
-        )
-        stats.update(
             opportunity_conditioned_z_returns(
                 buffer, latent_k=int(hparams.latent_k)
             )
@@ -247,6 +240,17 @@ class PostUpdatePipeline:
                     batch_key = f"{prefix}_{idx}"
                     if batch_key in stats:
                         stats[f"{prefix}_{suffix}"] = stats[batch_key]
+
+        actor_gate_result = evaluate_actor_intervention(cfg, latent_state)
+        stats.update(
+            phase_a_diagnostic_telemetry(
+                stats,
+                trend_tracker=runtime._phase_a_trend_tracker,
+                global_step=int(runtime.global_step),
+                actor_gate_details=dict(actor_gate_result.details),
+                actor_jsd_margin=float(getattr(cfg, "actor_jsd_margin", 0.001) or 0.001),
+            )
+        )
 
         stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         stats.update(episode_strategy_stats)

@@ -54,6 +54,7 @@ from rl.custom_ppo.gate_protocol import (
     resolve_gate_protocol_version,
     validate_protocol_config,
 )
+from rl.gate_telemetry import phase_a_actor_pair_telemetry_from_actor_gate_details
 from rl.custom_ppo.inference import CustomPPOInferencePolicy
 
 _STATE_SCHEMA_VERSION = 1
@@ -86,6 +87,10 @@ def _build_online_report(online_results: dict[str, GateResult]) -> dict[str, Any
     report: dict[str, Any] = {}
     for name, result in online_results.items():
         report.update(result.details)
+        if name == "actor_intervention":
+            report.update(
+                phase_a_actor_pair_telemetry_from_actor_gate_details(dict(result.details))
+            )
         report[f"{name}_status"] = result.status
     return report
 

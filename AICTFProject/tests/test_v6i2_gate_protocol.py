@@ -37,6 +37,7 @@ from rl.custom_ppo.gate_protocol import (
     gate_family_names,
     is_staged_v6_team_intent_curriculum,
     is_v6i2_gate_protocol,
+    phase_a_actor_pair_telemetry_from_actor_gate_details,
     resolve_gate_protocol_version,
     resolved_gate_config_dict,
 )
@@ -416,6 +417,19 @@ class MacroEmaTests(unittest.TestCase):
 
 
 class ActorGateBehaviorTests(unittest.TestCase):
+    def test_phase_a_actor_pair_telemetry_copies_gate_details(self):
+        out = phase_a_actor_pair_telemetry_from_actor_gate_details(
+            {
+                "batch_pairs_above_margin": 5,
+                "cf_pair_jsd_last_batch": [0.002, 0.002, 0.002, 0.002, 0.002, 0.0004],
+                "min_cf_pair_jsd_ema": 0.00055,
+                "single_update_ok": True,
+            }
+        )
+        self.assertEqual(out["phase_a_actor_pairs_above_margin"], 5.0)
+        self.assertEqual(out["phase_a_actor_weakest_pair_jsd"], 0.0004)
+        self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
+
     def test_pass_after_required_streak(self):
         cfg = _v6i2_cfg()
         state = SimpleNamespace(

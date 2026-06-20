@@ -19,6 +19,7 @@ import torch
 
 from macro_actions import MacroAction
 from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES, N_TELEMETRY
+from rl.gate_telemetry import phase_a_actor_pair_telemetry_from_actor_gate_details
 
 FORCED_Z_BEHAVIOR_VECTOR_NAMES: tuple[str, ...] = (
     "attack_lane_preference",
@@ -277,10 +278,12 @@ def actor_pair_stats_from_update(
     floor_fraction: float = DEFAULT_BEHAVIOR_PAIR_FLOOR_FRACTION,
 ) -> dict[str, float]:
     """Actor-intervention pair coverage from CF-batch or forced-z macro JSD pairs."""
-    use_cf = float(stats.get("cf_batch_evidence_valid", 0.0) or 0.0) >= 0.5
+    cf_keys = [f"cf_batch_pair_jsd_{i}" for i in range(int(pair_count))]
+    cf_pairs_present = all(key in stats for key in cf_keys)
+    use_cf = float(stats.get("cf_batch_evidence_valid", 0.0) or 0.0) >= 0.5 or cf_pairs_present
     prefix = "cf_batch_pair_jsd_" if use_cf else "forced_z_pair_jsd_"
     pairs = [float(stats.get(f"{prefix}{i}", 0.0) or 0.0) for i in range(int(pair_count))]
-    if not any(p > 0.0 for p in pairs):
+    if not use_cf and not any(p > 0.0 for p in pairs):
         prefix = "forced_z_pair_jsd_"
         pairs = [float(stats.get(f"{prefix}{i}", 0.0) or 0.0) for i in range(int(pair_count))]
     if not pairs:
@@ -411,6 +414,7 @@ def phase_a_diagnostic_telemetry(
     *,
     trend_tracker: PhaseABehaviorTrendTracker | None = None,
     global_step: int = 0,
+    actor_gate_details: dict[str, Any] | None = None,
     actor_jsd_threshold: float = 0.01,
     behavior_distance_threshold: float = 0.05,
     actor_jsd_margin: float = 0.01,
@@ -478,7 +482,11 @@ def phase_a_diagnostic_telemetry(
         actor_jsd=actor_jsd,
     )
 
-    actor_pairs = actor_pair_stats_from_update(stats, margin=actor_jsd_margin)
+    actor_pairs = (
+        phase_a_actor_pair_telemetry_from_actor_gate_details(actor_gate_details)
+        if actor_gate_details is not None
+        else actor_pair_stats_from_update(stats, margin=actor_jsd_margin)
+    )
     competence_floor_pass = competence_min >= competence_floor
     cf_ratio_in_band = ratio_floor <= cf_ratio <= ratio_ceiling
     actor_trending_up = actor_slope >= behavior_slope_floor

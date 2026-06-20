@@ -208,7 +208,41 @@ class OnlineGateLogicTests(unittest.TestCase):
         ctrl = self._make_controller()
         result = ctrl._evaluate_coverage_gate()
         self.assertEqual(result.status, GATE_STATUS_PASS)
-        self.assertTrue(all(0.20 <= o <= 0.30 for o in result.details["recent_z_occupancy"]))
+        self.assertEqual(result.details["coverage_unit"], "episode_assignment")
+        self.assertEqual(result.details["window_count"], 100)
+        self.assertAlmostEqual(result.details["normalized_entropy"], 1.0)
+        self.assertAlmostEqual(result.details["effective_latent_count"], 4.0)
+        self.assertTrue(
+            all(
+                result.details["latent_cf_occupancy_min"]
+                <= o
+                <= result.details["latent_cf_occupancy_max"]
+                for o in result.details["recent_z_occupancy"]
+            )
+        )
+
+    def test_coverage_gate_tolerates_sampling_noise_near_upper_band(self) -> None:
+        ctrl = self._make_controller()
+        ctrl.trainer.latent_state.recent_z_history = deque(
+            [0] * 61 + [1] * 46 + [2] * 42 + [3] * 51
+        )
+        result = ctrl._evaluate_coverage_gate()
+        self.assertEqual(result.status, GATE_STATUS_PASS)
+        self.assertEqual(result.details["recent_z_occupancy"], [0.305, 0.23, 0.21, 0.255])
+        self.assertEqual(result.details["window_count"], 200)
+        self.assertAlmostEqual(result.details["max_deviation_from_uniform"], 0.055)
+        self.assertGreater(result.details["normalized_entropy"], 0.99)
+        self.assertGreater(result.details["effective_latent_count"], 3.95)
+
+    def test_coverage_gate_rejects_real_occupancy_collapse(self) -> None:
+        ctrl = self._make_controller()
+        ctrl.trainer.latent_state.recent_z_history = deque(
+            [0] * 90 + [1] * 40 + [2] * 35 + [3] * 35
+        )
+        result = ctrl._evaluate_coverage_gate()
+        self.assertEqual(result.status, GATE_STATUS_FAIL)
+        self.assertEqual(result.details["recent_z_occupancy"], [0.45, 0.2, 0.175, 0.175])
+        self.assertGreater(result.details["max_deviation_from_uniform"], 0.19)
 
     def test_competence_gate_requires_sigmoid_scores(self) -> None:
         ctrl = self._make_controller()

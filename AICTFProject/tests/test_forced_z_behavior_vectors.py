@@ -206,11 +206,51 @@ class PhaseADiagnosticTests(unittest.TestCase):
         snap = phase_a_stats_snapshot(stats, gate_step=1000)
         self.assertEqual(snap["phase_a_snapshot_usable"], 1.0)
 
+    def test_actor_pair_fields_copy_actor_gate_details(self) -> None:
+        stats = self._base_stats()
+        for i in range(6):
+            stats[f"forced_z_pair_jsd_{i}"] = 0.00001
+        gate_details = {
+            "batch_pairs_above_margin": 5,
+            "cf_pair_jsd_last_batch": [0.002, 0.002, 0.002, 0.002, 0.002, 0.0004],
+            "single_update_ok": True,
+        }
+        out = phase_a_diagnostic_telemetry(
+            stats,
+            global_step=1000,
+            actor_gate_details=gate_details,
+            actor_jsd_margin=0.001,
+        )
+        self.assertEqual(out["phase_a_actor_pairs_above_margin"], 5.0)
+        self.assertEqual(out["phase_a_actor_weakest_pair_jsd"], 0.0004)
+        self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
+
 
 class ActorPairStatsTests(unittest.TestCase):
     def test_actor_pair_gate_counts(self) -> None:
         stats = {f"cf_batch_pair_jsd_{i}": 0.02 for i in range(6)}
         stats["cf_batch_evidence_valid"] = 1.0
+        out = actor_pair_stats_from_update(stats, margin=0.01)
+        self.assertEqual(out["phase_a_actor_pairs_above_margin"], 6.0)
+        self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
+
+    def test_actor_pair_gate_uses_cf_pairs_when_validity_flag_missing(self) -> None:
+        stats = {f"cf_batch_pair_jsd_{i}": 0.02 for i in range(6)}
+        stats.update({f"forced_z_pair_jsd_{i}": 0.00001 for i in range(6)})
+        out = actor_pair_stats_from_update(stats, margin=0.01)
+        self.assertEqual(out["phase_a_actor_pairs_above_margin"], 6.0)
+        self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
+        self.assertEqual(out["phase_a_actor_weakest_pair_jsd"], 0.02)
+
+    def test_actor_pair_gate_uses_actor_margin_scale(self) -> None:
+        stats = {f"cf_batch_pair_jsd_{i}": 0.002 for i in range(6)}
+        out = actor_pair_stats_from_update(stats, margin=0.001)
+        self.assertEqual(out["phase_a_actor_pairs_above_margin"], 6.0)
+        self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
+        self.assertEqual(out["phase_a_actor_weakest_pair_jsd"], 0.002)
+
+    def test_actor_pair_gate_falls_back_to_forced_z_when_cf_pairs_absent(self) -> None:
+        stats = {f"forced_z_pair_jsd_{i}": 0.02 for i in range(6)}
         out = actor_pair_stats_from_update(stats, margin=0.01)
         self.assertEqual(out["phase_a_actor_pairs_above_margin"], 6.0)
         self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
