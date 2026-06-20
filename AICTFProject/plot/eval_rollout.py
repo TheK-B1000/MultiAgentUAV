@@ -225,6 +225,12 @@ def run_eval_episodes(
 
         global_step_counter = 0
         for ep_idx in range(n_episodes):
+            if hasattr(model, "set_current_episode_context"):
+                model.set_current_episode_context(
+                    opponent=opponent,
+                    seed=latent_eval_seed if latent_eval_seed is not None else 0,
+                    episode_index=ep_idx,
+                )
             ep_return = 0.0
             steps = 0
             info_prev = {}
@@ -253,6 +259,8 @@ def run_eval_episodes(
                         ep_entropy_first = _policy_entropy_first_step(model, single)
                     except Exception:
                         ep_entropy_first = float("nan")
+                if hasattr(model, "set_current_decision_step"):
+                    model.set_current_decision_step(steps)
                 act, _ = model.predict(single, deterministic=deterministic)
                 if coordination_metrics and n_agents >= 2:
                     flat = np.asarray(act, dtype=np.int64).reshape(-1)

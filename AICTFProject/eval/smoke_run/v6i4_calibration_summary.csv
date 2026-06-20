@@ -1,0 +1,13 @@
+condition,map_set,opponent,episodes,success_rate,return_mean,win_margin_mean,strategy_switches_mean,strategy_resample_rate_mean
+fixed_z0,eval,OP5,2,0.0,-1.8600329995624634,-3.0,0.0,0.0
+fixed_z0,eval,OP6,2,0.0,-2.292439272672482,-3.0,0.0,0.0
+fixed_z0,eval,OP7,2,0.0,-3.707067168828871,-2.5,0.0,0.0
+fixed_z1,eval,OP5,2,0.0,-2.450298320443835,-3.0,0.0,0.0
+fixed_z1,eval,OP6,2,0.0,-5.2252375489765654,-3.0,0.0,0.0
+fixed_z1,eval,OP7,2,0.0,-6.308884235064852,-2.5,0.0,0.0
+fixed_z2,eval,OP5,2,0.0,-2.2743549667206935,-3.0,0.0,0.0
+fixed_z2,eval,OP6,2,0.0,-9.466822419737696,-3.0,0.0,0.0
+fixed_z2,eval,OP7,2,0.0,-2.72550722323831,-3.0,0.0,0.0
+fixed_z3,eval,OP5,2,0.5,-3.778739477318595,0.0,0.0,0.0
+fixed_z3,eval,OP6,2,0.0,-15.488257757318024,-1.0,0.0,0.0
+fixed_z3,eval,OP7,2,0.0,-7.221811495516931,-1.5,0.0,0.0

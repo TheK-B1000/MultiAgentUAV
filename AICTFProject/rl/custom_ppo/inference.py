@@ -340,6 +340,39 @@ class CustomPPOInferencePolicy:
         self.latent_eval_mode = "normal"
         self._latent_eval_marginal = None
         self._latent_eval_rng = None
+        self._shuffled_mapping = None
+        self._current_opponent = None
+        self._current_seed = None
+        self._current_episode_index = None
+        self._current_decision_step = 0
+        self._opportunity_counter = 0
+        self.opportunity_trace_log = []
+
+    def set_current_episode_context(
+        self,
+        opponent: str,
+        seed: int,
+        episode_index: int,
+    ) -> None:
+        self._current_opponent = str(opponent).upper()
+        self._current_seed = int(seed)
+        self._current_episode_index = int(episode_index)
+        self._opportunity_counter = 0
+
+    def set_current_decision_step(self, step: int) -> None:
+        self._current_decision_step = int(step)
+
+    def inject_shuffled_mapping(self, mapping: dict) -> None:
+        self._shuffled_mapping = mapping
+
+    def clear_eval_suite_state(self) -> None:
+        self._shuffled_mapping = None
+        self.opportunity_trace_log = []
+        self._current_opponent = None
+        self._current_seed = None
+        self._current_episode_index = None
+        self._current_decision_step = 0
+        self._opportunity_counter = 0
 
     def _fixed_strategy_id(self) -> int:
         if not self.model.uses_latent_strategy:
@@ -436,6 +469,7 @@ class CustomPPOInferencePolicy:
         self._last_strategy_logits = None
         self._last_context_gs = None
         self._selector_hidden = None
+        self._opportunity_counter = 0
         if self._temporal_tracker is not None:
             self._temporal_tracker.reset()
 
@@ -510,36 +544,66 @@ class CustomPPOInferencePolicy:
                 global_state = self._global_state_tensor(batched, batch)
                 tracker = self._get_temporal_tracker(batch)
                 context_gs = tracker.update(global_state)
-                destructive = self.latent_eval_mode in ("uniform_random", "shuffled")
+                needs_strategy = (
+                    self._prev_z is None
+                    or int(self._prev_z.numel()) != batch
+                    or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
+                )
+                
+                # Retrieve z, logits, probabilities depending on modes.
                 if self.fixed_latent_strategy:
                     z_idx = self._fixed_strategy_tensor(batch)
-                    self._prev_z = z_idx.detach()
                     z_logits = self._strategy_logits_forward(context_gs)
-                    z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
                     z_probs = self._fixed_strategy_probs(batch)
+                    z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
+                    # For fixed-z we set needs_strategy to False to match the existing behavior
                     needs_strategy = False
-                elif destructive:
-                    needs_strategy = (
-                        self._prev_z is None
-                        or int(self._prev_z.numel()) != batch
-                        or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
-                    )
+                elif self.latent_eval_mode == "shuffled":
+                    # Shuffled mode: enforce strict lookup
+                    if self._shuffled_mapping is None:
+                        raise ValueError("shuffled_mapping is not injected but mode is shuffled")
+                    z_logits_full = self._strategy_logits_forward(context_gs)
+                    if needs_strategy:
+                        # Make lookup
+                        lookup_key = (
+                            self._current_opponent,
+                            self._current_seed,
+                            self._current_episode_index,
+                            self._opportunity_counter,
+                        )
+                        if lookup_key not in self._shuffled_mapping:
+                            raise ValueError(f"Shuffled mapping lookup failed for key: {lookup_key}")
+                        mapped_decision = self._shuffled_mapping[lookup_key]
+                        # Extract whole outputs
+                        z_val = int(mapped_decision["selected_z"])
+                        z_idx = torch.full((batch,), z_val, dtype=torch.long, device=self.device)
+                        z_logits = torch.as_tensor(mapped_decision["logits"], dtype=torch.float32, device=self.device).unsqueeze(0).expand(batch, -1)
+                        z_probs = torch.softmax(z_logits, dim=-1)
+                        z_ent = Categorical(logits=z_logits).entropy()
+                        self._prev_z = z_idx.detach()
+                        self._prev_logits = z_logits.detach()
+                        self._prev_probs = z_probs.detach()
+                        self._prev_ent = z_ent.detach()
+                        self._strategy_age = 0
+                    else:
+                        z_idx = self._prev_z.to(self.device)
+                        z_logits = self._prev_logits.to(self.device)
+                        z_probs = self._prev_probs.to(self.device)
+                        z_ent = self._prev_ent.to(self.device)
+                elif self.latent_eval_mode == "uniform_random":
                     if needs_strategy:
                         z_logits = self._strategy_logits_forward(context_gs)
                         z_idx = self._destructive_latent_z(batch)
                         self._prev_z = z_idx.detach()
+                        self._prev_logits = z_logits.detach()
                         self._strategy_age = 0
                     else:
                         z_logits = self._strategy_logits_forward(context_gs)
                         z_idx = self._prev_z.to(self.device)
-                    z_ent = Categorical(logits=z_logits).entropy()
                     z_probs = torch.softmax(z_logits, dim=-1)
+                    z_ent = Categorical(logits=z_logits).entropy()
                 else:
-                    needs_strategy = (
-                        self._prev_z is None
-                        or int(self._prev_z.numel()) != batch
-                        or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
-                    )
+                    # normal or qphi_initial_only_no_switch
                     if needs_strategy:
                         hidden = self._ensure_selector_hidden(batch)
                         z_idx, _, z_ent, z_logits, h_new = self.model.sample_strategy(
@@ -550,12 +614,34 @@ class CustomPPOInferencePolicy:
                         if h_new is not None:
                             self._selector_hidden = h_new.detach()
                         self._prev_z = z_idx.detach()
+                        self._prev_logits = z_logits.detach()
                         self._strategy_age = 0
                     else:
                         z_logits = self._strategy_logits_forward(context_gs)
                         z_idx = self._prev_z.to(self.device)
-                        z_ent = Categorical(logits=z_logits).entropy()
                     z_probs = torch.softmax(z_logits, dim=-1)
+                    z_ent = Categorical(logits=z_logits).entropy()
+
+                # At an opportunity, log trace telemetry (single env is assumed for evaluation)
+                if needs_strategy and batch == 1:
+                    prev_z_val = self.opportunity_trace_log[-1]["selected_z"] if self.opportunity_trace_log else -1
+                    logit_list = z_logits.detach().cpu().numpy()[0].tolist()
+                    prob_list = z_probs.detach().cpu().numpy()[0].tolist()
+                    sel_z_val = int(z_idx.item())
+                    self.opportunity_trace_log.append({
+                        "opponent": self._current_opponent,
+                        "seed": self._current_seed,
+                        "episode_index": self._current_episode_index,
+                        "opportunity_index": self._opportunity_counter,
+                        "step": self._current_decision_step,
+                        "logits": logit_list,
+                        "probabilities": prob_list,
+                        "selected_z": sel_z_val,
+                        "prev_z": prev_z_val,
+                        "switch_occurred": int(prev_z_val != -1 and sel_z_val != prev_z_val)
+                    })
+                    self._opportunity_counter += 1
+
                 self._last_strategy_z = z_idx.detach().cpu()
                 self._last_strategy_probs = z_probs.detach().cpu()
                 self._last_strategy_entropy = z_ent.detach().cpu()

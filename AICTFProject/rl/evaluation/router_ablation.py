@@ -316,6 +316,8 @@ def select_calibrated_fixed_latents(
     by_z: dict[int, list[float]] = {z: [] for z in range(int(latent_k))}
     by_opp_z: dict[tuple[str, int], list[float]] = {}
     for row in calibration_rows:
+        if str(row.get("split")) != "calibration":
+            continue
         if str(row.get("condition")) != f"fixed_z{row.get('fixed_latent_id')}":
             continue
         z = int(row["fixed_latent_id"])
@@ -393,20 +395,20 @@ def paired_comparisons(
     seed: int = 0,
 ) -> list[PairedComparison]:
     by_key: dict[tuple[str, int, int, str, str], dict[str, Any]] = {}
-    for row in rows:
+    test_rows = [r for r in rows if str(r.get("split", "test")) == "test"]
+    for row in test_rows:
         opponent_key, test_seed, episode_index, initial_state_hash = paired_episode_key(row)
         key = (opponent_key, test_seed, episode_index, initial_state_hash, str(row["condition"]))
         by_key[key] = row
-    map_opps = sorted({(str(r["map_set"]), str(r["opponent"])) for r in rows})
+    map_opps = sorted({(str(r["map_set"]), str(r["opponent"])) for r in test_rows})
     out: list[PairedComparison] = []
     for map_set, opponent in map_opps:
         episode_keys = sorted(
             {
                 paired_episode_key(r)
-                for r in rows
+                for r in test_rows
                 if str(r["map_set"]) == map_set
                 and str(r["opponent"]) == opponent
-                and str(r.get("split", "test")) == "test"
             }
         )
         for baseline in baselines:
@@ -552,12 +554,14 @@ def add_posthoc_oracle_rows(rows: list[dict[str, Any]], *, latent_k: int) -> lis
             clone["condition"] = "posthoc_global_fixed_oracle"
             clone["latent_selection"] = "posthoc"
             clone["posthoc_only"] = True
+            clone["split"] = "test"
             derived.append(clone)
         if z == opp_best.get(opp):
             clone = dict(row)
             clone["condition"] = "posthoc_opponent_oracle"
             clone["latent_selection"] = "posthoc"
             clone["posthoc_only"] = True
+            clone["split"] = "test"
             derived.append(clone)
 
     for _key, group in sorted(by_episode.items()):
@@ -566,6 +570,7 @@ def add_posthoc_oracle_rows(rows: list[dict[str, Any]], *, latent_k: int) -> lis
         clone["condition"] = "posthoc_episode_oracle"
         clone["latent_selection"] = "posthoc"
         clone["posthoc_only"] = True
+        clone["split"] = "test"
         derived.append(clone)
 
     return [*rows, *derived]
@@ -760,6 +765,8 @@ def run_suite(
     )
     try:
         model = load_custom_ppo_policy(str(checkpoint), first_env.observation_space, first_env.action_space, device=device)
+        if hasattr(model, "clear_eval_suite_state"):
+            model.clear_eval_suite_state()
     finally:
         first_env.close()
 
@@ -772,12 +779,17 @@ def run_suite(
     )
     all_rows: list[dict[str, Any]] = []
 
-    def run_condition(condition: RouterCondition, seeds: list[int], split: str, fixed_z: int | None = None) -> list[dict[str, Any]]:
+    def run_condition(condition: RouterCondition, seeds: list[int], split: str, fixed_z: int | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        if hasattr(model, "opportunity_trace_log"):
+            model.opportunity_trace_log = []
         rows: list[dict[str, Any]] = []
         for map_set in map_sets or ["eval"]:
             for opponent in opponents or []:
                 for seed in seeds:
-                    z_id = condition.fixed_latent_id if fixed_z is None else fixed_z
+                    if condition.name == "preselected_per_opponent_fixed_z":
+                        z_id = _per_opp_z[opponent.upper()]
+                    else:
+                        z_id = condition.fixed_latent_id if fixed_z is None else fixed_z
                     env = GPUCTFVecEnv(
                         GPUFieldConfig(
                             n_envs=1,
@@ -846,23 +858,192 @@ def run_suite(
                             }
                         )
                         rows.append(row)
-        return rows
+        trace_data = []
+        if hasattr(model, "opportunity_trace_log"):
+            for t_item in model.opportunity_trace_log:
+                item = dict(t_item)
+                item["condition"] = condition.name
+                trace_data.append(item)
+        return rows, trace_data
 
+    # Pre-checks on seeds:
+    c_set = set(calibration_seeds)
+    t_set = set(test_seeds)
+    if c_set & t_set:
+        raise ValueError(f"Calibration and test seed sets overlap: {sorted(c_set & t_set)}")
+
+    # Traces dictionary
+    traces_by_condition: dict[str, list[dict[str, Any]]] = {}
+
+    # Run calibration sweep over fixed z
     fixed_conditions = [c for c in conditions if c.name.startswith("fixed_z")]
     for condition in fixed_conditions:
-        all_rows.extend(run_condition(condition, calibration_seeds, "calibration"))
+        rows, t_data = run_condition(condition, calibration_seeds, "calibration")
+        all_rows.extend(rows)
+        traces_by_condition[condition.name] = t_data
     global_z, _per_opp_z = select_calibrated_fixed_latents(all_rows, latent_k=latent_k)
 
+    # 1. Run learned condition first to capture outputs for shuffled mapping
+    learned_cond = [c for c in conditions if c.name == "learned_qphi_switching"][0]
+    rows, learned_t_data = run_condition(learned_cond, test_seeds, "test")
+    all_rows.extend(rows)
+    traces_by_condition[learned_cond.name] = learned_t_data
+
+    # Build the shuffled mapping using a deterministic rotation derangement
+    # Key format: (opponent, environment_seed, episode_index, opportunity_index)
+    sorted_contexts = sorted({
+        (str(t_item["opponent"]).upper(), int(t_item["seed"]), int(t_item["episode_index"]), int(t_item["opportunity_index"]))
+        for t_item in learned_t_data
+    })
+    
+    if len(sorted_contexts) < 2:
+        raise ValueError(f"Shuffled control requires at least 2 contexts, but only found {len(sorted_contexts)}.")
+
+    rotated_contexts = sorted_contexts[1:] + sorted_contexts[:1]
+    
+    # Store source key to learned output
+    learned_outputs_map = {}
+    for t_item in learned_t_data:
+        k = (str(t_item["opponent"]).upper(), int(t_item["seed"]), int(t_item["episode_index"]), int(t_item["opportunity_index"]))
+        learned_outputs_map[k] = {
+            "source_context_key": k,
+            "logits": list(t_item["logits"]),
+            "probabilities": list(t_item["probabilities"]),
+            "selected_z": int(t_item["selected_z"]),
+        }
+
+    # Build shuffled mapping dict: lookup key -> permuted whole output
+    shuffled_mapping = {}
+    source_to_dest_meta = []
+    for src, dst in zip(sorted_contexts, rotated_contexts):
+        shuffled_mapping[src] = learned_outputs_map[dst]
+        source_to_dest_meta.append({
+            "source": [src[0], src[1], src[2], src[3]],
+            "destination": [dst[0], dst[1], dst[2], dst[3]]
+        })
+
+    mapping_payload = json.dumps(source_to_dest_meta, sort_keys=True)
+    shuffle_mapping_hash = stable_sha256_text(mapping_payload)
+    shuffle_mapping_size = len(sorted_contexts)
+
+    # Inject mapping to the model
+    if hasattr(model, "inject_shuffled_mapping"):
+        model.inject_shuffled_mapping(shuffled_mapping)
+
+    # Run remaining conditions
     for condition in conditions:
-        if condition.posthoc_only or condition.name.startswith("fixed_z"):
+        if condition.posthoc_only or condition.name.startswith("fixed_z") or condition.name == "learned_qphi_switching":
             continue
         if condition.name == "preselected_global_fixed_z":
-            all_rows.extend(run_condition(condition, test_seeds, "test", fixed_z=global_z))
+            rows, t_data = run_condition(condition, test_seeds, "test", fixed_z=global_z)
+        elif condition.name == "preselected_per_opponent_fixed_z":
+            rows, t_data = run_condition(condition, test_seeds, "test")
         else:
-            all_rows.extend(run_condition(condition, test_seeds, "test"))
+            rows, t_data = run_condition(condition, test_seeds, "test")
+        
+        all_rows.extend(rows)
+        traces_by_condition[condition.name] = t_data
+
+    # Shuffled is now run, clear policy mapping afterward
+    if hasattr(model, "clear_eval_suite_state"):
+        model.clear_eval_suite_state()
+
+    # Run test fixed sweeps
     for condition in fixed_conditions:
-        all_rows.extend(run_condition(condition, test_seeds, "test"))
+        rows, t_data = run_condition(condition, test_seeds, "test")
+        all_rows.extend(rows)
+        traces_by_condition[condition.name] = t_data
+
     all_rows = add_posthoc_oracle_rows(all_rows, latent_k=latent_k)
+
+    # Enforce split integrity assertions prior to aggregation:
+    for row in all_rows:
+        sp = row.get("split")
+        seed_val = row.get("seed")
+        if sp == "calibration":
+            if seed_val not in c_set:
+                raise AssertionError(f"Calibration row seed {seed_val} not in calibration seeds.")
+        elif sp == "test":
+            if seed_val not in t_set:
+                raise AssertionError(f"Test row seed {seed_val} not in test seeds.")
+        else:
+            raise AssertionError(f"Unknown split: {sp}")
+
+    # Targeted trace assertions:
+    # 1. Fixed occupancy check
+    for condition in fixed_conditions:
+        t_data = traces_by_condition[condition.name]
+        expected_z = condition.fixed_latent_id
+        for entry in t_data:
+            actual_z = entry["selected_z"]
+            if actual_z != expected_z:
+                raise AssertionError(f"Fixed condition {condition.name} chose z={actual_z}, expected clamp to {expected_z}")
+    # preselected_global_fixed_z occupancy check
+    pg_trace = traces_by_condition.get("preselected_global_fixed_z", [])
+    for entry in pg_trace:
+        if entry["selected_z"] != global_z:
+            raise AssertionError(f"preselected_global_fixed_z chose z={entry['selected_z']}, expected clamp to {global_z}")
+    # preselected_per_opponent_fixed_z occupancy check
+    ppo_trace = traces_by_condition.get("preselected_per_opponent_fixed_z", [])
+    for entry in ppo_trace:
+        opp = entry["opponent"].upper()
+        target_z = _per_opp_z[opp]
+        if entry["selected_z"] != target_z:
+            raise AssertionError(f"preselected_per_opponent_fixed_z chose z={entry['selected_z']} for opponent {opp}, expected {target_z}")
+
+    # 2. Episode-fixed selection called exactly once per episode
+    ef_trace = traces_by_condition.get("uniform_episode_fixed", [])
+    # group by opponent + seed + episode
+    ef_grouped = {}
+    for entry in ef_trace:
+        gk = (entry["opponent"], entry["seed"], entry["episode_index"])
+        ef_grouped.setdefault(gk, []).append(entry)
+    for gk, group in ef_grouped.items():
+        if len(group) != 1:
+            raise AssertionError(f"uniform_episode_fixed had {len(group)} selections for {gk}, expected exactly 1.")
+        if group[0]["opportunity_index"] != 0:
+            raise AssertionError(f"uniform_episode_fixed selection was at opportunity {group[0]['opportunity_index']}, expected 0.")
+
+    # 3. Opportunity-random selection called exactly once per opportunity step
+    ur_trace = traces_by_condition.get("uniform_random_at_router_opportunities", [])
+    ur_grouped = {}
+    for entry in ur_trace:
+        gk = (entry["opponent"], entry["seed"], entry["episode_index"])
+        ur_grouped.setdefault(gk, []).append(entry)
+    for gk, group in ur_grouped.items():
+        opp_indices = [x["opportunity_index"] for x in group]
+        if opp_indices != list(range(len(opp_indices))):
+            raise AssertionError(f"Opportunity-random opportunity indices were {opp_indices}, expected sequential 0..N.")
+        for x in group:
+            expected_step = x["opportunity_index"] * switch_cadence
+            if x["step"] != expected_step:
+                raise AssertionError(f"Opportunity-random step was {x['step']}, expected {expected_step} for opportunity {x['opportunity_index']}.")
+
+    # 4. Shuffled derangement check (no destination receives its own output)
+    sh_trace = traces_by_condition.get("shuffled_qphi_outputs", [])
+    for entry in sh_trace:
+        k = (entry["opponent"].upper(), entry["seed"], entry["episode_index"], entry["opportunity_index"])
+        mapped = shuffled_mapping.get(k)
+        if mapped is None:
+            raise AssertionError(f"Shuffled lookup key {k} was not injected or registered.")
+        if mapped["source_context_key"] == k:
+            raise AssertionError(f"Shuffled mapping allowed self-assignment on key: {k}")
+
+    # Emit warnings if two non-fixed condition traces match
+    non_fixed_names = ["learned_qphi_switching", "uniform_episode_fixed", "uniform_random_at_router_opportunities", "shuffled_qphi_outputs", "qphi_initial_only_no_switch"]
+    for i, name1 in enumerate(non_fixed_names):
+        for name2 in non_fixed_names[i+1:]:
+            tr1 = traces_by_condition.get(name1, [])
+            tr2 = traces_by_condition.get(name2, [])
+            if len(tr1) == len(tr2) and len(tr1) > 0:
+                match = True
+                for entry1, entry2 in zip(tr1, tr2):
+                    if entry1["selected_z"] != entry2["selected_z"]:
+                        match = False
+                        break
+                if match:
+                    import warnings
+                    warnings.warn(f"Telemetry warning: Supposedly distinct online conditions {name1} and {name2} generated identical selection traces.")
 
     parameter_hash_after = model_parameter_sha256(model)
     manifest = build_manifest(
@@ -881,6 +1062,66 @@ def run_suite(
         parameter_hash_before=parameter_hash_before,
         parameter_hash_after=parameter_hash_after,
     )
+    manifest["shuffled_permutation_metadata"] = {
+        "shuffle_seed": "deterministic_rotation",
+        "shuffle_algorithm": "deterministic_rotation",
+        "shuffle_mapping_hash": shuffle_mapping_hash,
+        "shuffle_mapping_size": shuffle_mapping_size,
+        "source_to_destination_mapping": source_to_dest_meta,
+    }
     if parameter_hash_before != parameter_hash_after:
         raise RuntimeError("model parameters changed during v6i4 evaluation")
-    return write_artifacts(output_dir, manifest=manifest, episode_rows=all_rows, n_bootstrap=n_bootstrap)
+    
+    # Write the published trace artifacts
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    
+    # Headline trace for learned
+    learned_flat_trace = []
+    for item in learned_t_data:
+        flat_item = {
+            "opponent": item["opponent"],
+            "seed": item["seed"],
+            "episode_index": item["episode_index"],
+            "opportunity_index": item["opportunity_index"],
+            "step": item["step"],
+            "selected_z": item["selected_z"],
+            "prev_z": item["prev_z"],
+            "switch_occurred": item["switch_occurred"],
+        }
+        for idx, val in enumerate(item["logits"]):
+            flat_item[f"logit_{idx}"] = val
+        for idx, val in enumerate(item["probabilities"]):
+            flat_item[f"prob_{idx}"] = val
+        learned_flat_trace.append(flat_item)
+    write_csv(output / "v6i4_learned_router_trace.csv", learned_flat_trace)
+
+    # Combined diagnostic trace
+    combined_flat_trace = []
+    for cond_name, c_trace in sorted(traces_by_condition.items()):
+        for item in c_trace:
+            flat_item = {
+                "condition": cond_name,
+                "opponent": item["opponent"],
+                "seed": item["seed"],
+                "episode_index": item["episode_index"],
+                "opportunity_index": item["opportunity_index"],
+                "step": item["step"],
+                "selected_z": item["selected_z"],
+                "prev_z": item["prev_z"],
+                "switch_occurred": item["switch_occurred"],
+            }
+            for idx, val in enumerate(item["logits"]):
+                flat_item[f"logit_{idx}"] = val
+            for idx, val in enumerate(item["probabilities"]):
+                flat_item[f"prob_{idx}"] = val
+            combined_flat_trace.append(flat_item)
+    write_csv(output / "v6i4_selection_traces.csv", combined_flat_trace)
+
+    # Write separate calibration and test summaries
+    cal_summary = aggregate_condition_summary([r for r in all_rows if r.get("split") == "calibration"])
+    write_csv(output / "v6i4_calibration_summary.csv", cal_summary)
+
+    # Filter out calibration rows from main write_artifacts flow
+    test_only_rows = [r for r in all_rows if r.get("split") == "test"]
+    return write_artifacts(output_dir, manifest=manifest, episode_rows=test_only_rows, n_bootstrap=n_bootstrap)

@@ -91,10 +91,10 @@ class V6I4RouterAblationTests(unittest.TestCase):
 
     def test_calibrated_latents_use_only_calibration_rows(self):
         rows = [
-            {"condition": "fixed_z0", "fixed_latent_id": 0, "opponent": "OP5", "return": 1.0},
-            {"condition": "fixed_z1", "fixed_latent_id": 1, "opponent": "OP5", "return": 3.0},
-            {"condition": "fixed_z0", "fixed_latent_id": 0, "opponent": "OP6", "return": 4.0},
-            {"condition": "fixed_z1", "fixed_latent_id": 1, "opponent": "OP6", "return": 2.0},
+            {"condition": "fixed_z0", "fixed_latent_id": 0, "opponent": "OP5", "return": 1.0, "split": "calibration"},
+            {"condition": "fixed_z1", "fixed_latent_id": 1, "opponent": "OP5", "return": 3.0, "split": "calibration"},
+            {"condition": "fixed_z0", "fixed_latent_id": 0, "opponent": "OP6", "return": 4.0, "split": "calibration"},
+            {"condition": "fixed_z1", "fixed_latent_id": 1, "opponent": "OP6", "return": 2.0, "split": "calibration"},
         ]
         global_z, per_opp = select_calibrated_fixed_latents(rows, latent_k=2)
         self.assertEqual(global_z, 0)
@@ -103,11 +103,11 @@ class V6I4RouterAblationTests(unittest.TestCase):
 
     def test_paired_comparisons_align_same_seed_opponent_and_map(self):
         rows = [
-            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 1, "test_seed": 1, "episode_index": 1, "initial_state_hash": "a", "return": 3.0, "success": 1},
-            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 1, "test_seed": 1, "episode_index": 1, "initial_state_hash": "a", "return": 1.0, "success": 0},
-            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 2, "test_seed": 2, "episode_index": 1, "initial_state_hash": "b", "return": 2.0, "success": 1},
-            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 2, "test_seed": 2, "episode_index": 1, "initial_state_hash": "b", "return": 1.0, "success": 1},
-            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 999, "test_seed": 999, "episode_index": 1, "initial_state_hash": "x", "return": 100.0, "success": 1},
+            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 1, "test_seed": 1, "episode_index": 1, "initial_state_hash": "a", "return": 3.0, "success": 1, "split": "test"},
+            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 1, "test_seed": 1, "episode_index": 1, "initial_state_hash": "a", "return": 1.0, "success": 0, "split": "test"},
+            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 2, "test_seed": 2, "episode_index": 1, "initial_state_hash": "b", "return": 2.0, "success": 1, "split": "test"},
+            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 2, "test_seed": 2, "episode_index": 1, "initial_state_hash": "b", "return": 1.0, "success": 1, "split": "test"},
+            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 999, "test_seed": 999, "episode_index": 1, "initial_state_hash": "x", "return": 100.0, "success": 1, "split": "test"},
         ]
         self.assertEqual(paired_episode_key(rows[0]), ("OP5", 1, 1, "a"))
         comps = paired_comparisons(rows, baselines=["uniform_random_at_router_opportunities"], n_bootstrap=0)
@@ -118,8 +118,8 @@ class V6I4RouterAblationTests(unittest.TestCase):
 
     def test_artifact_writer_uses_frozen_names(self):
         rows = [
-            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 1, "return": 2.0, "success": 1, "win_margin": 1},
-            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 1, "return": 1.0, "success": 0, "win_margin": -1},
+            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 1, "return": 2.0, "success": 1, "win_margin": 1, "split": "test"},
+            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 1, "return": 1.0, "success": 0, "win_margin": -1, "split": "test"},
         ]
         manifest = {
             "protocol_version": V6I4_PROTOCOL_VERSION,
@@ -145,6 +145,48 @@ class V6I4RouterAblationTests(unittest.TestCase):
         self.assertEqual(summary[0]["episodes"], 2)
         self.assertAlmostEqual(summary[0]["success_rate"], 0.5)
         self.assertAlmostEqual(summary[0]["return_mean"], 3.0)
+
+    def test_split_integrity_deep(self):
+        # Verify calibration rows do not affect paired comparisons or test summaries.
+        rows = [
+            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 1, "test_seed": 1, "episode_index": 1, "initial_state_hash": "a", "return": 3.0, "success": 1, "split": "test"},
+            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 1, "test_seed": 1, "episode_index": 1, "initial_state_hash": "a", "return": 1.0, "success": 0, "split": "test"},
+            # Calibration rows
+            {"condition": "learned_qphi_switching", "map_set": "eval", "opponent": "OP5", "seed": 10, "episode_index": 1, "initial_state_hash": "a", "return": 99.0, "success": 1, "split": "calibration"},
+            {"condition": "uniform_random_at_router_opportunities", "map_set": "eval", "opponent": "OP5", "seed": 10, "episode_index": 1, "initial_state_hash": "a", "return": 99.0, "success": 0, "split": "calibration"},
+        ]
+        comps = paired_comparisons(rows, baselines=["uniform_random_at_router_opportunities"], n_bootstrap=0)
+        self.assertEqual(len(comps), 1)
+        self.assertEqual(comps[0].n_pairs, 1)
+        self.assertAlmostEqual(comps[0].mean_delta_return, 2.0)
+
+    def test_checkpoint_metadata_validation_synthetic(self):
+        # Synthetic testing for valid/invalid checkpoints
+        valid_meta = {
+            "cfg": {
+                "experiment_id": "v6i2",
+                "promoted_to_phase_b": True,
+                "gate_config_fingerprint": "1234abcd",
+                "phase_a_end_step": 640000,
+                "confirmatory_gate_lineage_valid": True,
+            }
+        }
+        res = validate_promoted_v6i2_checkpoint_metadata(valid_meta, checkpoint_sha256="hash", exploratory_allow_unpromoted=False)
+        self.assertEqual(res["phase_a_promotion"], "PASS")
+        self.assertEqual(res["gate_fingerprint"], "1234abcd")
+        self.assertFalse(res["exploratory_override"])
+
+        invalid_meta = {
+            "cfg": {
+                "experiment_id": "v6i1",
+                "promoted_to_phase_b": False,
+            }
+        }
+        with self.assertRaises(ValueError):
+            validate_promoted_v6i2_checkpoint_metadata(invalid_meta, checkpoint_sha256="hash", exploratory_allow_unpromoted=False)
+
+        res_override = validate_promoted_v6i2_checkpoint_metadata(invalid_meta, checkpoint_sha256="hash", exploratory_allow_unpromoted=True)
+        self.assertTrue(res_override["exploratory_override"])
 
 
 if __name__ == "__main__":
