@@ -2182,6 +2182,90 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i4_router_ablation_protocol(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i4: Summer-plan-faithful router ablation protocol over v6i2.
+
+    v6i4 is evaluation-only. It resolves v6i2 actor/critic/q_phi/repertoire,
+    reward, opponent, map, and gate-compatibility fields so a promoted v6i2
+    checkpoint can be audited against simpler latent-selection rules. It must
+    not start PPO, enter Phase A/B/C, retrain q_phi, or add labels/losses.
+    """
+    cfg = apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(cfg)
+
+    cfg.experiment_id = "v6i4"
+    cfg.evaluation_only_preset = True
+    cfg.evaluation_only_runner = "rl/eval_router_ablation.py"
+    cfg.evaluation_only_requires_checkpoint = True
+    cfg.evaluation_only_checkpoint_family = "promoted_v6i2"
+    cfg.router_ablation_protocol_version = "v6i4_router_ablation_v1"
+    cfg.router_ablation_claim_label = (
+        "event-associated switching; no opponent-specialized or causal-performance claim "
+        "without matched ablations"
+    )
+    cfg.router_ablation_classification = (
+        "v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol "
+        "over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently "
+        "planned/pending. No parameters are trained or updated."
+    )
+    cfg.router_ablation_classification = (
+        "Summer-plan-faithful evaluation-only router ablation protocol over promoted v6i2 checkpoint"
+    )
+    cfg.router_ablation_conditions = (
+        "learned_qphi_switching",
+        "uniform_episode_fixed",
+        "uniform_random_at_router_opportunities",
+        "preselected_global_fixed_z",
+        "preselected_per_opponent_fixed_z",
+        "fixed_z0",
+        "fixed_z1",
+        "fixed_z2",
+        "fixed_z3",
+        "qphi_initial_only_no_switch",
+        "shuffled_qphi_outputs",
+    )
+    cfg.router_ablation_conditions = tuple(
+        name
+        for name in cfg.router_ablation_conditions
+        if name != "preselected_per_opponent_fixed_z"
+    )
+    cfg.router_ablation_oracle_conditions = (
+        "posthoc_global_fixed_oracle",
+        "posthoc_opponent_oracle",
+        "posthoc_episode_oracle",
+    )
+    cfg.router_ablation_primary_metrics = (
+        "return",
+        "win_rate",
+        "delta_vs_uniform_episode_fixed",
+        "delta_vs_uniform_random_at_router_opportunities",
+        "delta_vs_preselected_global_fixed_z",
+        "delta_vs_qphi_initial_only_no_switch",
+        "delta_vs_shuffled_qphi_outputs",
+    )
+    cfg.router_ablation_diagnostic_metrics = (
+        "route_distance",
+        "task_behavior_distance",
+        "latent_occupancy",
+        "strategy_entropy",
+        "mi_z_opponent",
+        "mi_z_phase",
+        "argmax_stability",
+        "event_associated_switching",
+    )
+    cfg.router_ablation_opponents = ("OP5", "OP6", "OP7")
+    cfg.router_ablation_calibration_seed_set = "locked_calibration_seeds"
+    cfg.router_ablation_evaluation_seed_set = "disjoint_matched_evaluation_seeds"
+    cfg.router_ablation_matched_seeds = True
+    cfg.router_ablation_identical_initial_states = True
+    cfg.router_ablation_identical_action_sampling = True
+    cfg.router_ablation_identical_episode_horizon = True
+    cfg.router_ablation_episode_oracle_is_deployable = False
+    cfg.run_tag = "v6i4_router_ablation_protocol_over_v6i2_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i3_strategy_local_comm(
     cfg: PPOConfig,
 ) -> PPOConfig:

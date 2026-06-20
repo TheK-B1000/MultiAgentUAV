@@ -182,19 +182,76 @@ script auto-appends it to labels; do not strip with
 
 ### 4.2 Latent-selection modes (the routing-quality ablation)
 
-[`plot/eval_checkpoint.py`](../plot/eval_checkpoint.py) exposes four
+v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol
+over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently
+planned/pending. No parameters are trained or updated.
+
+[`plot/eval_checkpoint.py`](../plot/eval_checkpoint.py) exposes these
 modes via `--latent-selection`:
 
-| Mode             | What it does                                                                                                                                        | Use it for                                                                                       |
-|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| `router` (default) | Use the trained `q_phi(z|s)`.                                                                                                                       | Headline row.                                                                                    |
-| `random-matched` | Uniform-random `z`, resampled at the **same decision steps** the router would have (inherits checkpoint's `latent_resample_every_n`; override via `--latent-resample-every`). | Decisive routing-quality control: identical actor weights, identical latent timing, only the `z` distribution differs. |
-| `random-episode` | Uniform-random `z`, episode-start only (forces `strategy_interval = 0`). Different ablation question (changes persistence, not just routing).        | Persistence ablation, not routing.                                                               |
-| `fixed`          | Clamp every episode to `--fixed-latent-id`.                                                                                                          | Forced-z behavioral inspection.                                                                  |
+| Condition | What it does | Use it for |
+|-----------|--------------|------------|
+| `learned_qphi_switching` | Use the trained `q_phi(z|s)` at the checkpoint's router opportunities. | Full proposed method. |
+| `uniform_episode_fixed` | Uniform-random `z` once per episode, then hold it. | Arbitrary fixed latent selection. |
+| `uniform_random_at_router_opportunities` | Uniform-random `z` from an isolated selector RNG at the same deterministic eligibility opportunities as `q_phi`. | Routing-quality control with identical actor weights and latent timing. |
+| `preselected_global_fixed_z` | Pick one global fixed `z` using calibration seeds, then evaluate it on disjoint test seeds. | Deployable fixed-latent baseline without test leakage. |
+| `fixed_z0` ... `fixed_z3` | Clamp every episode to one latent. | Repertoire performance map and oracle inputs. |
+| `qphi_initial_only_no_switch` | Run trained `q_phi` once at episode start, then hold that initial `z`. | Isolates the causal value of mid-episode switching. |
+| `shuffled_qphi_outputs` | Run `q_phi`, preserve eligible opportunity timing and output distribution, then deterministically permute outputs across matched contexts. | Tests whether context-output alignment matters beyond occupancy. |
+| `posthoc_global_fixed_oracle` | Best global fixed `z` selected after the evaluation fixed-z sweep. | Non-deployable upper bound. |
+| `posthoc_opponent_oracle` | Best fixed `z` per opponent selected after the evaluation fixed-z sweep. | Non-deployable upper bound. |
+| `posthoc_episode_oracle` | Best fixed `z` per matched episode selected after seeing outcomes. | Optimistic non-deployable upper bound. |
 
-**The decisive routing comparison** is `router` vs `random-matched`
-with the same checkpoint and the same `--seed`. Anything that beats
-`random-matched` was learned by `q_phi`, not by the actor.
+For v6i4 claims, build the frozen ledger with
+[`rl/eval_router_ablation.py`](../rl/eval_router_ablation.py). The
+primary causal comparisons are:
+
+```text
+learned_qphi_switching - uniform_episode_fixed
+learned_qphi_switching - uniform_random_at_router_opportunities
+learned_qphi_switching - preselected_global_fixed_z
+learned_qphi_switching - qphi_initial_only_no_switch
+learned_qphi_switching - shuffled_qphi_outputs
+```
+
+Every online condition receives the same deterministic eligibility
+opportunities:
+
+```python
+if switch_opportunity(context, step):
+    z = rule.select_at_opportunity(...)
+```
+
+Controls are not forced to make the same actual switch that learned
+`q_phi` made. The primary shuffled condition is a context-alignment
+ablation: it preserves eligibility times and the `q_phi` output source
+distribution, then deterministically reassigns outputs across matched
+contexts.
+
+The evaluator rejects a checkpoint unless metadata verifies
+`experiment_id = v6i2`, Phase A promotion `PASS`, a recorded gate
+fingerprint, a recorded promotion step, a recorded checkpoint hash, and
+valid confirmatory gate lineage. Architecture compatibility alone is
+insufficient.
+
+Primary outcomes are return and win rate, reported aggregate and
+per-opponent for `OP5`, `OP6`, and `OP7`. MI, entropy, occupancy,
+argmax stability, route/task-behavior distance, and event-associated
+switching are diagnostics, not success criteria.
+
+The v6i4 runner writes `v6i4_manifest.json`,
+`v6i4_episode_results.csv`, `v6i4_condition_summary.csv`,
+`v6i4_paired_comparisons.json`, `v6i4_per_opponent_matrix.csv`, and
+`v6i4_final_report.json`. Calibration seeds and test seeds must be
+disjoint; if they overlap, the run is invalid because fixed-best baselines
+would leak test evidence into baseline selection. Episode rows record
+`environment_seed`, `initial_state_hash`, `action_sampling_seed`,
+`selector_seed`, `shuffle_seed`, `opponent`, `episode_index`, and
+`switch_opportunity_schedule_hash`. Paired comparisons join on:
+
+```text
+(opponent, test_seed, episode_index, initial_state_hash)
+```
 
 ### 4.3 Fixed-z behavioral inspection
 

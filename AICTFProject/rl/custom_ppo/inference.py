@@ -182,6 +182,9 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
     if not isinstance(cfg, dict):
         return {}
     cfg = canonicalize_latent_strategy_cfg(cfg)
+    experiment_id = str(cfg.get("experiment_id", "") or "").lower()
+    gate_protocol = str(cfg.get("gate_protocol_version", "") or "").lower()
+    v6_staged = experiment_id in {"v6i1", "v6i2", "v6i3", "v6i4"} or gate_protocol.startswith("v6i")
     kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
     }
@@ -206,6 +209,7 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 # 'episode_strategy_value_head.*']``.
                 "use_episode_strategy_value_head": bool(
                     cfg.get("latent_episode_strategy_ppo", False)
+                    or v6_staged
                     or (
                         cfg.get("latent_arc_credit_enabled", False)
                         and str(
@@ -213,6 +217,10 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                             or "context_value"
                         ).lower() == "context_value"
                     )
+                ),
+                "use_recurrent_selector": bool(v6_staged),
+                "recurrent_selector_hidden_dim": int(
+                    cfg.get("v6i1_recurrent_selector_hidden", 32) or 32
                 ),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
                 "latent_actor_z_onehot_enabled": bool(

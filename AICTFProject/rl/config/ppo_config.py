@@ -155,6 +155,10 @@ class PPOConfig:
     gate_config_fingerprint_checkpoint: str = ""
     gate_config_fingerprint_active: str = ""
     confirmatory_gate_lineage_valid: bool = True
+    evaluation_only_preset: bool = False
+    evaluation_only_runner: str = ""
+    evaluation_only_requires_checkpoint: bool = False
+    evaluation_only_checkpoint_family: str = ""
     # v6i2 actor-intervention track (CF-batch pair JSD EMA).
     actor_jsd_margin: float = 0.001
     actor_jsd_floor_fraction: float = 0.5
@@ -217,6 +221,24 @@ class PPOConfig:
     v6i1_router_lr: Optional[float] = 5e-3
     v6i1_phase_c_actor_lr_frac: float = 0.05
     v6i1_router_rehearsal_episode_frac: float = 0.25
+    # V6I4 router-ablation evaluation protocol. These fields do not change
+    # PPO training; they lock the post-training comparison contract for a
+    # promoted v6i2-style checkpoint.
+    router_ablation_protocol_version: str = ""
+    router_ablation_claim_label: str = ""
+    router_ablation_classification: str = ""
+    router_ablation_conditions: tuple[str, ...] = field(default_factory=tuple)
+    router_ablation_oracle_conditions: tuple[str, ...] = field(default_factory=tuple)
+    router_ablation_primary_metrics: tuple[str, ...] = field(default_factory=tuple)
+    router_ablation_diagnostic_metrics: tuple[str, ...] = field(default_factory=tuple)
+    router_ablation_opponents: tuple[str, ...] = field(default_factory=tuple)
+    router_ablation_calibration_seed_set: str = ""
+    router_ablation_evaluation_seed_set: str = ""
+    router_ablation_matched_seeds: bool = True
+    router_ablation_identical_initial_states: bool = True
+    router_ablation_identical_action_sampling: bool = True
+    router_ablation_identical_episode_horizon: bool = True
+    router_ablation_episode_oracle_is_deployable: bool = False
 
     # Plan IMPLEMENTATION §6: typical λ_H ∈ [0.001, 0.01]; λ_p ∈ [0.01, 0.05] (see also §3.3 for a wider λ_p range).
     # ``maximize`` matches the plan (encourage exploratory / diverse q_phi). ``minimize`` adds +λ_H·H to the

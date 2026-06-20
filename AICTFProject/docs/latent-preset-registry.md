@@ -174,6 +174,7 @@ checkpoint metadata records the matching gate fingerprint and
 |---|---|---|---|
 | `v6i2_staged_team_intent_curriculum` | `v6i1_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Staged team-intent curriculum with dual evidence gates: actor CF pair-JSD EMA plus bounded online matched-seed behavioral realization. Confirmatory gate fingerprint: `224f1aea9ab36319`. |
 | `v6i3_strategy_local_comm` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | v6i2 plus local learned communication. Phase A requires communication transport without total active-symbol collapse; listener value remains diagnostic until final matched-seed communication evaluation. Confirmatory gate fingerprint: `9ef168d941f046fb`. |
+| `v6i4_router_ablation_protocol` | `v6i2_staged_team_intent_curriculum` | `SUMMER-PLAN-FAITHFUL EVALUATION-ONLY` | v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently planned/pending. No parameters are trained or updated. |
 
 ---
 
@@ -219,6 +220,7 @@ pins the alias map; any deletion or rename must be reflected there.
 | `apply_plan_faithful_latent_v5i9_csia_guided_specialization` | `plan_faithful_latent_v5i9_csia_guided_specialization`, `plan_faithful_latent_v5i9_csia`, `latent_v5i9_csia_guided_specialization`, `latent_v5i9_csia`, `v5i9_csia_guided_specialization`, `v5i9_csia`, `v5i9` |
 | `apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum` | `plan_faithful_latent_v6i2_staged_team_intent_curriculum`, `latent_v6i2_staged_team_intent_curriculum`, `v6i2_staged_team_intent_curriculum`, `v6i2_staged`, `v6i2` |
 | `apply_plan_faithful_latent_v6i3_strategy_local_comm` | `plan_faithful_latent_v6i3_strategy_local_comm`, `latent_v6i3_strategy_local_comm`, `v6i3_strategy_local_comm`, `v6i3_local_comm`, `v6i3` |
+| `apply_plan_faithful_latent_v6i4_router_ablation_protocol` | `plan_faithful_latent_v6i4_router_ablation_protocol`, `latent_v6i4_router_ablation_protocol`, `v6i4_router_ablation_protocol`, `v6i4_router_ablation`, `v6i4` |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
 
 The full alias surface lives in
@@ -568,6 +570,42 @@ test: natural-minus-corrupted mean episode return must be `>= 0.02` for
 at least two corruption modes, with the paired-bootstrap 95 percent CI
 excluding zero. A WR-only report may use an absolute WR drop `>= 0.03`
 with the same CI requirement.
+
+### 6.16 v6i4_router_ablation_protocol (SUMMER-PLAN-FAITHFUL EVALUATION-ONLY)
+
+v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol
+over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently
+planned/pending. No parameters are trained or updated.
+
+It inherits v6i2 configuration only to lock the checkpoint family and
+evaluation context, then marks itself `evaluation_only_preset = True`.
+
+| Field | v6i2 value | This preset | Note |
+|-------|------------|-------------|------|
+| `experiment_id` | `v6i2` | `v6i4` | Artifact and protocol identity. |
+| `evaluation_only_preset` | `False` | `True` | Must not launch PPO or enter Phase A/B/C. |
+| `evaluation_only_runner` | `""` | `rl/eval_router_ablation.py` | Single entry point for the frozen router-ablation suite. |
+| `evaluation_only_requires_checkpoint` | `False` | `True` | Requires an existing promoted v6i2-style checkpoint. |
+| `evaluation_only_checkpoint_family` | `""` | `promoted_v6i2` | The checkpoint is the experimental object. |
+| `router_ablation_protocol_version` | `""` | `v6i4_router_ablation_v1` | Must match the manifest protocol version. |
+| `run_tag` | `v6i2_staged_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | `v6i4_router_ablation_protocol_over_v6i2_OP5_OP6_OP7_1m_4v4` | Artifact namespace. |
+
+The evaluator rejects a checkpoint unless promotion evidence verifies
+`experiment_id = v6i2`, Phase A promotion `PASS`, a recorded gate
+fingerprint, a recorded promotion step, a recorded checkpoint hash, and
+valid confirmatory gate lineage. Architecture compatibility alone is
+insufficient. The evaluator loads the accepted checkpoint once, hashes
+parameters before and after, and fails if weights change. Locked online
+rows are
+`learned_qphi_switching`, `uniform_episode_fixed`,
+`uniform_random_at_router_opportunities`, `preselected_global_fixed_z`,
+`fixed_z0`, `fixed_z1`, `fixed_z2`, `fixed_z3`,
+`qphi_initial_only_no_switch`, and `shuffled_qphi_outputs`. The global
+preselected fixed baseline is selected on calibration seeds and
+evaluated on disjoint test seeds.
+`posthoc_global_fixed_oracle`, `posthoc_opponent_oracle`, and
+`posthoc_episode_oracle` are derived only after the fixed-z sweep and
+are non-deployable upper bounds.
 
 ---
 

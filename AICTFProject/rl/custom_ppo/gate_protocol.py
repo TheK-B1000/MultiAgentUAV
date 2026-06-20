@@ -14,7 +14,10 @@ from typing import Any
 import numpy as np
 
 from rl.config.ppo_config import PPOConfig
-from rl.gate_telemetry import phase_a_actor_pair_telemetry_from_actor_gate_details
+from rl.gate_telemetry import (
+    phase_a_actor_pair_telemetry_from_actor_gate_details,
+    phase_a_matched_seed_behavioral_telemetry_from_gate_details,
+)
 
 V6I1_GATE_PROTOCOL = "v6i1_single_macro_intervention"
 V6I2_GATE_PROTOCOL = "v6i2_dual_evidence"
@@ -654,6 +657,7 @@ def evaluate_matched_seed_semantics(
             "matched_seed_semantics": status,
             "opponents": per_opponent,
             "strong_opponent_count": int(strong_count),
+            "behavioral_realization_min_opponents_pass": int(min_strong),
             "aggregate_semantic_effect": aggregate,
             "aggregate_effect": aggregate,
             "no_adverse_opponent": bool(no_adverse),
@@ -747,6 +751,7 @@ __all__ = [
     "is_v6i2_gate_protocol",
     "is_v6i3_gate_protocol",
     "phase_a_actor_pair_telemetry_from_actor_gate_details",
+    "phase_a_matched_seed_behavioral_telemetry_from_gate_details",
     "resolve_gate_protocol_version",
     "resolved_gate_config_dict",
     "validate_protocol_config",

@@ -40,6 +40,11 @@ def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
         "opponent_pool",
         "opponent_pool_weights",
         "latent_router_distill_opponents",
+        "router_ablation_conditions",
+        "router_ablation_oracle_conditions",
+        "router_ablation_primary_metrics",
+        "router_ablation_diagnostic_metrics",
+        "router_ablation_opponents",
     ):
         if isinstance(cfg_dict.get(tuple_field), tuple):
             cfg_dict[tuple_field] = list(cfg_dict[tuple_field])

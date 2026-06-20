@@ -228,6 +228,13 @@ def _ensure_cuda_or_fallback(cfg: PPOConfig) -> None:
 def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     """Run the default local PPO/MAPPO training path."""
     cfg = normalize_and_validate_training_config(cfg or PPOConfig())
+    if bool(getattr(cfg, "evaluation_only_preset", False)):
+        runner = str(getattr(cfg, "evaluation_only_runner", "") or "the evaluation runner")
+        raise ValueError(
+            f"Preset {getattr(cfg, 'cli_preset', getattr(cfg, 'run_tag', 'unknown'))!r} "
+            "is evaluation-only and must not start PPO training. "
+            f"Use {runner} with a promoted v6i2 checkpoint."
+        )
 
     set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)

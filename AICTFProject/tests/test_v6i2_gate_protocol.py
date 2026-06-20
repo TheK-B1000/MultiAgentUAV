@@ -38,6 +38,7 @@ from rl.custom_ppo.gate_protocol import (
     is_staged_v6_team_intent_curriculum,
     is_v6i2_gate_protocol,
     phase_a_actor_pair_telemetry_from_actor_gate_details,
+    phase_a_matched_seed_behavioral_telemetry_from_gate_details,
     resolve_gate_protocol_version,
     resolved_gate_config_dict,
 )
@@ -63,11 +64,11 @@ def _phase_a_stats(step: int) -> dict[str, float]:
         "phase_a_behavior_measurement_valid": 1.0,
         "forced_z_behavior_all_z_represented": 1.0,
         "forced_z_behavior_components_valid": 1.0,
-        "phase_a_behavior_pair_gate_pass": 1.0,
+        "online_behavior_vector_pair_gate_pass": 1.0,
         "phase_a_corridor_viable": 1.0,
         "phase_a_snapshot_usable": 1.0,
         "phase_a_actor_pairs_above_margin": 6.0,
-        "phase_a_behavior_pairs_above_threshold": 6.0,
+        "online_behavior_vector_pairs_above_threshold": 6.0,
     }
 
 
@@ -137,10 +138,10 @@ def _pass_online(
         gate_results[name] = GateFamilyResult(status=GATE_STATUS_PASS)
     return {
         "phase_a_snapshot_usable": 1.0,
-        "phase_a_behavior_pair_gate_pass": 1.0,
+        "online_behavior_vector_pair_gate_pass": 1.0,
         "phase_a_corridor_viable": 1.0,
         "phase_a_actor_pairs_above_margin": 6.0,
-        "phase_a_behavior_pairs_above_threshold": 6.0,
+        "online_behavior_vector_pairs_above_threshold": 6.0,
     }
 
 
@@ -154,7 +155,7 @@ def _fail_online(
     gate_results["training_integrity"] = GateFamilyResult(status=GATE_STATUS_PASS)
     return {
         "phase_a_snapshot_usable": 1.0,
-        "phase_a_behavior_pair_gate_pass": 1.0,
+        "online_behavior_vector_pair_gate_pass": 1.0,
         "phase_a_corridor_viable": 1.0,
     }
 
@@ -173,10 +174,10 @@ def _actor_fail_online(
     gate_results["training_integrity"] = GateFamilyResult(status=GATE_STATUS_PASS)
     return {
         "phase_a_snapshot_usable": 1.0,
-        "phase_a_behavior_pair_gate_pass": 0.0,
+        "online_behavior_vector_pair_gate_pass": 0.0,
         "phase_a_corridor_viable": 0.0,
         "phase_a_actor_pairs_above_margin": 4.0,
-        "phase_a_behavior_pairs_above_threshold": 0.0,
+        "online_behavior_vector_pairs_above_threshold": 0.0,
     }
 
 
@@ -430,6 +431,42 @@ class ActorGateBehaviorTests(unittest.TestCase):
         self.assertEqual(out["phase_a_actor_weakest_pair_jsd"], 0.0004)
         self.assertEqual(out["phase_a_actor_pair_gate_pass"], 1.0)
 
+    def test_matched_seed_behavioral_telemetry_copies_gate_details(self):
+        out = phase_a_matched_seed_behavioral_telemetry_from_gate_details(
+            {
+                "behavioral_realization_gate_status": GATE_STATUS_PASS,
+                "matched_seed_semantics": GATE_STATUS_PASS,
+                "matched_seed_semantics_details": {
+                    "strong_opponent_count": 2,
+                    "behavioral_realization_min_opponents_pass": 2,
+                    "aggregate_effect": 1.25,
+                    "opponents": {
+                        "OP5": {
+                            "route_distance": 2.0,
+                            "task_behavior_distance": 0.02,
+                            "performance_spread": 0.4,
+                            "aggregate_effect": 1.1,
+                            "component_floor_pass": True,
+                        },
+                        "OP6": {
+                            "route_distance": 3.0,
+                            "task_behavior_distance": 0.03,
+                            "performance_spread": 0.6,
+                            "aggregate_effect": 1.4,
+                            "component_floor_pass": True,
+                        },
+                    },
+                },
+            }
+        )
+        self.assertEqual(out["matched_seed_behavioral_gate_status"], GATE_STATUS_PASS)
+        self.assertEqual(out["matched_seed_behavioral_gate_pass"], 1.0)
+        self.assertEqual(out["matched_seed_behavioral_strong_opponents"], 2.0)
+        self.assertEqual(out["matched_seed_behavioral_required_opponents"], 2.0)
+        self.assertEqual(out["matched_seed_behavioral_component_floor_pass_count"], 2.0)
+        self.assertAlmostEqual(out["matched_seed_behavioral_min_task_behavior_distance"], 0.02)
+        self.assertAlmostEqual(out["matched_seed_behavioral_mean_route_distance"], 2.5)
+
     def test_pass_after_required_streak(self):
         cfg = _v6i2_cfg()
         state = SimpleNamespace(
@@ -614,7 +651,34 @@ class SafeguardTests(unittest.TestCase):
             ), mock.patch.object(
                 ctrl,
                 "_evaluate_behavioral_realization_gate",
-                return_value=GateFamilyResult(status=GATE_STATUS_PASS),
+                return_value=GateFamilyResult(
+                    status=GATE_STATUS_PASS,
+                    details={
+                        "behavioral_realization_gate_status": GATE_STATUS_PASS,
+                        "matched_seed_semantics": GATE_STATUS_PASS,
+                        "matched_seed_semantics_details": {
+                            "strong_opponent_count": 2,
+                            "behavioral_realization_min_opponents_pass": 2,
+                            "aggregate_effect": 1.2,
+                            "opponents": {
+                                "OP5": {
+                                    "route_distance": 2.0,
+                                    "task_behavior_distance": 0.02,
+                                    "performance_spread": 0.4,
+                                    "aggregate_effect": 1.0,
+                                    "component_floor_pass": True,
+                                },
+                                "OP6": {
+                                    "route_distance": 3.0,
+                                    "task_behavior_distance": 0.03,
+                                    "performance_spread": 0.6,
+                                    "aggregate_effect": 1.4,
+                                    "component_floor_pass": True,
+                                },
+                            },
+                        },
+                    },
+                ),
             ) as matched_mock, mock.patch.object(
                 ctrl, "_run_learnability_probe"
             ) as probe_mock:
@@ -643,6 +707,12 @@ class SafeguardTests(unittest.TestCase):
             self.assertFalse(report["promoted_to_phase_b"])
             self.assertEqual(report["checkpoint"], "")
             self.assertTrue(report["candidate_checkpoint_removed"])
+            self.assertEqual(trainer.last_stats["matched_seed_behavioral_gate_pass"], 1.0)
+            self.assertEqual(trainer.last_stats["matched_seed_behavioral_strong_opponents"], 2.0)
+            self.assertAlmostEqual(
+                trainer.last_stats["matched_seed_behavioral_min_task_behavior_distance"],
+                0.02,
+            )
 
     def test_timeout_returns_control_blocks_promotion_and_cleans_candidate(self):
         with tempfile.TemporaryDirectory() as tmpdir:

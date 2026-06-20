@@ -72,6 +72,7 @@ class PairwiseDistanceTests(unittest.TestCase):
         self.assertEqual(len(agg), 6)
         self.assertIn("forced_z_behavior_pair_distance_min", stats)
         self.assertIn("forced_z_behavior_pairs_above_threshold", stats)
+        self.assertIn("online_behavior_vector_pair_gate_pass", stats)
         self.assertGreater(stats["forced_z_behavior_pair_distance_min"], 0.0)
 
     def test_high_mean_can_fail_weakest_pair_gate(self) -> None:
@@ -165,7 +166,7 @@ class PhaseADiagnosticTests(unittest.TestCase):
             "forced_z_behavior_pair_distance_min": 0.4,
             "forced_z_behavior_components_valid": 1.0,
             "forced_z_behavior_all_z_represented": 1.0,
-            "phase_a_behavior_pair_gate_pass": 1.0,
+            "online_behavior_vector_pair_gate_pass": 1.0,
             "pairwise_profile_available": 1.0,
             "cf_competence_z0": 0.5,
             "cf_competence_z1": 0.5,

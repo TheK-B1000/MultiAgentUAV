@@ -117,8 +117,18 @@ def format_v6i1_gate_stdout_block(
         strong_ops = int(
             sem_details.get("strong_opponent_count", behav_details.get("strong_opponent_count", 0))
         )
+        required_ops = int(
+            sem_details.get("behavioral_realization_min_opponents_pass", 3)
+            or behav_details.get("behavioral_realization_min_opponents_pass", 3)
+        )
         agg_effect = float(
-            sem_details.get("aggregate_semantic_effect", behav_details.get("aggregate_semantic_effect", 0.0))
+            sem_details.get(
+                "aggregate_effect",
+                sem_details.get(
+                    "aggregate_semantic_effect",
+                    behav_details.get("aggregate_effect", behav_details.get("aggregate_semantic_effect", 0.0)),
+                ),
+            )
             or 0.0
         )
         lines = [
@@ -134,7 +144,7 @@ def format_v6i1_gate_stdout_block(
             ),
             (
                 f"[{tag} Gate] behavioral_realization={_st('behavioral_realization')} "
-                f"strong_opponents={strong_ops}/3 aggregate_effect={agg_effect:.4f} "
+                f"strong_opponents={strong_ops}/{required_ops} aggregate_effect={agg_effect:.4f} "
                 f"probe={_st('selector_learnability_probe')}"
             ),
             _format_phase_a_behavior_line(online_report),
@@ -200,12 +210,12 @@ def _format_phase_a_behavior_line(online_report: dict[str, Any]) -> str:
     corridor = bool(float(online_report.get("phase_a_corridor_viable", 0.0) or 0.0) >= 0.5)
     opp_fork = float(online_report.get("opportunity_fork_fraction_valid", 0.0) or 0.0)
     actor_pairs = int(online_report.get("phase_a_actor_pairs_above_margin", 0.0) or 0.0)
-    beh_pairs = int(online_report.get("phase_a_behavior_pairs_above_threshold", 0.0) or 0.0)
+    beh_pairs = int(online_report.get("online_behavior_vector_pairs_above_threshold", 0.0) or 0.0)
     genuine = int(online_report.get("phase_a_intervention_quadrant", -1)) == INTERVENTION_QUADRANT_GENUINE
     return (
         f"[Phase A] actor_jsd={actor_jsd:.4f} behavior_min={beh_dist:.4f} behavior_mean={beh_mean:.4f} "
         f"quadrant={quad} cf_regime={regime} corridor_viable={corridor} "
-        f"actor_pairs>margin={actor_pairs}/6 behavior_pairs>thr={beh_pairs}/6 "
+        f"actor_pairs>margin={actor_pairs}/6 online_behavior_pairs>thr={beh_pairs}/6 "
         f"opp_fork_valid={opp_fork:.3f} genuine_control={genuine}"
     )
 

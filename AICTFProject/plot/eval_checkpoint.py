@@ -122,20 +122,35 @@ def main() -> None:
     )
     parser.add_argument(
         "--latent-selection",
-        choices=["router", "random-matched", "random-episode", "fixed"],
+        choices=[
+            "router",
+            "learned_qphi_switching",
+            "random-matched",
+            "uniform_random_at_router_opportunities",
+            "random-episode",
+            "uniform_episode_fixed",
+            "fixed",
+            "no-switch",
+            "qphi_initial_only_no_switch",
+            "shuffled",
+            "shuffled_qphi_outputs",
+        ],
         default=None,
         help=(
             "How latents are chosen during evaluation. "
-            "'router' (default): use the trained q_phi(z|s). "
-            "'random-matched': replace q_phi with a uniform-random sampler that "
+            "'router'/'learned_qphi_switching' (default): use the trained q_phi(z|s). "
+            "'uniform_random_at_router_opportunities': replace q_phi with a uniform-random sampler that "
             "resamples at the same decision steps the router would have "
             "(inherits the checkpoint's latent_resample_every_n, overridable "
             "via --latent-resample-every). This is the matched-schedule "
             "control for 'learned router vs uniform router with identical "
             "actor weights and identical latent timing'. "
-            "'random-episode': uniform-random once per episode (forces "
+            "'uniform_episode_fixed': uniform-random once per episode (forces "
             "strategy_interval=0 regardless of training config); changes "
             "persistence, so use it for a different ablation question. "
+            "'qphi_initial_only_no_switch': use q_phi at episode start only, then hold that z. "
+            "'shuffled_qphi_outputs': sample from a provided/effective q_phi marginal while "
+            "discarding state-conditioned timing. "
             "'fixed': clamp every episode to --fixed-latent-id."
         ),
     )
@@ -151,25 +166,41 @@ def main() -> None:
     selection = args.latent_selection
     if selection is None:
         selection = "fixed" if args.fixed_latent_id is not None else "router"
+    selection_aliases = {
+        "router": "learned_qphi_switching",
+        "random-matched": "uniform_random_at_router_opportunities",
+        "random-episode": "uniform_episode_fixed",
+        "no-switch": "qphi_initial_only_no_switch",
+        "shuffled": "shuffled_qphi_outputs",
+    }
+    selection = selection_aliases.get(selection, selection)
     if selection == "fixed" and args.fixed_latent_id is None:
         sys.exit("[ERROR] --latent-selection fixed requires --fixed-latent-id")
 
-    if selection == "router":
+    if selection == "learned_qphi_switching":
         eval_latent_mode = "normal"
         eval_fixed_id: int | None = None
         eval_resample_every = args.latent_resample_every
-    elif selection == "random-matched":
+    elif selection == "uniform_random_at_router_opportunities":
         eval_latent_mode = "uniform_random"
         eval_fixed_id = None
         # None means "inherit the checkpoint's training-time resample cadence";
         # the inference policy already loads that from the checkpoint cfg.
         eval_resample_every = args.latent_resample_every
-    elif selection == "random-episode":
+    elif selection == "uniform_episode_fixed":
         eval_latent_mode = "uniform_random"
         eval_fixed_id = None
         # Force episode-start-only resamples regardless of training cadence.
         # If the user also passed --latent-resample-every, honor it (advanced).
         eval_resample_every = 0 if args.latent_resample_every is None else args.latent_resample_every
+    elif selection == "qphi_initial_only_no_switch":
+        eval_latent_mode = "normal"
+        eval_fixed_id = None
+        eval_resample_every = 0 if args.latent_resample_every is None else args.latent_resample_every
+    elif selection == "shuffled_qphi_outputs":
+        eval_latent_mode = "shuffled"
+        eval_fixed_id = None
+        eval_resample_every = args.latent_resample_every
     else:  # fixed
         eval_latent_mode = "normal"
         eval_fixed_id = int(args.fixed_latent_id)

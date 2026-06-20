@@ -120,6 +120,7 @@ def run_eval_episodes(
     latent_eval_marginal: list[float] | None = None,
     latent_eval_seed: int | None = None,
     e3_step_telemetry_path: str | None = None,
+    preloaded_model: Any | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -130,9 +131,21 @@ def run_eval_episodes(
     If progress_every > 0, prints after episode 1, then every progress_every episodes, and on the last
     (flush=True) so long 8v8 runs do not look hung.
     """
-    from rl.custom_ppo import load_custom_ppo_policy
+    if preloaded_model is None:
+        from rl.custom_ppo import load_custom_ppo_policy
 
-    model = load_custom_ppo_policy(model_path, env.observation_space, env.action_space, device=device)
+        model = load_custom_ppo_policy(model_path, env.observation_space, env.action_space, device=device)
+    else:
+        model = preloaded_model
+        if hasattr(model, "model"):
+            model.model.eval()
+    if hasattr(model, "fixed_latent_strategy"):
+        model.fixed_latent_strategy = False
+    if hasattr(model, "set_latent_eval_mode"):
+        try:
+            model.set_latent_eval_mode("normal", seed=latent_eval_seed)
+        except Exception:
+            pass
     if fixed_latent_id is not None and hasattr(model, "model") and bool(
         getattr(model.model, "uses_latent_strategy", False)
     ):
@@ -405,6 +418,8 @@ def run_eval_episodes(
                                         row[f"strategy_phase_{phase}_occupancy_{z_idx}"] = (
                                             float(counts.get(z_idx, 0)) / phase_denom
                                         )
+                            if hasattr(model, "reset_strategy"):
+                                model.reset_strategy()
                             episodes.append(row)
                             if progress_every > 0:
                                 le = len(episodes)

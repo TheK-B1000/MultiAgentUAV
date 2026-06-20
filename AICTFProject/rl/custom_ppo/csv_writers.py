@@ -43,7 +43,12 @@ E3_STEP_TELEMETRY_FIELDS: tuple[str, ...] = (
 ) + tuple(f"q_phi_context_{i}" for i in range(CONTEXT_STATE_DIM))
 
 # When renaming metrics columns, old CSV headers may still use the legacy name; see ``_write_csv_row``.
-_METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {"strategy_aux_return_loss": "strategy_q_loss"}
+_METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {
+    "strategy_aux_return_loss": "strategy_q_loss",
+    "online_behavior_vector_pairs_above_threshold": "phase_a_behavior_pairs_above_threshold",
+    "online_behavior_vector_weakest_pair_distance": "phase_a_behavior_weakest_pair_distance",
+    "online_behavior_vector_pair_gate_pass": "phase_a_behavior_pair_gate_pass",
+}
 
 # v6i1 staged-curriculum intervention telemetry (six unordered z-pairs for K=4).
 V6I1_INTERVENTION_PAIR_COUNT: int = 6
@@ -678,9 +683,22 @@ def _phase_a_diagnostic_fieldnames() -> list[str]:
         "phase_a_actor_pairs_above_margin",
         "phase_a_actor_weakest_pair_jsd",
         "phase_a_actor_pair_gate_pass",
-        "phase_a_behavior_pairs_above_threshold",
-        "phase_a_behavior_weakest_pair_distance",
-        "phase_a_behavior_pair_gate_pass",
+        "online_behavior_vector_pairs_above_threshold",
+        "online_behavior_vector_weakest_pair_distance",
+        "online_behavior_vector_pair_gate_pass",
+        "matched_seed_behavioral_gate_status",
+        "matched_seed_behavioral_semantics_status",
+        "matched_seed_behavioral_gate_pass",
+        "matched_seed_behavioral_strong_opponents",
+        "matched_seed_behavioral_required_opponents",
+        "matched_seed_behavioral_opponent_count",
+        "matched_seed_behavioral_component_floor_pass_count",
+        "matched_seed_behavioral_aggregate_effect",
+        "matched_seed_behavioral_mean_route_distance",
+        "matched_seed_behavioral_mean_task_behavior_distance",
+        "matched_seed_behavioral_min_task_behavior_distance",
+        "matched_seed_behavioral_mean_performance_spread",
+        "matched_seed_behavioral_min_performance_spread",
         "opportunity_cell_count",
         "opportunity_eligible_cell_count",
         "opportunity_fork_fraction",

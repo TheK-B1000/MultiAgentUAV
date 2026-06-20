@@ -565,6 +565,30 @@ components independently; normalized aggregation uses frozen scales and raw
 component floors so route distance cannot carry a pass. Gate fingerprint remains
 `224f1aea9ab36319`.
 
+### V6I4 router ablation protocol (evaluation-only — pending promoted v6i2 checkpoint)
+
+v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol
+over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently
+planned/pending. No parameters are trained or updated.
+
+It is not a replacement training row. The checkpoint's actor, critic,
+`q_phi`, latent repertoire, reward configuration, opponent pool, and
+evaluation environment stay fixed; only the latent-selection rule changes
+under matched seeds. The evaluator must reject pre-promotion checkpoints:
+the checkpoint evidence must verify v6i2 lineage, Phase A promotion
+`PASS`, gate fingerprint, promotion step, checkpoint hash, and valid
+confirmatory gate lineage.
+
+The locked comparison rows are `learned_qphi_switching`,
+`uniform_episode_fixed`, `uniform_random_at_router_opportunities`,
+`preselected_global_fixed_z`, `fixed_z0` through `fixed_z3`,
+`qphi_initial_only_no_switch`, `shuffled_qphi_outputs`, and the
+non-deployable posthoc oracle rows.
+Success is return and win-rate
+advantage over uniform, fixed, initial-only, and shuffled controls,
+reported aggregate and per opponent. MI, entropy, occupancy, argmax
+stability, and event-associated switching remain diagnostics.
+
 ### V6I3 local communication (frozen contract — confirmatory run pending)
 
 | Slice | Status |
@@ -583,12 +607,13 @@ frozen table unchanged (`--fresh-metrics-csv`, `confirmatory_gate_lineage_valid=
 gate fingerprint `9ef168d941f046fb`).
 
 1. **Launch full v6i2 enforce confirmatory run** — not a shortened budget.
-2. **Launch full fresh v6i3 confirmatory run** after v6i2 lineage is accepted;
+2. **Run v6i4 router ablation** on the accepted promoted v6i2 checkpoint.
+3. **Launch full fresh v6i3 confirmatory run** after v6i2 lineage is accepted;
    do not reuse pre-freeze v6i3 metrics as official.
-3. **Launch v5i7 seed 0 (§3.3) if the immediate target is the best
+4. **Launch v5i7 seed 0 (§3.3) if the immediate target is the best
    Summer-faithful latent model on split-lane geometry.** Compare only to
    split-lane matched controls.
-4. **Launch v5i6 seed 0 (§3.1) for the canonical open-map paper-faithful
+5. **Launch v5i6 seed 0 (§3.1) for the canonical open-map paper-faithful
    row.** Preserve the §1 invariants in
    `experiment-and-evaluation-protocol.md`.
 5. **Run the v5i6 eval matrix and random-matched control.** Use

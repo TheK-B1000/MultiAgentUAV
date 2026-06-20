@@ -214,9 +214,9 @@ def pairwise_behavior_distances(
         floor = float(pair_threshold) * float(pair_floor_fraction)
         above = sum(1 for d in aggregate if d >= float(pair_threshold))
         out["forced_z_behavior_pairs_above_threshold"] = float(above)
-        out["phase_a_behavior_pairs_above_threshold"] = float(above)
-        out["phase_a_behavior_weakest_pair_distance"] = float(min(aggregate))
-        out["phase_a_behavior_pair_gate_pass"] = float(
+        out["online_behavior_vector_pairs_above_threshold"] = float(above)
+        out["online_behavior_vector_weakest_pair_distance"] = float(min(aggregate))
+        out["online_behavior_vector_pair_gate_pass"] = float(
             above >= int(min_pairs_above) and min(aggregate) >= floor
         )
     else:
@@ -224,9 +224,9 @@ def pairwise_behavior_distances(
         out["forced_z_behavior_pair_distance_max"] = 0.0
         out["forced_z_behavior_pair_distance_min"] = 0.0
         out["forced_z_behavior_pairs_above_threshold"] = 0.0
-        out["phase_a_behavior_pairs_above_threshold"] = 0.0
-        out["phase_a_behavior_weakest_pair_distance"] = 0.0
-        out["phase_a_behavior_pair_gate_pass"] = 0.0
+        out["online_behavior_vector_pairs_above_threshold"] = 0.0
+        out["online_behavior_vector_weakest_pair_distance"] = 0.0
+        out["online_behavior_vector_pair_gate_pass"] = 0.0
     return out, aggregate
 
 
@@ -491,7 +491,16 @@ def phase_a_diagnostic_telemetry(
     cf_ratio_in_band = ratio_floor <= cf_ratio <= ratio_ceiling
     actor_trending_up = actor_slope >= behavior_slope_floor
     behavior_trending_up = behavior_slope >= behavior_slope_floor
-    behavior_pair_gate = float(stats.get("phase_a_behavior_pair_gate_pass", 0.0)) >= 0.5
+    behavior_pair_gate = (
+        float(
+            stats.get(
+                "online_behavior_vector_pair_gate_pass",
+                stats.get("phase_a_behavior_pair_gate_pass", 0.0),
+            )
+            or 0.0
+        )
+        >= 0.5
+    )
     actor_pair_gate = float(actor_pairs.get("phase_a_actor_pair_gate_pass", 0.0)) >= 0.5
     corridor_viable = (
         competence_floor_pass
@@ -564,9 +573,9 @@ PHASE_A_DIAGNOSTIC_STAT_KEYS: tuple[str, ...] = (
     "phase_a_actor_pairs_above_margin",
     "phase_a_actor_weakest_pair_jsd",
     "phase_a_actor_pair_gate_pass",
-    "phase_a_behavior_pairs_above_threshold",
-    "phase_a_behavior_weakest_pair_distance",
-    "phase_a_behavior_pair_gate_pass",
+    "online_behavior_vector_pairs_above_threshold",
+    "online_behavior_vector_weakest_pair_distance",
+    "online_behavior_vector_pair_gate_pass",
     "forced_z_behavior_pair_distance_mean",
     "forced_z_behavior_pair_distance_min",
     "opportunity_cell_count",

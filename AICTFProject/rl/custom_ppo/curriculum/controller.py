@@ -54,7 +54,10 @@ from rl.custom_ppo.gate_protocol import (
     resolve_gate_protocol_version,
     validate_protocol_config,
 )
-from rl.gate_telemetry import phase_a_actor_pair_telemetry_from_actor_gate_details
+from rl.gate_telemetry import (
+    phase_a_actor_pair_telemetry_from_actor_gate_details,
+    phase_a_matched_seed_behavioral_telemetry_from_gate_details,
+)
 from rl.custom_ppo.inference import CustomPPOInferencePolicy
 
 _STATE_SCHEMA_VERSION = 1
@@ -512,6 +515,22 @@ class V6I1CurriculumController:
             ):
                 matched_result = self._run_matched_seed_eval(context)
             gate_results[matched_family] = matched_result
+            matched_seed_behavioral_telemetry = (
+                phase_a_matched_seed_behavioral_telemetry_from_gate_details(
+                    {
+                        "behavioral_realization_gate_status": matched_result.status,
+                        **dict(matched_result.details or {}),
+                    }
+                )
+                if matched_family == "behavioral_realization"
+                else {}
+            )
+            if matched_seed_behavioral_telemetry:
+                online_report.update(matched_seed_behavioral_telemetry)
+                self.trainer.last_stats = {
+                    **dict(getattr(self.trainer, "last_stats", {}) or {}),
+                    **matched_seed_behavioral_telemetry,
+                }
 
             if boundary_enabled and prereq_failure is None:
                 if selector_blocks_phase_a and probe_enabled:
