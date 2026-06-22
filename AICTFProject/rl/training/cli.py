@@ -203,6 +203,30 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="V6I1 counterfactual separation ceiling (latent_cf_coef_max); schedule still ramps 0→max in Phase A.",
     )
     parser.add_argument(
+        "--no-latent-cf-require-competence",
+        action="store_true",
+        default=False,
+        help="Bypass/disable the competence gate on counterfactual separation loss.",
+    )
+    parser.add_argument(
+        "--latent-cf-sequential-update",
+        action="store_true",
+        default=False,
+        help="Perform sequential PPO and CF actor updates in each training step.",
+    )
+    parser.add_argument(
+        "--actor-cf-update-mode",
+        choices=("combined", "ppo_then_cf", "cf_then_ppo"),
+        default=None,
+        help="Actor update geometry for CF diagnostics: combined, ppo_then_cf, or cf_then_ppo.",
+    )
+    parser.add_argument(
+        "--phase-a-disable-promotion",
+        action="store_true",
+        default=False,
+        help="Diagnostic only: run Phase A gate reports but do not transition to Phase B.",
+    )
+    parser.add_argument(
         "--latent-strategy-ppo-coef",
         type=float,
         default=None,
@@ -696,6 +720,13 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.latent_lam_h = max(0.0, float(args.latent_lam_h))
     if args.latent_cf_coef_max is not None:
         cfg.latent_cf_coef_max = max(0.0, float(args.latent_cf_coef_max))
+    if args.no_latent_cf_require_competence:
+        cfg.latent_cf_require_competence = False
+    if args.actor_cf_update_mode is not None:
+        cfg.actor_cf_update_mode = str(args.actor_cf_update_mode)
+    if args.latent_cf_sequential_update:
+        cfg.latent_cf_sequential_update = True
+        cfg.actor_cf_update_mode = "ppo_then_cf"
     if args.latent_strategy_ppo_coef is not None:
         cfg.latent_strategy_ppo_coef = max(0.0, float(args.latent_strategy_ppo_coef))
     if args.latent_episode_strategy_ppo:
@@ -845,6 +876,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
     if args.periodic_checkpoint_steps is not None:
         cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
+    if getattr(args, "phase_a_disable_promotion", False):
+        cfg.phase_a_disable_promotion = True
     if getattr(args, "csia_enabled", False):
         cfg.csia_enabled = True
     if getattr(args, "csia_reward_coef", None) is not None:

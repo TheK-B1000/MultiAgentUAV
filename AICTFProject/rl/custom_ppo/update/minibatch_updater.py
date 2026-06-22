@@ -24,6 +24,7 @@ from rl.custom_ppo.update.actor_pathway_diagnostics import actor_pathway_grad_di
 from rl.custom_ppo.v6i1_cf_loss import (
     actor_cf_ppo_grad_diagnostics,
     actor_diagnostic_grad_norm,
+    v6i1_cf_separation_loss,
     v6i1_cf_separation_loss_for_action_head,
 )
 from rl.custom_ppo.v6i1_phase_runtime import is_v6i1_staged_trainer
@@ -56,6 +57,33 @@ def combine_action_and_message_log_probs(
     if old_message_log_prob is None:
         raise KeyError("message_log_probs missing from rollout batch for communication PPO.")
     return action_log_prob + message_log_prob, old_action_log_prob + old_message_log_prob
+
+
+def compute_actor_ppo_cf_cosine(
+    *,
+    scaled_cf_loss: torch.Tensor,
+    ppo_actor_loss: torch.Tensor,
+    actor_parameters: list[torch.nn.Parameter],
+) -> float:
+    params = [p for p in actor_parameters if p.requires_grad]
+    if not params or not scaled_cf_loss.requires_grad or not ppo_actor_loss.requires_grad:
+        return 0.0
+    try:
+        g_cf = torch.autograd.grad(scaled_cf_loss, params, retain_graph=True, allow_unused=True)
+        g_ppo = torch.autograd.grad(ppo_actor_loss, params, retain_graph=True, allow_unused=True)
+    except Exception:
+        return 0.0
+    cf_parts: list[torch.Tensor] = []
+    ppo_parts: list[torch.Tensor] = []
+    for p, gc, gp in zip(params, g_cf, g_ppo):
+        cf_parts.append(torch.zeros(p.numel(), device=p.device) if gc is None else gc.reshape(-1))
+        ppo_parts.append(torch.zeros(p.numel(), device=p.device) if gp is None else gp.reshape(-1))
+    cf = torch.cat(cf_parts)
+    ppo = torch.cat(ppo_parts)
+    denom = torch.norm(cf) * torch.norm(ppo)
+    if float(denom.detach().cpu().item()) <= 1e-12:
+        return 0.0
+    return float((torch.dot(cf, ppo) / denom).detach().cpu().item())
 
 
 @dataclass
@@ -140,6 +168,7 @@ class MinibatchUpdater:
             batch["actions"],
             z_idx=z_idx,
             selector_hidden=selector_hidden,
+            router_context=batch.get("router_context"),
             message_symbols=message_symbols,
             message_boundary_mask=message_boundary_mask,
         )
@@ -374,23 +403,320 @@ class MinibatchUpdater:
                     )
             updater_state.actor_grad_diag_done = True
 
-        step_result = self.optimizer_stepper.step(
-            total_loss=total_loss,
-            ppo_actor_loss=ppo_actor_loss,
-            value_loss=value_loss,
-            policy_loss=policy_loss,
-            entropy_loss=entropy_loss,
-            latent_loss=latent_loss,
-            ent_coef=ent_coef,
-            vf_coef=float(hparams.vf_coef),
-            context=context,
-            phase_policy=phase_policy,
-            model=model,
-            latent_state=self.latent_state,
-            epoch_idx=epoch_idx,
-            mb_idx=mb_idx,
-            max_grad_norm=float(cfg.max_grad_norm),
+        actor_cf_update_mode = str(getattr(cfg, "actor_cf_update_mode", "combined") or "combined")
+        if bool(getattr(cfg, "latent_cf_sequential_update", False)):
+            actor_cf_update_mode = "ppo_then_cf"
+        update_order_stats: dict[str, float] = {
+            "actor_cf_update_mode_code": {"combined": 0.0, "ppo_then_cf": 1.0, "cf_then_ppo": 2.0}.get(actor_cf_update_mode, -1.0),
+            "actor_ppo_optimizer_step_count": 0.0,
+            "actor_cf_optimizer_step_count": 0.0,
+            "actor_jsd_update_start": float("nan"),
+            "actor_jsd_after_ppo": float("nan"),
+            "actor_jsd_after_cf": float("nan"),
+            "actor_jsd_after_first_substep": float("nan"),
+            "actor_jsd_after_second_substep": float("nan"),
+            "ppo_jsd_delta": float("nan"),
+            "cf_jsd_delta": float("nan"),
+            "cf_gain": float("nan"),
+            "retained_cf_gain": float("nan"),
+            "cf_retention_ratio": float("nan"),
+            "cf_retention_reason_code": 0.0,
+            "actor_kl_after_ppo": float("nan"),
+            "actor_kl_after_cf": float("nan"),
+            "actor_kl_after_second_substep": float("nan"),
+        }
+        is_sequential = (
+            actor_cf_update_mode in {"ppo_then_cf", "cf_then_ppo"}
+            and bool(getattr(runtime, "v6i1_three_optimizer_mode", False))
+            and getattr(runtime, "actor_cf_optimizer", None) is not None
+            and float(curr_sep_coef) > 0.0
+            and phase_policy.counterfactual_active
         )
+        if is_sequential:
+            from rl.custom_ppo.update.optimizer_stepper import OptimizerStepResult, clip_optimizer_grad_norm
+
+            competence, competence_ready = self.latent_state.compute_competence_scores()
+
+            def _measure_jsd() -> tuple[float, list[float]]:
+                with torch.no_grad():
+                    _, stats = v6i1_cf_separation_loss(
+                        model,
+                        obs_batch,
+                        latent_k=int(hparams.latent_k),
+                        margin=float(cfg.latent_cf_jsd_margin),
+                        competence=competence,
+                        competence_ready=bool(competence_ready),
+                        weak_pair_ema=getattr(self.latent_state, "cf_pair_jsd_ema", None),
+                        weak_pair_boost=float(getattr(cfg, "latent_cf_weak_pair_boost", 0.0) or 0.0),
+                        worst_pair_coef=float(getattr(cfg, "latent_cf_worst_pair_coef", 0.0) or 0.0),
+                        require_competence=bool(getattr(cfg, "latent_cf_require_competence", False)),
+                        subsample_generator=self.separation_objective.subsample_generator,
+                    )
+                pair = stats.get("pair_jsd")
+                pairs = pair.detach().reshape(-1).cpu().tolist() if isinstance(pair, torch.Tensor) else []
+                return float(stats["jsd"].detach().cpu().item()), pairs
+
+            def _kl_now() -> float:
+                with torch.no_grad():
+                    _, lp, _, aux_now = model.evaluate_actions(
+                        obs_batch,
+                        batch["global_state"],
+                        batch["actions"],
+                        z_idx=z_idx,
+                        selector_hidden=selector_hidden,
+                        router_context=batch.get("router_context"),
+                        message_symbols=message_symbols,
+                        message_boundary_mask=message_boundary_mask,
+                    )
+                    new_lp, old_lp = combine_action_and_message_log_probs(
+                        action_log_prob=lp,
+                        old_action_log_prob=batch["log_probs"],
+                        message_log_prob=aux_now.get("message_log_probs"),
+                        old_message_log_prob=batch.get("message_log_probs"),
+                    )
+                    logratio = new_lp - old_lp
+                    return float(((logratio.exp() - 1.0) - logratio).mean().detach().cpu().item())
+
+            def _ppo_actor_loss_now() -> torch.Tensor:
+                _, lp, ent_now, aux_now = model.evaluate_actions(
+                    obs_batch,
+                    batch["global_state"],
+                    batch["actions"],
+                    z_idx=z_idx,
+                    selector_hidden=selector_hidden,
+                    router_context=batch.get("router_context"),
+                    message_symbols=message_symbols,
+                    message_boundary_mask=message_boundary_mask,
+                )
+                new_lp, old_lp = combine_action_and_message_log_probs(
+                    action_log_prob=lp,
+                    old_action_log_prob=batch["log_probs"],
+                    message_log_prob=aux_now.get("message_log_probs"),
+                    old_message_log_prob=batch.get("message_log_probs"),
+                )
+                p_loss, _ = ppo_policy_loss(new_lp, old_lp, advantages, hparams.clip_range)
+                return p_loss + ent_coef * (-ent_now.mean())
+
+            def _cf_loss_now() -> torch.Tensor:
+                raw, _ = v6i1_cf_separation_loss(
+                    model,
+                    obs_batch,
+                    latent_k=int(hparams.latent_k),
+                    margin=float(cfg.latent_cf_jsd_margin),
+                    competence=competence,
+                    competence_ready=bool(competence_ready),
+                    weak_pair_ema=getattr(self.latent_state, "cf_pair_jsd_ema", None),
+                    weak_pair_boost=float(getattr(cfg, "latent_cf_weak_pair_boost", 0.0) or 0.0),
+                    worst_pair_coef=float(getattr(cfg, "latent_cf_worst_pair_coef", 0.0) or 0.0),
+                    require_competence=bool(getattr(cfg, "latent_cf_require_competence", False)),
+                    subsample_generator=self.separation_objective.subsample_generator,
+                )
+                return float(curr_sep_coef) * raw
+
+            actor_params = collect_actor_optimizer_parameters(runtime.actor_optimizer)
+            z_emb_params = [p for name, p in model.named_parameters() if "strategy_embedding" in name and p.requires_grad]
+            ppo_cf_cosine = compute_actor_ppo_cf_cosine(
+                scaled_cf_loss=separation_result.loss.scaled_loss,
+                ppo_actor_loss=ppo_actor_loss,
+                actor_parameters=actor_params,
+            )
+            ppo_grad_norm = 0.0
+            cf_grad_norm = 0.0
+            ppo_parameter_delta = 0.0
+            cf_parameter_delta = 0.0
+            z_embedding_ppo_delta = 0.0
+            z_embedding_cf_delta = 0.0
+            pair_jsd_before_ppo = [0.0] * pair_count
+            pair_jsd_after_ppo = [0.0] * pair_count
+            pair_jsd_after_cf = [0.0] * pair_count
+            start_jsd, start_pairs = _measure_jsd()
+            update_order_stats["actor_jsd_before_substeps"] = start_jsd
+            update_order_stats["actor_jsd_update_start"] = start_jsd
+            for i, v in enumerate(start_pairs[:pair_count]):
+                pair_jsd_before_ppo[i] = float(v)
+
+            latent_loss_no_cf = latent_loss - separation_result.loss.scaled_loss if separation_result.loss.active else latent_loss
+            include_latent_loss_no_cf = (
+                isinstance(latent_loss_no_cf, torch.Tensor)
+                and latent_loss_no_cf.requires_grad
+                and (phase_policy.router_step_enabled or str(getattr(cfg, "router_context_mode", "") or "") != "current_plus_delta")
+            )
+
+            def _zero_all() -> None:
+                runtime.actor_optimizer.zero_grad(set_to_none=True)
+                runtime.actor_cf_optimizer.zero_grad(set_to_none=True)
+                runtime.critic_optimizer.zero_grad(set_to_none=True)
+                if runtime.router_optimizer is not None:
+                    runtime.router_optimizer.zero_grad(set_to_none=True)
+
+            def _ppo_step() -> tuple[float, float, list[float]]:
+                nonlocal ppo_grad_norm, ppo_parameter_delta, z_embedding_ppo_delta
+                before = [p.detach().clone() for p in actor_params]
+                z_before = [p.detach().clone() for p in z_emb_params]
+                _zero_all()
+                assembled = hparams.vf_coef * value_loss
+                if phase_policy.actor_step_enabled:
+                    assembled = assembled + _ppo_actor_loss_now()
+                if include_latent_loss_no_cf:
+                    assembled = assembled + latent_loss_no_cf
+                assembled.backward()
+                ppo_grad_norm = clip_optimizer_grad_norm(runtime.actor_optimizer, float(cfg.max_grad_norm))
+                if phase_policy.critic_step_enabled:
+                    clip_optimizer_grad_norm(runtime.critic_optimizer, float(cfg.max_grad_norm))
+                    runtime.critic_optimizer.step()
+                if runtime.router_optimizer is not None and include_latent_loss_no_cf:
+                    clip_optimizer_grad_norm(runtime.router_optimizer, float(cfg.max_grad_norm))
+                    runtime.router_optimizer.step()
+                if phase_policy.actor_step_enabled:
+                    runtime.actor_optimizer.step()
+                ppo_parameter_delta = float(sum((p - p0).pow(2).sum() for p, p0 in zip(actor_params, before)).sqrt().item())
+                z_embedding_ppo_delta = float(sum((p - p0).pow(2).sum() for p, p0 in zip(z_emb_params, z_before)).sqrt().item()) if z_emb_params else 0.0
+                jsd, pairs = _measure_jsd()
+                return jsd, _kl_now(), pairs
+
+            def _cf_step() -> tuple[float, float, list[float]]:
+                nonlocal cf_grad_norm, cf_parameter_delta, z_embedding_cf_delta
+                before = [p.detach().clone() for p in actor_params]
+                z_before = [p.detach().clone() for p in z_emb_params]
+                _zero_all()
+                loss = _cf_loss_now()
+                loss.backward()
+                cf_grad_norm = clip_optimizer_grad_norm(runtime.actor_cf_optimizer, float(cfg.max_grad_norm))
+                runtime.actor_cf_optimizer.step()
+                cf_parameter_delta = float(sum((p - p0).pow(2).sum() for p, p0 in zip(actor_params, before)).sqrt().item())
+                z_embedding_cf_delta = float(sum((p - p0).pow(2).sum() for p, p0 in zip(z_emb_params, z_before)).sqrt().item()) if z_emb_params else 0.0
+                jsd, pairs = _measure_jsd()
+                return jsd, _kl_now(), pairs
+
+            if actor_cf_update_mode == "ppo_then_cf":
+                after_ppo, kl_ppo, ppo_pairs = _ppo_step()
+                update_order_stats["actor_ppo_optimizer_step_count"] = 1.0 if phase_policy.actor_step_enabled else 0.0
+                after_cf, kl_cf, cf_pairs = _cf_step()
+                update_order_stats["actor_cf_optimizer_step_count"] = 1.0
+                update_order_stats.update(
+                    {
+                        "actor_jsd_after_ppo": after_ppo,
+                        "actor_jsd_after_cf": after_cf,
+                        "actor_jsd_after_first_substep": after_ppo,
+                        "actor_jsd_after_second_substep": after_cf,
+                        "ppo_jsd_delta": after_ppo - start_jsd,
+                        "cf_jsd_delta": after_cf - after_ppo,
+                        "cf_gain": max(0.0, after_cf - after_ppo),
+                        "retained_cf_gain": after_cf - after_ppo,
+                        "actor_kl_after_ppo": kl_ppo,
+                        "actor_kl_after_cf": kl_cf,
+                        "actor_kl_after_second_substep": kl_cf,
+                    }
+                )
+            else:
+                after_cf, kl_cf, cf_pairs = _cf_step()
+                update_order_stats["actor_cf_optimizer_step_count"] = 1.0
+                after_ppo, kl_ppo, ppo_pairs = _ppo_step()
+                update_order_stats["actor_ppo_optimizer_step_count"] = 1.0 if phase_policy.actor_step_enabled else 0.0
+                update_order_stats.update(
+                    {
+                        "actor_jsd_after_ppo": after_ppo,
+                        "actor_jsd_after_cf": after_cf,
+                        "actor_jsd_after_first_substep": after_cf,
+                        "actor_jsd_after_second_substep": after_ppo,
+                        "cf_jsd_delta": after_cf - start_jsd,
+                        "ppo_jsd_delta": after_ppo - after_cf,
+                        "cf_gain": max(0.0, after_cf - start_jsd),
+                        "retained_cf_gain": after_ppo - start_jsd,
+                        "actor_kl_after_ppo": kl_ppo,
+                        "actor_kl_after_cf": kl_cf,
+                        "actor_kl_after_second_substep": kl_ppo,
+                    }
+                )
+            gain = float(update_order_stats["cf_gain"])
+            if gain <= 1e-12:
+                update_order_stats["cf_retention_ratio"] = float("nan")
+                update_order_stats["cf_retention_reason_code"] = 1.0
+            else:
+                update_order_stats["cf_retention_ratio"] = float(update_order_stats["retained_cf_gain"]) / max(gain, 1e-12)
+            for i, v in enumerate(ppo_pairs[:pair_count]):
+                pair_jsd_after_ppo[i] = float(v)
+            for i, v in enumerate(cf_pairs[:pair_count]):
+                pair_jsd_after_cf[i] = float(v)
+            denom = max(float(ppo_grad_norm), 1e-12)
+            sequential_grad_ratio = float(cf_grad_norm) / denom
+            cf_telemetry.update(
+                {
+                    "cf_actor_grad_norm": float(cf_grad_norm),
+                    "ppo_actor_grad_norm": float(ppo_grad_norm),
+                    "cf_to_ppo_grad_ratio": sequential_grad_ratio,
+                    "actor_grad_norm_cf": float(cf_grad_norm),
+                    "actor_grad_norm_ppo": float(ppo_grad_norm),
+                    "actor_cf_grad_norm_scaled": float(cf_grad_norm),
+                    "actor_ppo_grad_norm": float(ppo_grad_norm),
+                    "actor_cf_to_ppo_grad_ratio": sequential_grad_ratio,
+                    "actor_grad_ratio_cf_to_ppo": sequential_grad_ratio,
+                    "actor_grad_ratio_cf_to_ppo_denominator_clamped": (
+                        1.0 if float(ppo_grad_norm) < 1e-12 else 0.0
+                    ),
+                    "actor_grad_ppo_valid": 1.0,
+                    "actor_grad_cf_valid": 1.0,
+                    "actor_cf_loss_evaluated": 1.0,
+                }
+            )
+            if cf_pairs:
+                cf_pair_values = [float(v) for v in cf_pairs[:pair_count]]
+                cf_telemetry.update(
+                    {
+                        "cf_batch_pair_jsd_mean": float(sum(cf_pair_values) / len(cf_pair_values)),
+                        "cf_batch_pair_jsd_min": float(min(cf_pair_values)),
+                        "cf_batch_pair_jsd_max": float(max(cf_pair_values)),
+                        "cf_batch_pairs_total": float(len(cf_pair_values)),
+                        "cf_valid_pair_count": float(len(cf_pair_values)),
+                        "actor_cf_valid_pair_count": float(len(cf_pair_values)),
+                        "cf_batch_pairs_above_margin": float(
+                            sum(
+                                1
+                                for v in cf_pair_values
+                                if v >= float(getattr(cfg, "latent_cf_jsd_margin", 0.0) or 0.0)
+                            )
+                        ),
+                    }
+                )
+                cf_telemetry["cf_batch_pairs_above_margin_fraction"] = (
+                    cf_telemetry["cf_batch_pairs_above_margin"]
+                    / max(cf_telemetry["cf_batch_pairs_total"], 1.0)
+                )
+            step_result = OptimizerStepResult(
+                actor_grad_norm=float(ppo_grad_norm),
+                critic_grad_norm=0.0,
+                router_grad_norm=0.0,
+                global_grad_norm=max(float(ppo_grad_norm), float(cf_grad_norm)),
+                strategy_grad_norm=float(self.latent_state.strategy_encoder_grad_norm()),
+            )
+        else:
+            ppo_grad_norm = 0.0
+            cf_grad_norm = 0.0
+            ppo_cf_cosine = 0.0
+            ppo_parameter_delta = 0.0
+            cf_parameter_delta = 0.0
+            z_embedding_ppo_delta = 0.0
+            z_embedding_cf_delta = 0.0
+            pair_jsd_before_ppo = [0.0] * pair_count
+            pair_jsd_after_ppo = [0.0] * pair_count
+            pair_jsd_after_cf = [0.0] * pair_count
+            step_result = self.optimizer_stepper.step(
+                total_loss=total_loss,
+                ppo_actor_loss=ppo_actor_loss,
+                value_loss=value_loss,
+                policy_loss=policy_loss,
+                entropy_loss=entropy_loss,
+                latent_loss=latent_loss,
+                ent_coef=ent_coef,
+                vf_coef=float(hparams.vf_coef),
+                context=context,
+                phase_policy=phase_policy,
+                model=model,
+                latent_state=self.latent_state,
+                epoch_idx=epoch_idx,
+                mb_idx=mb_idx,
+                max_grad_norm=float(cfg.max_grad_norm),
+            )
 
         approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())
         z_sep_stats = separation_result.raw_stats
@@ -503,7 +829,19 @@ class MinibatchUpdater:
             "actor_intervention_measurement_valid": 1.0 if measurement.valid else 0.0,
             **pair_telemetry,
             **cf_telemetry,
+            **update_order_stats,
+            "ppo_parameter_delta": ppo_parameter_delta,
+            "cf_parameter_delta": cf_parameter_delta,
+            "z_embedding_ppo_delta": z_embedding_ppo_delta,
+            "z_embedding_cf_delta": z_embedding_cf_delta,
+            "ppo_grad_norm": ppo_grad_norm,
+            "cf_grad_norm": cf_grad_norm,
+            "ppo_cf_cosine": ppo_cf_cosine,
         }
+        for idx in range(pair_count):
+            telemetry[f"cf_batch_pair_jsd_before_ppo_{idx}"] = pair_jsd_before_ppo[idx]
+            telemetry[f"cf_batch_pair_jsd_after_ppo_{idx}"] = pair_jsd_after_ppo[idx]
+            telemetry[f"cf_batch_pair_jsd_after_cf_{idx}"] = pair_jsd_after_cf[idx]
         for k_idx in range(int(hparams.latent_k)):
             telemetry[f"router_rollout_soft_p_bar_z{k_idx}"] = float(
                 soft.get(f"router_rollout_soft_p_bar_z{k_idx}", 0.0)

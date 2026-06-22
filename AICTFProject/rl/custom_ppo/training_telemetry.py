@@ -439,6 +439,24 @@ class TrainingTelemetry:
         if csia_model is not None:
             row.update(csia_model.stats())
         row.update(stats)
+        cf_norm = float(row.get("actor_cf_grad_norm_scaled", row.get("actor_grad_norm_cf", 0.0)) or 0.0)
+        ppo_norm = float(row.get("actor_ppo_grad_norm", row.get("actor_grad_norm_ppo", 0.0)) or 0.0)
+        denom = max(float(ppo_norm), 1e-12)
+        ratio = float(cf_norm) / denom
+        row["actor_cf_grad_norm_scaled"] = cf_norm
+        row["actor_grad_norm_cf"] = cf_norm
+        row["actor_ppo_grad_norm"] = ppo_norm
+        row["actor_grad_norm_ppo"] = ppo_norm
+        row["actor_cf_to_ppo_grad_ratio"] = ratio
+        row["actor_grad_ratio_cf_to_ppo"] = ratio
+        row["cf_to_ppo_grad_ratio"] = ratio
+        row["actor_grad_ratio_cf_to_ppo_denominator_clamped"] = 1.0 if ppo_norm < 1e-12 else 0.0
+        if float(row.get("actor_cf_loss_evaluated", 0.0) or 0.0) > 0.0:
+            finite_cf = math.isfinite(cf_norm)
+            finite_ppo = math.isfinite(ppo_norm)
+            row["actor_grad_cf_valid"] = 1.0 if finite_cf else 0.0
+            row["actor_grad_ppo_valid"] = 1.0 if finite_ppo else 0.0
+            row["actor_pathway_grad_valid"] = 1.0 if finite_cf else 0.0
         if hparams.use_latent_strategy:
             input_contract = runtime.model.input_dim_contract()
             row["z_sensitivity_KL"] = float(

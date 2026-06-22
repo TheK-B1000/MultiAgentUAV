@@ -101,6 +101,16 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
         (n_envs,), dtype=torch.long, device=device
     )
     host.prev_global_state = None
+    host.previous_opportunity_features = torch.zeros(
+        (n_envs, int(trainer.model.global_state_dim) // 5 if int(trainer.model.global_state_dim) % 5 == 0 else 34),
+        dtype=torch.float32,
+        device=device,
+    )
+    host.previous_router_context = torch.zeros(
+        (n_envs, 68), dtype=torch.float32, device=device
+    )
+    host.persistence_valid = torch.zeros((n_envs,), dtype=torch.bool, device=device)
+    host.opportunity_index_per_env = torch.zeros((n_envs,), dtype=torch.long, device=device)
     host.rollout_refresh_transitions = np.zeros(
         (max(1, int(trainer.latent_k)), max(1, int(trainer.latent_k))),
         dtype=np.float32,

@@ -28,6 +28,35 @@ if TYPE_CHECKING:
     from rl.custom_ppo.latent.state import LatentStrategyState
 
 
+ROUTER_CURRENT_PLUS_DELTA_MODE = "current_plus_delta"
+ROUTER_CURRENT_PLUS_DELTA_DIM = GLOBAL_STATE_DIM * 2
+
+
+def router_current_plus_delta_enabled(cfg: Any) -> bool:
+    return str(getattr(cfg, "router_context_mode", "") or "") == ROUTER_CURRENT_PLUS_DELTA_MODE
+
+
+def current_opportunity_features(global_state: torch.Tensor) -> torch.Tensor:
+    if global_state.dim() != 2 or int(global_state.shape[1]) < GLOBAL_STATE_DIM:
+        raise AssertionError(
+            f"expected global/context state with at least {GLOBAL_STATE_DIM} columns, got {tuple(global_state.shape)}"
+        )
+    return global_state[:, :GLOBAL_STATE_DIM].float()
+
+
+def build_current_plus_delta_router_context(
+    global_state: torch.Tensor,
+    previous_features: torch.Tensor,
+) -> torch.Tensor:
+    current = current_opportunity_features(global_state)
+    previous = previous_features.to(device=current.device, dtype=current.dtype)
+    if tuple(previous.shape) != tuple(current.shape):
+        raise AssertionError(
+            f"previous feature shape {tuple(previous.shape)} != current {tuple(current.shape)}"
+        )
+    return torch.cat([current, current - previous], dim=-1)
+
+
 class RouterSamplingState:
     def __init__(self, host: "LatentStrategyState") -> None:
         self.host = host
@@ -35,6 +64,17 @@ class RouterSamplingState:
     @property
     def trainer(self):
         return self.host.trainer
+
+    def _current_plus_delta_router_contexts(self, global_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        current = current_opportunity_features(global_state)
+        previous_features = self.host.previous_opportunity_features.to(
+            device=current.device, dtype=current.dtype
+        )
+        previous_context = self.host.previous_router_context.to(
+            device=current.device, dtype=current.dtype
+        )
+        router_context = build_current_plus_delta_router_context(global_state, previous_features)
+        return router_context, previous_context, self.host.persistence_valid.clone()
 
     def strategy_for_step(
         self,
@@ -251,8 +291,16 @@ class RouterSamplingState:
             self.host.selector_hidden.clone() if self.host.selector_hidden is not None else None
         )
         selector_hidden = self.host.selector_hidden
+        current_plus_delta_context = router_current_plus_delta_enabled(trainer.cfg)
+        router_context = None
+        previous_router_context = None
+        persistence_valid = torch.zeros_like(episode_start_mask)
+        if current_plus_delta_context:
+            router_context, previous_router_context, persistence_valid = self._current_plus_delta_router_contexts(global_state)
         if selector_hidden is not None:
             z_logits = trainer.model.strategy_logits(global_state, selector_hidden=selector_hidden)
+        elif router_context is not None:
+            z_logits = trainer.model.strategy_logits(router_context)
         else:
             z_logits = trainer.model.strategy_logits(global_state)
         z_dist = Categorical(logits=z_logits)
@@ -327,6 +375,7 @@ class RouterSamplingState:
 
         forced_active = self.host.episode_forced_z.clone()
         proposed_z = z_idx.clone()
+        opportunity_mask = resample_mask.clone()
         resample_mask = resample_mask & (~forced_active)
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
@@ -638,6 +687,14 @@ class RouterSamplingState:
         training_resample_mask = training_resample_mask & (~forced_active)
 
         self.host.prev_global_state = curr_gs.clone()
+        if current_plus_delta_context and router_context is not None:
+            boundary_mask = resample_mask & (~forced_active)
+            if bool(boundary_mask.any().item()):
+                self.host.previous_opportunity_features[boundary_mask] = curr_gs[boundary_mask].detach()
+                self.host.previous_router_context[boundary_mask] = router_context[boundary_mask].detach()
+                self.host.persistence_valid[boundary_mask] = True
+                if getattr(self.host, "opportunity_index_per_env", None) is not None:
+                    self.host.opportunity_index_per_env[boundary_mask] += 1
 
         aux = {
             "z": z_idx,
@@ -646,10 +703,19 @@ class RouterSamplingState:
             "z_entropy": z_entropy,
             "z_logits": z_logits,
             "z_resampled": training_resample_mask,
-            "z_resampled_actual": resample_mask,
+            "z_resampled_actual": opportunity_mask,
             "z_persist_mask": persist_mask,
             "z_forced": forced_active,
         }
+        if current_plus_delta_context and router_context is not None and previous_router_context is not None:
+            aux["router_context"] = router_context.detach().clone()
+            aux["prev_router_context"] = previous_router_context.detach().clone()
+            aux["persistence_valid"] = persistence_valid & persist_mask
+            aux["episode_id"] = self.host.episode_id_per_env.detach().clone()
+            aux["opportunity_index"] = self.host.opportunity_index_per_env.detach().clone()
+            aux["env_id"] = torch.arange(
+                int(z_idx.shape[0]), dtype=torch.long, device=device
+            )
         if selector_hidden_pre is not None:
             aux["selector_hidden"] = selector_hidden_pre.detach().clone()
         return z_idx, prev_z, aux
@@ -695,6 +761,14 @@ class RouterSamplingState:
             self.host.steps_since_z_change[done_t] = 0
             if self.host.prev_global_state is not None:
                 self.host.prev_global_state[done_t] = 0.0
+            if getattr(self.host, "previous_opportunity_features", None) is not None:
+                self.host.previous_opportunity_features[done_t] = 0.0
+            if getattr(self.host, "previous_router_context", None) is not None:
+                self.host.previous_router_context[done_t] = 0.0
+            if getattr(self.host, "persistence_valid", None) is not None:
+                self.host.persistence_valid[done_t] = False
+            if getattr(self.host, "opportunity_index_per_env", None) is not None:
+                self.host.opportunity_index_per_env[done_t] = 0
             self.host.episode_id_per_env[done_t] += 1
             # Defensive: drop any v3i3 pending refresh records that weren't
             # finalized by ``_finalize_v3i3_refresh_records`` (shouldn't

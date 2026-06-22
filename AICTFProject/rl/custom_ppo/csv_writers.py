@@ -298,7 +298,48 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("z_sensitivity_KL")
         fields.append("z_sep_JSD")
         fields.append("actor_z_jsd_mean")
+        # Sequential update metrics
+        fields.append("actor_cf_update_mode")
+        fields.append("actor_cf_update_mode_code")
+        fields.append("actor_ppo_optimizer_step_count")
+        fields.append("actor_cf_optimizer_step_count")
+        fields.append("actor_jsd_before_substeps")
+        fields.append("actor_jsd_after_ppo")
+        fields.append("actor_jsd_after_cf")
+        fields.append("actor_jsd_after_first_substep")
+        fields.append("actor_jsd_after_second_substep")
+        fields.append("actor_jsd_update_start")
+        fields.append("ppo_jsd_delta")
+        fields.append("cf_jsd_delta")
+        fields.append("cf_gain")
+        fields.append("retained_cf_gain")
+        fields.append("cf_retention_ratio")
+        fields.append("cf_retention_reason")
+        fields.append("cf_retention_reason_code")
+        fields.append("actor_kl_after_ppo")
+        fields.append("actor_kl_after_cf")
+        fields.append("actor_kl_after_second_substep")
+        fields.append("cf_jsd_before_ppo")
+        fields.append("cf_jsd_after_ppo")
+        fields.append("cf_jsd_after_cf")
+        fields.append("ppo_parameter_delta")
+        fields.append("cf_parameter_delta")
+        fields.append("z_embedding_ppo_delta")
+        fields.append("z_embedding_cf_delta")
+        fields.append("ppo_grad_norm")
+        fields.append("cf_grad_norm")
+        fields.append("ppo_cf_cosine")
+        for idx in range(6):
+            fields.append(f"cf_batch_pair_jsd_before_ppo_{idx}")
+            fields.append(f"cf_batch_pair_jsd_after_ppo_{idx}")
+            fields.append(f"cf_batch_pair_jsd_after_cf_{idx}")
+        fields.append("actor_z_jsd_min")
         fields.append("actor_z_jsd_max")
+        fields.append("actor_z_pairs_total")
+        fields.append("actor_z_pairs_above_margin")
+        fields.append("actor_z_pairs_above_margin_fraction")
+        fields.append("actor_z_eval_state_count")
+        fields.append("actor_z_eval_pair_count")
         fields.append("actor_z_jsd_per_head")
         fields.append("actor_z_argmax_disagree")
         fields.append("actor_z_logit_l2")
@@ -321,6 +362,9 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("latent_occupancy_max")
         fields.append("latent_occupancy_ratio")
         fields.append("mean_strategy_duration")
+        fields.append("z_resampled_actual")
+        fields.append("router_opportunity_count")
+        fields.append("persistence_valid_pair_count")
         for idx in range(latent_k):
             fields.extend(
                 [
@@ -511,6 +555,9 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "router_rollout_soft_argmax_occupancy_min",
             "router_rollout_soft_argmax_occupancy_ratio",
             "router_rollout_resample_count",
+            "router_marginal_entropy_application_count",
+            "router_marginal_entropy_effective_coefficient",
+            "router_marginal_entropy_row_count",
         ])
         fields.extend(
             f"router_rollout_soft_p_bar_z{z}" for z in range(latent_k)
@@ -534,6 +581,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_behavior_contrast_active_frac",
             "latent_behavior_contrast_coef",
             "latent_actor_z_separation_loss",
+            "latent_actor_z_separation_scaled_loss",
+            "latent_actor_z_separation_to_ppo_actor_loss_ratio",
             "latent_actor_z_separation_jsd",
             "latent_actor_z_separation_active",
             "latent_actor_z_separation_train_active",
@@ -743,8 +792,42 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         "cf_actor_grad_norm",
         "ppo_actor_grad_norm",
         "cf_to_ppo_grad_ratio",
+        "actor_grad_norm_total",
+        "actor_grad_norm_ppo",
+        "actor_grad_norm_cf",
+        "actor_ppo_grad_norm",
+        "actor_cf_grad_norm_scaled",
+        "actor_cf_to_ppo_grad_ratio",
+        "actor_grad_norm_other_aux",
+        "actor_grad_ratio_cf_to_ppo",
+        "actor_grad_ratio_cf_to_ppo_denominator_clamped",
+        "actor_grad_ppo_valid",
+        "actor_grad_cf_valid",
+        "actor_cf_loss_evaluated",
+        "actor_grad_cf_inactive_reason",
+        "actor_pathway_grad_valid",
+        "actor_pathway_grad_norm_local_encoder",
+        "actor_pathway_grad_norm_z_embedding",
+        "actor_pathway_grad_norm_film",
+        "actor_pathway_grad_norm_policy_head",
+        "actor_pathway_cf_grad_norm_local_encoder",
+        "actor_pathway_cf_grad_norm_z_embedding",
+        "actor_pathway_cf_grad_norm_film",
+        "actor_pathway_cf_grad_norm_policy_head",
+        "actor_z_embedding_cf_grad_norm",
+        "actor_film_gamma_cf_grad_norm",
+        "actor_film_beta_cf_grad_norm",
         "cf_batch_macro_jsd",
         "cf_batch_waypoint_jsd",
+        "cf_batch_pair_jsd_mean",
+        "cf_batch_pair_jsd_min",
+        "cf_batch_pair_jsd_max",
+        "cf_batch_pairs_total",
+        "cf_batch_pairs_above_margin",
+        "cf_batch_pairs_above_margin_fraction",
+        "cf_valid_sample_count",
+        "cf_valid_pair_count",
+        "actor_cf_valid_pair_count",
         "cf_macro_grad_norm",
         "cf_waypoint_grad_norm",
         "z_embed_grad_from_cf",
@@ -757,6 +840,11 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         "action_head_grad_from_ppo",
         "actor_cnn_grad_from_cf",
         "actor_cnn_grad_from_ppo",
+        "z_embed_cf_to_ppo_grad_ratio",
+        "film_cf_to_ppo_grad_ratio",
+        "trunk_cf_to_ppo_grad_ratio",
+        "action_head_cf_to_ppo_grad_ratio",
+        "actor_cnn_cf_to_ppo_grad_ratio",
         "cf_batch_pairs_below_margin",
         "cf_hinge_active",
         "cf_hinge_effective",
@@ -769,6 +857,8 @@ def _v6i1_metrics_fieldnames() -> list[str]:
         "cf_worst_pair_coef",
         "cf_weak_pair_boost",
         "cf_competence_required",
+        "cf_competence_min",
+        "cf_competence_gate_blocks_cf",
         "cf_loss_requires_grad",
         "latent_actor_z_separation_jsd_min",
         "latent_actor_z_separation_jsd_max",

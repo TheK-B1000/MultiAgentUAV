@@ -123,7 +123,16 @@ class ThreeOptimizerStepper:
         assembled = vf_coef * value_loss
         if phase_policy.actor_step_enabled:
             assembled = assembled + ppo_actor_loss
-        if isinstance(latent_loss, torch.Tensor) and latent_loss.requires_grad:
+        cfg = getattr(runtime, "cfg", None)
+        current_plus_delta_router_loss = (
+            str(getattr(cfg, "router_context_mode", "") or "") == "current_plus_delta"
+        )
+        include_latent_loss = (
+            isinstance(latent_loss, torch.Tensor)
+            and latent_loss.requires_grad
+            and (phase_policy.router_step_enabled or not current_plus_delta_router_loss)
+        )
+        if include_latent_loss:
             assembled = assembled + latent_loss
         assert_finite_loss(assembled, epoch_idx=epoch_idx, mb_idx=mb_idx)
         assembled.backward()

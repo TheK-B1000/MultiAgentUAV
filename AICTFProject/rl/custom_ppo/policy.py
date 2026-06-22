@@ -231,6 +231,9 @@ class SharedActorCentralizedCritic(nn.Module):
         latent_actor_conditioning: str = "concat",
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
+        experiment_id: str = "",
+        router_context_mode: str = "",
+        router_context_dimension: int = 0,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -275,10 +278,18 @@ class SharedActorCentralizedCritic(nn.Module):
             max(1, int(recurrent_selector_hidden_dim)) if self.use_recurrent_selector else 0
         )
         self.strategy_tau = max(1e-3, float(strategy_tau))
+        self.experiment_id = str(experiment_id or "")
+        self.router_context_mode = str(router_context_mode or "")
+        self.router_context_dimension = int(router_context_dimension or 0)
+        self.router_current_plus_delta_enabled = self.router_context_mode == "current_plus_delta"
 
         self.global_state_dim = CONTEXT_STATE_DIM if self.uses_latent_strategy else GLOBAL_STATE_DIM
-        q_phi_input_dim = int(self.global_state_dim)
-        if self.use_recurrent_selector:
+        q_phi_input_dim = (
+            self.router_context_dimension
+            if self.router_current_plus_delta_enabled and self.uses_latent_strategy
+            else int(self.global_state_dim)
+        )
+        if self.use_recurrent_selector and not self.router_current_plus_delta_enabled:
             q_phi_input_dim += int(self.recurrent_selector_hidden_dim)
         self.q_phi_input_dim = q_phi_input_dim
 
@@ -482,8 +493,12 @@ class SharedActorCentralizedCritic(nn.Module):
                 raise ValueError(
                     f"latent global_state_dim must be {CONTEXT_STATE_DIM}, got {self.global_state_dim}"
                 )
-            expected_q_phi_dim = int(CONTEXT_STATE_DIM)
-            if self.use_recurrent_selector:
+            expected_q_phi_dim = (
+                int(self.router_context_dimension)
+                if self.router_current_plus_delta_enabled
+                else int(CONTEXT_STATE_DIM)
+            )
+            if self.use_recurrent_selector and not self.router_current_plus_delta_enabled:
                 expected_q_phi_dim += int(self.recurrent_selector_hidden_dim)
             if int(self.q_phi_input_dim) != expected_q_phi_dim:
                 raise ValueError(
@@ -573,9 +588,10 @@ class SharedActorCentralizedCritic(nn.Module):
         global_state: torch.Tensor,
         selector_hidden: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
-        if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.global_state_dim):
+        expected_context_dim = int(self.global_state_dim) if self.selector_gru is not None else int(self.q_phi_input_dim)
+        if global_state.dim() != 2 or int(global_state.shape[1]) != expected_context_dim:
             raise ValueError(
-                f"q_phi expected context shape (B, {self.global_state_dim}), got {tuple(global_state.shape)}"
+                f"q_phi expected context shape (B, {expected_context_dim}), got {tuple(global_state.shape)}"
             )
         if self.strategy_encoder is None:
             raise RuntimeError("strategy encoder is not initialized.")
@@ -1057,6 +1073,7 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         z_idx: Optional[torch.Tensor] = None,
         selector_hidden: Optional[torch.Tensor] = None,
+        router_context: Optional[torch.Tensor] = None,
         message_symbols: Optional[torch.Tensor] = None,
         message_boundary_mask: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
@@ -1077,15 +1094,16 @@ class SharedActorCentralizedCritic(nn.Module):
         if self.uses_latent_strategy:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
+            q_context = router_context if router_context is not None else global_state
             if self.use_recurrent_selector:
                 if selector_hidden is None:
                     raise ValueError(
                         "selector_hidden from rollout collection is required "
                         "when evaluating recurrent strategy actions."
                     )
-                z_logits = self.strategy_logits(global_state, selector_hidden=selector_hidden)
+                z_logits = self.strategy_logits(q_context, selector_hidden=selector_hidden)
             else:
-                z_logits = self.strategy_logits(global_state)
+                z_logits = self.strategy_logits(q_context)
             z_dist = Categorical(logits=z_logits)
             z = self._validate_z_idx(z_idx)
             aux["strategy_logits"] = z_logits

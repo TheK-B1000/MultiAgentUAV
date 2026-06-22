@@ -80,6 +80,7 @@ class TrainerOptimizerBundle:
     primary: torch.optim.Optimizer
     actor: torch.optim.Optimizer
     critic: torch.optim.Optimizer
+    actor_cf: Optional[torch.optim.Optimizer] = None
     router: Optional[torch.optim.Optimizer] = None
     v6i1_three_optimizer_mode: bool = False
 
@@ -121,12 +122,14 @@ class TrainerOptimizerBundle:
         if not actor_params or not critic_params or not router_params:
             raise RuntimeError("V6I1 three-optimizer setup requires actor, critic, and router parameters.")
         actor_opt = torch.optim.Adam(actor_params, lr=lr, eps=1e-5)
+        actor_cf_opt = torch.optim.Adam(actor_params, lr=lr, eps=1e-5)
         critic_opt = torch.optim.Adam(critic_params, lr=lr, eps=1e-5)
         router_opt = torch.optim.AdamW(router_params, lr=router_lr, eps=1e-5)
         return cls(
             primary=actor_opt,
             actor=actor_opt,
             critic=critic_opt,
+            actor_cf=actor_cf_opt,
             router=router_opt,
             v6i1_three_optimizer_mode=True,
         )
@@ -136,6 +139,8 @@ class TrainerOptimizerBundle:
         if self.v6i1_three_optimizer_mode:
             payload["v6i1_three_optimizer_mode"] = True
             payload["actor_optimizer_state_dict"] = self.actor.state_dict()
+            if self.actor_cf is not None:
+                payload["actor_cf_optimizer_state_dict"] = self.actor_cf.state_dict()
             payload["critic_optimizer_state_dict"] = self.critic.state_dict()
             if self.router is not None:
                 payload["router_optimizer_state_dict"] = self.router.state_dict()
@@ -146,6 +151,8 @@ class TrainerOptimizerBundle:
             return
         if "actor_optimizer_state_dict" in payload:
             self.actor.load_state_dict(payload["actor_optimizer_state_dict"])
+        if self.actor_cf is not None and "actor_cf_optimizer_state_dict" in payload:
+            self.actor_cf.load_state_dict(payload["actor_cf_optimizer_state_dict"])
         if "critic_optimizer_state_dict" in payload:
             self.critic.load_state_dict(payload["critic_optimizer_state_dict"])
         if self.router is not None and "router_optimizer_state_dict" in payload:

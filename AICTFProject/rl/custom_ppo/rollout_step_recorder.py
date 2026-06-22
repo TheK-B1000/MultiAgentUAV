@@ -192,6 +192,7 @@ class RolloutStepRecorder:
             z_log_probs=sa["z_log_prob"],
             z_logits=sa["z_logits"],
             z_resampled=sa["z_resampled"],
+            z_resampled_actual=sa.get("z_resampled_actual", sa["z_resampled"]),
             z_forced=sa["z_forced"],
             z_persist_mask=sa["z_persist_mask"],
             phase_id=phase_t,
@@ -205,6 +206,16 @@ class RolloutStepRecorder:
         )
         if "selector_hidden" in sa:
             items["selector_hidden"] = sa["selector_hidden"]
+        for key in (
+            "router_context",
+            "prev_router_context",
+            "persistence_valid",
+            "episode_id",
+            "opportunity_index",
+            "env_id",
+        ):
+            if key in sa:
+                items[key] = sa[key]
         return items
 
     def _communication_items(self, frame: StepFrame) -> Dict[str, torch.Tensor]:

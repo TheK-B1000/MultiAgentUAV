@@ -68,6 +68,8 @@ class PPOUpdater:
     def load_state_dict(self, state: dict[str, Any]) -> None:
         gen_state = state.get("z_separation_generator")
         if gen_state is not None:
+            if isinstance(gen_state, torch.Tensor):
+                gen_state = gen_state.cpu()
             self._z_separation_generator.set_state(gen_state)
 
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:

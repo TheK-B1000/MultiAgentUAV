@@ -57,6 +57,10 @@ from rl.global_state import (
     GLOBAL_STATE_DIM,
     GLOBAL_STATE_FLAG_TERRITORY_SLICE,
 )
+from rl.custom_ppo.latent.router_sampling import (
+    build_current_plus_delta_router_context,
+    router_current_plus_delta_enabled,
+)
 from rl.ppo_core import (
     TensorDictRolloutBuffer,
     align_next_values_to_rollout_actions,
@@ -204,6 +208,7 @@ class RolloutCollector:
             buffer.register_field("z_log_probs")
             buffer.register_field("z_logits", (hparams.latent_k,))
             buffer.register_field("z_resampled", dtype=torch.bool)
+            buffer.register_field("z_resampled_actual", dtype=torch.bool)
             buffer.register_field("z_forced", dtype=torch.bool)
             buffer.register_field("z_persist_mask", dtype=torch.bool)
             buffer.register_field("phase_id", dtype=torch.long)
@@ -214,6 +219,16 @@ class RolloutCollector:
             buffer.register_field("pressure_bucket_id", dtype=torch.long)
             buffer.register_field("attack_defense_ratio_bucket_id", dtype=torch.long)
             buffer.register_field("blue_ahead", dtype=torch.float32)
+            if router_current_plus_delta_enabled(cfg):
+                router_dim = int(getattr(cfg, "router_context_dimension", 0) or 0)
+                if router_dim <= 0:
+                    raise ValueError("router_context_mode=current_plus_delta requires router_context_dimension > 0")
+                buffer.register_field("router_context", (router_dim,))
+                buffer.register_field("prev_router_context", (router_dim,))
+                buffer.register_field("persistence_valid", dtype=torch.bool)
+                buffer.register_field("episode_id", dtype=torch.long)
+                buffer.register_field("opportunity_index", dtype=torch.long)
+                buffer.register_field("env_id", dtype=torch.long)
             if hparams.latent_kl_consecutive > 0.0:
                 buffer.register_field("z_logits_prev", (hparams.latent_k,))
                 buffer.register_field("z_kl_prev_valid")
@@ -257,6 +272,11 @@ class RolloutCollector:
         if bool(resample_next.any().item()):
             idx = torch.where(resample_next)[0]
             gs_sub = next_context_gs_t.index_select(0, idx)
+            if router_current_plus_delta_enabled(self.cfg):
+                previous = self.latent_state.previous_opportunity_features.index_select(0, idx).to(
+                    device=gs_sub.device, dtype=gs_sub.dtype
+                )
+                gs_sub = build_current_plus_delta_router_context(gs_sub, previous)
             hidden_sub = None
             if bool(getattr(self.model, "use_recurrent_selector", False)):
                 selector_hidden = getattr(self.latent_state, "selector_hidden", None)

@@ -183,8 +183,14 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         return {}
     cfg = canonicalize_latent_strategy_cfg(cfg)
     experiment_id = str(cfg.get("experiment_id", "") or "").lower()
-    gate_protocol = str(cfg.get("gate_protocol_version", "") or "").lower()
-    v6_staged = experiment_id in {"v6i1", "v6i2", "v6i3", "v6i4"} or gate_protocol.startswith("v6i")
+    router_context_mode = str(cfg.get("router_context_mode", "") or "")
+    router_current_plus_delta = router_context_mode == "current_plus_delta"
+    v6_staged = (
+        bool(cfg.get("use_v6i1_curriculum", False))
+        and str(cfg.get("training_mode", "default") or "default") == "staged_team_intent_curriculum"
+        and str(cfg.get("experiment_family", "v6") or "v6") == "v6"
+        and experiment_id in {"v6i1", "v6i2", "v6i3", "v6i5"}
+    )
     kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
     }
@@ -193,6 +199,8 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
             {
                 "latent_k": int(cfg.get("latent_k", 4)),
                 "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
+                "router_context_mode": router_context_mode,
+                "router_context_dimension": int(cfg.get("router_context_dimension", 0) or 0),
                 "strategy_hidden_dim": int(cfg.get("latent_strategy_hidden", 128)),
                 "critic_hidden_dim": int(cfg.get("latent_vf_hidden", 128)),
                 "use_strategy_aux_return_head": bool(
@@ -218,7 +226,7 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                         ).lower() == "context_value"
                     )
                 ),
-                "use_recurrent_selector": bool(v6_staged),
+                "use_recurrent_selector": bool(v6_staged and not router_current_plus_delta),
                 "recurrent_selector_hidden_dim": int(
                     cfg.get("v6i1_recurrent_selector_hidden", 32) or 32
                 ),
@@ -553,8 +561,8 @@ class CustomPPOInferencePolicy:
                 # Retrieve z, logits, probabilities depending on modes.
                 if self.fixed_latent_strategy:
                     z_idx = self._fixed_strategy_tensor(batch)
-                    z_logits = self._strategy_logits_forward(context_gs)
                     z_probs = self._fixed_strategy_probs(batch)
+                    z_logits = torch.log(torch.clamp(z_probs, min=1e-8))
                     z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
                     # For fixed-z we set needs_strategy to False to match the existing behavior
                     needs_strategy = False

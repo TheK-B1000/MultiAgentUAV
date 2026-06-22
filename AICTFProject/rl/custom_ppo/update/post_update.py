@@ -138,6 +138,11 @@ class PostUpdatePipeline:
         stats["latent_lam_h"] = float(latent_lam_h)
         stats["latent_actor_z_adapter_scale"] = float(curr_adapter_scale)
         stats["latent_actor_z_separation_coef"] = float(curr_sep_coef)
+        stats["actor_cf_update_mode"] = str(getattr(cfg, "actor_cf_update_mode", "combined") or "combined")
+        if float(stats.get("cf_retention_reason_code", 0.0) or 0.0) == 1.0:
+            stats["cf_retention_reason"] = "no_measurable_cf_gain"
+        else:
+            stats["cf_retention_reason"] = ""
 
         if is_v6i1_staged_trainer(runtime):
             phase = context.phase

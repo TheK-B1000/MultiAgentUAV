@@ -38,6 +38,14 @@ from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
 from rl.latent_marl import CONTEXT_STATE_DIM
 
 
+def router_current_plus_delta_enabled(cfg: Any) -> bool:
+    return str(getattr(cfg, "router_context_mode", "") or "") == "current_plus_delta"
+
+
+def router_current_plus_delta_dim(cfg: Any) -> int:
+    return int(getattr(cfg, "router_context_dimension", 0) or 0)
+
+
 @dataclass(frozen=True)
 class TrainerHyperparams:
     """Immutable resolved trainer hyperparameters.
@@ -697,6 +705,11 @@ def resolve_q_phi_input_dim_from_cfg(cfg: Any) -> int:
     """
     if not bool(getattr(cfg, "use_latent_strategy", False)):
         return 0
+    if router_current_plus_delta_enabled(cfg):
+        dim = router_current_plus_delta_dim(cfg)
+        if dim <= 0:
+            raise ValueError("router_context_mode=current_plus_delta requires router_context_dimension > 0")
+        return dim
     dim = int(CONTEXT_STATE_DIM)
     if is_staged_v6i1_curriculum(cfg):
         dim += int(getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32)
@@ -718,8 +731,12 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
     }
     if hparams.use_latent_strategy:
         v6i1_staged = is_staged_v6i1_curriculum(cfg)
+        router_context_enabled = router_current_plus_delta_enabled(cfg)
         model_kwargs.update(
             {
+                "experiment_id": str(getattr(cfg, "experiment_id", "") or ""),
+                "router_context_mode": str(getattr(cfg, "router_context_mode", "") or ""),
+                "router_context_dimension": router_current_plus_delta_dim(cfg),
                 "latent_k": hparams.latent_k,
                 "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
                 "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
@@ -746,7 +763,7 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                         ).lower() == "context_value"
                     )
                 ),
-                "use_recurrent_selector": bool(v6i1_staged),
+                "use_recurrent_selector": bool(v6i1_staged and not router_context_enabled),
                 "recurrent_selector_hidden_dim": int(
                     getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32
                 ),

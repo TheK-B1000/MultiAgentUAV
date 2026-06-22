@@ -46,6 +46,7 @@ _HP_ATTR_ALIASES: dict[str, str] = {
 _OPTIMIZER_ATTR_ACCESSORS: dict[str, Callable[["CustomPPOTrainer"], Any]] = {
     "optimizer": lambda t: t.optimizers.primary,
     "actor_optimizer": lambda t: t.optimizers.actor,
+    "actor_cf_optimizer": lambda t: t.optimizers.actor_cf,
     "critic_optimizer": lambda t: t.optimizers.critic,
     "router_optimizer": lambda t: t.optimizers.router,
     "latent_router_optimizer": lambda t: t.optimizers.latent_router_optimizer,

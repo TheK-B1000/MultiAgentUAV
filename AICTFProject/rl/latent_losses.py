@@ -424,7 +424,112 @@ def strategy_aux_return_loss(
     return float(coef) * mse, {"aux_return_term": float(mse.detach().cpu().item())}
 
 
+def compute_v6i5_router_loss(
+    model,
+    *,
+    router_contexts: Tensor,
+    previous_router_contexts: Tensor,
+    executed_z: Tensor,
+    old_log_probs: Tensor,
+    advantages: Tensor,
+    opportunity_mask: Tensor,
+    persistence_mask: Tensor,
+    clip_range: float,
+    latent_k: int,
+    ppo_coef: float,
+    persistence_coef: float,
+    entropy_coef: float,
+    entropy_objective: str,
+    include_rollout_marginal_entropy: bool,
+    device: torch.device,
+) -> tuple[Tensor, dict[str, Tensor | float]]:
+    """Authoritative v6i5 q_phi loss over corrected router contexts.
+
+    ``router_contexts`` and ``previous_router_contexts`` are 68-wide
+    ``current_34 || delta_34`` rows captured during rollout collection. Actor
+    and critic context stay separate; this helper only trains q_phi.
+    """
+    zero = _zero_scalar(device)
+    if router_contexts.numel() == 0:
+        return zero, {
+            "policy_loss": zero,
+            "approx_kl": zero,
+            "clip_fraction": zero,
+            "ratio": torch.ones((1,), dtype=torch.float32, device=device),
+            "persistence_loss": zero,
+            "marginal_entropy_nats": 0.0,
+            "marginal_entropy_kl": 0.0,
+            "conditional_entropy_nats": 0.0,
+            "application_count": 0.0,
+            "row_count": 0.0,
+            "effective_coefficient": 0.0,
+        }
+
+    logits = model.strategy_logits(router_contexts)
+    previous_logits = model.strategy_logits(previous_router_contexts)
+    probs = torch.softmax(logits, dim=-1)
+    previous_probs = torch.softmax(previous_logits.detach(), dim=-1)
+
+    if include_rollout_marginal_entropy:
+        entropy_loss, entropy_stats = rollout_marginal_entropy_loss(
+            logits,
+            objective=entropy_objective,
+            lam_h=float(entropy_coef),
+            latent_k=int(latent_k),
+            device=device,
+        )
+        return entropy_loss, {
+            "policy_loss": zero,
+            "approx_kl": zero,
+            "clip_fraction": zero,
+            "ratio": torch.ones((1,), dtype=torch.float32, device=device),
+            "persistence_loss": zero,
+            "marginal_entropy_nats": float(entropy_stats["rollout_marginal_entropy_nats"]),
+            "marginal_entropy_kl": float(entropy_stats["rollout_marginal_entropy_kl"]),
+            "conditional_entropy_nats": 0.0,
+            "application_count": 1.0,
+            "row_count": float(entropy_stats["rollout_resample_count"]),
+            "effective_coefficient": float(entropy_coef),
+        }
+
+    dist = torch.distributions.Categorical(logits=logits)
+    z = executed_z.long().clamp(min=0, max=int(latent_k) - 1)
+    strategy_log_prob = dist.log_prob(z)
+    policy_loss, ppo_stats = strategy_ppo_loss(
+        strategy_log_prob,
+        old_log_probs,
+        advantages,
+        opportunity_mask.bool(),
+        clip_range=float(clip_range),
+        coef=float(ppo_coef),
+        device=device,
+    )
+
+    expected_stay = (probs * previous_probs).sum(dim=-1)
+    persist_rows = persistence_mask.bool()
+    if bool(persist_rows.any()):
+        persist_raw = (1.0 - expected_stay[persist_rows]).mean()
+    else:
+        persist_raw = zero
+    persistence_loss = float(persistence_coef) * persist_raw
+    total = policy_loss + persistence_loss
+    return total, {
+        "policy_loss": ppo_stats["policy_loss"],
+        "approx_kl": ppo_stats["approx_kl"],
+        "clip_fraction": ppo_stats["clip_fraction"],
+        "ratio": ppo_stats["ratio"],
+        "persistence_loss": persist_raw,
+        "marginal_entropy_nats": 0.0,
+        "marginal_entropy_kl": 0.0,
+        "conditional_entropy_nats": 0.0,
+        "application_count": 0.0,
+        "row_count": 0.0,
+        "effective_coefficient": 0.0,
+    }
+
+
 __all__ = [
+    "compute_v6i5_router_loss",
     "rollout_marginal_entropy_loss",
     "rollout_router_soft_diagnostics",
     "strategy_entropy_loss",

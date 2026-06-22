@@ -135,6 +135,14 @@ class LatentStrategyStateCore:
         self.steps_since_last_tactical_refresh.zero_()
         self.steps_since_z_change.zero_()
         self.prev_global_state = None
+        if getattr(self, "previous_opportunity_features", None) is not None:
+            self.previous_opportunity_features.zero_()
+        if getattr(self, "previous_router_context", None) is not None:
+            self.previous_router_context.zero_()
+        if getattr(self, "persistence_valid", None) is not None:
+            self.persistence_valid.zero_()
+        if getattr(self, "opportunity_index_per_env", None) is not None:
+            self.opportunity_index_per_env.zero_()
         self.episode_id_per_env.zero_()
         self.pending_refresh_records = {i: [] for i in range(n_envs)}
         self.rollout_refresh_records = []

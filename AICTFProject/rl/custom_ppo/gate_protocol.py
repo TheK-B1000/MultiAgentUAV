@@ -243,16 +243,16 @@ def validate_protocol_config(cfg: PPOConfig) -> None:
     """Fail fast when protocol id disagrees with experiment row or enforce prerequisites."""
     protocol = resolve_gate_protocol_version(cfg)
     exp_id = str(getattr(cfg, "experiment_id", "v6i1"))
-    if exp_id == "v6i2" and protocol != V6I2_GATE_PROTOCOL:
-        raise ValueError(f"v6i2 runs must set gate_protocol_version={V6I2_GATE_PROTOCOL!r}.")
+    if exp_id in ("v6i2", "v6i5") and protocol != V6I2_GATE_PROTOCOL:
+        raise ValueError(f"{exp_id} runs must set gate_protocol_version={V6I2_GATE_PROTOCOL!r}.")
     if exp_id == "v6i3" and protocol != V6I3_GATE_PROTOCOL:
         raise ValueError(f"v6i3 runs must set gate_protocol_version={V6I3_GATE_PROTOCOL!r}.")
     if exp_id == "v6i3" and not bool(getattr(cfg, "communication_enabled", False)):
         raise ValueError("v6i3 runs must set communication_enabled=True.")
     if exp_id == "v6i1" and protocol == V6I2_GATE_PROTOCOL:
         raise ValueError("v6i1 experiment_id cannot use v6i2_dual_evidence protocol.")
-    if exp_id in ("v6i1", "v6i2") and protocol == V6I3_GATE_PROTOCOL:
-        raise ValueError("v6i1/v6i2 experiment_id cannot use v6i3 gate protocol.")
+    if exp_id in ("v6i1", "v6i2", "v6i5") and protocol == V6I3_GATE_PROTOCOL:
+        raise ValueError("v6i1/v6i2/v6i5 experiment_id cannot use v6i3 gate protocol.")
 
     mode = str(getattr(cfg, "phase_boundary_gate_mode", "enforce")).lower()
     if mode != "enforce":
@@ -270,7 +270,7 @@ def is_staged_v6_team_intent_curriculum(cfg: PPOConfig) -> bool:
         bool(getattr(cfg, "use_v6i1_curriculum", False))
         and str(getattr(cfg, "training_mode", "default")) == "staged_team_intent_curriculum"
         and str(getattr(cfg, "experiment_family", "v6")) == "v6"
-        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2", "v6i3")
+        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2", "v6i3", "v6i5")
     )
 
 

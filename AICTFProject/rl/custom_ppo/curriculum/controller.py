@@ -69,7 +69,7 @@ def is_staged_v6i1_curriculum(cfg: PPOConfig) -> bool:
         bool(getattr(cfg, "use_v6i1_curriculum", False))
         and str(getattr(cfg, "training_mode", "default")) == "staged_team_intent_curriculum"
         and str(getattr(cfg, "experiment_family", "v6")) == "v6"
-        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2", "v6i3")
+        and str(getattr(cfg, "experiment_id", "v6i1")) in ("v6i1", "v6i2", "v6i3", "v6i5")
     )
 
 
@@ -555,7 +555,8 @@ class V6I1CurriculumController:
             gate_results["selector_learnability_probe"] = probe_result
 
             gate_passed = all_required_families_passed(gate_results, families=families)
-            promotion_allowed = mode == GateMode.ENFORCE.value
+            promotion_disabled = bool(getattr(self.cfg, "phase_a_disable_promotion", False))
+            promotion_allowed = mode == GateMode.ENFORCE.value and not promotion_disabled
             should_promote = promotion_allowed and gate_passed
             if should_promote and not boundary_enabled:
                 raise RuntimeError(
@@ -600,6 +601,7 @@ class V6I1CurriculumController:
             report["gate_config_fingerprint"] = gate_config_fingerprint(self.cfg)
             report["resolved_gate_config"] = resolved_gate_config_dict(self.cfg)
             report.update(gate_lineage_audit_fields(self.cfg))
+            report["promotion_disabled"] = promotion_disabled
             ranked_row = dict(report)
             self.gate_check_history.append(ranked_row)
             report_path = write_gate_report(self.cfg, step, report)

@@ -26,6 +26,7 @@ of a field that is part of the on-disk run-tag/checkpoint contract.
 from __future__ import annotations
 
 from rl.config.ppo_config import PPOConfig, TrainMode
+from rl.custom_ppo.update.update_order import validate_actor_cf_update_mode
 
 
 # Scripted tags dropped from training pools unless ``allow_op4_in_training_pool``
@@ -184,6 +185,8 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
         _normalize_opponent_pool_weights(cfg)
 
     if bool(getattr(cfg, "use_latent_strategy", False)):
+        update_mode = str(getattr(cfg, "actor_cf_update_mode", "combined") or "combined")
+        cfg.actor_cf_update_mode = validate_actor_cf_update_mode(update_mode)
         k = int(getattr(cfg, "latent_k", 4))
         if k < 1:
             raise ValueError("latent_k must be >= 1.")

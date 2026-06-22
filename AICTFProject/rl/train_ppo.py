@@ -1,4 +1,4 @@
-﻿"""Train the CTF policy with the local PPO/MAPPO implementation."""
+"""Train the CTF policy with the local PPO/MAPPO implementation."""
 
 from __future__ import annotations
 
@@ -235,6 +235,44 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             "is evaluation-only and must not start PPO training. "
             f"Use {runner} with a promoted v6i2 checkpoint."
         )
+
+    if cfg.run_tag and "gate_open" in cfg.run_tag:
+        if cfg.latent_cf_require_competence:
+            raise ValueError(
+                f"Ablation run {cfg.run_tag} requires --no-latent-cf-require-competence "
+                f"but resolved latent_cf_require_competence is True!"
+            )
+        import json
+        import dataclasses
+        prior_config_path = os.path.join("checkpoints", "4v4_diag", "v6i5_cf_sweep_8x_150k_4v4_run_config.json")
+        if not os.path.exists(prior_config_path):
+            raise FileNotFoundError(f"Prior run config not found: {prior_config_path}")
+        with open(prior_config_path, "r", encoding="utf-8") as f:
+            prior_data = json.load(f)
+        prior_resolved = prior_data.get("resolved_ppo_config", {})
+        allowed_diffs = {
+            "run_tag", "metrics_csv_path", "episode_csv_path",
+            "latent_cf_require_competence", "checkpoint_dir",
+            "utc_timestamp"
+        }
+        current_dict = dataclasses.asdict(cfg)
+        mismatches = []
+        for key, prior_val in prior_resolved.items():
+            if key in allowed_diffs:
+                continue
+            if key not in current_dict:
+                continue
+            curr_val = current_dict[key]
+            if isinstance(prior_val, list):
+                prior_val = tuple(prior_val)
+            if isinstance(curr_val, list):
+                curr_val = tuple(curr_val)
+            if curr_val != prior_val:
+                mismatches.append(f"{key}: prior={prior_val}, current={curr_val}")
+        if mismatches:
+            raise ValueError(
+                f"Configuration mismatch vs prior 8x sweep config:\n" + "\n".join(mismatches)
+            )
 
     set_global_seed(cfg.seed, torch_seed=True, deterministic=cfg.use_deterministic)
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)

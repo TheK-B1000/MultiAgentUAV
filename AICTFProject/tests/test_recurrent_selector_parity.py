@@ -239,7 +239,7 @@ class RecurrentSelectorParityTests(unittest.TestCase):
 
 
 class RecurrentInferencePolicyTests(unittest.TestCase):
-    def test_fixed_z_predict_advances_recurrent_hidden(self) -> None:
+    def test_fixed_z_predict_bypasses_recurrent_selector(self) -> None:
         from rl.custom_ppo.inference import CustomPPOInferencePolicy
 
         model = _recurrent_model()
@@ -260,7 +260,7 @@ class RecurrentInferencePolicyTests(unittest.TestCase):
         self.assertEqual(actions.shape, (4,))
         actions2, _ = policy.predict(obs, deterministic=True)
         self.assertEqual(actions2.shape, (4,))
-        self.assertIsNotNone(policy._selector_hidden)
+        self.assertIsNone(policy._selector_hidden)
 
 
 if __name__ == "__main__":

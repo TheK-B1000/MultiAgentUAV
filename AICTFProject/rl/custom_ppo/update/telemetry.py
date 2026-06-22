@@ -76,6 +76,14 @@ DEFAULT_METRIC_SCHEMA: dict[str, AggregationMode] = {
     "cf_loss_requires_grad": AggregationMode.MEAN,
     "actor_intervention_measurement_valid": AggregationMode.MEAN,
     "actor_intervention_valid_minibatches": AggregationMode.SUM,
+    "cf_batch_pair_jsd_mean": AggregationMode.MEAN,
+    "cf_batch_pair_jsd_min": AggregationMode.MEAN,
+    "cf_batch_pair_jsd_max": AggregationMode.MEAN,
+    "actor_grad_ratio_cf_to_ppo": AggregationMode.MEAN,
+    "actor_cf_to_ppo_grad_ratio": AggregationMode.MEAN,
+    "actor_pathway_cf_grad_norm_z_embedding": AggregationMode.MEAN,
+    "actor_z_embedding_cf_grad_norm": AggregationMode.MEAN,
+    "router_marginal_entropy_row_count": AggregationMode.LAST,
 }
 
 
@@ -83,6 +91,37 @@ def build_metric_schema(*, latent_k: int, pair_count: int) -> dict[str, Aggregat
     schema = dict(DEFAULT_METRIC_SCHEMA)
     for idx in range(pair_count):
         schema[f"cf_batch_pair_jsd_{idx}"] = AggregationMode.MEAN
+        schema[f"cf_batch_pair_jsd_before_ppo_{idx}"] = AggregationMode.MEAN
+        schema[f"cf_batch_pair_jsd_after_ppo_{idx}"] = AggregationMode.MEAN
+        schema[f"cf_batch_pair_jsd_after_cf_{idx}"] = AggregationMode.MEAN
+    schema["cf_jsd_before_ppo"] = AggregationMode.MEAN
+    schema["cf_jsd_after_ppo"] = AggregationMode.MEAN
+    schema["cf_jsd_after_cf"] = AggregationMode.MEAN
+    schema["actor_cf_update_mode_code"] = AggregationMode.LAST
+    schema["actor_ppo_optimizer_step_count"] = AggregationMode.SUM
+    schema["actor_cf_optimizer_step_count"] = AggregationMode.SUM
+    schema["actor_jsd_before_substeps"] = AggregationMode.MEAN
+    schema["actor_jsd_after_ppo"] = AggregationMode.MEAN
+    schema["actor_jsd_after_cf"] = AggregationMode.MEAN
+    schema["actor_jsd_after_first_substep"] = AggregationMode.MEAN
+    schema["actor_jsd_after_second_substep"] = AggregationMode.MEAN
+    schema["actor_jsd_update_start"] = AggregationMode.MEAN
+    schema["ppo_jsd_delta"] = AggregationMode.MEAN
+    schema["cf_jsd_delta"] = AggregationMode.MEAN
+    schema["cf_gain"] = AggregationMode.MEAN
+    schema["retained_cf_gain"] = AggregationMode.MEAN
+    schema["cf_retention_ratio"] = AggregationMode.MEAN
+    schema["cf_retention_reason_code"] = AggregationMode.LAST
+    schema["actor_kl_after_ppo"] = AggregationMode.MEAN
+    schema["actor_kl_after_cf"] = AggregationMode.MEAN
+    schema["actor_kl_after_second_substep"] = AggregationMode.MEAN
+    schema["ppo_parameter_delta"] = AggregationMode.MEAN
+    schema["cf_parameter_delta"] = AggregationMode.MEAN
+    schema["z_embedding_ppo_delta"] = AggregationMode.MEAN
+    schema["z_embedding_cf_delta"] = AggregationMode.MEAN
+    schema["ppo_grad_norm"] = AggregationMode.MEAN
+    schema["cf_grad_norm"] = AggregationMode.MEAN
+    schema["ppo_cf_cosine"] = AggregationMode.MEAN
     for k_idx in range(latent_k):
         schema[f"router_rollout_soft_p_bar_z{k_idx}"] = AggregationMode.LAST
     return schema

@@ -70,6 +70,7 @@ def actor_pathway_grad_diagnostics(
         ppo_norm = actor_diagnostic_grad_norm(ppo_actor_loss, params) if params else 0.0
         out[f"{group}_grad_from_cf"] = float(cf_norm)
         out[f"{group}_grad_from_ppo"] = float(ppo_norm)
+        out[f"{group}_cf_to_ppo_grad_ratio"] = float(cf_norm) / max(float(ppo_norm), 1e-8)
     return out
 
 

@@ -56,6 +56,8 @@ def _zero_cf_diag(device: torch.device) -> dict[str, torch.Tensor]:
         "cf_weak_pair_boost": zero,
         "cf_competence_required": zero,
         "cf_competence_ready": zero,
+        "cf_competence_min": zero,
+        "cf_competence_gate_blocks_cf": zero,
     }
 
 
@@ -115,6 +117,12 @@ def _build_cf_diag_stats(
             1.0 if competence_required else 0.0
         ),
         "cf_competence_ready": pair_batch_means.new_tensor(1.0 if competence_ready else 0.0),
+        "cf_competence_min": (
+            competence.detach().float().min()
+            if int(competence.numel()) > 0
+            else pair_batch_means.new_tensor(0.0)
+        ),
+        "cf_competence_gate_blocks_cf": pair_batch_means.new_tensor(0.0),
     }
 
 
@@ -221,6 +229,10 @@ def v6i1_cf_separation_loss(
     if bool(require_competence) and not bool(competence_ready):
         diag = _zero_cf_diag(device)
         diag["cf_competence_required"] = torch.ones((), dtype=torch.float32, device=device)
+        diag["cf_competence_gate_blocks_cf"] = torch.ones((), dtype=torch.float32, device=device)
+        c = torch.as_tensor(competence, device=device, dtype=torch.float32).reshape(-1)
+        if int(c.numel()) > 0:
+            diag["cf_competence_min"] = c.detach().float().min()
         return torch.zeros((), dtype=torch.float32, device=device), diag
     if int(latent_k) <= 1:
         return torch.zeros((), dtype=torch.float32, device=device), _zero_cf_diag(device)

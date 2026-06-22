@@ -2182,6 +2182,33 @@ def apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i5 corrected team-intent curriculum over v6i2.
+
+    SUMMER-COMPATIBLE EXTENSION: q_phi uses current opportunity features plus
+    their previous-boundary delta, with marginal entropy and bounded router PPO.
+    Actor and critic remain on the existing decentralized/ctx170 contracts.
+    """
+    cfg = apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum(cfg)
+
+    cfg.experiment_id = "v6i5"
+    cfg.latent_entropy_mode = "marginal"
+    cfg.latent_entropy_objective = "maximize"
+    cfg.latent_resample_every_n = 32
+    cfg.v6i1_router_lr = 0.001
+    cfg.latent_strategy_ppo_coef = 0.20
+    cfg.strategy_target_kl = 0.015
+    cfg.router_context_mode = "current_plus_delta"
+    cfg.router_context_dimension = 68
+    cfg.router_persistence_mode = "expected_switch_detached_previous"
+    cfg.router_marginal_entropy_coefficient = 0.001
+    cfg.router_conditional_entropy_coefficient = 0.0
+    cfg.run_tag = "v6i5_corrected_team_intent_curriculum_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i4_router_ablation_protocol(
     cfg: PPOConfig,
 ) -> PPOConfig:

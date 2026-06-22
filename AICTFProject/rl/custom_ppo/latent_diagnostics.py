@@ -174,9 +174,15 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
     counts = torch.bincount(z.clamp(min=0, max=trainer.latent_k - 1), minlength=trainer.latent_k).float()
     occupancy = counts / counts.sum().clamp_min(1.0)
     persist_mask = buffer.fields["z_persist_mask"][:length].reshape(-1).bool()
-    resampled = buffer.fields["z_resampled"][:length].reshape(-1).bool()
+    resample_field = "z_resampled_actual" if "z_resampled_actual" in buffer.fields else "z_resampled"
+    resampled = buffer.fields[resample_field][:length].reshape(-1).bool()
     switched = persist_mask & (z != prev_z)
     resample_count = float(resampled.sum().detach().cpu().item())
+    persistence_valid = (
+        buffer.fields["persistence_valid"][:length].reshape(-1).bool()
+        if "persistence_valid" in buffer.fields
+        else persist_mask
+    )
     out = {
         "strategy_unique_count": float((counts > 0).sum().detach().cpu().item()),
         "strategy_dominant": float(torch.argmax(counts).detach().cpu().item()),
@@ -185,6 +191,9 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
             (switched.float().sum() / persist_mask.float().sum().clamp_min(1.0)).detach().cpu().item()
         ),
         "strategy_resample_count": resample_count,
+        "z_resampled_actual": resample_count,
+        "router_opportunity_count": resample_count,
+        "persistence_valid_pair_count": float(persistence_valid.sum().detach().cpu().item()),
         "strategy_resample_fraction_rollout": float(resampled.float().mean().detach().cpu().item()),
     }
     for idx, value in enumerate(occupancy.detach().cpu().tolist()):
@@ -923,7 +932,13 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
     zero_stats: dict[str, Any] = {
         "policy_z_sensitivity_KL": 0.0,
         "actor_z_jsd_mean": 0.0,
+        "actor_z_jsd_min": 0.0,
         "actor_z_jsd_max": 0.0,
+        "actor_z_pairs_total": 0.0,
+        "actor_z_pairs_above_margin": 0.0,
+        "actor_z_pairs_above_margin_fraction": 0.0,
+        "actor_z_eval_state_count": 0.0,
+        "actor_z_eval_pair_count": 0.0,
         "actor_z_jsd_per_head": "",
         "actor_z_argmax_disagree": 0.0,
         "actor_z_logit_l2": 0.0,
@@ -1052,6 +1067,22 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
         if jsd_values
         else torch.zeros((1,), device=trainer.device)
     )
+    pair_count = max(0, latent_k * (latent_k - 1) // 2)
+    actor_margin = float(getattr(trainer.cfg, "actor_jsd_margin", 0.001) or 0.001)
+    pair_means: list[float] = []
+    for i in range(latent_k):
+        for j in range(i + 1, latent_k):
+            logits_i = logits_by_z[i]
+            logits_j = logits_by_z[j]
+            values: list[torch.Tensor] = []
+            for action_idx, (start, end) in enumerate(offsets):
+                agent_idx = action_idx // heads_per_agent
+                valid = agent_mask[:, agent_idx] > 0.5
+                if bool(valid.any()):
+                    values.append(_jsd_from_logits(logits_i[valid, start:end], logits_j[valid, start:end]))
+            if values:
+                pair_means.append(float(torch.cat(values).mean().detach().cpu().item()))
+    pairs_above = sum(1 for value in pair_means if value >= actor_margin)
     all_disagree = (
         torch.cat(argmax_disagreements)
         if argmax_disagreements
@@ -1090,7 +1121,13 @@ def _policy_z_sensitivity_kl(trainer: Any, buffer: Any) -> dict[str, Any]:
         {
             "policy_z_sensitivity_KL": mean_kl,
             "actor_z_jsd_mean": float(all_jsd.mean().item()),
+            "actor_z_jsd_min": float(all_jsd.min().item()),
             "actor_z_jsd_max": float(all_jsd.max().item()),
+            "actor_z_pairs_total": float(pair_count),
+            "actor_z_pairs_above_margin": float(pairs_above),
+            "actor_z_pairs_above_margin_fraction": float(pairs_above) / float(max(1, pair_count)),
+            "actor_z_eval_state_count": float(int(row_idx.numel())),
+            "actor_z_eval_pair_count": float(pair_count),
             "actor_z_jsd_per_head": ",".join(
                 f"{value:.8e}" for value in per_head_jsd
             ),

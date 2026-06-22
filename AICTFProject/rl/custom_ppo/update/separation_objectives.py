@@ -171,12 +171,13 @@ def extract_rollout_resample_subset(
     t_full = int(buffer.pos)
     if t_full <= 0:
         return None, None, "empty_rollout"
-    if "global_state" not in buffer.fields:
-        raise KeyError("rollout marginal entropy requires global_state in buffer.fields")
+    state_field = "router_context" if "router_context" in buffer.fields else "global_state"
+    if state_field not in buffer.fields:
+        raise KeyError("rollout marginal entropy requires global_state or router_context in buffer.fields")
     if "z_resampled" not in buffer.fields:
         raise KeyError("rollout marginal entropy requires z_resampled in buffer.fields")
 
-    gs_full = buffer.fields["global_state"][:t_full]
+    gs_full = buffer.fields[state_field][:t_full]
     gs_full = gs_full.reshape(t_full * buffer.n_envs, *gs_full.shape[2:])
     rs_full = buffer.fields["z_resampled"][:t_full].reshape(-1).bool()
     if rs_full.numel() != gs_full.shape[0]:

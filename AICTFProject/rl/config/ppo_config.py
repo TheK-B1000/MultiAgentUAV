@@ -90,8 +90,14 @@ class PPOConfig:
     # Not in *Summer Implementation Plan.docx*; when True, overrides several PPO fields below for a legacy "stable" profile. Default False so explicit config matches the spec numbers.
     use_stable_marl_ppo: bool = False
     target_kl: Optional[float] = 0.02
+    strategy_target_kl: Optional[float] = None
     actor_cnn_feature_dim: int = 128
     actor_hidden_dim: int = 256
+    router_context_mode: str = ""
+    router_context_dimension: int = 0
+    router_persistence_mode: str = ""
+    router_marginal_entropy_coefficient: float = 0.0
+    router_conditional_entropy_coefficient: float = 0.0
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True
@@ -126,10 +132,13 @@ class PPOConfig:
     latent_cf_competence_gate_tc: float = 1.0
     latent_cf_competence_ema_alpha: float = 0.05
     phase_boundary_gate_mode: str = "enforce"
+    phase_a_disable_promotion: bool = False
     latent_cf_coef_max: float = 0.01
     latent_cf_worst_pair_coef: float = 0.0
     latent_cf_weak_pair_boost: float = 0.0
     latent_cf_require_competence: bool = False
+    actor_cf_update_mode: Literal["combined", "ppo_then_cf", "cf_then_ppo"] = "combined"
+    latent_cf_sequential_update: bool = False
     probe_utility_tie_margin: float = 0.05
     phase_a_gate_max_seconds: int = 900
     phase_a_gate_progress_interval_seconds: int = 60

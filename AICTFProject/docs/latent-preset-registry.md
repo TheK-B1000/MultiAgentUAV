@@ -173,6 +173,7 @@ checkpoint metadata records the matching gate fingerprint and
 | Preset (apply fn) | Parent | Classification | One-line reason |
 |---|---|---|---|
 | `v6i2_staged_team_intent_curriculum` | `v6i1_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Staged team-intent curriculum with dual evidence gates: actor CF pair-JSD EMA plus bounded online matched-seed behavioral realization. Confirmatory gate fingerprint: `224f1aea9ab36319`. |
+| `v6i5` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Corrected q_phi context row using `current_34 || delta_from_previous_boundary_34`, rollout-level marginal entropy, bounded router PPO, and 32-step router opportunities. |
 | `v6i3_strategy_local_comm` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | v6i2 plus local learned communication. Phase A requires communication transport without total active-symbol collapse; listener value remains diagnostic until final matched-seed communication evaluation. Confirmatory gate fingerprint: `9ef168d941f046fb`. |
 | `v6i4_router_ablation_protocol` | `v6i2_staged_team_intent_curriculum` | `SUMMER-PLAN-FAITHFUL EVALUATION-ONLY` | v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently planned/pending. No parameters are trained or updated. |
 
@@ -219,6 +220,7 @@ pins the alias map; any deletion or rename must be reflected there.
 | **`apply_plan_faithful_latent_v5i8_split_lane_v2_task_pressure`** | **`plan_faithful_latent_v5i8_split_lane_v2_task_pressure`, `plan_faithful_latent_v5i8_summer_faithful_split_lane_v2`, `plan_faithful_latent_v5i8_split_lane_v2`, `latent_v5i8_split_lane_v2_task_pressure`, `latent_v5i8_summer_faithful_split_lane_v2`, `latent_v5i8_split_lane_v2`, `v5i8_split_lane_v2_task_pressure`, `v5i8_summer_faithful_split_lane_v2`, `v5i8_split_lane_v2`, `v5i8`** |
 | `apply_plan_faithful_latent_v5i9_csia_guided_specialization` | `plan_faithful_latent_v5i9_csia_guided_specialization`, `plan_faithful_latent_v5i9_csia`, `latent_v5i9_csia_guided_specialization`, `latent_v5i9_csia`, `v5i9_csia_guided_specialization`, `v5i9_csia`, `v5i9` |
 | `apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum` | `plan_faithful_latent_v6i2_staged_team_intent_curriculum`, `latent_v6i2_staged_team_intent_curriculum`, `v6i2_staged_team_intent_curriculum`, `v6i2_staged`, `v6i2` |
+| `apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum` | `v6i5` |
 | `apply_plan_faithful_latent_v6i3_strategy_local_comm` | `plan_faithful_latent_v6i3_strategy_local_comm`, `latent_v6i3_strategy_local_comm`, `v6i3_strategy_local_comm`, `v6i3_local_comm`, `v6i3` |
 | `apply_plan_faithful_latent_v6i4_router_ablation_protocol` | `plan_faithful_latent_v6i4_router_ablation_protocol`, `latent_v6i4_router_ablation_protocol`, `v6i4_router_ablation_protocol`, `v6i4_router_ablation`, `v6i4` |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
@@ -532,7 +534,33 @@ A gate is bounded to 5 seeds per opponent, 64-step horizons, and 900
 seconds; the full 20-seed matched-seed and selector analyses are
 confirmatory/offline.
 
-### 6.15 v6i3_strategy_local_comm (SUMMER-COMPATIBLE EXTENSION)
+### 6.15 v6i5 (SUMMER-COMPATIBLE EXTENSION)
+
+v6i5 inherits v6i2 directly. The scientific delta is a corrected q_phi
+router input and router-loss ownership contract, not an actor, critic, or
+gate change. It keeps the v6i2 dual-evidence gate protocol and registers
+only the public alias `v6i5`.
+
+Resolved-config diff vs v6i2 is exactly:
+`{experiment_id, latent_entropy_mode, latent_resample_every_n,
+v6i1_router_lr, latent_strategy_ppo_coef, strategy_target_kl,
+router_context_mode, router_context_dimension, router_persistence_mode,
+router_marginal_entropy_coefficient, run_tag}`.
+
+`router_context_mode = "current_plus_delta"` makes q_phi consume a
+68-wide row: the current 34-feature structured state from
+`build_global_state_batch` followed by `current - previous_opportunity`.
+The 170-wide temporal context remains the critic context and is not the
+v6i5 q_phi input. `router_persistence_mode =
+"expected_switch_detached_previous"` uses detached previous-router
+probabilities for persistence, so persistence gradients only update the
+current q_phi branch. Ordinary router minibatches use clipped router PPO
+plus expected-switch persistence. The rollout-wide router step owns the
+marginal entropy term through
+`router_marginal_entropy_coefficient = 0.001`; conditional entropy is
+disabled by `router_conditional_entropy_coefficient = 0.0`.
+
+### 6.16 v6i3_strategy_local_comm (SUMMER-COMPATIBLE EXTENSION)
 
 v6i3 inherits v6i2 directly and adds local learned communication. The
 final preset contract is frozen in
@@ -571,7 +599,7 @@ at least two corruption modes, with the paired-bootstrap 95 percent CI
 excluding zero. A WR-only report may use an absolute WR drop `>= 0.03`
 with the same CI requirement.
 
-### 6.16 v6i4_router_ablation_protocol (SUMMER-PLAN-FAITHFUL EVALUATION-ONLY)
+### 6.17 v6i4_router_ablation_protocol (SUMMER-PLAN-FAITHFUL EVALUATION-ONLY)
 
 v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol
 over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently
