@@ -174,6 +174,7 @@ checkpoint metadata records the matching gate fingerprint and
 |---|---|---|---|
 | `v6i2_staged_team_intent_curriculum` | `v6i1_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Staged team-intent curriculum with dual evidence gates: actor CF pair-JSD EMA plus bounded online matched-seed behavioral realization. Confirmatory gate fingerprint: `224f1aea9ab36319`. |
 | `v6i5` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | Corrected q_phi context row using `current_34 || delta_from_previous_boundary_34`, rollout-level marginal entropy, bounded router PPO, and 32-step router opportunities. |
+| `v6i6_strategy_expansion` | `v6i5` | `SUMMER-COMPATIBLE EXTENSION` | Conditional repertoire Expansion Stage E1. Requires a validated anchor manifest before training; the manifest selects anchor latents, target latent, and dormant latents. Uses fixed-z episodes for outcome attribution, a frozen reference critic for opportunity weights, no-op adapter initialization, and target-only trainable scope. |
 | `v6i3_strategy_local_comm` | `v6i2_staged_team_intent_curriculum` | `SUMMER-COMPATIBLE EXTENSION` | v6i2 plus local learned communication. Phase A requires communication transport without total active-symbol collapse; listener value remains diagnostic until final matched-seed communication evaluation. Confirmatory gate fingerprint: `9ef168d941f046fb`. |
 | `v6i4_router_ablation_protocol` | `v6i2_staged_team_intent_curriculum` | `SUMMER-PLAN-FAITHFUL EVALUATION-ONLY` | v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently planned/pending. No parameters are trained or updated. |
 
@@ -221,6 +222,7 @@ pins the alias map; any deletion or rename must be reflected there.
 | `apply_plan_faithful_latent_v5i9_csia_guided_specialization` | `plan_faithful_latent_v5i9_csia_guided_specialization`, `plan_faithful_latent_v5i9_csia`, `latent_v5i9_csia_guided_specialization`, `latent_v5i9_csia`, `v5i9_csia_guided_specialization`, `v5i9_csia`, `v5i9` |
 | `apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum` | `plan_faithful_latent_v6i2_staged_team_intent_curriculum`, `latent_v6i2_staged_team_intent_curriculum`, `v6i2_staged_team_intent_curriculum`, `v6i2_staged`, `v6i2` |
 | `apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum` | `v6i5` |
+| `apply_plan_faithful_latent_v6i6_strategy_expansion` | `plan_faithful_latent_v6i6_strategy_expansion`, `latent_v6i6_strategy_expansion`, `v6i6_strategy_expansion`, `v6i6` |
 | `apply_plan_faithful_latent_v6i3_strategy_local_comm` | `plan_faithful_latent_v6i3_strategy_local_comm`, `latent_v6i3_strategy_local_comm`, `v6i3_strategy_local_comm`, `v6i3_local_comm`, `v6i3` |
 | `apply_plan_faithful_latent_v6i4_router_ablation_protocol` | `plan_faithful_latent_v6i4_router_ablation_protocol`, `latent_v6i4_router_ablation_protocol`, `v6i4_router_ablation_protocol`, `v6i4_router_ablation`, `v6i4` |
 | `apply_plan_faithful_latent_v4i4post_periodic_router_distill` | `plan_faithful_latent_v4i4post_periodic_router_distill`, `latent_v4i4post_periodic_router_distill`, `latent_v4i4post`, `v4i4post`, `v4i4`                                                    |
@@ -559,6 +561,49 @@ plus expected-switch persistence. The rollout-wide router step owns the
 marginal entropy term through
 `router_marginal_entropy_coefficient = 0.001`; conditional entropy is
 disabled by `router_conditional_entropy_coefficient = 0.0`.
+
+### 6.15a v6i6_strategy_expansion (SUMMER-COMPATIBLE EXTENSION)
+
+v6i6 inherits v6i5 directly. The scientific delta is conditional
+repertoire expansion after forced-z and branch evaluations identify a
+useful anchor set, one expansion target, and any dormant latents. The
+preset intentionally does not hardcode `z0`, `z1`, `z2`, or `z3`.
+
+Launch is fail-closed: with
+`v6i6_require_validated_anchors = True`, training validation rejects the
+run unless `v6i6_anchor_validation_manifest` points to a JSON manifest
+with `verdict = "VALIDATED"`, disjoint `anchors`,
+`expansion_target`, and `dormant` entries inside `[0, latent_k)`.
+Validation hydrates `v6i6_anchor_latents`,
+`v6i6_target_latent`, and `v6i6_dormant_latents` from that manifest at
+runtime.
+
+Resolved-config diff vs v6i5 is exactly:
+`{experiment_id, gate_protocol_version, use_v6i6_expansion,
+v6i6_expansion_protocol_version, v6i6_expansion_stage,
+v6i6_trainable_scope, latent_actor_z_adapter_enabled,
+latent_actor_z_adapter_scale, latent_actor_z_adapter_init_std,
+latent_resample_every_n, run_tag}`.
+
+| Field | v6i5 value | This preset | Note |
+|-------|------------|-------------|------|
+| `experiment_id` | `v6i5` | `v6i6` | Artifact and protocol identity. |
+| `gate_protocol_version` | `v6i2_dual_evidence` | `v6i6_repertoire_expansion_e1_v1` | Separates Expansion Stage E1 from existing Phase B router training. |
+| `use_v6i6_expansion` | `False` | `True` | Enables the extension contract. |
+| `v6i6_expansion_stage` | `""` | `E1` | Avoids the existing Phase A/B/C names. |
+| `v6i6_trainable_scope` | `""` | `target_embedding_gate_adapter_only` | Shared actor parameters are outside the intended trainable set. |
+| `latent_actor_z_adapter_enabled` | `False` | `True` | Adds the target-side expansion adapter path. |
+| `latent_actor_z_adapter_scale` | `0.0` | `0.05` | Small nonzero gate so zero-initialized adapter params receive gradient. |
+| `latent_actor_z_adapter_init_std` | `0.02` | `0.0` | Adapter starts as a no-op. |
+| `latent_resample_every_n` | `32` | `0` | Fixed latent per episode for clean outcome attribution. |
+| `run_tag` | `v6i5_corrected_team_intent_curriculum_OP5_OP6_OP7_1m_4v4` | `v6i6_strategy_expansion_OP5_OP6_OP7_1m_4v4` | Artifact namespace. |
+
+The E1 contract also requires `v6i6_fixed_z_episode_attribution = True`,
+`v6i6_use_reference_critic_for_opportunity = True`,
+`v6i6_restore_masked_latent_rows_after_step = True`,
+`v6i6_assert_anchor_bitwise_invariant = True`, and
+`v6i6_count_draw_as = 0.5`. These fields are defaults so the v6i6-vs-v6i5
+snapshot diff stays focused on the activation surface.
 
 ### 6.16 v6i3_strategy_local_comm (SUMMER-COMPATIBLE EXTENSION)
 

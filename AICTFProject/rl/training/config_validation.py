@@ -25,6 +25,9 @@ of a field that is part of the on-disk run-tag/checkpoint contract.
 
 from __future__ import annotations
 
+import json
+import os
+
 from rl.config.ppo_config import PPOConfig, TrainMode
 from rl.custom_ppo.update.update_order import validate_actor_cf_update_mode
 
@@ -120,6 +123,58 @@ def _strip_eval_only_opponents_from_training_pool(cfg: PPOConfig) -> None:
         cfg.opponent_pool = filt
 
 
+def _validate_v6i6_expansion_config(cfg: PPOConfig) -> None:
+    if not bool(getattr(cfg, "use_v6i6_expansion", False)):
+        return
+    if str(getattr(cfg, "v6i6_expansion_stage", "")) != "E1":
+        raise ValueError("v6i6_expansion_stage must be 'E1'; do not reuse Phase B for actor-side expansion.")
+    if not bool(getattr(cfg, "v6i6_fixed_z_episode_attribution", False)):
+        raise ValueError("v6i6 requires fixed-z episodes so outcome attribution is not mislabeled by mid-episode switching.")
+    if int(getattr(cfg, "latent_resample_every_n", 0) or 0) != 0:
+        raise ValueError("v6i6 requires latent_resample_every_n=0 for fixed-z episode attribution.")
+    if not bool(getattr(cfg, "v6i6_use_reference_critic_for_opportunity", False)):
+        raise ValueError("v6i6 opportunity weights must use a frozen reference critic.")
+    if str(getattr(cfg, "v6i6_trainable_scope", "")) != "target_embedding_gate_adapter_only":
+        raise ValueError("v6i6 trainable scope must be target_embedding_gate_adapter_only.")
+    if bool(getattr(cfg, "v6i6_require_validated_anchors", True)):
+        manifest_path = getattr(cfg, "v6i6_anchor_validation_manifest", None)
+        if not manifest_path:
+            raise ValueError(
+                "v6i6 requires a validated anchor manifest before training. "
+                "Run the forced-z and branch evaluations first, then pass the manifest path."
+            )
+        _load_v6i6_anchor_manifest(cfg, str(manifest_path))
+
+
+def _load_v6i6_anchor_manifest(cfg: PPOConfig, manifest_path: str) -> None:
+    if not os.path.isfile(manifest_path):
+        raise ValueError(f"v6i6_anchor_validation_manifest does not exist: {manifest_path!r}")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    verdict = str(manifest.get("verdict", "")).strip().upper()
+    if verdict != "VALIDATED":
+        raise ValueError(f"v6i6 anchor manifest verdict must be VALIDATED; got {verdict!r}.")
+
+    latent_k = int(getattr(cfg, "latent_k", 4))
+    anchors = tuple(int(z) for z in manifest.get("anchors", ()))
+    target = int(manifest.get("expansion_target", -1))
+    dormant = tuple(int(z) for z in manifest.get("dormant", ()))
+    selected = anchors + (target,) + dormant
+    if not anchors:
+        raise ValueError("v6i6 anchor manifest must select at least one anchor latent.")
+    if target < 0:
+        raise ValueError("v6i6 anchor manifest must select expansion_target.")
+    if any(z < 0 or z >= latent_k for z in selected):
+        raise ValueError(f"v6i6 manifest latents must be in [0, {latent_k - 1}]; got {selected!r}.")
+    if len(set(selected)) != len(selected):
+        raise ValueError(f"v6i6 manifest anchors/target/dormant must be disjoint; got {selected!r}.")
+
+    cfg.v6i6_anchor_latents = anchors
+    cfg.v6i6_target_latent = target
+    cfg.v6i6_dormant_latents = dormant
+
+
 def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
     """Normalize ``cfg.mode`` and reject inconsistent latent / opponent settings.
 
@@ -200,6 +255,7 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
                 "latent_resample_every_n=1 is disallowed (do not resample z every decision step). "
                 "Use 0 (sample at episode start) or N>=2 (sparse refresh)."
             )
+        _validate_v6i6_expansion_config(cfg)
     elif bool(getattr(cfg, "fixed_latent_strategy", False)):
         raise ValueError("fixed_latent_strategy requires use_latent_strategy=True.")
 

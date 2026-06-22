@@ -231,12 +231,12 @@ def apply_v6i1_learning_rates(
 
     for group in bundle.actor.param_groups:
         group["lr"] = actor_lr
-    if bundle.actor_cf is not None:
+    if getattr(bundle, "actor_cf", None) is not None:
         for group in bundle.actor_cf.param_groups:
             group["lr"] = actor_lr
     for group in bundle.critic.param_groups:
         group["lr"] = critic_lr
-    if bundle.router is not None and phase in ("B", "C"):
+    if getattr(bundle, "router", None) is not None and phase in ("B", "C"):
         for group in bundle.router.param_groups:
             group["lr"] = router_lr
     return {

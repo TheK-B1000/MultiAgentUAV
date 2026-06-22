@@ -515,6 +515,12 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Allow CSIA reward whenever evidence exists, even if gates fail. Diagnostic only.",
     )
+    parser.add_argument(
+        "--v6i6-anchor-validation-manifest",
+        type=str,
+        default=None,
+        help="v6i6 E1: hashed manifest selecting anchors, expansion target, dormant latents, and evidence.",
+    )
     # --- v4i4post (post-Summer extension): Periodic Return-Ranked Router
     # Distillation. These flags used to live under the v4i3 banner before
     # v4i3 was rescoped to the Summer Proof Suite. The CANONICAL v4i3
@@ -898,6 +904,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.csia_min_count_per_cell = max(1, int(args.csia_min_count_per_cell))
     if getattr(args, "no_csia_require_gates", False):
         cfg.csia_require_gates = False
+    if getattr(args, "v6i6_anchor_validation_manifest", None):
+        cfg.v6i6_anchor_validation_manifest = str(args.v6i6_anchor_validation_manifest)
     # --- v4i4post router-distill overrides ------------------------------
     if getattr(args, "latent_router_distill_enabled", None):
         cfg.latent_router_distill_enabled = True

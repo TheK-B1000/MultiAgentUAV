@@ -1235,6 +1235,49 @@ def _main_terminal_validation(args: argparse.Namespace, ckpt: Path, out_dir: Pat
     print(f"[terminal_branch] wrote {summary_csv}")
     print(f"[terminal_branch] wrote {recovery_json}")
     print(f"[terminal_branch] wrote {report_md}")
+
+    # Generate and emit the approved anchor manifest if verdict is VALIDATED
+    if classification == "VALIDATED":
+        report_sha256 = _file_sha256(report_md)
+        git = _git_info()
+        anchor_manifest = {
+            "schema_version": 1,
+            "gate_version": "v6i6_anchor_gate_v1",
+            "verdict": "VALIDATED",
+            "checkpoint_path": str(ckpt.resolve()),
+            "checkpoint_sha256": _file_sha256(ckpt) if ckpt.exists() else "",
+            "source_report": str(report_md.resolve()),
+            "source_report_sha256": report_sha256,
+            "valid_terminal_pairs": int(recovery.get("number_of_valid_terminal_pairs", 0)),
+            "truncation_rate": float(recovery.get("truncated_pair_rate", 0.0)),
+            "bootstrap_confidence_interval": [
+                float(recovery.get("bootstrap_ci_low", 0.0)),
+                float(recovery.get("bootstrap_ci_high", 0.0)),
+            ],
+            "evaluation_arguments": vars(args),
+            "git_commit": str(git.get("commit", "unavailable")),
+            "working_tree_dirty": bool(git.get("dirty", False)),
+            "anchors": [0, 3],
+            "approved_anchor_latents": [0, 3],
+            "expansion_target": 1,
+            "dormant": [2],
+        }
+        manifest_path = args.emit_anchor_manifest_on_pass
+        if manifest_path is None:
+            manifest_path = out_dir / "anchor_validation_manifest.json"
+        else:
+            manifest_path = Path(manifest_path)
+        manifest_path.write_text(json.dumps(_json_sanitize(anchor_manifest), indent=2, sort_keys=True), encoding="utf-8")
+        print(f"[terminal_branch] wrote approved anchor manifest to {manifest_path}")
+    else:
+        # Clean up or print message
+        print(f"[terminal_branch] Validation did not pass (classification={classification}). No anchor manifest emitted.")
+        manifest_path = args.emit_anchor_manifest_on_pass
+        if manifest_path is not None:
+            manifest_path = Path(manifest_path)
+            if manifest_path.exists():
+                manifest_path.unlink()
+
     return 0
 
 
@@ -1252,6 +1295,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-steps", type=int, default=1500)
     parser.add_argument("--no-terminal", action="store_true", help="Only roll branches for the short horizon.")
     parser.add_argument("--terminal-validation", action="store_true", help="Run the targeted z0-vs-z3 terminal validation protocol.")
+    parser.add_argument("--emit-anchor-manifest-on-pass", default=None, help="Output path for approved anchor manifest JSON if validation passes.")
     parser.add_argument("--terminal-safety-cap", type=int, default=None)
     parser.add_argument("--target-buckets", nargs="*", default=None, help="OP BUCKET pairs; defaults to the frozen five-bucket shortlist.")
     parser.add_argument("--bootstrap-seed", type=int, default=20260622)

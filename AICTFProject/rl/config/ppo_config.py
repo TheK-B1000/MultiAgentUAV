@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 
 import torch
 
@@ -627,6 +627,36 @@ class PPOConfig:
     # canonical v4i3 is now the Summer-Faithful Proof Suite, and periodic
     # router distillation lives in v4i4post as a post-Summer extension.)
     latent_router_distill_artifacts_subdir: str = "v4i4post_router_distill"
+
+    # --- v6i6: evidence-gated repertoire Expansion Stage E1 ---
+    use_v6i6_expansion: bool = False
+    v6i6_require_validated_anchors: bool = True
+    v6i6_anchor_validation_manifest: Optional[str] = None
+    v6i6_expansion_protocol_version: str = ""
+    v6i6_expansion_stage: str = ""
+    v6i6_anchor_latents: Tuple[int, ...] = ()
+    v6i6_target_latent: int = -1
+    v6i6_dormant_latents: Tuple[int, ...] = ()
+    v6i6_fixed_z_episode_attribution: bool = True
+    v6i6_target_episode_fraction: float = 0.50
+    v6i6_anchor_episode_fraction: float = 0.50
+    v6i6_trainable_scope: str = ""
+    v6i6_use_reference_critic_for_opportunity: bool = True
+    v6i6_restore_masked_latent_rows_after_step: bool = True
+    v6i6_assert_anchor_bitwise_invariant: bool = True
+    v6i6_count_draw_as: float = 0.5
+    v6i6_competence_rho: float = 0.85
+    v6i6_competence_cfloor: float = 0.35
+    v6i6_novelty_coef: float = 0.5
+    v6i6_novelty_tau_d: float = 0.1
+    # Stopping Gates
+    v6i6_e1_max_steps: int = 400000
+    v6i6_e1_min_target_episodes_per_opponent: int = 50
+    v6i6_e1_min_effective_updates: int = 100
+    v6i6_e1_min_competence_ratio: float = 0.85
+    v6i6_e1_min_nearest_anchor_jsd: float = 0.02
+    v6i6_e1_required_consecutive_checks: int = 5
+
 
 
 __all__ = ["PPOConfig", "TrainMode"]

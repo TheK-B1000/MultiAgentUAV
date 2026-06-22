@@ -424,6 +424,19 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i6 / evidence-gated repertoire expansion contract:** Registered
+  `apply_plan_faithful_latent_v6i6_strategy_expansion` (aliases `v6i6`,
+  `v6i6_strategy_expansion`, and long plan/latent aliases) built on
+  v6i5. The preset is `SUMMER-COMPATIBLE EXTENSION`, not a
+  paper-faithful row. It is fail-closed until a validated anchor
+  manifest selects `anchors`, `expansion_target`, and `dormant` latents;
+  no latent index is hardcoded in the preset. Added E1 config fields for
+  fixed-z episode attribution, target-only trainable scope, reference
+  critic opportunity weights, no-op adapter initialization, draw scoring,
+  and anchor bitwise invariants. Added
+  `--v6i6-anchor-validation-manifest`, focused tests in
+  `tests/test_v6i6_strategy_expansion.py`, and regenerated
+  `tests/preset_snapshots.json`.
 - **v6i3 frozen confirmatory local-communication lineage:** Updated
   `apply_plan_faithful_latent_v6i3_strategy_local_comm` so Phase A
   promotion separates communication access from proof of communication

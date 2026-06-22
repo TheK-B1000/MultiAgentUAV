@@ -2209,6 +2209,45 @@ def apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i6_strategy_expansion(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i6 evidence-gated repertoire Expansion Stage E1 over v6i5.
+
+    SUMMER-COMPATIBLE EXTENSION: v6i6 is conditional strategy expansion,
+    not an automatic next run. A hashed anchor-validation manifest must
+    select anchor_latents, target_latent, and dormant_latents before E1
+    training is allowed. The preset intentionally does not hardcode z0/z3
+    anchors or a z1 target.
+    """
+    cfg = apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum(cfg)
+    cfg.experiment_id = "v6i6"
+    cfg.gate_protocol_version = "v6i6_repertoire_expansion_e1_v1"
+    cfg.use_v6i6_expansion = True
+    cfg.v6i6_expansion_protocol_version = "v6i6_repertoire_expansion_e1_v1"
+    cfg.v6i6_expansion_stage = "E1"
+    cfg.v6i6_require_validated_anchors = True
+    cfg.v6i6_anchor_validation_manifest = None
+    cfg.v6i6_anchor_latents = ()
+    cfg.v6i6_target_latent = -1
+    cfg.v6i6_dormant_latents = ()
+    cfg.v6i6_fixed_z_episode_attribution = True
+    cfg.v6i6_target_episode_fraction = 0.50
+    cfg.v6i6_anchor_episode_fraction = 0.50
+    cfg.v6i6_trainable_scope = "target_embedding_gate_adapter_only"
+    cfg.v6i6_use_reference_critic_for_opportunity = True
+    cfg.v6i6_restore_masked_latent_rows_after_step = True
+    cfg.v6i6_assert_anchor_bitwise_invariant = True
+    cfg.v6i6_count_draw_as = 0.5
+    cfg.latent_actor_z_adapter_enabled = True
+    cfg.latent_actor_z_adapter_scale = 0.05
+    cfg.latent_actor_z_adapter_init_std = 0.0
+    cfg.latent_resample_every_n = 0
+    cfg.run_tag = "v6i6_strategy_expansion_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
+
 def apply_plan_faithful_latent_v6i4_router_ablation_protocol(
     cfg: PPOConfig,
 ) -> PPOConfig:

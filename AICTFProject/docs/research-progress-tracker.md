@@ -589,6 +589,27 @@ advantage over uniform, fixed, initial-only, and shuffled controls,
 reported aggregate and per opponent. MI, entropy, occupancy, argmax
 stability, and event-associated switching remain diagnostics.
 
+### V6I6 repertoire expansion (implemented - pending anchor evidence)
+
+v6i6 is an evidence-gated Expansion Stage E1 over v6i5, not an automatic
+next launch. It activates only after forced-z and state-conditioned branch
+evaluations produce a hashed anchor-validation manifest with
+`verdict = "VALIDATED"`, selected `anchors`, one `expansion_target`, and
+any `dormant` latents.
+
+The implementation intentionally does not hardcode `z0`, `z1`, `z2`, or
+`z3`. Training validation rejects `--preset v6i6` unless
+`--v6i6-anchor-validation-manifest <path>` is supplied and the manifest
+latents are disjoint and in range. E1 uses fixed-z episodes for outcome
+attribution, a frozen reference critic for opportunity weights, no-op
+adapter initialization, and the declared trainable scope
+`target_embedding_gate_adapter_only`.
+
+Required evidence before launch: finish forced-z evaluation, finish
+state-conditioned branch evaluation, generate the anchor-validation
+manifest with report hashes, run the 2k invariant smoke with the
+manifest, then run the 25k birth diagnostic before any longer launch.
+
 ### V6I3 local communication (frozen contract — confirmatory run pending)
 
 | Slice | Status |
