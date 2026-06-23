@@ -60,6 +60,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i1_staged_team_intent_curriculum,
     apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
     apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum,
+    apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor,
     apply_plan_faithful_latent_v6i6_strategy_expansion,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
@@ -373,6 +374,11 @@ PRESET_REGISTRY = {
     "v6i2": apply_plan_faithful_latent_v6i2_staged_team_intent_curriculum,
     # v6i5 corrected team-intent curriculum over v6i2. Single public alias only.
     "v6i5": apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum,
+    # v6i5 router-only audition over frozen z0/z3 repertoire.
+    "plan_faithful_latent_v6i5_router_z0_z3_frozen_actor": apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor,
+    "latent_v6i5_router_z0_z3_frozen_actor": apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor,
+    "v6i5_router_z0_z3_frozen_actor": apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor,
+    "v6i5_router_z0_z3": apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor,
     # v6i6 evidence-gated repertoire expansion over v6i5. Requires a
     # validated manifest before training can launch.
     "plan_faithful_latent_v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,

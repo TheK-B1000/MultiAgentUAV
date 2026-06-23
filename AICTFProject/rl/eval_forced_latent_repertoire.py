@@ -56,9 +56,14 @@ def _load_run_config_for_metrics(metrics_csv: Path | None) -> dict[str, Any]:
     return {}
 
 
-def _resolve_map_layout(cli_value: str | None, metrics_csv: Path | None) -> str:
+def _resolve_map_layout(cli_value: str | None, metrics_csv: Path | None, checkpoint_meta: dict[str, Any] | None = None) -> str:
     if cli_value:
         return str(cli_value).strip().lower()
+    cfg_meta = (checkpoint_meta or {}).get("cfg")
+    if isinstance(cfg_meta, dict):
+        value = cfg_meta.get("map_layout")
+        if value:
+            return str(value).strip().lower()
     run_config = _load_run_config_for_metrics(metrics_csv)
     resolved = run_config.get("resolved_ppo_config") if isinstance(run_config, dict) else None
     if isinstance(resolved, dict):
@@ -279,12 +284,12 @@ def run(argv: list[str] | None = None) -> dict[str, Path]:
     if not checkpoint.exists():
         raise FileNotFoundError(checkpoint)
     metrics_csv = Path(args.metrics_csv).expanduser().resolve() if args.metrics_csv else None
+    meta = read_custom_ppo_metadata(str(checkpoint))
     if args.agents is None:
-        meta = read_custom_ppo_metadata(str(checkpoint))
         agents = int(meta.get("n_blue", 4))
     else:
         agents = int(args.agents)
-    map_layout = _resolve_map_layout(args.map_layout, metrics_csv)
+    map_layout = _resolve_map_layout(args.map_layout, metrics_csv, meta)
     out_dir = Path(args.out_dir).expanduser() if args.out_dir else checkpoint.parent / "v6i5_forced_latent_repertoire"
     out_dir.mkdir(parents=True, exist_ok=True)
 

@@ -2209,6 +2209,27 @@ def apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum(
     return cfg
 
 
+def apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """v6i5 two-option frozen-repertoire router over original z0 and z3.
+
+    SUMMER-COMPATIBLE EXTENSION: freezes the validated actor repertoire,
+    masks q_phi choices to original latent IDs z0/z3, and reinitializes q_phi
+    after loading the repertoire checkpoint. No opponent labels or handcrafted
+    state-bucket labels are added to the router context.
+    """
+    cfg = apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum(cfg)
+    cfg.experiment_id = "v6i5_router_z0_z3"
+    cfg.router_allowed_latents = (0, 3)
+    cfg.router_freeze_actor = True
+    cfg.router_reinitialize_on_load = True
+    cfg.router_marginal_entropy_coefficient = 0.001
+    cfg.router_conditional_entropy_coefficient = 0.0
+    cfg.run_tag = "v6i5_router_z0_z3_frozen_actor_OP5_OP6_OP7_1m_4v4"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i6_strategy_expansion(
     cfg: PPOConfig,
 ) -> PPOConfig:

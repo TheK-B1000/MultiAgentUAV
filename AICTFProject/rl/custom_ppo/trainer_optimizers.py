@@ -32,6 +32,13 @@ def collect_actor_optimizer_parameters(
     return params
 
 
+def freeze_actor_parameters(model: torch.nn.Module) -> int:
+    params = collect_actor_parameters(model)
+    for param in params:
+        param.requires_grad_(False)
+    return len(params)
+
+
 def _collect_params(model: torch.nn.Module, name_parts: tuple[str, ...]) -> list[torch.nn.Parameter]:
     params: list[torch.nn.Parameter] = []
     for name, param in model.named_parameters():
@@ -90,9 +97,12 @@ class TrainerOptimizerBundle:
 
     @classmethod
     def build(cls, *, model: torch.nn.Module, cfg: Any, hparams: Any) -> TrainerOptimizerBundle:
+        if bool(getattr(cfg, "router_freeze_actor", False)):
+            freeze_actor_parameters(model)
         if is_staged_v6i1_curriculum(cfg):
             return cls._build_v6i1(model=model, cfg=cfg, hparams=hparams)
-        shared = torch.optim.Adam(model.parameters(), lr=float(hparams.learning_rate), eps=1e-5)
+        shared_params = [p for p in model.parameters() if p.requires_grad]
+        shared = torch.optim.Adam(shared_params, lr=float(hparams.learning_rate), eps=1e-5)
         return cls(
             primary=shared,
             actor=shared,
@@ -163,4 +173,5 @@ __all__ = [
     "TrainerOptimizerBundle",
     "collect_actor_optimizer_parameters",
     "collect_actor_parameters",
+    "freeze_actor_parameters",
 ]

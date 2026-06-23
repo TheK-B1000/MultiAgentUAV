@@ -857,6 +857,7 @@ def run(
     if not checkpoint.exists():
         raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
     meta = read_custom_ppo_metadata(str(checkpoint))
+    cfg_meta = meta.get("cfg") if isinstance(meta.get("cfg"), dict) else {}
     is_latent = bool(meta.get("use_latent_strategy", False))
     latent_k = int(meta.get("latent_k", 4)) if is_latent else 0
     n_blue = int(meta.get("n_blue", agents))
@@ -883,6 +884,21 @@ def run(
     cfg.max_blue_agents = n_blue
     cfg.n_agents_per_team = n_blue
     cfg.map_layout = str(map_layout).strip().lower()
+    cfg.map_set = str(cfg_meta.get("map_set", cfg.map_set))
+    cfg.max_decision_steps = int(cfg_meta.get("max_decision_steps", cfg.max_decision_steps) or cfg.max_decision_steps)
+    for name in (
+        "communication_enabled",
+        "comm_num_symbols",
+        "comm_silence_symbol",
+        "comm_message_grid_channels",
+        "comm_include_sender_position",
+        "comm_local_only",
+        "comm_radius_cells",
+        "comm_delivery_delay_steps",
+        "comm_dropout_probability",
+    ):
+        if name in cfg_meta:
+            setattr(cfg, name, cfg_meta[name])
     if is_latent:
         cfg.latent_k = latent_k
 

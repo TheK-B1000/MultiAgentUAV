@@ -119,6 +119,7 @@ def run_eval_episodes(
     latent_eval_mode: str = "normal",
     latent_eval_marginal: list[float] | None = None,
     latent_eval_seed: int | None = None,
+    logical_eval_seed: int | None = None,
     e3_step_telemetry_path: str | None = None,
     preloaded_model: Any | None = None,
 ) -> list[dict]:
@@ -225,7 +226,14 @@ def run_eval_episodes(
 
         global_step_counter = 0
         for ep_idx in range(n_episodes):
-            if hasattr(model, "set_current_episode_context"):
+            if hasattr(model, "set_eval_episode_context"):
+                model.set_eval_episode_context(
+                    opponent=opponent,
+                    eval_seed=logical_eval_seed if logical_eval_seed is not None else (latent_eval_seed if latent_eval_seed is not None else 0),
+                    environment_seed=latent_eval_seed if latent_eval_seed is not None else 0,
+                    env_index=ep_idx,
+                )
+            elif hasattr(model, "set_current_episode_context"):
                 model.set_current_episode_context(
                     opponent=opponent,
                     seed=latent_eval_seed if latent_eval_seed is not None else 0,

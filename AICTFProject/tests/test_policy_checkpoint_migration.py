@@ -136,6 +136,133 @@ class PolicyCheckpointMigrationTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             dst.load_state_dict(src.state_dict(), strict=False)
 
+    def test_load_model_state_dict_compat_allows_unexpected_opt_in_heads(self) -> None:
+        from rl.custom_ppo.inference import _load_model_state_dict_compat
+        # Model with episode strategy value head enabled
+        src = _latent_model(episode_value=True)
+        sd = src.state_dict()
+        # Model with episode strategy value head disabled
+        dst = _latent_model(episode_value=False)
+        # Should not raise RuntimeError now that unexpected episode value head parameters are filtered out
+        _load_model_state_dict_compat(dst, sd)
+
+    def test_load_model_state_dict_compat_handles_z_adapter_active_and_inactive(self) -> None:
+        import os
+        from rl.custom_ppo.inference import _load_model_state_dict_compat
+        
+        # 1. Inactive z_adapter in checkpoint -> should PASS
+        src_inactive = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            latent_actor_z_adapter_enabled=True, latent_actor_z_adapter_scale=0.1
+        )
+        src_inactive.latent_actor.z_adapter.weight.data.fill_(0.0)
+        
+        dst = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            latent_actor_z_adapter_enabled=False
+        )
+        _load_model_state_dict_compat(dst, src_inactive.state_dict()) # should not raise
+        
+        # 2. Active z_adapter in checkpoint -> should FAIL without override
+        src_active = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            latent_actor_z_adapter_enabled=True, latent_actor_z_adapter_scale=0.1
+        )
+        src_active.latent_actor.z_adapter.weight.data.fill_(0.5) # non-zero
+        
+        with self.assertRaises(RuntimeError) as ctx:
+            _load_model_state_dict_compat(dst, src_active.state_dict())
+        self.assertIn("Incompatible active actor-affecting parameters", str(ctx.exception))
+        
+        # 3. Active z_adapter in checkpoint with override env var -> should PASS
+        os.environ["ALLOW_ACTIVE_COMPAT_MIGRATION"] = "1"
+        try:
+            _load_model_state_dict_compat(dst, src_active.state_dict())
+        finally:
+            del os.environ["ALLOW_ACTIVE_COMPAT_MIGRATION"]
+
+    def test_load_model_state_dict_compat_handles_actor_z_film_active_and_inactive(self) -> None:
+        import os
+        from rl.custom_ppo.inference import _load_model_state_dict_compat
+        
+        # 1. Inactive z_film in checkpoint -> should PASS
+        src_inactive = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            enable_actor_z_film=True, actor_z_film_init_scale=0.0
+        )
+        src_inactive.latent_actor.actor_z_film.weight.data.fill_(0.0)
+        half = src_inactive.latent_actor.actor_z_film.bias.shape[0] // 2
+        src_inactive.latent_actor.actor_z_film.bias.data[:half].fill_(1.0)
+        src_inactive.latent_actor.actor_z_film.bias.data[half:].fill_(0.0)
+        
+        dst = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            enable_actor_z_film=False
+        )
+        _load_model_state_dict_compat(dst, src_inactive.state_dict()) # should not raise
+        
+        # 2. Active z_film (non-zero weight) in checkpoint -> should FAIL without override
+        src_active = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            enable_actor_z_film=True, actor_z_film_init_scale=0.1
+        )
+        src_active.latent_actor.actor_z_film.weight.data.fill_(0.5)
+        
+        with self.assertRaises(RuntimeError) as ctx:
+            _load_model_state_dict_compat(dst, src_active.state_dict())
+        self.assertIn("Incompatible active actor-affecting parameters", str(ctx.exception))
+        
+        # 3. Active z_film in checkpoint with override env var -> should PASS
+        os.environ["ALLOW_ACTIVE_COMPAT_MIGRATION"] = "1"
+        try:
+            _load_model_state_dict_compat(dst, src_active.state_dict())
+        finally:
+            del os.environ["ALLOW_ACTIVE_COMPAT_MIGRATION"]
+
+    def test_load_model_state_dict_compat_behavioral_equivalence_check(self) -> None:
+        import os
+        from rl.custom_ppo.inference import _load_model_state_dict_compat
+        
+        # 1. Source model and target model have mismatching z_embed_scale
+        src = _latent_model(episode_value=False)
+        dst = SharedActorCentralizedCritic(
+            _obs_space(), _action_space(), latent_k=4, z_embed_dim=16,
+            strategy_hidden_dim=64, critic_hidden_dim=64,
+            use_episode_strategy_value_head=False,
+            latent_actor_z_embed_scale=9.9 # mismatch!
+        )
+        
+        checkpoint_cfg = {
+            "use_latent_strategy": True,
+            "latent_k": 4,
+            "latent_z_embed_dim": 16,
+            "latent_strategy_hidden": 64,
+            "latent_vf_hidden": 64,
+            "latent_episode_strategy_ppo": False,
+        }
+        
+        # Without override, passing spaces should trigger behavioral check and fail
+        with self.assertRaises(RuntimeError) as ctx:
+            _load_model_state_dict_compat(
+                dst, src.state_dict(),
+                allow_active_actor_migration=False,
+                checkpoint_cfg=checkpoint_cfg,
+                target_cfg={"latent_k": 4},
+                observation_space=_obs_space(),
+                action_space=_action_space()
+            )
+        self.assertIn("Behavioral equivalence check failed", str(ctx.exception))
+        
+        # 2. With override, passing spaces should PASS
+        _load_model_state_dict_compat(
+            dst, src.state_dict(),
+            allow_active_actor_migration=True,
+            checkpoint_cfg=checkpoint_cfg,
+            target_cfg={"latent_k": 4},
+            observation_space=_obs_space(),
+            action_space=_action_space()
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

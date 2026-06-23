@@ -13,6 +13,10 @@ from rl.latent_losses import (
 )
 from rl.custom_ppo.update.loss_result import LossComponent
 from rl.custom_ppo.update.separation_objectives import extract_rollout_resample_subset
+from rl.custom_ppo.latent.router_mask import (
+    apply_router_allowed_latent_mask,
+    router_effective_latent_k,
+)
 from rl.ppo_core import TensorDictRolloutBuffer
 
 
@@ -103,12 +107,16 @@ class EntropyObjective:
             )
         else:
             logits = self.model.strategy_logits(prep.resample_states)
+        logits = apply_router_allowed_latent_mask(
+            logits, cfg=self.cfg, latent_k=int(self.hparams.latent_k)
+        )
+        effective_k = router_effective_latent_k(self.cfg, int(self.hparams.latent_k))
         objective = "maximize" if float(v6i1_usage_coef) > 0.0 else prep.h_goal
         loss, stats = rollout_marginal_entropy_loss(
             logits,
             objective=objective,
             lam_h=float(prep.rollout_marginal_coef),
-            latent_k=int(self.hparams.latent_k),
+            latent_k=int(effective_k),
             device=self.device,
         )
         state.loss_for_epoch = loss
@@ -116,6 +124,7 @@ class EntropyObjective:
         state.soft_diag = rollout_router_soft_diagnostics(
             logits.detach(), latent_k=int(self.hparams.latent_k)
         )
+        state.soft_diag["router_allowed_latent_count"] = float(effective_k)
         return state
 
     def conditional_component(

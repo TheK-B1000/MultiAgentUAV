@@ -50,6 +50,7 @@ class PPOConfig:
 
     checkpoint_dir: str = "checkpoints"
     load_path: Optional[str] = None
+    allow_active_actor_module_migration: bool = False
     run_tag: str = "ppo_latent_2v2"
     enable_metrics_csv: bool = True
     metrics_csv_path: Optional[str] = None
@@ -98,6 +99,9 @@ class PPOConfig:
     router_persistence_mode: str = ""
     router_marginal_entropy_coefficient: float = 0.0
     router_conditional_entropy_coefficient: float = 0.0
+    router_allowed_latents: tuple[int, ...] = field(default_factory=tuple)
+    router_freeze_actor: bool = False
+    router_reinitialize_on_load: bool = False
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True

@@ -12,6 +12,7 @@ from rl.custom_ppo.trainer_optimizers import (
     collect_actor_optimizer_parameters,
     collect_actor_parameters,
 )
+from rl.custom_ppo.latent.router_mask import apply_router_allowed_latent_mask
 from rl.custom_ppo.update.entropy_objectives import EntropyObjective, RolloutEntropyState, RolloutMarginalPrep
 from rl.custom_ppo.update.helpers import tensor_stat
 from rl.custom_ppo.update.loss_result import LossComponent, MinibatchUpdateResult
@@ -172,6 +173,16 @@ class MinibatchUpdater:
             message_symbols=message_symbols,
             message_boundary_mask=message_boundary_mask,
         )
+        if hparams.use_latent_strategy and "strategy_logits" in aux:
+            masked_strategy_logits = apply_router_allowed_latent_mask(
+                aux["strategy_logits"],
+                cfg=cfg,
+                latent_k=int(hparams.latent_k),
+            )
+            strategy_dist = torch.distributions.Categorical(logits=masked_strategy_logits)
+            aux["strategy_logits"] = masked_strategy_logits
+            aux["strategy_log_prob"] = strategy_dist.log_prob(batch["z"].long())
+            aux["strategy_entropy"] = strategy_dist.entropy()
         message_log_prob = aux.get("message_log_probs")
         message_entropy = aux.get("message_entropy")
         advantages = batch["advantages"]

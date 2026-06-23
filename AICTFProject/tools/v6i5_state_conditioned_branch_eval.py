@@ -120,6 +120,8 @@ TARGET_BUCKETS: tuple[tuple[str, str], ...] = (
     ("OP5", "neutral_opening"),
     ("OP5", "enemy_carrying_team_flag"),
     ("OP7", "enemy_carrying_team_flag"),
+    ("OP4", "team_carrying_enemy_flag"),
+    ("OP4", "enemy_carrying_team_flag"),
 )
 
 TERMINAL_BRANCH_FIELDS: tuple[str, ...] = (

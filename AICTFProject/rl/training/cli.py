@@ -71,6 +71,11 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="Rotate aside existing metrics/episode/E3 CSVs for this run_tag so telemetry is not appended.",
     )
     parser.add_argument("--load", type=str, default=None)
+    parser.add_argument(
+        "--allow-active-actor-module-migration",
+        action="store_true",
+        help="Allow active actor-affecting modules (e.g. z_adapter, actor_z_film) to be discarded during compatibility load.",
+    )
     parser.add_argument("--learning-rate", type=float, default=None, help="PPO learning rate.")
     parser.add_argument(
         "--lr-floor-frac",
@@ -826,6 +831,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.total_timesteps = int(args.total_steps)
     if args.load is not None:
         cfg.load_path = args.load
+    if getattr(args, "allow_active_actor_module_migration", False):
+        cfg.allow_active_actor_module_migration = True
     if args.learning_rate is not None:
         cfg.learning_rate = max(0.0, float(args.learning_rate))
     if args.lr_floor_frac is not None:

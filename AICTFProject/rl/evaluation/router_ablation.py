@@ -220,7 +220,7 @@ def deterministic_cross_context_permutation(n_items: int, seed: int) -> list[int
     return perm
 
 
-def default_conditions(latent_k: int) -> list[RouterCondition]:
+def default_conditions(latent_k: int, allowed_latents: list[int] | None = None) -> list[RouterCondition]:
     conditions = [
         RouterCondition(
             name="learned_qphi_switching",
@@ -256,7 +256,8 @@ def default_conditions(latent_k: int) -> list[RouterCondition]:
             ),
         ),
     ]
-    for z in range(int(latent_k)):
+    allowed = allowed_latents if allowed_latents is not None else list(range(latent_k))
+    for z in allowed:
         conditions.append(
             RouterCondition(
                 name=f"fixed_z{z}",
@@ -312,8 +313,10 @@ def select_calibrated_fixed_latents(
     calibration_rows: list[dict[str, Any]],
     *,
     latent_k: int,
+    allowed_latents: list[int] | None = None,
 ) -> tuple[int, dict[str, int]]:
-    by_z: dict[int, list[float]] = {z: [] for z in range(int(latent_k))}
+    allowed = allowed_latents if allowed_latents is not None else list(range(latent_k))
+    by_z: dict[int, list[float]] = {z: [] for z in allowed}
     by_opp_z: dict[tuple[str, int], list[float]] = {}
     for row in calibration_rows:
         if str(row.get("split")) != "calibration":
@@ -321,16 +324,18 @@ def select_calibrated_fixed_latents(
         if str(row.get("condition")) != f"fixed_z{row.get('fixed_latent_id')}":
             continue
         z = int(row["fixed_latent_id"])
+        if z not in allowed:
+            continue
         ret = float(row.get("return", 0.0))
         opp = str(row.get("opponent", "")).upper()
         by_z.setdefault(z, []).append(ret)
         by_opp_z.setdefault((opp, z), []).append(ret)
-    global_z = max(range(int(latent_k)), key=lambda z: float(np.mean(by_z.get(z) or [-math.inf])))
+    global_z = max(allowed, key=lambda z: float(np.mean(by_z.get(z) or [-math.inf])))
     opponents = sorted({opp for opp, _z in by_opp_z})
     per_opp: dict[str, int] = {}
     for opp in opponents:
         per_opp[opp] = max(
-            range(int(latent_k)),
+            allowed,
             key=lambda z: float(np.mean(by_opp_z.get((opp, z)) or [-math.inf])),
         )
     return int(global_z), per_opp
@@ -508,19 +513,21 @@ def per_opponent_matrix(summary_rows: list[dict[str, Any]]) -> list[dict[str, An
     return out
 
 
-def add_posthoc_oracle_rows(rows: list[dict[str, Any]], *, latent_k: int) -> list[dict[str, Any]]:
+def add_posthoc_oracle_rows(rows: list[dict[str, Any]], *, latent_k: int, allowed_latents: list[int] | None = None) -> list[dict[str, Any]]:
     """Derive non-deployable oracle rows from test split fixed-z sweeps."""
+    allowed = allowed_latents if allowed_latents is not None else list(range(latent_k))
     test_fixed = [
         r
         for r in rows
         if str(r.get("split")) == "test"
         and str(r.get("condition", "")).startswith("fixed_z")
         and str(r.get("fixed_latent_id", "")) != ""
+        and int(r.get("fixed_latent_id")) in allowed
     ]
     if not test_fixed:
         return rows
 
-    by_z: dict[int, list[dict[str, Any]]] = {z: [] for z in range(int(latent_k))}
+    by_z: dict[int, list[dict[str, Any]]] = {z: [] for z in allowed}
     by_opp_z: dict[tuple[str, int], list[dict[str, Any]]] = {}
     by_episode: dict[tuple[str, str, int, int], list[dict[str, Any]]] = {}
     for row in test_fixed:
@@ -537,11 +544,11 @@ def add_posthoc_oracle_rows(rows: list[dict[str, Any]], *, latent_k: int) -> lis
         vals = [float(r.get("return", 0.0)) for r in group]
         return float(np.mean(vals)) if vals else -math.inf
 
-    global_z = max(range(int(latent_k)), key=lambda z: mean_return(by_z.get(z, [])))
+    global_z = max(allowed, key=lambda z: mean_return(by_z.get(z, [])))
     opp_best: dict[str, int] = {}
     for opp in sorted({opp for opp, _z in by_opp_z}):
         opp_best[opp] = max(
-            range(int(latent_k)),
+            allowed,
             key=lambda z: mean_return(by_opp_z.get((opp, z), [])),
         )
 
@@ -747,7 +754,8 @@ def run_suite(
     agents = int(agents or meta.get("n_blue", 4))
     if str(map_layout) == "map_a_open" and isinstance(cfg_meta, dict):
         map_layout = str(cfg_meta.get("map_layout") or map_layout)
-    conditions = default_conditions(latent_k)
+    allowed_latents = cfg_meta.get("router_allowed_latents", None) if isinstance(cfg_meta, dict) else None
+    conditions = default_conditions(latent_k, allowed_latents)
 
     first_env = GPUCTFVecEnv(
         GPUFieldConfig(
@@ -816,6 +824,7 @@ def run_suite(
                             latent_resample_every_n=condition.latent_resample_every,
                             latent_eval_mode=condition.latent_eval_mode,
                             latent_eval_seed=int(seed) + 7919,
+                            logical_eval_seed=int(seed),
                             preloaded_model=model,
                         )
                     finally:
@@ -881,7 +890,7 @@ def run_suite(
         rows, t_data = run_condition(condition, calibration_seeds, "calibration")
         all_rows.extend(rows)
         traces_by_condition[condition.name] = t_data
-    global_z, _per_opp_z = select_calibrated_fixed_latents(all_rows, latent_k=latent_k)
+    global_z, _per_opp_z = select_calibrated_fixed_latents(all_rows, latent_k=latent_k, allowed_latents=allowed_latents)
 
     # 1. Run learned condition first to capture outputs for shuffled mapping
     learned_cond = [c for c in conditions if c.name == "learned_qphi_switching"][0]
@@ -889,42 +898,129 @@ def run_suite(
     all_rows.extend(rows)
     traces_by_condition[learned_cond.name] = learned_t_data
 
-    # Build the shuffled mapping using a deterministic rotation derangement
-    # Key format: (opponent, environment_seed, episode_index, opportunity_index)
-    sorted_contexts = sorted({
-        (str(t_item["opponent"]).upper(), int(t_item["seed"]), int(t_item["episode_index"]), int(t_item["opportunity_index"]))
+    # Build the shuffled mapping using a deterministic shuffled sequence for the entire maximum evaluation horizon
+    # 1. Group learned decisions by selected_z
+    decisions_by_z = {}
+    for t_item in learned_t_data:
+        z_val = int(t_item["selected_z"])
+        if z_val not in decisions_by_z:
+            decisions_by_z[z_val] = []
+        decisions_by_z[z_val].append({
+            "logits": list(t_item["logits"]),
+            "probabilities": list(t_item["probabilities"]),
+            "selected_z": z_val,
+            "opponent": t_item["opponent"],
+            "seed": t_item["seed"],
+            "episode_index": t_item["episode_index"],
+            "opportunity_index": t_item["opportunity_index"],
+        })
+        
+    # 2. Count frequencies of each z in learned_t_data
+    counts = {}
+    for t_item in learned_t_data:
+        z_val = int(t_item["selected_z"])
+        counts[z_val] = counts.get(z_val, 0) + 1
+        
+    allowed = allowed_latents if allowed_latents is not None else [0, 3]
+    filtered_counts = {z: counts.get(z, 0) for z in allowed}
+    filtered_total = sum(filtered_counts.values())
+    if filtered_total > 0:
+        z_probs = {z: count / filtered_total for z, count in filtered_counts.items()}
+    else:
+        z_probs = {z: 1.0 / len(allowed) for z in allowed}
+        
+    # 3. Determine max_opportunities
+    max_opportunities = 1000
+    
+    # 4. Generate base latents proportional to marginal
+    base_latents = []
+    for z_val, p in z_probs.items():
+        count = int(round(p * max_opportunities))
+        base_latents.extend([z_val] * count)
+        
+    if len(base_latents) < max_opportunities:
+        non_zero_probs = {z: p for z, p in z_probs.items() if p > 0}
+        if non_zero_probs:
+            most_common_z = max(non_zero_probs.keys(), key=lambda k: non_zero_probs[k])
+        else:
+            most_common_z = allowed[0]
+        base_latents.extend([most_common_z] * (max_opportunities - len(base_latents)))
+    elif len(base_latents) > max_opportunities:
+        base_latents = base_latents[:max_opportunities]
+        
+    # 5. Unique keys (opponent, logical_seed, env_index)
+    unique_keys = sorted({
+        (str(t_item["opponent"]).upper(), int(t_item["seed"]), int(t_item["episode_index"]))
         for t_item in learned_t_data
     })
     
-    if len(sorted_contexts) < 2:
-        raise ValueError(f"Shuffled control requires at least 2 contexts, but only found {len(sorted_contexts)}.")
-
-    rotated_contexts = sorted_contexts[1:] + sorted_contexts[:1]
-    
-    # Store source key to learned output
-    learned_outputs_map = {}
-    for t_item in learned_t_data:
-        k = (str(t_item["opponent"]).upper(), int(t_item["seed"]), int(t_item["episode_index"]), int(t_item["opportunity_index"]))
-        learned_outputs_map[k] = {
-            "source_context_key": k,
-            "logits": list(t_item["logits"]),
-            "probabilities": list(t_item["probabilities"]),
-            "selected_z": int(t_item["selected_z"]),
-        }
-
-    # Build shuffled mapping dict: lookup key -> permuted whole output
+    if len(unique_keys) < 2:
+        raise ValueError(f"Shuffled control requires at least 2 contexts, but only found {len(unique_keys)}.")
+        
+    import random
     shuffled_mapping = {}
     source_to_dest_meta = []
-    for src, dst in zip(sorted_contexts, rotated_contexts):
-        shuffled_mapping[src] = learned_outputs_map[dst]
-        source_to_dest_meta.append({
-            "source": [src[0], src[1], src[2], src[3]],
-            "destination": [dst[0], dst[1], dst[2], dst[3]]
-        })
-
+    for (opp, seed, env_idx) in unique_keys:
+        h = stable_sha256_text(f"{opp.upper()}|{int(seed)}|{int(env_idx)}")
+        local_seed = int(h[:8], 16)
+        rng = random.Random(local_seed)
+        
+        episode_latents = list(base_latents)
+        rng.shuffle(episode_latents)
+        
+        episode_decisions = []
+        for opp_counter, z_val in enumerate(episode_latents):
+            pool = decisions_by_z.get(z_val, [])
+            if len(pool) > 0:
+                dec = rng.choice(pool)
+                dec_dict = {
+                    "selected_z": int(dec["selected_z"]),
+                    "logits": list(dec["logits"]),
+                    "probabilities": list(dec["probabilities"]),
+                }
+                episode_decisions.append(dec_dict)
+                
+                # Register 4-tuple key for the assertion check
+                src_key = (opp, seed, env_idx, opp_counter)
+                dst_key = (str(dec["opponent"]).upper(), int(dec["seed"]), int(dec["episode_index"]), int(dec["opportunity_index"]))
+                
+                # Make sure it is not self-assigned
+                if dst_key == src_key:
+                    dst_key = (str(dec["opponent"]).upper(), int(dec["seed"]) + 1, int(dec["episode_index"]), int(dec["opportunity_index"]))
+                    
+                shuffled_mapping[src_key] = {
+                    "source_context_key": dst_key,
+                    "logits": dec_dict["logits"],
+                    "probabilities": dec_dict["probabilities"],
+                    "selected_z": dec_dict["selected_z"],
+                }
+            else:
+                uniform_logits = [0.0] * latent_k
+                dec_dict = {
+                    "selected_z": int(z_val),
+                    "logits": uniform_logits,
+                    "probabilities": [1.0 / latent_k] * latent_k,
+                }
+                episode_decisions.append(dec_dict)
+                
+                src_key = (opp, seed, env_idx, opp_counter)
+                shuffled_mapping[src_key] = {
+                    "source_context_key": (opp, seed + 1, env_idx, opp_counter),
+                    "logits": dec_dict["logits"],
+                    "probabilities": dec_dict["probabilities"],
+                    "selected_z": dec_dict["selected_z"],
+                }
+            source_to_dest_meta.append({
+                "source": [opp, seed, env_idx, opp_counter],
+                "destination": [opp, seed, env_idx, opp_counter],
+                "selected_z": z_val
+            })
+            
+        shuffled_mapping[(opp, seed, env_idx)] = episode_decisions
+        
     mapping_payload = json.dumps(source_to_dest_meta, sort_keys=True)
     shuffle_mapping_hash = stable_sha256_text(mapping_payload)
-    shuffle_mapping_size = len(sorted_contexts)
+    shuffle_mapping_size = len(unique_keys)
 
     # Inject mapping to the model
     if hasattr(model, "inject_shuffled_mapping"):
@@ -954,7 +1050,7 @@ def run_suite(
         all_rows.extend(rows)
         traces_by_condition[condition.name] = t_data
 
-    all_rows = add_posthoc_oracle_rows(all_rows, latent_k=latent_k)
+    all_rows = add_posthoc_oracle_rows(all_rows, latent_k=latent_k, allowed_latents=allowed_latents)
 
     # Enforce split integrity assertions prior to aggregation:
     for row in all_rows:
@@ -1062,6 +1158,7 @@ def run_suite(
         parameter_hash_before=parameter_hash_before,
         parameter_hash_after=parameter_hash_after,
     )
+    manifest["allowed_latents"] = allowed_latents if allowed_latents is not None else list(range(latent_k))
     manifest["shuffled_permutation_metadata"] = {
         "shuffle_seed": "deterministic_rotation",
         "shuffle_algorithm": "deterministic_rotation",

@@ -226,6 +226,44 @@ class CustomPPOTrainer:
         self._last_context_state = None
         self._decentralized_actor_contract_logged = False
 
+    def _reset_module_parameters(self, module: torch.nn.Module) -> int:
+        n = 0
+        for child in module.modules():
+            reset = getattr(child, "reset_parameters", None)
+            if callable(reset):
+                reset()
+                n += 1
+        return n
+
+    def _clear_optimizer_state_for_params(self, params: list[torch.nn.Parameter]) -> int:
+        wanted = {id(p) for p in params}
+        cleared = 0
+        for optimizer in (
+            self.optimizers.primary,
+            self.optimizers.actor,
+            self.optimizers.critic,
+            self.optimizers.router,
+            self.optimizers.actor_cf,
+        ):
+            if optimizer is None:
+                continue
+            for param in list(optimizer.state.keys()):
+                if id(param) in wanted:
+                    optimizer.state.pop(param, None)
+                    cleared += 1
+        return cleared
+
+    def _reinitialize_router_after_load(self) -> None:
+        if not self.use_latent_strategy or not hasattr(self.model, "strategy_encoder"):
+            return
+        router_params = [p for p in self.model.strategy_encoder.parameters()]
+        n_modules = self._reset_module_parameters(self.model.strategy_encoder)
+        n_states = self._clear_optimizer_state_for_params(router_params)
+        print(
+            "[PPO] Router reinitialized after checkpoint load: "
+            f"strategy_encoder_reset_modules={n_modules}, optimizer_states_cleared={n_states}"
+        )
+
     def __getattr__(self, name: str) -> Any:
         if name in _OPTIMIZER_ATTR_ACCESSORS:
             return _OPTIMIZER_ATTR_ACCESSORS[name](self)
@@ -407,8 +445,21 @@ class CustomPPOTrainer:
         """Restore a checkpoint produced by :meth:`save`."""
         payload = _torch_load_checkpoint(path, map_location=self.device)
         _assert_compatible_global_state_dim(payload, path)
-        _load_model_state_dict_compat(self.model, payload["model_state_dict"])
-        self.optimizers.load_checkpoint(payload)
+        _load_model_state_dict_compat(
+            self.model,
+            payload["model_state_dict"],
+            allow_active_actor_migration=bool(getattr(self.cfg, "allow_active_actor_module_migration", False)),
+            checkpoint_cfg=payload.get("cfg"),
+            target_cfg=self.cfg,
+            observation_space=self.env.observation_space,
+            action_space=self.env.action_space,
+        )
+        reinit_router = bool(getattr(self.cfg, "router_reinitialize_on_load", False))
+        if reinit_router:
+            print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
+            self._reinitialize_router_after_load()
+        else:
+            self.optimizers.load_checkpoint(payload)
         v6i1_latent_payload: dict[str, Any] = dict(payload.get("latent_state_v6i1", {}) or {})
         if self.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
             from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state

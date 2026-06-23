@@ -149,7 +149,181 @@ def _remap_legacy_strategy_aux_head_state_dict(sd: Mapping[str, Any]) -> dict[st
     return out
 
 
-def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> None:
+def _get_config_value(cfg: Any, key: str, default: Any = None) -> Any:
+    if cfg is None:
+        return default
+    if isinstance(cfg, dict) or hasattr(cfg, "get"):
+        return cfg.get(key, default)
+    return getattr(cfg, key, default)
+
+
+def _is_z_adapter_active(sd: Mapping[str, Any], checkpoint_cfg: Optional[Mapping[str, Any]], target_cfg: Optional[Any]) -> bool:
+    """Check if the z_adapter module in the checkpoint is effectively active."""
+    # If not enabled in source run, it is a no-op
+    if checkpoint_cfg is not None:
+        ckpt_enabled = bool(_get_config_value(checkpoint_cfg, "latent_actor_z_adapter_enabled", False))
+        ckpt_scale = float(_get_config_value(checkpoint_cfg, "latent_actor_z_adapter_scale", 0.0))
+        if not ckpt_enabled or ckpt_scale <= 0.0:
+            return False
+
+    weight = sd.get("latent_actor.z_adapter.weight")
+    if weight is None:
+        return False
+
+    # Get allowed latents for target router/run
+    latent_k = _get_config_value(checkpoint_cfg, "latent_k")
+    if latent_k is None:
+        latent_k = _get_config_value(target_cfg, "latent_k", 4)
+
+    allowed_latents = _get_config_value(target_cfg, "router_allowed_latents")
+    if allowed_latents is None:
+        allowed_latents = list(range(latent_k))
+
+    # check if weight[z] is non-zero for any allowed latent
+    for z in allowed_latents:
+        if z < weight.shape[0]:
+            if torch.max(torch.abs(weight[z])).item() > 1e-4:
+                return True
+    return False
+
+
+def _is_actor_z_film_active(sd: Mapping[str, Any], checkpoint_cfg: Optional[Mapping[str, Any]], target_cfg: Optional[Any]) -> bool:
+    """Check if the actor_z_film module in the checkpoint is effectively active."""
+    # If not enabled in source run, it is a no-op
+    if checkpoint_cfg is not None:
+        ckpt_enabled = bool(_get_config_value(checkpoint_cfg, "enable_actor_z_film", False))
+        if not ckpt_enabled:
+            return False
+
+    film_weight = sd.get("latent_actor.actor_z_film.weight")
+    film_bias = sd.get("latent_actor.actor_z_film.bias")
+    embed_weight = sd.get("latent_actor.strategy_embedding.weight")
+
+    if film_weight is None:
+        return False
+
+    # Get allowed latents
+    latent_k = _get_config_value(checkpoint_cfg, "latent_k")
+    if latent_k is None:
+        latent_k = _get_config_value(target_cfg, "latent_k", 4)
+
+    allowed_latents = _get_config_value(target_cfg, "router_allowed_latents")
+    if allowed_latents is None:
+        if embed_weight is not None:
+            allowed_latents = list(range(embed_weight.shape[0]))
+        else:
+            allowed_latents = list(range(latent_k))
+
+    if embed_weight is not None and film_bias is not None:
+        z_embed_scale = float(_get_config_value(checkpoint_cfg, "latent_actor_z_embed_scale", 1.0))
+        for z in allowed_latents:
+            if z < embed_weight.shape[0]:
+                z_emb = embed_weight[z] * z_embed_scale
+                # Compute effective output of linear layer
+                out = torch.matmul(film_weight, z_emb) + film_bias
+                half = out.shape[0] // 2
+                gamma = out[:half]
+                beta = out[half:]
+
+                # Identity condition is gamma = 1.0 and beta = 0.0
+                if torch.max(torch.abs(gamma - 1.0)).item() > 1e-4 or torch.max(torch.abs(beta)).item() > 1e-4:
+                    return True
+    else:
+        # Fallback to simple weight check if embed weight is missing
+        if torch.max(torch.abs(film_weight)).item() > 1e-4:
+            return True
+        if film_bias is not None:
+            half = film_bias.shape[0] // 2
+            gamma_bias = film_bias[:half]
+            beta_bias = film_bias[half:]
+            if torch.max(torch.abs(gamma_bias - 1.0)).item() > 1e-4 or torch.max(torch.abs(beta_bias)).item() > 1e-4:
+                return True
+
+    return False
+
+
+def run_behavioral_equivalence_probe(
+    source_model: nn.Module,
+    target_model: nn.Module,
+    observation_space: Any,
+    allowed_latents: list[int],
+    device: torch.device
+) -> tuple[float, float, float, int]:
+    """Run a behavioral probe check on a fixed probe bank for the specified allowed latents.
+    
+    Returns: (mean_kl, max_kl, max_logit_diff, argmax_disagreement)
+    """
+    source_model.eval()
+    target_model.eval()
+    
+    batch_size = 5
+    n_agents = getattr(source_model, "n_agents", 4)
+    
+    grid_shape = observation_space.spaces["grid"].shape
+    vec_shape = observation_space.spaces["vec"].shape
+    mask_shape = observation_space.spaces["mask"].shape
+    
+    grid = torch.linspace(0.0, 1.0, steps=batch_size * n_agents * grid_shape[1] * grid_shape[2] * grid_shape[3], device=device).reshape(batch_size, n_agents, *grid_shape[1:])
+    vec = torch.linspace(-0.5, 0.5, steps=batch_size * n_agents * vec_shape[1], device=device).reshape(batch_size, n_agents, vec_shape[1])
+    agent_mask = torch.ones((batch_size, n_agents), device=device)
+    mask = torch.ones((batch_size, mask_shape[0]), device=device)
+    
+    obs = {
+        "grid": grid,
+        "vec": vec,
+        "agent_mask": agent_mask,
+        "mask": mask
+    }
+    
+    all_kls = []
+    all_max_logit_diffs = []
+    total_argmax_disagreements = 0
+    
+    with torch.no_grad():
+        for z in allowed_latents:
+            z_idx = torch.full((batch_size,), z, dtype=torch.long, device=device)
+            
+            src_logits = source_model.policy_logits(obs, z_idx=z_idx)
+            tgt_logits = target_model.policy_logits(obs, z_idx=z_idx)
+            
+            src_flat = src_logits.reshape(batch_size * n_agents, -1)
+            tgt_flat = tgt_logits.reshape(batch_size * n_agents, -1)
+            
+            offset = 0
+            for dim in source_model.per_agent_action_dims:
+                src_chunk = src_flat[:, offset : offset + dim]
+                tgt_chunk = tgt_flat[:, offset : offset + dim]
+                
+                src_dist = Categorical(logits=src_chunk)
+                tgt_dist = Categorical(logits=tgt_chunk)
+                
+                kl = torch.distributions.kl.kl_divergence(src_dist, tgt_dist)
+                all_kls.extend(kl.cpu().tolist())
+                
+                all_max_logit_diffs.append(torch.max(torch.abs(src_chunk - tgt_chunk)).item())
+                
+                src_argmax = torch.argmax(src_chunk, dim=-1)
+                tgt_argmax = torch.argmax(tgt_chunk, dim=-1)
+                total_argmax_disagreements += torch.sum(src_argmax != tgt_argmax).item()
+                
+                offset += dim
+                
+    mean_kl = float(np.mean(all_kls)) if all_kls else 0.0
+    max_kl = float(np.max(all_kls)) if all_kls else 0.0
+    max_logit_diff = float(np.max(all_max_logit_diffs)) if all_max_logit_diffs else 0.0
+    
+    return mean_kl, max_kl, max_logit_diff, total_argmax_disagreements
+
+
+def _load_model_state_dict_compat(
+    model: nn.Module,
+    sd: Mapping[str, Any],
+    allow_active_actor_migration: bool = False,
+    checkpoint_cfg: Optional[Mapping[str, Any]] = None,
+    target_cfg: Optional[Any] = None,
+    observation_space: Optional[Any] = None,
+    action_space: Optional[Any] = None,
+) -> None:
     """Load checkpoints while allowing the new opt-in episode baseline head to be absent in older files.
 
     Two layers of legacy compat run before ``load_state_dict``:
@@ -171,11 +345,107 @@ def _load_model_state_dict_compat(model: nn.Module, sd: Mapping[str, Any]) -> No
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.actor_z_film."))
     disallowed_missing = [k for k in missing if k not in allowed_missing]
-    if disallowed_missing or unexpected:
+
+    allowed_unexpected = [k for k in unexpected if k.startswith("episode_strategy_value_head.")]
+    allowed_unexpected.extend(k for k in unexpected if k.startswith("latent_actor.z_adapter."))
+    allowed_unexpected.extend(k for k in unexpected if k.startswith("latent_actor.actor_z_film."))
+    disallowed_unexpected = [k for k in unexpected if k not in allowed_unexpected]
+
+    if disallowed_missing or disallowed_unexpected:
         raise RuntimeError(
             "Incompatible model state_dict: "
-            f"missing={disallowed_missing!r}, unexpected={unexpected!r}"
+            f"missing={disallowed_missing!r}, unexpected={disallowed_unexpected!r}"
         )
+
+    # Categorize the ignored keys for logging
+    ignored_aux = [k for k in unexpected if k.startswith("episode_strategy_value_head.")]
+    ignored_actor_keys = [k for k in unexpected if k.startswith("latent_actor.z_adapter.") or k.startswith("latent_actor.actor_z_film.")]
+
+    # Check if any ignored actor modules were active in the checkpoint
+    active_prefixes = []
+    if any(k.startswith("latent_actor.z_adapter.") for k in ignored_actor_keys):
+        if _is_z_adapter_active(actor_remapped, checkpoint_cfg, target_cfg):
+            active_prefixes.append("latent_actor.z_adapter.")
+    if any(k.startswith("latent_actor.actor_z_film.") for k in ignored_actor_keys):
+        if _is_actor_z_film_active(actor_remapped, checkpoint_cfg, target_cfg):
+            active_prefixes.append("latent_actor.actor_z_film.")
+
+    # Classify the loader outcome
+    if not ignored_actor_keys:
+        outcome = "EXACT"
+    elif not active_prefixes:
+        outcome = "NOOP_MODULE_ELISION"
+    else:
+        outcome = "ACTIVE_MIGRATION"
+
+    migration_override_allowed = allow_active_actor_migration or os.environ.get("ALLOW_ACTIVE_COMPAT_MIGRATION") == "1"
+
+    if ignored_aux or ignored_actor_keys:
+        print(f"[checkpoint compat] Ignored auxiliary extras: {ignored_aux}")
+        print(f"[checkpoint compat] Ignored actor-affecting extras: {ignored_actor_keys}")
+        print(f"[checkpoint compat] Loader outcome: {outcome}")
+
+        if outcome == "ACTIVE_MIGRATION":
+            print("[checkpoint compat] WARNING: ACTIVE ACTOR MODULE MIGRATION ENABLED")
+            print("[checkpoint compat] Resulting policy is not behaviorally equivalent to source checkpoint.")
+            
+            if not migration_override_allowed:
+                raise RuntimeError(
+                    f"Incompatible active actor-affecting parameters: {active_prefixes}. "
+                    "These modules were active/nonzero in the checkpoint but are disabled in the target preset. "
+                    "Omitting them changes the policy behavior. "
+                    "To override this and proceed anyway, use --allow-active-actor-module-migration or set ALLOW_ACTIVE_COMPAT_MIGRATION=1."
+                )
+
+    # Perform behavioral-equivalence check on a fixed probe bank if observation/action spaces are available
+    if observation_space is not None and action_space is not None:
+        device = next(model.parameters()).device
+        latent_k = _get_config_value(checkpoint_cfg, "latent_k")
+        if latent_k is None:
+            latent_k = _get_config_value(target_cfg, "latent_k", 4)
+            
+        allowed_latents = _get_config_value(target_cfg, "router_allowed_latents")
+        if allowed_latents is None:
+            allowed_latents = list(range(latent_k))
+            
+        try:
+            # Reconstruct the source-compatible model strictly
+            source_model = SharedActorCentralizedCritic(
+                observation_space,
+                action_space,
+                **_model_kwargs_from_cfg(checkpoint_cfg),
+            ).to(device)
+            source_model.load_state_dict(actor_remapped, strict=True)
+            
+            # Compare target model vs source-compatible model
+            mean_kl, max_kl, max_logit_diff, argmax_diff = run_behavioral_equivalence_probe(
+                source_model,
+                model,
+                observation_space,
+                allowed_latents,
+                device
+            )
+            
+            # Require tight tolerance for non-override cases
+            if argmax_diff > 0 or max_kl >= 1e-6:
+                print(f"[checkpoint compat] Behavioral-equivalence check: FAIL (mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                if not migration_override_allowed:
+                    raise RuntimeError(
+                        f"Behavioral equivalence check failed: argmax_diff={argmax_diff}, max_kl={max_kl:.3e}. "
+                        "The policy logits differ from the source checkpoint. "
+                        "To override this and proceed anyway, use --allow-active-actor-module-migration or set ALLOW_ACTIVE_COMPAT_MIGRATION=1."
+                    )
+            else:
+                if outcome == "NOOP_MODULE_ELISION":
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (ignored actor extras were inactive/no-op; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                else:
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+        except Exception as exc:
+            if isinstance(exc, RuntimeError) and "Behavioral equivalence check failed" in str(exc):
+                raise
+            print(f"[checkpoint compat] Behavioral-equivalence check: NOT_RUN (could not reconstruct source model: {exc})")
+    else:
+        print("[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)")
 
 
 def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
@@ -303,7 +573,13 @@ def load_custom_ppo_policy(
         action_space,
         **_model_kwargs_from_cfg(payload.get("cfg") or {}),
     ).to(device_t)
-    _load_model_state_dict_compat(model, payload["model_state_dict"])
+    _load_model_state_dict_compat(
+        model,
+        payload["model_state_dict"],
+        checkpoint_cfg=payload.get("cfg"),
+        observation_space=observation_space,
+        action_space=action_space,
+    )
     raw_ckpt_cfg = payload.get("cfg") or {}
     # Single canonicalization at the boundary so the inference policy + any
     # ``cfg``-key consumers see only ``latent_strategy_aux_return_*`` names.
@@ -329,10 +605,16 @@ class CustomPPOInferencePolicy:
     ) -> None:
         self.model = model
         self.device = torch.device(device)
+        if self.device.type == "cuda" and self.device.index is None:
+            if torch.cuda.is_available():
+                self.device = torch.device(f"cuda:{torch.cuda.current_device()}")
         self.model.to(self.device)
         self.model.eval()
         self._prev_z = None
         cfg = cfg or {}
+        self.router_allowed_latents = cfg.get("router_allowed_latents", None)
+        self._previous_opportunity_features = None
+        self._opportunity_occurred = None
         self.strategy_interval = max(0, int(cfg.get("latent_resample_every_n", 0) or 0))
         self.fixed_latent_strategy = bool(cfg.get("fixed_latent_strategy", False))
         self.fixed_latent_strategy_id = max(0, int(cfg.get("fixed_latent_strategy_id", 0) or 0))
@@ -352,6 +634,9 @@ class CustomPPOInferencePolicy:
         self._current_opponent = None
         self._current_seed = None
         self._current_episode_index = None
+        self._current_eval_seed = None
+        self._current_environment_seed = None
+        self._current_env_index = None
         self._current_decision_step = 0
         self._opportunity_counter = 0
         self.opportunity_trace_log = []
@@ -365,7 +650,31 @@ class CustomPPOInferencePolicy:
         self._current_opponent = str(opponent).upper()
         self._current_seed = int(seed)
         self._current_episode_index = int(episode_index)
-        self._opportunity_counter = 0
+        self._current_eval_seed = int(seed)
+        self._current_environment_seed = int(seed)
+        self._current_env_index = int(episode_index)
+        if isinstance(self._opportunity_counter, np.ndarray):
+            self._opportunity_counter.fill(0)
+        else:
+            self._opportunity_counter = 0
+
+    def set_eval_episode_context(
+        self,
+        opponent: str,
+        eval_seed: int,
+        environment_seed: int,
+        env_index: int = 0,
+    ) -> None:
+        self._current_opponent = str(opponent).upper()
+        self._current_eval_seed = int(eval_seed)
+        self._current_environment_seed = int(environment_seed)
+        self._current_env_index = int(env_index)
+        self._current_seed = int(eval_seed)
+        self._current_episode_index = int(env_index)
+        if isinstance(self._opportunity_counter, np.ndarray):
+            self._opportunity_counter.fill(0)
+        else:
+            self._opportunity_counter = 0
 
     def set_current_decision_step(self, step: int) -> None:
         self._current_decision_step = int(step)
@@ -379,8 +688,15 @@ class CustomPPOInferencePolicy:
         self._current_opponent = None
         self._current_seed = None
         self._current_episode_index = None
+        self._current_eval_seed = None
+        self._current_environment_seed = None
+        self._current_env_index = None
         self._current_decision_step = 0
-        self._opportunity_counter = 0
+        if isinstance(self._opportunity_counter, np.ndarray):
+            self._opportunity_counter.fill(0)
+        else:
+            self._opportunity_counter = 0
+        self.reset_strategy()
 
     def _fixed_strategy_id(self) -> int:
         if not self.model.uses_latent_strategy:
@@ -419,13 +735,24 @@ class CustomPPOInferencePolicy:
                 raise ValueError("latent_eval_marginal must sum to > 0")
             self._latent_eval_marginal = marg / total
         elif m == "shuffled" and self._latent_eval_marginal is None:
-            print(
-                "[CustomPPOInferencePolicy] latent_eval_mode='shuffled' but no marginal provided; "
-                "falling back to uniform marginal."
-            )
-            self._latent_eval_marginal = torch.full(
-                (int(self.model.latent_k),), 1.0 / max(1, int(self.model.latent_k)), device=self.device
-            )
+            allowed = self.router_allowed_latents
+            if allowed is not None and len(allowed) > 0:
+                print(
+                    f"[CustomPPOInferencePolicy] latent_eval_mode='shuffled' fallback to uniform marginal over allowed {allowed}."
+                )
+                marginal = torch.zeros((int(self.model.latent_k),), device=self.device)
+                val = 1.0 / len(allowed)
+                for z in allowed:
+                    marginal[z] = val
+                self._latent_eval_marginal = marginal
+            else:
+                print(
+                    "[CustomPPOInferencePolicy] latent_eval_mode='shuffled' but no marginal provided; "
+                    "falling back to uniform marginal."
+                )
+                self._latent_eval_marginal = torch.full(
+                    (int(self.model.latent_k),), 1.0 / max(1, int(self.model.latent_k)), device=self.device
+                )
         if seed is None:
             seed = 0x5EE_D + (0 if m == "normal" else 1)
         self._latent_eval_rng = torch.Generator(device=self.device)
@@ -433,6 +760,18 @@ class CustomPPOInferencePolicy:
 
     def _destructive_latent_z(self, batch: int) -> torch.Tensor:
         K = max(1, int(self.model.latent_k))
+        allowed = self.router_allowed_latents
+        if allowed is not None and len(allowed) > 0:
+            allowed_t = torch.tensor(allowed, dtype=torch.long, device=self.device)
+            idx = torch.randint(
+                low=0,
+                high=len(allowed),
+                size=(int(batch),),
+                generator=self._latent_eval_rng,
+                device=self.device,
+                dtype=torch.long,
+            )
+            return allowed_t[idx]
         if self.latent_eval_mode == "uniform_random":
             return torch.randint(
                 low=0,
@@ -466,20 +805,39 @@ class CustomPPOInferencePolicy:
             )
         return self._temporal_tracker
 
-    def reset_strategy(self) -> None:
+    def reset_strategy(self, done_mask: Optional[np.ndarray | torch.Tensor] = None) -> None:
         """Forget the persisted inference strategy, typically at episode reset."""
-        self._prev_z = None
-        self._strategy_age = 0
-        self._last_strategy_z = None
-        self._last_strategy_probs = None
-        self._last_strategy_entropy = None
-        self._last_strategy_resampled = False
-        self._last_strategy_logits = None
-        self._last_context_gs = None
-        self._selector_hidden = None
-        self._opportunity_counter = 0
-        if self._temporal_tracker is not None:
-            self._temporal_tracker.reset()
+        if done_mask is None:
+            self._prev_z = None
+            self._strategy_age = 0
+            self._last_strategy_z = None
+            self._last_strategy_probs = None
+            self._last_strategy_entropy = None
+            self._last_strategy_resampled = False
+            self._last_strategy_logits = None
+            self._last_context_gs = None
+            self._selector_hidden = None
+            self._opportunity_counter = 0
+            self._opportunity_occurred = None
+            self._previous_opportunity_features = None
+            if self._temporal_tracker is not None:
+                self._temporal_tracker.reset()
+        else:
+            mask = torch.as_tensor(done_mask, device=self.device).bool()
+            batch = mask.shape[0]
+            if self._prev_z is not None and self._prev_z.numel() == batch:
+                if isinstance(self._strategy_age, torch.Tensor):
+                    self._strategy_age[mask] = 0
+                else:
+                    self._strategy_age = 0
+                if self._opportunity_occurred is not None:
+                    self._opportunity_occurred[mask] = False
+                if self._previous_opportunity_features is not None:
+                    self._previous_opportunity_features[mask] = 0.0
+                if self._temporal_tracker is not None:
+                    self._temporal_tracker.reset(env_indices=mask)
+                if isinstance(self._opportunity_counter, np.ndarray) and self._opportunity_counter.shape[0] == batch:
+                    self._opportunity_counter[mask.cpu().numpy()] = 0
 
     def _uses_recurrent_selector(self) -> bool:
         return bool(getattr(self.model, "use_recurrent_selector", False))
@@ -552,11 +910,38 @@ class CustomPPOInferencePolicy:
                 global_state = self._global_state_tensor(batched, batch)
                 tracker = self._get_temporal_tracker(batch)
                 context_gs = tracker.update(global_state)
-                needs_strategy = (
+                
+                # Check for batch-size or device change, and resize tracking
+                if (
                     self._prev_z is None
-                    or int(self._prev_z.numel()) != batch
-                    or (self.strategy_interval > 0 and self._strategy_age >= self.strategy_interval)
-                )
+                    or self._prev_z.numel() != batch
+                    or self._prev_z.device != self.device
+                ):
+                    self._prev_z = self._fixed_strategy_tensor(batch) if self.fixed_latent_strategy else torch.zeros((batch,), dtype=torch.long, device=self.device)
+                    self._strategy_age = torch.zeros((batch,), dtype=torch.long, device=self.device)
+                    self._opportunity_occurred = torch.zeros((batch,), dtype=torch.bool, device=self.device)
+                    self._previous_opportunity_features = torch.zeros((batch, GLOBAL_STATE_DIM), dtype=torch.float32, device=self.device)
+                    self._opportunity_counter = np.zeros((batch,), dtype=np.int64)
+                
+                # Build context for q_phi (the router)
+                if self.model.router_current_plus_delta_enabled:
+                    current = global_state[:, :GLOBAL_STATE_DIM].float()
+                    previous = torch.zeros_like(current)
+                    has_prev = self._opportunity_occurred
+                    if has_prev.any():
+                        previous[has_prev] = self._previous_opportunity_features[has_prev]
+                    from rl.custom_ppo.latent.router_sampling import build_current_plus_delta_router_context
+                    q_phi_context = build_current_plus_delta_router_context(global_state, previous)
+                else:
+                    q_phi_context = context_gs
+
+                if self.fixed_latent_strategy:
+                    needs_strategy = torch.zeros((batch,), dtype=torch.bool, device=self.device)
+                else:
+                    needs_strategy = torch.zeros((batch,), dtype=torch.bool, device=self.device)
+                    if self.strategy_interval > 0:
+                        needs_strategy = needs_strategy | (self._strategy_age >= self.strategy_interval)
+                    needs_strategy = needs_strategy | (~self._opportunity_occurred)
                 
                 # Retrieve z, logits, probabilities depending on modes.
                 if self.fixed_latent_strategy:
@@ -564,83 +949,102 @@ class CustomPPOInferencePolicy:
                     z_probs = self._fixed_strategy_probs(batch)
                     z_logits = torch.log(torch.clamp(z_probs, min=1e-8))
                     z_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
-                    # For fixed-z we set needs_strategy to False to match the existing behavior
-                    needs_strategy = False
                 elif self.latent_eval_mode == "shuffled":
                     # Shuffled mode: enforce strict lookup
                     if self._shuffled_mapping is None:
                         raise ValueError("shuffled_mapping is not injected but mode is shuffled")
-                    z_logits_full = self._strategy_logits_forward(context_gs)
-                    if needs_strategy:
-                        # Make lookup
-                        lookup_key = (
-                            self._current_opponent,
-                            self._current_seed,
-                            self._current_episode_index,
-                            self._opportunity_counter,
-                        )
-                        if lookup_key not in self._shuffled_mapping:
-                            raise ValueError(f"Shuffled mapping lookup failed for key: {lookup_key}")
-                        mapped_decision = self._shuffled_mapping[lookup_key]
-                        # Extract whole outputs
-                        z_val = int(mapped_decision["selected_z"])
-                        z_idx = torch.full((batch,), z_val, dtype=torch.long, device=self.device)
-                        z_logits = torch.as_tensor(mapped_decision["logits"], dtype=torch.float32, device=self.device).unsqueeze(0).expand(batch, -1)
-                        z_probs = torch.softmax(z_logits, dim=-1)
-                        z_ent = Categorical(logits=z_logits).entropy()
-                        self._prev_z = z_idx.detach()
-                        self._prev_logits = z_logits.detach()
-                        self._prev_probs = z_probs.detach()
-                        self._prev_ent = z_ent.detach()
-                        self._strategy_age = 0
+                    z_logits_full = self._strategy_logits_forward(q_phi_context)
+                    if getattr(self, "_prev_logits", None) is None or self._prev_logits.shape[0] != batch:
+                        self._prev_logits = torch.zeros((batch, self.model.latent_k), dtype=torch.float32, device=self.device)
+                        self._prev_probs = torch.zeros((batch, self.model.latent_k), dtype=torch.float32, device=self.device)
+                        self._prev_ent = torch.zeros((batch,), dtype=torch.float32, device=self.device)
+                    
+                    if needs_strategy.any():
+                        if not isinstance(self._opportunity_counter, np.ndarray) or self._opportunity_counter.shape[0] != batch:
+                            self._opportunity_counter = np.zeros((batch,), dtype=np.int64)
+                        for env_idx in range(batch):
+                            if needs_strategy[env_idx]:
+                                opponent = self._current_opponent
+                                eval_seed = getattr(self, "_current_eval_seed", None)
+                                if eval_seed is None:
+                                    eval_seed = self._current_seed
+                                env_index = getattr(self, "_current_env_index", None)
+                                if env_index is None:
+                                    env_index = self._current_episode_index if self._current_episode_index is not None else 0
+                                lookup_key = (
+                                    opponent,
+                                    eval_seed,
+                                    env_index,
+                                )
+                                if lookup_key not in self._shuffled_mapping:
+                                    raise ValueError(f"Shuffled mapping lookup failed for key: {lookup_key}")
+                                decisions = self._shuffled_mapping[lookup_key]
+                                opp_counter = int(self._opportunity_counter[env_idx])
+                                if opp_counter >= len(decisions):
+                                    raise ValueError(
+                                        f"Shuffled mapping out of range for key: {lookup_key}, opportunity: {opp_counter} (max: {len(decisions)})"
+                                    )
+                                mapped_decision = decisions[opp_counter]
+                                z_val = int(mapped_decision["selected_z"])
+                                self._prev_z[env_idx] = z_val
+                                self._prev_logits[env_idx] = torch.as_tensor(mapped_decision["logits"], dtype=torch.float32, device=self.device)
+                                self._prev_probs[env_idx] = torch.softmax(self._prev_logits[env_idx], dim=-1)
+                                self._prev_ent[env_idx] = Categorical(logits=self._prev_logits[env_idx]).entropy()
+                                self._strategy_age[env_idx] = 0
+                                self._opportunity_counter[env_idx] += 1
+                        z_idx = self._prev_z.to(self.device)
+                        z_logits = self._prev_logits.to(self.device)
+                        z_probs = self._prev_probs.to(self.device)
+                        z_ent = self._prev_ent.to(self.device)
                     else:
                         z_idx = self._prev_z.to(self.device)
                         z_logits = self._prev_logits.to(self.device)
                         z_probs = self._prev_probs.to(self.device)
                         z_ent = self._prev_ent.to(self.device)
                 elif self.latent_eval_mode == "uniform_random":
-                    if needs_strategy:
-                        z_logits = self._strategy_logits_forward(context_gs)
-                        z_idx = self._destructive_latent_z(batch)
-                        self._prev_z = z_idx.detach()
-                        self._prev_logits = z_logits.detach()
-                        self._strategy_age = 0
-                    else:
-                        z_logits = self._strategy_logits_forward(context_gs)
-                        z_idx = self._prev_z.to(self.device)
+                    z_logits = self._strategy_logits_forward(q_phi_context)
+                    if needs_strategy.any():
+                        z_idx_new = self._destructive_latent_z(batch)
+                        self._prev_z = torch.where(needs_strategy, z_idx_new, self._prev_z)
+                        self._strategy_age[needs_strategy] = 0
+                    z_idx = self._prev_z.to(self.device)
                     z_probs = torch.softmax(z_logits, dim=-1)
                     z_ent = Categorical(logits=z_logits).entropy()
                 else:
                     # normal or qphi_initial_only_no_switch
-                    if needs_strategy:
+                    z_logits = self._strategy_logits_forward(q_phi_context)
+                    z_probs = torch.softmax(z_logits, dim=-1)
+                    z_ent = Categorical(logits=z_logits).entropy()
+                    if needs_strategy.any():
                         hidden = self._ensure_selector_hidden(batch)
-                        z_idx, _, z_ent, z_logits, h_new = self.model.sample_strategy(
-                            context_gs,
+                        z_idx_sampled, _, z_ent_sampled, z_logits_sampled, h_new = self.model.sample_strategy(
+                            q_phi_context,
                             deterministic=deterministic,
                             selector_hidden=hidden,
                         )
                         if h_new is not None:
                             self._selector_hidden = h_new.detach()
-                        self._prev_z = z_idx.detach()
-                        self._prev_logits = z_logits.detach()
-                        self._strategy_age = 0
-                    else:
-                        z_logits = self._strategy_logits_forward(context_gs)
-                        z_idx = self._prev_z.to(self.device)
-                    z_probs = torch.softmax(z_logits, dim=-1)
-                    z_ent = Categorical(logits=z_logits).entropy()
+                        self._prev_z = torch.where(needs_strategy, z_idx_sampled, self._prev_z)
+                        self._strategy_age[needs_strategy] = 0
+                    z_idx = self._prev_z.to(self.device)
 
-                # At an opportunity, log trace telemetry (single env is assumed for evaluation)
-                if needs_strategy and batch == 1:
+                if needs_strategy.any() and batch == 1:
                     prev_z_val = self.opportunity_trace_log[-1]["selected_z"] if self.opportunity_trace_log else -1
                     logit_list = z_logits.detach().cpu().numpy()[0].tolist()
                     prob_list = z_probs.detach().cpu().numpy()[0].tolist()
                     sel_z_val = int(z_idx.item())
+                    
+                    if self.latent_eval_mode == "shuffled":
+                        opp_idx = int(self._opportunity_counter[0]) - 1
+                    else:
+                        opp_idx = int(self._opportunity_counter[0])
+                        
                     self.opportunity_trace_log.append({
                         "opponent": self._current_opponent,
-                        "seed": self._current_seed,
-                        "episode_index": self._current_episode_index,
-                        "opportunity_index": self._opportunity_counter,
+                        "seed": getattr(self, "_current_eval_seed", None) or self._current_seed,
+                        "environment_seed": getattr(self, "_current_environment_seed", None) or self._current_seed,
+                        "episode_index": getattr(self, "_current_env_index", None) or (self._current_episode_index if self._current_episode_index is not None else 0),
+                        "opportunity_index": opp_idx,
                         "step": self._current_decision_step,
                         "logits": logit_list,
                         "probabilities": prob_list,
@@ -648,12 +1052,21 @@ class CustomPPOInferencePolicy:
                         "prev_z": prev_z_val,
                         "switch_occurred": int(prev_z_val != -1 and sel_z_val != prev_z_val)
                     })
-                    self._opportunity_counter += 1
+                    if self.latent_eval_mode != "shuffled":
+                        if isinstance(self._opportunity_counter, np.ndarray):
+                            self._opportunity_counter[0] += 1
+                        else:
+                            self._opportunity_counter += 1
+
+                if needs_strategy.any() and self.model.router_current_plus_delta_enabled:
+                    current = global_state[:, :GLOBAL_STATE_DIM].float()
+                    self._previous_opportunity_features[needs_strategy] = current[needs_strategy].clone().detach()
+                    self._opportunity_occurred[needs_strategy] = True
 
                 self._last_strategy_z = z_idx.detach().cpu()
                 self._last_strategy_probs = z_probs.detach().cpu()
                 self._last_strategy_entropy = z_ent.detach().cpu()
-                self._last_strategy_resampled = bool(needs_strategy)
+                self._last_strategy_resampled = bool(needs_strategy.any().item())
                 self._last_strategy_logits = z_logits.detach().cpu()
                 self._last_context_gs = context_gs.detach().cpu()
                 action_tensor, _, _, _ = self.model.act(
@@ -689,9 +1102,22 @@ class CustomPPOInferencePolicy:
                     global_state = self._global_state_tensor(batched, batch)
                     tracker = self._get_temporal_tracker(batch)
                     context_gs = tracker.get_current_context(global_state)
+                    
+                    if self.model.router_current_plus_delta_enabled:
+                        current = global_state[:, :GLOBAL_STATE_DIM].float()
+                        previous = torch.zeros_like(current)
+                        if self._opportunity_occurred is not None and self._opportunity_occurred.shape[0] == batch:
+                            has_prev = self._opportunity_occurred
+                            if has_prev.any():
+                                previous[has_prev] = self._previous_opportunity_features[has_prev]
+                        from rl.custom_ppo.latent.router_sampling import build_current_plus_delta_router_context
+                        q_phi_context = build_current_plus_delta_router_context(global_state, previous)
+                    else:
+                        q_phi_context = context_gs
+                    
                     hidden = self._ensure_selector_hidden(batch)
                     z_idx, _, z_entropy, _, h_new = self.model.sample_strategy(
-                        context_gs,
+                        q_phi_context,
                         deterministic=True,
                         selector_hidden=hidden,
                     )

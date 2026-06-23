@@ -23,6 +23,12 @@ from rl.custom_ppo.latent.context_buckets import (
     team_phase_bucket_ids,
 )
 from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
+from rl.custom_ppo.latent.router_mask import (
+    apply_router_allowed_latent_mask,
+    assert_fixed_latent_allowed,
+    allowed_latents_from_cfg,
+    masked_uniform_logits,
+)
 
 if TYPE_CHECKING:
     from rl.custom_ppo.latent.state import LatentStrategyState
@@ -91,6 +97,9 @@ class RouterSamplingState:
 
         device = trainer.device
         if trainer.fixed_latent_strategy:
+            assert_fixed_latent_allowed(
+                trainer.cfg, int(trainer.latent_k), int(trainer.fixed_latent_strategy_id)
+            )
             batch = int(global_state.shape[0])
             z_idx = torch.full(
                 (batch,), trainer.fixed_latent_strategy_id, dtype=torch.long, device=device
@@ -303,6 +312,9 @@ class RouterSamplingState:
             z_logits = trainer.model.strategy_logits(router_context)
         else:
             z_logits = trainer.model.strategy_logits(global_state)
+        z_logits = apply_router_allowed_latent_mask(
+            z_logits, cfg=trainer.cfg, latent_k=int(trainer.latent_k)
+        )
         z_dist = Categorical(logits=z_logits)
         if bool(episode_start_mask.any().item()):
             start_idx = torch.where(episode_start_mask)[0]
@@ -333,8 +345,10 @@ class RouterSamplingState:
                     if bool(rehearsal_local.any().item()):
                         rehearsal_idx = start_idx[rehearsal_local]
                         self.host.v6i1_episode_rehearsal[rehearsal_idx] = True
-                        uniform_logits = torch.zeros(
-                            (int(rehearsal_idx.numel()), trainer.latent_k),
+                        uniform_logits = masked_uniform_logits(
+                            int(rehearsal_idx.numel()),
+                            cfg=trainer.cfg,
+                            latent_k=int(trainer.latent_k),
                             dtype=torch.float32,
                             device=device,
                         )
@@ -359,8 +373,10 @@ class RouterSamplingState:
                 forced_mask_local = forced_draw < forced_frac
                 if bool(forced_mask_local.any().item()):
                     forced_idx = router_idx[forced_mask_local]
-                    uniform_logits = torch.zeros(
-                        (int(forced_idx.numel()), trainer.latent_k),
+                    uniform_logits = masked_uniform_logits(
+                        int(forced_idx.numel()),
+                        cfg=trainer.cfg,
+                        latent_k=int(trainer.latent_k),
                         dtype=torch.float32,
                         device=device,
                     )
@@ -490,8 +506,10 @@ class RouterSamplingState:
                         explore_local = explore_draw < epsilon
                         if bool(explore_local.any().item()):
                             explore_idx = ridx[explore_local]
-                            uniform_logits = torch.zeros(
-                                (int(explore_idx.numel()), trainer.latent_k),
+                            uniform_logits = masked_uniform_logits(
+                                int(explore_idx.numel()),
+                                cfg=trainer.cfg,
+                                latent_k=int(trainer.latent_k),
                                 dtype=torch.float32,
                                 device=device,
                             )
@@ -573,8 +591,32 @@ class RouterSamplingState:
             behavior_probs = epsilon_behavior_probs(
                 router_probs, epsilon=epsilon, latent_k=int(trainer.latent_k)
             )
+            allowed = allowed_latents_from_cfg(trainer.cfg, int(trainer.latent_k))
+            if len(allowed) != int(trainer.latent_k):
+                uniform_allowed = torch.softmax(
+                    masked_uniform_logits(
+                        int(router_probs.shape[0]),
+                        cfg=trainer.cfg,
+                        latent_k=int(trainer.latent_k),
+                        dtype=router_probs.dtype,
+                        device=device,
+                    ),
+                    dim=-1,
+                )
+                behavior_probs = (1.0 - epsilon) * router_probs + epsilon * uniform_allowed
         if bool(forced_active.any().item()):
             behavior_probs[forced_active] = 1.0 / float(max(1, int(trainer.latent_k)))
+            forced_uniform = torch.softmax(
+                masked_uniform_logits(
+                    int(forced_active.sum().item()),
+                    cfg=trainer.cfg,
+                    latent_k=int(trainer.latent_k),
+                    dtype=behavior_probs.dtype,
+                    device=device,
+                ),
+                dim=-1,
+            )
+            behavior_probs[forced_active] = forced_uniform
         behavior_log_prob = behavior_log_prob_from_probs(behavior_probs, z_idx)
         router_log_prob = z_dist.log_prob(z_idx)
         z_log_prob = behavior_log_prob
