@@ -246,6 +246,8 @@ class RolloutCollector:
                     buffer.register_field("critic_transition_valid", dtype=torch.bool, deferred=True)
                     buffer.register_field("interval_end_reason", dtype=torch.long, deferred=True)
                     buffer.register_field("ended_at_router_opportunity", dtype=torch.bool, deferred=True)
+                    if bool(getattr(cfg, "router_reward_enabled", False)):
+                        buffer.register_field("router_reward")
         if bool(getattr(self.model, "communication_enabled", False)):
             n_agents = int(self.model.n_agents)
             buffer.register_field("message_symbols", (n_agents,), dtype=torch.long)
@@ -556,8 +558,14 @@ class RolloutCollector:
 
                 # V6I7: opportunity-level router GAE using router_decision_valid.
                 if self._is_v6i7_mode and "router_decision_valid" in buffer.fields:
+                    # Use separate router_reward signal when enabled; fall back to actor reward.
+                    rewards_for_router = (
+                        buffer.fields["router_reward"]
+                        if "router_reward" in buffer.fields
+                        else buffer.fields["rewards"]
+                    )
                     router_returns, router_advantages = compute_router_returns(
-                        rewards=buffer.fields["rewards"],
+                        rewards=rewards_for_router,
                         values=buffer.fields["values"],
                         next_values=buffer.fields["next_values"],
                         terminated=buffer.fields["terminated"],
@@ -673,6 +681,16 @@ class RolloutCollector:
         )
         truncated = np.asarray([bool(info.get("truncated", False)) for info in infos])
         reward_component = self._compose_step_rewards(infos)
+        # V6I7: router_reward must be provided by the environment via info["router_reward"].
+        # The environment computes it from exact event tensors (RouterRewardConfig).
+        # Failing hard here prevents silent zeros from masking a mis-wired env config.
+        if is_v6i7 and bool(getattr(self.cfg, "router_reward_enabled", False)):
+            if "router_reward" not in reward_component:
+                raise RuntimeError(
+                    "router_reward_enabled=True but info did not contain 'router_reward'. "
+                    "Ensure gpu_env has RouterRewardConfig.enabled=True and the env is built "
+                    "via env_factory.build_training_env with a V6I7 config."
+                )
         if self.hparams.use_latent_strategy and beh_t is not None and z_t is not None:
             contrast_bonus = self.latent_state.record_behavior_contrast_step(
                 behavior_telemetry=beh_t,
@@ -849,7 +867,7 @@ class RolloutCollector:
             dtype=torch.bool,
             device=device,
         )
-        return _compose_training_reward_components(
+        result = _compose_training_reward_components(
             reward_component,
             dense_weight=hparams.reward_dense_weight,
             reward_scale=hparams.reward_scale,
@@ -858,6 +876,56 @@ class RolloutCollector:
             stalemate=stalemate,
             stalemate_penalty=hparams.reward_stalemate_penalty,
         )
+        # Extract env-computed router_reward only when the feature is active.
+        # The env always emits info["router_reward"] (zeros when disabled), so we
+        # must gate on the config flag — otherwise the unregistered buffer field
+        # raises KeyError when router_reward_enabled=False.
+        if bool(getattr(self.cfg, "router_reward_enabled", False)) and any(
+            "router_reward" in info for info in infos
+        ):
+            result["router_reward"] = torch.as_tensor(
+                [float(info.get("router_reward", 0.0) or 0.0) for info in infos],
+                dtype=torch.float32,
+                device=device,
+            )
+        return result
+
+    def _compute_router_reward(
+        self, reward_component: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """Compute the sparse team-consequence reward for the V6I7 router.
+
+        Uses components already extracted by ``_compose_step_rewards`` so no
+        additional env calls are needed.  The resulting tensor has shape ``(N,)``
+        matching ``reward_component["reward_total"]``.
+
+        Fail-fast: raises ``RuntimeError`` if ``router_reward_enabled`` is True
+        but the required component keys are absent (guards against silent zeros
+        from a mis-wired info dict).
+        """
+        cfg = self.cfg
+        required = ("reward_terminal", "reward_sparse")
+        missing = [k for k in required if k not in reward_component]
+        if missing:
+            raise RuntimeError(
+                f"router_reward_enabled=True but reward_component is missing keys: {missing}. "
+                "Check that _compose_step_rewards populates reward_terminal and reward_sparse."
+            )
+        win_w = float(getattr(cfg, "router_reward_win_weight", 1.0))
+        sparse_w = float(getattr(cfg, "router_reward_sparse_weight", 0.2))
+        flag_w = float(getattr(cfg, "router_reward_flag_cap_weight", 0.5))
+        scale = float(getattr(cfg, "router_reward_scale", 1.0))
+        normalize = bool(getattr(cfg, "router_reward_normalize", True))
+
+        r = (
+            win_w * reward_component["reward_terminal"]
+            + flag_w * reward_component["reward_sparse"]
+            + sparse_w * reward_component["reward_sparse_points"] / 100.0
+        )
+        r = r * scale
+        if normalize:
+            r = torch.tanh(r)
+        return r
 
     def _update_latent_episode_returns(
         self,
@@ -1082,12 +1150,33 @@ class RolloutCollector:
         terminated_t = torch.as_tensor(terminated, dtype=torch.bool, device=device)
         truncated_t = torch.as_tensor(truncated, dtype=torch.bool, device=device)
 
-        # Actual decision: router sampled a new z (not forced, not mid-hold).
-        rdv = z_resampled & (~z_forced)
+        assignment_mode = str(
+            getattr(self.cfg, "latent_assignment_mode", "router") or "router"
+        )
+        train_when_forced = bool(getattr(self.cfg, "train_router_when_forced", False))
 
-        # Valid Q target: any step where we can compute a TD target.
-        # Terminated steps cannot be bootstrapped; truncated steps can (from Q_ω).
-        ctv = ~terminated_t
+        # router_decision_valid: which steps are valid router PPO samples.
+        # In forced modes (balanced_episode/arc), forced assignments are NEVER on-policy
+        # PPO samples. The exception is train_router_when_forced=True, which allows arc/
+        # episode boundary steps to be treated as decisions (for critic warmup experiments).
+        if assignment_mode != "router" and train_when_forced:
+            rdv = z_resampled  # boundary steps become decision samples
+        else:
+            rdv = z_resampled & (~z_forced)  # excludes all forced steps
+
+        # critic_transition_valid: which steps contribute TD targets for the router critic.
+        # In balanced modes the critic MUST train on all non-terminal steps — this is the
+        # whole point of warmup (critic learns V under diverse forced z coverage before
+        # the router policy is switched on). The train_router_critic_when_forced flag
+        # only applies in the standard "router" mode to exclude per-episode forced episodes.
+        if assignment_mode == "router":
+            train_critic_when_forced = bool(
+                getattr(self.cfg, "train_router_critic_when_forced", False)
+            )
+            ctv = ~terminated_t if train_critic_when_forced else (~terminated_t & ~z_forced)
+        else:
+            # Balanced modes: critic trains on every non-terminal step regardless of flag.
+            ctv = ~terminated_t
 
         # Interval end reason: 2=terminated, 3=truncated, 1=next_opportunity, 0=mid-hold.
         # buffer_cut (4) is not known here; finalization must update this field.

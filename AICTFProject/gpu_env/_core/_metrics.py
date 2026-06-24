@@ -226,6 +226,7 @@ class _MetricsMixin:
         reward_sparse: Optional[torch.Tensor] = None,
         reward_failure: Optional[torch.Tensor] = None,
         reward_total: Optional[torch.Tensor] = None,
+        router_reward: Optional[torch.Tensor] = None,
         terminated: Optional[torch.Tensor] = None,
         truncated: Optional[torch.Tensor] = None,
     ) -> List[dict]:
@@ -253,6 +254,7 @@ class _MetricsMixin:
                 (reward_sparse if reward_sparse is not None else zero).to(torch.float32),
                 (reward_failure if reward_failure is not None else zero).to(torch.float32),
                 (reward_total if reward_total is not None else zero).to(torch.float32),
+                (router_reward if router_reward is not None else zero).to(torch.float32),
             ],
             dim=1,
         ).detach().cpu().numpy()
@@ -290,6 +292,7 @@ class _MetricsMixin:
             rsp_np,
             rf_np,
             rtot_np,
+            rr_np,
         ) = (scalars[:, col] for col in range(scalars.shape[1]))
         league_np = bools[:, 0]
         st_np = bools[:, 1]
@@ -330,6 +333,7 @@ class _MetricsMixin:
                     "reward_failure": float(rf_np[i]),
                     "reward_sparse_points": float(s_np[i]),
                     "reward_total": float(rtot_np[i]),
+                    "router_reward": float(rr_np[i]),
                     "time_to_first_score": ttfs,
                     "collision_events_per_episode": int(collision_events[i]),
                     "obstacle_collision_events_per_episode": int(obstacle_collision_events[i]),

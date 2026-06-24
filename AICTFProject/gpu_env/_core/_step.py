@@ -333,7 +333,17 @@ class _StepMixin:
             prev_red_carrying=snapshot["prev_red_carrying"],
         )
         rteam = self._team_coordination_reward(snapshot["prev_blue_x"], snapshot["prev_blue_y"], movement["yaw_cmd_blue"])
-        return {"sparse_points": sparse_points, "roff": roff, "rfail": rfail, "rpbrs": rpbrs, "rteam": rteam}
+        return {
+            "sparse_points": sparse_points,
+            "roff": roff,
+            "rfail": rfail,
+            "rpbrs": rpbrs,
+            "rteam": rteam,
+            "blue_cap_env": flags["blue_cap_env"],
+            "red_cap_env": flags["red_cap_env"],
+            "blue_tag_withflag": combat["blue_tag_withflag"],
+            "red_tag_total": combat["red_tag_total"],
+        }
 
     def _advance_episode_end(
         self,
@@ -391,6 +401,13 @@ class _StepMixin:
             stalemate_trigger,
         )
         reward_sparse = float(self.cfg.sparse_weight) * (rewards["sparse_points"] / 100.0)
+        router_reward = self._router_reward_total(
+            rterm,
+            rewards["blue_cap_env"],
+            rewards["red_cap_env"],
+            rewards["blue_tag_withflag"],
+            rewards["red_tag_total"],
+        )
         info = self._build_info(
             dense=rewards["rpbrs"] + rewards["rteam"],
             sparse_points=rewards["sparse_points"],
@@ -402,6 +419,7 @@ class _StepMixin:
             reward_sparse=reward_sparse,
             reward_failure=rewards["rfail"],
             reward_total=reward,
+            router_reward=router_reward,
             terminated=terminated,
             truncated=truncated,
         )

@@ -271,3 +271,44 @@ class _RewardsMixin:
         )
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
+
+    def _router_reward_total(
+        self,
+        rterm: torch.Tensor,
+        blue_cap_env: torch.Tensor,
+        red_cap_env: torch.Tensor,
+        blue_tag_withflag: torch.Tensor,
+        red_tag_total: torch.Tensor,
+    ) -> torch.Tensor:
+        """Sparse team-consequence reward for the V6I7 GRU router.
+
+        Uses exact event tensors (flag captures, carrier tags) rather than the
+        aggregated sparse total, so the router sees only strategy-relevant signals.
+        Returns zeros when ``router_reward_config`` is absent or disabled.
+        """
+        rrc = getattr(self.cfg, "router_reward_config", None)
+        if rrc is None or not rrc.enabled:
+            return torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+
+        win_w = float(rrc.win_weight)
+        flag_w = float(rrc.flag_cap_weight)
+        sparse_w = float(rrc.sparse_weight)
+        scale = float(rrc.scale)
+        normalize = bool(rrc.normalize)
+
+        # Flag-capture events (normalized to same scale as sparse_norm = points/100)
+        net_cap = (
+            float(SPARSE_FLAG_CAPTURE_POINTS) * blue_cap_env.to(torch.float32)
+            - float(SPARSE_FLAG_CAPTURE_POINTS) * red_cap_env.to(torch.float32)
+        ) / 100.0
+
+        # Carrier-tag events: blue tags enemy carrier (good), red tags blue carrier (bad)
+        net_carrier_tags = (
+            float(SPARSE_TAG_WITH_FLAG_POINTS) * blue_tag_withflag.to(torch.float32)
+            - float(SPARSE_TAG_NO_FLAG_POINTS) * red_tag_total.to(torch.float32)
+        ) / 100.0
+
+        raw = win_w * rterm + flag_w * net_cap + sparse_w * net_carrier_tags
+        if normalize:
+            return torch.tanh(raw / max(1e-6, scale))
+        return raw * scale

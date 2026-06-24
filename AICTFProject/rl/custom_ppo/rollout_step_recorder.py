@@ -164,6 +164,7 @@ class RolloutStepRecorder:
             terminated=torch.as_tensor(frame.terminated, dtype=torch.bool, device=device),
             truncated=torch.as_tensor(frame.truncated, dtype=torch.bool, device=device),
             opponent_id=frame.opp_row,
+            **({} if "router_reward" not in rc else {"router_reward": rc["router_reward"]}),
         )
 
     def _latent_items(self, frame: StepFrame) -> Dict[str, torch.Tensor]:

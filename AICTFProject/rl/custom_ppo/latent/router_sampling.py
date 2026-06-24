@@ -123,6 +123,105 @@ class RouterSamplingState:
             }
             return z_idx, prev_z, aux
 
+        latent_assignment_mode = str(
+            getattr(trainer.cfg, "latent_assignment_mode", "router") or "router"
+        )
+
+        if latent_assignment_mode == "balanced_episode":
+            # Staggered round-robin: z = (episode_counter + env_index) % K.
+            # Each env is offset by its own index so all K latents are represented
+            # simultaneously across a fleet of K+ envs, maximising critic coverage.
+            K = int(trainer.latent_k)
+            batch = int(global_state.shape[0])
+            env_index = torch.arange(batch, dtype=torch.long, device=device)
+            episode_start = self.host.needs_strategy_sample.clone()
+            z_idx = self.host.current_z.clone()
+            prev_z = z_idx.clone()
+            new_z = (self.host.balanced_episode_counter + env_index) % K
+            z_idx = torch.where(episode_start, new_z, z_idx)
+            self.host.current_z = z_idx.clone()
+            self.host.balanced_episode_counter = torch.where(
+                episode_start,
+                self.host.balanced_episode_counter + 1,
+                self.host.balanced_episode_counter,
+            )
+            self.host.needs_strategy_sample[episode_start] = False
+            fixed_logits = torch.full(
+                (batch, K), -1.0e8, dtype=torch.float32, device=device
+            )
+            for env_i in range(batch):
+                fixed_logits[env_i, int(z_idx[env_i].item())] = 0.0
+            false_mask = torch.zeros((batch,), dtype=torch.bool, device=device)
+            aux = {
+                "z": z_idx,
+                "prev_z": prev_z,
+                "z_log_prob": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "z_entropy": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "z_logits": fixed_logits,
+                "z_resampled": episode_start,
+                "z_forced": torch.ones((batch,), dtype=torch.bool, device=device),
+                "z_persist_mask": false_mask,
+            }
+            if getattr(self.host, "selector_hidden", None) is not None:
+                aux["selector_hidden"] = self.host.selector_hidden.detach().clone()
+            return z_idx, prev_z, aux
+
+        if latent_assignment_mode == "balanced_arc":
+            # Each episode starts at a rotating latent: start_z = (counter + env_index) % K.
+            # Within the episode z advances by 1 every arc_steps decision steps.
+            # z = (episode_arc_start_z + arc_step_counter // arc_steps) % K.
+            # Resetting arc_step_counter on done (mark_strategy_step_done) ensures each
+            # episode restarts from arc_offset 0, while episode_arc_start_z rotates.
+            K = int(trainer.latent_k)
+            arc_steps = max(
+                1, int(getattr(trainer.cfg, "forced_latent_arc_steps", 32) or 32)
+            )
+            batch = int(global_state.shape[0])
+            env_index = torch.arange(batch, dtype=torch.long, device=device)
+            episode_start = self.host.needs_strategy_sample.clone()
+
+            # On episode start: rotate the per-episode starting latent.
+            new_start_z = (self.host.balanced_episode_counter + env_index) % K
+            self.host.episode_arc_start_z = torch.where(
+                episode_start, new_start_z, self.host.episode_arc_start_z
+            )
+            self.host.balanced_episode_counter = torch.where(
+                episode_start,
+                self.host.balanced_episode_counter + 1,
+                self.host.balanced_episode_counter,
+            )
+            self.host.needs_strategy_sample[episode_start] = False
+
+            # Arc boundary: counter divisible by arc_steps AND not an episode start.
+            arc_boundary = (self.host.arc_step_counter % arc_steps == 0) & ~episode_start
+            resample = episode_start | arc_boundary
+
+            prev_z = self.host.current_z.clone()
+            arc_idx = self.host.arc_step_counter // arc_steps
+            new_z = (self.host.episode_arc_start_z + arc_idx) % K
+            z_idx = torch.where(resample, new_z, self.host.current_z)
+            self.host.current_z = z_idx.clone()
+
+            fixed_logits = torch.full(
+                (batch, K), -1.0e8, dtype=torch.float32, device=device
+            )
+            for env_i in range(batch):
+                fixed_logits[env_i, int(z_idx[env_i].item())] = 0.0
+            false_mask = torch.zeros((batch,), dtype=torch.bool, device=device)
+            aux = {
+                "z": z_idx,
+                "prev_z": prev_z,
+                "z_log_prob": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "z_entropy": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "z_logits": fixed_logits,
+                "z_resampled": resample,
+                "z_forced": torch.ones((batch,), dtype=torch.bool, device=device),
+                "z_persist_mask": false_mask,
+            }
+            if getattr(self.host, "selector_hidden", None) is not None:
+                aux["selector_hidden"] = self.host.selector_hidden.detach().clone()
+            return z_idx, prev_z, aux
+
         episode_start_mask = self.host.needs_strategy_sample.clone()
         resample_mask = episode_start_mask.clone()
         if trainer.latent_resample_every_n > 0:
@@ -782,6 +881,8 @@ class RouterSamplingState:
         self.host.steps_since_last_refresh += 1
         self.host.steps_since_last_tactical_refresh += 1
         self.host.steps_since_z_change += 1
+        if getattr(self.host, "arc_step_counter", None) is not None:
+            self.host.arc_step_counter += 1
         if bool(done_t.any().item()):
             self.host.reset_completed_envs(done_t)
             self.host.strategy_age[done_t] = 0
@@ -810,6 +911,12 @@ class RouterSamplingState:
                 self.host.persistence_valid[done_t] = False
             if getattr(self.host, "opportunity_index_per_env", None) is not None:
                 self.host.opportunity_index_per_env[done_t] = 0
+            if getattr(self.host, "arc_step_counter", None) is not None:
+                self.host.arc_step_counter[done_t] = 0
+            # episode_arc_start_z is overwritten at the next episode's first strategy_for_step;
+            # reset to 0 here so stale values never persist into the new episode.
+            if getattr(self.host, "episode_arc_start_z", None) is not None:
+                self.host.episode_arc_start_z[done_t] = 0
             self.host.episode_id_per_env[done_t] += 1
             # Defensive: drop any v3i3 pending refresh records that weren't
             # finalized by ``_finalize_v3i3_refresh_records`` (shouldn't

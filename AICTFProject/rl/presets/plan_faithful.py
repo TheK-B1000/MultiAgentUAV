@@ -2978,3 +2978,51 @@ def apply_plan_faithful_latent_v6i7_recurrent_router(cfg: PPOConfig) -> PPOConfi
     cfg.periodic_checkpoint_steps = 50_000
     cfg.run_tag = "v6i7_recurrent_router_OP5_OP6_OP7_1m_4v4"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i7_sparse_router(cfg: PPOConfig) -> PPOConfig:
+    """V6I7 with separate sparse router reward (team wins + flag events only)."""
+    from rl.config_presets import v6i7_sparse_router_config
+    cfg = apply_plan_faithful_latent_v6i7_recurrent_router(cfg)
+    preset = v6i7_sparse_router_config()
+    cfg.router_reward_enabled = preset.router_reward_enabled
+    cfg.router_reward_win_weight = preset.router_reward_win_weight
+    cfg.router_reward_flag_cap_weight = preset.router_reward_flag_cap_weight
+    cfg.router_reward_sparse_weight = preset.router_reward_sparse_weight
+    cfg.router_reward_scale = preset.router_reward_scale
+    cfg.router_reward_normalize = preset.router_reward_normalize
+    cfg.experiment_id = "v6i7_sparse"
+    cfg.run_tag = "v6i7_sparse_router_OP5_OP6_OP7_1m"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i7_repertoire_balanced_episode(cfg: PPOConfig) -> PPOConfig:
+    """V6I7 with balanced-episode forced-latent repertoire training."""
+    from rl.config_presets import v6i7_repertoire_balanced_episode_config
+    cfg = apply_plan_faithful_latent_v6i7_recurrent_router(cfg)
+    preset = v6i7_repertoire_balanced_episode_config()
+    cfg.latent_assignment_mode = preset.latent_assignment_mode
+    cfg.train_router_when_forced = preset.train_router_when_forced
+    cfg.train_router_critic_when_forced = preset.train_router_critic_when_forced
+    cfg.experiment_id = "v6i7_balanced_ep"
+    cfg.run_tag = "v6i7_balanced_episode_OP5_OP6_OP7_1m"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i7_router_critic_warmup(cfg: PPOConfig) -> PPOConfig:
+    """V6I7 two-phase: sparse router reward + balanced-episode coverage warmup."""
+    from rl.config_presets import v6i7_router_critic_warmup_config
+    cfg = apply_plan_faithful_latent_v6i7_recurrent_router(cfg)
+    preset = v6i7_router_critic_warmup_config()
+    cfg.router_reward_enabled = preset.router_reward_enabled
+    cfg.router_reward_win_weight = preset.router_reward_win_weight
+    cfg.router_reward_flag_cap_weight = preset.router_reward_flag_cap_weight
+    cfg.router_reward_sparse_weight = preset.router_reward_sparse_weight
+    cfg.router_reward_scale = preset.router_reward_scale
+    cfg.router_reward_normalize = preset.router_reward_normalize
+    cfg.latent_assignment_mode = preset.latent_assignment_mode
+    cfg.train_router_when_forced = preset.train_router_when_forced
+    cfg.train_router_critic_when_forced = preset.train_router_critic_when_forced
+    cfg.experiment_id = "v6i7_warmup"
+    cfg.run_tag = "v6i7_router_critic_warmup_OP5_OP6_OP7_1m"
+    return cfg

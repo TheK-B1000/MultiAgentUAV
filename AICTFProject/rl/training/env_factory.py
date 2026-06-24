@@ -27,6 +27,7 @@ if _AICTF_DIR not in sys.path:
     sys.path.insert(0, _AICTF_DIR)
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+from gpu_env._config import RouterRewardConfig
 from opponent_params import sample_batched_opponent_params
 from rl.config.ppo_config import PPOConfig
 from rl.curriculum import phase_from_tag
@@ -121,6 +122,21 @@ def build_training_env(
     if reward_kw:
         parts = [f"{k}={v}" for k, v in sorted(reward_kw.items())]
         print("[PPO] GPU env reward overrides: " + ", ".join(parts))
+    rrc: RouterRewardConfig | None = None
+    if bool(getattr(cfg, "router_reward_enabled", False)):
+        rrc = RouterRewardConfig(
+            enabled=True,
+            win_weight=float(getattr(cfg, "router_reward_win_weight", 1.0)),
+            flag_cap_weight=float(getattr(cfg, "router_reward_flag_cap_weight", 0.5)),
+            sparse_weight=float(getattr(cfg, "router_reward_sparse_weight", 0.2)),
+            scale=float(getattr(cfg, "router_reward_scale", 1.0)),
+            normalize=bool(getattr(cfg, "router_reward_normalize", True)),
+        )
+        print(
+            f"[PPO] V6I7 router reward enabled: win_w={rrc.win_weight}, "
+            f"flag_w={rrc.flag_cap_weight}, sparse_w={rrc.sparse_weight}, "
+            f"scale={rrc.scale}, normalize={rrc.normalize}"
+        )
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
         n_agents_per_team=max_agents,
@@ -135,6 +151,7 @@ def build_training_env(
         dr_sensor_noise_sigma_max=float(getattr(cfg, "dr_sensor_noise_sigma_max", 0.12)),
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
+        router_reward_config=rrc,
         **reward_kw,
     )
     print(

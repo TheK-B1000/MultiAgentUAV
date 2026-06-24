@@ -678,5 +678,38 @@ class PPOConfig:
     # Strategy decision interval; controls how often z is resampled in fixed-cadence mode.
     strategy_interval: int = 32
 
+    # --- V6I7: Reward Separation ---
+    # When False (default) the router uses the same shaped actor reward for credit assignment.
+    # When True a separate sparse team-consequence reward signal is computed and stored in
+    # buffer["router_reward"]; compute_router_returns() uses it instead of buffer["rewards"].
+    router_reward_enabled: bool = False
+    # Win/loss terminal bonus weight in the router reward.
+    router_reward_win_weight: float = 1.0
+    # Flag capture event weight (blue cap positive, red cap negative).
+    router_reward_flag_cap_weight: float = 0.5
+    # Sparse event weight applied to the full sparse_points component as a proxy for
+    # carrier stops and tag events (reward_sparse = cfg.sparse_weight * sparse_points/100).
+    router_reward_sparse_weight: float = 0.2
+    # Scalar multiplier applied after the weighted sum before optional tanh normalisation.
+    router_reward_scale: float = 1.0
+    # When True applies tanh to keep the router reward in (-1, 1).
+    router_reward_normalize: bool = True
+
+    # --- V6I7: Forced-Latent Repertoire Training ---
+    # "router"           -- GRU q_phi decides z (default, current V6I7-A behaviour).
+    # "fixed"            -- All envs use forced_latent_id for the whole run.
+    # "balanced_episode" -- Round-robin through K latents across episode starts.
+    # "balanced_arc"     -- Within each episode switch z every forced_latent_arc_steps,
+    #                       cycling through K in order.
+    latent_assignment_mode: str = "router"
+    # Latent ID used when latent_assignment_mode == "fixed".
+    forced_latent_id: int = 0
+    # Steps between z switches when latent_assignment_mode == "balanced_arc".
+    forced_latent_arc_steps: int = 32
+    # When True, continue updating the router's PPO objective even during forced episodes.
+    train_router_when_forced: bool = False
+    # When True, continue updating the router critic target even during forced episodes.
+    train_router_critic_when_forced: bool = False
+
 
 __all__ = ["PPOConfig", "TrainMode"]

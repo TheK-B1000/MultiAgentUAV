@@ -268,3 +268,13 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
     host.lifecycle = EpisodeLifecycleState(n_envs=n_envs, device=device)
     host.selector_memory = SelectorMemory(n_envs=n_envs, hidden_dim=hidden_dim, device=device)
     host.missing_episode_record_count = 0
+
+    # V6I7 balanced latent assignment counters.
+    # balanced_episode_counter: cumulative episode starts per env; used to stagger z across
+    #   envs via z = (counter + env_index) % K.
+    # arc_step_counter: steps elapsed in current episode; resets to 0 on done.
+    # episode_arc_start_z: the starting latent for the current episode in balanced_arc mode;
+    #   set on episode start, held until the next episode boundary.
+    host.balanced_episode_counter = torch.zeros((n_envs,), dtype=torch.long, device=device)
+    host.arc_step_counter = torch.zeros((n_envs,), dtype=torch.long, device=device)
+    host.episode_arc_start_z = torch.zeros((n_envs,), dtype=torch.long, device=device)

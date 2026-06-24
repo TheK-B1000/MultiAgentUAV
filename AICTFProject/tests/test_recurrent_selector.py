@@ -212,6 +212,9 @@ def _make_buffer(T: int, B: int) -> TensorDictRolloutBuffer:
     for field_name, tensor in buf.fields.items():
         if tensor.dtype == torch.bool:
             tensor.fill_(False)
+        elif tensor.dtype == torch.long:
+            # Long tensors don't support normal_(); use uniform integers in [0, K).
+            tensor.random_(0, 4)
         else:
             tensor.normal_()
     buf.pos = T

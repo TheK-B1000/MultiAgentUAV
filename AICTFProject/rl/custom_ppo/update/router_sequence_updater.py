@@ -68,6 +68,13 @@ class RouterSequenceUpdater:
         Returns a flat dict of scalar metrics to be forwarded to the
         ``UpdateStatsAccumulator``.
         """
+        assignment_mode = str(
+            getattr(self.cfg, "latent_assignment_mode", "router") or "router"
+        )
+        train_when_forced = bool(getattr(self.cfg, "train_router_when_forced", False))
+        if assignment_mode != "router" and not train_when_forced:
+            return {"router_skipped_forced_mode": 1.0}
+
         burn_in = int(getattr(self.cfg, "recurrent_burn_in", 8) or 8)
         seq_len = int(getattr(self.cfg, "recurrent_seq_len", 32) or 32)
         chunks_per_batch = max(1, int(getattr(self.cfg, "router_chunks_per_batch", 4) or 4))

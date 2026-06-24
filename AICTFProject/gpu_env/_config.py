@@ -62,6 +62,24 @@ RewardProfile = RewardConfig
 REWARD_FIELD_NAMES = frozenset(f.name for f in dataclass_fields(RewardConfig))
 
 
+@dataclass(frozen=True)
+class RouterRewardConfig:
+    """Sparse team-consequence reward for the V6I7 GRU router.
+
+    Passed as ``router_reward_config`` to ``GPUFieldConfig`` from
+    ``env_factory.build_training_env`` when ``router_reward_enabled=True``.
+    The environment uses this to compute an exact per-step router reward from
+    flag-capture and carrier-tag events rather than the aggregated sparse total.
+    """
+
+    enabled: bool = False
+    win_weight: float = 1.0
+    flag_cap_weight: float = 0.5
+    sparse_weight: float = 0.2
+    scale: float = 1.0
+    normalize: bool = True
+
+
 @dataclass(init=False)
 class GPUFieldConfig:
     n_envs: int = 64
@@ -155,6 +173,7 @@ class GPUFieldConfig:
     # PPO stability
 
     reward_config: Optional[RewardConfig] = None
+    router_reward_config: Optional[RouterRewardConfig] = None
     device: str = "cpu"
     seed: int = 42
 
@@ -165,7 +184,9 @@ class GPUFieldConfig:
             if name in REWARD_FIELD_NAMES
         }
         reward_config = kwargs.pop("reward_config", None)
-        config_fields = [f for f in dataclass_fields(type(self)) if f.name != "reward_config"]
+        router_reward_config = kwargs.pop("router_reward_config", None)
+        _excluded = {"reward_config", "router_reward_config"}
+        config_fields = [f for f in dataclass_fields(type(self)) if f.name not in _excluded]
         config_field_names = {f.name for f in config_fields}
         unknown = sorted(set(kwargs) - config_field_names)
         if unknown:
@@ -186,6 +207,7 @@ class GPUFieldConfig:
         if reward_config is None:
             reward_config = RewardConfig(**reward_kwargs)
         object.__setattr__(self, "reward_config", reward_config)
+        object.__setattr__(self, "router_reward_config", router_reward_config)
         self.__post_init__()
 
     def __getattr__(self, name: str) -> Any:
@@ -238,4 +260,4 @@ class GPUFieldConfig:
 assert REWARD_FIELD_NAMES <= set(dir(GPUFieldConfig()))
 
 
-__all__ = ["GPUFieldConfig", "REWARD_FIELD_NAMES", "RewardConfig", "RewardProfile"]
+__all__ = ["GPUFieldConfig", "REWARD_FIELD_NAMES", "RewardConfig", "RewardProfile", "RouterRewardConfig"]

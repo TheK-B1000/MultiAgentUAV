@@ -236,3 +236,59 @@ def v6i7_b1_gru_conditional_config() -> PPOConfig:
         h_mode="conditional",
         latent_lam_h=0.0,
     )
+
+
+# ---------------------------------------------------------------------------
+# V6I7: Reward Separation and Forced-Latent Repertoire Training
+# ---------------------------------------------------------------------------
+
+def v6i7_sparse_router_config() -> PPOConfig:
+    """V6I7 with separate sparse router reward (team wins + flag caps only).
+
+    The actor still receives the full shaped reward.  The router's credit
+    assignment uses a sparse signal composed of terminal outcomes and flag
+    events to reduce dense-reward noise in the routing objective.
+    """
+    return replace(
+        v6i7_recurrent_router_config(),
+        router_reward_enabled=True,
+        router_reward_win_weight=1.0,
+        router_reward_flag_cap_weight=0.5,
+        router_reward_sparse_weight=0.2,
+        router_reward_scale=1.0,
+        router_reward_normalize=True,
+    )
+
+
+def v6i7_repertoire_balanced_episode_config() -> PPOConfig:
+    """V6I7 with balanced-episode forced-latent allocation.
+
+    Each episode start round-robins through all K latents so every strategy
+    receives equal actor-gradient coverage across the training run.  The
+    router is still trained via PPO (``train_router_when_forced=False`` keeps
+    forced episodes out of the router's PPO batch, matching V6 behaviour).
+    """
+    return replace(
+        v6i7_recurrent_router_config(),
+        latent_assignment_mode="balanced_episode",
+        train_router_when_forced=False,
+        train_router_critic_when_forced=False,
+    )
+
+
+def v6i7_router_critic_warmup_config() -> PPOConfig:
+    """V6I7 with sparse router reward and balanced-episode warmup.
+
+    Intended as a two-phase recipe:
+    1. Train actor coverage first (balanced_episode, no router PPO).
+    2. Switch to latent_assignment_mode='router' after coverage is confirmed.
+
+    Use ``replace(v6i7_router_critic_warmup_config(), latent_assignment_mode='router')``
+    to transition to the second phase.
+    """
+    return replace(
+        v6i7_sparse_router_config(),
+        latent_assignment_mode="balanced_episode",
+        train_router_when_forced=False,
+        train_router_critic_when_forced=True,
+    )
