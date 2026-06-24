@@ -183,9 +183,10 @@ def v6i7_recurrent_router_config() -> PPOConfig:
         # Objective coefficients
         latent_strategy_ppo_coef=0.10,
         latent_lam_p=0.02,
-        latent_lam_h=0.01,
-        latent_entropy_objective="maximize",
-        h_mode="marginal",
+        latent_lam_h=0.0,
+        latent_entropy_objective="none",
+        router_ent_coef=0.005,
+        h_mode="conditional",
         # Disable all supervised auxiliary heads
         latent_strategy_aux_return_head=False,
         latent_strategy_aux_return_coef=0.0,
