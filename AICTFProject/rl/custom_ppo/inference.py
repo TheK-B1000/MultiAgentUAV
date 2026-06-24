@@ -616,6 +616,7 @@ class CustomPPOInferencePolicy:
         self._previous_opportunity_features = None
         self._opportunity_occurred = None
         self.strategy_interval = max(0, int(cfg.get("latent_resample_every_n", 0) or 0))
+        self._original_strategy_interval = self.strategy_interval
         self.fixed_latent_strategy = bool(cfg.get("fixed_latent_strategy", False))
         self.fixed_latent_strategy_id = max(0, int(cfg.get("fixed_latent_strategy_id", 0) or 0))
         self._strategy_age = 0

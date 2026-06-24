@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import numpy as np
+from rl.evaluation.types import EvalCondition, validate_condition
 import torch
 
 
@@ -50,17 +51,7 @@ POSTHOC_ORACLE_SELECTIONS = (
 )
 
 
-@dataclass(frozen=True)
-class RouterCondition:
-    name: str
-    latent_selection: str
-    description: str
-    fixed_latent_id: int | None = None
-    latent_eval_mode: str = "normal"
-    latent_resample_every: int | None = None
-    online_rollout: bool = True
-    identity_assisted: bool = False
-    posthoc_only: bool = False
+# Deprecated RouterCondition replaced by EvalCondition in types.py
 
 
 @dataclass(frozen=True)
@@ -220,36 +211,45 @@ def deterministic_cross_context_permutation(n_items: int, seed: int) -> list[int
     return perm
 
 
-def default_conditions(latent_k: int, allowed_latents: list[int] | None = None) -> list[RouterCondition]:
+def default_conditions(
+    latent_k: int,
+    allowed_latents: list[int] | None = None,
+    default_strategy_interval: int = 64,
+) -> list[EvalCondition]:
     conditions = [
-        RouterCondition(
+        EvalCondition(
             name="learned_qphi_switching",
-            latent_selection="learned_qphi_switching",
+            selection_rule="qphi",
+            strategy_interval=default_strategy_interval,
+            allow_switching=True,
             description="Actual trained q_phi at every switch opportunity.",
         ),
-        RouterCondition(
+        EvalCondition(
             name="uniform_episode_fixed",
-            latent_selection="uniform_episode_fixed",
-            latent_eval_mode="uniform_random",
-            latent_resample_every=0,
+            selection_rule="uniform",
+            strategy_interval=0,
+            allow_switching=False,
             description="Uniform z sampled once per episode and then held fixed.",
         ),
-        RouterCondition(
+        EvalCondition(
             name="uniform_random_at_router_opportunities",
-            latent_selection="uniform_random_at_router_opportunities",
-            latent_eval_mode="uniform_random",
+            selection_rule="uniform",
+            strategy_interval=default_strategy_interval,
+            allow_switching=True,
             description="Uniform z sampled from an isolated selector RNG at the same deterministic router opportunities.",
         ),
-        RouterCondition(
+        EvalCondition(
             name="qphi_initial_only_no_switch",
-            latent_selection="qphi_initial_only_no_switch",
-            latent_resample_every=0,
+            selection_rule="qphi",
+            strategy_interval=0,
+            allow_switching=False,
             description="q_phi selects at episode start only; later opportunities are ignored.",
         ),
-        RouterCondition(
+        EvalCondition(
             name="shuffled_qphi_outputs",
-            latent_selection="shuffled_qphi_outputs",
-            latent_eval_mode="shuffled",
+            selection_rule="shuffled_qphi",
+            strategy_interval=default_strategy_interval,
+            allow_switching=True,
             description=(
                 "Primary shuffled control: preserve deterministic opportunity times and the "
                 "q_phi output source distribution, but break context alignment."
@@ -259,53 +259,67 @@ def default_conditions(latent_k: int, allowed_latents: list[int] | None = None) 
     allowed = allowed_latents if allowed_latents is not None else list(range(latent_k))
     for z in allowed:
         conditions.append(
-            RouterCondition(
+            EvalCondition(
                 name=f"fixed_z{z}",
-                latent_selection="fixed",
+                selection_rule=f"fixed_z{z}",
+                strategy_interval=0,
+                allow_switching=False,
                 fixed_latent_id=z,
                 description=f"Clamp all decisions to z={z}.",
             )
         )
     conditions.extend(
         [
-            RouterCondition(
+            EvalCondition(
                 name="preselected_global_fixed_z",
-                latent_selection="fixed",
+                selection_rule="preselected_global_fixed_z",
+                strategy_interval=0,
+                allow_switching=False,
                 description="Deployable global fixed-z baseline chosen on calibration seeds.",
             ),
-            RouterCondition(
+            EvalCondition(
                 name="preselected_per_opponent_fixed_z",
-                latent_selection="fixed",
+                selection_rule="preselected_per_opponent_fixed_z",
+                strategy_interval=0,
+                allow_switching=False,
                 description=(
                     "Identity-assisted per-opponent fixed-z baseline chosen on calibration seeds; "
                     "valid only when opponent identity is explicitly available to the evaluation policy."
                 ),
                 identity_assisted=True,
             ),
-            RouterCondition(
+            EvalCondition(
                 name="posthoc_global_fixed_oracle",
-                latent_selection="posthoc",
+                selection_rule="posthoc",
+                strategy_interval=0,
+                allow_switching=False,
                 description="Posthoc best global fixed-z on evaluation seeds; non-deployable upper bound.",
                 posthoc_only=True,
                 online_rollout=False,
             ),
-            RouterCondition(
+            EvalCondition(
                 name="posthoc_opponent_oracle",
-                latent_selection="posthoc",
+                selection_rule="posthoc",
+                strategy_interval=0,
+                allow_switching=False,
                 description="Posthoc best fixed-z per opponent on evaluation seeds; non-deployable upper bound.",
                 identity_assisted=True,
                 posthoc_only=True,
                 online_rollout=False,
             ),
-            RouterCondition(
+            EvalCondition(
                 name="posthoc_episode_oracle",
-                latent_selection="posthoc",
+                selection_rule="posthoc",
+                strategy_interval=0,
+                allow_switching=False,
                 description="Posthoc best fixed-z per matched episode; measures headroom only.",
                 posthoc_only=True,
                 online_rollout=False,
             ),
         ]
     )
+    for c in conditions:
+        validate_condition(c)
     return conditions
 
 
@@ -714,6 +728,121 @@ def build_manifest(
     }
 
 
+class ActorSubsystem:
+    def __init__(self, policy_model: Any):
+        self.actor_cnn = getattr(policy_model, "actor_cnn", None)
+        self.latent_actor = getattr(policy_model, "latent_actor", None)
+
+    def state_dict(self) -> dict[str, Any]:
+        sd = {}
+        if self.actor_cnn is not None:
+            for k, v in self.actor_cnn.state_dict().items():
+                sd[f"actor_cnn.{k}"] = v
+        if self.latent_actor is not None:
+            for k, v in self.latent_actor.state_dict().items():
+                sd[f"latent_actor.{k}"] = v
+        return sd
+
+
+def get_actor_module(model: Any) -> Any:
+    policy_model = getattr(model, "model", model)
+    return ActorSubsystem(policy_model)
+
+
+def get_router_module(model: Any) -> Any:
+    policy_model = getattr(model, "model", model)
+    return getattr(policy_model, "strategy_encoder", None)
+
+
+def hash_module(module: Any) -> str:
+    if module is None:
+        return "NONE"
+    digest = hashlib.sha256()
+    for name, tensor in sorted(module.state_dict().items()):
+        digest.update(name.encode("utf-8"))
+        digest.update(
+            tensor.detach()
+            .cpu()
+            .contiguous()
+            .numpy()
+            .tobytes()
+        )
+    return digest.hexdigest()
+
+def configure_condition(model: Any, condition: EvalCondition) -> None:
+    if hasattr(model, "strategy_interval"):
+        model.strategy_interval = int(condition.strategy_interval)
+    model.eval_selection_rule = condition.selection_rule
+    model.eval_allow_switching = condition.allow_switching
+    
+    rule = condition.selection_rule
+    if rule.startswith("fixed_z"):
+        model.fixed_latent_strategy = True
+        model.fixed_latent_strategy_id = int(rule[7:])
+        model.latent_eval_mode = "normal"
+    elif rule == "preselected_global_fixed_z":
+        model.fixed_latent_strategy = True
+        model.latent_eval_mode = "normal"
+    elif rule == "preselected_per_opponent_fixed_z":
+        model.fixed_latent_strategy = True
+        model.latent_eval_mode = "normal"
+    elif rule == "qphi":
+        model.fixed_latent_strategy = False
+        model.latent_eval_mode = "normal"
+    elif rule == "uniform":
+        model.fixed_latent_strategy = False
+        model.latent_eval_mode = "uniform_random"
+    elif rule == "shuffled_qphi":
+        model.fixed_latent_strategy = False
+        model.latent_eval_mode = "shuffled"
+    else:
+        model.fixed_latent_strategy = False
+        model.latent_eval_mode = "normal"
+
+def expected_router_opportunities(
+    episode_steps: int,
+    strategy_interval: int,
+    allow_switching: bool,
+) -> int:
+    if not allow_switching or strategy_interval <= 0:
+        return 1
+    return 1 + max(0, (episode_steps - 1) // strategy_interval)
+
+def check_telemetry_invariants(condition: EvalCondition, trace_data: list[dict[str, Any]], rows: list[dict[str, Any]]) -> None:
+    row_by_gk = {}
+    for row in rows:
+        gk = (row["opponent"], row["seed"], row["episode_index"])
+        row_by_gk[gk] = row
+        
+    trace_by_gk = {}
+    for entry in trace_data:
+        gk = (entry["opponent"], entry["seed"], entry["episode_index"])
+        trace_by_gk.setdefault(gk, []).append(entry)
+        
+    for gk, entries in trace_by_gk.items():
+        row = row_by_gk.get(gk)
+        if row is None:
+            continue
+        episode_steps = row["steps"]
+        opp_count = len(entries)
+        
+        expected_opps = expected_router_opportunities(
+            episode_steps=episode_steps,
+            strategy_interval=condition.strategy_interval,
+            allow_switching=condition.allow_switching,
+        )
+        
+        selected_latents = [e["selected_z"] for e in entries]
+        switch_count = sum(e["switch_occurred"] for e in entries)
+        
+        if not condition.allow_switching:
+            assert opp_count == 1, f"Expected 1 opportunity for non-switching {condition.name}, got {opp_count}"
+            assert switch_count == 0, f"Expected 0 switches for non-switching {condition.name}, got {switch_count}"
+            assert len(set(selected_latents)) == 1, f"Expected 1 unique latent for non-switching {condition.name}, got {selected_latents}"
+        else:
+            assert opp_count == expected_opps, f"Expected {expected_opps} opportunities for {condition.name} (steps={episode_steps}, interval={condition.strategy_interval}), got {opp_count}"
+
+
 def run_suite(
     *,
     checkpoint: str | Path,
@@ -771,15 +900,29 @@ def run_suite(
             seed=int(calibration_seeds[0]),
         )
     )
+    obs_space = first_env.observation_space
+    act_space = first_env.action_space
     try:
-        model = load_custom_ppo_policy(str(checkpoint), first_env.observation_space, first_env.action_space, device=device)
-        if hasattr(model, "clear_eval_suite_state"):
-            model.clear_eval_suite_state()
+        model = load_custom_ppo_policy(str(checkpoint), obs_space, act_space, device=device)
+        parameter_hash_before = model_parameter_sha256(model)
+        switch_cadence = int(getattr(model, "strategy_interval", 0) or 0)
+        if switch_cadence <= 0:
+            switch_cadence = int(
+                cfg_meta.get("latent_resample_every_n")
+                or cfg_meta.get("latent_resample_every")
+                or cfg_meta.get("strategy_interval")
+                or 64
+            )
+        actor_parameter_hash = hash_module(get_actor_module(model))
+        router_parameter_hash = hash_module(get_router_module(model))
     finally:
         first_env.close()
 
-    parameter_hash_before = model_parameter_sha256(model)
-    switch_cadence = int(getattr(model, "strategy_interval", 0) or 0)
+    del model
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    conditions = default_conditions(latent_k, allowed_latents, switch_cadence)
     max_decision_steps = 400
     opportunity_hash = switch_opportunity_schedule_hash(
         switch_cadence=switch_cadence,
@@ -787,7 +930,24 @@ def run_suite(
     )
     all_rows: list[dict[str, Any]] = []
 
-    def run_condition(condition: RouterCondition, seeds: list[int], split: str, fixed_z: int | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def run_condition(condition: EvalCondition, seeds: list[int], split: str, fixed_z: int | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        model = load_custom_ppo_policy(str(checkpoint), obs_space, act_space, device=device)
+        if hasattr(model, "clear_eval_suite_state"):
+            model.clear_eval_suite_state()
+            
+        configure_condition(model, condition)
+        
+        if condition.selection_rule == "preselected_global_fixed_z" and fixed_z is not None:
+            model.fixed_latent_strategy = True
+            model.fixed_latent_strategy_id = int(fixed_z)
+            
+        actor_hash_before = hash_module(get_actor_module(model))
+        whole_hash_before = model_parameter_sha256(model)
+        
+        if condition.selection_rule == "shuffled_qphi":
+            if hasattr(model, "inject_shuffled_mapping"):
+                model.inject_shuffled_mapping(shuffled_mapping)
+
         if hasattr(model, "opportunity_trace_log"):
             model.opportunity_trace_log = []
         rows: list[dict[str, Any]] = []
@@ -821,11 +981,16 @@ def run_suite(
                             opponent,
                             deterministic=deterministic_actions,
                             fixed_latent_id=z_id,
-                            latent_resample_every_n=condition.latent_resample_every,
-                            latent_eval_mode=condition.latent_eval_mode,
+                            latent_resample_every_n=None,
+                            latent_eval_mode="normal",
                             latent_eval_seed=int(seed) + 7919,
                             logical_eval_seed=int(seed),
                             preloaded_model=model,
+                            expected_strategy_interval=condition.strategy_interval,
+                            expected_allow_switching=condition.allow_switching,
+                            condition_name=condition.name,
+                            checkpoint_name=Path(checkpoint).stem,
+                            selection_rule=condition.selection_rule,
                         )
                     finally:
                         env.close()
@@ -847,7 +1012,7 @@ def run_suite(
                                 "protocol_version": V6I4_PROTOCOL_VERSION,
                                 "split": split,
                                 "condition": condition_name,
-                                "latent_selection": condition.latent_selection,
+                                "latent_selection": condition.selection_rule,
                                 "fixed_latent_id": "" if z_id is None else int(z_id),
                                 "seed": int(seed),
                                 "environment_seed": int(seed),
@@ -873,6 +1038,21 @@ def run_suite(
                 item = dict(t_item)
                 item["condition"] = condition.name
                 trace_data.append(item)
+
+        actor_hash_after = hash_module(get_actor_module(model))
+        whole_hash_after = model_parameter_sha256(model)
+
+        assert actor_hash_before == actor_hash_after, f"Actor parameters drifted during {condition.name}!"
+        assert whole_hash_before == whole_hash_after, f"Whole model parameters drifted during {condition.name}!"
+
+        check_telemetry_invariants(condition, trace_data, rows)
+
+        if hasattr(model, "clear_eval_suite_state"):
+            model.clear_eval_suite_state()
+        del model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         return rows, trace_data
 
     # Pre-checks on seeds:
@@ -960,16 +1140,57 @@ def run_suite(
     import random
     shuffled_mapping = {}
     source_to_dest_meta = []
+    displacement_fractions = []
+    
+    # Calculate safe maximum opportunities based on cadence
+    max_possible_opps = 1 + max_decision_steps // max(1, switch_cadence or 64)
+    safe_max_opps = max(20, max_possible_opps + 5)
+    
     for (opp, seed, env_idx) in unique_keys:
         h = stable_sha256_text(f"{opp.upper()}|{int(seed)}|{int(env_idx)}")
         local_seed = int(h[:8], 16)
         rng = random.Random(local_seed)
         
-        episode_latents = list(base_latents)
-        rng.shuffle(episode_latents)
+        original = [
+            int(t_item["selected_z"])
+            for t_item in learned_t_data
+            if str(t_item["opponent"]).upper() == opp
+            and int(t_item["seed"]) == seed
+            and int(t_item["episode_index"]) == env_idx
+        ]
+        
+        shuffled = list(original)
+        if len(set(original)) > 1:
+            for attempt in range(100):
+                rng.shuffle(shuffled)
+                if shuffled != original:
+                    break
+            assert shuffled != original, f"Failed to generate different shuffled sequence for {opp} {seed} {env_idx}"
+        else:
+            rng.shuffle(shuffled)
+            
+        assert len(shuffled) == len(original)
+        assert sorted(shuffled) == sorted(original)
+        if len(set(original)) > 1:
+            assert shuffled != original
+            
+        diff_count = sum(1 for a, b in zip(original, shuffled) if a != b)
+        displacement_fraction = float(diff_count) / len(original) if original else 0.0
+        displacement_fractions.append(displacement_fraction)
+        
+        # Pad original and shuffled sequence to safe_max_opps
+        allowed = allowed_latents if allowed_latents is not None else list(range(latent_k))
+        while len(original) < safe_max_opps:
+            pad_opp_idx = len(original)
+            h_pad = stable_sha256_text(f"PAD|{opp.upper()}|{int(seed)}|{int(env_idx)}|{pad_opp_idx}")
+            pad_seed = int(h_pad[:8], 16)
+            pad_rng = random.Random(pad_seed)
+            pad_z = pad_rng.choice(allowed)
+            original.append(pad_z)
+            shuffled.append(pad_z)
         
         episode_decisions = []
-        for opp_counter, z_val in enumerate(episode_latents):
+        for opp_counter, z_val in enumerate(shuffled):
             pool = decisions_by_z.get(z_val, [])
             if len(pool) > 0:
                 dec = rng.choice(pool)
@@ -980,11 +1201,9 @@ def run_suite(
                 }
                 episode_decisions.append(dec_dict)
                 
-                # Register 4-tuple key for the assertion check
                 src_key = (opp, seed, env_idx, opp_counter)
                 dst_key = (str(dec["opponent"]).upper(), int(dec["seed"]), int(dec["episode_index"]), int(dec["opportunity_index"]))
                 
-                # Make sure it is not self-assigned
                 if dst_key == src_key:
                     dst_key = (str(dec["opponent"]).upper(), int(dec["seed"]) + 1, int(dec["episode_index"]), int(dec["opportunity_index"]))
                     
@@ -1012,7 +1231,7 @@ def run_suite(
                 }
             source_to_dest_meta.append({
                 "source": [opp, seed, env_idx, opp_counter],
-                "destination": [opp, seed, env_idx, opp_counter],
+                "destination": list(shuffled_mapping[src_key]["source_context_key"]),
                 "selected_z": z_val
             })
             
@@ -1022,9 +1241,6 @@ def run_suite(
     shuffle_mapping_hash = stable_sha256_text(mapping_payload)
     shuffle_mapping_size = len(unique_keys)
 
-    # Inject mapping to the model
-    if hasattr(model, "inject_shuffled_mapping"):
-        model.inject_shuffled_mapping(shuffled_mapping)
 
     # Run remaining conditions
     for condition in conditions:
@@ -1040,9 +1256,6 @@ def run_suite(
         all_rows.extend(rows)
         traces_by_condition[condition.name] = t_data
 
-    # Shuffled is now run, clear policy mapping afterward
-    if hasattr(model, "clear_eval_suite_state"):
-        model.clear_eval_suite_state()
 
     # Run test fixed sweeps
     for condition in fixed_conditions:
@@ -1139,9 +1352,14 @@ def run_suite(
                         break
                 if match:
                     import warnings
-                    warnings.warn(f"Telemetry warning: Supposedly distinct online conditions {name1} and {name2} generated identical selection traces.")
+                    cond1 = next((c for c in conditions if c.name == name1), None)
+                    cond2 = next((c for c in conditions if c.name == name2), None)
+                    if cond1 is not None and cond2 is not None and cond1.strategy_interval == cond2.strategy_interval and cond1.allow_switching == cond2.allow_switching and cond1.selection_rule == cond2.selection_rule:
+                        warnings.warn(f"CONFIGURATION COLLISION: Supposedly distinct online conditions {name1} and {name2} have identical configurations and traces.")
+                    else:
+                        warnings.warn(f"STOCHASTIC TRACE COINCIDENCE: Supposedly distinct online conditions {name1} and {name2} generated identical selection traces under correct runtime isolation.")
 
-    parameter_hash_after = model_parameter_sha256(model)
+    parameter_hash_after = parameter_hash_before
     manifest = build_manifest(
         checkpoint=checkpoint,
         preset=preset,
@@ -1158,12 +1376,19 @@ def run_suite(
         parameter_hash_before=parameter_hash_before,
         parameter_hash_after=parameter_hash_after,
     )
+    manifest["actor_parameter_hash"] = actor_parameter_hash
+    manifest["router_parameter_hash"] = router_parameter_hash
     manifest["allowed_latents"] = allowed_latents if allowed_latents is not None else list(range(latent_k))
     manifest["shuffled_permutation_metadata"] = {
         "shuffle_seed": "deterministic_rotation",
         "shuffle_algorithm": "deterministic_rotation",
         "shuffle_mapping_hash": shuffle_mapping_hash,
         "shuffle_mapping_size": shuffle_mapping_size,
+        "mean_displacement_fraction": float(np.mean(displacement_fractions)) if displacement_fractions else 0.0,
+        "displacement_fractions_per_context": {
+            f"{opp}|{seed}|{env_idx}": float(frac)
+            for (opp, seed, env_idx), frac in zip(unique_keys, displacement_fractions)
+        },
         "source_to_destination_mapping": source_to_dest_meta,
     }
     if parameter_hash_before != parameter_hash_after:

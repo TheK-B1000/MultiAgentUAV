@@ -103,6 +103,82 @@ def compute_episode_coordination_metrics(traj: np.ndarray) -> dict[str, float]:
     return out
 
 
+import hashlib
+
+def derive_seed(*parts: object) -> int:
+    payload = "::".join(str(part) for part in parts)
+    digest = hashlib.sha256(payload.encode("utf-8")).digest()
+    return int.from_bytes(digest[:4], "little")
+
+def reset_router_runtime_state(model: Any) -> None:
+    reset_values = {
+        "previous_z": None,
+        "current_z": None,
+        "last_strategy_step": None,
+        "router_step_count": 0,
+        "latent_switch_count": 0,
+        "router_history": [],
+        "selection_trace": [],
+    }
+    policy = getattr(model, "model", model)
+    for obj in (model, policy):
+        for attr, value in reset_values.items():
+            for name in (attr, f"_{attr}"):
+                if hasattr(obj, name):
+                    import copy
+                    setattr(obj, name, copy.deepcopy(value))
+
+def reset_eval_runtime_state(model: Any) -> None:
+    if hasattr(model, "reset_strategy"):
+        model.reset_strategy()
+    reset_router_runtime_state(model)
+
+def prepare_model_for_episode(
+    model: Any,
+    expected_interval: int,
+    expected_switching: bool,
+    expected_rule: str | None = None,
+    fixed_latent_id: int | None = None,
+) -> None:
+    reset_eval_runtime_state(model)
+    
+    assert getattr(model, "strategy_interval", 0) == expected_interval, (
+        f"Assertion error: strategy_interval={getattr(model, 'strategy_interval', 0)} != expected={expected_interval}"
+    )
+    assert getattr(model, "eval_allow_switching", False) == expected_switching, (
+        f"Assertion error: eval_allow_switching={getattr(model, 'eval_allow_switching', False)} != expected={expected_switching}"
+    )
+    
+    if expected_rule is not None:
+        rule = expected_rule
+        if rule.startswith("fixed_z"):
+            assert getattr(model, "fixed_latent_strategy", False) is True, "fixed_latent_strategy is not True"
+            expected_z = int(rule[7:])
+            assert getattr(model, "fixed_latent_strategy_id", -1) == expected_z, (
+                f"fixed_latent_strategy_id={getattr(model, 'fixed_latent_strategy_id', -1)} != expected={expected_z}"
+            )
+            assert getattr(model, "latent_eval_mode", "normal") == "normal", "latent_eval_mode is not normal"
+        elif rule == "preselected_global_fixed_z":
+            assert getattr(model, "fixed_latent_strategy", False) is True, "fixed_latent_strategy is not True"
+            if fixed_latent_id is not None:
+                assert getattr(model, "fixed_latent_strategy_id", -1) == int(fixed_latent_id), (
+                    f"fixed_latent_strategy_id={getattr(model, 'fixed_latent_strategy_id', -1)} != expected={fixed_latent_id}"
+                )
+            assert getattr(model, "latent_eval_mode", "normal") == "normal", "latent_eval_mode is not normal"
+        elif rule == "preselected_per_opponent_fixed_z":
+            assert getattr(model, "fixed_latent_strategy", False) is True, "fixed_latent_strategy is not True"
+            assert getattr(model, "latent_eval_mode", "normal") == "normal", "latent_eval_mode is not normal"
+        elif rule == "qphi":
+            assert getattr(model, "fixed_latent_strategy", False) is False, "fixed_latent_strategy is not False"
+            assert getattr(model, "latent_eval_mode", "normal") == "normal", "latent_eval_mode is not normal"
+        elif rule == "uniform":
+            assert getattr(model, "fixed_latent_strategy", False) is False, "fixed_latent_strategy is not False"
+            assert getattr(model, "latent_eval_mode", "normal") == "uniform_random", "latent_eval_mode is not uniform_random"
+        elif rule == "shuffled_qphi":
+            assert getattr(model, "fixed_latent_strategy", False) is False, "fixed_latent_strategy is not False"
+            assert getattr(model, "latent_eval_mode", "normal") == "shuffled", "latent_eval_mode is not shuffled"
+
+
 def run_eval_episodes(
     model_path: str,
     env: Any,
@@ -122,6 +198,11 @@ def run_eval_episodes(
     logical_eval_seed: int | None = None,
     e3_step_telemetry_path: str | None = None,
     preloaded_model: Any | None = None,
+    expected_strategy_interval: int | None = None,
+    expected_allow_switching: bool | None = None,
+    condition_name: str | None = None,
+    checkpoint_name: str | None = None,
+    selection_rule: str | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -140,30 +221,50 @@ def run_eval_episodes(
         model = preloaded_model
         if hasattr(model, "model"):
             model.model.eval()
-    if hasattr(model, "fixed_latent_strategy"):
-        model.fixed_latent_strategy = False
-    if hasattr(model, "set_latent_eval_mode"):
-        try:
-            model.set_latent_eval_mode("normal", seed=latent_eval_seed)
-        except Exception:
-            pass
-    if fixed_latent_id is not None and hasattr(model, "model") and bool(
-        getattr(model.model, "uses_latent_strategy", False)
-    ):
-        model.fixed_latent_strategy = True
-        model.fixed_latent_strategy_id = max(0, int(fixed_latent_id))
-    if latent_resample_every_n is not None and hasattr(model, "strategy_interval"):
-        model.strategy_interval = max(0, int(latent_resample_every_n))
-    if (
-        str(latent_eval_mode).lower() != "normal"
-        and hasattr(model, "set_latent_eval_mode")
-        and bool(getattr(getattr(model, "model", None), "uses_latent_strategy", False))
-    ):
-        model.set_latent_eval_mode(
-            str(latent_eval_mode).lower(),
-            marginal=latent_eval_marginal,
-            seed=latent_eval_seed,
+
+    if expected_strategy_interval is not None and expected_allow_switching is not None:
+        # Repaired path with strict configuration assertions:
+        if fixed_latent_id is not None and hasattr(model, "model") and bool(
+            getattr(model.model, "uses_latent_strategy", False)
+        ):
+            model.fixed_latent_strategy = True
+            model.fixed_latent_strategy_id = max(0, int(fixed_latent_id))
+        
+        assert getattr(model, "strategy_interval", 0) == expected_strategy_interval, (
+            f"Leakage check failed: strategy_interval={getattr(model, 'strategy_interval', 0)} != expected={expected_strategy_interval}"
         )
+        assert getattr(model, "eval_allow_switching", False) == expected_allow_switching, (
+            f"Leakage check failed: eval_allow_switching={getattr(model, 'eval_allow_switching', False)} != expected={expected_allow_switching}"
+        )
+    else:
+        # Legacy path:
+        if hasattr(model, "fixed_latent_strategy"):
+            model.fixed_latent_strategy = False
+        if hasattr(model, "set_latent_eval_mode"):
+            try:
+                model.set_latent_eval_mode("normal", seed=latent_eval_seed)
+            except Exception:
+                pass
+        if fixed_latent_id is not None and hasattr(model, "model") and bool(
+            getattr(model.model, "uses_latent_strategy", False)
+        ):
+            model.fixed_latent_strategy = True
+            model.fixed_latent_strategy_id = max(0, int(fixed_latent_id))
+        if hasattr(model, "strategy_interval"):
+            if latent_resample_every_n is not None:
+                model.strategy_interval = max(0, int(latent_resample_every_n))
+            elif hasattr(model, "_original_strategy_interval"):
+                model.strategy_interval = model._original_strategy_interval
+        if (
+            str(latent_eval_mode).lower() != "normal"
+            and hasattr(model, "set_latent_eval_mode")
+            and bool(getattr(getattr(model, "model", None), "uses_latent_strategy", False))
+        ):
+            model.set_latent_eval_mode(
+                str(latent_eval_mode).lower(),
+                marginal=latent_eval_marginal,
+                seed=latent_eval_seed,
+            )
     if progress_every > 0:
         print(
             f"  checkpoint loaded; {n_episodes} episodes",
@@ -220,23 +321,99 @@ def run_eval_episodes(
 
     try:
         episodes: list[dict] = []
-        obs = env.reset()
-        if hasattr(model, "reset_strategy"):
-            model.reset_strategy()
+        if expected_strategy_interval is not None and expected_allow_switching is not None:
+            # Under new isolated scheme, prepare model before first episode too
+            prepare_model_for_episode(
+                model,
+                expected_strategy_interval,
+                expected_allow_switching,
+                expected_rule=selection_rule,
+                fixed_latent_id=fixed_latent_id,
+            )
+        else:
+            if hasattr(model, "reset_strategy"):
+                model.reset_strategy()
 
         global_step_counter = 0
         for ep_idx in range(n_episodes):
+            episode_seed = logical_eval_seed if logical_eval_seed is not None else (latent_eval_seed if latent_eval_seed is not None else 0)
+            
+            if expected_strategy_interval is not None and expected_allow_switching is not None:
+                # 1. Derive separate seeds using SHA-256
+                c_name = checkpoint_name if checkpoint_name else "UNKNOWN_CKPT"
+                cond_name = condition_name if condition_name else "UNKNOWN_COND"
+                
+                common_episode_seed = derive_seed(c_name, opponent, episode_seed)
+                router_seed = derive_seed(c_name, cond_name, opponent, episode_seed, "router")
+                
+                # 2. Seed global RNGs (environment reset, opponent, action sampling)
+                import random
+                random.seed(common_episode_seed)
+                import numpy as np
+                np.random.seed(common_episode_seed)
+                import torch
+                torch.manual_seed(common_episode_seed)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(common_episode_seed)
+                
+                # Attach separate PyTorch Generators on the policy model for strategy vs. actions:
+                dev = torch.device(device)
+                g_s = torch.Generator(device=dev)
+                g_s.manual_seed(int(router_seed) & 0xFFFF_FFFF)
+                g_a = torch.Generator(device=dev)
+                g_a.manual_seed(int(common_episode_seed) & 0xFFFF_FFFF)
+                
+                policy_model = getattr(model, "model", model)
+                if hasattr(policy_model, "set_sampling_generators"):
+                    policy_model.set_sampling_generators(strategy=g_s, action=g_a)
+                
+                # Reseed env:
+                if hasattr(env, "seed"):
+                    env.seed(common_episode_seed)
+                
+                # 3. Call prepare_model_for_episode
+                prepare_model_for_episode(
+                    model,
+                    expected_strategy_interval,
+                    expected_allow_switching,
+                    expected_rule=selection_rule,
+                    fixed_latent_id=fixed_latent_id,
+                )
+                
+                # 4. Set latent eval mode with derived router seed if applicable
+                if hasattr(model, "set_latent_eval_mode") and hasattr(model, "model") and bool(
+                    getattr(model.model, "uses_latent_strategy", False)
+                ):
+                    mode_to_set = "normal"
+                    if cond_name == "shuffled_qphi_outputs":
+                        mode_to_set = "shuffled"
+                    elif cond_name in ("uniform_episode_fixed", "uniform_random_at_router_opportunities"):
+                        mode_to_set = "uniform_random"
+                    model.set_latent_eval_mode(mode_to_set, seed=router_seed)
+                    
+                actual_eval_seed = router_seed
+                actual_env_seed = common_episode_seed
+            else:
+                # Legacy reset path:
+                if hasattr(model, "reset_strategy"):
+                    model.reset_strategy()
+                actual_eval_seed = latent_eval_seed if latent_eval_seed is not None else 0
+                actual_env_seed = latent_eval_seed if latent_eval_seed is not None else 0
+
+            # Reset env for this episode to apply the seed:
+            obs = env.reset()
+
             if hasattr(model, "set_eval_episode_context"):
                 model.set_eval_episode_context(
                     opponent=opponent,
-                    eval_seed=logical_eval_seed if logical_eval_seed is not None else (latent_eval_seed if latent_eval_seed is not None else 0),
-                    environment_seed=latent_eval_seed if latent_eval_seed is not None else 0,
+                    eval_seed=logical_eval_seed if logical_eval_seed is not None else actual_eval_seed,
+                    environment_seed=actual_env_seed,
                     env_index=ep_idx,
                 )
             elif hasattr(model, "set_current_episode_context"):
                 model.set_current_episode_context(
                     opponent=opponent,
-                    seed=latent_eval_seed if latent_eval_seed is not None else 0,
+                    seed=actual_env_seed,
                     episode_index=ep_idx,
                 )
             ep_return = 0.0

@@ -1,0 +1,13 @@
+condition,map_set,opponent,episodes,success_rate,return_mean,win_margin_mean,strategy_switches_mean,strategy_resample_rate_mean
+fixed_z0,eval,OP5,2,0.0,-6.628552461599611,-1.0,0.0,0.0
+fixed_z3,eval,OP5,2,0.0,-7.649253828567453,-1.0,0.0,0.0
+learned_qphi_switching,eval,OP5,2,0.5,-5.973778485862567,0.0,1.5,0.03537984496124031
+posthoc_episode_oracle,eval,OP5,2,0.0,-5.565073782581749,-1.0,0.0,0.0
+posthoc_global_fixed_oracle,eval,OP5,2,0.0,-6.628552461599611,-1.0,0.0,0.0
+posthoc_opponent_oracle,eval,OP5,2,0.0,-6.628552461599611,-1.0,0.0,0.0
+preselected_global_fixed_z,eval,OP5,2,0.0,-6.628552461599611,-1.0,0.0,0.0
+preselected_per_opponent_fixed_z,eval,OP5,2,0.0,-6.628552461599611,-1.0,0.0,0.0
+qphi_initial_only_no_switch,eval,OP5,2,0.0,-7.649253828567453,-1.0,0.0,0.00951867816091954
+shuffled_qphi_outputs,eval,OP5,2,0.5,-4.692332327165786,0.0,2.0,0.03279569892473118
+uniform_episode_fixed,eval,OP5,2,0.0,-8.712732507585315,-1.0,0.0,0.00865817091454273
+uniform_random_at_router_opportunities,eval,OP5,2,0.0,-9.197532410762506,-1.5,0.5,0.03525939732836285
