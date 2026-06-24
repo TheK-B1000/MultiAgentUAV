@@ -209,15 +209,22 @@ def v6i7_recurrent_router_config() -> PPOConfig:
     )
 
 def v6i7_b0_mlp_baseline_config() -> PPOConfig:
-    """V6I7-B0: MLP router (non-recurrent) with conditional entropy — BPTT ablation baseline."""
+    """V6I7-B0: state-only MLP router under the repaired V6I7 pipeline."""
     return replace(
         v6i7_recurrent_router_config(),
-        router_context_mode="",   # revert to EMA context
+
+        # Keep the same raw current-state input used by B1.
+        router_context_mode="current",
+
+        # Disable recurrence only.
         recurrent_selector_hidden_dim=0,
         recurrent_seq_len=0,
         recurrent_burn_in=0,
+        router_chunks_per_batch=0,
+
         h_mode="conditional",
         latent_lam_h=0.0,
+        latent_entropy_objective="none",
         router_ent_coef=0.005,
     )
 
