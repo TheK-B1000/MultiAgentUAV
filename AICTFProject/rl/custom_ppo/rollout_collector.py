@@ -56,6 +56,7 @@ from rl.behavior_telemetry import (
 from rl.global_state import (
     GLOBAL_STATE_DIM,
     GLOBAL_STATE_FLAG_TERRITORY_SLICE,
+    augment_with_strategy_phase,
 )
 from rl.custom_ppo.latent.router_sampling import (
     build_current_plus_delta_router_context,
@@ -68,7 +69,7 @@ from rl.ppo_core import (
 from rl.csia import CSIARewardModel
 from rl.custom_ppo.csv_writers import _opponent_id_int_from_info
 from rl.custom_ppo.curriculum_runtime import _update_curriculum_after_episode
-from rl.custom_ppo.option_returns import compute_option_returns
+from rl.custom_ppo.option_returns import compute_option_returns, compute_router_returns
 from rl.custom_ppo.return_normalization import (
     _denormalize_values,
     _update_return_norm_stats,
@@ -236,6 +237,15 @@ class RolloutCollector:
                 hidden_dim = int(getattr(self.model, "recurrent_selector_hidden_dim", 0) or 0)
                 if hidden_dim > 0:
                     buffer.register_field("selector_hidden", (hidden_dim,))
+                # V6I7: per-step masks and cross-buffer state for router GAE.
+                is_v6i7_current_mode = (
+                    str(getattr(self.cfg, "router_context_mode", "") or "") == "current"
+                )
+                if is_v6i7_current_mode:
+                    buffer.register_field("router_decision_valid", dtype=torch.bool, deferred=True)
+                    buffer.register_field("critic_transition_valid", dtype=torch.bool, deferred=True)
+                    buffer.register_field("interval_end_reason", dtype=torch.long, deferred=True)
+                    buffer.register_field("ended_at_router_opportunity", dtype=torch.bool, deferred=True)
         if bool(getattr(self.model, "communication_enabled", False)):
             n_agents = int(self.model.n_agents)
             buffer.register_field("message_symbols", (n_agents,), dtype=torch.long)
@@ -316,7 +326,17 @@ class RolloutCollector:
                 return _denormalize_values(runtime, self.model.values(gs))
 
             done_t = torch.as_tensor(dones, dtype=torch.bool, device=device) if dones is not None else None
-            next_context_gs_t = self.temporal_tracker.update(gs, dones=done_t)
+            if self._is_v6i7_mode:
+                # V6I7: skip EMA tracker; build raw + scheduler-phase context.
+                # strategy_age has not yet been incremented (mark_strategy_step_done
+                # runs after next_values). Add 1 manually; done envs reset to 0.
+                strategy_interval = int(getattr(self.cfg, "strategy_interval", 32) or 32)
+                age_next = self.latent_state.strategy_age + 1
+                if done_t is not None:
+                    age_next = torch.where(done_t, torch.zeros_like(age_next), age_next)
+                next_context_gs_t = augment_with_strategy_phase(gs, age_next, strategy_interval)
+            else:
+                next_context_gs_t = self.temporal_tracker.update(gs, dones=done_t)
             runtime._last_context_state = next_context_gs_t
 
             if next_obs is None or prev_z is None:
@@ -435,6 +455,21 @@ class RolloutCollector:
     # Rollout setup / teardown.
     # ------------------------------------------------------------------
 
+    @property
+    def _is_v6i7_mode(self) -> bool:
+        """True when V6I7 router mode: raw global state + scheduler phase (no EMA)."""
+        return (
+            bool(getattr(self.model, "use_recurrent_selector", False))
+            and str(getattr(self.cfg, "router_context_mode", "") or "") == "current"
+        )
+
+    def _v6i7_context(self, raw_gs: torch.Tensor) -> torch.Tensor:
+        """Build 35-dim V6I7 context: raw global state + normalized strategy age."""
+        strategy_interval = int(getattr(self.cfg, "strategy_interval", 32) or 32)
+        return augment_with_strategy_phase(
+            raw_gs, self.latent_state.strategy_age, strategy_interval
+        )
+
     def _initial_step_state(
         self,
     ) -> Tuple[Dict[str, np.ndarray], np.ndarray, torch.Tensor]:
@@ -459,7 +494,10 @@ class RolloutCollector:
                 runtime.comm_runtime.bind_env_core(self.env.core)
             if use_latent:
                 gs_t = torch.as_tensor(global_state, dtype=torch.float32, device=device)
-                context_state = self.temporal_tracker.update(gs_t)
+                if self._is_v6i7_mode:
+                    context_state = self._v6i7_context(gs_t)
+                else:
+                    context_state = self.temporal_tracker.update(gs_t)
             else:
                 context_state = torch.as_tensor(global_state, dtype=torch.float32, device=device)
             return obs, global_state, context_state
@@ -515,6 +553,24 @@ class RolloutCollector:
                     buffer.register_field("option_advantages")
                 buffer.fields["option_returns"].copy_(option_returns)
                 buffer.fields["option_advantages"].copy_(option_advantages)
+
+                # V6I7: opportunity-level router GAE using router_decision_valid.
+                if self._is_v6i7_mode and "router_decision_valid" in buffer.fields:
+                    router_returns, router_advantages = compute_router_returns(
+                        rewards=buffer.fields["rewards"],
+                        values=buffer.fields["values"],
+                        next_values=buffer.fields["next_values"],
+                        terminated=buffer.fields["terminated"],
+                        truncated=buffer.fields["truncated"],
+                        router_decision_valid=buffer.fields["router_decision_valid"],
+                        gamma=float(cfg.gamma),
+                    )
+                    if "router_returns" not in buffer.fields:
+                        buffer.register_field("router_returns")
+                    if "router_advantages" not in buffer.fields:
+                        buffer.register_field("router_advantages")
+                    buffer.fields["router_returns"].copy_(router_returns)
+                    buffer.fields["router_advantages"].copy_(router_advantages)
         _update_return_norm_stats(self.runtime, buffer.fields["returns"][: int(buffer.pos)])
 
     # ------------------------------------------------------------------
@@ -542,6 +598,13 @@ class RolloutCollector:
         env = self.env
         comm = getattr(runtime, "comm_runtime", None)
         decision_global_state_np = np.asarray(global_state, dtype=np.float32)
+
+        # V6I7: replace EMA context with raw global state + scheduler phase.
+        is_v6i7 = self._is_v6i7_mode
+        if is_v6i7:
+            raw_gs_t = torch.as_tensor(decision_global_state_np, dtype=torch.float32, device=self.device)
+            context_state = self._v6i7_context(raw_gs_t)
+
         if comm is not None and comm.enabled:
             comm.bind_env_core(env.core)
             obs = comm.prepare_obs(
@@ -670,6 +733,14 @@ class RolloutCollector:
             message_aux=message_aux,
         )
         self.step_recorder.record(buffer, frame)
+
+        # V6I7: write per-step decision/continuation validity masks.
+        if is_v6i7 and strategy_aux is not None:
+            self._write_v6i7_step_fields(buffer, strategy_aux, terminated, truncated)
+
+        # V6I7: advance GRU hidden state for ALL envs every step.
+        if is_v6i7 and strategy_aux is not None:
+            self._advance_gru_per_step(decision_global_state_np, terminated, truncated)
 
         self._append_global_state_probe_rows(decision_global_state_np, infos)
         if self.hparams.latent_resample_on_flag:
@@ -983,6 +1054,81 @@ class RolloutCollector:
             blue_ahead_np=blue_ahead_t.detach().cpu().numpy(),
             context_state=context_state,
         )
+
+    # ------------------------------------------------------------------
+    # V6I7-specific helpers.
+    # ------------------------------------------------------------------
+
+    def _write_v6i7_step_fields(
+        self,
+        buffer: TensorDictRolloutBuffer,
+        strategy_aux: Dict[str, torch.Tensor],
+        terminated: np.ndarray,
+        truncated: np.ndarray,
+    ) -> None:
+        """Write router_decision_valid and critic_transition_valid for one step.
+
+        router_decision_valid  — True only at actual strategy opportunity indices
+                                  (z_resampled is True, not forced).
+        critic_transition_valid — True at all non-terminal steps with a valid Q target.
+        interval_end_reason    — 0: normal/mid-hold, 1: next_opportunity, 2: terminated,
+                                  3: truncated, 4: buffer_cut (set at buffer finalization).
+        ended_at_router_opportunity — True if this step is both a terminal and a decision.
+        """
+        device = self.device
+        n_envs = int(self.env.num_envs)
+        z_resampled = strategy_aux.get("z_resampled", torch.zeros(n_envs, dtype=torch.bool, device=device))
+        z_forced = strategy_aux.get("z_forced", torch.zeros(n_envs, dtype=torch.bool, device=device))
+        terminated_t = torch.as_tensor(terminated, dtype=torch.bool, device=device)
+        truncated_t = torch.as_tensor(truncated, dtype=torch.bool, device=device)
+
+        # Actual decision: router sampled a new z (not forced, not mid-hold).
+        rdv = z_resampled & (~z_forced)
+
+        # Valid Q target: any step where we can compute a TD target.
+        # Terminated steps cannot be bootstrapped; truncated steps can (from Q_ω).
+        ctv = ~terminated_t
+
+        # Interval end reason: 2=terminated, 3=truncated, 1=next_opportunity, 0=mid-hold.
+        # buffer_cut (4) is not known here; finalization must update this field.
+        reason = torch.zeros(n_envs, dtype=torch.long, device=device)
+        reason = torch.where(rdv, torch.ones_like(reason), reason)  # 1: next_opportunity
+        reason = torch.where(terminated_t, torch.full_like(reason, 2), reason)
+        reason = torch.where(truncated_t, torch.full_like(reason, 3), reason)
+
+        ended_at_opp = (terminated_t | truncated_t) & rdv
+
+        if "router_decision_valid" in buffer.fields:
+            buf_pos = int(buffer.pos) - 1  # record was just appended by step_recorder
+            buffer.fields["router_decision_valid"][buf_pos].copy_(rdv)
+            buffer.fields["critic_transition_valid"][buf_pos].copy_(ctv)
+            buffer.fields["interval_end_reason"][buf_pos].copy_(reason)
+            buffer.fields["ended_at_router_opportunity"][buf_pos].copy_(ended_at_opp)
+
+    def _advance_gru_per_step(
+        self,
+        decision_global_state_np: np.ndarray,
+        terminated: np.ndarray,
+        truncated: np.ndarray,
+    ) -> None:
+        """Advance GRU hidden state once for every env at end of env step.
+
+        Updates latent_state.selector_hidden in-place. Episode boundaries
+        (terminated | truncated) trigger a hidden-state reset to zero.
+        """
+        if self.latent_state.selector_hidden is None:
+            return
+        device = self.device
+        gs_t = torch.as_tensor(decision_global_state_np, dtype=torch.float32, device=device)
+        episode_boundary = torch.as_tensor(
+            terminated | truncated, dtype=torch.bool, device=device
+        )
+        h_new = self.model.advance_selector_hidden(
+            gs_t,
+            self.latent_state.selector_hidden,
+            episode_boundary,
+        )
+        self.latent_state.selector_hidden = h_new
 
 
 __all__ = ["RolloutCollector"]

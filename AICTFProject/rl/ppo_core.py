@@ -163,6 +163,7 @@ class TensorDictRolloutBuffer:
         self.device = torch.device(device)
         self.registry: dict[str, RolloutField] = {}
         self.fields: dict[str, torch.Tensor] = {}
+        self._deferred_fields: set[str] = set()
         self.pos = 0
         self.full = False
 
@@ -172,8 +173,15 @@ class TensorDictRolloutBuffer:
         shape: tuple[int, ...] = (),
         *,
         dtype: torch.dtype = torch.float32,
+        deferred: bool = False,
     ) -> None:
-        """Register a field tensor with shape ``(T, B, *shape)``."""
+        """Register a field tensor with shape ``(T, B, *shape)``.
+
+        ``deferred=True`` marks a field as post-filled (written directly into
+        ``fields[name][pos]`` after ``add()`` is called).  Deferred fields are
+        pre-initialized to zero and are excluded from the missing-key check in
+        ``add()``, so callers do not need to supply them in the ``add`` call.
+        """
         if name in self.fields:
             raise ValueError(f"Rollout field {name!r} is already registered.")
         shape_t = tuple(int(v) for v in shape)
@@ -183,12 +191,15 @@ class TensorDictRolloutBuffer:
             dtype=dtype,
             device=self.device,
         )
+        if deferred:
+            self._deferred_fields.add(name)
 
     def add(self, **items: torch.Tensor) -> None:
         """Append one timestep of registered field values."""
         if self.pos >= self.buffer_size:
             raise RuntimeError("Rollout buffer is full; call reset() before adding more data.")
-        missing = set(self.fields).difference(items)
+        required = set(self.fields) - self._deferred_fields
+        missing = required.difference(items)
         if missing:
             raise KeyError(f"Missing rollout fields: {sorted(missing)}")
         extra = set(items).difference(self.fields)

@@ -101,4 +101,71 @@ def compute_option_returns(
     return option_returns, option_advantages
 
 
-__all__ = ["compute_option_returns"]
+def compute_router_returns(
+    *,
+    rewards: torch.Tensor,
+    values: torch.Tensor,
+    next_values: torch.Tensor,
+    terminated: torch.Tensor,
+    truncated: torch.Tensor,
+    router_decision_valid: torch.Tensor,
+    gamma: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Opportunity-level returns and advantages for the V6I7 recurrent router.
+
+    Identical in structure to :func:`compute_option_returns` but gates
+    interval boundaries on ``router_decision_valid`` (True only at actual
+    router decision steps, never at forced-z or continuation steps) rather
+    than ``z_resampled``.
+
+    The baseline used is the stored scalar ``values[t]`` (= V(s_t, z_t) from
+    the critic), NOT the fully-marginalized ``V^z(s)=Σ_z q·Q``.  This is
+    correct for V6I7-A plumbing validation; the marginalized baseline can
+    replace it once the forward pass is verified.
+
+    Args:
+        rewards:              ``(T, N)`` per-step reward tensor.
+        values:               ``(T, N)`` V(s_t, z_t) from the critic.
+        next_values:          ``(T, N)`` post-step bootstrap values.
+        terminated:           ``(T, N)`` boolean termination mask.
+        truncated:            ``(T, N)`` boolean truncation mask.
+        router_decision_valid: ``(T, N)`` boolean; True at actual router
+            opportunity indices (``z_resampled & ~z_forced``).
+        gamma:                scalar discount factor.
+
+    Returns:
+        ``(router_returns, router_advantages)`` — both ``(T, N)`` float
+        tensors. ``router_advantages = router_returns - values``.
+    """
+    if rewards.dim() != 2:
+        raise ValueError(
+            f"compute_router_returns expects 2-D (T, N) tensors; got rewards shape {tuple(rewards.shape)}."
+        )
+    T = int(rewards.shape[0])
+    terminated_b = terminated.bool()
+    truncated_b = truncated.bool()
+    rdv_b = router_decision_valid.bool()
+
+    router_returns = torch.zeros_like(rewards)
+    zero_row = torch.zeros_like(rewards[0])
+    gamma_f = float(gamma)
+
+    for t in reversed(range(T)):
+        done_t = terminated_b[t] | truncated_b[t]
+        done_next = torch.where(terminated_b[t], zero_row, next_values[t])
+        if t == T - 1:
+            carry = next_values[t]
+        else:
+            carry = torch.where(
+                rdv_b[t + 1],
+                values[t + 1],          # bootstrap at next decision step
+                router_returns[t + 1],  # fold into running return
+            )
+        next_val = torch.where(done_t, done_next, carry)
+        router_returns[t] = rewards[t] + gamma_f * next_val
+
+    router_advantages = router_returns - values
+    return router_returns, router_advantages
+
+
+__all__ = ["compute_option_returns", "compute_router_returns"]

@@ -66,7 +66,12 @@ class StrategyObjective:
         h_mode: str,
         zero_scalar: torch.Tensor,
     ) -> StrategyLossBundle:
-        resample = batch["z_resampled"].bool()
+        # V6I7: use router_decision_valid (True only at actual opportunity indices, never forced-z
+        # or continuation steps).  Fall back to z_resampled for pre-V6I7 buffers.
+        if "router_decision_valid" in batch:
+            resample = batch["router_decision_valid"].bool()
+        else:
+            resample = batch["z_resampled"].bool()
         persist_mask = batch["z_persist_mask"].bool()
         components: list[LossComponent] = []
 

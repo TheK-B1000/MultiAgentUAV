@@ -661,6 +661,22 @@ class PPOConfig:
     v6i6_e1_min_nearest_anchor_jsd: float = 0.02
     v6i6_e1_required_consecutive_checks: int = 5
 
+    # --- V6I7: Summer-Faithful Recurrent Router ---
+    # GRU hidden dimension; also used to determine q_phi input size (34 + hidden_dim).
+    recurrent_selector_hidden_dim: int = 64
+    # Sequence minibatch chunk lengths for truncated BPTT.
+    recurrent_seq_len: int = 32
+    recurrent_burn_in: int = 8
+    # Number of independent sequence chunks per BPTT minibatch.
+    router_chunks_per_batch: int = 4
+    # Conditional entropy coefficient for router decisions (applied inside BPTT loop).
+    router_ent_coef: float = 0.005
+    # Entropy mode for the marginal coverage term: "marginal" | "conditional".
+    h_mode: str = "marginal"
+    # Counterfactual separation coefficient (set 0.0 to disable for V6I7).
+    latent_cf_separation_coef: float = 0.0
+    # Strategy decision interval; controls how often z is resampled in fixed-cadence mode.
+    strategy_interval: int = 32
 
 
 __all__ = ["PPOConfig", "TrainMode"]

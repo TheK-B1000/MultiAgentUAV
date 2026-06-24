@@ -22,6 +22,7 @@ from rl.custom_ppo.update.post_update import (
     resolve_adapter_scale,
     resolve_separation_coef,
 )
+from rl.custom_ppo.update.router_sequence_updater import RouterSequenceUpdater
 from rl.custom_ppo.update.separation_objectives import SeparationObjective
 from rl.custom_ppo.update.strategy_objectives import StrategyObjective
 from rl.custom_ppo.update.telemetry import UpdateStatsAccumulator, build_metric_schema
@@ -191,6 +192,16 @@ class PPOUpdater:
         last_invalid_reason_code = 0.0
         stop_update = False
 
+        # V6I7: recurrent router sequence updater (BPTT) — constructed once, runs per epoch.
+        router_seq_updater = RouterSequenceUpdater(
+            model=self.model,
+            cfg=cfg,
+            hparams=hparams,
+            optimizer=self.optimizer,
+            device=self.device,
+        )
+        is_v6i7_router = router_seq_updater.is_active(buffer)
+
         for epoch_idx in range(hparams.n_epochs):
             epoch_state = entropy_objective.for_epoch(prep, v6i1_usage_coef=v6i1_usage_coef)
             epoch_state.consumed = False
@@ -225,6 +236,13 @@ class PPOUpdater:
                 if result.should_stop:
                     stop_update = True
                     break
+
+            # V6I7: after the actor/critic minibatch loop, run one router BPTT epoch.
+            if is_v6i7_router and not stop_update:
+                router_stats = router_seq_updater.update_epoch(buffer, ent_coef=ent_coef)
+                if router_stats:
+                    accumulator.record_minibatch(router_stats)
+
             if stop_update:
                 break
 

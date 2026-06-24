@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from rl.global_state import GLOBAL_STATE_DIM
+from rl.global_state import GLOBAL_STATE_DIM, GLOBAL_STATE_V6I7_DIM
 from rl.latent_marl import (
     CONTEXT_STATE_DIM,
     LatentConditionedActor,
@@ -283,7 +283,15 @@ class SharedActorCentralizedCritic(nn.Module):
         self.router_context_dimension = int(router_context_dimension or 0)
         self.router_current_plus_delta_enabled = self.router_context_mode == "current_plus_delta"
 
-        self.global_state_dim = CONTEXT_STATE_DIM if self.uses_latent_strategy else GLOBAL_STATE_DIM
+        # V6I7: router_context_mode="current" disables EMA stack and uses raw
+        # global state (augmented with scheduler phase to 35 dims) as input.
+        if self.router_context_mode == "current" and self.uses_latent_strategy:
+            self.global_state_dim = GLOBAL_STATE_V6I7_DIM
+        elif self.uses_latent_strategy:
+            self.global_state_dim = CONTEXT_STATE_DIM
+        else:
+            self.global_state_dim = GLOBAL_STATE_DIM
+
         q_phi_input_dim = (
             self.router_context_dimension
             if self.router_current_plus_delta_enabled and self.uses_latent_strategy
@@ -295,8 +303,11 @@ class SharedActorCentralizedCritic(nn.Module):
 
         if self.uses_latent_strategy:
             if self.use_recurrent_selector:
+                # GRU always takes raw 34-dim global state — not the augmented
+                # 35-dim V6I7 state, since the scheduler phase is for the critic
+                # (Markov property) and the GRU captures temporal info via h_t.
                 self.selector_gru = RecurrentSelectorCell(
-                    input_dim=int(self.global_state_dim),
+                    input_dim=GLOBAL_STATE_DIM,
                     hidden_dim=int(self.recurrent_selector_hidden_dim),
                 )
             else:
@@ -489,14 +500,23 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
         if self.uses_latent_strategy:
             actor_expected += int(self.z_embed_dim) + int(self.z_onehot_dim)
-            if int(self.global_state_dim) != int(CONTEXT_STATE_DIM):
+            # V6I7 "current" mode uses GLOBAL_STATE_V6I7_DIM (35); other latent
+            # modes use CONTEXT_STATE_DIM (170).
+            expected_global_dim = (
+                int(GLOBAL_STATE_V6I7_DIM)
+                if self.router_context_mode == "current"
+                else int(CONTEXT_STATE_DIM)
+            )
+            if int(self.global_state_dim) != expected_global_dim:
                 raise ValueError(
-                    f"latent global_state_dim must be {CONTEXT_STATE_DIM}, got {self.global_state_dim}"
+                    f"latent global_state_dim must be {expected_global_dim} "
+                    f"(router_context_mode={self.router_context_mode!r}), "
+                    f"got {self.global_state_dim}"
                 )
             expected_q_phi_dim = (
                 int(self.router_context_dimension)
                 if self.router_current_plus_delta_enabled
-                else int(CONTEXT_STATE_DIM)
+                else int(expected_global_dim)
             )
             if self.use_recurrent_selector and not self.router_current_plus_delta_enabled:
                 expected_q_phi_dim += int(self.recurrent_selector_hidden_dim)
@@ -504,9 +524,9 @@ class SharedActorCentralizedCritic(nn.Module):
                 raise ValueError(
                     f"q_phi_input_dim must be {expected_q_phi_dim}, got {self.q_phi_input_dim}"
                 )
-            if int(self.critic.global_state_dim) != int(CONTEXT_STATE_DIM):
+            if int(self.critic.global_state_dim) != expected_global_dim:
                 raise ValueError(
-                    f"critic global_state_dim must be {CONTEXT_STATE_DIM}, got {self.critic.global_state_dim}"
+                    f"critic global_state_dim must be {expected_global_dim}, got {self.critic.global_state_dim}"
                 )
             if int(self._decentralized_actor_in_dim) != actor_expected:
                 raise ValueError(
@@ -599,9 +619,94 @@ class SharedActorCentralizedCritic(nn.Module):
             return self.strategy_encoder(global_state.float()), None
         if selector_hidden is None:
             raise RuntimeError("selector_hidden is required when the recurrent selector is enabled.")
-        h_new = self.selector_gru(global_state, selector_hidden)
+        # GRU takes raw 34-dim state; encoder takes full (possibly augmented) state + hidden.
+        gru_input = global_state[:, :GLOBAL_STATE_DIM].float()
+        h_new = self.selector_gru(gru_input, selector_hidden)
         encoder_in = torch.cat([global_state.float(), h_new], dim=-1)
         return self.strategy_encoder(encoder_in), h_new
+
+    @torch.no_grad()
+    def advance_selector_hidden(
+        self,
+        global_state: torch.Tensor,
+        selector_hidden: torch.Tensor,
+        episode_boundary: torch.Tensor,
+    ) -> torch.Tensor:
+        """One GRU transition per env-step — V6I7 per-step hidden update.
+
+        Called once after every env step for ALL environments (not just at
+        decision steps). Caller passes ``episode_boundary = terminated | truncated``
+        as a (B,) bool; done envs are zeroed after the GRU update.
+
+        Returns detached (B, hidden_dim) tensor — no gradients.
+        """
+        if self.selector_gru is None:
+            raise RuntimeError("advance_selector_hidden requires use_recurrent_selector=True")
+        gs = global_state.float()
+        if gs.dim() == 1:
+            gs = gs.unsqueeze(0)
+        if gs.shape[1] != self.global_state_dim:
+            # Strip scheduler-phase column if it was appended (the GRU takes raw
+            # global state, not the augmented 35-dim version).
+            gs = gs[:, :GLOBAL_STATE_DIM]
+        h_new = self.selector_gru(gs, selector_hidden.float())
+        # Reset hidden state for environments that ended this step.
+        if episode_boundary.any():
+            mask = episode_boundary.to(device=h_new.device).float().unsqueeze(-1)
+            h_new = h_new * (1.0 - mask)
+        return h_new.detach()
+
+    def forward_router_sequence(
+        self,
+        global_state_seq: torch.Tensor,
+        h_start: torch.Tensor,
+        done_mask_seq: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """BPTT forward pass for the recurrent router over a contiguous chunk.
+
+        Runs the GRU through all steps (with episode resets via done_mask_seq),
+        then feeds [global_state, h_t] into q_phi at every step.  Gradients
+        flow back through the full GRU unroll so the caller controls what to
+        include in the loss (e.g. only loss-window steps, not burn-in).
+
+        Args:
+            global_state_seq: shape ``(T, B, state_dim)`` — 35-dim in V6I7
+                (raw 34 + scheduler phase). The GRU strips the extra dim itself.
+            h_start:          shape ``(B, hidden_dim)`` — starting hidden state,
+                detached from prior rollout.
+            done_mask_seq:    shape ``(T, B)`` — 1 where the episode ended AFTER
+                this step (so h resets BEFORE the next step).
+
+        Returns:
+            logits:  ``(T, B, K)`` — q_phi logits at every chunk step.
+            hiddens: ``(T, B, hidden_dim)`` — GRU hidden states, one per step,
+                INCLUDING the reset applied after each done. Burn-in hiddens
+                are still returned; the caller slices them off.
+        """
+        if self.selector_gru is None:
+            raise RuntimeError("forward_router_sequence requires use_recurrent_selector=True")
+        if self.strategy_encoder is None:
+            raise RuntimeError("forward_router_sequence requires strategy_encoder")
+
+        T, B, _ = global_state_seq.shape
+        gru_in_seq = global_state_seq[:, :, :GLOBAL_STATE_DIM].float()
+
+        h_t = h_start.float()
+        all_logits: list[torch.Tensor] = []
+        all_hiddens: list[torch.Tensor] = []
+
+        for t in range(T):
+            h_t = self.selector_gru(gru_in_seq[t], h_t)
+            # Apply episode reset: any env that ended at t-1 gets zeroed hidden.
+            if done_mask_seq[t].any():
+                reset = done_mask_seq[t].float().unsqueeze(-1)
+                h_t = h_t * (1.0 - reset)
+            encoder_in = torch.cat([global_state_seq[t].float(), h_t], dim=-1)
+            logits_t = self.strategy_encoder(encoder_in)
+            all_logits.append(logits_t)
+            all_hiddens.append(h_t)
+
+        return torch.stack(all_logits, dim=0), torch.stack(all_hiddens, dim=0)
 
     def strategy_logits(
         self,

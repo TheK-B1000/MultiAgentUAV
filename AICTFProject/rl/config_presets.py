@@ -147,3 +147,74 @@ def ablation_flag_resample_config(*, base: PPOConfig | None = None) -> PPOConfig
     """Ablate optional plan §12: resample when global flag/territory slice changes (keep all else from ``base``)."""
     c = base if base is not None else PPOConfig()
     return replace(c, latent_resample_on_flag=True)
+
+
+# ---------------------------------------------------------------------------
+# V6I7: Summer-Faithful Recurrent Router
+# ---------------------------------------------------------------------------
+
+def v6i7_recurrent_router_config() -> PPOConfig:
+    """V6I7-A smoke-test preset: GRU router with BPTT, EMA context disabled.
+
+    Locked decisions (see v6i7_plan.md):
+    - ``router_context_mode="current"`` disables the EMA stack; q_phi receives
+      raw 35-dim state (34 global + scheduler phase) concatenated with 64-dim GRU hidden.
+    - ``use_recurrent_selector=True`` activates the per-step GRU and BPTT training.
+    - Fixed sparse cadence (``latent_resample_every_n=32``); no event-driven resampling.
+    - Router PPO coef 0.10, persistence 0.02, router entropy 0.005 (conditional, at decisions only).
+    - All auxiliary supervised heads disabled.
+    - Coverage regularization via marginal entropy (``h_mode="marginal"``, λ_H=0.01).
+    """
+    return PPOConfig(
+        use_latent_strategy=True,
+        latent_k=4,
+        # GRU router — V6I7 plumbing
+        router_context_mode="current",
+        recurrent_selector_hidden_dim=64,
+        recurrent_seq_len=32,
+        recurrent_burn_in=8,
+        router_chunks_per_batch=4,
+        router_ent_coef=0.005,
+        # Fixed sparse strategy cadence
+        latent_resample_every_n=32,
+        latent_resample_on_flag=False,
+        latent_event_refresh_enabled=False,
+        latent_sparse_tactical_refresh_enabled=False,
+        # Objective coefficients
+        latent_strategy_ppo_coef=0.10,
+        latent_lam_p=0.02,
+        latent_lam_h=0.01,
+        latent_entropy_objective="maximize",
+        h_mode="marginal",
+        # Disable all supervised auxiliary heads
+        latent_strategy_aux_return_head=False,
+        latent_strategy_aux_return_coef=0.0,
+        latent_strategy_aux_predict_phase_coef=0.0,
+        latent_cf_separation_coef=0.0,
+        latent_kl_consecutive=0.0,
+        # Fixed latent off
+        fixed_latent_strategy=False,
+    )
+
+
+def v6i7_b0_mlp_baseline_config() -> PPOConfig:
+    """V6I7-B0: MLP router (non-recurrent) with conditional entropy — BPTT ablation baseline."""
+    return replace(
+        v6i7_recurrent_router_config(),
+        router_context_mode="",   # revert to EMA context
+        recurrent_selector_hidden_dim=0,
+        recurrent_seq_len=0,
+        recurrent_burn_in=0,
+        h_mode="conditional",
+        latent_lam_h=0.0,
+        router_ent_coef=0.005,
+    )
+
+
+def v6i7_b1_gru_conditional_config() -> PPOConfig:
+    """V6I7-B1: GRU router with conditional entropy (no marginal coverage) — entropy-mode ablation."""
+    return replace(
+        v6i7_recurrent_router_config(),
+        h_mode="conditional",
+        latent_lam_h=0.0,
+    )

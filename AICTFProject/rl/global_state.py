@@ -29,7 +29,27 @@ if TYPE_CHECKING:
 GLOBAL_STATE_DIM: int = 34
 GLOBAL_STATE_USED: int = 34
 
-# Order matches the plan’s “global summary” (team geometry + dispersion, flag proximity, captures, motion).
+# V6I7: raw global state augmented with normalized strategy-age (steps since last decision / interval).
+# Required for critic Markov property at mid-hold buffer cuts (plan Section C).
+GLOBAL_STATE_V6I7_DIM: int = GLOBAL_STATE_DIM + 1  # 35
+
+
+def augment_with_strategy_phase(
+    global_state: torch.Tensor,
+    strategy_age: torch.Tensor,
+    strategy_interval: int,
+) -> torch.Tensor:
+    """Append strategy_age_norm = strategy_age / strategy_interval to global state.
+
+    global_state: (B, GLOBAL_STATE_DIM) float32.
+    strategy_age: (B,) long -- steps since last router decision.
+    Returns (B, GLOBAL_STATE_V6I7_DIM) float32.
+    """
+    phase = (strategy_age.float() / max(1, int(strategy_interval))).clamp_(0.0, 1.0).unsqueeze(-1)
+    return torch.cat([global_state, phase.to(global_state.device)], dim=-1)
+
+
+# Order matches the plan's "global summary" (team geometry + dispersion, flag proximity, captures, motion).
 # The first 14 fields preserve the original plan global-summary order.
 # Score and clock pressure are appended for critic/q_phi predictability.
 GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
@@ -70,7 +90,7 @@ GLOBAL_STATE_FIELD_NAMES: tuple[str, ...] = (
 )
 assert len(GLOBAL_STATE_FIELD_NAMES) == GLOBAL_STATE_DIM, len(GLOBAL_STATE_FIELD_NAMES)
 
-# Slices [8:12] are “territory / flag” features for optional event-based resampling (min distances + capture bits).
+# Slices [8:12] are "territory / flag" features for optional event-based resampling (min distances + capture bits).
 GLOBAL_STATE_FLAG_TERRITORY_SLICE = slice(8, 12)
 
 

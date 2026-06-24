@@ -2926,3 +2926,55 @@ def apply_latent_a1_plan_faithful(cfg: PPOConfig) -> PPOConfig:
     cfg.load_path = None
     cfg.run_tag = "latent_a1_plan_faithful_1m_2v2"
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# V6I7: Summer-Faithful Recurrent Router
+# ---------------------------------------------------------------------------
+
+def apply_plan_faithful_latent_v6i7_recurrent_router(cfg: PPOConfig) -> PPOConfig:
+    """V6I7-A smoke test: GRU router with BPTT, EMA context disabled.
+
+    Do NOT load from a V6I6 checkpoint — the q_phi input layer dimension
+    changed (CONTEXT_STATE_DIM=170 → 34+64=98), making weights incompatible.
+    Start fresh or warm-start from a compatible actor-only checkpoint.
+    """
+    from rl.config_presets import v6i7_recurrent_router_config
+    preset = v6i7_recurrent_router_config()
+
+    cfg.use_latent_strategy = preset.use_latent_strategy
+    cfg.latent_k = preset.latent_k
+    cfg.router_context_mode = preset.router_context_mode
+    cfg.recurrent_selector_hidden_dim = preset.recurrent_selector_hidden_dim
+    cfg.recurrent_seq_len = preset.recurrent_seq_len
+    cfg.recurrent_burn_in = preset.recurrent_burn_in
+    cfg.router_chunks_per_batch = preset.router_chunks_per_batch
+    cfg.router_ent_coef = preset.router_ent_coef
+    cfg.latent_resample_every_n = preset.latent_resample_every_n
+    cfg.strategy_interval = preset.strategy_interval
+    cfg.latent_resample_on_flag = preset.latent_resample_on_flag
+    cfg.latent_event_refresh_enabled = preset.latent_event_refresh_enabled
+    cfg.latent_sparse_tactical_refresh_enabled = preset.latent_sparse_tactical_refresh_enabled
+    cfg.latent_strategy_ppo_coef = preset.latent_strategy_ppo_coef
+    cfg.latent_lam_p = preset.latent_lam_p
+    cfg.latent_lam_h = preset.latent_lam_h
+    cfg.latent_entropy_objective = preset.latent_entropy_objective
+    cfg.h_mode = preset.h_mode
+    cfg.latent_strategy_aux_return_head = preset.latent_strategy_aux_return_head
+    cfg.latent_strategy_aux_return_coef = preset.latent_strategy_aux_return_coef
+    cfg.latent_strategy_aux_predict_phase_coef = preset.latent_strategy_aux_predict_phase_coef
+    cfg.latent_cf_separation_coef = preset.latent_cf_separation_coef
+    cfg.latent_kl_consecutive = preset.latent_kl_consecutive
+    cfg.fixed_latent_strategy = preset.fixed_latent_strategy
+
+    cfg.experiment_id = "v6i7"
+    cfg.experiment_family = "v6"
+    cfg.total_timesteps = 1_000_000
+    cfg.mode = TrainMode.OPPONENT_POOL.value
+    cfg.opponent_pool = ["OP5", "OP6", "OP7"]
+    cfg.normalize_returns = True
+    cfg.clip_range = 0.18
+    cfg.clip_range_vf = 0.2
+    cfg.periodic_checkpoint_steps = 50_000
+    cfg.run_tag = "v6i7_recurrent_router_OP5_OP6_OP7_1m_4v4"
+    return cfg

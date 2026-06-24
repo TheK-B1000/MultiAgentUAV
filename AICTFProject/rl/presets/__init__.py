@@ -62,6 +62,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i5_corrected_team_intent_curriculum,
     apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor,
     apply_plan_faithful_latent_v6i6_strategy_expansion,
+    apply_plan_faithful_latent_v6i7_recurrent_router,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -383,6 +384,10 @@ PRESET_REGISTRY = {
     # validated manifest before training can launch.
     "plan_faithful_latent_v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "latent_v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
+    "v6i7": apply_plan_faithful_latent_v6i7_recurrent_router,
+    "v6i7_recurrent_router": apply_plan_faithful_latent_v6i7_recurrent_router,
+    "latent_v6i7": apply_plan_faithful_latent_v6i7_recurrent_router,
+    "latent_v6i7_recurrent_router": apply_plan_faithful_latent_v6i7_recurrent_router,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.

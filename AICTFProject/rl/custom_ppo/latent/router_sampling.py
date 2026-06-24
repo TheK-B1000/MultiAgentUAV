@@ -654,10 +654,9 @@ class RouterSamplingState:
                 z_log_prob=z_log_prob,
                 selector_hidden=selector_hidden_pre,
             )
-        if bool((resample_mask & (~forced_active)).any().item()):
-            if self.host.selector_hidden is not None:
-                _, h_new = trainer.model._forward_q_phi(global_state, self.host.selector_hidden)
-                self.host.selector_hidden = h_new.detach()
+        # NOTE: V6I7 advance_selector_hidden runs once-per-env-step in rollout_collector._advance_gru_per_step.
+        # The update that was here (calling _forward_q_phi and storing h_new) was a second, duplicate update
+        # at decision steps only — this caused double-updating and also prevented BPTT through the GRU.
 
         # Snapshot the q_phi training (state, z, log_prob) pair:
         # - warmup == 0: legacy behavior, snapshot at episode start (step 0)

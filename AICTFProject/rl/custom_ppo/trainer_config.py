@@ -763,9 +763,16 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                         ).lower() == "context_value"
                     )
                 ),
-                "use_recurrent_selector": bool(v6i1_staged and not router_context_enabled),
+                "use_recurrent_selector": bool(
+                    (v6i1_staged and not router_context_enabled)
+                    or str(getattr(cfg, "router_context_mode", "") or "") == "current"
+                ),
                 "recurrent_selector_hidden_dim": int(
-                    getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32
+                    getattr(
+                        cfg,
+                        "recurrent_selector_hidden_dim",
+                        getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32,
+                    ) or 32
                 ),
                 "strategy_tau": max(
                     1e-3, float(getattr(cfg, "latent_strategy_tau", 1.0) or 1.0)
