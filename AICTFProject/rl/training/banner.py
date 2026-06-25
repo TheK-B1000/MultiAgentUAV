@@ -92,7 +92,13 @@ def print_training_banner(
     use_latent = bool(getattr(cfg, "use_latent_strategy", False))
     temp_ctx_dim = CONTEXT_STATE_DIM if use_latent else 0
     q_phi_dim = resolve_q_phi_input_dim_from_cfg(cfg)
-    crit_dim = CONTEXT_STATE_DIM if use_latent else GLOBAL_STATE_DIM
+    # For V6I7 (router_context_mode="current") critic uses global_state_dim=35;
+    # for EMA-stack latent runs it uses CONTEXT_STATE_DIM=170.
+    if use_latent and str(getattr(cfg, "router_context_mode", "") or "") == "current":
+        from rl.global_state import GLOBAL_STATE_V6I7_DIM
+        crit_dim = GLOBAL_STATE_V6I7_DIM
+    else:
+        crit_dim = CONTEXT_STATE_DIM if use_latent else GLOBAL_STATE_DIM
     actor_cnn_feat = int(getattr(cfg, "actor_cnn_feature_dim", 128))
     z_embed = int(getattr(cfg, "latent_z_embed_dim", 16))
     act_dim = (actor_cnn_feat + 20 + z_embed) if use_latent else (actor_cnn_feat + 20)
@@ -207,11 +213,20 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
             f"{sparse_interval}-step interval (min dwell {sparse_dwell})"
         )
     else:
-        interval_label = (
-            "episode start"
-            if interval <= 0
-            else f"every {interval} decision steps"
-        )
+        assignment_mode = str(getattr(cfg, "latent_assignment_mode", "router") or "router")
+        if assignment_mode == "balanced_episode":
+            interval_label = "balanced_episode (one z per episode, round-robin; router PPO gated off)"
+        elif assignment_mode == "balanced_arc":
+            arc_steps = int(getattr(cfg, "forced_latent_arc_steps", 32) or 32)
+            interval_label = f"balanced_arc (z cycles every {arc_steps} decision steps)"
+        elif assignment_mode == "fixed":
+            interval_label = "fixed"
+        else:
+            interval_label = (
+                "episode start"
+                if interval <= 0
+                else f"every {interval} decision steps"
+            )
     on_flag = bool(getattr(cfg, "latent_resample_on_flag", False)) and not fixed
     lam_kl = 0.0 if fixed else float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0)
     fixed_label = f", fixed_z={int(getattr(cfg, 'fixed_latent_strategy_id', 0) or 0)}" if fixed else ""
@@ -242,7 +257,7 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
     if episode_credit_active and ep_warmup > 0:
         print(
             f"[PPO] Episode-credit warmup: provisional z drives steps 0..{ep_warmup - 1}; "
-            f"committed z + ctx170 snapshot taken at decision step {ep_warmup} (after EMAs see opponent dynamics)."
+            f"committed z snapshot taken at decision step {ep_warmup} (after context EMAs observe opponent dynamics)."
         )
     if episode_credit_active and ep_warmup == 0:
         print(

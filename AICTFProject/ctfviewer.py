@@ -256,10 +256,13 @@ class CoreRenderer:
                 if not bool(is_active):
                     continue
                 x0, y0, x1, y1 = [float(v) for v in ob]
-                px0 = rect.left + int(x0 * cw)
-                px1 = rect.left + int((x1 + 1.0) * cw)
-                py0 = rect.top + int(y0 * ch)
-                py1 = rect.top + int((y1 + 1.0) * ch)
+                # obstacle_rects uses continuous agent-space coords (fractional, e.g. 8.36–10.64).
+                # Agents render at (pos + 0.5)*cw, so align wall edges the same way so that
+                # an agent exactly at x0/x1 appears at the wall boundary, not 0.5 cells inside.
+                px0 = rect.left + int((x0 + 0.5) * cw)
+                px1 = rect.left + int((x1 + 0.5) * cw)
+                py0 = rect.top + int((y0 + 0.5) * ch)
+                py1 = rect.top + int((y1 + 0.5) * ch)
                 wall = pg.Rect(min(px0, px1), min(py0, py1), abs(px1 - px0), abs(py1 - py0))
                 pg.draw.rect(surface, (72, 78, 92), wall)
                 pg.draw.rect(surface, (210, 215, 226), wall, width=1)

@@ -699,9 +699,11 @@ class TrainerHyperparams:
 def resolve_q_phi_input_dim_from_cfg(cfg: Any) -> int:
     """Resolved q_phi / strategy_encoder input width before the model is built.
 
-    Matches ``SharedActorCentralizedCritic`` + ``build_model_kwargs``: ctx170
-    for all latent runs, plus ``v6i1_recurrent_selector_hidden`` when the staged
-    V6I1 curriculum mounts the recurrent selector GRU.
+    Mirrors ``SharedActorCentralizedCritic.__init__`` + ``build_model_kwargs``:
+    - router_context_mode="current" (V6I7): GLOBAL_STATE_V6I7_DIM(35) + GRU hidden
+    - router_context_mode="current_plus_delta": router_context_dimension
+    - V6I1 staged curriculum with EMA stack: CONTEXT_STATE_DIM(170) + GRU hidden
+    - All other latent runs: CONTEXT_STATE_DIM(170)
     """
     if not bool(getattr(cfg, "use_latent_strategy", False)):
         return 0
@@ -710,6 +712,14 @@ def resolve_q_phi_input_dim_from_cfg(cfg: Any) -> int:
         if dim <= 0:
             raise ValueError("router_context_mode=current_plus_delta requires router_context_dimension > 0")
         return dim
+    if str(getattr(cfg, "router_context_mode", "") or "") == "current":
+        from rl.global_state import GLOBAL_STATE_V6I7_DIM
+        recurrent_hidden = int(
+            getattr(cfg, "recurrent_selector_hidden_dim", 0)
+            or getattr(cfg, "v6i1_recurrent_selector_hidden", 0)
+            or 0
+        )
+        return GLOBAL_STATE_V6I7_DIM + recurrent_hidden
     dim = int(CONTEXT_STATE_DIM)
     if is_staged_v6i1_curriculum(cfg):
         dim += int(getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32)

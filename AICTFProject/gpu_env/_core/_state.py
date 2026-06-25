@@ -554,15 +554,35 @@ class _StateMixin:
         x1 = rect[:, 2:3]
         y1 = rect[:, 3:4]
         center_y = (y0 + y1) * 0.5
-        denom = target_x - own_x
-        safe_denom = torch.where(torch.abs(denom) < 1e-6, torch.full_like(denom, 1e-6), denom)
+
+        # Left/right crossing: path hits the wall's vertical face.
+        denom_x = target_x - own_x
+        safe_denom_x = torch.where(torch.abs(denom_x) < 1e-6, torch.full_like(denom_x, 1e-6), denom_x)
         wall_x = (x0 + x1) * 0.5
-        t = (wall_x - own_x) / safe_denom
+        t = (wall_x - own_x) / safe_denom_x
         line_y = own_y + (target_y - own_y) * t
         crosses_wall_x = (t >= 0.0) & (t <= 1.0)
         crosses_blocked_y = (line_y >= y0) & (line_y <= y1)
+
+        # Top/bottom crossing: path hits the wall's horizontal face (approach from above or below).
+        denom_y = target_y - own_y
+        safe_denom_y = torch.where(torch.abs(denom_y) < 1e-6, torch.full_like(denom_y, 1e-6), denom_y)
+        t_top = (y0 - own_y) / safe_denom_y
+        line_x_top = own_x + (target_x - own_x) * t_top
+        crosses_top_face = (t_top > 0.0) & (t_top <= 1.0) & (line_x_top >= x0) & (line_x_top <= x1)
+        t_bot = (y1 - own_y) / safe_denom_y
+        line_x_bot = own_x + (target_x - own_x) * t_bot
+        crosses_bot_face = (t_bot > 0.0) & (t_bot <= 1.0) & (line_x_bot >= x0) & (line_x_bot <= x1)
+
         target_inside = self._points_in_obstacles(target_x, target_y)
-        needs_route = active[:, None] & ((crosses_wall_x & crosses_blocked_y) | target_inside)
+        own_inside = self._points_in_obstacles(own_x, own_y)
+        needs_route = active[:, None] & (
+            (crosses_wall_x & crosses_blocked_y)
+            | crosses_top_face
+            | crosses_bot_face
+            | target_inside
+            | own_inside
+        )
         if not bool(needs_route.any().item()):
             return target_x, target_y
 
@@ -579,8 +599,12 @@ class _StateMixin:
         current_right = own_x > x1
         target_right = target_x > x1
         target_left = target_x < x0
-        moving_right = current_left & target_right
-        moving_left = current_right & target_left
+        # When the target is inside the wall, treat it as on the far side so the agent routes
+        # through the gap rather than stalling at the gap entrance indefinitely.
+        target_right_eff = target_right | (target_inside & current_left)
+        target_left_eff = target_left | (target_inside & current_right)
+        moving_right = current_left & target_right_eff
+        moving_left = current_right & target_left_eff
         current_side_x = torch.where(
             current_left,
             torch.clamp(x0 - clearance, 0.0, float(max(0, self.cols - 1))),
