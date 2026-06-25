@@ -19,6 +19,7 @@ from rl.custom_ppo.latent_diagnostics import (
     _write_refresh_log_table,
     _write_strategy_experience_table,
     _policy_z_sensitivity_kl,
+    _v6i8_residual_adapter_stats,
 )
 from rl.custom_ppo.gate_protocol import evaluate_actor_intervention
 from rl.custom_ppo.schedules import resolve_latent_forced_z_frac
@@ -258,6 +259,7 @@ class PostUpdatePipeline:
         )
 
         stats.update(_policy_z_sensitivity_kl(runtime, buffer))
+        stats.update(_v6i8_residual_adapter_stats(runtime, buffer))
         stats.update(episode_strategy_stats)
         stats.update(arc_strategy_stats)
         stats.update(macro_strategy_stats)

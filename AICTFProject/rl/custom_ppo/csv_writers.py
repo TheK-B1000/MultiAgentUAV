@@ -676,6 +676,20 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "latent_v3i3_event_pref_rollout_records",
         ])
         fields.extend(_v6i1_metrics_fieldnames())
+        # V6I8 per-latent residual adapter diagnostics.
+        # Populated by _v6i8_residual_adapter_stats in post_update.py.
+        # Zero (or absent) for all non-V6I8 runs.
+        fields.extend([
+            "actor_jsd_mean",
+            "actor_jsd_min",
+            "actor_jsd_max",
+            "actor_argmax_disagree",
+            "critic_value_var_z",
+        ])
+        for z_idx in range(latent_k):
+            fields.append(f"adapter_grad_norm_z{z_idx}")
+            fields.append(f"adapter_gate_grad_z{z_idx}")
+            fields.append(f"action_bias_grad_norm_z{z_idx}")
     return fields
 
 

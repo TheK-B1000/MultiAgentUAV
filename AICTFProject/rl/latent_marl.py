@@ -230,6 +230,8 @@ class LatentConditionedActor(nn.Module):
         actor_z_film_init_scale: float = 0.0,
         actor_z_film_layer: int = 2,
         latent_actor_conditioning: str = "concat",
+        enable_latent_z_residual: bool = False,
+        latent_z_gate_init: float = 0.01,
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -310,6 +312,33 @@ class LatentConditionedActor(nn.Module):
             self.actor_z_film = None
         self.action_head = nn.Linear(self.hidden_dim, self.action_dim)
 
+        # V6I8: per-latent residual adapters h_z = h + g_z * A_z(h) and logit biases B_z.
+        self.enable_latent_z_residual = bool(enable_latent_z_residual) and self.latent_k > 0
+        if self.enable_latent_z_residual:
+            self.latent_adapters = nn.ModuleList([
+                nn.Linear(self.hidden_dim, self.hidden_dim) for _ in range(self.latent_k)
+            ])
+            # Zero-init adapter weights and biases so A_z(h)=0 at construction.
+            # With A_z(h)=0, the residual term g_z*A_z(h) vanishes regardless of
+            # gate magnitude, giving exact behavioral equivalence with any pre-adapter
+            # checkpoint at the moment of loading.  Gates are nonzero so gradients
+            # flow immediately; weight values grow from task signal only.
+            for adapter in self.latent_adapters:
+                nn.init.zeros_(adapter.weight)
+                nn.init.zeros_(adapter.bias)
+            # Gates init to small nonzero so conditioning starts active but weak.
+            self.latent_adapter_gates = nn.Parameter(
+                torch.full((self.latent_k,), float(latent_z_gate_init))
+            )
+            # Action-logit biases zero-initialized; learned from task gradient only.
+            self.latent_action_biases = nn.Parameter(
+                torch.zeros(self.latent_k, self.action_dim)
+            )
+        else:
+            self.latent_adapters = None
+            self.latent_adapter_gates = None
+            self.latent_action_biases = None
+
     def _apply_z_film(self, hidden: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         if self.z_adapter is None:
             return hidden
@@ -317,6 +346,18 @@ class LatentConditionedActor(nn.Module):
         return hidden + self.z_adapter_scale * (
             hidden * torch.tanh(gamma) + beta
         )
+
+    def _apply_latent_z_residual(self, hidden: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        """h_z = h + g_z * A_z(h) — per-latent residual adapter."""
+        if self.latent_adapters is None:
+            return hidden
+        N = hidden.shape[0]
+        idx = torch.arange(N, device=hidden.device)
+        # Stack (K, N, H) then select per-sample with advanced indexing → (N, H).
+        all_outs = torch.stack([self.latent_adapters[k](hidden) for k in range(self.latent_k)], dim=0)
+        adapter_out = all_outs[z, idx]
+        gate = self.latent_adapter_gates[z].unsqueeze(-1)  # (N, 1)
+        return hidden + gate * adapter_out
 
     def _apply_actor_z_film(
         self, hidden: torch.Tensor, z_embedding: torch.Tensor
@@ -354,23 +395,32 @@ class LatentConditionedActor(nn.Module):
                 min=0, max=self.latent_k - 1
             )
             z_emb = self.strategy_embedding(z) * self.z_embed_scale
-            
+
             # Forward pass through film_v6 layers:
             hidden1 = self.body[0](local_features.float())
             gamma1_hat, beta1 = self.film_layer1(z_emb).chunk(2, dim=-1)
             gamma1 = 1.0 + 0.1 * torch.tanh(gamma1_hat)
             hidden1 = gamma1 * hidden1 + beta1
             hidden1 = self.body[1](hidden1)
-            
+
             hidden2 = self.body[2](hidden1)
             gamma2_hat, beta2 = self.film_layer2(z_emb).chunk(2, dim=-1)
             gamma2 = 1.0 + 0.1 * torch.tanh(gamma2_hat)
             hidden2 = gamma2 * hidden2 + beta2
             hidden2 = self.body[3](hidden2)
-            
-            return self.action_head(hidden2)
 
-        has_z = (self.strategy_embedding is not None) or self.z_onehot_enabled or (self.z_adapter is not None)
+            hidden2 = self._apply_latent_z_residual(hidden2, z)
+            logits = self.action_head(hidden2)
+            if self.latent_action_biases is not None:
+                logits = logits + self.latent_action_biases[z]
+            return logits
+
+        has_z = (
+            (self.strategy_embedding is not None)
+            or self.z_onehot_enabled
+            or (self.z_adapter is not None)
+            or self.enable_latent_z_residual
+        )
         if has_z:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent actor z conditioning is enabled.")
@@ -426,7 +476,16 @@ class LatentConditionedActor(nn.Module):
                 if z is None:
                     raise ValueError("z_idx is required when z adapter is enabled.")
                 hidden = self._apply_z_film(hidden, z)
-        return self.action_head(hidden)
+        if self.latent_adapters is not None:
+            if z is None:
+                raise ValueError("z_idx is required when latent_z_residual is enabled.")
+            hidden = self._apply_latent_z_residual(hidden, z)
+        logits = self.action_head(hidden)
+        if self.latent_action_biases is not None:
+            if z is None:
+                raise ValueError("z_idx is required when latent_z_residual is enabled.")
+            logits = logits + self.latent_action_biases[z]
+        return logits
 
     def trunk_features(
         self, local_features: torch.Tensor, z_idx: torch.Tensor | None = None
@@ -501,6 +560,10 @@ class LatentConditionedActor(nn.Module):
             if z is None:
                 raise ValueError("z_idx is required when z adapter is enabled.")
             hidden = self._apply_z_film(hidden, z)
+        if self.latent_adapters is not None:
+            if z is None:
+                raise ValueError("z_idx is required when latent_z_residual is enabled.")
+            hidden = self._apply_latent_z_residual(hidden, z)
         return hidden
 
     def film_modulation_l2(

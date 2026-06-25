@@ -327,6 +327,69 @@ def sample_batched_opponent_params(
             sync_c_low, sync_c_high = 2, 6
             sync_nc_low, sync_nc_high = 2, 5
             n_low, n_high = 0.0, 0.04
+        elif key in ("OP8", "OP8_INTERCEPTOR"):
+            # Coordinated pressure/interception: one agent pursues blue carrier,
+            # one intercepts the carrier's path home. Very low role churn so agents
+            # stay committed. High coordination, low deception.
+            attacker_style = 1
+            defender_style = 1
+            role_switch_prob = 0.02
+            d_low, d_high = 0.02, 0.08
+            c_prob = 0.92
+            sync_c_low, sync_c_high = 2, 5
+            sync_nc_low, sync_nc_high = 1, 3
+            n_low, n_high = 0.0, 0.03
+            if n_agents >= 8:
+                s_low, s_high = 0.80, 0.96
+                c_prob = 0.80
+            elif n_agents >= 4:
+                s_low, s_high = 0.94, 1.10
+                d_low, d_high = 0.03, 0.10
+                c_prob = 0.90
+            else:
+                s_low, s_high = 0.88, 1.06
+        elif key in ("OP9", "OP9_FORTRESS"):
+            # Fortress + counterattack: tight guardian orbits own flag; after blue grabs
+            # red flag (enemy_carrier_exists), all agents surge to intercept enemy carrier.
+            # Heavy coordination on counterattack. Moderate deception from defenders.
+            attacker_style = 0
+            defender_style = 1
+            role_switch_prob = 0.05
+            d_low, d_high = 0.06, 0.18
+            c_prob = 0.88
+            sync_c_low, sync_c_high = 2, 5
+            sync_nc_low, sync_nc_high = 1, 3
+            n_low, n_high = 0.0, 0.03
+            if n_agents >= 8:
+                s_low, s_high = 0.72, 0.88
+                c_prob = 0.75
+            elif n_agents >= 4:
+                s_low, s_high = 0.82, 0.98
+                d_low, d_high = 0.10, 0.22
+                c_prob = 0.85
+            else:
+                s_low, s_high = 0.76, 0.94
+        elif key in ("OP10", "OP10_ESCORT"):
+            # Coordinated carrier + active escort: escort agent interposes between
+            # carrier and nearest enemy instead of sitting perpendicular. Focus on
+            # offense with screening. Low deception; escort stays committed.
+            attacker_style = 1
+            defender_style = 0
+            role_switch_prob = 0.04
+            d_low, d_high = 0.02, 0.08
+            c_prob = 0.90
+            sync_c_low, sync_c_high = 2, 5
+            sync_nc_low, sync_nc_high = 1, 3
+            n_low, n_high = 0.0, 0.03
+            if n_agents >= 8:
+                s_low, s_high = 0.82, 0.98
+                c_prob = 0.78
+            elif n_agents >= 4:
+                s_low, s_high = 0.96, 1.12
+                d_low, d_high = 0.03, 0.10
+                c_prob = 0.88
+            else:
+                s_low, s_high = 0.90, 1.08
         elif key == "OP4":
             # Held-out eval opponent: never used in training. Make it deliberately broad and
             # stochastic so robustness matters more than memorizing one scripted style.

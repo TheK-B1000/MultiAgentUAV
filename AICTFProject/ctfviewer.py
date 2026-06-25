@@ -36,7 +36,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
 # Default matches a typical local PPO run: `python -m rl.train_ppo --agents 2 --run-tag my_smoke_2v2`
 # (override with: python ctfviewer.py --ppo-model checkpoints/2v2/your_run.zip)
-DEFAULT_PPO_MODEL_PATH = "checkpoints/4v4/final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4.zip"
+DEFAULT_PPO_MODEL_PATH = "checkpoints/2v2/final_v6i8-adapter-balanced-seed1_2v2.zip"
 N_MACROS = 5
 N_TARGETS = 50
 MAP_LAYOUT_CHOICES = MAP_LAYOUTS + (
@@ -403,7 +403,7 @@ class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
                  device: str = "cpu",
                  deterministic: bool = True,
-                 map_layout: str = MAP_A_OPEN):
+                 map_layout: str = "map_b"):
         self.device = str(device)
         self.ppo_model_path = str(ppo_model_path)
         self.deterministic = bool(deterministic)
@@ -411,6 +411,11 @@ class CTFViewer:
         model_meta = _read_model_metadata(ppo_model_path)
         initial_agents = max(1, int(model_meta.get("n_blue", 4)))
         paper_steps = 400
+        # Derive obstacle_obs_channel from the map the model was *trained* on so
+        # the CNN channel count matches even when the viewer uses a different map.
+        from gpu_env._maps import MAP_A_OPEN as _MAP_A_OPEN
+        _train_map = _normalize_viewer_map_layout(model_meta.get("map_layout", "map_a_open"))
+        _train_obstacle_ch = (_train_map != _MAP_A_OPEN)
         cfg = GPUFieldConfig(
             n_envs=1,
             max_blue_agents=initial_agents,
@@ -421,6 +426,7 @@ class CTFViewer:
             rules_profile="OURS",
             score_limit=3,
             map_layout=self.map_layout,
+            obstacle_obs_channel=_train_obstacle_ch,
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
@@ -860,7 +866,7 @@ if __name__ == "__main__":
                         help="Headless evaluation (no display)")
     parser.add_argument("--device", type=str, default="cpu",
                         help="Torch device (cpu / cuda)")
-    parser.add_argument("--map-layout", type=str, default=MAP_A_OPEN,
+    parser.add_argument("--map-layout", type=str, default="map_b",
                         help=f"Environment geometry layout (canonical: {', '.join(MAP_LAYOUTS)})")
     parser.add_argument("--stochastic", action="store_true",
                         help="Use stochastic PPO actions instead of deterministic inference")

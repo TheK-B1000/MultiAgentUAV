@@ -159,6 +159,28 @@ class _ScriptedRedMixin:
             op6_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op7_mask = torch.zeros((B,), device=device, dtype=torch.bool)
 
+        # OP8/9/10 behavioral overrides — active on all map layouts, red side only.
+        if not is_blue:
+            op8_mask = torch.as_tensor(
+                [str(k).upper() in ("OP8", "OP8_INTERCEPTOR") for k in self._opponent_key],
+                device=device,
+                dtype=torch.bool,
+            )
+            op9_mask = torch.as_tensor(
+                [str(k).upper() in ("OP9", "OP9_FORTRESS") for k in self._opponent_key],
+                device=device,
+                dtype=torch.bool,
+            )
+            op10_mask = torch.as_tensor(
+                [str(k).upper() in ("OP10", "OP10_ESCORT") for k in self._opponent_key],
+                device=device,
+                dtype=torch.bool,
+            )
+        else:
+            op8_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+            op9_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+            op10_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+
         if is_blue:
             N, Ne = self.Nb, self.Nr
             own_x, own_y = self.blue_x, self.blue_y
@@ -265,6 +287,14 @@ class _ScriptedRedMixin:
                     med_y = torch.where(op7_mask, mid_gate_y, med_y)
             gx = torch.where(def_medium, med_x, easy_x)
             gy = torch.where(def_medium, med_y, easy_y)
+
+            # OP9 fortress: guardian holds a very tight orbit (1 unit) around own flag.
+            # The enemy-carrier-exists override below will still trigger the counterattack.
+            if op9_mask.any():
+                fort_x = torch.clamp(own_flag_home[:, 0] + 1.0 * torch.cos(phase), 0.0, max_x)
+                fort_y = torch.clamp(own_flag_home[:, 1] + 1.0 * torch.sin(phase), 0.0, max_y)
+                gx = torch.where(op9_mask, fort_x, gx)
+                gy = torch.where(op9_mask, fort_y, gy)
 
             if enemy_carrier_exists.any():
                 ci = torch.argmax(enemy_carrying.to(torch.int64), dim=1)
@@ -402,6 +432,25 @@ class _ScriptedRedMixin:
             target[..., 0] = torch.where(intercept, cx[:, None], target[..., 0])
             target[..., 1] = torch.where(intercept, cy[:, None], target[..., 1])
 
+        # ======== OP8: guardian blocks carrier's path home instead of direct chase ========
+        # Striker (agent 1) still pursues; guardian positions 60% along carrier's path
+        # to enemy_flag_home to cut off the return route.
+        if op8_mask.any() and enemy_carrier_exists.any():
+            ci_b = torch.argmax(enemy_carrying.to(torch.int64), dim=1)
+            cx_b = enemy_x[idx_env, ci_b]
+            cy_b = enemy_y[idx_env, ci_b]
+            block_x = cx_b + (enemy_flag_home[:, 0] - cx_b) * 0.6
+            block_y = cy_b + (enemy_flag_home[:, 1] - cy_b) * 0.6
+            block_x = torch.clamp(block_x, 0.0, max_x)
+            block_y = torch.clamp(block_y, 0.0, max_y)
+            op8_block = op8_mask & enemy_carrier_exists
+            target[idx_env, guardian_idx_t, 0] = torch.where(
+                op8_block, block_x, target[idx_env, guardian_idx_t, 0]
+            )
+            target[idx_env, guardian_idx_t, 1] = torch.where(
+                op8_block, block_y, target[idx_env, guardian_idx_t, 1]
+            )
+
         # ======== Carrier shielding: escort 4 units perpendicular to carrier path ========
         shield_dist = 4.0
         own_carry_any = own_carrying.any(dim=1)
@@ -419,7 +468,9 @@ class _ScriptedRedMixin:
             dxx = carr_x[:, None] - enemy_x
             dyy = carr_y[:, None] - enemy_y
             dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
-            near_enemy = torch.argmin(dd, dim=1)
+            # Exclude dead/tagged enemies so the escort targets a live threat.
+            dd_live = torch.where(enemy_alive, dd, dd.new_full((), 1e6).expand_as(dd))
+            near_enemy = torch.argmin(dd_live, dim=1)
             nex = enemy_x[idx_env, near_enemy]
             ney = enemy_y[idx_env, near_enemy]
             to_enemy_x = nex - carr_x
@@ -437,6 +488,20 @@ class _ScriptedRedMixin:
                 escort_ok = is_not_carrier & (~enemy_carrier_exists)
                 target[:, j, 0] = torch.where(escort_ok, escort_x, target[:, j, 0])
                 target[:, j, 1] = torch.where(escort_ok, escort_y, target[:, j, 1])
+
+            # OP10: escort interposes directly between carrier and nearest enemy
+            # (replaces perpendicular shield for OP10 envs).
+            if op10_mask.any():
+                interpose_x = torch.clamp((carr_x + nex) * 0.5, 0.0, max_x)
+                interpose_y = torch.clamp((carr_y + ney) * 0.5, 0.0, max_y)
+                for j in range(N):
+                    is_not_carrier_j = own_carry_any & (carr_idx != j) & (~own_carrying[:, j])
+                    escort_ok_j = is_not_carrier_j & (~enemy_carrier_exists)
+                    op10_active = op10_mask & escort_ok_j
+                    if not op10_active.any():
+                        continue
+                    target[:, j, 0] = torch.where(op10_active, interpose_x, target[:, j, 0])
+                    target[:, j, 1] = torch.where(op10_active, interpose_y, target[:, j, 1])
 
         # ======== Red-only: deception feints (non-carrier agents only) ========
         if (not is_blue) and deception_prob.numel() == B and float(deception_prob.max().item()) > 0.0:

@@ -54,7 +54,12 @@ def _assert_compatible_global_state_dim(payload: dict[str, Any], path: str) -> N
         return
     cfg = payload.get("cfg") or {}
     uses_latent = bool(cfg.get("use_latent_strategy", False))
-    expected_dim = CONTEXT_STATE_DIM if uses_latent else GLOBAL_STATE_DIM
+    router_context_mode = str(cfg.get("router_context_mode", "") or "")
+    if uses_latent and router_context_mode == "current":
+        # V6I7: q_phi uses raw global state + scheduler phase, not the EMA context stack.
+        expected_dim = GLOBAL_STATE_DIM + 1
+    else:
+        expected_dim = CONTEXT_STATE_DIM if uses_latent else GLOBAL_STATE_DIM
     if int(ckpt_dim) != int(expected_dim):
         raise ValueError(
             f"Checkpoint {path!r} was saved with global_state_dim={int(ckpt_dim)}, "
@@ -94,6 +99,7 @@ def read_custom_ppo_metadata(path: str) -> dict[str, Any]:
         )
         if "latent_k" in cfg:
             meta["latent_k"] = int(cfg["latent_k"])
+        meta["map_layout"] = str(cfg.get("map_layout", "map_a_open") or "map_a_open")
     return meta
 
 
@@ -341,15 +347,35 @@ def _load_model_state_dict_compat(
     result = model.load_state_dict(actor_remapped, strict=False)
     missing = list(getattr(result, "missing_keys", []))
     unexpected = list(getattr(result, "unexpected_keys", []))
+    _V6I7_RESIDUAL_PREFIXES = (
+        "latent_actor.latent_adapters.",
+        "latent_actor.latent_adapter_gates",
+        "latent_actor.latent_action_biases",
+    )
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.actor_z_film."))
+    allowed_missing.extend(
+        k for k in missing if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
+    )
     disallowed_missing = [k for k in missing if k not in allowed_missing]
 
     allowed_unexpected = [k for k in unexpected if k.startswith("episode_strategy_value_head.")]
     allowed_unexpected.extend(k for k in unexpected if k.startswith("latent_actor.z_adapter."))
     allowed_unexpected.extend(k for k in unexpected if k.startswith("latent_actor.actor_z_film."))
+    allowed_unexpected.extend(
+        k for k in unexpected if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
+    )
     disallowed_unexpected = [k for k in unexpected if k not in allowed_unexpected]
+
+    # Report newly initialized parameters so the caller knows what was not loaded.
+    newly_initialized = [
+        k for k in missing if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
+    ]
+    if newly_initialized:
+        print("[checkpoint compat] Newly initialized parameters (not in checkpoint):")
+        for k in sorted(newly_initialized):
+            print(f"  {k}")
 
     if disallowed_missing or disallowed_unexpected:
         raise RuntimeError(
@@ -496,9 +522,18 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                         ).lower() == "context_value"
                     )
                 ),
-                "use_recurrent_selector": bool(v6_staged and not router_current_plus_delta),
                 "recurrent_selector_hidden_dim": int(
-                    cfg.get("v6i1_recurrent_selector_hidden", 32) or 32
+                    cfg.get("recurrent_selector_hidden_dim", None)
+                    or cfg.get("v6i1_recurrent_selector_hidden", 32)
+                    or 32
+                ),
+                "use_recurrent_selector": bool(
+                    (v6_staged and not router_current_plus_delta)
+                    or bool(cfg.get("use_recurrent_selector", False))
+                    or (
+                        router_context_mode == "current"
+                        and int(cfg.get("recurrent_selector_hidden_dim", 0) or 0) > 0
+                    )
                 ),
                 "strategy_tau": float(cfg.get("latent_strategy_tau", 1.0) or 1.0),
                 "latent_actor_z_onehot_enabled": bool(
@@ -534,6 +569,13 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 ),
                 "actor_z_film_layer": int(
                     cfg.get("actor_z_film_layer", 2) or 2
+                ),
+                # V6I7: per-latent residual adapters.
+                "enable_latent_z_residual": bool(
+                    cfg.get("enable_latent_z_residual", False)
+                ),
+                "latent_z_gate_init": float(
+                    cfg.get("latent_z_gate_init", 0.01) or 0.01
                 ),
             }
         )
@@ -909,9 +951,20 @@ class CustomPPOInferencePolicy:
             if self.model.uses_latent_strategy:
                 batch = int(obs_t["grid"].shape[0])
                 global_state = self._global_state_tensor(batched, batch)
-                tracker = self._get_temporal_tracker(batch)
-                context_gs = tracker.update(global_state)
-                
+                _router_mode = str(getattr(self.model, "router_context_mode", "") or "")
+                if _router_mode == "current":
+                    # V6I7: EMA tracker not used; pad raw 34-dim state with scheduler phase
+                    # zero to produce the 35-dim input the model was trained on.
+                    if global_state.shape[-1] == GLOBAL_STATE_DIM:
+                        global_state = torch.cat(
+                            [global_state, torch.zeros((batch, 1), dtype=torch.float32, device=self.device)],
+                            dim=-1,
+                        )
+                    context_gs = global_state
+                else:
+                    tracker = self._get_temporal_tracker(batch)
+                    context_gs = tracker.update(global_state)
+
                 # Check for batch-size or device change, and resize tracking
                 if (
                     self._prev_z is None
@@ -933,6 +986,9 @@ class CustomPPOInferencePolicy:
                         previous[has_prev] = self._previous_opportunity_features[has_prev]
                     from rl.custom_ppo.latent.router_sampling import build_current_plus_delta_router_context
                     q_phi_context = build_current_plus_delta_router_context(global_state, previous)
+                elif _router_mode == "current":
+                    # V6I7: q_phi and critic both see raw global state (35-dim), not EMA stack.
+                    q_phi_context = global_state
                 else:
                     q_phi_context = context_gs
 
@@ -1072,7 +1128,7 @@ class CustomPPOInferencePolicy:
                 self._last_context_gs = context_gs.detach().cpu()
                 action_tensor, _, _, _ = self.model.act(
                     obs_t,
-                    context_gs,
+                    q_phi_context,
                     deterministic=deterministic,
                     z_idx=z_idx,
                 )

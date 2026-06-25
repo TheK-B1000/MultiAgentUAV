@@ -1160,3 +1160,190 @@ def _jsd_from_logits(
     kl_pm = torch.sum(p * (log_p - log_mixture), dim=dim)
     kl_qm = torch.sum(q * (log_q - log_mixture), dim=dim)
     return 0.5 * (kl_pm + kl_qm)
+
+
+# ---------------------------------------------------------------------------
+# V6I7 Phase-1 diagnostics: pairwise JSD, adapter gradient norms, critic
+# value variance across latent IDs for identical states.
+# ---------------------------------------------------------------------------
+
+def compute_pairwise_actor_jsd(
+    model: "SharedActorCentralizedCritic",
+    local_features: torch.Tensor,
+) -> dict[str, float]:
+    """Compute mean/min/max pairwise actor JSD and argmax disagreement.
+
+    ``local_features`` must have shape ``(N, local_feature_dim)`` — a batch of
+    pre-encoded local observations (CNN + vec, no z concatenated).  The
+    function evaluates all K*(K-1)/2 pairs and returns a flat stats dict
+    suitable for the metrics CSV.
+    """
+    from itertools import combinations
+
+    K = int(model.latent_k)
+    if K < 2 or not model.uses_latent_strategy:
+        return {
+            "actor_jsd_mean": float("nan"),
+            "actor_jsd_min": float("nan"),
+            "actor_jsd_max": float("nan"),
+            "actor_argmax_disagree": float("nan"),
+        }
+    device = local_features.device
+    N = local_features.shape[0]
+
+    with torch.no_grad():
+        logits_by_z = []
+        for k in range(K):
+            z_t = torch.full((N,), k, dtype=torch.long, device=device)
+            logits_k = model.latent_actor(local_features, z_t)
+            logits_by_z.append(logits_k)
+
+    pair_jsds: list[float] = []
+    pair_disagrees: list[float] = []
+    for i, j in combinations(range(K), 2):
+        jsd = _jsd_from_logits(logits_by_z[i], logits_by_z[j]).mean().item()
+        pair_jsds.append(float(jsd))
+        argmax_i = logits_by_z[i].argmax(dim=-1)
+        argmax_j = logits_by_z[j].argmax(dim=-1)
+        pair_disagrees.append(float((argmax_i != argmax_j).float().mean().item()))
+
+    return {
+        "actor_jsd_mean": float(sum(pair_jsds) / len(pair_jsds)),
+        "actor_jsd_min": float(min(pair_jsds)),
+        "actor_jsd_max": float(max(pair_jsds)),
+        "actor_argmax_disagree": float(sum(pair_disagrees) / len(pair_disagrees)),
+    }
+
+
+def compute_adapter_grad_norms(model: "SharedActorCentralizedCritic") -> dict[str, float]:
+    """Return per-latent adapter and action-bias gradient L2 norms.
+
+    Call after ``loss.backward()`` but before ``optimizer.zero_grad()``.
+    Returns an empty dict when residual adapters are not enabled.
+    """
+    la = getattr(model, "latent_actor", None)
+    if la is None or not getattr(la, "enable_latent_z_residual", False):
+        return {}
+    out: dict[str, float] = {}
+    adapters = getattr(la, "latent_adapters", None)
+    if adapters is not None:
+        for k, adapter in enumerate(adapters):
+            total_sq = sum(
+                p.grad.pow(2).sum().item()
+                for p in adapter.parameters()
+                if p.grad is not None
+            )
+            out[f"adapter_grad_norm_z{k}"] = float(total_sq ** 0.5)
+    gates = getattr(la, "latent_adapter_gates", None)
+    if gates is not None and gates.grad is not None:
+        # Gate gradient = A_z(h) * upstream_grad.  At initialization A_z(h)=0
+        # (zero-init weights), so gate grad is 0 for the first few updates.
+        # This is expected — the gate wakes up once adapter weights move from 0.
+        for k in range(int(gates.shape[0])):
+            out[f"adapter_gate_grad_z{k}"] = float(gates.grad[k].abs().item())
+    biases = getattr(la, "latent_action_biases", None)
+    if biases is not None and biases.grad is not None:
+        for k in range(int(biases.shape[0])):
+            out[f"action_bias_grad_norm_z{k}"] = float(biases.grad[k].norm().item())
+    return out
+
+
+def compute_critic_value_variance(
+    model: "SharedActorCentralizedCritic",
+    global_state: torch.Tensor,
+) -> dict[str, float]:
+    """Return Var_z[V(s, z)] for identical global states across all K latents.
+
+    ``global_state`` has shape ``(N, global_state_dim)``.  Returns nan when
+    latent strategy is not enabled.
+    """
+    K = int(model.latent_k)
+    if K < 2 or not model.uses_latent_strategy:
+        return {"critic_value_var_z": float("nan")}
+    device = global_state.device
+    N = global_state.shape[0]
+
+    with torch.no_grad():
+        values_by_z = []
+        for k in range(K):
+            z_t = torch.full((N,), k, dtype=torch.long, device=device)
+            v_k = model.values(global_state, z_idx=z_t)
+            values_by_z.append(v_k)
+        stacked = torch.stack(values_by_z, dim=0)  # (K, N)
+        var_across_z = stacked.var(dim=0).mean().item()
+
+    return {"critic_value_var_z": float(var_across_z)}
+
+
+def _v6i8_residual_adapter_stats(runtime: Any, buffer: Any) -> dict[str, float]:
+    """Post-update V6I8 adapter diagnostics: pairwise actor JSD and adapter grad norms.
+
+    Pairwise JSD: identical random local features, all K latents — measures
+    differentiation from adapters and biases only (z-embedding contribution
+    held fixed because the same input tensor is reused across z values).
+
+    Adapter grad norms: a diagnostic forward-backward on the same random
+    sample, immediately zeroed after measurement.  These are diagnostic
+    gradient magnitudes, not training gradients.
+
+    Returns an empty dict when ``enable_latent_z_residual`` is False.
+    """
+    from itertools import combinations
+
+    model = getattr(runtime, "model", None)
+    if model is None:
+        return {}
+    la = getattr(model, "latent_actor", None)
+    if la is None or not getattr(la, "enable_latent_z_residual", False):
+        return {}
+    K = int(getattr(model, "latent_k", 0))
+    if K < 2:
+        return {}
+
+    try:
+        device = next(model.parameters()).device
+        N = 64
+        full_input_dim = int(model.actor_input_dim)
+        local_feats = torch.randn(N, full_input_dim, device=device)
+
+        with torch.no_grad():
+            logits_by_z = []
+            for k in range(K):
+                z_t = torch.full((N,), k, dtype=torch.long, device=device)
+                logits_k = la(local_feats, z_t)
+                logits_by_z.append(logits_k)
+
+        pair_jsds: list[float] = []
+        pair_disagrees: list[float] = []
+        for i, j in combinations(range(K), 2):
+            jsd = _jsd_from_logits(logits_by_z[i], logits_by_z[j]).mean().item()
+            pair_jsds.append(float(jsd))
+            argmax_i = logits_by_z[i].argmax(dim=-1)
+            argmax_j = logits_by_z[j].argmax(dim=-1)
+            pair_disagrees.append(float((argmax_i != argmax_j).float().mean().item()))
+
+        out: dict[str, float] = {
+            "actor_jsd_mean": float(sum(pair_jsds) / len(pair_jsds)),
+            "actor_jsd_min": float(min(pair_jsds)),
+            "actor_jsd_max": float(max(pair_jsds)),
+            "actor_argmax_disagree": float(sum(pair_disagrees) / len(pair_disagrees)),
+        }
+
+        # Diagnostic grad norms: independent forward-backward on random data.
+        # Called from post_update.run() AFTER all minibatch optimizer.step()
+        # and zero_grad() calls, so no training gradient is read or overwritten.
+        # The surrounding zero_grad() calls isolate this entirely from training.
+        model.zero_grad()
+        z_diag = torch.randint(K, (N,), device=device)
+        logits_diag = la(local_feats.detach(), z_diag)
+        logits_diag.sum().backward()
+        out.update(compute_adapter_grad_norms(model))
+        model.zero_grad()
+
+        return out
+    except Exception:
+        return {}
+
+
+# Public alias so post_update.py can import it by the stable diagnostic name.
+_v6i8_adapter_stats = _v6i8_residual_adapter_stats

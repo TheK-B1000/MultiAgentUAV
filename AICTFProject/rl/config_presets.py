@@ -208,6 +208,7 @@ def v6i7_recurrent_router_config() -> PPOConfig:
         fixed_latent_strategy=False,
     )
 
+
 def v6i7_b0_mlp_baseline_config() -> PPOConfig:
     """V6I7-B0: state-only MLP router under the repaired V6I7 pipeline."""
     return replace(
@@ -291,4 +292,77 @@ def v6i7_router_critic_warmup_config() -> PPOConfig:
         latent_assignment_mode="balanced_episode",
         train_router_when_forced=False,
         train_router_critic_when_forced=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# V6I8: Residual Adapter Actor Conditioning
+#
+# V6I7 = embedding-concatenation only (frozen baseline for comparison).
+# V6I8 = V6I7 + per-latent residual adapters on actor trunk.
+#
+# Conditioning: h_z = h + g_z * A_z(h);  logits_z = W(h_z) + B_z
+# A_z is Linear(256,256) zero-initialized → A_z(h)=0 at construction,
+# so V6I8 loads any V6I7 checkpoint with exact behavioral equivalence.
+# Gates init to 0.01 (active but weight-zero); biases zero-init.
+# ---------------------------------------------------------------------------
+
+def v6i8_adapter_balanced_config() -> PPOConfig:
+    """V6I8-balanced: residual adapters + balanced-episode forced-latent warmup.
+
+    First V6I8 experiment.  The router is held out of PPO during forced
+    episodes so the actor coverage signal is clean.  Router critic is trained
+    throughout so it can cold-start immediately after switching to router mode.
+
+    Compare directly against ``v6i7_router_critic_warmup_config()`` at the
+    same step budget to isolate the effect of stronger actor conditioning.
+    """
+    return replace(
+        v6i7_recurrent_router_config(),
+        latent_assignment_mode="balanced_episode",
+        train_router_when_forced=False,
+        train_router_critic_when_forced=True,
+        enable_latent_z_residual=True,
+        latent_z_gate_init=0.01,
+    )
+
+
+def v6i8_adapter_sparse_config() -> PPOConfig:
+    """V6I8-sparse: residual adapters + sparse router reward, free router.
+
+    Use after adapter differentiation is confirmed with ``v6i8_adapter_balanced``.
+    The router assigns latents freely; the sparse reward reduces dense-reward
+    noise in the routing objective.
+    """
+    return replace(
+        v6i7_sparse_router_config(),
+        enable_latent_z_residual=True,
+        latent_z_gate_init=0.01,
+    )
+
+
+def v6i8_adapter_balanced_hardpool_config() -> PPOConfig:
+    """V6I8-balanced + hard opponent pool (OP8/OP9/OP10).
+
+    Use when OP5/OP6/OP7 no longer produce sufficient latent separation.
+    OP8 (coordinated interceptor), OP9 (fortress + counterattack), and OP10
+    (active escort carrier) require distinct counter-strategies so the latent
+    router has a real job.
+    """
+    return replace(
+        v6i8_adapter_balanced_config(),
+        opponent_pool=("OP8", "OP9", "OP10"),
+        opponent_pool_weights=(),
+    )
+
+
+def v6i8_adapter_sparse_hardpool_config() -> PPOConfig:
+    """V6I8-sparse + hard opponent pool (OP8/OP9/OP10).
+
+    Sparse router reward variant against the hard opponent pool.
+    """
+    return replace(
+        v6i8_adapter_sparse_config(),
+        opponent_pool=("OP8", "OP9", "OP10"),
+        opponent_pool_weights=(),
     )

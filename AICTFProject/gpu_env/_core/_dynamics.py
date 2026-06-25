@@ -120,6 +120,12 @@ class _DynamicsMixin:
                 "OP6_TURTLE",
                 "OP7",
                 "OP7_SWITCHER",
+                "OP8",
+                "OP8_INTERCEPTOR",
+                "OP9",
+                "OP9_FORTRESS",
+                "OP10",
+                "OP10_ESCORT",
             }
         )
         grouped: Dict[Tuple[str, str], List[int]] = {}

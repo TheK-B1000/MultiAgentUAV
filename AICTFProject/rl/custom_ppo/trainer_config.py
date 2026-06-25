@@ -815,6 +815,12 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                     min(2, int(getattr(cfg, "actor_z_film_layer", 2) or 2)),
                 ),
                 "latent_actor_conditioning": getattr(cfg, "latent_actor_conditioning", "concat"),
+                "enable_latent_z_residual": bool(
+                    getattr(cfg, "enable_latent_z_residual", False)
+                ),
+                "latent_z_gate_init": max(
+                    0.0, float(getattr(cfg, "latent_z_gate_init", 0.01) or 0.01)
+                ),
             }
         )
     model_kwargs.update(

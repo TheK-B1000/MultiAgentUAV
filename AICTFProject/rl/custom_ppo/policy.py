@@ -229,6 +229,8 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_z_film_init_scale: float = 0.0,
         actor_z_film_layer: int = 2,
         latent_actor_conditioning: str = "concat",
+        enable_latent_z_residual: bool = False,
+        latent_z_gate_init: float = 0.01,
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
         experiment_id: str = "",
@@ -368,6 +370,8 @@ class SharedActorCentralizedCritic(nn.Module):
             actor_z_film_init_scale=float(actor_z_film_init_scale),
             actor_z_film_layer=int(actor_z_film_layer),
             latent_actor_conditioning=latent_actor_conditioning,
+            enable_latent_z_residual=bool(enable_latent_z_residual),
+            latent_z_gate_init=float(latent_z_gate_init),
         )
         critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
@@ -566,18 +570,53 @@ class SharedActorCentralizedCritic(nn.Module):
 
     def input_dim_contract(self) -> dict[str, int]:
         self._assert_input_contracts()
+        rmode = str(self.router_context_mode or "")
         return {
             "base_global_state_dim": int(GLOBAL_STATE_DIM),
             "temporal_context_dim": int(CONTEXT_STATE_DIM),
+            # For V6I7 (router_context_mode="current"): global_state_dim=35 (raw+phase),
+            # recurrent_selector_hidden_dim=64, q_phi_input_dim=99 (35+64).
+            # For EMA-stack modes: global_state_dim=170, q_phi_input_dim=170 (no GRU concat).
+            "router_context_mode": rmode,
+            "router_global_state_dim": int(self.global_state_dim),
+            "recurrent_selector_hidden_dim": int(self.recurrent_selector_hidden_dim),
             "q_phi_input_dim": int(self.q_phi_input_dim),
             "critic_context_dim": int(self.critic_context_dim),
             "actor_input_dim": int(self.actor_input_dim),
             "actor_z_embed_dim": int(self.z_embed_dim),
             "actor_z_onehot_dim": int(self.z_onehot_dim),
+            "actor_z_residual_enabled": int(
+                bool(getattr(self.latent_actor, "enable_latent_z_residual", False))
+            ),
             "critic_extra_dim": int(self.critic.extra_dim),
             "critic_z_dim": int(self.critic_z_dim),
             "critic_joint_action_dim": int(self.critic_joint_action_dim),
         }
+
+    def log_architecture_summary(self) -> None:
+        """Print one authoritative dimension decomposition to stdout."""
+        c = self.input_dim_contract()
+        rmode = c["router_context_mode"] or "ema_stack"
+        actor_la = self.latent_actor
+        print(f"[arch] router_context_mode={rmode!r}")
+        print(f"[arch] base_global_state_dim={c['base_global_state_dim']}  "
+              f"(GLOBAL_STATE_DIM, raw env features)")
+        if rmode == "current":
+            print(f"[arch] router_global_state_dim={c['router_global_state_dim']}  "
+                  f"(raw {c['base_global_state_dim']} + 1 scheduler phase)")
+            print(f"[arch] recurrent_selector_hidden_dim={c['recurrent_selector_hidden_dim']}")
+            print(f"[arch] q_phi_input_dim={c['q_phi_input_dim']}  "
+                  f"(={c['router_global_state_dim']}+{c['recurrent_selector_hidden_dim']})")
+        else:
+            print(f"[arch] temporal_context_dim={c['temporal_context_dim']}  "
+                  f"(EMA stack: 5×{c['base_global_state_dim']})")
+            print(f"[arch] q_phi_input_dim={c['q_phi_input_dim']}")
+        print(f"[arch] critic_context_dim={c['critic_context_dim']}  "
+              f"critic_extra_dim(z_onehot)={c['critic_extra_dim']}")
+        print(f"[arch] actor_input_dim={c['actor_input_dim']}  "
+              f"(local_obs + z_embed={c['actor_z_embed_dim']} + z_onehot={c['actor_z_onehot_dim']})")
+        print(f"[arch] actor_z_residual_adapters={bool(c['actor_z_residual_enabled'])}  "
+              f"latent_k={self.latent_k}")
 
     def set_sampling_generators(
         self,

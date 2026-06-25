@@ -3026,3 +3026,92 @@ def apply_plan_faithful_latent_v6i7_router_critic_warmup(cfg: PPOConfig) -> PPOC
     cfg.experiment_id = "v6i7_warmup"
     cfg.run_tag = "v6i7_router_critic_warmup_OP5_OP6_OP7_1m"
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# V6I8: Residual Adapter Actor Conditioning
+# V6I7 baseline is unchanged.  V6I8 adds per-latent residual adapters.
+# ---------------------------------------------------------------------------
+
+def apply_plan_faithful_latent_v6i8_adapter_balanced(cfg: PPOConfig) -> PPOConfig:
+    """V6I8-balanced: GRU router + residual adapters + balanced-episode warmup.
+
+    Extends V6I7 with per-latent actor adapters h_z=h+g_z*A_z(h) and logit
+    biases B_z.  Adapters zero-initialized so V6I7 checkpoints load with exact
+    behavioral equivalence.  Router held out of PPO during forced episodes;
+    router critic trained throughout for cold-start readiness.
+
+    Compare directly against ``v6i7_warmup`` at identical step budget to
+    isolate the effect of stronger latent actor conditioning.
+    """
+    from rl.config_presets import v6i8_adapter_balanced_config
+    cfg = apply_plan_faithful_latent_v6i7_recurrent_router(cfg)
+    preset = v6i8_adapter_balanced_config()
+    cfg.enable_latent_z_residual = preset.enable_latent_z_residual
+    cfg.latent_z_gate_init = preset.latent_z_gate_init
+    cfg.latent_assignment_mode = preset.latent_assignment_mode
+    cfg.train_router_when_forced = preset.train_router_when_forced
+    cfg.train_router_critic_when_forced = preset.train_router_critic_when_forced
+    cfg.experiment_id = "v6i8_balanced"
+    cfg.run_tag = "v6i8_adapter_balanced_OP5_OP6_OP7_1m"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i8_adapter_sparse(cfg: PPOConfig) -> PPOConfig:
+    """V6I8-sparse: GRU router + residual adapters + sparse router reward.
+
+    Use after adapter differentiation is confirmed with v6i8_adapter_balanced.
+    """
+    from rl.config_presets import v6i8_adapter_sparse_config
+    cfg = apply_plan_faithful_latent_v6i8_adapter_balanced(cfg)
+    preset = v6i8_adapter_sparse_config()
+    cfg.router_reward_enabled = preset.router_reward_enabled
+    cfg.router_reward_win_weight = preset.router_reward_win_weight
+    cfg.router_reward_flag_cap_weight = preset.router_reward_flag_cap_weight
+    cfg.router_reward_sparse_weight = preset.router_reward_sparse_weight
+    cfg.router_reward_scale = preset.router_reward_scale
+    cfg.router_reward_normalize = preset.router_reward_normalize
+    cfg.latent_assignment_mode = "router"
+    cfg.train_router_when_forced = True
+    cfg.train_router_critic_when_forced = True
+    cfg.experiment_id = "v6i8_sparse"
+    cfg.run_tag = "v6i8_adapter_sparse_OP5_OP6_OP7_1m"
+    return cfg
+
+
+# ---------------------------------------------------------------------------
+# V6I8 Hard Pool: OP8 / OP9 / OP10 opponent pool variants
+# Use when OP5/OP6/OP7 no longer produce sufficient latent separation.
+# ---------------------------------------------------------------------------
+
+def apply_plan_faithful_latent_v6i8_adapter_balanced_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I8-balanced + hard opponent pool (OP8/OP9/OP10).
+
+    Inherits V6I8-balanced exactly; only the opponent pool changes.
+    OP8 (coordinated interceptor), OP9 (fortress + counterattack), and
+    OP10 (active escort carrier) each require a distinct counter-strategy,
+    giving the latent router a real optimisation objective.
+    """
+    from rl.config_presets import v6i8_adapter_balanced_hardpool_config
+    cfg = apply_plan_faithful_latent_v6i8_adapter_balanced(cfg)
+    preset = v6i8_adapter_balanced_hardpool_config()
+    cfg.opponent_pool = preset.opponent_pool
+    cfg.opponent_pool_weights = preset.opponent_pool_weights
+    cfg.experiment_id = "v6i8_balanced_hardpool"
+    cfg.run_tag = "v6i8_adapter_balanced_hardpool_OP8_OP9_OP10_1m"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i8_adapter_sparse_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I8-sparse + hard opponent pool (OP8/OP9/OP10).
+
+    Inherits V6I8-sparse exactly; only the opponent pool changes.
+    """
+    from rl.config_presets import v6i8_adapter_sparse_hardpool_config
+    cfg = apply_plan_faithful_latent_v6i8_adapter_sparse(cfg)
+    preset = v6i8_adapter_sparse_hardpool_config()
+    cfg.opponent_pool = preset.opponent_pool
+    cfg.opponent_pool_weights = preset.opponent_pool_weights
+    cfg.experiment_id = "v6i8_sparse_hardpool"
+    cfg.run_tag = "v6i8_adapter_sparse_hardpool_OP8_OP9_OP10_1m"
+    return cfg
