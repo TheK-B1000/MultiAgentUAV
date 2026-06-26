@@ -40,6 +40,7 @@ def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
         "opponent_pool",
         "opponent_pool_weights",
         "latent_router_distill_opponents",
+        "router_allowed_latents",
         "router_ablation_conditions",
         "router_ablation_oracle_conditions",
         "router_ablation_primary_metrics",

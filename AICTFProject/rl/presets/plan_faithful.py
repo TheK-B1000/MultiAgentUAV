@@ -3115,3 +3115,126 @@ def apply_plan_faithful_latent_v6i8_adapter_sparse_hardpool(cfg: PPOConfig) -> P
     cfg.experiment_id = "v6i8_sparse_hardpool"
     cfg.run_tag = "v6i8_adapter_sparse_hardpool_OP8_OP9_OP10_1m"
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# V6I9: Three-Stage Obstacle-Aware Repertoire Pipeline
+#
+# Stage 1 — Map-Aware Generalist (this file)
+#   Warm-start from V6I8 (7→8 channel CNN expansion handled by loader).
+#   Obstacle channel enabled via map_b.  Adapters and router held out so the
+#   shared brain learns wall-aware navigation without per-z interference.
+#
+# Stage 2 — TALENTS-Inspired Repertoire Birth
+#   Freeze CNN + shared actor trunk.  Train z-specific adapters, gates,
+#   action biases, z-embeddings, and critic.  One persistent z per episode,
+#   balanced round-robin.  JSD separation path active once all latents competent.
+#
+# Stage 3 — RILI-Inspired Recurrent Router
+#   Freeze everything except router (q_phi GRU) and router critic.
+#   Sparse task-consequence reward only: caps, returns, score changes, outcome.
+# ---------------------------------------------------------------------------
+
+def apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 Stage 1 — map-aware generalist competence on map_b with OP8/9/10.
+
+    Warm-started from V6I8 (750k checkpoint recommended).  The checkpoint
+    loader automatically expands the first CNN conv from 7→8 channels: channels
+    0-6 are copied verbatim, channel 7 (obstacle) is zero-initialized so the
+    policy is behaviourally unchanged at init.
+
+    What is trained: obstacle-aware CNN, shared actor body, shared action head,
+    critic.  What is disabled: latent adapters, latent action biases, router.
+
+    Run for 200k steps then check the promotion gate with:
+        python experiments/gate_v6i9_map_aware.py --checkpoint <ckpt>
+    """
+    from rl.config_presets import v6i9_map_aware_config
+    cfg = apply_plan_faithful_latent_v6i8_adapter_balanced_hardpool(cfg)
+    preset = v6i9_map_aware_config()
+    cfg.map_layout = preset.map_layout                              # map_b
+    cfg.enable_latent_z_residual = preset.enable_latent_z_residual  # False
+    cfg.latent_assignment_mode = preset.latent_assignment_mode      # balanced_episode
+    cfg.train_router_when_forced = preset.train_router_when_forced  # False
+    cfg.train_router_critic_when_forced = False                     # held out entirely
+    cfg.v6i9_training_stage = "generalist"
+    cfg.experiment_id = "v6i9"
+    cfg.run_tag = "v6i9_mapaware_generalist_hardpool_OP8_OP9_OP10_200k"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 Stage 1 variant — same as generalist but on map_b_split_lane_v2.
+
+    Run concurrently with the map_b variant to ensure route diversity before
+    Stage 2.  The gate check compares actor logits across both map geometries.
+    """
+    from rl.config_presets import v6i9_map_aware_split_lane_config
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool(cfg)
+    preset = v6i9_map_aware_split_lane_config()
+    cfg.map_layout = preset.map_layout  # map_b_split_lane_v2
+    cfg.run_tag = "v6i9_mapaware_generalist_hardpool_split_OP8_OP9_OP10_200k"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 Stage 2 — TALENTS-inspired repertoire birth.
+
+    Prerequisite: Stage 1 gate must pass (obstacle weights nonzero, map
+    sensitivity confirmed, WR in [50%, 90%]).
+
+    What is frozen: CNN, shared actor trunk, shared action head, router.
+    What is trained: z-specific adapters, gates, action biases, z-embeddings,
+    z-conditioned critic.
+
+    One persistent latent z per episode, balanced round-robin across z0..z3.
+    The JSD separation term (latent_cf_separation_coef) fires once all latents
+    are competent and provides behavioral diversity pressure without supervised
+    strategy labels.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool(cfg)
+    cfg.enable_latent_z_residual = True          # adapters active
+    cfg.latent_z_gate_init = 0.01
+    cfg.latent_assignment_mode = "balanced_episode"
+    cfg.train_router_when_forced = False
+    cfg.train_router_critic_when_forced = False
+    cfg.latent_cf_separation_coef = 0.005        # JSD diversity pressure; starts soft
+    cfg.v6i9_training_stage = "repertoire"       # freeze shared trunk in optimizer build
+    cfg.experiment_id = "v6i9"
+    cfg.run_tag = "v6i9_mapaware_repertoire_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 Stage 3 — RILI-inspired recurrent router training.
+
+    Prerequisite: Stage C forced-z causal validation must pass
+    (oracle_wr > best_fixed_wr AND best-z varies across map-opponent cells).
+
+    What is frozen: CNN, shared actor, z-embeddings, adapters, gates, action
+    biases.  What is trained: recurrent q_phi GRU router, router critic.
+
+    Sparse task-consequence reward only: flag captures, returns, tag events,
+    score changes, episode outcome.  The router is NOT told which opponent it
+    faces or what a latent "means" — routing emerges from interaction history.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool(cfg)
+    # Freeze actor + z-specific modules via stage flag; router_freeze_actor adds
+    # the actor-level freeze on top (belt-and-suspenders for the shared trunk).
+    cfg.router_freeze_actor = True
+    cfg.v6i9_training_stage = "router"
+    # Enable sparse router reward (captures, returns, score, outcome).
+    cfg.router_reward_enabled = True
+    cfg.router_reward_win_weight = 1.0
+    cfg.router_reward_flag_cap_weight = 0.5
+    cfg.router_reward_sparse_weight = 0.2
+    cfg.router_reward_scale = 1.0
+    cfg.router_reward_normalize = True
+    # Let the router learn freely; forced-z only for early warm-up, then switch to router mode.
+    cfg.latent_assignment_mode = "router"
+    cfg.train_router_when_forced = True
+    cfg.train_router_critic_when_forced = True
+    cfg.latent_cf_separation_coef = 0.0  # repertoire is frozen; no diversity gradient needed
+    cfg.experiment_id = "v6i9"
+    cfg.run_tag = "v6i9_mapaware_router_sparse_hardpool_OP8_OP9_OP10"
+    return cfg

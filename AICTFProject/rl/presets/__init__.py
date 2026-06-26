@@ -70,6 +70,10 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i8_adapter_sparse,
     apply_plan_faithful_latent_v6i8_adapter_balanced_hardpool,
     apply_plan_faithful_latent_v6i8_adapter_sparse_hardpool,
+    apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool,
+    apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
+    apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
+    apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -416,6 +420,17 @@ PRESET_REGISTRY = {
     "v6i8_adapter_sparse_hardpool": apply_plan_faithful_latent_v6i8_adapter_sparse_hardpool,
     "v6i8_sparse_hardpool": apply_plan_faithful_latent_v6i8_adapter_sparse_hardpool,
     "latent_v6i8_sparse_hardpool": apply_plan_faithful_latent_v6i8_adapter_sparse_hardpool,
+    # V6I9 Stage 1: map-aware generalist competence
+    "v6i9_mapaware_generalist_hardpool": apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool,
+    "v6i9_generalist_hardpool": apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool,
+    "v6i9_mapaware_generalist_hardpool_split": apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
+    "v6i9_generalist_hardpool_split": apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
+    # V6I9 Stage 2: TALENTS-inspired repertoire birth
+    "v6i9_mapaware_repertoire_hardpool": apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
+    "v6i9_repertoire_hardpool": apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
+    # V6I9 Stage 3: RILI-inspired recurrent router
+    "v6i9_mapaware_router_sparse_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+    "v6i9_router_sparse_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.

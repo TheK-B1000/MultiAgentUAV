@@ -70,7 +70,13 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Rotate aside existing metrics/episode/E3 CSVs for this run_tag so telemetry is not appended.",
     )
-    parser.add_argument("--load", type=str, default=None)
+    parser.add_argument("--load", type=str, default=None, help="Path to a checkpoint to resume training from.")
+    parser.add_argument("--resume", type=str, default=None, help="Alias for --load.")
+    parser.add_argument(
+        "--load-weights-only",
+        action="store_true",
+        help="Load only model weights from a checkpoint, discarding the optimizer state. Useful when resuming with a different model structure.",
+    )
     parser.add_argument(
         "--allow-active-actor-module-migration",
         action="store_true",
@@ -831,6 +837,10 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.total_timesteps = int(args.total_steps)
     if args.load is not None:
         cfg.load_path = args.load
+    elif args.resume is not None:
+        cfg.load_path = args.resume
+    if getattr(args, "load_weights_only", False):
+        cfg.load_weights_only = True
     if getattr(args, "allow_active_actor_module_migration", False):
         cfg.allow_active_actor_module_migration = True
     if args.learning_rate is not None:

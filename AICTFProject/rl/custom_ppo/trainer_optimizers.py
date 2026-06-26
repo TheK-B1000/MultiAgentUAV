@@ -39,6 +39,43 @@ def freeze_actor_parameters(model: torch.nn.Module) -> int:
     return len(params)
 
 
+# Names that identify z-specific parameters within latent_actor.
+# These receive gradients during Stage 2 (repertoire) while the shared trunk is frozen.
+_Z_SPECIFIC_SUBSTRINGS = (
+    "latent_adapters",
+    "latent_adapter_gates",
+    "latent_action_biases",
+    "strategy_embedding",
+)
+
+# Names that identify the shared backbone (CNN + actor trunk) to freeze in Stage 2.
+_SHARED_BACKBONE_PARTS = ("actor_cnn", "latent_actor")
+
+
+def freeze_shared_trunk_train_z_only(model: torch.nn.Module) -> int:
+    """Stage 2 (repertoire): freeze CNN + shared trunk; leave only z-specific modules trainable."""
+    frozen = 0
+    for name, param in model.named_parameters():
+        is_actor_part = any(part in name for part in _SHARED_BACKBONE_PARTS)
+        if not is_actor_part:
+            continue
+        is_z_specific = any(sub in name for sub in _Z_SPECIFIC_SUBSTRINGS)
+        if not is_z_specific:
+            param.requires_grad_(False)
+            frozen += 1
+    return frozen
+
+
+def freeze_z_specific_parameters(model: torch.nn.Module) -> int:
+    """Stage 3 (router): freeze z-specific adapter/gate/bias/embedding params."""
+    frozen = 0
+    for name, param in model.named_parameters():
+        if any(sub in name for sub in _Z_SPECIFIC_SUBSTRINGS):
+            param.requires_grad_(False)
+            frozen += 1
+    return frozen
+
+
 def _collect_params(model: torch.nn.Module, name_parts: tuple[str, ...]) -> list[torch.nn.Parameter]:
     params: list[torch.nn.Parameter] = []
     for name, param in model.named_parameters():
@@ -97,7 +134,15 @@ class TrainerOptimizerBundle:
 
     @classmethod
     def build(cls, *, model: torch.nn.Module, cfg: Any, hparams: Any) -> TrainerOptimizerBundle:
-        if bool(getattr(cfg, "router_freeze_actor", False)):
+        stage = str(getattr(cfg, "v6i9_training_stage", "") or "").lower().strip()
+        if stage == "repertoire":
+            n = freeze_shared_trunk_train_z_only(model)
+            print(f"[V6I9 repertoire] Froze {n} shared-trunk params; z-specific modules remain trainable.")
+        elif stage == "router":
+            freeze_actor_parameters(model)
+            n = freeze_z_specific_parameters(model)
+            print(f"[V6I9 router] Froze actor + {n} z-specific params; router+critic remain trainable.")
+        elif bool(getattr(cfg, "router_freeze_actor", False)):
             freeze_actor_parameters(model)
         if is_staged_v6i1_curriculum(cfg):
             return cls._build_v6i1(model=model, cfg=cfg, hparams=hparams)
@@ -174,4 +219,6 @@ __all__ = [
     "collect_actor_optimizer_parameters",
     "collect_actor_parameters",
     "freeze_actor_parameters",
+    "freeze_shared_trunk_train_z_only",
+    "freeze_z_specific_parameters",
 ]

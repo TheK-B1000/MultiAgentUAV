@@ -714,5 +714,14 @@ class PPOConfig:
     # When True, continue updating the router critic target even during forced episodes.
     train_router_critic_when_forced: bool = False
 
+    # --- V6I9: Multi-Stage Training ---
+    # Controls which parameter groups are frozen at optimizer build time.
+    #   ""            / "generalist"  — all parameters trainable (Stage 1: map-aware competence)
+    #   "repertoire"  — freeze CNN + shared actor trunk; train only z-specific modules + critic
+    #   "router"      — freeze CNN + actor trunk + z-specific modules; train only router + critic
+    #
+    # Note: "router" stage is designed to be used with router_freeze_actor=True as well.
+    v6i9_training_stage: str = ""
+
 
 __all__ = ["PPOConfig", "TrainMode"]

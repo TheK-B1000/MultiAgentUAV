@@ -9,7 +9,6 @@ from typing import Any, Callable, Optional
 import torch
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import TemporalStateTracker
-from rl.ppo_core import TensorDictRolloutBuffer
 
 from rl.custom_ppo.communication import CommRolloutRuntime, extend_observation_space_if_needed
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
@@ -454,12 +453,16 @@ class CustomPPOTrainer:
             observation_space=self.env.observation_space,
             action_space=self.env.action_space,
         )
-        reinit_router = bool(getattr(self.cfg, "router_reinitialize_on_load", False))
-        if reinit_router:
-            print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
-            self._reinitialize_router_after_load()
+        load_weights_only = bool(getattr(self.cfg, "load_weights_only", False))
+        if load_weights_only:
+            print("[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.")
         else:
-            self.optimizers.load_checkpoint(payload)
+            reinit_router = bool(getattr(self.cfg, "router_reinitialize_on_load", False))
+            if reinit_router:
+                print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
+                self._reinitialize_router_after_load()
+            else:
+                self.optimizers.load_checkpoint(payload)
         v6i1_latent_payload: dict[str, Any] = dict(payload.get("latent_state_v6i1", {}) or {})
         if self.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
             from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state
