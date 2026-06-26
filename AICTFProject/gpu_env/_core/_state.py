@@ -533,8 +533,25 @@ class _StateMixin:
         alive: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         hit = self._segments_hit_obstacles(prev_x, prev_y, next_x, next_y) & alive
-        x_out = torch.where(hit, prev_x, next_x)
-        y_out = torch.where(hit, prev_y, next_y)
+        if not bool(hit.any().item()):
+            return next_x, next_y, speed, hit
+
+        # Wall sliding: try axis-aligned moves before doing a full positional revert.
+        # This prevents corner-sticking where the agent freezes with speed=0 for many
+        # steps while slowly turning away from the wall.
+        x_blocked = self._segments_hit_obstacles(prev_x, prev_y, next_x, prev_y)
+        y_blocked = self._segments_hit_obstacles(prev_x, prev_y, prev_x, next_y)
+
+        # Prefer X-slide; fall back to Y-slide; full revert only when both axes blocked.
+        can_slide_x = hit & ~x_blocked
+        can_slide_y = hit & ~y_blocked & ~can_slide_x
+        full_revert = hit & ~can_slide_x & ~can_slide_y
+
+        x_out = torch.where(can_slide_x, next_x,
+                torch.where(can_slide_y | full_revert, prev_x, next_x))
+        y_out = torch.where(can_slide_x, prev_y,
+                torch.where(can_slide_y, next_y,
+                torch.where(full_revert, prev_y, next_y)))
         speed_out = torch.where(hit, torch.zeros_like(speed), speed)
         return x_out, y_out, speed_out, hit
 
@@ -586,7 +603,7 @@ class _StateMixin:
         if not bool(needs_route.any().item()):
             return target_x, target_y
 
-        clearance = 2.0 if self.map_layout == MAP_B_SPLIT_LANE_V2 else 1.0
+        clearance = 2.0 if self.map_layout == MAP_B_SPLIT_LANE_V2 else 1.5
         upper_y = torch.clamp(y0 - clearance, 0.0, float(max(0, self.rows - 1)))
         lower_y = torch.clamp(y1 + clearance, 0.0, float(max(0, self.rows - 1)))
         prefer_upper = torch.where(

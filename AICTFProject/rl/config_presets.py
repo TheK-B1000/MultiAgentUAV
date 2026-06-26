@@ -366,3 +366,57 @@ def v6i8_adapter_sparse_hardpool_config() -> PPOConfig:
         opponent_pool=("OP8", "OP9", "OP10"),
         opponent_pool_weights=(),
     )
+
+
+# ---------------------------------------------------------------------------
+# V6I9: Map-Aware Competence Stage
+#
+# Prerequisite: V6I8 (7-channel) checkpoint warm-start.
+# Goal: teach the actor to use wall/obstacle geometry before latent adapters
+# specialise.  The loader automatically expands the first CNN conv from 7→8
+# channels (copying existing weights, zeroing the obstacle channel) so the
+# policy is behaviourally unchanged at initialisation.
+#
+# Promotion gates (check with experiments/gate_v6i9_map_aware.py):
+#   1. Obstacle-channel gradient is nonzero after ≥1k steps.
+#   2. Obstacle-channel weights depart from zero.
+#   3. Changing wall geometry changes actor logits.
+#   4. Wall-collision rate decreases vs V6I8 baseline.
+#   5. Actor selects different routes on map_b vs map_b_split_lane_v2.
+#   6. Hard-pool WR is functional (>50 %) but not saturated (<90 %).
+# ---------------------------------------------------------------------------
+
+def v6i9_map_aware_config() -> PPOConfig:
+    """V6I9: map-aware competence stage on map_b with 8-channel CNN.
+
+    Warm-start from a V6I8 checkpoint; the obstacle channel starts zero and
+    learns wall geometry during this stage.  The router is held out of PPO
+    (train_router_when_forced=False) so the actor receives a clean reward
+    signal.  Latent adapters are disabled so the trunk trains without adapter
+    interference.  Freeze the trunk and enable adapters + router only after
+    all six promotion gates pass.
+    """
+    return replace(
+        v6i8_adapter_balanced_hardpool_config(),
+        # Map with walls so the obstacle channel has geometry to learn.
+        map_layout="map_b",
+        # Disable latent adapters during competence stage.
+        enable_latent_z_residual=False,
+        # Hold router out of PPO; actor gets a clean learning signal.
+        train_router_when_forced=False,
+        train_router_critic_when_forced=True,
+        # Balanced episode forced-z so all latents see equal signal.
+        latent_assignment_mode="balanced_episode",
+        # Experiment identity.
+        experiment_id="v6i9",
+        run_tag="map_aware_competence",
+    )
+
+
+def v6i9_map_aware_split_lane_config() -> PPOConfig:
+    """V6I9 variant on map_b_split_lane_v2 for route-diversity evaluation."""
+    return replace(
+        v6i9_map_aware_config(),
+        map_layout="map_b_split_lane_v2",
+        run_tag="map_aware_competence_split",
+    )

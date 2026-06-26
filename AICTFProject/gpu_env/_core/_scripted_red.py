@@ -246,6 +246,17 @@ class _ScriptedRedMixin:
             enemy_on_own = enemy_alive & (enemy_x > midline)
         any_intruder = enemy_on_own.any(dim=1)
 
+        # ---- score / time context (red side only; no-op for blue) ----
+        if not is_blue:
+            time_frac = (self.step_count.float() / max(1, self.max_steps)).clamp(0.0, 1.0)
+            late_game = time_frac > 0.75  # last 25% of episode
+            team_is_trailing = self.red_score < self.blue_score
+            team_is_leading = self.red_score > self.blue_score
+        else:
+            late_game = torch.zeros((B,), dtype=torch.bool, device=device)
+            team_is_trailing = torch.zeros((B,), dtype=torch.bool, device=device)
+            team_is_leading = torch.zeros((B,), dtype=torch.bool, device=device)
+
         if not is_blue:
             win_u = torch.clamp(self.red_attack_sync_window, 0, 64)
             need_refresh = self.red_coordinated_attack & (self.red_coord_ticks_left <= 0)
@@ -316,6 +327,31 @@ class _ScriptedRedMixin:
 
             target[idx_env, guardian_idx_t, 0] = gx
             target[idx_env, guardian_idx_t, 1] = gy
+
+        # OP9 late-game desperation: unlock evasion striker when trailing with <25% time left.
+        if op9_mask.any():
+            op9_press = op9_mask & team_is_trailing & late_game
+            atk_medium = atk_medium | op9_press
+
+        # ======== Tactical mine positioning (OP8/9/10): route guardian toward a tactically ========
+        # useful position ~15 steps before the auto-place fires (every 50 steps) so the mine
+        # lands on an approach lane rather than wherever the agent happens to be standing.
+        if not is_blue:
+            has_charge = self.red_mine_charges[:, 0] > 0
+            approaching_mine_drop = (self.sim_step_count % 50) < 15
+            mine_intent = has_charge & approaching_mine_drop & (op8_mask | op9_mask | op10_mask)
+            if mine_intent.any():
+                # OP9: place mines at the approach lane to own flag (~25% past midline).
+                op9_mine_x = torch.clamp(own_flag_home[:, 0] + (midline - own_flag_home[:, 0]) * 0.4, 0.0, max_x)
+                op9_mine_y = own_flag_home[:, 1]
+                # OP8/10: place mines near current guardian target (carrier interception lane).
+                gpos_x = target[idx_env, guardian_idx_t, 0]
+                gpos_y = target[idx_env, guardian_idx_t, 1]
+                # Pick mine position by opponent type; fall back to guardian's current target.
+                mine_x_choice = torch.where(op9_mask, op9_mine_x, gpos_x)
+                mine_y_choice = torch.where(op9_mask, op9_mine_y, gpos_y)
+                target[idx_env, guardian_idx_t, 0] = torch.where(mine_intent, mine_x_choice, target[idx_env, guardian_idx_t, 0])
+                target[idx_env, guardian_idx_t, 1] = torch.where(mine_intent, mine_y_choice, target[idx_env, guardian_idx_t, 1])
 
         # ======== Striker (agent 1): lane preference + side-weighted tangent hook ========
         center_y = 10.0
@@ -433,14 +469,14 @@ class _ScriptedRedMixin:
             target[..., 1] = torch.where(intercept, cy[:, None], target[..., 1])
 
         # ======== OP8: guardian blocks carrier's path home instead of direct chase ========
-        # Striker (agent 1) still pursues; guardian positions 60% along carrier's path
-        # to enemy_flag_home to cut off the return route.
+        # Block fraction: 50% when leading (conservative), 70% when trailing (aggressive cut-off).
         if op8_mask.any() and enemy_carrier_exists.any():
             ci_b = torch.argmax(enemy_carrying.to(torch.int64), dim=1)
             cx_b = enemy_x[idx_env, ci_b]
             cy_b = enemy_y[idx_env, ci_b]
-            block_x = cx_b + (enemy_flag_home[:, 0] - cx_b) * 0.6
-            block_y = cy_b + (enemy_flag_home[:, 1] - cy_b) * 0.6
+            block_frac = 0.5 + 0.2 * team_is_trailing.float()
+            block_x = cx_b + (enemy_flag_home[:, 0] - cx_b) * block_frac
+            block_y = cy_b + (enemy_flag_home[:, 1] - cy_b) * block_frac
             block_x = torch.clamp(block_x, 0.0, max_x)
             block_y = torch.clamp(block_y, 0.0, max_y)
             op8_block = op8_mask & enemy_carrier_exists
@@ -542,6 +578,10 @@ class _ScriptedRedMixin:
                 torch.clamp(self.red_coord_ticks_left - 1, min=0),
                 self.red_coord_ticks_left,
             )
+
+        if not is_blue:
+            self._debug_red_target_x = target[..., 0].detach()
+            self._debug_red_target_y = target[..., 1].detach()
 
         return target[..., 0], target[..., 1]
 

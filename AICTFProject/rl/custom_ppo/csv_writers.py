@@ -53,12 +53,18 @@ _METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {
 # v6i1 staged-curriculum intervention telemetry (six unordered z-pairs for K=4).
 V6I1_INTERVENTION_PAIR_COUNT: int = 6
 
-# Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1 … OP5_RUSHER, OP6, OP7).
-SCRIPTED_OPPONENT_MI_COUNT: int = 7
+# Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1 … OP10).
+SCRIPTED_OPPONENT_MI_COUNT: int = 10
+
+_OPPONENT_TAG_TO_ID: dict[str, int] = {
+    "OP1": 0, "OP2": 1, "OP3": 2, "OP4": 3,
+    "OP5_RUSHER": 4, "OP6": 5, "OP7": 6,
+    "OP8": 7, "OP9": 8, "OP10": 9,
+}
 
 
 def _opponent_id_int_from_info(cfg: Any, info: dict[str, Any]) -> int:
-    """Scripted opponent index for MI telemetry: OP1→0 … OP7→6; ``-1`` if unknown / non-scripted."""
+    """Scripted opponent index for MI telemetry: OP1→0 … OP10→9; ``-1`` if unknown / non-scripted."""
     er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
     kind = str(er.get("opponent_kind", info.get("opponent_kind", "scripted")) or "scripted").lower()
     if kind != "scripted":
@@ -73,7 +79,7 @@ def _opponent_id_int_from_info(cfg: Any, info: dict[str, Any]) -> int:
         tag = "OP6"
     if tag == "OP7_SWITCHER":
         tag = "OP7"
-    return {"OP1": 0, "OP2": 1, "OP3": 2, "OP4": 3, "OP5_RUSHER": 4, "OP6": 5, "OP7": 6}.get(tag, -1)
+    return _OPPONENT_TAG_TO_ID.get(tag, -1)
 
 
 def _opponent_id_csv_from_info(cfg: Any, info: dict[str, Any]) -> str:
@@ -85,15 +91,7 @@ def _opponent_id_csv_from_info(cfg: Any, info: dict[str, Any]) -> str:
 # manually -- if a new opponent tag is added there, add the matching entry
 # here as well. Used by diagnostics that need to print human-readable
 # opponent labels alongside or in place of the raw integer id.
-_OPPONENT_ID_TO_TAG: dict[int, str] = {
-    0: "OP1",
-    1: "OP2",
-    2: "OP3",
-    3: "OP4",
-    4: "OP5",
-    5: "OP6",
-    6: "OP7",
-}
+_OPPONENT_ID_TO_TAG: dict[int, str] = {v: k for k, v in _OPPONENT_TAG_TO_ID.items()}
 
 
 def _opponent_tag_from_id(opponent_id: int) -> str:

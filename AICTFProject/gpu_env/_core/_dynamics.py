@@ -215,9 +215,11 @@ class _DynamicsMixin:
 
         max_yaw = min(4.0, float(self.cfg.max_yaw_rate_rps))
         yaw_rate_cmd = torch.clamp(err / max(1e-6, dt), -max_yaw, max_yaw)
-        # Turn-radius bound: |omega| <= v / R_min (with floor for low-speed controllability)
+        # Turn-radius bound: |omega| <= v / R_min.
+        # Floor raised to 1.5 rad/s so agents near-stopped at a wall face can rotate
+        # 0.75 rad/step, enough to clear the wall in ~2 bounces rather than 4.
         min_r = max(1e-3, float(self.cfg.min_turn_radius_cells))
-        omega_bound = torch.clamp(speed / min_r, min=0.5, max=max_yaw)
+        omega_bound = torch.clamp(speed / min_r, min=1.5, max=max_yaw)
         yaw_rate_cmd = torch.clamp(yaw_rate_cmd, -omega_bound, omega_bound)
 
         max_speed = min(2.2, float(self.cfg.max_speed_cps))

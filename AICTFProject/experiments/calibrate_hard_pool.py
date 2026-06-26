@@ -109,11 +109,108 @@ def _check_calibration_targets(wr_matrix: Dict[Tuple[str, int], float]) -> None:
     print(f"\n  Overall: {'PASS' if ok else 'FAIL'}")
 
 
+# Episode list keyed by (opponent, latent_z, map_name).
+CellEpisodes = Dict[Tuple[str, int, str], List[Dict[str, Any]]]
+
+
+def _make_env(checkpoint: str, map_name: str, device: str, seed: int) -> Any:
+    from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig  # type: ignore[import]
+    from rl.custom_ppo.inference import read_custom_ppo_metadata  # type: ignore[import]
+
+    meta = read_custom_ppo_metadata(checkpoint)
+    agents = int(meta.get("n_blue", 2))
+    cfg = GPUFieldConfig(
+        n_envs=1,
+        max_blue_agents=agents,
+        max_red_agents=agents,
+        map_layout=map_name,
+        max_decision_steps=400,
+        aquaticus_profile=True,
+        rules_profile="OURS",
+        device=device,
+        seed=seed,
+    )
+    return GPUCTFVecEnv(cfg)
+
+
+def _cell_seed(base_seed: int, opp_idx: int, map_idx: int) -> int:
+    return base_seed + 1000 * opp_idx + 100 * map_idx
+
+
+def run_forced_z_cells(
+    checkpoint: str,
+    opponents: List[str],
+    latents: Tuple[int, ...],
+    maps: List[str],
+    n_episodes: int,
+    device: str,
+    deterministic: bool = True,
+    base_seed: int = 42,
+) -> CellEpisodes:
+    """Run forced-z eval; return {(opponent, latent_z, map_name): [episode_dicts]}.
+
+    All latents on the same (opponent, map) cell share the same env seed so the
+    initial-state distribution is matched across z values.
+    """
+    from plot.eval_rollout import run_eval_episodes  # type: ignore[import]
+
+    cells: CellEpisodes = {}
+    for opp_idx, opponent in enumerate(opponents):
+        for map_idx, map_name in enumerate(maps):
+            seed = _cell_seed(base_seed, opp_idx, map_idx)
+            for z in latents:
+                env = _make_env(checkpoint, map_name, device, seed)
+                try:
+                    eps = run_eval_episodes(
+                        checkpoint, env, n_episodes, device, opponent,
+                        fixed_latent_id=z,
+                        deterministic=deterministic,
+                        latent_eval_seed=seed,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  ERROR {opponent} z={z} {map_name}: {exc}")
+                    eps = []
+                finally:
+                    env.close()
+                cells[(opponent, z, map_name)] = eps
+                wr = _wr(eps)
+                print(f"  {opponent} z={z} {map_name}: WR={wr:.1%} ({len(eps)} eps)")
+    return cells
+
+
+def _wr(eps: List[Dict[str, Any]]) -> float:
+    if not eps:
+        return float("nan")
+    return sum(int(e.get("success", 0)) for e in eps) / len(eps)
+
+
+def _mean_margin(eps: List[Dict[str, Any]]) -> float:
+    if not eps:
+        return float("nan")
+    return sum(int(e.get("win_margin", 0)) for e in eps) / len(eps)
+
+
+def cells_to_mean_wr_matrix(
+    cells: CellEpisodes,
+    opponents: List[str],
+    latents: Tuple[int, ...],
+    maps: List[str],
+) -> Dict[Tuple[str, int], float]:
+    """Average WR across maps → {(opponent, latent_z): mean_wr}."""
+    matrix: Dict[Tuple[str, int], float] = {}
+    for opponent in opponents:
+        for z in latents:
+            vals = [_wr(cells[(opponent, z, m)]) for m in maps if (opponent, z, m) in cells]
+            valid = [v for v in vals if v == v]
+            matrix[(opponent, z)] = sum(valid) / len(valid) if valid else float("nan")
+    return matrix
+
+
 def main() -> None:
     args = _parse_args()
 
     try:
-        from plot.eval_rollout import run_eval_episodes, count_wld  # type: ignore[import]
+        import plot.eval_rollout  # noqa: F401  # verify import before starting
     except ImportError as exc:
         print(f"ERROR: could not import eval infrastructure: {exc}")
         print("Run this script from the project root with the venv active.")
@@ -124,9 +221,6 @@ def main() -> None:
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_csv = os.path.join(out_dir, f"calibrate_hard_pool_{timestamp}.csv")
 
-    rows: List[Dict[str, Any]] = []
-    wr_matrix: Dict[Tuple[str, int], float] = {}
-
     print(f"Checkpoint : {args.checkpoint}")
     print(f"Episodes   : {args.episodes} per cell")
     print(f"Device     : {args.device}")
@@ -134,48 +228,29 @@ def main() -> None:
     print(f"Maps       : {args.maps}")
     print()
 
-    for opponent in args.opponents:
-        for latent_z in LATENTS:
-            wr_across_maps: List[float] = []
-            for map_name in args.maps:
-                try:
-                    episodes = run_eval_episodes(
-                        model_path=args.checkpoint,
-                        n_episodes=args.episodes,
-                        device=args.device,
-                        opponent=opponent,
-                        map_layout=map_name,
-                        forced_latent_z=latent_z,
-                        deterministic=not args.stochastic,
-                    )
-                    wld = count_wld(episodes)
-                    total = max(1, wld.get("win", 0) + wld.get("loss", 0) + wld.get("draw", 0))
-                    wr = wld.get("win", 0) / total
-                except Exception as exc:  # noqa: BLE001
-                    print(f"  ERROR evaluating {opponent} z={latent_z} {map_name}: {exc}")
-                    wr = float("nan")
-                    wld = {}
+    cells = run_forced_z_cells(
+        checkpoint=args.checkpoint,
+        opponents=args.opponents,
+        latents=tuple(LATENTS),
+        maps=args.maps,
+        n_episodes=args.episodes,
+        device=args.device,
+        deterministic=not args.stochastic,
+    )
+    wr_matrix = cells_to_mean_wr_matrix(cells, args.opponents, tuple(LATENTS), args.maps)
 
-                wr_across_maps.append(wr)
-                rows.append({
-                    "opponent": opponent,
-                    "latent_z": latent_z,
-                    "map": map_name,
-                    "win_rate": f"{wr:.4f}",
-                    "wins": wld.get("win", 0),
-                    "losses": wld.get("loss", 0),
-                    "draws": wld.get("draw", 0),
-                    "episodes": args.episodes,
-                })
-                print(f"  {opponent} z={latent_z} {map_name}: WR={wr:.1%}")
-
-            valid = [w for w in wr_across_maps if not (w != w)]  # filter nan
-            mean_wr = sum(valid) / len(valid) if valid else float("nan")
-            wr_matrix[(opponent, latent_z)] = mean_wr
-
-    # Write CSV
+    # Write CSV (one row per opponent × latent × map)
+    rows: List[Dict[str, Any]] = [
+        {
+            "opponent": opp, "latent_z": z, "map": m,
+            "win_rate": f"{_wr(eps):.4f}",
+            "mean_margin": f"{_mean_margin(eps):.4f}",
+            "episodes": len(eps),
+        }
+        for (opp, z, m), eps in sorted(cells.items())
+    ]
     with open(out_csv, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["opponent", "latent_z", "map", "win_rate", "wins", "losses", "draws", "episodes"])
+        writer = csv.DictWriter(f, fieldnames=["opponent", "latent_z", "map", "win_rate", "mean_margin", "episodes"])
         writer.writeheader()
         writer.writerows(rows)
     print(f"\nResults written to {out_csv}")
@@ -186,8 +261,8 @@ def main() -> None:
     print(header)
     for opponent in args.opponents:
         row_str = f"{opponent:<12s}"
-        for latent_z in LATENTS:
-            wr = wr_matrix.get((opponent, latent_z), float("nan"))
+        for z in LATENTS:
+            wr = wr_matrix.get((opponent, z), float("nan"))
             row_str += f"  {wr:5.1%}" if wr == wr else "    nan"
         print(row_str)
 

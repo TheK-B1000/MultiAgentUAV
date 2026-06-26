@@ -326,6 +326,20 @@ class CoreRenderer:
                              tagged=bool(b_tagged[i]),
                              carrying=bool(b_carry[i]),
                              flag_clr=(250, 120, 70))
+        # Red target lines (debug overlay from _debug_red_target_x/y)
+        if getattr(c, "_debug_red_target_x", None) is not None:
+            rtx_dbg = c._debug_red_target_x[0].tolist()
+            rty_dbg = c._debug_red_target_y[0].tolist()
+            for i in range(rx.shape[0]):
+                if not r_alive[i]:
+                    continue
+                ax = int(rect.left + (float(rx[i]) + 0.5) * cw)
+                ay = int(rect.top + (float(ry[i]) + 0.5) * ch)
+                tx_d = int(rect.left + (float(rtx_dbg[i]) + 0.5) * cw)
+                ty_d = int(rect.top + (float(rty_dbg[i]) + 0.5) * ch)
+                pg.draw.line(surface, (255, 80, 80, 120), (ax, ay), (tx_d, ty_d), 1)
+                pg.draw.circle(surface, (255, 80, 80), (tx_d, ty_d), 3)
+
         for i in range(rx.shape[0]):
             if not r_alive[i]:
                 continue
@@ -450,6 +464,11 @@ class CTFViewer:
         self.core.reset_all()
 
         self.renderer = CoreRenderer(self.core)
+
+        # Opponent cycling (O key)
+        self._opponent_pool = ["OP3", "OP8", "OP9", "OP10"]
+        self._opponent_idx = 0
+        self._current_opponent = self._opponent_pool[0]
 
         # PPO (load model on the same device as the core)
         self.ppo = PPOController(
@@ -739,6 +758,18 @@ class CTFViewer:
 
     # ---- input ----
 
+    def _set_opponent(self, key: str, reset: bool = True) -> None:
+        self._current_opponent = key
+        try:
+            self.core.set_next_opponent("SCRIPTED", key)
+        except Exception as exc:
+            print(f"[Viewer] set_next_opponent failed: {exc}")
+            return
+        if reset:
+            self.core.reset_all()
+            self.ppo.reset_strategy()
+        print(f"[Viewer] Opponent -> {key}")
+
     def _rebuild_core(self, agents_per_team: int) -> None:
         """Recreate the core with a new number of agents per team."""
         agents = max(1, int(agents_per_team))
@@ -819,6 +850,14 @@ class CTFViewer:
                 self.ppo.deterministic = self.deterministic
             mode = "deterministic" if self.deterministic else "stochastic"
             print(f"[Viewer] PPO inference -> {mode}")
+        elif k == pg.K_o:
+            # Cycle through opponent pool
+            self._opponent_idx = (self._opponent_idx + 1) % len(self._opponent_pool)
+            self._set_opponent(self._opponent_pool[self._opponent_idx])
+        elif k == pg.K_p:
+            # Cycle backwards through opponent pool
+            self._opponent_idx = (self._opponent_idx - 1) % len(self._opponent_pool)
+            self._set_opponent(self._opponent_pool[self._opponent_idx])
 
     # ---- drawing ----
 
@@ -836,7 +875,7 @@ class CTFViewer:
             "PPO": (120, 255, 120),
             "DEMO": (120, 200, 255),
         }.get(self.blue_mode, (230, 230, 240))
-        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 (cycle) | 2/3/4/8: set team size | F3: PPO/Demo | F4: det/stoch | ESC: Quit",
+        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 | 2/3/4/8: team | F3: PPO/Demo | F4: det/stoch | O/P: opp cycle | ESC: Quit",
             30, 10, (200, 200, 220))
         txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)} | Map: {self.map_layout}",
             30, 36, mode_clr)
@@ -855,6 +894,23 @@ class CTFViewer:
         # 3 min game: 0.1 s per step -> time remaining
         sec_left = max(0, (self.core.max_steps - step)) * 0.1
         txt(f"Time: {int(sec_left // 60)}:{int(sec_left % 60):02d}", 500, 60, (200, 200, 230))
+
+        # ---- tactical overlay (score/time context + opponent name) ----
+        try:
+            from gpu_env._core._tactical_context import extract_tactical_context
+            tc = extract_tactical_context(self.core, env_idx=0)
+            _raw_key = getattr(self.core, "_opponent_key", None)
+            opp_key = str(_raw_key[0]) if _raw_key is not None else self._current_opponent
+            late_tag = " [LATE]" if tc.late_game else ""
+            if tc.red_leading:
+                score_tag = " +LEAD"
+            elif tc.red_trailing:
+                score_tag = " -TRAIL"
+            else:
+                score_tag = ""
+            txt(f"Red: {opp_key}{late_tag}{score_tag}", 650, 60, (255, 160, 80))
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------

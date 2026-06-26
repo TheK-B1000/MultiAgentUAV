@@ -321,6 +321,38 @@ def run_behavioral_equivalence_probe(
     return mean_kl, max_kl, max_logit_diff, total_argmax_disagreements
 
 
+def _expand_cnn_obs_channels(sd: dict[str, Any], target_channels: int) -> dict[str, Any]:
+    """Expand first-layer CNN weights when checkpoint has fewer input channels than the model.
+
+    Called before load_state_dict when loading a 7-channel checkpoint into an 8-channel model.
+    The new channel (obstacle) is zero-initialized so the policy is behaviorally unchanged at
+    initialization — the warm-start contract from the audit report.
+    """
+    # Key may appear under the composed latent_actor namespace or the legacy flat namespace.
+    candidates = (
+        "latent_actor.actor_cnn.conv.0.weight",
+        "actor_cnn.conv.0.weight",
+    )
+    for key in candidates:
+        if key not in sd:
+            continue
+        w = sd[key]  # (out_channels, in_channels, kH, kW)
+        src_ch = int(w.shape[1])
+        if src_ch == target_channels:
+            return sd  # already correct
+        if src_ch < target_channels:
+            new_w = w.new_zeros(w.shape[0], target_channels, *w.shape[2:])
+            new_w[:, :src_ch] = w  # copy existing; new channels stay zero
+            sd = dict(sd)
+            sd[key] = new_w
+            print(
+                f"[checkpoint compat] CNN input channel expansion: {key} "
+                f"{src_ch}→{target_channels} (new channels zero-initialized)"
+            )
+        return sd
+    return sd
+
+
 def _load_model_state_dict_compat(
     model: nn.Module,
     sd: Mapping[str, Any],
@@ -332,18 +364,32 @@ def _load_model_state_dict_compat(
 ) -> None:
     """Load checkpoints while allowing the new opt-in episode baseline head to be absent in older files.
 
-    Two layers of legacy compat run before ``load_state_dict``:
+    Three layers of legacy compat run before ``load_state_dict``:
 
     1. :func:`_remap_legacy_strategy_aux_head_state_dict` — old
        ``strategy_q_head.*`` → new ``strategy_aux_return_head.*``.
     2. :func:`remap_legacy_actor_state_dict_keys` — pre-composition
        ``actor_body.*``/``actor_head.*``/``strategy_embedding.*`` → composed
        ``latent_actor.body.*``/``latent_actor.action_head.*``/``latent_actor.strategy_embedding.*``.
+    3. :func:`_expand_cnn_obs_channels` — 7→8 channel warm-start when the target
+       model uses the obstacle observation channel but the checkpoint does not.
 
-    Both helpers are idempotent so already-migrated state dicts pass through.
+    All helpers are idempotent so already-migrated state dicts pass through.
     """
     aux_remapped = _remap_legacy_strategy_aux_head_state_dict(sd)
     actor_remapped = remap_legacy_actor_state_dict_keys(aux_remapped)
+
+    # Detect target channel count from the model's first CNN conv layer.
+    _cnn_key = "latent_actor.actor_cnn.conv.0.weight"
+    _alt_key = "actor_cnn.conv.0.weight"
+    _model_sd = dict(model.state_dict())
+    _target_ch = None
+    for _k in (_cnn_key, _alt_key):
+        if _k in _model_sd:
+            _target_ch = int(_model_sd[_k].shape[1])
+            break
+    if _target_ch is not None and _target_ch > 1:
+        actor_remapped = _expand_cnn_obs_channels(actor_remapped, _target_ch)
     result = model.load_state_dict(actor_remapped, strict=False)
     missing = list(getattr(result, "missing_keys", []))
     unexpected = list(getattr(result, "unexpected_keys", []))
@@ -441,7 +487,11 @@ def _load_model_state_dict_compat(
                 action_space,
                 **_model_kwargs_from_cfg(checkpoint_cfg),
             ).to(device)
-            source_model.load_state_dict(actor_remapped, strict=True)
+            # When newly-initialized params exist, actor_remapped lacks those keys.
+            # Use strict=False so the source model's new modules stay zero-initialized,
+            # matching the target model — the probe will confirm outputs are identical.
+            _src_strict = not bool(newly_initialized)
+            source_model.load_state_dict(actor_remapped, strict=_src_strict)
             
             # Compare target model vs source-compatible model
             mean_kl, max_kl, max_logit_diff, argmax_diff = run_behavioral_equivalence_probe(
