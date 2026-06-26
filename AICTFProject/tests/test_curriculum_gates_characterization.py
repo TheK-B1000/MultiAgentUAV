@@ -155,7 +155,7 @@ class PromotionPolicyTests(unittest.TestCase):
 
     def test_error_blocks_promotion(self) -> None:
         results = {name: gate_family_result_from_bool(True) for name in GATE_FAMILY_NAMES_V6I1}
-        results["selector_learnability_probe"] = GateFamilyResult(
+        results["matched_seed_behavior"] = GateFamilyResult(
             status=GATE_STATUS_ERROR, reason="dataset_invalid"
         )
         self.assertFalse(all_required_families_passed(results, families=GATE_FAMILY_NAMES_V6I1))

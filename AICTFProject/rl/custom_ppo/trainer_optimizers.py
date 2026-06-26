@@ -51,18 +51,30 @@ _Z_SPECIFIC_SUBSTRINGS = (
 # Names that identify the shared backbone (CNN + actor trunk) to freeze in Stage 2.
 _SHARED_BACKBONE_PARTS = ("actor_cnn", "latent_actor")
 
+# Router modules frozen during Stage 2 (repertoire) to guarantee grad is None.
+# They are re-enabled implicitly at Stage 3 (router) via the model's default requires_grad=True.
+_ROUTER_MODULE_NAMES = (
+    "strategy_encoder",
+    "selector_gru",
+    "phase_predictor",
+    "strategy_aux_return_head",
+)
+
 
 def freeze_shared_trunk_train_z_only(model: torch.nn.Module) -> int:
-    """Stage 2 (repertoire): freeze CNN + shared trunk; leave only z-specific modules trainable."""
+    """Stage 2 (repertoire): freeze CNN + shared trunk + router; leave only z-specific + critic trainable."""
     frozen = 0
     for name, param in model.named_parameters():
         is_actor_part = any(part in name for part in _SHARED_BACKBONE_PARTS)
-        if not is_actor_part:
+        is_router_part = any(part in name for part in _ROUTER_MODULE_NAMES)
+        if not is_actor_part and not is_router_part:
             continue
-        is_z_specific = any(sub in name for sub in _Z_SPECIFIC_SUBSTRINGS)
-        if not is_z_specific:
-            param.requires_grad_(False)
-            frozen += 1
+        if is_actor_part:
+            is_z_specific = any(sub in name for sub in _Z_SPECIFIC_SUBSTRINGS)
+            if is_z_specific:
+                continue  # leave z-specific trainable
+        param.requires_grad_(False)
+        frozen += 1
     return frozen
 
 
@@ -200,8 +212,22 @@ class TrainerOptimizerBundle:
             if self.router is not None:
                 payload["router_optimizer_state_dict"] = self.router.state_dict()
 
-    def load_checkpoint(self, payload: dict[str, Any]) -> None:
-        self.primary.load_state_dict(payload["optimizer_state_dict"])
+    def load_checkpoint(self, payload: dict[str, Any], *, allow_architecture_migration: bool = False) -> None:
+        try:
+            self.primary.load_state_dict(payload["optimizer_state_dict"])
+        except (ValueError, RuntimeError) as exc:
+            if not allow_architecture_migration:
+                raise RuntimeError(
+                    f"Optimizer state mismatch on load — parameter groups do not match the current model. "
+                    f"If this is an intentional architecture migration (e.g. adding a CNN channel), "
+                    f"pass --allow-active-actor-module-migration to skip optimizer state and start fresh. "
+                    f"Original error: {exc}"
+                ) from exc
+            print(
+                f"[optimizer] Architecture migration allowed — skipping optimizer state (starting fresh). "
+                f"Reason: {exc}"
+            )
+            return
         if not bool(payload.get("v6i1_three_optimizer_mode", False)):
             return
         if "actor_optimizer_state_dict" in payload:

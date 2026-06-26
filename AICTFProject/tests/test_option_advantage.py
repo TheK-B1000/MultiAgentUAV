@@ -119,6 +119,7 @@ class OptionAdvantageTests(unittest.TestCase):
                 "z_log_probs": torch.zeros((2,)),
                 "z_logits": torch.zeros((2, 4)),
                 "z_resampled": torch.full((2,), z_resampled_val, dtype=torch.bool),
+                "z_resampled_actual": torch.zeros((2,), dtype=torch.bool),
                 "z_forced": torch.zeros((2,), dtype=torch.bool),
                 "z_persist_mask": torch.zeros((2,), dtype=torch.bool),
                 "phase_id": torch.zeros((2,), dtype=torch.long),

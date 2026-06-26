@@ -55,6 +55,16 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument("--run-tag", type=str, default=None)
     parser.add_argument("--total-steps", type=int, default=None)
+    parser.add_argument(
+        "--additional-steps",
+        type=int,
+        default=None,
+        help=(
+            "Run this many additional steps beyond the loaded checkpoint's global_step. "
+            "Resolved after checkpoint load: total_timesteps = checkpoint_step + N. "
+            "Takes precedence over --total-steps when both are given."
+        ),
+    )
     parser.add_argument("--checkpoint-dir", type=str, default=None)
     parser.add_argument("--metrics-csv", type=str, default=None, help="Path for per-update training metrics CSV.")
     parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")
@@ -835,6 +845,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.strategy_experience_csv_path = args.strategy_experience_csv
     if args.total_steps is not None:
         cfg.total_timesteps = int(args.total_steps)
+    if getattr(args, "additional_steps", None) is not None:
+        cfg.additional_timesteps = int(args.additional_steps)
     if args.load is not None:
         cfg.load_path = args.load
     elif args.resume is not None:

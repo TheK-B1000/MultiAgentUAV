@@ -351,6 +351,13 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         if cfg.load_path and os.path.isfile(cfg.load_path):
             print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
             trainer.load(cfg.load_path)
+        if int(getattr(cfg, "additional_timesteps", 0) or 0) > 0:
+            base_step = int(getattr(trainer, "global_step", 0))
+            cfg.total_timesteps = base_step + int(cfg.additional_timesteps)
+            print(
+                f"[PPO] --additional-steps: base_step={base_step:,} + {int(cfg.additional_timesteps):,} "
+                f"= total_timesteps={cfg.total_timesteps:,}"
+            )
         try:
             stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
         except KeyboardInterrupt:

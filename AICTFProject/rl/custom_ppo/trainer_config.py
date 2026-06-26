@@ -722,7 +722,12 @@ def resolve_q_phi_input_dim_from_cfg(cfg: Any) -> int:
         return GLOBAL_STATE_V6I7_DIM + recurrent_hidden
     dim = int(CONTEXT_STATE_DIM)
     if is_staged_v6i1_curriculum(cfg):
-        dim += int(getattr(cfg, "v6i1_recurrent_selector_hidden", 32) or 32)
+        recurrent_hidden = int(
+            getattr(cfg, "recurrent_selector_hidden_dim", 0)
+            or getattr(cfg, "v6i1_recurrent_selector_hidden", 32)
+            or 32
+        )
+        dim += recurrent_hidden
     return dim
 
 

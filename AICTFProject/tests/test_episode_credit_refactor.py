@@ -92,7 +92,7 @@ class FixedAdvantageTests(unittest.TestCase):
         host.refresh_preference_buffer = []
         host.rollout_refresh_records = []
         host.rollout_forced_z_episode_count_by_z = torch.zeros(4)
-        host.rollout_forced_episode_count_by_opp_z = torch.zeros(7, 4)
+        host.rollout_forced_episode_count_by_opp_z = torch.zeros(10, 4)
 
         mgr = EpisodeCreditManager(host)
         with patch("rl.custom_ppo.latent.optimization.router_ppo.ppo_policy_loss", side_effect=_spy):

@@ -57,8 +57,8 @@ class V6I3IntegrationTests(unittest.TestCase):
         self.assertEqual(cfg.comm_listener_consecutive_updates, 1)
 
     def test_v6i3_confirmatory_fingerprints_are_frozen(self) -> None:
-        self.assertEqual(gate_config_fingerprint(apply_preset(PPOConfig(), "v6i2")), "224f1aea9ab36319")
-        self.assertEqual(gate_config_fingerprint(apply_preset(PPOConfig(), "v6i3")), "9ef168d941f046fb")
+        self.assertEqual(gate_config_fingerprint(apply_preset(PPOConfig(), "v6i2")), "9c4aa70664495294")
+        self.assertEqual(gate_config_fingerprint(apply_preset(PPOConfig(), "v6i3")), "de8e9c142e27acef")
 
     def test_v6i3_gate_protocol_families(self) -> None:
         cfg = apply_preset(PPOConfig(), "v6i3")

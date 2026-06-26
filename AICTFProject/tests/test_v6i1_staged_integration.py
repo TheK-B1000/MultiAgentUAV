@@ -95,7 +95,7 @@ class V6I1PresetTests(unittest.TestCase):
 class V6I1RouterInputContractTests(unittest.TestCase):
     def test_staged_preset_adds_recurrent_selector_hidden_to_q_phi_input(self) -> None:
         cfg = apply_preset(PPOConfig(), "v6i1")
-        hidden = int(cfg.v6i1_recurrent_selector_hidden)
+        hidden = int(getattr(cfg, "recurrent_selector_hidden_dim", 0) or cfg.v6i1_recurrent_selector_hidden)
         self.assertEqual(
             resolve_q_phi_input_dim_from_cfg(cfg),
             int(CONTEXT_STATE_DIM) + hidden,

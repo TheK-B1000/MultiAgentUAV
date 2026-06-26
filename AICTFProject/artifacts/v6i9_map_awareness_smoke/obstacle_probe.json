@@ -1,0 +1,29 @@
+{
+  "baseline_weights": {
+    "has_obstacle_channel": false,
+    "cnn_channels": 7,
+    "obstacle_weight_l2": 0.0,
+    "obstacle_weight_abs_mean": 0.0,
+    "obstacle_weight_abs_max": 0.0,
+    "obstacle_weight_nonzero_fraction": 0.0
+  },
+  "candidate_weights": {
+    "has_obstacle_channel": true,
+    "cnn_channels": 8,
+    "obstacle_weight_l2": 0.04022049158811569,
+    "obstacle_weight_abs_mean": 0.0019124663667753339,
+    "obstacle_weight_abs_max": 0.008269298821687698,
+    "obstacle_weight_nonzero_fraction": 1.0
+  },
+  "candidate_gradient": {
+    "obstacle_gradient_l2": 0.0,
+    "error": "AttributeError: Neither the policy nor its model exposes get_distribution()."
+  },
+  "candidate_counterfactual": {
+    "states_evaluated": 0,
+    "mean_action_kl": 0.0,
+    "mean_logit_l2": 0.0,
+    "argmax_action_change_rate": 0.0,
+    "error": "AttributeError: Neither the policy nor its model exposes get_distribution()."
+  }
+}

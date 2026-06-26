@@ -67,6 +67,7 @@ class TestFinding4TemporalTrackerResetLeakage(unittest.TestCase):
         collector.z_for_bootstrap = MagicMock(return_value=torch.zeros(2, dtype=torch.long))
         collector.model = MagicMock()
         collector.model.act = MagicMock(return_value=(None, torch.zeros(2, 1), None, None))
+        collector._is_v6i7_mode = False
         
         # Patch _denormalize_values so next_values doesn't fail on it
         with patch("rl.custom_ppo.rollout_collector._denormalize_values", side_effect=lambda r, v: v):

@@ -723,5 +723,10 @@ class PPOConfig:
     # Note: "router" stage is designed to be used with router_freeze_actor=True as well.
     v6i9_training_stage: str = ""
 
+    # CLI convenience: when set via --additional-steps, train_ppo() resolves
+    # total_timesteps = checkpoint_global_step + additional_timesteps after load.
+    # Takes precedence over total_timesteps when nonzero.
+    additional_timesteps: int = 0
+
 
 __all__ = ["PPOConfig", "TrainMode"]

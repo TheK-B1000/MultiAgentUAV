@@ -462,7 +462,8 @@ class CustomPPOTrainer:
                 print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
                 self._reinitialize_router_after_load()
             else:
-                self.optimizers.load_checkpoint(payload)
+                allow_migration = bool(getattr(self.cfg, "allow_active_actor_module_migration", False))
+                self.optimizers.load_checkpoint(payload, allow_architecture_migration=allow_migration)
         v6i1_latent_payload: dict[str, Any] = dict(payload.get("latent_state_v6i1", {}) or {})
         if self.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
             from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state

@@ -1178,7 +1178,7 @@ class CustomPPOInferencePolicy:
                 self._last_context_gs = context_gs.detach().cpu()
                 action_tensor, _, _, _ = self.model.act(
                     obs_t,
-                    q_phi_context,
+                    context_gs,
                     deterministic=deterministic,
                     z_idx=z_idx,
                 )

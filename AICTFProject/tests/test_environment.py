@@ -763,6 +763,10 @@ class EnvironmentContractTests(unittest.TestCase):
                 "rpbrs": torch.tensor([0.0], device=core.device),
                 "rteam": torch.tensor([0.0], device=core.device),
                 "rfail": torch.tensor([0.0], device=core.device),
+                "blue_cap_env": torch.tensor([0.0], device=core.device),
+                "red_cap_env": torch.tensor([0.0], device=core.device),
+                "blue_tag_withflag": torch.tensor([0.0], device=core.device),
+                "red_tag_total": torch.tensor([0.0], device=core.device),
             }
 
             terminal = core._advance_episode_end(flags, combat, rewards)

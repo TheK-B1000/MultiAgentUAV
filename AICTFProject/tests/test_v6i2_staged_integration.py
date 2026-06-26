@@ -78,7 +78,7 @@ class V6I2PresetWiringTests(unittest.TestCase):
         self.assertTrue(is_staged_v6i1_curriculum(cfg))
         self.assertTrue(is_staged_v6_team_intent_curriculum(cfg))
         self.assertTrue(is_v6i2_gate_protocol(cfg))
-        hidden = int(cfg.v6i1_recurrent_selector_hidden)
+        hidden = int(getattr(cfg, "recurrent_selector_hidden_dim", 0) or cfg.v6i1_recurrent_selector_hidden)
         self.assertEqual(
             resolve_q_phi_input_dim_from_cfg(cfg),
             int(CONTEXT_STATE_DIM) + hidden,
