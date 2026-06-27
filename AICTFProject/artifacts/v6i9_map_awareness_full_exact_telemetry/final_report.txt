@@ -1,0 +1,13 @@
+V6I9 MAP-AWARENESS PROMOTION GATE
+
+Obstacle weights moved:              PASS
+Obstacle gradient connected:         PASS
+Obstacle counterfactual effect:      WARN
+Wall collisions improved:            FAIL
+Blocked movement improved:           FAIL
+Stuck behavior improved:             FAIL
+Map-dependent routes observed:       INCONCLUSIVE
+Hard-pool competence retained:       PASS
+Universal saturation avoided:        FAIL
+
+VERDICT: NOT READY FOR STAGE B

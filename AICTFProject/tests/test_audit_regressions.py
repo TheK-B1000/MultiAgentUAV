@@ -70,7 +70,7 @@ class TestFinding4TemporalTrackerResetLeakage(unittest.TestCase):
         collector._is_v6i7_mode = False
         
         # Patch _denormalize_values so next_values doesn't fail on it
-        with patch("rl.custom_ppo.rollout_collector._denormalize_values", side_effect=lambda r, v: v):
+        with patch("rl.custom_ppo.rollout.collector._denormalize_values", side_effect=lambda r, v: v):
             infos = [{"terminated": True}, {"terminated": False}]
             next_global_state = np.ones((2, GLOBAL_STATE_DIM), dtype=np.float32)
             dones = np.array([True, False])

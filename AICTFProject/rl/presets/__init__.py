@@ -74,6 +74,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
     apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+    apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -431,6 +432,10 @@ PRESET_REGISTRY = {
     # V6I9 Stage 3: RILI-inspired recurrent router
     "v6i9_mapaware_router_sparse_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
     "v6i9_router_sparse_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+    # V6I9.1: navigation refinement fine-tune (Stage A follow-up)
+    "v6i9_mapaware_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
+    "v6i9_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
+    "plan_faithful_latent_v6i9_mapaware_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.
@@ -570,3 +575,42 @@ def apply_preset(cfg: PPOConfig, preset: str) -> PPOConfig:
             " 'v5i9' / 'v5i9_csia_guided_specialization' for the CSIA post-Summer extension."
         )
     return fn(cfg)
+
+
+# ---------------------------------------------------------------------------
+# New typed registry API (Phase 4)
+# ---------------------------------------------------------------------------
+# These imports are deferred to avoid circular dependencies during module load.
+# External callers should use ``get_registry()`` for the authoritative registry.
+
+def get_registry():  # noqa: ANN201
+    """Return the module-level ``PresetRegistry`` singleton.
+
+    Builds the registry lazily on first call from ``PRESET_REGISTRY``.
+    """
+    from rl.presets.registry import get_registry as _get_registry
+    return _get_registry()
+
+
+# Re-export typed symbols so ``from rl.presets import PresetRegistry`` works.
+from rl.presets.models import (  # noqa: E402
+    DuplicatePresetAliasError,
+    DuplicatePresetError,
+    PresetCompatibilityError,
+    PresetDefinition,
+    PresetError,
+    PresetIdentity,
+    PresetNotFoundError,
+    PresetSerializationError,
+    PresetStatus,
+    PresetValidationError,
+)
+from rl.presets.registry import PresetRegistry, build_registry_from_dict  # noqa: E402
+from rl.presets.serialization import (  # noqa: E402
+    SCHEMA_VERSION,
+    canonical_config_dict,
+    preset_hash,
+    resolved_preset_artifact,
+    to_canonical_json_bytes,
+)
+from rl.presets.validation import assert_preset_valid, validate_preset  # noqa: E402

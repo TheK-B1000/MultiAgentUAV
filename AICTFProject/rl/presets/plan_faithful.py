@@ -3238,3 +3238,65 @@ def apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg: PPOConf
     cfg.experiment_id = "v6i9"
     cfg.run_tag = "v6i9_mapaware_router_sparse_hardpool_OP8_OP9_OP10"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i9_mapaware_nav_refinement(cfg: PPOConfig) -> PPOConfig:
+    """V6I9.1 — navigation refinement fine-tune from the 1M generalist checkpoint.
+
+    Motivation
+    ----------
+    Stage A evaluation (100 ep/cell, map_b_split_lane, OP8/OP9/OP10) revealed:
+
+    * Stuck steps INCREASED vs baseline in every split-lane cell, worst for OP9
+      (0.77 vs 0.49, +57 %).  Map A (open) showed zero regression — the failure
+      is split-lane-specific.
+    * OP8 win rate dropped −6 pp in split-lane (0.89 vs 0.95 baseline).
+    * Route-lane fractions are statistically identical to baseline — the obstacle
+      channel is not yet driving route selection.
+    * Gradient and counterfactual gates could not run (get_distribution() not
+      exposed); obstacle weights moved (gate PASS) but behavioral impact is weak.
+
+    Fix
+    ---
+    Fine-tune the 1M Stage A checkpoint for 200k–400k additional steps with:
+
+    1. Training map: map_b_split_lane — the exact geometry where failures occurred.
+       Wall-geometry variation via map_b_vertical_mirror_prob=0.5 so the policy
+       generalises across both lane configurations.
+
+    2. Opponent pool: OP8 / OP9 / OP10, equal weight.  OP9 is the largest
+       regression; keeping all three prevents overfit to a single opponent.
+
+    3. Blocked-movement penalty: env_action_failed_punishment = −0.01 (small).
+       The existing telemetry tracks repeated_blocked_movement per episode; this
+       coefficient penalises each invalid-move event so the actor learns to prefer
+       valid directions near walls instead of repeating blocked ones.
+
+    4. Reduced learning rate: 5e-5 (one-third of the Stage A default).  This is
+       a fine-tune — large gradients would destabilise the competent trunk.
+
+    5. Geometry randomization: map_b_vertical_mirror_prob=0.5 (already in the
+       GPU env) ensures the policy is exposed to both lane polarities.
+
+    Note on multi-map curriculum
+    ----------------------------
+    The user prescription calls for 60–70 % obstacle-rich / 30–40 % open maps.
+    The current training system passes a single map_layout per run; there is no
+    built-in map-pool sampling.  This preset uses split-lane exclusively because
+    (a) that is where failures occurred, and (b) map-pool support requires adding
+    a map_pool field and updating env_factory to sample per episode.  Add
+    map-pool training as a follow-up if route differentiation remains absent after
+    this refinement.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool(cfg)
+    # Switch to the split-lane map — where stuck/OP8-WR regressions occurred.
+    cfg.map_layout = "map_b_split_lane"
+    # Geometry variation: mirror the wall axis so both lane polarities are seen.
+    cfg.map_b_vertical_mirror_prob = 0.5
+    # Blocked-movement consequence signal: small per-action penalty for hitting a wall.
+    cfg.env_action_failed_punishment = -0.01
+    # Fine-tune LR — trunk is already competent; avoid destabilising it.
+    cfg.learning_rate = 5e-5
+    cfg.experiment_id = "v6i9"
+    cfg.run_tag = "v6i9_mapaware_nav_refinement_splitlane_OP8_OP9_OP10_200k"
+    return cfg
