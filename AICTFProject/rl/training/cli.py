@@ -76,6 +76,47 @@ def parse_train_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument("--no-metrics-csv", action="store_true", help="Disable training CSV telemetry.")
     parser.add_argument(
+        "--training-telemetry-mode",
+        type=str,
+        default=None,
+        help="Telemetry mode: off, basic, or full (Phase 6.1).",
+    )
+    parser.add_argument(
+        "--training-events-jsonl-path",
+        type=str,
+        default=None,
+        help="Path for JSONL telemetry events.",
+    )
+    parser.add_argument(
+        "--telemetry-events-jsonl-path",
+        type=str,
+        default=None,
+        help="Compatibility alias for JSONL telemetry events.",
+    )
+    parser.add_argument(
+        "--performance-summary-path",
+        type=str,
+        default=None,
+        help="Path for performance summary JSON.",
+    )
+    parser.add_argument(
+        "--performance-samples-path",
+        type=str,
+        default=None,
+        help="Path for performance samples CSV.",
+    )
+    parser.add_argument(
+        "--gpu-monitor-enabled",
+        action="store_true",
+        help="Enable GPU utilization monitoring.",
+    )
+    parser.add_argument(
+        "--gpu-monitor-interval-seconds",
+        type=float,
+        default=None,
+        help="GPU monitor sample interval in seconds.",
+    )
+    parser.add_argument(
         "--fresh-metrics-csv",
         action="store_true",
         help="Rotate aside existing metrics/episode/E3 CSVs for this run_tag so telemetry is not appended.",
@@ -815,6 +856,22 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.latent_z_embed_dim = max(1, int(args.latent_z_embed_dim))
     if args.latent_vf_hidden is not None:
         cfg.latent_vf_hidden = max(1, int(args.latent_vf_hidden))
+
+    if getattr(args, "training_telemetry_mode", None) is not None:
+        cfg.training_telemetry_mode = args.training_telemetry_mode
+    if getattr(args, "training_events_jsonl_path", None) is not None:
+        cfg.training_events_jsonl_path = args.training_events_jsonl_path
+    if getattr(args, "telemetry_events_jsonl_path", None) is not None:
+        cfg.telemetry_events_jsonl_path = args.telemetry_events_jsonl_path
+    if getattr(args, "performance_summary_path", None) is not None:
+        cfg.performance_summary_path = args.performance_summary_path
+    if getattr(args, "performance_samples_path", None) is not None:
+        cfg.performance_samples_path = args.performance_samples_path
+    if getattr(args, "gpu_monitor_enabled", None) is not None:
+        cfg.gpu_monitor_enabled = args.gpu_monitor_enabled
+    if getattr(args, "gpu_monitor_interval_seconds", None) is not None:
+        cfg.gpu_monitor_interval_seconds = args.gpu_monitor_interval_seconds
+
     # Presets set ``cfg.run_tag``; only overwrite when user supplies --run-tag or no preset was applied.
     if args.run_tag is not None:
         cfg.run_tag = args.run_tag

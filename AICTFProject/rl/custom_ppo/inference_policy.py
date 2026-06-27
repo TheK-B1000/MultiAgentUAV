@@ -359,12 +359,11 @@ class CustomPPOInferencePolicy:
             obs_t = obs  # already tensors
 
         if z_idx is not None:
-            with torch.no_grad():
-                return self.model.get_distribution(obs_t, z_idx=z_idx)
+            z_idx = z_idx.to(device=self.device, dtype=torch.long)
+            return self.model.get_distribution(obs_t, z_idx=z_idx)
 
         if not self.model.uses_latent_strategy:
-            with torch.no_grad():
-                return self.model.get_distribution(obs_t)
+            return self.model.get_distribution(obs_t)
 
         # Use the wrapper's internal z selection (same as predict()).
         batch = int(obs_t["grid"].shape[0])
@@ -372,8 +371,7 @@ class CustomPPOInferencePolicy:
             current_z = torch.zeros(batch, dtype=torch.long, device=self.device)
         else:
             current_z = self._prev_z.clone()
-        with torch.no_grad():
-            return self.model.get_distribution(obs_t, z_idx=current_z)
+        return self.model.get_distribution(obs_t, z_idx=current_z)
 
     # ------------------------------------------------------------------
 

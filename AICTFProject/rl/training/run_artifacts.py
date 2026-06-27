@@ -27,6 +27,12 @@ from enum import Enum
 from typing import Any, Optional
 
 from rl.config.ppo_config import PPOConfig
+from rl.custom_ppo.telemetry.schemas import (
+    PERFORMANCE_METRICS_SCHEMA_VERSION,
+    TRAINING_EVENTS_SCHEMA_VERSION,
+    TRAINING_METRICS_SCHEMA_VERSION,
+    coerce_telemetry_mode,
+)
 
 # Module dir is ``AICTFProject/rl/training``; walking upward 8 levels still
 # reaches the repo root that contains ``.git`` from anywhere in this tree.
@@ -125,6 +131,35 @@ def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None) -> s
         "strategy_experience_csv_path": cfg.strategy_experience_csv_path,
         "load_path": cfg.load_path,
         "cli_preset": getattr(cfg, "cli_preset", None),
+        "telemetry": {
+            "mode": str(
+                coerce_telemetry_mode(
+                    getattr(
+                        cfg,
+                        "training_telemetry_mode",
+                        getattr(
+                            cfg,
+                            "telemetry_mode",
+                            "full"
+                            if getattr(cfg, "training_events_jsonl_path", getattr(cfg, "telemetry_events_jsonl_path", ""))
+                            else "off",
+                        ),
+                    )
+                )
+            ),
+            "training_metrics_schema_version": TRAINING_METRICS_SCHEMA_VERSION,
+            "training_events_schema_version": TRAINING_EVENTS_SCHEMA_VERSION,
+            "performance_metrics_schema_version": PERFORMANCE_METRICS_SCHEMA_VERSION,
+            "events_jsonl_path": str(
+                getattr(cfg, "training_events_jsonl_path", getattr(cfg, "telemetry_events_jsonl_path", ""))
+                or ""
+            ),
+            "artifact_dir": str(
+                getattr(cfg, "telemetry_artifact_dir", "")
+                or getattr(cfg, "checkpoint_dir", "")
+                or ""
+            ),
+        },
         "resolved_ppo_config": _json_safe(asdict(cfg)),
     }
     with open(path, "w", encoding="utf-8") as f:

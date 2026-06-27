@@ -63,6 +63,15 @@ class PPOConfig:
     cli_preset: Optional[str] = None
     # E3: optional per-step CSV (z, H(q), argmax, switch, phase). See `rl.custom_ppo.E3_STEP_TELEMETRY_FIELDS`.
     e3_step_telemetry_path: Optional[str] = None
+
+    # Telemetry and monitoring configurations (Phase 6.1)
+    training_telemetry_mode: str = "full"
+    training_events_jsonl_path: Optional[str] = None
+    telemetry_events_jsonl_path: Optional[str] = None
+    performance_summary_path: Optional[str] = None
+    performance_samples_path: Optional[str] = None
+    gpu_monitor_enabled: bool = False
+    gpu_monitor_interval_seconds: float = 1.0
     # SB3-compatible: ``tqdm`` (prefer ``tqdm.rich``) during rollout, ``total=remaining`` timesteps, ``update(n_envs)`` / step.
     enable_progress_bar: bool = True
     verbose_training: bool = False

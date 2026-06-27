@@ -379,6 +379,11 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
             )
         print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
     finally:
+        if "trainer" in locals():
+            try:
+                trainer.telemetry.close_e3_step_telemetry()
+            except Exception:
+                pass
         env.close()
         run_lock.release()
 

@@ -1,0 +1,21 @@
+{
+  "track": "B",
+  "status": "BLOCKED",
+  "reason": "No pre-Phase-5 baseline worktree or committed golden rollout fixture was established in this run.",
+  "required_for_closeout": [
+    "deterministic rollout equivalence",
+    "stochastic RNG-restored rollout equivalence",
+    "latent sequence equivalence",
+    "actor reward equivalence",
+    "router reward equivalence",
+    "done and truncation equivalence",
+    "terminal and timeout bootstrap equivalence",
+    "buffer write equivalence",
+    "GAE input equivalence"
+  ],
+  "current_evidence": [
+    "Focused rollout-related suites passed.",
+    "Full unittest discovery passed."
+  ],
+  "verdict": "Phase 5 cannot be marked complete from this track yet."
+}

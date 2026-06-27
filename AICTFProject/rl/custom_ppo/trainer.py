@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 import warnings
 from dataclasses import asdict, fields
 from typing import Any, Callable, Optional
@@ -370,41 +371,93 @@ class CustomPPOTrainer:
                 global_step=int(self.global_step),
             )
             self._next_periodic_checkpoint_step += self.periodic_checkpoint_steps
-
-    def learn(self, total_timesteps: int) -> dict[str, float]:
-        """Train until at least ``total_timesteps`` environment transitions have been collected."""
+    def learn(self, total_timesteps: int) -> None:
+        """Run training until global_step reaches ``total_timesteps``."""
         total = int(total_timesteps)
-        if self.v6i1_curriculum is not None:
-            total = max(total, int(self.v6i1_curriculum.effective_training_terminal_step()))
         self._sb3_rollout_pbar = _open_sb3_style_progress(
             self.cfg, total_timesteps=total, current_num_timesteps=self.global_step
         )
+        train_start = time.perf_counter()
+        self.telemetry.emit_training_started(
+            total_timesteps=total,
+            checkpoint_path=getattr(self.cfg, "load_path", None),
+        )
         try:
             while self.global_step < total:
+                rollout_start = time.perf_counter()
                 rollout = self.collect_rollout()
+                rollout_duration = max(0.0, time.perf_counter() - rollout_start)
+                self.telemetry.emit_rollout_completed(
+                    rollout,
+                    duration_seconds=rollout_duration,
+                )
+                update_start = time.perf_counter()
                 stats = self.update(rollout, total_timesteps=total)
+                stats = dict(stats)
+                stats["optimization_duration_seconds"] = max(0.0, time.perf_counter() - update_start)
                 self._updates_completed += 1
                 row = self.telemetry.write_update_metrics(stats, rollout)
+                self.telemetry.emit_performance_sample(phase="update")
                 self._save_periodic_checkpoint()
                 self.telemetry.print_update_diagnostics(row, stats)
                 if self.v6i1_curriculum is not None:
+                    old_phase = self.v6i1_curriculum.phase
                     self.v6i1_curriculum.maybe_apply_phase_transitions()
+                    if self.v6i1_curriculum.phase != old_phase:
+                        if torch.cuda.is_available():
+                            torch.cuda.reset_peak_memory_stats()
                     self.v6i1_curriculum.check_and_run_gate()
                     self.v6i1_curriculum.check_terminal_failure()
                     total = max(
                         total,
                         int(self.v6i1_curriculum.effective_training_terminal_step()),
                     )
+            training_duration = max(0.0, time.perf_counter() - train_start)
+            self.telemetry.emit_training_completed(
+                total_timesteps=total,
+                duration_seconds=training_duration,
+            )
+            self.telemetry.write_performance_summary(
+                training_duration_seconds=training_duration,
+            )
+        except (KeyboardInterrupt, SystemExit) as exc:
+            training_duration = max(0.0, time.perf_counter() - train_start)
+            self.telemetry.emit_training_interrupted(
+                total_timesteps=total,
+                duration_seconds=training_duration,
+                reason=type(exc).__name__,
+            )
+            self.telemetry.write_performance_summary(
+                training_duration_seconds=training_duration,
+            )
+            raise
+        except BaseException as exc:
+            training_duration = max(0.0, time.perf_counter() - train_start)
+            self.telemetry.emit_training_failed(
+                total_timesteps=total,
+                duration_seconds=training_duration,
+                error=exc,
+            )
+            self.telemetry.write_performance_summary(
+                training_duration_seconds=training_duration,
+            )
+            raise
         finally:
-            if self._sb3_rollout_pbar is not None:
-                self._sb3_rollout_pbar.refresh()  # type: ignore[union-attr]
-                self._sb3_rollout_pbar.close()  # type: ignore[union-attr]
-                self._sb3_rollout_pbar = None
             self.telemetry.close_e3_step_telemetry()
-        return self.last_stats
+            if self._sb3_rollout_pbar is not None:
+                try:
+                    self._sb3_rollout_pbar.refresh()
+                except Exception:
+                    pass
+                try:
+                    self._sb3_rollout_pbar.close()
+                except Exception:
+                    pass
+                self._sb3_rollout_pbar = None
 
     def save(self, path: str) -> None:
         """Save a torch checkpoint. The project keeps the historical ``.zip`` suffix."""
+        start = time.perf_counter()
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         rn = self.return_norm.state_dict()
         srn = self.strategy_return_norm.state_dict()
@@ -439,9 +492,14 @@ class CustomPPOTrainer:
             payload["comm_runtime_state"] = self.comm_runtime.state_dict()
         payload["ppo_updater_state"] = self.updater.state_dict()
         torch.save(payload, path)
+        self.telemetry.emit_checkpoint_saved(
+            path=path,
+            duration_seconds=max(0.0, time.perf_counter() - start),
+        )
 
     def load(self, path: str) -> None:
         """Restore a checkpoint produced by :meth:`save`."""
+        start = time.perf_counter()
         payload = _torch_load_checkpoint(path, map_location=self.device)
         _assert_compatible_global_state_dim(payload, path)
         _load_model_state_dict_compat(
@@ -498,3 +556,7 @@ class CustomPPOTrainer:
         if self.comm_runtime.enabled and "comm_runtime_state" in payload:
             self.comm_runtime.load_state_dict(dict(payload.get("comm_runtime_state", {}) or {}))
         self.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))
+        self.telemetry.emit_checkpoint_loaded(
+            path=path,
+            duration_seconds=max(0.0, time.perf_counter() - start),
+        )

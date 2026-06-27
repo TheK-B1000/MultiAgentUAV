@@ -1,0 +1,37 @@
+{
+  "track": "F",
+  "status": "PASS",
+  "implemented": true,
+  "candidate_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
+  "changes": [
+    "CustomPPOInferencePolicy.get_distribution preserves gradients and no longer wraps distribution calls in torch.no_grad().",
+    "Explicit z_idx is moved to the wrapper device and forwarded to SharedActorCentralizedCritic.get_distribution.",
+    "V6I9 evaluator validates the loaded wrapper and loaded model against PolicyInferenceContract before obstacle probes or episode evaluation.",
+    "Evaluator distribution preflight requires MultiHeadActionDistribution and exact model action-head dimensions."
+  ],
+  "tests": [
+    {
+      "command": "uv run python -m unittest tests.test_inference_distribution_contract tests.test_v6i9_map_aware",
+      "result": "PASS",
+      "tests": 17
+    },
+    {
+      "command": "uv run python -m unittest tests.test_audit_regressions tests.test_option_advantage tests.test_v6i7_parts_b_g tests.test_train_ppo_smoke tests.test_latent_strategy_alignment",
+      "result": "PASS",
+      "tests": 101
+    },
+    {
+      "command": "uv run python -m unittest discover -s tests -v",
+      "result": "PASS",
+      "tests": 1157
+    }
+  ],
+  "probe_status": {
+    "obstacle_weight_probe": "not_run_live_checkpoint",
+    "obstacle_gradient_probe": "contract_path_tested; live V6I9 probe not rerun in this closeout",
+    "obstacle_counterfactual_probe": "contract_path_tested; live V6I9 probe not rerun in this closeout"
+  },
+  "unresolved": [
+    "Full real-checkpoint matrix across native 7-channel, migrated 7-to-8, native 8-channel, latent-disabled, latent-enabled, CPU, and CUDA smoke was not completed in this run."
+  ]
+}

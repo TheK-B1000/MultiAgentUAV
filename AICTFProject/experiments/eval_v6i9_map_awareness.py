@@ -48,6 +48,8 @@ from rl.custom_ppo.inference import (
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
+from rl.custom_ppo.distributions import MultiHeadActionDistribution
+from rl.custom_ppo.policy_contract import PolicyInferenceContract
 from rl.custom_ppo.probe_result import (
     PROBE_ERROR,
     PROBE_SUCCESS,
@@ -341,6 +343,63 @@ def _model(policy: Any) -> torch.nn.Module:
     if model is None:
         raise AttributeError("Loaded policy has no .model attribute.")
     return model
+
+
+def _validate_distribution_contract(policy: Any, *, label: str) -> None:
+    """Fail early when a loaded policy cannot serve public probe distributions."""
+    if not isinstance(policy, PolicyInferenceContract):
+        raise TypeError(
+            f"{label} policy does not implement PolicyInferenceContract; "
+            "loaded checkpoint probes require CustomPPOInferencePolicy.get_distribution()."
+        )
+    model = _model(policy)
+    if not isinstance(model, PolicyInferenceContract):
+        raise TypeError(
+            f"{label} policy.model does not implement PolicyInferenceContract; "
+            "obstacle probes require SharedActorCentralizedCritic.get_distribution()."
+        )
+    getter = getattr(policy, "get_distribution", None)
+    model_getter = getattr(model, "get_distribution", None)
+    if not callable(getter) or not callable(model_getter):
+        raise TypeError(
+            f"{label} policy distribution contract is incomplete; "
+            "both wrapper and model must expose get_distribution()."
+        )
+
+
+def _preflight_distribution_contract(policy: Any, *, label: str) -> None:
+    _validate_distribution_contract(policy, label=label)
+    model = _model(policy)
+    device = _policy_device(policy, "cpu")
+    grid_shape = tuple(int(v) for v in getattr(model, "grid_shape", ()))
+    if len(grid_shape) != 3:
+        raise TypeError(f"{label} model has invalid grid_shape={grid_shape!r}.")
+    channels, height, width = grid_shape
+    n_agents = int(getattr(model, "n_agents", 0) or 1)
+    vec_dim = int(getattr(model, "vec_dim", 20) or 20)
+    action_dims = tuple(int(v) for v in getattr(model, "action_dims", ()))
+    if not action_dims:
+        raise TypeError(f"{label} model has no action_dims for distribution preflight.")
+    obs = {
+        "grid": torch.zeros((1, n_agents, channels, height, width), dtype=torch.float32, device=device),
+        "vec": torch.zeros((1, n_agents, vec_dim), dtype=torch.float32, device=device),
+        "agent_mask": torch.ones((1, n_agents), dtype=torch.float32, device=device),
+        "mask": torch.ones((1, int(sum(action_dims))), dtype=torch.float32, device=device),
+    }
+    z_idx = None
+    if bool(getattr(model, "uses_latent_strategy", False)):
+        z_idx = torch.zeros((1,), dtype=torch.long, device=device)
+    dist = policy.get_distribution(obs, z_idx=z_idx)
+    if not isinstance(dist, MultiHeadActionDistribution):
+        raise TypeError(
+            f"{label} policy.get_distribution() returned {type(dist).__name__}, "
+            "expected MultiHeadActionDistribution."
+        )
+    if dist.head_dims() != list(action_dims):
+        raise TypeError(
+            f"{label} distribution head dims {dist.head_dims()} do not match "
+            f"model action_dims {list(action_dims)}."
+        )
 
 
 def _conv0_weight(policy: Any) -> torch.nn.Parameter:
@@ -2323,6 +2382,11 @@ def main() -> None:
         num_cnn_channels=8,
     )
     print("... candidate loaded.")
+
+    print("Preflighting public distribution contract...")
+    _preflight_distribution_contract(baseline_policy, label="baseline")
+    _preflight_distribution_contract(candidate_policy, label="candidate")
+    print("... distribution contract OK.")
 
     print("Running obstacle probes...")
     probe: dict[str, Any] = {

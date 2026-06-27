@@ -1,0 +1,16 @@
+{
+  "track": "C",
+  "status": "PARTIAL",
+  "reason": "No OFF/BASIC/FULL fixed-rollout equality harness was added in this run.",
+  "current_evidence": [
+    "Existing telemetry and rollout tests passed under full discovery.",
+    "Distribution contract repair does not alter telemetry mode behavior."
+  ],
+  "missing": [
+    "OFF vs BASIC rollout data equality",
+    "OFF vs FULL rollout data equality",
+    "writer failure cannot alter collection",
+    "telemetry event emission does not consume RNG"
+  ],
+  "verdict": "Telemetry invariance remains unclosed for Phase 5."
+}

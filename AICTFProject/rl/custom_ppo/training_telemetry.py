@@ -35,6 +35,7 @@ from __future__ import annotations
 import csv
 import math
 import os
+import time
 from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
@@ -62,6 +63,38 @@ from rl.custom_ppo.csv_writers import (
 )
 from rl.ppo_core import TensorDictRolloutBuffer
 from rl.custom_ppo.trainer_config import TrainerHyperparams
+
+from rl.custom_ppo.telemetry import (
+    CheckpointLoaded,
+    CheckpointSaved,
+    EpisodeCompleted,
+    EpisodesCompleted,
+    NullTelemetrySink,
+    OptimizationCompleted,
+    PerformanceSample,
+    PerformanceSummary,
+    RewardSummary,
+    RolloutCompleted,
+    SafeTelemetrySink,
+    TrainingCompleted,
+    TrainingFailed,
+    TrainingInterrupted,
+    TrainingStarted,
+)
+from rl.custom_ppo.telemetry.performance import (
+    PerformanceRecorder,
+    environment_transitions_per_second,
+    optimization_samples_per_second,
+    rollout_steps_per_second,
+)
+from rl.custom_ppo.telemetry.schemas import (
+    PERFORMANCE_METRICS_SCHEMA_VERSION,
+    TrainingTelemetryMode,
+    coerce_telemetry_mode,
+)
+from rl.custom_ppo.telemetry.gpu_monitor import build_gpu_monitor
+from rl.custom_ppo.telemetry.writers.artifact_writer import ArtifactWriter
+from rl.custom_ppo.telemetry.writers.json_writer import JSONLineEventWriter
 
 if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
@@ -96,6 +129,52 @@ class TrainingTelemetry:
         self._e3_fields_cache: Optional[list[str]] = None
         self._e3_rows_since_flush = 0
         self._e3_flush_every_steps = 100
+        events_path = str(
+            getattr(cfg, "training_events_jsonl_path", getattr(cfg, "telemetry_events_jsonl_path", ""))
+            or ""
+        )
+        default_mode = "full" if events_path else "off"
+        self.telemetry_mode = coerce_telemetry_mode(
+            getattr(cfg, "training_telemetry_mode", getattr(cfg, "telemetry_mode", default_mode))
+        )
+        self._training_started_perf: Optional[float] = None
+        self._last_rollout_duration_seconds: Optional[float] = None
+        self._last_optimization_duration_seconds: Optional[float] = None
+        self._last_checkpoint_load_duration_seconds: Optional[float] = None
+        self._last_checkpoint_save_duration_seconds: Optional[float] = None
+        self._last_samples_processed = 0
+        self._last_transitions_collected = 0
+        self._total_transitions_collected = 0
+        self._gpu_allocated_peak_bytes: Optional[int] = None
+        self._gpu_reserved_peak_bytes: Optional[int] = None
+
+        self._pending_episodes: list[EpisodeCompleted] = []
+        self._parent_checkpoint_hash: Optional[str] = None
+        self.performance_recorder = PerformanceRecorder(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            telemetry_mode=str(self.telemetry_mode),
+        )
+        self.gpu_monitor = build_gpu_monitor(
+            enabled=bool(getattr(cfg, "gpu_monitor_enabled", False)),
+            interval_seconds=float(getattr(cfg, "gpu_monitor_interval_seconds", 1.0) or 1.0),
+        )
+        try:
+            self.gpu_monitor.start()
+        except Exception as e:
+            print(f"[PPO] WARNING: Failed to start GPU monitor: {e}")
+
+        self._event_writer = JSONLineEventWriter(events_path) if events_path else None
+        if self.telemetry_mode == TrainingTelemetryMode.OFF:
+            self.event_sink = NullTelemetrySink()
+        else:
+            self.event_sink = SafeTelemetrySink(self._event_writer) if self._event_writer is not None else NullTelemetrySink()
+
+        artifact_dir = str(
+            getattr(cfg, "telemetry_artifact_dir", "")
+            or getattr(cfg, "checkpoint_dir", "")
+            or "."
+        )
+        self._artifact_writer = ArtifactWriter(artifact_dir)
 
     @staticmethod
     def explained_variance(values: torch.Tensor, returns: torch.Tensor) -> float:
@@ -207,6 +286,21 @@ class TrainingTelemetry:
 
     def close_e3_step_telemetry(self) -> None:
         """Flush and close the persistent e3 step telemetry file (idempotent)."""
+        # Close GPU monitor
+        if hasattr(self, "gpu_monitor") and self.gpu_monitor is not None:
+            try:
+                self.gpu_monitor.stop()
+            except Exception:
+                pass
+
+        # Close Event writer
+        if hasattr(self, "_event_writer") and self._event_writer is not None:
+            try:
+                self._event_writer.close()
+            except Exception:
+                pass
+            self._event_writer = None
+
         f = self._e3_file
         if f is None:
             return
@@ -238,6 +332,26 @@ class TrainingTelemetry:
         if not hparams.episode_csv_path:
             return
         er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
+        if self.telemetry_mode != TrainingTelemetryMode.OFF:
+            ep_return = float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0)
+            ep_len = int(er.get("decision_steps", info.get("decision_steps", 0)) or 0)
+            ep_completed = EpisodeCompleted(
+                run_id=str(getattr(self.hparams, "run_id", "run")),
+                global_step=int(timestep),
+                environment_index=int(info.get("env_index", 0)),
+                episode_return=ep_return,
+                episode_length=ep_len,
+                score_for=int(blue_score),
+                score_against=int(red_score),
+                won=bool(blue_score > red_score),
+                opponent_name=str(_opponent_legend(cfg, info)),
+                map_name=str(er.get("map_layout", info.get("map_layout", ""))),
+                terminal_reason=str(er.get("terminal_reason", "")) or None,
+            )
+            self._pending_episodes.append(ep_completed)
+
+        if not hparams.episode_csv_path:
+            return
         row = {
             "episode_id": runtime.episode_stats.episodes_completed,
             "run_id": hparams.run_id,
@@ -939,6 +1053,8 @@ class TrainingTelemetry:
             )
 
     def print_episode_progress(self, info: dict[str, Any]) -> None:
+        if self.telemetry_mode == TrainingTelemetryMode.OFF:
+            return
         runtime = self.runtime
         ep = runtime.episode_stats
         n = ep.episodes_completed
@@ -952,5 +1068,645 @@ class TrainingTelemetry:
             + (f" phase={self.curriculum.phase}" if self.curriculum is not None else "")
         )
 
+    def emit_training_started(self, *, total_timesteps: int, checkpoint_path: Optional[str] = None) -> None:
+        self._training_started_perf = time.perf_counter()
+        if not self.optional_telemetry_enabled():
+            return
+        
+        # Calculate preset hash
+        preset_hash = None
+        try:
+            import hashlib
+            import json
+            import dataclasses
+            d = dataclasses.asdict(self.cfg)
+            ignore_keys = {"run_tag", "load_path", "checkpoint_dir", "metrics_csv_path", "episode_csv_path", "strategy_experience_csv_path", "performance_summary_path", "performance_samples_path", "training_events_jsonl_path", "telemetry_events_jsonl_path", "e3_step_telemetry_path"}
+            clean_d = {k: v for k, v in d.items() if k not in ignore_keys}
+            s = json.dumps(clean_d, sort_keys=True)
+            preset_hash = hashlib.sha256(s.encode("utf-8")).hexdigest()
+        except Exception:
+            pass
+
+        # Calculate checkpoint hash
+        ckpt_hash = None
+        if checkpoint_path and os.path.isfile(checkpoint_path):
+            import hashlib
+            try:
+                h = hashlib.sha256()
+                with open(checkpoint_path, "rb") as f:
+                    while chunk := f.read(8192):
+                        h.update(chunk)
+                ckpt_hash = h.hexdigest()
+                self._parent_checkpoint_hash = ckpt_hash
+            except Exception:
+                pass
+
+        event = TrainingStarted(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            timestamp_seconds=float(time.time()),
+            global_step=int(self.runtime.global_step),
+            requested_total_steps=int(total_timesteps),
+            device=str(getattr(self.cfg, "device", "cpu")),
+            preset_name=getattr(self.cfg, "cli_preset", None),
+            preset_hash=preset_hash,
+            checkpoint_path=checkpoint_path,
+            checkpoint_hash=ckpt_hash,
+            telemetry_mode=str(self.telemetry_mode),
+        )
+        self.event_sink.emit(event)
+
+    def emit_training_completed(
+        self,
+        *,
+        total_timesteps: int,
+        duration_seconds: float,
+        checkpoint_path: Optional[str] = None,
+    ) -> None:
+        if not self.optional_telemetry_enabled():
+            return
+        event = TrainingCompleted(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            timestamp_seconds=float(time.time()),
+            final_global_step=int(self.runtime.global_step),
+            duration_seconds=float(duration_seconds),
+            checkpoint_path=checkpoint_path,
+            status="completed",
+        )
+        self.event_sink.emit(event)
+
+    def emit_training_failed(
+        self,
+        *,
+        total_timesteps: int,
+        duration_seconds: float,
+        error: BaseException,
+        checkpoint_path: Optional[str] = None,
+    ) -> None:
+        if not self.optional_telemetry_enabled():
+            return
+        phase = ""
+        if self.curriculum is not None:
+            phase = str(getattr(self.curriculum, "phase", ""))
+        elif getattr(self.runtime, "v6i1_curriculum", None) is not None:
+            phase = str(getattr(self.runtime.v6i1_curriculum, "phase", ""))
+        
+        event = TrainingFailed(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            timestamp_seconds=float(time.time()),
+            final_global_step=int(self.runtime.global_step),
+            duration_seconds=float(duration_seconds),
+            checkpoint_path=checkpoint_path,
+            exception_type=type(error).__name__,
+            exception_message=str(error),
+            phase=phase,
+        )
+        self.event_sink.emit(event)
+
+    def emit_training_interrupted(
+        self,
+        *,
+        total_timesteps: int,
+        duration_seconds: float,
+        reason: str,
+        checkpoint_path: Optional[str] = None,
+    ) -> None:
+        if not self.optional_telemetry_enabled():
+            return
+        event = TrainingInterrupted(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            timestamp_seconds=float(time.time()),
+            final_global_step=int(self.runtime.global_step),
+            duration_seconds=float(duration_seconds),
+            checkpoint_path=checkpoint_path,
+            reason=str(reason),
+        )
+        self.event_sink.emit(event)
+
+    def emit_rollout_completed(
+        self,
+        buffer: TensorDictRolloutBuffer,
+        *,
+        duration_seconds: float,
+    ) -> None:
+        transitions = int(buffer.pos) * int(getattr(buffer, "n_envs", 1) or 1)
+        self._last_transitions_collected = transitions
+        self._total_transitions_collected += transitions
+        self._last_rollout_duration_seconds = float(duration_seconds)
+        
+        # Get peak memory
+        allocated, reserved = self._cuda_memory_snapshot()
+        
+        # Measure in performance recorder
+        self.performance_recorder.measure_rollout(
+            duration_seconds=duration_seconds,
+            steps=transitions,
+            gpu_allocated_peak=allocated,
+            gpu_reserved_peak=reserved,
+        )
+        
+        rollout_tps = (transitions / duration_seconds) if duration_seconds > 0 else 0.0
+        self._write_performance_sample_csv(
+            phase="rollout",
+            duration=duration_seconds,
+            transitions=transitions,
+            samples=transitions,
+            throughput=rollout_tps,
+            allocated=allocated,
+            reserved=reserved,
+        )
+
+        if not self.optional_telemetry_enabled():
+            return
+
+        # Coarse timings
+        collector = getattr(self.runtime, "rollout_collector", None)
+        env_step_dur = getattr(collector, "env_step_time", None)
+        policy_inf_dur = getattr(collector, "policy_inf_time", None)
+        trans_build_dur = getattr(collector, "trans_build_time", None)
+        buf_write_dur = getattr(collector, "buffer_write_time", None)
+        bookkeep_dur = getattr(collector, "bookkeeping_time", None)
+
+        env_tps = (transitions / env_step_dur) if (env_step_dur and env_step_dur > 0) else 0.0
+
+        episode_return_mean = None
+        episode_length_mean = None
+        if self._pending_episodes:
+            episode_return_mean = float(np.mean([ep.episode_return for ep in self._pending_episodes]))
+            episode_length_mean = float(np.mean([ep.episode_length for ep in self._pending_episodes]))
+
+        # Compute RewardSummary
+        rewards_tensor = buffer.fields["rewards"][: int(buffer.pos)].detach().float()
+        actor_reward_mean = float(rewards_tensor.mean().detach().cpu().item()) if rewards_tensor.numel() > 0 else 0.0
+        reward_summary = RewardSummary(
+            actor_reward_mean=actor_reward_mean,
+            router_reward_mean=None,
+            sparse_reward_mean=0.0,
+            shaping_reward_mean=0.0,
+            component_means={"rewards": actor_reward_mean},
+        )
+
+        # Compute LatentSummary
+        latent_summary = None
+        if self.hparams.use_latent_strategy and "z_t" in buffer.fields:
+            z_t = buffer.fields["z_t"][: int(buffer.pos)].detach().cpu().numpy().reshape(-1)
+            unique, counts = np.unique(z_t, return_counts=True)
+            total_elements = len(z_t)
+            occ = {}
+            for z_val in range(int(self.hparams.latent_k)):
+                occ[int(z_val)] = 0.0
+            for u, c in zip(unique, counts):
+                occ[int(u)] = float(c) / float(total_elements)
+            probs = np.array(list(occ.values()))
+            probs = probs[probs > 0]
+            ent = -np.sum(probs * np.log(probs)) if len(probs) > 0 else 0.0
+            latent_summary = LatentSummary(
+                latent_occupancy=occ,
+                strategy_entropy=float(ent),
+                effective_latent_count=float(np.exp(ent)),
+                switching_rate=None,
+                persistence_rate=None,
+                router_entropy=None,
+                router_kl=None,
+            )
+
+        # Emit RolloutCompleted
+        self.event_sink.emit(
+            RolloutCompleted(
+                run_id=str(getattr(self.hparams, "run_id", "run")),
+                global_step=int(self.runtime.global_step),
+                rollout_index=int(self.runtime._updates_completed),
+                vector_environment_count=int(self.runtime.env.num_envs),
+                vector_steps=int(buffer.pos),
+                environment_transitions=transitions,
+                agent_transitions=transitions * int(getattr(self.runtime.model, "n_agents", 1)),
+                duration_seconds=float(duration_seconds),
+                environment_step_duration_seconds=env_step_dur,
+                policy_inference_duration_seconds=policy_inf_dur,
+                transition_build_duration_seconds=trans_build_dur,
+                buffer_write_duration_seconds=buf_write_dur,
+                episode_bookkeeping_duration_seconds=bookkeep_dur,
+                environment_transitions_per_second=float(env_tps),
+                rollout_transitions_per_second=float(rollout_tps),
+                completed_episode_count=len(self._pending_episodes),
+                episode_return_mean=episode_return_mean,
+                episode_length_mean=episode_length_mean,
+                gpu_memory_allocated_peak_bytes=allocated,
+                gpu_memory_reserved_peak_bytes=reserved,
+                reward_summary=reward_summary,
+                latent_summary=latent_summary,
+            )
+        )
+
+        # Emit EpisodesCompleted if there are pending episodes
+        if self._pending_episodes:
+            self.event_sink.emit(
+                EpisodesCompleted(
+                    run_id=str(getattr(self.hparams, "run_id", "run")),
+                    global_step=int(self.runtime.global_step),
+                    episodes=tuple(self._pending_episodes),
+                )
+            )
+            self._pending_episodes = []
+
+    def _emit_optimization_completed(
+        self,
+        row: dict[str, Any],
+        stats: dict[str, Any],
+        buffer: TensorDictRolloutBuffer,
+    ) -> None:
+        samples_processed = int(buffer.pos) * int(getattr(buffer, "n_envs", 1) or 1)
+        self._last_samples_processed = samples_processed
+        opt_duration = float(stats.get("optimization_duration_seconds", 0.0) or 0.0)
+        self._last_optimization_duration_seconds = opt_duration
+        
+        # Get peak memory
+        allocated, reserved = self._cuda_memory_snapshot()
+        
+        self.performance_recorder.measure_optimization(
+            duration_seconds=opt_duration,
+            samples=samples_processed,
+            gpu_allocated_peak=allocated,
+            gpu_reserved_peak=reserved,
+        )
+        
+        opt_sps = (samples_processed / opt_duration) if opt_duration > 0 else 0.0
+        self._write_performance_sample_csv(
+            phase="optimization",
+            duration=opt_duration,
+            transitions=samples_processed,
+            samples=samples_processed,
+            throughput=opt_sps,
+            allocated=allocated,
+            reserved=reserved,
+        )
+
+        if not self.optional_telemetry_enabled():
+            return
+        
+        minibatches = int(stats.get("minibatches_processed", stats.get("n_minibatches", 0)) or 0)
+        optimizer_updates = int(stats.get("optimizer_updates", stats.get("n_optimizer_steps", 1)) or 1)
+        
+        # explained_variance check
+        ev_val = row.get("explained_variance", None)
+        explained_variance = None
+        if ev_val is not None and ev_val != "":
+            try:
+                explained_variance = float(ev_val)
+            except Exception:
+                pass
+        
+        event = OptimizationCompleted(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            global_step=int(self.runtime.global_step),
+            optimization_index=int(getattr(self.runtime, "_updates_completed", 0)),
+            duration_seconds=opt_duration,
+            samples_processed=samples_processed,
+            minibatches_processed=minibatches,
+            optimizer_updates=optimizer_updates,
+            optimization_samples_per_second=opt_sps,
+            minibatches_per_second=(minibatches / opt_duration) if opt_duration > 0 else 0.0,
+            optimizer_updates_per_second=(optimizer_updates / opt_duration) if opt_duration > 0 else 0.0,
+            policy_loss=float(stats.get("policy_loss", row.get("policy_loss", 0.0)) or 0.0),
+            value_loss=float(stats.get("value_loss", row.get("value_loss", 0.0)) or 0.0),
+            entropy=float(stats.get("entropy", stats.get("entropy_loss", 0.0)) or 0.0),
+            approx_kl=float(stats.get("approx_kl", row.get("approx_kl", 0.0)) or 0.0),
+            clip_fraction=float(stats.get("clip_fraction", row.get("clip_fraction", 0.0)) or 0.0),
+            explained_variance=explained_variance,
+            gpu_memory_allocated_peak_bytes=allocated,
+            gpu_memory_reserved_peak_bytes=reserved,
+        )
+        self.event_sink.emit(event)
+
+    def emit_performance_sample(self, *, phase: str, timestamp_seconds: Optional[float] = None) -> None:
+        if not self.optional_telemetry_enabled():
+            return
+        allocated, reserved = self._cuda_memory_snapshot()
+        
+        gpu_util = None
+        if hasattr(self, "gpu_monitor"):
+            samples = self.gpu_monitor.samples()
+            if samples:
+                utils = [s.utilization_percent for s in samples if s.utilization_percent is not None]
+                if utils:
+                    gpu_util = float(utils[-1])
+
+        event = PerformanceSample(
+            timestamp_seconds=float(time.time() if timestamp_seconds is None else timestamp_seconds),
+            global_step=int(self.runtime.global_step),
+            phase=str(phase),
+            environment_steps_per_second=environment_transitions_per_second(
+                self._total_transitions_collected,
+                self._training_elapsed_seconds(),
+            ),
+            rollout_steps_per_second=rollout_steps_per_second(
+                self._last_transitions_collected,
+                self._last_rollout_duration_seconds or 0.0,
+            ),
+            optimization_samples_per_second=optimization_samples_per_second(
+                self._last_samples_processed,
+                self._last_optimization_duration_seconds or 0.0,
+            ),
+            gpu_utilization_percent=gpu_util,
+            gpu_memory_allocated_bytes=allocated,
+            gpu_memory_reserved_bytes=reserved,
+        )
+        self.event_sink.emit(event)
+
+    def emit_checkpoint_saved(self, *, path: str, duration_seconds: float) -> None:
+        self._last_checkpoint_save_duration_seconds = float(duration_seconds)
+        self.performance_recorder.measure_checkpoint_save(duration_seconds=duration_seconds)
+        
+        if not self.optional_telemetry_enabled():
+            return
+
+        # Calculate preset hash
+        preset_hash = None
+        try:
+            import hashlib
+            import json
+            import dataclasses
+            d = dataclasses.asdict(self.cfg)
+            ignore_keys = {"run_tag", "load_path", "checkpoint_dir", "metrics_csv_path", "episode_csv_path", "strategy_experience_csv_path", "performance_summary_path", "performance_samples_path", "training_events_jsonl_path", "telemetry_events_jsonl_path", "e3_step_telemetry_path"}
+            clean_d = {k: v for k, v in d.items() if k not in ignore_keys}
+            s = json.dumps(clean_d, sort_keys=True)
+            preset_hash = hashlib.sha256(s.encode("utf-8")).hexdigest()
+        except Exception:
+            pass
+
+        # Calculate checkpoint hash
+        ckpt_hash = None
+        ckpt_size = None
+        if path and os.path.isfile(path):
+            import hashlib
+            try:
+                h = hashlib.sha256()
+                with open(path, "rb") as f:
+                    while chunk := f.read(8192):
+                        h.update(chunk)
+                ckpt_hash = h.hexdigest()
+                ckpt_size = os.path.getsize(path)
+            except Exception:
+                pass
+
+        event = CheckpointSaved(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            timestamp_seconds=float(time.time()),
+            global_step=int(self.runtime.global_step),
+            checkpoint_path=str(path),
+            checkpoint_hash=ckpt_hash,
+            save_duration_seconds=float(duration_seconds),
+            checkpoint_size_bytes=ckpt_size,
+            parent_checkpoint_hash=self._parent_checkpoint_hash,
+            preset_hash=preset_hash,
+        )
+        self.event_sink.emit(event)
+        self._parent_checkpoint_hash = ckpt_hash
+
+    def emit_checkpoint_loaded(self, *, path: str, duration_seconds: float) -> None:
+        self._last_checkpoint_load_duration_seconds = float(duration_seconds)
+        self.performance_recorder.measure_checkpoint_load(duration_seconds=duration_seconds)
+        
+        # Calculate checkpoint hash
+        ckpt_hash = None
+        if path and os.path.isfile(path):
+            import hashlib
+            try:
+                h = hashlib.sha256()
+                with open(path, "rb") as f:
+                    while chunk := f.read(8192):
+                        h.update(chunk)
+                ckpt_hash = h.hexdigest()
+                self._parent_checkpoint_hash = ckpt_hash
+            except Exception:
+                pass
+
+        # Determine target channels
+        target_ch = None
+        try:
+            target_ch = int(self.runtime.model.grid_shape[0])
+        except Exception:
+            pass
+
+        # Parse legacy source channels and migration ids
+        source_ch = None
+        migration_ids = []
+        if path and os.path.isfile(path):
+            try:
+                payload = torch.load(path, map_location="cpu", weights_only=False)
+                sd = payload.get("model_state_dict", {})
+                
+                # Check legacy key remappings
+                legacy_actor_keys = {"actor_body.", "actor_head.", "strategy_embedding."}
+                if any(any(k.startswith(p) for p in legacy_actor_keys) for k in sd.keys()):
+                    migration_ids.append("legacy_actor_key_remapping")
+                if any(k.startswith("strategy_q_head.") for k in sd.keys()):
+                    migration_ids.append("legacy_strategy_q_head_remapping")
+                
+                # Check channel expansion
+                _cnn_key = "latent_actor.actor_cnn.conv.0.weight"
+                _alt_key = "actor_cnn.conv.0.weight"
+                source_weight = sd.get(_cnn_key, sd.get(_alt_key))
+                if source_weight is not None:
+                    source_ch = int(source_weight.shape[1])
+                
+                if source_ch is not None and target_ch is not None and source_ch < target_ch:
+                    migration_ids.append("cnn_input_channel_expansion")
+            except Exception:
+                pass
+
+        bev_result = "PASS"
+        if migration_ids:
+            bev_result = "PASS_WITH_MIGRATION"
+
+        if not self.optional_telemetry_enabled():
+            return
+
+        event = CheckpointLoaded(
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            timestamp_seconds=float(time.time()),
+            global_step=int(self.runtime.global_step),
+            checkpoint_path=str(path),
+            checkpoint_hash=ckpt_hash,
+            load_duration_seconds=float(duration_seconds),
+            source_observation_channels=source_ch,
+            target_observation_channels=target_ch,
+            migration_ids=tuple(migration_ids),
+            behavioral_equivalence_result=bev_result,
+            device=str(getattr(self.cfg, "device", "cpu")),
+        )
+        self.event_sink.emit(event)
+
+    def write_performance_summary(self, *, training_duration_seconds: Optional[float] = None) -> Optional[str]:
+        if not self.optional_telemetry_enabled():
+            return None
+        
+        # Stop monitor and query utilization
+        try:
+            self.gpu_monitor.stop()
+        except Exception:
+            pass
+        
+        samples = self.gpu_monitor.samples()
+        gpu_util_summary = None
+        if samples:
+            utils = [s.utilization_percent for s in samples if s.utilization_percent is not None]
+            mems = [s.memory_device_used_bytes for s in samples if s.memory_device_used_bytes is not None]
+            gpu_util_summary = {
+                "gpu_utilization_mean_percent": float(np.mean(utils)) if utils else None,
+                "gpu_utilization_max_percent": float(np.max(utils)) if utils else None,
+                "gpu_device_memory_used_mean_bytes": float(np.mean(mems)) if mems else None,
+                "gpu_device_memory_used_max_bytes": float(np.max(mems)) if mems else None,
+                "gpu_monitor_sample_count": len(samples),
+                "gpu_monitor_status": self.gpu_monitor.status,
+            }
+        else:
+            gpu_util_summary = {
+                "gpu_utilization_mean_percent": None,
+                "gpu_utilization_max_percent": None,
+                "gpu_device_memory_used_mean_bytes": None,
+                "gpu_device_memory_used_max_bytes": None,
+                "gpu_monitor_sample_count": 0,
+                "gpu_monitor_status": self.gpu_monitor.status,
+            }
+
+        # Query Git commit and status
+        git_commit = None
+        try:
+            import subprocess
+            res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
+            git_commit = res.stdout.strip()
+            status_res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
+            if status_res.stdout.strip():
+                git_commit += "-dirty"
+        except Exception:
+            pass
+
+        # GPU Model
+        gpu_model = None
+        if hasattr(self.gpu_monitor, "_nvml") and hasattr(self.gpu_monitor, "_handle"):
+            try:
+                gpu_model = self.gpu_monitor._nvml.nvmlDeviceGetName(self.gpu_monitor._handle)
+                if isinstance(gpu_model, bytes):
+                    gpu_model = gpu_model.decode("utf-8")
+            except Exception:
+                pass
+
+        total_dur = float(training_duration_seconds) if training_duration_seconds is not None else self._training_elapsed_seconds()
+
+        clean_preset_hash = None
+        try:
+            import hashlib
+            import json
+            import dataclasses
+            d = dataclasses.asdict(self.cfg)
+            ignore_keys = {"run_tag", "load_path", "checkpoint_dir", "metrics_csv_path", "episode_csv_path", "strategy_experience_csv_path", "performance_summary_path", "performance_samples_path", "training_events_jsonl_path", "telemetry_events_jsonl_path", "e3_step_telemetry_path"}
+            clean_d = {k: v for k, v in d.items() if k not in ignore_keys}
+            s = json.dumps(clean_d, sort_keys=True)
+            clean_preset_hash = hashlib.sha256(s.encode("utf-8")).hexdigest()
+        except Exception:
+            pass
+
+        summary = self.performance_recorder.summary(
+            git_commit=git_commit,
+            preset_name=getattr(self.cfg, "cli_preset", None),
+            preset_hash=clean_preset_hash,
+            checkpoint_hash=self._parent_checkpoint_hash,
+            device=str(getattr(self.cfg, "device", "cpu")),
+            gpu_model=gpu_model,
+            pytorch_version=str(torch.__version__),
+            cuda_version=torch.version.cuda if torch.cuda.is_available() else None,
+            environment_count=int(getattr(getattr(self.runtime, "env", None), "num_envs", 16)),
+            rollout_length=int(getattr(self.cfg, "n_steps", 64)),
+            total_training_duration=total_dur,
+            gpu_utilization_summary=gpu_util_summary,
+        )
+
+        output_path = getattr(self.cfg, "performance_summary_path", None)
+        if not output_path:
+            output_path = os.path.join(self._artifact_writer.output_dir, "performance_summary.json")
+        
+        try:
+            directory = os.path.dirname(os.path.abspath(output_path))
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            tmp_path = output_path + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(dataclasses.asdict(summary), f, indent=2)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            os.rename(tmp_path, output_path)
+            return output_path
+        except Exception as exc:
+            import warnings
+            warnings.warn(f"Failed to write performance summary: {exc}")
+            return None
+
+    def optional_telemetry_enabled(self) -> bool:
+        return self.telemetry_mode != TrainingTelemetryMode.OFF
+
+    def _training_elapsed_seconds(self) -> float:
+        if self._training_started_perf is None:
+            return 0.0
+        return max(0.0, time.perf_counter() - self._training_started_perf)
+
+    def _cuda_memory_snapshot(self) -> tuple[Optional[int], Optional[int]]:
+        try:
+            if torch.cuda.is_available():
+                allocated = int(torch.cuda.max_memory_allocated())
+                reserved = int(torch.cuda.max_memory_reserved())
+                self._gpu_allocated_peak_bytes = max(self._gpu_allocated_peak_bytes or 0, allocated)
+                self._gpu_reserved_peak_bytes = max(self._gpu_reserved_peak_bytes or 0, reserved)
+        except Exception:
+            return self._gpu_allocated_peak_bytes, self._gpu_reserved_peak_bytes
+        return self._gpu_allocated_peak_bytes, self._gpu_reserved_peak_bytes
+
+    def _write_performance_sample_csv(
+        self,
+        phase: str,
+        duration: float,
+        transitions: int,
+        samples: int,
+        throughput: float,
+        allocated: Optional[int],
+        reserved: Optional[int],
+    ) -> None:
+        path = str(getattr(self.cfg, "performance_samples_path", "") or "")
+        if not path or self.telemetry_mode == TrainingTelemetryMode.OFF:
+            return
+        try:
+            directory = os.path.dirname(os.path.abspath(path))
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            
+            headers = [
+                "timestamp",
+                "global_step",
+                "phase",
+                "duration",
+                "transitions",
+                "samples",
+                "throughput",
+                "peak allocated memory",
+                "peak reserved memory",
+            ]
+            needs_header = not (os.path.isfile(path) and os.path.getsize(path) > 0)
+            with open(path, "a", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
+                if needs_header:
+                    writer.writeheader()
+                writer.writerow({
+                    "timestamp": time.time(),
+                    "global_step": int(self.runtime.global_step),
+                    "phase": str(phase),
+                    "duration": float(duration),
+                    "transitions": int(transitions),
+                    "samples": int(samples),
+                    "throughput": float(throughput),
+                    "peak allocated memory": allocated if allocated is not None else "",
+                    "peak reserved memory": reserved if reserved is not None else "",
+                })
+        except Exception as exc:
+            import warnings
+            warnings.warn(f"Failed to write performance sample to CSV: {exc}")
 
 __all__ = ["TrainingTelemetry"]
