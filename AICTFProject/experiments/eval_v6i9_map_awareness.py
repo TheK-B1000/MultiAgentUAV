@@ -14,11 +14,15 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import inspect
 import json
 import math
+import subprocess
 import sys
+import uuid
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -46,6 +50,55 @@ from rl.custom_ppo.probe_result import (
 
 
 SUPPORTED_OPPONENTS = frozenset({"OP8", "OP9", "OP10"})
+
+
+# ---------------------------------------------------------------------------
+# Manifest helpers (run identity, git, checksums)
+# ---------------------------------------------------------------------------
+
+def _git_metadata() -> dict[str, Any]:
+    """Return git commit SHA and dirty-tree flag; never raises."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=PROJECT_ROOT,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        dirty_out = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            cwd=PROJECT_ROOT,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        dirty = len(dirty_out.strip()) > 0
+        return {"git_commit": commit, "git_dirty": dirty}
+    except Exception:
+        return {"git_commit": None, "git_dirty": None}
+
+
+def _sha256(path: Path) -> str:
+    """Return hex SHA-256 of a file; reads in chunks for large checkpoints."""
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _runtime_metadata() -> dict[str, Any]:
+    import platform
+    cuda_version: str | None = None
+    if torch.cuda.is_available():
+        try:
+            cuda_version = torch.version.cuda
+        except AttributeError:
+            pass
+    return {
+        "python_version": platform.python_version(),
+        "torch_version": torch.__version__,
+        "cuda_version": cuda_version,
+    }
 
 
 def _as_numpy(value: Any) -> np.ndarray:
@@ -950,8 +1003,8 @@ def _preflight_opponents(
 
 
 def inspect_obstacle_weights(policy: Any) -> WeightProbeResult:
-    """Return typed weight inspection result via the public CNN contract."""
-    weight = _model(policy).get_cnn_input_weights()
+    """Return typed weight inspection result via the public diagnostics contract."""
+    weight = _model(policy).get_observation_encoder_input_weights()
     channels = int(weight.shape[1])
 
     if channels < 8:
@@ -1024,7 +1077,7 @@ def gradient_probe(
         )
         diagnostic_loss.backward()
 
-        weight = model.get_cnn_input_weights()
+        weight = model.get_observation_encoder_input_weights()
         if int(weight.shape[1]) < 8:
             return GradientProbeResult(
                 status=PROBE_ERROR,
@@ -2074,9 +2127,20 @@ def main() -> None:
     reference_map = args.maps[-1]
     reference_opponent = args.opponents[0]
 
-    manifest = {
+    run_id = str(uuid.uuid4())
+    started_at = datetime.now(timezone.utc).isoformat()
+
+    manifest: dict[str, Any] = {
+        "schema_version": 2,
+        "run_id": run_id,
+        "started_at": started_at,
+        "completed_at": None,  # written at the end
+        "status": "in_progress",
+        "command": sys.argv,
         "baseline": str(baseline_path),
         "candidate": str(candidate_path),
+        "baseline_sha256": _sha256(baseline_path),
+        "candidate_sha256": _sha256(candidate_path),
         "baseline_cnn_channels": 7,
         "candidate_cnn_channels": 8,
         "n_agents": n_agents,
@@ -2088,14 +2152,14 @@ def main() -> None:
         "device": args.device,
         "baseline_metadata": baseline_metadata,
         "candidate_metadata": candidate_metadata,
+        **_git_metadata(),
+        **_runtime_metadata(),
     }
-    (
-        output_directory / "evaluation_manifest.json"
-    ).write_text(
-        json.dumps(
-            _json_safe(manifest),
-            indent=2,
-        ),
+    # Write in-progress manifest immediately so an interrupted run is
+    # distinguishable from a completed one.
+    manifest_path = output_directory / "evaluation_manifest.json"
+    manifest_path.write_text(
+        json.dumps(_json_safe(manifest), indent=2),
         encoding="utf-8",
     )
 
@@ -2196,6 +2260,14 @@ def main() -> None:
         output_directory / "final_report.txt"
     ).write_text(
         report + "\n",
+        encoding="utf-8",
+    )
+
+    # Update manifest to mark the run as completed.
+    manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
+    manifest["status"] = "completed"
+    manifest_path.write_text(
+        json.dumps(_json_safe(manifest), indent=2),
         encoding="utf-8",
     )
 

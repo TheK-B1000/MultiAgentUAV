@@ -15,9 +15,10 @@ from rl.custom_ppo.inference import (
 from rl.custom_ppo.trainer import CustomPPOTrainer, _compose_training_reward_components
 from rl.custom_ppo.csv_writers import E3_STEP_TELEMETRY_FIELDS, _METRICS_CSV_LEGACY_COLUMN_FILL
 
-# Phase 1 public surface: inference contract and distribution types.
+# Phase 1 / 1.5 public surface: inference contract, diagnostics contract, distribution types.
 from rl.custom_ppo.distributions import ActionHead, MultiHeadActionDistribution
 from rl.custom_ppo.policy_contract import PolicyInferenceContract
+from rl.custom_ppo.diagnostics_contract import PolicyDiagnosticsContract
 from rl.custom_ppo.probe_result import (
     ProbeResult,
     WeightProbeResult,
@@ -43,8 +44,9 @@ __all__ = [
     "CUSTOM_PPO_FORMAT",
     "CUSTOM_PPO_LATENT_FORMAT",
     "CUSTOM_PPO_VEC_SCHEMA_VERSION",
-    # Phase 1: inference contract
+    # Phase 1 / 1.5: inference and diagnostics contracts
     "PolicyInferenceContract",
+    "PolicyDiagnosticsContract",
     "ActionHead",
     "MultiHeadActionDistribution",
     # Phase 1: probe results

@@ -993,15 +993,21 @@ class CustomPPOInferencePolicy:
     # Public PolicyInferenceContract surface
     # ------------------------------------------------------------------
 
-    def get_cnn_input_weights(self) -> torch.Tensor:
-        """Return the first CNN conv-layer weight tensor.
+    def get_observation_encoder_input_weights(self) -> torch.Tensor:
+        """Return the first obs-encoder weight tensor.
 
-        Shape: ``(out_channels, in_channels, kH, kW)``.
-
-        Public alternative to the private path
-        ``policy.model.actor_cnn.conv[0].weight``.
+        Shape: ``(out_channels, in_channels, kH, kW)``.  Gradient-preserving.
+        Delegates to the underlying model's ``get_observation_encoder_input_weights()``.
         """
-        return self.model.get_cnn_input_weights()
+        return self.model.get_observation_encoder_input_weights()
+
+    def get_cnn_input_weights(self) -> torch.Tensor:
+        """Compatibility alias for ``get_observation_encoder_input_weights()``.
+
+        Deprecated: new code should call ``get_observation_encoder_input_weights()``.
+        Will be removed when all callers have been migrated (Phase 3).
+        """
+        return self.get_observation_encoder_input_weights()
 
     def get_distribution(
         self,

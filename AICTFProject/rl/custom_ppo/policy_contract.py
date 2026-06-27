@@ -1,18 +1,25 @@
 """Public inference contract for CustomPPO policies.
 
-Any object that implements PolicyInferenceContract can be used by
-evaluation scripts and probe code without reaching inside the model via
-private attribute paths.
+Any object that implements PolicyInferenceContract can be used by evaluation
+scripts and probe code without reaching inside the model via private paths.
+
+Architecture-specific diagnostics (e.g., CNN weight access) live in
+``diagnostics_contract.py`` as ``PolicyDiagnosticsContract``.  Probe code
+that needs weight access must check:
+
+    isinstance(policy, PolicyDiagnosticsContract)
+
+before calling ``get_observation_encoder_input_weights()``.
 
 Implementors
 ------------
 ``SharedActorCentralizedCritic`` (model)
-    Implements the contract directly.  ``get_distribution`` requires an
-    explicit ``z_idx`` when the model uses latent strategy.
+    Implements both contracts.  ``get_distribution`` raises when
+    ``uses_latent_strategy=True`` and ``z_idx=None``.
 
 ``CustomPPOInferencePolicy`` (inference wrapper)
-    Wraps the model and handles z selection internally.  ``get_distribution``
-    without ``z_idx`` uses the wrapper's current latent selection state.
+    Implements both contracts.  ``get_distribution`` without ``z_idx``
+    uses the wrapper's current latent-selection state.
 
 Usage in probe code (explicit z=0)
 -----------------------------------
@@ -29,7 +36,7 @@ import torch
 
 try:
     from typing import Protocol, runtime_checkable
-except ImportError:  # Python < 3.8
+except ImportError:
     from typing_extensions import Protocol, runtime_checkable  # type: ignore[assignment]
 
 from .distributions import MultiHeadActionDistribution
@@ -37,22 +44,9 @@ from .distributions import MultiHeadActionDistribution
 
 @runtime_checkable
 class PolicyInferenceContract(Protocol):
-    """Minimal public surface required by evaluation and probe code.
+    """Minimal public surface required for action prediction and distribution access.
 
-    All methods accept the observation dict produced by
-    ``RolloutCollector.tensor_obs()`` (keys: ``"grid"``, ``"vec"``,
-    ``"agent_mask"``, ``"mask"``).
-
-    Latent selection
-    ----------------
-    ``SharedActorCentralizedCritic.get_distribution`` raises ``ValueError``
-    when ``uses_latent_strategy=True`` and ``z_idx`` is ``None``.  Probe code
-    that intentionally evaluates under z=0 must construct the tensor
-    explicitly — silent defaults are not permitted in evaluation code
-    (constraint #9 of the refactoring spec).
-
-    ``CustomPPOInferencePolicy.get_distribution`` selects z internally and
-    does not require ``z_idx`` from the caller.
+    Does NOT include weight / gradient inspection (see PolicyDiagnosticsContract).
     """
 
     def get_distribution(
@@ -76,16 +70,6 @@ class PolicyInferenceContract(Protocol):
         ------
         ValueError
             If the bare model uses latent strategy and ``z_idx`` is ``None``.
-        """
-        ...
-
-    def get_cnn_input_weights(self) -> torch.Tensor:
-        """Return the first CNN conv-layer weight tensor.
-
-        Shape: ``(out_channels, in_channels, kH, kW)``.
-
-        This is the public alternative to the legacy private path
-        ``model.actor_cnn.conv[0].weight`` used in pre-contract probe code.
         """
         ...
 

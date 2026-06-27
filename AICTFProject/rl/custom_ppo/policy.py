@@ -1120,15 +1120,24 @@ class SharedActorCentralizedCritic(nn.Module):
         heads = torch.split(flat, list(self.action_dims), dim=-1)
         return MultiHeadActionDistribution([ActionHead(h) for h in heads])
 
-    def get_cnn_input_weights(self) -> torch.Tensor:
-        """Return the first CNN conv-layer weight tensor.
+    def get_observation_encoder_input_weights(self) -> torch.Tensor:
+        """Return the first obs-encoder conv-layer weight tensor.
 
-        Shape: ``(out_channels, in_channels, kH, kW)``.
+        Shape: ``(out_channels, in_channels, kH, kW)``.  Gradient-preserving.
 
-        Public alternative to the legacy private path
-        ``model.actor_cnn.conv[0].weight`` used in probe code.
+        Architecture-neutral name for the ``PolicyDiagnosticsContract``.
+        For this CNN-based policy the encoder is ``actor_cnn``; the returned
+        tensor is ``actor_cnn.conv[0].weight``.
         """
         return self.actor_cnn.conv[0].weight
+
+    def get_cnn_input_weights(self) -> torch.Tensor:
+        """Compatibility alias for ``get_observation_encoder_input_weights()``.
+
+        Deprecated: new code should call ``get_observation_encoder_input_weights()``.
+        Will be removed when all callers have been migrated (Phase 3).
+        """
+        return self.get_observation_encoder_input_weights()
 
     def policy_trunk_features(
         self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None
