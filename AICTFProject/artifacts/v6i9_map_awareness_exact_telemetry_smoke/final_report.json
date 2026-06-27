@@ -1,0 +1,89 @@
+{
+  "verdict": "NOT READY FOR STAGE B",
+  "gates": {
+    "obstacle_weights_moved": {
+      "status": "PASS",
+      "value": 0.04022049158811569,
+      "threshold": 0.0001
+    },
+    "obstacle_gradient_connected": {
+      "status": "PASS",
+      "value": 0.007852250710129738,
+      "threshold": 0.0
+    },
+    "obstacle_counterfactual_effect": {
+      "status": "WARN",
+      "argmax_change_rate": 0.0078125,
+      "argmax_change_threshold": 0.01,
+      "mean_action_kl": 8.960547177139233e-06,
+      "kl_threshold": 1e-05,
+      "mean_logit_l2": 0.019633685165899806,
+      "states_evaluated": 64
+    },
+    "wall_collisions_improved": {
+      "status": "PASS",
+      "collision_metric_source": "environment_exact",
+      "baseline_mean": 5.0,
+      "candidate_mean": 2.3333333333333335,
+      "minimum_reduction_fraction": 0.1,
+      "reduction_fraction": 0.5333333333333333
+    },
+    "blocked_movement_improved": {
+      "status": "PASS",
+      "stuck_metric_source": "environment_exact",
+      "baseline_mean": 4.0,
+      "candidate_mean": 2.0,
+      "minimum_reduction_fraction": 0.1,
+      "reduction_fraction": 0.5
+    },
+    "stuck_behavior_improved": {
+      "status": "PASS",
+      "stuck_metric_source": "environment_exact",
+      "baseline_mean": 2.0,
+      "candidate_mean": 0.6666666666666666,
+      "minimum_reduction_fraction": 0.1,
+      "reduction_fraction": 0.6666666666666667
+    },
+    "map_dependent_routes": {
+      "status": "INCONCLUSIVE",
+      "route_metric_source": "environment_exact",
+      "max_upper_fraction_difference": null,
+      "threshold": 0.1,
+      "per_map": {
+        "map_a_open": {
+          "upper_mean": null,
+          "lower_mean": null,
+          "upper_fraction": null,
+          "route_metric_source": "unavailable"
+        },
+        "map_b_split_lane": {
+          "upper_mean": 45.666666666666664,
+          "lower_mean": 52.666666666666664,
+          "upper_fraction": 0.46440677966101696,
+          "route_metric_source": "environment_exact"
+        }
+      }
+    },
+    "hard_pool_competence_retained": {
+      "status": "PASS",
+      "baseline_win_rate": 0.8333333333333334,
+      "candidate_win_rate": 1.0,
+      "minimum_candidate_win_rate": 0.6,
+      "maximum_allowed_drop": 0.05
+    },
+    "universal_saturation_avoided": {
+      "status": "FAIL",
+      "condition_win_rates": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "saturation_threshold": 0.95
+    }
+  },
+  "episodes_per_condition": 1,
+  "warning": "Use at least 20 episodes per map/opponent cell for a promotion decision."
+}
