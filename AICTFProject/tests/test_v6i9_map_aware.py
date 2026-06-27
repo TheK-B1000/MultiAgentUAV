@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+import argparse
 from pathlib import Path
 
 import torch
@@ -176,6 +177,117 @@ class TestCNNChannelExpansion(unittest.TestCase):
         self.assertTrue(torch.allclose(out7, out8, atol=1e-5),
                         f"7→8 warm-start: CNN outputs should match on zero obstacle channel, "
                         f"max diff={float((out7 - out8).abs().max().item()):.3e}")
+
+
+class TestV6I9TelemetryEvaluation(unittest.TestCase):
+    def _probe(self):
+        from rl.custom_ppo.probe_result import (
+            PROBE_SUCCESS,
+            CounterfactualProbeResult,
+            GradientProbeResult,
+            WeightProbeResult,
+        )
+        return {
+            "candidate_weights": WeightProbeResult(
+                status=PROBE_SUCCESS,
+                has_obstacle_channel=True,
+                cnn_channels=8,
+                obstacle_weight_l2=1.0,
+            ),
+            "candidate_gradient": GradientProbeResult(
+                status=PROBE_SUCCESS,
+                obstacle_gradient_l2=1.0,
+            ),
+            "candidate_counterfactual": CounterfactualProbeResult(
+                status=PROBE_SUCCESS,
+                states_evaluated=4,
+                mean_action_kl=1e-3,
+                mean_logit_l2=1e-2,
+                argmax_action_change_rate=0.2,
+            ),
+        }
+
+    def _args(self):
+        return argparse.Namespace(
+            obs_weight_threshold=1e-4,
+            gradient_threshold=0.0,
+            counterfactual_action_threshold=0.01,
+            counterfactual_kl_threshold=1e-5,
+            navigation_improvement_threshold=0.10,
+            route_difference_threshold=0.10,
+            minimum_win_rate=0.60,
+            competence_retention_tolerance=0.05,
+            saturation_win_rate=0.95,
+            episodes=1,
+            maps=["map_a_open", "map_b_split_lane"],
+        )
+
+    def test_evaluator_prefers_environment_exact_telemetry(self) -> None:
+        from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary
+        episodes = [
+            {
+                "policy": "baseline", "map": "map_b_split_lane", "resolved_opponent": "OP8",
+                "wall_collisions": 10.0, "blocked_movement_events": 10.0, "stuck_steps": 9.0,
+                "collision_metric_source": "environment_exact", "stuck_metric_source": "environment_exact",
+                "route_metric_source": "environment_exact", "upper_lane_use": 8.0, "lower_lane_use": 2.0,
+                "win": 1,
+            },
+            {
+                "policy": "candidate", "map": "map_b_split_lane", "resolved_opponent": "OP8",
+                "wall_collisions": 5.0, "blocked_movement_events": 5.0, "stuck_steps": 4.0,
+                "collision_metric_source": "environment_exact", "stuck_metric_source": "environment_exact",
+                "route_metric_source": "environment_exact", "upper_lane_use": 2.0, "lower_lane_use": 8.0,
+                "win": 1,
+            },
+            {
+                "policy": "baseline", "map": "map_a_open", "resolved_opponent": "OP8",
+                "wall_collisions": 0.0, "blocked_movement_events": 0.0, "stuck_steps": 0.0,
+                "collision_metric_source": "environment_exact", "stuck_metric_source": "environment_exact",
+                "route_metric_source": "unavailable", "upper_lane_use": None, "lower_lane_use": None,
+                "win": 1,
+            },
+            {
+                "policy": "candidate", "map": "map_a_open", "resolved_opponent": "OP8",
+                "wall_collisions": 0.0, "blocked_movement_events": 0.0, "stuck_steps": 0.0,
+                "collision_metric_source": "environment_exact", "stuck_metric_source": "environment_exact",
+                "route_metric_source": "unavailable", "upper_lane_use": None, "lower_lane_use": None,
+                "win": 1,
+            },
+        ]
+        summary = build_summary(self._args(), self._probe(), episodes, aggregate_conditions(episodes))
+        self.assertEqual(summary["gates"]["wall_collisions_improved"]["status"], "PASS")
+        self.assertEqual(summary["gates"]["wall_collisions_improved"]["collision_metric_source"], "environment_exact")
+        self.assertEqual(summary["gates"]["blocked_movement_improved"]["status"], "PASS")
+        self.assertEqual(summary["gates"]["stuck_behavior_improved"]["status"], "PASS")
+
+    def test_evaluator_preserves_missing_exact_telemetry_as_inconclusive(self) -> None:
+        from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary
+        episodes = [
+            {
+                "policy": "baseline", "map": "map_b_split_lane", "resolved_opponent": "OP8",
+                "wall_collisions": None, "blocked_movement_events": None, "stuck_steps": 3.0,
+                "collision_metric_source": "unavailable", "stuck_metric_source": "evaluator_proxy",
+                "route_metric_source": "unavailable", "upper_lane_use": None, "lower_lane_use": None,
+                "win": 1,
+            },
+            {
+                "policy": "candidate", "map": "map_b_split_lane", "resolved_opponent": "OP8",
+                "wall_collisions": None, "blocked_movement_events": None, "stuck_steps": 1.0,
+                "collision_metric_source": "unavailable", "stuck_metric_source": "evaluator_proxy",
+                "route_metric_source": "unavailable", "upper_lane_use": None, "lower_lane_use": None,
+                "win": 1,
+            },
+        ]
+        summary = build_summary(self._args(), self._probe(), episodes, aggregate_conditions(episodes))
+        self.assertEqual(summary["gates"]["wall_collisions_improved"]["status"], "INCONCLUSIVE")
+        self.assertEqual(summary["gates"]["blocked_movement_improved"]["status"], "INCONCLUSIVE")
+        self.assertEqual(summary["gates"]["stuck_behavior_improved"]["status"], "INCONCLUSIVE")
+
+    def test_checkpoint_dimension_reader_ignores_nonpositive_action_metadata(self) -> None:
+        from experiments.eval_v6i9_map_awareness import _meta_int
+        self.assertEqual(_meta_int({"n_macros": 0}, ("n_macros",), 5, positive=True), 5)
+        self.assertEqual(_meta_int({"n_targets": 0}, ("n_targets",), 50, positive=True), 50)
+        self.assertEqual(_meta_int({"n_targets": 12}, ("n_targets",), 50, positive=True), 12)
 
 
 if __name__ == "__main__":

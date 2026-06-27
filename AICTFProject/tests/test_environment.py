@@ -269,6 +269,129 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_navigation_telemetry_tracks_blocked_stuck_repeated_and_routes(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=256,
+                map_layout=MAP_B_SPLIT_LANE,
+            )
+        )
+        try:
+            core = env.core
+            core.reset_all()
+            rect = core.obstacle_rects[0, 0]
+            y_mid = float(((rect[1] + rect[3]) * 0.5).item())
+            prev_x = torch.tensor([[float(rect[0].item()) - 0.5, 2.0]], device=core.device)
+            prev_y = torch.tensor([[y_mid, 2.0]], device=core.device)
+            next_x = torch.tensor([[float(rect[0].item()) + 0.5, 3.0]], device=core.device)
+            next_y = torch.tensor([[y_mid, 2.0]], device=core.device)
+            alive = torch.ones_like(prev_x, dtype=torch.bool)
+            speed = torch.ones_like(prev_x)
+            out_x, out_y, _, hit = core._revert_obstacle_hits(prev_x, prev_y, next_x, next_y, speed, alive)
+
+            core._accumulate_navigation_telemetry(
+                side="blue",
+                prev_x=prev_x,
+                prev_y=prev_y,
+                cur_x=out_x,
+                cur_y=out_y,
+                target_x=next_x,
+                target_y=next_y,
+                alive=alive,
+                obstacle_hit=hit,
+            )
+            self.assertEqual(int(core.nav_blue_obstacle_collision_events[0].item()), 1)
+            self.assertEqual(int(core.nav_blue_blocked_movement_events[0].item()), 1)
+            self.assertEqual(int(core.nav_blue_movement_attempts[0].item()), 2)
+            self.assertEqual(int(core.nav_blue_successful_movement_steps[0].item()), 1)
+
+            for _ in range(2):
+                core._accumulate_navigation_telemetry(
+                    side="blue",
+                    prev_x=prev_x,
+                    prev_y=prev_y,
+                    cur_x=prev_x,
+                    cur_y=prev_y,
+                    target_x=next_x,
+                    target_y=next_y,
+                    alive=alive,
+                    obstacle_hit=torch.zeros_like(hit),
+                )
+            self.assertGreaterEqual(int(core.nav_blue_stuck_steps[0].item()), 1)
+            self.assertGreaterEqual(int(core.nav_blue_repeated_blocked_movement_events[0].item()), 1)
+        finally:
+            env.close()
+
+    def test_navigation_telemetry_resets_and_isolates_vector_env_rows(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=2,
+                n_agents_per_team=2,
+                device="cpu",
+                seed=257,
+                map_layout=MAP_B_SPLIT_LANE,
+            )
+        )
+        try:
+            core = env.core
+            core.nav_blue_blocked_movement_events[:] = torch.tensor([3, 7], device=core.device)
+            mask = torch.tensor([True, False], device=core.device)
+            core.reset_indices(mask)
+            self.assertEqual(int(core.nav_blue_blocked_movement_events[0].item()), 0)
+            self.assertEqual(int(core.nav_blue_blocked_movement_events[1].item()), 7)
+        finally:
+            env.close()
+
+    def test_route_classifier_switch_rule_ignores_unknown_initial_assignment(self) -> None:
+        env = GPUCTFVecEnv(
+            GPUFieldConfig(
+                n_envs=1,
+                n_agents_per_team=1,
+                max_blue_agents=1,
+                max_red_agents=1,
+                device="cpu",
+                seed=258,
+                map_layout=MAP_B_SPLIT_LANE,
+            )
+        )
+        try:
+            core = env.core
+            core.reset_all()
+            rect = core.obstacle_rects[0, 0]
+            alive = torch.ones((1, 1), dtype=torch.bool, device=core.device)
+            x = torch.tensor([[2.0]], device=core.device)
+            upper_y = torch.tensor([[float(rect[1].item()) - 1.0]], device=core.device)
+            lower_y = torch.tensor([[float(rect[3].item()) + 1.0]], device=core.device)
+            core._accumulate_navigation_telemetry(
+                side="blue",
+                prev_x=x,
+                prev_y=upper_y,
+                cur_x=x,
+                cur_y=upper_y,
+                target_x=x,
+                target_y=upper_y,
+                alive=alive,
+                obstacle_hit=torch.zeros((1, 1), dtype=torch.bool, device=core.device),
+            )
+            self.assertEqual(int(core.nav_blue_route_switches[0].item()), 0)
+            core._accumulate_navigation_telemetry(
+                side="blue",
+                prev_x=x,
+                prev_y=upper_y,
+                cur_x=x,
+                cur_y=lower_y,
+                target_x=x,
+                target_y=lower_y,
+                alive=alive,
+                obstacle_hit=torch.zeros((1, 1), dtype=torch.bool, device=core.device),
+            )
+            self.assertEqual(int(core.nav_blue_route_switches[0].item()), 1)
+        finally:
+            env.close()
+
     def test_map_b_route_targets_redirect_across_wall(self) -> None:
         env = GPUCTFVecEnv(
             GPUFieldConfig(
@@ -361,6 +484,22 @@ class EnvironmentContractTests(unittest.TestCase):
             self.assertTrue(truncated)
             self.assertEqual(info["map_layout"], MAP_B_SPLIT_LANE)
             self.assertIn("obstacle_collision_events_per_episode", info)
+            for key in (
+                "blue_obstacle_collision_events",
+                "blue_blocked_movement_events",
+                "blue_stuck_steps",
+                "blue_repeated_blocked_movement_events",
+                "blue_upper_lane_steps",
+                "blue_lower_lane_steps",
+                "blue_neutral_lane_steps",
+                "blue_route_switches",
+                "blue_movement_attempts",
+                "blue_successful_movement_steps",
+                "navigation_telemetry_version",
+                "route_classifier_version",
+            ):
+                self.assertIn(key, info)
+                self.assertIn(key, info["episode_result"])
             self.assertIn("blue_route_upper_crossings", info)
             self.assertIn("blue_route_lower_crossings", info)
             self.assertIn("episode_result", info)

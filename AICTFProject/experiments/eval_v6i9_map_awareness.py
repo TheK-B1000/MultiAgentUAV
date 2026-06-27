@@ -35,6 +35,14 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+from gpu_env._navigation_telemetry import (
+    BLOCKED_DISPLACEMENT_THRESHOLD_CELLS,
+    MAP_ROUTE_METADATA_VERSION,
+    NAVIGATION_TELEMETRY_VERSION,
+    ROUTE_CLASSIFIER_VERSION,
+    STUCK_CONSECUTIVE_STEP_WINDOW,
+    STUCK_DISPLACEMENT_EPSILON_CELLS,
+)
 from gpu_env._specs import _make_obs_action_spaces
 from rl.custom_ppo.inference import (
     load_custom_ppo_policy,
@@ -140,15 +148,20 @@ def _meta_int(
     metadata: Mapping[str, Any],
     names: Sequence[str],
     default: int,
+    *,
+    positive: bool = False,
 ) -> int:
     for name in names:
         value = metadata.get(name)
         if value is None:
             continue
         try:
-            return int(value)
+            parsed = int(value)
         except (TypeError, ValueError):
             continue
+        if positive and parsed <= 0:
+            continue
+        return parsed
     return int(default)
 
 
@@ -262,11 +275,13 @@ def _checkpoint_dimensions(
         metadata,
         ("n_macros", "num_macros", "macro_actions"),
         5,
+        positive=True,
     )
     n_targets = _meta_int(
         metadata,
         ("n_targets", "num_targets", "macro_targets"),
         50,
+        positive=True,
     )
 
     return metadata, n_agents, n_macros, n_targets
@@ -665,6 +680,33 @@ def _number(
     return None
 
 
+def _bool_value(info: Any, aliases: Sequence[str]) -> bool | None:
+    flattened = {
+        str(key).lower(): value
+        for key, value in _flatten_info(info).items()
+    }
+    for alias in aliases:
+        normalized = alias.lower()
+        for key, value in flattened.items():
+            if key == normalized or key.endswith("." + normalized):
+                if isinstance(value, str):
+                    return value.strip().lower() in {"1", "true", "yes", "on"}
+                try:
+                    return bool(value)
+                except Exception:
+                    return None
+    return None
+
+
+def _safe_ratio(numerator: float | None, denominator: float | None) -> float | None:
+    if numerator is None or denominator is None:
+        return None
+    if denominator <= 0:
+        return None
+    value = float(numerator) / float(denominator)
+    return value if math.isfinite(value) else None
+
+
 class InstrumentedEnv(GPUCTFVecEnv):
     """Adds conservative navigation proxies when exact telemetry is absent."""
 
@@ -788,9 +830,18 @@ class InstrumentedEnv(GPUCTFVecEnv):
                 "obstacle_collisions",
             ),
         )
+        blocked = _number(
+            info,
+            (
+                "blue_blocked_movement_events",
+                "blocked_movement_events_blue",
+                "blocked_movement_events",
+            ),
+        )
         upper = _number(
             info,
             (
+                "blue_upper_lane_steps",
                 "blue_route_upper_crossings",
                 "route_upper_crossings_blue",
                 "blue_upper_lane_crossings",
@@ -800,12 +851,14 @@ class InstrumentedEnv(GPUCTFVecEnv):
         lower = _number(
             info,
             (
+                "blue_lower_lane_steps",
                 "blue_route_lower_crossings",
                 "route_lower_crossings_blue",
                 "blue_lower_lane_crossings",
                 "lower_lane_use",
             ),
         )
+        neutral = _number(info, ("blue_neutral_lane_steps",))
         route_switches = _number(
             info,
             (
@@ -822,47 +875,57 @@ class InstrumentedEnv(GPUCTFVecEnv):
                 "stuck_steps",
             ),
         )
+        repeated_blocked = _number(
+            info,
+            (
+                "blue_repeated_blocked_movement_events",
+                "repeated_blocked_movement_events_blue",
+                "repeated_blocked_movement",
+            ),
+        )
+        movement_attempts = _number(info, ("blue_movement_attempts",))
+        successful_movement = _number(info, ("blue_successful_movement_steps",))
+        route_available = _bool_value(info, ("route_telemetry_available",))
+
+        collision_source = "environment_exact" if collisions is not None else "unavailable"
+        stuck_source = "environment_exact" if stuck is not None else "evaluator_proxy"
+        route_source = (
+            "environment_exact"
+            if route_available and upper is not None and lower is not None
+            else ("evaluator_proxy" if route_available is None else "unavailable")
+        )
+
+        stuck_value = stuck if stuck is not None else float(self.stuck_proxy)
+        repeated_value = repeated_blocked if repeated_blocked is not None else float(self.blocked_proxy)
+        upper_value = upper if route_source == "environment_exact" else (float(self.upper_proxy) if route_source == "evaluator_proxy" else None)
+        lower_value = lower if route_source == "environment_exact" else (float(self.lower_proxy) if route_source == "evaluator_proxy" else None)
+        neutral_value = neutral if route_source == "environment_exact" else None
+        switch_value = route_switches if route_source == "environment_exact" else (float(self.switch_proxy) if route_source == "evaluator_proxy" else None)
 
         return {
             "wall_collisions": collisions,
-            "wall_collision_source": (
-                "episode_info"
-                if collisions is not None
-                else "unavailable"
-            ),
-            "stuck_steps": (
-                stuck
-                if stuck is not None
-                else float(self.stuck_proxy)
-            ),
-            "stuck_source": (
-                "episode_info"
-                if stuck is not None
-                else "position_proxy"
-            ),
-            "repeated_blocked_movement": float(
-                self.blocked_proxy
-            ),
-            "upper_lane_use": (
-                upper
-                if upper is not None
-                else float(self.upper_proxy)
-            ),
-            "lower_lane_use": (
-                lower
-                if lower is not None
-                else float(self.lower_proxy)
-            ),
-            "route_switches": (
-                route_switches
-                if route_switches is not None
-                else float(self.switch_proxy)
-            ),
-            "route_source": (
-                "episode_info"
-                if upper is not None and lower is not None
-                else "midline_crossing_proxy"
-            ),
+            "blocked_movement_events": blocked,
+            "stuck_steps": stuck_value,
+            "repeated_blocked_movement": repeated_value,
+            "upper_lane_use": upper_value,
+            "lower_lane_use": lower_value,
+            "neutral_lane_use": neutral_value,
+            "route_switches": switch_value,
+            "movement_attempts": movement_attempts,
+            "successful_movement_steps": successful_movement,
+            "collision_metric_source": collision_source,
+            "stuck_metric_source": stuck_source,
+            "route_metric_source": route_source,
+            "wall_collision_source": collision_source,
+            "stuck_source": stuck_source,
+            "route_source": route_source,
+            "obstacle_collisions_per_1000_steps": _safe_ratio(collisions * 1000.0 if collisions is not None else None, float(self.steps)),
+            "blocked_movements_per_1000_movement_attempts": _safe_ratio(blocked * 1000.0 if blocked is not None else None, movement_attempts),
+            "stuck_steps_per_1000_steps": _safe_ratio(stuck_value * 1000.0 if stuck_value is not None else None, float(self.steps)),
+            "successful_movement_rate": _safe_ratio(successful_movement, movement_attempts),
+            "upper_lane_fraction": _safe_ratio(upper_value, (upper_value or 0.0) + (lower_value or 0.0) + (neutral_value or 0.0) if upper_value is not None and lower_value is not None else None),
+            "lower_lane_fraction": _safe_ratio(lower_value, (upper_value or 0.0) + (lower_value or 0.0) + (neutral_value or 0.0) if upper_value is not None and lower_value is not None else None),
+            "route_switches_per_episode": switch_value,
             "episode_steps": self.steps,
         }
 
@@ -1408,11 +1471,22 @@ NUMERIC_FIELDS = (
     "draw",
     "score_margin",
     "wall_collisions",
+    "blocked_movement_events",
     "stuck_steps",
     "repeated_blocked_movement",
     "upper_lane_use",
     "lower_lane_use",
+    "neutral_lane_use",
     "route_switches",
+    "movement_attempts",
+    "successful_movement_steps",
+    "obstacle_collisions_per_1000_steps",
+    "blocked_movements_per_1000_movement_attempts",
+    "stuck_steps_per_1000_steps",
+    "successful_movement_rate",
+    "upper_lane_fraction",
+    "lower_lane_fraction",
+    "route_switches_per_episode",
     "episode_steps",
 )
 
@@ -1476,16 +1550,27 @@ def aggregate_conditions(
                 item.get(field) for item in group
             )
 
+        for source_field in (
+            "collision_metric_source",
+            "stuck_metric_source",
+            "route_metric_source",
+        ):
+            values = sorted({str(item.get(source_field, "unavailable")) for item in group})
+            aggregate[source_field] = values[0] if len(values) == 1 else "mixed"
+
         upper = aggregate.get("upper_lane_use") or 0.0
         lower = aggregate.get("lower_lane_use") or 0.0
+        neutral = aggregate.get("neutral_lane_use") or 0.0
         crossings = upper + lower
 
         aggregate["route_crossings"] = crossings
+        lane_total = upper + lower + neutral
         aggregate["upper_lane_fraction"] = (
-            upper / crossings
-            if crossings > 0
+            upper / lane_total
+            if lane_total > 0
             else None
         )
+        aggregate["lower_lane_fraction"] = lower / lane_total if lane_total > 0 else None
 
         output.append(aggregate)
 
@@ -1681,12 +1766,11 @@ def build_summary(
         obstacle_maps_only=True,
     )
 
-    exact_wall_telemetry = any(
-        row.get("wall_collisions") is not None
-        for row in (
-            baseline_obstacle_rows
-            + candidate_obstacle_rows
-        )
+    obstacle_rows = baseline_obstacle_rows + candidate_obstacle_rows
+    exact_wall_telemetry = bool(obstacle_rows) and all(
+        row.get("collision_metric_source") == "environment_exact"
+        and row.get("wall_collisions") is not None
+        for row in obstacle_rows
     )
 
     if exact_wall_telemetry:
@@ -1712,9 +1796,34 @@ def build_summary(
 
     gates["wall_collisions_improved"] = {
         "status": status,
+        "collision_metric_source": "environment_exact" if exact_wall_telemetry else "unavailable",
         **details,
     }
 
+    exact_blocked_telemetry = bool(obstacle_rows) and all(
+        row.get("blocked_movement_events") is not None
+        for row in obstacle_rows
+    )
+    if exact_blocked_telemetry:
+        status, details = _improvement_gate(
+            _field_mean(baseline_obstacle_rows, "blocked_movement_events"),
+            _field_mean(candidate_obstacle_rows, "blocked_movement_events"),
+            args.navigation_improvement_threshold,
+        )
+    else:
+        status = "INCONCLUSIVE"
+        details = {"reason": "Environment blocked-movement telemetry is unavailable."}
+    gates["blocked_movement_improved"] = {
+        "status": status,
+        "stuck_metric_source": "environment_exact" if exact_blocked_telemetry else "unavailable",
+        **details,
+    }
+
+    exact_stuck_telemetry = bool(obstacle_rows) and all(
+        row.get("stuck_metric_source") == "environment_exact"
+        and row.get("stuck_steps") is not None
+        for row in obstacle_rows
+    )
     status, details = _improvement_gate(
         _field_mean(
             baseline_obstacle_rows,
@@ -1727,7 +1836,8 @@ def build_summary(
         args.navigation_improvement_threshold,
     )
     gates["stuck_behavior_improved"] = {
-        "status": status,
+        "status": status if exact_stuck_telemetry else "INCONCLUSIVE",
+        "stuck_metric_source": "environment_exact" if exact_stuck_telemetry else "evaluator_proxy",
         **details,
     }
 
@@ -1744,15 +1854,10 @@ def build_summary(
             for row in candidate_conditions
             if row.get("map") == map_name
         ]
-        upper = (
-            _field_mean(selected, "upper_lane_use")
-            or 0.0
-        )
-        lower = (
-            _field_mean(selected, "lower_lane_use")
-            or 0.0
-        )
-        total = upper + lower
+        route_exact = bool(selected) and all(row.get("route_metric_source") == "environment_exact" for row in selected)
+        upper = _field_mean(selected, "upper_lane_use") if route_exact else None
+        lower = _field_mean(selected, "lower_lane_use") if route_exact else None
+        total = (upper or 0.0) + (lower or 0.0)
 
         route_by_map[map_name] = {
             "upper_mean": upper,
@@ -1762,6 +1867,7 @@ def build_summary(
                 if total > 0
                 else None
             ),
+            "route_metric_source": "environment_exact" if route_exact else "unavailable",
         }
 
     route_fractions = [
@@ -1784,6 +1890,7 @@ def build_summary(
 
     gates["map_dependent_routes"] = {
         "status": route_status,
+        "route_metric_source": "environment_exact" if route_fractions else "unavailable",
         "max_upper_fraction_difference": route_difference,
         "threshold": args.route_difference_threshold,
         "per_map": route_by_map,
@@ -1845,12 +1952,29 @@ def build_summary(
     }
 
     statuses = [gate["status"] for gate in gates.values()]
+    required_statuses = (
+        gates["obstacle_weights_moved"]["status"],
+        gates["obstacle_gradient_connected"]["status"],
+        gates["obstacle_counterfactual_effect"]["status"],
+        gates["hard_pool_competence_retained"]["status"],
+    )
+    navigation_statuses = (
+        gates["wall_collisions_improved"]["status"],
+        gates["blocked_movement_improved"]["status"],
+        gates["stuck_behavior_improved"]["status"],
+    )
 
     if any(s == "ERROR" for s in statuses):
         verdict = "NOT READY FOR STAGE B — PROBE ERROR (see gate details)"
-    elif any(s == "FAIL" for s in statuses):
+    elif any(s != "PASS" for s in required_statuses):
         verdict = "NOT READY FOR STAGE B"
-    elif all(s == "PASS" for s in statuses):
+    elif not any(s == "PASS" for s in navigation_statuses):
+        verdict = "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
+    elif gates["map_dependent_routes"]["status"] == "FAIL":
+        verdict = "NOT READY FOR STAGE B"
+    elif gates["universal_saturation_avoided"]["status"] == "FAIL":
+        verdict = "NOT READY FOR STAGE B - UNIVERSAL SATURATION"
+    elif all(s == "PASS" for s in required_statuses):
         verdict = "READY FOR STAGE B"
     elif any(s == "WARN" for s in statuses):
         verdict = "BEHAVIORAL SENSITIVITY WEAK — REVIEW BEFORE PROCEEDING"
@@ -1916,6 +2040,10 @@ def report_text(summary: Mapping[str, Any]) -> str:
         (
             "wall_collisions_improved",
             "Wall collisions improved",
+        ),
+        (
+            "blocked_movement_improved",
+            "Blocked movement improved",
         ),
         (
             "stuck_behavior_improved",
@@ -2131,7 +2259,16 @@ def main() -> None:
     started_at = datetime.now(timezone.utc).isoformat()
 
     manifest: dict[str, Any] = {
-        "schema_version": 2,
+        "schema_version": 3,
+        "telemetry_implementation_version": NAVIGATION_TELEMETRY_VERSION,
+        "collision_metric_source": "environment_exact_required",
+        "stuck_metric_source": "environment_exact_preferred",
+        "route_metric_source": "environment_exact_preferred",
+        "stuck_epsilon": STUCK_DISPLACEMENT_EPSILON_CELLS,
+        "stuck_consecutive_step_window": STUCK_CONSECUTIVE_STEP_WINDOW,
+        "blocked_displacement_threshold": BLOCKED_DISPLACEMENT_THRESHOLD_CELLS,
+        "route_classifier_version": ROUTE_CLASSIFIER_VERSION,
+        "map_route_metadata_version": MAP_ROUTE_METADATA_VERSION,
         "run_id": run_id,
         "started_at": started_at,
         "completed_at": None,  # written at the end
@@ -2227,14 +2364,10 @@ def main() -> None:
     )
     conditions = aggregate_conditions(episodes)
 
-    write_csv(
-        output_directory / "per_episode.csv",
-        episodes,
-    )
-    write_csv(
-        output_directory / "per_condition.csv",
-        conditions,
-    )
+    write_csv(output_directory / "episode_results.csv", episodes)
+    write_csv(output_directory / "condition_summary.csv", conditions)
+    write_csv(output_directory / "per_episode.csv", episodes)
+    write_csv(output_directory / "per_condition.csv", conditions)
     print("... matched-seed evaluation complete.")
 
     summary = build_summary(
@@ -2243,15 +2376,9 @@ def main() -> None:
         episodes,
         conditions,
     )
-    (
-        output_directory / "summary.json"
-    ).write_text(
-        json.dumps(
-            _json_safe(summary),
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    summary_text = json.dumps(_json_safe(summary), indent=2)
+    (output_directory / "final_report.json").write_text(summary_text, encoding="utf-8")
+    (output_directory / "summary.json").write_text(summary_text, encoding="utf-8")
 
     report = report_text(summary)
     print("\n" + report)

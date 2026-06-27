@@ -30,6 +30,16 @@ from .._constants import (
 )
 from .._episode_payload import _build_episode_result_payload
 from .._maps import is_split_lane_layout
+from .._navigation_telemetry import (
+    BLOCKED_DISPLACEMENT_THRESHOLD_CELLS,
+    MAP_ROUTE_METADATA_VERSION,
+    NAVIGATION_TELEMETRY_VERSION,
+    REPEATED_BLOCKED_DIRECTION_WINDOW,
+    ROUTE_CLASSIFIER_VERSION,
+    RouteCode,
+    STUCK_CONSECUTIVE_STEP_WINDOW,
+    STUCK_DISPLACEMENT_EPSILON_CELLS,
+)
 
 
 class _MetricsMixin:
@@ -214,6 +224,79 @@ class _MetricsMixin:
         self.metric_red_intercept_upper_crossings += riu
         self.metric_red_intercept_lower_crossings += ril
 
+    def _route_telemetry_available(self) -> bool:
+        return is_split_lane_layout(str(getattr(self, "map_layout", ""))) and hasattr(self, "obstacle_active")
+
+    def _classify_routes(self, y: torch.Tensor, alive: torch.Tensor) -> torch.Tensor:
+        if not self._route_telemetry_available():
+            return torch.full_like(y, int(RouteCode.UNKNOWN), dtype=torch.int8)
+        rect = self.obstacle_rects[:, 0, :].to(dtype=y.dtype, device=y.device)
+        active = self.obstacle_active[:, 0].to(device=y.device)
+        y0 = rect[:, 1:2]
+        y1 = rect[:, 3:4]
+        route = torch.full_like(y, int(RouteCode.UNKNOWN), dtype=torch.int8)
+        route = torch.where(active[:, None] & alive & (y < y0), torch.full_like(route, int(RouteCode.UPPER)), route)
+        route = torch.where(active[:, None] & alive & (y > y1), torch.full_like(route, int(RouteCode.LOWER)), route)
+        neutral = active[:, None] & alive & (y >= y0) & (y <= y1)
+        route = torch.where(neutral, torch.full_like(route, int(RouteCode.NEUTRAL)), route)
+        return route
+
+    def _accumulate_navigation_telemetry(
+        self,
+        *,
+        side: str,
+        prev_x: torch.Tensor,
+        prev_y: torch.Tensor,
+        cur_x: torch.Tensor,
+        cur_y: torch.Tensor,
+        target_x: torch.Tensor,
+        target_y: torch.Tensor,
+        alive: torch.Tensor,
+        obstacle_hit: torch.Tensor,
+    ) -> None:
+        requested_dx = target_x - prev_x
+        requested_dy = target_y - prev_y
+        requested_dist = torch.sqrt(requested_dx * requested_dx + requested_dy * requested_dy + 1e-8)
+        actual_dx = cur_x - prev_x
+        actual_dy = cur_y - prev_y
+        actual_dist = torch.sqrt(actual_dx * actual_dx + actual_dy * actual_dy + 1e-8)
+        movement_requested = alive & (requested_dist > float(STUCK_DISPLACEMENT_EPSILON_CELLS))
+        blocked = movement_requested & (actual_dist < float(BLOCKED_DISPLACEMENT_THRESHOLD_CELLS))
+        successful = movement_requested & (actual_dist >= float(BLOCKED_DISPLACEMENT_THRESHOLD_CELLS))
+
+        getattr(self, f"nav_{side}_obstacle_collision_events").add_(obstacle_hit.sum(dim=1).to(torch.int32))
+        getattr(self, f"nav_{side}_movement_attempts").add_(movement_requested.sum(dim=1).to(torch.int32))
+        getattr(self, f"nav_{side}_blocked_movement_events").add_(blocked.sum(dim=1).to(torch.int32))
+        getattr(self, f"nav_{side}_successful_movement_steps").add_(successful.sum(dim=1).to(torch.int32))
+
+        consecutive = getattr(self, f"nav_{side}_consecutive_blocked_steps")
+        consecutive.copy_(torch.where(blocked, consecutive + 1, torch.zeros_like(consecutive)))
+        stuck_now = movement_requested & (consecutive >= int(STUCK_CONSECUTIVE_STEP_WINDOW))
+        getattr(self, f"nav_{side}_stuck_steps").add_(stuck_now.sum(dim=1).to(torch.int32))
+
+        dir_x = torch.sign(requested_dx).to(torch.int8)
+        dir_y = torch.sign(requested_dy).to(torch.int8)
+        last_x = getattr(self, f"nav_{side}_last_blocked_dir_x")
+        last_y = getattr(self, f"nav_{side}_last_blocked_dir_y")
+        repeated = getattr(self, f"nav_{side}_repeated_blocked_direction_steps")
+        same_dir = blocked & (dir_x == last_x) & (dir_y == last_y)
+        repeated.copy_(torch.where(blocked, torch.where(same_dir, repeated + 1, torch.ones_like(repeated)), torch.zeros_like(repeated)))
+        repeated_now = blocked & (repeated >= int(REPEATED_BLOCKED_DIRECTION_WINDOW))
+        getattr(self, f"nav_{side}_repeated_blocked_movement_events").add_(repeated_now.sum(dim=1).to(torch.int32))
+        last_x.copy_(torch.where(blocked, dir_x, torch.zeros_like(last_x)))
+        last_y.copy_(torch.where(blocked, dir_y, torch.zeros_like(last_y)))
+
+        current_route = self._classify_routes(cur_y, alive)
+        getattr(self, f"nav_{side}_upper_lane_steps").add_((current_route == int(RouteCode.UPPER)).sum(dim=1).to(torch.int32))
+        getattr(self, f"nav_{side}_lower_lane_steps").add_((current_route == int(RouteCode.LOWER)).sum(dim=1).to(torch.int32))
+        getattr(self, f"nav_{side}_neutral_lane_steps").add_((current_route == int(RouteCode.NEUTRAL)).sum(dim=1).to(torch.int32))
+        last_route = getattr(self, f"nav_{side}_last_route")
+        recognized_now = (current_route == int(RouteCode.UPPER)) | (current_route == int(RouteCode.LOWER))
+        recognized_prev = (last_route == int(RouteCode.UPPER)) | (last_route == int(RouteCode.LOWER))
+        switches = recognized_prev & recognized_now & (last_route != current_route)
+        getattr(self, f"nav_{side}_route_switches").add_(switches.sum(dim=1).to(torch.int32))
+        last_route.copy_(torch.where(recognized_now, current_route, last_route))
+
     def _build_info(
         self,
         dense: torch.Tensor,
@@ -339,6 +422,34 @@ class _MetricsMixin:
                     "obstacle_collision_events_per_episode": int(obstacle_collision_events[i]),
                     "collision_free_episode": 1 if int(collision_events[i]) == 0 else 0,
                     "near_misses_per_episode": int(near_misses[i]),
+                    "navigation_telemetry_version": NAVIGATION_TELEMETRY_VERSION,
+                    "navigation_telemetry_scope": "cumulative_episode_terminal_info",
+                    "route_classifier_version": ROUTE_CLASSIFIER_VERSION,
+                    "map_route_metadata_version": MAP_ROUTE_METADATA_VERSION,
+                    "route_telemetry_available": bool(self._route_telemetry_available()),
+                    "stuck_epsilon": float(STUCK_DISPLACEMENT_EPSILON_CELLS),
+                    "stuck_consecutive_step_window": int(STUCK_CONSECUTIVE_STEP_WINDOW),
+                    "blocked_displacement_threshold": float(BLOCKED_DISPLACEMENT_THRESHOLD_CELLS),
+                    "blue_obstacle_collision_events": int(self.nav_blue_obstacle_collision_events[i].item()),
+                    "red_obstacle_collision_events": int(self.nav_red_obstacle_collision_events[i].item()),
+                    "blue_blocked_movement_events": int(self.nav_blue_blocked_movement_events[i].item()),
+                    "red_blocked_movement_events": int(self.nav_red_blocked_movement_events[i].item()),
+                    "blue_stuck_steps": int(self.nav_blue_stuck_steps[i].item()),
+                    "red_stuck_steps": int(self.nav_red_stuck_steps[i].item()),
+                    "blue_repeated_blocked_movement_events": int(self.nav_blue_repeated_blocked_movement_events[i].item()),
+                    "red_repeated_blocked_movement_events": int(self.nav_red_repeated_blocked_movement_events[i].item()),
+                    "blue_upper_lane_steps": int(self.nav_blue_upper_lane_steps[i].item()),
+                    "blue_lower_lane_steps": int(self.nav_blue_lower_lane_steps[i].item()),
+                    "blue_neutral_lane_steps": int(self.nav_blue_neutral_lane_steps[i].item()),
+                    "red_upper_lane_steps": int(self.nav_red_upper_lane_steps[i].item()),
+                    "red_lower_lane_steps": int(self.nav_red_lower_lane_steps[i].item()),
+                    "red_neutral_lane_steps": int(self.nav_red_neutral_lane_steps[i].item()),
+                    "blue_route_switches": int(self.nav_blue_route_switches[i].item()),
+                    "red_route_switches": int(self.nav_red_route_switches[i].item()),
+                    "blue_movement_attempts": int(self.nav_blue_movement_attempts[i].item()),
+                    "red_movement_attempts": int(self.nav_red_movement_attempts[i].item()),
+                    "blue_successful_movement_steps": int(self.nav_blue_successful_movement_steps[i].item()),
+                    "red_successful_movement_steps": int(self.nav_red_successful_movement_steps[i].item()),
                     "blue_route_upper_crossings": int(self.metric_blue_route_upper_crossings[i].item()),
                     "blue_route_lower_crossings": int(self.metric_blue_route_lower_crossings[i].item()),
                     "red_route_upper_crossings": int(self.metric_red_route_upper_crossings[i].item()),

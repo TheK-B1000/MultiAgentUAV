@@ -177,6 +177,28 @@ class _StepMixin:
                 blue_guard_hit.sum(dim=1).to(torch.int32)
                 + red_guard_hit.sum(dim=1).to(torch.int32)
             )
+        self._accumulate_navigation_telemetry(
+            side="blue",
+            prev_x=snapshot["prev_blue_x"],
+            prev_y=snapshot["prev_blue_y"],
+            cur_x=self.blue_x,
+            cur_y=self.blue_y,
+            target_x=targets["btx"],
+            target_y=targets["bty"],
+            alive=self.blue_alive,
+            obstacle_hit=blue_wall_hit | blue_guard_hit,
+        )
+        self._accumulate_navigation_telemetry(
+            side="red",
+            prev_x=snapshot["prev_red_x"],
+            prev_y=snapshot["prev_red_y"],
+            cur_x=self.red_x,
+            cur_y=self.red_y,
+            target_x=targets["rtx"],
+            target_y=targets["rty"],
+            alive=self.red_alive,
+            obstacle_hit=red_wall_hit | red_guard_hit,
+        )
         return {"blue_oob": blue_oob, "red_oob": red_oob, "yaw_cmd_blue": yaw_cmd_blue}
 
     def _advance_combat_phase(self, blue_oob: torch.Tensor, red_oob: torch.Tensor) -> Dict[str, torch.Tensor]:

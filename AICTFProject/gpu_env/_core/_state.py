@@ -17,6 +17,7 @@ from .._maps import (
     split_lane_rect_norm,
     split_lane_v2_rect_norm,
 )
+from .._navigation_telemetry import RouteCode
 from .._paths import _resolve_snapshot_path
 from .._specs import _make_obs_action_spaces
 
@@ -102,6 +103,7 @@ class _StateMixin:
         self._alloc_runtime_buffers(B, Nb, Nr, dev, f32)
         self._alloc_mine_state(B, Nb, Nr, dev, f32)
         self._alloc_metric_buffers(B, dev, f32)
+        self._alloc_navigation_telemetry_buffers(B, Nb, Nr, dev)
 
     def _alloc_map_state(self, B: int, dev: torch.device, f32: torch.dtype) -> None:
         self.max_obstacles = 1
@@ -252,6 +254,29 @@ class _StateMixin:
             dtype=torch.bool,
             device=dev,
         )
+
+    def _alloc_navigation_telemetry_buffers(self, B: int, Nb: int, Nr: int, dev: torch.device) -> None:
+        for side in ("blue", "red"):
+            n_agents = Nb if side == "blue" else Nr
+            setattr(self, f"nav_{side}_obstacle_collision_events", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_blocked_movement_events", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_stuck_steps", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_repeated_blocked_movement_events", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_upper_lane_steps", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_lower_lane_steps", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_neutral_lane_steps", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_route_switches", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_movement_attempts", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_successful_movement_steps", torch.zeros((B,), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_consecutive_blocked_steps", torch.zeros((B, n_agents), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_repeated_blocked_direction_steps", torch.zeros((B, n_agents), dtype=torch.int32, device=dev))
+            setattr(self, f"nav_{side}_last_blocked_dir_x", torch.zeros((B, n_agents), dtype=torch.int8, device=dev))
+            setattr(self, f"nav_{side}_last_blocked_dir_y", torch.zeros((B, n_agents), dtype=torch.int8, device=dev))
+            setattr(
+                self,
+                f"nav_{side}_last_route",
+                torch.full((B, n_agents), int(RouteCode.UNKNOWN), dtype=torch.int8, device=dev),
+            )
 
     def _build_macro_targets(self) -> None:
         """
@@ -440,10 +465,34 @@ class _StateMixin:
         self.metric_red_intercept_upper_crossings[idx] = 0
         self.metric_red_intercept_lower_crossings[idx] = 0
         self.metric_blue_zone_visited[idx] = False
+        self._reset_navigation_telemetry(idx)
         self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)
         self._apply_train_domain_randomization(env_mask)
+
+    def _reset_navigation_telemetry(self, idx: torch.Tensor) -> None:
+        if idx.numel() == 0:
+            return
+        for side in ("blue", "red"):
+            for name in (
+                "obstacle_collision_events",
+                "blocked_movement_events",
+                "stuck_steps",
+                "repeated_blocked_movement_events",
+                "upper_lane_steps",
+                "lower_lane_steps",
+                "neutral_lane_steps",
+                "route_switches",
+                "movement_attempts",
+                "successful_movement_steps",
+                "consecutive_blocked_steps",
+                "repeated_blocked_direction_steps",
+                "last_blocked_dir_x",
+                "last_blocked_dir_y",
+            ):
+                getattr(self, f"nav_{side}_{name}")[idx] = 0
+            getattr(self, f"nav_{side}_last_route")[idx] = int(RouteCode.UNKNOWN)
 
     def _reset_map_layout(self, env_mask: torch.Tensor) -> None:
         idx = torch.where(env_mask)[0]
