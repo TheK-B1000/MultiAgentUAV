@@ -117,11 +117,12 @@ class PerformanceRecorder:
         rollout_length: int = 1,
         total_training_duration: float = 0.0,
         gpu_utilization_summary: Optional[dict[str, Any]] = None,
+        total_transitions_collected: Optional[int] = None,
     ) -> PerformanceSummary:
         
         # Calculate mean env transitions per second
-        total_steps = sum(self.rollout_steps)
-        total_rollout_dur = sum(self.rollout_durations)
+        total_steps = sum(self.rollout_steps) if self.rollout_steps else (total_transitions_collected or 0)
+        total_rollout_dur = sum(self.rollout_durations) if self.rollout_durations else total_training_duration
         mean_env_tps = (total_steps / total_rollout_dur) if total_rollout_dur > 0 else None
         
         # Calculate median rollout transitions per second

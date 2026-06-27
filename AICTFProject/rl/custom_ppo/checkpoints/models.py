@@ -138,3 +138,21 @@ class CheckpointLoadReport:
 class LoadedCheckpoint:
     policy: Any
     report: CheckpointLoadReport
+
+
+@dataclass(frozen=True)
+class CheckpointTimingReport:
+    archive_read_seconds: float | None
+    model_construction_seconds: float | None
+    migration_seconds: float | None
+    state_load_seconds: float | None
+    behavioral_equivalence_seconds: float | None
+    hash_seconds: float | None
+    total_seconds: float
+
+
+@dataclass(frozen=True)
+class CheckpointSaveTimingReport:
+    write_seconds: float
+    hash_seconds: float
+    total_seconds: float

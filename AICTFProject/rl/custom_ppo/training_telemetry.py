@@ -76,6 +76,8 @@ from rl.custom_ppo.telemetry import (
     RewardSummary,
     RolloutCompleted,
     SafeTelemetrySink,
+    TelemetryEnvelope,
+    TelemetryEvent,
     TrainingCompleted,
     TrainingFailed,
     TrainingInterrupted,
@@ -129,14 +131,42 @@ class TrainingTelemetry:
         self._e3_fields_cache: Optional[list[str]] = None
         self._e3_rows_since_flush = 0
         self._e3_flush_every_steps = 100
-        events_path = str(
-            getattr(cfg, "training_events_jsonl_path", getattr(cfg, "telemetry_events_jsonl_path", ""))
-            or ""
-        )
+        canonical_path = getattr(cfg, "training_events_jsonl_path", None)
+        legacy_path = getattr(cfg, "telemetry_events_jsonl_path", None)
+        if canonical_path is not None and canonical_path != "":
+            canonical_path = str(canonical_path)
+        else:
+            canonical_path = None
+
+        if legacy_path is not None and legacy_path != "":
+            legacy_path = str(legacy_path)
+        else:
+            legacy_path = None
+
+        if canonical_path is not None and legacy_path is not None:
+            if canonical_path != legacy_path:
+                raise ValueError(
+                    f"Configuration error: both 'training_events_jsonl_path' and legacy alias "
+                    f"'telemetry_events_jsonl_path' were provided with different values: "
+                    f"'{canonical_path}' vs '{legacy_path}'"
+                )
+            events_path = canonical_path
+        elif canonical_path is not None:
+            events_path = canonical_path
+        elif legacy_path is not None:
+            events_path = legacy_path
+            try:
+                setattr(cfg, "training_events_jsonl_path", legacy_path)
+            except Exception:
+                pass
+        else:
+            events_path = ""
+
         default_mode = "full" if events_path else "off"
         self.telemetry_mode = coerce_telemetry_mode(
             getattr(cfg, "training_telemetry_mode", getattr(cfg, "telemetry_mode", default_mode))
         )
+        self._sequence_counter = 0
         self._training_started_perf: Optional[float] = None
         self._last_rollout_duration_seconds: Optional[float] = None
         self._last_optimization_duration_seconds: Optional[float] = None
@@ -175,6 +205,55 @@ class TrainingTelemetry:
             or "."
         )
         self._artifact_writer = ArtifactWriter(artifact_dir)
+
+        # Resolve Git metadata at startup if telemetry is not OFF
+        self._git_commit_hash = None
+        self._git_status = "git_unavailable"
+        if self.telemetry_mode != TrainingTelemetryMode.OFF:
+            import subprocess
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            try:
+                res = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                    check=False,
+                )
+                if res.returncode == 0:
+                    self._git_commit_hash = res.stdout.strip()
+                    # Check dirty state
+                    status_res = subprocess.run(
+                        ["git", "status", "--porcelain"],
+                        cwd=project_root,
+                        capture_output=True,
+                        text=True,
+                        timeout=2.0,
+                        check=False,
+                    )
+                    if status_res.returncode == 0:
+                        if status_res.stdout.strip():
+                            self._git_status = "available_dirty"
+                        else:
+                            self._git_status = "available_clean"
+                    else:
+                        self._git_status = "error"
+                else:
+                    git_check = subprocess.run(
+                        ["git", "--version"],
+                        capture_output=True,
+                        timeout=2.0,
+                        check=False,
+                    )
+                    if git_check.returncode == 0:
+                        self._git_status = "not_repository"
+                    else:
+                        self._git_status = "git_unavailable"
+            except subprocess.TimeoutExpired:
+                self._git_status = "timeout"
+            except Exception:
+                self._git_status = "error"
 
     @staticmethod
     def explained_variance(values: torch.Tensor, returns: torch.Tensor) -> float:
@@ -1068,6 +1147,70 @@ class TrainingTelemetry:
             + (f" phase={self.curriculum.phase}" if self.curriculum is not None else "")
         )
 
+    def write_run_manifest(self) -> Optional[str]:
+        if self.telemetry_mode == TrainingTelemetryMode.OFF:
+            return None
+        
+        # Calculate preset hash
+        preset_hash = None
+        try:
+            import hashlib
+            import json
+            import dataclasses
+            d = dataclasses.asdict(self.cfg)
+            ignore_keys = {"run_tag", "load_path", "checkpoint_dir", "metrics_csv_path", "episode_csv_path", "strategy_experience_csv_path", "performance_summary_path", "performance_samples_path", "training_events_jsonl_path", "telemetry_events_jsonl_path", "e3_step_telemetry_path"}
+            clean_d = {k: v for k, v in d.items() if k not in ignore_keys}
+            s = json.dumps(clean_d, sort_keys=True)
+            preset_hash = hashlib.sha256(s.encode("utf-8")).hexdigest()
+        except Exception:
+            pass
+
+        # Framework versions
+        import sys
+        framework_versions = {
+            "python": sys.version,
+            "pytorch": str(torch.__version__),
+            "cuda": torch.version.cuda if torch.cuda.is_available() else None,
+        }
+
+        # GPU Model
+        gpu_model = None
+        if hasattr(self.gpu_monitor, "_nvml") and hasattr(self.gpu_monitor, "_handle"):
+            try:
+                gpu_model = self.gpu_monitor._nvml.nvmlDeviceGetName(self.gpu_monitor._handle)
+                if isinstance(gpu_model, bytes):
+                    gpu_model = gpu_model.decode("utf-8", errors="replace")
+                gpu_model = str(gpu_model)
+            except Exception:
+                pass
+
+        manifest_data = {
+            "run_id": str(getattr(self.hparams, "run_id", "run")),
+            "timestamp_seconds": float(time.time()),
+            "git_commit": self._git_commit_hash,
+            "git_status": self._git_status,
+            "preset_hash": preset_hash,
+            "framework_versions": framework_versions,
+            "gpu_model": gpu_model,
+            "checkpoint_lineage": {
+                "parent_checkpoint_hash": self._parent_checkpoint_hash,
+            },
+            "schema_version": 1,
+        }
+
+        output_path = os.path.join(self._artifact_writer.output_dir, "run_manifest.json")
+        try:
+            directory = os.path.dirname(os.path.abspath(output_path))
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(manifest_data, f, indent=2)
+            return output_path
+        except Exception as exc:
+            import warnings
+            warnings.warn(f"Failed to write run manifest: {exc}")
+            return None
+
     def emit_training_started(self, *, total_timesteps: int, checkpoint_path: Optional[str] = None) -> None:
         self._training_started_perf = time.perf_counter()
         if not self.optional_telemetry_enabled():
@@ -1101,6 +1244,9 @@ class TrainingTelemetry:
             except Exception:
                 pass
 
+        # Write authoritative run manifest at startup
+        self.write_run_manifest()
+
         event = TrainingStarted(
             run_id=str(getattr(self.hparams, "run_id", "run")),
             timestamp_seconds=float(time.time()),
@@ -1113,7 +1259,7 @@ class TrainingTelemetry:
             checkpoint_hash=ckpt_hash,
             telemetry_mode=str(self.telemetry_mode),
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
     def emit_training_completed(
         self,
@@ -1132,7 +1278,7 @@ class TrainingTelemetry:
             checkpoint_path=checkpoint_path,
             status="completed",
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
     def emit_training_failed(
         self,
@@ -1160,7 +1306,7 @@ class TrainingTelemetry:
             exception_message=str(error),
             phase=phase,
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
     def emit_training_interrupted(
         self,
@@ -1180,7 +1326,7 @@ class TrainingTelemetry:
             checkpoint_path=checkpoint_path,
             reason=str(reason),
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
     def emit_rollout_completed(
         self,
@@ -1270,7 +1416,7 @@ class TrainingTelemetry:
             )
 
         # Emit RolloutCompleted
-        self.event_sink.emit(
+        self._emit(
             RolloutCompleted(
                 run_id=str(getattr(self.hparams, "run_id", "run")),
                 global_step=int(self.runtime.global_step),
@@ -1299,7 +1445,7 @@ class TrainingTelemetry:
 
         # Emit EpisodesCompleted if there are pending episodes
         if self._pending_episodes:
-            self.event_sink.emit(
+            self._emit(
                 EpisodesCompleted(
                     run_id=str(getattr(self.hparams, "run_id", "run")),
                     global_step=int(self.runtime.global_step),
@@ -1375,7 +1521,7 @@ class TrainingTelemetry:
             gpu_memory_allocated_peak_bytes=allocated,
             gpu_memory_reserved_peak_bytes=reserved,
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
     def emit_performance_sample(self, *, phase: str, timestamp_seconds: Optional[float] = None) -> None:
         if not self.optional_telemetry_enabled():
@@ -1410,9 +1556,15 @@ class TrainingTelemetry:
             gpu_memory_allocated_bytes=allocated,
             gpu_memory_reserved_bytes=reserved,
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
-    def emit_checkpoint_saved(self, *, path: str, duration_seconds: float) -> None:
+    def emit_checkpoint_saved(
+        self,
+        *,
+        path: str,
+        duration_seconds: float,
+        write_duration_seconds: Optional[float] = None,
+    ) -> None:
         self._last_checkpoint_save_duration_seconds = float(duration_seconds)
         self.performance_recorder.measure_checkpoint_save(duration_seconds=duration_seconds)
         
@@ -1433,9 +1585,10 @@ class TrainingTelemetry:
         except Exception:
             pass
 
-        # Calculate checkpoint hash
+        # Calculate checkpoint hash & measure its duration
         ckpt_hash = None
         ckpt_size = None
+        hash_start = time.perf_counter()
         if path and os.path.isfile(path):
             import hashlib
             try:
@@ -1447,6 +1600,7 @@ class TrainingTelemetry:
                 ckpt_size = os.path.getsize(path)
             except Exception:
                 pass
+        hash_dur = time.perf_counter() - hash_start
 
         event = CheckpointSaved(
             run_id=str(getattr(self.hparams, "run_id", "run")),
@@ -1458,16 +1612,28 @@ class TrainingTelemetry:
             checkpoint_size_bytes=ckpt_size,
             parent_checkpoint_hash=self._parent_checkpoint_hash,
             preset_hash=preset_hash,
+            checkpoint_write_duration_seconds=write_duration_seconds,
+            checkpoint_hash_duration_seconds=hash_dur,
+            checkpoint_total_duration_seconds=duration_seconds + hash_dur,
         )
-        self.event_sink.emit(event)
+        self._emit(event)
         self._parent_checkpoint_hash = ckpt_hash
 
-    def emit_checkpoint_loaded(self, *, path: str, duration_seconds: float) -> None:
+    def emit_checkpoint_loaded(
+        self,
+        *,
+        path: str,
+        duration_seconds: float,
+        archive_read_duration: Optional[float] = None,
+        model_construction_duration: Optional[float] = None,
+        state_load_duration: Optional[float] = None,
+    ) -> None:
         self._last_checkpoint_load_duration_seconds = float(duration_seconds)
         self.performance_recorder.measure_checkpoint_load(duration_seconds=duration_seconds)
         
         # Calculate checkpoint hash
         ckpt_hash = None
+        hash_start = time.perf_counter()
         if path and os.path.isfile(path):
             import hashlib
             try:
@@ -1479,7 +1645,9 @@ class TrainingTelemetry:
                 self._parent_checkpoint_hash = ckpt_hash
             except Exception:
                 pass
+        hash_dur = time.perf_counter() - hash_start
 
+        migration_start = time.perf_counter()
         # Determine target channels
         target_ch = None
         try:
@@ -1517,6 +1685,7 @@ class TrainingTelemetry:
         bev_result = "PASS"
         if migration_ids:
             bev_result = "PASS_WITH_MIGRATION"
+        migration_dur = time.perf_counter() - migration_start
 
         if not self.optional_telemetry_enabled():
             return
@@ -1533,8 +1702,15 @@ class TrainingTelemetry:
             migration_ids=tuple(migration_ids),
             behavioral_equivalence_result=bev_result,
             device=str(getattr(self.cfg, "device", "cpu")),
+            archive_read_duration=archive_read_duration,
+            model_construction_duration=model_construction_duration,
+            state_load_duration=state_load_duration,
+            migration_duration=migration_dur,
+            behavioral_equivalence_duration=0.0,
+            hash_duration=hash_dur,
+            total_duration=duration_seconds + hash_dur + migration_dur,
         )
-        self.event_sink.emit(event)
+        self._emit(event)
 
     def write_performance_summary(self, *, training_duration_seconds: Optional[float] = None) -> Optional[str]:
         if not self.optional_telemetry_enabled():
@@ -1570,16 +1746,9 @@ class TrainingTelemetry:
             }
 
         # Query Git commit and status
-        git_commit = None
-        try:
-            import subprocess
-            res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
-            git_commit = res.stdout.strip()
-            status_res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
-            if status_res.stdout.strip():
-                git_commit += "-dirty"
-        except Exception:
-            pass
+        git_commit = self._git_commit_hash
+        if git_commit and self._git_status == "available_dirty":
+            git_commit += "-dirty"
 
         # GPU Model
         gpu_model = None
@@ -1619,6 +1788,7 @@ class TrainingTelemetry:
             rollout_length=int(getattr(self.cfg, "n_steps", 64)),
             total_training_duration=total_dur,
             gpu_utilization_summary=gpu_util_summary,
+            total_transitions_collected=int(self._total_transitions_collected),
         )
 
         output_path = getattr(self.cfg, "performance_summary_path", None)
@@ -1640,6 +1810,42 @@ class TrainingTelemetry:
             import warnings
             warnings.warn(f"Failed to write performance summary: {exc}")
             return None
+
+    @property
+    def detailed_timing_enabled(self) -> bool:
+        return self.telemetry_mode in (TrainingTelemetryMode.FULL, TrainingTelemetryMode.BENCHMARK)
+
+    @property
+    def cuda_synchronize_enabled(self) -> bool:
+        return self.telemetry_mode == TrainingTelemetryMode.BENCHMARK
+
+    def _emit(self, event: TelemetryEvent) -> None:
+        if self.telemetry_mode == TrainingTelemetryMode.OFF:
+            return
+        
+        # Limit exception messages to prevent oversized files
+        if isinstance(event, TrainingFailed):
+            msg = getattr(event, "exception_message", "")
+            tb = getattr(event, "traceback", "")
+            if len(msg) > 1000:
+                object.__setattr__(event, "exception_message", msg[:1000] + "... [TRUNCATED]")
+            if len(tb) > 4000:
+                object.__setattr__(event, "traceback", tb[:4000] + "... [TRUNCATED]")
+        elif isinstance(event, TrainingInterrupted):
+            msg = getattr(event, "message", "")
+            if len(msg) > 1000:
+                object.__setattr__(event, "message", msg[:1000] + "... [TRUNCATED]")
+
+        self._sequence_counter += 1
+        envelope = TelemetryEnvelope(
+            schema_version=1,
+            event_type=type(event).__name__,
+            run_id=str(getattr(self.hparams, "run_id", "run")),
+            sequence=self._sequence_counter,
+            timestamp_seconds=float(time.time()),
+            payload=event,
+        )
+        self.event_sink.emit(envelope)
 
     def optional_telemetry_enabled(self) -> bool:
         return self.telemetry_mode != TrainingTelemetryMode.OFF

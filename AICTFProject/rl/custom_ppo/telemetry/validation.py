@@ -15,6 +15,7 @@ from rl.custom_ppo.telemetry.events import (
     PerformanceSample,
     RolloutCompleted,
     TelemetryEvent,
+    TelemetryEnvelope,
     TrainingCompleted,
     TrainingFailed,
     TrainingInterrupted,
@@ -94,9 +95,25 @@ def validate_event(event: TelemetryEvent) -> None:
         validate_nonnegative("global_step", event.global_step)
         validate_nonnegative("save_duration_seconds", event.save_duration_seconds)
         validate_nonnegative("checkpoint_size_bytes", event.checkpoint_size_bytes)
+        for name in (
+            "checkpoint_write_duration_seconds",
+            "checkpoint_hash_duration_seconds",
+            "checkpoint_total_duration_seconds",
+        ):
+            validate_finite_optional(name, getattr(event, name))
     elif isinstance(event, CheckpointLoaded):
         validate_nonnegative("global_step", event.global_step)
         validate_nonnegative("load_duration_seconds", event.load_duration_seconds)
+        for name in (
+            "archive_read_duration",
+            "model_construction_duration",
+            "state_load_duration",
+            "migration_duration",
+            "behavioral_equivalence_duration",
+            "hash_duration",
+            "total_duration",
+        ):
+            validate_finite_optional(name, getattr(event, name))
     elif isinstance(event, PerformanceSample):
         validate_nonnegative("timestamp_seconds", event.timestamp_seconds)
         validate_nonnegative("global_step", event.global_step)
@@ -111,6 +128,20 @@ def validate_event(event: TelemetryEvent) -> None:
             value = getattr(event, name)
             if value is not None:
                 validate_nonnegative(name, value)
+
+
+def validate_envelope(envelope: TelemetryEnvelope) -> None:
+    if not isinstance(envelope.schema_version, int) or envelope.schema_version < 1:
+        raise TelemetryValidationError("schema_version must be a positive integer")
+    if not isinstance(envelope.event_type, str) or not envelope.event_type:
+        raise TelemetryValidationError("event_type must be a non-empty string")
+    if not isinstance(envelope.run_id, str) or not envelope.run_id:
+        raise TelemetryValidationError("run_id must be a non-empty string")
+    if not isinstance(envelope.sequence, int) or envelope.sequence < 1:
+        raise TelemetryValidationError("sequence must be a positive integer")
+    if not isinstance(envelope.timestamp_seconds, float) or envelope.timestamp_seconds <= 0.0:
+        raise TelemetryValidationError("timestamp_seconds must be a positive float")
+    validate_event(envelope.payload)
 
 
 class EventOrderValidator:
@@ -133,6 +164,7 @@ class EventOrderValidator:
 __all__ = [
     "EventOrderValidator",
     "validate_event",
+    "validate_envelope",
     "validate_finite_optional",
     "validate_nonnegative",
 ]

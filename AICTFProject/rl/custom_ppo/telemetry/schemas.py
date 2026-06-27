@@ -21,16 +21,22 @@ class TrainingTelemetryMode(StrEnum):
     OFF = "off"
     BASIC = "basic"
     FULL = "full"
+    BENCHMARK = "benchmark"
 
 
 def coerce_telemetry_mode(value: object) -> TrainingTelemetryMode:
+    from rl.custom_ppo.telemetry.errors import TelemetryConfigurationError
     if isinstance(value, TrainingTelemetryMode):
         return value
-    text = str(value or TrainingTelemetryMode.FULL.value).strip().lower()
+    if value is None:
+        return TrainingTelemetryMode.OFF
+    text = str(value).strip().lower()
     try:
         return TrainingTelemetryMode(text)
-    except ValueError:
-        return TrainingTelemetryMode.FULL
+    except ValueError as exc:
+        raise TelemetryConfigurationError(
+            f"Unknown training telemetry mode: {value!r}"
+        ) from exc
 
 
 __all__ = [

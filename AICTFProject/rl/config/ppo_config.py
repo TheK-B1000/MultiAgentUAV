@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Literal, Optional, Tuple
 
 import torch
+from rl.custom_ppo.telemetry.schemas import TrainingTelemetryMode
 
 
 class TrainMode(str, Enum):
@@ -65,7 +66,7 @@ class PPOConfig:
     e3_step_telemetry_path: Optional[str] = None
 
     # Telemetry and monitoring configurations (Phase 6.1)
-    training_telemetry_mode: str = "full"
+    training_telemetry_mode: TrainingTelemetryMode = TrainingTelemetryMode.OFF
     training_events_jsonl_path: Optional[str] = None
     telemetry_events_jsonl_path: Optional[str] = None
     performance_summary_path: Optional[str] = None

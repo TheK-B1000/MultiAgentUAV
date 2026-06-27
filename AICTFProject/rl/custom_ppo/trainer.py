@@ -34,6 +34,7 @@ from rl.custom_ppo.router_distill_hook import PeriodicRouterDistillHook
 from rl.custom_ppo.trainer_config import TrainerHyperparams, build_model_kwargs
 from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
 from rl.custom_ppo.training_telemetry import TrainingTelemetry
+from rl.custom_ppo.telemetry.errors import TrainingInterruptedSignal
 # Re-exported for back-compat (``rl.custom_ppo._compose_training_reward_components``).
 from rl.custom_ppo.reward_composition import _compose_training_reward_components  # noqa: F401
 
@@ -420,7 +421,7 @@ class CustomPPOTrainer:
             self.telemetry.write_performance_summary(
                 training_duration_seconds=training_duration,
             )
-        except (KeyboardInterrupt, SystemExit) as exc:
+        except (KeyboardInterrupt, TrainingInterruptedSignal) as exc:
             training_duration = max(0.0, time.perf_counter() - train_start)
             self.telemetry.emit_training_interrupted(
                 total_timesteps=total,
@@ -457,106 +458,23 @@ class CustomPPOTrainer:
 
     def save(self, path: str) -> None:
         """Save a torch checkpoint. The project keeps the historical ``.zip`` suffix."""
-        start = time.perf_counter()
+        from rl.custom_ppo.checkpoints.loader import save_trainer_checkpoint
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        rn = self.return_norm.state_dict()
-        srn = self.strategy_return_norm.state_dict()
-        payload: dict[str, Any] = {
-            "model_state_dict": self.model.state_dict(),
-            "global_step": self.global_step,
-            "updates_completed": self._updates_completed,
-            "return_norm_mean": rn["mean"],
-            "return_norm_var": rn["var"],
-            "return_norm_count": rn["count"],
-            "strategy_return_mean": srn["mean"],
-            "strategy_return_var": srn["var"],
-            "strategy_return_count": srn["count"],
-            "cfg": asdict(self.cfg),
-            "last_stats": self.last_stats,
-            "format": CUSTOM_PPO_LATENT_FORMAT if self.use_latent_strategy else CUSTOM_PPO_FORMAT,
-            "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
-            "actor_cnn_feature_dim": int(self.model.actor_cnn_feature_dim),
-            "global_state_dim": int(self.model.global_state_dim),
-            "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
-        }
-        self.optimizers.write_checkpoint(payload)
-        if self.v6i1_curriculum is not None:
-            from rl.custom_ppo.v6i1_phase_runtime import (
-                latent_state_v6i1_checkpoint,
-                v6i1_curriculum_state_dict,
-            )
-
-            payload["v6i1_curriculum_state"] = v6i1_curriculum_state_dict(self.v6i1_curriculum)
-            payload["latent_state_v6i1"] = latent_state_v6i1_checkpoint(self.latent_state)
-        if self.comm_runtime.enabled:
-            payload["comm_runtime_state"] = self.comm_runtime.state_dict()
-        payload["ppo_updater_state"] = self.updater.state_dict()
-        torch.save(payload, path)
+        report = save_trainer_checkpoint(self, path)
         self.telemetry.emit_checkpoint_saved(
             path=path,
-            duration_seconds=max(0.0, time.perf_counter() - start),
+            duration_seconds=report.total_seconds,
+            write_duration_seconds=report.write_seconds,
         )
 
     def load(self, path: str) -> None:
         """Restore a checkpoint produced by :meth:`save`."""
-        start = time.perf_counter()
-        payload = _torch_load_checkpoint(path, map_location=self.device)
-        _assert_compatible_global_state_dim(payload, path)
-        _load_model_state_dict_compat(
-            self.model,
-            payload["model_state_dict"],
-            allow_active_actor_migration=bool(getattr(self.cfg, "allow_active_actor_module_migration", False)),
-            checkpoint_cfg=payload.get("cfg"),
-            target_cfg=self.cfg,
-            observation_space=self.env.observation_space,
-            action_space=self.env.action_space,
-        )
-        load_weights_only = bool(getattr(self.cfg, "load_weights_only", False))
-        if load_weights_only:
-            print("[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.")
-        else:
-            reinit_router = bool(getattr(self.cfg, "router_reinitialize_on_load", False))
-            if reinit_router:
-                print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
-                self._reinitialize_router_after_load()
-            else:
-                allow_migration = bool(getattr(self.cfg, "allow_active_actor_module_migration", False))
-                self.optimizers.load_checkpoint(payload, allow_architecture_migration=allow_migration)
-        v6i1_latent_payload: dict[str, Any] = dict(payload.get("latent_state_v6i1", {}) or {})
-        if self.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
-            from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state
-
-            load_v6i1_curriculum_state(self.v6i1_curriculum, payload["v6i1_curriculum_state"])
-        self.global_step = int(payload.get("global_step", 0))
-        self._updates_completed = int(payload.get("updates_completed", 0))
-        self.return_norm.load_state_dict(
-            {
-                "mean": payload.get("return_norm_mean", 0.0),
-                "var": payload.get("return_norm_var", 1.0),
-                "count": payload.get("return_norm_count", 1e-4),
-            }
-        )
-        self.strategy_return_norm.load_state_dict(
-            {
-                "mean": payload.get("strategy_return_mean", 0.0),
-                "var": payload.get("strategy_return_var", 1.0),
-                "count": payload.get("strategy_return_count", 1e-4),
-            }
-        )
-        self.last_stats = dict(payload.get("last_stats", {}))
-        self._last_obs = None
-        self._last_global_state = None
-        self.latent_state.current_z = None
-        if self.use_latent_strategy:
-            self.latent_state.reset()
-        if v6i1_latent_payload:
-            from rl.custom_ppo.v6i1_phase_runtime import restore_latent_state_v6i1_checkpoint
-
-            restore_latent_state_v6i1_checkpoint(self.latent_state, v6i1_latent_payload)
-        if self.comm_runtime.enabled and "comm_runtime_state" in payload:
-            self.comm_runtime.load_state_dict(dict(payload.get("comm_runtime_state", {}) or {}))
-        self.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))
+        from rl.custom_ppo.checkpoints.loader import load_trainer_checkpoint
+        report = load_trainer_checkpoint(self, path)
         self.telemetry.emit_checkpoint_loaded(
             path=path,
-            duration_seconds=max(0.0, time.perf_counter() - start),
+            duration_seconds=report.total_seconds,
+            archive_read_duration=report.archive_read_seconds,
+            model_construction_duration=report.model_construction_seconds,
+            state_load_duration=report.state_load_seconds,
         )

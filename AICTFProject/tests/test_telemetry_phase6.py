@@ -26,7 +26,7 @@ from rl.custom_ppo.telemetry import (
     TrainingStarted,
     TrainingTelemetryAggregator,
 )
-from rl.custom_ppo.telemetry.errors import TelemetryValidationError
+from rl.custom_ppo.telemetry.errors import TelemetryValidationError, TelemetryConfigurationError
 from rl.custom_ppo.telemetry.gpu_monitor import build_gpu_monitor
 from rl.custom_ppo.telemetry.performance import (
     environment_transitions_per_second,
@@ -41,7 +41,8 @@ from rl.custom_ppo.telemetry.schemas import (
 )
 from rl.custom_ppo.telemetry.timing import PhaseTimer
 from rl.custom_ppo.telemetry.validation import EventOrderValidator, validate_event
-from rl.custom_ppo.telemetry.writers.json_writer import JSONLineEventWriter, event_to_record
+from rl.custom_ppo.telemetry.writers.json_writer import JSONLineEventWriter, envelope_to_record
+from rl.custom_ppo.telemetry.events import TelemetryEnvelope
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
@@ -78,14 +79,31 @@ class Phase6TelemetryModelTests(unittest.TestCase):
 
     def test_event_serialization_is_deterministic(self) -> None:
         event = _optimization_event()
-        first = json.dumps(event_to_record(event), sort_keys=True, separators=(",", ":"))
-        second = json.dumps(event_to_record(event), sort_keys=True, separators=(",", ":"))
+        envelope = TelemetryEnvelope(
+            schema_version=1,
+            event_type="OptimizationCompleted",
+            run_id="run",
+            sequence=1,
+            timestamp_seconds=123.456,
+            payload=event,
+        )
+        first = json.dumps(envelope_to_record(envelope), sort_keys=True, separators=(",", ":"))
+        second = json.dumps(envelope_to_record(envelope), sort_keys=True, separators=(",", ":"))
         self.assertEqual(first, second)
         self.assertIn('"event_type":"OptimizationCompleted"', first)
-        self.assertIn(f'"schema_version":{TRAINING_EVENTS_SCHEMA_VERSION}', first)
+        self.assertIn('"schema_version":1', first)
 
     def test_unavailable_metrics_remain_none(self) -> None:
-        record = event_to_record(_optimization_event())
+        event = _optimization_event()
+        envelope = TelemetryEnvelope(
+            schema_version=1,
+            event_type="OptimizationCompleted",
+            run_id="run",
+            sequence=1,
+            timestamp_seconds=123.456,
+            payload=event,
+        )
+        record = envelope_to_record(envelope)
         self.assertIsNone(record["payload"]["explained_variance"])
 
     def test_nan_and_inf_are_rejected(self) -> None:
@@ -108,7 +126,8 @@ class Phase6TelemetryModelTests(unittest.TestCase):
         self.assertEqual(coerce_telemetry_mode("off"), TrainingTelemetryMode.OFF)
         self.assertEqual(coerce_telemetry_mode("basic"), TrainingTelemetryMode.BASIC)
         self.assertEqual(coerce_telemetry_mode("full"), TrainingTelemetryMode.FULL)
-        self.assertEqual(coerce_telemetry_mode("unknown"), TrainingTelemetryMode.FULL)
+        with self.assertRaises(TelemetryConfigurationError):
+            coerce_telemetry_mode("unknown")
 
     def test_lifecycle_and_checkpoint_events_serialize(self) -> None:
         events = [
@@ -179,7 +198,15 @@ class Phase6TelemetryModelTests(unittest.TestCase):
             ),
         ]
         for event in events:
-            record = event_to_record(event)
+            envelope = TelemetryEnvelope(
+                schema_version=1,
+                event_type=type(event).__name__,
+                run_id="run",
+                sequence=1,
+                timestamp_seconds=123.456,
+                payload=event,
+            )
+            record = envelope_to_record(envelope)
             self.assertEqual(record["event_type"], type(event).__name__)
 
 
@@ -187,22 +214,47 @@ class Phase6TelemetrySinkTests(unittest.TestCase):
     def test_null_sink_does_not_mutate_training_event(self) -> None:
         event = _optimization_event()
         before = dataclasses.asdict(event)
-        NullTelemetrySink().emit(event)
+        envelope = TelemetryEnvelope(
+            schema_version=1,
+            event_type="OptimizationCompleted",
+            run_id="run",
+            sequence=1,
+            timestamp_seconds=123.456,
+            payload=event,
+        )
+        NullTelemetrySink().emit(envelope)
         self.assertEqual(dataclasses.asdict(event), before)
 
     def test_composite_sink_sends_identical_event_to_each_child(self) -> None:
         first = BufferedTelemetrySink()
         second = BufferedTelemetrySink()
         event = _optimization_event()
-        CompositeTelemetrySink([first, second]).emit(event)
-        self.assertIs(first.events[0], event)
-        self.assertIs(second.events[0], event)
+        envelope = TelemetryEnvelope(
+            schema_version=1,
+            event_type="OptimizationCompleted",
+            run_id="run",
+            sequence=1,
+            timestamp_seconds=123.456,
+            payload=event,
+        )
+        CompositeTelemetrySink([first, second]).emit(envelope)
+        self.assertIs(first.envelopes[0].payload, event)
+        self.assertIs(second.envelopes[0].payload, event)
 
     def test_jsonl_events_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "events.jsonl"
             writer = JSONLineEventWriter(str(path))
-            writer.emit(_optimization_event())
+            event = _optimization_event()
+            envelope = TelemetryEnvelope(
+                schema_version=1,
+                event_type="OptimizationCompleted",
+                run_id="run",
+                sequence=1,
+                timestamp_seconds=123.456,
+                payload=event,
+            )
+            writer.emit(envelope)
             writer.close()
             rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(rows[0]["event_type"], "OptimizationCompleted")
@@ -354,7 +406,7 @@ class Phase6TrainingInvarianceTests(unittest.TestCase):
     def test_basic_telemetry_preserves_tiny_training_state(self) -> None:
         from rl.train_ppo import train_ppo
 
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
             off_cfg = self._tiny_config(run_tag="telemetry_off", checkpoint_dir=td)
             basic_cfg = self._tiny_config(run_tag="telemetry_basic", checkpoint_dir=td)
             setattr(basic_cfg, "training_telemetry_mode", "basic")

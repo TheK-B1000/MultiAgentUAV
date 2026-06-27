@@ -146,6 +146,9 @@ class CheckpointSaved:
     checkpoint_size_bytes: Optional[int]
     parent_checkpoint_hash: Optional[str]
     preset_hash: Optional[str]
+    checkpoint_write_duration_seconds: Optional[float] = None
+    checkpoint_hash_duration_seconds: Optional[float] = None
+    checkpoint_total_duration_seconds: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -161,6 +164,13 @@ class CheckpointLoaded:
     migration_ids: Tuple[str, ...]
     behavioral_equivalence_result: Optional[str]
     device: str
+    archive_read_duration: Optional[float] = None
+    model_construction_duration: Optional[float] = None
+    state_load_duration: Optional[float] = None
+    migration_duration: Optional[float] = None
+    behavioral_equivalence_duration: Optional[float] = None
+    hash_duration: Optional[float] = None
+    total_duration: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -191,6 +201,16 @@ TelemetryEvent = Union[
 ]
 
 
+@dataclass(frozen=True)
+class TelemetryEnvelope:
+    schema_version: int
+    event_type: str
+    run_id: str
+    sequence: int
+    timestamp_seconds: float
+    payload: TelemetryEvent
+
+
 __all__ = [
     "CheckpointLoaded",
     "CheckpointSaved",
@@ -200,6 +220,7 @@ __all__ = [
     "PerformanceSample",
     "RolloutCompleted",
     "TelemetryEvent",
+    "TelemetryEnvelope",
     "TrainingCompleted",
     "TrainingFailed",
     "TrainingInterrupted",

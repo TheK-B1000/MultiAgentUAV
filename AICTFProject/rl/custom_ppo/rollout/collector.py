@@ -404,7 +404,15 @@ class RolloutCollector:
         helper for the per-step / per-stage detail.
         """
         import time
-        t_start = time.perf_counter()
+        detailed_timing = getattr(getattr(self, "telemetry", None), "detailed_timing_enabled", False)
+        cuda_sync = getattr(getattr(self, "telemetry", None), "cuda_synchronize_enabled", False)
+
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         self.env_step_time = 0.0
         self.policy_inf_time = 0.0
         self.trans_build_time = 0.0
@@ -427,7 +435,10 @@ class RolloutCollector:
                 expected_grid_channels=int(self.model.grid_shape[0]),
             )
         buffer = self.make_buffer(obs)
-        self.trans_build_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.trans_build_time += time.perf_counter() - t_start
 
         for step_idx in range(int(self.cfg.n_steps)):
             obs, global_state, context_state = self._step_once(
@@ -438,11 +449,18 @@ class RolloutCollector:
                 context_state=context_state,
             )
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
         self._finalize_buffer(buffer)
         runtime._last_obs = obs
         runtime._last_global_state = global_state
-        self.buffer_write_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.buffer_write_time += time.perf_counter() - t_start
         return buffer
 
     # ------------------------------------------------------------------
@@ -595,6 +613,9 @@ class RolloutCollector:
         latent housekeeping → E3 telemetry append.
         """
         import time
+        detailed_timing = getattr(getattr(self, "telemetry", None), "detailed_timing_enabled", False)
+        cuda_sync = getattr(getattr(self, "telemetry", None), "cuda_synchronize_enabled", False)
+
         runtime = self.runtime
         env = self.env
         comm = getattr(runtime, "comm_runtime", None)
@@ -602,7 +623,12 @@ class RolloutCollector:
 
         # V6I7: replace EMA context with raw global state + scheduler phase.
         is_v6i7 = self._is_v6i7_mode
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         if is_v6i7:
             raw_gs_t = torch.as_tensor(decision_global_state_np, dtype=torch.float32, device=self.device)
             context_state = self._v6i7_context(raw_gs_t)
@@ -619,9 +645,17 @@ class RolloutCollector:
             if comm is not None and comm.enabled
             else None
         )
-        self.trans_build_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.trans_build_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         with torch.no_grad():
             z_t, prev_z_t, strategy_aux = self.latent_state.strategy_for_step(context_state)
             message_aux = None
@@ -647,23 +681,47 @@ class RolloutCollector:
                 obs_t, context_state, z_idx=z_t
             )
             values_t = _denormalize_values(runtime, values_norm_t)
-        self.policy_inf_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.policy_inf_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         actions_np = actions_t.detach().cpu().numpy().astype(np.int64)
         beh_t, sb, rb, pb, adb, blue_ahead_t = self._pre_step_latent_telemetry(actions_t)
-        self.trans_build_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.trans_build_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         env.step_async(actions_np)
         next_obs, _rewards, dones, infos = env.step_wait()
         if comm is not None and comm.enabled:
             comm.advance_after_step(env.core)
             if bool(np.asarray(dones).any()):
                 comm.reset_env_indices(np.asarray(dones))
-        self.env_step_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.env_step_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         step_after = runtime.global_step + int(env.num_envs)
         z_np = z_t.detach().cpu().numpy() if z_t is not None else None
         self._handle_episode_dones(
@@ -673,19 +731,43 @@ class RolloutCollector:
             step_idx=step_idx,
             step_after=step_after,
         )
-        self.bookkeeping_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.bookkeeping_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         next_global_state = env.state().astype(np.float32)
-        self.trans_build_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.trans_build_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         next_values_t = self.next_values(
             infos, next_global_state, next_obs=next_obs, prev_z=z_t, dones=dones
         )
-        self.policy_inf_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.policy_inf_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         terminated = np.asarray(
             [bool(info.get("terminated", bool(done))) for info, done in zip(infos, dones)]
         )
@@ -757,17 +839,33 @@ class RolloutCollector:
             blue_ahead=blue_ahead_t,
             message_aux=message_aux,
         )
-        self.trans_build_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.trans_build_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         self.step_recorder.record(buffer, frame)
         if is_v6i7 and strategy_aux is not None:
             self._write_v6i7_step_fields(buffer, strategy_aux, terminated, truncated)
         if is_v6i7 and strategy_aux is not None:
             self._advance_gru_per_step(decision_global_state_np, terminated, truncated)
-        self.buffer_write_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.buffer_write_time += time.perf_counter() - t_start
 
-        t_start = time.perf_counter()
+        t_start = 0.0
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t_start = time.perf_counter()
+
         self._append_global_state_probe_rows(decision_global_state_np, infos)
         if self.hparams.latent_resample_on_flag:
             self._apply_flag_resample_trigger(context_state, next_global_state)
@@ -792,7 +890,10 @@ class RolloutCollector:
             blue_ahead_t=blue_ahead_t,
             context_state=context_state,
         )
-        self.trans_build_time += time.perf_counter() - t_start
+        if detailed_timing:
+            if cuda_sync and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            self.trans_build_time += time.perf_counter() - t_start
         return next_obs, next_global_state, next_context_state
 
     # ------------------------------------------------------------------

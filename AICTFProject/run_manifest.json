@@ -1,0 +1,17 @@
+{
+  "run_id": "run_interrupted",
+  "timestamp_seconds": 1782596212.549874,
+  "git_commit": "43ffe0c1520880234dc9493645180cd6d32daf61",
+  "git_status": "available_dirty",
+  "preset_hash": null,
+  "framework_versions": {
+    "python": "3.12.4 (tags/v3.12.4:8e8a4ba, Jun  6 2024, 19:30:16) [MSC v.1940 64 bit (AMD64)]",
+    "pytorch": "2.11.0+cu128",
+    "cuda": "12.8"
+  },
+  "gpu_model": null,
+  "checkpoint_lineage": {
+    "parent_checkpoint_hash": null
+  },
+  "schema_version": 1
+}

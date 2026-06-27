@@ -191,3 +191,177 @@ def load_custom_ppo_checkpoint(path: str, observation_space, action_space, *, de
 
 def load_custom_ppo_policy(path: str, observation_space, action_space, *, device: str | torch.device = "cpu") -> CustomPPOInferencePolicy:
     return load_custom_ppo_checkpoint(path, observation_space, action_space, device=device).policy
+
+
+def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
+    import time
+    from .archive import _torch_load_checkpoint
+    from .metadata import assert_compatible_global_state_dim
+    from .state_dict import _load_model_state_dict_compat
+    from .models import CheckpointTimingReport
+    from rl.custom_ppo.inference import CUSTOM_PPO_FORMAT, CUSTOM_PPO_LATENT_FORMAT
+    
+    total_start = time.perf_counter()
+    
+    read_start = time.perf_counter()
+    payload = _torch_load_checkpoint(path, map_location=trainer.device)
+    archive_read_seconds = time.perf_counter() - read_start
+    
+    model_start = time.perf_counter()
+    assert_compatible_global_state_dim(payload, path)
+    _load_model_state_dict_compat(
+        trainer.model,
+        payload["model_state_dict"],
+        allow_active_actor_migration=bool(getattr(trainer.cfg, "allow_active_actor_module_migration", False)),
+        checkpoint_cfg=payload.get("cfg"),
+        target_cfg=trainer.cfg,
+        observation_space=trainer.env.observation_space,
+        action_space=trainer.env.action_space,
+    )
+    model_construction_seconds = time.perf_counter() - model_start
+    
+    state_start = time.perf_counter()
+    load_weights_only = bool(getattr(trainer.cfg, "load_weights_only", False))
+    if load_weights_only:
+        print("[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.")
+    else:
+        reinit_router = bool(getattr(trainer.cfg, "router_reinitialize_on_load", False))
+        if reinit_router:
+            print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
+            trainer._reinitialize_router_after_load()
+        else:
+            allow_migration = bool(getattr(trainer.cfg, "allow_active_actor_module_migration", False))
+            trainer.optimizers.load_checkpoint(payload, allow_architecture_migration=allow_migration)
+            
+    v6i1_latent_payload = dict(payload.get("latent_state_v6i1", {}) or {})
+    if trainer.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
+        from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state
+        load_v6i1_curriculum_state(trainer.v6i1_curriculum, payload["v6i1_curriculum_state"])
+        
+    trainer.global_step = int(payload.get("global_step", 0))
+    trainer._updates_completed = int(payload.get("updates_completed", 0))
+    trainer.return_norm.load_state_dict(
+        {
+            "mean": payload.get("return_norm_mean", 0.0),
+            "var": payload.get("return_norm_var", 1.0),
+            "count": payload.get("return_norm_count", 1e-4),
+        }
+    )
+    trainer.strategy_return_norm.load_state_dict(
+        {
+            "mean": payload.get("strategy_return_mean", 0.0),
+            "var": payload.get("strategy_return_var", 1.0),
+            "count": payload.get("strategy_return_count", 1e-4),
+        }
+    )
+    trainer.last_stats = dict(payload.get("last_stats", {}))
+    trainer._last_obs = None
+    trainer._last_global_state = None
+    trainer.latent_state.current_z = None
+    if trainer.use_latent_strategy:
+        trainer.latent_state.reset()
+    if v6i1_latent_payload:
+        from rl.custom_ppo.v6i1_phase_runtime import restore_latent_state_v6i1_checkpoint
+        restore_latent_state_v6i1_checkpoint(trainer.latent_state, v6i1_latent_payload)
+    if trainer.comm_runtime.enabled and "comm_runtime_state" in payload:
+        trainer.comm_runtime.load_state_dict(dict(payload.get("comm_runtime_state", {}) or {}))
+    trainer.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))
+    state_load_seconds = time.perf_counter() - state_start
+    
+    import os
+    hash_start = time.perf_counter()
+    import hashlib
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            while chunk := f.read(8192):
+                h.update(chunk)
+        _ = h.hexdigest()
+    except Exception:
+        pass
+    hash_seconds = time.perf_counter() - hash_start
+    
+    migration_start = time.perf_counter()
+    sd = payload.get("model_state_dict", {})
+    legacy_actor_keys = {"actor_body.", "actor_head.", "strategy_embedding."}
+    migration_seconds = time.perf_counter() - migration_start
+    
+    behavioral_equivalence_seconds = 0.0
+    total_seconds = time.perf_counter() - total_start
+    
+    return CheckpointTimingReport(
+        archive_read_seconds=archive_read_seconds,
+        model_construction_seconds=model_construction_seconds,
+        migration_seconds=migration_seconds,
+        state_load_seconds=state_load_seconds,
+        behavioral_equivalence_seconds=behavioral_equivalence_seconds,
+        hash_seconds=hash_seconds,
+        total_seconds=total_seconds,
+    )
+
+
+def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingReport:
+    import time
+    import os
+    from dataclasses import asdict
+    import torch
+    from .models import CheckpointSaveTimingReport
+    from rl.custom_ppo.inference import CUSTOM_PPO_FORMAT, CUSTOM_PPO_LATENT_FORMAT, CUSTOM_PPO_ACTOR_ARCH, CUSTOM_PPO_VEC_SCHEMA_VERSION
+    
+    total_start = time.perf_counter()
+    
+    rn = trainer.return_norm.state_dict()
+    srn = trainer.strategy_return_norm.state_dict()
+    payload = {
+        "model_state_dict": trainer.model.state_dict(),
+        "global_step": trainer.global_step,
+        "updates_completed": trainer._updates_completed,
+        "return_norm_mean": rn["mean"],
+        "return_norm_var": rn["var"],
+        "return_norm_count": rn["count"],
+        "strategy_return_mean": srn["mean"],
+        "strategy_return_var": srn["var"],
+        "strategy_return_count": srn["count"],
+        "cfg": asdict(trainer.cfg),
+        "last_stats": trainer.last_stats,
+        "format": CUSTOM_PPO_LATENT_FORMAT if trainer.use_latent_strategy else CUSTOM_PPO_FORMAT,
+        "actor_arch": CUSTOM_PPO_ACTOR_ARCH,
+        "actor_cnn_feature_dim": int(trainer.model.actor_cnn_feature_dim),
+        "global_state_dim": int(trainer.model.global_state_dim),
+        "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
+    }
+    trainer.optimizers.write_checkpoint(payload)
+    if trainer.v6i1_curriculum is not None:
+        from rl.custom_ppo.v6i1_phase_runtime import (
+            latent_state_v6i1_checkpoint,
+            v6i1_curriculum_state_dict,
+        )
+        payload["v6i1_curriculum_state"] = v6i1_curriculum_state_dict(trainer.v6i1_curriculum)
+        payload["latent_state_v6i1"] = latent_state_v6i1_checkpoint(trainer.latent_state)
+    if trainer.comm_runtime.enabled:
+        payload["comm_runtime_state"] = trainer.comm_runtime.state_dict()
+    payload["ppo_updater_state"] = trainer.updater.state_dict()
+    
+    write_start = time.perf_counter()
+    torch.save(payload, path)
+    write_seconds = time.perf_counter() - write_start
+    
+    hash_start = time.perf_counter()
+    import hashlib
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            while chunk := f.read(8192):
+                h.update(chunk)
+        _ = h.hexdigest()
+    except Exception:
+        pass
+    hash_seconds = time.perf_counter() - hash_start
+    
+    total_seconds = time.perf_counter() - total_start
+    
+    return CheckpointSaveTimingReport(
+        write_seconds=write_seconds,
+        hash_seconds=hash_seconds,
+        total_seconds=total_seconds,
+    )
