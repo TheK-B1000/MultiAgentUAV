@@ -36,6 +36,13 @@ from rl.custom_ppo.inference import (
     load_custom_ppo_policy,
     read_custom_ppo_metadata,
 )
+from rl.custom_ppo.probe_result import (
+    PROBE_ERROR,
+    PROBE_SUCCESS,
+    CounterfactualProbeResult,
+    GradientProbeResult,
+    WeightProbeResult,
+)
 
 
 SUPPORTED_OPPONENTS = frozenset({"OP8", "OP9", "OP10"})
@@ -942,40 +949,36 @@ def _preflight_opponents(
             env.close()
 
 
-def inspect_obstacle_weights(policy: Any) -> dict[str, Any]:
-    weight = _conv0_weight(policy)
+def inspect_obstacle_weights(policy: Any) -> WeightProbeResult:
+    """Return typed weight inspection result via the public CNN contract."""
+    weight = _model(policy).get_cnn_input_weights()
     channels = int(weight.shape[1])
 
     if channels < 8:
-        return {
-            "has_obstacle_channel": False,
-            "cnn_channels": channels,
-            "obstacle_weight_l2": 0.0,
-            "obstacle_weight_abs_mean": 0.0,
-            "obstacle_weight_abs_max": 0.0,
-            "obstacle_weight_nonzero_fraction": 0.0,
-        }
+        return WeightProbeResult(
+            status=PROBE_SUCCESS,
+            has_obstacle_channel=False,
+            cnn_channels=channels,
+        )
 
     obstacle_weights = weight[:, 7].detach()
-    return {
-        "has_obstacle_channel": True,
-        "cnn_channels": channels,
-        "obstacle_weight_l2": float(
+    return WeightProbeResult(
+        status=PROBE_SUCCESS,
+        has_obstacle_channel=True,
+        cnn_channels=channels,
+        obstacle_weight_l2=float(
             torch.linalg.vector_norm(obstacle_weights).item()
         ),
-        "obstacle_weight_abs_mean": float(
+        obstacle_weight_abs_mean=float(
             obstacle_weights.abs().mean().item()
         ),
-        "obstacle_weight_abs_max": float(
+        obstacle_weight_abs_max=float(
             obstacle_weights.abs().max().item()
         ),
-        "obstacle_weight_nonzero_fraction": float(
-            (obstacle_weights.abs() > 0)
-            .float()
-            .mean()
-            .item()
+        obstacle_weight_nonzero_fraction=float(
+            (obstacle_weights.abs() > 0).float().mean().item()
         ),
-    }
+    )
 
 
 def gradient_probe(
@@ -985,7 +988,13 @@ def gradient_probe(
     map_name: str,
     opponent: str,
     n_agents: int,
-) -> dict[str, Any]:
+) -> GradientProbeResult:
+    """Measure gradient flow through CNN channel 7 via the public contract.
+
+    Uses ``model.get_distribution(obs, z_idx=zeros)`` with an explicit z=0
+    rather than duck-typed method discovery.  Returns a typed result — metric
+    fields are ``None`` (not zero) when the probe fails.
+    """
     env = _make_env(
         n_agents=n_agents,
         map_name=map_name,
@@ -996,60 +1005,54 @@ def gradient_probe(
     )
     model = _model(policy)
     was_training = model.training
-
     model.train()
     model.zero_grad(set_to_none=True)
 
     try:
         _set_opponent(env, opponent)
         obs = _reset_obs(env.reset())
-        obs_t = _to_torch(
-            obs,
-            _policy_device(policy, device),
-        )
+        obs_t = _to_torch(obs, _policy_device(policy, device))
 
-        logits = _extract_logits(
-            _distribution(policy, obs_t)
-        )
+        batch = int(obs_t["grid"].shape[0])
+        # Explicit z=0 — probe evaluates obstacle sensitivity at a fixed latent.
+        z_probe = torch.zeros(batch, dtype=torch.long, device=obs_t["grid"].device)
+        dist = model.get_distribution(obs_t, z_idx=z_probe)
 
         diagnostic_loss = sum(
-            tensor.softmax(dim=-1).square().mean()
-            for tensor in logits
+            head.logits.softmax(dim=-1).square().mean()
+            for head in dist.heads
         )
         diagnostic_loss.backward()
 
-        weight = _conv0_weight(policy)
+        weight = model.get_cnn_input_weights()
         if int(weight.shape[1]) < 8:
-            return {
-                "obstacle_gradient_l2": 0.0,
-                "error": "Candidate policy has fewer than 8 channels.",
-            }
+            return GradientProbeResult(
+                status=PROBE_ERROR,
+                error="Candidate policy has fewer than 8 CNN input channels.",
+            )
 
         if weight.grad is None:
-            return {
-                "obstacle_gradient_l2": 0.0,
-                "error": "First CNN convolution gradient is None.",
-            }
+            return GradientProbeResult(
+                status=PROBE_ERROR,
+                error="First CNN convolution gradient is None after backward().",
+            )
 
         obstacle_gradient = weight.grad[:, 7]
-        return {
-            "obstacle_gradient_l2": float(
-                torch.linalg.vector_norm(
-                    obstacle_gradient
-                ).item()
+        return GradientProbeResult(
+            status=PROBE_SUCCESS,
+            obstacle_gradient_l2=float(
+                torch.linalg.vector_norm(obstacle_gradient).item()
             ),
-            "obstacle_gradient_abs_mean": float(
+            obstacle_gradient_abs_mean=float(
                 obstacle_gradient.abs().mean().item()
             ),
-            "diagnostic_loss": float(
-                diagnostic_loss.detach().cpu().item()
-            ),
-        }
+            diagnostic_loss=float(diagnostic_loss.detach().cpu().item()),
+        )
     except Exception as exc:
-        return {
-            "obstacle_gradient_l2": 0.0,
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+        return GradientProbeResult(
+            status=PROBE_ERROR,
+            error=f"{type(exc).__name__}: {exc}",
+        )
     finally:
         model.zero_grad(set_to_none=True)
         model.train(was_training)
@@ -1064,7 +1067,13 @@ def obstacle_counterfactual(
     opponent: str,
     n_agents: int,
     steps: int,
-) -> dict[str, Any]:
+) -> CounterfactualProbeResult:
+    """Compare real vs. zeroed-obstacle-channel distributions via the public contract.
+
+    Uses ``model.get_distribution(obs, z_idx=zeros)`` with an explicit z=0.
+    Returns a typed result — metric fields are ``None`` (not zero) when the
+    probe fails, preventing silent conversion of exceptions into measurements.
+    """
     env = _make_env(
         n_agents=n_agents,
         map_name=map_name,
@@ -1087,113 +1096,76 @@ def obstacle_counterfactual(
         obs = _reset_obs(env.reset())
 
         for _ in range(steps):
-            obs_t = _to_torch(
-                obs,
-                _policy_device(policy, device),
-            )
-            zero_t, tensor_key = _zero_obstacle_channel(
-                obs_t
+            obs_t = _to_torch(obs, _policy_device(policy, device))
+            zero_t, tensor_key = _zero_obstacle_channel(obs_t)
+
+            batch = int(obs_t["grid"].shape[0])
+            # Explicit z=0 — probe evaluates at a fixed latent for both sides.
+            z_probe = torch.zeros(
+                batch, dtype=torch.long, device=obs_t["grid"].device
             )
 
             with torch.no_grad():
-                real_logits = _extract_logits(
-                    _distribution(policy, obs_t)
-                )
-                zero_logits = _extract_logits(
-                    _distribution(policy, zero_t)
-                )
+                real_dist = model.get_distribution(obs_t, z_idx=z_probe)
+                zero_dist = model.get_distribution(zero_t, z_idx=z_probe)
 
-            if len(real_logits) != len(zero_logits):
+            if len(real_dist.heads) != len(zero_dist.heads):
                 raise RuntimeError(
-                    "Distribution head count changed during the "
-                    "obstacle counterfactual."
+                    "Distribution head count changed during the obstacle counterfactual."
                 )
 
             per_head_kl = []
             per_head_l2 = []
 
-            for real, zero in zip(real_logits, zero_logits):
-                real_log_probability = real.log_softmax(dim=-1)
-                zero_log_probability = zero.log_softmax(dim=-1)
-
+            for real_head, zero_head in zip(real_dist.heads, zero_dist.heads):
+                real_lp = real_head.logits.log_softmax(dim=-1)
+                zero_lp = zero_head.logits.log_softmax(dim=-1)
                 per_head_kl.append(
-                    (
-                        real_log_probability.exp()
-                        * (
-                            real_log_probability
-                            - zero_log_probability
-                        )
-                    )
-                    .sum(dim=-1)
-                    .mean()
+                    (real_lp.exp() * (real_lp - zero_lp)).sum(dim=-1).mean()
                 )
                 per_head_l2.append(
                     torch.linalg.vector_norm(
-                        real - zero,
-                        dim=-1,
+                        real_head.logits - zero_head.logits, dim=-1
                     ).mean()
                 )
 
             kls.append(
-                float(
-                    torch.stack(per_head_kl)
-                    .mean()
-                    .detach()
-                    .cpu()
-                    .item()
-                )
+                float(torch.stack(per_head_kl).mean().detach().cpu().item())
             )
             l2_values.append(
-                float(
-                    torch.stack(per_head_l2)
-                    .mean()
-                    .detach()
-                    .cpu()
-                    .item()
-                )
+                float(torch.stack(per_head_l2).mean().detach().cpu().item())
             )
             change_rates.append(
                 _head_argmax_change_rate(
-                    real_logits,
-                    zero_logits,
+                    [h.logits for h in real_dist.heads],
+                    [h.logits for h in zero_dist.heads],
                 )
             )
 
             action = _predict(policy, obs)
-            obs, _, done, _ = _unpack_step(
-                env.step(action)
-            )
+            obs, _, done, _ = _unpack_step(env.step(action))
             if _done(done):
                 break
 
         if not kls:
-            raise RuntimeError(
-                "No counterfactual states were evaluated."
-            )
+            raise RuntimeError("No counterfactual states were evaluated.")
 
-        return {
-            "states_evaluated": len(kls),
-            "observation_tensor": tensor_key,
-            "mean_action_kl": float(np.mean(kls)),
-            "max_action_kl": float(np.max(kls)),
-            "mean_logit_l2": float(
-                np.mean(l2_values)
-            ),
-            "max_logit_l2": float(
-                np.max(l2_values)
-            ),
-            "argmax_action_change_rate": float(
-                np.mean(change_rates)
-            ),
-        }
+        return CounterfactualProbeResult(
+            status=PROBE_SUCCESS,
+            states_evaluated=len(kls),
+            observation_tensor=tensor_key,
+            mean_action_kl=float(np.mean(kls)),
+            max_action_kl=float(np.max(kls)),
+            mean_logit_l2=float(np.mean(l2_values)),
+            max_logit_l2=float(np.max(l2_values)),
+            argmax_action_change_rate=float(np.mean(change_rates)),
+        )
     except Exception as exc:
-        return {
-            "states_evaluated": len(kls),
-            "mean_action_kl": 0.0,
-            "mean_logit_l2": 0.0,
-            "argmax_action_change_rate": 0.0,
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+        return CounterfactualProbeResult(
+            status=PROBE_ERROR,
+            states_evaluated=len(kls),
+            error=f"{type(exc).__name__}: {exc}",
+        )
     finally:
         model.train(was_training)
         env.close()
@@ -1532,88 +1504,117 @@ def _improvement_gate(
     )
 
 
+def _gate_probe_weight(
+    result: WeightProbeResult,
+    threshold: float,
+) -> dict[str, Any]:
+    """Build a gate entry from a WeightProbeResult."""
+    if not result.is_success:
+        return {
+            "status": "ERROR",
+            "error": result.error,
+        }
+    value = result.obstacle_weight_l2
+    if value is None:
+        return {"status": "INCONCLUSIVE", "error": "weight L2 not measured"}
+    return {
+        "status": "PASS" if value > threshold else "FAIL",
+        "value": value,
+        "threshold": threshold,
+    }
+
+
+def _gate_probe_gradient(
+    result: GradientProbeResult,
+    threshold: float,
+) -> dict[str, Any]:
+    """Build a gate entry from a GradientProbeResult."""
+    if not result.is_success:
+        return {
+            "status": "ERROR",
+            "error": result.error,
+        }
+    value = result.obstacle_gradient_l2
+    if value is None:
+        return {"status": "INCONCLUSIVE", "error": "gradient L2 not measured"}
+    return {
+        "status": "PASS" if value > threshold else "FAIL",
+        "value": value,
+        "threshold": threshold,
+    }
+
+
+def _gate_probe_counterfactual(
+    result: CounterfactualProbeResult,
+    action_threshold: float,
+    kl_threshold: float,
+) -> dict[str, Any]:
+    """Build a gate entry from a CounterfactualProbeResult.
+
+    Distinguishes four statuses:
+      PASS         — meets either threshold (strong sensitivity)
+      WARN         — measurably nonzero but below both thresholds
+      FAIL         — effectively zero (channel ignored)
+      ERROR/INCONCLUSIVE — probe did not execute correctly
+    """
+    if not result.is_success:
+        return {
+            "status": "ERROR",
+            "error": result.error,
+            "states_evaluated": result.states_evaluated,
+        }
+    action_change = result.argmax_action_change_rate
+    mean_kl = result.mean_action_kl
+    mean_l2 = result.mean_logit_l2
+    if action_change is None or mean_kl is None:
+        return {
+            "status": "INCONCLUSIVE",
+            "error": "counterfactual metrics not measured",
+            "states_evaluated": result.states_evaluated,
+        }
+    if action_change >= action_threshold or mean_kl >= kl_threshold:
+        status = "PASS"
+    elif mean_l2 is not None and mean_l2 > 1e-3:
+        # Logits changed but not enough to shift the action distribution:
+        # model reads the channel weakly — not a dead channel.
+        status = "WARN"
+    else:
+        status = "FAIL"
+    return {
+        "status": status,
+        "argmax_change_rate": action_change,
+        "argmax_change_threshold": action_threshold,
+        "mean_action_kl": mean_kl,
+        "kl_threshold": kl_threshold,
+        "mean_logit_l2": mean_l2,
+        "states_evaluated": result.states_evaluated,
+    }
+
+
 def build_summary(
     args: argparse.Namespace,
     probe: Mapping[str, Any],
     episodes: Sequence[Mapping[str, Any]],
     conditions: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
-    candidate_weights = probe["candidate_weights"]
-    candidate_gradient = probe["candidate_gradient"]
-    candidate_counterfactual = probe[
+    candidate_weights: WeightProbeResult = probe["candidate_weights"]
+    candidate_gradient: GradientProbeResult = probe["candidate_gradient"]
+    candidate_counterfactual: CounterfactualProbeResult = probe[
         "candidate_counterfactual"
     ]
 
-    weight_l2 = float(
-        candidate_weights.get(
-            "obstacle_weight_l2",
-            0.0,
-        )
-        or 0.0
-    )
-    gradient_l2 = float(
-        candidate_gradient.get(
-            "obstacle_gradient_l2",
-            0.0,
-        )
-        or 0.0
-    )
-    action_change = float(
-        candidate_counterfactual.get(
-            "argmax_action_change_rate",
-            0.0,
-        )
-        or 0.0
-    )
-    mean_kl = float(
-        candidate_counterfactual.get(
-            "mean_action_kl",
-            0.0,
-        )
-        or 0.0
-    )
-
     gates: dict[str, Any] = {
-        "obstacle_weights_moved": {
-            "status": (
-                "PASS"
-                if weight_l2 > args.obs_weight_threshold
-                else "FAIL"
-            ),
-            "value": weight_l2,
-            "threshold": args.obs_weight_threshold,
-        },
-        "obstacle_gradient_connected": {
-            "status": (
-                "PASS"
-                if gradient_l2 > args.gradient_threshold
-                else "FAIL"
-            ),
-            "value": gradient_l2,
-            "threshold": args.gradient_threshold,
-            "error": candidate_gradient.get("error"),
-        },
-        "obstacle_counterfactual_effect": {
-            "status": (
-                "PASS"
-                if (
-                    action_change
-                    >= args.counterfactual_action_threshold
-                    or mean_kl
-                    >= args.counterfactual_kl_threshold
-                )
-                else "FAIL"
-            ),
-            "argmax_change_rate": action_change,
-            "argmax_change_threshold": (
-                args.counterfactual_action_threshold
-            ),
-            "mean_action_kl": mean_kl,
-            "kl_threshold": (
-                args.counterfactual_kl_threshold
-            ),
-            "error": candidate_counterfactual.get("error"),
-        },
+        "obstacle_weights_moved": _gate_probe_weight(
+            candidate_weights, args.obs_weight_threshold
+        ),
+        "obstacle_gradient_connected": _gate_probe_gradient(
+            candidate_gradient, args.gradient_threshold
+        ),
+        "obstacle_counterfactual_effect": _gate_probe_counterfactual(
+            candidate_counterfactual,
+            args.counterfactual_action_threshold,
+            args.counterfactual_kl_threshold,
+        ),
     }
 
     baseline_obstacle_rows = _policy_rows(
@@ -1790,20 +1791,18 @@ def build_summary(
         "saturation_threshold": args.saturation_win_rate,
     }
 
-    statuses = [
-        gate["status"]
-        for gate in gates.values()
-    ]
+    statuses = [gate["status"] for gate in gates.values()]
 
-    if all(status == "PASS" for status in statuses):
-        verdict = "READY FOR STAGE B"
-    elif any(status == "FAIL" for status in statuses):
+    if any(s == "ERROR" for s in statuses):
+        verdict = "NOT READY FOR STAGE B — PROBE ERROR (see gate details)"
+    elif any(s == "FAIL" for s in statuses):
         verdict = "NOT READY FOR STAGE B"
+    elif all(s == "PASS" for s in statuses):
+        verdict = "READY FOR STAGE B"
+    elif any(s == "WARN" for s in statuses):
+        verdict = "BEHAVIORAL SENSITIVITY WEAK — REVIEW BEFORE PROCEEDING"
     else:
-        verdict = (
-            "INCONCLUSIVE: ADD MISSING TELEMETRY "
-            "OR MORE EPISODES"
-        )
+        verdict = "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
 
     return {
         "verdict": verdict,
@@ -2125,13 +2124,9 @@ def main() -> None:
     print("... candidate loaded.")
 
     print("Running obstacle probes...")
-    probe = {
-        "baseline_weights": inspect_obstacle_weights(
-            baseline_policy
-        ),
-        "candidate_weights": inspect_obstacle_weights(
-            candidate_policy
-        ),
+    probe: dict[str, Any] = {
+        "baseline_weights": inspect_obstacle_weights(baseline_policy),
+        "candidate_weights": inspect_obstacle_weights(candidate_policy),
         "candidate_gradient": gradient_probe(
             candidate_policy,
             device=args.device,
@@ -2148,13 +2143,13 @@ def main() -> None:
             steps=args.counterfactual_steps,
         ),
     }
-    (
-        output_directory / "obstacle_probe.json"
-    ).write_text(
-        json.dumps(
-            _json_safe(probe),
-            indent=2,
-        ),
+    # Serialize typed probe results via their to_json_dict() methods.
+    probe_json = {
+        k: v.to_json_dict() if hasattr(v, "to_json_dict") else v
+        for k, v in probe.items()
+    }
+    (output_directory / "obstacle_probe.json").write_text(
+        json.dumps(_json_safe(probe_json), indent=2),
         encoding="utf-8",
     )
     print("... obstacle probes complete.")

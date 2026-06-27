@@ -199,6 +199,9 @@ def _migrate_legacy_aliased_strategy_modules(
     return out
 
 
+from rl.custom_ppo.distributions import ActionHead, MultiHeadActionDistribution  # noqa: E402
+
+
 class SharedActorCentralizedCritic(nn.Module):
     """Shared decentralized actor with an optional latent team strategy."""
 
@@ -1088,6 +1091,44 @@ class SharedActorCentralizedCritic(nn.Module):
         if int(per_agent_logits.shape[-1]) == 0:
             raise AssertionError("latent_actor produced zero-width logits; check action_dim wiring")
         return per_agent_logits.reshape(batch, self.n_agents * self.per_agent_logits)
+
+    def get_distribution(
+        self,
+        obs: Dict[str, torch.Tensor],
+        *,
+        z_idx: Optional[torch.Tensor] = None,
+    ) -> MultiHeadActionDistribution:
+        """Return per-action-head logit distribution (public PolicyInferenceContract).
+
+        When ``uses_latent_strategy`` is True, ``z_idx`` is **required**.
+        Probe code that intentionally evaluates under z=0 must construct and
+        pass the tensor explicitly — no silent defaults here.
+
+        Raises
+        ------
+        ValueError
+            If the model uses latent strategy and ``z_idx`` is ``None``.
+        """
+        if self.uses_latent_strategy and z_idx is None:
+            raise ValueError(
+                "get_distribution() requires explicit z_idx when the model uses latent "
+                "strategy.  For gradient/counterfactual probes at z=0, construct the "
+                "tensor explicitly:\n"
+                "    z_idx = torch.zeros(batch, dtype=torch.long, device=obs['grid'].device)"
+            )
+        flat = self.policy_logits(obs, z_idx=z_idx)
+        heads = torch.split(flat, list(self.action_dims), dim=-1)
+        return MultiHeadActionDistribution([ActionHead(h) for h in heads])
+
+    def get_cnn_input_weights(self) -> torch.Tensor:
+        """Return the first CNN conv-layer weight tensor.
+
+        Shape: ``(out_channels, in_channels, kH, kW)``.
+
+        Public alternative to the legacy private path
+        ``model.actor_cnn.conv[0].weight`` used in probe code.
+        """
+        return self.actor_cnn.conv[0].weight
 
     def policy_trunk_features(
         self, obs: Dict[str, torch.Tensor], z_idx: Optional[torch.Tensor] = None

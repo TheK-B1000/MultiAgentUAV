@@ -989,6 +989,63 @@ class CustomPPOInferencePolicy:
             batched[key] = arr
         return batched
 
+    # ------------------------------------------------------------------
+    # Public PolicyInferenceContract surface
+    # ------------------------------------------------------------------
+
+    def get_cnn_input_weights(self) -> torch.Tensor:
+        """Return the first CNN conv-layer weight tensor.
+
+        Shape: ``(out_channels, in_channels, kH, kW)``.
+
+        Public alternative to the private path
+        ``policy.model.actor_cnn.conv[0].weight``.
+        """
+        return self.model.get_cnn_input_weights()
+
+    def get_distribution(
+        self,
+        obs: "Dict[str, Any]",
+        *,
+        z_idx: Optional[torch.Tensor] = None,
+    ) -> "MultiHeadActionDistribution":
+        """Return per-head logit distribution using the wrapper's z-selection state.
+
+        Unlike ``SharedActorCentralizedCritic.get_distribution``, this method
+        does **not** require an explicit ``z_idx`` — the wrapper selects z
+        using its internal fixed/router state (same logic as ``predict()``).
+
+        If ``z_idx`` is provided it is forwarded directly to the model,
+        bypassing the wrapper's internal selection.  This is intended for
+        targeted probe use (e.g. force z=0 for a gradient probe).
+        """
+        from rl.custom_ppo.distributions import MultiHeadActionDistribution  # local to avoid circular
+
+        if isinstance(obs, dict) and obs and isinstance(next(iter(obs.values())), np.ndarray):
+            batched = self._batched_obs(obs)
+            obs_t: Dict[str, torch.Tensor] = self._tensor_obs(batched)
+        else:
+            obs_t = obs  # already tensors
+
+        if z_idx is not None:
+            with torch.no_grad():
+                return self.model.get_distribution(obs_t, z_idx=z_idx)
+
+        if not self.model.uses_latent_strategy:
+            with torch.no_grad():
+                return self.model.get_distribution(obs_t)
+
+        # Use the wrapper's internal z selection (same as predict()).
+        batch = int(obs_t["grid"].shape[0])
+        if self._prev_z is None or self._prev_z.numel() != batch:
+            current_z = torch.zeros(batch, dtype=torch.long, device=self.device)
+        else:
+            current_z = self._prev_z.clone()
+        with torch.no_grad():
+            return self.model.get_distribution(obs_t, z_idx=current_z)
+
+    # ------------------------------------------------------------------
+
     def predict(
         self,
         obs: Dict[str, np.ndarray],
