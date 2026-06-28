@@ -1,0 +1,89 @@
+{
+  "status": "PASS",
+  "baseline_summary": "component_benchmark_summary_baseline.json",
+  "current_summary": "component_benchmark_summary_current.json",
+  "combined_samples": "component_benchmark_samples.csv",
+  "comparison": [
+    {
+      "env_count": 16,
+      "component": "checkpoint_load",
+      "baseline_median_seconds": 0.1716450999956578,
+      "current_median_seconds": 0.2647374000007403,
+      "current_vs_baseline_change_percent": 54.235,
+      "signal": "REGRESSED_GT_10_PERCENT"
+    },
+    {
+      "env_count": 16,
+      "component": "complete_optimization_phase",
+      "baseline_median_seconds": 0.41549539999687113,
+      "current_median_seconds": 0.3538860000044224,
+      "current_vs_baseline_change_percent": -14.828,
+      "signal": "IMPROVED_GT_10_PERCENT"
+    },
+    {
+      "env_count": 16,
+      "component": "complete_rollout",
+      "baseline_median_seconds": 17.325558799995633,
+      "current_median_seconds": 15.728937899999437,
+      "current_vs_baseline_change_percent": -9.215,
+      "signal": "NEUTRAL"
+    },
+    {
+      "env_count": 16,
+      "component": "environment_build",
+      "baseline_median_seconds": 0.027269300000625663,
+      "current_median_seconds": 0.028707500001473818,
+      "current_vs_baseline_change_percent": 5.274,
+      "signal": "NEUTRAL"
+    },
+    {
+      "env_count": 16,
+      "component": "trainer_build",
+      "baseline_median_seconds": 0.1992305000021588,
+      "current_median_seconds": 0.08927109999785898,
+      "current_vs_baseline_change_percent": -55.192,
+      "signal": "IMPROVED_GT_10_PERCENT"
+    },
+    {
+      "env_count": 64,
+      "component": "checkpoint_load",
+      "baseline_median_seconds": 0.13387569999758853,
+      "current_median_seconds": 0.2514744000000064,
+      "current_vs_baseline_change_percent": 87.842,
+      "signal": "REGRESSED_GT_10_PERCENT"
+    },
+    {
+      "env_count": 64,
+      "component": "complete_optimization_phase",
+      "baseline_median_seconds": 1.064323599995987,
+      "current_median_seconds": 0.9812239000020782,
+      "current_vs_baseline_change_percent": -7.808,
+      "signal": "NEUTRAL"
+    },
+    {
+      "env_count": 64,
+      "component": "complete_rollout",
+      "baseline_median_seconds": 22.626299800002016,
+      "current_median_seconds": 21.64737420000165,
+      "current_vs_baseline_change_percent": -4.326,
+      "signal": "NEUTRAL"
+    },
+    {
+      "env_count": 64,
+      "component": "environment_build",
+      "baseline_median_seconds": 0.01825490000192076,
+      "current_median_seconds": 0.020326999998360407,
+      "current_vs_baseline_change_percent": 11.351,
+      "signal": "REGRESSED_GT_10_PERCENT"
+    },
+    {
+      "env_count": 64,
+      "component": "trainer_build",
+      "baseline_median_seconds": 0.0812011000016355,
+      "current_median_seconds": 0.08062049999716692,
+      "current_vs_baseline_change_percent": -0.715,
+      "signal": "NEUTRAL"
+    }
+  ],
+  "interpretation": "Positive percent means current is slower. Component benchmark isolates trainer construction, checkpoint load, complete rollout, and complete optimization phase; finer sub-components remain future profiler work."
+}

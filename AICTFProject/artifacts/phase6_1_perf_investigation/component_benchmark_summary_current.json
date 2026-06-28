@@ -1,0 +1,80 @@
+{
+  "label": "current",
+  "device": "cuda",
+  "checkpoint": "checkpoints\\2v2\\ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip",
+  "map_layout": "map_b_split_lane",
+  "opponent": "OP9",
+  "samples": 3,
+  "results": [
+    {
+      "env_count": 16,
+      "component": "checkpoint_load",
+      "median_duration_seconds": 0.2647374000007403,
+      "mean_duration_seconds": 0.27001496666586416,
+      "samples": 3
+    },
+    {
+      "env_count": 16,
+      "component": "complete_optimization_phase",
+      "median_duration_seconds": 0.3538860000044224,
+      "mean_duration_seconds": 0.3985478666678925,
+      "samples": 3
+    },
+    {
+      "env_count": 16,
+      "component": "complete_rollout",
+      "median_duration_seconds": 15.728937899999437,
+      "mean_duration_seconds": 15.824333933332431,
+      "samples": 3
+    },
+    {
+      "env_count": 16,
+      "component": "environment_build",
+      "median_duration_seconds": 0.028707500001473818,
+      "mean_duration_seconds": 0.0572951000018899,
+      "samples": 3
+    },
+    {
+      "env_count": 16,
+      "component": "trainer_build",
+      "median_duration_seconds": 0.08927109999785898,
+      "mean_duration_seconds": 0.6495373666669669,
+      "samples": 3
+    },
+    {
+      "env_count": 64,
+      "component": "checkpoint_load",
+      "median_duration_seconds": 0.2514744000000064,
+      "mean_duration_seconds": 0.3197432999998758,
+      "samples": 3
+    },
+    {
+      "env_count": 64,
+      "component": "complete_optimization_phase",
+      "median_duration_seconds": 0.9812239000020782,
+      "mean_duration_seconds": 0.999930799996946,
+      "samples": 3
+    },
+    {
+      "env_count": 64,
+      "component": "complete_rollout",
+      "median_duration_seconds": 21.64737420000165,
+      "mean_duration_seconds": 21.269285799998517,
+      "samples": 3
+    },
+    {
+      "env_count": 64,
+      "component": "environment_build",
+      "median_duration_seconds": 0.020326999998360407,
+      "mean_duration_seconds": 0.020571299998361308,
+      "samples": 3
+    },
+    {
+      "env_count": 64,
+      "component": "trainer_build",
+      "median_duration_seconds": 0.08062049999716692,
+      "mean_duration_seconds": 0.08113173333307107,
+      "samples": 3
+    }
+  ]
+}

@@ -23,12 +23,15 @@ correct.
 
 Test groups
 -----------
-A  Package structure (4 tests)           — torch-free (file existence only)
-B  Individual module imports (13 tests)  — requires torch (gpu_env __init__ → torch)
-C  Mixin class presence (12 tests)       — requires torch
-D  Method coverage (12 tests)            — requires torch
-E  Facade composition (4 tests)          — torch-free AST checks on _state.py
-F  _StateMixin MRO coverage (3 tests)    — requires torch (runtime class hierarchy)
+A  Package structure (4 tests)               — torch-free (file existence only)
+B  Individual module imports (13 tests)      — requires torch (gpu_env __init__ → torch)
+C  Mixin class presence (12 tests)           — requires torch
+D  Method coverage (12 tests)               — requires torch
+E  Facade composition (4 tests)             — torch-free AST checks on _state.py
+F  _StateMixin MRO coverage (3 tests)       — requires torch (runtime class hierarchy)
+G  AST duplicate-method scanner (3 tests)   — torch-free; no silent MRO shadowing
+H  MRO surface contract (4 tests)           — requires torch; exact MRO + callable surface
+I  Behavioral equivalence skeleton (4 tests)— requires torch; reset/spawn invariants
 """
 
 from __future__ import annotations
@@ -64,6 +67,11 @@ def _skipif_no_torch(test_fn):
 
 
 _STATE_DIR = pathlib.Path(__file__).parent.parent / "gpu_env" / "state"
+_STATE_MODULES = [
+    "models.py", "allocation.py", "agent_state.py", "team_state.py",
+    "flag_state.py", "episode_state.py", "map_state.py", "opponent_state.py",
+    "telemetry_state.py", "scratch.py", "validation.py", "snapshots.py",
+]
 _CORE_STATE_PATH = pathlib.Path(__file__).parent.parent / "gpu_env" / "_core" / "_state.py"
 
 _EXPECTED_FILES = [
@@ -476,6 +484,254 @@ class TestMROCoverage(unittest.TestCase):
             missing,
             [],
             f"_StateMixin MRO is missing sub-mixins: {[c.__name__ for c in missing]}",
+        )
+
+
+# ============================================================
+# Group G: AST duplicate-method scanner (torch-free)
+# ============================================================
+
+class TestASTDuplicateMethodScanner(unittest.TestCase):
+    """No method name may appear in more than one sub-mixin (first match silently wins in MRO)."""
+
+    def _methods_per_module(self) -> dict[str, set[str]]:
+        """Return {module_stem: set_of_method_names} parsed via AST."""
+        result: dict[str, set[str]] = {}
+        for mod_file in _STATE_MODULES:
+            path = _STATE_DIR / mod_file
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            methods: set[str] = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    for item in node.body:
+                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                            methods.add(item.name)
+            result[mod_file[:-3]] = methods
+        return result
+
+    def test_no_duplicate_method_names_across_mixins(self):
+        """No method name should be defined in more than one sub-mixin source file."""
+        methods_per_module = self._methods_per_module()
+        seen: dict[str, str] = {}
+        duplicates: dict[str, list[str]] = {}
+        for mod_stem, methods in methods_per_module.items():
+            for name in methods:
+                if name in seen:
+                    if name not in duplicates:
+                        duplicates[name] = [seen[name]]
+                    duplicates[name].append(mod_stem)
+                else:
+                    seen[name] = mod_stem
+        self.assertEqual(
+            duplicates,
+            {},
+            f"Duplicate method names across sub-mixins (first MRO match silently shadows later ones): {duplicates}",
+        )
+
+    def test_each_module_defines_exactly_one_class(self):
+        """Each state sub-module must define exactly one mixin class."""
+        for mod_file in _STATE_MODULES:
+            path = _STATE_DIR / mod_file
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            classes = [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
+            self.assertEqual(
+                len(classes),
+                1,
+                f"{mod_file} defines {len(classes)} class(es); expected exactly 1",
+            )
+
+    def test_mixin_class_names_end_with_mixin(self):
+        """Every class defined in a sub-module must have a name ending with 'Mixin'."""
+        for mod_file in _STATE_MODULES:
+            path = _STATE_DIR / mod_file
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    self.assertTrue(
+                        node.name.endswith("Mixin"),
+                        f"{mod_file}: class {node.name!r} does not end with 'Mixin'",
+                    )
+
+
+# ============================================================
+# Group H: MRO surface contract (requires torch)
+# ============================================================
+
+class TestMROContract(unittest.TestCase):
+    """Exact MRO order and callable-surface completeness for _StateMixin."""
+
+    @_skipif_no_torch
+    def test_exact_mro_preserves_declared_base_order(self):
+        """Bases declared in _state.py must appear in the same relative order in __mro__."""
+        from gpu_env._core._state import _StateMixin
+        from gpu_env.state.models import _CoreStateMixin
+        from gpu_env.state.allocation import _AllocationMixin
+        from gpu_env.state.agent_state import _AgentStateMixin
+        from gpu_env.state.team_state import _TeamStateMixin
+        from gpu_env.state.flag_state import _FlagStateMixin
+        from gpu_env.state.episode_state import _EpisodeStateMixin
+        from gpu_env.state.map_state import _MapStateMixin
+        from gpu_env.state.opponent_state import _OpponentStateMixin
+        from gpu_env.state.telemetry_state import _TelemetryStateMixin
+        from gpu_env.state.scratch import _ScratchStateMixin
+        from gpu_env.state.validation import _ValidationMixin
+        from gpu_env.state.snapshots import _SnapshotsMixin
+        declared_order = [
+            _StateMixin, _CoreStateMixin, _AllocationMixin, _AgentStateMixin,
+            _TeamStateMixin, _FlagStateMixin, _EpisodeStateMixin, _MapStateMixin,
+            _OpponentStateMixin, _TelemetryStateMixin, _ScratchStateMixin,
+            _ValidationMixin, _SnapshotsMixin,
+        ]
+        mro = _StateMixin.__mro__
+        positions = []
+        for cls in declared_order:
+            self.assertIn(cls, mro, f"{cls.__name__} missing from _StateMixin.__mro__")
+            positions.append(mro.index(cls))
+        self.assertEqual(
+            positions,
+            sorted(positions),
+            "MRO positions don't match declared base-class order in _state.py",
+        )
+
+    @_skipif_no_torch
+    def test_no_runtime_duplicate_callables_across_mixins(self):
+        """No callable name should appear in more than one sub-mixin's own __dict__."""
+        from gpu_env.state.models import _CoreStateMixin
+        from gpu_env.state.allocation import _AllocationMixin
+        from gpu_env.state.agent_state import _AgentStateMixin
+        from gpu_env.state.team_state import _TeamStateMixin
+        from gpu_env.state.flag_state import _FlagStateMixin
+        from gpu_env.state.episode_state import _EpisodeStateMixin
+        from gpu_env.state.map_state import _MapStateMixin
+        from gpu_env.state.opponent_state import _OpponentStateMixin
+        from gpu_env.state.telemetry_state import _TelemetryStateMixin
+        from gpu_env.state.scratch import _ScratchStateMixin
+        from gpu_env.state.validation import _ValidationMixin
+        from gpu_env.state.snapshots import _SnapshotsMixin
+        mixins = [
+            _CoreStateMixin, _AllocationMixin, _AgentStateMixin, _TeamStateMixin,
+            _FlagStateMixin, _EpisodeStateMixin, _MapStateMixin, _OpponentStateMixin,
+            _TelemetryStateMixin, _ScratchStateMixin, _ValidationMixin, _SnapshotsMixin,
+        ]
+        seen: dict[str, str] = {}
+        duplicates: dict[str, list[str]] = {}
+        for mixin in mixins:
+            for name, val in vars(mixin).items():
+                if callable(val) and not name.startswith("__"):
+                    if name in seen:
+                        if name not in duplicates:
+                            duplicates[name] = [seen[name]]
+                        duplicates[name].append(mixin.__name__)
+                    else:
+                        seen[name] = mixin.__name__
+        self.assertEqual(
+            duplicates,
+            {},
+            f"Runtime duplicate callables across sub-mixins: {duplicates}",
+        )
+
+    @_skipif_no_torch
+    def test_state_mixin_exposes_all_sub_mixin_callables(self):
+        """Every callable defined in a sub-mixin must be accessible via _StateMixin."""
+        from gpu_env._core._state import _StateMixin
+        from gpu_env.state.models import _CoreStateMixin
+        from gpu_env.state.allocation import _AllocationMixin
+        from gpu_env.state.agent_state import _AgentStateMixin
+        from gpu_env.state.team_state import _TeamStateMixin
+        from gpu_env.state.flag_state import _FlagStateMixin
+        from gpu_env.state.episode_state import _EpisodeStateMixin
+        from gpu_env.state.map_state import _MapStateMixin
+        from gpu_env.state.opponent_state import _OpponentStateMixin
+        from gpu_env.state.telemetry_state import _TelemetryStateMixin
+        from gpu_env.state.scratch import _ScratchStateMixin
+        from gpu_env.state.validation import _ValidationMixin
+        from gpu_env.state.snapshots import _SnapshotsMixin
+        mixins = [
+            _CoreStateMixin, _AllocationMixin, _AgentStateMixin, _TeamStateMixin,
+            _FlagStateMixin, _EpisodeStateMixin, _MapStateMixin, _OpponentStateMixin,
+            _TelemetryStateMixin, _ScratchStateMixin, _ValidationMixin, _SnapshotsMixin,
+        ]
+        state_mixin_dir = set(dir(_StateMixin))
+        missing = [
+            f"{mixin.__name__}.{name}"
+            for mixin in mixins
+            for name, val in vars(mixin).items()
+            if callable(val) and not name.startswith("__") and name not in state_mixin_dir
+        ]
+        self.assertEqual(missing, [], f"_StateMixin missing sub-mixin callables: {missing}")
+
+    @_skipif_no_torch
+    def test_required_public_api_present(self):
+        """Key public methods that external callers use must be on _StateMixin."""
+        from gpu_env._core._state import _StateMixin
+        required = [
+            "reset_all", "reset_indices", "reseed",
+            "set_phase", "set_league_mode", "set_stress_schedule",
+            "set_next_opponent", "get_opponent_key", "set_dynamics_config",
+        ]
+        missing = [m for m in required if not hasattr(_StateMixin, m)]
+        self.assertEqual(missing, [], f"_StateMixin missing required public methods: {missing}")
+
+
+# ============================================================
+# Group I: Behavioral equivalence skeleton (requires torch)
+# ============================================================
+
+class TestBehavioralEquivalence(unittest.TestCase):
+    """Basic reset/spawn invariants that hold regardless of map layout or opponent config."""
+
+    @_skipif_no_torch
+    def test_reset_all_zeroes_step_count(self):
+        """After reset_all, step_count must be 0 for every env."""
+        import torch
+        from gpu_env import GPUFieldConfig, BatchedCTFCore
+        env = BatchedCTFCore(n_envs=2, cfg=GPUFieldConfig(), device="cpu")
+        env.reset_all()
+        self.assertTrue(
+            (env.step_count == 0).all(),
+            f"step_count non-zero after reset_all: {env.step_count}",
+        )
+
+    @_skipif_no_torch
+    def test_reset_all_clears_done_flags(self):
+        """After reset_all, episode-done flags must be False for every env."""
+        from gpu_env import GPUFieldConfig, BatchedCTFCore
+        env = BatchedCTFCore(n_envs=2, cfg=GPUFieldConfig(), device="cpu")
+        env.reset_all()
+        for attr in ("ep_done", "done_blue", "done_red"):
+            if hasattr(env, attr):
+                val = getattr(env, attr)
+                self.assertFalse(val.any(), f"{attr} is True after reset_all")
+
+    @_skipif_no_torch
+    def test_partial_reset_leaves_unselected_envs_unchanged(self):
+        """reset_indices([0]) must not alter blue_pos[1] in a 2-env batch."""
+        import torch
+        from gpu_env import GPUFieldConfig, BatchedCTFCore
+        env = BatchedCTFCore(n_envs=2, cfg=GPUFieldConfig(), device="cpu")
+        env.reset_all()
+        pos_before = env.blue_pos[1].clone()
+        env.reset_indices([0])
+        self.assertTrue(
+            torch.allclose(pos_before, env.blue_pos[1]),
+            "reset_indices([0]) changed blue_pos[1] in a 2-env batch",
+        )
+
+    @_skipif_no_torch
+    def test_same_seed_produces_same_spawns(self):
+        """Two BatchedCTFCore instances with identical seeds must spawn at identical positions."""
+        import torch
+        from gpu_env import GPUFieldConfig, BatchedCTFCore
+        cfg = GPUFieldConfig()
+        env_a = BatchedCTFCore(n_envs=1, cfg=cfg, device="cpu")
+        env_b = BatchedCTFCore(n_envs=1, cfg=cfg, device="cpu")
+        env_a.reseed(0)
+        env_b.reseed(0)
+        env_a.reset_all()
+        env_b.reset_all()
+        self.assertTrue(
+            torch.allclose(env_a.blue_pos, env_b.blue_pos),
+            "Same seed produced different blue_pos after reset_all",
         )
 
 

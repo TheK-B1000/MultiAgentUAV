@@ -64,14 +64,15 @@
 
   "test_results": {
     "environment": "no-torch (CPU-only dev environment)",
-    "torch_free_tests_passed": 8,
-    "torch_gated_tests_skipped": 40,
+    "torch_free_tests_passed": 11,
+    "torch_gated_tests_skipped": 48,
     "torch_gated_tests_failed": 0,
     "pre_existing_failures": {
       "count": 8,
       "file": "tests/test_router_dedicated_lr.py",
       "cause": "pre-existing before Phase 9; require torch",
-      "verified_pre_existing": true
+      "verified_pre_existing": true,
+      "verified_via": "git stash to commit fa51565 — same 8 failures on pre-Phase-9 tree"
     },
     "regressions_introduced": 0,
     "total_suite": "8 failed (pre-existing), 64 passed, 66 skipped"
@@ -83,6 +84,9 @@
     "C_mixin_class_presence": "12 tests, torch-gated — skip without torch",
     "D_method_coverage": "12 tests, torch-gated — skip without torch",
     "E_facade_composition_ast": "4 tests, torch-free AST parse checks — all pass",
-    "F_mro_coverage": "3 tests, torch-gated — skip without torch"
+    "F_mro_coverage": "3 tests, torch-gated — skip without torch",
+    "G_ast_duplicate_method_scanner": "3 tests, torch-free — AST parses all 12 sub-module source files; asserts no method name appears in more than one mixin; asserts one class per module; asserts all class names end with Mixin — all pass",
+    "H_mro_surface_contract": "4 tests, torch-gated — exact MRO position order, no runtime duplicate callables, callable surface completeness, required public API — skip without torch",
+    "I_behavioral_equivalence_skeleton": "4 tests, torch-gated — reset_all zeros step_count, reset_all clears done flags, partial reset isolates unselected envs, same seed same spawns — skip without torch"
   }
 }
