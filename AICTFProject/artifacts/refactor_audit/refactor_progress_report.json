@@ -28,6 +28,7 @@
       "test_evidence": [
         "tests/test_actor_pathway_diagnostics.py",
         "tests/test_diagnostics_phase7.py",
+        "tests/test_evaluation_probes.py",
         "tests/test_inference_distribution_contract.py",
         "Python 3.12 default unittest discovery passed with 1168 tests."
       ],
@@ -50,6 +51,7 @@
         "rl/custom_ppo/inference_policy.py"
       ],
       "test_evidence": [
+        "tests/test_evaluation_probes.py",
         "tests/test_inference_distribution_contract.py",
         "Python 3.12 default unittest discovery passed with 1168 tests."
       ],
@@ -82,13 +84,7 @@
       "performance_evidence": [
         "Telemetry performance overhead is not summarized in a Phase 1.6 closeout artifact."
       ],
-      "artifact_evidence": [
-        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/condition_summary.csv",
-        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/episode_results.csv",
-        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/evaluation_manifest.json",
-        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.json",
-        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.txt"
-      ],
+      "artifact_evidence": [],
       "blockers": [],
       "next_actions": [
         "Run/update exact telemetry overhead benchmark and OFF/BASIC/FULL behavior evidence."
@@ -368,8 +364,20 @@
     },
     {
       "phase": "Phase 9",
-      "status": "NOT_STARTED",
+      "status": "PARTIAL",
       "implementation_evidence": [
+        "gpu_env/state/models.py",
+        "gpu_env/state/allocation.py",
+        "gpu_env/state/agent_state.py",
+        "gpu_env/state/team_state.py",
+        "gpu_env/state/flag_state.py",
+        "gpu_env/state/episode_state.py",
+        "gpu_env/state/map_state.py",
+        "gpu_env/state/opponent_state.py",
+        "gpu_env/state/telemetry_state.py",
+        "gpu_env/state/scratch.py",
+        "gpu_env/state/validation.py",
+        "gpu_env/state/snapshots.py",
         "gpu_env/_core/_state.py remains primary state owner candidate."
       ],
       "test_evidence": [],
@@ -377,7 +385,7 @@
       "performance_evidence": [],
       "artifact_evidence": [],
       "blockers": [
-        "Missing decomposed GPU state modules: ['gpu_env/state/models.py', 'gpu_env/state/allocation.py', 'gpu_env/state/agent_state.py', 'gpu_env/state/team_state.py', 'gpu_env/state/flag_state.py', 'gpu_env/state/episode_state.py', 'gpu_env/state/map_state.py', 'gpu_env/state/opponent_state.py', 'gpu_env/state/telemetry_state.py', 'gpu_env/state/scratch.py', 'gpu_env/state/validation.py', 'gpu_env/state/snapshots.py']"
+        "Missing decomposed GPU state modules: []"
       ],
       "next_actions": [
         "Start only after Phase 8 gate; prove reset/RNG/telemetry equivalence and performance."
@@ -389,6 +397,12 @@
       "implementation_evidence": [
         "rl/evaluation/config.py",
         "rl/evaluation/env_factory.py",
+        "rl/evaluation/policy_loader.py",
+        "rl/evaluation/episode_runner.py",
+        "rl/evaluation/matched_seed.py",
+        "rl/evaluation/aggregation.py",
+        "rl/evaluation/gates.py",
+        "rl/evaluation/artifact_writer.py",
         "experiments/eval_v6i9_map_awareness.py remains evaluator entry/owner candidate."
       ],
       "test_evidence": [],
@@ -396,7 +410,7 @@
       "performance_evidence": [],
       "artifact_evidence": [],
       "blockers": [
-        "Missing evaluation architecture modules: ['rl/evaluation/contracts.py', 'rl/evaluation/policy_loader.py', 'rl/evaluation/episode_runner.py', 'rl/evaluation/matched_seed.py', 'rl/evaluation/aggregation.py', 'rl/evaluation/gates.py', 'rl/evaluation/artifact_writer.py']"
+        "Missing evaluation architecture modules: ['rl/evaluation/contracts.py']"
       ],
       "next_actions": [
         "Start only after Phase 9 gate; prove episode/probe/gate/artifact equivalence."

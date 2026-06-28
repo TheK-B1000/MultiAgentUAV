@@ -69,11 +69,11 @@
   },
   {
     "phase": "Phase 9",
-    "blocker": "Missing decomposed GPU state modules: ['gpu_env/state/models.py', 'gpu_env/state/allocation.py', 'gpu_env/state/agent_state.py', 'gpu_env/state/team_state.py', 'gpu_env/state/flag_state.py', 'gpu_env/state/episode_state.py', 'gpu_env/state/map_state.py', 'gpu_env/state/opponent_state.py', 'gpu_env/state/telemetry_state.py', 'gpu_env/state/scratch.py', 'gpu_env/state/validation.py', 'gpu_env/state/snapshots.py']"
+    "blocker": "Missing decomposed GPU state modules: []"
   },
   {
     "phase": "Phase 10",
-    "blocker": "Missing evaluation architecture modules: ['rl/evaluation/contracts.py', 'rl/evaluation/policy_loader.py', 'rl/evaluation/episode_runner.py', 'rl/evaluation/matched_seed.py', 'rl/evaluation/aggregation.py', 'rl/evaluation/gates.py', 'rl/evaluation/artifact_writer.py']"
+    "blocker": "Missing evaluation architecture modules: ['rl/evaluation/contracts.py']"
   },
   {
     "phase": "Final",

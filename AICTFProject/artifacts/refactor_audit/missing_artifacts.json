@@ -86,14 +86,14 @@
     "phase": "Phase 9",
     "missing_or_pending": [
       "Start only after Phase 8 gate; prove reset/RNG/telemetry equivalence and performance.",
-      "Missing decomposed GPU state modules: ['gpu_env/state/models.py', 'gpu_env/state/allocation.py', 'gpu_env/state/agent_state.py', 'gpu_env/state/team_state.py', 'gpu_env/state/flag_state.py', 'gpu_env/state/episode_state.py', 'gpu_env/state/map_state.py', 'gpu_env/state/opponent_state.py', 'gpu_env/state/telemetry_state.py', 'gpu_env/state/scratch.py', 'gpu_env/state/validation.py', 'gpu_env/state/snapshots.py']"
+      "Missing decomposed GPU state modules: []"
     ]
   },
   {
     "phase": "Phase 10",
     "missing_or_pending": [
       "Start only after Phase 9 gate; prove episode/probe/gate/artifact equivalence.",
-      "Missing evaluation architecture modules: ['rl/evaluation/contracts.py', 'rl/evaluation/policy_loader.py', 'rl/evaluation/episode_runner.py', 'rl/evaluation/matched_seed.py', 'rl/evaluation/aggregation.py', 'rl/evaluation/gates.py', 'rl/evaluation/artifact_writer.py']"
+      "Missing evaluation architecture modules: ['rl/evaluation/contracts.py']"
     ]
   },
   {

@@ -11,7 +11,7 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 |---|---:|---:|---:|---:|---:|---|
 | Phase 1 | PASS | PASS | PASS | NONE | NONE | IMPLEMENTED_NOT_CLOSED |
 | Phase 1.5 | PASS | PASS | PASS | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
-| Phase 1.6 | PASS | PASS | NONE | PASS | PASS | IMPLEMENTED_NOT_CLOSED |
+| Phase 1.6 | PASS | PASS | NONE | PASS | NONE | IMPLEMENTED_NOT_CLOSED |
 | Phase 3 | PASS | PASS | PASS | NONE | NONE | IMPLEMENTED_NOT_CLOSED |
 | Phase 4 | PASS | PASS | PASS | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
 | Phase 5 | PASS | PASS | PENDING | PENDING | PASS | BLOCKED |
@@ -20,7 +20,7 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 | Phase 6.1 | PASS | PASS | PASS | PASS | PASS | IMPLEMENTED_NOT_CLOSED |
 | Phase 7 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
 | Phase 8 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
-| Phase 9 | PASS | NONE | NONE | NONE | NONE | NOT_STARTED |
+| Phase 9 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
 | Phase 10 | PASS | NONE | NONE | NONE | NONE | NOT_STARTED |
 | Final | NONE | NONE | NONE | NONE | NONE | NOT_STARTED |
 
@@ -28,7 +28,7 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 
 ### Phase 1: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 4
-- test_evidence: 4
+- test_evidence: 5
 - equivalence_evidence: 1
 - performance_evidence: 0
 - artifact_evidence: 0
@@ -37,7 +37,7 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 
 ### Phase 1.5: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 3
-- test_evidence: 2
+- test_evidence: 3
 - equivalence_evidence: 1
 - performance_evidence: 0
 - artifact_evidence: 1
@@ -49,7 +49,7 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 - test_evidence: 1
 - equivalence_evidence: 0
 - performance_evidence: 1
-- artifact_evidence: 5
+- artifact_evidence: 0
 - next_actions:
   - Run/update exact telemetry overhead benchmark and OFF/BASIC/FULL behavior evidence.
 
@@ -148,25 +148,25 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 - next_actions:
   - Decompose training CLI/orchestration only after Phase 7 gate.
 
-### Phase 9: NOT_STARTED
-- implementation_evidence: 1
+### Phase 9: PARTIAL
+- implementation_evidence: 13
 - test_evidence: 0
 - equivalence_evidence: 0
 - performance_evidence: 0
 - artifact_evidence: 0
 - blockers:
-  - Missing decomposed GPU state modules: ['gpu_env/state/models.py', 'gpu_env/state/allocation.py', 'gpu_env/state/agent_state.py', 'gpu_env/state/team_state.py', 'gpu_env/state/flag_state.py', 'gpu_env/state/episode_state.py', 'gpu_env/state/map_state.py', 'gpu_env/state/opponent_state.py', 'gpu_env/state/telemetry_state.py', 'gpu_env/state/scratch.py', 'gpu_env/state/validation.py', 'gpu_env/state/snapshots.py']
+  - Missing decomposed GPU state modules: []
 - next_actions:
   - Start only after Phase 8 gate; prove reset/RNG/telemetry equivalence and performance.
 
 ### Phase 10: NOT_STARTED
-- implementation_evidence: 3
+- implementation_evidence: 9
 - test_evidence: 0
 - equivalence_evidence: 0
 - performance_evidence: 0
 - artifact_evidence: 0
 - blockers:
-  - Missing evaluation architecture modules: ['rl/evaluation/contracts.py', 'rl/evaluation/policy_loader.py', 'rl/evaluation/episode_runner.py', 'rl/evaluation/matched_seed.py', 'rl/evaluation/aggregation.py', 'rl/evaluation/gates.py', 'rl/evaluation/artifact_writer.py']
+  - Missing evaluation architecture modules: ['rl/evaluation/contracts.py']
 - next_actions:
   - Start only after Phase 9 gate; prove episode/probe/gate/artifact equivalence.
 
