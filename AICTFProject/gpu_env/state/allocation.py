@@ -26,6 +26,7 @@ class _AllocationMixin:
         self._alloc_mine_state(B, Nb, Nr, dev, f32)
         self._alloc_metric_buffers(B, dev, f32)
         self._alloc_navigation_telemetry_buffers(B, Nb, Nr, dev)
+        self._alloc_bt_state(B, Nr, dev, f32)
 
     def _build_macro_targets(self) -> None:
         """Build a fixed set of 2D macro targets for GoTo/PlaceMine.

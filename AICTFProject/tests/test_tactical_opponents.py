@@ -49,38 +49,47 @@ def _make_core(opponent: str, *, blue_score: int = 0, red_score: int = 0,
 
 
 class TestOP8AdaptiveBlock(unittest.TestCase):
-    """OP8 block fraction: 0.5 when leading, 0.7 when trailing."""
+    """OP8 block fraction: 0.5 when leading, 0.7 when trailing (BT interceptor)."""
 
-    def _guardian_target_x(self, *, red_score: int, blue_score: int) -> float:
-        """Return guardian (red agent 0) target_x after one target update."""
+    def _interceptor_target_x(self, *, red_score: int, blue_score: int) -> float:
+        """Return interceptor agent target_x after one BT target update."""
+        from gpu_env._core._bt_red import ROLE_INTERCEPTOR
+
         core, env = _make_core(
             "OP8", red_score=red_score, blue_score=blue_score, step=100,
         )
-        # Blue agent 0 is carrying the red flag (enemy carrier for red).
         core.blue_carrying[0, 0] = True
         core.blue_x[0, 0] = 8.0
         core.blue_y[0, 0] = 10.0
-
         core._assign_scripted_targets_by_role("red")
-        # guardian_idx=0 because we forced red_script_role_flip=False.
-        return float(core._debug_red_target_x[0, 0].item())
+        roles = core.bt_red_role[0].tolist()
+        if ROLE_INTERCEPTOR not in roles:
+            self.skipTest("No interceptor assigned in this geometry")
+        agent = roles.index(ROLE_INTERCEPTOR)
+        return float(core._debug_red_target_x[0, agent].item())
 
     def test_trailing_guardian_closer_to_home_than_leading(self) -> None:
-        """When trailing, guardian block point is between carrier and home (closer to home)."""
-        leading_tx = self._guardian_target_x(red_score=1, blue_score=0)
-        trailing_tx = self._guardian_target_x(red_score=0, blue_score=1)
+        """When trailing, interceptor block point is closer to home than when leading."""
+        leading_tx = self._interceptor_target_x(red_score=1, blue_score=0)
+        trailing_tx = self._interceptor_target_x(red_score=0, blue_score=1)
         # Blue home is left side (low x). Trailing block (frac=0.7) is closer to home → lower x.
         self.assertLess(trailing_tx, leading_tx,
                         f"Trailing block ({trailing_tx:.2f}) should be closer to home than leading ({leading_tx:.2f})")
 
     def test_leading_block_fraction_approx_half(self) -> None:
-        """Leading: guardian should be ~50% of carrier-to-home distance from carrier."""
+        """Leading: interceptor should be ~50% of carrier-to-home distance from carrier."""
+        from gpu_env._core._bt_red import ROLE_INTERCEPTOR
+
         core, env = _make_core("OP8", red_score=1, blue_score=0, step=100)
         core.blue_carrying[0, 0] = True
         core.blue_x[0, 0] = 8.0
         core.blue_y[0, 0] = 10.0
         core._assign_scripted_targets_by_role("red")
-        tx = float(core._debug_red_target_x[0, 0].item())
+        roles = core.bt_red_role[0].tolist()
+        if ROLE_INTERCEPTOR not in roles:
+            self.skipTest("No interceptor assigned in this geometry")
+        agent = roles.index(ROLE_INTERCEPTOR)
+        tx = float(core._debug_red_target_x[0, agent].item())
         carrier_x = 8.0
         home_x = float(core.blue_flag_home[0, 0].item())
         denom = home_x - carrier_x
@@ -95,22 +104,23 @@ class TestOP9LateGamePressure(unittest.TestCase):
     """OP9 striker should switch to evasion only when trailing AND in late game."""
 
     def _striker_target_x(self, *, step: int, red_score: int, blue_score: int) -> float:
-        """Return striker (red agent 1) target_x after one target update."""
+        """Return attacker (red agent 1) target_x after one BT target update."""
+        from gpu_env._core._bt_red import ROLE_ATTACKER
+
         core, env = _make_core(
             "OP9", red_score=red_score, blue_score=blue_score,
             step=step, max_steps=400,
         )
-        # Force OP9 attacker_style=0 (conservative) as a clean baseline.
         core.red_attacker_style[0] = 0
-        # Disable coordinated attack so it does not override the striker target.
         core.red_coordinated_attack[0] = False
-        # Place red striker (index 1) near enemy so evasion repulsion is detectable.
         core.red_x[0, 1] = 12.0
         core.red_y[0, 1] = 5.0
-        core.blue_x[0, 0] = 13.0   # enemy close to striker
+        core.blue_x[0, 0] = 13.0
         core.blue_y[0, 0] = 5.0
         core._assign_scripted_targets_by_role("red")
-        return float(core._debug_red_target_x[0, 1].item())
+        roles = core.bt_red_role[0].tolist()
+        agent = roles.index(ROLE_ATTACKER) if ROLE_ATTACKER in roles else 1
+        return float(core._debug_red_target_x[0, agent].item())
 
     def _enemy_flag_x(self) -> float:
         core, env = _make_core("OP9")

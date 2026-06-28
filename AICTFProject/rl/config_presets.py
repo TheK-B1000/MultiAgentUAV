@@ -368,8 +368,30 @@ def v6i8_adapter_sparse_hardpool_config() -> PPOConfig:
     )
 
 
-# ---------------------------------------------------------------------------
-# V6I9: Map-Aware Competence Stage
+def v6i8_adapter_balanced_elite_hardpool_config() -> PPOConfig:
+    """V6I8-balanced + elite hard pool (OP8..OP12).
+
+    Extends the OP8/OP9/OP10 hard pool with OP11 (balanced BT) and OP12
+    (counter-capture specialist) for training against full tactical curriculum.
+    """
+    return replace(
+        v6i8_adapter_balanced_config(),
+        opponent_pool=("OP8", "OP9", "OP10", "OP11", "OP12"),
+        opponent_pool_weights=(),
+    )
+
+
+def v6i8_adapter_sparse_elite_hardpool_config() -> PPOConfig:
+    """V6I8-sparse + elite hard pool (OP8..OP12)."""
+    return replace(
+        v6i8_adapter_sparse_config(),
+        opponent_pool=("OP8", "OP9", "OP10", "OP11", "OP12"),
+        opponent_pool_weights=(),
+    )
+
+
+# Holdout note: paper-faithful presets (v5i4/v5i6) intentionally train on
+# OP5/OP6/OP7 only.  OP11/OP12 are eval holdouts unless elite_hardpool is used.
 #
 # Prerequisite: V6I8 (7-channel) checkpoint warm-start.
 # Goal: teach the actor to use wall/obstacle geometry before latent adapters

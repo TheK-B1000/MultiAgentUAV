@@ -88,6 +88,18 @@ class _ScratchStateMixin:
         self.pickup_respawn = torch.zeros((B, Np), dtype=torch.int32, device=dev)
         self._init_pickup_positions()
 
+    def _alloc_bt_state(
+        self,
+        B: int,
+        Nr: int,
+        dev: torch.device,
+        f32: torch.dtype,
+    ) -> None:
+        """Allocate behavior-tree telemetry and role-lock buffers for red side."""
+        # Max agent slots: Nr (red) or Nb (blue); use max(Nr, Nb) defensively.
+        N_max = max(Nr, getattr(self, "Nb", Nr))
+        self._alloc_bt_telemetry(B, N_max, dev)
+
     def _init_pickup_positions(self) -> None:
         """Set fixed spawn positions for mine pickups (2 per side on 20×20)."""
         B, Np = self.B, self.Np

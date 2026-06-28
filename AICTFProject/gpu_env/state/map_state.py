@@ -120,6 +120,19 @@ class _MapStateMixin:
         if not bool(hit.any().item()):
             return next_x, next_y, speed, hit
 
+        # Safety net: if the agent somehow began the step *inside* an obstacle
+        # (numerical edge case, never expected in normal play), do not trap it.
+        # Eject it to the nearest face so it can never freeze permanently inside.
+        prev_inside = self._points_in_obstacles(prev_x, prev_y) & alive
+        if bool(prev_inside.any().item()):
+            ex, ey = self._nearest_exit(prev_x, prev_y)
+            x_eject = torch.where(prev_inside, ex, prev_x)
+            y_eject = torch.where(prev_inside, ey, prev_y)
+            prev_x = torch.where(prev_inside, x_eject, prev_x)
+            prev_y = torch.where(prev_inside, y_eject, prev_y)
+            # Re-evaluate the move from the ejected (outside) baseline.
+            hit = self._segments_hit_obstacles(prev_x, prev_y, next_x, next_y) & alive
+
         # Wall sliding: try axis-aligned moves before doing a full positional revert.
         # Prevents corner-sticking where the agent freezes with speed=0 for many
         # steps while slowly turning away from the wall.
@@ -143,6 +156,76 @@ class _MapStateMixin:
         speed_out = torch.where(hit, torch.zeros_like(speed), speed)
         return x_out, y_out, speed_out, hit
 
+    def _nearest_exit(
+        self, x: torch.Tensor, y: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Nearest point just outside the active obstacle for each (x, y).
+
+        Used only as a safety eject for agents that begin a step inside an
+        obstacle; pushes to whichever of the four faces is closest.
+        """
+        rect = self.obstacle_rects[:, 0, :].to(dtype=x.dtype, device=x.device)
+        x0 = rect[:, 0:1]
+        y0 = rect[:, 1:2]
+        x1 = rect[:, 2:3]
+        y1 = rect[:, 3:4]
+        eps = 0.05
+        dist_left = x - x0
+        dist_right = x1 - x
+        dist_top = y - y0
+        dist_bot = y1 - y
+        min_d = torch.minimum(
+            torch.minimum(dist_left, dist_right),
+            torch.minimum(dist_top, dist_bot),
+        )
+        out_x = x.clone()
+        out_y = y.clone()
+        out_x = torch.where(dist_left == min_d, x0 - eps, out_x)
+        out_x = torch.where(dist_right == min_d, x1 + eps, out_x)
+        out_y = torch.where(dist_top == min_d, y0 - eps, out_y)
+        out_y = torch.where(dist_bot == min_d, y1 + eps, out_y)
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
+        return torch.clamp(out_x, 0.0, max_x), torch.clamp(out_y, 0.0, max_y)
+
+    def _segment_intersects_rect(
+        self,
+        ox: torch.Tensor,
+        oy: torch.Tensor,
+        tx: torch.Tensor,
+        ty: torch.Tensor,
+        x0: torch.Tensor,
+        y0: torch.Tensor,
+        x1: torch.Tensor,
+        y1: torch.Tensor,
+    ) -> torch.Tensor:
+        """Vectorized segment vs axis-aligned-rectangle test (Liang-Barsky).
+
+        Returns a bool tensor (broadcast of the inputs) that is True where the
+        segment ``(ox, oy) -> (tx, ty)`` overlaps the rectangle. This is exact
+        (unlike fixed-fraction point sampling) so the routing trigger never
+        misses a thin clip of the wall.
+        """
+        dx = tx - ox
+        dy = ty - oy
+        t0 = torch.zeros_like(dx)
+        t1 = torch.ones_like(dx)
+        valid = torch.ones_like(dx, dtype=torch.bool)
+        for p, q in (
+            (-dx, ox - x0),
+            (dx, x1 - ox),
+            (-dy, oy - y0),
+            (dy, y1 - oy),
+        ):
+            parallel = p.abs() < 1e-9
+            outside = parallel & (q < 0)
+            valid = valid & ~outside
+            safe_p = torch.where(parallel, torch.ones_like(p), p)
+            r = q / safe_p
+            t0 = torch.where((~parallel) & (p < 0), torch.maximum(t0, r), t0)
+            t1 = torch.where((~parallel) & (p > 0), torch.minimum(t1, r), t1)
+        return valid & (t0 <= t1)
+
     def _route_targets_around_obstacles(
         self,
         own_x: torch.Tensor,
@@ -150,104 +233,118 @@ class _MapStateMixin:
         target_x: torch.Tensor,
         target_y: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Redirect a straight-line target to a corner waypoint when the direct
+        path would cross the wall.
+
+        Corner-routing contract (per agent, fully vectorized):
+          * Route: own -> nearC -> farC -> target, where nearC=(near_x, detour_y)
+            and farC=(far_x, detour_y) are corners just outside the wall.
+          * Detour end (above / below) chosen by minimum path cost.
+          * Each committed leg is validated with Liang-Barsky against expanded
+            wall bounds (agent radius + margin) before being issued.  If the
+            near-corner leg is blocked — agent inside wall x-range or approaching
+            with a heading that clips the wall during a yaw maneuver — the router
+            falls back to a lateral escape: (near_x, own_y).  This sidesteps the
+            wall in x without requiring a diagonal that crosses the wall face.
+        """
         if not is_split_lane_layout(self.map_layout) or not bool(
             self.obstacle_active.any().item()
         ):
             return target_x, target_y
         rect = self.obstacle_rects[:, 0, :].to(dtype=target_x.dtype, device=target_x.device)
-        active = self.obstacle_active[:, 0].to(device=target_x.device)
+        active = self.obstacle_active[:, 0:1].to(device=target_x.device)
         x0 = rect[:, 0:1]
         y0 = rect[:, 1:2]
         x1 = rect[:, 2:3]
         y1 = rect[:, 3:4]
-        center_y = (y0 + y1) * 0.5
 
-        denom_x = target_x - own_x
-        safe_denom_x = torch.where(
-            torch.abs(denom_x) < 1e-6, torch.full_like(denom_x, 1e-6), denom_x
-        )
-        wall_x = (x0 + x1) * 0.5
-        t = (wall_x - own_x) / safe_denom_x
-        line_y = own_y + (target_y - own_y) * t
-        crosses_wall_x = (t >= 0.0) & (t <= 1.0)
-        crosses_blocked_y = (line_y >= y0) & (line_y <= y1)
-
-        denom_y = target_y - own_y
-        safe_denom_y = torch.where(
-            torch.abs(denom_y) < 1e-6, torch.full_like(denom_y, 1e-6), denom_y
-        )
-        t_top = (y0 - own_y) / safe_denom_y
-        line_x_top = own_x + (target_x - own_x) * t_top
-        crosses_top_face = (
-            (t_top > 0.0) & (t_top <= 1.0) & (line_x_top >= x0) & (line_x_top <= x1)
-        )
-        t_bot = (y1 - own_y) / safe_denom_y
-        line_x_bot = own_x + (target_x - own_x) * t_bot
-        crosses_bot_face = (
-            (t_bot > 0.0) & (t_bot <= 1.0) & (line_x_bot >= x0) & (line_x_bot <= x1)
-        )
-
-        target_inside = self._points_in_obstacles(target_x, target_y)
-        own_inside = self._points_in_obstacles(own_x, own_y)
-        needs_route = active[:, None] & (
-            (crosses_wall_x & crosses_blocked_y)
-            | crosses_top_face
-            | crosses_bot_face
-            | target_inside
-            | own_inside
+        needs_route = active & self._segment_intersects_rect(
+            own_x, own_y, target_x, target_y, x0, y0, x1, y1
         )
         if not bool(needs_route.any().item()):
             return target_x, target_y
 
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
         clearance = 2.0 if self.map_layout == MAP_B_SPLIT_LANE_V2 else 1.5
-        upper_y = torch.clamp(y0 - clearance, 0.0, float(max(0, self.rows - 1)))
-        lower_y = torch.clamp(y1 + clearance, 0.0, float(max(0, self.rows - 1)))
-        prefer_upper = torch.where(
-            target_y < y0,
-            torch.ones_like(target_y, dtype=torch.bool),
-            torch.where(
-                target_y > y1,
-                torch.zeros_like(target_y, dtype=torch.bool),
-                own_y <= center_y,
-            ),
+        center_x = (x0 + x1) * 0.5
+
+        # Detour-end corridor lines (y just above / below the wall).
+        top_y = torch.clamp(y0 - clearance, 0.0, max_y)
+        bot_y = torch.clamp(y1 + clearance, 0.0, max_y)
+        # A detour end is only usable if the corridor is actually clear of the
+        # wall after clamping to the grid (e.g. wall flush against an edge).
+        top_ok = top_y < (y0 - 1e-3)
+        bot_ok = bot_y > (y1 + 1e-3)
+
+        # Near corner stays on the agent's x-side; far corner on the target's.
+        left_side_x = torch.clamp(x0 - clearance, 0.0, max_x)
+        right_side_x = torch.clamp(x1 + clearance, 0.0, max_x)
+        own_left = own_x <= center_x
+        target_left = target_x <= center_x
+        near_x = torch.where(own_left, left_side_x, right_side_x)
+        far_x = torch.where(target_left, left_side_x, right_side_x)
+
+        def _path_cost(det_y: torch.Tensor) -> torch.Tensor:
+            d0 = torch.sqrt((near_x - own_x) ** 2 + (det_y - own_y) ** 2 + 1e-8)
+            d1 = torch.sqrt((far_x - near_x) ** 2 + 1e-8)
+            d2 = torch.sqrt((target_x - far_x) ** 2 + (target_y - det_y) ** 2 + 1e-8)
+            return d0 + d1 + d2
+
+        inf = torch.full_like(own_x, 1e9)
+        cost_top = torch.where(top_ok.expand_as(own_x), _path_cost(top_y), inf)
+        cost_bot = torch.where(bot_ok.expand_as(own_x), _path_cost(bot_y), inf)
+        use_top = cost_top <= cost_bot
+        detour_y = torch.where(use_top, top_y.expand_as(own_x), bot_y.expand_as(own_x))
+
+        # Leg selection (stateless, monotonic — cannot oscillate):
+        #   * crossed: the agent has reached the target's x-side of the wall
+        #     -> aim straight at the real target.
+        #   * vertically clear of the wall band (above for a top detour, below
+        #     for a bottom detour) -> aim the far corner to cross the corridor.
+        #   * otherwise -> aim the near corner to enter the corridor while
+        #     staying on the agent's own side.
+        margin_v = 0.25
+        clear_top = own_y <= (y0 - margin_v)
+        clear_bot = own_y >= (y1 + margin_v)
+        vertical_clear = torch.where(use_top, clear_top.expand_as(own_x), clear_bot.expand_as(own_x))
+        crossed = torch.where(
+            target_left.expand_as(own_x),
+            own_x <= x0.expand_as(own_x),
+            own_x >= x1.expand_as(own_x),
         )
-        route_y = torch.where(prefer_upper, upper_y, lower_y)
-        current_left = own_x < x0
-        current_right = own_x > x1
-        target_right = target_x > x1
-        target_left = target_x < x0
-        # When the target is inside the wall, treat it as on the far side so the
-        # agent routes through the gap rather than stalling at the gap entrance.
-        target_right_eff = target_right | (target_inside & current_left)
-        target_left_eff = target_left | (target_inside & current_right)
-        moving_right = current_left & target_right_eff
-        moving_left = current_right & target_left_eff
-        current_side_x = torch.where(
-            current_left,
-            torch.clamp(x0 - clearance, 0.0, float(max(0, self.cols - 1))),
-            torch.where(
-                current_right,
-                torch.clamp(x1 + clearance, 0.0, float(max(0, self.cols - 1))),
-                own_x,
-            ),
+
+        # Segment validation: before committing to the near-corner leg, verify
+        # it does not clip the wall when expanded by agent radius + a small
+        # clearance margin.  An agent inside the wall x-range (drifted in via
+        # sampled-point collision misses) or approaching with a heading still
+        # pointing into the wall zone will trigger this check.  The fallback
+        # is a lateral-only escape to (near_x, own_y) so the x-exit happens
+        # without a diagonal that crosses the wall face.
+        agent_r = 0.3
+        wx0 = x0 - agent_r
+        wy0 = y0 - agent_r
+        wx1 = x1 + agent_r
+        wy1 = y1 + agent_r
+        near_corner_blocked = self._segment_intersects_rect(
+            own_x, own_y,
+            near_x.expand_as(own_x), detour_y,
+            wx0, wy0, wx1, wy1,
         )
-        far_side_x = torch.where(
-            moving_right,
-            torch.clamp(x1 + clearance, 0.0, float(max(0, self.cols - 1))),
-            torch.where(
-                moving_left,
-                torch.clamp(x0 - clearance, 0.0, float(max(0, self.cols - 1))),
-                current_side_x,
-            ),
+        near_aim_y = torch.where(near_corner_blocked, own_y, detour_y)
+
+        aim_x = torch.where(
+            crossed,
+            target_x,
+            torch.where(vertical_clear, far_x.expand_as(own_x), near_x.expand_as(own_x)),
         )
-        y_staging = (
-            (torch.abs(own_y - route_y) > 0.75)
-            & (own_y >= (y0 - (clearance * 0.5)))
-            & (own_y <= (y1 + (clearance * 0.5)))
+        aim_y = torch.where(
+            crossed,
+            target_y,
+            torch.where(vertical_clear, detour_y, near_aim_y),
         )
-        waypoint_x = torch.where(y_staging, current_side_x, far_side_x)
-        waypoint_y = route_y
+
         return (
-            torch.where(needs_route, waypoint_x, target_x),
-            torch.where(needs_route, waypoint_y, target_y),
+            torch.where(needs_route, aim_x, target_x),
+            torch.where(needs_route, aim_y, target_y),
         )

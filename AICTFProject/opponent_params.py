@@ -390,6 +390,56 @@ def sample_batched_opponent_params(
                 c_prob = 0.88
             else:
                 s_low, s_high = 0.90, 1.08
+        elif key in ("OP11", "OP11_BT_BALANCED"):
+            # Behavior-tree adaptive opponent (OP11): uses full BT brain with dynamic
+            # role switching (attacker/defender/escort/interceptor/counter).
+            # Balanced aggression/defense mix. Moderate coordination, moderate deception
+            # so the BT can express diverse strategies.
+            attacker_style = 1
+            defender_style = 1
+            role_switch_prob = 0.30   # BT handles most switching internally; this
+                                       # governs the classic guardian→striker fallback.
+            d_low, d_high = 0.08, 0.22
+            c_prob = 0.55
+            sync_c_low, sync_c_high = 2, 6
+            sync_nc_low, sync_nc_high = 1, 4
+            n_low, n_high = 0.0, 0.04
+            if n_agents >= 8:
+                s_low, s_high = 0.74, 0.90
+                c_prob = 0.38
+                sync_c_low, sync_c_high = 1, 4
+                sync_nc_low, sync_nc_high = 1, 3
+            elif n_agents >= 4:
+                s_low, s_high = 0.88, 1.06
+                d_low, d_high = 0.10, 0.26
+                c_prob = 0.60
+                sync_c_low, sync_c_high = 2, 6
+                sync_nc_low, sync_nc_high = 2, 5
+            else:
+                s_low, s_high = 0.84, 1.02
+        elif key in ("OP12", "OP12_COUNTER"):
+            # Behavior-tree counter-capture specialist (OP12): whenever intercept is
+            # infeasible the BT immediately switches to capturing the enemy flag rather
+            # than chasing the blue carrier. Forces PPO to learn to defend own flag
+            # before attacking. Very low deception; decision variety comes from the BT
+            # rather than random parameter perturbation.
+            attacker_style = 1
+            defender_style = 1
+            role_switch_prob = 0.06   # BT-internal role pivots handle most switching.
+            d_low, d_high = 0.02, 0.10
+            c_prob = 0.80
+            sync_c_low, sync_c_high = 2, 5
+            sync_nc_low, sync_nc_high = 1, 3
+            n_low, n_high = 0.0, 0.03
+            if n_agents >= 8:
+                s_low, s_high = 0.76, 0.92
+                c_prob = 0.65
+            elif n_agents >= 4:
+                s_low, s_high = 0.90, 1.08
+                d_low, d_high = 0.03, 0.12
+                c_prob = 0.82
+            else:
+                s_low, s_high = 0.86, 1.04
         elif key == "OP4":
             # Held-out eval opponent: never used in training. Make it deliberately broad and
             # stochastic so robustness matters more than memorizing one scripted style.

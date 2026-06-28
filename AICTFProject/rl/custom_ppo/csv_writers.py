@@ -53,18 +53,20 @@ _METRICS_CSV_LEGACY_COLUMN_FILL: dict[str, str] = {
 # v6i1 staged-curriculum intervention telemetry (six unordered z-pairs for K=4).
 V6I1_INTERVENTION_PAIR_COUNT: int = 6
 
-# Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1 … OP10).
-SCRIPTED_OPPONENT_MI_COUNT: int = 10
+# Columns for MI(z; opponent) and episode_opp{idx}_z* (OP1 … OP12).
+SCRIPTED_OPPONENT_MI_COUNT: int = 12
 
 _OPPONENT_TAG_TO_ID: dict[str, int] = {
     "OP1": 0, "OP2": 1, "OP3": 2, "OP4": 3,
     "OP5_RUSHER": 4, "OP6": 5, "OP7": 6,
     "OP8": 7, "OP9": 8, "OP10": 9,
+    "OP11": 10, "OP11_BT_BALANCED": 10,
+    "OP12": 11, "OP12_COUNTER": 11,
 }
 
 
 def _opponent_id_int_from_info(cfg: Any, info: dict[str, Any]) -> int:
-    """Scripted opponent index for MI telemetry: OP1→0 … OP10→9; ``-1`` if unknown / non-scripted."""
+    """Scripted opponent index for MI telemetry: OP1→0 … OP12→11; ``-1`` if unknown / non-scripted."""
     er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}
     kind = str(er.get("opponent_kind", info.get("opponent_kind", "scripted")) or "scripted").lower()
     if kind != "scripted":
@@ -79,6 +81,16 @@ def _opponent_id_int_from_info(cfg: Any, info: dict[str, Any]) -> int:
         tag = "OP6"
     if tag == "OP7_SWITCHER":
         tag = "OP7"
+    if tag == "OP8_INTERCEPTOR":
+        tag = "OP8"
+    if tag == "OP9_FORTRESS":
+        tag = "OP9"
+    if tag == "OP10_ESCORT":
+        tag = "OP10"
+    if tag == "OP11_BT_BALANCED":
+        tag = "OP11"
+    if tag == "OP12_COUNTER":
+        tag = "OP12"
     return _OPPONENT_TAG_TO_ID.get(tag, -1)
 
 

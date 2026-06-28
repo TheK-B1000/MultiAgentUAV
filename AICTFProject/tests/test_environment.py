@@ -421,6 +421,100 @@ class EnvironmentContractTests(unittest.TestCase):
         finally:
             env.close()
 
+    def _simulate_navigation_to_target(
+        self,
+        core,
+        starts,
+        targets,
+        steps: int = 220,
+    ):
+        """Drive the real navigation+collision physics (route -> integrate ->
+        revert) for a batch of fixed (start, target) pairs and return the final
+        positions. Mirrors the per-step sequence in ``_advance_dynamics_phase``.
+        """
+        n = len(starts)
+        dev = core.device
+        f32 = core.blue_x.dtype
+        # Re-shape the single-env obstacle to a (n, 1) "agent batch".
+        rect = core.obstacle_rects[0:1].clone()
+        active = core.obstacle_active[0:1].clone()
+        core.obstacle_rects = rect.expand(n, -1, -1).contiguous()
+        core.obstacle_active = active.expand(n, -1).contiguous()
+        core.B, core.Nb, core.Nr = n, 1, 1
+        core.rt_current_strength_cps = torch.zeros((n,), dtype=f32, device=dev)
+        core.rt_drift_sigma_cells = torch.zeros((n,), dtype=f32, device=dev)
+        core.rt_blue_speed_scale = torch.ones((n,), dtype=f32, device=dev)
+
+        x = torch.tensor([[s[0]] for s in starts], dtype=f32, device=dev)
+        y = torch.tensor([[s[1]] for s in starts], dtype=f32, device=dev)
+        tx = torch.tensor([[t[0]] for t in targets], dtype=f32, device=dev)
+        ty = torch.tensor([[t[1]] for t in targets], dtype=f32, device=dev)
+        heading = torch.atan2(ty - y, tx - x)
+        speed = torch.zeros_like(x)
+        alive = torch.ones_like(x, dtype=torch.bool)
+        cap = torch.full_like(speed, float(core.cfg.max_speed_cps))
+
+        inside_ever = torch.zeros_like(x, dtype=torch.bool)
+        for _ in range(steps):
+            rtx, rty = core._route_targets_around_obstacles(x, y, tx, ty)
+            px, py = x.clone(), y.clone()
+            x, y, heading, speed, _oob, _yaw = core._integrate_side(
+                px, py, heading, speed, alive, rtx, rty, speed_cap=cap
+            )
+            x, y, speed, _hit = core._revert_obstacle_hits(px, py, x, y, speed, alive)
+            inside_ever = inside_ever | core._points_in_obstacles(x, y)
+        dist = torch.sqrt((x - tx) ** 2 + (y - ty) ** 2)
+        return x, y, dist, inside_ever
+
+    def test_map_b_agents_route_around_wall_without_getting_stuck(self) -> None:
+        # Regression: agents whose straight path crosses the wall must round the
+        # wall and reach the far side instead of pinning themselves to a corner
+        # with speed 0 forever (the old detour-side bug).
+        for layout in (MAP_B_SPLIT_LANE, MAP_B_SPLIT_LANE_V2):
+            for mirror in (0.0, 1.0):
+                env = GPUCTFVecEnv(
+                    GPUFieldConfig(
+                        n_envs=1,
+                        n_agents_per_team=1,
+                        max_blue_agents=1,
+                        max_red_agents=1,
+                        device="cpu",
+                        seed=77,
+                        map_layout=layout,
+                        map_b_vertical_mirror_prob=mirror,
+                    )
+                )
+                try:
+                    core = env.core
+                    core.reset_all()
+                    x0, y0, x1, y1 = (float(v) for v in core.obstacle_rects[0, 0].tolist())
+                    max_x = float(core.cols - 1)
+                    max_y = float(core.rows - 1)
+                    left = max(0.0, x0 - 0.4)
+                    right = min(max_x, x1 + 0.4)
+                    # The hardest cases: agent and target on opposite vertical
+                    # halves AND opposite horizontal sides (forces a full detour).
+                    starts, targets = [], []
+                    for sy in (0.0, max_y, (y0 + y1) * 0.5):
+                        starts.append((left, sy)); targets.append((right, max_y - sy))
+                        starts.append((right, sy)); targets.append((left, max_y - sy))
+                    _x, _y, dist, inside_ever = self._simulate_navigation_to_target(
+                        core, starts, targets, steps=240
+                    )
+                    self.assertFalse(
+                        bool(inside_ever.any().item()),
+                        msg=f"agent entered obstacle on {layout} mirror={mirror}",
+                    )
+                    self.assertTrue(
+                        bool((dist.squeeze(-1) <= 1.5).all().item()),
+                        msg=(
+                            f"agent failed to reach target on {layout} mirror={mirror}; "
+                            f"remaining distances={dist.squeeze(-1).tolist()}"
+                        ),
+                    )
+                finally:
+                    env.close()
+
     def test_map_b_grid_reachability_has_upper_and_lower_routes(self) -> None:
         env = GPUCTFVecEnv(
             GPUFieldConfig(

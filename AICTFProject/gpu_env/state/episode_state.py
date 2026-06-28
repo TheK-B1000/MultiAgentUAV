@@ -172,6 +172,7 @@ class _EpisodeStateMixin:
         self.metric_red_intercept_lower_crossings[idx] = 0
         self.metric_blue_zone_visited[idx] = False
         self._reset_navigation_telemetry(idx)
+        self._reset_bt_telemetry(env_mask)
         self._apply_opponent_params_for_mask(env_mask)
         self._respawn_side(blue=True, env_mask=env_mask)
         self._respawn_side(blue=False, env_mask=env_mask)

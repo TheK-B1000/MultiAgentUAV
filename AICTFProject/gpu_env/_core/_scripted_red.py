@@ -176,10 +176,35 @@ class _ScriptedRedMixin:
                 device=device,
                 dtype=torch.bool,
             )
+            op11_mask = torch.as_tensor(
+                [str(k).upper() in ("OP11", "OP11_BT_BALANCED") for k in self._opponent_key],
+                device=device,
+                dtype=torch.bool,
+            )
+            op12_mask = torch.as_tensor(
+                [str(k).upper() in ("OP12", "OP12_COUNTER") for k in self._opponent_key],
+                device=device,
+                dtype=torch.bool,
+            )
         else:
             op8_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op9_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op10_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+            op11_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+            op12_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+
+        # OP8-OP12: behavior-tree brain — runs before scripted fallback and
+        # overwrites targets for masked environment rows only.
+        # OP5/6/7 use the scripted brain (coordinated_attack override must take effect).
+        bt_active = (op8_mask | op9_mask | op10_mask | op11_mask | op12_mask) if not is_blue else torch.zeros((B,), device=device, dtype=torch.bool)
+        # Pre-allocate BT targets using self.Nr (always red-agent count).
+        _bt_N = self.Nr
+        bt_tx = torch.zeros((B, _bt_N), dtype=torch.float32, device=device)
+        bt_ty = torch.zeros((B, _bt_N), dtype=torch.float32, device=device)
+        if (not is_blue) and bt_active.any():
+            _bt_tx, _bt_ty = self._get_bt_targets()
+            bt_tx[:, :_bt_tx.shape[1]] = _bt_tx
+            bt_ty[:, :_bt_ty.shape[1]] = _bt_ty
 
         if is_blue:
             N, Ne = self.Nb, self.Nr
@@ -580,6 +605,17 @@ class _ScriptedRedMixin:
             )
 
         if not is_blue:
+            # BT opponents (OP5..OP12) override scripted targets for their envs.
+            # bt_tx/bt_ty are [B, Nr]; target is [B, N, 2] where N == Nr for red side.
+            # We overwrite only the Nr columns, leaving any extra columns (if N > Nr) alone.
+            if bt_active.any():
+                nr_cols = min(bt_tx.shape[1], target.shape[1])
+                target[:, :nr_cols, 0] = torch.where(
+                    bt_active[:, None], bt_tx[:, :nr_cols], target[:, :nr_cols, 0]
+                )
+                target[:, :nr_cols, 1] = torch.where(
+                    bt_active[:, None], bt_ty[:, :nr_cols], target[:, :nr_cols, 1]
+                )
             self._debug_red_target_x = target[..., 0].detach()
             self._debug_red_target_y = target[..., 1].detach()
 

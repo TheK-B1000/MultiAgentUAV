@@ -1,6 +1,7 @@
 """Composable BatchedCTFCore assembled from focused mixins."""
 from __future__ import annotations
 
+from ._core._bt_red import _BTRedMixin
 from ._core._dynamics import _DynamicsMixin
 from ._core._metrics import _MetricsMixin
 from ._core._mines import _MinesMixin
@@ -16,6 +17,7 @@ from ._config import GPUFieldConfig
 class BatchedCTFCore(
     _StateMixin,
     _DynamicsMixin,
+    _BTRedMixin,
     _ScriptedRedMixin,
     _MinesMixin,
     _RulesMixin,

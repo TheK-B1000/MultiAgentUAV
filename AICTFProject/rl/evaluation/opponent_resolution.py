@@ -8,7 +8,16 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 
-SUPPORTED_OPPONENTS: frozenset[str] = frozenset({"OP8", "OP9", "OP10"})
+SUPPORTED_OPPONENTS: frozenset[str] = frozenset({
+    "OP5", "OP5_RUSHER",
+    "OP6", "OP6_TURTLE",
+    "OP7", "OP7_SWITCHER",
+    "OP8", "OP8_INTERCEPTOR",
+    "OP9", "OP9_FORTRESS",
+    "OP10", "OP10_ESCORT",
+    "OP11", "OP11_BT_BALANCED",
+    "OP12", "OP12_COUNTER",
+})
 
 
 def normalize_opponent(value: Any) -> str:
