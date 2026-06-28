@@ -1,7 +1,0 @@
-{
-    "duration_seconds":  111.4143393,
-    "completed_at":  "2026-06-28T11:18:54.2212381Z",
-    "command":  "uv run python experiments\\eval_v6i9_map_awareness.py --baseline checkpoints\\2v2\\ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_750000.zip --candidate checkpoints\\2v2\\ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip --maps map_a_open map_b_split_lane --opponents OP8 OP9 OP10 --episodes 2 --seed-start 7000 --device cpu --output-dir artifacts\\phase10_equivalence_aggregation_gates",
-    "exit_code":  0,
-    "started_at":  "2026-06-28T11:17:02.8068988Z"
-}

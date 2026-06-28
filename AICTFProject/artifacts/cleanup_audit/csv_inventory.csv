@@ -1,0 +1,161 @@
+path,extension,size_bytes,classification,reason
+artifacts/performance/phase6_1_baseline_off_16_64/raw_samples.csv,.csv,2959,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/raw_samples.csv,.csv,960,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda/raw_samples.csv,.csv,3657,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/raw_samples.csv,.csv,8423,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/phase10_baseline/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_final_equivalence/condition_summary.csv,.csv,3238,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/episode_results.csv,.csv,6703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/per_condition.csv,.csv,3238,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/per_episode.csv,.csv,6703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase6_1_closeout/benchmark_samples.csv,.csv,8423,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples.csv,.csv,4251,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples_baseline.csv,.csv,2193,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples_current.csv,.csv,2161,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_scale_ladder.csv,.csv,408,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/raw_samples.csv,.csv,399,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/raw_samples.csv,.csv,2708,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/refactor_audit/python_file_inventory.csv,.csv,38048,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/v6i9_map_awareness/per_condition.csv,.csv,1660,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/per_episode.csv,.csv,150587,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/condition_summary.csv,.csv,3250,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/episode_results.csv,.csv,3773,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/per_condition.csv,.csv,3250,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/per_episode.csv,.csv,3773,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/condition_summary.csv,.csv,3617,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/episode_results.csv,.csv,60930,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/per_condition.csv,.csv,3617,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/per_episode.csv,.csv,60930,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/per_condition.csv,.csv,498,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/per_episode.csv,.csv,528,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/per_condition.csv,.csv,497,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/per_episode.csv,.csv,784,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/per_condition.csv,.csv,915,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/per_episode.csv,.csv,1047,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/per_condition.csv,.csv,498,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/per_episode.csv,.csv,528,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+checkpoints/2v2/v6i7-a-main_2v2_episodes.csv,.csv,3198127,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-a-main_2v2_metrics.csv,.csv,229872,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_episodes.csv,.csv,3153594,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_metrics.csv,.csv,225793,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-sparse-main_2v2_episodes.csv,.csv,3183586,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-sparse-main_2v2_metrics.csv,.csv,229755,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv,.csv,2772821,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv,.csv,196949,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_episodes.csv,.csv,3233555,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_metrics.csv,.csv,226723,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_episodes.csv,.csv,767923,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_metrics.csv,.csv,81962,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv,.csv,1681185,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv,.csv,83813,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_by_z.csv,.csv,5112,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_steps.csv,.csv,44322278,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_strategy_evidence.csv,.csv,466,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_behavior_matrix.csv,.csv,3471,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_episode_results.csv,.csv,49299,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_pairwise_distances.csv,.csv,1130,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_summary.csv,.csv,682,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_by_z.csv,.csv,5120,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_steps.csv,.csv,45789558,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_strategy_evidence.csv,.csv,475,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_behavior_matrix.csv,.csv,3476,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_episode_results.csv,.csv,49341,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_pairwise_distances.csv,.csv,1071,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_summary.csv,.csv,800,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_by_z.csv,.csv,5104,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_steps.csv,.csv,45125573,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_strategy_evidence.csv,.csv,448,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_behavior_matrix.csv,.csv,3462,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_episode_results.csv,.csv,49313,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_pairwise_distances.csv,.csv,1041,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_summary.csv,.csv,769,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_by_z.csv,.csv,5107,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_steps.csv,.csv,44869083,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_strategy_evidence.csv,.csv,450,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_behavior_matrix.csv,.csv,3465,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_episode_results.csv,.csv,49294,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_pairwise_distances.csv,.csv,1029,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_summary.csv,.csv,767,KEEP,checkpoint training metric CSV
+csv/eval_final_latent_v3d_delayedanneal_300k_800k_bucketopp_1m_4v4_4v4_aggregate.csv,.csv,3365,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_latent_v3d_delayedanneal_300k_800k_bucketopp_1m_4v4_4v4_train_OP3_5ep.csv,.csv,3160,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_aggregate.csv,.csv,11761,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP3_100ep.csv,.csv,55651,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP3_100ep_e3_steps.csv,.csv,37499440,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP4_100ep.csv,.csv,46248,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP4_100ep_e3_steps.csv,.csv,37809382,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP5_RUSHER_100ep.csv,.csv,47186,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP5_RUSHER_100ep_e3_steps.csv,.csv,34084738,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP6_100ep.csv,.csv,46369,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP6_100ep_e3_steps.csv,.csv,34503949,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP7_100ep.csv,.csv,46340,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP7_100ep_e3_steps.csv,.csv,35407933,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP3_100ep.csv,.csv,54643,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP3_100ep_e3_steps.csv,.csv,36282449,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP4_100ep.csv,.csv,55835,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP4_100ep_e3_steps.csv,.csv,37509152,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP5_RUSHER_100ep.csv,.csv,55513,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP5_RUSHER_100ep_e3_steps.csv,.csv,33945294,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP6_100ep.csv,.csv,55904,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP6_100ep_e3_steps.csv,.csv,34259641,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP7_100ep.csv,.csv,54306,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP7_100ep_e3_steps.csv,.csv,36546467,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_calibration_summary.csv,.csv,482,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_condition_summary.csv,.csv,3149,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_episode_results.csv,.csv,374146,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_learned_router_trace.csv,.csv,43246,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_per_opponent_matrix.csv,.csv,1105,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_selection_traces.csv,.csv,163471,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_calibration_summary.csv,.csv,488,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_condition_summary.csv,.csv,3169,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_episode_results.csv,.csv,377310,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_learned_router_trace.csv,.csv,43594,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_per_opponent_matrix.csv,.csv,1107,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_selection_traces.csv,.csv,162135,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_calibration_summary.csv,.csv,481,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_condition_summary.csv,.csv,3169,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_episode_results.csv,.csv,377407,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_learned_router_trace.csv,.csv,45445,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_per_opponent_matrix.csv,.csv,1102,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_selection_traces.csv,.csv,164295,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_calibration_summary.csv,.csv,243,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_condition_summary.csv,.csv,1071,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_episode_results.csv,.csv,16720,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_learned_router_trace.csv,.csv,1992,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_per_opponent_matrix.csv,.csv,618,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_selection_traces.csv,.csv,6711,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_calibration_summary.csv,.csv,244,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_condition_summary.csv,.csv,1070,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_episode_results.csv,.csv,16800,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_learned_router_trace.csv,.csv,1798,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_per_opponent_matrix.csv,.csv,609,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_selection_traces.csv,.csv,6272,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_calibration_summary.csv,.csv,243,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_condition_summary.csv,.csv,1085,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_episode_results.csv,.csv,8789,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_learned_router_trace.csv,.csv,1069,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_per_opponent_matrix.csv,.csv,618,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_selection_traces.csv,.csv,2042,UNKNOWN,CSV file — requires Stage 12 classification
+logs/proof_ladder_20260530_204247/stage_timings.csv,.csv,184,DELETE,runtime training log — unreferenced by any report

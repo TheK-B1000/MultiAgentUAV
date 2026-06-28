@@ -1,4 +1,0 @@
-{
-  "status": "NOT_RUN",
-  "reason": "Memory retention/deep tensor-reference audit deferred; current work completed OFF hot-path and component benchmark first actions."
-}

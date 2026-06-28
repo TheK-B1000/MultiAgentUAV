@@ -1,5 +1,0 @@
-policy,map,requested_opponent,resolved_opponent,opponent,seed,blue_score,red_score,win,loss,draw,score_margin,wall_collisions,wall_collision_source,stuck_steps,stuck_source,repeated_blocked_movement,upper_lane_use,lower_lane_use,route_switches,route_source,episode_steps
-baseline,map_b_split_lane,OP8,OP8,OP8,7000,2.0,3.0,0,1,0,-1.0,,unavailable,5.0,position_proxy,2.0,7.0,7.0,6.0,episode_info,146
-candidate,map_b_split_lane,OP8,OP8,OP8,7000,3.0,2.0,1,0,0,1.0,,unavailable,1.0,position_proxy,1.0,7.0,3.0,4.0,episode_info,107
-baseline,map_b_split_lane,OP8,OP8,OP8,7001,3.0,1.0,1,0,0,2.0,,unavailable,1.0,position_proxy,1.0,1.0,12.0,2.0,episode_info,111
-candidate,map_b_split_lane,OP8,OP8,OP8,7001,3.0,2.0,1,0,0,1.0,,unavailable,0.0,position_proxy,0.0,7.0,5.0,5.0,episode_info,108

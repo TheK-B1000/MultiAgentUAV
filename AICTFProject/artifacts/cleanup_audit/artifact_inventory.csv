@@ -1,0 +1,250 @@
+path,extension,size_bytes,classification,reason
+artifacts/cleanup_audit/starting_branch.txt,.txt,11,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/starting_commit.txt,.txt,45,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/starting_status.txt,.txt,901,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/stash_inventory.txt,.txt,2693,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/worktree_inventory.txt,.txt,230,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/performance/phase6_1_baseline_off_16_64/benchmark_manifest.json,.json,803,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_baseline_off_16_64/benchmark_summary.json,.json,1713,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_baseline_off_16_64/benchmark_summary.txt,.txt,653,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_baseline_off_16_64/raw_samples.csv,.csv,2959,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/benchmark_manifest.json,.json,804,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/benchmark_summary.json,.json,2153,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/benchmark_summary.txt,.txt,732,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/raw_samples.csv,.csv,960,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda/raw_samples.csv,.csv,3657,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/benchmark_manifest.json,.json,1620,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/benchmark_summary.json,.json,4398,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/benchmark_summary.txt,.txt,973,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_basic_16.jsonl,.jsonl,941,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_basic_64.jsonl,.jsonl,946,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_full_16.jsonl,.jsonl,942,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_full_64.jsonl,.jsonl,942,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/raw_samples.csv,.csv,8423,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/phase10_baseline/caller_inventory.json,.json,10400,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/evaluation_manifest.json,.json,37492,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/function_inventory.json,.json,11958,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/run_capture.json,.json,575,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/stdout.txt,.txt,8822,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_closeout/phase10_slice_report.json,.json,2103,KEEP_GOLDEN,canonical closeout directory phase10_closeout
+artifacts/phase10_closeout/phase10_slice_report.md,.md,1532,KEEP_GOLDEN,canonical closeout directory phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/equivalence_report.json,.json,1272,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/equivalence_report.md,.md,62,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/evaluation_manifest.json,.json,37513,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/run_capture.json,.json,589,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/stdout.txt,.txt,8864,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/equivalence_report.json,.json,1326,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/equivalence_report.md,.md,60,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/evaluation_manifest.json,.json,37511,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/run_capture.json,.json,587,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/stdout.txt,.txt,8860,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.json,.json,1282,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.md,.md,476,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/evaluation_manifest.json,.json,37520,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/run_capture.json,.json,596,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/stdout.txt,.txt,8878,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.json,.json,1278,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.md,.md,366,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/evaluation_manifest.json,.json,37516,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/run_capture.json,.json,591,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/stdout.txt,.txt,8870,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/equivalence_report.json,.json,1263,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/equivalence_report.md,.md,466,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/evaluation_manifest.json,.json,37511,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/run_capture.json,.json,587,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/stdout.txt,.txt,8860,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_final_equivalence/condition_summary.csv,.csv,3238,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/episode_results.csv,.csv,6703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/equivalence_report.json,.json,1936,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/equivalence_report.md,.md,404,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/evaluation_manifest.json,.json,37501,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/exit_code.txt,.txt,3,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/final_report.json,.json,2703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/final_report.txt,.txt,582,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/obstacle_probe.json,.json,1054,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/per_condition.csv,.csv,3238,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/per_episode.csv,.csv,6703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/run_capture.json,.json,575,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/stderr.txt,.txt,0,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/stdout.txt,.txt,8840,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/summary.json,.json,2703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase5_closeout/distribution_contract.json,.json,1700,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/memory_comparison.json,.json,569,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/performance_comparison.json,.json,819,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/phase5_closeout_report.json,.json,3225,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/phase5_closeout_report.txt,.txt,2531,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/rollout_equivalence.json,.json,714,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/telemetry_invariance.json,.json,574,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/test_discovery.txt,.txt,503024,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/test_discovery_pattern.txt,.txt,138368,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/test_files.txt,.txt,3101,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase6_1_closeout/baseline_comparison.json,.json,1257,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/benchmark_manifest.json,.json,1620,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/benchmark_samples.csv,.csv,8423,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/benchmark_summary.json,.json,5733,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/memory_comparison.json,.json,1126,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/phase6_1_report.json,.json,1542,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/phase6_1_report.md,.md,919,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/repeat_discovery_default.txt,.txt,80683,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/repeat_discovery_pattern.txt,.txt,80683,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/repeat_discovery_summary.json,.json,1063,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/rng_invariance.json,.json,221,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/telemetry_invariance.json,.json,6383,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/test_discovery.txt,.txt,866,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_perf_investigation/baseline_environment.json,.json,4155,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/bisect_log.txt,.txt,151,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples.csv,.csv,4251,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples_baseline.csv,.csv,2193,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples_current.csv,.csv,2161,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_summary.json,.json,3239,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_summary_baseline.json,.json,2352,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_summary_current.json,.json,2317,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_failure.txt,.txt,176,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_scale_ladder.csv,.csv,408,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/current_environment.json,.json,6003,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/environment_diff.json,.json,680,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/first_bad_commit.json,.json,109,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/investigation_report.json,.json,1997,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/investigation_report.md,.md,1143,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/memory_retention.json,.json,173,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/off_hot_path_validation.json,.json,963,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/profiler_summary.json,.json,130,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_benchmark_summary.json,.json,2885,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/benchmark_manifest.json,.json,551,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/benchmark_summary.json,.json,1007,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/benchmark_summary.txt,.txt,573,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/raw_samples.csv,.csv,399,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/benchmark_manifest.json,.json,1621,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/benchmark_summary.json,.json,4397,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/benchmark_summary.txt,.txt,973,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_basic_16.jsonl,.jsonl,943,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_basic_64.jsonl,.jsonl,940,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_full_16.jsonl,.jsonl,942,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_full_64.jsonl,.jsonl,945,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/raw_samples.csv,.csv,2708,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase7_closeout/phase7_report.json,.json,4662,KEEP_GOLDEN,canonical closeout directory phase7_closeout
+artifacts/phase8_closeout/phase8_report.json,.json,5607,KEEP_GOLDEN,canonical closeout directory phase8_closeout
+artifacts/phase9_closeout/phase9_report.json,.json,5903,KEEP_GOLDEN,canonical closeout directory phase9_closeout
+artifacts/refactor_audit/blockers.json,.json,3250,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/compatibility_facades.json,.json,946,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/current_branch.txt,.txt,8,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/current_commit.txt,.txt,42,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/missing_artifacts.json,.json,4833,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/phase_status.json,.json,15864,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/phase_status.md,.md,7640,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/python_file_inventory.csv,.csv,38048,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/recommended_next_steps.md,.md,798,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/refactor_progress_report.json,.json,17183,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/refactor_progress_report.md,.md,7640,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/static_findings.txt,.txt,24915,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/test_count_history.json,.json,2510,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/test_discovery.txt,.txt,1593,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/working_tree.txt,.txt,1044,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/v6i9_map_awareness/evaluation_manifest.json,.json,35769,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/final_report.txt,.txt,431,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/obstacle_probe.json,.json,954,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/per_condition.csv,.csv,1660,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/per_episode.csv,.csv,150587,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/summary.json,.json,2085,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/condition_summary.csv,.csv,3250,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/episode_results.csv,.csv,3773,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/evaluation_manifest.json,.json,37516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.json,.json,2684,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.txt,.txt,551,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/obstacle_probe.json,.json,1053,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/per_condition.csv,.csv,3250,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/per_episode.csv,.csv,3773,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/summary.json,.json,2684,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/condition_summary.csv,.csv,3617,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/episode_results.csv,.csv,60930,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/evaluation_manifest.json,.json,37519,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/final_report.json,.json,2653,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/final_report.txt,.txt,466,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/obstacle_probe.json,.json,1053,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/per_condition.csv,.csv,3617,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/per_episode.csv,.csv,60930,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/summary.json,.json,2653,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/evaluation_manifest.json,.json,36766,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/obstacle_probe.json,.json,1054,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/per_condition.csv,.csv,498,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/per_episode.csv,.csv,528,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/summary.json,.json,1868,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/evaluation_manifest.json,.json,35723,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/obstacle_probe.json,.json,1033,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/per_condition.csv,.csv,497,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/per_episode.csv,.csv,784,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/summary.json,.json,1871,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/evaluation_manifest.json,.json,35748,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/obstacle_probe.json,.json,954,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/per_condition.csv,.csv,915,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/per_episode.csv,.csv,1047,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/summary.json,.json,1985,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/evaluation_manifest.json,.json,35722,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/obstacle_probe.json,.json,1054,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/per_condition.csv,.csv,498,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/per_episode.csv,.csv,528,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/summary.json,.json,1868,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical

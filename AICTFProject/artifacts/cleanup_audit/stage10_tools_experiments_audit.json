@@ -1,0 +1,273 @@
+{
+  "stage": 10,
+  "title": "Tool and Experiment Script Audit",
+  "date": "2026-06-28",
+  "tools": {
+    "_build_latent_modules.py": {
+      "classification": "ONE_TIME_MIGRATION",
+      "lines": 82,
+      "reason": "Phase 7 build helper for extracting diagnostics sub-modules. Migration complete. Safe to archive."
+    },
+    "_diag_latent_summary.py": {
+      "classification": "ONE_TIME_MIGRATION",
+      "lines": 56,
+      "reason": "Phase 7 migration summary helper. Migration complete. Safe to archive."
+    },
+    "_extract_docx_text.py": {
+      "classification": "SUPERSEDED",
+      "lines": 20,
+      "reason": "One-off docx extraction utility. Not referenced anywhere. No associated artifact."
+    },
+    "_extract_latent_modules.py": {
+      "classification": "ONE_TIME_MIGRATION",
+      "lines": 227,
+      "reason": "Phase 7 AST extraction tool for latent diagnostics decomposition. Migration complete."
+    },
+    "_shrink_latent_core.py": {
+      "classification": "ONE_TIME_MIGRATION",
+      "lines": 124,
+      "reason": "Phase 7 refactor tool for shrinking latent_diagnostics.py. Migration complete."
+    },
+    "analyze_latent.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 711,
+      "reason": "Active latent strategy analysis tool. Used post-training to inspect latent structure."
+    },
+    "audit_dead_code.py": {
+      "classification": "SUPPORTED",
+      "lines": 261,
+      "reason": "Phase 11 Stage 8 dead-code scanner. Retained as ongoing maintenance tool."
+    },
+    "audit_refactor_progress.py": {
+      "classification": "SUPPORTED",
+      "lines": 528,
+      "reason": "Tracks refactoring progress across phases. Retained for Phase 11 tracking."
+    },
+    "audit_repository_cleanup.py": {
+      "classification": "SUPPORTED",
+      "lines": 362,
+      "reason": "Phase 11 repository inventory tool. Retained as ongoing maintenance tool."
+    },
+    "benchmark_training_pipeline.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 395,
+      "reason": "Pipeline throughput benchmarking. Used for performance regression detection."
+    },
+    "critic_ceiling.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 161,
+      "reason": "Critic ceiling analysis tool. Used to diagnose value function capacity."
+    },
+    "diagnose_run.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 252,
+      "reason": "Post-run training diagnostics. Active use for debugging training runs."
+    },
+    "global_state_probe.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 83,
+      "reason": "Probes global state tensor structure. Used during V6I9 map-aware development."
+    },
+    "phase6_1_capture_environment.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 78,
+      "reason": "Phase 6.1 environment snapshot capture. Closeout complete. Kept for reproducibility."
+    },
+    "phase6_1_component_benchmark.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 177,
+      "reason": "Phase 6.1 component performance benchmark. Closeout complete. Kept for reproducibility."
+    },
+    "q_probe.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 1651,
+      "reason": "Primary Q-value and router probing tool. Active use for V6I7/V6I9 evaluation."
+    },
+    "q_probe_local_counterfactual.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 1064,
+      "reason": "Local counterfactual Z-swap probing. Active use for forced-z behavioral evaluation."
+    },
+    "qualitative_rollout.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 1010,
+      "reason": "Qualitative episode rollout visualizer. Active use for visual policy inspection."
+    },
+    "router_distill_from_qprobe.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 1180,
+      "reason": "Router distillation from Q-probe outputs. Used in V6I7 router critic warmup experiments."
+    },
+    "router_eval_matrix.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 374,
+      "reason": "Router ablation evaluation matrix runner. Active for V6I7/V6I9 behavioral gates."
+    },
+    "sliced_z_diagnostics.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 609,
+      "reason": "Sliced latent Z diagnostics. Active for V6I9 separation verification."
+    },
+    "snapshot_presets.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 59,
+      "reason": "Preset snapshot capture for reproducibility. Small utility, minimal risk."
+    },
+    "summer_proof_report.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 831,
+      "reason": "Summer proof ladder report generator. Active — generates the promotion summary."
+    },
+    "tactical_regime_analysis.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 896,
+      "reason": "Tactical regime clustering and phase analysis. Active for post-training analysis."
+    },
+    "trace_actor_z_pathway.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 91,
+      "reason": "Actor Z pathway gradient trace. Active debugging tool for latent conditioning."
+    },
+    "v5i8_forced_z_eval.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 171,
+      "reason": "V5I8 forced-Z evaluation. Historical experiment script. No active callers."
+    },
+    "v6i3_comm_corruption_eval.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 57,
+      "reason": "V6I3 communication corruption ablation. Historical experiment. No active callers."
+    },
+    "v6i5_cf_diagnostics.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 935,
+      "reason": "V6I5 counterfactual diagnostics. Historical experiment. Superseded by q_probe_local_counterfactual.py for V6I7+."
+    },
+    "v6i5_cf_sweep_summary.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 110,
+      "reason": "V6I5 CF sweep summary reporter. Historical companion to v6i5_cf_diagnostics.py."
+    },
+    "v6i5_phase_a_audit.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 327,
+      "reason": "V6I5 Phase A training audit. Historical experiment. Superseded."
+    },
+    "v6i5_state_conditioned_branch_eval.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 1321,
+      "reason": "V6I5 state-conditioned branch evaluation. Historical experiment. Superseded by router_eval_matrix.py."
+    },
+    "verify_router_checkpoints.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 80,
+      "reason": "Router checkpoint verification utility. Active use before promoting checkpoints."
+    },
+    "verify_telemetry_invariance.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 156,
+      "reason": "Telemetry invariance verification. Active use after telemetry refactors."
+    }
+  },
+  "experiments": {
+    "_z_marginal_from_csv.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 62,
+      "reason": "Extracts Z marginal distribution from training CSVs. Small utility, active use."
+    },
+    "analyze_latent_mi.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 423,
+      "reason": "Mutual information analysis for latent Z. Active for V6I9 validation."
+    },
+    "analyze_v3i12_telemetry.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 141,
+      "reason": "V3I12 telemetry analysis. Historical experiment. Superseded by analyze_latent_mi.py."
+    },
+    "build_proof_table.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 297,
+      "reason": "Summer proof ladder table builder. Active — feeds summer_proof_report.py."
+    },
+    "build_seed_aggregate_table.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 254,
+      "reason": "Aggregate table builder across seeds. Active for multi-seed result aggregation."
+    },
+    "calibrate_hard_pool.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 222,
+      "reason": "Hard pool calibration for V6I9 opponent sampling. Active use."
+    },
+    "diagnose_run.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 150,
+      "reason": "Experiment-level run diagnostics. Active use. Companion to tools/diagnose_run.py."
+    },
+    "eval_op4_zero_shot.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 312,
+      "reason": "OP4 zero-shot evaluation protocol. Historical experiment."
+    },
+    "eval_v6i8_stage_c.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 155,
+      "reason": "V6I8 Stage C evaluation. Historical experiment. Superseded by eval_v6i9_map_awareness.py."
+    },
+    "eval_v6i9_map_awareness.py": {
+      "classification": "SUPPORTED",
+      "lines": 1144,
+      "reason": "Primary V6I9 map-awareness evaluation entry point. Active — is the canonical V6I9 gate runner."
+    },
+    "gate_v6i9_map_aware.py": {
+      "classification": "SUPPORTED",
+      "lines": 185,
+      "reason": "V6I9 gate runner wrapper. Active — orchestrates eval_v6i9_map_awareness.py with preset configs."
+    },
+    "op35_latent_matrix.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 343,
+      "reason": "OP3/OP5 latent strategy evaluation matrix. Historical experiment."
+    },
+    "phase6_experiment_matrix.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 158,
+      "reason": "Phase 6 experiment matrix runner. Historical — superseded by router_eval_matrix.py."
+    },
+    "plan_faithful_ablation_matrix.py": {
+      "classification": "HISTORICAL_REPRODUCTION",
+      "lines": 132,
+      "reason": "Plan-faithful ablation matrix runner. Historical. Superseded by current ablation tooling."
+    },
+    "run_forced_z_matrix.py": {
+      "classification": "INTERNAL_SUPPORTED",
+      "lines": 334,
+      "reason": "Forced-Z evaluation matrix runner. Active use for V6I7/V6I9 behavioral gate."
+    }
+  },
+  "summary": {
+    "tools": {
+      "SUPPORTED": 3,
+      "INTERNAL_SUPPORTED": 18,
+      "ONE_TIME_MIGRATION": 5,
+      "HISTORICAL_REPRODUCTION": 7,
+      "SUPERSEDED": 1
+    },
+    "experiments": {
+      "SUPPORTED": 2,
+      "INTERNAL_SUPPORTED": 8,
+      "HISTORICAL_REPRODUCTION": 5
+    }
+  },
+  "deletion_candidates": [
+    "tools/_extract_docx_text.py (SUPERSEDED — no associated artifact, no callers)",
+    "tools/_build_latent_modules.py (ONE_TIME_MIGRATION — Phase 7 complete)",
+    "tools/_diag_latent_summary.py (ONE_TIME_MIGRATION — Phase 7 complete)",
+    "tools/_extract_latent_modules.py (ONE_TIME_MIGRATION — Phase 7 complete)",
+    "tools/_shrink_latent_core.py (ONE_TIME_MIGRATION — Phase 7 complete)"
+  ],
+  "archive_candidates": [
+    "All HISTORICAL_REPRODUCTION items in tools/ and experiments/ — keep for reproducibility but could move to artifacts/historical_scripts/"
+  ]
+}

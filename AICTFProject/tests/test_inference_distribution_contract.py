@@ -144,13 +144,13 @@ class LoadedPolicyDistributionContractTests(unittest.TestCase):
             self.assertIsInstance(dist, MultiHeadActionDistribution)
 
     def test_evaluator_preflight_rejects_missing_distribution_contract(self) -> None:
-        from experiments.eval_v6i9_map_awareness import _validate_distribution_contract
+        from rl.evaluation.preflight import validate_distribution_contract
 
         class BrokenPolicy:
             model = object()
 
         with self.assertRaises(TypeError):
-            _validate_distribution_contract(BrokenPolicy(), label="broken")
+            validate_distribution_contract(BrokenPolicy(), label="broken")
 
 
 if __name__ == "__main__":

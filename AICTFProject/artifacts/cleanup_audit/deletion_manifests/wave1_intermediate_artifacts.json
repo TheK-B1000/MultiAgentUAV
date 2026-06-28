@@ -1,0 +1,137 @@
+{
+  "cleanup_batch": "phase6_1_phase10_intermediate_artifacts",
+  "created_at": "2026-06-28T07:42:37.925189",
+  "source_commit": "5057ba3599f8114fae62f9ef0314d6c2f905b5bf",
+  "files": [
+    {
+      "path": "artifacts/phase6_1_perf_investigation",
+      "classification": "DELETE",
+      "reason": "Phase 6.1 intermediate investigation \u2014 not referenced by final report",
+      "exists": true,
+      "size_mb": 0.05,
+      "file_count": 33,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/performance",
+      "classification": "DELETE",
+      "reason": "Phase 6.1 intermediate benchmark run directories \u2014 not referenced by final report",
+      "exists": true,
+      "size_mb": 0.03,
+      "file_count": 21,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/phase10_equivalence_aggregation_gates",
+      "classification": "DELETE",
+      "reason": "Phase 10 intermediate equivalence \u2014 superseded by phase10_final_equivalence",
+      "exists": true,
+      "size_mb": 0.07,
+      "file_count": 15,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/phase10_equivalence_artifact_writer",
+      "classification": "DELETE",
+      "reason": "Phase 10 intermediate equivalence \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.07,
+      "file_count": 15,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/phase10_equivalence_episode_matched_seed",
+      "classification": "DELETE",
+      "reason": "Phase 10 intermediate equivalence \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.07,
+      "file_count": 15,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/phase10_equivalence_obstacle_probes",
+      "classification": "DELETE",
+      "reason": "Phase 10 intermediate equivalence \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.07,
+      "file_count": 15,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/phase10_equivalence_config_loading_preflight",
+      "classification": "DELETE",
+      "reason": "Phase 10 intermediate equivalence \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.07,
+      "file_count": 15,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/v6i9_map_awareness_smoke",
+      "classification": "DELETE",
+      "reason": "v6i9 intermediate evaluation attempt \u2014 superseded by v6i9_map_awareness canonical",
+      "exists": true,
+      "size_mb": 0.04,
+      "file_count": 6,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/v6i9_map_awareness_smoke2",
+      "classification": "DELETE",
+      "reason": "v6i9 intermediate evaluation attempt \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.04,
+      "file_count": 6,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/v6i9_map_awareness_p15_smoke",
+      "classification": "DELETE",
+      "reason": "v6i9 intermediate evaluation attempt \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.04,
+      "file_count": 6,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/v6i9_map_awareness_probe_fix",
+      "classification": "DELETE",
+      "reason": "v6i9 intermediate evaluation attempt \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.04,
+      "file_count": 6,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/v6i9_map_awareness_exact_telemetry_smoke",
+      "classification": "DELETE",
+      "reason": "v6i9 intermediate evaluation attempt \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.06,
+      "file_count": 9,
+      "recoverable": true,
+      "references_found": []
+    },
+    {
+      "path": "artifacts/v6i9_map_awareness_full_exact_telemetry",
+      "classification": "DELETE",
+      "reason": "v6i9 intermediate evaluation attempt \u2014 superseded",
+      "exists": true,
+      "size_mb": 0.17,
+      "file_count": 9,
+      "recoverable": true,
+      "references_found": []
+    }
+  ]
+}

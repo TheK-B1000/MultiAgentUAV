@@ -1,0 +1,207 @@
+path,name,extension,size_bytes,size_mb,classification,reason
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_100000.zip,ckpt_v6i7-a-main_2v2_100000.zip,.zip,42431141,40.47,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_1000000.zip,ckpt_v6i7-a-main_2v2_1000000.zip,.zip,42431274,40.47,KEEP,periodic checkpoint at step 1000000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_150000.zip,ckpt_v6i7-a-main_2v2_150000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_200000.zip,ckpt_v6i7-a-main_2v2_200000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_250000.zip,ckpt_v6i7-a-main_2v2_250000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_300000.zip,ckpt_v6i7-a-main_2v2_300000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 300000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_350000.zip,ckpt_v6i7-a-main_2v2_350000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 350000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_400000.zip,ckpt_v6i7-a-main_2v2_400000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 400000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_450000.zip,ckpt_v6i7-a-main_2v2_450000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 450000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_50000.zip,ckpt_v6i7-a-main_2v2_50000.zip,.zip,42431008,40.47,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_500000.zip,ckpt_v6i7-a-main_2v2_500000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 500000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_550000.zip,ckpt_v6i7-a-main_2v2_550000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 550000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_600000.zip,ckpt_v6i7-a-main_2v2_600000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 600000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_650000.zip,ckpt_v6i7-a-main_2v2_650000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 650000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_700000.zip,ckpt_v6i7-a-main_2v2_700000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 700000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_750000.zip,ckpt_v6i7-a-main_2v2_750000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 750000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_800000.zip,ckpt_v6i7-a-main_2v2_800000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 800000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_850000.zip,ckpt_v6i7-a-main_2v2_850000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 850000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_900000.zip,ckpt_v6i7-a-main_2v2_900000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 900000
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_950000.zip,ckpt_v6i7-a-main_2v2_950000.zip,.zip,42431141,40.47,KEEP,periodic checkpoint at step 950000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_100000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_100000.zip,.zip,42033975,40.09,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000.zip,.zip,42034078,40.09,KEEP,periodic checkpoint at step 1000000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_150000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_150000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_200000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_200000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_250000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_250000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 300000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_350000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_350000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 350000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_400000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_400000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 400000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_450000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_450000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 450000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_50000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_50000.zip,.zip,42033872,40.09,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 500000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_550000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_550000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 550000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_600000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_600000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 600000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_650000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_650000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 650000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 700000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_750000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_750000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 750000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_800000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_800000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 800000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_850000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_850000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 850000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_900000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_900000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 900000
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_950000.zip,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_950000.zip,.zip,42033975,40.09,KEEP,periodic checkpoint at step 950000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_100000.zip,ckpt_v6i7-sparse-main_2v2_100000.zip,.zip,42432254,40.47,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_1000000.zip,ckpt_v6i7-sparse-main_2v2_1000000.zip,.zip,42432387,40.47,KEEP,periodic checkpoint at step 1000000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_150000.zip,ckpt_v6i7-sparse-main_2v2_150000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_200000.zip,ckpt_v6i7-sparse-main_2v2_200000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_250000.zip,ckpt_v6i7-sparse-main_2v2_250000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_300000.zip,ckpt_v6i7-sparse-main_2v2_300000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 300000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_350000.zip,ckpt_v6i7-sparse-main_2v2_350000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 350000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_400000.zip,ckpt_v6i7-sparse-main_2v2_400000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 400000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_450000.zip,ckpt_v6i7-sparse-main_2v2_450000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 450000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_50000.zip,ckpt_v6i7-sparse-main_2v2_50000.zip,.zip,42432121,40.47,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_500000.zip,ckpt_v6i7-sparse-main_2v2_500000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 500000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_550000.zip,ckpt_v6i7-sparse-main_2v2_550000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 550000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_600000.zip,ckpt_v6i7-sparse-main_2v2_600000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 600000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_650000.zip,ckpt_v6i7-sparse-main_2v2_650000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 650000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_700000.zip,ckpt_v6i7-sparse-main_2v2_700000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 700000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_750000.zip,ckpt_v6i7-sparse-main_2v2_750000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 750000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_800000.zip,ckpt_v6i7-sparse-main_2v2_800000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 800000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_850000.zip,ckpt_v6i7-sparse-main_2v2_850000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 850000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_900000.zip,ckpt_v6i7-sparse-main_2v2_900000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 900000
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_950000.zip,ckpt_v6i7-sparse-main_2v2_950000.zip,.zip,42432254,40.47,KEEP,periodic checkpoint at step 950000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_100000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_100000.zip,.zip,45207888,43.11,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_1000000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_1000000.zip,.zip,45208031,43.11,KEEP,periodic checkpoint at step 1000000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_150000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_150000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_200000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_200000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_250000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_250000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_300000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_300000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 300000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_350000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_350000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 350000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_400000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_400000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 400000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_450000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_450000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 450000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_50000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_50000.zip,.zip,45207745,43.11,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_500000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_500000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 500000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_550000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_550000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 550000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_600000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_600000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 600000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_650000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_650000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 650000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_700000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_700000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 700000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_750000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_750000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 750000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_800000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_800000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 800000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_850000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_850000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 850000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_900000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_900000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 900000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_950000.zip,ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_950000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 950000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_100000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_100000.zip,.zip,42032444,40.09,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_1000000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_1000000.zip,.zip,42032547,40.09,KEEP,periodic checkpoint at step 1000000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_150000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_150000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_200000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_200000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_250000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_250000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_300000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_300000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 300000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_350000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_350000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 350000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_400000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_400000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 400000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_450000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_450000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 450000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_50000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_50000.zip,.zip,42032149,40.08,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_500000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_500000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 500000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_550000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_550000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 550000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_600000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_600000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 600000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_650000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_650000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 650000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_700000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_700000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 700000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_750000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_750000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 750000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_800000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_800000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 800000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_850000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_850000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 850000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_900000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_900000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 900000
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_950000.zip,ckpt_v6i8-adapter-balanced-seed1_2v2_950000.zip,.zip,42032444,40.09,KEEP,periodic checkpoint at step 950000
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_100000.zip,ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_100000.zip,.zip,45207888,43.11,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_150000.zip,ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_150000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_200000.zip,ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_200000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_250000.zip,ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_250000.zip,.zip,45207888,43.11,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_50000.zip,ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_50000.zip,.zip,45207745,43.11,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_100000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_100000.zip,.zip,42040016,40.09,ARCHIVE,"early periodic checkpoint at step 100000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip,.zip,42040119,40.09,KEEP,periodic checkpoint at step 1000000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_150000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_150000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 150000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_200000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_200000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 200000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_250000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_250000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 250000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_300000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_300000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 300000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_350000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_350000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 350000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_400000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_400000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 400000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_450000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_450000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 450000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_50000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_50000.zip,.zip,42039785,40.09,ARCHIVE,"early periodic checkpoint at step 50000 — non-final, low-step"
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_500000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_500000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 500000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_550000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_550000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 550000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_600000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_600000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 600000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_650000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_650000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 650000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_700000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_700000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 700000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_750000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_750000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 750000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_800000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_800000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 800000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_850000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_850000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 850000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_900000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_900000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 900000
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_950000.zip,ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_950000.zip,.zip,42040016,40.09,KEEP,periodic checkpoint at step 950000
+checkpoints/2v2/final_v6i7-a-main_2v2.zip,final_v6i7-a-main_2v2.zip,.zip,42430215,40.46,KEEP,final checkpoint for a training run
+checkpoints/2v2/final_v6i7-balanced-sparse-critic-warmup-seed1_2v2.zip,final_v6i7-balanced-sparse-critic-warmup-seed1_2v2.zip,.zip,42033165,40.09,KEEP,final checkpoint for a training run
+checkpoints/2v2/final_v6i7-sparse-main_2v2.zip,final_v6i7-sparse-main_2v2.zip,.zip,42431456,40.47,KEEP,final checkpoint for a training run
+checkpoints/2v2/final_v6i8-adapter-balanced-hardpool-seed1_2v2.zip,final_v6i8-adapter-balanced-hardpool-seed1_2v2.zip,.zip,45206966,43.11,KEEP,final checkpoint for a training run
+checkpoints/2v2/final_v6i8-adapter-balanced-seed1_2v2.zip,final_v6i8-adapter-balanced-seed1_2v2.zip,.zip,42031634,40.08,KEEP,final checkpoint for a training run
+checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-seed1_2v2.zip,final_v6i9-mapaware-generalist-hardpool-seed1_2v2.zip,.zip,42039206,40.09,KEEP,final checkpoint for a training run
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_by_z.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_by_z.csv,.csv,5112,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_summary.md,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_summary.md,.md,6322,0.01,UNKNOWN,unclassified checkpoint file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_steps.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_steps.csv,.csv,44322278,42.27,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_strategy_evidence.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_strategy_evidence.csv,.csv,466,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_behavior_matrix.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_behavior_matrix.csv,.csv,3471,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_episode_results.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_episode_results.csv,.csv,49299,0.05,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_manifest.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_manifest.json,.json,1869,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_pairwise_distances.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_pairwise_distances.csv,.csv,1130,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_report.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_report.json,.json,734,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_summary.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_summary.csv,.csv,682,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_by_z.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_by_z.csv,.csv,5120,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_summary.md,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_summary.md,.md,6329,0.01,UNKNOWN,unclassified checkpoint file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_steps.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_steps.csv,.csv,45789558,43.67,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_strategy_evidence.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_strategy_evidence.csv,.csv,475,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_behavior_matrix.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_behavior_matrix.csv,.csv,3476,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_episode_results.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_episode_results.csv,.csv,49341,0.05,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_manifest.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_manifest.json,.json,1876,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_pairwise_distances.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_pairwise_distances.csv,.csv,1071,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_report.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_report.json,.json,735,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_summary.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_summary.csv,.csv,800,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_by_z.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_by_z.csv,.csv,5104,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_summary.md,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_summary.md,.md,6298,0.01,UNKNOWN,unclassified checkpoint file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_steps.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_steps.csv,.csv,45125573,43.04,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_strategy_evidence.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_strategy_evidence.csv,.csv,448,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_behavior_matrix.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_behavior_matrix.csv,.csv,3462,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_episode_results.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_episode_results.csv,.csv,49313,0.05,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_manifest.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_manifest.json,.json,1876,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_pairwise_distances.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_pairwise_distances.csv,.csv,1041,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_report.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_report.json,.json,733,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_summary.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_summary.csv,.csv,769,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_by_z.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_by_z.csv,.csv,5107,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_summary.md,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_summary.md,.md,6318,0.01,UNKNOWN,unclassified checkpoint file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_steps.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_steps.csv,.csv,44869083,42.79,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_strategy_evidence.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_strategy_evidence.csv,.csv,450,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_behavior_matrix.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_behavior_matrix.csv,.csv,3465,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_episode_results.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_episode_results.csv,.csv,49294,0.05,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_manifest.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_manifest.json,.json,1876,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_pairwise_distances.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_pairwise_distances.csv,.csv,1029,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_report.json,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_report.json,.json,733,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_summary.csv,ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_summary.csv,.csv,767,0.0,KEEP,checkpoint training metric/config file
+checkpoints/2v2/interrupt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_273856.zip,interrupt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_273856.zip,.zip,45208987,43.11,KEEP,interrupt checkpoint — may be most recent state of a run
+checkpoints/2v2/interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1017856.zip,interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1017856.zip,.zip,42040698,40.09,KEEP,interrupt checkpoint — may be most recent state of a run
+checkpoints/2v2/interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_873472.zip,interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_873472.zip,.zip,42040595,40.09,KEEP,interrupt checkpoint — may be most recent state of a run
+checkpoints/2v2/v6i7-a-main_2v2_episodes.csv,v6i7-a-main_2v2_episodes.csv,.csv,3198127,3.05,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-a-main_2v2_metrics.csv,v6i7-a-main_2v2_metrics.csv,.csv,229872,0.22,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-a-main_2v2_run_config.json,v6i7-a-main_2v2_run_config.json,.json,16921,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_episodes.csv,v6i7-balanced-sparse-critic-warmup-seed1_2v2_episodes.csv,.csv,3153594,3.01,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_metrics.csv,v6i7-balanced-sparse-critic-warmup-seed1_2v2_metrics.csv,.csv,225793,0.22,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_run_config.json,v6i7-balanced-sparse-critic-warmup-seed1_2v2_run_config.json,.json,17166,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-sparse-main_2v2_episodes.csv,v6i7-sparse-main_2v2_episodes.csv,.csv,3183586,3.04,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-sparse-main_2v2_metrics.csv,v6i7-sparse-main_2v2_metrics.csv,.csv,229755,0.22,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-sparse-main_2v2_run_config.json,v6i7-sparse-main_2v2_run_config.json,.json,16983,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i7-warmup-main_2v2_run_config.json,v6i7-warmup-main_2v2_run_config.json,.json,17035,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2.run.lock,v6i8-adapter-balanced-hardpool-seed1_2v2.run.lock,.lock,584,0.0,DELETE,stale .lock file from completed training run
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv,v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv,.csv,2772821,2.64,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv.bak.1782427317,v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv.bak.1782427317,.1782427317,3129022,2.98,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv,v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv,.csv,196949,0.19,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv.bak.1782427317,v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv.bak.1782427317,.1782427317,219703,0.21,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_run_config.json,v6i8-adapter-balanced-hardpool-seed1_2v2_run_config.json,.json,17307,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_episodes.csv,v6i8-adapter-balanced-seed1_2v2_episodes.csv,.csv,3233555,3.08,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_metrics.csv,v6i8-adapter-balanced-seed1_2v2_metrics.csv,.csv,226723,0.22,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_run_config.json,v6i8-adapter-balanced-seed1_2v2_run_config.json,.json,17180,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_episodes.csv,v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_episodes.csv,.csv,767923,0.73,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_metrics.csv,v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_metrics.csv,.csv,81962,0.08,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_run_config.json,v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_run_config.json,.json,17194,0.02,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv,v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv,.csv,1681185,1.6,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782483435,v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782483435,.1782483435,553607,0.53,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782497526,v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782497526,.1782497526,630845,0.6,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782498185,v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782498185,.1782498185,203433,0.19,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv,v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv,.csv,83813,0.08,KEEP,checkpoint training metric/config file
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782483435,v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782483435,.1782483435,71647,0.07,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782497526,v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782497526,.1782497526,83805,0.08,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782498185,v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782498185,.1782498185,47328,0.05,DELETE,backup file from interrupted CSV append
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_run_config.json,v6i9-mapaware-generalist-hardpool-seed1_2v2_run_config.json,.json,17683,0.02,KEEP,checkpoint training metric/config file
+checkpoints/run_manifest.json,run_manifest.json,.json,571,0.0,KEEP,checkpoint training metric/config file

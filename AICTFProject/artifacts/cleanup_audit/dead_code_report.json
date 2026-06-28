@@ -1,0 +1,578 @@
+{
+  "stage": 8,
+  "title": "Dead-Code Analysis",
+  "date": "2026-06-28",
+  "files_scanned": 468,
+  "unique_names_in_codebase": 11378,
+  "summary": {
+    "unused_imports_found": 572,
+    "unreferenced_private_symbols": 15,
+    "unreferenced_public_tools_experiments": 10
+  },
+  "unused_imports": [
+    {
+      "file": "rl/behavior_telemetry.py",
+      "line": 19,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/config_presets.py",
+      "line": 18,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/csia.py",
+      "line": 17,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/curriculum.py",
+      "line": 8,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/discrete_mi.py",
+      "line": 3,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/episode_result.py",
+      "line": 6,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/eval_forced_latent_repertoire.py",
+      "line": 9,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/eval_mode.py",
+      "line": 6,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/eval_mode.py",
+      "line": 8,
+      "module": "dataclasses.field",
+      "bound_name": "field",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/eval_router_ablation.py",
+      "line": 4,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/forced_z_behavior_vectors.py",
+      "line": 11,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/gate_telemetry.py",
+      "line": 3,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/global_state.py",
+      "line": 19,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/latent_losses.py",
+      "line": 23,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/latent_marl.py",
+      "line": 7,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/latent_phase_labels.py",
+      "line": 8,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/networks.py",
+      "line": 3,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/ppo_core.py",
+      "line": 3,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/route_telemetry.py",
+      "line": 11,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/stress_schedule.py",
+      "line": 7,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/telemetry_mode.py",
+      "line": 7,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/train_ppo.py",
+      "line": 17,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/train_ppo.py",
+      "line": 30,
+      "module": "rl.curriculum.CurriculumState",
+      "bound_name": "CurriculumState",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/train_ppo.py",
+      "line": 30,
+      "module": "rl.curriculum.phase_from_tag",
+      "bound_name": "phase_from_tag",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/config/ppo_config.py",
+      "line": 13,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/csv_writers.py",
+      "line": 1,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/curriculum_gates.py",
+      "line": 6,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/curriculum_runtime.py",
+      "line": 1,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/diagnostics_contract.py",
+      "line": 15,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/distributions.py",
+      "line": 11,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/episode_stats.py",
+      "line": 15,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/gate_protocol.py",
+      "line": 7,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/inference.py",
+      "line": 1,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/inference_policy.py",
+      "line": 1,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_behavior_contrast.py",
+      "line": 10,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_bucket_baseline.py",
+      "line": 59,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_strategy_state.py",
+      "line": 3,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_strategy_state.py",
+      "line": 10,
+      "module": "rl.behavior_telemetry.N_TELEMETRY",
+      "bound_name": "N_TELEMETRY",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_strategy_state.py",
+      "line": 11,
+      "module": "rl.custom_ppo.csv_writers._opponent_id_int_from_info",
+      "bound_name": "_opponent_id_int_from_info",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_value_baselines.py",
+      "line": 27,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/option_returns.py",
+      "line": 17,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/policy.py",
+      "line": 1,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/policy_contract.py",
+      "line": 31,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/ppo_updater.py",
+      "line": 7,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/probe_result.py",
+      "line": 13,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/return_normalization.py",
+      "line": 29,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/reward_composition.py",
+      "line": 15,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/router_distill_hook.py",
+      "line": 38,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/schedules.py",
+      "line": 3,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/trainer.py",
+      "line": 1,
+      "module": "__future__.annotations",
+      "bound_name": "annotations",
+      "confidence": "high"
+    }
+  ],
+  "unreferenced_privates": [
+    {
+      "file": "rl/custom_ppo/latent_strategy_state.py",
+      "line": 407,
+      "name": "_q_phi_params",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/latent_strategy_state.py",
+      "line": 420,
+      "name": "_grad_norm_l2",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/policy.py",
+      "line": 1160,
+      "name": "_joint_action_one_hot",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/return_normalization.py",
+      "line": 116,
+      "name": "_return_norm_std",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/curriculum/controller.py",
+      "line": 169,
+      "name": "_gate_eval_policy_wrapper",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/curriculum/controller.py",
+      "line": 200,
+      "name": "_evaluate_actor_intervention_gate",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/custom_ppo/curriculum/controller.py",
+      "line": 350,
+      "name": "_phase_c_end_step",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/evaluation/models.py",
+      "line": 135,
+      "name": "_safe_mean",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 41,
+      "name": "_check_latent_k_positive",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 60,
+      "name": "_check_router_requires_latent",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 78,
+      "name": "_check_op4_not_in_pool",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 97,
+      "name": "_check_reward_coefs_finite",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 129,
+      "name": "_check_learning_rate_positive",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 146,
+      "name": "_check_v6i9_stage_field",
+      "kind": "function",
+      "confidence": "high"
+    },
+    {
+      "file": "rl/presets/validation.py",
+      "line": 166,
+      "name": "_check_residual_requires_latent",
+      "kind": "function",
+      "confidence": "high"
+    }
+  ],
+  "unreferenced_public_tools_experiments": [
+    {
+      "file": "tools/audit_repository_cleanup.py",
+      "line": 103,
+      "name": "is_git_tracked",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "tools/summer_proof_report.py",
+      "line": 142,
+      "name": "_find_episodes_csv",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "tools/summer_proof_report.py",
+      "line": 64,
+      "name": "is_known",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "tools/v6i5_cf_diagnostics.py",
+      "line": 66,
+      "name": "compute_tensor_hash",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "experiments/eval_v6i9_map_awareness.py",
+      "line": 129,
+      "name": "_runtime_metadata",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "experiments/eval_v6i9_map_awareness.py",
+      "line": 296,
+      "name": "_checkpoint_dimensions",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "experiments/eval_v6i9_map_awareness.py",
+      "line": 302,
+      "name": "_load_native_policy",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "experiments/eval_v6i9_map_awareness.py",
+      "line": 321,
+      "name": "_validate_distribution_contract",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "experiments/eval_v6i9_map_awareness.py",
+      "line": 484,
+      "name": "_distribution",
+      "kind": "function",
+      "confidence": "low"
+    },
+    {
+      "file": "experiments/eval_v6i9_map_awareness.py",
+      "line": 498,
+      "name": "_extract_logits",
+      "kind": "function",
+      "confidence": "low"
+    }
+  ],
+  "methodology": [
+    "AST-based scan — no runtime import, no torch required",
+    "Unused imports: bound name appears in source only on import lines",
+    "Unreferenced privates: _-prefixed symbols in rl/ and gpu_env/ not found in any file's name-usage set",
+    "Unreferenced public tools/experiments: excludes 'main' and __dunder__ names; confidence=low (may be entry points)",
+    "Cross-file usage set is union of all Name/Attribute nodes across all scanned files"
+  ],
+  "known_false_positive_categories": [
+    "Re-export facades: names imported and re-exported via __all__ look unused in-file",
+    "TYPE_CHECKING guards: imports inside 'if TYPE_CHECKING:' are annotation-only",
+    "Dynamic attribute access: getattr(obj, name) references won't appear as Name nodes",
+    "Pytest fixtures: consumed by test framework, not by explicit name calls",
+    "Entry-point scripts in tools/experiments: called via CLI, not imported",
+    "from __future__ import annotations: DOMINATES unused_imports count (>500 of 572) — legitimate semantic import, not dead code",
+    "Decorator-registered functions: @_register_check in rl/presets/validation.py collects all 7 _check_* functions dynamically — all confirmed false positives"
+  ],
+  "confirmed_false_positives": {
+    "rl/presets/validation.py._check_*": "All 7 private validator functions are decorated with @_register_check — collected into a registry list at decoration time. AST scanner cannot see dynamic registration patterns.",
+    "__future__.annotations": "Semantic import that changes annotation evaluation behavior. Not a Name reference in source — appears as 'annotations' string. ~500 of 572 unused_imports are this pattern."
+  },
+  "actionable_findings": {
+    "investigate_manually": [
+      "rl/custom_ppo/latent_strategy_state.py:407 _q_phi_params — check if used inside the class via self._q_phi_params()",
+      "rl/custom_ppo/latent_strategy_state.py:420 _grad_norm_l2 — check if called from telemetry methods",
+      "rl/custom_ppo/policy.py:1160 _joint_action_one_hot — check if called anywhere in policy forward",
+      "rl/custom_ppo/return_normalization.py:116 _return_norm_std — check if called from normalize methods",
+      "rl/custom_ppo/curriculum/controller.py:169 _gate_eval_policy_wrapper — may be dead after curriculum refactor",
+      "rl/custom_ppo/curriculum/controller.py:200 _evaluate_actor_intervention_gate — same",
+      "rl/custom_ppo/curriculum/controller.py:350 _phase_c_end_step — same",
+      "rl/evaluation/models.py:135 _safe_mean — check if referenced in evaluation aggregation"
+    ],
+    "likely_dead": [
+      "rl/train_ppo.py imports CurriculumState and phase_from_tag from rl.curriculum but these may only be needed if the old train path is exercised — lower priority given train_ppo.py is a legacy entry point"
+    ]
+  }
+}

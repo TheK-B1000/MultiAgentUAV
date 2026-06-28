@@ -1,7 +1,0 @@
-policy,map,requested_opponent,resolved_opponent,opponent,episodes,blue_score,red_score,win,loss,draw,score_margin,wall_collisions,stuck_steps,repeated_blocked_movement,upper_lane_use,lower_lane_use,route_switches,episode_steps,route_crossings,upper_lane_fraction
-baseline,map_b_split_lane,OP10,OP10,OP10,1,3.0,2.0,1.0,0.0,0.0,1.0,,0.0,0.0,1.0,11.0,2.0,111.0,12.0,0.08333333333333333
-baseline,map_b_split_lane,OP8,OP8,OP8,1,2.0,3.0,0.0,1.0,0.0,-1.0,,5.0,2.0,7.0,7.0,6.0,146.0,14.0,0.5
-baseline,map_b_split_lane,OP9,OP9,OP9,1,3.0,2.0,1.0,0.0,0.0,1.0,,1.0,1.0,0.0,11.0,1.0,110.0,11.0,0.0
-candidate,map_b_split_lane,OP10,OP10,OP10,1,3.0,2.0,1.0,0.0,0.0,1.0,,1.0,1.0,8.0,2.0,2.0,113.0,10.0,0.8
-candidate,map_b_split_lane,OP8,OP8,OP8,1,3.0,2.0,1.0,0.0,0.0,1.0,,1.0,1.0,7.0,3.0,4.0,107.0,10.0,0.7
-candidate,map_b_split_lane,OP9,OP9,OP9,1,3.0,2.0,1.0,0.0,0.0,1.0,,0.0,0.0,1.0,11.0,2.0,113.0,12.0,0.08333333333333333

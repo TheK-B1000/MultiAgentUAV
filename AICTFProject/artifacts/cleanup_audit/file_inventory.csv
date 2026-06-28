@@ -1,0 +1,1112 @@
+path,extension,size_bytes,classification,reason
+agents.py,.py,1012,UNKNOWN,Python file outside standard package directories
+ctfviewer.py,.py,40960,UNKNOWN,Python file outside standard package directories
+full.log,.log,65880,UNKNOWN,unclassified extension '.log'
+game_field_gpu.py,.py,219,UNKNOWN,Python file outside standard package directories
+game_manager.py,.py,43935,UNKNOWN,Python file outside standard package directories
+macro_actions.py,.py,146,UNKNOWN,Python file outside standard package directories
+opponent_params.py,.py,33321,UNKNOWN,Python file outside standard package directories
+requirements.txt,.txt,518,UNKNOWN,doc file outside docs/
+run_manifest.json,.json,511,UNKNOWN,JSON file — requires further classification
+run_tests.py,.py,741,UNKNOWN,Python file outside standard package directories
+.test_runs/e3_verify/unittest_e3_csv_run_config.json,.json,17923,UNKNOWN,JSON file — requires further classification
+.test_runs/e3_verify/unittest_e3_latent_replay_run_config.json,.json,17907,UNKNOWN,JSON file — requires further classification
+.test_runs/e3_verify/unittest_e3_no_latent_sample_guard_run_config.json,.json,17962,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_curriculum_2v2_run_config.json,.json,17932,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_default_latent_fixed_opponent_2v2_run_config.json,.json,18049,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_episode_strategy_credit_2v2_run_config.json,.json,18252,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_inference_custom_ppo_2v2_run_config.json,.json,17998,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_inference_latent_ppo_2v2_run_config.json,.json,17997,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_metrics_latent_ppo_2v2_run_config.json,.json,17983,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_smoke_custom_ppo_2v2_run_config.json,.json,17974,UNKNOWN,JSON file — requires further classification
+.test_runs/train_ppo_smoke/unittest_smoke_latent_ppo_2v2_run_config.json,.json,17973,UNKNOWN,JSON file — requires further classification
+artifacts/cleanup_audit/starting_branch.txt,.txt,11,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/starting_commit.txt,.txt,45,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/starting_status.txt,.txt,901,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/stash_inventory.txt,.txt,2693,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/cleanup_audit/worktree_inventory.txt,.txt,230,KEEP_GOLDEN,canonical closeout directory cleanup_audit
+artifacts/performance/phase6_1_baseline_off_16_64/benchmark_manifest.json,.json,803,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_baseline_off_16_64/benchmark_summary.json,.json,1713,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_baseline_off_16_64/benchmark_summary.txt,.txt,653,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_baseline_off_16_64/raw_samples.csv,.csv,2959,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/benchmark_manifest.json,.json,804,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/benchmark_summary.json,.json,2153,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/benchmark_summary.txt,.txt,732,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cpu_smoke/raw_samples.csv,.csv,960,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda/raw_samples.csv,.csv,3657,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/benchmark_manifest.json,.json,1620,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/benchmark_summary.json,.json,4398,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/benchmark_summary.txt,.txt,973,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_basic_16.jsonl,.jsonl,941,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_basic_64.jsonl,.jsonl,946,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_full_16.jsonl,.jsonl,942,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/events_full_64.jsonl,.jsonl,942,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/performance/phase6_1_cuda_16_64/raw_samples.csv,.csv,8423,UNKNOWN,artifact in unclassified subdirectory 'performance'
+artifacts/phase10_baseline/caller_inventory.json,.json,10400,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/evaluation_manifest.json,.json,37492,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/function_inventory.json,.json,11958,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/run_capture.json,.json,575,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/stdout.txt,.txt,8822,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_baseline/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_closeout/phase10_slice_report.json,.json,2103,KEEP_GOLDEN,canonical closeout directory phase10_closeout
+artifacts/phase10_closeout/phase10_slice_report.md,.md,1532,KEEP_GOLDEN,canonical closeout directory phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/equivalence_report.json,.json,1272,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/equivalence_report.md,.md,62,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/evaluation_manifest.json,.json,37513,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/run_capture.json,.json,589,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/stdout.txt,.txt,8864,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_aggregation_gates/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/equivalence_report.json,.json,1326,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/equivalence_report.md,.md,60,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/evaluation_manifest.json,.json,37511,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/run_capture.json,.json,587,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/stdout.txt,.txt,8860,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_artifact_writer/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.json,.json,1282,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.md,.md,476,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/evaluation_manifest.json,.json,37520,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/run_capture.json,.json,596,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/stdout.txt,.txt,8878,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_config_loading_preflight/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.json,.json,1278,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.md,.md,366,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/evaluation_manifest.json,.json,37516,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/run_capture.json,.json,591,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/stdout.txt,.txt,8870,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_episode_matched_seed/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/condition_summary.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/episode_results.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/equivalence_report.json,.json,1263,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/equivalence_report.md,.md,466,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/evaluation_manifest.json,.json,37511,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/exit_code.txt,.txt,3,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/final_report.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/final_report.txt,.txt,582,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/obstacle_probe.json,.json,1054,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/per_condition.csv,.csv,3238,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/per_episode.csv,.csv,6703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/run_capture.json,.json,587,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/stderr.txt,.txt,0,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/stdout.txt,.txt,8860,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_equivalence_obstacle_probes/summary.json,.json,2703,DELETE,Phase 10 intermediate artifact directory — superseded by phase10_closeout
+artifacts/phase10_final_equivalence/condition_summary.csv,.csv,3238,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/episode_results.csv,.csv,6703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/equivalence_report.json,.json,1936,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/equivalence_report.md,.md,404,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/evaluation_manifest.json,.json,37501,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/exit_code.txt,.txt,3,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/final_report.json,.json,2703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/final_report.txt,.txt,582,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/obstacle_probe.json,.json,1054,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/per_condition.csv,.csv,3238,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/per_episode.csv,.csv,6703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/run_capture.json,.json,575,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/stderr.txt,.txt,0,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/stdout.txt,.txt,8840,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase10_final_equivalence/summary.json,.json,2703,UNKNOWN,artifact in unclassified subdirectory 'phase10_final_equivalence'
+artifacts/phase5_closeout/distribution_contract.json,.json,1700,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/memory_comparison.json,.json,569,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/performance_comparison.json,.json,819,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/phase5_closeout_report.json,.json,3225,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/phase5_closeout_report.txt,.txt,2531,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/rollout_equivalence.json,.json,714,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/telemetry_invariance.json,.json,574,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/test_discovery.txt,.txt,503024,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/test_discovery_pattern.txt,.txt,138368,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase5_closeout/test_files.txt,.txt,3101,KEEP_GOLDEN,canonical closeout directory phase5_closeout
+artifacts/phase6_1_closeout/baseline_comparison.json,.json,1257,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/benchmark_manifest.json,.json,1620,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/benchmark_samples.csv,.csv,8423,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/benchmark_summary.json,.json,5733,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/memory_comparison.json,.json,1126,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/phase6_1_report.json,.json,1542,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/phase6_1_report.md,.md,919,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/repeat_discovery_default.txt,.txt,80683,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/repeat_discovery_pattern.txt,.txt,80683,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/repeat_discovery_summary.json,.json,1063,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/rng_invariance.json,.json,221,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/telemetry_invariance.json,.json,6383,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_closeout/test_discovery.txt,.txt,866,KEEP_GOLDEN,canonical closeout directory phase6_1_closeout
+artifacts/phase6_1_perf_investigation/baseline_environment.json,.json,4155,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/bisect_log.txt,.txt,151,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples.csv,.csv,4251,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples_baseline.csv,.csv,2193,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_samples_current.csv,.csv,2161,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_summary.json,.json,3239,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_summary_baseline.json,.json,2352,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/component_benchmark_summary_current.json,.json,2317,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_failure.txt,.txt,176,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_scale_ladder.csv,.csv,408,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/current_environment.json,.json,6003,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/environment_diff.json,.json,680,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/first_bad_commit.json,.json,109,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/investigation_report.json,.json,1997,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/investigation_report.md,.md,1143,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/memory_retention.json,.json,173,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/off_hot_path_validation.json,.json,963,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/profiler_summary.json,.json,130,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_benchmark_summary.json,.json,2885,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/benchmark_manifest.json,.json,551,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/benchmark_summary.json,.json,1007,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/benchmark_summary.txt,.txt,573,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/cuda_256_sync/raw_samples.csv,.csv,399,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/benchmark_manifest.json,.json,1621,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/benchmark_summary.json,.json,4397,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/benchmark_summary.txt,.txt,973,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_basic_16.jsonl,.jsonl,943,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_basic_64.jsonl,.jsonl,940,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_full_16.jsonl,.jsonl,942,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/events_full_64.jsonl,.jsonl,945,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke/raw_samples.csv,.csv,2708,DELETE,Phase 6.1 intermediate perf investigation — superseded by phase6_1_closeout
+artifacts/phase7_closeout/phase7_report.json,.json,4662,KEEP_GOLDEN,canonical closeout directory phase7_closeout
+artifacts/phase8_closeout/phase8_report.json,.json,5607,KEEP_GOLDEN,canonical closeout directory phase8_closeout
+artifacts/phase9_closeout/phase9_report.json,.json,5903,KEEP_GOLDEN,canonical closeout directory phase9_closeout
+artifacts/refactor_audit/blockers.json,.json,3250,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/compatibility_facades.json,.json,946,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/current_branch.txt,.txt,8,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/current_commit.txt,.txt,42,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/missing_artifacts.json,.json,4833,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/phase_status.json,.json,15864,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/phase_status.md,.md,7640,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/python_file_inventory.csv,.csv,38048,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/recommended_next_steps.md,.md,798,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/refactor_progress_report.json,.json,17183,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/refactor_progress_report.md,.md,7640,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/static_findings.txt,.txt,24915,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/test_count_history.json,.json,2510,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/test_discovery.txt,.txt,1593,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/refactor_audit/working_tree.txt,.txt,1044,KEEP_GOLDEN,canonical closeout directory refactor_audit
+artifacts/v6i9_map_awareness/evaluation_manifest.json,.json,35769,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/final_report.txt,.txt,431,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/obstacle_probe.json,.json,954,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/per_condition.csv,.csv,1660,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/per_episode.csv,.csv,150587,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness/summary.json,.json,2085,KEEP_GOLDEN,canonical v6i9 map-awareness evaluation artifacts
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/condition_summary.csv,.csv,3250,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/episode_results.csv,.csv,3773,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/evaluation_manifest.json,.json,37516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.json,.json,2684,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.txt,.txt,551,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/obstacle_probe.json,.json,1053,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/per_condition.csv,.csv,3250,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/per_episode.csv,.csv,3773,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_exact_telemetry_smoke/summary.json,.json,2684,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/condition_summary.csv,.csv,3617,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/episode_results.csv,.csv,60930,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/evaluation_manifest.json,.json,37519,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/final_report.json,.json,2653,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/final_report.txt,.txt,466,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/obstacle_probe.json,.json,1053,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/per_condition.csv,.csv,3617,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/per_episode.csv,.csv,60930,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_full_exact_telemetry/summary.json,.json,2653,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/evaluation_manifest.json,.json,36766,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/obstacle_probe.json,.json,1054,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/per_condition.csv,.csv,498,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/per_episode.csv,.csv,528,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_p15_smoke/summary.json,.json,1868,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/evaluation_manifest.json,.json,35723,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/obstacle_probe.json,.json,1033,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/per_condition.csv,.csv,497,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/per_episode.csv,.csv,784,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_probe_fix/summary.json,.json,1871,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/evaluation_manifest.json,.json,35748,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/obstacle_probe.json,.json,954,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/per_condition.csv,.csv,915,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/per_episode.csv,.csv,1047,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke/summary.json,.json,1985,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/evaluation_manifest.json,.json,35722,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/final_report.txt,.txt,516,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/obstacle_probe.json,.json,1054,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/per_condition.csv,.csv,498,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/per_episode.csv,.csv,528,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+artifacts/v6i9_map_awareness_smoke2/summary.json,.json,1868,DELETE,obsolete v6i9 map-awareness attempt — superseded by v6i9_map_awareness canonical
+checkpoints/run_manifest.json,.json,571,KEEP,checkpoint run config JSON
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_100000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_1000000.zip,.zip,42431274,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_150000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_200000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_250000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_300000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_350000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_400000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_450000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_50000.zip,.zip,42431008,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_500000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_550000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_600000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_650000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_700000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_750000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_800000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_850000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_900000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-a-main_2v2_950000.zip,.zip,42431141,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_100000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000.zip,.zip,42034078,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_150000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_200000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_250000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_350000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_400000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_450000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_50000.zip,.zip,42033872,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_550000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_600000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_650000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_750000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_800000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_850000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_900000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_950000.zip,.zip,42033975,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_100000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_1000000.zip,.zip,42432387,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_150000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_200000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_250000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_300000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_350000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_400000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_450000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_50000.zip,.zip,42432121,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_500000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_550000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_600000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_650000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_700000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_750000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_800000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_850000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_900000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i7-sparse-main_2v2_950000.zip,.zip,42432254,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_100000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_1000000.zip,.zip,45208031,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_150000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_200000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_250000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_300000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_350000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_400000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_450000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_50000.zip,.zip,45207745,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_500000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_550000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_600000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_650000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_700000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_750000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_800000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_850000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_900000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_950000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_100000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_1000000.zip,.zip,42032547,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_150000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_200000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_250000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_300000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_350000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_400000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_450000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_50000.zip,.zip,42032149,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_500000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_550000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_600000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_650000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_700000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_750000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_800000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_850000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_900000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8-adapter-balanced-seed1_2v2_950000.zip,.zip,42032444,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_100000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_150000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_200000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_250000.zip,.zip,45207888,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_50000.zip,.zip,45207745,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_100000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip,.zip,42040119,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_150000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_200000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_250000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_300000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_350000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_400000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_450000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_50000.zip,.zip,42039785,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_500000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_550000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_600000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_650000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_700000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_750000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_800000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_850000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_900000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_950000.zip,.zip,42040016,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/final_v6i7-a-main_2v2.zip,.zip,42430215,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/final_v6i7-balanced-sparse-critic-warmup-seed1_2v2.zip,.zip,42033165,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/final_v6i7-sparse-main_2v2.zip,.zip,42431456,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/final_v6i8-adapter-balanced-hardpool-seed1_2v2.zip,.zip,45206966,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/final_v6i8-adapter-balanced-seed1_2v2.zip,.zip,42031634,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-seed1_2v2.zip,.zip,42039206,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/interrupt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_273856.zip,.zip,45208987,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1017856.zip,.zip,42040698,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_873472.zip,.zip,42040595,UNKNOWN,checkpoint — requires Stage 13 lineage review
+checkpoints/2v2/v6i7-a-main_2v2_episodes.csv,.csv,3198127,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-a-main_2v2_metrics.csv,.csv,229872,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-a-main_2v2_run_config.json,.json,16921,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_episodes.csv,.csv,3153594,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_metrics.csv,.csv,225793,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-balanced-sparse-critic-warmup-seed1_2v2_run_config.json,.json,17166,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i7-sparse-main_2v2_episodes.csv,.csv,3183586,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-sparse-main_2v2_metrics.csv,.csv,229755,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i7-sparse-main_2v2_run_config.json,.json,16983,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i7-warmup-main_2v2_run_config.json,.json,17035,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2.run.lock,.lock,584,GENERATED,matches generated pattern '.lock'
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv,.csv,2772821,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv.bak.1782427317,.1782427317,3129022,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv,.csv,196949,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv.bak.1782427317,.1782427317,219703,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_run_config.json,.json,17307,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_episodes.csv,.csv,3233555,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_metrics.csv,.csv,226723,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8-adapter-balanced-seed1_2v2_run_config.json,.json,17180,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_episodes.csv,.csv,767923,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_metrics.csv,.csv,81962,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_run_config.json,.json,17194,KEEP,checkpoint run config JSON
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv,.csv,1681185,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782483435,.1782483435,553607,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782497526,.1782497526,630845,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782498185,.1782498185,203433,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv,.csv,83813,KEEP,checkpoint training metric CSV
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782483435,.1782483435,71647,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782497526,.1782497526,83805,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782498185,.1782498185,47328,GENERATED,matches generated pattern '.bak.'
+checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_run_config.json,.json,17683,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_by_z.csv,.csv,5112,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_summary.md,.md,6322,UNKNOWN,doc file outside docs/
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_steps.csv,.csv,44322278,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_strategy_evidence.csv,.csv,466,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_behavior_matrix.csv,.csv,3471,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_episode_results.csv,.csv,49299,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_manifest.json,.json,1869,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_pairwise_distances.csv,.csv,1130,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_report.json,.json,734,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/1M/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_v6i5_repertoire_summary.csv,.csv,682,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_by_z.csv,.csv,5120,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_summary.md,.md,6329,UNKNOWN,doc file outside docs/
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_steps.csv,.csv,45789558,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_strategy_evidence.csv,.csv,475,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_behavior_matrix.csv,.csv,3476,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_episode_results.csv,.csv,49341,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_manifest.json,.json,1876,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_pairwise_distances.csv,.csv,1071,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_report.json,.json,735,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/300k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_v6i5_repertoire_summary.csv,.csv,800,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_by_z.csv,.csv,5104,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_summary.md,.md,6298,UNKNOWN,doc file outside docs/
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_steps.csv,.csv,45125573,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_strategy_evidence.csv,.csv,448,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_behavior_matrix.csv,.csv,3462,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_episode_results.csv,.csv,49313,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_manifest.json,.json,1876,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_pairwise_distances.csv,.csv,1041,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_report.json,.json,733,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/500k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_v6i5_repertoire_summary.csv,.csv,769,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_by_z.csv,.csv,5107,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_summary.md,.md,6318,UNKNOWN,doc file outside docs/
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_steps.csv,.csv,44869083,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_strategy_evidence.csv,.csv,450,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_behavior_matrix.csv,.csv,3465,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_episode_results.csv,.csv,49294,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_manifest.json,.json,1876,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_pairwise_distances.csv,.csv,1029,KEEP,checkpoint training metric CSV
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_report.json,.json,733,KEEP,checkpoint run config JSON
+checkpoints/2v2/forced_latent_eval/700k/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_v6i5_repertoire_summary.csv,.csv,767,KEEP,checkpoint training metric CSV
+configs/eval.yaml,.yaml,2094,UNKNOWN,unclassified extension '.yaml'
+csv/eval_final_latent_v3d_delayedanneal_300k_800k_bucketopp_1m_4v4_4v4_aggregate.csv,.csv,3365,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_latent_v3d_delayedanneal_300k_800k_bucketopp_1m_4v4_4v4_train_OP3_5ep.csv,.csv,3160,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_aggregate.csv,.csv,11761,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP3_100ep.csv,.csv,55651,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP3_100ep_e3_steps.csv,.csv,37499440,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP4_100ep.csv,.csv,46248,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP4_100ep_e3_steps.csv,.csv,37809382,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP5_RUSHER_100ep.csv,.csv,47186,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP5_RUSHER_100ep_e3_steps.csv,.csv,34084738,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP6_100ep.csv,.csv,46369,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP6_100ep_e3_steps.csv,.csv,34503949,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP7_100ep.csv,.csv,46340,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_eval_OP7_100ep_e3_steps.csv,.csv,35407933,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP3_100ep.csv,.csv,54643,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP3_100ep_e3_steps.csv,.csv,36282449,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP4_100ep.csv,.csv,55835,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP4_100ep_e3_steps.csv,.csv,37509152,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP5_RUSHER_100ep.csv,.csv,55513,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP5_RUSHER_100ep_e3_steps.csv,.csv,33945294,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP6_100ep.csv,.csv,55904,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP6_100ep_e3_steps.csv,.csv,34259641,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP7_100ep.csv,.csv,54306,UNKNOWN,CSV file — requires Stage 12 classification
+csv/eval_final_v5i5_paper_faithful_entropy_floor_OP5_OP6_OP7_1m_4v4_op5_bite_v4_4v4_train_OP7_100ep_e3_steps.csv,.csv,36546467,UNKNOWN,CSV file — requires Stage 12 classification
+docs/experiment-and-evaluation-protocol.md,.md,39842,KEEP,documentation
+docs/latent-preset-registry.md,.md,67424,KEEP,documentation
+docs/Paper_experiment_alignment.md,.md,42115,KEEP,documentation
+docs/ppo-updater-refactor-record.md,.md,5934,KEEP,documentation
+docs/research-progress-tracker.md,.md,43708,KEEP,documentation
+docs/ROADMAP_BOATS.md,.md,4196,KEEP,documentation
+docs/SETUP_AND_TRAIN.md,.md,8849,KEEP,documentation
+docs/summer-fidelity-rules.md,.md,26067,KEEP,documentation
+docs/summer-method-spec.md,.md,27410,KEEP,documentation
+docs/v6i2-gate-protocol-freeze.md,.md,10347,KEEP,documentation
+docs/v6i3-local-communication-spec.md,.md,8010,KEEP,documentation
+evaluation_results/router_selection_final/v6i4_calibration_summary.csv,.csv,482,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_condition_summary.csv,.csv,3149,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_episode_results.csv,.csv,374146,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_final_report.json,.json,796,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_final/v6i4_learned_router_trace.csv,.csv,43246,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_manifest.json,.json,258220,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_final/v6i4_paired_comparisons.json,.json,5437,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_final/v6i4_per_opponent_matrix.csv,.csv,1105,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_final/v6i4_selection_traces.csv,.csv,163471,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_calibration_summary.csv,.csv,488,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_condition_summary.csv,.csv,3169,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_episode_results.csv,.csv,377310,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_final_report.json,.json,800,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_late_700k/v6i4_learned_router_trace.csv,.csv,43594,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_manifest.json,.json,258291,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_late_700k/v6i4_paired_comparisons.json,.json,5458,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_late_700k/v6i4_per_opponent_matrix.csv,.csv,1107,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_late_700k/v6i4_selection_traces.csv,.csv,162135,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_calibration_summary.csv,.csv,481,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_condition_summary.csv,.csv,3169,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_episode_results.csv,.csv,377407,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_final_report.json,.json,802,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_middle_650k/v6i4_learned_router_trace.csv,.csv,45445,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_manifest.json,.json,258292,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_middle_650k/v6i4_paired_comparisons.json,.json,5421,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_selection_middle_650k/v6i4_per_opponent_matrix.csv,.csv,1102,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_selection_middle_650k/v6i4_selection_traces.csv,.csv,164295,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_calibration_summary.csv,.csv,243,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_condition_summary.csv,.csv,1071,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_episode_results.csv,.csv,16720,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_final_report.json,.json,784,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_smoke/v6i4_learned_router_trace.csv,.csv,1992,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_manifest.json,.json,511433,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_smoke/v6i4_paired_comparisons.json,.json,1775,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_smoke/v6i4_per_opponent_matrix.csv,.csv,618,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke/v6i4_selection_traces.csv,.csv,6711,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_calibration_summary.csv,.csv,244,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_condition_summary.csv,.csv,1070,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_episode_results.csv,.csv,16800,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_final_report.json,.json,793,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_smoke_isolated/v6i4_learned_router_trace.csv,.csv,1798,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_manifest.json,.json,36042,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_smoke_isolated/v6i4_paired_comparisons.json,.json,1768,UNKNOWN,JSON file — requires further classification
+evaluation_results/router_smoke_isolated/v6i4_per_opponent_matrix.csv,.csv,609,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/router_smoke_isolated/v6i4_selection_traces.csv,.csv,6272,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_calibration_summary.csv,.csv,243,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_condition_summary.csv,.csv,1085,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_episode_results.csv,.csv,8789,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_final_report.json,.json,782,UNKNOWN,JSON file — requires further classification
+evaluation_results/smoke_test/v6i4_learned_router_trace.csv,.csv,1069,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_manifest.json,.json,26927,UNKNOWN,JSON file — requires further classification
+evaluation_results/smoke_test/v6i4_paired_comparisons.json,.json,1765,UNKNOWN,JSON file — requires further classification
+evaluation_results/smoke_test/v6i4_per_opponent_matrix.csv,.csv,618,UNKNOWN,CSV file — requires Stage 12 classification
+evaluation_results/smoke_test/v6i4_selection_traces.csv,.csv,2042,UNKNOWN,CSV file — requires Stage 12 classification
+experiments/analyze_latent_mi.py,.py,18282,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/analyze_v3i12_telemetry.py,.py,5161,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/build_proof_table.py,.py,12649,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/build_seed_aggregate_table.py,.py,11193,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/calibrate_hard_pool.py,.py,10112,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/diagnose_run.py,.py,6072,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/eval_op4_zero_shot.py,.py,14298,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/eval_v6i8_stage_c.py,.py,8283,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/eval_v6i9_map_awareness.py,.py,40727,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/gate_v6i9_map_aware.py,.py,9047,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/op35_latent_matrix.py,.py,14373,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/phase6_experiment_matrix.py,.py,6829,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/plan_faithful_ablation_matrix.py,.py,4992,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/run_forced_z_matrix.py,.py,12850,UNKNOWN,experiment script — requires Stage 10 classification
+experiments/run_hypothesis_two_blade.ps1,.ps1,2789,UNKNOWN,shell script — requires Stage 10 classification
+experiments/run_proof_ladder.ps1,.ps1,27784,UNKNOWN,shell script — requires Stage 10 classification
+experiments/run_research_matrix.ps1,.ps1,4753,UNKNOWN,shell script — requires Stage 10 classification
+experiments/run_week_eval_bundle.ps1,.ps1,3063,UNKNOWN,shell script — requires Stage 10 classification
+experiments/_z_marginal_from_csv.py,.py,2594,UNKNOWN,experiment script — requires Stage 10 classification
+gpu_env/_adapter.py,.py,6006,KEEP,active source or test module
+gpu_env/_config.py,.py,10930,KEEP,active source or test module
+gpu_env/_constants.py,.py,566,KEEP,active source or test module
+gpu_env/_core_class.py,.py,782,KEEP,active source or test module
+gpu_env/_envs.py,.py,7182,KEEP,active source or test module
+gpu_env/_episode_payload.py,.py,5754,KEEP,active source or test module
+gpu_env/_maps.py,.py,2658,KEEP,active source or test module
+gpu_env/_monolith.py,.py,282,KEEP,active source or test module
+gpu_env/_navigation_telemetry.py,.py,1663,KEEP,active source or test module
+gpu_env/_paths.py,.py,973,KEEP,active source or test module
+gpu_env/_specs.py,.py,1848,KEEP,active source or test module
+gpu_env/__init__.py,.py,1899,KEEP,active source or test module
+gpu_env/state/agent_state.py,.py,3651,KEEP,active source or test module
+gpu_env/state/allocation.py,.py,2752,KEEP,active source or test module
+gpu_env/state/episode_state.py,.py,7203,KEEP,active source or test module
+gpu_env/state/flag_state.py,.py,1494,KEEP,active source or test module
+gpu_env/state/map_state.py,.py,10224,KEEP,active source or test module
+gpu_env/state/models.py,.py,3543,KEEP,active source or test module
+gpu_env/state/opponent_state.py,.py,4895,KEEP,active source or test module
+gpu_env/state/scratch.py,.py,6373,KEEP,active source or test module
+gpu_env/state/snapshots.py,.py,1718,KEEP,active source or test module
+gpu_env/state/team_state.py,.py,2662,KEEP,active source or test module
+gpu_env/state/telemetry_state.py,.py,7016,KEEP,active source or test module
+gpu_env/state/validation.py,.py,2367,KEEP,active source or test module
+gpu_env/state/__init__.py,.py,1096,KEEP,active source or test module
+gpu_env/_core/_dynamics.py,.py,17915,KEEP,active source or test module
+gpu_env/_core/_metrics.py,.py,24960,KEEP,active source or test module
+gpu_env/_core/_mines.py,.py,9482,KEEP,active source or test module
+gpu_env/_core/_observations.py,.py,20882,KEEP,active source or test module
+gpu_env/_core/_remaining.py,.py,138,KEEP,active source or test module
+gpu_env/_core/_rewards.py,.py,13960,KEEP,active source or test module
+gpu_env/_core/_rules.py,.py,17325,KEEP,active source or test module
+gpu_env/_core/_scripted_red.py,.py,34194,KEEP,active source or test module
+gpu_env/_core/_state.py,.py,2464,KEEP,active source or test module
+gpu_env/_core/_step.py,.py,24395,KEEP,active source or test module
+gpu_env/_core/_tactical_context.py,.py,2191,KEEP,active source or test module
+gpu_env/_core/__init__.py,.py,45,KEEP,active source or test module
+logs/deploy_comm_ablations_20260519_095911.log,.log,2019,DELETE,runtime training log — unreferenced by any report
+logs/deploy_comm_ablations_20260519_095923.log,.log,549,DELETE,runtime training log — unreferenced by any report
+logs/deploy_comm_ablations_20260519_100020.log,.log,77678,DELETE,runtime training log — unreferenced by any report
+logs/eval_latent_deploy_stoch_20260520_214930.log,.log,3908,DELETE,runtime training log — unreferenced by any report
+logs/latent_mode_eval_20260530_093441.log.smoke,.smoke,4266,DELETE,runtime training log — unreferenced by any report
+logs/latent_v3i9_specialist_router_op356_1m_4v4.err.log,.log,0,DELETE,runtime training log — unreferenced by any report
+logs/latent_v3i9_specialist_router_op356_1m_4v4.out.log,.log,8188,DELETE,runtime training log — unreferenced by any report
+logs/refactor_sweep.log,.log,2334,DELETE,runtime training log — unreferenced by any report
+logs/train_latent_sharp2_hardpool_20260521_083817.log,.log,113124,DELETE,runtime training log — unreferenced by any report
+logs/train_latent_sharp_hardpool_20260520_214930.log,.log,35386,DELETE,runtime training log — unreferenced by any report
+logs/v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.train.err.log,.log,0,DELETE,runtime training log — unreferenced by any report
+logs/v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.train.out.log,.log,26738,DELETE,runtime training log — unreferenced by any report
+logs/v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4.err.log,.log,0,DELETE,runtime training log — unreferenced by any report
+logs/v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4.out.log,.log,13198,DELETE,runtime training log — unreferenced by any report
+logs/v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_listenerfix.err.log,.log,2584,DELETE,runtime training log — unreferenced by any report
+logs/v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_listenerfix.out.log,.log,18055,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092805/chain.log,.log,4491,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092805/_preflight_resolve_presets.py,.py,397,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092815/chain.log,.log,5252,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092815/_preflight_resolve_presets.py,.py,397,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092901/chain.log,.log,983,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092901/preflight.log,.log,1302,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092901/_preflight_resolve_presets.py,.py,397,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092931/chain.log,.log,2837,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092931/preflight.log,.log,1264,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092931/_preflight_resolve_presets.py,.py,434,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092945/chain.log,.log,3181,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092945/preflight.log,.log,1512,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_092945/_preflight_resolve_presets.py,.py,434,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093003/B_train_plan_faithful_latent_k1_hardpool_1m_4v4.log,.log,6104,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093003/chain.log,.log,1499,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093003/preflight.log,.log,1264,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093003/_preflight_resolve_presets.py,.py,434,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093815/chain.log,.log,7854,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093815/_preflight_resolve_presets.py,.py,434,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093846/chain.log,.log,7854,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_093846/_preflight_resolve_presets.py,.py,434,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_204247/A_train_plan_faithful_no_latent_seed0_hardpool_1m_4v4_multiseed.log,.log,6462,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_204247/chain.log,.log,1572,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_204247/preflight.log,.log,1512,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_204247/stage_timings.csv,.csv,184,DELETE,runtime training log — unreferenced by any report
+logs/proof_ladder_20260530_204247/_preflight_resolve_presets.py,.py,434,DELETE,runtime training log — unreferenced by any report
+plot/analyze_e3_latent_mi.py,.py,7782,UNKNOWN,Python file outside standard package directories
+plot/compare_reward_updates.py,.py,4952,UNKNOWN,Python file outside standard package directories
+plot/diagnose_latent_collapse.py,.py,10356,UNKNOWN,Python file outside standard package directories
+plot/eval_checkpoint.py,.py,14844,UNKNOWN,Python file outside standard package directories
+plot/eval_rollout.py,.py,40080,UNKNOWN,Python file outside standard package directories
+plot/plot_2v2_winrate.py,.py,8497,UNKNOWN,Python file outside standard package directories
+plot/plot_eval_metrics.py,.py,38942,UNKNOWN,Python file outside standard package directories
+plot/plot_metrics.py,.py,13086,UNKNOWN,Python file outside standard package directories
+plots/latent_collapse/latent_entropy_vs_update.png,.png,64722,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/latent_mi_vs_update.png,.png,114758,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/latent_z_episode_histogram.png,.png,23756,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/latent_z_occupancy_vs_update.png,.png,103361,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/latent_z_per_opponent_occupancy.png,.png,26726,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/latent_z_per_opponent_winrate.png,.png,26675,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_delayedanneal/latent_entropy_vs_update.png,.png,69721,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_delayedanneal/latent_mi_vs_update.png,.png,92839,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_delayedanneal/latent_z_episode_histogram.png,.png,25826,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_delayedanneal/latent_z_occupancy_vs_update.png,.png,61696,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_delayedanneal/latent_z_per_opponent_occupancy.png,.png,26532,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_delayedanneal/latent_z_per_opponent_winrate.png,.png,26460,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_smartrouter/latent_entropy_vs_update.png,.png,58013,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_smartrouter/latent_mi_vs_update.png,.png,55379,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_smartrouter/latent_z_episode_histogram.png,.png,22297,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_smartrouter/latent_z_occupancy_vs_update.png,.png,45844,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_smartrouter/latent_z_per_opponent_occupancy.png,.png,26529,UNKNOWN,unclassified extension '.png'
+plots/latent_collapse/v3d_smartrouter/latent_z_per_opponent_winrate.png,.png,26441,UNKNOWN,unclassified extension '.png'
+rl/behavior_telemetry.py,.py,14546,KEEP,active source or test module
+rl/config_presets.py,.py,16396,KEEP,active source or test module
+rl/csia.py,.py,17789,KEEP,active source or test module
+rl/curriculum.py,.py,4342,KEEP,active source or test module
+rl/discrete_mi.py,.py,994,KEEP,active source or test module
+rl/episode_result.py,.py,4047,KEEP,active source or test module
+rl/eval_forced_latent_repertoire.py,.py,15388,KEEP,active source or test module
+rl/eval_mode.py,.py,4243,KEEP,active source or test module
+rl/eval_router_ablation.py,.py,3051,KEEP,active source or test module
+rl/forced_z_behavior_vectors.py,.py,34052,KEEP,active source or test module
+rl/gate_telemetry.py,.py,4737,KEEP,active source or test module
+rl/global_state.py,.py,15998,KEEP,active source or test module
+rl/latent_losses.py,.py,21279,KEEP,active source or test module
+rl/latent_marl.py,.py,28016,KEEP,active source or test module
+rl/latent_phase_labels.py,.py,3611,KEEP,active source or test module
+rl/networks.py,.py,6548,KEEP,active source or test module
+rl/ppo_core.py,.py,11860,KEEP,active source or test module
+rl/route_telemetry.py,.py,4410,KEEP,active source or test module
+rl/stress_schedule.py,.py,582,KEEP,active source or test module
+rl/telemetry_mode.py,.py,678,KEEP,active source or test module
+rl/train_ppo.py,.py,7200,KEEP,active source or test module
+rl/__init__.py,.py,55,KEEP,active source or test module
+rl/analysis/audit_qphi_context_signal.py,.py,8450,KEEP,active source or test module
+rl/analysis/counterfactual_z_swap_eval.py,.py,6569,KEEP,active source or test module
+rl/config/ppo_config.py,.py,42115,KEEP,active source or test module
+rl/config/__init__.py,.py,394,KEEP,active source or test module
+rl/custom_ppo/csv_writers.py,.py,43358,KEEP,active source or test module
+rl/custom_ppo/curriculum_gates.py,.py,1752,KEEP,active source or test module
+rl/custom_ppo/curriculum_runtime.py,.py,4911,KEEP,active source or test module
+rl/custom_ppo/diagnostics_contract.py,.py,1802,KEEP,active source or test module
+rl/custom_ppo/distributions.py,.py,3892,KEEP,active source or test module
+rl/custom_ppo/episode_stats.py,.py,3476,KEEP,active source or test module
+rl/custom_ppo/gate_protocol.py,.py,29733,KEEP,active source or test module
+rl/custom_ppo/inference.py,.py,1985,KEEP,active source or test module
+rl/custom_ppo/inference_policy.py,.py,34045,KEEP,active source or test module
+rl/custom_ppo/latent_behavior_contrast.py,.py,5293,KEEP,active source or test module
+rl/custom_ppo/latent_bucket_baseline.py,.py,10759,KEEP,active source or test module
+rl/custom_ppo/latent_diagnostics.py,.py,2663,KEEP,active source or test module
+rl/custom_ppo/latent_strategy_state.py,.py,26483,KEEP,active source or test module
+rl/custom_ppo/latent_value_baselines.py,.py,4354,KEEP,active source or test module
+rl/custom_ppo/option_returns.py,.py,7146,KEEP,active source or test module
+rl/custom_ppo/policy.py,.py,63664,KEEP,active source or test module
+rl/custom_ppo/policy_contract.py,.py,2434,KEEP,active source or test module
+rl/custom_ppo/ppo_updater.py,.py,1118,KEEP,active source or test module
+rl/custom_ppo/probe_result.py,.py,3996,KEEP,active source or test module
+rl/custom_ppo/return_normalization.py,.py,6015,KEEP,active source or test module
+rl/custom_ppo/reward_composition.py,.py,2077,KEEP,active source or test module
+rl/custom_ppo/rollout_collector.py,.py,435,KEEP,active source or test module
+rl/custom_ppo/rollout_step_recorder.py,.py,237,KEEP,active source or test module
+rl/custom_ppo/router_distill_hook.py,.py,18999,KEEP,active source or test module
+rl/custom_ppo/schedules.py,.py,7164,KEEP,active source or test module
+rl/custom_ppo/trainer.py,.py,19819,KEEP,active source or test module
+rl/custom_ppo/trainer_audit.py,.py,9433,KEEP,active source or test module
+rl/custom_ppo/trainer_config.py,.py,38336,KEEP,active source or test module
+rl/custom_ppo/trainer_optimizers.py,.py,10092,KEEP,active source or test module
+rl/custom_ppo/training_telemetry.py,.py,92665,KEEP,active source or test module
+rl/custom_ppo/v6i1_cf_loss.py,.py,21852,KEEP,active source or test module
+rl/custom_ppo/v6i1_phase_runtime.py,.py,26111,KEEP,active source or test module
+rl/custom_ppo/__init__.py,.py,1945,KEEP,active source or test module
+rl/custom_ppo/checkpoints/archive.py,.py,2223,KEEP,active source or test module
+rl/custom_ppo/checkpoints/errors.py,.py,1037,KEEP,active source or test module
+rl/custom_ppo/checkpoints/hashing.py,.py,978,KEEP,active source or test module
+rl/custom_ppo/checkpoints/loader.py,.py,16886,KEEP,active source or test module
+rl/custom_ppo/checkpoints/metadata.py,.py,4489,KEEP,active source or test module
+rl/custom_ppo/checkpoints/migrations.py,.py,1755,KEEP,active source or test module
+rl/custom_ppo/checkpoints/models.py,.py,4464,KEEP,active source or test module
+rl/custom_ppo/checkpoints/state_dict.py,.py,16147,KEEP,active source or test module
+rl/custom_ppo/checkpoints/validation.py,.py,4139,KEEP,active source or test module
+rl/custom_ppo/checkpoints/__init__.py,.py,853,KEEP,active source or test module
+rl/custom_ppo/communication/channels.py,.py,2037,KEEP,active source or test module
+rl/custom_ppo/communication/config.py,.py,3479,KEEP,active source or test module
+rl/custom_ppo/communication/corruption.py,.py,3507,KEEP,active source or test module
+rl/custom_ppo/communication/gates.py,.py,4910,KEEP,active source or test module
+rl/custom_ppo/communication/listener.py,.py,5851,KEEP,active source or test module
+rl/custom_ppo/communication/observation.py,.py,3343,KEEP,active source or test module
+rl/custom_ppo/communication/runtime.py,.py,8839,KEEP,active source or test module
+rl/custom_ppo/communication/telemetry.py,.py,6962,KEEP,active source or test module
+rl/custom_ppo/communication/transport.py,.py,11889,KEEP,active source or test module
+rl/custom_ppo/communication/__init__.py,.py,1004,KEEP,active source or test module
+rl/custom_ppo/curriculum/context.py,.py,2556,KEEP,active source or test module
+rl/custom_ppo/curriculum/controller.py,.py,32673,KEEP,active source or test module
+rl/custom_ppo/curriculum/isolation.py,.py,7443,KEEP,active source or test module
+rl/custom_ppo/curriculum/ranking.py,.py,4214,KEEP,active source or test module
+rl/custom_ppo/curriculum/reporting.py,.py,10123,KEEP,active source or test module
+rl/custom_ppo/curriculum/schedule.py,.py,6060,KEEP,active source or test module
+rl/custom_ppo/curriculum/types.py,.py,6129,KEEP,active source or test module
+rl/custom_ppo/curriculum/__init__.py,.py,2728,KEEP,active source or test module
+rl/custom_ppo/curriculum/evaluators/learnability.py,.py,14476,KEEP,active source or test module
+rl/custom_ppo/curriculum/evaluators/matched_seed.py,.py,18288,KEEP,active source or test module
+rl/custom_ppo/curriculum/evaluators/online.py,.py,7362,KEEP,active source or test module
+rl/custom_ppo/curriculum/evaluators/__init__.py,.py,1026,KEEP,active source or test module
+rl/custom_ppo/curriculum/protocols/base.py,.py,1091,KEEP,active source or test module
+rl/custom_ppo/curriculum/protocols/v6i1.py,.py,2268,KEEP,active source or test module
+rl/custom_ppo/curriculum/protocols/v6i2.py,.py,5132,KEEP,active source or test module
+rl/custom_ppo/curriculum/protocols/v6i3.py,.py,2445,KEEP,active source or test module
+rl/custom_ppo/curriculum/protocols/__init__.py,.py,750,KEEP,active source or test module
+rl/custom_ppo/diagnostics/aggregation.py,.py,18654,KEEP,active source or test module
+rl/custom_ppo/diagnostics/competence.py,.py,9357,KEEP,active source or test module
+rl/custom_ppo/diagnostics/counterfactual.py,.py,19254,KEEP,active source or test module
+rl/custom_ppo/diagnostics/entropy.py,.py,3934,KEEP,active source or test module
+rl/custom_ppo/diagnostics/occupancy.py,.py,1343,KEEP,active source or test module
+rl/custom_ppo/diagnostics/results.py,.py,3117,KEEP,active source or test module
+rl/custom_ppo/diagnostics/schemas.py,.py,251,KEEP,active source or test module
+rl/custom_ppo/diagnostics/specialization.py,.py,4825,KEEP,active source or test module
+rl/custom_ppo/diagnostics/switching.py,.py,5250,KEEP,active source or test module
+rl/custom_ppo/diagnostics/validation.py,.py,4576,KEEP,active source or test module
+rl/custom_ppo/diagnostics/__init__.py,.py,2221,KEEP,active source or test module
+rl/custom_ppo/latent/behavior_policy.py,.py,2023,KEEP,active source or test module
+rl/custom_ppo/latent/checkpoint.py,.py,7731,KEEP,active source or test module
+rl/custom_ppo/latent/context_buckets.py,.py,10051,KEEP,active source or test module
+rl/custom_ppo/latent/intervention_state.py,.py,8247,KEEP,active source or test module
+rl/custom_ppo/latent/lifecycle.py,.py,2641,KEEP,active source or test module
+rl/custom_ppo/latent/opponent_resolution.py,.py,1138,KEEP,active source or test module
+rl/custom_ppo/latent/opponent_telemetry.py,.py,648,KEEP,active source or test module
+rl/custom_ppo/latent/preferences.py,.py,13319,KEEP,active source or test module
+rl/custom_ppo/latent/records.py,.py,4558,KEEP,active source or test module
+rl/custom_ppo/latent/router_mask.py,.py,2185,KEEP,active source or test module
+rl/custom_ppo/latent/router_sampling.py,.py,49081,KEEP,active source or test module
+rl/custom_ppo/latent/schedule_steps.py,.py,491,KEEP,active source or test module
+rl/custom_ppo/latent/selector_memory.py,.py,1426,KEEP,active source or test module
+rl/custom_ppo/latent/state.py,.py,9384,KEEP,active source or test module
+rl/custom_ppo/latent/telemetry.py,.py,812,KEEP,active source or test module
+rl/custom_ppo/latent/tensor_state.py,.py,15264,KEEP,active source or test module
+rl/custom_ppo/latent/types.py,.py,3891,KEEP,active source or test module
+rl/custom_ppo/latent/__init__.py,.py,286,KEEP,active source or test module
+rl/custom_ppo/latent/credit/arc_credit.py,.py,19556,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode_credit.py,.py,202,KEEP,active source or test module
+rl/custom_ppo/latent/credit/macro_credit.py,.py,11453,KEEP,active source or test module
+rl/custom_ppo/latent/credit/refresh_credit.py,.py,3415,KEEP,active source or test module
+rl/custom_ppo/latent/credit/__init__.py,.py,465,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/advantages.py,.py,3178,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/auxiliary_losses.py,.py,12722,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/awrd_targets.py,.py,6934,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/batch.py,.py,3806,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/manager.py,.py,26486,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/preference_targets.py,.py,4038,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/refresh_targets.py,.py,8310,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/telemetry.py,.py,4226,KEEP,active source or test module
+rl/custom_ppo/latent/credit/episode/__init__.py,.py,74,KEEP,active source or test module
+rl/custom_ppo/latent/optimization/ppo_stats.py,.py,3196,KEEP,active source or test module
+rl/custom_ppo/latent/optimization/router_ppo.py,.py,11997,KEEP,active source or test module
+rl/custom_ppo/latent/optimization/router_registry.py,.py,1648,KEEP,active source or test module
+rl/custom_ppo/latent/optimization/router_stepper.py,.py,2400,KEEP,active source or test module
+rl/custom_ppo/latent/optimization/specialist_router.py,.py,5533,KEEP,active source or test module
+rl/custom_ppo/latent/optimization/__init__.py,.py,0,KEEP,active source or test module
+rl/custom_ppo/rollout/action_selection.py,.py,677,KEEP,active source or test module
+rl/custom_ppo/rollout/bootstrap.py,.py,829,KEEP,active source or test module
+rl/custom_ppo/rollout/buffer_writer.py,.py,10044,KEEP,active source or test module
+rl/custom_ppo/rollout/collector.py,.py,59326,KEEP,active source or test module
+rl/custom_ppo/rollout/episode_tracker.py,.py,453,KEEP,active source or test module
+rl/custom_ppo/rollout/latent_selection.py,.py,517,KEEP,active source or test module
+rl/custom_ppo/rollout/models.py,.py,1168,KEEP,active source or test module
+rl/custom_ppo/rollout/reward_channels.py,.py,1701,KEEP,active source or test module
+rl/custom_ppo/rollout/transition_builder.py,.py,1426,KEEP,active source or test module
+rl/custom_ppo/rollout/__init__.py,.py,310,KEEP,active source or test module
+rl/custom_ppo/telemetry/aggregator.py,.py,2184,KEEP,active source or test module
+rl/custom_ppo/telemetry/emitter.py,.py,2846,KEEP,active source or test module
+rl/custom_ppo/telemetry/errors.py,.py,885,KEEP,active source or test module
+rl/custom_ppo/telemetry/events.py,.py,5688,KEEP,active source or test module
+rl/custom_ppo/telemetry/gpu_monitor.py,.py,3067,KEEP,active source or test module
+rl/custom_ppo/telemetry/models.py,.py,2194,KEEP,active source or test module
+rl/custom_ppo/telemetry/performance.py,.py,6934,KEEP,active source or test module
+rl/custom_ppo/telemetry/schemas.py,.py,1223,KEEP,active source or test module
+rl/custom_ppo/telemetry/timing.py,.py,1590,KEEP,active source or test module
+rl/custom_ppo/telemetry/validation.py,.py,8503,KEEP,active source or test module
+rl/custom_ppo/telemetry/__init__.py,.py,1479,KEEP,active source or test module
+rl/custom_ppo/telemetry/writers/artifact_writer.py,.py,833,KEEP,active source or test module
+rl/custom_ppo/telemetry/writers/console.py,.py,619,KEEP,active source or test module
+rl/custom_ppo/telemetry/writers/csv_writer.py,.py,932,KEEP,active source or test module
+rl/custom_ppo/telemetry/writers/json_writer.py,.py,2920,KEEP,active source or test module
+rl/custom_ppo/telemetry/writers/__init__.py,.py,320,KEEP,active source or test module
+rl/custom_ppo/update/actor_intervention.py,.py,1760,KEEP,active source or test module
+rl/custom_ppo/update/actor_pathway_diagnostics.py,.py,3056,KEEP,active source or test module
+rl/custom_ppo/update/actor_z_pathway.py,.py,4858,KEEP,active source or test module
+rl/custom_ppo/update/entropy_objectives.py,.py,6879,KEEP,active source or test module
+rl/custom_ppo/update/helpers.py,.py,3875,KEEP,active source or test module
+rl/custom_ppo/update/loss_result.py,.py,2766,KEEP,active source or test module
+rl/custom_ppo/update/minibatch_updater.py,.py,44569,KEEP,active source or test module
+rl/custom_ppo/update/optimizer_stepper.py,.py,6167,KEEP,active source or test module
+rl/custom_ppo/update/pair_utils.py,.py,575,KEEP,active source or test module
+rl/custom_ppo/update/param_registry.py,.py,6460,KEEP,active source or test module
+rl/custom_ppo/update/phase_policy.py,.py,3944,KEEP,active source or test module
+rl/custom_ppo/update/post_update.py,.py,14779,KEEP,active source or test module
+rl/custom_ppo/update/router_sequence_updater.py,.py,10905,KEEP,active source or test module
+rl/custom_ppo/update/separation_objectives.py,.py,14701,KEEP,active source or test module
+rl/custom_ppo/update/sequence_minibatch.py,.py,6292,KEEP,active source or test module
+rl/custom_ppo/update/strategy_objectives.py,.py,12043,KEEP,active source or test module
+rl/custom_ppo/update/telemetry.py,.py,7706,KEEP,active source or test module
+rl/custom_ppo/update/updater.py,.py,10975,KEEP,active source or test module
+rl/custom_ppo/update/update_context.py,.py,5975,KEEP,active source or test module
+rl/custom_ppo/update/update_order.py,.py,1950,KEEP,active source or test module
+rl/custom_ppo/update/__init__.py,.py,2480,KEEP,active source or test module
+rl/evaluation/aggregation.py,.py,4096,KEEP,active source or test module
+rl/evaluation/artifact_writer.py,.py,2451,KEEP,active source or test module
+rl/evaluation/checkpoint.py,.py,3905,KEEP,active source or test module
+rl/evaluation/config.py,.py,3764,KEEP,active source or test module
+rl/evaluation/env_factory.py,.py,10902,KEEP,active source or test module
+rl/evaluation/episode_runner.py,.py,3159,KEEP,active source or test module
+rl/evaluation/errors.py,.py,1162,KEEP,active source or test module
+rl/evaluation/gates.py,.py,13272,KEEP,active source or test module
+rl/evaluation/manifest.py,.py,9018,KEEP,active source or test module
+rl/evaluation/matched_seed.py,.py,2017,KEEP,active source or test module
+rl/evaluation/models.py,.py,4722,KEEP,active source or test module
+rl/evaluation/opponent_resolution.py,.py,4615,KEEP,active source or test module
+rl/evaluation/orchestrator.py,.py,9681,KEEP,active source or test module
+rl/evaluation/policy_loader.py,.py,2072,KEEP,active source or test module
+rl/evaluation/preflight.py,.py,4365,KEEP,active source or test module
+rl/evaluation/progress.py,.py,2741,KEEP,active source or test module
+rl/evaluation/router_ablation.py,.py,62380,KEEP,active source or test module
+rl/evaluation/types.py,.py,800,KEEP,active source or test module
+rl/evaluation/_obs.py,.py,5227,KEEP,active source or test module
+rl/evaluation/__init__.py,.py,65,KEEP,active source or test module
+rl/evaluation/probes/counterfactual.py,.py,3802,KEEP,active source or test module
+rl/evaluation/probes/obstacle_gradient.py,.py,2510,KEEP,active source or test module
+rl/evaluation/probes/obstacle_weights.py,.py,1305,KEEP,active source or test module
+rl/evaluation/probes/results.py,.py,7985,KEEP,active source or test module
+rl/evaluation/probes/runtime.py,.py,807,KEEP,active source or test module
+rl/evaluation/probes/__init__.py,.py,453,KEEP,active source or test module
+rl/presets/compatibility.py,.py,1681,KEEP,active source or test module
+rl/presets/hypothesis.py,.py,2630,KEEP,active source or test module
+rl/presets/models.py,.py,3469,KEEP,active source or test module
+rl/presets/other.py,.py,4983,KEEP,active source or test module
+rl/presets/plan_faithful.py,.py,10258,KEEP,active source or test module
+rl/presets/registry.py,.py,10285,KEEP,active source or test module
+rl/presets/serialization.py,.py,4310,KEEP,active source or test module
+rl/presets/validation.py,.py,7256,KEEP,active source or test module
+rl/presets/_registry_source.py,.py,39457,KEEP,active source or test module
+rl/presets/__init__.py,.py,44935,KEEP,active source or test module
+rl/presets/families/repertoire.py,.py,715,KEEP,active source or test module
+rl/presets/families/router.py,.py,1139,KEEP,active source or test module
+rl/presets/families/v6i8.py,.py,1061,KEEP,active source or test module
+rl/presets/families/v6i9.py,.py,1708,KEEP,active source or test module
+rl/presets/families/__init__.py,.py,457,KEEP,active source or test module
+rl/presets/families/plan_faithful/base.py,.py,6172,KEEP,active source or test module
+rl/presets/families/plan_faithful/early.py,.py,9299,KEEP,active source or test module
+rl/presets/families/plan_faithful/v3i_consequence.py,.py,16570,KEEP,active source or test module
+rl/presets/families/plan_faithful/v3i_event_router.py,.py,5600,KEEP,active source or test module
+rl/presets/families/plan_faithful/v3i_specialization.py,.py,15839,KEEP,active source or test module
+rl/presets/families/plan_faithful/v3_router.py,.py,17114,KEEP,active source or test module
+rl/presets/families/plan_faithful/v4_proof.py,.py,12478,KEEP,active source or test module
+rl/presets/families/plan_faithful/v5_repertoire.py,.py,47543,KEEP,active source or test module
+rl/presets/families/plan_faithful/v6_router_adapters.py,.py,17391,KEEP,active source or test module
+rl/presets/families/plan_faithful/__init__.py,.py,10411,KEEP,active source or test module
+rl/training/arguments.py,.py,25052,KEEP,active source or test module
+rl/training/banner.py,.py,25486,KEEP,active source or test module
+rl/training/cli.py,.py,2058,KEEP,active source or test module
+rl/training/config_validation.py,.py,13010,KEEP,active source or test module
+rl/training/env_factory.py,.py,7802,KEEP,active source or test module
+rl/training/errors.py,.py,1516,KEEP,active source or test module
+rl/training/factories.py,.py,1465,KEEP,active source or test module
+rl/training/initialization.py,.py,3666,KEEP,active source or test module
+rl/training/lifecycle.py,.py,6503,KEEP,active source or test module
+rl/training/orchestrator.py,.py,7954,KEEP,active source or test module
+rl/training/overrides.py,.py,22151,KEEP,active source or test module
+rl/training/resolved_config.py,.py,6171,KEEP,active source or test module
+rl/training/run_artifacts.py,.py,10578,KEEP,active source or test module
+rl/training/run_context.py,.py,1318,KEEP,active source or test module
+rl/training/__init__.py,.py,372,KEEP,active source or test module
+scripts/analyze_run.py,.py,1273,UNKNOWN,Python file outside standard package directories
+scripts/check_episodes.py,.py,417,UNKNOWN,Python file outside standard package directories
+scripts/check_metrics.py,.py,1347,UNKNOWN,Python file outside standard package directories
+scripts/run_deploy_comm_ablations.ps1,.ps1,3211,UNKNOWN,shell script — requires Stage 10 classification
+scripts/scan_runs.py,.py,1223,UNKNOWN,Python file outside standard package directories
+tests/preset_snapshots.json,.json,6012805,UNKNOWN,JSON file — requires further classification
+tests/test_actor_pathway_diagnostics.py,.py,2227,KEEP,active source or test module
+tests/test_actor_z_pathway.py,.py,2572,KEEP,active source or test module
+tests/test_analyze_latent.py,.py,12006,KEEP,active source or test module
+tests/test_audit_regressions.py,.py,19516,KEEP,active source or test module
+tests/test_behavior_telemetry.py,.py,6445,KEEP,active source or test module
+tests/test_bucket_baseline.py,.py,18140,KEEP,active source or test module
+tests/test_checkpoint_refactor_phase3.py,.py,5746,KEEP,active source or test module
+tests/test_checkpoint_telemetry.py,.py,4865,KEEP,active source or test module
+tests/test_csia.py,.py,9246,KEEP,active source or test module
+tests/test_curriculum.py,.py,1660,KEEP,active source or test module
+tests/test_curriculum_gates_characterization.py,.py,12251,KEEP,active source or test module
+tests/test_custom_ppo_policy_parity.py,.py,8129,KEEP,active source or test module
+tests/test_diagnose_run.py,.py,10109,KEEP,active source or test module
+tests/test_diagnostics_phase7.py,.py,20319,KEEP,active source or test module
+tests/test_discrete_mi.py,.py,885,KEEP,active source or test module
+tests/test_domain_randomization.py,.py,4608,KEEP,active source or test module
+tests/test_e3_baseline_parity.py,.py,3205,KEEP,active source or test module
+tests/test_e3_rng_verification.py,.py,4671,KEEP,active source or test module
+tests/test_entropy_annealing.py,.py,4133,KEEP,active source or test module
+tests/test_environment.py,.py,47371,KEEP,active source or test module
+tests/test_env_audit_hardpool.py,.py,20070,KEEP,active source or test module
+tests/test_episode_credit_refactor.py,.py,7999,KEEP,active source or test module
+tests/test_evaluation_aggregation.py,.py,730,KEEP,active source or test module
+tests/test_evaluation_artifacts.py,.py,1094,KEEP,active source or test module
+tests/test_evaluation_episode_runner.py,.py,2012,KEEP,active source or test module
+tests/test_evaluation_equivalence.py,.py,1074,KEEP,active source or test module
+tests/test_evaluation_gates.py,.py,1915,KEEP,active source or test module
+tests/test_evaluation_manifest.py,.py,4832,KEEP,active source or test module
+tests/test_evaluation_matched_seed.py,.py,1211,KEEP,active source or test module
+tests/test_evaluation_orchestrator.py,.py,7825,KEEP,active source or test module
+tests/test_evaluation_probes.py,.py,3006,KEEP,active source or test module
+tests/test_eval_checkpoint_op5_label.py,.py,1246,KEEP,active source or test module
+tests/test_eval_strategy_metrics.py,.py,5801,KEEP,active source or test module
+tests/test_feasibility_and_coverage.py,.py,9830,KEEP,active source or test module
+tests/test_forced_z_anneal.py,.py,14131,KEEP,active source or test module
+tests/test_forced_z_behavior_vectors.py,.py,13671,KEEP,active source or test module
+tests/test_game_manager_refactored.py,.py,3873,KEEP,active source or test module
+tests/test_gpu_env_api.py,.py,665,KEEP,active source or test module
+tests/test_gpu_env_pure.py,.py,2305,KEEP,active source or test module
+tests/test_hard_opponents.py,.py,8059,KEEP,active source or test module
+tests/test_inference_distribution_contract.py,.py,5905,KEEP,active source or test module
+tests/test_inference_parity.py,.py,10431,KEEP,active source or test module
+tests/test_latent_actor_residual.py,.py,20334,KEEP,active source or test module
+tests/test_latent_arc_credit.py,.py,24687,KEEP,active source or test module
+tests/test_latent_behavior_contrast.py,.py,3378,KEEP,active source or test module
+tests/test_latent_core_import_graph.py,.py,2464,KEEP,active source or test module
+tests/test_latent_episode_warmup.py,.py,12043,KEEP,active source or test module
+tests/test_latent_event_refresh.py,.py,25703,KEEP,active source or test module
+tests/test_latent_losses.py,.py,26635,KEEP,active source or test module
+tests/test_latent_phase_labels.py,.py,2593,KEEP,active source or test module
+tests/test_latent_preference.py,.py,58709,KEEP,active source or test module
+tests/test_latent_strategy_alignment.py,.py,21129,KEEP,active source or test module
+tests/test_latent_strategy_canonicalization.py,.py,7331,KEEP,active source or test module
+tests/test_latent_strategy_refactor.py,.py,4605,KEEP,active source or test module
+tests/test_marginal_baseline.py,.py,10781,KEEP,active source or test module
+tests/test_networks.py,.py,2410,KEEP,active source or test module
+tests/test_op35_latent_matrix.py,.py,4933,KEEP,active source or test module
+tests/test_op5_coordination_wiring.py,.py,3833,KEEP,active source or test module
+tests/test_op5_rusher_params.py,.py,1432,KEEP,active source or test module
+tests/test_operational_gap_guards.py,.py,5342,KEEP,active source or test module
+tests/test_opponent_params.py,.py,8054,KEEP,active source or test module
+tests/test_opponent_pool_weights.py,.py,4791,KEEP,active source or test module
+tests/test_option_advantage.py,.py,17826,KEEP,active source or test module
+tests/test_option_returns.py,.py,9565,KEEP,active source or test module
+tests/test_performance_artifacts.py,.py,2030,KEEP,active source or test module
+tests/test_performance_recorder.py,.py,1760,KEEP,active source or test module
+tests/test_phase10_evaluation_slice.py,.py,5314,KEEP,active source or test module
+tests/test_phase1_5_contracts.py,.py,15831,KEEP,active source or test module
+tests/test_phase6_experiment_matrix.py,.py,1760,KEEP,active source or test module
+tests/test_policy_checkpoint_migration.py,.py,11528,KEEP,active source or test module
+tests/test_policy_contract.py,.py,13278,KEEP,active source or test module
+tests/test_ppo.py,.py,6639,KEEP,active source or test module
+tests/test_ppo_updater_refactor_phase1.py,.py,14539,KEEP,active source or test module
+tests/test_ppo_updater_review_fixes.py,.py,4244,KEEP,active source or test module
+tests/test_preset_resolution.py,.py,67533,KEEP,active source or test module
+tests/test_preset_system.py,.py,20437,KEEP,active source or test module
+tests/test_qualitative_rollout.py,.py,15931,KEEP,active source or test module
+tests/test_recurrent_selector.py,.py,14728,KEEP,active source or test module
+tests/test_recurrent_selector_parity.py,.py,10973,KEEP,active source or test module
+tests/test_refactor_parity.py,.py,2654,KEEP,active source or test module
+tests/test_rollout_buffer.py,.py,2247,KEEP,active source or test module
+tests/test_router_dedicated_lr.py,.py,13746,KEEP,active source or test module
+tests/test_router_eval_matrix.py,.py,7558,KEEP,active source or test module
+tests/test_route_telemetry.py,.py,1963,KEEP,active source or test module
+tests/test_shared_actor_composition.py,.py,35066,KEEP,active source or test module
+tests/test_state_phase9.py,.py,30063,KEEP,active source or test module
+tests/test_strategy_aux_head_separation.py,.py,12359,KEEP,active source or test module
+tests/test_tactical_opponents.py,.py,7641,KEEP,active source or test module
+tests/test_telemetry_invariance.py,.py,4501,KEEP,active source or test module
+tests/test_telemetry_off_hot_path.py,.py,3385,KEEP,active source or test module
+tests/test_telemetry_phase6.py,.py,19070,KEEP,active source or test module
+tests/test_telemetry_phase6_integration.py,.py,2463,KEEP,active source or test module
+tests/test_training_lifecycle_events.py,.py,2559,KEEP,active source or test module
+tests/test_training_phase8.py,.py,17173,KEEP,active source or test module
+tests/test_train_ppo_smoke.py,.py,42981,KEEP,active source or test module
+tests/test_v5i4_paper_faithful.py,.py,20872,KEEP,active source or test module
+tests/test_v5i5_paper_faithful_entropy_floor.py,.py,14713,KEEP,active source or test module
+tests/test_v5i6_paper_faithful_marginal_entropy.py,.py,12203,KEEP,active source or test module
+tests/test_v5i7_entropy_floor_split_lane.py,.py,7618,KEEP,active source or test module
+tests/test_v5i8_repertoire_uniform_z.py,.py,5514,KEEP,active source or test module
+tests/test_v5i8_split_lane_v2_task_pressure.py,.py,4601,KEEP,active source or test module
+tests/test_v5i9_csia_guided_specialization.py,.py,4549,KEEP,active source or test module
+tests/test_v6i1_cf_loss.py,.py,18419,KEEP,active source or test module
+tests/test_v6i1_curriculum_gates.py,.py,42751,KEEP,active source or test module
+tests/test_v6i1_phase_bc.py,.py,11513,KEEP,active source or test module
+tests/test_v6i1_prelaunch_validation.py,.py,14534,KEEP,active source or test module
+tests/test_v6i1_staged_integration.py,.py,15054,KEEP,active source or test module
+tests/test_v6i2_gate_protocol.py,.py,47633,KEEP,active source or test module
+tests/test_v6i2_staged_integration.py,.py,17408,KEEP,active source or test module
+tests/test_v6i3_comm_policy.py,.py,17042,KEEP,active source or test module
+tests/test_v6i3_comm_transport.py,.py,5950,KEEP,active source or test module
+tests/test_v6i3_integration.py,.py,12538,KEEP,active source or test module
+tests/test_v6i4_order_invariance.py,.py,6479,KEEP,active source or test module
+tests/test_v6i4_router_ablation.py,.py,10498,KEEP,active source or test module
+tests/test_v6i4_router_ablation_protocol.py,.py,4291,KEEP,active source or test module
+tests/test_v6i4_shuffled_control.py,.py,7862,KEEP,active source or test module
+tests/test_v6i5_corrected_curriculum.py,.py,18169,KEEP,active source or test module
+tests/test_v6i5_repertoire_audit_tools.py,.py,9343,KEEP,active source or test module
+tests/test_v6i5_terminal_branch_eval.py,.py,4740,KEEP,active source or test module
+tests/test_v6i5_two_option_router.py,.py,1950,KEEP,active source or test module
+tests/test_v6i6_strategy_expansion.py,.py,5795,KEEP,active source or test module
+tests/test_v6i7_parts_b_g.py,.py,29566,KEEP,active source or test module
+tests/test_v6i7_reward_separation.py,.py,28292,KEEP,active source or test module
+tests/test_v6i9_map_aware.py,.py,13701,KEEP,active source or test module
+tests/__init__.py,.py,339,KEEP,active source or test module
+tools/analyze_latent.py,.py,34076,UNKNOWN,tool script — requires Stage 10 classification
+tools/audit_refactor_progress.py,.py,29135,UNKNOWN,tool script — requires Stage 10 classification
+tools/audit_repository_cleanup.py,.py,15762,UNKNOWN,tool script — requires Stage 10 classification
+tools/benchmark_training_pipeline.py,.py,16644,UNKNOWN,tool script — requires Stage 10 classification
+tools/critic_ceiling.py,.py,7600,UNKNOWN,tool script — requires Stage 10 classification
+tools/diagnose_run.py,.py,10270,UNKNOWN,tool script — requires Stage 10 classification
+tools/global_state_probe.py,.py,4409,UNKNOWN,tool script — requires Stage 10 classification
+tools/phase6_1_capture_environment.py,.py,3714,UNKNOWN,tool script — requires Stage 10 classification
+tools/phase6_1_component_benchmark.py,.py,7373,UNKNOWN,tool script — requires Stage 10 classification
+tools/qualitative_rollout.py,.py,46267,UNKNOWN,tool script — requires Stage 10 classification
+tools/q_probe.py,.py,74822,UNKNOWN,tool script — requires Stage 10 classification
+tools/q_probe_local_counterfactual.py,.py,45365,UNKNOWN,tool script — requires Stage 10 classification
+tools/router_distill_from_qprobe.py,.py,52966,UNKNOWN,tool script — requires Stage 10 classification
+tools/router_eval_matrix.py,.py,19406,UNKNOWN,tool script — requires Stage 10 classification
+tools/run_v6i5_cf_sweep.ps1,.ps1,1293,UNKNOWN,shell script — requires Stage 10 classification
+tools/sliced_z_diagnostics.py,.py,25339,UNKNOWN,tool script — requires Stage 10 classification
+tools/snapshot_presets.py,.py,2509,UNKNOWN,tool script — requires Stage 10 classification
+tools/summer_proof_report.py,.py,34020,UNKNOWN,tool script — requires Stage 10 classification
+tools/tactical_regime_analysis.py,.py,35628,UNKNOWN,tool script — requires Stage 10 classification
+tools/trace_actor_z_pathway.py,.py,3272,UNKNOWN,tool script — requires Stage 10 classification
+tools/v5i8_forced_z_eval.py,.py,7555,UNKNOWN,tool script — requires Stage 10 classification
+tools/v6i3_comm_corruption_eval.py,.py,2678,UNKNOWN,tool script — requires Stage 10 classification
+tools/v6i5_cf_diagnostics.py,.py,40828,UNKNOWN,tool script — requires Stage 10 classification
+tools/v6i5_cf_sweep_summary.py,.py,4546,UNKNOWN,tool script — requires Stage 10 classification
+tools/v6i5_phase_a_audit.py,.py,13023,UNKNOWN,tool script — requires Stage 10 classification
+tools/v6i5_state_conditioned_branch_eval.py,.py,60462,UNKNOWN,tool script — requires Stage 10 classification
+tools/verify_router_checkpoints.py,.py,3510,UNKNOWN,tool script — requires Stage 10 classification
+tools/verify_telemetry_invariance.py,.py,7199,UNKNOWN,tool script — requires Stage 10 classification
+tools/_build_latent_modules.py,.py,3695,UNKNOWN,tool script — requires Stage 10 classification
+tools/_diag_latent_summary.py,.py,2719,UNKNOWN,tool script — requires Stage 10 classification
+tools/_extract_docx_text.py,.py,684,UNKNOWN,tool script — requires Stage 10 classification
+tools/_extract_latent_modules.py,.py,10790,UNKNOWN,tool script — requires Stage 10 classification
+tools/_shrink_latent_core.py,.py,6343,UNKNOWN,tool script — requires Stage 10 classification

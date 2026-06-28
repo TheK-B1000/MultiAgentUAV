@@ -223,7 +223,8 @@ class TestV6I9TelemetryEvaluation(unittest.TestCase):
         )
 
     def test_evaluator_prefers_environment_exact_telemetry(self) -> None:
-        from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary
+        from rl.evaluation.aggregation import aggregate_conditions
+        from rl.evaluation.gates import build_summary
         episodes = [
             {
                 "policy": "baseline", "map": "map_b_split_lane", "resolved_opponent": "OP8",
@@ -261,7 +262,8 @@ class TestV6I9TelemetryEvaluation(unittest.TestCase):
         self.assertEqual(summary["gates"]["stuck_behavior_improved"]["status"], "PASS")
 
     def test_evaluator_preserves_missing_exact_telemetry_as_inconclusive(self) -> None:
-        from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary
+        from rl.evaluation.aggregation import aggregate_conditions
+        from rl.evaluation.gates import build_summary
         episodes = [
             {
                 "policy": "baseline", "map": "map_b_split_lane", "resolved_opponent": "OP8",

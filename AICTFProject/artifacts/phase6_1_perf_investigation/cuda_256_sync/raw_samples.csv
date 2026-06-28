@@ -1,2 +1,0 @@
-timestamp,telemetry_mode,env_count,rollout_index,rollout_duration_seconds,rollout_transitions,rollout_transitions_per_second,optimization_duration_seconds,optimization_samples,optimization_samples_per_second,peak_allocated_cuda_bytes,peak_reserved_cuda_bytes
-1782643932.9135437,off,256,0,73.88017409999884,16384,221.7645017704453,16.772975300002145,16384,976.8094036362114,19484667392,26851934208
