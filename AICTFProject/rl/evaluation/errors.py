@@ -19,7 +19,7 @@ class EvaluationCheckpointError(EvaluationError):
     """Checkpoint metadata, shape, or loading failure."""
 
 
-class EvaluationPreflightError(EvaluationError):
+class EvaluationPreflightError(EvaluationError, TypeError):
     """A required preflight contract failed before evaluation episodes ran."""
 
 

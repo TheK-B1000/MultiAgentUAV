@@ -1,14 +1,13 @@
-"""Plan-faithful presets — backward-compatible facade.
-
-All implementations live in rl.presets.families.plan_faithful.* sub-modules.
-"""
+"""Plan-faithful presets package — re-exports all apply_* functions."""
 from __future__ import annotations
 
-from rl.presets.families.plan_faithful import (
+from .base import (
     apply_plan_faithful_base,
     apply_plan_faithful_latent,
     apply_plan_faithful_latent_no_persistence,
     apply_plan_faithful_latent_episode_strategic,
+)
+from .early import (
     apply_plan_faithful_latent_strategic,
     apply_plan_faithful_latent_no_entropy,
     apply_plan_faithful_latent_step6,
@@ -28,6 +27,8 @@ from rl.presets.families.plan_faithful import (
     apply_latent_a1_plan_faithful,
     apply_plan_option_a,
     apply_plan_option_b_lamp,
+)
+from .v3_router import (
     apply_plan_faithful_latent_v3b_marginal,
     apply_plan_faithful_latent_v3c_router_lr,
     apply_plan_faithful_latent_v3d_smart_router,
@@ -37,12 +38,16 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v3g_preference,
     apply_plan_faithful_latent_v3h_balanced_preference,
     apply_plan_faithful_latent_v3h2_balanced_preference,
+)
+from .v3i_event_router import (
     apply_plan_faithful_latent_v3i_event_refresh,
     apply_plan_faithful_latent_v3i2_router_signal,
     apply_plan_faithful_latent_v3i3_event_conditioned_preference,
     apply_plan_faithful_latent_v3i4_event_progress_preference,
     apply_plan_faithful_latent_v3i5_crisp_router,
     apply_plan_faithful_latent_v3i6_stronger_actor_contrast,
+)
+from .v3i_specialization import (
     apply_plan_faithful_latent_v3i7_advantage_weighted_router_distill,
     apply_plan_faithful_latent_v3i8_commander_lockin,
     apply_plan_faithful_latent_v3i9_specialist_router,
@@ -54,16 +59,22 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v3i14_tuned,
     apply_plan_faithful_latent_v3i15_strong_separation,
     apply_plan_faithful_latent_v3i15_sparse_tactical_refresh,
+)
+from .v3i_consequence import (
     apply_plan_faithful_latent_v3i16_policy_z_embedding,
     _apply_v3i17_consequence_only,
     apply_plan_faithful_latent_v3i18_v3i16_plus_128,
     apply_plan_faithful_latent_v3i17_episode_arc,
     apply_plan_faithful_latent_v3i17_long_arc,
     apply_plan_faithful_latent_v3i19_summer_consequence,
+)
+from .v4_proof import (
     apply_plan_faithful_latent_v4i1_strategic_pressure_qprobe,
     apply_plan_faithful_latent_v4i3_summer_proof,
     apply_plan_faithful_no_latent_v4i3_baseline,
     apply_plan_faithful_latent_v4i4post_periodic_router_distill,
+)
+from .v5_repertoire import (
     apply_plan_faithful_latent_v5_strict_summer,
     apply_plan_faithful_latent_v5i1_reward_credit_router,
     apply_plan_faithful_latent_v5i2_stronger_z_conditioning,
@@ -83,6 +94,8 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
+)
+from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i7_recurrent_router,
     apply_plan_faithful_latent_v6i7_sparse_router,
     apply_plan_faithful_latent_v6i7_repertoire_balanced_episode,

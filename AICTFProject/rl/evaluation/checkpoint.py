@@ -19,15 +19,20 @@ def _meta_int(
     metadata: Mapping[str, Any],
     names: Sequence[str],
     default: int,
+    *,
+    positive: bool = False,
 ) -> int:
     for name in names:
         value = metadata.get(name)
         if value is None:
             continue
         try:
-            return int(value)
+            parsed = int(value)
         except (TypeError, ValueError):
             continue
+        if positive and parsed <= 0:
+            continue
+        return parsed
     return int(default)
 
 
@@ -40,10 +45,10 @@ def read_checkpoint_dimensions(
         metadata, ("n_blue", "n_agents_per_team", "max_agents", "agents"), 2
     )
     n_macros = _meta_int(
-        metadata, ("n_macros", "num_macros", "macro_actions"), 5
+        metadata, ("n_macros", "num_macros", "macro_actions"), 5, positive=True
     )
     n_targets = _meta_int(
-        metadata, ("n_targets", "num_targets", "macro_targets"), 50
+        metadata, ("n_targets", "num_targets", "macro_targets"), 50, positive=True
     )
     return metadata, n_agents, n_macros, n_targets
 

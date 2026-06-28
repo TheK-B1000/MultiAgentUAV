@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
-import inspect
 import json
 import math
 import subprocess
@@ -43,19 +42,24 @@ from gpu_env._navigation_telemetry import (
     STUCK_CONSECUTIVE_STEP_WINDOW,
     STUCK_DISPLACEMENT_EPSILON_CELLS,
 )
-from gpu_env._specs import _make_obs_action_spaces
-from rl.custom_ppo.inference import (
-    load_custom_ppo_policy,
-    read_custom_ppo_metadata,
-)
-from rl.custom_ppo.distributions import MultiHeadActionDistribution
-from rl.custom_ppo.policy_contract import PolicyInferenceContract
 from rl.custom_ppo.probe_result import (
     PROBE_ERROR,
     PROBE_SUCCESS,
     CounterfactualProbeResult,
     GradientProbeResult,
     WeightProbeResult,
+)
+from rl.evaluation.config import config_from_namespace
+from rl.evaluation.policy_loader import (
+    get_conv0_weight as evaluation_get_conv0_weight,
+    get_model as evaluation_get_model,
+    load_evaluation_policy,
+    policy_device as evaluation_policy_device,
+    read_checkpoint_dimensions as evaluation_checkpoint_dimensions,
+)
+from rl.evaluation.preflight import (
+    preflight_distribution_contract as evaluation_preflight_distribution_contract,
+    validate_distribution_contract as evaluation_validate_distribution_contract,
 )
 
 
@@ -266,27 +270,7 @@ def _make_env(
 def _checkpoint_dimensions(
     checkpoint_path: str,
 ) -> tuple[Mapping[str, Any], int, int, int]:
-    metadata = read_custom_ppo_metadata(checkpoint_path)
-
-    n_agents = _meta_int(
-        metadata,
-        ("n_blue", "n_agents_per_team", "max_agents", "agents"),
-        2,
-    )
-    n_macros = _meta_int(
-        metadata,
-        ("n_macros", "num_macros", "macro_actions"),
-        5,
-        positive=True,
-    )
-    n_targets = _meta_int(
-        metadata,
-        ("n_targets", "num_targets", "macro_targets"),
-        50,
-        positive=True,
-    )
-
-    return metadata, n_agents, n_macros, n_targets
+    return evaluation_checkpoint_dimensions(checkpoint_path)
 
 
 def _load_native_policy(
@@ -296,132 +280,33 @@ def _load_native_policy(
     num_cnn_channels: int,
 ) -> Any:
     """Load a checkpoint using the CNN channel count it was trained with."""
-    _, n_agents, n_macros, n_targets = _checkpoint_dimensions(
-        checkpoint_path
-    )
-
-    observation_space, action_space = _make_obs_action_spaces(
-        n_agents,
-        n_macros,
-        n_targets,
-        num_cnn_channels=num_cnn_channels,
-    )
-
-    print(
-        f"[load] checkpoint={checkpoint_path} "
-        f"channels={num_cnn_channels} agents={n_agents} "
-        f"macros={n_macros} targets={n_targets} "
-        f"action_logits={n_macros + n_targets}"
-    )
-
-    signature = inspect.signature(load_custom_ppo_policy)
-    kwargs: dict[str, Any] = {}
-    if "device" in signature.parameters:
-        kwargs["device"] = device
-
-    policy = load_custom_ppo_policy(
+    return load_evaluation_policy(
+        "policy",
         checkpoint_path,
-        observation_space,
-        action_space,
-        **kwargs,
-    )
-
-    policy.model_path = checkpoint_path
-
-    actual_channels = int(_conv0_weight(policy).shape[1])
-    if actual_channels != num_cnn_channels:
-        raise ValueError(
-            f"Loaded policy has {actual_channels} CNN channels, "
-            f"but {num_cnn_channels} were requested."
-        )
-
-    return policy
+        device=device,
+        cnn_channels=num_cnn_channels,
+    ).policy
 
 
 def _model(policy: Any) -> torch.nn.Module:
-    model = getattr(policy, "model", None)
-    if model is None:
-        raise AttributeError("Loaded policy has no .model attribute.")
-    return model
+    return evaluation_get_model(policy)
 
 
 def _validate_distribution_contract(policy: Any, *, label: str) -> None:
     """Fail early when a loaded policy cannot serve public probe distributions."""
-    if not isinstance(policy, PolicyInferenceContract):
-        raise TypeError(
-            f"{label} policy does not implement PolicyInferenceContract; "
-            "loaded checkpoint probes require CustomPPOInferencePolicy.get_distribution()."
-        )
-    model = _model(policy)
-    if not isinstance(model, PolicyInferenceContract):
-        raise TypeError(
-            f"{label} policy.model does not implement PolicyInferenceContract; "
-            "obstacle probes require SharedActorCentralizedCritic.get_distribution()."
-        )
-    getter = getattr(policy, "get_distribution", None)
-    model_getter = getattr(model, "get_distribution", None)
-    if not callable(getter) or not callable(model_getter):
-        raise TypeError(
-            f"{label} policy distribution contract is incomplete; "
-            "both wrapper and model must expose get_distribution()."
-        )
+    evaluation_validate_distribution_contract(policy, label=label)
 
 
 def _preflight_distribution_contract(policy: Any, *, label: str) -> None:
-    _validate_distribution_contract(policy, label=label)
-    model = _model(policy)
-    device = _policy_device(policy, "cpu")
-    grid_shape = tuple(int(v) for v in getattr(model, "grid_shape", ()))
-    if len(grid_shape) != 3:
-        raise TypeError(f"{label} model has invalid grid_shape={grid_shape!r}.")
-    channels, height, width = grid_shape
-    n_agents = int(getattr(model, "n_agents", 0) or 1)
-    vec_dim = int(getattr(model, "vec_dim", 20) or 20)
-    action_dims = tuple(int(v) for v in getattr(model, "action_dims", ()))
-    if not action_dims:
-        raise TypeError(f"{label} model has no action_dims for distribution preflight.")
-    obs = {
-        "grid": torch.zeros((1, n_agents, channels, height, width), dtype=torch.float32, device=device),
-        "vec": torch.zeros((1, n_agents, vec_dim), dtype=torch.float32, device=device),
-        "agent_mask": torch.ones((1, n_agents), dtype=torch.float32, device=device),
-        "mask": torch.ones((1, int(sum(action_dims))), dtype=torch.float32, device=device),
-    }
-    z_idx = None
-    if bool(getattr(model, "uses_latent_strategy", False)):
-        z_idx = torch.zeros((1,), dtype=torch.long, device=device)
-    dist = policy.get_distribution(obs, z_idx=z_idx)
-    if not isinstance(dist, MultiHeadActionDistribution):
-        raise TypeError(
-            f"{label} policy.get_distribution() returned {type(dist).__name__}, "
-            "expected MultiHeadActionDistribution."
-        )
-    if dist.head_dims() != list(action_dims):
-        raise TypeError(
-            f"{label} distribution head dims {dist.head_dims()} do not match "
-            f"model action_dims {list(action_dims)}."
-        )
+    evaluation_preflight_distribution_contract(policy, label=label)
 
 
 def _conv0_weight(policy: Any) -> torch.nn.Parameter:
-    try:
-        return _model(policy).actor_cnn.conv[0].weight
-    except (AttributeError, IndexError, TypeError):
-        pass
-
-    for name, parameter in _model(policy).named_parameters():
-        if name.endswith("actor_cnn.conv.0.weight"):
-            return parameter
-
-    raise AttributeError(
-        "Could not locate actor_cnn.conv.0.weight in the loaded policy."
-    )
+    return evaluation_get_conv0_weight(policy)
 
 
 def _policy_device(policy: Any, fallback: str) -> torch.device:
-    try:
-        return next(_model(policy).parameters()).device
-    except StopIteration:
-        return torch.device(fallback)
+    return evaluation_policy_device(policy, fallback)
 
 
 def _spatial_channel_axis(value: Any) -> int | None:
@@ -2260,37 +2145,15 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    output_directory = Path(args.output_dir)
+    config = config_from_namespace(args)
+    output_directory = config.output_dir
     output_directory.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    baseline_path = Path(args.baseline)
-    candidate_path = Path(args.candidate)
-
-    if not baseline_path.is_file():
-        raise FileNotFoundError(
-            f"Baseline checkpoint not found: "
-            f"{baseline_path}"
-        )
-    if not candidate_path.is_file():
-        raise FileNotFoundError(
-            f"Candidate checkpoint not found: "
-            f"{candidate_path}"
-        )
-    if args.episodes < 1:
-        raise ValueError("--episodes must be at least 1.")
-    if args.max_decision_steps < 1:
-        raise ValueError(
-            "--max-decision-steps must be at least 1."
-        )
-    if not args.maps:
-        raise ValueError("At least one map is required.")
-    if not args.opponents:
-        raise ValueError(
-            "At least one opponent is required."
-        )
+    baseline_path = config.baseline_checkpoint
+    candidate_path = config.candidate_checkpoint
 
     args.opponents = [
         _validate_opponent_name(opponent)
@@ -2311,8 +2174,8 @@ def main() -> None:
         )
 
     n_agents = candidate_agents
-    reference_map = args.maps[-1]
-    reference_opponent = args.opponents[0]
+    reference_map = config.reference_map
+    reference_opponent = config.reference_opponent
 
     run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat()
@@ -2337,8 +2200,8 @@ def main() -> None:
         "candidate": str(candidate_path),
         "baseline_sha256": _sha256(baseline_path),
         "candidate_sha256": _sha256(candidate_path),
-        "baseline_cnn_channels": 7,
-        "candidate_cnn_channels": 8,
+        "baseline_cnn_channels": config.baseline_cnn_channels,
+        "candidate_cnn_channels": config.candidate_cnn_channels,
         "n_agents": n_agents,
         "maps": list(args.maps),
         "opponents": list(args.opponents),
@@ -2371,7 +2234,7 @@ def main() -> None:
     baseline_policy = _load_native_policy(
         args.baseline,
         device=args.device,
-        num_cnn_channels=7,
+        num_cnn_channels=config.baseline_cnn_channels,
     )
     print("... baseline loaded.")
 
@@ -2379,7 +2242,7 @@ def main() -> None:
     candidate_policy = _load_native_policy(
         args.candidate,
         device=args.device,
-        num_cnn_channels=8,
+        num_cnn_channels=config.candidate_cnn_channels,
     )
     print("... candidate loaded.")
 

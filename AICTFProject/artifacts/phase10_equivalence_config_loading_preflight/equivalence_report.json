@@ -1,0 +1,50 @@
+{
+  "baseline_dir": "artifacts\\phase10_baseline",
+  "candidate_dir": "artifacts\\phase10_equivalence_config_loading_preflight",
+  "scope": "Phase 10 config/loading/preflight delegation",
+  "checks": {
+    "episode_results.csv": {
+      "baseline_rows": 24,
+      "candidate_rows": 24,
+      "exact_match": true
+    },
+    "condition_summary.csv": {
+      "baseline_rows": 12,
+      "candidate_rows": 12,
+      "exact_match": true
+    },
+    "per_episode.csv": {
+      "baseline_rows": 24,
+      "candidate_rows": 24,
+      "exact_match": true
+    },
+    "per_condition.csv": {
+      "baseline_rows": 12,
+      "candidate_rows": 12,
+      "exact_match": true
+    },
+    "final_report.json": {
+      "exact_match": true
+    },
+    "summary.json": {
+      "exact_match": true
+    },
+    "obstacle_probe.json": {
+      "exact_match": true
+    },
+    "evaluation_manifest_stable_fields": {
+      "exact_match": true,
+      "baseline_git_commit": "14c9ea4ae367b4bbd9f10ddd88982b1d28843e94",
+      "candidate_git_commit": "f34f51a198617bf74b6c4ae32ef3cf8ea086d5ed"
+    }
+  },
+  "differences": [],
+  "ignored_manifest_fields": [
+    "command",
+    "completed_at",
+    "git_commit",
+    "run_id",
+    "started_at"
+  ],
+  "equivalent": true
+}
