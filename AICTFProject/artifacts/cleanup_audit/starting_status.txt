@@ -1,0 +1,16 @@
+﻿ M artifacts/phase10_closeout/phase10_slice_report.json
+ M artifacts/phase10_closeout/phase10_slice_report.md
+ M artifacts/phase10_final_equivalence/evaluation_manifest.json
+ M artifacts/phase10_final_equivalence/stdout.txt
+?? artifacts/cleanup_audit/
+?? artifacts/phase10_final_equivalence/condition_summary.csv
+?? artifacts/phase10_final_equivalence/episode_results.csv
+?? artifacts/phase10_final_equivalence/equivalence_report.json
+?? artifacts/phase10_final_equivalence/equivalence_report.md
+?? artifacts/phase10_final_equivalence/exit_code.txt
+?? artifacts/phase10_final_equivalence/final_report.json
+?? artifacts/phase10_final_equivalence/final_report.txt
+?? artifacts/phase10_final_equivalence/per_condition.csv
+?? artifacts/phase10_final_equivalence/per_episode.csv
+?? artifacts/phase10_final_equivalence/run_capture.json
+?? artifacts/phase10_final_equivalence/summary.json

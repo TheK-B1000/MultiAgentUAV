@@ -1,0 +1,75 @@
+{
+  "baseline_dir": "artifacts\\phase10_baseline",
+  "candidate_dir": "artifacts\\phase10_final_equivalence",
+  "scope": "Phase 10 final orchestrator equivalence",
+  "checks": {
+    "episode_results.csv": {
+      "baseline_rows": 24,
+      "candidate_rows": 24,
+      "expected_rows": 24,
+      "exact_match": true,
+      "row_count_ok": true,
+      "pass": true
+    },
+    "condition_summary.csv": {
+      "baseline_rows": 12,
+      "candidate_rows": 12,
+      "expected_rows": 12,
+      "exact_match": true,
+      "row_count_ok": true,
+      "pass": true
+    },
+    "per_episode.csv": {
+      "baseline_rows": 24,
+      "candidate_rows": 24,
+      "expected_rows": 24,
+      "exact_match": true,
+      "row_count_ok": true,
+      "pass": true
+    },
+    "per_condition.csv": {
+      "baseline_rows": 12,
+      "candidate_rows": 12,
+      "expected_rows": 12,
+      "exact_match": true,
+      "row_count_ok": true,
+      "pass": true
+    },
+    "final_report.json": {
+      "exact_match": true,
+      "pass": true
+    },
+    "summary.json": {
+      "exact_match": true,
+      "pass": true
+    },
+    "obstacle_probe.json": {
+      "exact_match": true,
+      "pass": true
+    },
+    "final_report.txt": {
+      "exact_match": true,
+      "pass": true
+    },
+    "final_verdict": {
+      "value": "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES",
+      "expected": "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES",
+      "pass": true
+    },
+    "evaluation_manifest_stable_fields": {
+      "exact_match": true,
+      "baseline_git_commit": "14c9ea4ae367b4bbd9f10ddd88982b1d28843e94",
+      "candidate_git_commit": "4071f1484e16dfffc3ba8f8269defe3b29a1a270",
+      "pass": true
+    }
+  },
+  "differences": [],
+  "ignored_manifest_fields": [
+    "command",
+    "completed_at",
+    "git_commit",
+    "run_id",
+    "started_at"
+  ],
+  "equivalent": true
+}

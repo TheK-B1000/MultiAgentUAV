@@ -11,42 +11,37 @@
     "artifacts/phase10_baseline/function_inventory.json",
     "artifacts/phase10_baseline/caller_inventory.json"
   ],
-  "slice": "config/loading/preflight/probes/episode/matched-seed/aggregation/gates/artifact-writer wired into monolith",
+  "slice": "manifest lifecycle and orchestrator wired; final golden equivalence passed",
   "phase": "Phase 10",
-  "status": "PARTIAL",
+  "status": "IMPLEMENTED_NOT_CLOSED",
   "notes": [
     "Evaluator entry point not rewired yet.",
     "Golden smoke captured before source extraction.",
     "Scientific behavior unchanged in this slice."
   ],
   "implementation": {
-    "entrypoint_rewired": true,
-    "rewired_surfaces": [
-      "config_from_namespace",
-      "read_checkpoint_dimensions",
-      "load_evaluation_policy",
-      "preflight_distribution_contract",
-      "obstacle probes",
-      "episode_runner",
-      "matched_seed_evaluation",
-      "aggregate_conditions",
-      "build_summary gates/verdict",
-      "write_csv/report_text"
-    ],
-    "not_rewired": [
-      "manifest lifecycle",
-      "orchestrator module"
-    ]
+    "entrypoint_parse_and_delegate": true,
+    "manifest_lifecycle": true,
+    "orchestrator_delegation": true,
+    "compatibility_wrappers_retained": true,
+    "scientific_delta": "NONE"
   },
   "equivalence": {
     "baseline_dir": "artifacts/phase10_baseline",
-    "reports": [
-      "artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.json",
-      "artifacts/phase10_equivalence_obstacle_probes/equivalence_report.json",
-      "artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.json",
-      "artifacts/phase10_equivalence_aggregation_gates/equivalence_report.json",
-      "artifacts/phase10_equivalence_artifact_writer/equivalence_report.json"
-    ],
-    "equivalent": true
+    "final_report": "artifacts/phase10_final_equivalence/equivalence_report.json",
+    "equivalent": true,
+    "episode_rows": 24,
+    "condition_rows": 12,
+    "verdict": "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
+  },
+  "focused_tests": {
+    "command": "uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_evaluation_manifest tests.test_evaluation_orchestrator tests.test_evaluation_probes tests.test_evaluation_episode_runner tests.test_evaluation_matched_seed tests.test_evaluation_aggregation tests.test_evaluation_gates tests.test_evaluation_artifacts tests.test_evaluation_equivalence tests.test_inference_distribution_contract tests.test_v6i9_map_aware",
+    "passed": true,
+    "tests_run": 40
+  },
+  "full_discovery": {
+    "command": "uv run python -m unittest discover -s tests",
+    "passed": null,
+    "status": "NOT_RUN_BLOCKED_BY_APPROVAL_USAGE_LIMIT"
   }
 }

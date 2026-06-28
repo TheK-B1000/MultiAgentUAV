@@ -1,35 +1,37 @@
 # Phase 10 Slice Report
 
-Status: PARTIAL
+Status: IMPLEMENTED_NOT_CLOSED
 
-Implemented so far:
+Implemented:
 
-- Rewired config, checkpoint loading, and distribution preflight into `rl.evaluation` modules.
-- Extracted obstacle probes into `rl/evaluation/probes/`.
-- Extracted episode execution into `rl/evaluation/episode_runner.py`.
-- Extracted matched-seed loop into `rl/evaluation/matched_seed.py`.
-- Extracted condition aggregation into `rl/evaluation/aggregation.py`.
-- Extracted gate and verdict logic into `rl/evaluation/gates.py`.
-- Extracted CSV writing and text report rendering into `rl/evaluation/artifact_writer.py`.
-- Preserved monolith helper names as compatibility wrappers.
+- Manifest lifecycle module: `rl/evaluation/manifest.py`
+- Evaluation orchestrator: `rl/evaluation/orchestrator.py`
+- Entrypoint reduced to parse, resolve config, build runtime, delegate, and return exit code.
+- Compatibility wrappers retained in `experiments/eval_v6i9_map_awareness.py`.
+- Scientific delta: NONE.
 
-Equivalence evidence against `artifacts/phase10_baseline`:
+Equivalence evidence:
 
-- `artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.json`: PASS
-- `artifacts/phase10_equivalence_obstacle_probes/equivalence_report.json`: PASS
-- `artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.json`: PASS
-- `artifacts/phase10_equivalence_aggregation_gates/equivalence_report.json`: PASS
-- `artifacts/phase10_equivalence_artifact_writer/equivalence_report.json`: PASS
+- Final equivalence: `artifacts/phase10_final_equivalence/equivalence_report.json`
+- Baseline: `artifacts/phase10_baseline`
+- Result: PASS
+- Episode rows: 24
+- Condition rows: 12
+- Final verdict: `INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES`
 
-Latest validation:
+Focused validation:
 
-`uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_inference_distribution_contract tests.test_v6i9_map_aware`
+`uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_evaluation_manifest tests.test_evaluation_orchestrator tests.test_evaluation_probes tests.test_evaluation_episode_runner tests.test_evaluation_matched_seed tests.test_evaluation_aggregation tests.test_evaluation_gates tests.test_evaluation_artifacts tests.test_evaluation_equivalence tests.test_inference_distribution_contract tests.test_v6i9_map_aware`
 
-Result: PASS, 24 tests.
+Result: PASS, 40 tests.
 
-Remaining Phase 10 work:
+Full discovery:
 
-- Extract manifest lifecycle and run metadata writing.
-- Add an orchestrator module so the entrypoint becomes parse-and-delegate.
-- Add focused unit tests for extracted episode, aggregation, gates, and artifact modules beyond smoke equivalence.
-- Run a final smoke equivalence after orchestrator wiring.
+`uv run python -m unittest discover -s tests`
+
+Result: NOT RUN. The command was blocked by the approval/usage limit, so Phase 10 remains `IMPLEMENTED_NOT_CLOSED` rather than `COMPLETE`.
+
+Remaining closeout requirement:
+
+- Run full discovery successfully.
+- Record performance as PASS or documented WARN if required by the final phase audit.

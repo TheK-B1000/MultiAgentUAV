@@ -11,8 +11,8 @@
   "map_route_metadata_version": "split-lane-route-metadata.v1",
   "run_id": "696c89b6-a9b9-430f-b531-f87fcc0cdf16",
   "started_at": "2026-06-28T11:34:23.925869+00:00",
-  "completed_at": null,
-  "status": "in_progress",
+  "completed_at": "2026-06-28T11:35:55.067942+00:00",
+  "status": "completed",
   "command": [
     "experiments\\eval_v6i9_map_awareness.py",
     "--baseline",

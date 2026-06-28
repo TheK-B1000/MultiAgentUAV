@@ -1,0 +1,56 @@
+﻿stash@{0}: On sharpened-router: !!GitHub_Desktop<sharpened-router>
+  Files: rl/custom_ppo.py, rl/train_ppo.py, tests/test_c4b_qphi.py
+  Classification: GITHUB_DESKTOP_AUTOSAVE — old code from sharpened-router branch, superseded
+
+stash@{1}: On structure-rebuild: uncommitted 5-dim continuous opp-config oracle
+  Files: rl/global_state.py
+  Classification: GITHUB_DESKTOP_AUTOSAVE — old experiment from structure-rebuild branch, superseded
+
+stash@{2}: On cuda: !!GitHub_Desktop<cuda>
+  Files: DARS_SEA_GUARD_2slides.pptx, build_dars_slides.py
+  Classification: GITHUB_DESKTOP_AUTOSAVE — presentation slides, not source code
+
+stash@{3}: On main: !!GitHub_Desktop<main>
+  Files: .idea/workspace.xml
+  Classification: GITHUB_DESKTOP_AUTOSAVE — IDE config, not needed
+
+stash@{4}: On jacob: !!GitHub_Desktop<jacob>
+  Files: __pycache__ .pyc files only
+  Classification: GITHUB_DESKTOP_AUTOSAVE — generated cache only
+
+stash@{5}: On pyquaticus: !!GitHub_Desktop<pyquaticus>
+  Files: .idea/, __pycache__
+  Classification: GITHUB_DESKTOP_AUTOSAVE — IDE + generated cache
+
+stash@{6}: On 4agents: !!GitHub_Desktop<4agents>
+  Files: __pycache__ .pyc files only
+  Classification: GITHUB_DESKTOP_AUTOSAVE — generated cache only
+
+stash@{7}: On apples: !!GitHub_Desktop<apples>
+  Files: old league checkpoint zips (ppo_league_8m_league_snapshot_ep036800..037000)
+  Classification: HISTORICAL — early league training snapshots from 'apples' branch
+  Note: Very early training era (ppo_league_8m naming), superseded by V6 architecture
+
+stash@{8}: On performance: !!GitHub_Desktop<performance>
+  Files: (empty / no tracked changes)
+  Classification: GITHUB_DESKTOP_AUTOSAVE — empty
+
+stash@{9}: On cursortest: !!GitHub_Desktop<cursortest>
+  Files: self_play_pool/sp_snapshot_ep002900.zip, tfevents, logs/behavior_ppo.csv
+  Classification: HISTORICAL — early self-play snapshot from 'cursortest' branch
+
+stash@{10}: On research: !!GitHub_Desktop<research>
+  Files: __pycache__ .pyc files only
+  Classification: GITHUB_DESKTOP_AUTOSAVE — generated cache only
+
+stash@{11}: On newmacros: !!GitHub_Desktop<newmacros>
+  Files: __pycache__ .pyc files only
+  Classification: GITHUB_DESKTOP_AUTOSAVE — generated cache only
+
+stash@{12}: On paper: !!GitHub_Desktop<paper>
+  Files: checkpoints/ctf_ppo_ep1000.pth, ctf_ppo_ep1100.pth, ctf_ppo_ep1200.pth
+  Classification: HISTORICAL — very early CTF checkpoints from 'paper' branch, pre-V6 architecture
+
+Recommendation: All stashes are GitHub Desktop auto-stashes from abandoned branches or
+contain only pycache / IDE files / early-era checkpoints superseded by V6 architecture.
+None contain active work. Safe to drop after inventory is recorded.
