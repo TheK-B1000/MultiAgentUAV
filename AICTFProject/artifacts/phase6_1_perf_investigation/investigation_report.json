@@ -1,0 +1,34 @@
+{
+  "status": "PARTIAL_INVESTIGATION_COMPLETE",
+  "completed_steps": [
+    "environment_equivalence_capture",
+    "off_hot_path_inactivity_test_and_repair",
+    "component_benchmark_baseline_vs_current",
+    "short_repaired_cuda_16_64_smoke"
+  ],
+  "environment_diff_status": "DIFFS_FOUND",
+  "off_hot_path_status": "PASS",
+  "component_benchmark_status": "PASS",
+  "repaired_benchmark_status": "FAIL",
+  "key_findings": [
+    "System Python benchmark config and checkpoint hash match between baseline and current; uv environments do not match because baseline uv resolves to Python 3.11 without torch.",
+    "OFF mode was not fully dormant: GPU monitor factory/start and emit_training_started perf_counter executed in OFF. Both were repaired.",
+    "Focused OFF hot-path tests now pass and scientific telemetry invariance tests still pass.",
+    "Component benchmark no longer shows a large rollout/optimization regression; checkpoint_load is slower in current, but complete_rollout and complete_optimization_phase are neutral or faster in the isolated 3-sample run.",
+    "Short repaired 16/64 CUDA smoke is still not a final gate substitute because it uses 3 measured samples; final 10-sample 16/64/256 matrix remains required."
+  ],
+  "next_actions": [
+    "Run CUDA_LAUNCH_BLOCKING 256-env OFF repro in a fresh process.",
+    "Run full 10-sample 16/64/256 matrix after 256-env root cause is known.",
+    "If final 10-sample OFF still regresses, proceed to bisect with the stable benchmark harness."
+  ],
+  "artifacts": {
+    "current_environment": "current_environment.json",
+    "baseline_environment": "baseline_environment.json",
+    "environment_diff": "environment_diff.json",
+    "off_hot_path_validation": "off_hot_path_validation.json",
+    "component_benchmark_samples": "component_benchmark_samples.csv",
+    "component_benchmark_summary": "component_benchmark_summary.json",
+    "repaired_benchmark_summary": "repaired_benchmark_summary.json"
+  }
+}

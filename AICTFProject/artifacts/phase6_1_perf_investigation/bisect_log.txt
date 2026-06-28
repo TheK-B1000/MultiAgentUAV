@@ -1,0 +1,1 @@
+NOT_RUN: immediate first-action scope stopped before git bisect. Environment equivalence, OFF hot-path tests, and component benchmark were completed.

@@ -1,0 +1,310 @@
+{
+  "patterns": [
+    "_load_native_policy",
+    "_preflight_distribution_contract",
+    "_validate_distribution_contract",
+    "matched_seed_evaluation",
+    "aggregate_conditions",
+    "build_summary",
+    "run_episode",
+    "inspect_obstacle_weights",
+    "gradient_probe",
+    "obstacle_counterfactual"
+  ],
+  "matches": [
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 292,
+      "symbol": "_load_native_policy",
+      "text": "def _load_native_policy("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 348,
+      "symbol": "_validate_distribution_contract",
+      "text": "def _validate_distribution_contract(policy: Any, *, label: str) -> None:"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 370,
+      "symbol": "_preflight_distribution_contract",
+      "text": "def _preflight_distribution_contract(policy: Any, *, label: str) -> None:"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 371,
+      "symbol": "_validate_distribution_contract",
+      "text": "_validate_distribution_contract(policy, label=label)"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1127,
+      "symbol": "inspect_obstacle_weights",
+      "text": "def inspect_obstacle_weights(policy: Any) -> WeightProbeResult:"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1159,
+      "symbol": "gradient_probe",
+      "text": "def gradient_probe("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1237,
+      "symbol": "obstacle_counterfactual",
+      "text": "def obstacle_counterfactual("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1377,
+      "symbol": "run_episode",
+      "text": "def run_episode("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1470,
+      "symbol": "matched_seed_evaluation",
+      "text": "def matched_seed_evaluation("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1498,
+      "symbol": "run_episode",
+      "text": "row = run_episode("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1574,
+      "symbol": "aggregate_conditions",
+      "text": "def aggregate_conditions("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1791,
+      "symbol": "build_summary",
+      "text": "def build_summary("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 1810,
+      "symbol": "obstacle_counterfactual",
+      "text": "\"obstacle_counterfactual_effect\": _gate_probe_counterfactual("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2017,
+      "symbol": "obstacle_counterfactual",
+      "text": "gates[\"obstacle_counterfactual_effect\"][\"status\"],"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2096,
+      "symbol": "obstacle_counterfactual",
+      "text": "\"obstacle_counterfactual_effect\","
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2371,
+      "symbol": "_load_native_policy",
+      "text": "baseline_policy = _load_native_policy("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2379,
+      "symbol": "_load_native_policy",
+      "text": "candidate_policy = _load_native_policy("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2387,
+      "symbol": "_preflight_distribution_contract",
+      "text": "_preflight_distribution_contract(baseline_policy, label=\"baseline\")"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2388,
+      "symbol": "_preflight_distribution_contract",
+      "text": "_preflight_distribution_contract(candidate_policy, label=\"candidate\")"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2393,
+      "symbol": "inspect_obstacle_weights",
+      "text": "\"baseline_weights\": inspect_obstacle_weights(baseline_policy),"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2394,
+      "symbol": "inspect_obstacle_weights",
+      "text": "\"candidate_weights\": inspect_obstacle_weights(candidate_policy),"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2395,
+      "symbol": "gradient_probe",
+      "text": "\"candidate_gradient\": gradient_probe("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2402,
+      "symbol": "obstacle_counterfactual",
+      "text": "\"candidate_counterfactual\": obstacle_counterfactual("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2423,
+      "symbol": "matched_seed_evaluation",
+      "text": "episodes = matched_seed_evaluation("
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2429,
+      "symbol": "aggregate_conditions",
+      "text": "conditions = aggregate_conditions(episodes)"
+    },
+    {
+      "path": "experiments\\eval_v6i9_map_awareness.py",
+      "line": 2437,
+      "symbol": "build_summary",
+      "text": "summary = build_summary("
+    },
+    {
+      "path": "tests\\test_inference_distribution_contract.py",
+      "line": 147,
+      "symbol": "_validate_distribution_contract",
+      "text": "from experiments.eval_v6i9_map_awareness import _validate_distribution_contract"
+    },
+    {
+      "path": "tests\\test_inference_distribution_contract.py",
+      "line": 153,
+      "symbol": "_validate_distribution_contract",
+      "text": "_validate_distribution_contract(BrokenPolicy(), label=\"broken\")"
+    },
+    {
+      "path": "tests\\test_phase1_5_contracts.py",
+      "line": 341,
+      "symbol": "inspect_obstacle_weights",
+      "text": "def test_inspect_obstacle_weights_uses_public_api(self):"
+    },
+    {
+      "path": "tests\\test_phase1_5_contracts.py",
+      "line": 342,
+      "symbol": "inspect_obstacle_weights",
+      "text": "\"\"\"Verify inspect_obstacle_weights calls get_observation_encoder_input_weights."
+    },
+    {
+      "path": "tests\\test_phase1_5_contracts.py",
+      "line": 359,
+      "symbol": "inspect_obstacle_weights",
+      "text": "if \"def inspect_obstacle_weights\" in line:"
+    },
+    {
+      "path": "tests\\test_phase1_5_contracts.py",
+      "line": 361,
+      "symbol": "inspect_obstacle_weights",
+      "text": "elif in_probe and line.startswith(\"def \") and \"inspect_obstacle_weights\" not in line:"
+    },
+    {
+      "path": "tests\\test_phase1_5_contracts.py",
+      "line": 370,
+      "symbol": "gradient_probe",
+      "text": "def test_gradient_probe_uses_public_api(self):"
+    },
+    {
+      "path": "tests\\test_phase1_5_contracts.py",
+      "line": 373,
+      "symbol": "gradient_probe",
+      "text": "# gradient_probe must call get_observation_encoder_input_weights, not private path"
+    },
+    {
+      "path": "tests\\test_policy_contract.py",
+      "line": 270,
+      "symbol": "gradient_probe",
+      "text": "def test_gradient_probe_result_error_has_no_metrics(self):"
+    },
+    {
+      "path": "tests\\test_policy_contract.py",
+      "line": 319,
+      "symbol": "gradient_probe",
+      "text": "def test_gradient_probe_with_broken_policy_returns_error(self):"
+    },
+    {
+      "path": "tests\\test_policy_contract.py",
+      "line": 321,
+      "symbol": "gradient_probe",
+      "text": "# Simulate what gradient_probe does when model.get_distribution fails"
+    },
+    {
+      "path": "tests\\test_v6i5_repertoire_audit_tools.py",
+      "line": 26,
+      "symbol": "build_summary",
+      "text": "build_summary,"
+    },
+    {
+      "path": "tests\\test_v6i5_repertoire_audit_tools.py",
+      "line": 148,
+      "symbol": "build_summary",
+      "text": "summary = build_summary(path)"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 226,
+      "symbol": "aggregate_conditions",
+      "text": "from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 226,
+      "symbol": "build_summary",
+      "text": "from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 257,
+      "symbol": "aggregate_conditions",
+      "text": "summary = build_summary(self._args(), self._probe(), episodes, aggregate_conditions(episodes))"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 257,
+      "symbol": "build_summary",
+      "text": "summary = build_summary(self._args(), self._probe(), episodes, aggregate_conditions(episodes))"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 264,
+      "symbol": "aggregate_conditions",
+      "text": "from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 264,
+      "symbol": "build_summary",
+      "text": "from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 281,
+      "symbol": "aggregate_conditions",
+      "text": "summary = build_summary(self._args(), self._probe(), episodes, aggregate_conditions(episodes))"
+    },
+    {
+      "path": "tests\\test_v6i9_map_aware.py",
+      "line": 281,
+      "symbol": "build_summary",
+      "text": "summary = build_summary(self._args(), self._probe(), episodes, aggregate_conditions(episodes))"
+    },
+    {
+      "path": "rl\\eval_forced_latent_repertoire.py",
+      "line": 124,
+      "symbol": "build_summary",
+      "text": "def build_summary(rollout_by_z_csv: Path) -> list[dict[str, Any]]:"
+    },
+    {
+      "path": "rl\\eval_forced_latent_repertoire.py",
+      "line": 315,
+      "symbol": "build_summary",
+      "text": "summary_rows = build_summary(by_z_csv)"
+    }
+  ]
+}

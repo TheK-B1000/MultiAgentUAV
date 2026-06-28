@@ -1,0 +1,22 @@
+{
+    "tests":  [
+                  "uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_inference_distribution_contract tests.test_v6i9_map_aware"
+              ],
+    "tests_passed":  true,
+    "baseline_artifacts":  [
+                               "artifacts/phase10_baseline/evaluation_manifest.json",
+                               "artifacts/phase10_baseline/episode_results.csv",
+                               "artifacts/phase10_baseline/condition_summary.csv",
+                               "artifacts/phase10_baseline/final_report.json",
+                               "artifacts/phase10_baseline/function_inventory.json",
+                               "artifacts/phase10_baseline/caller_inventory.json"
+                           ],
+    "slice":  "config errors policy_loader preflight baseline evidence",
+    "phase":  "Phase 10",
+    "status":  "PARTIAL",
+    "notes":  [
+                  "Evaluator entry point not rewired yet.",
+                  "Golden smoke captured before source extraction.",
+                  "Scientific behavior unchanged in this slice."
+              ]
+}

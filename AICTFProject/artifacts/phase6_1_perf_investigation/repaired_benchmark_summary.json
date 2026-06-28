@@ -1,0 +1,79 @@
+{
+  "status": "FAIL",
+  "note": "Short post-repair smoke only: warmup=1, measured=3. Not a replacement for final 10-sample gates.",
+  "benchmark_path": "artifacts/phase6_1_perf_investigation/repaired_cuda_16_64_smoke",
+  "rows": [
+    {
+      "comparison": "baseline_off_vs_repaired_current_off",
+      "env_count": 16,
+      "baseline_rollout_tps": 73.27662597087075,
+      "current_rollout_tps": 60.22210972659021,
+      "rollout_regression_percent": 17.815,
+      "rollout_gate": "FAIL",
+      "baseline_optimization_sps": 3024.786533492628,
+      "current_optimization_sps": 2575.6749135754526,
+      "optimization_regression_percent": 14.848,
+      "optimization_gate": "FAIL"
+    },
+    {
+      "comparison": "baseline_off_vs_repaired_current_off",
+      "env_count": 64,
+      "baseline_rollout_tps": 200.77769530312713,
+      "current_rollout_tps": 154.95461127482875,
+      "rollout_regression_percent": 22.823,
+      "rollout_gate": "FAIL",
+      "baseline_optimization_sps": 4381.00024448952,
+      "current_optimization_sps": 4142.812538858982,
+      "optimization_regression_percent": 5.437,
+      "optimization_gate": "FAIL"
+    },
+    {
+      "comparison": "off_vs_basic",
+      "env_count": 16,
+      "off_rollout_tps": 60.22210972659021,
+      "mode_rollout_tps": 62.01968697465273,
+      "rollout_overhead_percent": -2.985,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 2575.6749135754526,
+      "mode_optimization_sps": 2922.301872100468,
+      "optimization_overhead_percent": -13.458,
+      "optimization_gate": "PASS"
+    },
+    {
+      "comparison": "off_vs_full",
+      "env_count": 16,
+      "off_rollout_tps": 60.22210972659021,
+      "mode_rollout_tps": 61.24398434106154,
+      "rollout_overhead_percent": -1.697,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 2575.6749135754526,
+      "mode_optimization_sps": 2755.0885059141838,
+      "optimization_overhead_percent": -6.966,
+      "optimization_gate": "PASS"
+    },
+    {
+      "comparison": "off_vs_basic",
+      "env_count": 64,
+      "off_rollout_tps": 154.95461127482875,
+      "mode_rollout_tps": 158.96147919775123,
+      "rollout_overhead_percent": -2.586,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 4142.812538858982,
+      "mode_optimization_sps": 4165.043086234478,
+      "optimization_overhead_percent": -0.537,
+      "optimization_gate": "PASS"
+    },
+    {
+      "comparison": "off_vs_full",
+      "env_count": 64,
+      "off_rollout_tps": 154.95461127482875,
+      "mode_rollout_tps": 152.58229800601487,
+      "rollout_overhead_percent": 1.531,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 4142.812538858982,
+      "mode_optimization_sps": 4230.366595975426,
+      "optimization_overhead_percent": -2.113,
+      "optimization_gate": "PASS"
+    }
+  ]
+}

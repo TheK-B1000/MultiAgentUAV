@@ -1,0 +1,4 @@
+{
+  "status": "NOT_RUN",
+  "reason": "Profiler deferred until first bad commit or remaining component hotspot is identified."
+}

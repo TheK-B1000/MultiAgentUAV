@@ -1,0 +1,120 @@
+{
+  "benchmark_timestamp": 1782643483.98784,
+  "device": "cuda",
+  "map_layout": "map_b_split_lane",
+  "opponent": "OP9",
+  "checkpoint_path": "checkpoints\\2v2\\ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip",
+  "rollout_steps": 64,
+  "measured_rollouts": 3,
+  "warmup_rollouts": 1,
+  "results": [
+    {
+      "telemetry_mode": "off",
+      "env_count": 16,
+      "rollout": {
+        "median_duration_seconds": 17.003721799999767,
+        "p95_duration_seconds": 17.824861009999587,
+        "median_transitions_per_second": 60.22210972659021,
+        "p95_transitions_per_second": 60.991983294084136
+      },
+      "optimization": {
+        "median_duration_seconds": 0.397565700004634,
+        "p95_duration_seconds": 0.40288893000397363,
+        "median_samples_per_second": 2575.6749135754526,
+        "p95_samples_per_second": 2818.143620970601
+      },
+      "peak_allocated_cuda_bytes": 1648890368,
+      "peak_reserved_cuda_bytes": 2822766592
+    },
+    {
+      "telemetry_mode": "off",
+      "env_count": 64,
+      "rollout": {
+        "median_duration_seconds": 26.433547000000544,
+        "p95_duration_seconds": 26.53838646999575,
+        "median_transitions_per_second": 154.95461127482875,
+        "p95_transitions_per_second": 157.64402330294456
+      },
+      "optimization": {
+        "median_duration_seconds": 0.988700299996708,
+        "p95_duration_seconds": 1.098715670002275,
+        "median_samples_per_second": 4142.812538858982,
+        "p95_samples_per_second": 4510.091026278295
+      },
+      "peak_allocated_cuda_bytes": 6274149376,
+      "peak_reserved_cuda_bytes": 7889485824
+    },
+    {
+      "telemetry_mode": "basic",
+      "env_count": 16,
+      "rollout": {
+        "median_duration_seconds": 16.510886299998674,
+        "p95_duration_seconds": 17.485273820001748,
+        "median_transitions_per_second": 62.01968697465273,
+        "p95_transitions_per_second": 64.32004448542301
+      },
+      "optimization": {
+        "median_duration_seconds": 0.3504086999964784,
+        "p95_duration_seconds": 0.4089886200046749,
+        "median_samples_per_second": 2922.301872100468,
+        "p95_samples_per_second": 2959.9451052849427
+      },
+      "peak_allocated_cuda_bytes": 1760026624,
+      "peak_reserved_cuda_bytes": 7889485824
+    },
+    {
+      "telemetry_mode": "basic",
+      "env_count": 64,
+      "rollout": {
+        "median_duration_seconds": 25.767248899996048,
+        "p95_duration_seconds": 26.129131160001997,
+        "median_transitions_per_second": 158.96147919775123,
+        "p95_transitions_per_second": 171.0817725580846
+      },
+      "optimization": {
+        "median_duration_seconds": 0.983423199999379,
+        "p95_duration_seconds": 0.9857975799990527,
+        "median_samples_per_second": 4165.043086234478,
+        "p95_samples_per_second": 4215.083962977628
+      },
+      "peak_allocated_cuda_bytes": 6385483264,
+      "peak_reserved_cuda_bytes": 7897874432
+    },
+    {
+      "telemetry_mode": "full",
+      "env_count": 16,
+      "rollout": {
+        "median_duration_seconds": 16.720009499993466,
+        "p95_duration_seconds": 16.784674139997513,
+        "median_transitions_per_second": 61.24398434106154,
+        "p95_transitions_per_second": 61.98952745270847
+      },
+      "optimization": {
+        "median_duration_seconds": 0.37167589999444317,
+        "p95_duration_seconds": 0.3795760100030748,
+        "median_samples_per_second": 2755.0885059141838,
+        "p95_samples_per_second": 2878.3031264945184
+      },
+      "peak_allocated_cuda_bytes": 1872211456,
+      "peak_reserved_cuda_bytes": 7897874432
+    },
+    {
+      "telemetry_mode": "full",
+      "env_count": 64,
+      "rollout": {
+        "median_duration_seconds": 26.844529499998316,
+        "p95_duration_seconds": 27.893249100001412,
+        "median_transitions_per_second": 152.58229800601487,
+        "p95_transitions_per_second": 156.04848423077124
+      },
+      "optimization": {
+        "median_duration_seconds": 0.9682375999982469,
+        "p95_duration_seconds": 1.0932743300036236,
+        "median_samples_per_second": 4230.366595975426,
+        "p95_samples_per_second": 4262.191245761339
+      },
+      "peak_allocated_cuda_bytes": 6216229888,
+      "peak_reserved_cuda_bytes": 7904165888
+    }
+  ]
+}
