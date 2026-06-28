@@ -1,0 +1,7 @@
+{
+  "no_circular_imports": true,
+  "forbidden_back_edges": [],
+  "no_scientific_logic_in_entry_point": true,
+  "orchestrator_owns_lifecycle": true,
+  "result": "PASS"
+}

@@ -341,12 +341,18 @@ class TestEvaluatorDoesNotUsePrivatePaths:
     def test_inspect_obstacle_weights_uses_public_api(self):
         """Verify inspect_obstacle_weights calls get_observation_encoder_input_weights.
 
-        The eval script may still contain actor_cnn.conv[0] in the checkpoint
+        The evaluator may still contain actor_cnn.conv[0] in the checkpoint
         loading helper (_conv0_weight), which is a legitimate fallback for
         channel-count verification during load.  The probe function itself must
         use the public diagnostics API.
         """
-        source_path = Path(__file__).parent.parent / "experiments" / "eval_v6i9_map_awareness.py"
+        source_path = (
+            Path(__file__).parent.parent
+            / "rl"
+            / "evaluation"
+            / "probes"
+            / "obstacle_weights.py"
+        )
         source = source_path.read_text(encoding="utf-8")
         assert "get_observation_encoder_input_weights" in source
 
@@ -368,10 +374,17 @@ class TestEvaluatorDoesNotUsePrivatePaths:
         assert "actor_cnn.conv" not in probe_src
 
     def test_gradient_probe_uses_public_api(self):
-        source_path = Path(__file__).parent.parent / "experiments" / "eval_v6i9_map_awareness.py"
+        source_path = (
+            Path(__file__).parent.parent
+            / "rl"
+            / "evaluation"
+            / "probes"
+            / "obstacle_gradient.py"
+        )
         source = source_path.read_text(encoding="utf-8")
         # gradient_probe must call get_observation_encoder_input_weights, not private path
         assert "get_observation_encoder_input_weights" in source
+        assert "actor_cnn.conv" not in source
 
 
 # ---------------------------------------------------------------------------

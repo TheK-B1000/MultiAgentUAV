@@ -1,0 +1,6 @@
+{
+  "rollout_owner": "rl/custom_ppo/rollout/collector.py::RolloutCollector",
+  "facade": "rl/custom_ppo/rollout_collector.py",
+  "trainer_entry": "CustomPPOTrainer.collect_rollout -> RolloutCollector.collect",
+  "result": "PASS"
+}

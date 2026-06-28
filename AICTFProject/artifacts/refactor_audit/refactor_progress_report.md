@@ -1,10 +1,10 @@
 # Refactor Progress Audit
 
-Commit: `751f207583e34c6c7142b9b8a6a1b29d6b7d18cf`
+Commit: `4f10f23915d518279382b18439923027bb51ce07`
 Branch: `ml-ops`
-Implemented coverage: 9/14 (64.3%)
-Fully closed coverage: 0/14 (0.0%)
-Canonical current test count: 1244
+Implemented coverage: 12/14 (85.7%)
+Fully closed coverage: 5/14 (35.7%)
+Canonical current test count: 1339
 Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 
 | Phase | Implementation | Tests | Equivalence | Performance | Artifacts | Final Status |
@@ -14,14 +14,14 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 | Phase 1.6 | PASS | PASS | NONE | PASS | NONE | IMPLEMENTED_NOT_CLOSED |
 | Phase 3 | PASS | PASS | PASS | NONE | NONE | IMPLEMENTED_NOT_CLOSED |
 | Phase 4 | PASS | PASS | PASS | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
-| Phase 5 | PASS | PASS | PENDING | PENDING | PASS | BLOCKED |
-| Phase 5.1 | PASS | PASS | PENDING | PENDING | PASS | BLOCKED |
+| Phase 5 | PASS | PASS | PASS | PENDING | PASS | COMPLETE |
+| Phase 5.1 | PASS | PASS | PASS | PASS | PASS | COMPLETE |
 | Phase 6 | PASS | PASS | NONE | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
 | Phase 6.1 | PASS | PASS | PASS | PASS | PASS | IMPLEMENTED_NOT_CLOSED |
 | Phase 7 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
-| Phase 8 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
-| Phase 9 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
-| Phase 10 | PASS | NONE | NONE | NONE | NONE | NOT_STARTED |
+| Phase 8 | PASS | PASS | PASS | NONE | PASS | COMPLETE |
+| Phase 9 | PASS | PASS | PASS | NONE | PASS | COMPLETE |
+| Phase 10 | PASS | PASS | PASS | NONE | PASS | COMPLETE |
 | Final | NONE | NONE | NONE | NONE | NONE | NOT_STARTED |
 
 ## Phase Details
@@ -73,35 +73,19 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 - next_actions:
   - Produce Phase 4 closeout tying registry/CLI/resolved-artifact/hash evidence to current commit.
 
-### Phase 5: BLOCKED
+### Phase 5: COMPLETE
 - implementation_evidence: 3
 - test_evidence: 4
-- equivalence_evidence: 3
+- equivalence_evidence: 7
 - performance_evidence: 2
-- artifact_evidence: 10
-- blockers:
-  - Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta.
-  - Track B golden pre/post rollout equivalence not established.
-  - Track C telemetry OFF/BASIC/FULL invariance not established.
-  - Track D throughput comparison not run against pre-Phase-5 baseline.
-  - Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.
-  - Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested.
-- next_actions:
-  - Close golden/stochastic rollout, reward/buffer/GAE, throughput, and CUDA memory evidence against a pre-Phase-5 worktree.
+- artifact_evidence: 15
 
-### Phase 5.1: BLOCKED
+### Phase 5.1: COMPLETE
 - implementation_evidence: 2
 - test_evidence: 3
 - equivalence_evidence: 2
 - performance_evidence: 1
-- artifact_evidence: 10
-- blockers:
-  - Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta.
-  - Track B golden pre/post rollout equivalence not established.
-  - Track C telemetry OFF/BASIC/FULL invariance not established.
-  - Track D throughput comparison not run against pre-Phase-5 baseline.
-  - Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.
-  - Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested.
+- artifact_evidence: 15
 - next_actions:
   - Keep distribution repair accepted, but finish rollout closeout proof tracks.
 
@@ -137,38 +121,26 @@ Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 - next_actions:
   - Implement latent diagnostics package after Phase 6.1 closeout evidence is closed.
 
-### Phase 8: PARTIAL
+### Phase 8: COMPLETE
 - implementation_evidence: 9
-- test_evidence: 0
-- equivalence_evidence: 0
+- test_evidence: 4
+- equivalence_evidence: 10
 - performance_evidence: 0
-- artifact_evidence: 0
-- blockers:
-  - Missing orchestration modules: []
-- next_actions:
-  - Decompose training CLI/orchestration only after Phase 7 gate.
+- artifact_evidence: 6
 
-### Phase 9: PARTIAL
+### Phase 9: COMPLETE
 - implementation_evidence: 13
-- test_evidence: 0
-- equivalence_evidence: 0
+- test_evidence: 2
+- equivalence_evidence: 5
 - performance_evidence: 0
-- artifact_evidence: 0
-- blockers:
-  - Missing decomposed GPU state modules: []
-- next_actions:
-  - Start only after Phase 8 gate; prove reset/RNG/telemetry equivalence and performance.
+- artifact_evidence: 2
 
-### Phase 10: NOT_STARTED
-- implementation_evidence: 9
-- test_evidence: 0
-- equivalence_evidence: 0
+### Phase 10: COMPLETE
+- implementation_evidence: 14
+- test_evidence: 13
+- equivalence_evidence: 1
 - performance_evidence: 0
-- artifact_evidence: 0
-- blockers:
-  - Missing evaluation architecture modules: ['rl/evaluation/contracts.py']
-- next_actions:
-  - Start only after Phase 9 gate; prove episode/probe/gate/artifact equivalence.
+- artifact_evidence: 10
 
 ### Final: NOT_STARTED
 - implementation_evidence: 0

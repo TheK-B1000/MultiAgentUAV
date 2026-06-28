@@ -10,6 +10,7 @@ from ._core._rules import _RulesMixin
 from ._core._scripted_red import _ScriptedRedMixin
 from ._core._state import _StateMixin
 from ._core._step import _StepMixin
+from ._config import GPUFieldConfig
 
 
 class BatchedCTFCore(
@@ -25,4 +26,22 @@ class BatchedCTFCore(
 ):
     """GPU-vectorized CTF core with Aquaticus-profile option."""
 
-    pass
+    def __init__(
+        self,
+        cfg: GPUFieldConfig | None = None,
+        *,
+        n_envs: int | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Create the vectorized core.
+
+        ``BatchedCTFCore(cfg)`` is the canonical runtime path.  The keyword
+        overrides keep older tests/tools that called ``BatchedCTFCore(n_envs=...,
+        device=...)`` working after the state decomposition.
+        """
+        cfg = cfg or GPUFieldConfig()
+        if n_envs is not None:
+            cfg.n_envs = int(n_envs)
+        if device is not None:
+            cfg.device = str(device)
+        super().__init__(cfg)

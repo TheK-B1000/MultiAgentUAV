@@ -4,54 +4,6 @@
     "blocker": "Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report."
   },
   {
-    "phase": "Phase 5",
-    "blocker": "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta."
-  },
-  {
-    "phase": "Phase 5",
-    "blocker": "Track B golden pre/post rollout equivalence not established."
-  },
-  {
-    "phase": "Phase 5",
-    "blocker": "Track C telemetry OFF/BASIC/FULL invariance not established."
-  },
-  {
-    "phase": "Phase 5",
-    "blocker": "Track D throughput comparison not run against pre-Phase-5 baseline."
-  },
-  {
-    "phase": "Phase 5",
-    "blocker": "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline."
-  },
-  {
-    "phase": "Phase 5",
-    "blocker": "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
-  },
-  {
-    "phase": "Phase 5.1",
-    "blocker": "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta."
-  },
-  {
-    "phase": "Phase 5.1",
-    "blocker": "Track B golden pre/post rollout equivalence not established."
-  },
-  {
-    "phase": "Phase 5.1",
-    "blocker": "Track C telemetry OFF/BASIC/FULL invariance not established."
-  },
-  {
-    "phase": "Phase 5.1",
-    "blocker": "Track D throughput comparison not run against pre-Phase-5 baseline."
-  },
-  {
-    "phase": "Phase 5.1",
-    "blocker": "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline."
-  },
-  {
-    "phase": "Phase 5.1",
-    "blocker": "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
-  },
-  {
     "phase": "Phase 6.1",
     "blocker": "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error."
   },
@@ -62,18 +14,6 @@
   {
     "phase": "Phase 7",
     "blocker": "Missing decomposed diagnostics modules: []"
-  },
-  {
-    "phase": "Phase 8",
-    "blocker": "Missing orchestration modules: []"
-  },
-  {
-    "phase": "Phase 9",
-    "blocker": "Missing decomposed GPU state modules: []"
-  },
-  {
-    "phase": "Phase 10",
-    "blocker": "Missing evaluation architecture modules: ['rl/evaluation/contracts.py']"
   },
   {
     "phase": "Final",

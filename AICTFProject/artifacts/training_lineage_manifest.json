@@ -1,0 +1,40 @@
+﻿{
+  "description": "Post-refactor training baseline — fresh V6I8/V6I9 lineage under corrected architecture",
+  "created": "2026-06-28",
+  "commit": "4f10f23",
+  "tags": ["pre-v6i10-training", "post-refactor-training-baseline"],
+  "branch": "ml-ops",
+  "environment": {
+    "python": "3.12.4",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "run_naming_convention": {
+    "v6i8": "v6i8-adapter-balanced-hardpool-refactor-r1-seed1",
+    "v6i9": "v6i9-mapaware-generalist-hardpool-refactor-r1-seed1",
+    "note": "refactor-r1 suffix distinguishes these from pre-refactor checkpoints (now retired)"
+  },
+  "lineage": [
+    "Fresh V6I8 from scratch under commit 4f10f23",
+    "Fresh V6I9 warm-started from V6I8@750k",
+    "V6I9 promotion evaluation: baseline=V6I8@750k, candidate=V6I9@1M",
+    "V6I10 specialist expansion after promotion"
+  ],
+  "checkpoint_archive": "K:\\AICTF_Checkpoint_Archive\\",
+  "protection_rule": "Active or anchor checkpoints may never be deleted by cleanup automation. Must be classified ARCHIVED_AND_VERIFIED before removal.",
+  "preset": {
+    "v6i8": "v6i8_adapter_balanced_hardpool",
+    "v6i9": "plan_faithful_latent_v6i9_mapaware_generalist_hardpool"
+  },
+  "gates": {
+    "v6i8_10k_smoke": ["rollout completes", "PPO update completes", "gradients finite", "no NaNs", "checkpoint save/reload verified", "telemetry OFF inactive", "resolved config written"],
+    "v6i8_50k": ["learning signal nonzero", "entropy not collapsed", "KL controlled", "resume from checkpoint verified"],
+    "v6i8_250k": "early competence checkpoint",
+    "v6i8_500k": "progress evaluation",
+    "v6i8_750k": "V6I8 anchor — used as V6I9 warm-start",
+    "v6i9_100k_250k_500k_750k_1M": "staged V6I9 checkpoints",
+    "promotion_evaluation": "2 maps x 3 opponents x 20 seeds = 240 episodes"
+  }
+}

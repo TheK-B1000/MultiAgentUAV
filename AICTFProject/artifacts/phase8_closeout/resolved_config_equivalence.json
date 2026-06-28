@@ -1,0 +1,21 @@
+{
+  "preset": "v6i9_mapaware_generalist_hardpool",
+  "one_authoritative_resolved_config_path": "rl.training.resolved_config.resolve_training_config",
+  "resolved_keys": [
+    "curriculum",
+    "effective_batch_size",
+    "effective_clip_range",
+    "effective_ent_coef",
+    "effective_lr",
+    "effective_n_epochs",
+    "initial_opponent_tag",
+    "initial_phase",
+    "max_agents",
+    "rollout_size",
+    "team_size"
+  ],
+  "run_tag": "v6i9_mapaware_generalist_hardpool_OP8_OP9_OP10_200k_2v2",
+  "use_latent_strategy": true,
+  "training_telemetry_mode": "off",
+  "result": "PASS"
+}

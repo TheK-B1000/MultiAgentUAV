@@ -1,0 +1,63 @@
+{
+  "train_ppo_parses_and_delegates": "rl.training.cli.main -> parse_train_args -> cfg_from_args -> train_ppo -> orchestrate_training_run",
+  "one_environment_factory": "rl.training.env_factory.build_training_env",
+  "one_policy_trainer_factory": "rl.training.initialization.build_trainer",
+  "one_run_lifecycle_owner": "rl.training.orchestrator.orchestrate_training_run",
+  "callers": [
+    {
+      "file": "rl/train_ppo.py",
+      "imports": [
+        "__future__",
+        "game_field_gpu",
+        "numpy",
+        "os",
+        "rl.config.ppo_config",
+        "rl.curriculum",
+        "rl.global_state",
+        "rl.presets",
+        "rl.training.cli",
+        "rl.training.config_validation",
+        "rl.training.env_factory",
+        "rl.training.lifecycle",
+        "rl.training.orchestrator",
+        "rl.training.overrides",
+        "rl.training.resolved_config",
+        "rl.training.run_artifacts",
+        "sys",
+        "typing"
+      ]
+    },
+    {
+      "file": "rl/training/cli.py",
+      "imports": [
+        "__future__",
+        "rl.train_ppo",
+        "rl.training.arguments",
+        "rl.training.overrides",
+        "sys",
+        "typing"
+      ]
+    },
+    {
+      "file": "rl/training/orchestrator.py",
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "json",
+        "os",
+        "rl.config.ppo_config",
+        "rl.training.banner",
+        "rl.training.config_validation",
+        "rl.training.errors",
+        "rl.training.factories",
+        "rl.training.initialization",
+        "rl.training.lifecycle",
+        "rl.training.resolved_config",
+        "rl.training.run_artifacts",
+        "rl.training.run_context",
+        "typing"
+      ]
+    }
+  ],
+  "result": "PASS"
+}

@@ -6,6 +6,8 @@ per-episode re-initialization sequence.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import torch
 
 
@@ -39,9 +41,27 @@ class _EpisodeStateMixin:
         mask = torch.ones((self.B,), dtype=torch.bool, device=self.device)
         self.reset_indices(mask)
 
-    def reset_indices(self, env_mask: torch.Tensor) -> None:
+    def reset_indices(self, env_mask: torch.Tensor | Sequence[int] | Sequence[bool]) -> None:
         self._phase_tensor_cache.clear()
         self._red_control_mask_dirty = True
+        if not torch.is_tensor(env_mask):
+            values = list(env_mask)
+            if len(values) == self.B and all(isinstance(v, bool) for v in values):
+                env_mask = torch.as_tensor(values, dtype=torch.bool, device=self.device)
+            else:
+                env_idx = torch.as_tensor(values, dtype=torch.long, device=self.device)
+                env_mask_t = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
+                if env_idx.numel() > 0:
+                    env_mask_t[env_idx] = True
+                env_mask = env_mask_t
+        elif env_mask.dtype != torch.bool:
+            env_idx = env_mask.to(device=self.device, dtype=torch.long).reshape(-1)
+            env_mask_t = torch.zeros((self.B,), dtype=torch.bool, device=self.device)
+            if env_idx.numel() > 0:
+                env_mask_t[env_idx] = True
+            env_mask = env_mask_t
+        else:
+            env_mask = env_mask.to(device=self.device)
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
             return

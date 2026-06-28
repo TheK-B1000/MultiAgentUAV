@@ -14,6 +14,16 @@ import torch
 class _AgentStateMixin:
     """Manages per-agent kinematic and liveness tensors."""
 
+    @property
+    def blue_pos(self) -> torch.Tensor:
+        """Backward-compatible ``(..., 2)`` view of blue agent positions."""
+        return torch.stack((self.blue_x, self.blue_y), dim=-1)
+
+    @property
+    def red_pos(self) -> torch.Tensor:
+        """Backward-compatible ``(..., 2)`` view of red agent positions."""
+        return torch.stack((self.red_x, self.red_y), dim=-1)
+
     def _alloc_agent_state(
         self,
         B: int,

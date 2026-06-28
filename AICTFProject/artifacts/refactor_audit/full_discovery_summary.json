@@ -1,0 +1,31 @@
+{
+  "default_discovery": {
+    "command": "uv run python -m unittest discover -s tests",
+    "exit_code": 0,
+    "status": "PASS",
+    "tests_ran": 1339,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "duration_seconds": 212.156,
+    "output": "artifacts/refactor_audit/full_discovery_default.txt"
+  },
+  "pattern_discovery": {
+    "command": "uv run python -m unittest discover -s tests -p \"test*.py\"",
+    "exit_code": 0,
+    "status": "PASS",
+    "tests_ran": 1339,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "duration_seconds": 221.559,
+    "output": "artifacts/refactor_audit/full_discovery_pattern.txt"
+  },
+  "counts_agree": true,
+  "unknown_failures": 0,
+  "new_regressions": 0,
+  "notes": [
+    "tests.test_phase1_5_contracts is pytest-style and is not discovered by unittest; it passed separately under pytest with 32 tests.",
+    "The requested combined unittest triage over tests.test_phase1_5_contracts, tests.test_state_phase9, and tests.test_train_ppo_smoke ran 94 unittest tests and passed."
+  ]
+}

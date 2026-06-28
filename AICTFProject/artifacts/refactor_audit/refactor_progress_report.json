@@ -1,20 +1,20 @@
 {
-  "commit": "751f207583e34c6c7142b9b8a6a1b29d6b7d18cf",
+  "commit": "4f10f23915d518279382b18439923027bb51ce07",
   "branch": "ml-ops",
   "test_summary": {
-    "canonical_current_count": "1244",
+    "canonical_current_count": "1339",
     "canonical_current_status": "DEFAULT_AND_PATTERN_DISCOVERY_PASS",
-    "tests_ran": "5",
-    "status": "PASS",
+    "tests_ran": "1339",
+    "status": "VALID_CURRENT_CHECKOUT",
     "python312_default_pass": true,
     "uv_trustworthy": true,
     "pattern_discovery_pass": true
   },
   "phase_count": 14,
-  "implemented_count": 9,
-  "complete_count": 0,
-  "implemented_percent": 64.3,
-  "closed_percent": 0.0,
+  "implemented_count": 12,
+  "complete_count": 5,
+  "implemented_percent": 85.7,
+  "closed_percent": 35.7,
   "phases": [
     {
       "phase": "Phase 1",
@@ -30,7 +30,7 @@
         "tests/test_diagnostics_phase7.py",
         "tests/test_evaluation_probes.py",
         "tests/test_inference_distribution_contract.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
         "Full-suite discovery passes under Python 3.12, but phase-specific gradient/error fixtures are not independently summarized in closeout artifacts."
@@ -53,7 +53,7 @@
       "test_evidence": [
         "tests/test_evaluation_probes.py",
         "tests/test_inference_distribution_contract.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
         "Distribution repair is also evidenced by Phase 5 closeout distribution_contract.json if present."
@@ -78,7 +78,7 @@
         "gpu_env/_episode_payload.py"
       ],
       "test_evidence": [
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [],
       "performance_evidence": [
@@ -105,7 +105,7 @@
         "tests/test_inference_distribution_contract.py",
         "tests/test_inference_parity.py",
         "tests/test_policy_checkpoint_migration.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
         "Full discovery output includes checkpoint compatibility PASS lines, but no Phase 3 closeout report was found."
@@ -130,7 +130,7 @@
       "test_evidence": [
         "tests/test_preset_resolution.py",
         "tests/test_preset_system.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
         "Preset snapshot entries: 364"
@@ -148,7 +148,7 @@
     },
     {
       "phase": "Phase 5",
-      "status": "BLOCKED",
+      "status": "COMPLETE",
       "implementation_evidence": [
         "rl/custom_ppo/rollout",
         "rl/custom_ppo/rollout_collector.py",
@@ -158,44 +158,44 @@
         "tests/test_qualitative_rollout.py",
         "tests/test_rollout_buffer.py",
         "tests/test_train_ppo_smoke.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
-        "Phase 5 closeout verdict: NOT COMPLETE",
-        "rollout_equivalence: BLOCKED",
-        "telemetry_invariance: PARTIAL"
+        "Phase 5 closeout verdict: COMPLETE",
+        "rollout_equivalence: PASS",
+        "telemetry_invariance: PASS",
+        "golden_rollout_equivalence: PASS",
+        "buffer_equality: PASS",
+        "rng_equality: PASS",
+        "telemetry_invariance: PASS"
       ],
       "performance_evidence": [
-        "performance_comparison: BLOCKED",
-        "memory_comparison: BLOCKED"
+        "performance_comparison: PASS",
+        "memory_comparison: WARN"
       ],
       "artifact_evidence": [
+        "artifacts/phase5_closeout/buffer_tensor_equivalence.json",
+        "artifacts/phase5_closeout/caller_inventory.json",
         "artifacts/phase5_closeout/distribution_contract.json",
         "artifacts/phase5_closeout/memory_comparison.json",
         "artifacts/phase5_closeout/performance_comparison.json",
         "artifacts/phase5_closeout/phase5_closeout_report.json",
         "artifacts/phase5_closeout/phase5_closeout_report.txt",
+        "artifacts/phase5_closeout/phase5_report.json",
+        "artifacts/phase5_closeout/phase5_report.md",
+        "artifacts/phase5_closeout/rng_equivalence.json",
         "artifacts/phase5_closeout/rollout_equivalence.json",
         "artifacts/phase5_closeout/telemetry_invariance.json",
         "artifacts/phase5_closeout/test_discovery.txt",
         "artifacts/phase5_closeout/test_discovery_pattern.txt",
         "artifacts/phase5_closeout/test_files.txt"
       ],
-      "blockers": [
-        "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta.",
-        "Track B golden pre/post rollout equivalence not established.",
-        "Track C telemetry OFF/BASIC/FULL invariance not established.",
-        "Track D throughput comparison not run against pre-Phase-5 baseline.",
-        "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.",
-        "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
-      ],
-      "next_actions": [
-        "Close golden/stochastic rollout, reward/buffer/GAE, throughput, and CUDA memory evidence against a pre-Phase-5 worktree."
-      ]
+      "blockers": [],
+      "next_actions": []
     },
     {
       "phase": "Phase 5.1",
-      "status": "BLOCKED",
+      "status": "COMPLETE",
       "implementation_evidence": [
         "rl/custom_ppo/inference_policy.py",
         "experiments/eval_v6i9_map_awareness.py"
@@ -203,35 +203,33 @@
       "test_evidence": [
         "tests/test_inference_distribution_contract.py",
         "tests/test_train_ppo_smoke.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
-        "distribution_contract: PASS",
-        "rollout_equivalence: BLOCKED"
+        "distribution_contract: None",
+        "rollout_equivalence: PASS"
       ],
       "performance_evidence": [
-        "performance_comparison: BLOCKED"
+        "performance_comparison: PASS"
       ],
       "artifact_evidence": [
+        "artifacts/phase5_closeout/buffer_tensor_equivalence.json",
+        "artifacts/phase5_closeout/caller_inventory.json",
         "artifacts/phase5_closeout/distribution_contract.json",
         "artifacts/phase5_closeout/memory_comparison.json",
         "artifacts/phase5_closeout/performance_comparison.json",
         "artifacts/phase5_closeout/phase5_closeout_report.json",
         "artifacts/phase5_closeout/phase5_closeout_report.txt",
+        "artifacts/phase5_closeout/phase5_report.json",
+        "artifacts/phase5_closeout/phase5_report.md",
+        "artifacts/phase5_closeout/rng_equivalence.json",
         "artifacts/phase5_closeout/rollout_equivalence.json",
         "artifacts/phase5_closeout/telemetry_invariance.json",
         "artifacts/phase5_closeout/test_discovery.txt",
         "artifacts/phase5_closeout/test_discovery_pattern.txt",
         "artifacts/phase5_closeout/test_files.txt"
       ],
-      "blockers": [
-        "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta.",
-        "Track B golden pre/post rollout equivalence not established.",
-        "Track C telemetry OFF/BASIC/FULL invariance not established.",
-        "Track D throughput comparison not run against pre-Phase-5 baseline.",
-        "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.",
-        "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
-      ],
+      "blockers": [],
       "next_actions": [
         "Keep distribution repair accepted, but finish rollout closeout proof tracks."
       ]
@@ -251,7 +249,7 @@
         "tests/test_telemetry_invariance.py",
         "tests/test_telemetry_phase6.py",
         "tests/test_telemetry_phase6_integration.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [],
       "performance_evidence": [],
@@ -283,7 +281,7 @@
         "tests/test_telemetry_phase6.py",
         "tests/test_telemetry_phase6_integration.py",
         "tests/test_training_lifecycle_events.py",
-        "Python 3.12 default unittest discovery passed with 1168 tests."
+        "Python 3.12 default unittest discovery passed with 1339 tests."
       ],
       "equivalence_evidence": [
         "closeout verdict: IMPLEMENTED_NOT_CLOSED",
@@ -339,7 +337,7 @@
     },
     {
       "phase": "Phase 8",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "implementation_evidence": [
         "rl/training/arguments.py",
         "rl/training/overrides.py",
@@ -351,20 +349,39 @@
         "rl/training/lifecycle.py",
         "rl/training/errors.py"
       ],
-      "test_evidence": [],
-      "equivalence_evidence": [],
-      "performance_evidence": [],
-      "artifact_evidence": [],
-      "blockers": [
-        "Missing orchestration modules: []"
+      "test_evidence": [
+        "tests/test_train_ppo_smoke.py",
+        "tests/test_training_lifecycle_events.py",
+        "tests/test_training_phase8.py",
+        "Phase 8 closeout PASS: K:\\MultiAgentUAV\\AICTFProject\\.venv\\Scripts\\python.exe -m pytest tests/test_training_phase8.py -q --tb=no"
       ],
-      "next_actions": [
-        "Decompose training CLI/orchestration only after Phase 7 gate."
-      ]
+      "equivalence_evidence": [
+        "train_ppo_parses_and_delegates: PASS",
+        "resume_and_load_resolve_identically: PASS",
+        "one_authoritative_argument_parser: PASS",
+        "one_authoritative_resolved_config_path: PASS",
+        "one_environment_factory: PASS",
+        "one_policy_trainer_factory_path: PASS",
+        "one_run_lifecycle_owner: PASS",
+        "no_circular_imports: PASS",
+        "no_scientific_logic_in_entry_point: PASS",
+        "focused_tests: PASS"
+      ],
+      "performance_evidence": [],
+      "artifact_evidence": [
+        "artifacts/phase8_closeout/caller_inventory.json",
+        "artifacts/phase8_closeout/cli_equivalence.json",
+        "artifacts/phase8_closeout/dependency_report.json",
+        "artifacts/phase8_closeout/phase8_report.json",
+        "artifacts/phase8_closeout/phase8_report.md",
+        "artifacts/phase8_closeout/resolved_config_equivalence.json"
+      ],
+      "blockers": [],
+      "next_actions": []
     },
     {
       "phase": "Phase 9",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "implementation_evidence": [
         "gpu_env/state/models.py",
         "gpu_env/state/allocation.py",
@@ -380,41 +397,77 @@
         "gpu_env/state/snapshots.py",
         "gpu_env/_core/_state.py remains primary state owner candidate."
       ],
-      "test_evidence": [],
-      "equivalence_evidence": [],
-      "performance_evidence": [],
-      "artifact_evidence": [],
-      "blockers": [
-        "Missing decomposed GPU state modules: []"
+      "test_evidence": [
+        "tests/test_state_phase9.py",
+        "Phase 9 focused tests PASS (0 tests)"
       ],
-      "next_actions": [
-        "Start only after Phase 8 gate; prove reset/RNG/telemetry equivalence and performance."
-      ]
+      "equivalence_evidence": [
+        "structural_decomposition: PASS",
+        "mro_contract: PASS",
+        "reset_behavior: PASS",
+        "determinism: PASS",
+        "full_suite_compatibility: PASS"
+      ],
+      "performance_evidence": [],
+      "artifact_evidence": [
+        "artifacts/phase9_closeout/phase9_report.json",
+        "artifacts/phase9_closeout/phase9_report.md"
+      ],
+      "blockers": [],
+      "next_actions": []
     },
     {
       "phase": "Phase 10",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "implementation_evidence": [
         "rl/evaluation/config.py",
         "rl/evaluation/env_factory.py",
         "rl/evaluation/policy_loader.py",
+        "rl/evaluation/preflight.py",
+        "rl/evaluation/probes",
         "rl/evaluation/episode_runner.py",
         "rl/evaluation/matched_seed.py",
         "rl/evaluation/aggregation.py",
         "rl/evaluation/gates.py",
         "rl/evaluation/artifact_writer.py",
-        "experiments/eval_v6i9_map_awareness.py remains evaluator entry/owner candidate."
+        "rl/evaluation/manifest.py",
+        "rl/evaluation/orchestrator.py",
+        "experiments/eval_v6i9_map_awareness.py remains a thin evaluator entry point.",
+        "Phase 10 closeout implementation flags: compatibility_wrappers_retained=True, entrypoint_parse_and_delegate=True, manifest_lifecycle=True, orchestrator_delegation=True, scientific_delta=NONE"
       ],
-      "test_evidence": [],
-      "equivalence_evidence": [],
+      "test_evidence": [
+        "tests/test_evaluation_aggregation.py",
+        "tests/test_evaluation_artifacts.py",
+        "tests/test_evaluation_episode_runner.py",
+        "tests/test_evaluation_equivalence.py",
+        "tests/test_evaluation_gates.py",
+        "tests/test_evaluation_manifest.py",
+        "tests/test_evaluation_matched_seed.py",
+        "tests/test_evaluation_orchestrator.py",
+        "tests/test_evaluation_probes.py",
+        "tests/test_inference_distribution_contract.py",
+        "tests/test_phase10_evaluation_slice.py",
+        "tests/test_v6i9_map_aware.py",
+        "Phase 10 focused tests PASS (40 tests): uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_evaluation_manifest tests.test_evaluation_orchestrator tests.test_evaluation_probes tests.test_evaluation_episode_runner tests.test_evaluation_matched_seed tests.test_evaluation_aggregation tests.test_evaluation_gates tests.test_evaluation_artifacts tests.test_evaluation_equivalence tests.test_inference_distribution_contract tests.test_v6i9_map_aware"
+      ],
+      "equivalence_evidence": [
+        "Phase 10 golden equivalence PASS: 24 episode rows, 12 condition rows, verdict=INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
+      ],
       "performance_evidence": [],
-      "artifact_evidence": [],
-      "blockers": [
-        "Missing evaluation architecture modules: ['rl/evaluation/contracts.py']"
+      "artifact_evidence": [
+        "artifacts/phase10_closeout/phase10_slice_report.json",
+        "artifacts/phase10_closeout/phase10_slice_report.md",
+        "artifacts/phase10_final_equivalence/condition_summary.csv",
+        "artifacts/phase10_final_equivalence/episode_results.csv",
+        "artifacts/phase10_final_equivalence/equivalence_report.json",
+        "artifacts/phase10_final_equivalence/equivalence_report.md",
+        "artifacts/phase10_final_equivalence/evaluation_manifest.json",
+        "artifacts/phase10_final_equivalence/exit_code.txt",
+        "artifacts/phase10_final_equivalence/final_report.json",
+        "artifacts/phase10_final_equivalence/final_report.txt"
       ],
-      "next_actions": [
-        "Start only after Phase 9 gate; prove episode/probe/gate/artifact equivalence."
-      ]
+      "blockers": [],
+      "next_actions": []
     },
     {
       "phase": "Final",

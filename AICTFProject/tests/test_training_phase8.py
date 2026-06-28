@@ -185,6 +185,12 @@ class TestArgumentParsing(unittest.TestCase):
         ns = self._parse("--no-latent-strategy")
         self.assertTrue(ns.no_latent_strategy)
 
+    def test_resume_is_load_alias(self):
+        ns_load = self._parse("--load", "checkpoints/final.zip")
+        ns_resume = self._parse("--resume", "checkpoints/final.zip")
+        self.assertEqual(ns_load.load, "checkpoints/final.zip")
+        self.assertEqual(ns_resume.resume, "checkpoints/final.zip")
+
     def test_latent_k_flag(self):
         ns = self._parse("--latent-k", "4")
         self.assertEqual(ns.latent_k, 4)

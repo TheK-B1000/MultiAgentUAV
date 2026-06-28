@@ -1,0 +1,9 @@
+{
+  "train_ppo_help_source": "build_train_parser().format_help()",
+  "train_ppo_delegates_to_cli_main": true,
+  "one_authoritative_parser": "rl.training.arguments.build_train_parser",
+  "resume_is_load_alias": true,
+  "help_contains_load": true,
+  "help_contains_resume": true,
+  "result": "PASS"
+}

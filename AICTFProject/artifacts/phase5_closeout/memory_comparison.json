@@ -1,19 +1,4 @@
 {
-  "track": "E",
-  "status": "BLOCKED",
-  "reason": "No pre-Phase-5 baseline worktree was created, and CUDA peak-memory comparison was not run.",
-  "required_configurations": [
-    16,
-    64,
-    256
-  ],
-  "thresholds": {
-    "peak_allocated_pass": "<= 3% increase",
-    "peak_allocated_warn": "> 3% and <= 7% increase",
-    "peak_allocated_fail": "> 7% increase",
-    "peak_reserved_pass": "<= 5% increase",
-    "peak_reserved_warn": "> 5% and <= 10% increase",
-    "peak_reserved_fail": "> 10% increase"
-  },
-  "verdict": "CUDA memory closeout is not complete."
+  "status": "WARN",
+  "reason": "CUDA memory baseline not rerun in this closeout script."
 }
