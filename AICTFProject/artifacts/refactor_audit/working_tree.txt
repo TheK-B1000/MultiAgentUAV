@@ -1,0 +1,25 @@
+# git status --short
+warning: unable to access 'C:\Users\K-B/.config/git/ignore': Permission denied
+warning: unable to access 'C:\Users\K-B/.config/git/ignore': Permission denied
+ M rl/config/ppo_config.py
+ M rl/custom_ppo/telemetry/schemas.py
+ M rl/custom_ppo/telemetry/writers/json_writer.py
+ M run_manifest.json
+ M tests/preset_snapshots.json
+ M tests/test_checkpoint_telemetry.py
+?? ../.claude/
+?? artifacts/phase6_1_closeout/
+?? rl/telemetry_mode.py
+
+# git status --porcelain=v1
+warning: unable to access 'C:\Users\K-B/.config/git/ignore': Permission denied
+warning: unable to access 'C:\Users\K-B/.config/git/ignore': Permission denied
+ M AICTFProject/rl/config/ppo_config.py
+ M AICTFProject/rl/custom_ppo/telemetry/schemas.py
+ M AICTFProject/rl/custom_ppo/telemetry/writers/json_writer.py
+ M AICTFProject/run_manifest.json
+ M AICTFProject/tests/preset_snapshots.json
+ M AICTFProject/tests/test_checkpoint_telemetry.py
+?? .claude/
+?? AICTFProject/artifacts/phase6_1_closeout/
+?? AICTFProject/rl/telemetry_mode.py

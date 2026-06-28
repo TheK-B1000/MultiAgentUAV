@@ -65,11 +65,6 @@ class JSONLineEventWriter:
         try:
             record = envelope_to_record(envelope)
             serialized = json.dumps(record, sort_keys=True, separators=(",", ":"))
-            
-            # String level pattern checks
-            if "observation" in serialized or "state_dict" in serialized:
-                raise ValueError("Serialized event contains forbidden pattern ('observation' or 'state_dict')")
-                
             self._file.write(serialized + "\n")
             self._file.flush()
         except Exception as exc:

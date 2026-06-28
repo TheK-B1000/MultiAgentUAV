@@ -122,6 +122,12 @@ class TrainingTelemetry:
     ) -> None:
         self.cfg = cfg
         self.hparams = hparams
+        self.run_id = str(
+            getattr(hparams, "run_id", "")
+            or getattr(cfg, "run_id", "")
+            or getattr(cfg, "run_tag", "")
+            or "run"
+        )
         self.curriculum = curriculum
         self._reward_shaping_coef_fn = reward_shaping_coef
         self.runtime = runtime
@@ -181,7 +187,7 @@ class TrainingTelemetry:
         self._pending_episodes: list[EpisodeCompleted] = []
         self._parent_checkpoint_hash: Optional[str] = None
         self.performance_recorder = PerformanceRecorder(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             telemetry_mode=str(self.telemetry_mode),
         )
         self.gpu_monitor = build_gpu_monitor(
@@ -415,7 +421,7 @@ class TrainingTelemetry:
             ep_return = float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0)
             ep_len = int(er.get("decision_steps", info.get("decision_steps", 0)) or 0)
             ep_completed = EpisodeCompleted(
-                run_id=str(getattr(self.hparams, "run_id", "run")),
+                run_id=self.run_id,
                 global_step=int(timestep),
                 environment_index=int(info.get("env_index", 0)),
                 episode_return=ep_return,
@@ -1185,7 +1191,7 @@ class TrainingTelemetry:
                 pass
 
         manifest_data = {
-            "run_id": str(getattr(self.hparams, "run_id", "run")),
+            "run_id": self.run_id,
             "timestamp_seconds": float(time.time()),
             "git_commit": self._git_commit_hash,
             "git_status": self._git_status,
@@ -1248,7 +1254,7 @@ class TrainingTelemetry:
         self.write_run_manifest()
 
         event = TrainingStarted(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             timestamp_seconds=float(time.time()),
             global_step=int(self.runtime.global_step),
             requested_total_steps=int(total_timesteps),
@@ -1271,7 +1277,7 @@ class TrainingTelemetry:
         if not self.optional_telemetry_enabled():
             return
         event = TrainingCompleted(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             timestamp_seconds=float(time.time()),
             final_global_step=int(self.runtime.global_step),
             duration_seconds=float(duration_seconds),
@@ -1297,7 +1303,7 @@ class TrainingTelemetry:
             phase = str(getattr(self.runtime.v6i1_curriculum, "phase", ""))
         
         event = TrainingFailed(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             timestamp_seconds=float(time.time()),
             final_global_step=int(self.runtime.global_step),
             duration_seconds=float(duration_seconds),
@@ -1319,7 +1325,7 @@ class TrainingTelemetry:
         if not self.optional_telemetry_enabled():
             return
         event = TrainingInterrupted(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             timestamp_seconds=float(time.time()),
             final_global_step=int(self.runtime.global_step),
             duration_seconds=float(duration_seconds),
@@ -1418,7 +1424,7 @@ class TrainingTelemetry:
         # Emit RolloutCompleted
         self._emit(
             RolloutCompleted(
-                run_id=str(getattr(self.hparams, "run_id", "run")),
+                run_id=self.run_id,
                 global_step=int(self.runtime.global_step),
                 rollout_index=int(self.runtime._updates_completed),
                 vector_environment_count=int(self.runtime.env.num_envs),
@@ -1447,7 +1453,7 @@ class TrainingTelemetry:
         if self._pending_episodes:
             self._emit(
                 EpisodesCompleted(
-                    run_id=str(getattr(self.hparams, "run_id", "run")),
+                    run_id=self.run_id,
                     global_step=int(self.runtime.global_step),
                     episodes=tuple(self._pending_episodes),
                 )
@@ -1502,7 +1508,7 @@ class TrainingTelemetry:
                 pass
         
         event = OptimizationCompleted(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             global_step=int(self.runtime.global_step),
             optimization_index=int(getattr(self.runtime, "_updates_completed", 0)),
             duration_seconds=opt_duration,
@@ -1603,7 +1609,7 @@ class TrainingTelemetry:
         hash_dur = time.perf_counter() - hash_start
 
         event = CheckpointSaved(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             timestamp_seconds=float(time.time()),
             global_step=int(self.runtime.global_step),
             checkpoint_path=str(path),
@@ -1691,7 +1697,7 @@ class TrainingTelemetry:
             return
 
         event = CheckpointLoaded(
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             timestamp_seconds=float(time.time()),
             global_step=int(self.runtime.global_step),
             checkpoint_path=str(path),
@@ -1840,7 +1846,7 @@ class TrainingTelemetry:
         envelope = TelemetryEnvelope(
             schema_version=1,
             event_type=type(event).__name__,
-            run_id=str(getattr(self.hparams, "run_id", "run")),
+            run_id=self.run_id,
             sequence=self._sequence_counter,
             timestamp_seconds=float(time.time()),
             payload=event,

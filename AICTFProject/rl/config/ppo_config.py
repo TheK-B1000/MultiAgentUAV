@@ -17,7 +17,7 @@ from enum import Enum
 from typing import Literal, Optional, Tuple
 
 import torch
-from rl.custom_ppo.telemetry.schemas import TrainingTelemetryMode
+from rl.telemetry_mode import TrainingTelemetryMode
 
 
 class TrainMode(str, Enum):

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 1,
+  "device_name": "cpu",
+  "pytorch_version": "2.12.0.dev20260309+cu128",
+  "cuda_version": "12.8",
+  "timestamp": 1782618503.348786,
+  "matrix": [
+    {
+      "telemetry_mode": "off",
+      "env_count": 16,
+      "median_rollout_tps": 196.427452067981,
+      "median_opt_sps": 128.03889449852196,
+      "peak_allocated_cuda_bytes": null
+    },
+    {
+      "telemetry_mode": "basic",
+      "env_count": 16,
+      "median_rollout_tps": 164.33078771996185,
+      "median_opt_sps": 117.51814241661756,
+      "peak_allocated_cuda_bytes": null
+    },
+    {
+      "telemetry_mode": "full",
+      "env_count": 16,
+      "median_rollout_tps": 182.2220051492942,
+      "median_opt_sps": 151.36374262910533,
+      "peak_allocated_cuda_bytes": null
+    }
+  ]
+}

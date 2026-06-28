@@ -1,0 +1,122 @@
+[
+  {
+    "phase": "Phase 1",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 1.5",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 1.6",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 3",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 4",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 4",
+    "blocker": "Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Track B golden pre/post rollout equivalence not established."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Track C telemetry OFF/BASIC/FULL invariance not established."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Track D throughput comparison not run against pre-Phase-5 baseline."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
+  },
+  {
+    "phase": "Phase 5",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Track B golden pre/post rollout equivalence not established."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Track C telemetry OFF/BASIC/FULL invariance not established."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Track D throughput comparison not run against pre-Phase-5 baseline."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
+  },
+  {
+    "phase": "Phase 5.1",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 6",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 6.1",
+    "blocker": "No CUDA training smoke run (no CUDA available in this environment)"
+  },
+  {
+    "phase": "Phase 6.1",
+    "blocker": "Performance gates defined but no baseline to compare against until first measured run"
+  },
+  {
+    "phase": "Phase 6.1",
+    "blocker": "benchmark_training_pipeline.py not smoke-tested end-to-end (requires checkpoint)"
+  },
+  {
+    "phase": "Phase 6.1",
+    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+  },
+  {
+    "phase": "Phase 7",
+    "blocker": "Missing decomposed diagnostics modules: ['rl/custom_ppo/diagnostics/occupancy.py', 'rl/custom_ppo/diagnostics/entropy.py', 'rl/custom_ppo/diagnostics/counterfactual.py', 'rl/custom_ppo/diagnostics/schemas.py']"
+  },
+  {
+    "phase": "Phase 8",
+    "blocker": "Missing orchestration modules: ['rl/training/arguments.py', 'rl/training/overrides.py', 'rl/training/resolved_config.py', 'rl/training/run_context.py', 'rl/training/initialization.py', 'rl/training/factories.py', 'rl/training/orchestrator.py', 'rl/training/lifecycle.py', 'rl/training/errors.py']"
+  },
+  {
+    "phase": "Phase 9",
+    "blocker": "Missing decomposed GPU state modules: ['gpu_env/state/models.py', 'gpu_env/state/allocation.py', 'gpu_env/state/agent_state.py', 'gpu_env/state/team_state.py', 'gpu_env/state/flag_state.py', 'gpu_env/state/episode_state.py', 'gpu_env/state/map_state.py', 'gpu_env/state/opponent_state.py', 'gpu_env/state/telemetry_state.py', 'gpu_env/state/scratch.py', 'gpu_env/state/validation.py', 'gpu_env/state/snapshots.py']"
+  },
+  {
+    "phase": "Phase 10",
+    "blocker": "Missing evaluation architecture modules: ['rl/evaluation/contracts.py', 'rl/evaluation/policy_loader.py', 'rl/evaluation/episode_runner.py', 'rl/evaluation/matched_seed.py', 'rl/evaluation/aggregation.py', 'rl/evaluation/gates.py', 'rl/evaluation/artifact_writer.py']"
+  },
+  {
+    "phase": "Final",
+    "blocker": "Phases 5, 6.1, 7, 8, 9, and 10 are not all closed."
+  }
+]

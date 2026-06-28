@@ -22,7 +22,7 @@ class MockModel(nn.Module):
 
 
 class CheckpointTelemetryTests(unittest.TestCase):
-    def test_checkpoint_ lineage_tracking(self) -> None:
+    def test_checkpoint_lineage_tracking(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             events_path = Path(td) / "events.jsonl"
             cfg = SimpleNamespace(
@@ -86,3 +86,42 @@ class CheckpointTelemetryTests(unittest.TestCase):
             self.assertIsNotNone(saved_event["checkpoint_hash"])
             self.assertIsNotNone(saved_event["checkpoint_size_bytes"])
             self.assertGreater(saved_event["checkpoint_size_bytes"], 0)
+
+    def test_checkpoint_loaded_uses_non_empty_run_id_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            events_path = Path(td) / "events.jsonl"
+            cfg = SimpleNamespace(
+                training_events_jsonl_path=str(events_path),
+                training_telemetry_mode="basic",
+                device="cpu",
+                cli_preset=None,
+                run_tag="benchmark_run",
+            )
+            model = MockModel()
+            runtime = SimpleNamespace(
+                global_step=0,
+                model=model,
+                env=SimpleNamespace(
+                    observation_space=SimpleNamespace(
+                        spaces={"grid": SimpleNamespace(shape=(8, 64, 64))}
+                    )
+                ),
+            )
+            telemetry = TrainingTelemetry(
+                cfg=cfg,
+                hparams=SimpleNamespace(use_latent_strategy=False, run_id=""),
+                curriculum=None,
+                reward_shaping_coef=lambda: 0.0,
+                runtime=runtime,
+            )
+            ckpt_file = Path(td) / "ckpt_0.zip"
+            torch.save({"model_state_dict": model.state_dict(), "global_step": 0}, str(ckpt_file))
+
+            telemetry.emit_checkpoint_loaded(path=str(ckpt_file), duration_seconds=0.1)
+            telemetry.close_e3_step_telemetry()
+
+            import json
+            row = json.loads(events_path.read_text().splitlines()[0])
+            self.assertEqual(row["run_id"], "benchmark_run")
+            self.assertEqual(row["payload"]["run_id"], "benchmark_run")
+

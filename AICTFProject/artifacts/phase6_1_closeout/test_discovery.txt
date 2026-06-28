@@ -1,0 +1,28 @@
+Phase 6.1 Test Discovery Results
+==================================
+Date: 2026-06-27
+Branch: ml-ops
+Command: uv run python -m unittest discover -s tests
+
+Result: OK
+Tests: 1168
+Failures: 0
+Errors: 0
+Runtime: ~107 seconds
+
+Phase 6.1 focused tests (65):
+  tests.test_telemetry_phase6          - 26 tests  OK
+  tests.test_telemetry_phase6_integration - 2 tests  OK
+  tests.test_telemetry_invariance      - 1 test   OK
+  tests.test_performance_recorder      - 1 test   OK
+  tests.test_training_lifecycle_events - 1 test   OK
+  tests.test_checkpoint_telemetry      - 1 test   OK
+  tests.test_performance_artifacts     - 1 test   OK
+  tests.test_train_ppo_smoke           - 32 tests OK
+
+Bugs fixed to reach 1168/1168:
+1. test_checkpoint_telemetry.py: syntax error (space in method name)
+2. json_writer.py: over-broad string safety check blocked CheckpointLoaded events
+3. rl/telemetry_mode.py: new standalone module to break circular import
+4. ppo_config.py: import TrainingTelemetryMode from rl.telemetry_mode instead of rl.custom_ppo.telemetry.schemas
+5. preset_snapshots.json: regenerated (364 entries, was stale)

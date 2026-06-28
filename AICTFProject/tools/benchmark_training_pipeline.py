@@ -26,7 +26,6 @@ from rl.config.ppo_config import PPOConfig
 from rl.custom_ppo import CustomPPOTrainer
 from rl.train_ppo import (
     _clamp_runtime_config_for_team_size,
-    _ensure_cuda_or_fallback,
     _resolve_initial_opponent_and_phase,
 )
 from rl.training.env_factory import build_training_env
@@ -36,15 +35,15 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark Training Pipeline Performance")
     parser.add_argument(
         "--env-counts",
-        type=str,
-        default="16,64,256",
-        help="Comma-separated list of environment counts.",
+        nargs="+",
+        default=["16,64,256"],
+        help="Environment counts. Accepts comma-separated or space-separated values.",
     )
     parser.add_argument(
         "--telemetry-modes",
-        type=str,
-        default="off,basic,full",
-        help="Comma-separated list of telemetry modes (off, basic, full).",
+        nargs="+",
+        default=["off,basic,full"],
+        help="Telemetry modes. Accepts comma-separated or space-separated values.",
     )
     parser.add_argument(
         "--warmup-rollouts",
@@ -66,9 +65,25 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--checkpoint-path",
+        "--checkpoint",
         type=str,
         default=None,
+        dest="checkpoint_path",
         help="Optional path to a checkpoint zip file to load.",
+    )
+    parser.add_argument(
+        "--map",
+        "--map-layout",
+        type=str,
+        default="map_a_open",
+        dest="map_layout",
+        help="Map layout to benchmark.",
+    )
+    parser.add_argument(
+        "--opponent",
+        type=str,
+        default="OP3",
+        help="Fixed scripted opponent tag to benchmark against.",
     )
     parser.add_argument(
         "--output-dir",
@@ -90,9 +105,45 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _parse_values(values: list[str]) -> list[str]:
+    parsed: list[str] = []
+    for value in values:
+        parsed.extend(item.strip() for item in str(value).split(",") if item.strip())
+    return parsed
+
+
+def _ensure_device_available(cfg: PPOConfig) -> None:
+    if not str(cfg.device).lower().startswith("cuda"):
+        return
+    try:
+        torch.zeros(1, device=cfg.device)
+    except RuntimeError as exc:
+        print(f"[benchmark] CUDA unavailable ({exc}). Falling back to CPU.")
+        cfg.device = "cpu"
+
+
+def _apply_checkpoint_config(cfg: PPOConfig, checkpoint_path: str | None) -> None:
+    if not checkpoint_path:
+        return
+    try:
+        payload = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    except Exception as exc:
+        print(f"[benchmark] checkpoint config hydration skipped: {exc}")
+        return
+    raw_cfg = payload.get("cfg") if isinstance(payload, dict) else None
+    if not isinstance(raw_cfg, dict):
+        return
+    for key, value in raw_cfg.items():
+        if hasattr(cfg, key):
+            try:
+                setattr(cfg, key, value)
+            except Exception:
+                pass
+
+
 def run_benchmark_matrix(args: argparse.Namespace) -> None:
-    env_counts = [int(x.strip()) for x in args.env_counts.split(",") if x.strip()]
-    telemetry_modes = [x.strip() for x in args.telemetry_modes.split(",") if x.strip()]
+    env_counts = [int(x) for x in _parse_values(args.env_counts)]
+    telemetry_modes = _parse_values(args.telemetry_modes)
     device = args.device
 
     print("=" * 60)
@@ -100,6 +151,8 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
     print(f"  Telemetry modes: {telemetry_modes}")
     print(f"  Env counts:      {env_counts}")
     print(f"  Device:          {device}")
+    print(f"  Map layout:      {args.map_layout}")
+    print(f"  Opponent:        {args.opponent}")
     print(f"  Rollout steps:   {args.n_steps}")
     print(f"  Measured/Warmup: {args.measured_rollouts}/{args.warmup_rollouts}")
     print("=" * 60)
@@ -134,6 +187,7 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
             
             # Setup Config
             cfg = PPOConfig()
+            _apply_checkpoint_config(cfg, args.checkpoint_path)
             cfg.seed = 42
             cfg.device = device
             cfg.n_envs = env_count
@@ -144,7 +198,11 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
             cfg.load_path = args.checkpoint_path
             cfg.checkpoint_dir = str(output_path)
             cfg.mode = "FIXED_OPPONENT"
-            cfg.fixed_opponent_tag = "OP3"
+            cfg.fixed_opponent_tag = str(args.opponent).upper()
+            cfg.opponent_randomize = False
+            cfg.opponent_pool = (str(args.opponent).upper(),)
+            cfg.opponent_pool_weights = ()
+            cfg.map_layout = str(args.map_layout).lower()
             cfg.use_latent_strategy = True  # Enable latent mode for telemetry coverage
             cfg.enable_metrics_csv = False
             cfg.gpu_native_env = True
@@ -157,7 +215,7 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
             max_agents = max(1, int(getattr(cfg, "max_blue_agents", 2)))
             curriculum, initial_phase, initial_opponent_tag = _resolve_initial_opponent_and_phase(cfg, max_agents)
             _clamp_runtime_config_for_team_size(cfg, max_agents)
-            _ensure_cuda_or_fallback(cfg)
+            _ensure_device_available(cfg)
 
             # Build Environment
             env = build_training_env(
@@ -313,6 +371,9 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
     summary_data = {
         "benchmark_timestamp": time.time(),
         "device": device,
+        "map_layout": args.map_layout,
+        "opponent": args.opponent,
+        "checkpoint_path": args.checkpoint_path,
         "rollout_steps": args.n_steps,
         "measured_rollouts": args.measured_rollouts,
         "warmup_rollouts": args.warmup_rollouts,
@@ -326,6 +387,9 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
     manifest_data = {
         "manifest_version": 1,
         "device_name": device,
+        "map_layout": args.map_layout,
+        "opponent": args.opponent,
+        "checkpoint_path": args.checkpoint_path,
         "pytorch_version": torch.__version__,
         "cuda_version": torch.version.cuda if torch.cuda.is_available() else None,
         "timestamp": time.time(),
@@ -373,3 +437,4 @@ def run_benchmark_matrix(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     run_benchmark_matrix(parse_args())
+

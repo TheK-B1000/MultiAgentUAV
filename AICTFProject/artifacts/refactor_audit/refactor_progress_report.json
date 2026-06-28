@@ -1,0 +1,419 @@
+{
+  "commit": "751f207583e34c6c7142b9b8a6a1b29d6b7d18cf",
+  "branch": "ml-ops",
+  "test_summary": {
+    "canonical_current_count": "1168",
+    "canonical_current_status": "DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON_SECOND_RUN",
+    "tests_ran": "1168",
+    "status": "FAIL",
+    "python312_default_pass": true,
+    "uv_trustworthy": false,
+    "pattern_discovery_pass": false
+  },
+  "phase_count": 14,
+  "implemented_count": 9,
+  "complete_count": 0,
+  "implemented_percent": 64.3,
+  "closed_percent": 0.0,
+  "phases": [
+    {
+      "phase": "Phase 1",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "rl/custom_ppo/distributions.py",
+        "rl/custom_ppo/diagnostics_contract.py",
+        "rl/evaluation/probes/results.py",
+        "rl/custom_ppo/inference_policy.py"
+      ],
+      "test_evidence": [
+        "tests/test_actor_pathway_diagnostics.py",
+        "tests/test_inference_distribution_contract.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "Full-suite discovery passes under Python 3.12, but phase-specific gradient/error fixtures are not independently summarized in closeout artifacts."
+      ],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Add or locate Phase 1 closeout artifact proving wrapper/model get_distribution gradient path and typed ERROR cases."
+      ]
+    },
+    {
+      "phase": "Phase 1.5",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "rl/custom_ppo/distributions.py",
+        "rl/evaluation/probes/results.py",
+        "rl/custom_ppo/inference_policy.py"
+      ],
+      "test_evidence": [
+        "tests/test_inference_distribution_contract.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "Distribution repair is also evidenced by Phase 5 closeout distribution_contract.json if present."
+      ],
+      "performance_evidence": [],
+      "artifact_evidence": [
+        "artifacts/phase5_closeout/distribution_contract.json"
+      ],
+      "blockers": [
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Promote distribution/probe contract evidence into a Phase 1.5 closeout artifact."
+      ]
+    },
+    {
+      "phase": "Phase 1.6",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "gpu_env/_navigation_telemetry.py",
+        "gpu_env/_core/_state.py",
+        "gpu_env/_core/_metrics.py",
+        "gpu_env/_core/_step.py",
+        "gpu_env/_episode_payload.py"
+      ],
+      "test_evidence": [
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [],
+      "performance_evidence": [
+        "Telemetry performance overhead is not summarized in a Phase 1.6 closeout artifact."
+      ],
+      "artifact_evidence": [
+        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/condition_summary.csv",
+        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/episode_results.csv",
+        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/evaluation_manifest.json",
+        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.json",
+        "artifacts/v6i9_map_awareness_exact_telemetry_smoke/final_report.txt"
+      ],
+      "blockers": [
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Run/update exact telemetry overhead benchmark and OFF/BASIC/FULL behavior evidence."
+      ]
+    },
+    {
+      "phase": "Phase 3",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "rl/custom_ppo/checkpoints",
+        "rl/custom_ppo/inference_policy.py",
+        "rl/custom_ppo/inference.py"
+      ],
+      "test_evidence": [
+        "tests/test_checkpoint_refactor_phase3.py",
+        "tests/test_checkpoint_telemetry.py",
+        "tests/test_eval_checkpoint_op5_label.py",
+        "tests/test_inference_distribution_contract.py",
+        "tests/test_inference_parity.py",
+        "tests/test_policy_checkpoint_migration.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "Full discovery output includes checkpoint compatibility PASS lines, but no Phase 3 closeout report was found."
+      ],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Add Phase 3 closeout proving native 7/8 channel, migrated 7-to-8, CPU/CUDA smoke, and behavioral equivalence."
+      ]
+    },
+    {
+      "phase": "Phase 4",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "rl/presets/_registry_source.py",
+        "rl/presets/validation.py",
+        "rl/presets/compatibility.py",
+        "rl/presets/families",
+        "tests/preset_snapshots.json"
+      ],
+      "test_evidence": [
+        "tests/test_preset_resolution.py",
+        "tests/test_preset_system.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "Preset snapshot entries: 364"
+      ],
+      "performance_evidence": [],
+      "artifact_evidence": [
+        "tests/preset_snapshots.json"
+      ],
+      "blockers": [
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline.",
+        "Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report."
+      ],
+      "next_actions": [
+        "Produce Phase 4 closeout tying registry/CLI/resolved-artifact/hash evidence to current commit."
+      ]
+    },
+    {
+      "phase": "Phase 5",
+      "status": "BLOCKED",
+      "implementation_evidence": [
+        "rl/custom_ppo/rollout",
+        "rl/custom_ppo/rollout_collector.py",
+        "rl/custom_ppo/rollout_step_recorder.py"
+      ],
+      "test_evidence": [
+        "tests/test_qualitative_rollout.py",
+        "tests/test_rollout_buffer.py",
+        "tests/test_train_ppo_smoke.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "Phase 5 closeout verdict: NOT COMPLETE",
+        "rollout_equivalence: BLOCKED",
+        "telemetry_invariance: PARTIAL"
+      ],
+      "performance_evidence": [
+        "performance_comparison: BLOCKED",
+        "memory_comparison: BLOCKED"
+      ],
+      "artifact_evidence": [
+        "artifacts/phase5_closeout/distribution_contract.json",
+        "artifacts/phase5_closeout/memory_comparison.json",
+        "artifacts/phase5_closeout/performance_comparison.json",
+        "artifacts/phase5_closeout/phase5_closeout_report.json",
+        "artifacts/phase5_closeout/phase5_closeout_report.txt",
+        "artifacts/phase5_closeout/rollout_equivalence.json",
+        "artifacts/phase5_closeout/telemetry_invariance.json",
+        "artifacts/phase5_closeout/test_discovery.txt",
+        "artifacts/phase5_closeout/test_discovery_pattern.txt",
+        "artifacts/phase5_closeout/test_files.txt"
+      ],
+      "blockers": [
+        "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta.",
+        "Track B golden pre/post rollout equivalence not established.",
+        "Track C telemetry OFF/BASIC/FULL invariance not established.",
+        "Track D throughput comparison not run against pre-Phase-5 baseline.",
+        "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.",
+        "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested.",
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Close golden/stochastic rollout, reward/buffer/GAE, throughput, and CUDA memory evidence against a pre-Phase-5 worktree."
+      ]
+    },
+    {
+      "phase": "Phase 5.1",
+      "status": "BLOCKED",
+      "implementation_evidence": [
+        "rl/custom_ppo/inference_policy.py",
+        "experiments/eval_v6i9_map_awareness.py"
+      ],
+      "test_evidence": [
+        "tests/test_inference_distribution_contract.py",
+        "tests/test_train_ppo_smoke.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "distribution_contract: PASS",
+        "rollout_equivalence: BLOCKED"
+      ],
+      "performance_evidence": [
+        "performance_comparison: BLOCKED"
+      ],
+      "artifact_evidence": [
+        "artifacts/phase5_closeout/distribution_contract.json",
+        "artifacts/phase5_closeout/memory_comparison.json",
+        "artifacts/phase5_closeout/performance_comparison.json",
+        "artifacts/phase5_closeout/phase5_closeout_report.json",
+        "artifacts/phase5_closeout/phase5_closeout_report.txt",
+        "artifacts/phase5_closeout/rollout_equivalence.json",
+        "artifacts/phase5_closeout/telemetry_invariance.json",
+        "artifacts/phase5_closeout/test_discovery.txt",
+        "artifacts/phase5_closeout/test_discovery_pattern.txt",
+        "artifacts/phase5_closeout/test_files.txt"
+      ],
+      "blockers": [
+        "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta.",
+        "Track B golden pre/post rollout equivalence not established.",
+        "Track C telemetry OFF/BASIC/FULL invariance not established.",
+        "Track D throughput comparison not run against pre-Phase-5 baseline.",
+        "Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.",
+        "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested.",
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Keep distribution repair accepted, but finish rollout closeout proof tracks."
+      ]
+    },
+    {
+      "phase": "Phase 6",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "rl/custom_ppo/telemetry/events.py",
+        "rl/custom_ppo/telemetry/schemas.py",
+        "rl/custom_ppo/telemetry/models.py",
+        "rl/custom_ppo/telemetry/emitter.py",
+        "rl/custom_ppo/training_telemetry.py",
+        "tests/test_telemetry_phase6.py"
+      ],
+      "test_evidence": [
+        "tests/test_telemetry_invariance.py",
+        "tests/test_telemetry_phase6.py",
+        "tests/test_telemetry_phase6_integration.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [],
+      "performance_evidence": [],
+      "artifact_evidence": [
+        "artifacts/phase6_1_closeout/phase6_1_report.json"
+      ],
+      "blockers": [
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Add standalone Phase 6 foundation closeout tying schema/sink compatibility and legacy CSV preservation to current test evidence."
+      ]
+    },
+    {
+      "phase": "Phase 6.1",
+      "status": "IMPLEMENTED_NOT_CLOSED",
+      "implementation_evidence": [
+        "rl/custom_ppo/telemetry/events.py",
+        "rl/custom_ppo/telemetry/schemas.py",
+        "rl/custom_ppo/telemetry/models.py",
+        "rl/custom_ppo/telemetry/emitter.py",
+        "rl/custom_ppo/training_telemetry.py",
+        "tests/test_telemetry_phase6.py",
+        "tools/benchmark_training_pipeline.py",
+        "rl/telemetry_mode.py"
+      ],
+      "test_evidence": [
+        "tests/test_checkpoint_telemetry.py",
+        "tests/test_performance_artifacts.py",
+        "tests/test_performance_recorder.py",
+        "tests/test_telemetry_phase6.py",
+        "tests/test_telemetry_phase6_integration.py",
+        "tests/test_training_lifecycle_events.py",
+        "Python 3.12 default unittest discovery passed with 1168 tests.",
+        "Requested uv discovery is not trustworthy in this checkout; uv used an environment without torch or failed cache initialization."
+      ],
+      "equivalence_evidence": [
+        "closeout verdict: PASS",
+        "telemetry invariance: PASS"
+      ],
+      "performance_evidence": [
+        "performance gates: WARN: no pre-Phase-6 baseline available; gates defined in benchmark tool",
+        "gpu monitor: disabled_by_default"
+      ],
+      "artifact_evidence": [
+        "artifacts/phase6_1_closeout/phase6_1_report.json",
+        "artifacts/phase6_1_closeout/test_discovery.txt"
+      ],
+      "blockers": [
+        "No CUDA training smoke run (no CUDA available in this environment)",
+        "Performance gates defined but no baseline to compare against until first measured run",
+        "benchmark_training_pipeline.py not smoke-tested end-to-end (requires checkpoint)",
+        "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+      ],
+      "next_actions": [
+        "Capture pre-Phase-6 OFF baseline, CUDA smoke/matrix, and benchmark tool run before declaring COMPLETE."
+      ]
+    },
+    {
+      "phase": "Phase 7",
+      "status": "NOT_STARTED",
+      "implementation_evidence": [
+        "rl/custom_ppo/latent_diagnostics.py remains present."
+      ],
+      "test_evidence": [],
+      "equivalence_evidence": [],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Missing decomposed diagnostics modules: ['rl/custom_ppo/diagnostics/occupancy.py', 'rl/custom_ppo/diagnostics/entropy.py', 'rl/custom_ppo/diagnostics/counterfactual.py', 'rl/custom_ppo/diagnostics/schemas.py']"
+      ],
+      "next_actions": [
+        "Implement latent diagnostics package after Phase 6.1 closeout evidence is closed."
+      ]
+    },
+    {
+      "phase": "Phase 8",
+      "status": "NOT_STARTED",
+      "implementation_evidence": [],
+      "test_evidence": [],
+      "equivalence_evidence": [],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Missing orchestration modules: ['rl/training/arguments.py', 'rl/training/overrides.py', 'rl/training/resolved_config.py', 'rl/training/run_context.py', 'rl/training/initialization.py', 'rl/training/factories.py', 'rl/training/orchestrator.py', 'rl/training/lifecycle.py', 'rl/training/errors.py']"
+      ],
+      "next_actions": [
+        "Decompose training CLI/orchestration only after Phase 7 gate."
+      ]
+    },
+    {
+      "phase": "Phase 9",
+      "status": "NOT_STARTED",
+      "implementation_evidence": [
+        "gpu_env/_core/_state.py remains primary state owner candidate."
+      ],
+      "test_evidence": [],
+      "equivalence_evidence": [],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Missing decomposed GPU state modules: ['gpu_env/state/models.py', 'gpu_env/state/allocation.py', 'gpu_env/state/agent_state.py', 'gpu_env/state/team_state.py', 'gpu_env/state/flag_state.py', 'gpu_env/state/episode_state.py', 'gpu_env/state/map_state.py', 'gpu_env/state/opponent_state.py', 'gpu_env/state/telemetry_state.py', 'gpu_env/state/scratch.py', 'gpu_env/state/validation.py', 'gpu_env/state/snapshots.py']"
+      ],
+      "next_actions": [
+        "Start only after Phase 8 gate; prove reset/RNG/telemetry equivalence and performance."
+      ]
+    },
+    {
+      "phase": "Phase 10",
+      "status": "NOT_STARTED",
+      "implementation_evidence": [
+        "rl/evaluation/config.py",
+        "rl/evaluation/env_factory.py",
+        "experiments/eval_v6i9_map_awareness.py remains evaluator entry/owner candidate."
+      ],
+      "test_evidence": [],
+      "equivalence_evidence": [],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Missing evaluation architecture modules: ['rl/evaluation/contracts.py', 'rl/evaluation/policy_loader.py', 'rl/evaluation/episode_runner.py', 'rl/evaluation/matched_seed.py', 'rl/evaluation/aggregation.py', 'rl/evaluation/gates.py', 'rl/evaluation/artifact_writer.py']"
+      ],
+      "next_actions": [
+        "Start only after Phase 9 gate; prove episode/probe/gate/artifact equivalence."
+      ]
+    },
+    {
+      "phase": "Final",
+      "status": "NOT_STARTED",
+      "implementation_evidence": [],
+      "test_evidence": [],
+      "equivalence_evidence": [],
+      "performance_evidence": [],
+      "artifact_evidence": [],
+      "blockers": [
+        "Phases 5, 6.1, 7, 8, 9, and 10 are not all closed."
+      ],
+      "next_actions": [
+        "Defer compatibility cleanup until architecture phases close with tests, equivalence, performance, and artifacts."
+      ]
+    }
+  ]
+}

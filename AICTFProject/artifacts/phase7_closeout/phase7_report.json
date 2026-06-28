@@ -1,0 +1,102 @@
+{
+  "phase": "7",
+  "title": "Latent Diagnostics Refactor and Scientific Metric Hardening",
+  "verdict": "PASS",
+  "completed_at": "2026-06-27",
+
+  "files_created": [
+    "rl/custom_ppo/diagnostics/__init__.py",
+    "rl/custom_ppo/diagnostics/results.py",
+    "rl/custom_ppo/diagnostics/schemas.py",
+    "rl/custom_ppo/diagnostics/entropy.py",
+    "rl/custom_ppo/diagnostics/occupancy.py",
+    "rl/custom_ppo/diagnostics/switching.py",
+    "rl/custom_ppo/diagnostics/specialization.py",
+    "rl/custom_ppo/diagnostics/counterfactual.py",
+    "rl/custom_ppo/diagnostics/competence.py",
+    "rl/custom_ppo/diagnostics/aggregation.py",
+    "rl/custom_ppo/diagnostics/validation.py",
+    "tests/test_diagnostics_phase7.py",
+    "artifacts/phase7_closeout/"
+  ],
+
+  "files_modified": [
+    "rl/custom_ppo/latent_diagnostics.py"
+  ],
+
+  "architecture": {
+    "dependency_direction": "latent_diagnostics.py (facade) → diagnostics.* (implementations)",
+    "no_circular_imports": true,
+    "facade_is_pure_reexport": true,
+    "legacy_names_preserved": true
+  },
+
+  "modules": {
+    "results.py": "DiagnosticStatus (PASS/FAIL/WARN/INCONCLUSIVE/ERROR), DiagnosticResult[T], DiagnosticError",
+    "schemas.py": "Version constants: LATENT_DIAGNOSTICS_VERSION, LATENT_METRICS_SCHEMA_VERSION",
+    "entropy.py": "Pure math: _shannon_entropy_nats, _mi_z_vs, _bucket_z_fracs, _fill_zero_z_fracs, _flat_long_np, _flat_float_np",
+    "occupancy.py": "compute_occupancy_stats — pure computation from per-latent count tensor",
+    "switching.py": "_flag_return_indices, _reward_sum_after_switch_5, _switch_proximity_fracs",
+    "specialization.py": "_q_phi_probs_and_entropy, _flag_state_per_step, _phase_block, _behavior_diversity_stats",
+    "counterfactual.py": "_jsd_from_logits, batched policy helpers, _forced_z_behavior_profile, _policy_z_sensitivity_kl, compute_pairwise_actor_jsd",
+    "competence.py": "compute_adapter_grad_norms, compute_critic_value_variance, _v6i8_residual_adapter_stats, advantage stats",
+    "aggregation.py": "_latent_rollout_stats, _latent_opponent_rollout_diag, _write_strategy_experience_table, _write_refresh_log_table",
+    "validation.py": "validate_occupancy_entropy, validate_jsd_separation, validate_mi_proxy, validate_unique_latents"
+  },
+
+  "diagnostic_result_fields": [
+    "status: DiagnosticStatus",
+    "value: T | None",
+    "sample_count: int",
+    "reason: str | None",
+    "error: DiagnosticError | None"
+  ],
+
+  "compatibility_preserved": [
+    "from rl.custom_ppo.latent_diagnostics import _latent_opponent_rollout_diag",
+    "from rl.custom_ppo.latent_diagnostics import _latent_rollout_stats",
+    "from rl.custom_ppo.latent_diagnostics import _jsd_from_logits",
+    "from rl.custom_ppo.latent_diagnostics import _policy_z_sensitivity_kl",
+    "from rl.custom_ppo.latent_diagnostics import compute_pairwise_actor_jsd",
+    "from rl.custom_ppo.latent_diagnostics import compute_adapter_grad_norms",
+    "from rl.custom_ppo.latent_diagnostics import compute_critic_value_variance",
+    "from rl.custom_ppo.latent_diagnostics import _v6i8_residual_adapter_stats",
+    "from rl.custom_ppo.latent_diagnostics import _behavior_diversity_stats",
+    "_v6i8_adapter_stats alias preserved"
+  ],
+
+  "legacy_return_types_unchanged": true,
+  "new_typed_api": [
+    "DiagnosticResult.from_error(exc)",
+    "DiagnosticResult.unavailable(reason)",
+    "DiagnosticResult.map(fn)",
+    "validate_occupancy_entropy(stats, min_entropy_nats)",
+    "validate_jsd_separation(stats, min_jsd)",
+    "validate_mi_proxy(stats, min_mi_nats)",
+    "validate_unique_latents(stats, min_unique)"
+  ],
+
+  "test_results": {
+    "phase7_tests": 30,
+    "phase7_result": "OK",
+    "full_suite_count": 1198,
+    "full_suite_result": "OK",
+    "runtime_seconds": 132
+  },
+
+  "closeout_gate": {
+    "pure_metric_equivalence": "PASS (same function objects via identity check)",
+    "legacy_import_compatibility": "PASS",
+    "legacy_return_compatibility": "PASS",
+    "missing_data_unavailable": "PASS (DiagnosticResult.unavailable with sample_count=0)",
+    "failures_not_zero": "PASS (ERROR distinct from FAIL; FAIL carries reason+threshold)",
+    "full_suite": "PASS",
+    "latent_diagnostics_is_facade": "PASS (62 lines, pure imports)"
+  },
+
+  "unresolved": [
+    "Golden fixture JSON files not written to disk (pure function values trivially computed from formulas; equivalence proven by function identity test)",
+    "Counterfactual checkpoint smoke test requires loaded model (no CUDA/checkpoint in this environment)",
+    "trainer-coupled functions (aggregation.*) not tested in isolation — existing test_latent_strategy_alignment covers them"
+  ]
+}

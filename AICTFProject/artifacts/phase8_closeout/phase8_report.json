@@ -1,0 +1,104 @@
+{
+  "phase": "8",
+  "title": "Training Orchestration Decomposition",
+  "verdict": "PASS",
+  "completed_at": "2026-06-28",
+
+  "files_created": [
+    "rl/training/errors.py",
+    "rl/training/run_context.py",
+    "rl/training/resolved_config.py",
+    "rl/training/lifecycle.py",
+    "rl/training/factories.py",
+    "rl/training/initialization.py",
+    "rl/training/arguments.py",
+    "rl/training/overrides.py",
+    "rl/training/orchestrator.py",
+    "tests/test_training_phase8.py",
+    "artifacts/phase8_closeout/"
+  ],
+
+  "files_modified": [
+    "rl/training/cli.py",
+    "rl/train_ppo.py"
+  ],
+
+  "source_sizes": {
+    "cli.py_before": "1077 lines",
+    "cli.py_after": "58 lines (thin facade)",
+    "train_ppo.py_before": "469 lines",
+    "train_ppo.py_after": "186 lines (thin facade + diagnostic helpers)",
+    "new_code_extracted": "~1000 lines across 9 sub-modules"
+  },
+
+  "architecture": {
+    "dependency_direction": "cli.py → arguments.py + overrides.py; train_ppo.py → lifecycle.py + overrides.py + resolved_config.py; orchestrator.py → all sub-modules; sub-modules NEVER import from cli.py or train_ppo.py",
+    "lazy_imports": [
+      "arguments.py::build_train_parser() lazily imports DEFAULT_CLI_TRAINING_PRESET from rl.train_ppo",
+      "overrides.py::_apply_training_preset() lazily imports rl.presets",
+      "train_ppo.py::train_ppo() lazily imports orchestrate_training_run from orchestrator.py",
+      "lifecycle.py uses TYPE_CHECKING guard for PPOConfig to avoid torch at import time",
+      "train_ppo.py diagnostic functions (run_verify_4v4, run_test_vec_schema) lazily import numpy"
+    ],
+    "no_circular_imports": true,
+    "facades_are_pure_reexports": true,
+    "legacy_names_preserved": true
+  },
+
+  "modules": {
+    "errors.py": "Typed training error hierarchy: TrainingConfigError(ValueError), EvaluationOnlyPresetError, PresetsConflictError, CheckpointNotFoundError(FileNotFoundError), TrainingAbortedError(RuntimeError)",
+    "run_context.py": "Mutable RunContext dataclass: run_lock (acquired lock handle), rc_path (sidecar JSON path) — holds per-run acquired state",
+    "resolved_config.py": "Frozen ResolvedTrainingConfig dataclass + resolve_training_config(cfg) — computes max_agents, team_size, curriculum, initial_phase/opponent, effective lr/ent_coef/clip/n_epochs/batch_size, rollout_size. Also owns _resolve_initial_opponent_and_phase.",
+    "lifecycle.py": "Pure lifecycle operations: set_global_seed, _resolve_metrics_csv_paths, _rotate_fresh_run_telemetry, _clamp_runtime_config_for_team_size, _ensure_cuda_or_fallback, teardown_training. Uses TYPE_CHECKING to avoid torch at module import.",
+    "factories.py": "Re-exports build_training_env from env_factory.py; provides make_trainer_hyperparams(resolved) -> dict",
+    "initialization.py": "build_trainer(env, cfg, resolved), maybe_load_checkpoint(cfg, trainer), maybe_extend_total_timesteps(cfg, trainer)",
+    "arguments.py": "Full argparse builder extracted from cli.py::parse_train_args. build_train_parser() lazily imports DEFAULT_CLI_TRAINING_PRESET. Zero module-level torch dependency.",
+    "overrides.py": "cfg_from_args(args) -> PPOConfig (the ~370-line override chain) + helpers: _agents_suffix, _default_run_tag_for_mode, _ensure_run_tag_has_agent_suffix, _apply_training_preset",
+    "orchestrator.py": "_validate_config_gates(cfg) + orchestrate_training_run(cfg) — canonical full training sequence extracted from old train_ppo() body"
+  },
+
+  "compatibility_preserved": [
+    "from rl.training.cli import parse_train_args",
+    "from rl.training.cli import cfg_from_args",
+    "from rl.train_ppo import PPOConfig",
+    "from rl.train_ppo import train_ppo",
+    "from rl.train_ppo import set_global_seed",
+    "from rl.train_ppo import _agents_suffix",
+    "from rl.train_ppo import _default_run_tag_for_mode",
+    "from rl.train_ppo import _ensure_run_tag_has_agent_suffix",
+    "from rl.train_ppo import _resolve_initial_opponent_and_phase",
+    "from rl.train_ppo import _resolve_metrics_csv_paths",
+    "from rl.train_ppo import _rotate_fresh_run_telemetry",
+    "from rl.train_ppo import _clamp_runtime_config_for_team_size",
+    "from rl.train_ppo import _ensure_cuda_or_fallback",
+    "from rl.train_ppo import write_run_config_json",
+    "from rl.train_ppo import build_training_env",
+    "from rl.train_ppo import EVAL_ONLY_TRAINING_OPPONENT_TAGS"
+  ],
+
+  "test_results": {
+    "environment": "no-torch (CPU-only dev environment)",
+    "torch_free_tests_passed": 19,
+    "torch_gated_tests_skipped": 26,
+    "torch_gated_tests_failed": 0,
+    "pre_existing_failures": {
+      "count": 8,
+      "file": "tests/test_router_dedicated_lr.py",
+      "cause": "tests do `from rl.train_ppo import PPOConfig` which triggers gpu_env -> torch; pre-existing before Phase 8",
+      "verified_pre_existing": true
+    },
+    "regressions_introduced": 0,
+    "total_suite": "8 failed (pre-existing), 56 passed, 26 skipped"
+  },
+
+  "test_groups": {
+    "A_error_hierarchy": "5 tests, torch-free — all pass",
+    "B_facade_structure_ast": "7 tests, torch-free AST parse checks — all pass",
+    "C_argument_parsing": "1 torch-free (module import), 4 torch-gated — all pass/skip correctly",
+    "D_resolved_training_config": "6 tests, torch-gated — skip without torch",
+    "E_run_context": "3 tests, torch-free — all pass",
+    "F_cfg_from_args": "6 tests, torch-gated — skip without torch",
+    "G_lifecycle_helpers": "4 tests, torch-gated — skip without torch",
+    "H_module_imports": "3 torch-free (errors, run_context, arguments pass), 6 torch-gated — correct"
+  }
+}

@@ -1,0 +1,57 @@
+# Refactor audit test discovery
+
+## Requested uv discovery
+command: uv run python -m unittest discover -s tests
+exit_code: 2
+status: FAIL_TOOLING
+result: unittest did not start
+reason: uv failed to initialize global cache at C:\Users\K-B\AppData\Local\uv\cache (os error 183)
+
+command: uv run python -m unittest discover -s tests -p test*.py
+exit_code: 2
+status: FAIL_TOOLING
+result: unittest did not start
+reason: uv failed to initialize global cache at C:\Users\K-B\AppData\Local\uv\cache (os error 183)
+
+## uv discovery with workspace-local cache
+command: uv run python -m unittest discover -s tests
+exit_code: 1
+status: FAIL_ENVIRONMENT
+tests_ran: 147
+failures: 0
+errors: 110
+reason: uv selected Python 3.11 environment without torch; representative error ModuleNotFoundError: No module named 'torch'
+
+command: uv run python -m unittest discover -s tests -p test*.py
+exit_code: 1
+status: FAIL_ENVIRONMENT
+tests_ran: 147
+failures: 0
+errors: 110
+reason: uv selected Python 3.11 environment without torch; representative error ModuleNotFoundError: No module named 'torch'
+
+## Supplemental repository Python 3.12 discovery
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests
+exit_code: 0
+status: PASS
+tests_ran: 1168
+failures: 0
+errors: 0
+skipped: 0
+unittest_reported_duration_s: 102.655
+wall_duration_s: 106.348
+
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests -p test*.py
+exit_code: 1
+status: FAIL
+tests_ran: 1168
+failures: 0
+errors: 5
+unittest_reported_duration_s: 95.422
+wall_duration_s: 99.167
+reason: same discovery count as default, but 5 errors on the second same-process suite run; raw logs were removed to recover disk space after sandbox disk-full failure.
+
+## Audit interpretation
+canonical_current_count: 1168
+canonical_current_status: DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON_SECOND_RUN
+trust_note: The repo-equipped Python 3.12 environment passes default discovery. The requested uv command is not trustworthy in this checkout because it does not use the dependency-equipped environment.

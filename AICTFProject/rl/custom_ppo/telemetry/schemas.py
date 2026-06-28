@@ -2,26 +2,14 @@
 
 from __future__ import annotations
 
-try:
-    from enum import StrEnum
-except ImportError:  # pragma: no cover
-    from enum import Enum
-
-    class StrEnum(str, Enum):
-        pass
-
-
 TRAINING_METRICS_SCHEMA_VERSION = 1
 PERFORMANCE_METRICS_SCHEMA_VERSION = 1
 LATENT_METRICS_VERSION = "v6_legacy_equivalent"
 TRAINING_EVENTS_SCHEMA_VERSION = 1
 
-
-class TrainingTelemetryMode(StrEnum):
-    OFF = "off"
-    BASIC = "basic"
-    FULL = "full"
-    BENCHMARK = "benchmark"
+# Re-export from the standalone module to avoid a circular import through
+# rl.config.ppo_config → rl.custom_ppo.telemetry.schemas → rl.custom_ppo.__init__.
+from rl.telemetry_mode import TrainingTelemetryMode  # noqa: E402
 
 
 def coerce_telemetry_mode(value: object) -> TrainingTelemetryMode:
