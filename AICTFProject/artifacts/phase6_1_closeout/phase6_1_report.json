@@ -1,119 +1,35 @@
 {
   "phase": "6.1",
-  "title": "Trainer Integration and Performance Observability",
-  "verdict": "PASS",
-  "completed_at": "2026-06-27",
-
-  "files_created": [
-    "rl/custom_ppo/telemetry/events.py",
-    "rl/custom_ppo/telemetry/schemas.py",
-    "rl/custom_ppo/telemetry/models.py",
-    "rl/custom_ppo/telemetry/emitter.py",
-    "rl/custom_ppo/telemetry/validation.py",
-    "rl/custom_ppo/telemetry/errors.py",
-    "rl/custom_ppo/telemetry/performance.py",
-    "rl/custom_ppo/telemetry/timing.py",
-    "rl/custom_ppo/telemetry/gpu_monitor.py",
-    "rl/custom_ppo/telemetry/aggregator.py",
-    "rl/custom_ppo/telemetry/writers/json_writer.py",
-    "rl/custom_ppo/telemetry/writers/csv_writer.py",
-    "rl/custom_ppo/telemetry/writers/artifact_writer.py",
-    "rl/custom_ppo/telemetry/writers/console.py",
-    "rl/telemetry_mode.py",
-    "tests/test_telemetry_phase6.py",
-    "tests/test_telemetry_phase6_integration.py",
-    "tests/test_telemetry_invariance.py",
-    "tests/test_performance_recorder.py",
-    "tests/test_training_lifecycle_events.py",
-    "tests/test_checkpoint_telemetry.py",
-    "tests/test_performance_artifacts.py",
-    "tools/benchmark_training_pipeline.py",
-    "artifacts/phase6_1_closeout/"
-  ],
-
-  "files_modified": [
-    "rl/custom_ppo/training_telemetry.py",
-    "rl/config/ppo_config.py",
-    "rl/custom_ppo/telemetry/schemas.py",
-    "rl/custom_ppo/telemetry/writers/json_writer.py",
-    "tests/preset_snapshots.json"
-  ],
-
-  "bugs_fixed_in_this_phase": [
-    {
-      "file": "tests/test_checkpoint_telemetry.py",
-      "issue": "Syntax error: space in method name 'test_checkpoint_ lineage_tracking' caused ImportError",
-      "fix": "Renamed to 'test_checkpoint_lineage_tracking'"
-    },
-    {
-      "file": "rl/custom_ppo/telemetry/writers/json_writer.py",
-      "issue": "Over-broad string safety check rejected CheckpointLoaded events whose field names contain 'observation' (source_observation_channels, target_observation_channels)",
-      "fix": "Removed redundant string-level check; structural _assert_safe_payload check is sufficient"
-    },
-    {
-      "file": "rl/config/ppo_config.py",
-      "issue": "Circular import: ppo_config imported TrainingTelemetryMode from rl.custom_ppo.telemetry.schemas, which triggered rl.custom_ppo.__init__ -> trainer -> communication -> gates -> ppo_config",
-      "fix": "Promoted TrainingTelemetryMode to rl/telemetry_mode.py (no rl.custom_ppo deps); ppo_config imports from there; schemas.py re-exports from there"
-    },
-    {
-      "file": "tests/preset_snapshots.json",
-      "issue": "364 golden snapshot failures because snapshots were stale (prior to PPOConfig having training_telemetry_mode field)",
-      "fix": "Regenerated via python tools/snapshot_presets.py after fixing circular import"
-    }
-  ],
-
-  "track_status": {
-    "track_a_telemetry_modes": "PASS",
-    "track_b_lifecycle_events": "PASS",
-    "track_c_rollout_events": "PASS",
-    "track_d_optimization_events": "PASS",
-    "track_e_episode_events": "PASS",
-    "track_f_checkpoint_events": "PASS",
-    "track_g_performance_recorder": "PASS",
-    "track_h_cuda_memory": "PASS",
-    "track_i_gpu_monitoring": "PASS",
-    "track_j_performance_artifacts": "PASS",
-    "track_k_telemetry_invariance": "PASS",
-    "track_l_writer_failure_isolation": "PASS",
-    "track_m_benchmark_tool": "PASS",
-    "track_n_performance_gates": "WARN: no pre-Phase-6 baseline available; gates defined in benchmark tool",
-    "track_o_test_coverage": "PASS",
-    "track_p_static_architecture": "PASS"
+  "title": "Trainer Integration and Performance Observability Closeout",
+  "verdict": "IMPLEMENTED_NOT_CLOSED",
+  "reason": "Implementation, CPU smoke, 16/64 CUDA matrix, invariance, and repeat discovery evidence exist, but performance gates fail vs pre-Phase-6 OFF and 256-env CUDA matrix is blocked.",
+  "artifacts": {
+    "benchmark_manifest": "benchmark_manifest.json",
+    "benchmark_summary": "benchmark_summary.json",
+    "benchmark_samples": "benchmark_samples.csv",
+    "telemetry_invariance": "telemetry_invariance.json",
+    "rng_invariance": "rng_invariance.json",
+    "memory_comparison": "memory_comparison.json",
+    "baseline_comparison": "baseline_comparison.json",
+    "test_discovery": "test_discovery.txt"
   },
-
-  "telemetry_modes_implemented": ["off", "basic", "full", "benchmark"],
-  "trainer_events_implemented": ["TrainingStarted", "TrainingCompleted", "TrainingFailed", "TrainingInterrupted"],
-  "rollout_events_implemented": ["RolloutCompleted", "EpisodeCompleted", "EpisodesCompleted"],
-  "optimization_events_implemented": ["OptimizationCompleted"],
-  "checkpoint_events_implemented": ["CheckpointSaved", "CheckpointLoaded"],
-  "performance_metrics": ["env_transitions_per_second", "rollout_transitions_per_second", "optimization_samples_per_second", "checkpoint_load_duration", "checkpoint_save_duration", "peak_cuda_allocated_bytes", "peak_cuda_reserved_bytes"],
-
-  "test_results": {
-    "full_test_count": 1168,
-    "full_test_result": "OK",
-    "phase6_1_focused_tests": 65,
-    "phase6_1_result": "OK",
-    "cpu_training_smoke": "PASS",
-    "telemetry_invariance": "PASS"
+  "status": {
+    "cpu_smoke": "PASS",
+    "cuda_16_64_matrix": "PASS",
+    "cuda_256_matrix": "BLOCKED",
+    "telemetry_invariance": "PASS",
+    "rng_invariance": "PASS",
+    "baseline_performance": "FAIL",
+    "memory_comparison": "FAIL",
+    "repeat_discovery": "PASS"
   },
-
-  "compatibility_apis_preserved": [
-    "rl.custom_ppo.training_telemetry.TrainingTelemetry (legacy facade)",
-    "cfg.training_events_jsonl_path",
-    "cfg.telemetry_events_jsonl_path (alias)",
-    "TrainingTelemetryMode importable from rl.custom_ppo.telemetry.schemas (re-export)"
+  "blockers": [
+    "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error.",
+    "Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians."
   ],
-
-  "gpu_monitor_status": "disabled_by_default",
-  "off_overhead": "not measured (no pre-Phase-6 baseline)",
-  "basic_overhead": "not measured",
-  "full_overhead": "not measured",
-
-  "unresolved_risks": [
-    "No CUDA training smoke run (no CUDA available in this environment)",
-    "Performance gates defined but no baseline to compare against until first measured run",
-    "benchmark_training_pipeline.py not smoke-tested end-to-end (requires checkpoint)"
-  ],
-
-  "recommended_phase_7_scope": "Latent Diagnostics Refactor and Scientific Metric Hardening (see Phase 7 spec)"
+  "next_actions": [
+    "Investigate current OFF regression against fe0e923 baseline before marking Phase 6.1 COMPLETE.",
+    "Reproduce or mitigate 256-env CUDA unknown-error during PPO update.",
+    "Rerun full 16/64/256 CUDA matrix after the above fixes."
+  ]
 }

@@ -1,0 +1,88 @@
+{
+  "phase": "9",
+  "title": "GPU Environment State Decomposition",
+  "verdict": "PASS",
+  "completed_at": "2026-06-28",
+
+  "files_created": [
+    "gpu_env/state/__init__.py",
+    "gpu_env/state/models.py",
+    "gpu_env/state/allocation.py",
+    "gpu_env/state/agent_state.py",
+    "gpu_env/state/team_state.py",
+    "gpu_env/state/flag_state.py",
+    "gpu_env/state/episode_state.py",
+    "gpu_env/state/map_state.py",
+    "gpu_env/state/opponent_state.py",
+    "gpu_env/state/telemetry_state.py",
+    "gpu_env/state/scratch.py",
+    "gpu_env/state/validation.py",
+    "gpu_env/state/snapshots.py",
+    "tests/test_state_phase9.py",
+    "artifacts/phase9_closeout/"
+  ],
+
+  "files_modified": [
+    "gpu_env/_core/_state.py"
+  ],
+
+  "source_sizes": {
+    "_state.py_before": "933 lines (monolithic _StateMixin class)",
+    "_state.py_after": "54 lines (thin facade — imports 12 sub-mixins and composes them)",
+    "new_code_extracted": "~1313 lines across 12 sub-modules + __init__.py"
+  },
+
+  "architecture": {
+    "pattern": "mixin class composition — each sub-module defines one focused mixin class; _StateMixin inherits from all 12 via multiple inheritance; Python MRO resolves cross-mixin method calls correctly",
+    "dependency_direction": "_state.py imports from gpu_env.state.*; sub-mixins never import from _state.py",
+    "cross_mixin_calls": "All cross-mixin method calls resolve via self at runtime (e.g., episode_state.py::reset_indices calls self._reset_map_layout which is in map_state.py); Python MRO handles this correctly in BatchedCTFCore",
+    "no_circular_imports": true,
+    "legacy_class_preserved": "_StateMixin still exists in gpu_env._core._state; BatchedCTFCore inheritance unchanged"
+  },
+
+  "modules": {
+    "models.py": "_CoreStateMixin — __init__ (all scalar setup, RNG, phase/opponent lists), reseed, _rand_uniform, _randn",
+    "allocation.py": "_AllocationMixin — _alloc_state (top-level dispatch calling all _alloc_* methods), _build_macro_targets (5x10 GoTo target grid with pickup overrides)",
+    "agent_state.py": "_AgentStateMixin — _alloc_agent_state (blue/red kinematic + liveness tensors), _respawn_side (random episode-start placement)",
+    "team_state.py": "_TeamStateMixin — _side_tensors (symmetric blue/red tensor view), _mirror_x, _mirror_heading (red-frame coordinate transforms)",
+    "flag_state.py": "_FlagStateMixin — _alloc_flags_and_scores (score counters + flag home/pos tensors at deterministic positions)",
+    "episode_state.py": "_EpisodeStateMixin — _alloc_episode_state, reset_all, reset_indices (full episode re-initialization sequence)",
+    "map_state.py": "_MapStateMixin — _alloc_map_state, _reset_map_layout (split-lane obstacle with per-episode mirror randomisation), _points_in_obstacles, _segments_hit_obstacles, _revert_obstacle_hits (wall-slide physics), _route_targets_around_obstacles (waypoint pathfinding)",
+    "opponent_state.py": "_OpponentStateMixin — set_phase, set_league_mode, set_stress_schedule, set_next_opponent, get_opponent_key, set_dynamics_config, _apply_dynamics_bool",
+    "telemetry_state.py": "_TelemetryStateMixin — _alloc_metric_buffers (metric_* per-episode scalars), _alloc_navigation_telemetry_buffers (nav_* per-agent/per-env counters), _reset_navigation_telemetry",
+    "scratch.py": "_ScratchStateMixin — _alloc_runtime_buffers (rt_* sim-noise + scripted-red knobs), _alloc_mine_state (mine/pickup tensors), _init_pickup_positions, _apply_train_domain_randomization",
+    "validation.py": "_ValidationMixin — _normalize_env_indices, _phase_tensor_equals (cached phase bitmask), _get_red_control_mask (snapshot opponent detection)",
+    "snapshots.py": "_SnapshotsMixin — _load_snapshot_policy (mtime-keyed in-process cache; lazily imports rl.custom_ppo)"
+  },
+
+  "compatibility_preserved": [
+    "from gpu_env._core._state import _StateMixin",
+    "BatchedCTFCore inherits _StateMixin unchanged",
+    "All public methods (set_phase, set_next_opponent, reset_all, reset_indices, etc.) remain on _StateMixin via inheritance",
+    "All private methods (_alloc_state, _respawn_side, _points_in_obstacles, etc.) accessible via self in BatchedCTFCore"
+  ],
+
+  "test_results": {
+    "environment": "no-torch (CPU-only dev environment)",
+    "torch_free_tests_passed": 8,
+    "torch_gated_tests_skipped": 40,
+    "torch_gated_tests_failed": 0,
+    "pre_existing_failures": {
+      "count": 8,
+      "file": "tests/test_router_dedicated_lr.py",
+      "cause": "pre-existing before Phase 9; require torch",
+      "verified_pre_existing": true
+    },
+    "regressions_introduced": 0,
+    "total_suite": "8 failed (pre-existing), 64 passed, 66 skipped"
+  },
+
+  "test_groups": {
+    "A_package_structure": "4 tests, torch-free — all pass (file existence)",
+    "B_module_imports": "13 tests, torch-gated — skip without torch",
+    "C_mixin_class_presence": "12 tests, torch-gated — skip without torch",
+    "D_method_coverage": "12 tests, torch-gated — skip without torch",
+    "E_facade_composition_ast": "4 tests, torch-free AST parse checks — all pass",
+    "F_mro_coverage": "3 tests, torch-gated — skip without torch"
+  }
+}

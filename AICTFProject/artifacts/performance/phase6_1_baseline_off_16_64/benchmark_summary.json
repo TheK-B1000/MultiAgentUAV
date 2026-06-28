@@ -1,0 +1,48 @@
+{
+  "benchmark_timestamp": 1782623128.3018863,
+  "device": "cuda",
+  "map_layout": "map_b_split_lane",
+  "opponent": "OP9",
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\2v2\\ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1000000.zip",
+  "rollout_steps": 64,
+  "measured_rollouts": 10,
+  "warmup_rollouts": 2,
+  "results": [
+    {
+      "telemetry_mode": "off",
+      "env_count": 16,
+      "rollout": {
+        "median_duration_seconds": 13.974638400000913,
+        "p95_duration_seconds": 14.71167127000117,
+        "median_transitions_per_second": 73.27662597087075,
+        "p95_transitions_per_second": 74.83938005753359
+      },
+      "optimization": {
+        "median_duration_seconds": 0.33854380000229867,
+        "p95_duration_seconds": 0.3447605549985383,
+        "median_samples_per_second": 3024.786533492628,
+        "p95_samples_per_second": 3100.3650933522
+      },
+      "peak_allocated_cuda_bytes": 1648890368,
+      "peak_reserved_cuda_bytes": 2822766592
+    },
+    {
+      "telemetry_mode": "off",
+      "env_count": 64,
+      "rollout": {
+        "median_duration_seconds": 20.4007179500004,
+        "p95_duration_seconds": 20.986094234998564,
+        "median_transitions_per_second": 200.77769530312713,
+        "p95_transitions_per_second": 210.72045980747745
+      },
+      "optimization": {
+        "median_duration_seconds": 0.9349484499998653,
+        "p95_duration_seconds": 0.9403163400018457,
+        "median_samples_per_second": 4381.00024448952,
+        "p95_samples_per_second": 4422.046765918171
+      },
+      "peak_allocated_cuda_bytes": 6274149376,
+      "peak_reserved_cuda_bytes": 7889485824
+    }
+  ]
+}

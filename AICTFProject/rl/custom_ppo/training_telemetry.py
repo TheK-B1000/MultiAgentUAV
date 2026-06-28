@@ -94,7 +94,7 @@ from rl.custom_ppo.telemetry.schemas import (
     TrainingTelemetryMode,
     coerce_telemetry_mode,
 )
-from rl.custom_ppo.telemetry.gpu_monitor import build_gpu_monitor
+from rl.custom_ppo.telemetry.gpu_monitor import NullGPUMonitor, build_gpu_monitor
 from rl.custom_ppo.telemetry.writers.artifact_writer import ArtifactWriter
 from rl.custom_ppo.telemetry.writers.json_writer import JSONLineEventWriter
 
@@ -190,20 +190,20 @@ class TrainingTelemetry:
             run_id=self.run_id,
             telemetry_mode=str(self.telemetry_mode),
         )
-        self.gpu_monitor = build_gpu_monitor(
-            enabled=bool(getattr(cfg, "gpu_monitor_enabled", False)),
-            interval_seconds=float(getattr(cfg, "gpu_monitor_interval_seconds", 1.0) or 1.0),
-        )
-        try:
-            self.gpu_monitor.start()
-        except Exception as e:
-            print(f"[PPO] WARNING: Failed to start GPU monitor: {e}")
-
         self._event_writer = JSONLineEventWriter(events_path) if events_path else None
         if self.telemetry_mode == TrainingTelemetryMode.OFF:
             self.event_sink = NullTelemetrySink()
+            self.gpu_monitor = NullGPUMonitor()
         else:
             self.event_sink = SafeTelemetrySink(self._event_writer) if self._event_writer is not None else NullTelemetrySink()
+            self.gpu_monitor = build_gpu_monitor(
+                enabled=bool(getattr(cfg, "gpu_monitor_enabled", False)),
+                interval_seconds=float(getattr(cfg, "gpu_monitor_interval_seconds", 1.0) or 1.0),
+            )
+            try:
+                self.gpu_monitor.start()
+            except Exception as e:
+                print(f"[PPO] WARNING: Failed to start GPU monitor: {e}")
 
         artifact_dir = str(
             getattr(cfg, "telemetry_artifact_dir", "")
@@ -1218,9 +1218,9 @@ class TrainingTelemetry:
             return None
 
     def emit_training_started(self, *, total_timesteps: int, checkpoint_path: Optional[str] = None) -> None:
-        self._training_started_perf = time.perf_counter()
         if not self.optional_telemetry_enabled():
             return
+        self._training_started_perf = time.perf_counter()
         
         # Calculate preset hash
         preset_hash = None

@@ -1,28 +1,26 @@
-Phase 6.1 Test Discovery Results
-==================================
-Date: 2026-06-27
-Branch: ml-ops
-Command: uv run python -m unittest discover -s tests
+# Phase 6.1 closeout test discovery
 
-Result: OK
-Tests: 1168
-Failures: 0
-Errors: 0
-Runtime: ~107 seconds
+## default
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests
+exit_code: 0
+status: EXIT_0_UNPARSED
+tests_ran: 1244
+unittest_reported_duration_s: 114.15
+wall_duration_s: 119.008
+details: 
+raw_output: artifacts\phase6_1_closeout\repeat_discovery_default.txt
 
-Phase 6.1 focused tests (65):
-  tests.test_telemetry_phase6          - 26 tests  OK
-  tests.test_telemetry_phase6_integration - 2 tests  OK
-  tests.test_telemetry_invariance      - 1 test   OK
-  tests.test_performance_recorder      - 1 test   OK
-  tests.test_training_lifecycle_events - 1 test   OK
-  tests.test_checkpoint_telemetry      - 1 test   OK
-  tests.test_performance_artifacts     - 1 test   OK
-  tests.test_train_ppo_smoke           - 32 tests OK
+## pattern
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests -p test*.py
+exit_code: 0
+status: EXIT_0_UNPARSED
+tests_ran: 1244
+unittest_reported_duration_s: 114.561
+wall_duration_s: 118.93
+details: 
+raw_output: artifacts\phase6_1_closeout\repeat_discovery_pattern.txt
 
-Bugs fixed to reach 1168/1168:
-1. test_checkpoint_telemetry.py: syntax error (space in method name)
-2. json_writer.py: over-broad string safety check blocked CheckpointLoaded events
-3. rl/telemetry_mode.py: new standalone module to break circular import
-4. ppo_config.py: import TrainingTelemetryMode from rl.telemetry_mode instead of rl.custom_ppo.telemetry.schemas
-5. preset_snapshots.json: regenerated (364 entries, was stale)
+## focused checkpoint telemetry
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest tests.test_checkpoint_telemetry
+status: PASS
+tests_ran: 2

@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "source": "telemetry_invariance.json",
+  "checks": {
+    "basic_vs_off": {
+      "final_rng_state_equal": true
+    },
+    "full_vs_off": {
+      "final_rng_state_equal": true
+    }
+  }
+}

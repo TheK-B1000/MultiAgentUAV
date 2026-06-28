@@ -1,0 +1,49 @@
+{
+  "status": "FAIL",
+  "gates": {
+    "allocated": {
+      "pass": "<=3%",
+      "warn": ">3% and <=7%",
+      "fail": ">7%"
+    },
+    "reserved": {
+      "pass": "<=5%",
+      "warn": ">5% and <=10%",
+      "fail": ">10%"
+    }
+  },
+  "rows": [
+    {
+      "env_count": 16,
+      "mode": "basic",
+      "allocated_increase_percent": 3.343,
+      "allocated_gate": "WARN",
+      "reserved_increase_percent": 179.495,
+      "reserved_gate": "FAIL"
+    },
+    {
+      "env_count": 16,
+      "mode": "full",
+      "allocated_increase_percent": 10.146,
+      "allocated_gate": "FAIL",
+      "reserved_increase_percent": 179.643,
+      "reserved_gate": "FAIL"
+    },
+    {
+      "env_count": 64,
+      "mode": "basic",
+      "allocated_increase_percent": 0.882,
+      "allocated_gate": "PASS",
+      "reserved_increase_percent": 0.053,
+      "reserved_gate": "PASS"
+    },
+    {
+      "env_count": 64,
+      "mode": "full",
+      "allocated_increase_percent": 2.67,
+      "allocated_gate": "PASS",
+      "reserved_increase_percent": 0.133,
+      "reserved_gate": "PASS"
+    }
+  ]
+}

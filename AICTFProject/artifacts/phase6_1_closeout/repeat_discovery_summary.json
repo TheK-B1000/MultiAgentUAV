@@ -1,0 +1,30 @@
+[
+    {
+        "name":  "default",
+        "command":  "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest discover -s tests",
+        "exit_code":  0,
+        "tests_ran":  1244,
+        "unittest_reported_duration_s":  114.15,
+        "wall_duration_s":  119.008,
+        "status":  "EXIT_0_UNPARSED",
+        "details":  "",
+        "error_headers":  [
+
+                          ],
+        "raw_output":  "artifacts\\phase6_1_closeout\\repeat_discovery_default.txt"
+    },
+    {
+        "name":  "pattern",
+        "command":  "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest discover -s tests -p test*.py",
+        "exit_code":  0,
+        "tests_ran":  1244,
+        "unittest_reported_duration_s":  114.561,
+        "wall_duration_s":  118.93,
+        "status":  "EXIT_0_UNPARSED",
+        "details":  "",
+        "error_headers":  [
+
+                          ],
+        "raw_output":  "artifacts\\phase6_1_closeout\\repeat_discovery_pattern.txt"
+    }
+]

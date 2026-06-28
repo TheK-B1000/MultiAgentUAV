@@ -87,7 +87,7 @@ def parse_test_summary(text: str) -> dict[str, Any]:
     result["python312_default_pass"] = (
         "discover -s tests" in text
         and "status: PASS" in text
-        and "canonical_current_count: 1168" in text
+        and "canonical_current_count: 1244" in text
     )
     result["uv_trustworthy"] = "FAIL_TOOLING" not in text and "FAIL_ENVIRONMENT" not in text
     result["pattern_discovery_pass"] = (
@@ -321,6 +321,7 @@ def build_records(root: Path, out: Path) -> tuple[list[PhaseRecord], dict[str, A
         r.performance_evidence.append(f"performance gates: {phase61_report.get('track_status', {}).get('track_n_performance_gates')}")
         r.performance_evidence.append(f"gpu monitor: {phase61_report.get('gpu_monitor_status')}")
         r.blockers.extend(phase61_report.get("unresolved_risks", []))
+        r.blockers.extend(phase61_report.get("blockers", []))
     add_common_test_evidence(r, test_summary)
     r.next_actions.append("Capture pre-Phase-6 OFF baseline, CUDA smoke/matrix, and benchmark tool run before declaring COMPLETE.")
     remember(r)
@@ -514,7 +515,7 @@ def write_test_count_history(root: Path, out: Path, baseline_worktree: str | Non
     log_matches = run_git(root, ["log", "--all", "--oneline", "--decorate", "--grep=Phase 4", "--grep=preset", "--grep=refactor"])
     data = {
         "known_reported_counts": [1133, 1157, 1161, 1268],
-        "current_reliable_count": 1168,
+        "current_reliable_count": 1244,
         "current_reliable_command": r"C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests",
         "phase4_completion_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
         "phase4_commit_identification": "CANDIDATE_VERIFIED_BY_COMMIT_SCOPE",
@@ -534,7 +535,7 @@ def write_test_count_history(root: Path, out: Path, baseline_worktree: str | Non
         },
         "git_log_probe": log_matches,
         "baseline_worktree": baseline_worktree,
-        "decision": "Phase 4 candidate discovers 1133 tests under the repo-equipped Python 3.12 environment, not 1268. Treat 1268 as unverified historical data unless another exact commit/log artifact is produced.",
+        "decision": "Phase 4 candidate discovers 1133 tests under the repo-equipped Python 3.12 environment, not 1268. Current checkout discovers 1244 tests after Phase 6.1 closeout work. Treat 1268 as unverified historical data unless another exact commit/log artifact is produced.",
     }
     (out / "test_count_history.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
 

@@ -2,10 +2,10 @@
 
 Commit: `751f207583e34c6c7142b9b8a6a1b29d6b7d18cf`
 Branch: `ml-ops`
-Implemented coverage: 11/14 (78.6%)
+Implemented coverage: 9/14 (64.3%)
 Fully closed coverage: 0/14 (0.0%)
-Canonical current test count: 1168
-Canonical current test status: DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON_SECOND_RUN
+Canonical current test count: 1244
+Canonical current test status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
 
 | Phase | Implementation | Tests | Equivalence | Performance | Artifacts | Final Status |
 |---|---:|---:|---:|---:|---:|---|
@@ -17,9 +17,9 @@ Canonical current test status: DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON
 | Phase 5 | PASS | PASS | PENDING | PENDING | PASS | BLOCKED |
 | Phase 5.1 | PASS | PASS | PENDING | PENDING | PASS | BLOCKED |
 | Phase 6 | PASS | PASS | NONE | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
-| Phase 6.1 | PASS | PASS | PASS | PENDING | PASS | IMPLEMENTED_NOT_CLOSED |
-| Phase 7 | PASS | PASS | PASS | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
-| Phase 8 | PASS | PASS | PASS | NONE | PASS | IMPLEMENTED_NOT_CLOSED |
+| Phase 6.1 | PASS | PASS | PASS | PASS | PASS | IMPLEMENTED_NOT_CLOSED |
+| Phase 7 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
+| Phase 8 | PASS | NONE | NONE | NONE | NONE | PARTIAL |
 | Phase 9 | PASS | NONE | NONE | NONE | NONE | NOT_STARTED |
 | Phase 10 | PASS | NONE | NONE | NONE | NONE | NOT_STARTED |
 | Final | NONE | NONE | NONE | NONE | NONE | NOT_STARTED |
@@ -32,59 +32,50 @@ Canonical current test status: DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON
 - equivalence_evidence: 1
 - performance_evidence: 0
 - artifact_evidence: 0
-- blockers:
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Add or locate Phase 1 closeout artifact proving wrapper/model get_distribution gradient path and typed ERROR cases.
 
 ### Phase 1.5: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 3
-- test_evidence: 3
+- test_evidence: 2
 - equivalence_evidence: 1
 - performance_evidence: 0
 - artifact_evidence: 1
-- blockers:
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Promote distribution/probe contract evidence into a Phase 1.5 closeout artifact.
 
 ### Phase 1.6: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 5
-- test_evidence: 2
+- test_evidence: 1
 - equivalence_evidence: 0
 - performance_evidence: 1
 - artifact_evidence: 5
-- blockers:
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Run/update exact telemetry overhead benchmark and OFF/BASIC/FULL behavior evidence.
 
 ### Phase 3: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 3
-- test_evidence: 8
+- test_evidence: 7
 - equivalence_evidence: 1
 - performance_evidence: 0
 - artifact_evidence: 0
-- blockers:
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Add Phase 3 closeout proving native 7/8 channel, migrated 7-to-8, CPU/CUDA smoke, and behavioral equivalence.
 
 ### Phase 4: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 5
-- test_evidence: 4
+- test_evidence: 3
 - equivalence_evidence: 1
 - performance_evidence: 0
 - artifact_evidence: 1
 - blockers:
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
   - Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report.
 - next_actions:
   - Produce Phase 4 closeout tying registry/CLI/resolved-artifact/hash evidence to current commit.
 
 ### Phase 5: BLOCKED
 - implementation_evidence: 3
-- test_evidence: 5
+- test_evidence: 4
 - equivalence_evidence: 3
 - performance_evidence: 2
 - artifact_evidence: 10
@@ -95,13 +86,12 @@ Canonical current test status: DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON
   - Track D throughput comparison not run against pre-Phase-5 baseline.
   - Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.
   - Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested.
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Close golden/stochastic rollout, reward/buffer/GAE, throughput, and CUDA memory evidence against a pre-Phase-5 worktree.
 
 ### Phase 5.1: BLOCKED
 - implementation_evidence: 2
-- test_evidence: 4
+- test_evidence: 3
 - equivalence_evidence: 2
 - performance_evidence: 1
 - artifact_evidence: 10
@@ -112,73 +102,51 @@ Canonical current test status: DEFAULT_DISCOVERY_PASS_PATTERN_DISCOVERY_FAILS_ON
   - Track D throughput comparison not run against pre-Phase-5 baseline.
   - Track E CUDA peak-memory comparison not run against pre-Phase-5 baseline.
   - Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested.
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Keep distribution repair accepted, but finish rollout closeout proof tracks.
 
 ### Phase 6: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 6
-- test_evidence: 5
+- test_evidence: 4
 - equivalence_evidence: 0
 - performance_evidence: 0
 - artifact_evidence: 1
-- blockers:
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
 - next_actions:
   - Add standalone Phase 6 foundation closeout tying schema/sink compatibility and legacy CSV preservation to current test evidence.
 
 ### Phase 6.1: IMPLEMENTED_NOT_CLOSED
 - implementation_evidence: 8
-- test_evidence: 8
+- test_evidence: 7
 - equivalence_evidence: 2
 - performance_evidence: 2
-- artifact_evidence: 2
+- artifact_evidence: 13
 - blockers:
-  - No CUDA training smoke run (no CUDA available in this environment)
-  - Performance gates defined but no baseline to compare against until first measured run
-  - benchmark_training_pipeline.py not smoke-tested end-to-end (requires checkpoint)
-  - Requested pattern discovery did not pass cleanly in the captured audit baseline.
+  - Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error.
+  - Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians.
 - next_actions:
   - Capture pre-Phase-6 OFF baseline, CUDA smoke/matrix, and benchmark tool run before declaring COMPLETE.
 
-### Phase 7: IMPLEMENTED_NOT_CLOSED
-- implementation_evidence: 11
-- test_evidence: 8
-- equivalence_evidence: 2
+### Phase 7: PARTIAL
+- implementation_evidence: 5
+- test_evidence: 0
+- equivalence_evidence: 0
 - performance_evidence: 0
-- artifact_evidence: 1
+- artifact_evidence: 0
 - blockers:
-  - No CUDA environment available in this session to run torch-gated behavioral tests.
+  - Missing decomposed diagnostics modules: []
 - next_actions:
-  - Run full test suite with torch to confirm 1198/1198 pass (verified in prior session).
+  - Implement latent diagnostics package after Phase 6.1 closeout evidence is closed.
 
-### Phase 8: IMPLEMENTED_NOT_CLOSED
-- implementation_evidence: 11
-- test_evidence: 19
-- equivalence_evidence: 7
+### Phase 8: PARTIAL
+- implementation_evidence: 9
+- test_evidence: 0
+- equivalence_evidence: 0
 - performance_evidence: 0
-- artifact_evidence: 1
-- completed_at: "2026-06-28"
-- files_created:
-  - rl/training/errors.py
-  - rl/training/run_context.py
-  - rl/training/resolved_config.py
-  - rl/training/lifecycle.py
-  - rl/training/factories.py
-  - rl/training/initialization.py
-  - rl/training/arguments.py
-  - rl/training/overrides.py
-  - rl/training/orchestrator.py
-  - tests/test_training_phase8.py
-- files_modified:
-  - rl/training/cli.py (1077 → 58 lines, thin facade)
-  - rl/train_ppo.py (469 → 186 lines, thin facade + diagnostic helpers)
-- test_results: "19 passed, 26 skipped (torch-gated), 0 failed in no-torch env; 8 pre-existing failures in test_router_dedicated_lr.py (pre-Phase-8)"
+- artifact_evidence: 0
 - blockers:
-  - 26 torch-gated behavioral tests need torch environment to confirm PASS.
+  - Missing orchestration modules: []
 - next_actions:
-  - Run full test suite with torch to activate all 45 Phase 8 tests.
-  - Proceed to Phase 9: GPU Environment State Decomposition.
+  - Decompose training CLI/orchestration only after Phase 7 gate.
 
 ### Phase 9: NOT_STARTED
 - implementation_evidence: 1

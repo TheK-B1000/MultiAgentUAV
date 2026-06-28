@@ -1,25 +1,5 @@
 [
   {
-    "phase": "Phase 1",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
-    "phase": "Phase 1.5",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
-    "phase": "Phase 1.6",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
-    "phase": "Phase 3",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
-    "phase": "Phase 4",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
     "phase": "Phase 4",
     "blocker": "Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report."
   },
@@ -48,10 +28,6 @@
     "blocker": "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
   },
   {
-    "phase": "Phase 5",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
     "phase": "Phase 5.1",
     "blocker": "Track A current test count is 1157, below Phase 4 recorded 1268, with no complete module-level explanation for the delta."
   },
@@ -76,36 +52,20 @@
     "blocker": "Track F live obstacle probes across the required checkpoint matrix were not rerun, although the distribution runtime contract is repaired and tested."
   },
   {
-    "phase": "Phase 5.1",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
-  },
-  {
-    "phase": "Phase 6",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+    "phase": "Phase 6.1",
+    "blocker": "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error."
   },
   {
     "phase": "Phase 6.1",
-    "blocker": "No CUDA training smoke run (no CUDA available in this environment)"
-  },
-  {
-    "phase": "Phase 6.1",
-    "blocker": "Performance gates defined but no baseline to compare against until first measured run"
-  },
-  {
-    "phase": "Phase 6.1",
-    "blocker": "benchmark_training_pipeline.py not smoke-tested end-to-end (requires checkpoint)"
-  },
-  {
-    "phase": "Phase 6.1",
-    "blocker": "Requested pattern discovery did not pass cleanly in the captured audit baseline."
+    "blocker": "Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians."
   },
   {
     "phase": "Phase 7",
-    "blocker": "Missing decomposed diagnostics modules: ['rl/custom_ppo/diagnostics/occupancy.py', 'rl/custom_ppo/diagnostics/entropy.py', 'rl/custom_ppo/diagnostics/counterfactual.py', 'rl/custom_ppo/diagnostics/schemas.py']"
+    "blocker": "Missing decomposed diagnostics modules: []"
   },
   {
     "phase": "Phase 8",
-    "blocker": "Missing orchestration modules: ['rl/training/arguments.py', 'rl/training/overrides.py', 'rl/training/resolved_config.py', 'rl/training/run_context.py', 'rl/training/initialization.py', 'rl/training/factories.py', 'rl/training/orchestrator.py', 'rl/training/lifecycle.py', 'rl/training/errors.py']"
+    "blocker": "Missing orchestration modules: []"
   },
   {
     "phase": "Phase 9",

@@ -5,7 +5,7 @@
     1161,
     1268
   ],
-  "current_reliable_count": 1168,
+  "current_reliable_count": 1244,
   "current_reliable_command": "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest discover -s tests",
   "phase4_completion_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
   "phase4_commit_identification": "CANDIDATE_VERIFIED_BY_COMMIT_SCOPE",
@@ -25,5 +25,5 @@
   },
   "git_log_probe": "fe0e923 preset and experiment-configuration consolidation\n4fefe0a phase 1 of new refactor\n838b99c Update config_presets.py\nbc46b2b Update config_presets.py\n09bf32d Fix v6i2 strong CF preset ceiling\ne600286 episode credit refactor\n16ad14c Major refactor for latent strategy state file\nec2a470 curriculum and ppo_updater massive refactor\na5c418e refactoring\nf68f416 feat(rl): add tuned v3i14 tactical specialist preset\n5308ea4 Implemented the recorder wiring around the current refactored trainer path\nb35c410 Create _preflight_resolve_presets.py\nd24b7f7 fully finished refactor\n97d2005 refactor train_ppo\ne6df7cc finish large code refactor\nf933849 refactor trainer\n74e820d Fix circular import on preset packages, add snapshot generation CLI tool, and update testing suite\n5dfc6c3 SOLID refactor of GameManager and decouple PPO presets into separate rl/presets package with snapshot regression tests\nad717df Wire Staged Latent Strategy Routing (SLSR) pipeline\n415e445 (tag: plan_faithful_a1_post) preset(wrmax): plan-faithful latent (episode z, lam_p/lam_H, no Q-head)\n4a0ff6d phase 4 refactor\n314c4be phase 2 refactor\na02673c phase 1 gamefield refactor\na852f97 Implemented the diagnostics you listed and refactor game_manager\n4c11506 refactor qmix and mappo\na242b08 aquaticus refactor",
   "baseline_worktree": null,
-  "decision": "Phase 4 candidate discovers 1133 tests under the repo-equipped Python 3.12 environment, not 1268. Treat 1268 as unverified historical data unless another exact commit/log artifact is produced."
+  "decision": "Phase 4 candidate discovers 1133 tests under the repo-equipped Python 3.12 environment, not 1268. Current checkout discovers 1244 tests after Phase 6.1 closeout work. Treat 1268 as unverified historical data unless another exact commit/log artifact is produced."
 }
