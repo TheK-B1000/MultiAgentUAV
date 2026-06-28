@@ -11,7 +11,7 @@
     "artifacts/phase10_baseline/function_inventory.json",
     "artifacts/phase10_baseline/caller_inventory.json"
   ],
-  "slice": "config/loading/preflight wired into monolith",
+  "slice": "config/loading/preflight/probes/episode/matched-seed/aggregation/gates/artifact-writer wired into monolith",
   "phase": "Phase 10",
   "status": "PARTIAL",
   "notes": [
@@ -25,21 +25,28 @@
       "config_from_namespace",
       "read_checkpoint_dimensions",
       "load_evaluation_policy",
-      "preflight_distribution_contract"
+      "preflight_distribution_contract",
+      "obstacle probes",
+      "episode_runner",
+      "matched_seed_evaluation",
+      "aggregate_conditions",
+      "build_summary gates/verdict",
+      "write_csv/report_text"
     ],
     "not_rewired": [
-      "probes",
-      "episode_runner",
-      "matched_seed",
-      "aggregation",
-      "gates",
-      "artifact_writer"
+      "manifest lifecycle",
+      "orchestrator module"
     ]
   },
   "equivalence": {
     "baseline_dir": "artifacts/phase10_baseline",
-    "candidate_dir": "artifacts/phase10_equivalence_config_loading_preflight",
-    "report": "artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.json",
+    "reports": [
+      "artifacts/phase10_equivalence_config_loading_preflight/equivalence_report.json",
+      "artifacts/phase10_equivalence_obstacle_probes/equivalence_report.json",
+      "artifacts/phase10_equivalence_episode_matched_seed/equivalence_report.json",
+      "artifacts/phase10_equivalence_aggregation_gates/equivalence_report.json",
+      "artifacts/phase10_equivalence_artifact_writer/equivalence_report.json"
+    ],
     "equivalent": true
   }
 }

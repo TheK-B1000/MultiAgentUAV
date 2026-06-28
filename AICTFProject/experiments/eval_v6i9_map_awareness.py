@@ -61,6 +61,32 @@ from rl.evaluation.preflight import (
     preflight_distribution_contract as evaluation_preflight_distribution_contract,
     validate_distribution_contract as evaluation_validate_distribution_contract,
 )
+from rl.evaluation.probes import (
+    ObstacleProbeRuntime,
+    gradient_probe as evaluation_gradient_probe,
+    inspect_obstacle_weights as evaluation_inspect_obstacle_weights,
+    obstacle_counterfactual as evaluation_obstacle_counterfactual,
+)
+from rl.evaluation.episode_runner import (
+    EpisodeRunnerRuntime,
+    run_episode as evaluation_run_episode,
+)
+from rl.evaluation.matched_seed import (
+    matched_seed_evaluation as evaluation_matched_seed_evaluation,
+)
+from rl.evaluation.orchestrator import (
+    EvaluationRuntime,
+    run_evaluation,
+)
+from rl.evaluation.aggregation import (
+    NUMERIC_FIELDS,
+    aggregate_conditions as evaluation_aggregate_conditions,
+)
+from rl.evaluation.gates import build_summary as evaluation_build_summary
+from rl.evaluation.artifact_writer import (
+    report_text as evaluation_report_text,
+    write_csv as evaluation_write_csv,
+)
 
 
 SUPPORTED_OPPONENTS = frozenset({"OP8", "OP9", "OP10"})
@@ -1009,35 +1035,27 @@ def _preflight_opponents(
             env.close()
 
 
+def _obstacle_probe_runtime() -> ObstacleProbeRuntime:
+    return ObstacleProbeRuntime(
+        make_env=_make_env,
+        model=_model,
+        policy_device=_policy_device,
+        reset_obs=_reset_obs,
+        set_opponent=_set_opponent,
+        to_torch=_to_torch,
+        zero_obstacle_channel=_zero_obstacle_channel,
+        head_argmax_change_rate=_head_argmax_change_rate,
+        predict=_predict,
+        unpack_step=_unpack_step,
+        done=_done,
+    )
+
+
 def inspect_obstacle_weights(policy: Any) -> WeightProbeResult:
     """Return typed weight inspection result via the public diagnostics contract."""
-    weight = _model(policy).get_observation_encoder_input_weights()
-    channels = int(weight.shape[1])
-
-    if channels < 8:
-        return WeightProbeResult(
-            status=PROBE_SUCCESS,
-            has_obstacle_channel=False,
-            cnn_channels=channels,
-        )
-
-    obstacle_weights = weight[:, 7].detach()
-    return WeightProbeResult(
-        status=PROBE_SUCCESS,
-        has_obstacle_channel=True,
-        cnn_channels=channels,
-        obstacle_weight_l2=float(
-            torch.linalg.vector_norm(obstacle_weights).item()
-        ),
-        obstacle_weight_abs_mean=float(
-            obstacle_weights.abs().mean().item()
-        ),
-        obstacle_weight_abs_max=float(
-            obstacle_weights.abs().max().item()
-        ),
-        obstacle_weight_nonzero_fraction=float(
-            (obstacle_weights.abs() > 0).float().mean().item()
-        ),
+    return evaluation_inspect_obstacle_weights(
+        policy,
+        runtime=_obstacle_probe_runtime(),
     )
 
 
@@ -1049,74 +1067,15 @@ def gradient_probe(
     opponent: str,
     n_agents: int,
 ) -> GradientProbeResult:
-    """Measure gradient flow through CNN channel 7 via the public contract.
-
-    Uses ``model.get_distribution(obs, z_idx=zeros)`` with an explicit z=0
-    rather than duck-typed method discovery.  Returns a typed result — metric
-    fields are ``None`` (not zero) when the probe fails.
-    """
-    env = _make_env(
-        n_agents=n_agents,
-        map_name=map_name,
+    """Measure gradient flow through CNN channel 7 via the public contract."""
+    return evaluation_gradient_probe(
+        policy,
+        runtime=_obstacle_probe_runtime(),
         device=device,
-        seed=4242,
-        max_steps=64,
-        instrumented=False,
+        map_name=map_name,
+        opponent=opponent,
+        n_agents=n_agents,
     )
-    model = _model(policy)
-    was_training = model.training
-    model.train()
-    model.zero_grad(set_to_none=True)
-
-    try:
-        _set_opponent(env, opponent)
-        obs = _reset_obs(env.reset())
-        obs_t = _to_torch(obs, _policy_device(policy, device))
-
-        batch = int(obs_t["grid"].shape[0])
-        # Explicit z=0 — probe evaluates obstacle sensitivity at a fixed latent.
-        z_probe = torch.zeros(batch, dtype=torch.long, device=obs_t["grid"].device)
-        dist = model.get_distribution(obs_t, z_idx=z_probe)
-
-        diagnostic_loss = sum(
-            head.logits.softmax(dim=-1).square().mean()
-            for head in dist.heads
-        )
-        diagnostic_loss.backward()
-
-        weight = model.get_observation_encoder_input_weights()
-        if int(weight.shape[1]) < 8:
-            return GradientProbeResult(
-                status=PROBE_ERROR,
-                error="Candidate policy has fewer than 8 CNN input channels.",
-            )
-
-        if weight.grad is None:
-            return GradientProbeResult(
-                status=PROBE_ERROR,
-                error="First CNN convolution gradient is None after backward().",
-            )
-
-        obstacle_gradient = weight.grad[:, 7]
-        return GradientProbeResult(
-            status=PROBE_SUCCESS,
-            obstacle_gradient_l2=float(
-                torch.linalg.vector_norm(obstacle_gradient).item()
-            ),
-            obstacle_gradient_abs_mean=float(
-                obstacle_gradient.abs().mean().item()
-            ),
-            diagnostic_loss=float(diagnostic_loss.detach().cpu().item()),
-        )
-    except Exception as exc:
-        return GradientProbeResult(
-            status=PROBE_ERROR,
-            error=f"{type(exc).__name__}: {exc}",
-        )
-    finally:
-        model.zero_grad(set_to_none=True)
-        model.train(was_training)
-        env.close()
 
 
 def obstacle_counterfactual(
@@ -1128,107 +1087,16 @@ def obstacle_counterfactual(
     n_agents: int,
     steps: int,
 ) -> CounterfactualProbeResult:
-    """Compare real vs. zeroed-obstacle-channel distributions via the public contract.
-
-    Uses ``model.get_distribution(obs, z_idx=zeros)`` with an explicit z=0.
-    Returns a typed result — metric fields are ``None`` (not zero) when the
-    probe fails, preventing silent conversion of exceptions into measurements.
-    """
-    env = _make_env(
-        n_agents=n_agents,
-        map_name=map_name,
+    """Compare real vs. zeroed-obstacle-channel distributions via the public contract."""
+    return evaluation_obstacle_counterfactual(
+        policy,
+        runtime=_obstacle_probe_runtime(),
         device=device,
-        seed=4343,
-        max_steps=max(steps + 8, 64),
-        instrumented=False,
+        map_name=map_name,
+        opponent=opponent,
+        n_agents=n_agents,
+        steps=steps,
     )
-    model = _model(policy)
-    was_training = model.training
-    model.eval()
-
-    kls: list[float] = []
-    l2_values: list[float] = []
-    change_rates: list[float] = []
-    tensor_key: str | None = None
-
-    try:
-        _set_opponent(env, opponent)
-        obs = _reset_obs(env.reset())
-
-        for _ in range(steps):
-            obs_t = _to_torch(obs, _policy_device(policy, device))
-            zero_t, tensor_key = _zero_obstacle_channel(obs_t)
-
-            batch = int(obs_t["grid"].shape[0])
-            # Explicit z=0 — probe evaluates at a fixed latent for both sides.
-            z_probe = torch.zeros(
-                batch, dtype=torch.long, device=obs_t["grid"].device
-            )
-
-            with torch.no_grad():
-                real_dist = model.get_distribution(obs_t, z_idx=z_probe)
-                zero_dist = model.get_distribution(zero_t, z_idx=z_probe)
-
-            if len(real_dist.heads) != len(zero_dist.heads):
-                raise RuntimeError(
-                    "Distribution head count changed during the obstacle counterfactual."
-                )
-
-            per_head_kl = []
-            per_head_l2 = []
-
-            for real_head, zero_head in zip(real_dist.heads, zero_dist.heads):
-                real_lp = real_head.logits.log_softmax(dim=-1)
-                zero_lp = zero_head.logits.log_softmax(dim=-1)
-                per_head_kl.append(
-                    (real_lp.exp() * (real_lp - zero_lp)).sum(dim=-1).mean()
-                )
-                per_head_l2.append(
-                    torch.linalg.vector_norm(
-                        real_head.logits - zero_head.logits, dim=-1
-                    ).mean()
-                )
-
-            kls.append(
-                float(torch.stack(per_head_kl).mean().detach().cpu().item())
-            )
-            l2_values.append(
-                float(torch.stack(per_head_l2).mean().detach().cpu().item())
-            )
-            change_rates.append(
-                _head_argmax_change_rate(
-                    [h.logits for h in real_dist.heads],
-                    [h.logits for h in zero_dist.heads],
-                )
-            )
-
-            action = _predict(policy, obs)
-            obs, _, done, _ = _unpack_step(env.step(action))
-            if _done(done):
-                break
-
-        if not kls:
-            raise RuntimeError("No counterfactual states were evaluated.")
-
-        return CounterfactualProbeResult(
-            status=PROBE_SUCCESS,
-            states_evaluated=len(kls),
-            observation_tensor=tensor_key,
-            mean_action_kl=float(np.mean(kls)),
-            max_action_kl=float(np.max(kls)),
-            mean_logit_l2=float(np.mean(l2_values)),
-            max_logit_l2=float(np.max(l2_values)),
-            argmax_action_change_rate=float(np.mean(change_rates)),
-        )
-    except Exception as exc:
-        return CounterfactualProbeResult(
-            status=PROBE_ERROR,
-            states_evaluated=len(kls),
-            error=f"{type(exc).__name__}: {exc}",
-        )
-    finally:
-        model.train(was_training)
-        env.close()
 
 
 def _scores(
@@ -1259,6 +1127,23 @@ def _scores(
     return blue_score, red_score
 
 
+def _episode_runner_runtime() -> EpisodeRunnerRuntime:
+    return EpisodeRunnerRuntime(
+        adapt_obs_for_policy=_adapt_obs_for_policy,
+        done=_done,
+        first_info=_first_info,
+        get_opponent_key=_get_opponent_key,
+        make_env=_make_env,
+        model=_model,
+        predict=_predict,
+        reset_obs=_reset_obs,
+        scores=_scores,
+        set_opponent=_set_opponent,
+        unpack_step=_unpack_step,
+        validate_opponent_name=_validate_opponent_name,
+    )
+
+
 def run_episode(
     *,
     policy: Any,
@@ -1270,86 +1155,17 @@ def run_episode(
     n_agents: int,
     max_steps: int,
 ) -> dict[str, Any]:
-    requested_opponent = _validate_opponent_name(opponent)
-
-    env = _make_env(
-        n_agents=n_agents,
+    return evaluation_run_episode(
+        runtime=_episode_runner_runtime(),
+        policy=policy,
+        policy_name=policy_name,
         map_name=map_name,
-        device=device,
+        opponent=opponent,
         seed=seed,
+        device=device,
+        n_agents=n_agents,
         max_steps=max_steps,
-        instrumented=True,
     )
-    assert isinstance(env, InstrumentedEnv)
-
-    model = _model(policy)
-    was_training = model.training
-    model.eval()
-
-    try:
-        resolved_before_reset = _set_opponent(
-            env,
-            requested_opponent,
-        )
-        obs = _reset_obs(env.reset())
-        resolved_after_reset = _get_opponent_key(env)
-
-        if resolved_after_reset != requested_opponent:
-            raise RuntimeError(
-                f"Opponent changed during reset: requested="
-                f"{requested_opponent}, before_reset="
-                f"{resolved_before_reset}, after_reset="
-                f"{resolved_after_reset}."
-            )
-
-        last_info: Any = {}
-        terminated = False
-
-        for _ in range(max_steps + 8):
-            policy_obs = _adapt_obs_for_policy(
-                obs,
-                policy,
-            )
-            action = _predict(policy, policy_obs)
-
-            obs, _, done, infos = _unpack_step(
-                env.step(action)
-            )
-            last_info = _first_info(infos)
-
-            if _done(done):
-                terminated = True
-                break
-
-        if not terminated:
-            raise RuntimeError(
-                f"Episode did not terminate within "
-                f"{max_steps + 8} evaluator steps."
-            )
-
-        blue_score, red_score = _scores(
-            env,
-            last_info,
-        )
-
-        return {
-            "policy": policy_name,
-            "map": map_name,
-            "requested_opponent": requested_opponent,
-            "resolved_opponent": resolved_after_reset,
-            "opponent": resolved_after_reset,
-            "seed": seed,
-            "blue_score": blue_score,
-            "red_score": red_score,
-            "win": int(blue_score > red_score),
-            "loss": int(blue_score < red_score),
-            "draw": int(blue_score == red_score),
-            "score_margin": blue_score - red_score,
-            **env.metrics(last_info),
-        }
-    finally:
-        model.train(was_training)
-        env.close()
 
 
 def matched_seed_evaluation(
@@ -1358,319 +1174,20 @@ def matched_seed_evaluation(
     candidate_policy: Any,
     n_agents: int,
 ) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    policies = (
-        (baseline_policy, "baseline"),
-        (candidate_policy, "candidate"),
+    return evaluation_matched_seed_evaluation(
+        args,
+        baseline_policy,
+        candidate_policy,
+        n_agents,
+        run_episode_fn=run_episode,
+        validate_opponent_name=_validate_opponent_name,
     )
-
-    total = (
-        len(args.maps)
-        * len(args.opponents)
-        * args.episodes
-        * len(policies)
-    )
-    completed = 0
-
-    for map_name in args.maps:
-        for opponent in args.opponents:
-            requested = _validate_opponent_name(opponent)
-
-            for episode_index in range(args.episodes):
-                seed = args.seed_start + episode_index
-
-                for policy, policy_name in policies:
-                    row = run_episode(
-                        policy=policy,
-                        policy_name=policy_name,
-                        map_name=map_name,
-                        opponent=requested,
-                        seed=seed,
-                        device=args.device,
-                        n_agents=n_agents,
-                        max_steps=args.max_decision_steps,
-                    )
-                    rows.append(row)
-                    completed += 1
-
-                    print(
-                        f"[eval] {completed:>4}/{total} "
-                        f"policy={policy_name:9s} "
-                        f"map={map_name:24s} "
-                        f"requested={requested} "
-                        f"resolved={row['resolved_opponent']} "
-                        f"seed={seed} "
-                        f"score={row['blue_score']:.0f}:"
-                        f"{row['red_score']:.0f}"
-                    )
-
-    return rows
-
-
-NUMERIC_FIELDS = (
-    "blue_score",
-    "red_score",
-    "win",
-    "loss",
-    "draw",
-    "score_margin",
-    "wall_collisions",
-    "blocked_movement_events",
-    "stuck_steps",
-    "repeated_blocked_movement",
-    "upper_lane_use",
-    "lower_lane_use",
-    "neutral_lane_use",
-    "route_switches",
-    "movement_attempts",
-    "successful_movement_steps",
-    "obstacle_collisions_per_1000_steps",
-    "blocked_movements_per_1000_movement_attempts",
-    "stuck_steps_per_1000_steps",
-    "successful_movement_rate",
-    "upper_lane_fraction",
-    "lower_lane_fraction",
-    "route_switches_per_episode",
-    "episode_steps",
-)
-
-
-def _mean(values: Iterable[Any]) -> float | None:
-    numbers: list[float] = []
-
-    for value in values:
-        if value is None or value == "":
-            continue
-
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            continue
-
-        if math.isfinite(number):
-            numbers.append(number)
-
-    if not numbers:
-        return None
-
-    return float(np.mean(numbers))
 
 
 def aggregate_conditions(
     rows: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    grouped: dict[
-        tuple[str, str, str],
-        list[Mapping[str, Any]],
-    ] = defaultdict(list)
-
-    for row in rows:
-        grouped[
-            (
-                str(row["policy"]),
-                str(row["map"]),
-                str(row["resolved_opponent"]),
-            )
-        ].append(row)
-
-    output: list[dict[str, Any]] = []
-
-    for (
-        policy,
-        map_name,
-        opponent,
-    ), group in sorted(grouped.items()):
-        aggregate: dict[str, Any] = {
-            "policy": policy,
-            "map": map_name,
-            "requested_opponent": opponent,
-            "resolved_opponent": opponent,
-            "opponent": opponent,
-            "episodes": len(group),
-        }
-
-        for field in NUMERIC_FIELDS:
-            aggregate[field] = _mean(
-                item.get(field) for item in group
-            )
-
-        for source_field in (
-            "collision_metric_source",
-            "stuck_metric_source",
-            "route_metric_source",
-        ):
-            values = sorted({str(item.get(source_field, "unavailable")) for item in group})
-            aggregate[source_field] = values[0] if len(values) == 1 else "mixed"
-
-        upper = aggregate.get("upper_lane_use") or 0.0
-        lower = aggregate.get("lower_lane_use") or 0.0
-        neutral = aggregate.get("neutral_lane_use") or 0.0
-        crossings = upper + lower
-
-        aggregate["route_crossings"] = crossings
-        lane_total = upper + lower + neutral
-        aggregate["upper_lane_fraction"] = (
-            upper / lane_total
-            if lane_total > 0
-            else None
-        )
-        aggregate["lower_lane_fraction"] = lower / lane_total if lane_total > 0 else None
-
-        output.append(aggregate)
-
-    return output
-
-
-def _policy_rows(
-    rows: Sequence[Mapping[str, Any]],
-    policy_name: str,
-    obstacle_maps_only: bool = False,
-) -> list[Mapping[str, Any]]:
-    selected = [
-        row
-        for row in rows
-        if row.get("policy") == policy_name
-    ]
-
-    if obstacle_maps_only:
-        selected = [
-            row
-            for row in selected
-            if "open" not in str(
-                row.get("map", "")
-            ).lower()
-        ]
-
-    return selected
-
-
-def _field_mean(
-    rows: Sequence[Mapping[str, Any]],
-    field: str,
-) -> float | None:
-    return _mean(row.get(field) for row in rows)
-
-
-def _improvement_gate(
-    baseline: float | None,
-    candidate: float | None,
-    minimum_reduction: float,
-) -> tuple[str, dict[str, Any]]:
-    details: dict[str, Any] = {
-        "baseline_mean": baseline,
-        "candidate_mean": candidate,
-        "minimum_reduction_fraction": minimum_reduction,
-    }
-
-    if baseline is None or candidate is None:
-        details["reason"] = "Required telemetry is unavailable."
-        return "INCONCLUSIVE", details
-
-    if baseline <= 0:
-        details["reason"] = (
-            "Baseline is zero, so relative reduction is undefined."
-        )
-        return (
-            "PASS" if candidate <= 0 else "FAIL",
-            details,
-        )
-
-    reduction = (baseline - candidate) / baseline
-    details["reduction_fraction"] = reduction
-
-    return (
-        "PASS"
-        if reduction >= minimum_reduction
-        else "FAIL",
-        details,
-    )
-
-
-def _gate_probe_weight(
-    result: WeightProbeResult,
-    threshold: float,
-) -> dict[str, Any]:
-    """Build a gate entry from a WeightProbeResult."""
-    if not result.is_success:
-        return {
-            "status": "ERROR",
-            "error": result.error,
-        }
-    value = result.obstacle_weight_l2
-    if value is None:
-        return {"status": "INCONCLUSIVE", "error": "weight L2 not measured"}
-    return {
-        "status": "PASS" if value > threshold else "FAIL",
-        "value": value,
-        "threshold": threshold,
-    }
-
-
-def _gate_probe_gradient(
-    result: GradientProbeResult,
-    threshold: float,
-) -> dict[str, Any]:
-    """Build a gate entry from a GradientProbeResult."""
-    if not result.is_success:
-        return {
-            "status": "ERROR",
-            "error": result.error,
-        }
-    value = result.obstacle_gradient_l2
-    if value is None:
-        return {"status": "INCONCLUSIVE", "error": "gradient L2 not measured"}
-    return {
-        "status": "PASS" if value > threshold else "FAIL",
-        "value": value,
-        "threshold": threshold,
-    }
-
-
-def _gate_probe_counterfactual(
-    result: CounterfactualProbeResult,
-    action_threshold: float,
-    kl_threshold: float,
-) -> dict[str, Any]:
-    """Build a gate entry from a CounterfactualProbeResult.
-
-    Distinguishes four statuses:
-      PASS         — meets either threshold (strong sensitivity)
-      WARN         — measurably nonzero but below both thresholds
-      FAIL         — effectively zero (channel ignored)
-      ERROR/INCONCLUSIVE — probe did not execute correctly
-    """
-    if not result.is_success:
-        return {
-            "status": "ERROR",
-            "error": result.error,
-            "states_evaluated": result.states_evaluated,
-        }
-    action_change = result.argmax_action_change_rate
-    mean_kl = result.mean_action_kl
-    mean_l2 = result.mean_logit_l2
-    if action_change is None or mean_kl is None:
-        return {
-            "status": "INCONCLUSIVE",
-            "error": "counterfactual metrics not measured",
-            "states_evaluated": result.states_evaluated,
-        }
-    if action_change >= action_threshold or mean_kl >= kl_threshold:
-        status = "PASS"
-    elif mean_l2 is not None and mean_l2 > 1e-3:
-        # Logits changed but not enough to shift the action distribution:
-        # model reads the channel weakly — not a dead channel.
-        status = "WARN"
-    else:
-        status = "FAIL"
-    return {
-        "status": status,
-        "argmax_change_rate": action_change,
-        "argmax_change_threshold": action_threshold,
-        "mean_action_kl": mean_kl,
-        "kl_threshold": kl_threshold,
-        "mean_logit_l2": mean_l2,
-        "states_evaluated": result.states_evaluated,
-    }
+    return evaluation_aggregate_conditions(rows)
 
 
 def build_summary(
@@ -1679,364 +1196,21 @@ def build_summary(
     episodes: Sequence[Mapping[str, Any]],
     conditions: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
-    candidate_weights: WeightProbeResult = probe["candidate_weights"]
-    candidate_gradient: GradientProbeResult = probe["candidate_gradient"]
-    candidate_counterfactual: CounterfactualProbeResult = probe[
-        "candidate_counterfactual"
-    ]
-
-    gates: dict[str, Any] = {
-        "obstacle_weights_moved": _gate_probe_weight(
-            candidate_weights, args.obs_weight_threshold
-        ),
-        "obstacle_gradient_connected": _gate_probe_gradient(
-            candidate_gradient, args.gradient_threshold
-        ),
-        "obstacle_counterfactual_effect": _gate_probe_counterfactual(
-            candidate_counterfactual,
-            args.counterfactual_action_threshold,
-            args.counterfactual_kl_threshold,
-        ),
-    }
-
-    baseline_obstacle_rows = _policy_rows(
-        episodes,
-        "baseline",
-        obstacle_maps_only=True,
-    )
-    candidate_obstacle_rows = _policy_rows(
-        episodes,
-        "candidate",
-        obstacle_maps_only=True,
-    )
-
-    obstacle_rows = baseline_obstacle_rows + candidate_obstacle_rows
-    exact_wall_telemetry = bool(obstacle_rows) and all(
-        row.get("collision_metric_source") == "environment_exact"
-        and row.get("wall_collisions") is not None
-        for row in obstacle_rows
-    )
-
-    if exact_wall_telemetry:
-        status, details = _improvement_gate(
-            _field_mean(
-                baseline_obstacle_rows,
-                "wall_collisions",
-            ),
-            _field_mean(
-                candidate_obstacle_rows,
-                "wall_collisions",
-            ),
-            args.navigation_improvement_threshold,
-        )
-    else:
-        status = "INCONCLUSIVE"
-        details = {
-            "reason": (
-                "No exact obstacle collision counter was found "
-                "in terminal episode info."
-            )
-        }
-
-    gates["wall_collisions_improved"] = {
-        "status": status,
-        "collision_metric_source": "environment_exact" if exact_wall_telemetry else "unavailable",
-        **details,
-    }
-
-    exact_blocked_telemetry = bool(obstacle_rows) and all(
-        row.get("blocked_movement_events") is not None
-        for row in obstacle_rows
-    )
-    if exact_blocked_telemetry:
-        status, details = _improvement_gate(
-            _field_mean(baseline_obstacle_rows, "blocked_movement_events"),
-            _field_mean(candidate_obstacle_rows, "blocked_movement_events"),
-            args.navigation_improvement_threshold,
-        )
-    else:
-        status = "INCONCLUSIVE"
-        details = {"reason": "Environment blocked-movement telemetry is unavailable."}
-    gates["blocked_movement_improved"] = {
-        "status": status,
-        "stuck_metric_source": "environment_exact" if exact_blocked_telemetry else "unavailable",
-        **details,
-    }
-
-    exact_stuck_telemetry = bool(obstacle_rows) and all(
-        row.get("stuck_metric_source") == "environment_exact"
-        and row.get("stuck_steps") is not None
-        for row in obstacle_rows
-    )
-    status, details = _improvement_gate(
-        _field_mean(
-            baseline_obstacle_rows,
-            "stuck_steps",
-        ),
-        _field_mean(
-            candidate_obstacle_rows,
-            "stuck_steps",
-        ),
-        args.navigation_improvement_threshold,
-    )
-    gates["stuck_behavior_improved"] = {
-        "status": status if exact_stuck_telemetry else "INCONCLUSIVE",
-        "stuck_metric_source": "environment_exact" if exact_stuck_telemetry else "evaluator_proxy",
-        **details,
-    }
-
-    candidate_conditions = [
-        row
-        for row in conditions
-        if row.get("policy") == "candidate"
-    ]
-
-    route_by_map: dict[str, Any] = {}
-    for map_name in args.maps:
-        selected = [
-            row
-            for row in candidate_conditions
-            if row.get("map") == map_name
-        ]
-        route_exact = bool(selected) and all(row.get("route_metric_source") == "environment_exact" for row in selected)
-        upper = _field_mean(selected, "upper_lane_use") if route_exact else None
-        lower = _field_mean(selected, "lower_lane_use") if route_exact else None
-        total = (upper or 0.0) + (lower or 0.0)
-
-        route_by_map[map_name] = {
-            "upper_mean": upper,
-            "lower_mean": lower,
-            "upper_fraction": (
-                upper / total
-                if total > 0
-                else None
-            ),
-            "route_metric_source": "environment_exact" if route_exact else "unavailable",
-        }
-
-    route_fractions = [
-        values["upper_fraction"]
-        for values in route_by_map.values()
-        if values["upper_fraction"] is not None
-    ]
-    route_difference = (
-        max(route_fractions) - min(route_fractions)
-        if len(route_fractions) >= 2
-        else None
-    )
-
-    if route_difference is None:
-        route_status = "INCONCLUSIVE"
-    elif route_difference >= args.route_difference_threshold:
-        route_status = "PASS"
-    else:
-        route_status = "FAIL"
-
-    gates["map_dependent_routes"] = {
-        "status": route_status,
-        "route_metric_source": "environment_exact" if route_fractions else "unavailable",
-        "max_upper_fraction_difference": route_difference,
-        "threshold": args.route_difference_threshold,
-        "per_map": route_by_map,
-    }
-
-    baseline_win_rate = _field_mean(
-        _policy_rows(episodes, "baseline"),
-        "win",
-    )
-    candidate_win_rate = _field_mean(
-        _policy_rows(episodes, "candidate"),
-        "win",
-    )
-
-    competence_pass = (
-        baseline_win_rate is not None
-        and candidate_win_rate is not None
-        and candidate_win_rate >= args.minimum_win_rate
-        and candidate_win_rate
-        >= baseline_win_rate
-        - args.competence_retention_tolerance
-    )
-
-    gates["hard_pool_competence_retained"] = {
-        "status": (
-            "PASS"
-            if competence_pass
-            else "FAIL"
-        ),
-        "baseline_win_rate": baseline_win_rate,
-        "candidate_win_rate": candidate_win_rate,
-        "minimum_candidate_win_rate": args.minimum_win_rate,
-        "maximum_allowed_drop": (
-            args.competence_retention_tolerance
-        ),
-    }
-
-    condition_win_rates = [
-        float(row["win"])
-        for row in candidate_conditions
-        if row.get("win") is not None
-    ]
-    all_saturated = (
-        bool(condition_win_rates)
-        and all(
-            win_rate >= args.saturation_win_rate
-            for win_rate in condition_win_rates
-        )
-    )
-
-    gates["universal_saturation_avoided"] = {
-        "status": (
-            "FAIL"
-            if all_saturated
-            else "PASS"
-        ),
-        "condition_win_rates": condition_win_rates,
-        "saturation_threshold": args.saturation_win_rate,
-    }
-
-    statuses = [gate["status"] for gate in gates.values()]
-    required_statuses = (
-        gates["obstacle_weights_moved"]["status"],
-        gates["obstacle_gradient_connected"]["status"],
-        gates["obstacle_counterfactual_effect"]["status"],
-        gates["hard_pool_competence_retained"]["status"],
-    )
-    navigation_statuses = (
-        gates["wall_collisions_improved"]["status"],
-        gates["blocked_movement_improved"]["status"],
-        gates["stuck_behavior_improved"]["status"],
-    )
-
-    if any(s == "ERROR" for s in statuses):
-        verdict = "NOT READY FOR STAGE B — PROBE ERROR (see gate details)"
-    elif any(s != "PASS" for s in required_statuses):
-        verdict = "NOT READY FOR STAGE B"
-    elif not any(s == "PASS" for s in navigation_statuses):
-        verdict = "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
-    elif gates["map_dependent_routes"]["status"] == "FAIL":
-        verdict = "NOT READY FOR STAGE B"
-    elif gates["universal_saturation_avoided"]["status"] == "FAIL":
-        verdict = "NOT READY FOR STAGE B - UNIVERSAL SATURATION"
-    elif all(s == "PASS" for s in required_statuses):
-        verdict = "READY FOR STAGE B"
-    elif any(s == "WARN" for s in statuses):
-        verdict = "BEHAVIORAL SENSITIVITY WEAK — REVIEW BEFORE PROCEEDING"
-    else:
-        verdict = "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
-
-    return {
-        "verdict": verdict,
-        "gates": gates,
-        "episodes_per_condition": args.episodes,
-        "warning": (
-            "Use at least 20 episodes per map/opponent "
-            "cell for a promotion decision."
-            if args.episodes < 20
-            else None
-        ),
-    }
+    return evaluation_build_summary(args, probe, episodes, conditions)
 
 
 def write_csv(
     path: Path,
     rows: Sequence[Mapping[str, Any]],
 ) -> None:
-    if not rows:
-        return
-
-    fieldnames: list[str] = []
-    seen: set[str] = set()
-
-    for row in rows:
-        for key in row:
-            if key not in seen:
-                seen.add(key)
-                fieldnames.append(key)
-
-    with path.open(
-        "w",
-        newline="",
-        encoding="utf-8",
-    ) as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=fieldnames,
-        )
-        writer.writeheader()
-        writer.writerows(rows)
+    evaluation_write_csv(path, rows)
 
 
 def report_text(summary: Mapping[str, Any]) -> str:
-    labels = (
-        (
-            "obstacle_weights_moved",
-            "Obstacle weights moved",
-        ),
-        (
-            "obstacle_gradient_connected",
-            "Obstacle gradient connected",
-        ),
-        (
-            "obstacle_counterfactual_effect",
-            "Obstacle counterfactual effect",
-        ),
-        (
-            "wall_collisions_improved",
-            "Wall collisions improved",
-        ),
-        (
-            "blocked_movement_improved",
-            "Blocked movement improved",
-        ),
-        (
-            "stuck_behavior_improved",
-            "Stuck behavior improved",
-        ),
-        (
-            "map_dependent_routes",
-            "Map-dependent routes observed",
-        ),
-        (
-            "hard_pool_competence_retained",
-            "Hard-pool competence retained",
-        ),
-        (
-            "universal_saturation_avoided",
-            "Universal saturation avoided",
-        ),
-    )
-
-    lines = [
-        "V6I9 MAP-AWARENESS PROMOTION GATE",
-        "",
-    ]
-
-    for key, label in labels:
-        status = summary["gates"][key]["status"]
-        lines.append(
-            f"{label + ':':36s} {status}"
-        )
-
-    lines.extend(
-        (
-            "",
-            f"VERDICT: {summary['verdict']}",
-        )
-    )
-
-    if summary.get("warning"):
-        lines.extend(
-            (
-                "",
-                f"WARNING: {summary['warning']}",
-            )
-        )
-
-    return "\n".join(lines)
+    return evaluation_report_text(summary)
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="V6I9 map-awareness promotion gate"
     )
@@ -2140,196 +1314,40 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.95,
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = parse_args()
+def _write_json_text(path: Path, payload: Any) -> None:
+    path.write_text(
+        json.dumps(_json_safe(payload), indent=2),
+        encoding="utf-8",
+    )
+
+
+def _evaluation_runtime(command: Sequence[str]) -> EvaluationRuntime:
+    return EvaluationRuntime(
+        project_root=PROJECT_ROOT,
+        command=command,
+        validate_opponent_name=_validate_opponent_name,
+        preflight_opponents=_preflight_opponents,
+        preflight_distribution_contract=_preflight_distribution_contract,
+        inspect_obstacle_weights=inspect_obstacle_weights,
+        gradient_probe=gradient_probe,
+        obstacle_counterfactual=obstacle_counterfactual,
+        run_episode=run_episode,
+        write_json_text=_write_json_text,
+    )
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
     config = config_from_namespace(args)
-    output_directory = config.output_dir
-    output_directory.mkdir(
-        parents=True,
-        exist_ok=True,
+    command = sys.argv if argv is None else [str(Path(__file__)), *argv]
+    result = run_evaluation(
+        config,
+        _evaluation_runtime(command),
     )
-
-    baseline_path = config.baseline_checkpoint
-    candidate_path = config.candidate_checkpoint
-
-    args.opponents = [
-        _validate_opponent_name(opponent)
-        for opponent in args.opponents
-    ]
-
-    baseline_metadata, baseline_agents, _, _ = (
-        _checkpoint_dimensions(args.baseline)
-    )
-    candidate_metadata, candidate_agents, _, _ = (
-        _checkpoint_dimensions(args.candidate)
-    )
-
-    if baseline_agents != candidate_agents:
-        raise ValueError(
-            f"Baseline uses {baseline_agents} agents per team, "
-            f"but candidate uses {candidate_agents}."
-        )
-
-    n_agents = candidate_agents
-    reference_map = config.reference_map
-    reference_opponent = config.reference_opponent
-
-    run_id = str(uuid.uuid4())
-    started_at = datetime.now(timezone.utc).isoformat()
-
-    manifest: dict[str, Any] = {
-        "schema_version": 3,
-        "telemetry_implementation_version": NAVIGATION_TELEMETRY_VERSION,
-        "collision_metric_source": "environment_exact_required",
-        "stuck_metric_source": "environment_exact_preferred",
-        "route_metric_source": "environment_exact_preferred",
-        "stuck_epsilon": STUCK_DISPLACEMENT_EPSILON_CELLS,
-        "stuck_consecutive_step_window": STUCK_CONSECUTIVE_STEP_WINDOW,
-        "blocked_displacement_threshold": BLOCKED_DISPLACEMENT_THRESHOLD_CELLS,
-        "route_classifier_version": ROUTE_CLASSIFIER_VERSION,
-        "map_route_metadata_version": MAP_ROUTE_METADATA_VERSION,
-        "run_id": run_id,
-        "started_at": started_at,
-        "completed_at": None,  # written at the end
-        "status": "in_progress",
-        "command": sys.argv,
-        "baseline": str(baseline_path),
-        "candidate": str(candidate_path),
-        "baseline_sha256": _sha256(baseline_path),
-        "candidate_sha256": _sha256(candidate_path),
-        "baseline_cnn_channels": config.baseline_cnn_channels,
-        "candidate_cnn_channels": config.candidate_cnn_channels,
-        "n_agents": n_agents,
-        "maps": list(args.maps),
-        "opponents": list(args.opponents),
-        "episodes": args.episodes,
-        "seed_start": args.seed_start,
-        "max_decision_steps": args.max_decision_steps,
-        "device": args.device,
-        "baseline_metadata": baseline_metadata,
-        "candidate_metadata": candidate_metadata,
-        **_git_metadata(),
-        **_runtime_metadata(),
-    }
-    # Write in-progress manifest immediately so an interrupted run is
-    # distinguishable from a completed one.
-    manifest_path = output_directory / "evaluation_manifest.json"
-    manifest_path.write_text(
-        json.dumps(_json_safe(manifest), indent=2),
-        encoding="utf-8",
-    )
-
-    _preflight_opponents(
-        opponents=args.opponents,
-        n_agents=n_agents,
-        map_name=reference_map,
-        device=args.device,
-        max_steps=args.max_decision_steps,
-    )
-
-    print("Loading native 7-channel baseline checkpoint...")
-    baseline_policy = _load_native_policy(
-        args.baseline,
-        device=args.device,
-        num_cnn_channels=config.baseline_cnn_channels,
-    )
-    print("... baseline loaded.")
-
-    print("Loading native 8-channel candidate checkpoint...")
-    candidate_policy = _load_native_policy(
-        args.candidate,
-        device=args.device,
-        num_cnn_channels=config.candidate_cnn_channels,
-    )
-    print("... candidate loaded.")
-
-    print("Preflighting public distribution contract...")
-    _preflight_distribution_contract(baseline_policy, label="baseline")
-    _preflight_distribution_contract(candidate_policy, label="candidate")
-    print("... distribution contract OK.")
-
-    print("Running obstacle probes...")
-    probe: dict[str, Any] = {
-        "baseline_weights": inspect_obstacle_weights(baseline_policy),
-        "candidate_weights": inspect_obstacle_weights(candidate_policy),
-        "candidate_gradient": gradient_probe(
-            candidate_policy,
-            device=args.device,
-            map_name=reference_map,
-            opponent=reference_opponent,
-            n_agents=n_agents,
-        ),
-        "candidate_counterfactual": obstacle_counterfactual(
-            candidate_policy,
-            device=args.device,
-            map_name=reference_map,
-            opponent=reference_opponent,
-            n_agents=n_agents,
-            steps=args.counterfactual_steps,
-        ),
-    }
-    # Serialize typed probe results via their to_json_dict() methods.
-    probe_json = {
-        k: v.to_json_dict() if hasattr(v, "to_json_dict") else v
-        for k, v in probe.items()
-    }
-    (output_directory / "obstacle_probe.json").write_text(
-        json.dumps(_json_safe(probe_json), indent=2),
-        encoding="utf-8",
-    )
-    print("... obstacle probes complete.")
-
-    print("Running matched-seed evaluation...")
-    episodes = matched_seed_evaluation(
-        args,
-        baseline_policy,
-        candidate_policy,
-        n_agents,
-    )
-    conditions = aggregate_conditions(episodes)
-
-    write_csv(output_directory / "episode_results.csv", episodes)
-    write_csv(output_directory / "condition_summary.csv", conditions)
-    write_csv(output_directory / "per_episode.csv", episodes)
-    write_csv(output_directory / "per_condition.csv", conditions)
-    print("... matched-seed evaluation complete.")
-
-    summary = build_summary(
-        args,
-        probe,
-        episodes,
-        conditions,
-    )
-    summary_text = json.dumps(_json_safe(summary), indent=2)
-    (output_directory / "final_report.json").write_text(summary_text, encoding="utf-8")
-    (output_directory / "summary.json").write_text(summary_text, encoding="utf-8")
-
-    report = report_text(summary)
-    print("\n" + report)
-
-    (
-        output_directory / "final_report.txt"
-    ).write_text(
-        report + "\n",
-        encoding="utf-8",
-    )
-
-    # Update manifest to mark the run as completed.
-    manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
-    manifest["status"] = "completed"
-    manifest_path.write_text(
-        json.dumps(_json_safe(manifest), indent=2),
-        encoding="utf-8",
-    )
-
-    print(
-        f"\nArtifacts written to: "
-        f"{output_directory.resolve()}"
-    )
-
+    return result.exit_code
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

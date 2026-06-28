@@ -27,10 +27,15 @@ class EvaluationArtifactError(EvaluationError):
     """Artifact writing or artifact validation failed."""
 
 
+class EvaluationManifestError(EvaluationError):
+    """Manifest lifecycle or atomic-write invariant failed."""
+
+
 __all__ = [
     "EvaluationArtifactError",
     "EvaluationCheckpointError",
     "EvaluationConfigError",
     "EvaluationError",
+    "EvaluationManifestError",
     "EvaluationPreflightError",
 ]
