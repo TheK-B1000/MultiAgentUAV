@@ -203,6 +203,7 @@ def run_eval_episodes(
     condition_name: str | None = None,
     checkpoint_name: str | None = None,
     selection_rule: str | None = None,
+    collect_behavior_mean: bool = False,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -348,9 +349,9 @@ def run_eval_episodes(
                 
                 # 2. Seed global RNGs (environment reset, opponent, action sampling)
                 import random
+
                 random.seed(common_episode_seed)
                 np.random.seed(common_episode_seed)
-                import torch
                 torch.manual_seed(common_episode_seed)
                 if torch.cuda.is_available():
                     torch.cuda.manual_seed_all(common_episode_seed)
@@ -396,8 +397,18 @@ def run_eval_episodes(
                 # Legacy reset path:
                 if hasattr(model, "reset_strategy"):
                     model.reset_strategy()
-                actual_eval_seed = latent_eval_seed if latent_eval_seed is not None else 0
-                actual_env_seed = latent_eval_seed if latent_eval_seed is not None else 0
+                base_seed = latent_eval_seed if latent_eval_seed is not None else 0
+                actual_env_seed = int(base_seed) + int(ep_idx)
+                actual_eval_seed = actual_env_seed
+                import random
+
+                random.seed(actual_env_seed)
+                np.random.seed(actual_env_seed)
+                torch.manual_seed(actual_env_seed)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(actual_env_seed)
+                if hasattr(env, "seed"):
+                    env.seed(actual_env_seed)
 
             # Reset env for this episode to apply the seed:
             obs = env.reset()
@@ -428,6 +439,9 @@ def run_eval_episodes(
             strategy_entropy_sum = 0.0
             strategy_k = 0
             strategy_phase_counts: dict[str, dict[int, int]] = {}
+            behavior_sum: np.ndarray | None = None
+            behavior_steps = 0
+            episode_start_phase = ""
             while True:
                 single = {
                     k: v[0] if hasattr(v, "shape") and len(v.shape) > 1 and v.shape[0] == 1 else v
@@ -438,6 +452,8 @@ def run_eval_episodes(
                 except Exception:
                     pass
                 strategy_phase = _strategy_phase_from_global_state(single.get("global_state"))
+                if steps == 0:
+                    episode_start_phase = str(strategy_phase)
                 if record_entropy and steps == 0:
                     try:
                         ep_entropy_first = _policy_entropy_first_step(model, single)
@@ -446,6 +462,19 @@ def run_eval_episodes(
                 if hasattr(model, "set_current_decision_step"):
                     model.set_current_decision_step(steps)
                 act, _ = model.predict(single, deterministic=deterministic)
+                if collect_behavior_mean:
+                    try:
+                        from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES, compute_behavior_telemetry_batch
+
+                        env_core = env.core
+                        act_t = torch.as_tensor(act, device=env_core.device).unsqueeze(0)
+                        beh_row = compute_behavior_telemetry_batch(env_core, act_t)[0].detach().cpu().numpy()
+                        if behavior_sum is None:
+                            behavior_sum = np.zeros_like(beh_row, dtype=np.float64)
+                        behavior_sum += beh_row.astype(np.float64)
+                        behavior_steps += 1
+                    except Exception:
+                        pass
                 if coordination_metrics and n_agents >= 2:
                     flat = np.asarray(act, dtype=np.int64).reshape(-1)
                     if flat.size == expected_flat:
@@ -575,7 +604,38 @@ def run_eval_episodes(
                                 "win_margin": bs - rs,
                                 "time_to_first_score": ttfs_f,
                                 "mean_inter_robot_dist": mean_dist_f,
+                                "episode_start_phase": episode_start_phase,
+                                "fixed_latent_id": int(fixed_latent_id) if fixed_latent_id is not None else -1,
+                                "opponent": str(opponent),
                             }
+                            _EPISODE_NAV_KEYS = (
+                                "collisions_per_episode",
+                                "collision_events_per_episode",
+                                "obstacle_collision_events_per_episode",
+                                "blue_stuck_steps",
+                                "red_stuck_steps",
+                                "blue_blocked_movement_events",
+                                "blue_obstacle_collision_events",
+                                "blue_route_switches",
+                                "blue_attack_upper_crossings",
+                                "blue_attack_lower_crossings",
+                                "blue_return_upper_crossings",
+                                "blue_return_lower_crossings",
+                                "blue_intercept_upper_crossings",
+                                "blue_intercept_lower_crossings",
+                                "reward_total",
+                                "reward_sparse_points",
+                                "reward_offense",
+                            )
+                            for nav_key in _EPISODE_NAV_KEYS:
+                                if nav_key in ep_res:
+                                    row[nav_key] = ep_res[nav_key]
+                            if behavior_sum is not None and behavior_steps > 0:
+                                mean_beh = behavior_sum / float(behavior_steps)
+                                from rl.behavior_telemetry import BEHAVIOR_TELEMETRY_NAMES
+
+                                for beh_idx, beh_name in enumerate(BEHAVIOR_TELEMETRY_NAMES):
+                                    row[f"behavior_{beh_name}"] = float(mean_beh[beh_idx])
                             if record_entropy:
                                 row["policy_entropy"] = ep_entropy_first
                             if coordination_metrics:

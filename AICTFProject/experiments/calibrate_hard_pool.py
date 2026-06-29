@@ -146,6 +146,7 @@ def run_forced_z_cells(
     device: str,
     deterministic: bool = True,
     base_seed: int = 42,
+    collect_behavior_mean: bool = False,
 ) -> CellEpisodes:
     """Run forced-z eval; return {(opponent, latent_z, map_name): [episode_dicts]}.
 
@@ -166,6 +167,7 @@ def run_forced_z_cells(
                         fixed_latent_id=z,
                         deterministic=deterministic,
                         latent_eval_seed=seed,
+                        collect_behavior_mean=collect_behavior_mean,
                     )
                 except Exception as exc:  # noqa: BLE001
                     print(f"  ERROR {opponent} z={z} {map_name}: {exc}")
