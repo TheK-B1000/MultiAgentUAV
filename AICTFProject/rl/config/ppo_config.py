@@ -737,6 +737,8 @@ class PPOConfig:
     # total_timesteps = checkpoint_global_step + additional_timesteps after load.
     # Takes precedence over total_timesteps when nonzero.
     additional_timesteps: int = 0
+    # Global step at which the current run/stage started (set on resume).
+    checkpoint_run_start_step: int = 0
 
 
 __all__ = ["PPOConfig", "TrainMode"]

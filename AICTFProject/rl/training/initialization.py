@@ -85,8 +85,17 @@ def maybe_extend_total_timesteps(cfg: PPOConfig, trainer: "CustomPPOTrainer") ->
     """
     if int(getattr(cfg, "additional_timesteps", 0) or 0) > 0:
         base_step = int(getattr(trainer, "global_step", 0))
+        cfg.checkpoint_run_start_step = base_step
         cfg.total_timesteps = base_step + int(cfg.additional_timesteps)
         print(
             f"[PPO] --additional-steps: base_step={base_step:,} + {int(cfg.additional_timesteps):,} "
             f"= total_timesteps={cfg.total_timesteps:,}"
         )
+
+
+def maybe_configure_periodic_checkpoints(cfg: PPOConfig, trainer: "CustomPPOTrainer") -> None:
+    """Resolve run-relative vs global checkpoint naming after load."""
+    if int(getattr(cfg, "additional_timesteps", 0) or 0) > 0:
+        if int(getattr(cfg, "checkpoint_run_start_step", 0) or 0) <= 0:
+            cfg.checkpoint_run_start_step = int(getattr(trainer, "global_step", 0))
+    trainer.configure_periodic_checkpoints()

@@ -572,6 +572,9 @@ class MinibatchUpdater:
                     assembled = assembled + latent_loss_no_cf
                 assembled.backward()
                 ppo_grad_norm = clip_optimizer_grad_norm(runtime.actor_optimizer, float(cfg.max_grad_norm))
+                from rl.custom_ppo.diagnostics.competence import record_repertoire_grad_audit
+
+                record_repertoire_grad_audit(runtime, model)
                 if phase_policy.critic_step_enabled:
                     clip_optimizer_grad_norm(runtime.critic_optimizer, float(cfg.max_grad_norm))
                     runtime.critic_optimizer.step()
@@ -593,6 +596,7 @@ class MinibatchUpdater:
                 loss = _cf_loss_now()
                 loss.backward()
                 cf_grad_norm = clip_optimizer_grad_norm(runtime.actor_cf_optimizer, float(cfg.max_grad_norm))
+                record_repertoire_grad_audit(runtime, model)
                 runtime.actor_cf_optimizer.step()
                 cf_parameter_delta = float(sum((p - p0).pow(2).sum() for p, p0 in zip(actor_params, before)).sqrt().item())
                 z_embedding_cf_delta = float(sum((p - p0).pow(2).sum() for p, p0 in zip(z_emb_params, z_before)).sqrt().item()) if z_emb_params else 0.0

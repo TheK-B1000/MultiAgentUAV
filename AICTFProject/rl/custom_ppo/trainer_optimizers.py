@@ -61,6 +61,16 @@ _ROUTER_MODULE_NAMES = (
 )
 
 
+def is_z_specific_actor_param(name: str) -> bool:
+    return any(sub in name for sub in _Z_SPECIFIC_SUBSTRINGS)
+
+
+def is_shared_frozen_actor_param(name: str) -> bool:
+    if not any(part in name for part in _SHARED_BACKBONE_PARTS):
+        return False
+    return not is_z_specific_actor_param(name)
+
+
 def freeze_shared_trunk_train_z_only(model: torch.nn.Module) -> int:
     """Stage 2 (repertoire): freeze CNN + shared trunk + router; leave only z-specific + critic trainable."""
     frozen = 0
@@ -247,4 +257,6 @@ __all__ = [
     "freeze_actor_parameters",
     "freeze_shared_trunk_train_z_only",
     "freeze_z_specific_parameters",
+    "is_shared_frozen_actor_param",
+    "is_z_specific_actor_param",
 ]

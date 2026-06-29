@@ -52,8 +52,9 @@ class OptimizerStepper(Protocol):
 
 
 class SharedOptimizerStepper:
-    def __init__(self, optimizer: torch.optim.Optimizer) -> None:
+    def __init__(self, optimizer: torch.optim.Optimizer, runtime: Any | None = None) -> None:
         self.optimizer = optimizer
+        self.runtime = runtime
 
     def step(
         self,
@@ -80,6 +81,10 @@ class SharedOptimizerStepper:
         assert_finite_loss(total_loss, epoch_idx=epoch_idx, mb_idx=mb_idx)
         total_loss.backward()
         assert_finite_gradients(model, epoch_idx=epoch_idx, mb_idx=mb_idx)
+        if self.runtime is not None:
+            from rl.custom_ppo.diagnostics.competence import record_repertoire_grad_audit
+
+            record_repertoire_grad_audit(self.runtime, model)
         strategy_grad_norm = float(latent_state.strategy_encoder_grad_norm())
         grad_norm = clip_optimizer_grad_norm(self.optimizer, max_grad_norm)
         self.optimizer.step()
@@ -137,6 +142,9 @@ class ThreeOptimizerStepper:
         assert_finite_loss(assembled, epoch_idx=epoch_idx, mb_idx=mb_idx)
         assembled.backward()
         assert_finite_gradients(model, epoch_idx=epoch_idx, mb_idx=mb_idx)
+        from rl.custom_ppo.diagnostics.competence import record_repertoire_grad_audit
+
+        record_repertoire_grad_audit(runtime, model)
         strategy_grad_norm = float(latent_state.strategy_encoder_grad_norm())
         from rl.custom_ppo.v6i1_phase_runtime import step_v6i1_optimizers
 
@@ -165,4 +173,4 @@ class ThreeOptimizerStepper:
 def build_optimizer_stepper(runtime: Any, optimizer: torch.optim.Optimizer) -> OptimizerStepper:
     if bool(getattr(runtime, "v6i1_three_optimizer_mode", False)):
         return ThreeOptimizerStepper(runtime)
-    return SharedOptimizerStepper(optimizer)
+    return SharedOptimizerStepper(optimizer, runtime=runtime)

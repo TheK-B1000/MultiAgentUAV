@@ -65,6 +65,7 @@ class PostUpdatePipeline:
         valid_cf_pair_measurements: list[torch.Tensor],
         actor_intervention_valid_minibatches: int,
         last_invalid_reason_code: float,
+        repertoire_param_snapshot: dict | None = None,
     ) -> PostUpdateResult:
         from rl.custom_ppo.v6i1_phase_runtime import (
             is_v6i1_staged_trainer,
@@ -260,6 +261,11 @@ class PostUpdatePipeline:
 
         stats.update(_policy_z_sensitivity_kl(runtime, buffer))
         stats.update(_v6i8_residual_adapter_stats(runtime, buffer))
+        if repertoire_param_snapshot:
+            from rl.custom_ppo.diagnostics.competence import compute_repertoire_parameter_audit
+
+            stats.update(compute_repertoire_parameter_audit(runtime.model, repertoire_param_snapshot))
+            stats.update(getattr(runtime, "_repertoire_grad_audit_max", {}) or {})
         stats.update(episode_strategy_stats)
         stats.update(arc_strategy_stats)
         stats.update(macro_strategy_stats)

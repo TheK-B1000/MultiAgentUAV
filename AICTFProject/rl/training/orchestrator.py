@@ -37,6 +37,7 @@ from rl.training.factories import build_training_env
 from rl.training.initialization import (
     build_trainer,
     maybe_extend_total_timesteps,
+    maybe_configure_periodic_checkpoints,
     maybe_load_checkpoint,
 )
 from rl.training.lifecycle import (
@@ -173,6 +174,7 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
         trainer = build_trainer(env, cfg, resolved)
         maybe_load_checkpoint(cfg, trainer)
         maybe_extend_total_timesteps(cfg, trainer)
+        maybe_configure_periodic_checkpoints(cfg, trainer)
 
         try:
             stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))

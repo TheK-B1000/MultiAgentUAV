@@ -7,6 +7,10 @@ from typing import Any
 import torch
 
 from rl.custom_ppo.diagnostics.counterfactual import _jsd_from_logits
+from rl.custom_ppo.trainer_optimizers import (
+    is_shared_frozen_actor_param,
+    is_z_specific_actor_param,
+)
 
 
 _ZERO_OPT_ADV: dict[str, float] = {
@@ -223,6 +227,111 @@ def _v6i8_residual_adapter_stats(runtime: Any, buffer: Any) -> dict[str, float]:
         return {}
 
 
+def measure_repertoire_grad_norms(model: Any) -> dict[str, float]:
+    """Gradient norms on frozen shared trunk vs trainable critic (after backward)."""
+    shared_sq = 0.0
+    critic_sq = 0.0
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            continue
+        gsq = float(param.grad.pow(2).sum().item())
+        if is_shared_frozen_actor_param(name):
+            shared_sq += gsq
+        elif "critic" in name and param.requires_grad:
+            critic_sq += gsq
+    return {
+        "shared_actor_grad_norm": float(shared_sq ** 0.5) if shared_sq > 0.0 else 0.0,
+        "critic_grad_norm": float(critic_sq ** 0.5) if critic_sq > 0.0 else 0.0,
+    }
+
+
+def record_repertoire_grad_audit(runtime: Any, model: Any) -> None:
+    """Track per-update max grad norms for V6I9 repertoire freeze audit."""
+    stage = str(getattr(getattr(runtime, "cfg", None), "v6i9_training_stage", "") or "").lower()
+    if stage != "repertoire":
+        return
+    audit = measure_repertoire_grad_norms(model)
+    prev = getattr(runtime, "_repertoire_grad_audit_max", None) or {}
+    for key, value in audit.items():
+        prev[key] = max(float(prev.get(key, 0.0)), float(value))
+    runtime._repertoire_grad_audit_max = prev
+
+
+def snapshot_repertoire_parameters(model: Any) -> dict[str, torch.Tensor]:
+    """Clone trainable and shared-frozen actor tensors for per-update delta audit."""
+    out: dict[str, torch.Tensor] = {}
+    for name, param in model.named_parameters():
+        if is_shared_frozen_actor_param(name) or is_z_specific_actor_param(name):
+            out[name] = param.detach().clone()
+        elif "critic" in name and param.requires_grad:
+            out[name] = param.detach().clone()
+    return out
+
+
+def compute_repertoire_parameter_audit(
+    model: Any,
+    before: dict[str, torch.Tensor],
+) -> dict[str, float]:
+    """Per-update repertoire freeze audit: shared trunk immobile, z-modules move."""
+    if not before:
+        return {}
+
+    shared_deltas: list[float] = []
+    adapter_delta_by_z: dict[int, float] = {}
+    gate_by_z: dict[int, float] = {}
+    bias_norm_by_z: dict[int, float] = {}
+    bias_delta_by_z: dict[int, float] = {}
+    z_embedding_delta_by_z: dict[int, float] = {}
+    latent_k = int(getattr(model, "latent_k", 0) or 0)
+
+    la = getattr(model, "latent_actor", None)
+    gates = getattr(la, "latent_adapter_gates", None) if la is not None else None
+    if gates is not None:
+        for k in range(int(gates.shape[0])):
+            gate_by_z[k] = float(gates[k].detach().abs().item())
+
+    biases = getattr(la, "latent_action_biases", None) if la is not None else None
+    if biases is not None:
+        for k in range(int(biases.shape[0])):
+            bias_norm_by_z[k] = float(biases[k].detach().norm().item())
+
+    for name, param in model.named_parameters():
+        prev = before.get(name)
+        if prev is None:
+            continue
+        delta = float((param.detach() - prev).abs().max().item())
+        if is_shared_frozen_actor_param(name):
+            shared_deltas.append(delta)
+        elif is_z_specific_actor_param(name):
+            if "latent_adapters" in name:
+                for k in range(latent_k):
+                    if f"latent_adapters.{k}." in name:
+                        adapter_delta_by_z[k] = max(adapter_delta_by_z.get(k, 0.0), delta)
+            if "strategy_embedding" in name and param.ndim >= 2:
+                for k in range(min(latent_k, int(param.shape[0]))):
+                    row_delta = float((param.detach()[k] - prev[k]).abs().max().item())
+                    z_embedding_delta_by_z[k] = max(z_embedding_delta_by_z.get(k, 0.0), row_delta)
+            if "latent_action_biases" in name and param.ndim >= 2:
+                for k in range(min(latent_k, int(param.shape[0]))):
+                    row_delta = float((param.detach()[k] - prev[k]).abs().max().item())
+                    bias_delta_by_z[k] = max(bias_delta_by_z.get(k, 0.0), row_delta)
+
+    out: dict[str, float] = {
+        "shared_actor_max_abs_delta": float(max(shared_deltas) if shared_deltas else 0.0),
+    }
+    for k, value in adapter_delta_by_z.items():
+        out[f"latent_adapter_weight_delta_z{k}"] = float(value)
+    for k, value in gate_by_z.items():
+        out[f"latent_adapter_gate_z{k}"] = float(value)
+    for k, value in bias_norm_by_z.items():
+        out[f"latent_action_bias_norm_z{k}"] = float(value)
+    for k, value in bias_delta_by_z.items():
+        out[f"latent_action_bias_delta_z{k}"] = float(value)
+    for k, value in z_embedding_delta_by_z.items():
+        out[f"z_embedding_delta_z{k}"] = float(value)
+    return out
+
+
 strategy_resample_advantage_stats = _strategy_resample_advantage_stats
 rollout_advantage_diagnostics = _rollout_advantage_diagnostics
 latent_option_advantage_stats = _latent_option_advantage_stats
@@ -231,6 +340,10 @@ v6i8_residual_adapter_stats = _v6i8_residual_adapter_stats
 __all__ = [
     "compute_adapter_grad_norms",
     "compute_critic_value_variance",
+    "compute_repertoire_parameter_audit",
+    "measure_repertoire_grad_norms",
+    "record_repertoire_grad_audit",
+    "snapshot_repertoire_parameters",
     "_strategy_resample_advantage_stats",
     "_rollout_advantage_diagnostics",
     "_latent_option_advantage_stats",

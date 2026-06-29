@@ -11,7 +11,12 @@ import torch
 from rl.global_state import GLOBAL_STATE_DIM
 from rl.latent_marl import TemporalStateTracker
 
-from rl.custom_ppo.communication import CommRolloutRuntime, extend_observation_space_if_needed
+from rl.custom_ppo.checkpoint_schedule import (
+    advance_checkpoint_schedule,
+    checkpoint_due,
+    format_checkpoint_schedule_banner,
+    resolve_checkpoint_schedule,
+)
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
 from rl.custom_ppo.inference import (
     _torch_load_checkpoint,
@@ -174,9 +179,7 @@ class CustomPPOTrainer:
         self.run_pid = hparams.run_pid
         self._updates_completed = 0
         self.episode_stats = EpisodeStats(success_window=200)
-        self._next_periodic_checkpoint_step = (
-            hparams.periodic_checkpoint_steps if hparams.periodic_checkpoint_steps > 0 else 0
-        )
+        self._checkpoint_schedule = None
 
         self.opponent_pool = TrainingOpponentPool.from_hparams(cfg, hparams)
         self.opponent_pool.attach_before_reset_hook(self.env, self)
@@ -358,23 +361,43 @@ class CustomPPOTrainer:
         """Run PPO epochs over one rollout."""
         return self.updater.update(buffer, total_timesteps=total_timesteps)
 
+    def configure_periodic_checkpoints(self) -> None:
+        """Initialize periodic checkpoint schedule (run-relative or global, no catch-up)."""
+        interval = int(self.periodic_checkpoint_steps)
+        self._checkpoint_schedule = resolve_checkpoint_schedule(
+            global_step=int(self.global_step),
+            interval=interval,
+            checkpoint_run_start_step=int(getattr(self.cfg, "checkpoint_run_start_step", 0) or 0),
+            additional_timesteps=int(getattr(self.cfg, "additional_timesteps", 0) or 0),
+            load_weights_only=bool(getattr(self.cfg, "load_weights_only", False)),
+        )
+        print(format_checkpoint_schedule_banner(self._checkpoint_schedule))
+
     def _save_periodic_checkpoint(self) -> None:
-        if self.periodic_checkpoint_steps <= 0:
+        schedule = getattr(self, "_checkpoint_schedule", None)
+        if schedule is None or schedule.mode == "disabled":
             return
-        while self.global_step >= self._next_periodic_checkpoint_step:
-            ckpt_name = f"ckpt_{str(getattr(self.cfg, 'run_tag', 'ppo'))}_{int(self._next_periodic_checkpoint_step)}.zip"
-            ckpt_path = os.path.join(str(getattr(self.cfg, "checkpoint_dir", "checkpoints")), ckpt_name)
-            self.save(ckpt_path)
-            print(f"[PPO] Periodic checkpoint saved: {ckpt_path}")
-            self.router_distill_hook.maybe_run(
-                trainer=self,
-                ckpt_path=ckpt_path,
-                global_step=int(self.global_step),
-            )
-            self._next_periodic_checkpoint_step += self.periodic_checkpoint_steps
+        step_label = checkpoint_due(schedule, int(self.global_step))
+        if step_label is None:
+            return
+        ckpt_name = (
+            f"ckpt_{str(getattr(self.cfg, 'run_tag', 'ppo'))}_{int(step_label)}.zip"
+        )
+        ckpt_path = os.path.join(str(getattr(self.cfg, "checkpoint_dir", "checkpoints")), ckpt_name)
+        self.save(ckpt_path)
+        print(f"[PPO] Periodic checkpoint saved: {ckpt_path}")
+        self.router_distill_hook.maybe_run(
+            trainer=self,
+            ckpt_path=ckpt_path,
+            global_step=int(self.global_step),
+        )
+        advance_checkpoint_schedule(schedule)
+
     def learn(self, total_timesteps: int) -> None:
         """Run training until global_step reaches ``total_timesteps``."""
         total = int(total_timesteps)
+        if getattr(self, "_checkpoint_schedule", None) is None:
+            self.configure_periodic_checkpoints()
         self._sb3_rollout_pbar = _open_sb3_style_progress(
             self.cfg, total_timesteps=total, current_num_timesteps=self.global_step
         )

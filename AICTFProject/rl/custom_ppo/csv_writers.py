@@ -700,6 +700,17 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             fields.append(f"adapter_grad_norm_z{z_idx}")
             fields.append(f"adapter_gate_grad_z{z_idx}")
             fields.append(f"action_bias_grad_norm_z{z_idx}")
+        fields.extend([
+            "shared_actor_max_abs_delta",
+            "shared_actor_grad_norm",
+            "critic_grad_norm",
+        ])
+        for z_idx in range(latent_k):
+            fields.append(f"latent_adapter_gate_z{z_idx}")
+            fields.append(f"latent_adapter_weight_delta_z{z_idx}")
+            fields.append(f"latent_action_bias_norm_z{z_idx}")
+            fields.append(f"latent_action_bias_delta_z{z_idx}")
+            fields.append(f"z_embedding_delta_z{z_idx}")
     return fields
 
 
