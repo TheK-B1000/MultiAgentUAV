@@ -106,6 +106,10 @@ class _StepMixin:
         btx, bty, rtx, rty = self._redirect_tagged_to_home(btx, bty, rtx, rty)
         btx, bty = self._route_targets_around_obstacles(self.blue_x, self.blue_y, btx, bty)
         rtx, rty = self._route_targets_around_obstacles(self.red_x, self.red_y, rtx, rty)
+        if red_action_flat is None and red_macro is None:
+            bt_macro = self._bt_scripted_red_macros()
+            if bt_macro is not None:
+                red_macro = bt_macro
         return {"btx": btx, "bty": bty, "rtx": rtx, "rty": rty, "red_macro": red_macro, "red_control_mask": red_control_mask}
 
     def _advance_dynamics_phase(self, targets: Dict[str, torch.Tensor], snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:

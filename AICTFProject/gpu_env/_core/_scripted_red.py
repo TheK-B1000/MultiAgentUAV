@@ -206,6 +206,23 @@ class _ScriptedRedMixin:
             bt_tx[:, :_bt_tx.shape[1]] = _bt_tx
             bt_ty[:, :_bt_ty.shape[1]] = _bt_ty
 
+        # Pure BT rows: skip legacy brain entirely (no RNG draws, no coord state).
+        _bt_legacy_restore: dict[str, torch.Tensor] | None = None
+        if (not is_blue) and bt_active.any() and bt_active.all():
+            self._debug_red_target_x = bt_tx.detach()
+            self._debug_red_target_y = bt_ty.detach()
+            return bt_tx, bt_ty
+        # Mixed batch: legacy may run for OP5–7 rows only; mute legacy side effects on BT rows.
+        if (not is_blue) and bool(bt_active.any().item()):
+            _bt_legacy_restore = {
+                "deception_prob": self.red_deception_prob.clone(),
+                "role_switch_prob": self.red_role_switch_prob.clone(),
+                "coordinated_attack": self.red_coordinated_attack.clone(),
+            }
+            self.red_deception_prob = torch.where(bt_active, 0.0, self.red_deception_prob)
+            self.red_role_switch_prob = torch.where(bt_active, 0.0, self.red_role_switch_prob)
+            self.red_coordinated_attack = torch.where(bt_active, False, self.red_coordinated_attack)
+
         if is_blue:
             N, Ne = self.Nb, self.Nr
             own_x, own_y = self.blue_x, self.blue_y
@@ -277,14 +294,16 @@ class _ScriptedRedMixin:
             late_game = time_frac > 0.75  # last 25% of episode
             team_is_trailing = self.red_score < self.blue_score
             team_is_leading = self.red_score > self.blue_score
+            legacy_env = ~bt_active
         else:
             late_game = torch.zeros((B,), dtype=torch.bool, device=device)
             team_is_trailing = torch.zeros((B,), dtype=torch.bool, device=device)
             team_is_leading = torch.zeros((B,), dtype=torch.bool, device=device)
+            legacy_env = torch.ones((B,), dtype=torch.bool, device=device)
 
         if not is_blue:
             win_u = torch.clamp(self.red_attack_sync_window, 0, 64)
-            need_refresh = self.red_coordinated_attack & (self.red_coord_ticks_left <= 0)
+            need_refresh = self.red_coordinated_attack & (self.red_coord_ticks_left <= 0) & legacy_env
             if need_refresh.any():
                 ei = torch.where(need_refresh)[0]
                 has_c = enemy_carrier_exists[ei]
@@ -364,7 +383,14 @@ class _ScriptedRedMixin:
         if not is_blue:
             has_charge = self.red_mine_charges[:, 0] > 0
             approaching_mine_drop = (self.sim_step_count % 50) < 15
-            mine_intent = has_charge & approaching_mine_drop & (op8_mask | op9_mask | op10_mask)
+            # BT opponents (OP8+) overwrite targets afterward; legacy mine routing is
+            # non-BT only — mines for BT paths live in ``_bt_red.py``.
+            mine_intent = (
+                has_charge
+                & approaching_mine_drop
+                & (op8_mask | op9_mask | op10_mask)
+                & (~bt_active)
+            )
             if mine_intent.any():
                 # OP9: place mines at the approach lane to own flag (~25% past midline).
                 op9_mine_x = torch.clamp(own_flag_home[:, 0] + (midline - own_flag_home[:, 0]) * 0.4, 0.0, max_x)
@@ -597,15 +623,20 @@ class _ScriptedRedMixin:
                     m = hold & not_g & (~own_carrying[:, j]) & (~own_carry_any)
                     target[:, j, 0] = torch.where(m, ax, target[:, j, 0])
                     target[:, j, 1] = torch.where(m, ay, target[:, j, 1])
-            c = self.red_coordinated_attack
+            c = self.red_coordinated_attack & legacy_env
             self.red_coord_ticks_left = torch.where(
                 c,
                 torch.clamp(self.red_coord_ticks_left - 1, min=0),
                 self.red_coord_ticks_left,
             )
 
+        if _bt_legacy_restore is not None:
+            self.red_deception_prob = _bt_legacy_restore["deception_prob"]
+            self.red_role_switch_prob = _bt_legacy_restore["role_switch_prob"]
+            self.red_coordinated_attack = _bt_legacy_restore["coordinated_attack"]
+
         if not is_blue:
-            # BT opponents (OP5..OP12) override scripted targets for their envs.
+            # BT opponents (OP8..OP12) override scripted targets for their envs.
             # bt_tx/bt_ty are [B, Nr]; target is [B, N, 2] where N == Nr for red side.
             # We overwrite only the Nr columns, leaving any extra columns (if N > Nr) alone.
             if bt_active.any():

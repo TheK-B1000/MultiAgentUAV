@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Compare tactical behavior of scripted opponents OP5 through OP12.
 
-Runs short matched-seed rollouts with a passive blue team (hold position) so
-red scripted-BT telemetry reflects opponent tactics rather than PPO skill.
+Runs matched-seed rollouts with a passive blue team plus a contested-scenario
+battery (forced carrier / intercept / counter geometries).
 
 Usage::
 
     python tools/eval_opponent_tactics.py --seeds 0 1 2 --steps 200
-    python tools/eval_opponent_tactics.py --opponents OP5 OP8 OP12 --out reports/op_tactics.md
+    python tools/eval_opponent_tactics.py --mode both --out reports/op_tactics.md
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import numpy as np
 
@@ -142,8 +142,72 @@ def _rollout_opponent(
     }
 
 
+def _setup_intercept_feasible(c) -> None:
+    c.blue_carrying[0, 0] = True
+    c.blue_x[0, 0] = 10.0
+    c.blue_y[0, 0] = 10.0
+    c.red_x[0, 0] = 8.0
+    c.red_y[0, 0] = 9.0
+    c.red_x[0, 1] = 8.0
+    c.red_y[0, 1] = 11.0
+
+
+def _setup_counter_infeasible(c) -> None:
+    c.blue_carrying[0, 0] = True
+    c.blue_x[0, 0] = 1.0
+    c.blue_y[0, 0] = 10.0
+    c.red_x[0, 0] = 18.0
+    c.red_y[0, 0] = 5.0
+    c.red_x[0, 1] = 18.0
+    c.red_y[0, 1] = 15.0
+
+
+def _setup_escort_pursued(c) -> None:
+    c.red_carrying[0, 0] = True
+    c.red_x[0, 0] = 14.0
+    c.red_y[0, 0] = 10.0
+    c.blue_x[0, 0] = 13.0
+    c.blue_y[0, 0] = 10.0
+
+
+def _setup_dual_carrier(c) -> None:
+    c.red_carrying[0, 0] = True
+    c.red_x[0, 0] = 14.0
+    c.red_y[0, 0] = 10.0
+    c.blue_carrying[0, 0] = True
+    c.blue_x[0, 0] = 6.0
+    c.blue_y[0, 0] = 10.0
+    c.red_x[0, 1] = 8.0
+    c.red_y[0, 1] = 10.0
+    c.blue_x[0, 1] = 1.0
+    c.blue_y[0, 1] = 1.0
+
+
+def _setup_op9_mine_intent(c) -> None:
+    from gpu_env._core._bt_profiles import profile_for_level
+
+    prof = profile_for_level(9)
+    c.sim_step_count[0] = int(prof.mine_approach_lead_steps - 1)
+    c.red_mine_charges[0, 1] = 1
+    c.red_x[0, 0] = 4.0
+    c.red_y[0, 0] = 10.0
+    c.red_x[0, 1] = 18.0
+    c.red_y[0, 1] = 10.0
+    c.blue_x[0, 0] = 12.0
+    c.blue_y[0, 0] = 10.0
+
+
+_CONTESTED_SCENARIOS: Dict[str, Callable[[object], None]] = {
+    "intercept_feasible": _setup_intercept_feasible,
+    "counter_infeasible": _setup_counter_infeasible,
+    "escort_pursued": _setup_escort_pursued,
+    "dual_carrier": _setup_dual_carrier,
+    "op9_mine_intent": _setup_op9_mine_intent,
+}
+
+
 def _contested_scenario_eval(opponent: str) -> Dict[str, float]:
-    """Single-step BT decisions under a contested micro-scenario."""
+    """Run the full contested scenario battery for one opponent."""
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig  # type: ignore[import]
 
     cfg = GPUFieldConfig(
@@ -152,52 +216,58 @@ def _contested_scenario_eval(opponent: str) -> Dict[str, float]:
         aquaticus_profile=True, rules_profile="OURS", device="cpu", seed=0,
     )
     env = GPUCTFVecEnv(cfg)
-    env.reset()
-    core = env.core
-    core.set_next_opponent("SCRIPTED", opponent, env_indices=[0])
-    core.bt_role_lock_ticks[0] = 0
-
-    # Dual-pressure: own carrier + enemy carrier.
-    core.red_carrying[0, 0] = True
-    core.red_x[0, 0] = 14.0
-    core.red_y[0, 0] = 10.0
-    core.blue_x[0, 0] = 13.0
-    core.blue_y[0, 0] = 10.0
-    core.blue_carrying[0, 1] = True
-    core.blue_x[0, 1] = 6.0
-    core.blue_y[0, 1] = 10.0
-    core.red_x[0, 1] = 8.0
-    core.red_y[0, 1] = 10.0
-
-    core._get_bt_targets()
-    roles = core.bt_red_role[0].tolist()
-    role_set = {ROLE_NAMES.get(int(r), str(r)) for r in roles}
-    return {
-        "opponent": opponent,
-        "has_escort": float("ESCORT" in role_set),
-        "has_intercept": float("INTERCEPTOR" in role_set),
-        "has_counter": float("COUNTER" in role_set),
-        "has_defender": float("DEFENDER" in role_set),
-        "unique_roles": float(len(role_set)),
-    }
+    try:
+        core = env.core
+        hits = {name: 0.0 for name in _CONTESTED_SCENARIOS}
+        for name, setup in _CONTESTED_SCENARIOS.items():
+            env.reset()
+            core.set_next_opponent("SCRIPTED", opponent, env_indices=[0])
+            core.bt_role_lock_ticks[0] = 0
+            core.bt_mine_lock_ticks.zero_()
+            core.bt_want_mine.zero_()
+            setup(core)
+            core._assign_scripted_targets_by_role("red")
+            roles = {ROLE_NAMES.get(int(r), str(r)) for r in core.bt_red_role[0].tolist()}
+            if name == "intercept_feasible":
+                hits[name] = float("INTERCEPTOR" in roles)
+            elif name == "counter_infeasible":
+                hits[name] = float("COUNTER" in roles and "INTERCEPTOR" not in roles)
+            elif name == "escort_pursued":
+                hits[name] = float("ESCORT" in roles)
+            elif name == "dual_carrier":
+                hits[name] = float("ESCORT" in roles or "INTERCEPTOR" in roles)
+            elif name == "op9_mine_intent":
+                hits[name] = float(bool(core.bt_want_mine[0].any().item()))
+        return {"opponent": opponent, **hits}
+    finally:
+        env.close()
 
 
-def _format_contested(agg: Dict[str, Dict[str, float]]) -> str:
+def _format_contested_battery(agg: Dict[str, Dict[str, float]]) -> str:
     lines = [
-        "# Contested micro-scenario (dual carrier pressure)",
+        "# Contested scenario battery (forced geometries)",
         "",
-        "| Opponent | Escort | Intercept | Counter | Defender | Unique roles |",
-        "|----------|--------|-----------|---------|----------|--------------|",
+        "| Opponent | Intercept | Counter | Escort | Dual-carrier | OP9 mine |",
+        "|----------|-----------|---------|--------|--------------|----------|",
     ]
     for opp in CURRICULUM:
         if opp not in agg:
             continue
         r = agg[opp]
         lines.append(
-            f"| {opp} | {r.get('has_escort', 0):.0f} | {r.get('has_intercept', 0):.0f} "
-            f"| {r.get('has_counter', 0):.0f} | {r.get('has_defender', 0):.0f} "
-            f"| {r.get('unique_roles', 0):.0f} |"
+            f"| {opp} "
+            f"| {r.get('intercept_feasible', 0):.0f} "
+            f"| {r.get('counter_infeasible', 0):.0f} "
+            f"| {r.get('escort_pursued', 0):.0f} "
+            f"| {r.get('dual_carrier', 0):.0f} "
+            f"| {r.get('op9_mine_intent', 0):.0f} |"
         )
+    lines.append("")
+    lines.append(
+        "_Each cell is 1 if the scenario fired the expected role/signal for that opponent, else 0. "
+        "``counter_infeasible`` expects COUNTER without INTERCEPTOR (OP12-style geometry). "
+        "``op9_mine_intent`` is only meaningful for OP9 (others may read 0)._"
+    )
     return "\n".join(lines)
 
 
@@ -255,26 +325,31 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--seeds", nargs="*", type=int, default=[0, 1, 2])
     parser.add_argument("--steps", type=int, default=200)
     parser.add_argument("--agents", type=int, default=2)
-    parser.add_argument("--mode", choices=("rollout", "contested"), default="rollout")
+    parser.add_argument("--mode", choices=("rollout", "contested", "both"), default="both")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args(argv)
 
-    rows: List[Dict[str, float]] = []
-    if args.mode == "contested":
-        for opp in args.opponents:
-            print(f"Contested scenario {opp}...", flush=True)
-            rows.append(_contested_scenario_eval(opp))
-        agg = _aggregate(rows)
-        report = _format_contested(agg)
-    else:
+    report_parts: List[str] = []
+    if args.mode in ("rollout", "both"):
+        rollout_rows: List[Dict[str, float]] = []
         for opp in args.opponents:
             for seed in args.seeds:
                 print(f"Rolling {opp} seed={seed}...", flush=True)
-                rows.append(
+                rollout_rows.append(
                     _rollout_opponent(opp, seed=seed, steps=args.steps, n_agents=args.agents)
                 )
-        agg = _aggregate(rows)
-        report = _format_markdown(agg)
+        report_parts.append(_format_markdown(_aggregate(rollout_rows)))
+
+    if args.mode in ("contested", "both"):
+        contested_rows: List[Dict[str, float]] = []
+        for opp in args.opponents:
+            print(f"Contested battery {opp}...", flush=True)
+            contested_rows.append(_contested_scenario_eval(opp))
+        if args.mode == "both":
+            report_parts.append("")
+        report_parts.append(_format_contested_battery({r["opponent"]: r for r in contested_rows}))
+
+    report = "\n".join(report_parts)
     print(report)
 
     if args.out is not None:

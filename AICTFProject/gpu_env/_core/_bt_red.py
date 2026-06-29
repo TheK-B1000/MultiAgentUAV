@@ -55,9 +55,11 @@ exposes to both sides.
 """
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
+
+from macro_actions import MacroAction
 
 from ._bt_profiles import BT_OPPONENT_KEYS, build_profile_tensors, is_bt_opponent
 
@@ -114,6 +116,12 @@ class _BTRedMixin:
         self.bt_tel_objective_changes  = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_tel_successful_tags    = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_tel_stuck_steps        = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_tel_mine_attempts        = torch.zeros((B,), dtype=i32, device=dev)
+        # Per-agent deliberate mine placement (BT route layer).
+        self.bt_mine_target_x = torch.zeros((B, N), dtype=f32, device=dev)
+        self.bt_mine_target_y = torch.zeros((B, N), dtype=f32, device=dev)
+        self.bt_want_mine = torch.zeros((B, N), dtype=torch.bool, device=dev)
+        self.bt_mine_lock_ticks = torch.zeros((B, N), dtype=i32, device=dev)
         # Per-agent last position (for stuck detection, reset each episode).
         self.bt_last_x = torch.zeros((B, N), dtype=f32, device=dev)
         self.bt_last_y = torch.zeros((B, N), dtype=f32, device=dev)
@@ -135,6 +143,11 @@ class _BTRedMixin:
         self.bt_tel_objective_changes[idx]  = 0
         self.bt_tel_successful_tags[idx]    = 0
         self.bt_tel_stuck_steps[idx]        = 0
+        self.bt_tel_mine_attempts[idx]        = 0
+        self.bt_mine_target_x[idx]            = 0.0
+        self.bt_mine_target_y[idx]            = 0.0
+        self.bt_want_mine[idx]                = False
+        self.bt_mine_lock_ticks[idx]          = 0
         self.bt_last_x[idx]            = 0.0
         self.bt_last_y[idx]            = 0.0
         self.bt_active_branch[idx]     = ROLE_ATTACKER
@@ -679,6 +692,208 @@ class _BTRedMixin:
         return target_x, target_y
 
     # ──────────────────────────────────────────────────────────────────────
+    # Deliberate mine placement (BT decides whether; routes decide where)
+    # ──────────────────────────────────────────────────────────────────────
+    def _bt_mine_site_clear(
+        self,
+        mine_x: torch.Tensor,
+        mine_y: torch.Tensor,
+        min_spacing: torch.Tensor,
+    ) -> torch.Tensor:
+        """True when proposed site is not within ``min_spacing`` of an active mine."""
+        amx = self.red_mine_x
+        amy = self.red_mine_y
+        active = self.red_mine_active
+        dx = mine_x[:, :, None] - amx[:, None, :]
+        dy = mine_y[:, :, None] - amy[:, None, :]
+        dist = torch.sqrt(dx ** 2 + dy ** 2 + 1e-8)
+        too_close = (dist < min_spacing[:, None, None]) & active[:, None, :]
+        return ~too_close.any(dim=2)
+
+    def _bt_plan_mines(
+        self,
+        bb: dict,
+        roles: torch.Tensor,
+        prof: Dict[str, torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Return proposed mine sites and per-agent placement intent."""
+        B, Nr = self.B, self.Nr
+        device = self.device
+        enable = prof["enable_mines"][:, None]
+        if not bool(enable.any().item()):
+            zeros_f = torch.zeros((B, Nr), dtype=torch.float32, device=device)
+            zeros_b = torch.zeros((B, Nr), dtype=torch.bool, device=device)
+            return zeros_f, zeros_f, zeros_b
+
+        max_x, max_y = bb["max_x"], bb["max_y"]
+        has_free = (~self.red_mine_active).any(dim=1, keepdim=True)
+        has_charge = self.red_mine_charges > 0
+        not_carrier = ~self.red_carrying
+        alive = self.red_alive & (~self.red_tagged)
+
+        rfh_x = bb["red_flag_home"][:, 0]
+        rfh_y = bb["red_flag_home"][:, 1]
+        midline_x = float(bb["midline"])
+        lane_frac = prof["mine_defender_lane_frac"][:, None]
+        def_mine_x = torch.clamp(
+            rfh_x[:, None] + (midline_x - rfh_x[:, None]) * lane_frac,
+            0.0,
+            max_x,
+        )
+        def_mine_y = rfh_y[:, None].expand(B, Nr)
+
+        block_frac = (
+            prof["intercept_block_base"][:, None]
+            + prof["intercept_block_trailing_bonus"][:, None] * bb["trailing"].float()[:, None]
+        )
+        int_mine_x = torch.clamp(
+            bb["ec_x"][:, None]
+            + (bb["blue_flag_home"][:, 0:1] - bb["ec_x"][:, None]) * block_frac,
+            0.0,
+            max_x,
+        )
+        int_mine_y = torch.clamp(
+            bb["ec_y"][:, None]
+            + (bb["blue_flag_home"][:, 1:2] - bb["ec_y"][:, None]) * block_frac,
+            0.0,
+            max_y,
+        )
+
+        is_def = roles == ROLE_DEFENDER
+        is_int = roles == ROLE_INTERCEPTOR
+        mine_x = torch.zeros((B, Nr), dtype=torch.float32, device=device)
+        mine_y = torch.zeros((B, Nr), dtype=torch.float32, device=device)
+        mine_x = torch.where(is_def, def_mine_x, mine_x)
+        mine_y = torch.where(is_def, def_mine_y, mine_y)
+        mine_x = torch.where(is_int, int_mine_x, mine_x)
+        mine_y = torch.where(is_int, int_mine_y, mine_y)
+
+        def_want = is_def & (bb["any_intruder"][:, None] | bb["blue_carry_any"][:, None])
+        dist_ec = torch.sqrt(
+            (self.red_x - bb["ec_x"][:, None]) ** 2
+            + (self.red_y - bb["ec_y"][:, None]) ** 2
+            + 1e-8
+        )
+        int_want = (
+            is_int
+            & bb["blue_carry_any"][:, None]
+            & bb["intercept_feasible_per_agent"]
+            & (dist_ec > 4.0)
+        )
+        role_want = def_want | int_want
+
+        forbidden = (
+            (roles == ROLE_ESCORT)
+            | (roles == ROLE_FLAG_RETR)
+            | (roles == ROLE_COUNTER)
+            | (roles == ROLE_ATTACKER)
+            | (roles == ROLE_2V1_WING)
+        )
+
+        want = (
+            enable
+            & has_free
+            & has_charge
+            & not_carrier
+            & alive
+            & role_want
+            & (~forbidden)
+        )
+        want = want & self._bt_mine_site_clear(mine_x, mine_y, prof["mine_min_spacing"])
+
+        cooldown = prof["mine_cooldown_steps"][:, None].clamp(min=1)
+        lead = prof["mine_approach_lead_steps"][:, None]
+        step_mod = torch.remainder(
+            self.sim_step_count[:, None].expand(B, Nr),
+            cooldown,
+        )
+        want = want & (step_mod < lead)
+
+        prev_want = self.bt_want_mine[:, :Nr]
+        lock = self.bt_mine_lock_ticks[:, :Nr]
+        lock = (lock - 1).clamp(min=0)
+        persist = (
+            prev_want
+            & (lock > 0)
+            & has_charge
+            & not_carrier
+            & alive
+            & (~forbidden)
+        )
+        want = want | persist
+        new_want = want & (~prev_want)
+        lock = torch.where(new_want, prof["mine_lock_ticks"][:, None], lock)
+        lock = torch.where(~want, torch.zeros_like(lock), lock)
+        self.bt_mine_lock_ticks[:, :Nr] = lock
+
+        return mine_x, mine_y, want
+
+    def _bt_apply_mine_routes(
+        self,
+        tx: torch.Tensor,
+        ty: torch.Tensor,
+        mine_x: torch.Tensor,
+        mine_y: torch.Tensor,
+        want: torch.Tensor,
+        prof: Dict[str, torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Route agents toward mine sites before issuing PLACE_MINE at arrival."""
+        place_r = prof["mine_place_radius"][:, None]
+        dist = torch.sqrt((self.red_x - mine_x) ** 2 + (self.red_y - mine_y) ** 2 + 1e-8)
+        route_mine = want & (dist > place_r)
+        tx = torch.where(route_mine, mine_x, tx)
+        ty = torch.where(route_mine, mine_y, ty)
+        return tx, ty
+
+    def _bt_scripted_red_macros(self) -> Optional[torch.Tensor]:
+        """Emit PLACE_MINE macros for BT mine opponents; None when inactive."""
+        prof = build_profile_tensors(self._opponent_key, device=self.device, batch_size=self.B)
+        bt_mine_envs = self._bt_opponent_mask() & prof["enable_mines"]
+        if not bool(bt_mine_envs.any().item()):
+            return None
+
+        B, Nr = self.B, self.Nr
+        device = self.device
+        macro = torch.full(
+            (B, Nr),
+            int(MacroAction.GO_TO),
+            dtype=torch.int64,
+            device=device,
+        )
+
+        bt_active = self._bt_opponent_mask()
+        step_50 = (self.sim_step_count % 50) == 0
+        legacy_place = (~bt_active) & step_50 & (self.red_mine_charges[:, 0] > 0)
+        macro[:, 0] = torch.where(
+            legacy_place,
+            torch.full((B,), int(MacroAction.PLACE_MINE), dtype=torch.int64, device=device),
+            macro[:, 0],
+        )
+
+        enable_env = prof["enable_mines"][:, None]
+        dist = torch.sqrt(
+            (self.red_x - self.bt_mine_target_x[:, :Nr]) ** 2
+            + (self.red_y - self.bt_mine_target_y[:, :Nr]) ** 2
+            + 1e-8
+        )
+        at_site = (
+            enable_env
+            & bt_active[:, None]
+            & self.bt_want_mine[:, :Nr]
+            & (dist <= prof["mine_place_radius"][:, None])
+            & (self.red_mine_charges > 0)
+        )
+        macro = torch.where(
+            at_site,
+            torch.full_like(macro, int(MacroAction.PLACE_MINE)),
+            macro,
+        )
+        self.bt_tel_mine_attempts += (
+            at_site.any(dim=1).to(torch.int32) & bt_mine_envs.to(torch.int32)
+        )
+        return macro
+
+    # ──────────────────────────────────────────────────────────────────────
     # Helper: tangent evasion from nearest blue agent
     # ──────────────────────────────────────────────────────────────────────
     def _bt_tangent_evade(
@@ -816,6 +1031,11 @@ class _BTRedMixin:
         roles = self._bt_assign_roles(bb)
         self._bt_update_telemetry(bb, roles, prev_roles)
         tx, ty = self._bt_route_target(bb, roles)
+        mine_x, mine_y, want = self._bt_plan_mines(bb, roles, prof)
+        tx, ty = self._bt_apply_mine_routes(tx, ty, mine_x, mine_y, want, prof)
+        self.bt_mine_target_x[:, :self.Nr] = mine_x.detach()
+        self.bt_mine_target_y[:, :self.Nr] = mine_y.detach()
+        self.bt_want_mine[:, :self.Nr] = want.detach()
         self._debug_red_target_x = tx.detach()
         self._debug_red_target_y = ty.detach()
         return tx, ty

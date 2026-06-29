@@ -83,6 +83,15 @@ class BTProfile:
     intercept_feasibility_ratio: float = 0.90
     min_alive_for_defender: int = 2
 
+    # Deliberate mine placement (BT route layer; OP9 fortress identity).
+    enable_mines: bool = False
+    mine_defender_lane_frac: float = 0.40
+    mine_cooldown_steps: int = 50
+    mine_approach_lead_steps: int = 15
+    mine_place_radius: float = 1.5
+    mine_min_spacing: float = 3.0
+    mine_lock_ticks: int = 20
+
 
 def _profile(
     level: int,
@@ -165,6 +174,8 @@ BT_PROFILES: Dict[int, BTProfile] = {
         defender_zone_frac=0.10,
         late_game_evasion_unlock=True,
         threat_radius=7.5,
+        enable_mines=True,
+        mine_defender_lane_frac=0.40,
     ),
     10: _profile(
         10,
@@ -292,6 +303,13 @@ def build_profile_tensors(
         late_game_evasion_unlock=_bool("late_game_evasion_unlock"),
         intercept_feasibility_ratio=_scalar("intercept_feasibility_ratio", 0.90),
         min_alive_for_defender=_int("min_alive_for_defender", 2),
+        enable_mines=_bool("enable_mines"),
+        mine_defender_lane_frac=_scalar("mine_defender_lane_frac", 0.40),
+        mine_cooldown_steps=_int("mine_cooldown_steps", 50),
+        mine_approach_lead_steps=_int("mine_approach_lead_steps", 15),
+        mine_place_radius=_scalar("mine_place_radius", 1.5),
+        mine_min_spacing=_scalar("mine_min_spacing", 3.0),
+        mine_lock_ticks=_int("mine_lock_ticks", 20),
     )
 
 
