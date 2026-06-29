@@ -349,7 +349,6 @@ def run_eval_episodes(
                 # 2. Seed global RNGs (environment reset, opponent, action sampling)
                 import random
                 random.seed(common_episode_seed)
-                import numpy as np
                 np.random.seed(common_episode_seed)
                 import torch
                 torch.manual_seed(common_episode_seed)

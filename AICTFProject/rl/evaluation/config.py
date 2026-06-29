@@ -35,6 +35,7 @@ class MapAwarenessEvaluationConfig:
     minimum_win_rate: float
     competence_retention_tolerance: float
     saturation_win_rate: float
+    allow_saturated_pool: bool = False
     baseline_cnn_channels: int = 7
     candidate_cnn_channels: int = 8
 
@@ -90,6 +91,7 @@ def config_from_namespace(args: Namespace) -> MapAwarenessEvaluationConfig:
         minimum_win_rate=float(args.minimum_win_rate),
         competence_retention_tolerance=float(args.competence_retention_tolerance),
         saturation_win_rate=float(args.saturation_win_rate),
+        allow_saturated_pool=bool(getattr(args, "allow_saturated_pool", False)),
     )
     config.validate()
     return config

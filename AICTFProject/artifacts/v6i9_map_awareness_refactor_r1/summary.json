@@ -1,0 +1,89 @@
+{
+  "verdict": "NOT READY FOR STAGE B - UNIVERSAL SATURATION",
+  "gates": {
+    "obstacle_weights_moved": {
+      "status": "PASS",
+      "value": 0.03906703740358353,
+      "threshold": 0.0001
+    },
+    "obstacle_gradient_connected": {
+      "status": "PASS",
+      "value": 0.011522970162332058,
+      "threshold": 0.0
+    },
+    "obstacle_counterfactual_effect": {
+      "status": "PASS",
+      "argmax_change_rate": 0.01171875,
+      "argmax_change_threshold": 0.01,
+      "mean_action_kl": 1.390302280412925e-05,
+      "kl_threshold": 1e-05,
+      "mean_logit_l2": 0.025903606903739274,
+      "states_evaluated": 64
+    },
+    "wall_collisions_improved": {
+      "status": "FAIL",
+      "collision_metric_source": "environment_exact",
+      "baseline_mean": 0.95,
+      "candidate_mean": 1.4,
+      "minimum_reduction_fraction": 0.1,
+      "reduction_fraction": -0.47368421052631576
+    },
+    "blocked_movement_improved": {
+      "status": "PASS",
+      "stuck_metric_source": "environment_exact",
+      "baseline_mean": 0.0,
+      "candidate_mean": 0.0,
+      "minimum_reduction_fraction": 0.1,
+      "reason": "Baseline is zero, so relative reduction is undefined."
+    },
+    "stuck_behavior_improved": {
+      "status": "PASS",
+      "stuck_metric_source": "environment_exact",
+      "baseline_mean": 0.0,
+      "candidate_mean": 0.0,
+      "minimum_reduction_fraction": 0.1,
+      "reason": "Baseline is zero, so relative reduction is undefined."
+    },
+    "map_dependent_routes": {
+      "status": "INCONCLUSIVE",
+      "route_metric_source": "environment_exact",
+      "max_upper_fraction_difference": null,
+      "threshold": 0.1,
+      "per_map": {
+        "map_a_open": {
+          "upper_mean": null,
+          "lower_mean": null,
+          "upper_fraction": null,
+          "route_metric_source": "unavailable"
+        },
+        "map_b_split_lane": {
+          "upper_mean": 28.183333333333334,
+          "lower_mean": 70.36666666666666,
+          "upper_fraction": 0.28598004397091153,
+          "route_metric_source": "environment_exact"
+        }
+      }
+    },
+    "hard_pool_competence_retained": {
+      "status": "PASS",
+      "baseline_win_rate": 1.0,
+      "candidate_win_rate": 1.0,
+      "minimum_candidate_win_rate": 0.6,
+      "maximum_allowed_drop": 0.05
+    },
+    "universal_saturation_avoided": {
+      "status": "FAIL",
+      "condition_win_rates": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "saturation_threshold": 0.95
+    }
+  },
+  "episodes_per_condition": 20,
+  "warning": null
+}

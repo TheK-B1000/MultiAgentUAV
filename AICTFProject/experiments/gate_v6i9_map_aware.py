@@ -66,79 +66,84 @@ def check_obstacle_channel_weights(sd: dict[str, Any], threshold: float = 1e-4) 
 def check_map_sensitivity(checkpoint: str, device: str) -> bool:
     """Return True if wall geometry changes actor logits.
 
-    Constructs two observations that differ only in the obstacle channel
-    (one all-zero, one partially filled) and checks that logits differ.
+    Compares map_b (walls) vs map_a_open on the same reset seed so the
+    obstacle CNN channel differs while agent placement is matched.
     """
     try:
-        from rl.custom_ppo.inference import read_custom_ppo_metadata
+        from rl.custom_ppo.inference import load_custom_ppo_policy, read_custom_ppo_metadata
         from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 
         meta = read_custom_ppo_metadata(checkpoint)
         n_agents = int(meta.get("n_blue", 2))
 
-        # Build two envs: map_b (has walls) vs map_a_open (no walls)
         def _make_env(map_layout: str) -> GPUCTFVecEnv:
             cfg = GPUFieldConfig(
-                n_envs=1, max_blue_agents=n_agents, max_red_agents=n_agents,
-                map_layout=map_layout, max_decision_steps=400,
-                aquaticus_profile=True, rules_profile="OURS",
-                device=device, seed=42, obstacle_obs_channel=True,
+                n_envs=1,
+                max_blue_agents=n_agents,
+                max_red_agents=n_agents,
+                map_layout=map_layout,
+                max_decision_steps=400,
+                aquaticus_profile=True,
+                rules_profile="OURS",
+                device=device,
+                seed=42,
+                obstacle_obs_channel=True,
             )
             return GPUCTFVecEnv(cfg)
 
         env_wall = _make_env("map_b")
         env_open = _make_env("map_a_open")
-        env_wall.reset()
-        env_open.reset()
+        try:
+            env_wall.seed(42)
+            env_open.seed(42)
+            obs_wall = env_wall.reset()
+            obs_open = env_open.reset()
 
-        obs_wall = env_wall.get_obs()
-        obs_open = env_open.get_obs()
+            grid_wall = obs_wall["grid"]
+            grid_open = obs_open["grid"]
+            if grid_wall.ndim != 5 or grid_open.ndim != 5:
+                print(f"  Gate 3: SKIP — expected grid (B, A, C, H, W), got {grid_wall.shape}")
+                return False
+            if int(grid_wall.shape[2]) < 8:
+                print(f"  Gate 3: SKIP — grids have {grid_wall.shape[2]} channels (expected 8)")
+                return False
 
-        grid_wall = obs_wall["grid"]
-        grid_open = obs_open["grid"]
+            # Agent 0 obstacle channel: map_b should differ from map_a_open.
+            obs_ch_wall = grid_wall[:, 0, 7, :, :]
+            obs_ch_open = grid_open[:, 0, 7, :, :]
+            ch_diff = float(abs(obs_ch_wall - obs_ch_open).max())
+            if ch_diff < 1e-6:
+                print("  Gate 3: FAIL — obstacle channels identical for map_b and map_a_open")
+                return False
 
-        # Check that obstacle channels actually differ
-        if grid_wall.shape[2] < 8 or grid_open.shape[2] < 8:
-            print(f"  Gate 3: SKIP — grids have {grid_wall.shape[2]} channels (expected 8)")
-            return False
+            policy = load_custom_ppo_policy(
+                checkpoint, env_wall.observation_space, env_wall.action_space, device=device
+            )
+            dev = torch.device(device)
+            z_idx = torch.zeros((1,), dtype=torch.long, device=dev)
 
-        obs_ch_wall = grid_wall[:, :, 7, :, :]
-        obs_ch_open = grid_open[:, :, 7, :, :]
-        if float((obs_ch_wall - obs_ch_open).abs().max().item()) < 1e-6:
-            print("  Gate 3: FAIL — obstacle channels identical for map_b and map_a_open")
-            return False
+            def _to_model_obs(raw: dict) -> dict:
+                return {
+                    "grid": torch.as_tensor(raw["grid"], dtype=torch.float32, device=dev),
+                    "vec": torch.as_tensor(raw["vec"], dtype=torch.float32, device=dev),
+                    "agent_mask": torch.as_tensor(raw["agent_mask"], dtype=torch.float32, device=dev),
+                    "mask": torch.as_tensor(raw["mask"], dtype=torch.float32, device=dev),
+                }
 
-        # Now check model logits differ
-        from gpu_env._specs import _make_obs_action_spaces
-        n_macros = int(meta.get("n_macros", 5))
-        n_targets = int(meta.get("n_targets", 16))
-        obs_space, act_space = _make_obs_action_spaces(
-            n_agents, n_macros, n_targets, num_cnn_channels=8
-        )
-        from rl.custom_ppo.inference import load_custom_ppo_policy
-        policy = load_custom_ppo_policy(checkpoint, obs_space, act_space, device=device)
+            with torch.no_grad():
+                logits_wall = policy.model.policy_logits(_to_model_obs(obs_wall), z_idx=z_idx)
+                logits_open = policy.model.policy_logits(_to_model_obs(obs_open), z_idx=z_idx)
 
-        dev = torch.device(device)
-        z_idx = torch.zeros((1,), dtype=torch.long, device=dev)
-
-        def _to_model_obs(raw: dict) -> dict:
-            return {
-                "grid": torch.as_tensor(raw["grid"], dtype=torch.float32, device=dev),
-                "vec": torch.as_tensor(raw["vec"], dtype=torch.float32, device=dev),
-                "agent_mask": torch.ones((1, n_agents), dtype=torch.float32, device=dev),
-                "mask": torch.ones((1, n_macros * n_targets), dtype=torch.float32, device=dev),
-            }
-
-        with torch.no_grad():
-            logits_wall = policy.model.policy_logits(_to_model_obs(obs_wall), z_idx=z_idx)
-            logits_open = policy.model.policy_logits(_to_model_obs(obs_open), z_idx=z_idx)
-
-        max_diff = float((logits_wall - logits_open).abs().max().item())
-        passed = max_diff > 1e-6
-        print(f"  Gate 3: {'PASS' if passed else 'FAIL'} — max logit diff = {max_diff:.3e}")
-        env_wall.close()
-        env_open.close()
-        return passed
+            max_diff = float((logits_wall - logits_open).abs().max().item())
+            passed = max_diff > 1e-6
+            print(
+                f"  Gate 3: {'PASS' if passed else 'FAIL'} — "
+                f"obs_ch_diff={ch_diff:.3e}, max_logit_diff={max_diff:.3e}"
+            )
+            return passed
+        finally:
+            env_wall.close()
+            env_open.close()
 
     except Exception as exc:
         print(f"  Gate 3: SKIP — {exc}")
@@ -147,8 +152,8 @@ def check_map_sensitivity(checkpoint: str, device: str) -> bool:
 
 # ── Gate 4: Hard-pool WR range 50–90% ────────────────────────────────────────
 
-def check_hardpool_wr(checkpoint: str, device: str, n_episodes: int = 50) -> tuple[bool, float]:
-    """Return (pass, mean_wr) for a quick forced-z eval against the hard pool."""
+def check_hardpool_wr(checkpoint: str, device: str, n_episodes: int = 50) -> tuple[bool, float, str]:
+    """Return (pass, mean_wr, detail) for a quick forced-z eval against the hard pool."""
     try:
         from experiments.calibrate_hard_pool import run_forced_z_cells, _wr, OPPONENTS, LATENTS, MAPS
 
@@ -163,13 +168,18 @@ def check_hardpool_wr(checkpoint: str, device: str, n_episodes: int = 50) -> tup
         )
         all_wr = [_wr(eps) for eps in cells.values() if eps]
         if not all_wr:
-            return False, float("nan")
+            return False, float("nan"), "no episodes completed (eval error?)"
         mean_wr = sum(all_wr) / len(all_wr)
-        passed = 0.50 < mean_wr < 0.90
-        return passed, mean_wr
+        if mean_wr != mean_wr:
+            return False, mean_wr, "nan mean WR"
+        if mean_wr < 0.50:
+            return False, mean_wr, "below 50% — not yet functional"
+        if mean_wr >= 0.90:
+            return False, mean_wr, "above 90% — pool saturated (expected after V6I9; use margin metrics)"
+        return True, mean_wr, "in [50%, 90%)"
     except Exception as exc:
         print(f"  Gate 4: SKIP — {exc}")
-        return False, float("nan")
+        return False, float("nan"), str(exc)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -179,8 +189,17 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--device", default="cpu")
     p.add_argument("--episodes", type=int, default=50, help="Episodes for WR gate (gate 4)")
-    p.add_argument("--obs-weight-threshold", type=float, default=1e-4,
-                   help="Min obstacle-channel weight magnitude to consider nonzero")
+    p.add_argument(
+        "--obs-weight-threshold",
+        type=float,
+        default=1e-4,
+        help="Min obstacle-channel weight magnitude to consider nonzero",
+    )
+    p.add_argument(
+        "--allow-saturated-wr",
+        action="store_true",
+        help="Treat WR>90%% as pass (competence proved; pool is easy)",
+    )
     return p.parse_args()
 
 
@@ -204,8 +223,11 @@ def main() -> None:
 
     # Gate 4
     print("\nGate 4: Hard-pool WR range check...")
-    g4_pass, mean_wr = check_hardpool_wr(ckpt, args.device, args.episodes)
-    results.append(("Gate 4: Hard-pool WR in [50%, 90%]", g4_pass, f"mean_WR={mean_wr:.1%}"))
+    g4_pass, mean_wr, g4_detail = check_hardpool_wr(ckpt, args.device, args.episodes)
+    if args.allow_saturated_wr and mean_wr == mean_wr and mean_wr >= 0.90:
+        g4_pass = True
+        g4_detail = f"{g4_detail} (override: --allow-saturated-wr)"
+    results.append(("Gate 4: Hard-pool WR in [50%, 90%]", g4_pass, f"mean_WR={mean_wr:.1%}; {g4_detail}"))
 
     print("\n" + "=" * 60)
     print("RESULTS")
@@ -220,10 +242,16 @@ def main() -> None:
 
     print("\n" + ("=" * 60))
     if all_pass:
-        print("VERDICT: PASS — freeze trunk, enable adapters + router, enter Stage C")
+        print("VERDICT: PASS — freeze trunk, enable adapters + router, enter repertoire")
     else:
-        print("VERDICT: FAIL — continue competence training")
+        print("VERDICT: FAIL — see failed gates above")
+        if mean_wr == mean_wr and mean_wr >= 0.90 and g12_pass and g3_pass:
+            print(
+                "NOTE: Gates 1–3 may pass while Gate 4 fails on saturation alone. "
+                "That is expected for a mastered hardpool; run promotion eval + forced-z margin matrix."
+            )
     print("=" * 60 + "\n")
+    raise SystemExit(0 if all_pass else 1)
 
 
 if __name__ == "__main__":

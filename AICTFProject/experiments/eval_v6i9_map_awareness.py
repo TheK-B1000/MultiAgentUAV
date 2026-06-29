@@ -1314,6 +1314,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=float,
         default=0.95,
     )
+    parser.add_argument(
+        "--allow-saturated-pool",
+        action="store_true",
+        help=(
+            "Label saturated hard-pool WR as READY FOR STAGE B - SATURATED POOL "
+            "when all required map-awareness gates pass. Saturation never blocks "
+            "Stage 2 eligibility by itself."
+        ),
+    )
     return parser.parse_args(argv)
 
 

@@ -68,6 +68,7 @@ def namespace_from_config(config: MapAwarenessEvaluationConfig) -> Namespace:
         minimum_win_rate=config.minimum_win_rate,
         competence_retention_tolerance=config.competence_retention_tolerance,
         saturation_win_rate=config.saturation_win_rate,
+        allow_saturated_pool=config.allow_saturated_pool,
     )
 
 
@@ -242,8 +243,9 @@ def run_evaluation(
         )
         complete_manifest(manifest)
         print(f"\nArtifacts written to: {config.output_dir.resolve()}")
+        stage2_ready = bool(summary.get("stage2_eligible"))
         return EvaluationRunResult(
-            exit_code=0,
+            exit_code=0 if stage2_ready else 1,
             output_dir=config.output_dir,
             summary=summary,
             episodes=episodes,

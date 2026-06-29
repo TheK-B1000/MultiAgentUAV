@@ -16,8 +16,44 @@ class EvaluationArtifactTests(unittest.TestCase):
         self.assertEqual(header, "b,a,c")
 
     def test_report_text_preserves_verdict_line(self) -> None:
-        summary = {"verdict": "INCONCLUSIVE", "gates": {key: {"status": "PASS"} for key in ["obstacle_weights_moved", "obstacle_gradient_connected", "obstacle_counterfactual_effect", "wall_collisions_improved", "blocked_movement_improved", "stuck_behavior_improved", "map_dependent_routes", "hard_pool_competence_retained", "universal_saturation_avoided"]}}
-        self.assertIn("VERDICT: INCONCLUSIVE", report_text(summary))
+        summary = {
+            "verdict": "READY FOR STAGE B",
+            "required_gates": {
+                key: {"status": "PASS"}
+                for key in [
+                    "obstacle_weights_moved",
+                    "obstacle_gradient_connected",
+                    "obstacle_counterfactual_effect",
+                    "hard_pool_competence_retained",
+                ]
+            },
+            "diagnostic_gates": {
+                key: {"status": "INCONCLUSIVE"}
+                for key in [
+                    "wall_collisions_improved",
+                    "blocked_movement_improved",
+                    "stuck_behavior_improved",
+                    "map_dependent_routes",
+                    "pool_saturation",
+                ]
+            },
+            "gates": {
+                **{key: {"status": "PASS"} for key in [
+                    "obstacle_weights_moved",
+                    "obstacle_gradient_connected",
+                    "obstacle_counterfactual_effect",
+                    "hard_pool_competence_retained",
+                ]},
+                **{key: {"status": "INCONCLUSIVE"} for key in [
+                    "wall_collisions_improved",
+                    "blocked_movement_improved",
+                    "stuck_behavior_improved",
+                    "map_dependent_routes",
+                    "pool_saturation",
+                ]},
+            },
+        }
+        self.assertIn("VERDICT: READY FOR STAGE B", report_text(summary))
 
 
 if __name__ == "__main__":

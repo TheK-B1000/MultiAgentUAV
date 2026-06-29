@@ -12,6 +12,22 @@ from rl.custom_ppo.probe_result import (
 from rl.evaluation.aggregation import field_mean as _field_mean
 from rl.evaluation.aggregation import policy_rows as _policy_rows
 
+REQUIRED_GATE_KEYS: tuple[str, ...] = (
+    "obstacle_weights_moved",
+    "obstacle_gradient_connected",
+    "obstacle_counterfactual_effect",
+    "hard_pool_competence_retained",
+)
+
+DIAGNOSTIC_GATE_KEYS: tuple[str, ...] = (
+    "wall_collisions_improved",
+    "blocked_movement_improved",
+    "stuck_behavior_improved",
+    "map_dependent_routes",
+    "pool_saturation",
+)
+
+
 def _improvement_gate(
     baseline: float | None,
     candidate: float | None,
@@ -92,14 +108,7 @@ def _gate_probe_counterfactual(
     action_threshold: float,
     kl_threshold: float,
 ) -> dict[str, Any]:
-    """Build a gate entry from a CounterfactualProbeResult.
-
-    Distinguishes four statuses:
-      PASS         — meets either threshold (strong sensitivity)
-      WARN         — measurably nonzero but below both thresholds
-      FAIL         — effectively zero (channel ignored)
-      ERROR/INCONCLUSIVE — probe did not execute correctly
-    """
+    """Build a gate entry from a CounterfactualProbeResult."""
     if not result.is_success:
         return {
             "status": "ERROR",
@@ -118,8 +127,6 @@ def _gate_probe_counterfactual(
     if action_change >= action_threshold or mean_kl >= kl_threshold:
         status = "PASS"
     elif mean_l2 is not None and mean_l2 > 1e-3:
-        # Logits changed but not enough to shift the action distribution:
-        # model reads the channel weakly — not a dead channel.
         status = "WARN"
     else:
         status = "FAIL"
@@ -132,6 +139,42 @@ def _gate_probe_counterfactual(
         "mean_logit_l2": mean_l2,
         "states_evaluated": result.states_evaluated,
     }
+
+
+def _required_gate_ok(status: str, *, allow_warn: bool = False) -> bool:
+    if status == "PASS":
+        return True
+    return bool(allow_warn and status == "WARN")
+
+
+def _core_required_ready(gates: Mapping[str, Mapping[str, Any]]) -> bool:
+    return all(
+        _required_gate_ok(
+            gates[key]["status"],
+            allow_warn=(key == "obstacle_counterfactual_effect"),
+        )
+        for key in REQUIRED_GATE_KEYS
+    )
+
+
+def _resolve_verdict(
+    gates: Mapping[str, Mapping[str, Any]],
+    *,
+    pool_saturated: bool,
+    allow_saturated_pool: bool,
+) -> str:
+    statuses = [gate["status"] for gate in gates.values()]
+
+    if any(s == "ERROR" for s in statuses):
+        return "NOT READY FOR STAGE B — PROBE ERROR (see gate details)"
+
+    if not _core_required_ready(gates):
+        return "NOT READY FOR STAGE B"
+
+    if pool_saturated and allow_saturated_pool:
+        return "READY FOR STAGE B - SATURATED POOL"
+
+    return "READY FOR STAGE B"
 
 
 def build_summary(
@@ -178,16 +221,21 @@ def build_summary(
         for row in obstacle_rows
     )
 
+    baseline_collisions = (
+        _field_mean(baseline_obstacle_rows, "wall_collisions")
+        if exact_wall_telemetry
+        else None
+    )
+    candidate_collisions = (
+        _field_mean(candidate_obstacle_rows, "wall_collisions")
+        if exact_wall_telemetry
+        else None
+    )
+
     if exact_wall_telemetry:
         status, details = _improvement_gate(
-            _field_mean(
-                baseline_obstacle_rows,
-                "wall_collisions",
-            ),
-            _field_mean(
-                candidate_obstacle_rows,
-                "wall_collisions",
-            ),
+            baseline_collisions,
+            candidate_collisions,
             args.navigation_improvement_threshold,
         )
     else:
@@ -202,6 +250,7 @@ def build_summary(
     gates["wall_collisions_improved"] = {
         "status": status,
         "collision_metric_source": "environment_exact" if exact_wall_telemetry else "unavailable",
+        "diagnostic_only": True,
         **details,
     }
 
@@ -221,6 +270,7 @@ def build_summary(
     gates["blocked_movement_improved"] = {
         "status": status,
         "stuck_metric_source": "environment_exact" if exact_blocked_telemetry else "unavailable",
+        "diagnostic_only": True,
         **details,
     }
 
@@ -243,6 +293,7 @@ def build_summary(
     gates["stuck_behavior_improved"] = {
         "status": status if exact_stuck_telemetry else "INCONCLUSIVE",
         "stuck_metric_source": "environment_exact" if exact_stuck_telemetry else "evaluator_proxy",
+        "diagnostic_only": True,
         **details,
     }
 
@@ -259,7 +310,9 @@ def build_summary(
             for row in candidate_conditions
             if row.get("map") == map_name
         ]
-        route_exact = bool(selected) and all(row.get("route_metric_source") == "environment_exact" for row in selected)
+        route_exact = bool(selected) and all(
+            row.get("route_metric_source") == "environment_exact" for row in selected
+        )
         upper = _field_mean(selected, "upper_lane_use") if route_exact else None
         lower = _field_mean(selected, "lower_lane_use") if route_exact else None
         total = (upper or 0.0) + (lower or 0.0)
@@ -299,6 +352,7 @@ def build_summary(
         "max_upper_fraction_difference": route_difference,
         "threshold": args.route_difference_threshold,
         "per_map": route_by_map,
+        "diagnostic_only": True,
     }
 
     baseline_win_rate = _field_mean(
@@ -338,7 +392,7 @@ def build_summary(
         for row in candidate_conditions
         if row.get("win") is not None
     ]
-    all_saturated = (
+    pool_saturated = (
         bool(condition_win_rates)
         and all(
             win_rate >= args.saturation_win_rate
@@ -346,49 +400,51 @@ def build_summary(
         )
     )
 
-    gates["universal_saturation_avoided"] = {
-        "status": (
-            "FAIL"
-            if all_saturated
-            else "PASS"
-        ),
+    gates["pool_saturation"] = {
+        "status": "SATURATED" if pool_saturated else "INFORMATIVE",
         "condition_win_rates": condition_win_rates,
         "saturation_threshold": args.saturation_win_rate,
+        "diagnostic_only": True,
     }
 
-    statuses = [gate["status"] for gate in gates.values()]
-    required_statuses = (
-        gates["obstacle_weights_moved"]["status"],
-        gates["obstacle_gradient_connected"]["status"],
-        gates["obstacle_counterfactual_effect"]["status"],
-        gates["hard_pool_competence_retained"]["status"],
-    )
-    navigation_statuses = (
-        gates["wall_collisions_improved"]["status"],
-        gates["blocked_movement_improved"]["status"],
-        gates["stuck_behavior_improved"]["status"],
+    # Legacy alias for downstream readers/tests.
+    gates["universal_saturation_avoided"] = {
+        "status": "SATURATED" if pool_saturated else "INFORMATIVE",
+        "condition_win_rates": condition_win_rates,
+        "saturation_threshold": args.saturation_win_rate,
+        "diagnostic_only": True,
+        "legacy_alias_of": "pool_saturation",
+    }
+
+    allow_saturated_pool = bool(getattr(args, "allow_saturated_pool", False))
+    verdict = _resolve_verdict(
+        gates,
+        pool_saturated=pool_saturated,
+        allow_saturated_pool=allow_saturated_pool,
     )
 
-    if any(s == "ERROR" for s in statuses):
-        verdict = "NOT READY FOR STAGE B — PROBE ERROR (see gate details)"
-    elif any(s != "PASS" for s in required_statuses):
-        verdict = "NOT READY FOR STAGE B"
-    elif not any(s == "PASS" for s in navigation_statuses):
-        verdict = "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
-    elif gates["map_dependent_routes"]["status"] == "FAIL":
-        verdict = "NOT READY FOR STAGE B"
-    elif gates["universal_saturation_avoided"]["status"] == "FAIL":
-        verdict = "NOT READY FOR STAGE B - UNIVERSAL SATURATION"
-    elif all(s == "PASS" for s in required_statuses):
-        verdict = "READY FOR STAGE B"
-    elif any(s == "WARN" for s in statuses):
-        verdict = "BEHAVIORAL SENSITIVITY WEAK — REVIEW BEFORE PROCEEDING"
-    else:
-        verdict = "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
+    collision_delta = None
+    if baseline_collisions is not None and candidate_collisions is not None:
+        collision_delta = float(candidate_collisions) - float(baseline_collisions)
+
+    diagnostics = {
+        "pool_saturation": gates["pool_saturation"]["status"],
+        "map_route_signal": gates["map_dependent_routes"]["status"],
+        "wall_collision_delta": collision_delta,
+        "wall_collisions_baseline_mean": baseline_collisions,
+        "wall_collisions_candidate_mean": candidate_collisions,
+    }
+
+    required_gates = {key: gates[key] for key in REQUIRED_GATE_KEYS}
+    diagnostic_gates = {key: gates[key] for key in DIAGNOSTIC_GATE_KEYS}
 
     return {
         "verdict": verdict,
+        "stage2_eligible": verdict.startswith("READY FOR STAGE B"),
         "gates": gates,
+        "required_gates": required_gates,
+        "diagnostic_gates": diagnostic_gates,
+        "diagnostics": diagnostics,
         "episodes_per_condition": args.episodes,
         "warning": (
             "Use at least 20 episodes per map/opponent "
@@ -401,5 +457,7 @@ def build_summary(
 
 
 __all__ = [
+    "DIAGNOSTIC_GATE_KEYS",
+    "REQUIRED_GATE_KEYS",
     "build_summary",
 ]

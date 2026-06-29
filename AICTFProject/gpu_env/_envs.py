@@ -47,6 +47,10 @@ class GPUCTFVecEnv(VecEnv):
         self.core.reset_all()
         return self.core.get_obs()
 
+    def get_obs(self) -> Dict[str, np.ndarray]:
+        """Current blue-team observation dict (same layout as ``reset()``)."""
+        return self.core.get_obs()
+
     def seed(self, seed: Optional[int] = None) -> List[Optional[int]]:
         if seed is not None:
             self.core.reseed(int(seed))
