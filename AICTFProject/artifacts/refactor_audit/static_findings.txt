@@ -1,0 +1,225 @@
+K:\MultiAgentUAV\AICTFProject\rl\behavior_telemetry.py:279: # Fallback (3v3, 6v6, 8v8): coarse escort / intercept / push / turtle / split
+K:\MultiAgentUAV\AICTFProject\rl\episode_result.py:74: # Canonical: use collision_events_per_episode (no fallback to collisions_per_episode)
+K:\MultiAgentUAV\AICTFProject\rl\eval_forced_latent_repertoire.py:36: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\eval_forced_latent_repertoire.py:54: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\latent_losses.py:95: .. deprecated:: v5i6 (rollout-level aggregation)
+K:\MultiAgentUAV\AICTFProject\rl\latent_losses.py:302: matching the trainer's historical fallback.
+K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py:217: def _ensure_cuda_or_fallback(cfg: PPOConfig) -> None:
+K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py:300: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py:306: _ensure_cuda_or_fallback(cfg)
+K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py:385: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\config\ppo_config.py:410: # Per-rollout count fallback. When fewer than this many episodes land in a
+K:\MultiAgentUAV\AICTFProject\rl\config\ppo_config.py:564: # z within the matching bucket. Hierarchical fallback when the
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:100: Returns ``OP{N}`` for known ids and ``op{N}`` (lowercase fallback)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:569: "bucket_baseline_fallback_frac",
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:574: "latent_tactical_bucket_fallback_fraction",
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:670: "latent_v3i3_event_pref_fallback_full",
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:671: "latent_v3i3_event_pref_fallback_oef",
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:672: "latent_v3i3_event_pref_fallback_oe",
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\csv_writers.py:673: "latent_v3i3_event_pref_fallback_o",
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum_runtime.py:67: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum_runtime.py:122: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\diagnostics_contract.py:10: ``get_cnn_input_weights()`` is preserved for backward compatibility;
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\distributions.py:59: The ``distributions`` property is a backward-compatibility alias.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\distributions.py:90: # Backward compatibility alias (deprecated — do not use in new code)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\distributions.py:95: """Backward-compatibility alias for ``heads``.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\distributions.py:97: Deprecated: use ``.heads`` directly in new code.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\inference_policy.py:159: f"[CustomPPOInferencePolicy] latent_eval_mode='shuffled' fallback to uniform marginal over allowed {allowed}."
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\inference_policy.py:330: """Compatibility alias for ``get_observation_encoder_input_weights()``.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\inference_policy.py:332: Deprecated: new code should call ``get_observation_encoder_input_weights()``.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_bucket_baseline.py:100: "fallback_fraction": 0.0,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_bucket_baseline.py:128: identical to any other bucket id (subject to the min_count fallback).
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_bucket_baseline.py:183: # ---- Per-episode baseline lookup with min_count fallback -------------
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_bucket_baseline.py:189: fallback_used = 0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_bucket_baseline.py:194: fallback_used += 1
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_bucket_baseline.py:209: "fallback_fraction": float(fallback_used) / max(1, n),
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_diagnostics.py:1344: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_strategy_state.py:363: self.rollout_tactical_bucket_fallback_count = 0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_strategy_state.py:489: "latent_tactical_bucket_fallback_fraction": (
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent_strategy_state.py:490: float(self.rollout_tactical_bucket_fallback_count)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\policy.py:1135: """Compatibility alias for ``get_observation_encoder_input_weights()``.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\policy.py:1137: Deprecated: new code should call ``get_observation_encoder_input_weights()``.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\ppo_updater.py:1: """PPO update loop — thin compatibility facade.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\router_distill_hook.py:173: except Exception as exc:  # noqa: BLE001 -- intentionally broad: best-effort
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\router_distill_hook.py:415: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\trainer.py:72: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\trainer.py:451: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\trainer.py:455: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\trainer_config.py:8: 2. *Defaults*: the fallback values used when the legacy ``PPOConfig`` /
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\trainer_config.py:18: Backward compatibility:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:160: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:193: except Exception as e:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:255: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:372: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:379: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:388: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:392: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1098: b_fallback = float(row.get("bucket_baseline_fallback_frac", 0.0) or 0.0)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1108: f"fallback={b_fallback:.3f} var_reduction={b_var:.3f} "
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1165: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1184: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1209: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1230: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1244: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1501: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1585: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1601: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1646: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1655: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1682: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1722: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1760: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1775: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1809: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1865: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\training_telemetry.py:1914: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\archive.py:20: except Exception as weights_exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\archive.py:22: # historical unpickling path. Keep the fallback local to checkpoint archives.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\archive.py:25: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\errors.py:33: class CheckpointCompatibilityError(CheckpointError):
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\errors.py:37: class UnsupportedCheckpointMigrationError(CheckpointCompatibilityError):
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\errors.py:41: class CheckpointBehavioralEquivalenceError(CheckpointCompatibilityError):
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\loader.py:164: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\loader.py:280: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\loader.py:357: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\models.py:9: class CompatibilityMode(StrEnum):
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\models.py:38: compatibility_mode: CompatibilityMode = CompatibilityMode.ALLOW_SUPPORTED_MIGRATIONS
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\state_dict.py:114: # Fallback to simple weight check if embed weight is missing
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\state_dict.py:325: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\__init__.py:6: CheckpointCompatibilityError,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\checkpoints\__init__.py:23: CompatibilityMode,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\curriculum\reporting.py:31: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\preferences.py:88: fallback_wr = float(min(sampled_wr)) if sampled_wr else 0.0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\preferences.py:91: wr[z_val] = fallback_wr
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\preferences.py:304: """Hierarchical fallback target lookup.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\tensor_state.py:75: host.rollout_tactical_bucket_fallback_count = 0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\arc_credit.py:321: fallback_opt = None if router_opt is not None else trainer.optimizer
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\arc_credit.py:324: trainer=trainer, registry=registry, fallback_optimizer=fallback_opt
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\macro_credit.py:208: fallback_opt = None if router_opt is not None else trainer.optimizer
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\macro_credit.py:211: trainer=trainer, registry=registry, fallback_optimizer=fallback_opt
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\refresh_credit.py:37: hierarchical fallback at lookup time.
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\refresh_credit.py:56: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:62: fallback = None if registry is not None else trainer.optimizer
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:63: self._engine = RouterPPOEngine(trainer=trainer, registry=registry, fallback_optimizer=fallback)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:306: used_tactical_fallback = int(self.host.episode_tactical_bucket_counts[env_i].sum().item()) <= 0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:308: self.host.rollout_tactical_bucket_fallback_count += int(used_tactical_fallback)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:333: used_tactical_fallback = int(self.host.episode_tactical_bucket_counts[env_i].sum().item()) <= 0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:335: self.host.rollout_tactical_bucket_fallback_count += int(used_tactical_fallback)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:436: for key, value in refresh.fallback_counts.items():
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:437: stats[f"latent_v3i3_event_pref_fallback_{key}"] = float(value)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\manager.py:445: "bucket_baseline_fallback_frac": float(bs.get("fallback_fraction", 0.0)),
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\preference_targets.py:78: fallback_val = min(sampled_avgs) if sampled_avgs else 0.0
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\preference_targets.py:81: avg_return_by_z[z_idx] = fallback_val
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\refresh_targets.py:26: fallback_counts: dict[str, int]
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\refresh_targets.py:48: fallback_counts={"full": 0, "oef": 0, "oe": 0, "o": 0},
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\refresh_targets.py:79: fallback_counts={"full": 0, "oef": 0, "oe": 0, "o": 0},
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\refresh_targets.py:143: fallback_counts = {"full": 0, "oef": 0, "oe": 0, "o": 0}
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\refresh_targets.py:168: fallback_counts[level] = fallback_counts[level] + 1
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\refresh_targets.py:208: fallback_counts=fallback_counts,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\telemetry.py:58: "bucket_baseline_fallback_frac": 0.0,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\telemetry.py:88: "latent_v3i3_event_pref_fallback_full": 0.0,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\telemetry.py:89: "latent_v3i3_event_pref_fallback_oef": 0.0,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\telemetry.py:90: "latent_v3i3_event_pref_fallback_oe": 0.0,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\credit\episode\telemetry.py:91: "latent_v3i3_event_pref_fallback_o": 0.0,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:34: fallback_optimizer: Any | None = None,
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:38: self.fallback_optimizer = fallback_optimizer
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:56: fallback = self.fallback_optimizer
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:57: if registry is None and fallback is None:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:146: assert fallback is not None
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:147: fallback.zero_grad(set_to_none=True)
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\latent\optimization\router_ppo.py:162: fallback.step()
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\rollout\collector.py:153: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\telemetry\gpu_monitor.py:49: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\telemetry\gpu_monitor.py:66: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\telemetry\gpu_monitor.py:84: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\telemetry\timing.py:57: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\telemetry\writers\json_writer.py:70: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\telemetry\writers\json_writer.py:80: except Exception as e:
+K:\MultiAgentUAV\AICTFProject\rl\custom_ppo\update\minibatch_updater.py:75: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\checkpoint.py:116: def policy_device(policy: Any, fallback: str) -> torch.device:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\checkpoint.py:120: return torch.device(fallback)
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\env_factory.py:85: Fails immediately if the configuration is invalid — no silent fallback.
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\opponent_resolution.py:53: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\opponent_resolution.py:60: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\opponent_resolution.py:77: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\opponent_resolution.py:92: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\router_ablation.py:54: # Deprecated RouterCondition replaced by EvalCondition in types.py
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\router_ablation.py:186: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\evaluation\probes\results.py:17: Backward compatibility
+K:\MultiAgentUAV\AICTFProject\rl\presets\compatibility.py:1: """Backward-compatibility shims for the preset system.
+K:\MultiAgentUAV\AICTFProject\rl\presets\compatibility.py:15: PresetCompatibilityError,
+K:\MultiAgentUAV\AICTFProject\rl\presets\compatibility.py:48: "PresetCompatibilityError",
+K:\MultiAgentUAV\AICTFProject\rl\presets\models.py:19: COMPATIBILITY_ALIAS = "COMPATIBILITY_ALIAS"
+K:\MultiAgentUAV\AICTFProject\rl\presets\models.py:22: DEPRECATED = "DEPRECATED"
+K:\MultiAgentUAV\AICTFProject\rl\presets\models.py:110: class PresetCompatibilityError(PresetError):
+K:\MultiAgentUAV\AICTFProject\rl\presets\models.py:124: "PresetCompatibilityError",
+K:\MultiAgentUAV\AICTFProject\rl\presets\plan_faithful.py:426: * Event-conditioned preference loss with hierarchical fallback
+K:\MultiAgentUAV\AICTFProject\rl\presets\plan_faithful.py:2278: reward, opponent, map, and gate-compatibility fields so a promoted v6i2
+K:\MultiAgentUAV\AICTFProject\rl\presets\plan_faithful.py:2448: Summer-compatibility: forcing is unlabeled uniform exploration, not
+K:\MultiAgentUAV\AICTFProject\rl\presets\plan_faithful.py:2598: - latent_q_phi_marginal_baseline = True (kept on as a fallback path,
+K:\MultiAgentUAV\AICTFProject\rl\presets\plan_faithful.py:2612: so the fallback-to-global path would dominate -- defeating the purpose.
+K:\MultiAgentUAV\AICTFProject\rl\presets\registry.py:18: function's ``__name__`` minus ``apply_`` is used as a fallback.  All
+K:\MultiAgentUAV\AICTFProject\rl\presets\registry.py:217: is used as a fallback.
+K:\MultiAgentUAV\AICTFProject\rl\presets\serialization.py:67: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\presets\__init__.py:599: PresetCompatibilityError,
+K:\MultiAgentUAV\AICTFProject\rl\training\banner.py:38: ``run_config.json`` write, runtime clamps, CUDA fallback) stay in
+K:\MultiAgentUAV\AICTFProject\rl\training\cli.py:94: help="Compatibility alias for JSONL telemetry events.",
+K:\MultiAgentUAV\AICTFProject\rl\training\cli.py:134: help="Allow active actor-affecting modules (e.g. z_adapter, actor_z_film) to be discarded during compatibility load.",
+K:\MultiAgentUAV\AICTFProject\rl\training\cli.py:333: help=argparse.SUPPRESS,  # DEPRECATED legacy alias for --latent-strategy-aux-return-head; emits a warning.
+K:\MultiAgentUAV\AICTFProject\rl\training\cli.py:345: help=argparse.SUPPRESS,  # DEPRECATED legacy alias for --latent-strategy-aux-return-coef; emits a warning.
+K:\MultiAgentUAV\AICTFProject\rl\training\cli.py:819: "[PPO] DEPRECATED CLI flag(s): "
+K:\MultiAgentUAV\AICTFProject\rl\training\env_factory.py:97: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\training\env_factory.py:180: except Exception as close_exc:
+K:\MultiAgentUAV\AICTFProject\rl\training\run_artifacts.py:203: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\rl\training\run_artifacts.py:227: except Exception:
+K:\MultiAgentUAV\AICTFProject\rl\training\run_artifacts.py:241: except Exception:
+K:\MultiAgentUAV\AICTFProject\gpu_env\_config.py:26: `GPUFieldConfig` keeps flat fields for backward compatibility, but normalizes
+K:\MultiAgentUAV\AICTFProject\gpu_env\_envs.py:121: except Exception:
+K:\MultiAgentUAV\AICTFProject\gpu_env\_monolith.py:1: """Compatibility module retained after GPU env wrapper extraction."""
+K:\MultiAgentUAV\AICTFProject\gpu_env\_core\_remaining.py:1: """Compatibility module retained after phase-specific core extraction."""
+K:\MultiAgentUAV\AICTFProject\gpu_env\_core\_state.py:351: except Exception:
+K:\MultiAgentUAV\AICTFProject\gpu_env\_core\_state.py:780: except Exception as e:
+K:\MultiAgentUAV\AICTFProject\experiments\build_proof_table.py:147: except Exception:
+K:\MultiAgentUAV\AICTFProject\experiments\calibrate_hard_pool.py:170: except Exception as exc:  # noqa: BLE001
+K:\MultiAgentUAV\AICTFProject\experiments\eval_op4_zero_shot.py:210: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:86: except Exception:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:420: def _policy_device(policy: Any, fallback: str) -> torch.device:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:424: return torch.device(fallback)
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:755: except Exception:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:1016: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:1027: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:1051: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:1070: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:1226: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\eval_v6i9_map_awareness.py:1338: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\gate_v6i9_map_aware.py:143: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\gate_v6i9_map_aware.py:170: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_matrix.py:63: except Exception:
+K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_matrix.py:240: except Exception as e:
+K:\MultiAgentUAV\AICTFProject\experiments\_z_marginal_from_csv.py:26: p.add_argument("--k", type=int, default=4, help="Latent K (used as fallback length; default 4).")
+K:\MultiAgentUAV\AICTFProject\experiments\_z_marginal_from_csv.py:60: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\tools\benchmark_training_pipeline.py:29: _ensure_cuda_or_fallback,
+K:\MultiAgentUAV\AICTFProject\tools\benchmark_training_pipeline.py:160: _ensure_cuda_or_fallback(cfg)
+K:\MultiAgentUAV\AICTFProject\tools\benchmark_training_pipeline.py:269: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\qualitative_rollout.py:217: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\qualitative_rollout.py:930: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\tools\qualitative_rollout.py:1035: except Exception as exc:  # pragma: no cover - best-effort cleanup
+K:\MultiAgentUAV\AICTFProject\tools\q_probe.py:497: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe.py:549: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe.py:855: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe.py:1766: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe_local_counterfactual.py:264: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe_local_counterfactual.py:341: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe_local_counterfactual.py:419: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\q_probe_local_counterfactual.py:486: # Fallback to zeros if the model never wrote
+K:\MultiAgentUAV\AICTFProject\tools\q_probe_local_counterfactual.py:1142: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\tools\router_distill_from_qprobe.py:1229: except Exception as exc:
+K:\MultiAgentUAV\AICTFProject\tools\summer_proof_report.py:131: also look in ``checkpoint_dir.parent`` as a fallback.
+K:\MultiAgentUAV\AICTFProject\tools\summer_proof_report.py:769: # Escape pipes in detail for markdown table compatibility.
+K:\MultiAgentUAV\AICTFProject\tools\v6i5_phase_a_audit.py:77: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\v6i5_state_conditioned_branch_eval.py:259: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\v6i5_state_conditioned_branch_eval.py:842: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\v6i5_state_conditioned_branch_eval.py:949: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\v6i5_state_conditioned_branch_eval.py:1181: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\v6i5_state_conditioned_branch_eval.py:1391: except Exception:
+K:\MultiAgentUAV\AICTFProject\tools\_diag_latent_summary.py:55: except Exception:

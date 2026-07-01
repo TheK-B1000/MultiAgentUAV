@@ -1,0 +1,47 @@
+{
+  "tests": [
+    "uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_inference_distribution_contract tests.test_v6i9_map_aware"
+  ],
+  "tests_passed": true,
+  "baseline_artifacts": [
+    "artifacts/phase10_baseline/evaluation_manifest.json",
+    "artifacts/phase10_baseline/episode_results.csv",
+    "artifacts/phase10_baseline/condition_summary.csv",
+    "artifacts/phase10_baseline/final_report.json",
+    "artifacts/phase10_baseline/function_inventory.json",
+    "artifacts/phase10_baseline/caller_inventory.json"
+  ],
+  "slice": "manifest lifecycle and orchestrator wired; final golden equivalence passed",
+  "phase": "Phase 10",
+  "status": "IMPLEMENTED_NOT_CLOSED",
+  "notes": [
+    "Evaluator entry point not rewired yet.",
+    "Golden smoke captured before source extraction.",
+    "Scientific behavior unchanged in this slice."
+  ],
+  "implementation": {
+    "entrypoint_parse_and_delegate": true,
+    "manifest_lifecycle": true,
+    "orchestrator_delegation": true,
+    "compatibility_wrappers_retained": true,
+    "scientific_delta": "NONE"
+  },
+  "equivalence": {
+    "baseline_dir": "artifacts/phase10_baseline",
+    "final_report": "artifacts/phase10_final_equivalence/equivalence_report.json",
+    "equivalent": true,
+    "episode_rows": 24,
+    "condition_rows": 12,
+    "verdict": "INCONCLUSIVE: ADD MISSING TELEMETRY OR MORE EPISODES"
+  },
+  "focused_tests": {
+    "command": "uv run python -m unittest tests.test_phase10_evaluation_slice tests.test_evaluation_manifest tests.test_evaluation_orchestrator tests.test_evaluation_probes tests.test_evaluation_episode_runner tests.test_evaluation_matched_seed tests.test_evaluation_aggregation tests.test_evaluation_gates tests.test_evaluation_artifacts tests.test_evaluation_equivalence tests.test_inference_distribution_contract tests.test_v6i9_map_aware",
+    "passed": true,
+    "tests_run": 40
+  },
+  "full_discovery": {
+    "command": "uv run python -m unittest discover -s tests",
+    "passed": null,
+    "status": "NOT_RUN_BLOCKED_BY_APPROVAL_USAGE_LIMIT"
+  }
+}

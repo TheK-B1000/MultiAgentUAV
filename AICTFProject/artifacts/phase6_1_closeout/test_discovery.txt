@@ -1,0 +1,26 @@
+# Phase 6.1 closeout test discovery
+
+## default
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests
+exit_code: 0
+status: EXIT_0_UNPARSED
+tests_ran: 1244
+unittest_reported_duration_s: 114.15
+wall_duration_s: 119.008
+details: 
+raw_output: artifacts\phase6_1_closeout\repeat_discovery_default.txt
+
+## pattern
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest discover -s tests -p test*.py
+exit_code: 0
+status: EXIT_0_UNPARSED
+tests_ran: 1244
+unittest_reported_duration_s: 114.561
+wall_duration_s: 118.93
+details: 
+raw_output: artifacts\phase6_1_closeout\repeat_discovery_pattern.txt
+
+## focused checkpoint telemetry
+command: C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe -m unittest tests.test_checkpoint_telemetry
+status: PASS
+tests_ran: 2

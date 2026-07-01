@@ -1,0 +1,35 @@
+{
+  "phase": "6.1",
+  "title": "Trainer Integration and Performance Observability Closeout",
+  "verdict": "IMPLEMENTED_NOT_CLOSED",
+  "reason": "Implementation, CPU smoke, 16/64 CUDA matrix, invariance, and repeat discovery evidence exist, but performance gates fail vs pre-Phase-6 OFF and 256-env CUDA matrix is blocked.",
+  "artifacts": {
+    "benchmark_manifest": "benchmark_manifest.json",
+    "benchmark_summary": "benchmark_summary.json",
+    "benchmark_samples": "benchmark_samples.csv",
+    "telemetry_invariance": "telemetry_invariance.json",
+    "rng_invariance": "rng_invariance.json",
+    "memory_comparison": "memory_comparison.json",
+    "baseline_comparison": "baseline_comparison.json",
+    "test_discovery": "test_discovery.txt"
+  },
+  "status": {
+    "cpu_smoke": "PASS",
+    "cuda_16_64_matrix": "PASS",
+    "cuda_256_matrix": "BLOCKED",
+    "telemetry_invariance": "PASS",
+    "rng_invariance": "PASS",
+    "baseline_performance": "FAIL",
+    "memory_comparison": "FAIL",
+    "repeat_discovery": "PASS"
+  },
+  "blockers": [
+    "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error.",
+    "Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians."
+  ],
+  "next_actions": [
+    "Investigate current OFF regression against fe0e923 baseline before marking Phase 6.1 COMPLETE.",
+    "Reproduce or mitigate 256-env CUDA unknown-error during PPO update.",
+    "Rerun full 16/64/256 CUDA matrix after the above fixes."
+  ]
+}

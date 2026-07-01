@@ -1,0 +1,59 @@
+M AICTFProject/artifacts/phase5_closeout/memory_comparison.json
+ M AICTFProject/artifacts/phase5_closeout/performance_comparison.json
+ M AICTFProject/artifacts/phase5_closeout/phase5_closeout_report.json
+ M AICTFProject/artifacts/phase5_closeout/rollout_equivalence.json
+ M AICTFProject/artifacts/phase8_closeout/phase8_report.json
+ M AICTFProject/artifacts/phase9_closeout/phase9_report.json
+ M AICTFProject/artifacts/refactor_audit/blockers.json
+ M AICTFProject/artifacts/refactor_audit/current_commit.txt
+ M AICTFProject/artifacts/refactor_audit/missing_artifacts.json
+ M AICTFProject/artifacts/refactor_audit/phase_status.json
+ M AICTFProject/artifacts/refactor_audit/phase_status.md
+ M AICTFProject/artifacts/refactor_audit/recommended_next_steps.md
+ M AICTFProject/artifacts/refactor_audit/refactor_progress_report.json
+ M AICTFProject/artifacts/refactor_audit/refactor_progress_report.md
+ M AICTFProject/artifacts/refactor_audit/test_count_history.json
+ M AICTFProject/artifacts/refactor_audit/test_discovery.txt
+ M AICTFProject/artifacts/refactor_audit/working_tree.txt
+ M AICTFProject/gpu_env/_core_class.py
+ M AICTFProject/gpu_env/state/agent_state.py
+ M AICTFProject/gpu_env/state/episode_state.py
+ M AICTFProject/run_manifest.json
+ M AICTFProject/tests/test_phase1_5_contracts.py
+ M AICTFProject/tests/test_training_phase8.py
+ M AICTFProject/tools/audit_refactor_progress.py
+?? .worktrees/
+?? AICTFProject/artifacts/phase5_closeout/buffer_tensor_equivalence.json
+?? AICTFProject/artifacts/phase5_closeout/caller_inventory.json
+?? AICTFProject/artifacts/phase5_closeout/phase5_report.json
+?? AICTFProject/artifacts/phase5_closeout/phase5_report.md
+?? AICTFProject/artifacts/phase5_closeout/rng_equivalence.json
+?? AICTFProject/artifacts/phase8_closeout/caller_inventory.json
+?? AICTFProject/artifacts/phase8_closeout/cli_equivalence.json
+?? AICTFProject/artifacts/phase8_closeout/dependency_report.json
+?? AICTFProject/artifacts/phase8_closeout/phase8_report.md
+?? AICTFProject/artifacts/phase8_closeout/resolved_config_equivalence.json
+?? AICTFProject/artifacts/phase9_closeout/phase9_report.md
+?? AICTFProject/artifacts/refactor_audit/full_discovery_default.txt
+?? AICTFProject/artifacts/refactor_audit/full_discovery_pattern.txt
+?? AICTFProject/artifacts/refactor_audit/full_discovery_summary.json
+?? AICTFProject/artifacts/refactor_audit/phase_status_matrix.json
+?? AICTFProject/artifacts/refactor_audit/refactor_audit_report.json
+?? AICTFProject/artifacts/refactor_audit/refactor_audit_report.md
+?? AICTFProject/artifacts/refactor_audit/refactor_status_matrix.json
+?? AICTFProject/artifacts/refactor_audit/triage_combined_unittest.txt
+?? AICTFProject/artifacts/refactor_audit/triage_combined_unittest_after_fix.txt
+?? AICTFProject/artifacts/refactor_audit/triage_combined_unittest_final.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_phase1_5_contracts.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_phase1_5_contracts_pytest.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_phase1_5_contracts_pytest_after_fix.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_state_phase9.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_state_phase9_after_alias_fix.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_state_phase9_after_fix.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_state_phase9_final.txt
+?? AICTFProject/artifacts/refactor_audit/triage_test_train_ppo_smoke.txt
+?? AICTFProject/artifacts/training_lineage_manifest.json
+?? AICTFProject/tools/audit_refactor_completion.py
+?? AICTFProject/tools/closeout_phase5.py
+?? AICTFProject/tools/closeout_phase8.py
+?? AICTFProject/tools/closeout_phase9.py

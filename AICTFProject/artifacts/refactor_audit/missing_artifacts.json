@@ -1,0 +1,61 @@
+[
+  {
+    "phase": "Phase 1",
+    "missing_or_pending": [
+      "Add or locate Phase 1 closeout artifact proving wrapper/model get_distribution gradient path and typed ERROR cases."
+    ]
+  },
+  {
+    "phase": "Phase 1.5",
+    "missing_or_pending": [
+      "Promote distribution/probe contract evidence into a Phase 1.5 closeout artifact."
+    ]
+  },
+  {
+    "phase": "Phase 1.6",
+    "missing_or_pending": [
+      "Run/update exact telemetry overhead benchmark and OFF/BASIC/FULL behavior evidence."
+    ]
+  },
+  {
+    "phase": "Phase 3",
+    "missing_or_pending": [
+      "Add Phase 3 closeout proving native 7/8 channel, migrated 7-to-8, CPU/CUDA smoke, and behavioral equivalence."
+    ]
+  },
+  {
+    "phase": "Phase 4",
+    "missing_or_pending": [
+      "Produce Phase 4 closeout tying registry/CLI/resolved-artifact/hash evidence to current commit.",
+      "Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report."
+    ]
+  },
+  {
+    "phase": "Phase 6",
+    "missing_or_pending": [
+      "Add standalone Phase 6 foundation closeout tying schema/sink compatibility and legacy CSV preservation to current test evidence."
+    ]
+  },
+  {
+    "phase": "Phase 6.1",
+    "missing_or_pending": [
+      "Capture pre-Phase-6 OFF baseline, CUDA smoke/matrix, and benchmark tool run before declaring COMPLETE.",
+      "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error.",
+      "Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians."
+    ]
+  },
+  {
+    "phase": "Phase 7",
+    "missing_or_pending": [
+      "Implement latent diagnostics package after Phase 6.1 closeout evidence is closed.",
+      "Missing decomposed diagnostics modules: []"
+    ]
+  },
+  {
+    "phase": "Final",
+    "missing_or_pending": [
+      "Defer compatibility cleanup until architecture phases close with tests, equivalence, performance, and artifacts.",
+      "Phases 5, 6.1, 7, 8, 9, and 10 are not all closed."
+    ]
+  }
+]

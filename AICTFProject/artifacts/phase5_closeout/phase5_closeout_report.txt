@@ -1,0 +1,38 @@
+Phase 5.1 closeout verdict: NOT COMPLETE
+
+Scientific delta: DIAGNOSTIC only. This pass repaired and verified the public inference distribution contract. It did not change PPO losses, GAE, reward coefficients, latent schedules, router logic, policy architecture, environment mechanics, presets, checkpoint contents, evaluation thresholds, opponent behavior, or map geometry.
+
+Implemented:
+CustomPPOInferencePolicy.get_distribution now preserves gradients. Explicit z_idx is moved to the wrapper device and forwarded without torch.no_grad(). Non-latent and current-wrapper-latent paths also return differentiable MultiHeadActionDistribution objects.
+
+The V6I9 evaluator now preflights the loaded wrapper and model against PolicyInferenceContract before obstacle probes or episode evaluation. It requires MultiHeadActionDistribution and exact action-head dimensions, so a missing or broken distribution method fails early.
+
+Validation:
+uv run python -m unittest tests.test_inference_distribution_contract tests.test_v6i9_map_aware
+PASS, 17 tests.
+
+uv run python -m unittest tests.test_audit_regressions tests.test_option_advantage tests.test_v6i7_parts_b_g tests.test_train_ppo_smoke tests.test_latent_strategy_alignment
+PASS, 101 tests.
+
+uv run python -m unittest discover -s tests -v
+PASS, 1157 tests in 138.468 seconds.
+
+uv run python -m unittest discover -s tests -p "test*.py"
+PASS, 1157 tests in 140.432 seconds.
+
+Discovery audit:
+104 tests/test*.py files are present. Current discovered count is 1157, below the Phase 4 recorded baseline of 1268 from the attached spec. Because the full 111-test delta was not explained module-by-module in this run, Track A is not accepted as fully closed.
+
+Blocked tracks:
+Golden rollout equivalence was not established because no pre-Phase-5 baseline worktree or committed golden rollout fixture was created.
+
+Telemetry OFF/BASIC/FULL invariance was not established with a fixed-rollout equality harness.
+
+Throughput comparison was not run against a pre-Phase-5 baseline at 16, 64, and 256 envs.
+
+CUDA peak-memory comparison was not run against a pre-Phase-5 baseline at 16, 64, and 256 envs.
+
+Obstacle probes were not rerun across the full required checkpoint matrix. The distribution runtime contract itself is repaired and covered by loader-backed tests.
+
+Final gate:
+Do not mark Phase 5 complete yet. Distribution contract: PASS. Test discovery: current PASS but baseline-count gate unresolved. Rollout equivalence, telemetry invariance, throughput, and memory closeout remain blocking.

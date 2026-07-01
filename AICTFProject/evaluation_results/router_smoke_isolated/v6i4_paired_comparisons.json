@@ -1,0 +1,62 @@
+[
+  {
+    "baseline": "uniform_episode_fixed",
+    "ci95_return_high": 3.8016667717602104,
+    "ci95_return_low": 1.676241271685285,
+    "ci95_success_high": 1.0,
+    "ci95_success_low": 0.0,
+    "map_set": "eval",
+    "mean_delta_return": 2.7389540217227477,
+    "mean_delta_success": 0.5,
+    "n_pairs": 2,
+    "opponent": "OP5"
+  },
+  {
+    "baseline": "uniform_random_at_router_opportunities",
+    "ci95_return_high": 3.8016667717602104,
+    "ci95_return_low": 2.645841078039666,
+    "ci95_success_high": 1.0,
+    "ci95_success_low": 0.0,
+    "map_set": "eval",
+    "mean_delta_return": 3.2237539248999383,
+    "mean_delta_success": 0.5,
+    "n_pairs": 2,
+    "opponent": "OP5"
+  },
+  {
+    "baseline": "preselected_global_fixed_z",
+    "ci95_return_high": 1.676241271685285,
+    "ci95_return_low": -0.3666933202111977,
+    "ci95_success_high": 1.0,
+    "ci95_success_low": 0.0,
+    "map_set": "eval",
+    "mean_delta_return": 0.6547739757370437,
+    "mean_delta_success": 0.5,
+    "n_pairs": 2,
+    "opponent": "OP5"
+  },
+  {
+    "baseline": "qphi_initial_only_no_switch",
+    "ci95_return_high": 3.8016667717602104,
+    "ci95_return_low": -0.4507160863504396,
+    "ci95_success_high": 1.0,
+    "ci95_success_low": 0.0,
+    "map_set": "eval",
+    "mean_delta_return": 1.6754753427048854,
+    "mean_delta_success": 0.5,
+    "n_pairs": 2,
+    "opponent": "OP5"
+  },
+  {
+    "baseline": "shuffled_qphi_outputs",
+    "ci95_return_high": -0.431275346520124,
+    "ci95_return_low": -2.131616970873438,
+    "ci95_success_high": 1.0,
+    "ci95_success_low": -1.0,
+    "map_set": "eval",
+    "mean_delta_return": -1.281446158696781,
+    "mean_delta_success": 0.0,
+    "n_pairs": 2,
+    "opponent": "OP5"
+  }
+]

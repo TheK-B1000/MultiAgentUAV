@@ -1,0 +1,15 @@
+# Pinned for reproducible local runs and CI. Install PyTorch for your platform first, e.g.:
+#   CPU (Linux/Windows): pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   CUDA:                https://pytorch.org
+#
+# Then: pip install -r requirements.txt
+#
+gymnasium==1.2.3
+numpy>=1.24,<3
+pygame>=2.5,<3
+matplotlib>=3.8,<4
+pandas>=2.0,<3
+tensorboard>=2.14,<3
+# SB3-style bar: ``from tqdm.rich import tqdm`` (install ``rich`` alongside ``tqdm``; same as SB3)
+tqdm>=4.65,<5
+rich>=13.7,<14

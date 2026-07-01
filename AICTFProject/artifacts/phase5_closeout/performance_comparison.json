@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "deterministic_repeat_pass": true,
+  "cpu_rollout_tps": 20.266,
+  "note": "Self-consistency check on current HEAD; baseline worktree comparison recorded separately."
+}

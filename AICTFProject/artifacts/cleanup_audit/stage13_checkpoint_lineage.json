@@ -1,0 +1,64 @@
+{
+  "stage": 13,
+  "title": "Checkpoint Model Inventory and Lineage Classification",
+  "date": "2026-06-28",
+  "total_checkpoints": 206,
+  "total_size_mb": 5664,
+  "classification_summary": {
+    "KEEP": {"count": 179, "size_mb": 5085, "description": "Final checkpoints, interrupt checkpoints, periodic checkpoints at non-early steps, and associated CSV/JSON metadata"},
+    "ARCHIVE": {"count": 14, "size_mb": 575, "description": "Early periodic checkpoints at steps 50k and 100k — low-value intermediate states"},
+    "UNKNOWN": {"count": 4, "size_mb": 0, "description": "Qualitative rollout summary .md files — reclassified as KEEP below"},
+    "DELETE": {"count": 9, "size_mb": 5, "description": "Stale .lock and .bak.* files — already deleted or not present"}
+  },
+  "current_baseline_checkpoints": {
+    "description": "The V6I9 map-aware checkpoints represent the current training baseline",
+    "checkpoints": [
+      "final_v6i9-mapaware-generalist-hardpool-seed1_2v2.zip (40 MB) — CURRENT BASELINE",
+      "interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_1017856.zip — latest interrupt state",
+      "interrupt_v6i9-mapaware-generalist-hardpool-seed1_2v2_873472.zip — earlier interrupt state"
+    ]
+  },
+  "recent_experiment_checkpoints": {
+    "description": "V6I7 and V6I8 checkpoints for comparative evaluation",
+    "checkpoints": [
+      "final_v6i7-a-main_2v2.zip — V6I7 recurrent router main run",
+      "final_v6i7-sparse-main_2v2.zip — V6I7 sparse router variant",
+      "final_v6i7-balanced-sparse-critic-warmup-seed1_2v2.zip — V6I7 critic warmup variant",
+      "final_v6i8-adapter-balanced-seed1_2v2.zip — V6I8 adapter balanced",
+      "final_v6i8-adapter-balanced-hardpool-seed1_2v2.zip — V6I8 adapter balanced hardpool"
+    ]
+  },
+  "archive_candidates": {
+    "description": "14 early periodic checkpoints at steps 50k/100k. Recommend deleting to recover 575 MB. Blocked on explicit user authorization per Phase 11 spec Stage 13.",
+    "action_required": "USER_AUTHORIZATION",
+    "files": [
+      "ckpt_v6i7-a-main_2v2_50000.zip (40 MB)",
+      "ckpt_v6i7-a-main_2v2_100000.zip (40 MB)",
+      "ckpt_v6i7-sparse-main_2v2_50000.zip (40 MB)",
+      "ckpt_v6i7-sparse-main_2v2_100000.zip (40 MB)",
+      "ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_50000.zip (40 MB)",
+      "ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_100000.zip (40 MB)",
+      "ckpt_v6i8-adapter-balanced-seed1_2v2_50000.zip (40 MB)",
+      "ckpt_v6i8-adapter-balanced-seed1_2v2_100000.zip (40 MB)",
+      "ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_50000.zip (43 MB)",
+      "ckpt_v6i8-adapter-balanced-hardpool-seed1_2v2_100000.zip (43 MB)",
+      "ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_50000.zip (43 MB)",
+      "ckpt_v6i8_adapter_balanced_OP5_OP6_OP7_1m_2v2_100000.zip (43 MB)",
+      "ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_50000.zip (40 MB)",
+      "ckpt_v6i9-mapaware-generalist-hardpool-seed1_2v2_100000.zip (40 MB)"
+    ]
+  },
+  "reclassifications": {
+    "qualitative_rollout_summaries": {
+      "original_classification": "UNKNOWN",
+      "new_classification": "KEEP",
+      "reason": "These are .md output files from qualitative_rollout.py containing behavioral observation notes. They are evidence artifacts co-located with the checkpoint they describe.",
+      "files": [
+        "checkpoints/2v2/forced_latent_evals/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_1000000_qualitative_rollout_summary.md",
+        "checkpoints/2v2/forced_latent_evals/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_300000_qualitative_rollout_summary.md",
+        "checkpoints/2v2/forced_latent_evals/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_500000_qualitative_rollout_summary.md",
+        "checkpoints/2v2/forced_latent_evals/ckpt_v6i7-balanced-sparse-critic-warmup-seed1_2v2_700000_qualitative_rollout_summary.md"
+      ]
+    }
+  }
+}

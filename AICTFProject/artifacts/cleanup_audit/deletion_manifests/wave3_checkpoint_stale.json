@@ -1,0 +1,52 @@
+﻿{
+    "date":  "2026-06-28",
+    "description":  "Stale .lock and .bak.* files from interrupted training runs in checkpoints/2v2/",
+    "files":  [
+                  {
+                      "size_mb":  "0.0",
+                      "path":  "checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2.run.lock",
+                      "name":  "v6i8-adapter-balanced-hardpool-seed1_2v2.run.lock"
+                  },
+                  {
+                      "size_mb":  "2.98",
+                      "path":  "checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv.bak.1782427317",
+                      "name":  "v6i8-adapter-balanced-hardpool-seed1_2v2_episodes.csv.bak.1782427317"
+                  },
+                  {
+                      "size_mb":  "0.21",
+                      "path":  "checkpoints/2v2/v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv.bak.1782427317",
+                      "name":  "v6i8-adapter-balanced-hardpool-seed1_2v2_metrics.csv.bak.1782427317"
+                  },
+                  {
+                      "size_mb":  "0.53",
+                      "path":  "checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782483435",
+                      "name":  "v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782483435"
+                  },
+                  {
+                      "size_mb":  "0.6",
+                      "path":  "checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782497526",
+                      "name":  "v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782497526"
+                  },
+                  {
+                      "size_mb":  "0.19",
+                      "path":  "checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782498185",
+                      "name":  "v6i9-mapaware-generalist-hardpool-seed1_2v2_episodes.csv.bak.1782498185"
+                  },
+                  {
+                      "size_mb":  "0.07",
+                      "path":  "checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782483435",
+                      "name":  "v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782483435"
+                  },
+                  {
+                      "size_mb":  "0.08",
+                      "path":  "checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782497526",
+                      "name":  "v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782497526"
+                  },
+                  {
+                      "size_mb":  "0.05",
+                      "path":  "checkpoints/2v2/v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782498185",
+                      "name":  "v6i9-mapaware-generalist-hardpool-seed1_2v2_metrics.csv.bak.1782498185"
+                  }
+              ],
+    "wave":  "wave3_checkpoint_stale"
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "file": "rl/custom_ppo/inference.py",
+    "exists": true,
+    "signals": {
+      "compatibility": true,
+      "deprecated": false,
+      "re_export": true
+    }
+  },
+  {
+    "file": "rl/custom_ppo/rollout_collector.py",
+    "exists": true,
+    "signals": {
+      "compatibility": true,
+      "deprecated": false,
+      "re_export": true
+    }
+  },
+  {
+    "file": "rl/custom_ppo/training_telemetry.py",
+    "exists": true,
+    "signals": {
+      "compatibility": false,
+      "deprecated": false,
+      "re_export": true
+    }
+  },
+  {
+    "file": "rl/presets/compatibility.py",
+    "exists": true,
+    "signals": {
+      "compatibility": true,
+      "deprecated": false,
+      "re_export": true
+    }
+  },
+  {
+    "file": "rl/custom_ppo/telemetry/schemas.py",
+    "exists": true,
+    "signals": {
+      "compatibility": false,
+      "deprecated": false,
+      "re_export": true
+    }
+  }
+]

@@ -1,0 +1,3 @@
+condition,map_set,opponent,episodes,success_rate,return_mean,win_margin_mean,strategy_switches_mean,strategy_resample_rate_mean
+fixed_z0,eval,OP5,1,0.0,-8.286532918224111,-2.0,0.0,0.0
+fixed_z3,eval,OP5,1,1.0,-5.1391263205732685,2.0,0.0,0.0

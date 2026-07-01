@@ -1,0 +1,164 @@
+{
+  "status": "FAIL",
+  "cpu_smoke": {
+    "status": "PASS",
+    "path": "artifacts\\performance\\phase6_1_cpu_smoke",
+    "results": [
+      {
+        "telemetry_mode": "off",
+        "env_count": 16,
+        "rollout": {
+          "median_duration_seconds": 5.275420750000194,
+          "p95_duration_seconds": 5.791380175001541,
+          "median_transitions_per_second": 196.427452067981,
+          "p95_transitions_per_second": 215.63892353657835
+        },
+        "optimization": {
+          "median_duration_seconds": 8.129760499999975,
+          "p95_duration_seconds": 9.062760800000252,
+          "median_samples_per_second": 128.03889449852196,
+          "p95_samples_per_second": 142.7330945280093
+        },
+        "peak_allocated_cuda_bytes": null,
+        "peak_reserved_cuda_bytes": null
+      },
+      {
+        "telemetry_mode": "basic",
+        "env_count": 16,
+        "rollout": {
+          "median_duration_seconds": 6.235984400000234,
+          "p95_duration_seconds": 6.389250890002768,
+          "median_transitions_per_second": 164.33078771996185,
+          "p95_transitions_per_second": 168.369669381242
+        },
+        "optimization": {
+          "median_duration_seconds": 8.71540405000087,
+          "p95_duration_seconds": 8.829864655001256,
+          "median_samples_per_second": 117.51814241661756,
+          "p95_samples_per_second": 119.06152441042498
+        },
+        "peak_allocated_cuda_bytes": null,
+        "peak_reserved_cuda_bytes": null
+      },
+      {
+        "telemetry_mode": "full",
+        "env_count": 16,
+        "rollout": {
+          "median_duration_seconds": 5.627119999999195,
+          "p95_duration_seconds": 5.813253320000695,
+          "median_transitions_per_second": 182.2220051492942,
+          "p95_transitions_per_second": 188.24952665154996
+        },
+        "optimization": {
+          "median_duration_seconds": 6.794662149999567,
+          "p95_duration_seconds": 7.197611275000054,
+          "median_samples_per_second": 151.36374262910533,
+          "p95_samples_per_second": 160.34018418024274
+        },
+        "peak_allocated_cuda_bytes": null,
+        "peak_reserved_cuda_bytes": null
+      }
+    ]
+  },
+  "cuda_matrix": {
+    "status": "PARTIAL",
+    "complete_env_counts": [
+      16,
+      64
+    ],
+    "failed_env_counts": [
+      256
+    ],
+    "path": "artifacts\\performance\\phase6_1_cuda_16_64"
+  },
+  "baseline_comparison": {
+    "status": "FAIL",
+    "baseline_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
+    "baseline_worktree": "K:\\MultiAgentUAV\\AICTFProject-phase6-baseline\\AICTFProject",
+    "current_commit": "751f207583e34c6c7142b9b8a6a1b29d6b7d18cf",
+    "comparison": "pre-Phase-6 OFF vs current telemetry OFF",
+    "gates": {
+      "pass": "<=1% regression",
+      "warn": ">1% and <=2%",
+      "fail": ">2%"
+    },
+    "rows": [
+      {
+        "env_count": 16,
+        "baseline_rollout_tps": 73.27662597087075,
+        "current_off_rollout_tps": 49.386711791587786,
+        "rollout_regression_percent": 32.602,
+        "rollout_gate": "FAIL",
+        "baseline_optimization_sps": 3024.786533492628,
+        "current_off_optimization_sps": 2409.7448481511747,
+        "optimization_regression_percent": 20.333,
+        "optimization_gate": "FAIL"
+      },
+      {
+        "env_count": 64,
+        "baseline_rollout_tps": 200.77769530312713,
+        "current_off_rollout_tps": 150.56123361146444,
+        "rollout_regression_percent": 25.011,
+        "rollout_gate": "FAIL",
+        "baseline_optimization_sps": 4381.00024448952,
+        "current_off_optimization_sps": 3974.505561482026,
+        "optimization_regression_percent": 9.279,
+        "optimization_gate": "FAIL"
+      }
+    ]
+  },
+  "mode_overhead_gates": [
+    {
+      "env_count": 16,
+      "mode": "basic",
+      "off_rollout_tps": 49.386711791587786,
+      "mode_rollout_tps": 55.96334059148519,
+      "rollout_overhead_percent": -13.317,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 2409.7448481511747,
+      "mode_optimization_sps": 2613.374374733501,
+      "optimization_overhead_percent": -8.45,
+      "optimization_gate": "PASS"
+    },
+    {
+      "env_count": 16,
+      "mode": "full",
+      "off_rollout_tps": 49.386711791587786,
+      "mode_rollout_tps": 69.75099144069497,
+      "rollout_overhead_percent": -41.234,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 2409.7448481511747,
+      "mode_optimization_sps": 3014.1611515661007,
+      "optimization_overhead_percent": -25.082,
+      "optimization_gate": "PASS"
+    },
+    {
+      "env_count": 64,
+      "mode": "basic",
+      "off_rollout_tps": 150.56123361146444,
+      "mode_rollout_tps": 177.0196338802848,
+      "rollout_overhead_percent": -17.573,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 3974.505561482026,
+      "mode_optimization_sps": 4296.728947068591,
+      "optimization_overhead_percent": -8.107,
+      "optimization_gate": "PASS"
+    },
+    {
+      "env_count": 64,
+      "mode": "full",
+      "off_rollout_tps": 150.56123361146444,
+      "mode_rollout_tps": 181.33802192092364,
+      "rollout_overhead_percent": -20.441,
+      "rollout_gate": "PASS",
+      "off_optimization_sps": 3974.505561482026,
+      "mode_optimization_sps": 4364.937903701182,
+      "optimization_overhead_percent": -9.823,
+      "optimization_gate": "PASS"
+    }
+  ],
+  "blockers": [
+    "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error.",
+    "Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians."
+  ]
+}

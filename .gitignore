@@ -1,0 +1,41 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment / IDE
+.env
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local smoke / temp training dirs
+AICTFProject/.test_runs/
+AICTFProject/checkpoints_sb3/test_runs/
+
+# Builds
+dist/
+build/
+*.egg-info/
+AICTFProject/checkpoints/
+*.lock
+*.pt
+*.pth
+*.pkl
+*.onnx
+*.zip

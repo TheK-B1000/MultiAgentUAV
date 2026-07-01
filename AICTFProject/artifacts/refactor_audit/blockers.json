@@ -1,0 +1,22 @@
+[
+  {
+    "phase": "Phase 4",
+    "blocker": "Resolved preset artifact/hash integration was not proven by a Phase 4 closeout report."
+  },
+  {
+    "phase": "Phase 6.1",
+    "blocker": "Requested 256-env CUDA matrix failed during PPO update with CUDA error: unknown error."
+  },
+  {
+    "phase": "Phase 6.1",
+    "blocker": "Current OFF is >2% slower than pre-Phase-6 OFF for 16/64 env rollout and optimization medians."
+  },
+  {
+    "phase": "Phase 7",
+    "blocker": "Missing decomposed diagnostics modules: []"
+  },
+  {
+    "phase": "Final",
+    "blocker": "Phases 5, 6.1, 7, 8, 9, and 10 are not all closed."
+  }
+]

@@ -1,0 +1,721 @@
+[checkpoint compat] CNN input channel expansion: latent_actor.actor_cnn.conv.0.weight 7->8 (new channels zero-initialized)
+[checkpoint compat] CNN input channel expansion: latent_actor.actor_cnn.conv.0.weight 7->8 (new channels zero-initialized)
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmpv4z0en2a\events.jsonl
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmpzvmka3ny\events.jsonl
+[Curriculum Controller] SCHEDULED transition to Phase C at step 70000
+[Curriculum Controller] NOMINAL transition to Phase B at step 40000
+[Curriculum Controller] NOMINAL transition to Phase C at step 70000
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_e3_csv'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_csv_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_csv_episodes.csv
+[PPO] E3 step telemetry CSV (per-step z, team_phase, behavior telemetry, buckets, MI-related fields): K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_csv_e3.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_csv.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_csv_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=8 ev=0.199 v_loss=0.008 shape/out=0.004/0.000 qphi_grad=0.11193752 lamH=0.005000 zH=1.385(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.721 z_ratio=0.000 z_occ=[0.000,0.000,0.000,1.000] z_wr=[-,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,0.00,1.00] z_wr=[-,-,-,-]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.693 div_spread=0.662 div_pressure=0.662 div_adr=0.377
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[nearest_blue_to_carrier=rel4.000/abs1.500 nearest_blue_to_enemy_carrier=rel4.000/abs1.500 num_attackers=rel4.000/abs1.375]
+      [Actor Z] sensitivity_KL=9.73604171e-04 sep_JSD=6.08418304e-05 max_JSD=5.87770715e-04 argmax_disagree=0.135417 logit_l2=7.76892006e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[6.20347564e-05,5.96488971e-05] entropy_by_z=[7.19124079e-01,7.18749404e-01,7.19325304e-01,7.19277740e-01]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\final_unittest_e3_csv.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_csv.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_e3_latent_replay'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_latent_replay_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_latent_replay_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_latent_replay.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_latent_replay_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=8 ev=0.199 v_loss=0.008 shape/out=0.004/0.000 qphi_grad=0.11193752 lamH=0.005000 zH=1.385(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.721 z_ratio=0.000 z_occ=[0.000,0.000,0.000,1.000] z_wr=[-,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,0.00,1.00] z_wr=[-,-,-,-]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.693 div_spread=0.662 div_pressure=0.662 div_adr=0.377
+python.exe : ..........................................................................................................
+.......................................................................................................................
+.......................................................................................................................
+.......................................................................................................................
+.......................................................................................................................
+.................................................................C:\Users\K-B\AppData\Local\Programs\Python\Python312\L
+ib\site-packages\torch\nn\modules\linear.py:124: UserWarning: Initializing zero-element tensors is a no-op
+At line:14 char:11
++   $output=& $py @($item.args) 2>&1
++           ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (..................sors is a no-op:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[nearest_blue_to_carrier=rel4.000/abs1.500 nearest_blue_to_enemy_carrier=rel4.000/abs1.500 num_attackers=rel4.000/abs1.375]
+      [Actor Z] sensitivity_KL=9.73604171e-04 sep_JSD=6.08418304e-05 max_JSD=5.87770715e-04 argmax_disagree=0.135417 logit_l2=7.76892006e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[6.20347564e-05,5.96488971e-05] entropy_by_z=[7.19124079e-01,7.18749404e-01,7.19325304e-01,7.19277740e-01]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\final_unittest_e3_latent_replay.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_latent_replay.run.lock
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_e3_no_latent_sample_guard'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=0 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: no-latent baseline
+[PPO] Latent team strategy: disabled (vanilla local PPO baseline).
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_no_latent_sample_guard_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_no_latent_sample_guard_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_no_latent_sample_guard.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_no_latent_sample_guard_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Decentralized actor contract: per-agent MLP input dim = 148 (cnn 128 + scalars 20, no z); global_state_dim=34 not used in policy.
+[PPO|diag] steps=8 ev=-0.377 v_loss=0.024 shape/out=0.002/0.000 qphi_grad=0.00000000 lamH=0.005000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[] z_wr=[]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\final_unittest_e3_no_latent_sample_guard.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\e3_verify\unittest_e3_no_latent_sample_guard.run.lock
+
+[Smoke Test Tactical Telemetry]
+  flag_pickup_count:         30
+  carry_home_steps:          483
+  capture_count:             13
+  own_flag_stolen_count:     17
+  flag_return_count:         14
+  escort_opportunity_count:  261
+  defensive_emergency_count: 483
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] opponent_pool_weights normalized to sum=1.0: OP3=0.2500, OP5=0.5000, OP6=0.2500
+[PPO] opponent_pool_weights normalized to sum=1.0: OP3=0.2000, OP5=0.5000, OP6=0.3000
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Decentralized actor contract: per-agent MLP input dim = 148 (cnn 128 + scalars 20, no z); global_state_dim=34 not used in policy.
+[checkpoint compat] Ignored auxiliary extras: ['episode_strategy_value_head.0.weight', 'episode_strategy_value_head.0.bias', 'episode_strategy_value_head.2.weight', 'episode_strategy_value_head.2.bias', 'episode_strategy_value_head.4.weight', 'episode_strategy_value_head.4.bias']
+[checkpoint compat] Ignored actor-affecting extras: []
+[checkpoint compat] Loader outcome: EXACT
+[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)
+[checkpoint compat] Behavioral-equivalence check: FAIL (mean_kl=2.473e-02, max_kl=4.824e-02, max_logit_diff=7.4097e-01, argmax_diff=54)
+[checkpoint compat] Behavioral-equivalence check: FAIL (mean_kl=2.473e-02, max_kl=4.824e-02, max_logit_diff=7.4097e-01, argmax_diff=54)
+[checkpoint compat] Ignored auxiliary extras: []
+[checkpoint compat] Ignored actor-affecting extras: ['latent_actor.actor_z_film.weight', 'latent_actor.actor_z_film.bias']
+[checkpoint compat] Loader outcome: NOOP_MODULE_ELISION
+[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)
+[checkpoint compat] Ignored auxiliary extras: []
+[checkpoint compat] Ignored actor-affecting extras: ['latent_actor.actor_z_film.weight', 'latent_actor.actor_z_film.bias']
+[checkpoint compat] Loader outcome: ACTIVE_MIGRATION
+[checkpoint compat] WARNING: ACTIVE ACTOR MODULE MIGRATION ENABLED
+[checkpoint compat] Resulting policy is not behaviorally equivalent to source checkpoint.
+[checkpoint compat] Ignored auxiliary extras: []
+[checkpoint compat] Ignored actor-affecting extras: ['latent_actor.actor_z_film.weight', 'latent_actor.actor_z_film.bias']
+[checkpoint compat] Loader outcome: ACTIVE_MIGRATION
+[checkpoint compat] WARNING: ACTIVE ACTOR MODULE MIGRATION ENABLED
+[checkpoint compat] Resulting policy is not behaviorally equivalent to source checkpoint.
+[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)
+[checkpoint compat] Ignored auxiliary extras: []
+[checkpoint compat] Ignored actor-affecting extras: ['latent_actor.z_adapter.weight']
+[checkpoint compat] Loader outcome: NOOP_MODULE_ELISION
+[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)
+[checkpoint compat] Ignored auxiliary extras: []
+[checkpoint compat] Ignored actor-affecting extras: ['latent_actor.z_adapter.weight']
+[checkpoint compat] Loader outcome: ACTIVE_MIGRATION
+[checkpoint compat] WARNING: ACTIVE ACTOR MODULE MIGRATION ENABLED
+[checkpoint compat] Resulting policy is not behaviorally equivalent to source checkpoint.
+[checkpoint compat] Ignored auxiliary extras: []
+[checkpoint compat] Ignored actor-affecting extras: ['latent_actor.z_adapter.weight']
+[checkpoint compat] Loader outcome: ACTIVE_MIGRATION
+[checkpoint compat] WARNING: ACTIVE ACTOR MODULE MIGRATION ENABLED
+.....................................................................C:\Users\K-B\AppData\Local\Programs\Python\Python3
+12\Lib\site-packages\torch\nn\modules\module.py:517: ResourceWarning: unclosed file <_io.TextIOWrapper 
+name='K:\\tmp\\phase6_1_test_temp\\tmp163cerq6\\training_events.jsonl' mode='a' encoding='utf-8'>
+  super().__setattr__("_state_dict_hooks", OrderedDict())
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+[checkpoint compat] Resulting policy is not behaviorally equivalent to source checkpoint.
+[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmp2qin_wgf\events.jsonl
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmpklkobl6h\training_events.jsonl
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='telemetry_off'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 4
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\tmp\phase6_1_test_temp\tmp163cerq6
+[PPO] Update metrics CSV: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_off_metrics.csv
+[PPO] Episode metrics CSV: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_off_episodes.csv
+[PPO] Run lock acquired: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_off.run.lock
+[PPO] Run config written: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_off_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=4 ev=-2.312 v_loss=0.016 shape/out=0.002/-0.500 qphi_grad=0.06357691 lamH=0.005000 zH=1.385(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.000,0.000,0.250,0.750] z_wr=[-,-,0.000,0.000] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,0.25,0.75] z_wr=[-,-,0.00,0.00]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.562 div_spread=0.562 div_pressure=0.000 div_adr=0.000
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[OP3=0.000] | behavior_rel_spread_max=2.581 top3=[team_spread=rel2.581/abs0.188 num_go_to=rel2.400/abs1.000 num_attackers=rel2.286/abs1.333]
+      [Actor Z] sensitivity_KL=1.05441627e-03 sep_JSD=6.58946010e-05 max_JSD=1.70897110e-04 argmax_disagree=0.375000 logit_l2=1.09111704e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[3.68356013e-05,9.49535970e-05] entropy_by_z=[2.30180049e+00,2.30209637e+00,2.30189967e+00,2.30174732e+00]
+[PPO] Training complete. Final checkpoint saved to: K:\tmp\phase6_1_test_temp\tmp163cerq6\final_telemetry_off.zip
+[PPO] Run lock released: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_off.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='telemetry_basic'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 4
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\tmp\phase6_1_test_temp\tmp163cerq6
+[PPO] Update metrics CSV: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_basic_metrics.csv
+[PPO] Episode metrics CSV: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_basic_episodes.csv
+[PPO] Run lock acquired: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_basic.run.lock
+[PPO] Run config written: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_basic_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=4 ev=-2.312 v_loss=0.016 shape/out=0.002/-0.500 qphi_grad=0.06357691 lamH=0.005000 zH=1.385(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.000,0.000,0.250,0.750] z_wr=[-,-,0.000,0.000] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,0.25,0.75] z_wr=[-,-,0.00,0.00]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.562 div_spread=0.562 div_pressure=0.000 div_adr=0.000
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[OP3=0.000] | behavior_rel_spread_max=2.581 top3=[team_spread=rel2.581/abs0.188 num_go_to=rel2.400/abs1.000 num_attackers=rel2.286/abs1.333]
+      [Actor Z] sensitivity_KL=1.05441627e-03 sep_JSD=6.58946010e-05 max_JSD=1.70897110e-04 argmax_disagree=0.375000 logit_l2=1.09111704e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[3.68356013e-05,9.49535970e-05] entropy_by_z=[2.30180049e+00,2.30209637e+00,2.30189967e+00,2.30174732e+00]
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmp163cerq6\training_events.jsonl
+[PPO] Training complete. Final checkpoint saved to: K:\tmp\phase6_1_test_temp\tmp163cerq6\final_telemetry_basic.zip
+[PPO] Run lock released: K:\tmp\phase6_1_test_temp\tmp163cerq6\telemetry_basic.run.lock
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmpii84cg67\events.jsonl
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Migrating CSV (additive columns): K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\schema_additive_metrics.csv
+      was 2 cols -> now 3 cols; rewriting 1 row(s).
+[PPO] Migrating CSV (additive columns): K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\schema_rename_metrics_aux_return.csv
+      was 3 cols -> now 3 cols; rewriting 1 row(s).
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_default_latent_fixed_opponent_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 1
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_default_latent_fixed_opponent_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_default_latent_fixed_opponent_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_default_latent_fixed_opponent_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_default_latent_fixed_opponent_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Adjusting batch_size to rollout size: 1.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=1 ev=0.000 v_loss=0.015 shape/out=0.002/-0.500 qphi_grad=0.01750610 lamH=0.005000 zH=1.383(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.121 z_ratio=0.000 z_occ=[0.000,0.000,1.000,0.000] z_wr=[-,-,0.000,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,1.00,0.00] z_wr=[-,-,0.00,-]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.000 div_spread=0.000 div_pressure=0.000 div_adr=0.000
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[num_go_to=rel4.000/abs2.000 nearest_blue_to_carrier=rel4.000/abs1.500 nearest_blue_to_enemy_carrier=rel4.000/abs1.500]
+      [Actor Z] sensitivity_KL=1.38023549e-03 sep_JSD=8.62604429e-05 max_JSD=2.11723614e-04 argmax_disagree=0.500000 logit_l2=1.29708901e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[6.30023860e-05,1.09518478e-04] entropy_by_z=[2.30180979e+00,2.30182552e+00,2.30192041e+00,2.30185270e+00]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_default_latent_fixed_opponent_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_default_latent_fixed_opponent_2v2.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_episode_strategy_credit_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 4
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0000, lambda_H=0.0010 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.000, episode_credit=True, episode_coef=0.250, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] WARNING: episode_credit on with warmup_decision_steps=0; q_phi snapshot uses step-0 context (canonical initial geometry + zeroed EMAs => opponent-blind). MI(z; opponent) structurally bounded near zero.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_episode_strategy_credit_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_episode_strategy_credit_2v2_episodes.csv
+[PPO] Strategy experience CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_episode_strategy_credit_2v2_strategy_experience.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_episode_strategy_credit_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_episode_strategy_credit_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=4 ev=-1.621 v_loss=0.001 shape/out=0.002/-0.500 qphi_grad_main=0.11309051 lamH=0.001000 zH=1.384(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=-0.000 z_ratio=0.000 z_occ=[0.000,0.000,0.250,0.750] z_wr=[-,-,0.000,0.000] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,0.25,0.75] z_wr=[-,-,0.00,0.00]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.562 div_spread=1.040 div_pressure=0.000 div_adr=0.562
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[OP3=0.000] | behavior_rel_spread_max=4.000 top3=[num_attackers=rel4.000/abs1.333 num_go_to=rel3.429/abs2.000 team_spread=rel3.079/abs0.243]
+      [Actor Z] sensitivity_KL=1.43271267e-03 sep_JSD=8.95375269e-05 max_JSD=2.58288812e-04 argmax_disagree=0.364583 logit_l2=1.29956111e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[6.90307279e-05,1.10044341e-04] entropy_by_z=[2.32710075e+00,2.32726979e+00,2.32721639e+00,2.32719421e+00]
+      [episode-credit] n_eps=4 pg=-0.0000 v=0.0014 adv_std=1.000 kl=0.0000 clip=0.000 ratio=[1.000,1.000] ret_mean=-0.124 margin=0.0000 ent_res=0.0000 grad_norm=0.11309051
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_episode_strategy_credit_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_episode_strategy_credit_2v2.run.lock
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons ENABLED ['fixed_latent_strategy'] (not plan-faithful first-run; treat as intentional ablation).
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Rotated existing metrics CSV aside: 'K:\\MultiAgentUAV\\AICTFProject\\.test_runs\\train_ppo_smoke\\fresh_rotates_e3_metrics.csv.bak.1782623377' (--fresh-metrics-csv).
+[PPO] Rotated existing episode CSV aside: 'K:\\MultiAgentUAV\\AICTFProject\\.test_runs\\train_ppo_smoke\\fresh_rotates_e3_episodes.csv.bak.1782623377' (--fresh-metrics-csv).
+[PPO] Rotated existing E3 step telemetry CSV aside: 'K:\\MultiAgentUAV\\AICTFProject\\.test_runs\\train_ppo_smoke\\fresh_rotates_e3_e3_steps.csv.bak.1782623377' (--fresh-metrics-csv).
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] opponent_pool excludes ['OP4'] (eval-only by default). Pass --allow-op4-in-training-pool to include those tags in training.
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_lock_2v2.run.lock
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_lock_2v2.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_inference_custom_ppo_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=0 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: no-latent baseline
+[PPO] Latent team strategy: disabled (vanilla local PPO baseline).
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_custom_ppo_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_custom_ppo_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_custom_ppo_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_custom_ppo_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Decentralized actor contract: per-agent MLP input dim = 148 (cnn 128 + scalars 20, no z); global_state_dim=34 not used in policy.
+[PPO|diag] steps=8 ev=0.187 v_loss=0.018 shape/out=0.002/0.000 qphi_grad=0.00000000 lamH=0.005000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[] z_wr=[]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_inference_custom_ppo_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_custom_ppo_2v2.run.lock
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_inference_latent_ppo_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_latent_ppo_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_latent_ppo_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_latent_ppo_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_latent_ppo_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=8 ev=0.180 v_loss=0.021 shape/out=0.002/0.000 qphi_grad=0.11735330 lamH=0.005000 zH=1.383(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.811 z_ratio=0.000 z_occ=[0.000,0.000,1.000,0.000] z_wr=[-,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,1.00,0.00] z_wr=[-,-,-,-]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.000 div_spread=0.662 div_pressure=0.000 div_adr=0.000
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[num_go_to=rel4.000/abs2.000 nearest_blue_to_carrier=rel4.000/abs1.500 nearest_blue_to_enemy_carrier=rel4.000/abs1.500]
+      [Actor Z] sensitivity_KL=4.18936480e-04 sep_JSD=2.61828009e-05 max_JSD=3.15393787e-04 argmax_disagree=0.093750 logit_l2=5.56393377e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[2.28369190e-05,2.95286827e-05] entropy_by_z=[5.75416267e-01,5.75462759e-01,5.75427175e-01,5.75449169e-01]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_inference_latent_ppo_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_inference_latent_ppo_2v2.run.lock
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Agents: 2 per team (2v2) | mode=CURRICULUM | run_tag='unittest_curriculum_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 4
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=0 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: curriculum baseline
+[PPO] Jacob paper curriculum: enabled (SCRIPTED:OP1 -> SCRIPTED:OP2 -> SCRIPTED:OP3; scripted-only curriculum).
+[PPO] Curriculum gates: min_episodes={'OP1': 200, 'OP2': 200, 'OP3': 250}, min_winrate={'OP1': 1.0, 'OP2': 0.9, 'OP3': 0.8}, windows={'OP1': 50, 'OP2': 50, 'OP3': 100}.
+[PPO] Latent team strategy: disabled (vanilla local PPO baseline).
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_curriculum_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_curriculum_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_curriculum_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_curriculum_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=CURRICULUM, curriculum phase=OP1).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Adjusting batch_size to rollout size: 4.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Decentralized actor contract: per-agent MLP input dim = 148 (cnn 128 + scalars 20, no z); global_state_dim=34 not used in policy.
+[PPO|diag] steps=4 ev=0.951 v_loss=0.017 shape/out=0.002/-0.500 qphi_grad=0.00000000 lamH=0.005000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[] z_wr=[]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_curriculum_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_curriculum_2v2.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_smoke_custom_ppo_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=0 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: no-latent baseline
+[PPO] Latent team strategy: disabled (vanilla local PPO baseline).
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_custom_ppo_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_custom_ppo_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_custom_ppo_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_custom_ppo_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=0 critic_context_dim=34 actor_input_dim=148
+[PPO] Decentralized actor contract: per-agent MLP input dim = 148 (cnn 128 + scalars 20, no z); global_state_dim=34 not used in policy.
+[PPO|diag] steps=8 ev=0.187 v_loss=0.018 shape/out=0.002/0.000 qphi_grad=0.00000000 lamH=0.005000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[] z_wr=[]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_smoke_custom_ppo_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_custom_ppo_2v2.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_smoke_latent_ppo_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_latent_ppo_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_latent_ppo_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_latent_ppo_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_latent_ppo_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=8 ev=0.180 v_loss=0.021 shape/out=0.002/0.000 qphi_grad=0.11735330 lamH=0.005000 zH=1.383(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.811 z_ratio=0.000 z_occ=[0.000,0.000,1.000,0.000] z_wr=[-,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,1.00,0.00] z_wr=[-,-,-,-]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.000 div_spread=0.662 div_pressure=0.000 div_adr=0.000
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[num_go_to=rel4.000/abs2.000 nearest_blue_to_carrier=rel4.000/abs1.500 nearest_blue_to_enemy_carrier=rel4.000/abs1.500]
+      [Actor Z] sensitivity_KL=4.18936480e-04 sep_JSD=2.61828009e-05 max_JSD=3.15393787e-04 argmax_disagree=0.093750 logit_l2=5.56393377e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[2.28369190e-05,2.95286827e-05] entropy_by_z=[5.75416267e-01,5.75462759e-01,5.75427175e-01,5.75449169e-01]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_smoke_latent_ppo_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_smoke_latent_ppo_2v2.run.lock
+[PPO] Agents: 2 per team (2v2) | mode=FIXED_OPPONENT | run_tag='unittest_metrics_latent_ppo_2v2'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 8
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Latent team strategy: enabled (K=4, sample=episode start, on_flag=False, lambda_p=0.0200, lambda_H=0.0050 (H:maximize), lambda_KL=0.0000, strategy_ppo_coef=0.100, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=1.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True)
+[PPO] NOTE: latent_lam_p is active only on sparse mid-episode resamples; with sample=episode start it has near-zero training effect.
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke
+[PPO] Update metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_metrics_latent_ppo_2v2_metrics.csv
+[PPO] Episode metrics CSV: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_metrics_latent_ppo_2v2_episodes.csv
+[PPO] Run lock acquired: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_metrics_latent_ppo_2v2.run.lock
+[PPO] Run config written: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_metrics_latent_ppo_2v2_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=FIXED_OPPONENT, scripted opponent tag=OP3).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[PPO] Adjusting batch_size to rollout size: 4.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=170 critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP1', 'OP2', 'OP3'] ; OP4 status: EXCLUDED (eval-only)
+[PPO|diag] steps=4 ev=-1.621 v_loss=0.016 shape/out=0.002/-0.500 qphi_grad=0.03114312 lamH=0.005000 zH=1.384(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=-0.000 z_ratio=0.000 z_occ=[0.000,0.000,0.250,0.750] z_wr=[-,-,0.000,0.000] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.00,0.00,0.25,0.75] z_wr=[-,-,0.00,0.00]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.562 div_spread=1.040 div_pressure=0.000 div_adr=0.562
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[OP3=0.000] | behavior_rel_spread_max=4.000 top3=[num_attackers=rel4.000/abs1.333 num_go_to=rel3.429/abs2.000 team_spread=rel3.079/abs0.243]
+      [Actor Z] sensitivity_KL=1.33833048e-03 sep_JSD=8.36388863e-05 max_JSD=1.85379351e-04 argmax_disagree=0.604167 logit_l2=1.34417102e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[5.22887822e-05,1.14989001e-04] entropy_by_z=[2.32725120e+00,2.32729220e+00,2.32714367e+00,2.32726145e+00]
+[PPO|diag] steps=8 ev=-2.502 v_loss=0.016 shape/out=0.002/-0.500 qphi_grad=0.08289997 lamH=0.005000 zH=1.384(1.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[0.250,0.250,0.250,0.250] z_wr=[0.000,0.000,0.000,0.000] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | OP3:z_occ=[0.25,0.25,0.25,0.25] z_wr=[0.00,0.00,0.00,0.00]
+      [Switch Near] cap=0.000(0/0|ev=0) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=0) [N/A: no mid-ep switches] | div_role=0.562 div_spread=0.693 div_pressure=0.000 div_adr=0.693
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[OP3=0.000] | behavior_rel_spread_max=2.667 top3=[num_attackers=rel2.667/abs2.000 team_spread=rel1.850/abs0.080 avg_blue_to_own_flag=rel1.708/abs0.207]
+      [Actor Z] sensitivity_KL=1.21673718e-03 sep_JSD=7.60433395e-05 max_JSD=1.88931299e-04 argmax_disagree=0.427083 logit_l2=1.33474573e-01 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[3.79222838e-05,1.14164395e-04] entropy_by_z=[2.30184603e+00,2.30192232e+00,2.30173731e+00,2.30191088e+00]
+[PPO] Training complete. Final checkpoint saved to: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\final_unittest_metrics_latent_ppo_2v2.zip
+[PPO] Run lock released: K:\MultiAgentUAV\AICTFProject\.test_runs\train_ppo_smoke\unittest_metrics_latent_ppo_2v2.run.lock
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmplwzhsmc5\events.jsonl
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmplwzhsmc5\events.jsonl
+[DEBUG] JSONLineEventWriter: closed file at K:\tmp\phase6_1_test_temp\tmplwzhsmc5\events.jsonl
+
+[Curriculum Controller] Phase A gate check at step 400000...
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp6skkc5zc\phase_a_gate_reports\gate_step_400000.json
+[V6I1 Gate] step=400000 phase=A mode=observe_only protocol=v6i1_single_macro_intervention
+[V6I1 Gate] coverage=NOT_RUN competence=NOT_RUN integrity=NOT_RUN
+[V6I1 Gate] intervention=NOT_RUN pairs>=margin=0/6 min_jsd=0.00000 jsd_consec=0/5
+[V6I1 Gate] matched_eval=NOT_RUN probe=NOT_RUN
+[Phase A] behavior_diag=NOT_RUN reason=stale
+[V6I1 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I1 Gate] report=K:\tmp\phase6_1_test_temp\tmp6skkc5zc\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Gate families: {'matched_seed_behavior': {'status': 'NOT_RUN', 'reason': 'curriculum_gate_run_boundary_eval=false'}}
+[Curriculum Controller] Overall: FAIL (mode=observe_only)
+[Curriculum Controller] Phase A continues.
+[Curriculum Controller] NOMINAL transition to Phase C at step 70000
+[Curriculum Controller] NOMINAL transition to Phase B at step 40000
+[Curriculum Controller] Selector-learnability probe...
+[Selector Probe] opponent 1/3
+[Selector Probe] seed 1/1
+[Selector Probe] examples 0/3
+[Selector Probe] opponent 2/3
+[Selector Probe] seed 1/1
+[Selector Probe] examples 0/3
+[Selector Probe] opponent 3/3
+[Selector Probe] seed 1/1
+[Selector Probe] examples 0/3
+[Curriculum Controller] NOMINAL transition to Phase C at step 700000
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+
+[Curriculum Controller] Phase A gate check at step 64...
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmpl0ag200h\phase_a_gate_reports\gate_step_64.json
+[V6I2 Gate] step=64 phase=A mode=enforce protocol=v6i2_dual_evidence
+[V6I2 Gate] coverage=NOT_RUN competence=NOT_RUN integrity=NOT_RUN
+[V6I2 Gate] actor_intervention=NOT_RUN cf_pairs>=margin=0/6 min_cf_ema=0.000000 actor_consec=0/3
+[V6I2 Gate] behavioral_realization=NOT_RUN strong_opponents=0/3 aggregate_effect=0.0000 probe=NOT_RUN
+[Phase A] behavior_diag=NOT_RUN reason=stale
+[V6I2 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I2 Gate] report=K:\tmp\phase6_1_test_temp\tmpl0ag200h\phase_a_gate_reports\gate_step_64.json
+[Curriculum Controller] Gate families: {'behavioral_realization': {'status': 'NOT_RUN', 'reason': 'online_prerequisites_failed', 'failed_online_gate_statuses': {'coverage': 'NOT_RUN', 'competence': 'NOT_RUN', 'training_integrity': 'NOT_RUN'}, 'behavior_evidence_status': 'paused_prerequisites_failed', 'resume_training': True}}
+[Curriculum Controller] Overall: FAIL (mode=enforce)
+[Curriculum Controller] Phase A continues.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=234 (ctx170+selector_h64) critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP5', 'OP6', 'OP7'] ; OP4 status: EXCLUDED (eval-only)
+[Curriculum Controller] NOMINAL transition to Phase B at step 64
+[Curriculum Controller] NOMINAL transition to Phase C at step 192
+[Curriculum Controller] NOMINAL transition to Phase B at step 40000
+[Curriculum Controller] NOMINAL transition to Phase C at step 70000
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=234 (ctx170+selector_h64) critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP5', 'OP6', 'OP7'] ; OP4 status: EXCLUDED (eval-only)
+
+[Curriculum Controller] Phase A gate check at step 400000...
+[Curriculum Controller] Protected candidate: K:\tmp\phase6_1_test_temp\tmp12ij5spz\ckpt_candidate_400000.zip
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp12ij5spz\phase_a_gate_reports\gate_step_400000.json
+[V6I2 Gate] step=400000 phase=A mode=enforce protocol=v6i2_dual_evidence
+[V6I2 Gate] coverage=PASS competence=PASS integrity=PASS
+[V6I2 Gate] actor_intervention=FAIL cf_pairs>=margin=0/6 min_cf_ema=0.000000 actor_consec=0/3
+[V6I2 Gate] behavioral_realization=PASS strong_opponents=2/2 aggregate_effect=1.2000 probe=NOT_RUN
+[Phase A] actor_jsd=0.0000 behavior_min=0.0000 behavior_mean=0.0000 quadrant=unknown cf_regime=unknown corridor_viable=True actor_pairs>margin=6/6 online_behavior_pairs>thr=6/6 opp_fork_valid=0.000 genuine_control=False
+[V6I2 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I2 Gate] report=K:\tmp\phase6_1_test_temp\tmp12ij5spz\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Gate families: {'coverage': {'status': 'PASS'}, 'competence': {'status': 'PASS'}, 'actor_intervention': {'status': 'FAIL', 'reason': 'insufficient_actor_pair_jsd', 'pairs_above_margin': 4, 'required_pairs': 5}, 'behavioral_realization': {'status': 'PASS', 'behavioral_realization_gate_status': 'PASS', 'matched_seed_semantics': 'PASS', 'matched_seed_semantics_details': {'strong_opponent_count': 2, 'behavioral_realization_min_opponents_pass': 2, 'aggregate_effect': 1.2, 'opponents': {'OP5': {'route_distance': 2.0, 'task_behavior_distance': 0.02, 'performance_spread': 0.4, 'aggregate_effect': 1.0, 'component_floor_pass': True}, 'OP6': {'route_distance': 3.0, 'task_behavior_distance': 0.03, 'performance_spread': 0.6, 'aggregate_effect': 1.4, 'component_floor_pass': True}}}}, 'training_integrity': {'status': 'PASS'}}
+[Curriculum Controller] Overall: FAIL (mode=enforce)
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp12ij5spz\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Phase A continues.
+
+[Curriculum Controller] Phase A gate check at step 400000...
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmpw2ajwmv7\phase_a_gate_reports\gate_step_400000.json
+[V6I2 Gate] step=400000 phase=A mode=enforce protocol=v6i2_dual_evidence
+[V6I2 Gate] coverage=PASS competence=PASS integrity=PASS
+[V6I2 Gate] actor_intervention=PASS cf_pairs>=margin=0/6 min_cf_ema=0.000000 actor_consec=0/3
+[V6I2 Gate] behavioral_realization=NOT_RUN strong_opponents=0/3 aggregate_effect=0.0000 probe=NOT_RUN
+[Phase A] actor_jsd=0.0000 behavior_min=0.0000 behavior_mean=0.0000 quadrant=unknown cf_regime=unknown corridor_viable=True actor_pairs>margin=6/6 online_behavior_pairs>thr=6/6 opp_fork_valid=0.000 genuine_control=False
+[V6I2 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I2 Gate] report=K:\tmp\phase6_1_test_temp\tmpw2ajwmv7\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Gate families: {'coverage': {'status': 'PASS'}, 'competence': {'status': 'PASS'}, 'actor_intervention': {'status': 'PASS'}, 'behavioral_realization': {'status': 'NOT_RUN', 'reason': 'curriculum_gate_run_boundary_eval=false'}, 'training_integrity': {'status': 'PASS'}}
+[Curriculum Controller] Overall: FAIL (mode=enforce)
+[Curriculum Controller] Phase A continues.
+
+[Curriculum Controller] Phase A gate check at step 400000...
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp0f0tam7x\phase_a_gate_reports\gate_step_400000.json
+[V6I2 Gate] step=400000 phase=A mode=enforce protocol=v6i2_dual_evidence
+[V6I2 Gate] coverage=FAIL competence=PASS integrity=PASS
+[V6I2 Gate] actor_intervention=PASS cf_pairs>=margin=0/6 min_cf_ema=0.000000 actor_consec=0/3
+[V6I2 Gate] behavioral_realization=NOT_RUN strong_opponents=0/3 aggregate_effect=0.0000 probe=NOT_RUN
+[Phase A] actor_jsd=0.0000 behavior_min=0.0000 behavior_mean=0.0000 quadrant=unknown cf_regime=unknown corridor_viable=True actor_pairs>margin=6/6 online_behavior_pairs>thr=6/6 opp_fork_valid=0.000 genuine_control=False
+[V6I2 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I2 Gate] report=K:\tmp\phase6_1_test_temp\tmp0f0tam7x\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Gate families: {'coverage': {'status': 'FAIL'}, 'competence': {'status': 'PASS'}, 'actor_intervention': {'status': 'PASS'}, 'behavioral_realization': {'status': 'NOT_RUN', 'reason': 'online_prerequisites_failed', 'failed_online_gate_statuses': {'coverage': 'FAIL'}, 'behavior_evidence_status': 'paused_prerequisites_failed', 'resume_training': True}, 'training_integrity': {'status': 'PASS'}}
+[Curriculum Controller] Overall: FAIL (mode=enforce)
+[Curriculum Controller] Phase A continues.
+[PPO] *** GATE CONFIG MISMATCH OVERRIDE ? NOT CONFIRMATORY ***
+[PPO] checkpoint fingerprint=9c4aa70664495294 active fingerprint=e7dacaeccfc673fe
+[PPO] enforce promotion disabled; run is observe-only for gate lineage.
+
+[Curriculum Controller] Phase A gate check at step 400000...
+[Curriculum Controller] Protected candidate: K:\tmp\phase6_1_test_temp\tmp75mccofz\ckpt_candidate_400000.zip
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp75mccofz\phase_a_gate_reports\gate_step_400000.json
+[V6I2 Gate] step=400000 phase=A mode=enforce protocol=v6i2_dual_evidence
+[V6I2 Gate] coverage=PASS competence=PASS integrity=PASS
+[V6I2 Gate] actor_intervention=PASS cf_pairs>=margin=0/6 min_cf_ema=0.000000 actor_consec=0/3
+[V6I2 Gate] behavioral_realization=PASS strong_opponents=0/3 aggregate_effect=0.0000 probe=ERROR
+[Phase A] actor_jsd=0.0000 behavior_min=0.0000 behavior_mean=0.0000 quadrant=unknown cf_regime=unknown corridor_viable=True actor_pairs>margin=6/6 online_behavior_pairs>thr=6/6 opp_fork_valid=0.000 genuine_control=False
+[V6I2 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I2 Gate] report=K:\tmp\phase6_1_test_temp\tmp75mccofz\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Gate families: {'coverage': {'status': 'PASS'}, 'competence': {'status': 'PASS'}, 'actor_intervention': {'status': 'PASS'}, 'behavioral_realization': {'status': 'PASS'}, 'training_integrity': {'status': 'PASS'}, 'selector_learnability_probe': {'status': 'ERROR', 'reason': 'diagnostic_failed'}}
+[Curriculum Controller] Overall: FAIL (mode=enforce)
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp75mccofz\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Phase A continues.
+
+[Curriculum Controller] Phase A gate check at step 400000...
+[Curriculum Controller] Protected candidate: K:\tmp\phase6_1_test_temp\tmp3npcgf7_\ckpt_candidate_400000.zip
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp3npcgf7_\phase_a_gate_reports\gate_step_400000.json
+[V6I2 Gate] step=400000 phase=A mode=enforce protocol=v6i2_dual_evidence
+[V6I2 Gate] coverage=PASS competence=PASS integrity=PASS
+[V6I2 Gate] actor_intervention=PASS cf_pairs>=margin=0/6 min_cf_ema=0.000000 actor_consec=0/3
+[V6I2 Gate] behavioral_realization=ERROR strong_opponents=0/3 aggregate_effect=0.0000 probe=NOT_RUN
+[Phase A] actor_jsd=0.0000 behavior_min=0.0000 behavior_mean=0.0000 quadrant=unknown cf_regime=unknown corridor_viable=True actor_pairs>margin=6/6 online_behavior_pairs>thr=6/6 opp_fork_valid=0.000 genuine_control=False
+[V6I2 Gate] overall=FAIL action=CONTINUE_PHASE_A cf_coef=0.0000
+[V6I2 Gate] report=K:\tmp\phase6_1_test_temp\tmp3npcgf7_\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Gate families: {'coverage': {'status': 'PASS'}, 'competence': {'status': 'PASS'}, 'actor_intervention': {'status': 'PASS'}, 'behavioral_realization': {'status': 'ERROR', 'reason': 'inconclusive_timeout', 'timed_out': True, 'resume_training': True}, 'training_integrity': {'status': 'PASS'}}
+[Curriculum Controller] Overall: FAIL (mode=enforce)
+[Curriculum Controller] Gate report: K:\tmp\phase6_1_test_temp\tmp3npcgf7_\phase_a_gate_reports\gate_step_400000.json
+[Curriculum Controller] Phase A continues.
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=234 (ctx170+selector_h64) critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP5', 'OP6', 'OP7'] ; OP4 status: EXCLUDED (eval-only)
+[Curriculum Controller] Phase A promoted at: 89
+[Curriculum Controller] Effective terminal extended to: 165
+[Curriculum Controller] Phase B budget: 38
+[Curriculum Controller] Phase C budget: 38
+[Curriculum Controller] Training terminal raised from 128 to 165
+[Curriculum Controller] GATE-PASSED transition to Phase B at step 89
+[Curriculum Controller] Phase A promoted at: 89
+[Curriculum Controller] Effective terminal extended to: 165
+[Curriculum Controller] Phase B budget: 38
+[Curriculum Controller] Phase C budget: 38
+[Curriculum Controller] Training terminal raised from 128 to 165
+[Curriculum Controller] GATE-PASSED transition to Phase B at step 89
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=234 (ctx170+selector_h64) critic_context_dim=170 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16); global_state_dim=170 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=170 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons (aux_return_head, kl_consecutive, resample_on_flag, fixed_latent_strategy) all OFF ? plan-faithful first-run.
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP5', 'OP6', 'OP7'] ; OP4 status: EXCLUDED (eval-only)
+[Curriculum Controller] Phase A promoted at: 89
+[Curriculum Controller] Effective terminal extended to: 165
+[Curriculum Controller] Phase B budget: 38
+[Curriculum Controller] Phase C budget: 38
+[Curriculum Controller] Training terminal raised from 128 to 165
+.......................................................................................................................
+.......................................................................................................................
+.......................................................................................................................
+.......................................................................................................................
+....................................................
+----------------------------------------------------------------------
+Ran 1244 tests in 114.561s
+
+OK
+[Curriculum Controller] GATE-PASSED transition to Phase B at step 89
+[PPO|return_norm] update=1 mean=-0.3438 std=0.0937 count=32
+[Curriculum Controller] NOMINAL transition to Phase C at step 105
+[PPO|return_norm] update=2 mean=-0.2860 std=0.1672 count=48
+[PPO|return_norm] update=3 mean=-0.3596 std=0.1985 count=64
+[PPO|return_norm] update=4 mean=-0.3986 std=0.1962 count=80
+[PPO|return_norm] update=5 mean=-0.4280 std=0.1945 count=96
+[PPO] Training preset: 'v6i5'
+[PPO] Training preset: 'v6i5'
+[PPO] Training preset: 'v6i6'
+[checkpoint compat] CNN input channel expansion: latent_actor.actor_cnn.conv.0.weight 7->8 (new channels zero-initialized)
+

@@ -1,0 +1,9 @@
+﻿ M artifacts/refactor_audit/blockers.json
+ M artifacts/refactor_audit/missing_artifacts.json
+ M artifacts/refactor_audit/phase_status.json
+ M artifacts/refactor_audit/phase_status.md
+ M artifacts/refactor_audit/refactor_progress_report.json
+ M artifacts/refactor_audit/refactor_progress_report.md
+?? artifacts/refactor_audit/audit_branch.txt
+?? artifacts/refactor_audit/audit_commit.txt
+?? artifacts/refactor_audit/worktree_status.txt

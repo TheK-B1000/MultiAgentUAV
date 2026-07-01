@@ -1,0 +1,37 @@
+{
+  "stage": 14,
+  "title": "Worktree and Branch Cleanup",
+  "date": "2026-06-28",
+  "worktrees": {
+    "pruned": [
+      "AICTFProject-phase4-audit (at fe0e923, detached HEAD) — gitdir pointed to non-existent location",
+      "AICTFProject-phase6-baseline (at fe0e923, detached HEAD) — gitdir pointed to non-existent location"
+    ],
+    "remaining": [
+      "K:/MultiAgentUAV at b8306d6 [ml-ops] — ACTIVE WORKING TREE"
+    ],
+    "action": "git worktree prune executed — both stale worktrees removed"
+  },
+  "branches": {
+    "active": ["main", "ml-ops"],
+    "candidate_for_deletion": [
+      "4a", "4agents", "adversarialtraining", "apples",
+      "backup-fix-training-before-cleanup",
+      "baseline1", "baseline2", "cnn", "cuda",
+      "cursorrefactor", "cursortest", "environment",
+      "fix", "fix-training", "hierarchicaltest", "implement",
+      "jacob", "latent-optimizer", "metrics", "militaryrules",
+      "ml-outcome-boost", "ours", "pyquaticus", "real",
+      "refactor", "sharpened-router", "structure-rebuild",
+      "summer", "summer-plan", "training", "update", "v6", "v7"
+    ],
+    "candidate_count": 33,
+    "rationale": "All candidate branches correspond to pre-V5 architecture development periods. Stash contents from Phase 11 Stage 0 confirmed: these branches contained only pycache, IDE files, and early-era checkpoints (pre-V6 architecture, e.g. 'ctf_ppo_ep1000'). All are already synchronized to remote origin.",
+    "action_required": "USER_AUTHORIZATION — branch deletion is an irreversible local action. Recommend running: git branch -D <branch> for each candidate after confirming with user.",
+    "safe_delete_command": "git branch -D 4a 4agents adversarialtraining apples backup-fix-training-before-cleanup baseline1 baseline2 cnn cuda cursorrefactor cursortest environment fix fix-training hierarchicaltest implement jacob latent-optimizer metrics militaryrules ml-outcome-boost ours pyquaticus real refactor sharpened-router structure-rebuild summer summer-plan training update v6 v7"
+  },
+  "remote_branches_not_local": [
+    "origin/2agents", "origin/continuous", "origin/elo", "origin/fixjitter",
+    "origin/newmacros", "origin/qmix", "origin/research"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "stage": 6,
+  "subject": "experiments/eval_v6i9_map_awareness.py and rl/evaluation/ modules",
+  "eval_script": {
+    "path": "experiments/eval_v6i9_map_awareness.py",
+    "classification": "SUPPORTED_ENTRY_POINT",
+    "lines": 1353,
+    "local_functions": 58,
+    "reason": "Active V6I9 promotion gate. Contains v6i9-specific logic (InstrumentedEnv, channel slicing, observation adaptation). Cannot be removed.",
+    "delegation_wrappers_still_present": [
+      "_checkpoint_dimensions",
+      "_model",
+      "_validate_distribution_contract",
+      "_preflight_distribution_contract",
+      "_conv0_weight",
+      "_policy_device",
+      "inspect_obstacle_weights",
+      "gradient_probe",
+      "obstacle_counterfactual",
+      "run_episode",
+      "matched_seed_evaluation",
+      "aggregate_conditions",
+      "build_summary",
+      "write_csv",
+      "report_text"
+    ],
+    "note": "Delegation wrappers have internal callers only (within the file). Tests have been updated to import from canonical Phase 10 modules. Wrappers retained to avoid risky refactor of main() during Phase 11 cleanup."
+  },
+  "test_fixes": [
+    {
+      "file": "tests/test_inference_distribution_contract.py",
+      "old_import": "from experiments.eval_v6i9_map_awareness import _validate_distribution_contract",
+      "new_import": "from rl.evaluation.preflight import validate_distribution_contract",
+      "status": "FIXED"
+    },
+    {
+      "file": "tests/test_v6i9_map_aware.py",
+      "old_import": "from experiments.eval_v6i9_map_awareness import aggregate_conditions, build_summary",
+      "new_import": "from rl.evaluation.aggregation import aggregate_conditions; from rl.evaluation.gates import build_summary",
+      "status": "FIXED"
+    }
+  ],
+  "evaluation_modules": {
+    "rl/evaluation/config.py": "KEEP \u2014 EvaluationConfig dataclass",
+    "rl/evaluation/policy_loader.py": "KEEP \u2014 canonical checkpoint loading",
+    "rl/evaluation/preflight.py": "KEEP \u2014 distribution contract validation",
+    "rl/evaluation/probes/": "KEEP \u2014 obstacle gradient/counterfactual probes",
+    "rl/evaluation/episode_runner.py": "KEEP \u2014 episode execution runtime",
+    "rl/evaluation/matched_seed.py": "KEEP \u2014 matched-seed paired evaluation",
+    "rl/evaluation/aggregation.py": "KEEP \u2014 condition-level aggregation",
+    "rl/evaluation/gates.py": "KEEP \u2014 promotion gate summary builder",
+    "rl/evaluation/artifact_writer.py": "KEEP \u2014 CSV + report text writers",
+    "rl/evaluation/manifest.py": "KEEP \u2014 evaluation manifest schema",
+    "rl/evaluation/orchestrator.py": "KEEP \u2014 EvaluationRuntime orchestrator",
+    "rl/evaluation/errors.py": "KEEP \u2014 typed error classes"
+  }
+}

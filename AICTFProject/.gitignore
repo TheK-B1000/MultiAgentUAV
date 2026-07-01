@@ -1,0 +1,26 @@
+# Runtime training logs — ephemeral, not tracked
+logs/
+*.log
+*.err.log
+*.out.log
+*.log.smoke
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Virtual environment
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db

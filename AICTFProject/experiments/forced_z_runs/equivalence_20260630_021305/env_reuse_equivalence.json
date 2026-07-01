@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "episodes_compared": 20,
+  "protocol": {
+    "checkpoint": "checkpoints/2v2/final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+    "opponents": [
+      "OP8"
+    ],
+    "maps": [
+      "map_b"
+    ],
+    "latents": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "episodes_per_cell": 5,
+    "base_seed": 42,
+    "deterministic_actions": true,
+    "max_decision_steps": 400,
+    "device": "cuda",
+    "collect_behavior_mean": true,
+    "progress_every": 0
+  },
+  "mismatch_count": 0,
+  "mismatches": []
+}

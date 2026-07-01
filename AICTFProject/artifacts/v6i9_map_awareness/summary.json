@@ -1,0 +1,73 @@
+{
+  "verdict": "NOT READY FOR STAGE B",
+  "gates": {
+    "obstacle_weights_moved": {
+      "status": "PASS",
+      "value": 0.04022049158811569,
+      "threshold": 0.0001
+    },
+    "obstacle_gradient_connected": {
+      "status": "FAIL",
+      "value": 0.0,
+      "threshold": 0.0,
+      "error": "AttributeError: Neither the policy nor its model exposes get_distribution()."
+    },
+    "obstacle_counterfactual_effect": {
+      "status": "FAIL",
+      "argmax_change_rate": 0.0,
+      "argmax_change_threshold": 0.01,
+      "mean_action_kl": 0.0,
+      "kl_threshold": 1e-05,
+      "error": "AttributeError: Neither the policy nor its model exposes get_distribution()."
+    },
+    "wall_collisions_improved": {
+      "status": "INCONCLUSIVE",
+      "reason": "No exact obstacle collision counter was found in terminal episode info."
+    },
+    "stuck_behavior_improved": {
+      "status": "FAIL",
+      "baseline_mean": 0.51,
+      "candidate_mean": 0.64,
+      "minimum_reduction_fraction": 0.1,
+      "reduction_fraction": -0.2549019607843137
+    },
+    "map_dependent_routes": {
+      "status": "INCONCLUSIVE",
+      "max_upper_fraction_difference": null,
+      "threshold": 0.1,
+      "per_map": {
+        "map_a_open": {
+          "upper_mean": 0.0,
+          "lower_mean": 0.0,
+          "upper_fraction": null
+        },
+        "map_b_split_lane": {
+          "upper_mean": 3.1300000000000003,
+          "lower_mean": 8.383333333333333,
+          "upper_fraction": 0.2718587145338738
+        }
+      }
+    },
+    "hard_pool_competence_retained": {
+      "status": "PASS",
+      "baseline_win_rate": 0.955,
+      "candidate_win_rate": 0.96,
+      "minimum_candidate_win_rate": 0.6,
+      "maximum_allowed_drop": 0.05
+    },
+    "universal_saturation_avoided": {
+      "status": "PASS",
+      "condition_win_rates": [
+        1.0,
+        0.98,
+        1.0,
+        0.9,
+        0.89,
+        0.99
+      ],
+      "saturation_threshold": 0.95
+    }
+  },
+  "episodes_per_condition": 100,
+  "warning": null
+}

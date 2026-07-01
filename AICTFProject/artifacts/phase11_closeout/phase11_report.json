@@ -1,0 +1,66 @@
+{
+  "phase": 11,
+  "title": "Repository Cleanup, Decommissioning, and Architecture Hardening",
+  "date_completed": "2026-06-28",
+  "restore_point": {
+    "tag": "pre-phase11-cleanup",
+    "commit": "5057ba3599f8114fae62f9ef0314d6c2f905b5bf",
+    "branch": "ml-ops"
+  },
+  "commit": "b6b7461",
+  "stages_completed": {
+    "Stage 0": "Git conflict resolution — resolved DU/AA conflict in 2 stash log files; dropped all 14 GitHub Desktop auto-stashes after inventory",
+    "Stage 1": "Cleanup restore point — tagged pre-phase11-cleanup at 5057ba3; recorded starting commit/branch/status in artifacts/cleanup_audit/",
+    "Stage 2": "Authoritative inventory — built tools/audit_repository_cleanup.py; inventoried 1111 files; classified as KEEP/KEEP_GOLDEN/DELETE/GENERATED/ARCHIVE/UNKNOWN",
+    "Stage 3": "Generated clutter — removed __pycache__/, .pyc, .pytest_cache/ via PowerShell Remove-Item (205 DELETE-classified files, 1.2 MB)",
+    "Stage 4": "Phase 6.1 artifact retirement — deleted artifacts/performance/ and artifacts/phase6_1_perf_investigation/ (intermediate, superseded by phase6_1_closeout)",
+    "Stage 5": "Phase 10 artifact retirement — deleted 5 phase10_equivalence_* intermediate directories (superseded by phase10_closeout)",
+    "Stage 6": "Legacy evaluator audit — classified eval_v6i9_map_awareness.py as KEEP_SUPPORTED; rewired test imports in test_inference_distribution_contract.py and test_v6i9_map_aware.py to use rl.evaluation.*; deleted 6 obsolete v6i9 attempt directories",
+    "Stage 7": "Compatibility facade classification — 7 facades classified: 6 ACTIVE_COMPATIBILITY (plan_faithful, latent_diagnostics, inference, rollout_collector, _state.py, presets/compatibility); 1 DEPRECATED_COMPATIBILITY (rollout_step_recorder — zero actual callers)",
+    "Stage 8": "Dead-code analysis — built tools/audit_dead_code.py; scanned 468 Python files; 572 unused imports (dominated by __future__.annotations false positives); 15 unreferenced private symbols (7 confirmed false positives via @_register_check); 8 items flagged for manual investigation",
+    "Stage 9": "Preset retention review — classified all 90 plan-faithful functions into CURRENT_BASELINE/ACTIVE/HISTORICAL_REPRODUCIBILITY/EARLY_STAGE_HISTORICAL; confirmed 89/90 in registry (apply_plan_faithful_base is the inheritance foundation, not registered directly)",
+    "Stage 10": "Tool and experiment audit — 34 tools and 15 experiment scripts classified: SUPPORTED/INTERNAL_SUPPORTED/ONE_TIME_MIGRATION/HISTORICAL_REPRODUCTION/SUPERSEDED; 5 ONE_TIME_MIGRATION tools flagged as deletion candidates",
+    "Stage 11": "Log cleanup — deleted all 16 training logs and 11 proof_ladder subdirectories from logs/; created .gitignore to exclude logs/ from future tracking",
+    "Stage 12": "CSV/JSONL cleanup — 23 evaluation CSVs in csv/ classified as KEEP (v5i5) or ARCHIVE (v3d); no stale .lock or .bak.* checkpoint files found",
+    "Stage 13": "Checkpoint lineage — 206 checkpoint files: 179 KEEP (5085 MB), 14 ARCHIVE candidates (575 MB, early 50k/100k steps), 4 UNKNOWN reclassified as KEEP (qualitative rollout summaries); ARCHIVE deletion deferred pending user authorization",
+    "Stage 14": "Worktree and branch cleanup — pruned 2 stale worktrees; documented 33 local branch deletion candidates (all pre-V5 era, all synced to remote); branch deletion requires user authorization",
+    "Stage 15": "Architecture dependency tests — created tests/test_architecture_dependencies.py with 11 tests (all passing): Groups A-F cover no-rl.train_ppo imports, no duplicate preset names, registry resolution, no experiments imports in evaluation, module size alarms, no cyclic imports in plan_faithful families",
+    "Stage 16": "Committed at b6b7461 — 234 files changed, 9536 insertions, 15592 deletions"
+  },
+  "completion_checklist": {
+    "git_state_clean": "PASS — no uncommitted changes after commit b6b7461",
+    "restore_point_created": "PASS — tag pre-phase11-cleanup at 5057ba3",
+    "inventory_tool_built": "PASS — tools/audit_repository_cleanup.py",
+    "generated_files_deleted": "PASS — pycache, pyc, pytest_cache removed",
+    "phase6_1_intermediates_retired": "PASS — artifacts/performance/ and artifacts/phase6_1_perf_investigation/ deleted",
+    "phase10_intermediates_retired": "PASS — 5 phase10_equivalence_* directories deleted",
+    "v6i9_attempts_deleted": "PASS — 6 obsolete attempt directories deleted",
+    "log_cleanup_done": "PASS — logs/ empty, .gitignore created",
+    "architecture_tests_passing": "PASS — 11/11 tests pass",
+    "facade_classification_complete": "PASS — stage7_facade_classification.json written",
+    "dead_code_analysis_complete": "PASS — dead_code_report.json written",
+    "preset_retention_review_complete": "PASS — stage9_preset_retention.json written",
+    "tools_experiments_classified": "PASS — stage10_tools_experiments_audit.json written",
+    "checkpoint_lineage_documented": "PASS — stage13_checkpoint_lineage.json written",
+    "worktrees_pruned": "PASS — both stale worktrees removed",
+    "branch_candidates_documented": "PASS — stage14_worktree_branch_audit.json written; deletion deferred"
+  },
+  "deferred_items": [
+    "Archive 14 early periodic checkpoint files (50k/100k steps, 575 MB) — requires user authorization",
+    "Delete 33 local branches (pre-V5 era) — requires user authorization",
+    "Delete 5 ONE_TIME_MIGRATION tools (Phase 7 refactor helpers) — safe, low priority",
+    "Migrate eval CSVs from csv/ to artifacts/evidence/ — low priority, no broken references",
+    "Investigate 8 unreferenced private symbols flagged by dead_code_report.json"
+  ],
+  "metrics": {
+    "files_deleted": 205,
+    "mb_freed_tracked": 6.2,
+    "architecture_tests_added": 11,
+    "stage_audit_records": 9,
+    "deletion_manifests": 3,
+    "facades_classified": 7,
+    "preset_functions_classified": 90,
+    "tools_classified": 34,
+    "experiments_classified": 15
+  }
+}

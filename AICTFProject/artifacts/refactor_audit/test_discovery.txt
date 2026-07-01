@@ -1,0 +1,33 @@
+# Refactor audit test discovery
+
+## current uv Python 3.12 discovery
+command: uv run python -m unittest discover -s tests
+exit_code: 0
+status: PASS
+tests_ran: 1339
+failures: 0
+errors: 0
+skipped: 1
+unittest_reported_duration_s: 212.156
+raw_output: artifacts\refactor_audit\full_discovery_default.txt
+
+command: uv run python -m unittest discover -s tests -p test*.py
+exit_code: 0
+status: PASS
+tests_ran: 1339
+failures: 0
+errors: 0
+skipped: 1
+unittest_reported_duration_s: 221.559
+raw_output: artifacts\refactor_audit\full_discovery_pattern.txt
+
+## uv environment status
+command: uv run python --version
+status: VALID_CURRENT_CHECKOUT
+python: Python 3.12
+executable: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe
+
+## Audit interpretation
+canonical_current_count: 1339
+canonical_current_status: DEFAULT_AND_PATTERN_DISCOVERY_PASS
+trust_note: Both unittest discovery forms passed on current HEAD after updating stale Phase 10 audit rules and fixing stale compatibility/test expectations.

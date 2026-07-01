@@ -1,0 +1,614 @@
+{
+  "status": "PASS",
+  "self_consistency": {
+    "equivalent": true,
+    "differences": [],
+    "compared_fields": [
+      "actions",
+      "advantages",
+      "attack_defense_ratio_bucket_id",
+      "behavior_telemetry",
+      "blue_ahead",
+      "global_state",
+      "log_probs",
+      "next_values",
+      "obs_agent_mask",
+      "obs_grid",
+      "obs_mask",
+      "obs_vec",
+      "opponent_id",
+      "option_advantages",
+      "option_returns",
+      "outcome_id",
+      "phase_id",
+      "pressure_bucket_id",
+      "prev_z",
+      "returns",
+      "reward_behavior_contrast",
+      "reward_csia",
+      "reward_failure",
+      "reward_offense",
+      "reward_pbrs",
+      "reward_sparse",
+      "reward_sparse_points",
+      "reward_team",
+      "reward_terminal",
+      "reward_total",
+      "rewards",
+      "role_bucket_id",
+      "spread_bucket_id",
+      "terminated",
+      "truncated",
+      "values",
+      "values_norm",
+      "z",
+      "z_forced",
+      "z_log_probs",
+      "z_logits",
+      "z_persist_mask",
+      "z_resampled",
+      "z_resampled_actual"
+    ]
+  },
+  "baseline_comparison": {
+    "status": "PASS",
+    "baseline_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
+    "baseline_worktree": "K:\\MultiAgentUAV\\.worktrees\\phase5-baseline\\AICTFProject",
+    "baseline_project_root": "K:\\MultiAgentUAV\\.worktrees\\phase5-baseline\\AICTFProject\\AICTFProject",
+    "comparison": {
+      "equivalent": true,
+      "differences": [],
+      "compared_fields": [
+        "actions",
+        "advantages",
+        "attack_defense_ratio_bucket_id",
+        "behavior_telemetry",
+        "blue_ahead",
+        "global_state",
+        "log_probs",
+        "next_values",
+        "obs_agent_mask",
+        "obs_grid",
+        "obs_mask",
+        "obs_vec",
+        "opponent_id",
+        "option_advantages",
+        "option_returns",
+        "outcome_id",
+        "phase_id",
+        "pressure_bucket_id",
+        "prev_z",
+        "returns",
+        "reward_behavior_contrast",
+        "reward_csia",
+        "reward_failure",
+        "reward_offense",
+        "reward_pbrs",
+        "reward_sparse",
+        "reward_sparse_points",
+        "reward_team",
+        "reward_terminal",
+        "reward_total",
+        "rewards",
+        "role_bucket_id",
+        "spread_bucket_id",
+        "terminated",
+        "truncated",
+        "values",
+        "values_norm",
+        "z",
+        "z_forced",
+        "z_log_probs",
+        "z_logits",
+        "z_persist_mask",
+        "z_resampled",
+        "z_resampled_actual"
+      ]
+    }
+  },
+  "current_fingerprint": {
+    "seed": 42,
+    "n_envs": 2,
+    "n_steps": 8,
+    "opponent": "OP3",
+    "use_latent_strategy": true,
+    "fields": {
+      "actions": {
+        "name": "actions",
+        "shape": [
+          8,
+          2,
+          4
+        ],
+        "dtype": "torch.int64",
+        "sum": 1064.0,
+        "mean": 16.625,
+        "hash": "11b792c06daf47e5107aacbb63f5aabe95a7bab1746bba990ac1e2215b38d12f"
+      },
+      "advantages": {
+        "name": "advantages",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -2.2561089992523193,
+        "mean": -0.14100681245326996,
+        "hash": "17d9bd3dfbb3393de66fd75adb7afe49dbe5b53a1bd3c61b7952d5303b9f23db"
+      },
+      "attack_defense_ratio_bucket_id": {
+        "name": "attack_defense_ratio_bucket_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 28.0,
+        "mean": 1.75,
+        "hash": "8d35c94a999541f751a3d6b1c05fb0a46899f2f1bfb6b49311570f28ed6038ea"
+      },
+      "behavior_telemetry": {
+        "name": "behavior_telemetry",
+        "shape": [
+          8,
+          2,
+          13
+        ],
+        "dtype": "torch.float32",
+        "sum": 123.98670959472656,
+        "mean": 0.5960899591445923,
+        "hash": "6a7528ed0e7a4410f562842a52fa4eaad77622a967851b61f21bf1d1cf29e66e"
+      },
+      "blue_ahead": {
+        "name": "blue_ahead",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "global_state": {
+        "name": "global_state",
+        "shape": [
+          8,
+          2,
+          170
+        ],
+        "dtype": "torch.float32",
+        "sum": 483.0324401855469,
+        "mean": 0.1775854527950287,
+        "hash": "f5b319ebcfb96d79bc3f697e76643f21a80f84377d9ad1e9f61d1603601517b9"
+      },
+      "log_probs": {
+        "name": "log_probs",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -36.739295959472656,
+        "mean": -2.296205997467041,
+        "hash": "4c6b79231661db8ccdbb81728e57a32d371000cafa0df65ab050b356ad6e2053"
+      },
+      "next_values": {
+        "name": "next_values",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.3792334496974945,
+        "mean": 0.023702090606093407,
+        "hash": "7bb6d68f4c2f6f241dbc97cd7cbb52ec7b515be41f18b36ce5d1c8a806a0c0c2"
+      },
+      "obs_agent_mask": {
+        "name": "obs_agent_mask",
+        "shape": [
+          8,
+          2,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 32.0,
+        "mean": 1.0,
+        "hash": "b638277a8690e175a9137feff1e43c067f9faf4e2f600caf468fb05b0403b717"
+      },
+      "obs_grid": {
+        "name": "obs_grid",
+        "shape": [
+          8,
+          2,
+          2,
+          7,
+          20,
+          20
+        ],
+        "dtype": "torch.float32",
+        "sum": 306.0,
+        "mean": 0.003415178507566452,
+        "hash": "f647fa7822898aabb87f1845fb5d74aadf0f07cb5505ccea6f6393e9055b7d25"
+      },
+      "obs_mask": {
+        "name": "obs_mask",
+        "shape": [
+          8,
+          2,
+          110
+        ],
+        "dtype": "torch.float32",
+        "sum": 464.0,
+        "mean": 0.26363635063171387,
+        "hash": "51be2c6f410be07bb56d9847f0dff5af4a31ec7fb388e8766fd912e1fae7598d"
+      },
+      "obs_vec": {
+        "name": "obs_vec",
+        "shape": [
+          8,
+          2,
+          2,
+          20
+        ],
+        "dtype": "torch.float32",
+        "sum": 171.70306396484375,
+        "mean": 0.2682860493659973,
+        "hash": "dca4d9feeadda9b19419df944abc117cb21da5c96b14e4d9c9beb97184c6aa37"
+      },
+      "opponent_id": {
+        "name": "opponent_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 32.0,
+        "mean": 2.0,
+        "hash": "3186e9dde16da3da2debe89c23145384856b71b563c85188c2d977c37504cb7e"
+      },
+      "option_advantages": {
+        "name": "option_advantages",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -2.320552349090576,
+        "mean": -0.145034521818161,
+        "hash": "e094dd3f56a369bd1f008e5608a285d39e5c21a4c95e93439a7cbea6082a961d"
+      },
+      "option_returns": {
+        "name": "option_returns",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -1.9388973712921143,
+        "mean": -0.12118108570575714,
+        "hash": "2d1248f4ba62d999c12154dfa55238bc16d40464262a483f375466e809290047"
+      },
+      "outcome_id": {
+        "name": "outcome_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 16.0,
+        "mean": 1.0,
+        "hash": "cb9cb8229f3a322017b0d7644744ea14809f2f738decf88632f232fd5a12bb9c"
+      },
+      "phase_id": {
+        "name": "phase_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca"
+      },
+      "pressure_bucket_id": {
+        "name": "pressure_bucket_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 17.0,
+        "mean": 1.0625,
+        "hash": "a014f01bc7890753abe5c07ed8e740a37d97d5eecdfa164ab1343f57d101b799"
+      },
+      "prev_z": {
+        "name": "prev_z",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 7.0,
+        "mean": 0.4375,
+        "hash": "278372a33f115c4b81ac3d27a76c2064b729ed1307b8ea4d984c2f1f6f3cf2cc"
+      },
+      "returns": {
+        "name": "returns",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -1.8744540214538574,
+        "mean": -0.11715337634086609,
+        "hash": "5291051d383df6d54823d1fdb4bdd104118ff1055e5870dbfb8d335eacdc0dad"
+      },
+      "reward_behavior_contrast": {
+        "name": "reward_behavior_contrast",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_csia": {
+        "name": "reward_csia",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_failure": {
+        "name": "reward_failure",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -1.600000023841858,
+        "mean": -0.10000000149011612,
+        "hash": "280cf5d9f4724286391d0b5b1dea2b1510d1011d96cbac0cda19c727497c08a3"
+      },
+      "reward_offense": {
+        "name": "reward_offense",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_pbrs": {
+        "name": "reward_pbrs",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.22277379035949707,
+        "mean": 0.013923361897468567,
+        "hash": "7842ee8a87100bcc072ddbcacd8be41dc65411875c535d4bb2cd9274a47e4bfe"
+      },
+      "reward_sparse": {
+        "name": "reward_sparse",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_sparse_points": {
+        "name": "reward_sparse_points",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_team": {
+        "name": "reward_team",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_terminal": {
+        "name": "reward_terminal",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+      },
+      "reward_total": {
+        "name": "reward_total",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -0.38478514552116394,
+        "mean": -0.024049071595072746,
+        "hash": "f8bf9c7f48c57bc958acf65259aac6b7a645ca52ea09fca7e495f4c614cb7844"
+      },
+      "rewards": {
+        "name": "rewards",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -0.38478514552116394,
+        "mean": -0.024049071595072746,
+        "hash": "f8bf9c7f48c57bc958acf65259aac6b7a645ca52ea09fca7e495f4c614cb7844"
+      },
+      "role_bucket_id": {
+        "name": "role_bucket_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 12.0,
+        "mean": 0.75,
+        "hash": "7e5863fec05052bb6dc5055b2975c50249b5c7199e8621d22fd8016800481ea2"
+      },
+      "spread_bucket_id": {
+        "name": "spread_bucket_id",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 18.0,
+        "mean": 1.125,
+        "hash": "3d023010c099016fc481fc223da893e5ba2b20e2efc663b7f984a7a267c356fb"
+      },
+      "terminated": {
+        "name": "terminated",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.bool",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"
+      },
+      "truncated": {
+        "name": "truncated",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.bool",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"
+      },
+      "values": {
+        "name": "values",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.38165509700775146,
+        "mean": 0.023853443562984467,
+        "hash": "c3b636d9853390b676bd6d0a2b93601839e1263b4cff282e319bd9d5bb10d6a6"
+      },
+      "values_norm": {
+        "name": "values_norm",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": 0.38165509700775146,
+        "mean": 0.023853443562984467,
+        "hash": "c3b636d9853390b676bd6d0a2b93601839e1263b4cff282e319bd9d5bb10d6a6"
+      },
+      "z": {
+        "name": "z",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.int64",
+        "sum": 8.0,
+        "mean": 0.5,
+        "hash": "3382115ec300a398f776a5ceab6ac1807cb1dd02ca78e579a71c189e6c5bf7ed"
+      },
+      "z_forced": {
+        "name": "z_forced",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.bool",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"
+      },
+      "z_log_probs": {
+        "name": "z_log_probs",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.float32",
+        "sum": -21.574769973754883,
+        "mean": -1.3484231233596802,
+        "hash": "ff406731b3200351ed44deb062277350c3270765bb6483e639b8f67b74b9a403"
+      },
+      "z_logits": {
+        "name": "z_logits",
+        "shape": [
+          8,
+          2,
+          4
+        ],
+        "dtype": "torch.float32",
+        "sum": -0.0529557466506958,
+        "mean": -0.0008274335414171219,
+        "hash": "2b657a9a45052573e9037ef7c97231c1635c808a9897235d21ee5bc358b3cff9"
+      },
+      "z_persist_mask": {
+        "name": "z_persist_mask",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.bool",
+        "sum": 0.0,
+        "mean": 0.0,
+        "hash": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"
+      },
+      "z_resampled": {
+        "name": "z_resampled",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.bool",
+        "sum": 2.0,
+        "mean": 0.125,
+        "hash": "a020b7f8043620b11605e4b25e35803538e4679d5f7a9e6ae90300bf28791989"
+      },
+      "z_resampled_actual": {
+        "name": "z_resampled_actual",
+        "shape": [
+          8,
+          2
+        ],
+        "dtype": "torch.bool",
+        "sum": 2.0,
+        "mean": 0.125,
+        "hash": "a020b7f8043620b11605e4b25e35803538e4679d5f7a9e6ae90300bf28791989"
+      }
+    }
+  }
+}

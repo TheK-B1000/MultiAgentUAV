@@ -1,0 +1,25 @@
+# Run unit + integration smokes on each push/PR (CPU, Ubuntu, pinned requirements).
+name: Test
+
+on:
+  push:
+    branches: [main, master, cuda]
+  pull_request:
+    branches: [main, master, cuda]
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PyTorch (CPU) and project dependencies
+        run: |
+          pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r AICTFProject/requirements.txt
+      - name: Run unit and smoke tests
+        working-directory: AICTFProject
+        run: python run_tests.py

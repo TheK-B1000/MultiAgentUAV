@@ -1,0 +1,127 @@
+{
+  "phase": "8",
+  "title": "Training Orchestration Decomposition",
+  "verdict": "PASS",
+  "status": "COMPLETE",
+  "completed_at": "2026-06-28",
+  "git_commit": "4f10f23915d518279382b18439923027bb51ce07",
+  "scientific_delta": "NONE",
+  "gates": {
+    "train_ppo_parses_and_delegates": "PASS",
+    "resume_and_load_resolve_identically": "PASS",
+    "one_authoritative_argument_parser": "PASS",
+    "one_authoritative_resolved_config_path": "PASS",
+    "one_environment_factory": "PASS",
+    "one_policy_trainer_factory_path": "PASS",
+    "one_run_lifecycle_owner": "PASS",
+    "no_circular_imports": "PASS",
+    "no_scientific_logic_in_entry_point": "PASS",
+    "focused_tests": "PASS"
+  },
+  "focused_tests": {
+    "command": "K:\\MultiAgentUAV\\AICTFProject\\.venv\\Scripts\\python.exe -m pytest tests/test_training_phase8.py -q --tb=no",
+    "exit_code": 0,
+    "result": "PASS",
+    "stdout_tail": "..............................................                           [100%]\n46 passed in 3.72s"
+  },
+  "cli_equivalence": {
+    "train_ppo_help_source": "build_train_parser().format_help()",
+    "train_ppo_delegates_to_cli_main": true,
+    "one_authoritative_parser": "rl.training.arguments.build_train_parser",
+    "resume_is_load_alias": true,
+    "help_contains_load": true,
+    "help_contains_resume": true,
+    "result": "PASS"
+  },
+  "resolved_config_equivalence": {
+    "preset": "v6i9_mapaware_generalist_hardpool",
+    "one_authoritative_resolved_config_path": "rl.training.resolved_config.resolve_training_config",
+    "resolved_keys": [
+      "curriculum",
+      "effective_batch_size",
+      "effective_clip_range",
+      "effective_ent_coef",
+      "effective_lr",
+      "effective_n_epochs",
+      "initial_opponent_tag",
+      "initial_phase",
+      "max_agents",
+      "rollout_size",
+      "team_size"
+    ],
+    "run_tag": "v6i9_mapaware_generalist_hardpool_OP8_OP9_OP10_200k_2v2",
+    "use_latent_strategy": true,
+    "training_telemetry_mode": "off",
+    "result": "PASS"
+  },
+  "caller_inventory": {
+    "train_ppo_parses_and_delegates": "rl.training.cli.main -> parse_train_args -> cfg_from_args -> train_ppo -> orchestrate_training_run",
+    "one_environment_factory": "rl.training.env_factory.build_training_env",
+    "one_policy_trainer_factory": "rl.training.initialization.build_trainer",
+    "one_run_lifecycle_owner": "rl.training.orchestrator.orchestrate_training_run",
+    "callers": [
+      {
+        "file": "rl/train_ppo.py",
+        "imports": [
+          "__future__",
+          "game_field_gpu",
+          "numpy",
+          "os",
+          "rl.config.ppo_config",
+          "rl.curriculum",
+          "rl.global_state",
+          "rl.presets",
+          "rl.training.cli",
+          "rl.training.config_validation",
+          "rl.training.env_factory",
+          "rl.training.lifecycle",
+          "rl.training.orchestrator",
+          "rl.training.overrides",
+          "rl.training.resolved_config",
+          "rl.training.run_artifacts",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "rl/training/cli.py",
+        "imports": [
+          "__future__",
+          "rl.train_ppo",
+          "rl.training.arguments",
+          "rl.training.overrides",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "rl/training/orchestrator.py",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "json",
+          "os",
+          "rl.config.ppo_config",
+          "rl.training.banner",
+          "rl.training.config_validation",
+          "rl.training.errors",
+          "rl.training.factories",
+          "rl.training.initialization",
+          "rl.training.lifecycle",
+          "rl.training.resolved_config",
+          "rl.training.run_artifacts",
+          "rl.training.run_context",
+          "typing"
+        ]
+      }
+    ],
+    "result": "PASS"
+  },
+  "dependency_report": {
+    "no_circular_imports": true,
+    "forbidden_back_edges": [],
+    "no_scientific_logic_in_entry_point": true,
+    "orchestrator_owns_lifecycle": true,
+    "result": "PASS"
+  }
+}

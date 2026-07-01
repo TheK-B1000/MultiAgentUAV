@@ -1,0 +1,71 @@
+﻿{
+    "date":  "2026-06-28",
+    "description":  "All 16 runtime training logs in logs/ — none referenced by any closeout report or artifact",
+    "files":  [
+                  {
+                      "size_mb":  0.0019,
+                      "name":  "deploy_comm_ablations_20260519_095911.log"
+                  },
+                  {
+                      "size_mb":  0.0005,
+                      "name":  "deploy_comm_ablations_20260519_095923.log"
+                  },
+                  {
+                      "size_mb":  0.0741,
+                      "name":  "deploy_comm_ablations_20260519_100020.log"
+                  },
+                  {
+                      "size_mb":  0.0037,
+                      "name":  "eval_latent_deploy_stoch_20260520_214930.log"
+                  },
+                  {
+                      "size_mb":  0.0041,
+                      "name":  "latent_mode_eval_20260530_093441.log.smoke"
+                  },
+                  {
+                      "size_mb":  0,
+                      "name":  "latent_v3i9_specialist_router_op356_1m_4v4.err.log"
+                  },
+                  {
+                      "size_mb":  0.0078,
+                      "name":  "latent_v3i9_specialist_router_op356_1m_4v4.out.log"
+                  },
+                  {
+                      "size_mb":  0.0022,
+                      "name":  "refactor_sweep.log"
+                  },
+                  {
+                      "size_mb":  0.1079,
+                      "name":  "train_latent_sharp2_hardpool_20260521_083817.log"
+                  },
+                  {
+                      "size_mb":  0.0337,
+                      "name":  "train_latent_sharp_hardpool_20260520_214930.log"
+                  },
+                  {
+                      "size_mb":  0,
+                      "name":  "v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.train.err.log"
+                  },
+                  {
+                      "size_mb":  0.0255,
+                      "name":  "v5i5_map_b_split_lane_OP5_OP6_OP7_1m_4v4.train.out.log"
+                  },
+                  {
+                      "size_mb":  0,
+                      "name":  "v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4.err.log"
+                  },
+                  {
+                      "size_mb":  0.0126,
+                      "name":  "v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4.out.log"
+                  },
+                  {
+                      "size_mb":  0.0025,
+                      "name":  "v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_listenerfix.err.log"
+                  },
+                  {
+                      "size_mb":  0.0172,
+                      "name":  "v6i3_strategy_local_comm_OP5_OP6_OP7_1m_4v4_listenerfix.out.log"
+                  }
+              ],
+    "wave":  "wave2_logs"
+}

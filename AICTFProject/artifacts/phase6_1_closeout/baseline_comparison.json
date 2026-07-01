@@ -1,0 +1,36 @@
+{
+  "status": "FAIL",
+  "baseline_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
+  "baseline_worktree": "K:\\MultiAgentUAV\\AICTFProject-phase6-baseline\\AICTFProject",
+  "current_commit": "751f207583e34c6c7142b9b8a6a1b29d6b7d18cf",
+  "comparison": "pre-Phase-6 OFF vs current telemetry OFF",
+  "gates": {
+    "pass": "<=1% regression",
+    "warn": ">1% and <=2%",
+    "fail": ">2%"
+  },
+  "rows": [
+    {
+      "env_count": 16,
+      "baseline_rollout_tps": 73.27662597087075,
+      "current_off_rollout_tps": 49.386711791587786,
+      "rollout_regression_percent": 32.602,
+      "rollout_gate": "FAIL",
+      "baseline_optimization_sps": 3024.786533492628,
+      "current_off_optimization_sps": 2409.7448481511747,
+      "optimization_regression_percent": 20.333,
+      "optimization_gate": "FAIL"
+    },
+    {
+      "env_count": 64,
+      "baseline_rollout_tps": 200.77769530312713,
+      "current_off_rollout_tps": 150.56123361146444,
+      "rollout_regression_percent": 25.011,
+      "rollout_gate": "FAIL",
+      "baseline_optimization_sps": 4381.00024448952,
+      "current_off_optimization_sps": 3974.505561482026,
+      "optimization_regression_percent": 9.279,
+      "optimization_gate": "FAIL"
+    }
+  ]
+}
