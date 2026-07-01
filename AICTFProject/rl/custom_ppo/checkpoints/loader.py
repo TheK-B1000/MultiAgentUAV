@@ -224,6 +224,8 @@ def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
     load_weights_only = bool(getattr(trainer.cfg, "load_weights_only", False))
     if load_weights_only:
         print("[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.")
+        if bool(getattr(trainer.cfg, "router_reinitialize_on_load", False)):
+            trainer._reinitialize_router_after_load()
     else:
         reinit_router = bool(getattr(trainer.cfg, "router_reinitialize_on_load", False))
         if reinit_router:

@@ -247,14 +247,7 @@ def measure_repertoire_grad_norms(model: Any) -> dict[str, float]:
 
 def record_repertoire_grad_audit(runtime: Any, model: Any) -> None:
     """Track per-update max grad norms for V6I9 repertoire freeze audit."""
-    stage = str(getattr(getattr(runtime, "cfg", None), "v6i9_training_stage", "") or "").lower()
-    if stage != "repertoire":
-        return
-    audit = measure_repertoire_grad_norms(model)
-    prev = getattr(runtime, "_repertoire_grad_audit_max", None) or {}
-    for key, value in audit.items():
-        prev[key] = max(float(prev.get(key, 0.0)), float(value))
-    runtime._repertoire_grad_audit_max = prev
+    record_v6i9_stage_grad_audit(runtime, model)
 
 
 def snapshot_repertoire_parameters(model: Any) -> dict[str, torch.Tensor]:
@@ -332,6 +325,92 @@ def compute_repertoire_parameter_audit(
     return out
 
 
+def snapshot_frozen_repertoire_parameters(model: Any) -> dict[str, torch.Tensor]:
+    """Clone shared trunk + z-specific actor tensors (no critic) for router freeze audit."""
+    out: dict[str, torch.Tensor] = {}
+    for name, param in model.named_parameters():
+        if is_shared_frozen_actor_param(name) or is_z_specific_actor_param(name):
+            out[name] = param.detach().clone()
+    return out
+
+
+def compute_frozen_repertoire_audit(
+    model: Any,
+    before: dict[str, torch.Tensor],
+) -> dict[str, float]:
+    """Router-stage freeze audit: shared trunk and z-specific modules must not move."""
+    if not before:
+        return {}
+    shared_deltas: list[float] = []
+    z_deltas: list[float] = []
+    for name, param in model.named_parameters():
+        prev = before.get(name)
+        if prev is None:
+            continue
+        delta = float((param.detach() - prev).abs().max().item())
+        if is_shared_frozen_actor_param(name):
+            shared_deltas.append(delta)
+        elif is_z_specific_actor_param(name):
+            z_deltas.append(delta)
+    return {
+        "shared_actor_max_abs_delta": float(max(shared_deltas) if shared_deltas else 0.0),
+        "z_specific_max_abs_delta": float(max(z_deltas) if z_deltas else 0.0),
+    }
+
+
+def measure_router_stage_grad_norms(model: Any) -> dict[str, float]:
+    """Gradient norms for router-stage freeze audit after backward."""
+    shared_sq = 0.0
+    z_sq = 0.0
+    router_sq = 0.0
+    encoder_sq = 0.0
+    router_parts = (
+        "strategy_encoder",
+        "selector_gru",
+        "episode_strategy_value_head",
+        "phase_predictor",
+        "strategy_aux_return_head",
+    )
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            continue
+        gsq = float(param.grad.pow(2).sum().item())
+        if is_shared_frozen_actor_param(name):
+            shared_sq += gsq
+        elif is_z_specific_actor_param(name):
+            z_sq += gsq
+        elif any(part in name for part in router_parts):
+            router_sq += gsq
+            if "strategy_encoder" in name:
+                encoder_sq += gsq
+    def _norm(sq: float) -> float:
+        return float(sq ** 0.5) if sq > 0.0 else 0.0
+
+    return {
+        "shared_actor_grad_norm": _norm(shared_sq),
+        "z_specific_grad_norm": _norm(z_sq),
+        "router_grad_norm": _norm(router_sq),
+        "strategy_encoder_grad_norm": _norm(encoder_sq),
+    }
+
+
+def record_v6i9_stage_grad_audit(runtime: Any, model: Any) -> None:
+    """Track per-update max grad norms for repertoire or router freeze audits."""
+    stage = str(getattr(getattr(runtime, "cfg", None), "v6i9_training_stage", "") or "").lower()
+    if stage == "repertoire":
+        audit = measure_repertoire_grad_norms(model)
+        attr = "_repertoire_grad_audit_max"
+    elif stage == "router":
+        audit = measure_router_stage_grad_norms(model)
+        attr = "_router_grad_audit_max"
+    else:
+        return
+    prev = getattr(runtime, attr, None) or {}
+    for key, value in audit.items():
+        prev[key] = max(float(prev.get(key, 0.0)), float(value))
+    setattr(runtime, attr, prev)
+
+
 strategy_resample_advantage_stats = _strategy_resample_advantage_stats
 rollout_advantage_diagnostics = _rollout_advantage_diagnostics
 latent_option_advantage_stats = _latent_option_advantage_stats
@@ -340,9 +419,13 @@ v6i8_residual_adapter_stats = _v6i8_residual_adapter_stats
 __all__ = [
     "compute_adapter_grad_norms",
     "compute_critic_value_variance",
+    "compute_frozen_repertoire_audit",
     "compute_repertoire_parameter_audit",
+    "measure_router_stage_grad_norms",
     "measure_repertoire_grad_norms",
     "record_repertoire_grad_audit",
+    "record_v6i9_stage_grad_audit",
+    "snapshot_frozen_repertoire_parameters",
     "snapshot_repertoire_parameters",
     "_strategy_resample_advantage_stats",
     "_rollout_advantage_diagnostics",

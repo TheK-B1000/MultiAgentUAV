@@ -28,6 +28,8 @@ from rl.custom_ppo.inference import (
     CUSTOM_PPO_ACTOR_ARCH,
     CUSTOM_PPO_VEC_SCHEMA_VERSION,
 )
+from rl.custom_ppo.communication.observation import extend_observation_space_if_needed
+from rl.custom_ppo.communication.runtime import CommRolloutRuntime
 from rl.custom_ppo.curriculum_runtime import TrainingOpponentPool
 from rl.custom_ppo.episode_stats import EpisodeStats
 from rl.custom_ppo.latent_behavior_contrast import BehaviorContrastMemory

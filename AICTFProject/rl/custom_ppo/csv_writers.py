@@ -703,6 +703,10 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.extend([
             "shared_actor_max_abs_delta",
             "shared_actor_grad_norm",
+            "z_specific_max_abs_delta",
+            "z_specific_grad_norm",
+            "router_grad_norm",
+            "strategy_encoder_grad_norm",
             "critic_grad_norm",
         ])
         for z_idx in range(latent_k):

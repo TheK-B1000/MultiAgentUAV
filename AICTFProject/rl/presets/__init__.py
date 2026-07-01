@@ -74,6 +74,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
     apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+    apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
@@ -432,6 +433,10 @@ PRESET_REGISTRY = {
     # V6I9 Stage 3: RILI-inspired recurrent router
     "v6i9_mapaware_router_sparse_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
     "v6i9_router_sparse_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+    # V6I9 Stage 3 feedforward: state-only MLP router over frozen repertoire
+    "v6i9_mapaware_router_feedforward_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
+    "v6i9_router_feedforward_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
+    "plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool": apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
     # V6I9.1: navigation refinement fine-tune (Stage A follow-up)
     "v6i9_mapaware_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     "v6i9_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,

@@ -147,37 +147,32 @@ def run_forced_z_cells(
     deterministic: bool = True,
     base_seed: int = 42,
     collect_behavior_mean: bool = False,
+    progress_every: int = 0,
 ) -> CellEpisodes:
     """Run forced-z eval; return {(opponent, latent_z, map_name): [episode_dicts]}.
 
     All latents on the same (opponent, map) cell share the same env seed so the
     initial-state distribution is matched across z values.
-    """
-    from plot.eval_rollout import run_eval_episodes  # type: ignore[import]
 
-    cells: CellEpisodes = {}
-    for opp_idx, opponent in enumerate(opponents):
-        for map_idx, map_name in enumerate(maps):
-            seed = _cell_seed(base_seed, opp_idx, map_idx)
-            for z in latents:
-                env = _make_env(checkpoint, map_name, device, seed)
-                try:
-                    eps = run_eval_episodes(
-                        checkpoint, env, n_episodes, device, opponent,
-                        fixed_latent_id=z,
-                        deterministic=deterministic,
-                        latent_eval_seed=seed,
-                        collect_behavior_mean=collect_behavior_mean,
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    print(f"  ERROR {opponent} z={z} {map_name}: {exc}")
-                    eps = []
-                finally:
-                    env.close()
-                cells[(opponent, z, map_name)] = eps
-                wr = _wr(eps)
-                print(f"  {opponent} z={z} {map_name}: WR={wr:.1%} ({len(eps)} eps)")
-    return cells
+    Delegates to :mod:`experiments.forced_z_eval.runner` (one policy load per
+    opponent×map block).
+    """
+    from experiments.forced_z_eval.protocol import ForcedZProtocol
+    from experiments.forced_z_eval.runner import run_forced_z_episodes
+
+    protocol = ForcedZProtocol(
+        checkpoint=checkpoint,
+        opponents=tuple(opponents),
+        maps=tuple(maps),
+        latents=tuple(latents),
+        episodes_per_cell=int(n_episodes),
+        base_seed=int(base_seed),
+        deterministic_actions=bool(deterministic),
+        device=str(device),
+        collect_behavior_mean=bool(collect_behavior_mean),
+        progress_every=int(progress_every),
+    )
+    return run_forced_z_episodes(protocol)
 
 
 def _wr(eps: List[Dict[str, Any]]) -> float:

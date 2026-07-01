@@ -66,6 +66,7 @@ class PostUpdatePipeline:
         actor_intervention_valid_minibatches: int,
         last_invalid_reason_code: float,
         repertoire_param_snapshot: dict | None = None,
+        frozen_repertoire_snapshot: dict | None = None,
     ) -> PostUpdateResult:
         from rl.custom_ppo.v6i1_phase_runtime import (
             is_v6i1_staged_trainer,
@@ -266,6 +267,11 @@ class PostUpdatePipeline:
 
             stats.update(compute_repertoire_parameter_audit(runtime.model, repertoire_param_snapshot))
             stats.update(getattr(runtime, "_repertoire_grad_audit_max", {}) or {})
+        if frozen_repertoire_snapshot:
+            from rl.custom_ppo.diagnostics.competence import compute_frozen_repertoire_audit
+
+            stats.update(compute_frozen_repertoire_audit(runtime.model, frozen_repertoire_snapshot))
+            stats.update(getattr(runtime, "_router_grad_audit_max", {}) or {})
         stats.update(episode_strategy_stats)
         stats.update(arc_strategy_stats)
         stats.update(macro_strategy_stats)

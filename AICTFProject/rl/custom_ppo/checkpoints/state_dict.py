@@ -194,7 +194,30 @@ def _load_model_state_dict_compat(
             break
     if _target_ch is not None and _target_ch > 1:
         actor_remapped = _expand_cnn_obs_channels(actor_remapped, _target_ch)
-    result = model.load_state_dict(actor_remapped, strict=False)
+    model_sd = dict(model.state_dict())
+    shape_skipped: list[str] = []
+    filtered: dict[str, Any] = {}
+    for key, value in actor_remapped.items():
+        if key not in model_sd:
+            filtered[key] = value
+            continue
+        if not isinstance(value, torch.Tensor):
+            filtered[key] = value
+            continue
+        if tuple(model_sd[key].shape) != tuple(value.shape):
+            shape_skipped.append(key)
+            continue
+        filtered[key] = value
+    if shape_skipped:
+        print(
+            "[checkpoint compat] Skipped shape-mismatched parameters "
+            f"({len(shape_skipped)} keys); target modules keep initialization."
+        )
+        for key in sorted(shape_skipped)[:12]:
+            print(f"  {key}: checkpoint{tuple(actor_remapped[key].shape)} -> model{tuple(model_sd[key].shape)}")
+        if len(shape_skipped) > 12:
+            print(f"  ... and {len(shape_skipped) - 12} more")
+    result = model.load_state_dict(filtered, strict=False)
     missing = list(getattr(result, "missing_keys", []))
     unexpected = list(getattr(result, "unexpected_keys", []))
     _V6I7_RESIDUAL_PREFIXES = (
@@ -208,6 +231,15 @@ def _load_model_state_dict_compat(
     allowed_missing.extend(
         k for k in missing if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
     )
+    router_reinit = bool(
+        target_cfg is not None and getattr(target_cfg, "router_reinitialize_on_load", False)
+    )
+    if router_reinit or shape_skipped:
+        allowed_missing.extend(
+            k
+            for k in missing
+            if k.startswith("strategy_encoder.") or k.startswith("selector_gru.")
+        )
     disallowed_missing = [k for k in missing if k not in allowed_missing]
 
     allowed_unexpected = [k for k in unexpected if k.startswith("episode_strategy_value_head.")]
@@ -216,6 +248,12 @@ def _load_model_state_dict_compat(
     allowed_unexpected.extend(
         k for k in unexpected if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
     )
+    if router_reinit or shape_skipped:
+        allowed_unexpected.extend(
+            k
+            for k in unexpected
+            if k.startswith("strategy_encoder.") or k.startswith("selector_gru.")
+        )
     disallowed_unexpected = [k for k in unexpected if k not in allowed_unexpected]
 
     # Report newly initialized parameters so the caller knows what was not loaded.
@@ -226,6 +264,17 @@ def _load_model_state_dict_compat(
         print("[checkpoint compat] Newly initialized parameters (not in checkpoint):")
         for k in sorted(newly_initialized):
             print(f"  {k}")
+    if router_reinit or shape_skipped:
+        router_missing = [
+            k
+            for k in missing
+            if k.startswith("strategy_encoder.") or k.startswith("selector_gru.")
+        ]
+        if router_missing:
+            print(
+                "[checkpoint compat] Router modules left at target initialization "
+                f"({len(router_missing)} keys)."
+            )
 
     if disallowed_missing or disallowed_unexpected:
         raise CheckpointStateDictError(
@@ -274,7 +323,15 @@ def _load_model_state_dict_compat(
                 )
 
     # Perform behavioral-equivalence check on a fixed probe bank if observation/action spaces are available
-    if observation_space is not None and action_space is not None:
+    skip_behavioral_equiv = bool(
+        target_cfg is not None and getattr(target_cfg, "router_reinitialize_on_load", False)
+    )
+    if skip_behavioral_equiv:
+        print(
+            "[checkpoint compat] Skipping full-model behavioral-equivalence check "
+            "(router_reinitialize_on_load=True; repertoire actor weights loaded only)."
+        )
+    if observation_space is not None and action_space is not None and not skip_behavioral_equiv:
         device = next(model.parameters()).device
         latent_k = _get_config_value(checkpoint_cfg, "latent_k")
         if latent_k is None:

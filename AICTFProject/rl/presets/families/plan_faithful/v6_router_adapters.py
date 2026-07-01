@@ -284,6 +284,23 @@ def apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg: PPOConf
     return cfg
 
 
+def apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 Stage 3 feedforward — state-only MLP router over frozen repertoire.
+
+    Identical to ``v6i9_mapaware_router_sparse_hardpool`` except recurrence is
+    disabled (V6I7-B0 pattern).  Tests whether observable current state is
+    sufficient to capture oracle complementarity before trying GRU/RILI.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg)
+    cfg.recurrent_selector_hidden_dim = 0
+    cfg.recurrent_seq_len = 0
+    cfg.recurrent_burn_in = 0
+    cfg.router_chunks_per_batch = 0
+    cfg.router_reinitialize_on_load = True
+    cfg.run_tag = "v6i9_mapaware_router_feedforward_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i9_mapaware_nav_refinement(cfg: PPOConfig) -> PPOConfig:
     """V6I9.1 — navigation refinement fine-tune from the 1M generalist checkpoint.
 

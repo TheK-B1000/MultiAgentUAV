@@ -441,10 +441,12 @@ class TestFamilyModules:
             apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
             apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
             apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+            apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
         )
         assert callable(apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool)
         assert callable(apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool)
         assert callable(apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool)
+        assert callable(apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool)
 
     def test_repertoire_exports(self):
         from rl.presets.families.repertoire import (
@@ -457,8 +459,10 @@ class TestFamilyModules:
         from rl.presets.families.router import (
             apply_plan_faithful_latent_v6i7_recurrent_router,
             apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+            apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
         )
         assert callable(apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool)
+        assert callable(apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool)
 
 
 # ---------------------------------------------------------------------------

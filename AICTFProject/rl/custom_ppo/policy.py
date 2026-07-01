@@ -278,9 +278,13 @@ class SharedActorCentralizedCritic(nn.Module):
         )
         self.use_strategy_aux_return_head = bool(use_strategy_aux_return_head) and self.uses_latent_strategy
         self.use_episode_strategy_value_head = bool(use_episode_strategy_value_head) and self.uses_latent_strategy
-        self.use_recurrent_selector = bool(use_recurrent_selector) and self.uses_latent_strategy
+        self.use_recurrent_selector = (
+            bool(use_recurrent_selector)
+            and self.uses_latent_strategy
+            and int(recurrent_selector_hidden_dim) > 0
+        )
         self.recurrent_selector_hidden_dim = (
-            max(1, int(recurrent_selector_hidden_dim)) if self.use_recurrent_selector else 0
+            int(recurrent_selector_hidden_dim) if self.use_recurrent_selector else 0
         )
         self.strategy_tau = max(1e-3, float(strategy_tau))
         self.experiment_id = str(experiment_id or "")

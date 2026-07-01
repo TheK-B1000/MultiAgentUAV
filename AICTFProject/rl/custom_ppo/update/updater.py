@@ -125,11 +125,18 @@ class PPOUpdater:
         curr_adapter_scale = resolve_adapter_scale(self, step=step)
 
         repertoire_param_snapshot = None
-        if str(getattr(cfg, "v6i9_training_stage", "") or "").lower() == "repertoire":
+        frozen_repertoire_snapshot = None
+        stage = str(getattr(cfg, "v6i9_training_stage", "") or "").lower()
+        if stage == "repertoire":
             from rl.custom_ppo.diagnostics.competence import snapshot_repertoire_parameters
 
             runtime._repertoire_grad_audit_max = {}
             repertoire_param_snapshot = snapshot_repertoire_parameters(self.model)
+        elif stage == "router":
+            from rl.custom_ppo.diagnostics.competence import snapshot_frozen_repertoire_parameters
+
+            runtime._router_grad_audit_max = {}
+            frozen_repertoire_snapshot = snapshot_frozen_repertoire_parameters(self.model)
 
         _update_strategy_return_stats(runtime, buffer)
         v6i1_usage_coef = (
@@ -270,5 +277,6 @@ class PPOUpdater:
             actor_intervention_valid_minibatches=actor_intervention_valid_minibatches,
             last_invalid_reason_code=last_invalid_reason_code,
             repertoire_param_snapshot=repertoire_param_snapshot,
+            frozen_repertoire_snapshot=frozen_repertoire_snapshot,
         )
         return post.stats

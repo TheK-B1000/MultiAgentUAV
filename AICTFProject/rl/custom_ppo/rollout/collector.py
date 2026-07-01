@@ -226,17 +226,16 @@ class RolloutCollector:
                 hidden_dim = int(getattr(self.model, "recurrent_selector_hidden_dim", 0) or 0)
                 if hidden_dim > 0:
                     buffer.register_field("selector_hidden", (hidden_dim,))
-                # V6I7: per-step masks and cross-buffer state for router GAE.
-                is_v6i7_current_mode = (
-                    str(getattr(self.cfg, "router_context_mode", "") or "") == "current"
-                )
-                if is_v6i7_current_mode:
-                    buffer.register_field("router_decision_valid", dtype=torch.bool, deferred=True)
-                    buffer.register_field("critic_transition_valid", dtype=torch.bool, deferred=True)
-                    buffer.register_field("interval_end_reason", dtype=torch.long, deferred=True)
-                    buffer.register_field("ended_at_router_opportunity", dtype=torch.bool, deferred=True)
-                    if bool(getattr(cfg, "router_reward_enabled", False)):
-                        buffer.register_field("router_reward")
+            is_v6i7_current_mode = (
+                str(getattr(self.cfg, "router_context_mode", "") or "") == "current"
+            )
+            if is_v6i7_current_mode:
+                buffer.register_field("router_decision_valid", dtype=torch.bool, deferred=True)
+                buffer.register_field("critic_transition_valid", dtype=torch.bool, deferred=True)
+                buffer.register_field("interval_end_reason", dtype=torch.long, deferred=True)
+                buffer.register_field("ended_at_router_opportunity", dtype=torch.bool, deferred=True)
+                if bool(getattr(cfg, "router_reward_enabled", False)):
+                    buffer.register_field("router_reward")
         if bool(getattr(self.model, "communication_enabled", False)):
             n_agents = int(self.model.n_agents)
             buffer.register_field("message_symbols", (n_agents,), dtype=torch.long)
@@ -469,11 +468,8 @@ class RolloutCollector:
 
     @property
     def _is_v6i7_mode(self) -> bool:
-        """True when V6I7 router mode: raw global state + scheduler phase (no EMA)."""
-        return (
-            bool(getattr(self.model, "use_recurrent_selector", False))
-            and str(getattr(self.cfg, "router_context_mode", "") or "") == "current"
-        )
+        """True when q_phi uses raw global state + scheduler phase (no EMA stack)."""
+        return str(getattr(self.cfg, "router_context_mode", "") or "") == "current"
 
     def _v6i7_context(self, raw_gs: torch.Tensor) -> torch.Tensor:
         """Build 35-dim V6I7 context: raw global state + normalized strategy age."""

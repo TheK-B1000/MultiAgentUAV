@@ -593,6 +593,12 @@ def run_eval_episodes(
                                 mean_dist_f = float(mean_dist) if mean_dist is not None and mean_dist != "" else np.nan
                             except (TypeError, ValueError):
                                 mean_dist_f = np.nan
+                            if bs > rs:
+                                outcome = "win"
+                            elif bs < rs:
+                                outcome = "loss"
+                            else:
+                                outcome = "draw"
                             row = {
                                 "success": success,
                                 "blue_score": bs,
@@ -605,8 +611,11 @@ def run_eval_episodes(
                                 "time_to_first_score": ttfs_f,
                                 "mean_inter_robot_dist": mean_dist_f,
                                 "episode_start_phase": episode_start_phase,
+                                "episode_index": int(ep_idx),
+                                "episode_seed": int(actual_env_seed),
                                 "fixed_latent_id": int(fixed_latent_id) if fixed_latent_id is not None else -1,
                                 "opponent": str(opponent),
+                                "outcome": outcome,
                             }
                             _EPISODE_NAV_KEYS = (
                                 "collisions_per_episode",
@@ -623,6 +632,17 @@ def run_eval_episodes(
                                 "blue_return_lower_crossings",
                                 "blue_intercept_upper_crossings",
                                 "blue_intercept_lower_crossings",
+                                "blue_upper_lane_steps",
+                                "blue_lower_lane_steps",
+                                "blue_neutral_lane_steps",
+                                "blue_movement_attempts",
+                                "blue_successful_movement_steps",
+                                "blue_repeated_blocked_movement_events",
+                                "red_stuck_steps",
+                                "near_misses_per_episode",
+                                "obstacle_collision_events_per_episode",
+                                "blue_obstacle_collision_events",
+                                "decision_steps",
                                 "reward_total",
                                 "reward_sparse_points",
                                 "reward_offense",

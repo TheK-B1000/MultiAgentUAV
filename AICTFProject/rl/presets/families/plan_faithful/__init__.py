@@ -108,6 +108,7 @@ from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i9_mapaware_generalist_hardpool_split,
     apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
+    apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
 )
 

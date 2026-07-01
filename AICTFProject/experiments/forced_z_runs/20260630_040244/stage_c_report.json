@@ -1,0 +1,51 @@
+{
+  "oracle_wr": 1.0,
+  "oracle_margin": 2.835,
+  "best_fixed_z": 2,
+  "best_fixed_wr": 0.9983333333333334,
+  "best_fixed_margin": 2.3366666666666664,
+  "wr_advantage": 0.0016666666666665941,
+  "margin_advantage": 0.4983333333333335,
+  "best_z_per_cell": {
+    "OP8|map_b": 0,
+    "OP8|map_b_split_lane_v2": 0,
+    "OP9|map_b": 0,
+    "OP9|map_b_split_lane_v2": 0,
+    "OP10|map_b": 1,
+    "OP10|map_b_split_lane_v2": 0
+  },
+  "unique_best_z_count": 2,
+  "unique_best_z_values": [
+    0,
+    1
+  ],
+  "gate_oracle_beats_fixed_wr": true,
+  "gate_best_z_varies": true,
+  "passed": true,
+  "wr_matrix": {
+    "OP8|map_b|z0": 1.0,
+    "OP8|map_b|z1": 0.99,
+    "OP8|map_b|z2": 0.99,
+    "OP8|map_b|z3": 1.0,
+    "OP8|map_b_split_lane_v2|z0": 1.0,
+    "OP8|map_b_split_lane_v2|z1": 1.0,
+    "OP8|map_b_split_lane_v2|z2": 1.0,
+    "OP8|map_b_split_lane_v2|z3": 1.0,
+    "OP9|map_b|z0": 1.0,
+    "OP9|map_b|z1": 1.0,
+    "OP9|map_b|z2": 1.0,
+    "OP9|map_b|z3": 1.0,
+    "OP9|map_b_split_lane_v2|z0": 1.0,
+    "OP9|map_b_split_lane_v2|z1": 1.0,
+    "OP9|map_b_split_lane_v2|z2": 1.0,
+    "OP9|map_b_split_lane_v2|z3": 1.0,
+    "OP10|map_b|z0": 0.97,
+    "OP10|map_b|z1": 1.0,
+    "OP10|map_b|z2": 1.0,
+    "OP10|map_b|z3": 0.99,
+    "OP10|map_b_split_lane_v2|z0": 1.0,
+    "OP10|map_b_split_lane_v2|z1": 0.99,
+    "OP10|map_b_split_lane_v2|z2": 1.0,
+    "OP10|map_b_split_lane_v2|z3": 1.0
+  }
+}
