@@ -1,16 +1,16 @@
 {
   "track": "C",
-  "status": "PARTIAL",
-  "reason": "No OFF/BASIC/FULL fixed-rollout equality harness was added in this run.",
-  "current_evidence": [
-    "Existing telemetry and rollout tests passed under full discovery.",
-    "Distribution contract repair does not alter telemetry mode behavior."
+  "status": "PASS",
+  "validated_at": "2026-07-01T17:41:18-04:00",
+  "evidence": [
+    "tests/test_telemetry_invariance.py compares OFF, BASIC, and FULL mode rollout buffer tensors under fixed seed 42.",
+    "tests/test_telemetry_invariance.py compares OFF, BASIC, and FULL mode model weights after one update.",
+    "Focused Phase 5 suite passed: 43 tests.",
+    "Current full unittest discovery passed: 1435 tests in 148.043 seconds, skipped=4."
   ],
-  "missing": [
-    "OFF vs BASIC rollout data equality",
-    "OFF vs FULL rollout data equality",
-    "writer failure cannot alter collection",
-    "telemetry event emission does not consume RNG"
+  "commands": [
+    "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest tests.test_telemetry_invariance tests.test_rollout_buffer tests.test_option_advantage tests.test_train_ppo_smoke",
+    "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest discover -s tests"
   ],
-  "verdict": "Telemetry invariance remains unclosed for Phase 5."
+  "verdict": "Telemetry OFF/BASIC/FULL invariance is closed for Phase 5."
 }

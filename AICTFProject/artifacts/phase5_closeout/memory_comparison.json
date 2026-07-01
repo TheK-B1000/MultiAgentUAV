@@ -1,4 +1,8 @@
 {
   "status": "WARN",
-  "reason": "CUDA memory baseline not rerun in this closeout script."
+  "validated_at": "2026-07-01T17:41:18-04:00",
+  "reason": "CUDA peak-memory baseline was not rerun in this closeout.",
+  "interpretation": "No CUDA memory regression or improvement claim is made. This is an explicitly documented WARN, not a hidden Phase 5 blocker.",
+  "accepted_for_phase5_closeout": true,
+  "required_follow_up_if_gpu_memory_gate_is_needed": "Rerun current and pre-Phase-5 baseline worktrees on the same CUDA device at the agreed env counts, then replace this WARN with a measured PASS or FAIL."
 }

@@ -522,7 +522,21 @@ class CustomPPOInferencePolicy:
                     z_idx = self._prev_z.to(self.device)
 
                 if needs_strategy.any() and batch == 1:
-                    prev_z_val = self.opportunity_trace_log[-1]["selected_z"] if self.opportunity_trace_log else -1
+                    trace_opponent = self._current_opponent
+                    trace_seed = getattr(self, "_current_eval_seed", None) or self._current_seed
+                    trace_episode_index = getattr(self, "_current_env_index", None) or (
+                        self._current_episode_index if self._current_episode_index is not None else 0
+                    )
+                    prev_z_val = -1
+                    if self.opportunity_trace_log:
+                        prev_trace = self.opportunity_trace_log[-1]
+                        same_episode = (
+                            prev_trace.get("opponent") == trace_opponent
+                            and prev_trace.get("seed") == trace_seed
+                            and prev_trace.get("episode_index") == trace_episode_index
+                        )
+                        if same_episode:
+                            prev_z_val = int(prev_trace["selected_z"])
                     logit_list = z_logits.detach().cpu().numpy()[0].tolist()
                     prob_list = z_probs.detach().cpu().numpy()[0].tolist()
                     sel_z_val = int(z_idx.item())
@@ -533,10 +547,10 @@ class CustomPPOInferencePolicy:
                         opp_idx = int(self._opportunity_counter[0])
                         
                     self.opportunity_trace_log.append({
-                        "opponent": self._current_opponent,
-                        "seed": getattr(self, "_current_eval_seed", None) or self._current_seed,
+                        "opponent": trace_opponent,
+                        "seed": trace_seed,
                         "environment_seed": getattr(self, "_current_environment_seed", None) or self._current_seed,
-                        "episode_index": getattr(self, "_current_env_index", None) or (self._current_episode_index if self._current_episode_index is not None else 0),
+                        "episode_index": trace_episode_index,
                         "opportunity_index": opp_idx,
                         "step": self._current_decision_step,
                         "logits": logit_list,
@@ -551,9 +565,10 @@ class CustomPPOInferencePolicy:
                         else:
                             self._opportunity_counter += 1
 
-                if needs_strategy.any() and self.model.router_current_plus_delta_enabled:
-                    current = global_state[:, :GLOBAL_STATE_DIM].float()
-                    self._previous_opportunity_features[needs_strategy] = current[needs_strategy].clone().detach()
+                if needs_strategy.any():
+                    if self.model.router_current_plus_delta_enabled:
+                        current = global_state[:, :GLOBAL_STATE_DIM].float()
+                        self._previous_opportunity_features[needs_strategy] = current[needs_strategy].clone().detach()
                     self._opportunity_occurred[needs_strategy] = True
 
                 self._last_strategy_z = z_idx.detach().cpu()

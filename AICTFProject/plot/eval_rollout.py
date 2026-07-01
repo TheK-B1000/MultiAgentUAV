@@ -385,9 +385,9 @@ def run_eval_episodes(
                     getattr(model.model, "uses_latent_strategy", False)
                 ):
                     mode_to_set = "normal"
-                    if cond_name == "shuffled_qphi_outputs":
+                    if selection_rule == "shuffled_qphi" or cond_name == "shuffled_qphi_outputs":
                         mode_to_set = "shuffled"
-                    elif cond_name in ("uniform_episode_fixed", "uniform_random_at_router_opportunities"):
+                    elif selection_rule == "uniform" or cond_name in ("uniform_episode_fixed", "uniform_random_at_router_opportunities"):
                         mode_to_set = "uniform_random"
                     model.set_latent_eval_mode(mode_to_set, seed=router_seed)
                     
