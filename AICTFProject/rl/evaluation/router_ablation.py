@@ -7,6 +7,7 @@ parameters.
 
 from __future__ import annotations
 
+from collections import Counter
 import csv
 import hashlib
 import json
@@ -808,6 +809,112 @@ def expected_router_opportunities(
         return 1
     return 1 + max(0, (episode_steps - 1) // strategy_interval)
 
+
+def learned_z_histogram_from_traces(learned_t_data: list[dict[str, Any]]) -> Counter[int]:
+    """Aggregate selected-z counts from learned-router opportunity traces."""
+    hist: Counter[int] = Counter()
+    for item in learned_t_data:
+        hist[int(item["selected_z"])] += 1
+    return hist
+
+
+def shuffled_mapping_z_histogram(
+    shuffled_mapping: dict[Any, Any],
+    learned_t_data: list[dict[str, Any]] | None = None,
+) -> Counter[int]:
+    """Aggregate selected-z counts from shuffled mapping at learned opportunity indices."""
+    hist: Counter[int] = Counter()
+    if learned_t_data is not None:
+        for item in learned_t_data:
+            ep_key = (
+                str(item["opponent"]).upper(),
+                int(item["seed"]),
+                int(item["episode_index"]),
+            )
+            decisions = shuffled_mapping.get(ep_key)
+            if not isinstance(decisions, list):
+                continue
+            opp_idx = int(item["opportunity_index"])
+            if opp_idx < len(decisions):
+                hist[int(decisions[opp_idx]["selected_z"])] += 1
+        return hist
+
+    for key, value in shuffled_mapping.items():
+        if not (
+            isinstance(key, tuple)
+            and len(key) == 3
+            and isinstance(key[0], str)
+            and isinstance(key[1], int)
+            and isinstance(key[2], int)
+        ):
+            continue
+        if not isinstance(value, list):
+            continue
+        for decision in value:
+            if isinstance(decision, dict) and "selected_z" in decision:
+                hist[int(decision["selected_z"])] += 1
+    return hist
+
+
+def validate_shuffled_mapping_histogram(
+    learned_t_data: list[dict[str, Any]],
+    shuffled_mapping: dict[Any, Any],
+) -> dict[str, Any]:
+    """Assert histogram-preserving shuffle and at least one context reassignment.
+
+    A valid shuffled control must:
+    * preserve the learned z histogram exactly (global Counter equality)
+    * change context→z assignment for at least one episode when possible
+    * preserve per-episode multiset equality for every mapped episode
+    """
+    learned_hist = learned_z_histogram_from_traces(learned_t_data)
+    shuffled_hist = shuffled_mapping_z_histogram(shuffled_mapping, learned_t_data)
+
+    if learned_hist != shuffled_hist:
+        raise AssertionError(
+            "Shuffled mapping z histogram does not match learned: "
+            f"learned={dict(learned_hist)} shuffled={dict(shuffled_hist)}"
+        )
+
+    learned_by_episode: dict[tuple[str, int, int], list[int]] = {}
+    for item in learned_t_data:
+        ep_key = (
+            str(item["opponent"]).upper(),
+            int(item["seed"]),
+            int(item["episode_index"]),
+        )
+        learned_by_episode.setdefault(ep_key, []).append(int(item["selected_z"]))
+
+    reassigned_episodes = 0
+    for ep_key, learned_seq in learned_by_episode.items():
+        decisions = shuffled_mapping.get(ep_key)
+        if not isinstance(decisions, list):
+            raise AssertionError(f"Missing shuffled episode mapping for {ep_key}")
+        shuffled_seq = [int(d["selected_z"]) for d in decisions[: len(learned_seq)]]
+        if Counter(shuffled_seq) != Counter(learned_seq):
+            raise AssertionError(
+                f"Per-episode z multiset mismatch for {ep_key}: "
+                f"learned={learned_seq} shuffled={shuffled_seq}"
+            )
+        if len(set(learned_seq)) > 1 and shuffled_seq != learned_seq:
+            reassigned_episodes += 1
+
+    can_reassign = any(len(set(seq)) > 1 for seq in learned_by_episode.values())
+    if can_reassign and reassigned_episodes == 0:
+        raise AssertionError(
+            "Shuffled mapping preserved every episode z sequence; "
+            "expected at least one context reassignment."
+        )
+
+    return {
+        "learned_z_histogram": dict(learned_hist),
+        "shuffled_z_histogram": dict(shuffled_hist),
+        "histogram_preserved": True,
+        "reassigned_episode_count": reassigned_episodes,
+        "can_reassign": can_reassign,
+    }
+
+
 def build_shuffled_mapping_from_learned_traces(
     learned_t_data: list[dict[str, Any]],
     *,
@@ -837,29 +944,6 @@ def build_shuffled_mapping_from_learned_traces(
     for t_item in learned_t_data:
         z_val = int(t_item["selected_z"])
         counts[z_val] = counts.get(z_val, 0) + 1
-
-    allowed = allowed_latents if allowed_latents is not None else list(range(latent_k))
-    filtered_counts = {z: counts.get(z, 0) for z in allowed}
-    filtered_total = sum(filtered_counts.values())
-    if filtered_total > 0:
-        z_probs = {z: count / filtered_total for z, count in filtered_counts.items()}
-    else:
-        z_probs = {z: 1.0 / len(allowed) for z in allowed}
-
-    max_opportunities = 1000
-    base_latents: list[int] = []
-    for z_val, p in z_probs.items():
-        count = int(round(p * max_opportunities))
-        base_latents.extend([z_val] * count)
-    if len(base_latents) < max_opportunities:
-        non_zero_probs = {z: p for z, p in z_probs.items() if p > 0}
-        if non_zero_probs:
-            most_common_z = max(non_zero_probs.keys(), key=lambda k: non_zero_probs[k])
-        else:
-            most_common_z = allowed[0]
-        base_latents.extend([most_common_z] * (max_opportunities - len(base_latents)))
-    elif len(base_latents) > max_opportunities:
-        base_latents = base_latents[:max_opportunities]
 
     unique_keys = sorted(
         {
@@ -912,12 +996,9 @@ def build_shuffled_mapping_from_learned_traces(
         displacement_fraction = float(diff_count) / len(original) if original else 0.0
         displacement_fractions.append(displacement_fraction)
 
+        shuffled_core = list(shuffled)
         while len(original) < safe_max_opps:
-            pad_opp_idx = len(original)
-            h_pad = stable_sha256_text(f"PAD|{opp.upper()}|{int(seed)}|{int(env_idx)}|{pad_opp_idx}")
-            pad_seed = int(h_pad[:8], 16)
-            pad_rng = random.Random(pad_seed)
-            pad_z = pad_rng.choice(allowed)
+            pad_z = shuffled_core[len(original) % max(1, len(shuffled_core))]
             original.append(pad_z)
             shuffled.append(pad_z)
 
@@ -953,37 +1034,29 @@ def build_shuffled_mapping_from_learned_traces(
                     "probabilities": dec_dict["probabilities"],
                     "selected_z": dec_dict["selected_z"],
                 }
+                source_to_dest_meta.append(
+                    {
+                        "source": [opp, seed, env_idx, opp_counter],
+                        "destination": list(shuffled_mapping[src_key]["source_context_key"]),
+                        "selected_z": z_val,
+                    }
+                )
             else:
-                uniform_logits = [0.0] * latent_k
-                dec_dict = {
-                    "selected_z": int(z_val),
-                    "logits": uniform_logits,
-                    "probabilities": [1.0 / latent_k] * latent_k,
-                }
-                episode_decisions.append(dec_dict)
-                src_key = (opp, seed, env_idx, opp_counter)
-                shuffled_mapping[src_key] = {
-                    "source_context_key": (opp, seed + 1, env_idx, opp_counter),
-                    "logits": dec_dict["logits"],
-                    "probabilities": dec_dict["probabilities"],
-                    "selected_z": dec_dict["selected_z"],
-                }
-            source_to_dest_meta.append(
-                {
-                    "source": [opp, seed, env_idx, opp_counter],
-                    "destination": list(shuffled_mapping[src_key]["source_context_key"]),
-                    "selected_z": z_val,
-                }
-            )
+                raise ValueError(
+                    f"No learned decision pool for z={z_val} while building shuffled mapping "
+                    f"for episode {(opp, seed, env_idx)}"
+                )
 
         shuffled_mapping[(opp, seed, env_idx)] = episode_decisions
 
+    histogram_meta = validate_shuffled_mapping_histogram(learned_t_data, shuffled_mapping)
     mapping_payload = json.dumps(source_to_dest_meta, sort_keys=True)
     meta = {
         "shuffle_mapping_hash": stable_sha256_text(mapping_payload),
         "shuffle_mapping_size": len(unique_keys),
         "mean_displacement_fraction": float(np.mean(displacement_fractions)) if displacement_fractions else 0.0,
         "trace_opportunity_count": len(learned_t_data),
+        **histogram_meta,
     }
     return shuffled_mapping, meta
 

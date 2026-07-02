@@ -16,6 +16,12 @@ from rl.latent_losses import (
 )
 from rl.custom_ppo.return_normalization import _normalize_strategy_returns
 from rl.custom_ppo.update.loss_result import LossComponent
+from rl.custom_ppo.update.strategy_credit import (
+    resolve_strategy_advantages,
+    router_advantage_telemetry,
+    router_decision_mask,
+    strategy_advantage_source_code,
+)
 
 
 @dataclass
@@ -30,6 +36,7 @@ class StrategyLossBundle:
     strategy_aux_return_loss_value: float
     strategy_phase_loss_value: float
     marginal_telemetry: dict[str, float]
+    credit_telemetry: dict[str, float]
 
 
 class StrategyObjective:
@@ -68,12 +75,18 @@ class StrategyObjective:
     ) -> StrategyLossBundle:
         # V6I7: use router_decision_valid (True only at actual opportunity indices, never forced-z
         # or continuation steps).  Fall back to z_resampled for pre-V6I7 buffers.
-        if "router_decision_valid" in batch:
-            resample = batch["router_decision_valid"].bool()
-        else:
-            resample = batch["z_resampled"].bool()
+        resample = router_decision_mask(batch)
         persist_mask = batch["z_persist_mask"].bool()
         components: list[LossComponent] = []
+        strat_adv, advantage_source = resolve_strategy_advantages(
+            cfg=self.cfg,
+            batch=batch,
+            actor_advantages=advantages,
+        )
+        credit_telemetry: dict[str, float] = {
+            "strategy_advantage_source": strategy_advantage_source_code(advantage_source),
+            **router_advantage_telemetry(batch, resample),
+        }
 
         persist_term_loss, persist_stats = strategy_persistence_loss(
             aux["strategy_logits"],
@@ -184,11 +197,6 @@ class StrategyObjective:
                 ),
             }
 
-        strat_adv = (
-            batch["option_advantages"]
-            if getattr(self.cfg, "latent_q_phi_option_advantage", False)
-            else advantages
-        )
         if self.hparams.fixed_latent_strategy:
             return StrategyLossBundle(
                 components=tuple(components),
@@ -205,6 +213,7 @@ class StrategyObjective:
                 strategy_aux_return_loss_value=0.0,
                 strategy_phase_loss_value=phase_loss_value,
                 marginal_telemetry=marginal_telemetry,
+                credit_telemetry=credit_telemetry,
             )
 
         strategy_policy_loss_scaled, strategy_ppo_stats = strategy_ppo_loss(
@@ -294,4 +303,5 @@ class StrategyObjective:
             strategy_aux_return_loss_value=aux_return_value,
             strategy_phase_loss_value=phase_loss_value,
             marginal_telemetry=marginal_telemetry,
+            credit_telemetry=credit_telemetry,
         )

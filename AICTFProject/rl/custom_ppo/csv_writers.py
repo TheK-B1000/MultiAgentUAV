@@ -708,6 +708,15 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "router_grad_norm",
             "strategy_encoder_grad_norm",
             "critic_grad_norm",
+            "strategy_advantage_source",
+            "router_advantage_mean",
+            "router_advantage_std",
+            "router_advantage_positive_fraction",
+            "router_decision_count",
+            "feedforward_router_entropy_loss",
+            "strategy_policy_grad_norm",
+            "router_entropy_grad_norm",
+            "strategy_policy_to_router_entropy_grad_ratio",
         ])
         for z_idx in range(latent_k):
             fields.append(f"latent_adapter_gate_z{z_idx}")

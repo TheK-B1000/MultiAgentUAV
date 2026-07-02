@@ -1,0 +1,15 @@
+{
+  "mode": "sign-test",
+  "sign_test": {
+    "passed": true,
+    "reversed_passed": true,
+    "p_z0_context_a_before": 0.21179436147212982,
+    "p_z0_context_a_after": 0.9877445101737976,
+    "p_z1_context_b_before": 0.2490883767604828,
+    "p_z1_context_b_after": 2.1643522813974414e-06,
+    "details": {
+      "loss_requires_grad": true,
+      "selected_log_prob_requires_grad": true
+    }
+  }
+}

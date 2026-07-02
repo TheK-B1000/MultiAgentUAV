@@ -1,0 +1,68 @@
+{
+  "fixed_z2__vs__learned_qphi_switching": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.5226636312865108,
+    "max_abs_return_delta": 13.47056086253724
+  },
+  "fixed_z2__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.5033001213212265,
+    "max_abs_return_delta": 19.746451095183147
+  },
+  "fixed_z2__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 1,
+    "same_initial_z_fraction": 0.006666666666666667,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": 0.1845851751746765,
+    "max_abs_return_delta": 16.26721362277749
+  },
+  "learned_qphi_switching__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 149,
+    "same_initial_z_fraction": 0.9933333333333333,
+    "same_z_sequence_count": 146,
+    "same_z_sequence_fraction": 0.9733333333333334,
+    "same_return_count": 59,
+    "same_return_fraction": 0.3933333333333333,
+    "mean_return_delta_left_minus_right": -0.019363509965284416,
+    "max_abs_return_delta": 20.449561103567248
+  },
+  "learned_qphi_switching__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 145,
+    "same_initial_z_fraction": 0.9666666666666667,
+    "same_z_sequence_count": 144,
+    "same_z_sequence_fraction": 0.96,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": -0.3380784561118344,
+    "max_abs_return_delta": 17.391569879604504
+  },
+  "shuffled_qphi_outputs__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 146,
+    "same_initial_z_fraction": 0.9733333333333334,
+    "same_z_sequence_count": 144,
+    "same_z_sequence_fraction": 0.96,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": -0.31871494614655,
+    "max_abs_return_delta": 15.38992295760545
+  }
+}

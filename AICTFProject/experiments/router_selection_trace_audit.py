@@ -31,7 +31,12 @@ from experiments.latent_selectors import (  # noqa: E402
     UniformSelector,
 )
 from experiments.forced_z_eval.protocol import DEFAULT_MAX_DECISION_STEPS  # noqa: E402
-from rl.evaluation.router_ablation import build_shuffled_mapping_from_learned_traces  # noqa: E402
+from rl.evaluation.router_ablation import (  # noqa: E402
+    build_shuffled_mapping_from_learned_traces,
+    learned_z_histogram_from_traces,
+    shuffled_mapping_z_histogram,
+    validate_shuffled_mapping_histogram,
+)
 
 DEFAULT_CHECKPOINT = (
     "checkpoints/2v2/final_v6i9-mapaware-router-feedforward-hardpool-refactor-r1-seed1-mechanism_2v2.zip"
@@ -205,6 +210,8 @@ def _build_assertions(
         "shuffled_differs_from_learned_episodes": learned_vs_shuffled_diff,
         "shuffled_differs_from_learned": learned_vs_shuffled_diff > 0,
         "shuffled_preserves_marginal_vs_learned": learned_hist == shuffled_hist,
+        "learned_z_histogram": dict(learned_hist),
+        "shuffled_z_histogram": dict(shuffled_hist),
         "learned_uniform_trace_identical_all": learned_vs_uniform_diff == 0 and len(learned_rows) > 0,
         "learned_shuffled_trace_identical_all": learned_vs_shuffled_diff == 0 and len(learned_rows) > 0,
         "diagnostic_wiring_trusted": (
