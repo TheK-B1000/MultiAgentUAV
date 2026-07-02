@@ -1,0 +1,301 @@
+condition,condition_display,opponent,map,episode_seed,cell_seed,episode_index,initial_z,z_sequence,z_sequence_len,z_switches_at_opportunities,logged_switches,router_entropy_mean,return,score_margin,episode_length,strategy_switches,strategy_resamples,strategy_unique_count
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,0,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,1,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,2,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,3,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,4,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,5,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,6,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,7,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,8,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,9,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,0,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,1,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,2,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,3,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,4,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,5,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,6,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,7,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,8,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP8,map_b_split_lane_v2,223548000,9200,9,2,2,1,0,0,nan,-6.357723154796986,2,163,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,0,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,1,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,2,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,3,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,4,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,5,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,6,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,7,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,8,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,9,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,0,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,1,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,2,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,3,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,4,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,5,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,6,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,7,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,8,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP9,map_b_split_lane_v2,600172288,10200,9,2,2,1,0,0,nan,-2.188470708031673,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,0,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,1,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,2,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,3,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,4,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,5,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,6,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,7,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,8,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b,111002362,11100,9,2,2,1,0,0,nan,-1.841150360647589,3,123,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,0,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,1,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,2,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,3,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,4,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,5,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,6,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,7,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,8,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+fixed_z2,fixed_z2,OP10,map_b_split_lane_v2,930041288,11200,9,2,2,1,0,0,nan,-0.9518514716473874,1,88,0,0,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,0,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,1,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,2,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,3,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,4,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,5,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,6,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,7,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,8,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,9,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,0,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,1,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,2,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,3,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,4,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,5,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,6,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,7,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,8,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b_split_lane_v2,223548000,9200,9,2,2,1,0,0,1.3842140328937607,-6.357723154796986,2,163,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,0,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,1,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,2,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,3,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,4,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,5,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,6,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,7,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,8,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,9,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,0,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,1,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,2,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,3,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,4,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,5,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,6,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,7,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,8,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b_split_lane_v2,600172288,10200,9,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,0,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,1,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,2,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,3,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,4,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,5,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,6,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,7,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,8,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b,111002362,11100,9,2,2,1,0,0,1.3841726960199274,-1.841150360647589,3,123,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,0,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,1,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,2,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,3,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,4,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,5,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,6,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,7,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,8,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP10,map_b_split_lane_v2,930041288,11200,9,2,2,1,0,0,1.3844219754374207,-0.9518514716473874,1,88,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,0,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,1,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,2,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,3,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,4,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,5,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,6,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,7,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,8,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,9,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,0,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,1,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,2,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,3,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,4,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,5,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,6,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,7,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,8,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,9,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,0,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,1,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,2,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,3,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,4,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,5,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,6,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,7,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,8,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,9,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,0,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,1,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,2,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,3,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,4,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,5,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,6,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,7,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,8,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,9,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,0,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,1,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,2,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,3,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,4,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,5,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,6,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,7,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,8,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b,111002362,11100,9,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,0,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,1,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,2,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,3,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,4,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,5,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,6,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,7,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,8,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,9,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,0,0,0,1,0,0,1.3844902910078414,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,1,0,0,1,0,0,1.3841726960199274,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,2,0,0,1,0,0,1.3841726960199274,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,3,0,0,1,0,0,1.3844219754374207,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,4,0,0,1,0,0,1.3844219754374207,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,5,0,0,1,0,0,1.3844219754374207,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,6,0,0,1,0,0,1.3844902910078414,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,7,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,8,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,9,0,0,1,0,0,1.3841726960199274,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,0,3,3,1,0,0,1.3841648076261661,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,1,3,3,1,0,0,1.3841648076261661,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,2,3,3,1,0,0,1.3841648076261661,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,3,3,3,1,0,0,1.3841648076261661,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,4,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,5,3,3,1,0,0,1.3841648076261661,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,6,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,7,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,8,3,3,1,0,0,1.3842140328937607,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b_split_lane_v2,223548000,9200,9,3,3,1,0,0,1.3841648076261661,-3.577658695197897,3,120,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,0,0,0,1,0,0,1.3841726960199274,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,1,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,2,0,0,1,0,0,1.3844219754374207,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,3,0,0,1,0,0,1.3844219754374207,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,4,0,0,1,0,0,1.3844219754374207,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,5,0,0,1,0,0,1.384302574826596,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,6,0,0,1,0,0,1.3844219754374207,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,7,0,0,1,0,0,1.384302574826596,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,8,0,0,1,0,0,1.384302574826596,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,9,0,0,1,0,0,1.3844219754374207,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,0,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,1,3,3,1,0,0,1.3842140328937607,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,2,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,3,3,3,1,0,0,1.3842140328937607,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,4,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,5,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,6,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,7,3,3,1,0,0,1.3841648076261661,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,8,3,3,1,0,0,1.3842140328937607,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b_split_lane_v2,600172288,10200,9,3,3,1,0,0,1.3842140328937607,-8.057815434556687,2,171,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,0,0,0,1,0,0,1.384302574826596,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,1,0,0,1,0,0,1.3844902910078414,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,2,0,0,1,0,0,1.3844219754374207,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,3,0,0,1,0,0,1.3844219754374207,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,4,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,5,0,0,1,0,0,1.3844902910078414,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,6,0,0,1,0,0,1.3844902910078414,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,7,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,8,0,0,1,0,0,1.384302574826596,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b,111002362,11100,9,0,0,1,0,0,1.3841726960199274,-7.2828126122185495,3,193,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,0,0,0,1,0,0,1.3844902910078414,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,1,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,2,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,3,0,0,1,0,0,1.3844902910078414,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,4,0,0,1,0,0,1.384302574826596,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,5,0,0,1,0,0,1.3841726960199274,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,6,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,7,0,0,1,0,0,1.384302574826596,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,8,0,0,1,0,0,1.3844219754374207,-7.315449367655674,3,198,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP10,map_b_split_lane_v2,930041288,11200,9,0,0,1,0,0,1.3844902910078414,-7.315449367655674,3,198,0,1,1
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,0,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,1,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,2,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,3,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,4,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,5,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,6,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,7,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,8,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,9,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,0,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,1,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,2,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,3,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,4,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,5,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,6,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,7,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,8,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP8,map_b_split_lane_v2,223548000,9200,9,3,3 3 3 3,4,0,0,1.385386672184064,-3.577658695197897,3,120,0,4,1
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,0,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,1,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,2,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,3,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,4,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,5,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,6,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,7,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,8,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,9,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,0,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,1,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,2,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,3,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,4,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,5,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,6,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,7,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,8,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP9,map_b_split_lane_v2,600172288,10200,9,3,3 3 3 0 3,5,2,2,1.3853011273339813,-5.576567117503146,2,142,2,5,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,0,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,1,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,2,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,3,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,4,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,5,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,6,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,7,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,8,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b,111002362,11100,9,0,0 0 3 0 3 3 3,7,3,3,1.3854940239652913,-7.057081907551037,2,201,3,7,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,0,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,1,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,2,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,3,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,4,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,5,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,6,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,7,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,8,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2
+learned_qphi_switching,learned_router,OP10,map_b_split_lane_v2,930041288,11200,9,0,0 0 0 3 3 3 3 3,8,1,1,1.3853673782965978,-7.731347141554579,3,226,1,8,2

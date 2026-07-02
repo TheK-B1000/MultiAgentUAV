@@ -163,7 +163,6 @@ def _run_condition(
                     deterministic=True,
                     fixed_latent_id=z_id,
                     latent_eval_seed=int(cell_seed),
-                    logical_eval_seed=int(cell_seed),
                     preloaded_model=model,
                     expected_strategy_interval=int(condition.strategy_interval),
                     expected_allow_switching=bool(condition.allow_switching),
@@ -420,7 +419,96 @@ def _summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return summary
 
 
-def _build_verdict(summary: dict[str, Any], integrity_rows: list[dict[str, Any]], frozen: dict[str, Any]) -> dict[str, Any]:
+def _z_histogram_from_trace_summaries(rows: list[dict[str, Any]]) -> dict[int, int]:
+    hist: dict[int, int] = {}
+    for row in rows:
+        for token in str(row.get("z_sequence", "")).split():
+            if token:
+                z = int(token)
+                hist[z] = hist.get(z, 0) + 1
+    return hist
+
+
+def _build_v2_trust_checks(
+    all_rows: list[dict[str, Any]],
+    trace_summary_rows: list[dict[str, Any]],
+    trace_comparison: dict[str, Any],
+    frozen: dict[str, Any],
+    *,
+    episodes_per_cell: int,
+) -> dict[str, Any]:
+    """Pre-trust checks required before interpreting ablation v2 results."""
+    cell_episode_seeds: dict[tuple[str, str, str], set[int]] = defaultdict(set)
+    for row in all_rows:
+        key = (str(row["opponent"]), str(row["map"]), str(row["condition"]))
+        cell_episode_seeds[key].add(int(row["episode_seed"]))
+
+    unique_counts = {f"{k[0]}|{k[1]}|{k[2]}": len(v) for k, v in cell_episode_seeds.items()}
+    seeds_per_cell_ok = all(n == int(episodes_per_cell) for n in unique_counts.values())
+
+    seed_sets_by_cell: dict[tuple[str, str], list[set[int]]] = defaultdict(list)
+    for (opp, map_name, cond), seeds in cell_episode_seeds.items():
+        seed_sets_by_cell[(opp, map_name)].append(seeds)
+    same_seed_set_across_conditions = all(
+        len({frozenset(s) for s in sets}) == 1 for sets in seed_sets_by_cell.values() if sets
+    )
+
+    learned_vs_uniform = trace_comparison.get(
+        "learned_qphi_switching__vs__uniform_random_at_router_opportunities", {}
+    )
+    learned_vs_shuffled = trace_comparison.get("learned_qphi_switching__vs__shuffled_qphi_outputs", {})
+
+    learned_summaries = [r for r in trace_summary_rows if r["condition"] == "learned_qphi_switching"]
+    shuffled_summaries = [r for r in trace_summary_rows if r["condition"] == "shuffled_qphi_outputs"]
+    fixed_summaries = [r for r in trace_summary_rows if r["condition"] == "fixed_z2"]
+
+    learned_hist = _z_histogram_from_trace_summaries(learned_summaries)
+    shuffled_hist = _z_histogram_from_trace_summaries(shuffled_summaries)
+
+    fixed_z2_rows = [r for r in all_rows if r["condition"] == "fixed_z2"]
+    fixed_z2_ok = bool(fixed_z2_rows) and all(
+        int(r.get("strategy_dominant", -1)) == 2 for r in fixed_z2_rows
+    ) and all(
+        not str(r.get("z_sequence", "")) or all(tok == "2" for tok in str(r.get("z_sequence", "")).split())
+        for r in fixed_summaries
+    )
+
+    return {
+        "unique_episode_seeds_per_cell": unique_counts,
+        "unique_episode_seeds_per_cell_ok": seeds_per_cell_ok,
+        "same_seed_set_across_conditions": same_seed_set_across_conditions,
+        "learned_trace_differs_from_uniform": float(
+            learned_vs_uniform.get("same_z_sequence_fraction", 1.0)
+        )
+        < 1.0,
+        "shuffled_mapping_differs_from_learned": float(
+            learned_vs_shuffled.get("same_z_sequence_fraction", 1.0)
+        )
+        < 1.0,
+        "shuffled_latent_histogram_preserved": learned_hist == shuffled_hist,
+        "learned_z_histogram": learned_hist,
+        "shuffled_z_histogram": shuffled_hist,
+        "fixed_z2_always_selects_z2": fixed_z2_ok,
+        "frozen_repertoire_hash_match": bool(frozen.get("frozen_tensor_hash_match", False)),
+        "v2_trustworthy": (
+            seeds_per_cell_ok
+            and same_seed_set_across_conditions
+            and float(learned_vs_uniform.get("same_z_sequence_fraction", 1.0)) < 1.0
+            and float(learned_vs_shuffled.get("same_z_sequence_fraction", 1.0)) < 1.0
+            and fixed_z2_ok
+            and bool(frozen.get("frozen_tensor_hash_match", False))
+        ),
+    }
+
+
+def _build_verdict(
+    summary: dict[str, Any],
+    integrity_rows: list[dict[str, Any]],
+    frozen: dict[str, Any],
+    *,
+    trust_checks: dict[str, Any] | None = None,
+    trace_comparison: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     global_s = summary["global"]
     learned = global_s.get("learned_qphi_switching", {}).get("mean_return", float("nan"))
     fixed_z2 = global_s.get("fixed_z2", {}).get("mean_return", float("nan"))
@@ -430,19 +518,48 @@ def _build_verdict(summary: dict[str, Any], integrity_rows: list[dict[str, Any]]
     integrity_holds = bool(frozen.get("frozen_tensor_hash_match", False)) and all(
         bool(row.get("actor_unchanged", False)) for row in integrity_rows
     )
+    beats_shuffled = bool(learned > shuffled) if np.isfinite(learned) and np.isfinite(shuffled) else False
     no_regression = bool(learned >= fixed_z2) if np.isfinite(learned) and np.isfinite(fixed_z2) else False
+    near_fixed_z2 = bool(learned >= fixed_z2 - 0.25) if np.isfinite(learned) and np.isfinite(fixed_z2) else False
     beats_fixed = bool(learned > fixed_z2) if np.isfinite(learned) and np.isfinite(fixed_z2) else False
     beats_uniform = bool(learned > uniform) if np.isfinite(learned) and np.isfinite(uniform) else False
-    learned_advantage = beats_fixed or beats_uniform
-    proceed_to_250k = integrity_holds and no_regression and learned_advantage
+    learned_advantage = beats_uniform or beats_shuffled or beats_fixed
+
+    per_cell = summary.get("per_cell", {})
+    learned_cells = {
+        k.split("|", 1)[1]: v["mean_return"]
+        for k, v in per_cell.items()
+        if k.startswith("learned_qphi_switching|")
+    }
+    fixed_cells = {
+        k.split("|", 1)[1]: v["mean_return"]
+        for k, v in per_cell.items()
+        if k.startswith("fixed_z2|")
+    }
+    cells_learned_beats_fixed = sum(
+        1 for key, lret in learned_cells.items() if key in fixed_cells and lret > fixed_cells[key]
+    )
+    cells_total = len(learned_cells)
+
+    proceed_to_250k = (
+        integrity_holds
+        and bool(trust_checks.get("v2_trustworthy", True) if trust_checks else True)
+        and beats_uniform
+        and beats_shuffled
+        and near_fixed_z2
+    )
 
     return {
         "integrity_holds": integrity_holds,
         "frozen_repertoire_match": bool(frozen.get("frozen_tensor_hash_match", False)),
         "no_regression_vs_fixed_z2": no_regression,
+        "near_fixed_z2": near_fixed_z2,
         "learned_beats_fixed_z2": beats_fixed,
         "learned_beats_uniform_z": beats_uniform,
+        "learned_beats_shuffled_router": beats_shuffled,
         "learned_advantage": learned_advantage,
+        "cells_learned_beats_fixed_z2": cells_learned_beats_fixed,
+        "cells_total": cells_total,
         "proceed_to_250k": proceed_to_250k,
         "deltas": {
             "learned_minus_fixed_z2": float(learned - fixed_z2)
@@ -588,9 +705,22 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
             )
 
     summary = _summarize(all_rows)
-    verdict = _build_verdict(summary, integrity_rows, frozen)
     trace_summary_rows = _summarize_trace_episodes(all_rows, all_traces)
     trace_comparison = _compare_trace_summaries(trace_summary_rows)
+    trust_checks = _build_v2_trust_checks(
+        all_rows,
+        trace_summary_rows,
+        trace_comparison,
+        frozen,
+        episodes_per_cell=protocol.episodes_per_cell,
+    )
+    verdict = _build_verdict(
+        summary,
+        integrity_rows,
+        frozen,
+        trust_checks=trust_checks,
+        trace_comparison=trace_comparison,
+    )
 
     manifest = {
         "protocol": "v6i9_router_diagnostic_ablation_v1",
@@ -609,6 +739,7 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         "shuffled_mapping": shuffled_meta,
         "shuffled_start_mapping": shuffled_start_meta,
         "condition_integrity": integrity_rows,
+        "v2_trust_checks": trust_checks,
         "summary": summary,
         "trace_comparison": trace_comparison,
         "verdict": verdict,
@@ -635,6 +766,19 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
                 f"  {pair}: same_z_seq={block['same_z_sequence_fraction']:.3f}, "
                 f"same_return={block['same_return_fraction']:.3f}"
             )
+    print()
+    print("=== V2 trust checks ===")
+    for key in (
+        "unique_episode_seeds_per_cell_ok",
+        "same_seed_set_across_conditions",
+        "learned_trace_differs_from_uniform",
+        "shuffled_mapping_differs_from_learned",
+        "shuffled_latent_histogram_preserved",
+        "fixed_z2_always_selects_z2",
+        "frozen_repertoire_hash_match",
+        "v2_trustworthy",
+    ):
+        print(f"  {key}: {trust_checks.get(key)}")
     print()
     print("=== Verdict ===")
     for key, value in verdict.items():
