@@ -1,0 +1,12 @@
+{
+  "mode": "offline-predict",
+  "offline_predictability": {
+    "n_contexts": 600,
+    "fixed_z2_mean_return": -3.770109115941547,
+    "accuracy": 0.24444444477558136,
+    "top2_accuracy": 0.5166666507720947,
+    "beats_chance": false,
+    "beats_fixed_z2": true,
+    "mean_regret_vs_best_z": 0.0
+  }
+}

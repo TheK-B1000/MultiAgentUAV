@@ -140,21 +140,33 @@ def _run_offline_predict(csv_path: str) -> dict[str, Any]:
         for row in csv.DictReader(fh):
             rows.append(row)
 
+    def _seed_of(row: dict[str, Any]) -> int:
+        for col in ("seed", "episode_seed", "cell_seed"):
+            if col in row and str(row[col]).strip() != "":
+                return int(float(row[col]))
+        raise KeyError("no seed-like column (seed/episode_seed/cell_seed) in forced-z CSV")
+
+    def _forced_z_of(row: dict[str, Any]) -> int:
+        for col in ("forced_z", "z", "latent_z", "fixed_latent_id"):
+            if col in row and str(row[col]).strip() != "":
+                return int(float(row[col]))
+        return -1
+
     by_context: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
     for row in rows:
-        key = (str(row["opponent"]), str(row.get("map", row.get("map_name", ""))), int(row["seed"]))
+        key = (str(row["opponent"]), str(row.get("map", row.get("map_name", ""))), _seed_of(row))
         by_context.setdefault(key, []).append(row)
 
     samples: list[dict[str, Any]] = []
     fixed_z2_returns: list[float] = []
     for (_opp, _map, _seed), cells in by_context.items():
         best = max(cells, key=lambda r: float(r.get("return", r.get("ep_return", 0.0))))
-        z2 = [r for r in cells if int(r.get("forced_z", r.get("z", -1))) == 2]
+        z2 = [r for r in cells if _forced_z_of(r) == 2]
         if z2:
             fixed_z2_returns.append(float(z2[0].get("return", z2[0].get("ep_return", 0.0))))
         samples.append(
             {
-                "best_z": int(best.get("forced_z", best.get("z", 0))),
+                "best_z": _forced_z_of(best),
                 "return": float(best.get("return", best.get("ep_return", 0.0))),
                 "best_return": float(best.get("return", best.get("ep_return", 0.0))),
                 "feature_seed": int(_seed),

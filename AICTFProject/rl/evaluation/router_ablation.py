@@ -1061,6 +1061,237 @@ def build_shuffled_mapping_from_learned_traces(
     return shuffled_mapping, meta
 
 
+def build_cross_episode_shuffled_mapping_from_learned_traces(
+    learned_t_data: list[dict[str, Any]],
+    *,
+    latent_k: int,
+    allowed_latents: list[int] | None = None,
+    switch_cadence: int,
+    max_decision_steps: int = 400,
+    require_min_contexts: bool = True,
+) -> tuple[dict[Any, Any], dict[str, Any]]:
+    """Cross-episode histogram-preserving shuffle control.
+
+    The primary ``shuffled_qphi_outputs`` control permutes the *within-episode*
+    order of q_phi decisions. For a router that commits to a single z for the
+    whole episode (no mid-episode switching) that permutation is a no-op, so the
+    learned and shuffled conditions become byte-identical and ``learned >
+    shuffled`` is untestable.
+
+    This control instead permutes *which episode gets which learned z-signature*
+    within each (opponent, cell_seed) cell. The multiset of per-episode
+    signatures inside a cell is preserved exactly (it is a permutation), so the
+    per-cell marginal z distribution is unchanged, while the association between
+    the decision-time context (which varies by episode seed / geometry) and the
+    selected z is broken. If ``learned > cross_episode_shuffled`` the specific
+    context->z assignment carries value beyond the marginal.
+    """
+    import random
+
+    decisions_by_z: dict[int, list[dict[str, Any]]] = {}
+    for t_item in learned_t_data:
+        z_val = int(t_item["selected_z"])
+        decisions_by_z.setdefault(z_val, []).append(
+            {
+                "logits": list(t_item["logits"]),
+                "probabilities": list(t_item["probabilities"]),
+                "selected_z": z_val,
+                "opponent": t_item["opponent"],
+                "seed": t_item["seed"],
+                "episode_index": t_item["episode_index"],
+                "opportunity_index": t_item["opportunity_index"],
+            }
+        )
+
+    per_episode: dict[tuple[str, int, int], list[int]] = {}
+    for t_item in learned_t_data:
+        ep_key = (
+            str(t_item["opponent"]).upper(),
+            int(t_item["seed"]),
+            int(t_item["episode_index"]),
+        )
+        per_episode.setdefault(ep_key, [])
+    # Fill ordered per-episode z sequences.
+    ordered: dict[tuple[str, int, int], list[tuple[int, int]]] = {}
+    for t_item in learned_t_data:
+        ep_key = (
+            str(t_item["opponent"]).upper(),
+            int(t_item["seed"]),
+            int(t_item["episode_index"]),
+        )
+        ordered.setdefault(ep_key, []).append(
+            (int(t_item["opportunity_index"]), int(t_item["selected_z"]))
+        )
+    for ep_key, pairs in ordered.items():
+        per_episode[ep_key] = [z for _idx, z in sorted(pairs, key=lambda p: p[0])]
+
+    unique_keys = sorted(per_episode.keys())
+    if require_min_contexts and len(unique_keys) < 2:
+        raise ValueError(
+            f"Cross-episode shuffle requires at least 2 contexts, found {len(unique_keys)}."
+        )
+
+    cells: dict[tuple[str, int], list[tuple[str, int, int]]] = {}
+    for key in unique_keys:
+        cells.setdefault((key[0], key[1]), []).append(key)
+
+    max_possible_opps = 1 + max_decision_steps // max(1, switch_cadence or 64)
+    safe_max_opps = max(20, max_possible_opps + 5)
+
+    shuffled_mapping: dict[Any, Any] = {}
+    source_to_dest_meta: list[dict[str, Any]] = []
+    reassigned_episodes = 0
+    reassignable_episodes = 0
+    cell_meta: list[dict[str, Any]] = []
+    non_constant_episodes = 0
+
+    for cell_key, ep_keys in cells.items():
+        ep_keys_sorted = sorted(ep_keys, key=lambda k: k[2])
+        signatures = [list(per_episode[k]) for k in ep_keys_sorted]
+        for sig in signatures:
+            if len(set(sig)) > 1:
+                non_constant_episodes += 1
+        n = len(ep_keys_sorted)
+        h = stable_sha256_text(f"CROSS|{cell_key[0]}|{int(cell_key[1])}")
+        rng = random.Random(int(h[:8], 16))
+
+        perm = list(range(n))
+        distinct = len({tuple(s) for s in signatures}) > 1
+        if distinct:
+            reassignable_episodes += n
+            for _attempt in range(500):
+                rng.shuffle(perm)
+                if any(signatures[perm[i]] != signatures[i] for i in range(n)):
+                    break
+            assert any(
+                signatures[perm[i]] != signatures[i] for i in range(n)
+            ), f"Failed to derange cell {cell_key}"
+
+        cell_reassigned = 0
+        for i, key in enumerate(ep_keys_sorted):
+            opp, seed, env_idx = key
+            donor_seq = signatures[perm[i]]
+            if not donor_seq:
+                donor_seq = [int(allowed_latents[0]) if allowed_latents else 0]
+            if donor_seq != signatures[i]:
+                cell_reassigned += 1
+            original_len = max(1, len(signatures[i]))
+            target_len = max(original_len, safe_max_opps)
+            assigned = [donor_seq[j % len(donor_seq)] for j in range(target_len)]
+
+            episode_decisions: list[dict[str, Any]] = []
+            for opp_counter, z_val in enumerate(assigned):
+                pool = decisions_by_z.get(int(z_val), [])
+                if not pool:
+                    raise ValueError(
+                        f"No learned decision pool for z={z_val} while building "
+                        f"cross-episode mapping for {key}"
+                    )
+                dec = rng.choice(pool)
+                dec_dict = {
+                    "selected_z": int(dec["selected_z"]),
+                    "logits": list(dec["logits"]),
+                    "probabilities": list(dec["probabilities"]),
+                }
+                episode_decisions.append(dec_dict)
+                src_key = (opp, seed, env_idx, opp_counter)
+                shuffled_mapping[src_key] = {
+                    "source_context_key": (
+                        str(dec["opponent"]).upper(),
+                        int(dec["seed"]),
+                        int(dec["episode_index"]),
+                        int(dec["opportunity_index"]),
+                    ),
+                    "logits": dec_dict["logits"],
+                    "probabilities": dec_dict["probabilities"],
+                    "selected_z": dec_dict["selected_z"],
+                }
+                source_to_dest_meta.append(
+                    {
+                        "source": [opp, seed, env_idx, opp_counter],
+                        "donor_episode": list(ep_keys_sorted[perm[i]]),
+                        "selected_z": int(z_val),
+                    }
+                )
+            shuffled_mapping[key] = episode_decisions
+        reassigned_episodes += cell_reassigned
+        cell_meta.append(
+            {
+                "cell": [cell_key[0], int(cell_key[1])],
+                "episodes": n,
+                "reassigned": cell_reassigned,
+                "distinct_signatures": distinct,
+            }
+        )
+
+    can_reassign = reassignable_episodes > 0
+    if can_reassign and reassigned_episodes == 0:
+        raise AssertionError(
+            "Cross-episode shuffle preserved every episode assignment; "
+            "expected at least one reassignment."
+        )
+
+    # Episode-level histogram (one routing decision per episode) is the marginal
+    # that matters for an episode-constant router. A within-cell permutation of
+    # signatures preserves it exactly. The opportunity-weighted histogram may
+    # drift when episodes have unequal lengths (a constant z is stretched over a
+    # different opportunity count); that drift is reported but not gated.
+    def _episode_z(sig: list[int]) -> int:
+        return int(Counter(sig).most_common(1)[0][0]) if sig else -1
+
+    learned_episode_hist: Counter[int] = Counter(
+        _episode_z(seq) for seq in per_episode.values()
+    )
+    shuffled_episode_hist: Counter[int] = Counter()
+    for cell_key, ep_keys in cells.items():
+        ep_keys_sorted = sorted(ep_keys, key=lambda k: k[2])
+        signatures = [list(per_episode[k]) for k in ep_keys_sorted]
+        h = stable_sha256_text(f"CROSS|{cell_key[0]}|{int(cell_key[1])}")
+        rng2 = random.Random(int(h[:8], 16))
+        n = len(ep_keys_sorted)
+        perm = list(range(n))
+        if len({tuple(s) for s in signatures}) > 1:
+            for _attempt in range(500):
+                rng2.shuffle(perm)
+                if any(signatures[perm[i]] != signatures[i] for i in range(n)):
+                    break
+        for i in range(n):
+            shuffled_episode_hist[_episode_z(signatures[perm[i]])] += 1
+    episode_histogram_preserved = learned_episode_hist == shuffled_episode_hist
+
+    learned_opp_hist = learned_z_histogram_from_traces(learned_t_data)
+    shuffled_opp_hist = shuffled_mapping_z_histogram(shuffled_mapping, learned_t_data)
+
+    mapping_payload = json.dumps(source_to_dest_meta, sort_keys=True)
+    meta = {
+        "control_type": "cross_episode",
+        "shuffle_mapping_hash": stable_sha256_text(mapping_payload),
+        "shuffle_mapping_size": len(unique_keys),
+        "cell_count": len(cells),
+        "reassigned_episode_count": reassigned_episodes,
+        "reassignable_episode_count": reassignable_episodes,
+        "can_reassign": can_reassign,
+        "mean_reassignment_fraction": (
+            float(reassigned_episodes) / len(unique_keys) if unique_keys else 0.0
+        ),
+        "non_constant_episode_count": non_constant_episodes,
+        "episode_histogram_preserved": episode_histogram_preserved,
+        "learned_episode_z_histogram": dict(learned_episode_hist),
+        "shuffled_episode_z_histogram": dict(shuffled_episode_hist),
+        "learned_opportunity_z_histogram": dict(learned_opp_hist),
+        "shuffled_opportunity_z_histogram": dict(shuffled_opp_hist),
+        "opportunity_histogram_preserved": learned_opp_hist == shuffled_opp_hist,
+        "trace_opportunity_count": len(learned_t_data),
+        "cells": cell_meta,
+    }
+    if not episode_histogram_preserved:
+        raise AssertionError(
+            "Cross-episode shuffle changed the episode-level z histogram: "
+            f"learned={dict(learned_episode_hist)} shuffled={dict(shuffled_episode_hist)}"
+        )
+    return shuffled_mapping, meta
+
+
 def check_telemetry_invariants(condition: EvalCondition, trace_data: list[dict[str, Any]], rows: list[dict[str, Any]]) -> None:
     row_by_gk = {}
     for row in rows:

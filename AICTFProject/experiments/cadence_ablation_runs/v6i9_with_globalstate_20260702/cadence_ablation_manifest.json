@@ -1,0 +1,85 @@
+{
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\2v2\\final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+  "conditions": [
+    "current_switching_learned",
+    "learned_initial_no_switch",
+    "uniform_episode_persistent",
+    "fixed_z2",
+    "shuffled_episode_assignment"
+  ],
+  "opponents": [
+    "OP8",
+    "OP10"
+  ],
+  "maps": [
+    "map_b_split_lane"
+  ],
+  "seeds": [
+    3000,
+    3001,
+    3002,
+    3003,
+    3004,
+    3005,
+    3006,
+    3007,
+    3008,
+    3009
+  ],
+  "n_episodes": 100,
+  "trained_cadence": 32,
+  "shuffled_assignment_summary": {
+    "OP8|map_b_split_lane": {
+      "original": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "shuffled": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    "OP10|map_b_split_lane": {
+      "original": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "shuffled": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  }
+}

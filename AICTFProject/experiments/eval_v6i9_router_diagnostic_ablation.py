@@ -34,6 +34,7 @@ from experiments.forced_z_eval.protocol import (  # noqa: E402
 )
 from rl.custom_ppo.diagnostics.frozen_repertoire_hash import compare_frozen_repertoire_hashes  # noqa: E402
 from rl.evaluation.router_ablation import (  # noqa: E402
+    build_cross_episode_shuffled_mapping_from_learned_traces,
     build_shuffled_mapping_from_learned_traces,
     check_telemetry_invariants,
     configure_condition,
@@ -55,6 +56,7 @@ CONDITION_ORDER = (
     "fixed_z2",
     "uniform_random_at_router_opportunities",
     "shuffled_qphi_outputs",
+    "shuffled_qphi_cross_episode",
 )
 TRACE_AUDIT_CONDITION_ORDER = (
     "fixed_z2",
@@ -70,6 +72,7 @@ DISPLAY_NAMES = {
     "uniform_random_at_router_opportunities": "uniform_z",
     "qphi_initial_only_no_switch": "learned_router_start_only",
     "shuffled_qphi_outputs": "shuffled_router",
+    "shuffled_qphi_cross_episode": "shuffled_router_cross_episode",
     "shuffled_qphi_initial_only_no_switch": "shuffled_router_start_only",
 }
 
@@ -457,13 +460,31 @@ def _build_v2_trust_checks(
         "learned_qphi_switching__vs__uniform_random_at_router_opportunities", {}
     )
     learned_vs_shuffled = trace_comparison.get("learned_qphi_switching__vs__shuffled_qphi_outputs", {})
+    learned_vs_cross = trace_comparison.get(
+        "learned_qphi_switching__vs__shuffled_qphi_cross_episode", {}
+    )
 
     learned_summaries = [r for r in trace_summary_rows if r["condition"] == "learned_qphi_switching"]
     shuffled_summaries = [r for r in trace_summary_rows if r["condition"] == "shuffled_qphi_outputs"]
+    cross_summaries = [r for r in trace_summary_rows if r["condition"] == "shuffled_qphi_cross_episode"]
     fixed_summaries = [r for r in trace_summary_rows if r["condition"] == "fixed_z2"]
 
     learned_hist = _z_histogram_from_trace_summaries(learned_summaries)
     shuffled_hist = _z_histogram_from_trace_summaries(shuffled_summaries)
+    cross_hist = _z_histogram_from_trace_summaries(cross_summaries)
+
+    def _episode_level_hist(summaries: list[dict[str, Any]]) -> dict[int, int]:
+        hist: dict[int, int] = {}
+        for row in summaries:
+            tok = str(row.get("initial_z", ""))
+            if tok == "":
+                continue
+            z = int(tok)
+            hist[z] = hist.get(z, 0) + 1
+        return hist
+
+    learned_episode_hist = _episode_level_hist(learned_summaries)
+    cross_episode_hist = _episode_level_hist(cross_summaries)
 
     fixed_z2_rows = [r for r in all_rows if r["condition"] == "fixed_z2"]
     fixed_z2_ok = bool(fixed_z2_rows) and all(
@@ -471,6 +492,13 @@ def _build_v2_trust_checks(
     ) and all(
         not str(r.get("z_sequence", "")) or all(tok == "2" for tok in str(r.get("z_sequence", "")).split())
         for r in fixed_summaries
+    )
+
+    within_episode_shuffle_differs = (
+        float(learned_vs_shuffled.get("same_z_sequence_fraction", 1.0)) < 1.0
+    )
+    cross_episode_shuffle_differs = (
+        float(learned_vs_cross.get("same_z_sequence_fraction", 1.0)) < 1.0
     )
 
     return {
@@ -481,20 +509,25 @@ def _build_v2_trust_checks(
             learned_vs_uniform.get("same_z_sequence_fraction", 1.0)
         )
         < 1.0,
-        "shuffled_mapping_differs_from_learned": float(
-            learned_vs_shuffled.get("same_z_sequence_fraction", 1.0)
-        )
-        < 1.0,
+        "within_episode_shuffle_differs_from_learned": within_episode_shuffle_differs,
+        "cross_episode_shuffle_differs_from_learned": cross_episode_shuffle_differs,
+        # Back-compat alias: the primary testable control is now cross-episode.
+        "shuffled_mapping_differs_from_learned": cross_episode_shuffle_differs,
         "shuffled_latent_histogram_preserved": learned_hist == shuffled_hist,
+        "cross_episode_latent_histogram_preserved": learned_episode_hist == cross_episode_hist,
         "learned_z_histogram": learned_hist,
         "shuffled_z_histogram": shuffled_hist,
+        "cross_episode_z_histogram": cross_hist,
+        "learned_episode_z_histogram": learned_episode_hist,
+        "cross_episode_episode_z_histogram": cross_episode_hist,
         "fixed_z2_always_selects_z2": fixed_z2_ok,
         "frozen_repertoire_hash_match": bool(frozen.get("frozen_tensor_hash_match", False)),
         "v2_trustworthy": (
             seeds_per_cell_ok
             and same_seed_set_across_conditions
             and float(learned_vs_uniform.get("same_z_sequence_fraction", 1.0)) < 1.0
-            and float(learned_vs_shuffled.get("same_z_sequence_fraction", 1.0)) < 1.0
+            and cross_episode_shuffle_differs
+            and (learned_episode_hist == cross_episode_hist)
             and fixed_z2_ok
             and bool(frozen.get("frozen_tensor_hash_match", False))
         ),
@@ -514,11 +547,18 @@ def _build_verdict(
     fixed_z2 = global_s.get("fixed_z2", {}).get("mean_return", float("nan"))
     uniform = global_s.get("uniform_random_at_router_opportunities", {}).get("mean_return", float("nan"))
     shuffled = global_s.get("shuffled_qphi_outputs", {}).get("mean_return", float("nan"))
+    cross_shuffled = global_s.get("shuffled_qphi_cross_episode", {}).get("mean_return", float("nan"))
 
     integrity_holds = bool(frozen.get("frozen_tensor_hash_match", False)) and all(
         bool(row.get("actor_unchanged", False)) for row in integrity_rows
     )
-    beats_shuffled = bool(learned > shuffled) if np.isfinite(learned) and np.isfinite(shuffled) else False
+    beats_within_shuffled = bool(learned > shuffled) if np.isfinite(learned) and np.isfinite(shuffled) else False
+    beats_cross_shuffled = (
+        bool(learned > cross_shuffled) if np.isfinite(learned) and np.isfinite(cross_shuffled) else False
+    )
+    # The cross-episode control is the meaningful "context routing" test; the
+    # within-episode control is degenerate for an episode-constant router.
+    beats_shuffled = beats_cross_shuffled
     no_regression = bool(learned >= fixed_z2) if np.isfinite(learned) and np.isfinite(fixed_z2) else False
     near_fixed_z2 = bool(learned >= fixed_z2 - 0.25) if np.isfinite(learned) and np.isfinite(fixed_z2) else False
     beats_fixed = bool(learned > fixed_z2) if np.isfinite(learned) and np.isfinite(fixed_z2) else False
@@ -557,6 +597,8 @@ def _build_verdict(
         "learned_beats_fixed_z2": beats_fixed,
         "learned_beats_uniform_z": beats_uniform,
         "learned_beats_shuffled_router": beats_shuffled,
+        "learned_beats_within_episode_shuffled": beats_within_shuffled,
+        "learned_beats_cross_episode_shuffled": beats_cross_shuffled,
         "learned_advantage": learned_advantage,
         "cells_learned_beats_fixed_z2": cells_learned_beats_fixed,
         "cells_total": cells_total,
@@ -570,6 +612,12 @@ def _build_verdict(
             else None,
             "learned_minus_shuffled": float(learned - shuffled)
             if np.isfinite(learned) and np.isfinite(shuffled)
+            else None,
+            "learned_minus_within_episode_shuffled": float(learned - shuffled)
+            if np.isfinite(learned) and np.isfinite(shuffled)
+            else None,
+            "learned_minus_cross_episode_shuffled": float(learned - cross_shuffled)
+            if np.isfinite(learned) and np.isfinite(cross_shuffled)
             else None,
         },
         "primary_metric": "mean_return_on_held_out_seeds",
@@ -632,6 +680,17 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
     frozen = compare_frozen_repertoire_hashes(anchor_sd, candidate_sd)
 
     all_conditions = {c.name: c for c in default_conditions(latent_k, allowed_latents, switch_cadence)}
+    all_conditions["shuffled_qphi_cross_episode"] = EvalCondition(
+        name="shuffled_qphi_cross_episode",
+        selection_rule="shuffled_qphi",
+        strategy_interval=switch_cadence,
+        allow_switching=True,
+        description=(
+            "Cross-episode histogram-preserving control: permute which episode "
+            "receives which learned z-signature within each (opponent, seed) cell. "
+            "Breaks context->z alignment even when routing is episode-constant."
+        ),
+    )
     if trace_audit:
         all_conditions = _trace_audit_conditions(all_conditions)
         condition_order = TRACE_AUDIT_CONDITION_ORDER
@@ -662,16 +721,22 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
 
     dynamic_shuffled_mapping: dict[Any, Any] | None = None
     start_shuffled_mapping: dict[Any, Any] | None = None
+    cross_episode_shuffled_mapping: dict[Any, Any] | None = None
+    cross_episode_meta: dict[str, Any] = {}
 
     for cond_name in condition_order:
         condition = all_conditions[cond_name]
         if condition.name == "shuffled_qphi_outputs" and dynamic_shuffled_mapping is None:
             raise RuntimeError("Dynamic shuffled condition requires learned_qphi_switching traces first.")
+        if condition.name == "shuffled_qphi_cross_episode" and cross_episode_shuffled_mapping is None:
+            raise RuntimeError("Cross-episode shuffled condition requires learned_qphi_switching traces first.")
         if condition.name == "shuffled_qphi_initial_only_no_switch" and start_shuffled_mapping is None:
             raise RuntimeError("Start-only shuffled condition requires qphi_initial_only_no_switch traces first.")
         print(f"Running {DISPLAY_NAMES.get(condition.name, condition.name)}...")
         if condition.name == "shuffled_qphi_outputs":
             mapping = dynamic_shuffled_mapping
+        elif condition.name == "shuffled_qphi_cross_episode":
+            mapping = cross_episode_shuffled_mapping
         elif condition.name == "shuffled_qphi_initial_only_no_switch":
             mapping = start_shuffled_mapping
         else:
@@ -693,6 +758,15 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
                 allowed_latents=allowed_latents,
                 switch_cadence=switch_cadence,
                 max_decision_steps=protocol.max_decision_steps,
+            )
+            cross_episode_shuffled_mapping, cross_episode_meta = (
+                build_cross_episode_shuffled_mapping_from_learned_traces(
+                    learned_traces,
+                    latent_k=latent_k,
+                    allowed_latents=allowed_latents,
+                    switch_cadence=switch_cadence,
+                    max_decision_steps=protocol.max_decision_steps,
+                )
             )
         if condition.name == "qphi_initial_only_no_switch":
             learned_start_traces = _trace
@@ -737,6 +811,7 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         "conditions": [DISPLAY_NAMES.get(c, c) for c in condition_order],
         "frozen_integrity": frozen,
         "shuffled_mapping": shuffled_meta,
+        "cross_episode_shuffled_mapping": cross_episode_meta,
         "shuffled_start_mapping": shuffled_start_meta,
         "condition_integrity": integrity_rows,
         "v2_trust_checks": trust_checks,
@@ -772,7 +847,9 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         "unique_episode_seeds_per_cell_ok",
         "same_seed_set_across_conditions",
         "learned_trace_differs_from_uniform",
-        "shuffled_mapping_differs_from_learned",
+        "within_episode_shuffle_differs_from_learned",
+        "cross_episode_shuffle_differs_from_learned",
+        "cross_episode_latent_histogram_preserved",
         "shuffled_latent_histogram_preserved",
         "fixed_z2_always_selects_z2",
         "frozen_repertoire_hash_match",
