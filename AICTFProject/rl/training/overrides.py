@@ -314,6 +314,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.load_path = args.resume
     if getattr(args, "load_weights_only", False):
         cfg.load_weights_only = True
+    if getattr(args, "router_reinitialize_on_load", None) is not None:
+        cfg.router_reinitialize_on_load = str(args.router_reinitialize_on_load).lower() == "true"
     if getattr(args, "allow_active_actor_module_migration", False):
         cfg.allow_active_actor_module_migration = True
     if args.learning_rate is not None:

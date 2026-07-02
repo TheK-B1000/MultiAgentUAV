@@ -1,0 +1,50 @@
+{
+  "N": 600,
+  "z_selection_counts": {
+    "0": 0,
+    "1": 600,
+    "2": 0,
+    "3": 0
+  },
+  "correlation_pearson": 0.7887697667300954,
+  "correlation_spearman": 0.6788585523848677,
+  "sign_agreement": 0.5916666666666667,
+  "wrong_sign_fraction": 0.4083333333333333,
+  "quartile_means_online": {
+    "Q1": -6.993806838989258,
+    "Q2": -2.008484363555908,
+    "Q3": -1.0229054689407349,
+    "Q4": -0.7348875999450684
+  },
+  "quartile_means_oracle": {
+    "Q1": -3.7699716091156006,
+    "Q2": -0.2756141722202301,
+    "Q3": 0.9530993700027466,
+    "Q4": 3.1522891521453857
+  },
+  "online_advantage_mean": -2.690021276473999,
+  "online_advantage_std": 3.591245174407959,
+  "oracle_advantage_mean": 0.01495075412094593,
+  "oracle_advantage_std": 2.914135456085205,
+  "critic_overestimate_bias_mean": 2.7049717903137207,
+  "critic_overestimate_bias_std": 2.209000825881958,
+  "critic_calibration_corr": 0.0007246817855760154,
+  "critic_best_z_agree": 0.28,
+  "mean_V_spread_across_z": 0.11410535126924515,
+  "mean_return_spread_across_z": 6.070732116699219,
+  "V_spread_over_R_spread_ratio": 0.018795978652289234,
+  "per_z_mean_V": {
+    "z0": -1.2673197984695435,
+    "z1": -1.2226753234863281,
+    "z2": -1.318030834197998,
+    "z3": -1.2920547723770142
+  },
+  "per_z_mean_return": {
+    "z0": -4.003945350646973,
+    "z1": -3.912696123123169,
+    "z2": -3.770108938217163,
+    "z3": -4.023838043212891
+  },
+  "mean_log_prob": -1.3090407848358154,
+  "std_log_prob": 0.005362465512007475
+}

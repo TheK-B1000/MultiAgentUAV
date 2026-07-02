@@ -295,6 +295,14 @@ class CustomPPOInferencePolicy:
     def _global_state_tensor(self, obs: Dict[str, np.ndarray], batch: int) -> torch.Tensor:
         raw = obs.get("global_state")
         if raw is None:
+            if self.model.uses_latent_strategy:
+                import warnings
+                warnings.warn(
+                    "_global_state_tensor: 'global_state' missing from obs dict — router will "
+                    "receive all-zero context. Inject env.state() before calling predict(). "
+                    "See run_eval_episodes() line: single['global_state'] = env.state()[0]",
+                    stacklevel=3,
+                )
             return torch.zeros((batch, GLOBAL_STATE_DIM), dtype=torch.float32, device=self.device)
         arr = np.asarray(raw, dtype=np.float32)
         if arr.ndim == 1:
