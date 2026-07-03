@@ -361,6 +361,35 @@ next: the offline best-z predictability probe on the real 35-dim
 decision-time context (separate "context lacks signal" from "router can't
 extract it") before adding opponent/map identity to the context.
 
+**Learned-only preflight (`base_seed=18000`, 8 eps/cell, learned router
+only, `experiments/preflight_learned_trace.py` →
+`artifacts/ab_router_specialize/treatment/preflight_s18000.json`).** Ran a
+cheap 48-episode learned-only trace instead of the full 900-episode
+behavioral exam, to decide whether the cross-episode shuffle is even
+testable. Result confirms the collapse prediction:
+
+```text
+argmax_z_histogram        : {3: 230}   (100% z3, all decisions)
+distinct_z_values         : [3]
+non_constant_episode_count: 0          (no episode ever switches z)
+cross_episode_gate_untestable = true
+```
+
+Verdict: **STOP — do not run the full behavioral exam.** The cross-episode
+shuffle is an identity permutation: every episode plays z3 at every router
+opportunity, so fixed_z2 / uniform / shuffled conditions cannot prove
+contextual routing (nothing to shuffle). Note a tooling lesson: the
+preflight's first auto-verdict was a *false* PROCEED because
+`build_cross_episode_shuffled_mapping_from_learned_traces` returned
+`can_reassign=True` — but that came purely from episodes having different
+*lengths* (`[3,3,3]` vs `[3,3,3,3,3]`), not different z *values*. The
+preflight gate was corrected to require ≥2 distinct z **values**
+(`non_constant_episode_count` / `distinct_z_values`), not length-distinct
+signature tuples. This is the definitive answer for the specialize arm:
+the behavioral gate is untestable; the next lever must create z-value
+variation (offline best-z context probe, or context enrichment), not
+another entropy-knob run.
+
 ### 3.0.3b v6i9 arc-credit *specialize* preset (entropy-balance) — original PENDING_LAUNCH notes
 
 **Preset:** `v6i9_arc_credit_specialize_hardpool` (aliases
