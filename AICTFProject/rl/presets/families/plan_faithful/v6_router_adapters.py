@@ -646,3 +646,52 @@ def apply_plan_faithful_latent_v6i11_q_router_hardpool(cfg: PPOConfig) -> PPOCon
     cfg.experiment_id = "v6i11"
     cfg.run_tag = "v6i11_q_router_hardpool_OP8_OP9_OP10"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i12_advantage_router_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I12 — paired-advantage router: V(context) baseline + A(context, z) residual.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i12_advantage_router_hardpool.
+    Parent preset: v6i11_q_router_hardpool (same arc collection infrastructure).
+    Classification: SUMMER-COMPATIBLE EXTENSION (same frozen-actor, label-free
+    training; only the EXTERNAL regressor changes from Q to V+A pair).
+
+    Research question: does subtracting a context-specific baseline V(context)
+    from the normalized episode return reveal reliable latent-advantage signal?
+    V6I11 used raw paired Q targets, which still carry ~2.6–3.9 std of
+    episode-level variance across opponents and episodes.  V(context) absorbs
+    that component; A(context, z) = normalized_return - stopgrad(V(context))
+    is the latent residual.
+
+    Double-centering (in the external regressor, not the trainer):
+      1. Global: norm_ret = (return - batch_mean) / (batch_std + eps)
+      2. Context: a_target = norm_ret - stopgrad(V(context))
+    Route: argmax_z A(context, z)
+
+    Verdict pass condition (two requirements):
+      * advantage gap CI excludes zero for ≥2 opponents
+      * gap ≥ spread_threshold (default 0.05; lower than Q-router because
+        advantages are V-centered, compressing the raw return scale)
+    Held-out gate (required before promotion):
+      * A-router > cross-episode-shuffled-A-router (decisive)
+      * then A-router > uniform and approaches/beats fixed_z2
+
+    Key changes vs v6i11_q_router_hardpool
+    ---------------------------------------
+    * Experiment script: ``experiments/run_v6i12_advantage_router.py``
+    * External model: ContextualVBaseline + AdvantageRouter (``rl/router/advantage_router.py``)
+    * Trainer-side: IDENTICAL to v6i11 (arc collection unchanged)
+    Trainer settings inherited unchanged:
+      * latent_arc_credit_enabled = True
+      * router_uniform_exploration_prob = 0.5
+      * strategy_interval = 0, latent_resample_every_n = 0
+      * latent_arc_credit_min_len = 1 (arc == episode)
+      * latent_arc_credit_coef = 0.0 (internal router no-op)
+      * router_ent_coef = latent_lam_p = latent_lam_h = latent_strategy_ppo_coef = 0.0
+    """
+    cfg = apply_plan_faithful_latent_v6i11_q_router_hardpool(cfg)
+    cfg.experiment_id = "v6i12"
+    cfg.run_tag = "v6i12_advantage_router_hardpool_OP8_OP9_OP10"
+    return cfg
