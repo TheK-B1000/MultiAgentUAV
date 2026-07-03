@@ -1024,6 +1024,79 @@ verdict is at least `WEAK_SEPARATION`, run the held-out evaluator above; add
 sequence. Snapshot regenerated (adds the 3 v6i11 aliases only; no other preset
 changed).
 
+### 3.11 v6i12 paired-advantage router — `RUNNING` (20-update diagnostic; smoke PASSED all pipeline gates)
+
+**Scientific delta vs v6i11 (plain English):** v6i11 regressed the *raw*
+normalized episode return `Q(context, z)`; its 15-update diagnostic was a clean
+`FLAT` because the ~2.6–3.9 std of episode-level return variance swamped the
+0.15–0.26 per-z mean differences, so best-vs-second bootstrap CIs included zero.
+v6i12 keeps the identical data-collection contract and adds a double-centering
+external regressor:
+
+```text
+1. Global:  norm_ret = (episode_return - batch_mean) / (batch_std + eps)
+2. Context: a_target = norm_ret - stopgrad(V(context))
+Route: argmax_z A(context, z)
+```
+
+`V(context)` (a `ContextualVBaseline` MLP) absorbs the context-level return
+component; `A(context, z)` (an `AdvantageRouter` MLP) isolates the latent
+residual. This matches the original oracle evidence, which was a within-context
+*paired* contrast, not a raw between-episode mean.
+
+**Fidelity classification:** SUMMER-COMPATIBLE EXTENSION. The v6i12 preset
+(`apply_plan_faithful_latent_v6i12_advantage_router_hardpool`) re-parents from
+`v6i11_q_router_hardpool` with a resolved-config diff of **exactly two keys**
+(`experiment_id`, `run_tag`); the trainer-side arc-collection contract is
+byte-identical (frozen actor, episode-persistent one-z-per-episode, 50 % uniform
+exploration, `latent_arc_credit_coef = router_ent_coef = latent_lam_h =
+latent_lam_p = 0`). All learning is in the EXTERNAL diagnostic model from online
+sampled returns — no forced-z oracle labels, no best-z supervision, no
+opponent-ID prediction head. Pinned by `tests/test_v6i12_advantage_router.py`
+(`test_minimal_diff_vs_v6i11`, 11 cases total).
+
+**Aliases:** `v6i12`, `v6i12_advantage_router`,
+`v6i12_advantage_router_hardpool`,
+`plan_faithful_latent_v6i12_advantage_router_hardpool`. Experiment
+`experiments/run_v6i12_advantage_router.py`; external model
+`rl/router/advantage_router.py` (`ContextualVBaseline`, `AdvantageRouter`,
+`train_advantage_router`, `advantage_gap_ci`, `advantage_matrix_from_replay`).
+
+**1-update smoke (2026-07-03, `artifacts/v6i12_advantage_router_smoke_seed1`):**
+PASSED every pipeline/wiring gate — `records_before=460`,
+`records_after=0`, replay `0→460`, `dup_rejected=0`,
+`terminal_finalized_fraction=1.0`, all four z sampled, V/A losses finite
+(`0.995`/`0.367`), `v_grad_norm=0.047`, `a_grad_norm=0.110`, frozen-actor hash
+unchanged. **Caveat:** the headline variance-reduction metric was null at
+update 1 — `baseline_r2 = 0.0008`, `advantage_target_std = 0.9995` (vs the
+unit-std normalized return). That is expected with only 460 samples over 20
+gradient steps; the mechanism is proven correct by the unit test (drives
+`baseline_r2 > 0.5`, `adv_target_std < 0.9` on context-predictive data). Whether
+the *real* episode-start context can predict episode return is precisely what
+the 20-update run tests.
+
+**Leading indicator to watch:** `baseline_r2` across updates. If it climbs
+above ~0 (V absorbs return variance) and `advantage_target_std` falls below 1.0,
+the double-centering is working and advantage gap CIs may survive. If `baseline_r2`
+stays near zero, that is the "episode-start context alone is too weak/noisy"
+outcome — the next fix is adding `map_id` and possibly a history encoder, NOT
+returning to PPO-router collapse.
+
+**Verdict / promotion contract:** identical 5-state semantics as v6i11
+(`INVALID`/`INSUFFICIENT_DATA`/`FLAT`/`WEAK_SEPARATION`/`SEPARATING`), scored on
+the advantage gap CI (spread threshold lowered to 0.05 because advantages are
+V-centered). `SEPARATING`/`WEAK_SEPARATION` → `SEPARATING_CANDIDATE` only;
+promotion still requires the held-out prospective gate
+(`A-router > cross-episode-shuffled-A-router`, then `> uniform`, then
+approaches/beats fixed-z2). Held-out evaluator to be built only after a
+`WEAK_SEPARATION`-or-better verdict; `map_id` instrumentation deferred until
+after the diagnostic.
+
+**Next step:** await the running 20-update diagnostic
+(`artifacts/v6i12_advantage_router/summary.json`, seed 1). Judge on the
+`baseline_r2` trajectory and whether ≥2 opponents' advantage gap CIs exclude
+zero.
+
 ### 3.9-orig v6i10 episode-router exploration preset (original PENDING_SMOKE notes)
 
 **Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as

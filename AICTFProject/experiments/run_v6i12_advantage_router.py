@@ -7,8 +7,10 @@ Fixes the noise problem in V6I11 raw-return Q targets by separating:
 
 Algorithm
 ---------
-1. Build trainer with preset ``v6i11_q_router_hardpool`` (episode-persistent,
-   50 % uniform exploration, frozen actor, arc credit data collection).
+1. Build trainer with preset ``v6i12_advantage_router_hardpool`` (a thin alias
+   of ``v6i11_q_router_hardpool``: identical episode-persistent, 50 % uniform
+   exploration, frozen actor, arc-credit data collection; differs only in
+   experiment_id/run_tag).
 
 2. Per update:
    a. Rollout (frozen actor, 50/50 epsilon-greedy z).
@@ -83,7 +85,11 @@ from rl.custom_ppo.diagnostics.arc_credit_smoke import (  # noqa: E402
 )
 from rl.global_state import GLOBAL_STATE_DIM  # noqa: E402
 
-_PRESET = "v6i11_q_router_hardpool"
+# v6i12 preset resolves identically to v6i11_q_router_hardpool except for
+# experiment_id/run_tag (pinned by tests/test_v6i12_advantage_router.py::
+# V6i12PresetContractTests.test_minimal_diff_vs_v6i11).  Using the v6i12 alias
+# makes the launch banner and run_tag advertise the actual experiment.
+_PRESET = "v6i12_advantage_router_hardpool"
 _N_OPPONENTS = 3
 _OPPONENT_ID_TO_IDX = {7: 0, 8: 1, 9: 2}
 _LATENT_K = 4
