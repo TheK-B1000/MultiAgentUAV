@@ -179,6 +179,8 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i4_router_ablation_protocol` | `v6i2_staged_team_intent_curriculum` | `SUMMER-PLAN-FAITHFUL EVALUATION-ONLY` | v6i4 is a Summer-plan-faithful, evaluation-only router-ablation protocol over a frozen, Phase-A-promoted v6i2 checkpoint. It is currently planned/pending. No parameters are trained or updated. |
 | `v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases `v6i9_arc_credit_feedforward`, `plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`) | `v6i9_mapaware_router_feedforward_hardpool` | `SUMMER-COMPATIBLE EXTENSION` (arc-credit row) | Feedforward router A/B treatment. Resolved diff vs the feedforward control is exactly four keys: `latent_arc_credit_enabled` False→True, `latent_arc_credit_baseline` context_value→running_mean, `latent_strategy_ppo_coef` 0.1→0.0 (removes the biased critic-based router advantage), and `run_tag`. Router architecture, 35-dim context, strategy interval, LR, entropy coef, opponent/map pool, frozen actor + z-specific params, seed, and budget are held identical. Pinned by `tests/test_v6i9_arc_credit_feedforward.py`. Not a paper-faithful row (arc credit is the v3i19 post-Summer channel). |
 
+| `v6i10_episode_router_explore_hardpool` (aliases `v6i10`, `v6i10_episode_router_explore`, `latent_v6i10_episode_router_explore_hardpool`, `plan_faithful_latent_v6i10_episode_router_explore_hardpool`) | `v6i9_mapaware_router_feedforward_hardpool` | `SUMMER-COMPATIBLE EXTENSION` | Feedforward episode-router experiment over the frozen v6i9 repertoire. It disables mid-episode router decisions, replaces the critic-based router PPO term with one episode-long running-mean arc-credit record, lowers router LR, adds training-only 20 percent uniform behavior exploration, and uses marginal coverage. It adds no labels, opponent IDs, oracle-z targets, auxiliary heads, forced-z curriculum, or actor training. Pinned by `tests/test_v6i10_episode_router_explore.py`. |
+
 ---
 
 ## 4. Deprecated naming surface (kept reachable, do not extend)
@@ -680,6 +682,47 @@ evaluated on disjoint test seeds.
 `posthoc_global_fixed_oracle`, `posthoc_opponent_oracle`, and
 `posthoc_episode_oracle` are derived only after the fixed-z sweep and
 are non-deployable upper bounds.
+
+### 6.18 v6i10_episode_router_explore_hardpool (SUMMER-COMPATIBLE EXTENSION)
+
+v6i10 inherits `v6i9_mapaware_router_feedforward_hardpool` directly. The
+scientific delta is to test the simplest dispatch problem first: observe
+the legal initial context, choose one latent, hold it for the episode,
+and credit the choice with episode return against a running mean. Actor
+and z-specific repertoire parameters remain frozen by the inherited
+`v6i9_training_stage = "router"` and `router_freeze_actor = True`.
+
+Resolved-config diff vs `v6i9_mapaware_router_feedforward_hardpool` is
+exactly:
+`{experiment_id, h_mode, latent_arc_credit_baseline,
+latent_arc_credit_enabled, latent_arc_credit_min_len,
+latent_entropy_anneal_end, latent_entropy_anneal_start,
+latent_entropy_mode, latent_entropy_objective, latent_lam_h,
+latent_lam_h_end, latent_lam_p, latent_resample_every_n,
+latent_strategy_ppo_coef, learning_rate, router_ent_coef,
+router_uniform_exploration_prob, run_tag, strategy_interval}`.
+
+| Field | Feedforward parent value | This preset | Note |
+|-------|--------------------------|-------------|------|
+| `experiment_id` | `v6i9` | `v6i10` | Artifact and protocol identity. |
+| `latent_resample_every_n` / `strategy_interval` | `32` / `32` | `0` / `0` | Episode-start router decision only. |
+| `latent_strategy_ppo_coef` | `0.10` | `0.0` | Removes the critic-based router PPO channel. |
+| `latent_arc_credit_enabled` | `False` | `True` | Uses episode-long arc credit. |
+| `latent_arc_credit_baseline` | `context_value` | `running_mean` | Detached running-mean return baseline. |
+| `latent_arc_credit_min_len` | `32` | `1` | Terminal episode arcs are accepted. |
+| `learning_rate` | parent value | `1e-4` | Slower router update. |
+| `router_uniform_exploration_prob` | `0.0` | `0.20` | Training-only behavior mixture; deterministic eval uses q_phi directly. |
+| `router_ent_coef` | `0.005` | `0.002` | Lower conditional router entropy. |
+| `latent_entropy_mode` / `h_mode` | parent values | `marginal` / `marginal` | Runtime coverage path is marginal. |
+| `latent_entropy_objective` | parent value | `maximize` | Maximizes marginal coverage. |
+| `latent_lam_h` / `latent_lam_h_end` | parent values | `0.015` / `0.015` | Strong fixed marginal coverage coefficient. |
+| `latent_lam_p` | parent value | `0.0` | Persistence is irrelevant with one decision per episode. |
+| `run_tag` | parent tag | `v6i10_episode_router_explore_hardpool_OP8_OP9_OP10` | Artifact namespace. |
+
+The aliases are `v6i10`, `v6i10_episode_router_explore_hardpool`,
+`v6i10_episode_router_explore`,
+`latent_v6i10_episode_router_explore_hardpool`, and
+`plan_faithful_latent_v6i10_episode_router_explore_hardpool`.
 
 ---
 

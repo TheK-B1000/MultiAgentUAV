@@ -774,6 +774,53 @@ honest next step *only* if v5i4 fails its gates (§2.1 eval matrix +
 a paired-bootstrap-significant delta, v4i4post is icing and is
 deprioritized.
 
+### 3.9 v6i10 episode-router exploration preset (IMPLEMENTED, PENDING_SMOKE)
+
+**Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
+`v6i10_episode_router_explore_hardpool` (aliases `v6i10`,
+`v6i10_episode_router_explore`,
+`latent_v6i10_episode_router_explore_hardpool`,
+`plan_faithful_latent_v6i10_episode_router_explore_hardpool`),
+`SUMMER-COMPATIBLE EXTENSION`, parent
+`v6i9_mapaware_router_feedforward_hardpool`.
+
+**Scientific delta:** simplify router learning to one legal initial
+context, one `z`, one full episode, one return. The v6i9 repertoire
+checkpoint remains the experimental anchor:
+`final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip`.
+Actor and z-specific repertoire parameters stay frozen through
+`v6i9_training_stage = "router"` and `router_freeze_actor = True`.
+
+**Resolved diff vs feedforward parent:** exactly
+`{experiment_id, h_mode, latent_arc_credit_baseline,
+latent_arc_credit_enabled, latent_arc_credit_min_len,
+latent_entropy_anneal_end, latent_entropy_anneal_start,
+latent_entropy_mode, latent_entropy_objective, latent_lam_h,
+latent_lam_h_end, latent_lam_p, latent_resample_every_n,
+latent_strategy_ppo_coef, learning_rate, router_ent_coef,
+router_uniform_exploration_prob, run_tag, strategy_interval}`.
+
+**Mechanism contract:** `latent_resample_every_n = 0`,
+`strategy_interval = 0`, `latent_strategy_ppo_coef = 0.0`,
+`latent_arc_credit_enabled = True`,
+`latent_arc_credit_baseline = "running_mean"`,
+`latent_arc_credit_min_len = 1`, `learning_rate = 1e-4`,
+`router_uniform_exploration_prob = 0.20`, `router_ent_coef = 0.002`,
+`latent_lam_h = latent_lam_h_end = 0.015`,
+`latent_entropy_mode = "marginal"`, and
+`latent_lam_p = 0.0`.
+
+**Immediate smoke gates:** all four z sampled in the behavior policy,
+router gradients positive, frozen actor/z hashes unchanged, episode
+credit finite, running-mean baseline active, and behavior log-probs
+computed under `0.8 * q_phi + 0.2 * Uniform` rather than raw q_phi.
+
+**Five-update mechanism gates:** no deterministic z above 80 percent for
+two consecutive updates, at least two argmax z values, high marginal
+entropy, falling conditional entropy, MI proxy above noise, and no
+exploding logit margin. Hard stop: one z reaches 100 percent argmax for
+two consecutive updates.
+
 ---
 
 ## 4. Open decisions

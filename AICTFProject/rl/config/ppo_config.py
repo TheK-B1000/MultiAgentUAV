@@ -112,6 +112,10 @@ class PPOConfig:
     router_allowed_latents: tuple[int, ...] = field(default_factory=tuple)
     router_freeze_actor: bool = False
     router_reinitialize_on_load: bool = False
+    # Training-only router behavior mixture:
+    #   p_train(z|s) = (1 - eps) * q_phi(z|s) + eps * Uniform(allowed z).
+    # Deterministic evaluation still uses q_phi directly.
+    router_uniform_exploration_prob: float = 0.0
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True

@@ -425,6 +425,61 @@ def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool
     return cfg
 
 
+def apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """V6I10: feedforward episode router over the frozen v6i9 repertoire.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i10_episode_router_explore_hardpool.
+    Parent preset: v6i9_mapaware_router_feedforward_hardpool.
+    Classification: SUMMER-COMPATIBLE EXTENSION.
+    Research question: can a one-decision-per-episode feedforward router learn
+    useful dispatch over the validated frozen repertoire before adding history
+    encoders, dynamic switching, or opponent-response models?
+
+    Delta table vs parent:
+        Actor conditioning: residual adapters remain frozen, intended change no.
+        Router task PPO: on -> off, intended change yes.
+        Episode credit: running-mean arc credit on one episode-long arc, intended
+        change yes.
+        Arc credit: off -> running_mean, intended change yes.
+        Forced-z schedule: off, intended change no.
+        Persistence: 0.02 -> 0.0, intended change yes.
+        Entropy: conditional -> marginal coverage, intended change yes.
+        Resampling: interval 32 -> episode-start only, intended change yes.
+        Exploration: 0.0 -> 0.20 behavior mixture, intended change yes.
+
+    This is not a paper-faithful row: it changes cadence, credit aggregation,
+    entropy strength, and behavior-policy exploration. It remains label-free:
+    no opponent IDs, oracle z labels, supervised best-z targets, aux heads, or
+    forced-z curriculum are added.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg)
+    cfg.latent_resample_every_n = 0
+    cfg.strategy_interval = 0
+    cfg.latent_lam_p = 0.0
+    cfg.latent_strategy_ppo_coef = 0.0
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_baseline = "running_mean"
+    cfg.latent_arc_credit_coef = 1.0
+    cfg.latent_arc_credit_min_len = 1
+    cfg.learning_rate = 1e-4
+    cfg.router_ent_coef = 0.002
+    cfg.router_uniform_exploration_prob = 0.20
+    cfg.latent_lam_h = 0.015
+    cfg.latent_lam_h_end = 0.015
+    cfg.latent_entropy_anneal_start = 0
+    cfg.latent_entropy_anneal_end = 0
+    cfg.latent_entropy_mode = "marginal"
+    cfg.h_mode = "marginal"
+    cfg.latent_entropy_objective = "maximize"
+    cfg.experiment_id = "v6i10"
+    cfg.run_tag = "v6i10_episode_router_explore_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg: PPOConfig) -> PPOConfig:
     """V6I9 Stage 3 feedforward — state-only MLP router over frozen repertoire.
 

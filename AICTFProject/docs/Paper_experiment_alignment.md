@@ -424,6 +424,31 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i10 / episode-router exploration extension:** Registered
+  `apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool`
+  (aliases `v6i10`, `v6i10_episode_router_explore_hardpool`,
+  `v6i10_episode_router_explore`,
+  `latent_v6i10_episode_router_explore_hardpool`, and the long
+  `plan_faithful_latent_...` alias) built directly on
+  `v6i9_mapaware_router_feedforward_hardpool`. Classification:
+  `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. The resolved
+  diff vs the feedforward parent is exactly
+  `{experiment_id, h_mode, latent_arc_credit_baseline,
+  latent_arc_credit_enabled, latent_arc_credit_min_len,
+  latent_entropy_anneal_end, latent_entropy_anneal_start,
+  latent_entropy_mode, latent_entropy_objective, latent_lam_h,
+  latent_lam_h_end, latent_lam_p, latent_resample_every_n,
+  latent_strategy_ppo_coef, learning_rate, router_ent_coef,
+  router_uniform_exploration_prob, run_tag, strategy_interval}`. The
+  preset holds one z for the whole episode, freezes the validated v6i9
+  repertoire, replaces critic-based router PPO with running-mean
+  episode arc credit, adds training-only 20 percent uniform exploration,
+  uses marginal coverage, and keeps labels/opponent IDs/oracle-z
+  supervision/aux heads/forced-z curriculum off. Added
+  `PPOConfig.router_uniform_exploration_prob`, wired behavior log-probs
+  through the same mixture used to sample z, added
+  `tests/test_v6i10_episode_router_explore.py`, and regenerated
+  `tests/preset_snapshots.json`.
 - **v6i9 feedforward running-mean arc-credit treatment (A/B):** Registered
   `apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`
   (aliases `v6i9_arc_credit_running_mean_feedforward_hardpool`,

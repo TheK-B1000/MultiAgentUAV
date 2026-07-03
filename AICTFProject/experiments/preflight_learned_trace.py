@@ -144,6 +144,7 @@ def main() -> int:
         )
 
     argmax_hist = Counter(int(t["selected_z"]) for t in traces)
+    distinct_z_values = sorted({int(t["selected_z"]) for t in traces})
 
     # --- Cross-episode testability (the corrected gate) ---
     try:
@@ -155,20 +156,28 @@ def main() -> int:
             require_min_contexts=False,
         )
         can_reassign = bool(cross_meta.get("can_reassign", False))
+        non_constant = int(cross_meta.get("non_constant_episode_count", 0) or 0)
         cross_summary = {
             "can_reassign": can_reassign,
             "cell_count": cross_meta.get("cell_count"),
             "reassignable_episode_count": cross_meta.get("reassignable_episode_count"),
             "reassigned_episode_count": cross_meta.get("reassigned_episode_count"),
-            "non_constant_episode_count": cross_meta.get("non_constant_episode_count"),
+            "non_constant_episode_count": non_constant,
             "episode_histogram_preserved": cross_meta.get("episode_histogram_preserved"),
         }
     except Exception as exc:  # noqa: BLE001
         can_reassign = False
+        non_constant = 0
         cross_summary = {"error": str(exc)}
 
-    total_distinct = len({s for s in episode_sig.values()})
-    gate_untestable = (not can_reassign) or total_distinct < 2
+    # A shuffle is only BEHAVIORALLY testable if there is genuine z-VALUE variation
+    # to permute. Signature tuples that differ only in episode LENGTH (e.g. [3,3,3]
+    # vs [3,3,3,3,3]) are the "identity shuffle" trap: reassigning length-varying
+    # all-z3 sequences never changes the z emitted at any decision point. The gate
+    # therefore requires >=2 distinct z VALUES across the run; can_reassign /
+    # length-distinct signatures alone are insufficient.
+    length_distinct = len({s for s in episode_sig.values()})
+    gate_untestable = len(distinct_z_values) < 2
 
     report = {
         "checkpoint": protocol.checkpoint,
@@ -177,17 +186,22 @@ def main() -> int:
         "n_episodes": len(episode_sig),
         "n_decisions": len(traces),
         "argmax_z_histogram": {int(k): int(v) for k, v in sorted(argmax_hist.items())},
-        "global_distinct_episode_signatures": total_distinct,
+        "distinct_z_values": distinct_z_values,
+        "global_distinct_episode_signatures_by_length": length_distinct,
         "per_cell": per_cell,
         "cross_episode": cross_summary,
         "cross_episode_gate_untestable": bool(gate_untestable),
         "recommendation": (
-            "STOP: cross-episode shuffle is untestable (learned router has no "
-            "contextual variation to shuffle). The full behavioral exam cannot "
-            "prove contextual routing."
+            "STOP: cross-episode shuffle is untestable. The learned router emitted "
+            f"only z-value(s) {distinct_z_values} across every decision "
+            f"(non_constant_episode_count={non_constant}); there is no contextual "
+            "z-variation to shuffle. Any 'distinct signatures' differ only in "
+            "episode length, so the shuffle is an identity permutation. The full "
+            "behavioral exam cannot prove contextual routing."
             if gate_untestable
-            else "PROCEED: shuffle is testable (>=2 distinct episode signatures and "
-            "can_reassign=True). Running the full behavioral exam is justified."
+            else "PROCEED: shuffle is behaviorally testable (>=2 distinct z VALUES "
+            f"{distinct_z_values} and can_reassign=True). Running the full "
+            "behavioral exam is justified."
         ),
     }
 
@@ -196,9 +210,10 @@ def main() -> int:
     print(f"  episodes                 : {report['n_episodes']}")
     print(f"  decisions                : {report['n_decisions']}")
     print(f"  argmax z histogram       : {report['argmax_z_histogram']}")
-    print(f"  distinct episode sigs    : {report['global_distinct_episode_signatures']}")
-    print(f"  can_reassign             : {cross_summary.get('can_reassign')}")
-    print(f"  reassignable_episodes    : {cross_summary.get('reassignable_episode_count')}")
+    print(f"  distinct z VALUES        : {distinct_z_values}")
+    print(f"  non_constant episodes    : {non_constant}")
+    print(f"  length-distinct sigs     : {length_distinct} (NOT a z-variation signal)")
+    print(f"  can_reassign (raw)       : {cross_summary.get('can_reassign')}")
     print(f"  cross_episode_untestable : {report['cross_episode_gate_untestable']}")
     for c in per_cell:
         print(

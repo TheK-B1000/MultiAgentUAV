@@ -591,35 +591,42 @@ class RouterSamplingState:
                 resolve_v6i1_exploration_epsilon_current,
             )
 
+            epsilon = max(
+                0.0,
+                min(1.0, float(getattr(trainer.cfg, "router_uniform_exploration_prob", 0.0) or 0.0)),
+            )
             if is_v6i1_staged_trainer(trainer):
-                epsilon = float(resolve_v6i1_exploration_epsilon_current(trainer))
-                if epsilon > 0.0:
-                    router_resample = resample_mask & (~self.host.v6i1_episode_rehearsal)
-                    if bool(router_resample.any().item()):
-                        ridx = torch.where(router_resample)[0]
-                        gen = trainer.model._sampling_gen_strategy
-                        rand_kwargs = {"dtype": torch.float32, "device": device}
-                        if gen is not None:
-                            rand_kwargs["generator"] = gen
-                        explore_draw = torch.rand((int(ridx.numel()),), **rand_kwargs)
-                        explore_local = explore_draw < epsilon
-                        if bool(explore_local.any().item()):
-                            explore_idx = ridx[explore_local]
-                            uniform_logits = masked_uniform_logits(
-                                int(explore_idx.numel()),
-                                cfg=trainer.cfg,
-                                latent_k=int(trainer.latent_k),
-                                dtype=torch.float32,
-                                device=device,
-                            )
-                            uniform_dist = Categorical(logits=uniform_logits)
-                            explore_z = trainer.model._categorical_argmax_or_sample(
-                                uniform_dist,
-                                deterministic=False,
-                                generator=trainer.model._sampling_gen_strategy,
-                            ).long()
-                            z_idx[explore_idx] = explore_z
-                            self.host.current_z = z_idx.clone()
+                epsilon = max(epsilon, float(resolve_v6i1_exploration_epsilon_current(trainer)))
+            if epsilon > 0.0:
+                rehearsal = getattr(self.host, "v6i1_episode_rehearsal", None)
+                router_resample = resample_mask
+                if rehearsal is not None:
+                    router_resample = router_resample & (~rehearsal)
+                if bool(router_resample.any().item()):
+                    ridx = torch.where(router_resample)[0]
+                    gen = trainer.model._sampling_gen_strategy
+                    rand_kwargs = {"dtype": torch.float32, "device": device}
+                    if gen is not None:
+                        rand_kwargs["generator"] = gen
+                    explore_draw = torch.rand((int(ridx.numel()),), **rand_kwargs)
+                    explore_local = explore_draw < epsilon
+                    if bool(explore_local.any().item()):
+                        explore_idx = ridx[explore_local]
+                        uniform_logits = masked_uniform_logits(
+                            int(explore_idx.numel()),
+                            cfg=trainer.cfg,
+                            latent_k=int(trainer.latent_k),
+                            dtype=torch.float32,
+                            device=device,
+                        )
+                        uniform_dist = Categorical(logits=uniform_logits)
+                        explore_z = trainer.model._categorical_argmax_or_sample(
+                            uniform_dist,
+                            deterministic=False,
+                            generator=trainer.model._sampling_gen_strategy,
+                        ).long()
+                        z_idx[explore_idx] = explore_z
+                        self.host.current_z = z_idx.clone()
 
         if bool(forced_active.any().item()):
             z_idx[forced_active] = self.host.episode_forced_z_id[forced_active]
@@ -682,8 +689,12 @@ class RouterSamplingState:
         )
 
         epsilon = 0.0
+        epsilon = max(
+            epsilon,
+            max(0.0, min(1.0, float(getattr(trainer.cfg, "router_uniform_exploration_prob", 0.0) or 0.0))),
+        )
         if is_v6i1_staged_trainer(trainer):
-            epsilon = float(resolve_v6i1_exploration_epsilon_current(trainer))
+            epsilon = max(epsilon, float(resolve_v6i1_exploration_epsilon_current(trainer)))
         router_probs = torch.softmax(z_logits.detach(), dim=-1)
         behavior_probs = router_probs.clone()
         if epsilon > 0.0:
