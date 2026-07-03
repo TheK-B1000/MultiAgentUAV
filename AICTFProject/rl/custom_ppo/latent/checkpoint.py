@@ -54,6 +54,8 @@ def _component_router_runtime(state: Any) -> dict[str, Any]:
         "router_optimizer_step_count": int(state.router_optimizer_step_count),
         "macro_return_running_mean": float(getattr(state, "macro_return_running_mean", 0.0)),
         "macro_return_running_count": int(getattr(state, "macro_return_running_count", 0)),
+        "arc_return_running_mean": float(getattr(state, "arc_return_running_mean", 0.0)),
+        "arc_return_running_count": int(getattr(state, "arc_return_running_count", 0)),
         "selector_hidden": getattr(state, "selector_hidden", None),
         "v6i1_episode_rehearsal": getattr(state, "v6i1_episode_rehearsal", None),
     }
@@ -137,6 +139,7 @@ def _restore_flat_v6i1_fields(state: Any, payload: dict[str, Any]) -> None:
         ("cf_return_mean", "cf_return_mean", float),
         ("cf_return_var", "cf_return_var", float),
         ("macro_return_running_mean", "macro_return_running_mean", float),
+        ("arc_return_running_mean", "arc_return_running_mean", float),
         ("jsd_gate_consecutive_updates", "jsd_gate_consecutive_updates", int),
         ("pairwise_ema_valid_updates", "pairwise_ema_valid_updates", int),
         ("pairwise_ema_last_update_step", "pairwise_ema_last_update_step", int),
@@ -149,6 +152,7 @@ def _restore_flat_v6i1_fields(state: Any, payload: dict[str, Any]) -> None:
         ("macro_pair_jsd_last_update_step", "macro_pair_jsd_last_update_step", int),
         ("router_optimizer_step_count", "router_optimizer_step_count", int),
         ("macro_return_running_count", "macro_return_running_count", int),
+        ("arc_return_running_count", "arc_return_running_count", int),
     ):
         if key in payload:
             setattr(state, attr, cast(payload[key]))

@@ -1104,6 +1104,7 @@ def build_cross_episode_shuffled_mapping_from_learned_traces(
         )
 
     per_episode: dict[tuple[str, int, int], list[int]] = {}
+    episode_map: dict[tuple[str, int, int], str] = {}
     for t_item in learned_t_data:
         ep_key = (
             str(t_item["opponent"]).upper(),
@@ -1111,6 +1112,7 @@ def build_cross_episode_shuffled_mapping_from_learned_traces(
             int(t_item["episode_index"]),
         )
         per_episode.setdefault(ep_key, [])
+        episode_map.setdefault(ep_key, str(t_item.get("map", "") or ""))
     # Fill ordered per-episode z sequences.
     ordered: dict[tuple[str, int, int], list[tuple[int, int]]] = {}
     for t_item in learned_t_data:
@@ -1131,9 +1133,17 @@ def build_cross_episode_shuffled_mapping_from_learned_traces(
             f"Cross-episode shuffle requires at least 2 contexts, found {len(unique_keys)}."
         )
 
-    cells: dict[tuple[str, int], list[tuple[str, int, int]]] = {}
+    # Group episodes that share the same (opponent, map) so permuting which
+    # episode receives which learned z-signature breaks the context->z
+    # association while preserving the per-cell marginal. Keying by
+    # (opponent, seed) is WRONG: the eval assigns a unique seed per episode, so
+    # that key yields singleton cells and the shuffle degenerates into a
+    # structural no-op (can_reassign=False) regardless of the router. Map is
+    # threaded through the opportunity trace; when absent we fall back to
+    # grouping by opponent alone (still non-singleton) rather than per seed.
+    cells: dict[tuple[str, str], list[tuple[str, int, int]]] = {}
     for key in unique_keys:
-        cells.setdefault((key[0], key[1]), []).append(key)
+        cells.setdefault((key[0], episode_map.get(key, "")), []).append(key)
 
     max_possible_opps = 1 + max_decision_steps // max(1, switch_cadence or 64)
     safe_max_opps = max(20, max_possible_opps + 5)
@@ -1152,7 +1162,7 @@ def build_cross_episode_shuffled_mapping_from_learned_traces(
             if len(set(sig)) > 1:
                 non_constant_episodes += 1
         n = len(ep_keys_sorted)
-        h = stable_sha256_text(f"CROSS|{cell_key[0]}|{int(cell_key[1])}")
+        h = stable_sha256_text(f"CROSS|{cell_key[0]}|{cell_key[1]}")
         rng = random.Random(int(h[:8], 16))
 
         perm = list(range(n))
@@ -1217,7 +1227,7 @@ def build_cross_episode_shuffled_mapping_from_learned_traces(
         reassigned_episodes += cell_reassigned
         cell_meta.append(
             {
-                "cell": [cell_key[0], int(cell_key[1])],
+                "cell": [cell_key[0], cell_key[1]],
                 "episodes": n,
                 "reassigned": cell_reassigned,
                 "distinct_signatures": distinct,
@@ -1246,7 +1256,7 @@ def build_cross_episode_shuffled_mapping_from_learned_traces(
     for cell_key, ep_keys in cells.items():
         ep_keys_sorted = sorted(ep_keys, key=lambda k: k[2])
         signatures = [list(per_episode[k]) for k in ep_keys_sorted]
-        h = stable_sha256_text(f"CROSS|{cell_key[0]}|{int(cell_key[1])}")
+        h = stable_sha256_text(f"CROSS|{cell_key[0]}|{cell_key[1]}")
         rng2 = random.Random(int(h[:8], 16))
         n = len(ep_keys_sorted)
         perm = list(range(n))

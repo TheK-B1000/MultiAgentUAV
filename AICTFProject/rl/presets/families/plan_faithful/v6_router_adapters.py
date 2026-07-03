@@ -284,6 +284,98 @@ def apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg: PPOConf
     return cfg
 
 
+def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 treatment: arc-credit with running_mean baseline, BPTT PPO disabled.
+
+    A/B counterpart to ``v6i9_mapaware_router_sparse_hardpool`` (control).
+    Identical in every way EXCEPT the router credit channel:
+
+    Control:
+        latent_strategy_ppo_coef=0.10  (actor-GAE BPTT PPO active)
+        latent_arc_credit_enabled=False
+
+    Treatment (this preset):
+        latent_strategy_ppo_coef=0.0   (actor-GAE BPTT PPO disabled)
+        latent_arc_credit_enabled=True
+        latent_arc_credit_baseline="running_mean"
+
+    Motivation from credit audit (2026-07-02):
+    - Actor-GAE critic overestimates V(s_0) by +2.71 units on average.
+    - RouterSequenceUpdater normalization is per-chunk over 1-2 decisions;
+      for single-decision chunks (>50% of all chunks with strategy_interval=32)
+      normalization is disabled entirely by the numel>1 guard.
+    - The +2.705 offset therefore survives into the PPO loss for most updates,
+      producing chronically negative advantages and 41% sign flips.
+    - Arc credit with running_mean baseline auto-centers advantages (EMA tracks
+      actual game returns), removing the absolute bias without changing any
+      other hyperparameter.
+
+    BPTT path still contributes entropy and persistence regularization
+    (router_ent_coef * ent_loss + latent_lam_p * persist_loss); only the
+    PPO term (router_ppo_coef * ppo_loss) is zeroed.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg)
+    # Disable actor-GAE PPO from BPTT (the source of the biased credit).
+    cfg.latent_strategy_ppo_coef = 0.0
+    # Enable arc-level consequence credit with auto-centering baseline.
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_baseline = "running_mean"
+    cfg.latent_arc_credit_coef = 1.0   # default; full arc-credit gradient weight
+    cfg.latent_arc_credit_min_len = 8   # accept shorter terminal arcs (vs default 32)
+    cfg.run_tag = "v6i9_arc_credit_running_mean_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """V6I9 treatment: feedforward router + running-mean arc credit (A/B vs feedforward control).
+
+    Direct A/B counterpart to ``v6i9_mapaware_router_feedforward_hardpool``
+    (the control).  The router architecture, 35-dim context, strategy_interval,
+    learning rate, entropy coefficient, opponent/map pool, frozen actor +
+    z-specific parameters, seed, and training budget are held IDENTICAL to the
+    control.  The ONLY resolved-config deltas (verified by
+    ``tests/test_v6i9_arc_credit_feedforward.py``) are:
+
+        latent_arc_credit_enabled  : False -> True
+        latent_arc_credit_baseline : context_value -> running_mean
+        latent_strategy_ppo_coef   : 0.1   -> 0.0
+        run_tag                    : ...   -> arc-credit tag
+
+    Scientific rationale (credit audit, 2026-07-02)
+    ----------------------------------------------
+    The control routes q_phi credit through the main-loop strategy PPO term
+    scaled by ``latent_strategy_ppo_coef`` using ``router_advantages`` =
+    ``router_return - V_critic``.  The critic overestimates V(s_0) by ~+2.71
+    units, and because most single-decision chunks skip the per-chunk
+    advantage normalization (the ``numel > 1`` guard), that constant +2.705
+    bias survives into the PPO loss, producing chronically negative advantages
+    and ~41% sign flips.
+
+    This treatment REPLACES that channel: it zeroes ``latent_strategy_ppo_coef``
+    (removing the biased critic advantage) and enables arc-level consequence
+    credit with a detached running-mean baseline (an EMA over completed arc
+    returns, no V dependency).  The EMA auto-centers advantages, removing the
+    absolute bias without touching any architectural hyperparameter.
+
+    ``latent_arc_credit_min_len`` is left at the control default (32) so only
+    full strategy-interval arcs contribute to the PPO batch.  The BPTT/main
+    entropy and persistence regularizers are unaffected (only the PPO term is
+    zeroed); q_phi's learning signal now flows exclusively through
+    ``apply_arc_strategy_ppo``.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg)
+    # Remove the biased critic-based router advantage (the "magnet").
+    cfg.latent_strategy_ppo_coef = 0.0
+    # Enable arc-level consequence credit with an auto-centering EMA baseline.
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_baseline = "running_mean"
+    cfg.latent_arc_credit_coef = 1.0  # control default; explicit for clarity
+    cfg.run_tag = "v6i9_arc_credit_running_mean_feedforward_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg: PPOConfig) -> PPOConfig:
     """V6I9 Stage 3 feedforward — state-only MLP router over frozen repertoire.
 

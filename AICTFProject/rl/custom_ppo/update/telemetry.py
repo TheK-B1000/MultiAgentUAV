@@ -133,6 +133,15 @@ def build_metric_schema(*, latent_k: int, pair_count: int) -> dict[str, Aggregat
     schema["ppo_cf_cosine"] = AggregationMode.MEAN
     for k_idx in range(latent_k):
         schema[f"router_rollout_soft_p_bar_z{k_idx}"] = AggregationMode.LAST
+    for k_idx in range(latent_k):
+        schema[f"latent_arc_raw_adv_mean_z{k_idx}"] = AggregationMode.MEAN
+        schema[f"latent_arc_count_z{k_idx}"] = AggregationMode.SUM
+    for k_idx in range(latent_k):
+        schema[f"router_selected_z_occupancy_z{k_idx}"] = AggregationMode.LAST
+    schema["router_selected_z_unique_count"] = AggregationMode.LAST
+    schema["router_selected_z_dominant"] = AggregationMode.LAST
+    schema["router_selected_z_occupancy_max"] = AggregationMode.LAST
+    schema["router_selected_z_decision_count"] = AggregationMode.LAST
     return schema
 
 

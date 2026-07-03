@@ -72,12 +72,17 @@ def _build_audit_trainer(
     cfg.enable_eval = False
     cfg.verbose_training = False
     cfg.fresh_metrics_csv = True
+    cfg.load_weights_only = True
     cfg = normalize_and_validate_training_config(cfg)
-    cfg.device = _ensure_cuda_or_fallback(cfg.device)
+    _ensure_cuda_or_fallback(cfg)
     set_global_seed(int(cfg.seed))
 
     resolved = resolve_training_config(cfg)
-    env = build_training_env(cfg, resolved)
+    env = build_training_env(
+        cfg,
+        initial_phase=resolved.initial_phase,
+        initial_opponent_tag=resolved.initial_opponent_tag,
+    )
     trainer = build_trainer(env, cfg, resolved)
     maybe_load_checkpoint(cfg, trainer)
     return cfg, resolved, env, trainer

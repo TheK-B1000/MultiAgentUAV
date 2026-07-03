@@ -375,6 +375,15 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("z_resampled_actual")
         fields.append("router_opportunity_count")
         fields.append("persistence_valid_pair_count")
+        # Decision-point selected-z occupancy (argmax histogram over the z chosen
+        # at each router opportunity). Direct collapse indicator; see
+        # ``_latent_rollout_stats`` in ``rl/custom_ppo/diagnostics/aggregation.py``.
+        for idx in range(latent_k):
+            fields.append(f"router_selected_z_occupancy_z{idx}")
+        fields.append("router_selected_z_unique_count")
+        fields.append("router_selected_z_dominant")
+        fields.append("router_selected_z_occupancy_max")
+        fields.append("router_selected_z_decision_count")
         for idx in range(latent_k):
             fields.extend(
                 [
@@ -432,6 +441,19 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         fields.append("latent_arc_mean_return")
         fields.append("latent_arc_advantage_mean")
         fields.append("latent_arc_advantage_std")
+        # Running-mean baseline diagnostics (raw, pre-normalization). Expose
+        # whether the ORIGINAL arc signal has real spread before per-batch
+        # standardization rescales it, plus the EMA baseline it is centered on.
+        fields.append("latent_arc_baseline_mean")
+        fields.append("latent_arc_raw_advantage_mean")
+        fields.append("latent_arc_raw_advantage_std")
+        fields.append("latent_arc_positive_fraction")
+        for _zi in range(latent_k):
+            fields.append(f"latent_arc_raw_adv_mean_z{_zi}")
+            fields.append(f"latent_arc_count_z{_zi}")
+        fields.append("latent_arc_raw_adv_z_spread")
+        fields.append("latent_arc_running_mean_count")
+        fields.append("latent_arc_running_mean_value")
         fields.append("latent_arc_policy_loss")
         fields.append("latent_arc_value_loss")
         fields.append("latent_arc_clipfrac")

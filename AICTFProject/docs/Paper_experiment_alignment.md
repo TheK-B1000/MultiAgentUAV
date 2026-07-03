@@ -424,6 +424,30 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i9 feedforward running-mean arc-credit treatment (A/B):** Registered
+  `apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`
+  (aliases `v6i9_arc_credit_running_mean_feedforward_hardpool`,
+  `v6i9_arc_credit_feedforward`, and the long `plan_faithful_latent_...`
+  alias) as the direct A/B treatment for the feedforward router control
+  `v6i9_mapaware_router_feedforward_hardpool`. Classification:
+  `SUMMER-COMPATIBLE EXTENSION` (arc credit is the documented v3i19
+  post-Summer channel; not a paper-faithful row). The resolved-config diff
+  vs the feedforward control is exactly four keys —
+  `latent_arc_credit_enabled` (False→True), `latent_arc_credit_baseline`
+  (context_value→running_mean), `latent_strategy_ppo_coef` (0.1→0.0, which
+  removes the biased critic-based router advantage), and `run_tag`. The
+  feedforward router architecture, 35-dim context, strategy interval,
+  learning rate, entropy coefficient, opponent/map pool, frozen actor +
+  z-specific parameters, seed, and training budget are held identical
+  (pinned by `tests/test_v6i9_arc_credit_feedforward.py`). Also added raw
+  (pre-normalization) arc-advantage telemetry
+  (`latent_arc_baseline_mean`, `latent_arc_raw_advantage_mean/std`,
+  `latent_arc_positive_fraction`, `latent_arc_running_mean_count/value`),
+  persisted the arc running-mean EMA in the latent checkpoint schema
+  (mirroring the macro channel), added the one-update smoke gate helper
+  `rl/custom_ppo/diagnostics/arc_credit_smoke.py` +
+  `experiments/run_arc_credit_treatment_smoke.py`, and regenerated
+  `tests/preset_snapshots.json`.
 - **v6i6 / evidence-gated repertoire expansion contract:** Registered
   `apply_plan_faithful_latent_v6i6_strategy_expansion` (aliases `v6i6`,
   `v6i6_strategy_expansion`, and long plan/latent aliases) built on

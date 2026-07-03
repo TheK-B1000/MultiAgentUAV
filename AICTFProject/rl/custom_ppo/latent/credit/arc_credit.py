@@ -216,6 +216,19 @@ class ArcCreditManager:
             "latent_arc_mean_return": 0.0,
             "latent_arc_advantage_mean": 0.0,
             "latent_arc_advantage_std": 0.0,
+            "latent_arc_baseline_mean": 0.0,
+            "latent_arc_raw_advantage_mean": 0.0,
+            "latent_arc_raw_advantage_std": 0.0,
+            "latent_arc_positive_fraction": 0.0,
+            **{f"latent_arc_raw_adv_mean_z{_zi}": 0.0 for _zi in range(4)},
+            **{f"latent_arc_count_z{_zi}": 0.0 for _zi in range(4)},
+            # Separation of per-z raw advantage means (max - min over z's that
+            # received >=1 arc). A centered signal with zero spread gives every
+            # z the same expected credit and CANNOT teach routing, no matter how
+            # healthy the aggregate positive_fraction looks.
+            "latent_arc_raw_adv_z_spread": 0.0,
+            "latent_arc_running_mean_count": 0.0,
+            "latent_arc_running_mean_value": 0.0,
             "latent_arc_policy_loss": 0.0,
             "latent_arc_value_loss": 0.0,
             "latent_arc_clipfrac": 0.0,
@@ -312,7 +325,32 @@ class ArcCreditManager:
                 fixed_baseline = trainer.model.episode_strategy_value(
                     states, z, selector_hidden=selector_hidden
                 ).detach()
-            fixed_adv = arc_returns - fixed_baseline
+            raw_adv = (arc_returns - fixed_baseline).detach()
+            # Raw (pre-normalization) advantage diagnostics: these expose
+            # whether the ORIGINAL sparse signal has real spread before the
+            # per-batch standardization scrubs the scale. Aggressive
+            # normalization can make a nearly-flat signal look healthy.
+            stats["latent_arc_baseline_mean"] = float(fixed_baseline.mean().item())
+            stats["latent_arc_raw_advantage_mean"] = float(raw_adv.mean().item())
+            stats["latent_arc_raw_advantage_std"] = (
+                float(raw_adv.std(unbiased=False).item()) if raw_adv.numel() > 1 else 0.0
+            )
+            stats["latent_arc_positive_fraction"] = float((raw_adv > 0).float().mean().item())
+            stats["latent_arc_running_mean_count"] = float(self.host.arc_return_running_count)
+            stats["latent_arc_running_mean_value"] = float(self.host.arc_return_running_mean)
+            _K = int(getattr(trainer, "latent_k", 4) or 4)
+            _z_means: list[float] = []
+            for _zi in range(_K):
+                _m = z == _zi
+                _zmean = float(raw_adv[_m].mean().item()) if _m.any() else float("nan")
+                stats[f"latent_arc_raw_adv_mean_z{_zi}"] = _zmean
+                stats[f"latent_arc_count_z{_zi}"] = float(_m.sum().item())
+                if _m.any():
+                    _z_means.append(_zmean)
+            stats["latent_arc_raw_adv_z_spread"] = (
+                float(max(_z_means) - min(_z_means)) if len(_z_means) >= 2 else 0.0
+            )
+            fixed_adv = raw_adv.clone()
             if return_norm and fixed_adv.numel() > 1:
                 fixed_adv = (fixed_adv - fixed_adv.mean()) / (fixed_adv.std(unbiased=False) + 1e-8)
             fixed_adv = fixed_adv.detach()

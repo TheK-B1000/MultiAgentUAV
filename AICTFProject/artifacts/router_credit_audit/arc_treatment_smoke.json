@@ -1,0 +1,27 @@
+{
+  "gates": {
+    "arc_credit_source_active": true,
+    "baseline_mode_running_mean": true,
+    "valid_router_decisions_positive": true,
+    "arc_records_present": true,
+    "raw_arc_advantage_finite": true,
+    "frozen_actor_z_unchanged": true,
+    "router_gradients_positive": true,
+    "all_passed": true
+  },
+  "telemetry": {
+    "arc_return_mean": -0.7276863906394302,
+    "arc_baseline_mean": -0.7276864051818848,
+    "raw_arc_advantage_mean": -0.058945439755916595,
+    "raw_arc_advantage_std": 0.7616446614265442,
+    "positive_fraction": 0.5683721303939819,
+    "running_mean_update_count": 2258.0,
+    "running_mean_value": -0.7276863906394297,
+    "q_phi_grad_norm": 0.0406508722357357,
+    "latent_arc_grad_norm": 0.0406508722357357,
+    "router_decision_count": 2289
+  },
+  "preset": "v6i9_arc_credit_running_mean_hardpool",
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+  "seed": 1
+}

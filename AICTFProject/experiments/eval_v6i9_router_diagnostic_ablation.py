@@ -150,6 +150,8 @@ def _run_condition(
     for opp_idx, opponent in enumerate(protocol.opponents):
         for map_idx, map_name in enumerate(protocol.maps):
             cell_seed = protocol.cell_seed(opp_idx, map_idx)
+            if hasattr(model, "set_current_map"):
+                model.set_current_map(map_name)
             env = _make_env(protocol, map_name, cell_seed)
             try:
                 try:
@@ -256,6 +258,7 @@ def _flatten_trace_rows(trace_rows: list[dict[str, Any]]) -> list[dict[str, Any]
         flat = {
             "condition": item.get("condition", ""),
             "opponent": item.get("opponent", ""),
+            "map": item.get("map", ""),
             "seed": item.get("seed", ""),
             "environment_seed": item.get("environment_seed", ""),
             "episode_index": item.get("episode_index", ""),

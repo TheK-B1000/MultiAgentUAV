@@ -57,7 +57,15 @@ class CustomPPOInferencePolicy:
         self._current_env_index = None
         self._current_decision_step = 0
         self._opportunity_counter = 0
+        self._current_map = None
         self.opportunity_trace_log = []
+
+    def set_current_map(self, map_name: str | None) -> None:
+        """Record the active map so opportunity traces can be grouped by
+        (opponent, map). Required for the cross-episode histogram-preserving
+        shuffle control, which otherwise degenerates to singleton (opponent,
+        seed) cells under a unique-seed-per-episode eval protocol."""
+        self._current_map = None if map_name is None else str(map_name)
 
     def set_current_episode_context(
         self,
@@ -110,6 +118,7 @@ class CustomPPOInferencePolicy:
         self._current_environment_seed = None
         self._current_env_index = None
         self._current_decision_step = 0
+        self._current_map = None
         if isinstance(self._opportunity_counter, np.ndarray):
             self._opportunity_counter.fill(0)
         else:
@@ -556,6 +565,7 @@ class CustomPPOInferencePolicy:
                         
                     self.opportunity_trace_log.append({
                         "opponent": trace_opponent,
+                        "map": getattr(self, "_current_map", None),
                         "seed": trace_seed,
                         "environment_seed": getattr(self, "_current_environment_seed", None) or self._current_seed,
                         "episode_index": trace_episode_index,

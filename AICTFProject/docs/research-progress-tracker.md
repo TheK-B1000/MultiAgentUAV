@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-06-18 (UTC-4)
+> **Last updated:** 2026-07-02 (UTC-4)
 
 ---
 
@@ -169,6 +169,112 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §8). PLANNED
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
+
+### 3.0 v6i9 feedforward running-mean arc-credit A/B (IMPLEMENTED, PENDING_SMOKE)
+
+**Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
+`v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases
+`v6i9_arc_credit_feedforward`,
+`plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`),
+`SUMMER-COMPATIBLE EXTENSION` (arc-credit row), parent
+`v6i9_mapaware_router_feedforward_hardpool`.
+
+**Motivation (credit audit, 2026-07-02):** the feedforward router control
+routes q_phi credit through the main-loop strategy-PPO term on
+`router_advantages = router_return − V_critic`. The critic overestimates
+V(s_0) by ~+2.71 and, because most single-decision chunks skip the
+`numel>1` advantage normalization, that constant bias survives into the
+loss (chronically negative advantages, ~41% sign flips). The treatment
+**replaces** that channel: `latent_strategy_ppo_coef` 0.1→0.0 (magnet
+removed) plus arc credit with a detached running-mean EMA baseline that
+auto-centers advantages. Resolved diff vs control = exactly 4 keys
+(pinned by `tests/test_v6i9_arc_credit_feedforward.py`).
+
+**Next actions (do NOT scale until these pass):**
+1. One-update treatment smoke from the repertoire anchor with a fresh
+   optimizer: `experiments/run_arc_credit_treatment_smoke.py`. Gates:
+   arc-credit source active, baseline=running_mean, valid router
+   decisions > 0, raw arc advantage finite, frozen actor/z hashes
+   unchanged, router gradients > 0.
+2. Three-update A/B mechanism test (control vs treatment, identical
+   seed/budget): look for fewer all-negative decision batches, positive
+   fraction moving toward balance, context-conditioned logit variation,
+   argmax no longer always z1, MI(z;context) above noise.
+3. Aligned episode-persistent credit audit: require Q1 negative / Q4
+   positive credit and near-zero critic/global bias shift.
+4. Cheap corrected ablation (learned / exact-histogram shuffled /
+   uniform / fixed z2); proceed only when learned > shuffled.
+
+### 3.0.1 v6i9 feedforward credit-patch mechanism + continuation — `EVALUATED` (context-blind collapse)
+
+**Status:** `EVALUATED`. This is the *minimal credit patch* on the control
+preset `v6i9_mapaware_router_feedforward_hardpool` (feedforward router,
+35-dim team-geometry context, K=4, frozen repertoire) — **not** the
+§3.0 arc-credit A/B. The patch makes the feedforward strategy-PPO update
+consume `router_advantages` (erroring if absent) and applies conditional
+router entropy only at decision steps (`router_ent_coef`, kept separate
+from `latent_lam_h`). No context change: **credit + entropy changed,
+context did not.**
+
+**Runs (2v2, opponent pool OP8/OP9/OP10, seed 1, frozen repertoire):**
+
+1. Wiring smoke (1 update) — all gates green (router_advantages selected,
+   decision mask active, entropy subordinate, frozen repertoire hashes
+   unchanged).
+2. Mechanism run — 3 updates from the repertoire anchor with a fresh
+   router optimizer (`final_v6i9-router-credit-mechanism-seed1_2v2.zip`).
+3. Continuation — 7 more updates (base_step 1,769,472 → 2,169,472) via a
+   clean resume that **preserves** the learned router + optimizer
+   (`--router-reinitialize-on-load false`; behavioral-equivalence check
+   PASS, argmax_diff=0; freeze intact)
+   (`final_v6i9-router-credit-mechanism-cont-seed1_2v2.zip`).
+
+**Continuation trend (updates 28→34):** `strategy_entropy` fell
+monotonically `1.356 → 1.256`; **`MI_z_obs` stayed pinned at ≈0.001**
+throughout; sampled occupancy concentrated `z0/z1 → z2/z3`
+(`[0.24,0.21,0.28,0.28] → [0.12,0.16,0.34,0.38]`). Signature of a
+**context-independent preference shift (mode-collapse toward z3)**, not
+context-dependent routing.
+
+**Cheap held-out ablation (OP8/OP10 × {map_b, map_b_split_lane_v2},
+10 seeds/cell = 160 eps).** Cross-episode histogram-preserving shuffle
+control added (`build_cross_episode_shuffled_mapping_from_learned_traces`).
+
+* On the mechanism (3-update) checkpoint (base_seed 12000): eval argmax
+  = z3 in 188/188 opportunities, mean-max-prob 0.300, entropy 1.376.
+* On the continuation (10-update) checkpoint (fresh base_seed 14000):
+  eval argmax = z3 in **177/177** opportunities across all cells;
+  mean-max-prob **0.30 → 0.462**; entropy `1.226`. Returns (n=40):
+  `uniform −3.231 > learned/shuffled −3.399 > fixed_z2 −3.763`. Both
+  shuffle controls are byte-identical to learned (constant output ⇒
+  shuffles are no-ops). Promotion gates all fail
+  (`learned_beats_uniform=False`, `learned_beats_shuffled=False`,
+  `proceed_to_250k=False`).
+
+**Conclusion (decisive).** With provably healthy plumbing (correct
+credit source, ~85% positive advantage fraction, entropy subordinate at
+grad-ratio 11–24, repertoire frozen, resume clean) the feedforward
+router trained on the **geometry-only 35-dim context collapses to a
+context-independent constant z3**. More updates increase *confidence*
+(max-prob 0.30→0.46) but **not context sensitivity** (`MI_z_obs≈0`
+throughout; eval argmax constant). The under-training hypothesis is
+refuted; this is the **Fail branch = context insufficiency**. Note the
+two known ablation caveats (do not over-read the trace-based trust
+gates): (a) the cross-episode shuffle grouping keyed on
+`(opponent, episode_seed)` yields singleton cells, and (b) a pre-existing
+trace-summary join keys episode rows on `cell_seed` vs traces on
+`episode_seed` so only `episode_index=0` joins — both inflate
+`same_z_sequence`; the return-based verdict is unaffected.
+
+**Open decision (fork presented, user deferred):** (i) offline best-z
+predictability probe on the real 35-dim decision-time context (cheap;
+separates "context lacks signal" from "router can't extract it") before
+spending compute; (ii) lift the deferral and add opponent/map identity
+to the context, then retrain (the Fail-branch action); (iii) stop
+feedforward routing on geometry-only context. Artifacts:
+`artifacts/router_credit_mechanism_ablation_crossep/`,
+`artifacts/router_credit_mechanism_cont_ablation/`,
+`artifacts/v6i9_router_credit_mechanism_cont_seed1.log`.
 
 ### 3.1 v5i6 — canonical marginal-entropy interpretation (IMPLEMENTED, PENDING_LAUNCH)
 
