@@ -146,12 +146,22 @@ def _run_condition(
         model.opportunity_trace_log = []
 
     rows: list[dict[str, Any]] = []
+    trace_data: list[dict[str, Any]] = []
     z_id = _fixed_latent_for_condition(condition)
     for opp_idx, opponent in enumerate(protocol.opponents):
         for map_idx, map_name in enumerate(protocol.maps):
             cell_seed = protocol.cell_seed(opp_idx, map_idx)
             if hasattr(model, "set_current_map"):
                 model.set_current_map(map_name)
+            # Snapshot trace-log position before this cell so new items can be
+            # tagged with the correct map name. The cross-episode shuffler groups
+            # by (opponent, map); without this tag it degenerates into per-episode
+            # singletons (can_reassign=False) regardless of z diversity.
+            trace_offset = (
+                len(model.opportunity_trace_log)
+                if hasattr(model, "opportunity_trace_log")
+                else 0
+            )
             env = _make_env(protocol, map_name, cell_seed)
             try:
                 try:
@@ -181,6 +191,15 @@ def _run_condition(
                 episodes = []
             finally:
                 env.close()
+
+            # Collect new trace items for this cell and tag with map_name so the
+            # cross-episode shuffler can group by (opponent, map) correctly.
+            if hasattr(model, "opportunity_trace_log"):
+                for item in model.opportunity_trace_log[trace_offset:]:
+                    row = dict(item)
+                    row["condition"] = condition.name
+                    row["map"] = map_name
+                    trace_data.append(row)
 
             for ep_idx, ep in enumerate(episodes):
                 episode_seed = int(ep.get("episode_seed", int(cell_seed) + int(ep_idx)))
@@ -221,13 +240,6 @@ def _run_condition(
                 f"  [{DISPLAY_NAMES.get(condition.name, condition.name)}] "
                 f"{opponent} {map_name}: ret={mean_ret:.3f} WR={wr:.1%} ({len(episodes)} eps)"
             )
-
-    trace_data: list[dict[str, Any]] = []
-    if hasattr(model, "opportunity_trace_log"):
-        for item in model.opportunity_trace_log:
-            row = dict(item)
-            row["condition"] = condition.name
-            trace_data.append(row)
 
     check_rows = []
     for row in rows:
@@ -544,6 +556,7 @@ def _build_verdict(
     *,
     trust_checks: dict[str, Any] | None = None,
     trace_comparison: dict[str, Any] | None = None,
+    cross_episode_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     global_s = summary["global"]
     learned = global_s.get("learned_qphi_switching", {}).get("mean_return", float("nan"))
@@ -556,8 +569,16 @@ def _build_verdict(
         bool(row.get("actor_unchanged", False)) for row in integrity_rows
     )
     beats_within_shuffled = bool(learned > shuffled) if np.isfinite(learned) and np.isfinite(shuffled) else False
+
+    # Cross-episode gate: only meaningful when the shuffler could actually reassign
+    # episodes. When all episodes share the same z-signature (can_reassign=False),
+    # the shuffled condition is byte-identical to learned and the gate is vacuous.
+    cross_can_reassign = bool((cross_episode_meta or {}).get("can_reassign", True))
+    cross_gate_untestable = not cross_can_reassign
     beats_cross_shuffled = (
-        bool(learned > cross_shuffled) if np.isfinite(learned) and np.isfinite(cross_shuffled) else False
+        bool(learned > cross_shuffled)
+        if (np.isfinite(learned) and np.isfinite(cross_shuffled) and cross_can_reassign)
+        else False
     )
     # The cross-episode control is the meaningful "context routing" test; the
     # within-episode control is degenerate for an episode-constant router.
@@ -602,6 +623,7 @@ def _build_verdict(
         "learned_beats_shuffled_router": beats_shuffled,
         "learned_beats_within_episode_shuffled": beats_within_shuffled,
         "learned_beats_cross_episode_shuffled": beats_cross_shuffled,
+        "cross_episode_gate_untestable": cross_gate_untestable,
         "learned_advantage": learned_advantage,
         "cells_learned_beats_fixed_z2": cells_learned_beats_fixed,
         "cells_total": cells_total,
@@ -797,6 +819,7 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         frozen,
         trust_checks=trust_checks,
         trace_comparison=trace_comparison,
+        cross_episode_meta=cross_episode_meta,
     )
 
     manifest = {

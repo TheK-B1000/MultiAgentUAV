@@ -110,6 +110,7 @@ from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
     apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool,
+    apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool,
     apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
 )
@@ -207,6 +208,7 @@ __all__ = [
     "apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool",
     "apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool",
     "apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool",
+    "apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool",
     "apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool",
     "apply_plan_faithful_latent_v6i9_mapaware_nav_refinement",
 ]

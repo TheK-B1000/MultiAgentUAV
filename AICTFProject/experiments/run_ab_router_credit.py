@@ -189,6 +189,18 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--out-dir", default="artifacts/ab_router_credit")
     p.add_argument("--preset", default=None, help="Override preset (default: arm-specific)")
     p.add_argument(
+        "--extra-allowed-diffs",
+        nargs="+",
+        default=[],
+        metavar="FIELD",
+        help=(
+            "Additional config fields allowed to differ between arms without "
+            "raising an architecture mismatch error. Use when testing entropy or "
+            "coverage hyperparameters alongside the credit channel (e.g. "
+            "router_ent_coef latent_lam_h)."
+        ),
+    )
+    p.add_argument(
         "--force",
         action="store_true",
         help="Overwrite a previously completed arm directory",
@@ -295,6 +307,83 @@ def _extract_telemetry(stats: dict, keys: list[str]) -> dict[str, float]:
     return out
 
 
+def _logit_diagnostics_from_buffer(buffer, latent_k: int = 4) -> dict[str, float]:
+    """Compute per-update logit diagnostics from the rollout buffer.
+
+    Uses stored ``z_logits`` (shape [T, n_envs, K] or [T*n_envs, K]) masked by
+    ``router_decision_valid`` to isolate actual routing decisions.
+
+    Returns keys:
+      logit_diag_n_decisions         -- number of router decisions in buffer
+      logit_diag_marginal_entropy_nats -- H(q_bar)
+      logit_diag_conditional_entropy_nats -- mean H(z|context)
+      logit_diag_mi_proxy_nats       -- H(q_bar) - H(z|context)
+      logit_diag_top1_top2_margin    -- mean(argmax_logit - 2nd_logit)
+      logit_diag_q_bar_z{i}          -- marginal softmax prob per z
+      logit_diag_argmax_frac_z{i}    -- fraction of decisions argmaxed to z
+      logit_diag_logit_std_z{i}      -- std of raw logit_z across decisions
+    """
+    try:
+        import torch
+    except ImportError:
+        return {}
+
+    fields = getattr(buffer, "fields", {})
+    z_logits = fields.get("z_logits")
+    rdv = fields.get("router_decision_valid")
+    if z_logits is None:
+        return {}
+
+    pos = int(getattr(buffer, "pos", z_logits.shape[0]))
+    logits = z_logits[:pos]
+
+    # Flatten to [N, K] regardless of buffer shape.
+    if logits.dim() == 3:
+        T, E, K = logits.shape
+        logits_flat = logits.reshape(T * E, K)
+        if rdv is not None:
+            mask = rdv[:pos].reshape(T * E).bool()
+        else:
+            mask = torch.ones(T * E, dtype=torch.bool, device=logits_flat.device)
+    else:
+        logits_flat = logits
+        if rdv is not None:
+            mask = rdv[:pos].bool()
+        else:
+            mask = torch.ones(len(logits_flat), dtype=torch.bool, device=logits_flat.device)
+
+    decision_logits = logits_flat[mask]
+    n = int(decision_logits.shape[0])
+    if n == 0:
+        return {"logit_diag_n_decisions": 0.0}
+
+    with torch.no_grad():
+        probs = torch.softmax(decision_logits, dim=-1)
+        q_bar = probs.mean(dim=0)
+        log_p = torch.log(probs.clamp_min(1e-8))
+        cond_entropy = -(probs * log_p).sum(dim=-1).mean()
+        q_bar_log = torch.log(q_bar.clamp_min(1e-8))
+        marginal_entropy = -(q_bar * q_bar_log).sum()
+        mi_proxy = marginal_entropy - cond_entropy
+        sorted_logits, _ = torch.sort(decision_logits, dim=-1, descending=True)
+        margin = (sorted_logits[:, 0] - sorted_logits[:, 1]).mean()
+        argmax_z = decision_logits.argmax(dim=-1)
+        logit_std = decision_logits.std(dim=0)
+
+    result: dict[str, float] = {
+        "logit_diag_n_decisions": float(n),
+        "logit_diag_marginal_entropy_nats": float(marginal_entropy.item()),
+        "logit_diag_conditional_entropy_nats": float(cond_entropy.item()),
+        "logit_diag_mi_proxy_nats": float(mi_proxy.item()),
+        "logit_diag_top1_top2_margin": float(margin.item()),
+    }
+    for zi in range(latent_k):
+        result[f"logit_diag_q_bar_z{zi}"] = float(q_bar[zi].item())
+        result[f"logit_diag_argmax_frac_z{zi}"] = float((argmax_z == zi).float().mean().item())
+        result[f"logit_diag_logit_std_z{zi}"] = float(logit_std[zi].item())
+    return result
+
+
 def _detect_actual_advantage_source(buffer) -> str:
     """Inspect the rollout buffer to report which advantage field will be used."""
     fields = getattr(buffer, "fields", {})
@@ -337,11 +426,15 @@ def main() -> None:
     print("=" * 72)
 
     # --- Preset diff assertion ---
+    # Extra diffs allow entropy/coverage fields to vary when testing hyperparameter
+    # changes alongside the credit channel (e.g. specialize preset).
+    effective_allowed_diffs = _ALLOWED_DIFFS | frozenset(args.extra_allowed_diffs)
+    effective_arch_fields = [f for f in _ARCHITECTURE_FIELDS if f not in effective_allowed_diffs]
     ctrl_dict, treat_dict, differing = _assert_preset_diff(
         control_preset,
         treatment_preset,
-        architecture_fields=_ARCHITECTURE_FIELDS,
-        allowed_diffs=_ALLOWED_DIFFS,
+        architecture_fields=effective_arch_fields,
+        allowed_diffs=effective_allowed_diffs,
     )
 
     # Save resolved configs for both arms.
@@ -378,6 +471,7 @@ def main() -> None:
     print(f"  router_chunks_per_batch  : {getattr(cfg, 'router_chunks_per_batch', '?')}")
     print(f"  router_ent_coef          : {getattr(cfg, 'router_ent_coef', '?')}")
     print(f"  latent_lam_p             : {getattr(cfg, 'latent_lam_p', '?')}")
+    print(f"  latent_lam_h             : {getattr(cfg, 'latent_lam_h', '?')}")
     print(f"  latent_strategy_ppo_coef : {getattr(cfg, 'latent_strategy_ppo_coef', '?')}")
     print(f"  latent_arc_credit_enabled: {getattr(cfg, 'latent_arc_credit_enabled', '?')}")
     print(f"  latent_arc_credit_baseline: {getattr(cfg, 'latent_arc_credit_baseline', '?')}")
@@ -460,9 +554,15 @@ def main() -> None:
                 )
 
             global_step = int(getattr(trainer, "global_step", 0)) + buffer.pos
+
+            # Logit diagnostics from buffer (before update() may clear it).
+            latent_k = int(getattr(cfg, "latent_k", 4) or 4)
+            logit_diag = _logit_diagnostics_from_buffer(buffer, latent_k=latent_k)
+
             stats = trainer.update(buffer, total_timesteps=global_step)
 
             tel = _extract_telemetry(stats, _TELEMETRY_KEYS)
+            tel.update(logit_diag)
 
             raw_mean = tel.get("latent_arc_raw_advantage_mean", float("nan"))
             pos_frac = tel.get("latent_arc_positive_fraction", float("nan"))
@@ -491,6 +591,26 @@ def main() -> None:
                 f"  dominant=z{int(tel.get('router_selected_z_dominant', -1))}"
                 f"  unique={int(tel.get('router_selected_z_unique_count', 0))}"
             )
+
+            # Logit-level diagnostics (context specialization vs marginal coverage).
+            n_dec = tel.get("logit_diag_n_decisions", float("nan"))
+            h_marg = tel.get("logit_diag_marginal_entropy_nats", float("nan"))
+            h_cond = tel.get("logit_diag_conditional_entropy_nats", float("nan"))
+            mi_p = tel.get("logit_diag_mi_proxy_nats", float("nan"))
+            margin = tel.get("logit_diag_top1_top2_margin", float("nan"))
+            q_bar = [tel.get(f"logit_diag_q_bar_z{zi}", float("nan")) for zi in range(latent_k)]
+            argmax_frac = [tel.get(f"logit_diag_argmax_frac_z{zi}", float("nan")) for zi in range(latent_k)]
+            logit_std = [tel.get(f"logit_diag_logit_std_z{zi}", float("nan")) for zi in range(latent_k)]
+            print(
+                f"  logit_diag : n={n_dec:.0f}"
+                f"  H_marg={_fmt(h_marg)}"
+                f"  H_cond={_fmt(h_cond)}"
+                f"  MI={_fmt(mi_p)}"
+                f"  margin={_fmt(margin)}"
+            )
+            print(f"  q_bar      : {[_fmt(v) for v in q_bar]}")
+            print(f"  argmax_frac: {[_fmt(v) for v in argmax_frac]}")
+            print(f"  logit_std  : {[_fmt(v) for v in logit_std]}")
 
             record = {
                 "update_idx": update_idx,

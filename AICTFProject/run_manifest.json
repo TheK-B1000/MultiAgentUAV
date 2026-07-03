@@ -1,12 +1,12 @@
 {
   "run_id": "run_interrupted",
-  "timestamp_seconds": 1782942031.6500878,
-  "git_commit": "b7b0a78a3ff123f90fb5af085f8d567367c344a4",
+  "timestamp_seconds": 1783075769.4977558,
+  "git_commit": "a60f91044cbe90af21ce6e606d134823f98b0a57",
   "git_status": "available_dirty",
   "preset_hash": null,
   "framework_versions": {
     "python": "3.12.4 (tags/v3.12.4:8e8a4ba, Jun  6 2024, 19:30:16) [MSC v.1940 64 bit (AMD64)]",
-    "pytorch": "2.12.0.dev20260309+cu128",
+    "pytorch": "2.11.0+cu128",
     "cuda": "12.8"
   },
   "gpu_model": null,

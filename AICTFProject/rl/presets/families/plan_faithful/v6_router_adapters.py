@@ -326,6 +326,55 @@ def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool(cfg: PPOCon
     return cfg
 
 
+def apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 specialization treatment: arc-credit + reduced conditional entropy + marginal coverage.
+
+    Builds on ``v6i9_arc_credit_running_mean_hardpool`` (arc credit fixed, BPTT PPO
+    disabled) and adds two entropy-balance changes to break near-tie argmax collapse:
+
+    1. ``router_ent_coef`` reduced from 0.005 -> 0.001
+       Weaker conditional entropy pressure allows the router to develop
+       context-specific preferences rather than staying near-uniform everywhere.
+
+    2. ``latent_lam_h`` enabled at 0.01 (marginal coverage)
+       KL(q_bar || Uniform) penalty ensures all four z values remain globally
+       used, preventing the router from dropping entire latents even as it
+       becomes more confident within individual contexts.
+
+    Diagnosis motivating this preset (2026-07-03):
+    - Training softmax entropy: 1.374 / 1.386 max -- near-uniform at all times.
+    - Eval argmax collapses to z=3 (85%) + z=1 (15%); z=0 and z=2 never selected.
+    - Cross-episode shuffle gate vacuous: can_reassign=False because every
+      episode draws from the same two-latent universe.
+    - Root cause: router_ent_coef=0.005 keeps H(z|context) near maximum,
+      preventing per-context confidence. latent_lam_h=0.0 means no marginal
+      coverage gradient.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool(cfg)
+    cfg.router_ent_coef = 0.001
+    cfg.latent_lam_h = 0.01
+    # ``latent_entropy_mode`` is the field the runtime entropy path
+    # (rl/custom_ppo/update/entropy_objectives.py) and the audit banner
+    # actually read; ``h_mode`` is a legacy alias with no consumer in the
+    # entropy path. Setting only ``h_mode`` leaves the marginal-coverage loss
+    # OFF and turns ``latent_lam_h`` into a CONDITIONAL entropy-maximization
+    # term (pushes q_phi toward uniform per context) — the exact opposite of
+    # this preset's intent. Set the runtime field. The rollout-level marginal
+    # aggregation contract (AGENTS.md §"Aggregation contract") is honored
+    # because ``latent_entropy_mode == "marginal"`` routes through
+    # ``rollout_marginal_entropy_loss``.
+    cfg.latent_entropy_mode = "marginal"
+    cfg.h_mode = "marginal"
+    # The arc-credit parent zeroes ``latent_entropy_objective`` (it disables the
+    # main-loop strategy PPO term). The marginal-coverage path additionally
+    # requires an active objective (``h_goal != "none"``), so re-enable it to
+    # MAXIMIZE marginal entropy H(q_bar) — i.e. keep all four latents globally
+    # used — matching the canonical marginal preset v5i6.
+    cfg.latent_entropy_objective = "maximize"
+    cfg.run_tag = "v6i9_arc_credit_specialize_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool(
     cfg: PPOConfig,
 ) -> PPOConfig:

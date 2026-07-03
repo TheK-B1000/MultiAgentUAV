@@ -276,6 +276,128 @@ feedforward routing on geometry-only context. Artifacts:
 `artifacts/router_credit_mechanism_cont_ablation/`,
 `artifacts/v6i9_router_credit_mechanism_cont_seed1.log`.
 
+### 3.0.2 Recurrent running-mean arc-credit A/B + collapse-visibility tooling — `EVALUATED` (mechanism repaired, router collapsed)
+
+**Status:** `EVALUATED`. Recurrent-GRU A/B from the repertoire anchor
+(2v2, OP8/OP9/OP10, seed 1, frozen repertoire, 5 updates each). Control =
+`v6i9_mapaware_router_sparse_hardpool` (sparse-GAE router credit);
+treatment = `v6i9_arc_credit_running_mean_hardpool` (running-mean arc
+credit, main-loop strategy PPO disabled). Same GRU, same initial router +
+frozen-actor hashes, fresh optimizer both arms, credit channel the only
+functional difference (`compare_ab_router_credit.py` launch contract:
+PASS).
+
+**Mechanism result (treatment):** running-mean baseline works — final
+`raw_adv_mean ≈ −0.09`, `positive_fraction ≈ 0.57`, per-z spread ≈ 0.067,
+router gradients active. The chronic critic-bias advantage offset is
+removed and the credit signal is two-sided.
+
+**Behavioral result (fresh held-out base_seed 15000, 150 eps/condition):**
+`fixed_z2 −3.09 > learned −3.58 > uniform −3.78`. Learned beats uniform
+and within-episode shuffle but **loses to fixed_z2** and does not beat the
+cross-episode shuffle. Root cause: the router **collapsed** — argmax = z3
+in the large majority of opportunities, z0/z2 never selected. Repaired
+grades did not (yet) produce better *choices*.
+
+**Tooling fixes landed with this entry:**
+
+1. **Cross-episode shuffle regrouping (caveat (a) in §3.0.1 fixed).**
+   `build_cross_episode_shuffled_mapping_from_learned_traces` now groups
+   cells by `(opponent, map)` instead of `(opponent, episode_seed)`. Under
+   a unique-seed-per-episode protocol the old key produced singleton cells
+   → `can_reassign=False` → a structural no-op that made the
+   `learned_beats_cross_episode_shuffled` gate vacuous (delta 0.0). Map is
+   threaded through the opportunity trace
+   (`inference_policy.set_current_map`, set per cell in
+   `eval_v6i9_router_diagnostic_ablation._run_condition`); absent map falls
+   back to per-opponent grouping. Note: for a *collapsed* router the
+   shuffle is still legitimately a no-op (identical signatures), which is
+   now an honest collapse signal rather than a grouping artifact.
+2. **Decision-point selected-z occupancy telemetry.**
+   `router_selected_z_occupancy_z{0..K-1}` (+ `_max`, `_unique_count`,
+   `_dominant`, `_decision_count`) computed every update in
+   `_latent_rollout_stats` for both credit channels, independent of the
+   entropy mode (unlike `router_rollout_soft_argmax_occupancy_*`, which
+   only runs on the marginal-entropy path). Surfaced in the A/B runner and
+   in `compare_ab_router_credit.py` (`router_not_collapsed` signal). Makes
+   router collapse visible per-update during training, not only at the eval
+   shuffle gate. Pinned by
+   `tests/test_router_occupancy_and_cross_episode.py`.
+
+### 3.0.3 v6i9 arc-credit *specialize* preset (entropy-balance) — `IMPLEMENTED, PENDING_LAUNCH`
+
+**Preset:** `v6i9_arc_credit_specialize_hardpool` (aliases
+`v6i9_arc_credit_specialize`,
+`plan_faithful_latent_v6i9_arc_credit_specialize_hardpool`), parent
+`v6i9_arc_credit_running_mean_hardpool` (recurrent GRU router, running-mean
+arc credit, BPTT PPO disabled). `SUMMER-COMPATIBLE EXTENSION`.
+
+**Hypothesis:** can the router become *decisive within each context*
+(lower H(z|context)) while still *using all four latents across the
+context distribution* (preserve marginal coverage)? Two-axis entropy
+balance on top of the repaired running-mean credit channel.
+
+**Resolved-config diff vs the running-mean parent (exactly 6 keys, pinned
+by `tests/test_v6i9_arc_credit_specialize.py`):**
+
+```text
+router_ent_coef          : 0.005 -> 0.001   (weaker conditional entropy)
+latent_lam_h             : 0.0   -> 0.01     (marginal coverage weight)
+latent_entropy_mode      : conditional -> marginal
+latent_entropy_objective : none -> maximize
+h_mode                   : conditional -> marginal  (legacy alias, kept consistent)
+run_tag                  : ...specialize...
+```
+
+**Bug found and fixed before any launch (2026-07-03).** The preset
+originally set only the legacy `h_mode="marginal"` field. The runtime
+entropy path (`rl/custom_ppo/update/entropy_objectives.py::RolloutMarginalPrep`)
+and the audit banner both key off `latent_entropy_mode`, which stayed
+`"conditional"`, and the arc-credit parent had zeroed
+`latent_entropy_objective` to `"none"`. Net effect of the buggy config:
+the rollout-level marginal-coverage loss never engaged, and `latent_lam_h`
+acted as a **conditional entropy-maximization** term (pushing q_phi toward
+uniform *per context*) — the exact opposite of the intended "decisive
+within each context." Fix sets `latent_entropy_mode="marginal"` and
+`latent_entropy_objective="maximize"` so the rollout-level
+`rollout_marginal_entropy_loss` path (AGENTS.md aggregation contract)
+actually runs. Verified: resolved config now yields
+`marginal-path would_apply = True`. Snapshot regenerated (additive: 6 new
+arc-credit/specialize entries, 0 existing presets changed).
+
+**Launch (5-update mechanism run, recurrent, from the repertoire anchor):**
+
+```powershell
+uv run python experiments/run_ab_router_credit.py --arm treatment `
+  --preset v6i9_arc_credit_specialize_hardpool `
+  --checkpoint checkpoints/2v2/final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip `
+  --n-updates 5 --device cuda --seed 1 `
+  --out-dir artifacts/ab_router_specialize --force
+```
+
+Mechanism success (per-update telemetry): `H_marg` high (≈log 4≈1.386),
+`H_cond` falling below `H_marg`, `MI_proxy = H_marg − H_cond` rising,
+`q_bar` still spread over all four z, and — via the new
+`router_selected_z_occupancy_z*` telemetry — the decision-point argmax
+histogram becoming context-dependent (z0/z2 used, not only z1/z3).
+
+**Behavioral gate (fresh held-out seeds — do NOT reuse 15000):**
+
+```powershell
+uv run python experiments/eval_v6i9_router_diagnostic_ablation.py `
+  --checkpoint artifacts/ab_router_specialize/treatment/final_treatment.zip `
+  --anchor-checkpoint checkpoints/2v2/final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip `
+  --opponents OP8 OP9 OP10 --maps map_b map_b_split_lane_v2 `
+  --episodes 25 --base-seed 18000 --device cuda `
+  --out-dir artifacts/ab_router_specialize/treatment/shuffle_eval_s18000
+```
+
+Promotion requires: `learned > cross_episode_shuffled`, `learned > uniform`,
+`learned` closer to `fixed_z2`, and `cross_episode_gate_untestable = false`
+(now emitted explicitly by the evaluator; the corrected (opponent, map)
+cell grouping means a genuine reassignment/delta or an explicit
+untestable flag — never a silent identity tie).
+
 ### 3.1 v5i6 — canonical marginal-entropy interpretation (IMPLEMENTED, PENDING_LAUNCH)
 
 **Status:** `IMPLEMENTED, PENDING_LAUNCH`. Preset committed as

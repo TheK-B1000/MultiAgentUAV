@@ -20,6 +20,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool,
     apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool,
     apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool,
+    apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool,
 )
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool",
     "apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool",
     "apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool",
+    "apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool",
     "apply_plan_faithful_latent_v6i7_recurrent_router",
     "apply_plan_faithful_latent_v6i7_router_critic_warmup",
     "apply_plan_faithful_latent_v6i5_router_z0_z3_frozen_actor",
