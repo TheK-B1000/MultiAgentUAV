@@ -454,6 +454,8 @@ def _build_v2_trust_checks(
     frozen: dict[str, Any],
     *,
     episodes_per_cell: int,
+    shuffled_meta: dict[str, Any] | None = None,
+    cross_episode_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Pre-trust checks required before interpreting ablation v2 results."""
     cell_episode_seeds: dict[tuple[str, str, str], set[int]] = defaultdict(set)
@@ -516,6 +518,43 @@ def _build_v2_trust_checks(
         float(learned_vs_cross.get("same_z_sequence_fraction", 1.0)) < 1.0
     )
 
+    # Distinguish "the causal control could not be applied" from "the control
+    # was applied and found no effect". A shuffle is *vacuous* when the
+    # permutation unit holds fewer than two distinct latent assignments: any
+    # permutation of a constant sequence is the identity, so the shuffled
+    # condition is byte-identical to learned. Reporting that as a conventional
+    # trust failure is misleading — the evaluator failed to construct an
+    # intervention, it did not intervene and observe a null effect. The mapping
+    # builders already expose ``can_reassign`` for exactly this case.
+    within_meta = dict(shuffled_meta or {})
+    cross_meta = dict(cross_episode_meta or {})
+    within_applicable = bool(within_meta.get("can_reassign", within_episode_shuffle_differs))
+    cross_applicable = bool(cross_meta.get("can_reassign", cross_episode_shuffle_differs))
+    _CONSTANT_UNIT_REASON = "constant_z_within_shuffle_unit"
+    shuffle_control = {
+        "within_episode": {
+            "applicable": within_applicable,
+            "passed": (within_episode_shuffle_differs if within_applicable else None),
+            "reason": None if within_applicable else _CONSTANT_UNIT_REASON,
+            "mean_displacement_fraction": within_meta.get("mean_displacement_fraction"),
+            "reassigned_units": within_meta.get("reassigned_episode_count"),
+        },
+        "cross_episode": {
+            "applicable": cross_applicable,
+            "passed": (cross_episode_shuffle_differs if cross_applicable else None),
+            "reason": None if cross_applicable else _CONSTANT_UNIT_REASON,
+            "mean_reassignment_fraction": cross_meta.get("mean_reassignment_fraction"),
+            "reassignable_units": cross_meta.get("reassignable_episode_count"),
+        },
+    }
+    any_shuffle_applicable = within_applicable or cross_applicable
+    shuffle_test_status = "TESTABLE" if any_shuffle_applicable else "UNTESTABLE"
+    shuffle_test_reason = (
+        None
+        if any_shuffle_applicable
+        else "fewer than 2 unique latent assignments inside the permutation unit"
+    )
+
     return {
         "unique_episode_seeds_per_cell": unique_counts,
         "unique_episode_seeds_per_cell_ok": seeds_per_cell_ok,
@@ -526,6 +565,9 @@ def _build_v2_trust_checks(
         < 1.0,
         "within_episode_shuffle_differs_from_learned": within_episode_shuffle_differs,
         "cross_episode_shuffle_differs_from_learned": cross_episode_shuffle_differs,
+        "shuffle_test_status": shuffle_test_status,
+        "shuffle_test_reason": shuffle_test_reason,
+        "shuffle_control": shuffle_control,
         # Back-compat alias: the primary testable control is now cross-episode.
         "shuffled_mapping_differs_from_learned": cross_episode_shuffle_differs,
         "shuffled_latent_histogram_preserved": learned_hist == shuffled_hist,
@@ -624,6 +666,7 @@ def _build_verdict(
         "learned_beats_within_episode_shuffled": beats_within_shuffled,
         "learned_beats_cross_episode_shuffled": beats_cross_shuffled,
         "cross_episode_gate_untestable": cross_gate_untestable,
+        "shuffle_test_status": (trust_checks or {}).get("shuffle_test_status"),
         "learned_advantage": learned_advantage,
         "cells_learned_beats_fixed_z2": cells_learned_beats_fixed,
         "cells_total": cells_total,
@@ -812,6 +855,8 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         trace_comparison,
         frozen,
         episodes_per_cell=protocol.episodes_per_cell,
+        shuffled_meta=shuffled_meta,
+        cross_episode_meta=cross_episode_meta,
     )
     verdict = _build_verdict(
         summary,
@@ -875,6 +920,7 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         "learned_trace_differs_from_uniform",
         "within_episode_shuffle_differs_from_learned",
         "cross_episode_shuffle_differs_from_learned",
+        "shuffle_test_status",
         "cross_episode_latent_histogram_preserved",
         "shuffled_latent_histogram_preserved",
         "fixed_z2_always_selects_z2",
@@ -882,6 +928,15 @@ def run_diagnostic(protocol: DiagnosticProtocol, output_dir: Path, *, trace_audi
         "v2_trustworthy",
     ):
         print(f"  {key}: {trust_checks.get(key)}")
+    _sc = trust_checks.get("shuffle_control", {})
+    if trust_checks.get("shuffle_test_status") == "UNTESTABLE":
+        print(f"  shuffle_control.applicable: False ({trust_checks.get('shuffle_test_reason')})")
+    else:
+        print(
+            "  shuffle_control: "
+            f"within_episode.passed={_sc.get('within_episode', {}).get('passed')}, "
+            f"cross_episode.passed={_sc.get('cross_episode', {}).get('passed')}"
+        )
     print()
     print("=== Verdict ===")
     for key, value in verdict.items():

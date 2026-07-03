@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-02 (UTC-4)
+> **Last updated:** 2026-07-03 (UTC-4)
 
 ---
 
@@ -803,7 +803,58 @@ honest next step *only* if v5i4 fails its gates (§2.1 eval matrix +
 a paired-bootstrap-significant delta, v4i4post is icing and is
 deprioritized.
 
-### 3.9 v6i10 episode-router exploration preset (IMPLEMENTED, PENDING_SMOKE)
+### 3.9 v6i10 episode-router exploration preset — `EVALUATED` (smoke PASS; 5-update mechanism HARD-STOP, MI≈0)
+
+**Status:** `EVALUATED`. Committed at `696bfb1` (code + tests; tracker doc
+follow-up `d03f7e0`). The one-update runtime smoke passed **every** gate
+and the five-update mechanism run then triggered two hard-stop conditions
+(MI pinned at the smoke floor; per-z advantage rankings flip randomly).
+Verdict: **reject for promotion; do not run the behavioral grid.** The
+35-dim geometry-only context yields no extractable routing signal — the
+third independent confirmation after §3.0.1 (v6i9 continuation) and
+§3.0.3 (v6i9-specialize).
+
+**Smoke (1 update, `--load-weights-only` from anchor, run_tag
+`v6i10-episode-router-explore-smoke-seed1`):** all 11 gates green — one
+decision/episode (486 opportunities − 454 finalized arcs = 32 open =
+one per env; `arc_mean_length=138.8`); z fixed until termination
+(`strategy_switch_count=0`); behavior = `0.8·q_phi + 0.2·U` with stored
+old-log-prob = behavior mixture (config `router_uniform_exploration_prob=0.2`,
+`router_sampling.py:730`, unit-test pinned); all four z sampled
+(`unique=4`); `latent_arc_running_mean_count=454`; marginal entropy active
+(`rollout_marginal_active=1.0`, `main_loop_q_phi_grad_norm=3.2e-5>0`);
+router grads nonzero (`q_phi_grad_norm=0.0253`); frozen actor+z grads/deltas
+exactly 0; frozen tensor hash byte-identical to anchor (`f332687…`);
+checkpoint round-trips bit-exact. Deterministic argmax already 0.909-
+concentrated on one z despite near-uniform `q_bar` (the v6i9 precursor).
+
+**Five-update mechanism (`experiments/run_ab_router_credit.py --arm
+treatment`, from anchor, fresh optimizer, `source_commit=d03f7e0`,
+`artifacts/v6i10_episode_router_explore/treatment/`):**
+
+```text
+              u1       u2       u3       u4       u5
+mi_proxy    2.19e-5  2.13e-5  2.40e-5  2.30e-5  2.31e-5   FLAT at smoke floor
+top1-top2   0.0212   0.0157   0.0124   0.0107   0.0118    SHRINKING (logits flatten)
+argmax z2   0.934    0.865    0.705    0.638    0.715     (z0,z3 NEVER argmax)
+best per-z  z3       z1       z3       z2       z3        ranking flips randomly
+frozen hash f332687 == f332687 unchanged; router moved YES; unique z=4 each update
+```
+
+`H_marginal ≈ H_conditional ≈ ln4` every update ⇒ the router emits a
+near-uniform distribution for every state; the per-episode z is therefore
+effectively random (near-uniform router + 20% floor), so arc credit chases
+noise and per-z ordering never stabilizes. The `argmax<0.90` guard passed
+but is a **false positive**: argmax softened (0.93→0.72) because logits
+flattened (indecision), not because context emerged. Plumbing verified
+perfect (exact frozen hash, auto-centered arc advantage, ~85–99% positive
+fraction). Artifacts: `summary.json`, `run_meta.json`, `final_treatment.zip`.
+
+**Next lever (unchanged from §3.0.1 conclusion):** context enrichment
+(opponent/map identity) or the offline best-z predictability probe on the
+real 35-dim context — **not** another entropy/credit/exploration knob run.
+
+### 3.9-orig v6i10 episode-router exploration preset (original PENDING_SMOKE notes)
 
 **Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
 `v6i10_episode_router_explore_hardpool` (aliases `v6i10`,
