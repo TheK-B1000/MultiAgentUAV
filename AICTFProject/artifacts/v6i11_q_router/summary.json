@@ -1,0 +1,15 @@
+{
+  "preset": "v6i11_q_router_hardpool",
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+  "n_updates": 15,
+  "total_arcs": 0,
+  "routing_verdict": "INSUFFICIENT_SAMPLES",
+  "spread_final": {
+    "spread_OP8": NaN,
+    "spread_OP9": NaN,
+    "spread_OP10": NaN
+  },
+  "min_cell_arcs": 0.0,
+  "frozen_actor_ok": true,
+  "updates": []
+}

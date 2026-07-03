@@ -854,14 +854,50 @@ fraction). Artifacts: `summary.json`, `run_meta.json`, `final_treatment.zip`.
 (opponent/map identity) or the offline best-z predictability probe on the
 real 35-dim context — **not** another entropy/credit/exploration knob run.
 
-### 3.10 v6i11 contextual Q-value return router — `RUNNING` (three pre-run bugs fixed; 15-update diagnostic launched, update-1 validated)
+### 3.10 v6i11 contextual Q-value return router — `EVALUATED` (three pre-run bugs fixed; 15-update diagnostic = FLAT on a VALID dataset)
 
-**Status:** `RUNNING` — 15-update diagnostic launched from the clean anchor
-(`artifacts/v6i11_q_router_run2_seed1`, seed 1, cuda, ~11.4 min/update ≈ 2.8 h).
-Update 1 validated: every `(opponent, z)` cell has 29–51 arcs, `count_by_z`
-balanced, `arc_length_mean ≈ 138`, `terminal_finalized_fraction = 1.0`,
-`records_after_update = 0`; early empirical row-spread emerging (OP9 ≈ 1.87).
-Preset
+**Result (2026-07-03, `artifacts/v6i11_q_router_run2_seed1/summary.json`):**
+`routing_verdict = FLAT`, `promotion_status = NOT_A_CANDIDATE`,
+`reliably_separating_opponents = 0/3`. The dataset is **valid, not
+insufficient**: replay_size 7038, no duplicates, all z + all opponents
+represented, `min_cell_arcs = 527` (≫ 20/cell bar), `return_variance = 11.08`,
+`mean_arc_length ≈ 139`, `terminal_finalized_fraction = 1.0`,
+`frozen_actor_ok = true`. So `FLAT` here is a genuine negative under the
+tightened semantics, not a swallowed pipeline failure.
+
+*Why FLAT (the reliability gate did its job).* Empirical row-spreads
+(OP8 0.262, OP9 0.240, OP10 0.256) exceed the 0.10 magnitude threshold, but
+every best-vs-second-best gap's bootstrap CI **includes zero** (OP8 gap 0.151
+CI[-0.15,0.45]; OP9 0.030 CI[-0.34,0.38]; OP10 0.036 CI[-0.36,0.43]). Episode-
+return std (≈ 2.6–3.9 per cell) swamps the ≈0.15–0.26 per-z mean gaps even at
+~530–630 arcs/cell. Predicted-Q spread stayed tiny (0.01–0.04) — the network did
+**not** invent confident spreads — and best-z agreement was 2/3 (OP8✓, OP9✗,
+OP10✓), i.e. suggestive but unreliable.
+
+*What FLAT does and does not mean here.* It does **not** re-open repertoire
+diversity (already established by counterfactual actor-logit differences,
+forced-z behavioural separation, and the +2.37 forced-z EPISODE oracle gap). The
+key tension: the oracle gap is a **paired, matched-seed within-episode**
+quantity, whereas this Q-router regresses an **unpaired between-episode**
+expectation `E[return | episode-start context, z]`. Between-episode variance
+(map, spawn, opponent stochasticity) dominates the per-z effect, so an unpaired
+replay-mean target cannot resolve the latents at this SNR/budget — and/or
+episode-start geometry is only weakly predictive of which z wins *this* episode.
+FLAT = "the current unpaired Q-formulation failed to resolve the latents under
+this dataset/horizon/context/budget," not "the latents don't differ."
+
+*Consequence for the held-out gate.* Per the recommended sequence, the held-out
+prospective evaluator (`experiments/eval_v6i11_q_router_heldout.py`, built) is
+run only when the diagnostic is at least `WEAK_SEPARATION`. FLAT does **not**
+meet that bar, so the held-out gate is **not** run and `map_id` instrumentation
+is **not** warranted yet. A productive redesign (not yet actioned) would target
+the paired signal directly — e.g. a per-context/per-episode baseline-subtracted
+(advantage-style) target rather than a raw between-episode return mean.
+
+**Pre-run status (retained):** 15-update diagnostic ran from the clean anchor
+(seed 1, cuda, ~13 min/update ≈ 3.3 h wall). Update 1 validated coverage
+(29–51 arcs/cell, balanced `count_by_z`, `arc_length ≈ 138`, `term_frac = 1.0`,
+`records_after_update = 0`). Preset
 `v6i11_q_router_hardpool` (aliases `v6i11_q_router`,
 `plan_faithful_latent_v6i11_q_router_hardpool`), experiment
 `experiments/run_v6i11_q_router.py`, external model `rl/router/q_value_router.py`.
