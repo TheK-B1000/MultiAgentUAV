@@ -324,7 +324,44 @@ grades did not (yet) produce better *choices*.
    shuffle gate. Pinned by
    `tests/test_router_occupancy_and_cross_episode.py`.
 
-### 3.0.3 v6i9 arc-credit *specialize* preset (entropy-balance) — `IMPLEMENTED, PENDING_LAUNCH`
+### 3.0.3 v6i9 arc-credit *specialize* preset (entropy-balance) — `EVALUATED` (mechanism FAIL: global z3 collapse, MI≈0)
+
+**5-update result (2026-07-03, recurrent, seed 1, from repertoire anchor;
+`artifacts/ab_router_specialize/treatment/`).** Integrity PASS (frozen-actor
+hash match, router moved `q_phi_grad` 0.041→0.073, fresh optimizer, arc
+credit active, old strategy-PPO channel off, resolved entropy path correct).
+Specialization/coverage FAIL:
+
+| upd | H_marg | H_cond | MI_proxy | margin | argmax_frac |
+|-----|--------|--------|----------|--------|-------------|
+| 1 | 1.3845 | 1.3844 | 0.0001 | 0.065 | z1=1.00 |
+| 2 | 1.3725 | 1.3722 | 0.0004 | 0.018 | z2=0.68/z3=0.32 |
+| 3 | 1.3661 | 1.3649 | 0.0011 | 0.248 | z3=1.00 |
+| 4 | 1.3521 | 1.3494 | 0.0027 | 0.343 | z3=1.00 |
+| 5 | 1.3203 | 1.3182 | 0.0022 | 0.482 | z3=1.00 |
+
+`MI_proxy` peaked at ~0.0027 nats (~0.2% of log 4) — `H_cond ≈ H_marg`
+throughout, i.e. the router is **context-independent**. Deterministic
+argmax collapsed to **z3=100%** by update 3; `q_bar` drifted z3 0.25→0.40,
+z0 0.23→0.15 while `H_marg` fell 1.385→1.320 (coverage eroding). The
+growing top1−top2 margin is a **global** logit bias, not contextual
+confidence. This is the "false diversity → global collapse" pattern:
+`latent_lam_h=0.01` marginal coverage too weak to hold the distribution
+while reduced `router_ent_coef` let a global z3 preference form.
+
+**Conclusion.** With the entropy path now correctly wired (bug in §3.0.3
+fixed pre-launch) the two-axis entropy balance changed *which* latent and
+increased *confidence* but not *context sensitivity* — reproducing the
+§3.0.1 context-insufficiency finding on the recurrent router. No entropy
+knob converts a context-independent router into a context-dependent one
+when MI(z;context)≈0. Behavioral gate expected to be near-vacuous
+(deterministic z3 everywhere ⇒ cross-episode shuffle likely
+`can_reassign=False` / `cross_episode_gate_untestable=true`). Recommended
+next: the offline best-z predictability probe on the real 35-dim
+decision-time context (separate "context lacks signal" from "router can't
+extract it") before adding opponent/map identity to the context.
+
+### 3.0.3b v6i9 arc-credit *specialize* preset (entropy-balance) — original PENDING_LAUNCH notes
 
 **Preset:** `v6i9_arc_credit_specialize_hardpool` (aliases
 `v6i9_arc_credit_specialize`,

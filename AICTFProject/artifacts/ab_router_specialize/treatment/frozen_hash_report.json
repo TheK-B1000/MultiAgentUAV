@@ -1,0 +1,11 @@
+{
+  "initial_router_hash": "d41e281bb3d50cf4792c343ae53d0fb16e22131d33761e74081a6b6ec4b6c400",
+  "initial_frozen_actor_hash": "f332687ef1bfc29733a220f13cc56dd2a283fc791b5119503e6c5b9f81ab0e5c",
+  "fresh_optimizer": true,
+  "frozen_actor_z_hash_before": "f332687ef1bfc29733a220f13cc56dd2a283fc791b5119503e6c5b9f81ab0e5c",
+  "frozen_actor_z_hash_after": "f332687ef1bfc29733a220f13cc56dd2a283fc791b5119503e6c5b9f81ab0e5c",
+  "frozen_actor_z_unchanged": true,
+  "router_hash_before": "d41e281bb3d50cf4792c343ae53d0fb16e22131d33761e74081a6b6ec4b6c400",
+  "router_hash_after": "9123a08559858f0eaa4fc50de4b45b9dde514b930803cd2b3793645c124905dc",
+  "router_moved": true
+}
