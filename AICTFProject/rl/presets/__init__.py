@@ -80,6 +80,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool,
     apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
+    apply_plan_faithful_latent_v6i11_q_router_hardpool,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -459,6 +460,10 @@ PRESET_REGISTRY = {
     "v6i9_mapaware_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     "v6i9_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     "plan_faithful_latent_v6i9_mapaware_nav_refinement": apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
+    # V6I11: contextual Q-value return router (bandit regression, no BPTT)
+    "v6i11_q_router_hardpool": apply_plan_faithful_latent_v6i11_q_router_hardpool,
+    "v6i11_q_router": apply_plan_faithful_latent_v6i11_q_router_hardpool,
+    "plan_faithful_latent_v6i11_q_router_hardpool": apply_plan_faithful_latent_v6i11_q_router_hardpool,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.

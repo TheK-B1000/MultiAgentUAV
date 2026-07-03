@@ -854,6 +854,140 @@ fraction). Artifacts: `summary.json`, `run_meta.json`, `final_treatment.zip`.
 (opponent/map identity) or the offline best-z predictability probe on the
 real 35-dim context — **not** another entropy/credit/exploration knob run.
 
+### 3.10 v6i11 contextual Q-value return router — `RUNNING` (three pre-run bugs fixed; 15-update diagnostic launched, update-1 validated)
+
+**Status:** `RUNNING` — 15-update diagnostic launched from the clean anchor
+(`artifacts/v6i11_q_router_run2_seed1`, seed 1, cuda, ~11.4 min/update ≈ 2.8 h).
+Update 1 validated: every `(opponent, z)` cell has 29–51 arcs, `count_by_z`
+balanced, `arc_length_mean ≈ 138`, `terminal_finalized_fraction = 1.0`,
+`records_after_update = 0`; early empirical row-spread emerging (OP9 ≈ 1.87).
+Preset
+`v6i11_q_router_hardpool` (aliases `v6i11_q_router`,
+`plan_faithful_latent_v6i11_q_router_hardpool`), experiment
+`experiments/run_v6i11_q_router.py`, external model `rl/router/q_value_router.py`.
+Classification: **SUMMER-COMPATIBLE EXTENSION** — off-policy value regression
+over online experienced returns, plus a 3-way opponent one-hot as an *input*
+feature (not opponent-identity supervision). Targets are experienced returns
+from sampled actions; no hindsight forced-z labels, no best-z labels, actor +
+adapters frozen. **Not yet run.**
+
+**Scientific delta:** replace BPTT PPO logit routing (which repeatedly turned
+tiny logit biases into one-latent argmax collapse in §3.0.1/§3.9) with a
+separate return-prediction model learning `context + selected z → expected
+EPISODE return` from a replay buffer. Separates "estimate which latent has
+higher value" (Q-router) from "execute the selected latent" (frozen actor).
+
+**Three pre-run bugs found and fixed (2026-07-03):**
+
+1. **Target-horizon mismatch.** The first draft inherited the cadence-32
+   recurrent lineage (`strategy_interval=32`, `latent_resample_every_n=32`,
+   `latent_arc_credit_min_len=32`), so each arc was a ~32-step MID-EPISODE
+   segment and the target became "which z produced the best *local* arc
+   return?" — NOT the episode-persistent forced-z EPISODE return validated by
+   Probe A / the +2.37 oracle gap. **Fix:** re-parent to
+   `v6i10_episode_router_explore_hardpool` (episode-persistent contract →
+   `strategy_interval=0`, `latent_resample_every_n=0`, `min_len=1`), so
+   arc == episode, `global_state_0` == episode-start context, `arc_return` ==
+   total episode return. `arc_length` telemetry now printed per update to
+   confirm arc ≈ episode length.
+
+2. **Arc-extraction after drain.** The script read
+   `rollout_strategy_arc_records` *after* `trainer.update()`, but
+   `post_update.py` drains that buffer via `reset_arc_credit_rollout_state()`
+   at the end of every update → the Q-router would have trained on **zero
+   arcs** every step (silent no-op). **Fix:** extract arcs between
+   `collect_rollout()` and `update()`.
+
+3. **Opponent identity never captured (opponent one-hot always zero).** The
+   rollout `arc_open` (router_sampling) and the episode-end `arc_finalize`
+   (collector) both omitted `opponent_ids`, so `arc_open_opponent_id` stayed at
+   its `-1` sentinel and every arc record carried `opponent_id = -1`. That
+   zeroed the Q-router's opponent one-hot — collapsing the context back to
+   geometry-only and defeating v6i11's premise — and forced every per-opponent
+   cell to `count = 0 / mean = NaN` (an automatic `INSUFFICIENT_DATA`). A
+   *second* half of the bug: the Q-router assumed OP8/9/10 → ids 8/9/10, but the
+   canonical `_opponent_id_int_from_info` (`csv_writers._OPPONENT_TAG_TO_ID`,
+   scheme OP_N → N-1) yields **7/8/9**, so even a threaded id would have been
+   unmapped. **Fix:** (a) collector stamps the episode-end `arc_finalize` with
+   `_opponent_id_int_from_info` per env (opponent is episode-constant, so the
+   finalize-time value is exact for arc == episode); (b) `_OPPONENT_ID_TO_IDX`
+   in the experiment and `_DEFAULT_OPPONENT_ID_TO_IDX` in the Q-router corrected
+   to `{7:0, 8:1, 9:2}`; (c) `q_value_router` display labels now route through
+   `_opponent_tag_from_id` so rows read OP8/OP9/OP10, not OP7/OP8/OP9. Verified
+   live: update-1 `count_OP*_z*` all populated (29–51/cell), `mean_return_OP*_z*`
+   real. Pinned by `V6i11OpponentContextWiringTests` (canonical one-hot rows,
+   zero one-hot for -1/unmapped, default-map scheme).
+
+**Hardening pass (2026-07-03, before trusting `summary.json`):**
+
+* **Stable record IDs + rejection dedup.** `arc_finalize` now stamps each
+  record with `env_index` + a monotonic `arc_uid`
+  (`arc_credit.py`). The replay buffer dedups by identity
+  `(rollout_index, env_index, arc_uid)` and **rejects** (does not insert)
+  duplicates — content-hash dedup could collide two legitimate episodes.
+  `push_many` returns `{inserted, duplicates_rejected, size_before,
+  size_after}`.
+* **Hard guards abort the run** (`check_arc_guards` → `ArcIntegrityError`)
+  every update: `records_before_update > 0`, `inserted > 0`,
+  `size_after > size_before`, and `records_after_update == 0` (proves the
+  drain happened after we copied). A broken pipeline writes
+  `routing_verdict = INVALID` and exits — it **never** emits `FLAT`.
+* **Deep-copied extraction** (`copy_arc_record`) so the post-update reset
+  cannot mutate the captured records; copy+push happen **before** `update()`.
+* **Verdict is now 5-state** (`decide_verdict`): `INVALID` (zero arcs / dup
+  contamination / horizon mismatch via terminal-finalized fraction / frozen
+  actor drift), `INSUFFICIENT_DATA` (missing z, missing opponent, zero
+  variance, or <20 arcs in the smallest cell), `FLAT`, `WEAK_SEPARATION`,
+  `SEPARATING`. `FLAT` explicitly does **not** re-open repertoire diversity
+  (proven by counterfactual logits, forced-z separation, +2.37 oracle gap);
+  it means the Q-formulation failed to resolve the latents. Adding `INVALID`
+  and `INSUFFICIENT_DATA` prevents `FLAT` from swallowing tooling failures.
+* **Reliability gate:** an opponent separates only if row-spread ≥ threshold
+  **and** the bootstrap CI on the best-vs-second-best mean-return gap excludes
+  zero (`best_second_gap_ci`). Raw spread alone is insufficient.
+* **Replay validity report** (`validity_report`): count-by-z, count-by-opponent,
+  per-cell count/mean/std/sem, return variance, mean arc length,
+  **terminal-finalized fraction** (episode-horizon check — should be ≈1.0),
+  and the duplicate-rejection guard. Per-update coverage gate warns on z
+  starvation by update ≥3.
+* **`map × z` coverage remains NOT_INSTRUMENTED**: the arc record carries no
+  `map_id` (threading it through the shared arc lifecycle touches every
+  arc-credit preset). `count_by_opponent × z` is reported instead. Adding
+  `map_id` is the prerequisite for a map-aware held-out grid.
+* **Promotion is gated, not asserted:** a positive data verdict yields
+  `promotion_status = SEPARATING_CANDIDATE` (not "wire in") and
+  `heldout_gate = REQUIRED_NOT_RUN`. The decisive gate is the held-out
+  prospective test (argmax-Q vs fixed-z2 / uniform / cross-episode-shuffled-Q /
+  oracle; decisive = Q-router > shuffled-Q), a separate post-training step.
+* Pinning tests: `tests/test_v6i11_q_router.py` (15 cases) — horizon contract,
+  extraction-before-drain, zero-arc/no-insert abort, record_id dedup,
+  terminal-fraction/arc-length, coverage→INSUFFICIENT_DATA, reliable
+  separation→SEPARATING, noisy overlap→not SEPARATING, plus opponent-context
+  wiring (canonical `{7:0,8:1,9:2}` one-hot rows, zero one-hot for -1/unmapped).
+
+**Held-out prospective evaluator (built, not yet run):**
+`experiments/eval_v6i11_q_router_heldout.py` is the decisive behavioural gate.
+Matched-seed design: per `(opponent, map, seed)` held-out episode it reads the
+legal t=0 context, predicts `Q(context, z)`, and runs ALL FOUR forced-z rollouts
+once on fresh matched-seed envs; every condition (Q-router argmax, cross-episode
+histogram-preserving shuffled-Q, uniform episode-persistent, fixed-z2, oracle)
+is derived from the SAME four paired returns. Cross-episode shuffle permutes
+chosen-z assignments *within* each `(opponent, map)` cell and reports
+`cross_episode_gate_untestable = true` if no cell can be reassigned (all choices
+identical) rather than a spurious zero-delta tie. Fresh `base_seed = 30000`,
+disjoint from Probe A (42), the v6i9 diagnostic (4242), and v6i11 training
+(seed 1). Decisive gate: paired `Q-router > shuffled-Q` (bootstrap CI excludes
+0); then `> uniform`; then approaches/beats fixed-z2. Frozen-actor hash checked
+before/after. It loads `q_router_final.pt`; run only after the diagnostic is at
+least `WEAK_SEPARATION`.
+
+**Next step:** await the running 15-update diagnostic
+(`artifacts/v6i11_q_router_run2_seed1/summary.json`). If validity holds and the
+verdict is at least `WEAK_SEPARATION`, run the held-out evaluator above; add
+`map_id` instrumentation only before a full map-aware grid, per the recommended
+sequence. Snapshot regenerated (adds the 3 v6i11 aliases only; no other preset
+changed).
+
 ### 3.9-orig v6i10 episode-router exploration preset (original PENDING_SMOKE notes)
 
 **Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as

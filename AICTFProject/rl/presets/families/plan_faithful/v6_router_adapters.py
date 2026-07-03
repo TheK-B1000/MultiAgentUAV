@@ -557,3 +557,92 @@ def apply_plan_faithful_latent_v6i9_mapaware_nav_refinement(cfg: PPOConfig) -> P
     cfg.experiment_id = "v6i9"
     cfg.run_tag = "v6i9_mapaware_nav_refinement_splitlane_OP8_OP9_OP10_200k"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i11_q_router_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I11 — contextual Q-value return router over the frozen v6i9 repertoire.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i11_q_router_hardpool.
+    Parent preset: v6i10_episode_router_explore_hardpool (episode-persistent,
+    feedforward, arc == episode, validated one-decision-per-episode contract).
+    Classification: SUMMER-COMPATIBLE EXTENSION (context enrichment + off-policy
+    value regression; label-free — targets are online experienced returns).
+
+    Research question: can a SEPARATE return-prediction model learn
+    ``context + selected z -> expected EPISODE return`` from online exploratory
+    data, cleanly separating "estimate which latent has higher value" (Q-router)
+    from "execute the selected latent" (frozen actor)?  This side-steps the
+    policy-gradient credit problem that repeatedly turned tiny logit biases into
+    one-latent argmax collapse (v6i9/v6i10).
+
+    Target-horizon contract (2026-07-03 correction)
+    ------------------------------------------------
+    The validated complementarity (Probe A, forced-z oracle, +2.37 oracle gap)
+    is defined on EPISODE-PERSISTENT forced-z EPISODE return: "which z is best
+    for the whole episode?".  An earlier draft of this preset inherited the
+    cadence-32 recurrent lineage (``strategy_interval=32``,
+    ``latent_resample_every_n=32``, ``latent_arc_credit_min_len=32``), which
+    made each arc a ~32-step MID-EPISODE segment and changed the learning target
+    to "which z produced the best LOCAL arc return?".  Those two targets need
+    not agree (a latent may pay a short-term cost for a better eventual capture),
+    so the diagnostic would not have measured the validated task.
+
+    This preset therefore inherits v6i10's episode-persistent contract so that:
+        * exactly one routing decision per episode (resample only at episode start),
+        * ``global_state_0`` in each arc record IS the episode-start context,
+        * ``arc_return`` IS the total episode return (min_len == 1, one arc/episode).
+    That matches Probe A and the forced-z oracle exactly.
+
+    Key changes vs v6i10_episode_router_explore_hardpool
+    ----------------------------------------------------
+    * ``latent_arc_credit_coef = 0.0``     — the internal router is NOT updated
+                                              from arc records; arc records are
+                                              collected purely as data for the
+                                              EXTERNAL Q-regressor.
+    * ``router_ent_coef = 0.0``            — no entropy pressure on the router.
+    * ``latent_lam_h = 0.0`` / ``latent_lam_h_end = 0.0`` — no marginal-entropy
+                                              pressure (v6i10 used 0.015).
+    * ``latent_strategy_ppo_coef = 0.0``   — BPTT PPO disabled (already 0).
+    * ``router_uniform_exploration_prob = 0.5`` — 50 % uniform z / 50 % router
+                                              argmax so every (opponent, z) cell
+                                              gets samples.
+    * ``latent_arc_credit_enabled = True`` — arc records still collected.
+    Inherited unchanged from v6i10: episode-persistent resampling
+    (``strategy_interval=0``, ``latent_resample_every_n=0``), feedforward router,
+    ``latent_arc_credit_min_len=1`` (arc == episode), frozen actor + adapters.
+
+    The Q-regressor is EXTERNAL to the PPO trainer: it is instantiated in the
+    experiment script (``experiments/run_v6i11_q_router.py``) and trained from
+    ``trainer.latent_state.rollout_strategy_arc_records`` after each rollout.
+    The router context adds a 3-way opponent one-hot to the 35-d geometry; this
+    is an observed INPUT feature, not opponent-identity SUPERVISION.
+
+    What FLAT does and does not mean
+    --------------------------------
+    A flat Q-router does NOT re-open the question of repertoire diversity — that
+    was already established by counterfactual actor-logit differences, forced-z
+    behavioural separation, and the +2.37 oracle gap.  FLAT here means "no usable
+    value separation was learned under THIS dataset, target horizon, context, and
+    training budget" — i.e. the current Q-learning formulation failed to resolve
+    the latents, not that the latents do not differ.  See the verdict semantics
+    in ``experiments/run_v6i11_q_router.py``.
+    """
+    cfg = apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool(cfg)
+    # Internal router receives NO gradient; all routing credit goes to the
+    # external Q-regressor.  Arc records are still collected as its training data.
+    cfg.latent_arc_credit_coef = 0.0
+    cfg.router_ent_coef = 0.0
+    cfg.latent_lam_p = 0.0
+    cfg.latent_lam_h = 0.0
+    cfg.latent_lam_h_end = 0.0
+    cfg.latent_strategy_ppo_coef = 0.0
+    # Episode-persistent contract (arc == episode) is inherited from v6i10:
+    #   latent_resample_every_n = 0, strategy_interval = 0, latent_arc_credit_min_len = 1.
+    cfg.latent_arc_credit_enabled = True
+    # 50 % uniform exploration so every (opponent, z) cell gets adequate samples.
+    cfg.router_uniform_exploration_prob = 0.5
+    cfg.experiment_id = "v6i11"
+    cfg.run_tag = "v6i11_q_router_hardpool_OP8_OP9_OP10"
+    return cfg

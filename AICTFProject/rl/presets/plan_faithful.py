@@ -101,6 +101,7 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool,
     apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool,
     apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
+    apply_plan_faithful_latent_v6i11_q_router_hardpool,
 )
 
 __all__ = [
@@ -200,4 +201,5 @@ __all__ = [
     "apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool",
     "apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool",
     "apply_plan_faithful_latent_v6i9_mapaware_nav_refinement",
+    "apply_plan_faithful_latent_v6i11_q_router_hardpool",
 ]

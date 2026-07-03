@@ -1069,7 +1069,21 @@ class RolloutCollector:
         # BEFORE the next ``strategy_for_step`` (which would otherwise see
         # ``arc_has_open=True`` and overwrite the snapshot).
         if bool(getattr(self.hparams, "latent_arc_credit_enabled", False)):
-            latent_state.arc_finalize(done_t, reason="episode_end")
+            # Stamp the finalized arc with the episode's scripted opponent id so
+            # downstream consumers (e.g. the v6i11 contextual Q-router) can key
+            # arc records by opponent. The opponent is constant for the whole
+            # episode, so the episode-end value is the correct attribution for
+            # arc==episode presets; ``_opponent_id_int_from_info`` is the single
+            # canonical extractor (OP8->7, OP9->8, OP10->9; -1 if unknown), so it
+            # stays consistent with the metrics CSV and MI telemetry.
+            arc_opponent_ids = torch.as_tensor(
+                [_opponent_id_int_from_info(self.cfg, dict(info)) for info in infos],
+                dtype=torch.long,
+                device=self.device,
+            )
+            latent_state.arc_finalize(
+                done_t, reason="episode_end", opponent_ids=arc_opponent_ids
+            )
         latent_state.macro_finalize(done_t, reason="episode_end")
 
     def _append_global_state_probe_rows(

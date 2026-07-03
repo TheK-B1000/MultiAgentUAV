@@ -119,6 +119,14 @@ class ArcCreditManager:
                 if opponent_ids is not None
                 else int(self.host.arc_open_opponent_id[env_i].detach().cpu().item())
             )
+            # Stable, monotonic arc id so downstream replay buffers can reject
+            # duplicate insertions by identity (not by content hash, which two
+            # legitimate episodes can occasionally collide on). The counter is
+            # NOT reset per rollout — it is unique for the lifetime of this
+            # LatentStrategyState — so ``arc_uid`` alone uniquely identifies a
+            # finalized arc.
+            arc_uid = int(getattr(self.host, "_arc_record_uid_counter", 0))
+            self.host._arc_record_uid_counter = arc_uid + 1
             rec = {
                     "global_state_0": self.host.arc_open_ctx[env_i].detach().clone().cpu(),
                     "z": int(self.host.arc_open_z[env_i].detach().cpu().item()),
@@ -128,6 +136,8 @@ class ArcCreditManager:
                     "opponent_id": rec_opp,
                     "bucket_id": int(self.host.arc_open_bucket_id[env_i].detach().cpu().item()),
                     "reason": str(reason),
+                    "env_index": env_i,
+                    "arc_uid": arc_uid,
                 }
             if self.host.arc_open_selector_hidden is not None:
                 rec["selector_hidden_0"] = (
