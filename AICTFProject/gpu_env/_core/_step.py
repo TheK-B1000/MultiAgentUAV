@@ -323,6 +323,10 @@ class _StepMixin:
         roff += float(self.cfg.flag_carry_home_reward) * flags["blue_cap_agents"].sum(dim=1).to(torch.float32)
         roff += float(self.cfg.enabled_mine_reward) * mines["blue_mine_placement_agents"].sum(dim=1).to(torch.float32)
         roff += float(self.cfg.enemy_mav_kill_reward) * blue_kill_count
+        roff += self._surface_pressure_reward(
+            blue_cap_env=flags["blue_cap_env"],
+            red_grab_env=flags["red_grab_env"],
+        )
         red_kill_count = combat["red_tag_total"] + mines["red_mine_tags"]
         roff -= float(self.cfg.flag_pickup_reward) * flags["red_grab_agents"].sum(dim=1).to(torch.float32)
         roff -= float(self.cfg.flag_carry_home_reward) * flags["red_cap_agents"].sum(dim=1).to(torch.float32)
@@ -417,6 +421,13 @@ class _StepMixin:
             torch.full_like(rterm, float(self.cfg.draw_team_penalty)),
             rterm,
         )
+        if abs(float(self.cfg.surface_score_margin_coef)) > 1e-12:
+            margin = (self.blue_score - self.red_score).to(torch.float32)
+            rterm = rterm + torch.where(
+                done,
+                float(self.cfg.surface_score_margin_coef) * margin,
+                torch.zeros_like(rterm),
+            )
         reward = self._reward_total(
             rterm,
             rewards["roff"],

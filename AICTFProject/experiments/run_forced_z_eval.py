@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,7 +34,12 @@ from experiments.forced_z_eval.analysis.complementarity import (  # noqa: E402
 )
 from experiments.forced_z_eval.analysis.oracle import build_oracle_report  # noqa: E402
 from experiments.forced_z_eval.analysis.stage_c import build_stage_c_report, print_stage_c_report  # noqa: E402
-from experiments.forced_z_eval.io import load_episode_results, write_run_artifacts  # noqa: E402
+from experiments.forced_z_eval.io import (  # noqa: E402
+    append_episode_rows,
+    atomic_write_json,
+    load_episode_results,
+    write_manifest,
+)
 from experiments.forced_z_eval.protocol import (  # noqa: E402
     BEHAVIOR_JSON,
     COMPLEMENTARITY_JSON,
@@ -44,6 +50,8 @@ from experiments.forced_z_eval.protocol import (  # noqa: E402
     DEFAULT_OPPONENTS,
     ORACLE_JSON,
     STAGE_C_JSON,
+    EPISODE_RESULTS_CSV,
+    RUN_MANIFEST_JSON,
     ForcedZProtocol,
     audit_protocol_note,
 )
@@ -69,7 +77,50 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _write_json(path: Path, payload: dict) -> None:
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    atomic_write_json(path, payload)
+
+
+def _partial_summary(protocol: ForcedZProtocol, completed_conditions: list[dict], episode_count: int) -> dict:
+    expected = len(protocol.opponents) * len(protocol.maps) * len(protocol.latents)
+    return {
+        "status": "running",
+        "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "checkpoint": protocol.checkpoint,
+        "completed_condition_count": len(completed_conditions),
+        "expected_condition_count": expected,
+        "episode_count": int(episode_count),
+        "completed_conditions": completed_conditions,
+    }
+
+
+def _write_failure_report(run_dir: Path, *, protocol: ForcedZProtocol, reason: str, exc_text: str | None = None) -> None:
+    atomic_write_json(
+        run_dir / "failure_report.json",
+        {
+            "status": "failed",
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "checkpoint": protocol.checkpoint,
+            "reason": reason,
+            "traceback": exc_text,
+        },
+    )
+
+
+def _validate_completed_artifacts(run_dir: Path) -> None:
+    expected = [
+        RUN_MANIFEST_JSON,
+        EPISODE_RESULTS_CSV,
+        STAGE_C_JSON,
+        COMPLEMENTARITY_JSON,
+        ORACLE_JSON,
+        BEHAVIOR_JSON,
+    ]
+    missing = [name for name in expected if not (run_dir / name).exists()]
+    if missing:
+        raise RuntimeError(f"Eval exited but missing expected artifacts: {missing}")
+    manifest = json.loads((run_dir / RUN_MANIFEST_JSON).read_text(encoding="utf-8"))
+    if manifest.get("status") != "completed":
+        raise RuntimeError(f"Eval did not complete cleanly: {manifest}")
 
 
 def analyze_run(protocol: ForcedZProtocol, cells, run_dir: Path, *, oracle_metric: str) -> None:
@@ -110,6 +161,16 @@ def main() -> None:
         run_dir = Path(args.from_run)
         protocol, cells = load_episode_results(run_dir)
         analyze_run(protocol, cells, run_dir, oracle_metric=args.oracle_metric)
+        manifest = json.loads((run_dir / RUN_MANIFEST_JSON).read_text(encoding="utf-8"))
+        write_manifest(
+            run_dir,
+            protocol=protocol,
+            status="completed",
+            episode_count=sum(len(v) for v in cells.values()),
+            completed_conditions=manifest.get("completed_conditions", []),
+            extra_manifest={"analysis_only": True},
+        )
+        _validate_completed_artifacts(run_dir)
         return
 
     if args.analyze_only:
@@ -133,10 +194,81 @@ def main() -> None:
         collect_behavior_mean=not bool(args.no_behavior_telemetry),
         progress_every=int(args.progress_every),
     )
-    print(audit_protocol_note())
-    cells = run_forced_z_episodes(protocol)
-    write_run_artifacts(run_dir, protocol=protocol, cells=cells)
-    analyze_run(protocol, cells, run_dir, oracle_metric=args.oracle_metric)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    started_at = datetime.now(timezone.utc).isoformat()
+    completed_conditions: list[dict] = []
+    episode_count = 0
+    write_manifest(
+        run_dir,
+        protocol=protocol,
+        status="running",
+        started_at_utc=started_at,
+        completed_conditions=completed_conditions,
+        episode_count=episode_count,
+    )
+    atomic_write_json(run_dir / "partial_summary.json", _partial_summary(protocol, completed_conditions, episode_count))
+
+    def _on_cell_complete(key, eps) -> None:
+        nonlocal episode_count
+        opponent, z, map_name = key
+        append_episode_rows(run_dir, protocol=protocol, cells={key: eps})
+        episode_count += len(eps)
+        completed_conditions.append(
+            {
+                "opponent": opponent,
+                "latent_z": int(z),
+                "map": map_name,
+                "episodes": len(eps),
+            }
+        )
+        write_manifest(
+            run_dir,
+            protocol=protocol,
+            status="running",
+            started_at_utc=started_at,
+            completed_conditions=completed_conditions,
+            episode_count=episode_count,
+        )
+        atomic_write_json(run_dir / "partial_summary.json", _partial_summary(protocol, completed_conditions, episode_count))
+
+    try:
+        print(audit_protocol_note())
+        cells = run_forced_z_episodes(protocol, on_cell_complete=_on_cell_complete)
+        analyze_run(protocol, cells, run_dir, oracle_metric=args.oracle_metric)
+        write_manifest(
+            run_dir,
+            protocol=protocol,
+            status="completed",
+            started_at_utc=started_at,
+            completed_conditions=completed_conditions,
+            episode_count=episode_count,
+        )
+        _validate_completed_artifacts(run_dir)
+    except KeyboardInterrupt:
+        write_manifest(
+            run_dir,
+            protocol=protocol,
+            status="interrupted",
+            started_at_utc=started_at,
+            completed_conditions=completed_conditions,
+            episode_count=episode_count,
+            error="KeyboardInterrupt",
+        )
+        _write_failure_report(run_dir, protocol=protocol, reason="KeyboardInterrupt")
+        raise
+    except Exception as exc:
+        exc_text = traceback.format_exc()
+        write_manifest(
+            run_dir,
+            protocol=protocol,
+            status="failed",
+            started_at_utc=started_at,
+            completed_conditions=completed_conditions,
+            episode_count=episode_count,
+            error=str(exc),
+        )
+        _write_failure_report(run_dir, protocol=protocol, reason=str(exc), exc_text=exc_text)
+        raise
 
 
 if __name__ == "__main__":

@@ -51,6 +51,11 @@ class RewardConfig:
     stalemate_penalty: float = -0.08
     spin_penalty_coef: float = 0.05
     idle_penalty_coef: float = 0.03
+    surface_score_margin_coef: float = 0.0
+    surface_blue_capture_tempo_bonus: float = 0.0
+    surface_red_flag_touch_penalty: float = 0.0
+    surface_red_carrier_progress_penalty: float = 0.0
+    surface_blue_near_cap_bonus: float = 0.0
 
     @classmethod
     def from_object(cls, obj: Any) -> "RewardConfig":

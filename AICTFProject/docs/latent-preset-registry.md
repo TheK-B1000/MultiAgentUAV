@@ -183,6 +183,8 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i13_opening_window_advantage_router` (aliases `v6i13`, `v6i13_opening_window`, `v6i13_advantage_router`, `latent_v6i13_opening_window_advantage_router`, `plan_faithful_latent_v6i13_opening_window_advantage_router`) | `v6i12_advantage_router_hardpool` | `SUMMER-COMPATIBLE EXTENSION` | Delayed-commit external advantage-router diagnostic. It runs steps 0..31 under a uniformly sampled warmup latent, commits one router-selected latent at decision step 32, opens the arc at commit, credits only post-commit return, and attaches `[state_0, state_commit, delta]` to replay records. No labels, opponent-ID supervision head, oracle-z targets, forced-z training, auxiliary task, or actor training are added. Pinned by `tests/test_v6i13_opening_window_advantage_router.py`. |
 | `v6i14_contract_specialists` (aliases `v6i14`, `v6i14_contract_specialist_repertoire`, `latent_v6i14_contract_specialists`, `plan_faithful_latent_v6i14_contract_specialists`) | `v6i9_mapaware_repertoire_hardpool` | `DIAGNOSTIC` (non-Summer scaffold) | Contract-specialist repertoire birth. Router is off and z is assigned by balanced episodes; normal env reward is augmented with a small explicit z-indexed contract reward for opening pressure, defense recovery, carrier support, and conversion progress. This deliberately uses handcrafted z-role rewards, so it is not paper-faithful and not a Summer-compatible extension. Pinned by `tests/test_v6i14_contract_specialists.py`. |
 | `v6i15_contract_pressure_3x` / `6x` / `10x` (aliases include `v6i15` for 3x) | `v6i14_contract_specialists` | `DIAGNOSTIC` (non-Summer scaffold) | Contract-pressure coefficient sweep over the v6i14 scaffold. Router remains off, balanced-episode z assignment and frozen shared actor are preserved, and only `latent_contract_specialist_coef` is raised to 0.75, 1.50, or 2.50 to test whether behavior fingerprints respond when role contracts become loud. Pinned by `tests/test_v6i15_contract_pressure.py`. |
+| `v6i16_capacity_sharp_contracts` (aliases include `v6i16`; arms: `v6i16_sharp_contracts`, `v6i16_capacity`) | `v6i15_contract_pressure_3x` | `DIAGNOSTIC` (non-Summer scaffold) | Capacity + contract-feature ablation. Arm A sharpens the handcrafted contract features, Arm B increases z-pathway leverage, and Arm C combines both. Router remains off, balanced-episode z assignment is preserved, and all arms stay at 3x contract pressure. Pinned by `tests/test_v6i16_capacity_feature_ablation.py`. |
+| `v6i17_surface_pressure_diagnostic` (aliases include `v6i17`, `v6i17_harder_asymmetric_opponents`) | `v6i16_capacity_sharp_contracts` | `DIAGNOSTIC` (non-Summer scaffold) | Surface-pressure diagnostic. It keeps the v6i16 combined contract/capacity scaffold but expands the training opponent surface from OP8/OP9/OP10 to OP8/OP9/OP10/OP11/OP12. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z behavior, margin, tempo, or role-fingerprint separation rather than oracle gap alone. Pinned by `tests/test_v6i17_surface_pressure_diagnostic.py`. |
 
 ---
 
@@ -824,6 +826,91 @@ clearing the prior 0.0717 ceiling by a clear margin, and at least some
 pairs above the behavior threshold. If 10x pressure does not move the
 fingerprints, the next diagnostic is z-specific capacity or contract
 feature design.
+
+### 6.22 v6i16_capacity_sharp_contracts (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i16 inherits the v6i15 3x arm directly. The scientific delta is to test
+whether v6i15 failed because the contract features were too easy for one
+generic behavior to satisfy, because the z-specific actor pathway lacked
+control authority, or because both were true.
+
+This row deliberately keeps router training blocked. It is not a
+paper-faithful row and not a Summer-compatible extension: it uses
+handcrafted z-role reward shaping and actor z-pathway capacity changes.
+
+Resolved-config diffs vs `v6i15_contract_pressure_3x`:
+
+| Arm | Changed fields | Run tag |
+|-----|----------------|---------|
+| `v6i16_sharp_contracts` | `{experiment_id, latent_contract_specialist_variant, run_tag}` | `v6i16_sharp_contracts_3x_OP8_OP9_OP10` |
+| `v6i16_capacity` | `{experiment_id, latent_actor_z_adapter_enabled, latent_actor_z_adapter_init_std, latent_actor_z_adapter_scale, latent_z_gate_init, run_tag}` | `v6i16_capacity_3x_OP8_OP9_OP10` |
+| `v6i16_capacity_sharp_contracts` | `{experiment_id, latent_actor_z_adapter_enabled, latent_actor_z_adapter_init_std, latent_actor_z_adapter_scale, latent_contract_specialist_variant, latent_z_gate_init, run_tag}` | `v6i16_capacity_sharp_contracts_3x_OP8_OP9_OP10` |
+
+Arm settings: `latent_contract_specialist_coef = 0.75` for all arms. The
+sharp-contract arms set `latent_contract_specialist_variant = "sharp"`.
+The capacity arms set `latent_z_gate_init = 0.08`,
+`latent_actor_z_adapter_enabled = True`,
+`latent_actor_z_adapter_scale = 0.10`, and
+`latent_actor_z_adapter_init_std = 0.05`. The repertoire freeze allowlist
+includes `z_adapter`, so the capacity module is trainable while the shared
+actor trunk remains frozen.
+
+Sharp contract map:
+`z0 = pressure / interception / enemy-carrier disruption`,
+`z1 = escort / carrier support / conversion support`,
+`z2 = home-flag defense / returns / denial`,
+`z3 = spacing / lane control / split pressure`.
+
+Aliases: `v6i16`, `v6i16_capacity_feature_ablation`,
+`v6i16_capacity_sharp_contracts`,
+`latent_v6i16_capacity_sharp_contracts`, and
+`plan_faithful_latent_v6i16_capacity_sharp_contracts` resolve to the
+combined Arm C. Arm A and Arm B are available as `v6i16_sharp_contracts`
+and `v6i16_capacity`, plus matching `latent_v6i16_...` and
+`plan_faithful_latent_v6i16_...` aliases.
+
+Promotion logic: run 5 updates per arm, then a complete forced-z behavior
+fingerprint grid. Promotion requires mean pair distance clearly above
+v6i15's 0.0436, at least some pairs above threshold, stable role ownership
+metrics, and `unique_best_z_count > 1` on non-binary margin/timing
+surfaces. Win-rate saturation alone is not evidence.
+
+### 6.23 v6i17_surface_pressure_diagnostic (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i17 inherits the v6i16 combined arm directly. The scientific delta is to
+test whether v6i16 failed because the current OP8/OP9/OP10 surface lets one
+dominant generalist behavior satisfy every contract without role tradeoffs.
+
+This row deliberately keeps router training blocked. It is not a
+paper-faithful row and not a Summer-compatible extension: it inherits
+handcrafted z-role reward shaping and actor z-pathway capacity changes from
+v6i16, then changes the training/evaluation arena.
+
+Resolved-config diff vs `v6i16_capacity_sharp_contracts` is exactly:
+`{experiment_id, opponent_pool, run_tag}`.
+
+| Field | v6i16 combined value | This preset | Note |
+|-------|----------------------|-------------|------|
+| `experiment_id` | `v6i16` | `v6i17` | Artifact and protocol identity. |
+| `opponent_pool` | `("OP8", "OP9", "OP10")` | `("OP8", "OP9", "OP10", "OP11", "OP12")` | Adds the existing elite hardpool BT opponents to create harder/asymmetric role pressure. |
+| `run_tag` | `v6i16_capacity_sharp_contracts_3x_OP8_OP9_OP10` | `v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12` | Artifact namespace advertises the surface-pressure diagnostic. |
+
+All other v6i16 scaffold fields stay unchanged: router off,
+`balanced_episode` z assignment, sharp contract variant, 3x contract
+coefficient, stronger z pathway, `v6i9_training_stage = "repertoire"`, and
+frozen shared actor trunk.
+
+Aliases: `v6i17`, `v6i17_surface_pressure_diagnostic`,
+`v6i17_harder_asymmetric_opponents`,
+`latent_v6i17_surface_pressure_diagnostic`, and
+`plan_faithful_latent_v6i17_surface_pressure_diagnostic`.
+
+Promotion logic: run a short 5-update diagnostic first, then forced-z
+fingerprints over the harder surface. Router training remains blocked unless
+forced-z behavior pair distance clears the prior ~0.045 ceiling, at least some
+pairs exceed threshold, `unique_best_z_count > 1`, and score-margin, tempo, or
+role metrics show consequence differences. The `ORACLE_GAP_PLUS_CONTEXT` line
+alone is not promotion evidence.
 
 ---
 

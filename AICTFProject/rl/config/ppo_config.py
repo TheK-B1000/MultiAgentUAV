@@ -621,6 +621,11 @@ class PPOConfig:
     env_reward_clip: Optional[float] = None
     env_stalemate_penalty: Optional[float] = None
     env_stalemate_max_steps: Optional[int] = None
+    env_surface_score_margin_coef: Optional[float] = None
+    env_surface_blue_capture_tempo_bonus: Optional[float] = None
+    env_surface_red_flag_touch_penalty: Optional[float] = None
+    env_surface_red_carrier_progress_penalty: Optional[float] = None
+    env_surface_blue_near_cap_bonus: Optional[float] = None
     # Optional trainer-side reward shaping decay: scales (offense+pbrs+team) contribution seen by PPO.
     reward_shaping_coef_start: float = 1.0
     reward_shaping_coef_end: float = 1.0
@@ -741,6 +746,7 @@ class PPOConfig:
     latent_contract_specialist_enabled: bool = False
     latent_contract_specialist_coef: float = 0.0
     latent_contract_specialist_clip: float = 1.0
+    latent_contract_specialist_variant: str = "base"
 
     # --- V6I9: Multi-Stage Training ---
     # Controls which parameter groups are frozen at optimizer build time.

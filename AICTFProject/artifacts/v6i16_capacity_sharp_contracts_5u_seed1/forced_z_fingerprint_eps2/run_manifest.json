@@ -1,0 +1,177 @@
+{
+  "checkpoint": "artifacts\\v6i16_capacity_sharp_contracts_5u_seed1\\final_v6i16_capacity_sharp_contracts_5u_seed1_2v2.zip",
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10"
+  ],
+  "maps": [
+    "map_b",
+    "map_b_split_lane_v2"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "episodes_per_cell": 2,
+  "base_seed": 42,
+  "deterministic_actions": true,
+  "max_decision_steps": 400,
+  "device": "cuda",
+  "collect_behavior_mean": true,
+  "progress_every": 25,
+  "status": "completed",
+  "started_at_utc": "2026-07-04T16:42:34.555717+00:00",
+  "updated_at_utc": "2026-07-04T16:58:50.083988+00:00",
+  "pid": 41980,
+  "completed_conditions": [
+    {
+      "opponent": "OP8",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    }
+  ],
+  "completed_condition_count": 24,
+  "episode_count": 48
+}

@@ -121,6 +121,11 @@ from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i15_contract_pressure_3x,
     apply_plan_faithful_latent_v6i15_contract_pressure_6x,
     apply_plan_faithful_latent_v6i15_contract_pressure_10x,
+    apply_plan_faithful_latent_v6i16_sharp_contracts,
+    apply_plan_faithful_latent_v6i16_capacity,
+    apply_plan_faithful_latent_v6i16_capacity_sharp_contracts,
+    apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic,
+    apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic,
 )
 
 __all__ = [
@@ -227,4 +232,9 @@ __all__ = [
     "apply_plan_faithful_latent_v6i15_contract_pressure_3x",
     "apply_plan_faithful_latent_v6i15_contract_pressure_6x",
     "apply_plan_faithful_latent_v6i15_contract_pressure_10x",
+    "apply_plan_faithful_latent_v6i16_sharp_contracts",
+    "apply_plan_faithful_latent_v6i16_capacity",
+    "apply_plan_faithful_latent_v6i16_capacity_sharp_contracts",
+    "apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic",
+    "apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic",
 ]

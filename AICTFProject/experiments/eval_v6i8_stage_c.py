@@ -15,6 +15,7 @@ if PROJECT_ROOT not in sys.path:
 from experiments.forced_z_eval.analysis.stage_c import build_stage_c_report, print_stage_c_report  # noqa: E402
 from experiments.forced_z_eval.io import load_episode_results  # noqa: E402
 from experiments.forced_z_eval.protocol import DEFAULT_BASE_SEED, DEFAULT_MAPS, DEFAULT_OPPONENTS  # noqa: E402
+from experiments.forced_z_eval.subprocess_utils import run_with_process_tree_timeout  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
@@ -28,6 +29,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--base-seed", type=int, default=DEFAULT_BASE_SEED)
     p.add_argument("--stochastic", action="store_true")
     p.add_argument("--out-dir", default=None)
+    p.add_argument("--timeout-seconds", type=int, default=None)
     return p.parse_args()
 
 
@@ -81,8 +83,13 @@ def main() -> None:
         if args.stochastic:
             cmd.append("--stochastic")
         print(f"\n{'='*60}\nCheckpoint: {os.path.basename(ckpt)}\n{'='*60}")
-        proc = subprocess.run(cmd, cwd=PROJECT_ROOT, check=False)
-        results.append((os.path.basename(ckpt), proc.returncode == 0))
+        try:
+            proc = run_with_process_tree_timeout(cmd, cwd=PROJECT_ROOT, timeout_seconds=args.timeout_seconds)
+            ok = proc.returncode == 0
+        except subprocess.TimeoutExpired as exc:
+            print(f"ERROR: forced-z eval timed out after {exc.timeout} seconds and the process tree was terminated")
+            ok = False
+        results.append((os.path.basename(ckpt), ok))
     print(f"\n{'='*60}\nSUMMARY\n{'='*60}")
     for label, ok in results:
         status = "PASS — promote to Stage D" if ok else "FAIL — do not promote"

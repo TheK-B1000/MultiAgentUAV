@@ -22,6 +22,7 @@ from experiments.forced_z_eval.analysis.complementarity import (  # noqa: E402
 )
 from experiments.forced_z_eval.io import load_episode_results  # noqa: E402
 from experiments.forced_z_eval.protocol import DEFAULT_BASE_SEED, DEFAULT_MAPS, DEFAULT_OPPONENTS  # noqa: E402
+from experiments.forced_z_eval.subprocess_utils import run_with_process_tree_timeout  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
@@ -38,6 +39,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--maps", nargs="+", default=list(DEFAULT_MAPS))
     p.add_argument("--base-seed", type=int, default=DEFAULT_BASE_SEED)
     p.add_argument("--out-dir", default=None)
+    p.add_argument("--timeout-seconds", type=int, default=None)
     p.add_argument("--oracle-metric", choices=("return", "win_margin", "success"), default="return")
     p.add_argument("--stochastic", action="store_true")
     return p.parse_args()
@@ -85,7 +87,13 @@ def main() -> None:
     if args.analyze_only:
         print("ERROR: --analyze-only requires --from-run; use run_forced_z_eval.py --from-run ... --analyze-only")
         sys.exit(1)
-    subprocess.run(cmd, cwd=PROJECT_ROOT, check=True)
+    try:
+        proc = run_with_process_tree_timeout(cmd, cwd=PROJECT_ROOT, timeout_seconds=args.timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        print(f"ERROR: forced-z eval timed out after {exc.timeout} seconds and the process tree was terminated")
+        sys.exit(124)
+    if proc.returncode != 0:
+        sys.exit(proc.returncode)
 
 
 if __name__ == "__main__":

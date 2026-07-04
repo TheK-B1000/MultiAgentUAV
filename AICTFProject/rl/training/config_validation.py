@@ -237,6 +237,10 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
             "OP9_FORTRESS",
             "OP10",
             "OP10_ESCORT",
+            "OP11",
+            "OP11_BT_BALANCED",
+            "OP12",
+            "OP12_COUNTER",
         }
         pool = tuple(x for x in pool if x in allowed)
         if not pool:

@@ -424,6 +424,37 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i17 / surface-pressure diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic` as a
+  harder/asymmetric opponent-surface diagnostic over the v6i16 combined
+  capacity + sharp-contract scaffold. Classification: `DIAGNOSTIC`
+  non-Summer scaffold, not a paper-faithful row and not a Summer-compatible
+  extension. The resolved diff vs `v6i16_capacity_sharp_contracts` is exactly
+  `{experiment_id, opponent_pool, run_tag}`: the opponent pool expands from
+  OP8/OP9/OP10 to OP8/OP9/OP10/OP11/OP12 while router training remains off,
+  `balanced_episode` z assignment remains active, and the inherited sharp 3x
+  contract/capacity settings stay unchanged. Extended the training opponent
+  allowlist to preserve OP11/OP12 through validation. Added focused tests in
+  `tests/test_v6i17_surface_pressure_diagnostic.py` and regenerated
+  `tests/preset_snapshots.json`.
+- **v6i16 / capacity + sharp-contract diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i16_sharp_contracts`,
+  `apply_plan_faithful_latent_v6i16_capacity`, and
+  `apply_plan_faithful_latent_v6i16_capacity_sharp_contracts` as a
+  three-arm diagnostic over `v6i15_contract_pressure_3x`. Classification:
+  `DIAGNOSTIC` non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The sharp-contract arm changes exactly
+  `{experiment_id, latent_contract_specialist_variant, run_tag}`; the
+  capacity arm changes exactly `{experiment_id,
+  latent_actor_z_adapter_enabled, latent_actor_z_adapter_init_std,
+  latent_actor_z_adapter_scale, latent_z_gate_init, run_tag}`; the
+  combined arm changes the union of those fields. `v6i16` resolves to the
+  combined capacity + sharp-contract arm. Added default-off
+  `PPOConfig.latent_contract_specialist_variant`, added the `"sharp"`
+  contract reward variant, made `z_adapter` trainable in the repertoire
+  freeze allowlist when enabled, added focused tests in
+  `tests/test_v6i16_capacity_feature_ablation.py`, and regenerated
+  `tests/preset_snapshots.json`.
 - **v6i15 / contract-pressure coefficient sweep:** Registered
   `apply_plan_faithful_latent_v6i15_contract_pressure_3x`,
   `apply_plan_faithful_latent_v6i15_contract_pressure_6x`, and

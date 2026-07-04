@@ -1107,7 +1107,7 @@ open levers are now infrastructure-level, not "more updates":
   exposed in `info` (secondary — mirror is the only within-run geometry variation
   today).
 
-### 3.13 v6i14 contract-specialist repertoire birth — `IMPLEMENTED, SMOKE_PASSED`
+### 3.13 v6i14 contract-specialist repertoire birth — `EVALUATED_FAIL`
 
 **Scientific delta vs v6i13/v6i12:** the delayed-router diagnostics showed the
 measurement pipe works but the z-conditional residual advantage is effectively
@@ -1178,7 +1178,18 @@ small forced-z behavior grid
 move is not router training; strengthen the contract-specialist reward/loss
 before any selector work resumes.
 
-### 3.14 v6i15 contract-pressure sweep -- `IMPLEMENTED, PENDING_SMOKE`
+**Verdict (2026-07-04):** `EVALUATED_FAIL`. Contract-specialist diagnostic
+wiring passed: contract reward live, shared actor frozen, balanced z assignment
+active, training stable. Specialist-birth gates failed: forced-z behavior pair
+distances remained far below threshold and decreased after continuation
+(20upd mean `0.0453` → 50upd mean `0.0431`); Stage-C complementarity failed
+with saturated forced-z win rates and no best-z variation (`best_z=0` in every
+cell, all forced-z win rates `1.0`). Tiny oracle gap is not promotion-worthy
+due to saturated returns and near-identical behavior fingerprints. Router
+promotion blocked. Next step: V6I15 contract-pressure / capacity /
+harder-surface ablation.
+
+### 3.14 v6i15 contract-pressure sweep -- `EVALUATED_FAIL` (phase-1: 5-update coefficient arms)
 
 **Scientific delta vs v6i14:** v6i14 proved the contract path is wired but
 that the mild coefficient did not birth behaviorally separated specialists.
@@ -1197,26 +1208,172 @@ trainable).
 **Resolved-config diff vs v6i14:** exactly `{experiment_id,
 latent_contract_specialist_coef, run_tag}`. The 3x, 6x, and 10x arms set
 `latent_contract_specialist_coef` to `0.75`, `1.50`, and `2.50` respectively.
-`v6i15` and `v6i15_contract_pressure` resolve to the 3x arm.
+`v6i15` and `v6i15_contract_pressure` resolve to the 3x arm. The 1x baseline
+is v6i14 (`coef=0.25`).
 
-**Diagnostic plan:** run short pressure arms, not router training:
+**Phase-1 protocol (completed 2026-07-04):** 5-update coefficient arms from
+the same v6i9 anchor
+(`checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`,
+`--load-weights-only`, `--additional-steps 5120`), each followed by a complete
+48-episode forced-z fingerprint grid (`episodes=2` per cell, OP8/OP9/OP10 ×
+`map_b` / `map_b_split_lane_v2`).
 
-```powershell
-python rl/train_ppo.py --preset v6i15_contract_pressure_3x  --load <v6i14-or-v6i9-anchor> --additional-steps 20480 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --fresh-metrics-csv
-python rl/train_ppo.py --preset v6i15_contract_pressure_6x  --load <same-anchor>        --additional-steps 20480 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --fresh-metrics-csv
-python rl/train_ppo.py --preset v6i15_contract_pressure_10x --load <same-anchor>        --additional-steps 20480 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --fresh-metrics-csv
-```
+| Arm | `coef` | `reward_contract_specialist_mean` (final update) | forced-z `behavior_pair_distance_mean` | pairs above threshold |
+|-----|--------|--------------------------------------------------|----------------------------------------|----------------------|
+| v6i14 (1× baseline) | 0.25 | ~0.05 | 0.0431 (50upd cont) | 0 |
+| 3× (`artifacts/v6i15_contract_pressure_3x_5u_seed1/`) | 0.75 | 0.149 | 0.0436 | 0 |
+| 6× (`artifacts/v6i15_contract_pressure_6x_5u_seed1/`) | 1.50 | 0.298 | 0.0409 | 0 |
+| 10× (`artifacts/v6i15_contract_pressure_10x_5u_seed1/`) | 2.50 | 0.497 | 0.0409 | 0 |
 
-Each arm must be followed by a complete forced-z behavior grid. Ignore win rate
-as the primary gate while the grid is saturated; judge behavior fingerprints,
-role metric ownership, and score/return margin spread.
+**Mechanism checks passed on all arms:** contract reward scales with coefficient
+(~linear vs v6i14), shared actor frozen (`shared_actor_max_abs_delta=0.0`),
+balanced z assignment, training stable, win rate saturated (~100%).
 
-**Promotion gate:** router training remains blocked unless a complete forced-z
-behavior report shows material movement vs v6i14: all z represented, mean pair
-distance rising from the `0.043-0.045` band, max pair distance clearing the
-prior `0.0717` ceiling by a clear margin, and at least some z-pairs above the
-behavior threshold. If the 10x arm still fails, the next fork is z-specific
-capacity or contract feature design, not more unchanged v6i14 training.
+**Specialist-birth gate failed on all arms:** forced-z behavior pair distances
+stayed in the v6i14 band (~0.04) with zero pairs above threshold; 6× and 10×
+eval fingerprints were identical (`mean=0.0409`). Stage-C still shows
+`best_z=0` in every cell with all forced-z win rates `1.0`. Contract reward
+rose but behavior did not separate — the model is collecting contract crumbs
+without changing forced-z behavior.
+
+**Verdict:** coefficient pressure alone does not birth specialists. Do **not**
+continue any arm to 20 updates. Do **not** resume router training. Next fork:
+Arm C (z-specific capacity / adapter design) and/or Arm B (harder eval surface
+with non-saturating margin metrics).
+
+**Promotion gate:** router training remains blocked. If a future capacity arm
+still fails at 10× pressure, treat the z pathway as underpowered or the
+contract features as misaligned — not a routing problem.
+
+### 3.15 v6i16 capacity + sharp-contract ablation -- `EVALUATED_FAIL`
+
+**Scientific delta vs v6i15:** v6i15 showed that louder contract reward moves
+behavior distance somewhat but quickly hits a ceiling. v6i16 tests the next
+diagnosis: the current contracts may be satisfiable by one generic policy, and
+the z-specific actor pathway may not have enough leverage.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This is
+handcrafted z-role reward shaping plus actor z-pathway capacity tuning. It is
+not paper-faithful and not a Summer-compatible extension.
+
+**Parent:** `v6i15_contract_pressure_3x`. All arms keep 3x contract pressure
+(`latent_contract_specialist_coef = 0.75`), router off, `balanced_episode` z
+assignment, `v6i9_training_stage = "repertoire"`, OP8/OP9/OP10 hard pool, and
+the frozen shared actor trunk.
+
+**Arm matrix:**
+
+| Arm | Preset | Delta vs v6i15 3x |
+|-----|--------|-------------------|
+| A | `v6i16_sharp_contracts` | `latent_contract_specialist_variant = "sharp"` |
+| B | `v6i16_capacity` | `latent_z_gate_init = 0.08`, `latent_actor_z_adapter_enabled = True`, `latent_actor_z_adapter_scale = 0.10`, `latent_actor_z_adapter_init_std = 0.05` |
+| C | `v6i16_capacity_sharp_contracts` (`v6i16`) | Arm A + Arm B |
+
+**Sharp contract map:** `z0` pressure / interception / enemy-carrier
+disruption; `z1` escort / carrier support / conversion support; `z2`
+home-flag defense / returns / denial; `z3` spacing / lane control / split
+pressure.
+
+**Phase-1 protocol (completed 2026-07-04):** 5 updates per arm from the same
+v6i9 anchor checkpoint, followed by the same 48-episode forced-z fingerprint
+grid (`episodes=2` per cell, OP8/OP9/OP10 x `map_b` /
+`map_b_split_lane_v2`). Artifacts:
+`artifacts/v6i16_sharp_contracts_5u_seed1/`,
+`artifacts/v6i16_capacity_5u_seed1/`, and
+`artifacts/v6i16_capacity_sharp_contracts_5u_seed1/`.
+
+| Arm | forced-z `behavior_pair_distance_mean` | max pair distance | pairs above threshold | `unique_best_z_count` | Stage-C |
+|-----|----------------------------------------|-------------------|-----------------------|-----------------------|---------|
+| A sharp contracts | 0.0436 | 0.0617 | 0 | 1 | FAIL |
+| B capacity | 0.0450 | 0.0608 | 0 | 1 | FAIL |
+| C capacity + sharp contracts (`v6i16`) | 0.0450 | 0.0608 | 0 | 1 | FAIL |
+
+**Mechanism checks passed:** all arms trained from the intended anchor with
+router off, balanced episode z assignment, contract reward active, and
+forced-z eval artifacts complete. Stage-C win rate stayed saturated
+(`100%` for every forced-z cell), so binary win rate remains unusable.
+
+**Specialist-birth gate failed:** sharper contracts, larger z pathway
+capacity, and the combined arm all remained in the same ~0.04-0.045 behavior
+distance band with zero pairs above threshold. The OP/map best-z surface stayed
+constant (`best_z=0` in every cell), and Stage-C failed on every arm despite a
+matched-seed oracle gap around `+0.78` to `+0.80`. The script's
+`ORACLE_GAP_PLUS_CONTEXT` ladder line is not accepted as promotion evidence
+here because the stricter v6i16 gates require actual behavior fingerprints and
+context-varying best-z cells.
+
+**Verdict:** capacity + sharp contracts did not produce an interaction effect.
+Do **not** train a router from v6i16. The next fork should change the training
+surface, not keep stacking scalar knobs: harder or asymmetric opponents,
+non-saturating score-margin/tempo objectives, map-pool variation, or contexts
+where defense, escort, interception, and pressure genuinely trade off.
+
+### 3.16 v6i17 surface-pressure diagnostic -- `EVALUATED_FAIL`
+
+**Scientific delta vs v6i16:** v6i16 ruled out louder contracts, sharper
+contracts, larger z-pathway capacity, and the combined capacity + sharp
+contract arm on the current saturated OP8/OP9/OP10 surface. v6i17 tests the
+next hypothesis: the arena is too easy or too symmetric, so the same
+generalist behavior wins without role tradeoffs.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This inherits
+handcrafted z-role contract rewards and v6i16 z-pathway capacity changes, then
+changes the opponent surface. It is not paper-faithful and not a
+Summer-compatible extension.
+
+**Parent:** `v6i16_capacity_sharp_contracts`. Router remains off,
+`balanced_episode` z assignment remains active, `latent_contract_specialist`
+stays enabled at 3x with `variant="sharp"`, z-specific pathways remain
+trainable, and the shared actor trunk remains frozen through
+`v6i9_training_stage = "repertoire"`.
+
+**Resolved-config diff vs v6i16 combined:** exactly `{experiment_id,
+opponent_pool, run_tag}`.
+
+| Field | v6i16 combined | v6i17 |
+|-------|----------------|-------|
+| `experiment_id` | `v6i16` | `v6i17` |
+| `opponent_pool` | `("OP8", "OP9", "OP10")` | `("OP8", "OP9", "OP10", "OP11", "OP12")` |
+| `run_tag` | `v6i16_capacity_sharp_contracts_3x_OP8_OP9_OP10` | `v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12` |
+
+**Launch caveat (2026-07-04):** the first two attempted runs under
+`artifacts/v6i17_surface_pressure_5u_seed1/` and
+`artifacts/v6i17_surface_pressure_5u_seed1_op8_op12/` are invalid as v6i17
+surface evidence. Runtime validation silently filtered the OP11/OP12 preset
+surface back to OP8/OP9/OP10. Fixed by extending the training opponent
+allowlist to preserve OP11 and OP12, pinned by
+`tests/test_v6i17_surface_pressure_diagnostic.py`.
+
+**Corrected 5-update diagnostic (2026-07-04,
+`artifacts/v6i17_surface_pressure_5u_seed1_op8_op12_validated/`):** COMPLETED.
+Warm-started from
+`checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`
+with `--load-weights-only`, `--additional-steps 5120`, `n_envs=4`,
+`n_steps=256`, `n_epochs=1`, CUDA. The launch banner and audit confirm
+OP8/OP9/OP10/OP11/OP12 as the active training pool. Mechanism checks passed:
+contract reward live (`reward_contract_specialist_mean=0.1688` final update),
+shared actor frozen (`shared_actor_max_abs_delta=0.0`), router gradients zero
+as intended, balanced episode z assignment active, and OP11/OP12 appeared in
+training telemetry.
+
+**Forced-z fingerprint grid (2026-07-04,
+`artifacts/v6i17_surface_pressure_5u_seed1_op8_op12_validated/forced_z_fingerprint_eps2_op8_op12/`):**
+COMPLETE, SPECIALIST GATE FAILED. Grid: OP8/OP9/OP10/OP11/OP12 x
+`map_b`/`map_b_split_lane_v2` x z0..z3 x 2 episodes = 80 episodes. All
+forced-z cells still won (`WR=100%`). Stage-C failed:
+`oracle_wr=100%`, `best_fixed_wr=100%`, `best_z=0` in every OP/map cell,
+`unique_best_z_count=1`. Behavior fingerprints did not improve versus v6i16:
+mean pair distance `0.0392`, max pair distance `0.0533`, pairs above threshold
+`0`, all z represented. Matched-seed oracle gap increased to `+1.3625`, but
+that is not promotion evidence without behavior fingerprints or context-varying
+best-z cells.
+
+**Verdict:** harder/asymmetric OP11/OP12 surface did not birth specialists
+under the current contract/capacity scaffold. Do **not** train a router from
+v6i17. The next surface fork needs stronger consequence changes than simply
+adding OP11/OP12 to this map surface: non-saturating margin/tempo objectives,
+handicap/asymmetry, shorter-horizon pressure, or map-pool/layout variation
+where different roles cannot all win by the same generalist behavior.
 
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 

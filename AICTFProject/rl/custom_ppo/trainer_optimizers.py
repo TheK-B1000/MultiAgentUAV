@@ -46,6 +46,7 @@ _Z_SPECIFIC_SUBSTRINGS = (
     "latent_adapter_gates",
     "latent_action_biases",
     "strategy_embedding",
+    "z_adapter",
 )
 
 # Names that identify the shared backbone (CNN + actor trunk) to freeze in Stage 2.

@@ -817,3 +817,127 @@ def apply_plan_faithful_latent_v6i15_contract_pressure_6x(cfg: PPOConfig) -> PPO
 def apply_plan_faithful_latent_v6i15_contract_pressure_10x(cfg: PPOConfig) -> PPOConfig:
     """V6I15A: contract-pressure diagnostic, 10x contract coefficient."""
     return _apply_v6i15_contract_pressure(cfg, multiplier=10, suffix="10x")
+
+
+def _apply_v6i16_capacity_knobs(cfg: PPOConfig) -> None:
+    cfg.latent_z_gate_init = 0.08
+    cfg.latent_actor_z_adapter_enabled = True
+    cfg.latent_actor_z_adapter_scale = 0.10
+    cfg.latent_actor_z_adapter_init_std = 0.05
+    cfg.latent_actor_z_film_layers = 1
+
+
+def apply_plan_faithful_latent_v6i16_sharp_contracts(cfg: PPOConfig) -> PPOConfig:
+    """V6I16A: sharp contract-feature diagnostic with current z capacity.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i16_sharp_contracts.
+    Parent preset: v6i15_contract_pressure_3x.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can sharper role contracts force behavior separation when
+    the current z pathway is held fixed?
+
+    Delta table vs v6i15 3x:
+      Reward changed: yes, contract variant base -> sharp.
+      Actor architecture changed: no.
+      Router objective changed: no; router remains off.
+      Exploration schedule changed: no; balanced_episode remains active.
+      Supervision added: no new external labels; the handcrafted contract
+      scaffold is sharper and remains diagnostic-only.
+    """
+    cfg = apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg)
+    cfg.latent_contract_specialist_variant = "sharp"
+    cfg.experiment_id = "v6i16"
+    cfg.run_tag = "v6i16_sharp_contracts_3x_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i16_capacity(cfg: PPOConfig) -> PPOConfig:
+    """V6I16B: z-pathway capacity diagnostic with base contracts.
+
+    Tests whether stronger z-specific actor leverage helps when the reward
+    contract is held at the best v6i15 pressure level.
+    """
+    cfg = apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg)
+    _apply_v6i16_capacity_knobs(cfg)
+    cfg.experiment_id = "v6i16"
+    cfg.run_tag = "v6i16_capacity_3x_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i16_capacity_sharp_contracts(cfg: PPOConfig) -> PPOConfig:
+    """V6I16C: z-pathway capacity plus sharp contract features.
+
+    This is the combined diagnostic arm. It should be judged only by forced-z
+    behavioral fingerprints and role ownership metrics, not by saturated win
+    rate. Router training remains blocked.
+    """
+    cfg = apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg)
+    _apply_v6i16_capacity_knobs(cfg)
+    cfg.latent_contract_specialist_variant = "sharp"
+    cfg.experiment_id = "v6i16"
+    cfg.run_tag = "v6i16_capacity_sharp_contracts_3x_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I17A: surface-pressure diagnostic over the v6i16 combined scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i17_surface_pressure_diagnostic.
+    Parent preset: v6i16_capacity_sharp_contracts.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can specialists separate when the environment surface
+    creates role tradeoffs that the current OP8/OP9/OP10 surface did not?
+
+    Delta table vs v6i16 combined:
+      Opponent surface changed: yes, OP8/OP9/OP10 -> OP8/OP9/OP10/OP11/OP12.
+      Reward contract changed: no, sharp 3x contracts are inherited.
+      Actor z capacity changed: no, v6i16 capacity knobs are inherited.
+      Router objective changed: no; router remains off.
+      Exploration schedule changed: no; balanced_episode remains active.
+
+    This is not a router row. Promotion requires forced-z behavior, margin,
+    tempo, or role-fingerprint separation on the harder/asymmetric surface.
+    """
+    cfg = apply_plan_faithful_latent_v6i16_capacity_sharp_contracts(cfg)
+    cfg.opponent_pool = ("OP8", "OP9", "OP10", "OP11", "OP12")
+    cfg.opponent_pool_weights = ()
+    cfg.experiment_id = "v6i17"
+    cfg.run_tag = "v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I18A: margin/tempo consequence surface over the v6i17 scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i18_margin_tempo_surface_diagnostic.
+    Parent preset: v6i17_surface_pressure_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can specialists separate when the task grades margin,
+    tempo, enemy pressure allowed, and near-cap conversion instead of only
+    binary win/loss?
+
+    Delta table vs v6i17:
+      Horizon changed: yes, 400 -> 240 decision steps.
+      Consequence surface changed: yes, default-off margin/tempo pressure terms.
+      Opponent surface changed: no, OP8..OP12 inherited.
+      Reward contract changed: no, sharp 3x contracts are inherited.
+      Actor z capacity changed: no, v6i16 capacity knobs are inherited.
+      Router objective changed: no; router remains off.
+    """
+    cfg = apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic(cfg)
+    cfg.max_decision_steps = 240
+    cfg.env_stalemate_max_steps = 80
+    cfg.env_surface_score_margin_coef = 0.15
+    cfg.env_surface_blue_capture_tempo_bonus = 0.25
+    cfg.env_surface_red_flag_touch_penalty = 0.20
+    cfg.env_surface_red_carrier_progress_penalty = 0.025
+    cfg.env_surface_blue_near_cap_bonus = 0.015
+    cfg.experiment_id = "v6i18"
+    cfg.run_tag = "v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12"
+    return cfg
