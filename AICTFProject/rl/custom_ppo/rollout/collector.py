@@ -77,6 +77,7 @@ from rl.custom_ppo.return_normalization import (
 from rl.custom_ppo.rollout.action_selection import tensor_obs_dict
 from rl.custom_ppo.rollout.bootstrap import global_state_rows_from_step_infos
 from rl.custom_ppo.rollout.buffer_writer import RolloutStepRecorder, StepFrame
+from rl.custom_ppo.contract_specialists import contract_specialist_reward
 from rl.custom_ppo.rollout.episode_tracker import episode_scores_from_info
 from rl.custom_ppo.rollout.latent_selection import fixed_latent_bootstrap_z
 from rl.custom_ppo.rollout.reward_channels import compose_step_rewards
@@ -188,6 +189,7 @@ class RolloutCollector:
         buffer.register_field("reward_failure")
         buffer.register_field("reward_behavior_contrast")
         buffer.register_field("reward_csia")
+        buffer.register_field("reward_contract_specialist")
         buffer.register_field("reward_total")
         buffer.register_field("terminated", dtype=torch.bool)
         buffer.register_field("truncated", dtype=torch.bool)
@@ -806,6 +808,24 @@ class RolloutCollector:
             )
             reward_component["reward_csia"] = csia_bonus
             reward_component["reward_total"] = reward_component["reward_total"] + csia_bonus
+
+        reward_component["reward_contract_specialist"] = torch.zeros(
+            (int(env.num_envs),), dtype=torch.float32, device=self.device
+        )
+        if self.hparams.use_latent_strategy and z_t is not None:
+            prev_gs_t = torch.as_tensor(
+                decision_global_state_np,
+                dtype=torch.float32,
+                device=self.device,
+            )
+            next_gs_t = torch.as_tensor(
+                next_global_state,
+                dtype=torch.float32,
+                device=self.device,
+            )
+            contract_bonus = contract_specialist_reward(prev_gs_t, next_gs_t, z_t, self.cfg)
+            reward_component["reward_contract_specialist"] = contract_bonus
+            reward_component["reward_total"] = reward_component["reward_total"] + contract_bonus
 
         if self.hparams.use_latent_strategy:
             self._update_latent_episode_returns(

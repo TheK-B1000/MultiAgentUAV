@@ -1,0 +1,362 @@
+{
+  "preset": "v6i13_opening_window_advantage_router",
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+  "n_updates": 5,
+  "total_arcs": 2341,
+  "routing_verdict": "FLAT",
+  "promotion_status": "NOT_A_CANDIDATE",
+  "reliably_separating_opponents": 0,
+  "reliability_gap_ci": {
+    "OP8": {
+      "best_z": 0,
+      "second_z": 3,
+      "gap": 0.0765557512640953,
+      "ci_low": -0.061629691347479726,
+      "ci_high": 0.22073441520333276,
+      "ci_excludes_zero": false,
+      "insufficient": false
+    },
+    "OP9": {
+      "best_z": 1,
+      "second_z": 2,
+      "gap": 0.010075632482767105,
+      "ci_low": -0.15717958621680733,
+      "ci_high": 0.1818907655775547,
+      "ci_excludes_zero": false,
+      "insufficient": false
+    },
+    "OP10": {
+      "best_z": 0,
+      "second_z": 2,
+      "gap": 0.06441815942525864,
+      "ci_low": -0.133561772853136,
+      "ci_high": 0.2519398309290408,
+      "ci_excludes_zero": false,
+      "insufficient": false
+    }
+  },
+  "spread_final_adv": {
+    "adv_spread_OP8": 0.14504538151546956,
+    "adv_spread_OP9": 0.0979993065873767,
+    "adv_spread_OP10": 0.15372067785043086
+  },
+  "replay_validity": {
+    "replay_size": 2341,
+    "total_offered": 2341,
+    "inserted_total": 2341,
+    "duplicates_rejected": 0,
+    "no_duplicate_arcs": true,
+    "count_by_z": {
+      "0": 577,
+      "1": 617,
+      "2": 589,
+      "3": 558
+    },
+    "all_z_represented": true,
+    "count_by_opponent": {
+      "OP8": 806,
+      "OP9": 750,
+      "OP10": 785
+    },
+    "opponents_present": [
+      0,
+      1,
+      2
+    ],
+    "all_opponents_represented": true,
+    "z_present": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "return_variance": 9.192893028259277,
+    "return_variance_nonzero": true,
+    "mean_arc_length": 107.01067919692439,
+    "terminal_finalized_fraction": 1.0,
+    "per_cell": {
+      "OP8_z0": {
+        "n": 200,
+        "mean": -2.033799886703491,
+        "std": 2.3418400287628174,
+        "sem": 0.16559309647922876
+      },
+      "OP8_z1": {
+        "n": 208,
+        "mean": -2.2034056186676025,
+        "std": 2.9682796001434326,
+        "sem": 0.20581315958136334
+      },
+      "OP8_z2": {
+        "n": 209,
+        "mean": -2.2447280883789062,
+        "std": 2.688725709915161,
+        "sem": 0.18598304629168966
+      },
+      "OP8_z3": {
+        "n": 189,
+        "mean": -2.196824550628662,
+        "std": 2.4300811290740967,
+        "sem": 0.17676239236294922
+      },
+      "OP9_z0": {
+        "n": 193,
+        "mean": -3.040369749069214,
+        "std": 3.2669997215270996,
+        "sem": 0.23516378572468052
+      },
+      "OP9_z1": {
+        "n": 194,
+        "mean": -2.5817959308624268,
+        "std": 2.8657045364379883,
+        "sem": 0.2057455952123517
+      },
+      "OP9_z2": {
+        "n": 178,
+        "mean": -2.832547903060913,
+        "std": 2.9872493743896484,
+        "sem": 0.22390380690381034
+      },
+      "OP9_z3": {
+        "n": 185,
+        "mean": -2.68485164642334,
+        "std": 3.1273131370544434,
+        "sem": 0.2299246346228483
+      },
+      "OP10_z0": {
+        "n": 184,
+        "mean": -2.8395910263061523,
+        "std": 3.439368724822998,
+        "sem": 0.2535536263629385
+      },
+      "OP10_z1": {
+        "n": 215,
+        "mean": -3.3406686782836914,
+        "std": 3.3019042015075684,
+        "sem": 0.22518799749019353
+      },
+      "OP10_z2": {
+        "n": 202,
+        "mean": -2.966689348220825,
+        "std": 3.316495180130005,
+        "sem": 0.23334778658493185
+      },
+      "OP10_z3": {
+        "n": 184,
+        "mean": -3.019493341445923,
+        "std": 3.212266206741333,
+        "sem": 0.23681140660610667
+      }
+    },
+    "map_coverage": "NOT_INSTRUMENTED (arc record carries no map_id; count_by_opponent x z is available instead)"
+  },
+  "min_cell_arcs": 178.0,
+  "frozen_actor_ok": true,
+  "updates": [
+    {
+      "update": 1,
+      "records_before_update": 448,
+      "records_after_update": 0,
+      "replay_inserted": 448,
+      "replay_duplicates_rejected": 0,
+      "replay_size": 448,
+      "terminal_finalized_fraction": 1.0,
+      "commit_step_min": 32,
+      "commit_step_max": 32,
+      "total_arcs": 448,
+      "count_by_z": {
+        "0": 104,
+        "1": 122,
+        "2": 124,
+        "3": 98
+      },
+      "v_loss_mean": 0.8700115287303924,
+      "a_loss_mean": 0.3243209624290466,
+      "v_grad_norm": 0.39897128894925116,
+      "a_grad_norm": 0.13267543133348225,
+      "baseline_r2_mean": 0.12657666423470543,
+      "advantage_target_std_mean": 0.9316891449689865,
+      "a_steps": 100,
+      "adv_spread_OP8": 0.12750591198911687,
+      "adv_spread_OP9": 0.45027181155816143,
+      "adv_spread_OP10": 0.25270278272884233,
+      "count_OP8_z0": 44,
+      "count_OP8_z1": 41,
+      "count_OP8_z2": 44,
+      "count_OP8_z3": 39,
+      "count_OP9_z0": 32,
+      "count_OP9_z1": 44,
+      "count_OP9_z2": 37,
+      "count_OP9_z3": 29,
+      "count_OP10_z0": 28,
+      "count_OP10_z1": 37,
+      "count_OP10_z2": 43,
+      "count_OP10_z3": 30,
+      "elapsed_s": 841.1
+    },
+    {
+      "update": 2,
+      "records_before_update": 472,
+      "records_after_update": 0,
+      "replay_inserted": 472,
+      "replay_duplicates_rejected": 0,
+      "replay_size": 920,
+      "terminal_finalized_fraction": 1.0,
+      "commit_step_min": 32,
+      "commit_step_max": 32,
+      "total_arcs": 920,
+      "count_by_z": {
+        "0": 219,
+        "1": 257,
+        "2": 228,
+        "3": 216
+      },
+      "v_loss_mean": 0.803514798283577,
+      "a_loss_mean": 0.29931571304798127,
+      "v_grad_norm": 0.48791206642985346,
+      "a_grad_norm": 0.1147026463225484,
+      "baseline_r2_mean": 0.19333414961699621,
+      "advantage_target_std_mean": 0.8958364778757095,
+      "a_steps": 100,
+      "adv_spread_OP8": 0.12310860397010903,
+      "adv_spread_OP9": 0.20552474985647406,
+      "adv_spread_OP10": 0.2335358437396564,
+      "count_OP8_z0": 84,
+      "count_OP8_z1": 93,
+      "count_OP8_z2": 85,
+      "count_OP8_z3": 80,
+      "count_OP9_z0": 74,
+      "count_OP9_z1": 87,
+      "count_OP9_z2": 65,
+      "count_OP9_z3": 72,
+      "count_OP10_z0": 61,
+      "count_OP10_z1": 77,
+      "count_OP10_z2": 78,
+      "count_OP10_z3": 64,
+      "elapsed_s": 749.2
+    },
+    {
+      "update": 3,
+      "records_before_update": 488,
+      "records_after_update": 0,
+      "replay_inserted": 488,
+      "replay_duplicates_rejected": 0,
+      "replay_size": 1408,
+      "terminal_finalized_fraction": 1.0,
+      "commit_step_min": 32,
+      "commit_step_max": 32,
+      "total_arcs": 1408,
+      "count_by_z": {
+        "0": 342,
+        "1": 390,
+        "2": 344,
+        "3": 332
+      },
+      "v_loss_mean": 0.804345098733902,
+      "a_loss_mean": 0.2956669834256172,
+      "v_grad_norm": 0.6004411718249321,
+      "a_grad_norm": 0.1223746456950903,
+      "baseline_r2_mean": 0.19250060219036297,
+      "advantage_target_std_mean": 0.8959242552518845,
+      "a_steps": 100,
+      "adv_spread_OP8": 0.13368003198558556,
+      "adv_spread_OP9": 0.1505333483939042,
+      "adv_spread_OP10": 0.07232957590726159,
+      "count_OP8_z0": 129,
+      "count_OP8_z1": 133,
+      "count_OP8_z2": 126,
+      "count_OP8_z3": 119,
+      "count_OP9_z0": 108,
+      "count_OP9_z1": 133,
+      "count_OP9_z2": 98,
+      "count_OP9_z3": 113,
+      "count_OP10_z0": 105,
+      "count_OP10_z1": 124,
+      "count_OP10_z2": 120,
+      "count_OP10_z3": 100,
+      "elapsed_s": 644.7
+    },
+    {
+      "update": 4,
+      "records_before_update": 472,
+      "records_after_update": 0,
+      "replay_inserted": 472,
+      "replay_duplicates_rejected": 0,
+      "replay_size": 1880,
+      "terminal_finalized_fraction": 1.0,
+      "commit_step_min": 32,
+      "commit_step_max": 32,
+      "total_arcs": 1880,
+      "count_by_z": {
+        "0": 480,
+        "1": 493,
+        "2": 469,
+        "3": 438
+      },
+      "v_loss_mean": 0.7970293807983398,
+      "a_loss_mean": 0.2934495984017849,
+      "v_grad_norm": 0.7015948352217675,
+      "a_grad_norm": 0.1258842609077692,
+      "baseline_r2_mean": 0.1998450164141009,
+      "advantage_target_std_mean": 0.8917228591442108,
+      "a_steps": 100,
+      "adv_spread_OP8": 0.12022458640446361,
+      "adv_spread_OP9": 0.0935049721778709,
+      "adv_spread_OP10": 0.16752862693211895,
+      "count_OP8_z0": 174,
+      "count_OP8_z1": 165,
+      "count_OP8_z2": 167,
+      "count_OP8_z3": 149,
+      "count_OP9_z0": 156,
+      "count_OP9_z1": 164,
+      "count_OP9_z2": 136,
+      "count_OP9_z3": 152,
+      "count_OP10_z0": 150,
+      "count_OP10_z1": 164,
+      "count_OP10_z2": 166,
+      "count_OP10_z3": 137,
+      "elapsed_s": 483.6
+    },
+    {
+      "update": 5,
+      "records_before_update": 461,
+      "records_after_update": 0,
+      "replay_inserted": 461,
+      "replay_duplicates_rejected": 0,
+      "replay_size": 2341,
+      "terminal_finalized_fraction": 1.0,
+      "commit_step_min": 32,
+      "commit_step_max": 32,
+      "total_arcs": 2341,
+      "count_by_z": {
+        "0": 577,
+        "1": 617,
+        "2": 589,
+        "3": 558
+      },
+      "v_loss_mean": 0.7836155331134796,
+      "a_loss_mean": 0.287946275472641,
+      "v_grad_norm": 0.8899265787005425,
+      "a_grad_norm": 0.13018043264746665,
+      "baseline_r2_mean": 0.21331146849654462,
+      "advantage_target_std_mean": 0.8834973841905593,
+      "a_steps": 100,
+      "adv_spread_OP8": 0.14504538151546956,
+      "adv_spread_OP9": 0.0979993065873767,
+      "adv_spread_OP10": 0.15372067785043086,
+      "count_OP8_z0": 200,
+      "count_OP8_z1": 208,
+      "count_OP8_z2": 209,
+      "count_OP8_z3": 189,
+      "count_OP9_z0": 193,
+      "count_OP9_z1": 194,
+      "count_OP9_z2": 178,
+      "count_OP9_z3": 185,
+      "count_OP10_z0": 184,
+      "count_OP10_z1": 215,
+      "count_OP10_z2": 202,
+      "count_OP10_z3": 184,
+      "elapsed_s": 481.3
+    }
+  ]
+}

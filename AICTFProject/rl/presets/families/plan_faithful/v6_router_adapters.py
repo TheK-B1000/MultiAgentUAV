@@ -695,3 +695,125 @@ def apply_plan_faithful_latent_v6i12_advantage_router_hardpool(cfg: PPOConfig) -
     cfg.experiment_id = "v6i12"
     cfg.run_tag = "v6i12_advantage_router_hardpool_OP8_OP9_OP10"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i13_opening_window_advantage_router(cfg: PPOConfig) -> PPOConfig:
+    """V6I13: delayed-commit opening-window advantage router.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i13_opening_window_advantage_router.
+    Parent preset: v6i12_advantage_router_hardpool.
+    Classification: SUMMER-COMPATIBLE EXTENSION.
+    Research question: does waiting 32 decision steps, then routing on an
+    opening-window summary, produce a more learnable latent-advantage signal
+    than choosing from the thin episode-start context?
+
+    Key changes vs v6i12
+    --------------------
+    * ``latent_episode_strategy_warmup_decision_steps = 32``: q_phi commits
+      after observing the opening.
+    * ``router_warmup_uniform_z = True``: the pre-commit latent is sampled
+      uniformly so no z receives a hidden default advantage.
+    * ``router_arc_post_commit_only = True``: arc records open at commit, so
+      ``arc_return`` is post-commit return, not full episode return.
+    * ``router_opening_context_mode = "initial_commit_delta"``: finalized arc
+      records carry ``opening_context = [state_0, state_commit, delta]`` for
+      the external V/A diagnostic.
+
+    The internal router PPO remains disabled exactly as in v6i12; the external
+    diagnostic learns only from online sampled returns. No labels, opponent-ID
+    supervision head, forced-z oracle target, hindsight best-z target, auxiliary
+    task, or actor training is added.
+    """
+    cfg = apply_plan_faithful_latent_v6i12_advantage_router_hardpool(cfg)
+    cfg.latent_episode_strategy_warmup_decision_steps = 32
+    cfg.router_warmup_uniform_z = True
+    cfg.router_arc_post_commit_only = True
+    cfg.router_opening_context_mode = "initial_commit_delta"
+    cfg.experiment_id = "v6i13"
+    cfg.run_tag = "v6i13_opening_window_advantage_router_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i14_contract_specialists(cfg: PPOConfig) -> PPOConfig:
+    """V6I14: contract-specialist repertoire birth.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i14_contract_specialists.
+    Parent preset: v6i9_mapaware_repertoire_hardpool.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can explicit temporary z-indexed behavioral contracts
+    create real reusable specialists before router training resumes?
+
+    This intentionally breaks the no-handcrafted-role boundary. It is not a
+    paper-faithful row and should not be used for Summer-faithful claims.
+
+    Contract map:
+      z0: opening pressure toward enemy flag.
+      z1: home defense / enemy-carrier pressure recovery.
+      z2: friendly-carrier escort and support.
+      z3: carrier conversion / closeout progress.
+
+    Router is off during this phase. z is assigned by balanced episodes,
+    shared actor trunk remains frozen by the v6i9 repertoire stage, and the
+    z-specific adapters / embeddings / biases learn under normal env reward
+    plus a small contract scaffold.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool(cfg)
+    cfg.latent_contract_specialist_enabled = True
+    cfg.latent_contract_specialist_coef = 0.25
+    cfg.latent_contract_specialist_clip = 1.0
+    cfg.experiment_id = "v6i14"
+    cfg.run_tag = "v6i14_contract_specialists_OP8_OP9_OP10"
+    return cfg
+
+
+def _apply_v6i15_contract_pressure(
+    cfg: PPOConfig,
+    *,
+    multiplier: int,
+    suffix: str,
+) -> PPOConfig:
+    cfg = apply_plan_faithful_latent_v6i14_contract_specialists(cfg)
+    cfg.latent_contract_specialist_coef = 0.25 * float(multiplier)
+    cfg.experiment_id = "v6i15"
+    cfg.run_tag = f"v6i15_contract_pressure_{suffix}_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg: PPOConfig) -> PPOConfig:
+    """V6I15A: contract-pressure diagnostic, 3x contract coefficient.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i15_contract_pressure_3x.
+    Parent preset: v6i14_contract_specialists.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can the current frozen-shared-trunk, z-specific
+    pathway express distinct behavior when the role contract is made loud?
+
+    Delta table vs v6i14:
+      Reward changed: yes, contract coefficient 0.25 -> 0.75.
+      Actor architecture changed: no.
+      Router objective changed: no; router remains off.
+      Exploration schedule changed: no; balanced_episode remains active.
+      Supervision added: no new labels beyond the inherited handcrafted
+      z-role contract scaffold.
+
+    This is the first pressure arm. If behavior fingerprints do not move
+    under 3x/6x/10x, the next diagnostic is z-specific capacity or feature
+    design, not router training.
+    """
+    return _apply_v6i15_contract_pressure(cfg, multiplier=3, suffix="3x")
+
+
+def apply_plan_faithful_latent_v6i15_contract_pressure_6x(cfg: PPOConfig) -> PPOConfig:
+    """V6I15A: contract-pressure diagnostic, 6x contract coefficient."""
+    return _apply_v6i15_contract_pressure(cfg, multiplier=6, suffix="6x")
+
+
+def apply_plan_faithful_latent_v6i15_contract_pressure_10x(cfg: PPOConfig) -> PPOConfig:
+    """V6I15A: contract-pressure diagnostic, 10x contract coefficient."""
+    return _apply_v6i15_contract_pressure(cfg, multiplier=10, suffix="10x")

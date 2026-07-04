@@ -180,6 +180,9 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases `v6i9_arc_credit_feedforward`, `plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`) | `v6i9_mapaware_router_feedforward_hardpool` | `SUMMER-COMPATIBLE EXTENSION` (arc-credit row) | Feedforward router A/B treatment. Resolved diff vs the feedforward control is exactly four keys: `latent_arc_credit_enabled` False→True, `latent_arc_credit_baseline` context_value→running_mean, `latent_strategy_ppo_coef` 0.1→0.0 (removes the biased critic-based router advantage), and `run_tag`. Router architecture, 35-dim context, strategy interval, LR, entropy coef, opponent/map pool, frozen actor + z-specific params, seed, and budget are held identical. Pinned by `tests/test_v6i9_arc_credit_feedforward.py`. Not a paper-faithful row (arc credit is the v3i19 post-Summer channel). |
 
 | `v6i10_episode_router_explore_hardpool` (aliases `v6i10`, `v6i10_episode_router_explore`, `latent_v6i10_episode_router_explore_hardpool`, `plan_faithful_latent_v6i10_episode_router_explore_hardpool`) | `v6i9_mapaware_router_feedforward_hardpool` | `SUMMER-COMPATIBLE EXTENSION` | Feedforward episode-router experiment over the frozen v6i9 repertoire. It disables mid-episode router decisions, replaces the critic-based router PPO term with one episode-long running-mean arc-credit record, lowers router LR, adds training-only 20 percent uniform behavior exploration, and uses marginal coverage. It adds no labels, opponent IDs, oracle-z targets, auxiliary heads, forced-z curriculum, or actor training. Pinned by `tests/test_v6i10_episode_router_explore.py`. |
+| `v6i13_opening_window_advantage_router` (aliases `v6i13`, `v6i13_opening_window`, `v6i13_advantage_router`, `latent_v6i13_opening_window_advantage_router`, `plan_faithful_latent_v6i13_opening_window_advantage_router`) | `v6i12_advantage_router_hardpool` | `SUMMER-COMPATIBLE EXTENSION` | Delayed-commit external advantage-router diagnostic. It runs steps 0..31 under a uniformly sampled warmup latent, commits one router-selected latent at decision step 32, opens the arc at commit, credits only post-commit return, and attaches `[state_0, state_commit, delta]` to replay records. No labels, opponent-ID supervision head, oracle-z targets, forced-z training, auxiliary task, or actor training are added. Pinned by `tests/test_v6i13_opening_window_advantage_router.py`. |
+| `v6i14_contract_specialists` (aliases `v6i14`, `v6i14_contract_specialist_repertoire`, `latent_v6i14_contract_specialists`, `plan_faithful_latent_v6i14_contract_specialists`) | `v6i9_mapaware_repertoire_hardpool` | `DIAGNOSTIC` (non-Summer scaffold) | Contract-specialist repertoire birth. Router is off and z is assigned by balanced episodes; normal env reward is augmented with a small explicit z-indexed contract reward for opening pressure, defense recovery, carrier support, and conversion progress. This deliberately uses handcrafted z-role rewards, so it is not paper-faithful and not a Summer-compatible extension. Pinned by `tests/test_v6i14_contract_specialists.py`. |
+| `v6i15_contract_pressure_3x` / `6x` / `10x` (aliases include `v6i15` for 3x) | `v6i14_contract_specialists` | `DIAGNOSTIC` (non-Summer scaffold) | Contract-pressure coefficient sweep over the v6i14 scaffold. Router remains off, balanced-episode z assignment and frozen shared actor are preserved, and only `latent_contract_specialist_coef` is raised to 0.75, 1.50, or 2.50 to test whether behavior fingerprints respond when role contracts become loud. Pinned by `tests/test_v6i15_contract_pressure.py`. |
 
 ---
 
@@ -723,6 +726,104 @@ The aliases are `v6i10`, `v6i10_episode_router_explore_hardpool`,
 `v6i10_episode_router_explore`,
 `latent_v6i10_episode_router_explore_hardpool`, and
 `plan_faithful_latent_v6i10_episode_router_explore_hardpool`.
+
+### 6.19 v6i13_opening_window_advantage_router (SUMMER-COMPATIBLE EXTENSION)
+
+v6i13 inherits `v6i12_advantage_router_hardpool` directly. The scientific
+delta is to change when the router commits: run an unsupervised uniform
+warmup latent for the opening window, then choose one latent at step 32
+from an opening-summary context and hold it to terminal. The external
+V/A advantage model is unchanged in kind, but its replay context is
+`[state_0, state_commit, state_commit - state_0]` plus the existing
+hard-pool opponent input feature.
+
+Resolved-config diff vs `v6i12_advantage_router_hardpool` is exactly:
+`{experiment_id, latent_episode_strategy_warmup_decision_steps,
+router_arc_post_commit_only, router_opening_context_mode,
+router_warmup_uniform_z, run_tag}`.
+
+| Field | v6i12 value | This preset | Note |
+|-------|-------------|-------------|------|
+| `experiment_id` | `v6i12` | `v6i13` | Artifact and protocol identity. |
+| `latent_episode_strategy_warmup_decision_steps` | `0` | `32` | Router commits after the opening window. |
+| `router_warmup_uniform_z` | `False` | `True` | Warmup latent is sampled uniformly, not from q_phi. |
+| `router_arc_post_commit_only` | `False` | `True` | No warmup arc is recorded; arc return starts at commit. |
+| `router_opening_context_mode` | `""` | `initial_commit_delta` | Arc records carry `[state_0, state_commit, delta]`. |
+| `run_tag` | `v6i12_advantage_router_hardpool_OP8_OP9_OP10` | `v6i13_opening_window_advantage_router_OP8_OP9_OP10` | Artifact namespace. |
+
+The aliases are `v6i13`, `v6i13_opening_window_advantage_router`,
+`v6i13_opening_window`, `v6i13_advantage_router`,
+`latent_v6i13_opening_window_advantage_router`, and
+`plan_faithful_latent_v6i13_opening_window_advantage_router`.
+
+### 6.20 v6i14_contract_specialists (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i14 inherits `v6i9_mapaware_repertoire_hardpool` directly. The
+scientific delta is to stop trying to route weakly differentiated latent
+behaviors and instead create behavioral specialists first. During this
+phase the router remains off, z is assigned by balanced episodes, and the
+v6i9 repertoire-stage trainable scope remains in force: shared actor trunk
+frozen, z-specific modules trainable.
+
+This row deliberately breaks the no-handcrafted-role boundary. It is not a
+paper-faithful row and not a Summer-compatible extension. The contract
+reward is scaffolding for specialist birth, to be removed or reduced before
+router-selection claims.
+
+Resolved-config diff vs `v6i9_mapaware_repertoire_hardpool` is exactly:
+`{experiment_id, latent_contract_specialist_coef,
+latent_contract_specialist_enabled, run_tag}`.
+
+| Field | v6i9 repertoire value | This preset | Note |
+|-------|-----------------------|-------------|------|
+| `experiment_id` | `v6i9` | `v6i14` | Artifact and protocol identity. |
+| `latent_contract_specialist_enabled` | `False` | `True` | Enables trainer-side z-indexed contract rewards. |
+| `latent_contract_specialist_coef` | `0.0` | `0.25` | Small but nonzero scaffold weight on top of env reward. |
+| `run_tag` | `v6i9_mapaware_repertoire_hardpool_OP8_OP9_OP10` | `v6i14_contract_specialists_OP8_OP9_OP10` | Artifact namespace. |
+
+Contract map:
+`z0 = opening pressure`, `z1 = home defense / recovery`,
+`z2 = friendly-carrier support`, `z3 = carrier conversion`.
+
+The aliases are `v6i14`, `v6i14_contract_specialists`,
+`v6i14_contract_specialist_repertoire`,
+`latent_v6i14_contract_specialists`, and
+`plan_faithful_latent_v6i14_contract_specialists`.
+
+### 6.21 v6i15_contract_pressure (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i15 inherits `v6i14_contract_specialists` directly. The scientific
+delta is to test whether the current frozen-shared-trunk, z-specific
+actor pathway can express distinct forced-z behavior when the handcrafted
+contract reward is made loud. This is a pressure test, not a router row.
+
+The sweep arms keep router training blocked: router off, z assigned by
+balanced episodes, `v6i9_training_stage = "repertoire"`, shared actor
+trunk frozen, z-specific modules trainable, same OP8/OP9/OP10 hard pool,
+same map surface, same contract map.
+
+Resolved-config diff vs `v6i14_contract_specialists` is exactly:
+`{experiment_id, latent_contract_specialist_coef, run_tag}`.
+
+| Field | v6i14 value | 3x arm | 6x arm | 10x arm |
+|-------|-------------|--------|--------|---------|
+| `experiment_id` | `v6i14` | `v6i15` | `v6i15` | `v6i15` |
+| `latent_contract_specialist_coef` | `0.25` | `0.75` | `1.50` | `2.50` |
+| `run_tag` | `v6i14_contract_specialists_OP8_OP9_OP10` | `v6i15_contract_pressure_3x_OP8_OP9_OP10` | `v6i15_contract_pressure_6x_OP8_OP9_OP10` | `v6i15_contract_pressure_10x_OP8_OP9_OP10` |
+
+Aliases:
+`v6i15`, `v6i15_contract_pressure`, and `v6i15_contract_pressure_3x`
+resolve to the 3x arm. The 6x and 10x arms are available as
+`v6i15_contract_pressure_6x` and `v6i15_contract_pressure_10x`, plus the
+matching `latent_v6i15_...` and `plan_faithful_latent_v6i15_...` aliases.
+
+Promotion logic: do not train a router from any v6i15 arm unless a
+complete forced-z behavior grid shows material separation: all z
+represented, mean pair distance rising versus v6i14, max pair distance
+clearing the prior 0.0717 ceiling by a clear margin, and at least some
+pairs above the behavior threshold. If 10x pressure does not move the
+fingerprints, the next diagnostic is z-specific capacity or contract
+feature design.
 
 ---
 

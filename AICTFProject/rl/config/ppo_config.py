@@ -116,6 +116,13 @@ class PPOConfig:
     #   p_train(z|s) = (1 - eps) * q_phi(z|s) + eps * Uniform(allowed z).
     # Deterministic evaluation still uses q_phi directly.
     router_uniform_exploration_prob: float = 0.0
+    # Delayed-commit router controls. Default-off so existing warmup users keep
+    # their current behavior. When enabled, the pre-commit latent is sampled
+    # uniformly, arc credit starts only at the warmup commit, and finalized arc
+    # records carry an opening summary for external V/A router diagnostics.
+    router_warmup_uniform_z: bool = False
+    router_arc_post_commit_only: bool = False
+    router_opening_context_mode: str = ""
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True
@@ -727,6 +734,13 @@ class PPOConfig:
     train_router_when_forced: bool = False
     # When True, continue updating the router critic target even during forced episodes.
     train_router_critic_when_forced: bool = False
+    # --- V6I14: Contract-specialist scaffold rewards ---
+    # Default-off z-indexed behavioral contracts used to birth recognizable
+    # specialists before routing. This is a post-Summer scaffold, not a
+    # paper-faithful latent objective.
+    latent_contract_specialist_enabled: bool = False
+    latent_contract_specialist_coef: float = 0.0
+    latent_contract_specialist_clip: float = 1.0
 
     # --- V6I9: Multi-Stage Training ---
     # Controls which parameter groups are frozen at optimizer build time.

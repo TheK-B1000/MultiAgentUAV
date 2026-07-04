@@ -417,6 +417,18 @@ class RouterSamplingState:
         z_dist = Categorical(logits=z_logits)
         if bool(episode_start_mask.any().item()):
             start_idx = torch.where(episode_start_mask)[0]
+            init_gs = global_state.index_select(0, start_idx).detach()
+            init_target_dim = int(self.host.episode_initial_global_state.shape[1])
+            if init_gs.shape[1] >= init_target_dim:
+                init_gs = init_gs[:, :init_target_dim]
+            else:
+                init_pad = torch.zeros(
+                    (init_gs.shape[0], init_target_dim - init_gs.shape[1]),
+                    dtype=init_gs.dtype,
+                    device=init_gs.device,
+                )
+                init_gs = torch.cat([init_gs, init_pad], dim=1)
+            self.host.episode_initial_global_state[start_idx] = init_gs
             self.host.episode_forced_z[start_idx] = False
             self.host.v6i1_episode_rehearsal[start_idx] = False
             self.host.episode_behavior_sum[start_idx] = 0.0
@@ -492,6 +504,9 @@ class RouterSamplingState:
         proposed_z = z_idx.clone()
         opportunity_mask = resample_mask.clone()
         resample_mask = resample_mask & (~forced_active)
+        warmup_uniform_sample_mask = torch.zeros_like(resample_mask)
+        if warmup > 0 and bool(getattr(trainer.cfg, "router_warmup_uniform_z", False)):
+            warmup_uniform_sample_mask = resample_mask & episode_start_mask
         if bool(resample_mask.any().item()):
             idx = torch.where(resample_mask)[0]
             sampled_dist = Categorical(logits=z_logits.index_select(0, idx))
@@ -586,6 +601,23 @@ class RouterSamplingState:
             self.host.strategy_age[idx] = 0
             self.host.needs_strategy_sample[idx] = False
             self.host.steps_since_last_refresh[resample_mask] = 0
+            if bool(warmup_uniform_sample_mask.any().item()):
+                warmup_idx = torch.where(warmup_uniform_sample_mask)[0]
+                uniform_logits = masked_uniform_logits(
+                    int(warmup_idx.numel()),
+                    cfg=trainer.cfg,
+                    latent_k=int(trainer.latent_k),
+                    dtype=torch.float32,
+                    device=device,
+                )
+                uniform_dist = Categorical(logits=uniform_logits)
+                warmup_z = trainer.model._categorical_argmax_or_sample(
+                    uniform_dist,
+                    deterministic=False,
+                    generator=trainer.model._sampling_gen_strategy,
+                ).long()
+                z_idx[warmup_idx] = warmup_z
+                self.host.current_z = z_idx.clone()
             from rl.custom_ppo.v6i1_phase_runtime import (
                 is_v6i1_staged_trainer,
                 resolve_v6i1_exploration_epsilon_current,
@@ -602,6 +634,7 @@ class RouterSamplingState:
                 router_resample = resample_mask
                 if rehearsal is not None:
                     router_resample = router_resample & (~rehearsal)
+                router_resample = router_resample & (~warmup_uniform_sample_mask)
                 if bool(router_resample.any().item()):
                     ridx = torch.where(router_resample)[0]
                     gen = trainer.model._sampling_gen_strategy
@@ -727,6 +760,18 @@ class RouterSamplingState:
                 dim=-1,
             )
             behavior_probs[forced_active] = forced_uniform
+        if bool(warmup_uniform_sample_mask.any().item()):
+            warmup_uniform = torch.softmax(
+                masked_uniform_logits(
+                    int(warmup_uniform_sample_mask.sum().item()),
+                    cfg=trainer.cfg,
+                    latent_k=int(trainer.latent_k),
+                    dtype=behavior_probs.dtype,
+                    device=device,
+                ),
+                dim=-1,
+            )
+            behavior_probs[warmup_uniform_sample_mask] = warmup_uniform
         behavior_log_prob = behavior_log_prob_from_probs(behavior_probs, z_idx)
         router_log_prob = z_dist.log_prob(z_idx)
         z_log_prob = behavior_log_prob
@@ -745,10 +790,13 @@ class RouterSamplingState:
         #
         # Both are no-ops when ``latent_arc_credit_enabled`` is False, so legacy
         # presets pay zero overhead here.
-        if bool(resample_mask.any().item()):
-            self.host.arc_finalize(resample_mask, reason="z_change")
+        arc_boundary_mask = resample_mask
+        if warmup > 0 and bool(getattr(trainer.cfg, "router_arc_post_commit_only", False)):
+            arc_boundary_mask = arc_boundary_mask & (~episode_start_mask)
+        if bool(arc_boundary_mask.any().item()):
+            self.host.arc_finalize(arc_boundary_mask, reason="z_change")
             self.host.arc_open(
-                resample_mask,
+                arc_boundary_mask,
                 global_state=global_state,
                 z_idx=z_idx,
                 z_log_prob=z_log_prob,
@@ -903,6 +951,7 @@ class RouterSamplingState:
             self.host.episode_tactical_bucket_counts[done_t] = 0
             self.host.first_z_sample_step[done_t] = -1
             self.host.episode_return_baseline_at_commit[done_t] = 0.0
+            self.host.episode_initial_global_state[done_t] = 0.0
             self.host.episode_forced_z[done_t] = False
             self.host.episode_forced_z_id[done_t] = 0
             self.host.episode_contrast_bucket[done_t] = 0
@@ -928,6 +977,10 @@ class RouterSamplingState:
             # reset to 0 here so stale values never persist into the new episode.
             if getattr(self.host, "episode_arc_start_z", None) is not None:
                 self.host.episode_arc_start_z[done_t] = 0
+            if getattr(self.host, "arc_open_commit_step", None) is not None:
+                self.host.arc_open_commit_step[done_t] = -1
+            if getattr(self.host, "arc_open_opening_context", None) is not None:
+                self.host.arc_open_opening_context[done_t] = 0.0
             self.host.episode_id_per_env[done_t] += 1
             # Defensive: drop any v3i3 pending refresh records that weren't
             # finalized by ``_finalize_v3i3_refresh_records`` (shouldn't

@@ -617,6 +617,7 @@ class TrainingTelemetry:
             "reward_failure",
             "reward_behavior_contrast",
             "reward_csia",
+            "reward_contract_specialist",
             "reward_total",
         ):
             vals = buffer.fields[key][: int(buffer.pos)].detach().float().reshape(-1)

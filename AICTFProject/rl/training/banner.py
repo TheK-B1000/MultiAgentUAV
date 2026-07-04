@@ -121,6 +121,8 @@ def print_training_banner(
         )
     if curriculum is not None:
         print("[PPO] Training profile: curriculum baseline")
+    elif bool(getattr(cfg, "latent_contract_specialist_enabled", False)):
+        print("[PPO] Training profile: contract-specialist diagnostic scaffold")
     elif use_latent:
         print("[PPO] Training profile: default latent (Summer implementation)")
     else:

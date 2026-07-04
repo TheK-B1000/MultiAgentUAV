@@ -138,7 +138,12 @@ class ArcCreditManager:
                     "reason": str(reason),
                     "env_index": env_i,
                     "arc_uid": arc_uid,
+                    "commit_step": int(self.host.arc_open_commit_step[env_i].detach().cpu().item()),
                 }
+            if str(getattr(trainer.cfg, "router_opening_context_mode", "") or ""):
+                rec["opening_context"] = (
+                    self.host.arc_open_opening_context[env_i].detach().clone().cpu()
+                )
             if self.host.arc_open_selector_hidden is not None:
                 rec["selector_hidden_0"] = (
                     self.host.arc_open_selector_hidden[env_i].detach().clone().cpu()
@@ -200,6 +205,26 @@ class ArcCreditManager:
             self.host.arc_open_selector_hidden[idx] = selector_hidden.index_select(0, idx).detach()
         buckets = strategy_experience_bucket_ids(gs).detach()
         self.host.arc_open_bucket_id[idx] = buckets
+        self.host.arc_open_commit_step[idx] = self.host.steps_since_ep_start.index_select(0, idx).detach().long()
+        mode = str(getattr(trainer.cfg, "router_opening_context_mode", "") or "").strip().lower()
+        if mode in {"initial_commit_delta", "state0_commit_delta", "opening_summary"}:
+            init = self.host.episode_initial_global_state.index_select(0, idx).detach()
+            if init.shape[1] >= target_dim:
+                init = init[:, :target_dim]
+            elif init.shape[1] < target_dim:
+                pad = torch.zeros(
+                    (init.shape[0], target_dim - init.shape[1]),
+                    dtype=init.dtype,
+                    device=init.device,
+                )
+                init = torch.cat([init, pad], dim=1)
+            opening = torch.cat([init, gs, gs - init], dim=1)
+            self.host.arc_open_opening_context[idx] = opening
+        elif mode:
+            raise ValueError(
+                f"Unknown router_opening_context_mode {mode!r}; expected "
+                "'initial_commit_delta' or empty string"
+            )
         if opponent_ids is not None:
             self.host.arc_open_opponent_id[idx] = opponent_ids.index_select(0, idx).detach().long()
         self.host.arc_has_open[idx] = True

@@ -116,6 +116,11 @@ from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i9_mapaware_nav_refinement,
     apply_plan_faithful_latent_v6i11_q_router_hardpool,
     apply_plan_faithful_latent_v6i12_advantage_router_hardpool,
+    apply_plan_faithful_latent_v6i13_opening_window_advantage_router,
+    apply_plan_faithful_latent_v6i14_contract_specialists,
+    apply_plan_faithful_latent_v6i15_contract_pressure_3x,
+    apply_plan_faithful_latent_v6i15_contract_pressure_6x,
+    apply_plan_faithful_latent_v6i15_contract_pressure_10x,
 )
 
 __all__ = [
@@ -217,4 +222,9 @@ __all__ = [
     "apply_plan_faithful_latent_v6i9_mapaware_nav_refinement",
     "apply_plan_faithful_latent_v6i11_q_router_hardpool",
     "apply_plan_faithful_latent_v6i12_advantage_router_hardpool",
+    "apply_plan_faithful_latent_v6i13_opening_window_advantage_router",
+    "apply_plan_faithful_latent_v6i14_contract_specialists",
+    "apply_plan_faithful_latent_v6i15_contract_pressure_3x",
+    "apply_plan_faithful_latent_v6i15_contract_pressure_6x",
+    "apply_plan_faithful_latent_v6i15_contract_pressure_10x",
 ]

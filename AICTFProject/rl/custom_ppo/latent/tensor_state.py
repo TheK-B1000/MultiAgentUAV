@@ -29,6 +29,9 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
     host.episode_strategy_state = torch.zeros(
         (n_envs, int(trainer.model.global_state_dim)), dtype=torch.float32, device=device
     )
+    host.episode_initial_global_state = torch.zeros(
+        (n_envs, int(trainer.model.global_state_dim)), dtype=torch.float32, device=device
+    )
     host.episode_strategy_selector_hidden: Optional[torch.Tensor] = None
     host.episode_strategy_z = torch.zeros((n_envs,), dtype=torch.long, device=device)
     host.episode_strategy_log_prob = torch.zeros((n_envs,), dtype=torch.float32, device=device)
@@ -185,6 +188,12 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
     host.arc_open_log_prob = torch.zeros((n_envs,), dtype=torch.float32, device=device)
     host.arc_open_opponent_id = torch.full((n_envs,), -1, dtype=torch.long, device=device)
     host.arc_open_bucket_id = torch.full((n_envs,), -1, dtype=torch.long, device=device)
+    host.arc_open_commit_step = torch.full((n_envs,), -1, dtype=torch.long, device=device)
+    host.arc_open_opening_context = torch.zeros(
+        (n_envs, int(trainer.model.global_state_dim) * 3),
+        dtype=torch.float32,
+        device=device,
+    )
     host.arc_return_accum = torch.zeros((n_envs,), dtype=torch.float32, device=device)
     host.arc_steps_accum = torch.zeros((n_envs,), dtype=torch.long, device=device)
     host.arc_has_open = torch.zeros((n_envs,), dtype=torch.bool, device=device)

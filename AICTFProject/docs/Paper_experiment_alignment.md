@@ -424,6 +424,55 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i15 / contract-pressure coefficient sweep:** Registered
+  `apply_plan_faithful_latent_v6i15_contract_pressure_3x`,
+  `apply_plan_faithful_latent_v6i15_contract_pressure_6x`, and
+  `apply_plan_faithful_latent_v6i15_contract_pressure_10x` as direct
+  pressure arms over `v6i14_contract_specialists`. Classification:
+  `DIAGNOSTIC` non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The resolved diff vs v6i14 is exactly
+  `{experiment_id, latent_contract_specialist_coef, run_tag}`; the
+  coefficients are `0.75`, `1.50`, and `2.50`. `v6i15` and
+  `v6i15_contract_pressure` resolve to the 3x arm. Added focused tests in
+  `tests/test_v6i15_contract_pressure.py` and regenerated
+  `tests/preset_snapshots.json` for the new aliases.
+- **v6i14 / contract-specialist repertoire diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i14_contract_specialists` (aliases
+  `v6i14`, `v6i14_contract_specialists`,
+  `v6i14_contract_specialist_repertoire`,
+  `latent_v6i14_contract_specialists`, and the long
+  `plan_faithful_latent_...` alias) built directly on
+  `v6i9_mapaware_repertoire_hardpool`. Classification: `DIAGNOSTIC`
+  non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The resolved diff vs the repertoire parent
+  is exactly `{experiment_id, latent_contract_specialist_coef,
+  latent_contract_specialist_enabled, run_tag}`. The runtime now supports
+  default-off contract-specialist reward fields and stores the active bonus
+  as `reward_contract_specialist`. Added focused tests in
+  `tests/test_v6i14_contract_specialists.py`; regenerated
+  `tests/preset_snapshots.json` (adds five v6i14 aliases and three new
+  default-off `PPOConfig` fields to every snapshot entry).
+- **v6i13 / opening-window delayed-commit advantage-router extension:**
+  Registered
+  `apply_plan_faithful_latent_v6i13_opening_window_advantage_router`
+  (aliases `v6i13`, `v6i13_opening_window_advantage_router`,
+  `v6i13_opening_window`, `v6i13_advantage_router`,
+  `latent_v6i13_opening_window_advantage_router`, and the long
+  `plan_faithful_latent_...` alias) built directly on
+  `v6i12_advantage_router_hardpool`. Classification:
+  `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. The resolved
+  diff vs v6i12 is exactly
+  `{experiment_id, latent_episode_strategy_warmup_decision_steps,
+  router_arc_post_commit_only, router_opening_context_mode,
+  router_warmup_uniform_z, run_tag}`. The runtime now supports
+  default-off delayed-commit controls: uniform warmup z, post-commit-only
+  arc opening, and finalized arc records with
+  `opening_context = [state_0, state_commit, state_commit - state_0]`.
+  Added `experiments/run_v6i13_opening_window_advantage_router.py`,
+  focused tests in `tests/test_v6i13_opening_window_advantage_router.py`,
+  and regenerated `tests/preset_snapshots.json` (adds six v6i13 aliases
+  and the three new default-off `PPOConfig` fields to every snapshot
+  entry).
 - **v6i10 / episode-router exploration extension:** Registered
   `apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool`
   (aliases `v6i10`, `v6i10_episode_router_explore_hardpool`,

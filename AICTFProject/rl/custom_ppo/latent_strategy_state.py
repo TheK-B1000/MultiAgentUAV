@@ -119,6 +119,7 @@ class LatentStrategyStateCore:
         trainer._last_context_state = None
         self.episode_return_accum.zero_()
         self.episode_return_baseline_at_commit.zero_()
+        self.episode_initial_global_state.zero_()
         self.episode_strategy_has_start.zero_()
         self.episode_tactical_bucket_counts.zero_()
         self.episode_strategy_recorder.reset()
@@ -155,6 +156,8 @@ class LatentStrategyStateCore:
         self.arc_open_log_prob.zero_()
         self.arc_open_opponent_id.fill_(-1)
         self.arc_open_bucket_id.fill_(-1)
+        self.arc_open_commit_step.fill_(-1)
+        self.arc_open_opening_context.zero_()
         self.arc_return_accum.zero_()
         self.arc_steps_accum.zero_()
         self.arc_has_open.zero_()
