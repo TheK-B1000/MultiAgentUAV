@@ -185,6 +185,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i15_contract_pressure_3x` / `6x` / `10x` (aliases include `v6i15` for 3x) | `v6i14_contract_specialists` | `DIAGNOSTIC` (non-Summer scaffold) | Contract-pressure coefficient sweep over the v6i14 scaffold. Router remains off, balanced-episode z assignment and frozen shared actor are preserved, and only `latent_contract_specialist_coef` is raised to 0.75, 1.50, or 2.50 to test whether behavior fingerprints respond when role contracts become loud. Pinned by `tests/test_v6i15_contract_pressure.py`. |
 | `v6i16_capacity_sharp_contracts` (aliases include `v6i16`; arms: `v6i16_sharp_contracts`, `v6i16_capacity`) | `v6i15_contract_pressure_3x` | `DIAGNOSTIC` (non-Summer scaffold) | Capacity + contract-feature ablation. Arm A sharpens the handcrafted contract features, Arm B increases z-pathway leverage, and Arm C combines both. Router remains off, balanced-episode z assignment is preserved, and all arms stay at 3x contract pressure. Pinned by `tests/test_v6i16_capacity_feature_ablation.py`. |
 | `v6i17_surface_pressure_diagnostic` (aliases include `v6i17`, `v6i17_harder_asymmetric_opponents`) | `v6i16_capacity_sharp_contracts` | `DIAGNOSTIC` (non-Summer scaffold) | Surface-pressure diagnostic. It keeps the v6i16 combined contract/capacity scaffold but expands the training opponent surface from OP8/OP9/OP10 to OP8/OP9/OP10/OP11/OP12. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z behavior, margin, tempo, or role-fingerprint separation rather than oracle gap alone. Pinned by `tests/test_v6i17_surface_pressure_diagnostic.py`. |
+| `v6i18_margin_tempo_surface_diagnostic` (aliases include `v6i18`, `v6i18_margin_tempo_surface`) | `v6i17_surface_pressure_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Margin/tempo consequence-surface diagnostic. It keeps the v6i17 contract/capacity/opponent scaffold fixed, leaves router training off, and changes only the reward/horizon surface: shorter episodes plus score-margin, tempo, near-cap, red-touch, and red-carrier-progress pressure. Promotion requires forced-z margin, tempo, role, or behavior-fingerprint separation; win rate alone is secondary. Pinned by `tests/test_v6i18_margin_tempo_surface.py`. |
 
 ---
 
@@ -911,6 +912,52 @@ forced-z behavior pair distance clears the prior ~0.045 ceiling, at least some
 pairs exceed threshold, `unique_best_z_count > 1`, and score-margin, tempo, or
 role metrics show consequence differences. The `ORACLE_GAP_PLUS_CONTEXT` line
 alone is not promotion evidence.
+
+### 6.24 v6i18_margin_tempo_surface_diagnostic (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i18 inherits `v6i17_surface_pressure_diagnostic` directly. The scientific
+delta is to test whether v6i17 failed because the arena still graded every z
+mostly by saturated binary win/loss. It keeps the v6i17 specialist-birth
+machinery fixed and changes only the consequence surface.
+
+This row deliberately keeps router training blocked. It is not a paper-faithful
+row and not a Summer-compatible extension: it inherits handcrafted z-role
+contract shaping and z-pathway capacity changes, then adds noncanonical
+margin/tempo reward pressure.
+
+Resolved-config diff vs `v6i17_surface_pressure_diagnostic` is exactly:
+`{env_stalemate_max_steps, env_surface_blue_capture_tempo_bonus,
+env_surface_blue_near_cap_bonus, env_surface_red_carrier_progress_penalty,
+env_surface_red_flag_touch_penalty, env_surface_score_margin_coef,
+experiment_id, max_decision_steps, run_tag}`.
+
+| Field | v6i17 value | This preset | Note |
+|-------|-------------|-------------|------|
+| `experiment_id` | `v6i17` | `v6i18` | Artifact and protocol identity. |
+| `max_decision_steps` | `320` | `240` | Shorter horizon makes tempo and conversion pressure visible. |
+| `env_stalemate_max_steps` | `120` | `80` | Shorter no-score window to reduce slow saturated wins. |
+| `env_surface_score_margin_coef` | `0.0` | `0.15` | Terminal score-margin pressure. |
+| `env_surface_blue_capture_tempo_bonus` | `0.0` | `0.25` | Earlier blue captures receive more reward. |
+| `env_surface_red_flag_touch_penalty` | `0.0` | `0.20` | Penalizes allowing red flag grabs. |
+| `env_surface_red_carrier_progress_penalty` | `0.0` | `0.025` | Penalizes red carrier progress toward blue home. |
+| `env_surface_blue_near_cap_bonus` | `0.0` | `0.015` | Rewards blue carrier near-cap conversion pressure. |
+| `run_tag` | `v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12` | `v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12` | Artifact namespace advertises the margin/tempo diagnostic. |
+
+All other v6i17 scaffold fields stay unchanged: OP8/OP9/OP10/OP11/OP12
+opponent surface, router off, `balanced_episode` z assignment, sharp contract
+variant, 3x contract coefficient, stronger z pathway,
+`v6i9_training_stage = "repertoire"`, and frozen shared actor trunk.
+
+Aliases: `v6i18`, `v6i18_margin_tempo_surface_diagnostic`,
+`v6i18_margin_tempo_surface`, `latent_v6i18_margin_tempo_surface_diagnostic`,
+and `plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic`.
+
+Promotion logic: run a short 5-update diagnostic first, then forced-z
+fingerprints over OP8..OP12 with margin and tempo metrics included. Router
+training remains blocked unless score margin, capture timing, enemy pressure,
+near-cap conversion, or role fingerprints separate by z. Win rate can remain
+100% and still be useful only if the non-binary consequence metrics separate;
+oracle gap alone is not promotion evidence.
 
 ---
 

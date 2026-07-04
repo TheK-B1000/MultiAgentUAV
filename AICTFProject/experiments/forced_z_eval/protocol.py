@@ -40,6 +40,8 @@ class ForcedZProtocol:
     base_seed: int = DEFAULT_BASE_SEED
     deterministic_actions: bool = DEFAULT_DETERMINISTIC_ACTIONS
     max_decision_steps: int = DEFAULT_MAX_DECISION_STEPS
+    env_reward_kwargs: dict[str, Any] = field(default_factory=dict)
+    training_run_config: str | None = None
     device: str = "cuda"
     collect_behavior_mean: bool = True
     progress_every: int = 25
@@ -56,15 +58,28 @@ class ForcedZProtocol:
         return asdict(self)
 
 
-def audit_protocol_note() -> str:
+def audit_protocol_note(protocol: ForcedZProtocol | None = None) -> str:
     """Human-readable contract summary for run logs."""
+    steps = DEFAULT_MAX_DECISION_STEPS
+    surface_note = ""
+    if protocol is not None:
+        steps = int(protocol.max_decision_steps)
+        if protocol.env_reward_kwargs:
+            keys = sorted(protocol.env_reward_kwargs)
+            surface_note = (
+                " env_reward_overrides={"
+                + ", ".join(f"{k}={protocol.env_reward_kwargs[k]}" for k in keys)
+                + "},"
+            )
+        if protocol.training_run_config:
+            surface_note += f" training_run_config={protocol.training_run_config!r},"
     return (
         "Forced-z protocol: "
-        f"base_seed={DEFAULT_BASE_SEED}, "
-        f"deterministic_actions={DEFAULT_DETERMINISTIC_ACTIONS}, "
-        f"cell_seed=base+1000*opp_idx+100*map_idx, "
-        f"episode_seed=cell_seed+ep_idx, "
-        f"max_decision_steps={DEFAULT_MAX_DECISION_STEPS}, "
+        f"base_seed={DEFAULT_BASE_SEED if protocol is None else protocol.base_seed}, "
+        f"deterministic_actions={DEFAULT_DETERMINISTIC_ACTIONS if protocol is None else protocol.deterministic_actions}, "
+        "cell_seed=base+1000*opp_idx+100*map_idx, "
+        "episode_seed=cell_seed+ep_idx, "
+        f"max_decision_steps={steps},{surface_note} "
         "sampling=argmax unless --stochastic."
     )
 

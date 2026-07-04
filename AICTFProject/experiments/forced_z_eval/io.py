@@ -197,6 +197,8 @@ def load_episode_results(run_dir: str | Path) -> tuple[ForcedZProtocol, CellEpis
         base_seed=int(manifest.get("base_seed", 42)),
         deterministic_actions=bool(manifest.get("deterministic_actions", True)),
         max_decision_steps=int(manifest.get("max_decision_steps", 400)),
+        env_reward_kwargs=dict(manifest.get("env_reward_kwargs", {})),
+        training_run_config=manifest.get("training_run_config"),
         device=str(manifest.get("device", "cuda")),
         collect_behavior_mean=bool(manifest.get("collect_behavior_mean", True)),
         progress_every=int(manifest.get("progress_every", 0)),

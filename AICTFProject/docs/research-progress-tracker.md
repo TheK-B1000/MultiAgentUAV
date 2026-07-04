@@ -1375,6 +1375,82 @@ adding OP11/OP12 to this map surface: non-saturating margin/tempo objectives,
 handicap/asymmetry, shorter-horizon pressure, or map-pool/layout variation
 where different roles cannot all win by the same generalist behavior.
 
+### 3.17 v6i18 margin/tempo surface diagnostic -- `EVALUATED_FAIL` (5-update live + forced-z, 2026-07-04)
+
+**Scientific delta vs v6i17:** v6i17 showed that harder OP11/OP12 opponents
+alone do not break win-rate saturation or force role tradeoffs. v6i18 keeps the
+specialist-birth machinery fixed and changes only the consequence surface: the
+arena now grades score margin, capture tempo, near-cap conversion, enemy flag
+touches, and enemy carrier progress instead of relying on binary win/loss.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This inherits
+handcrafted z-role contract rewards and v6i16 z-pathway capacity changes, then
+adds noncanonical margin/tempo reward pressure. It is not paper-faithful and
+not a Summer-compatible extension.
+
+**Parent:** `v6i17_surface_pressure_diagnostic`. Router remains off,
+`balanced_episode` z assignment remains active, OP8/OP9/OP10/OP11/OP12 remain
+active, `latent_contract_specialist` stays enabled at 3x with
+`variant="sharp"`, z-specific pathways remain trainable, and the shared actor
+trunk remains frozen through `v6i9_training_stage = "repertoire"`.
+
+**Resolved-config diff vs v6i17:** exactly `{env_stalemate_max_steps,
+env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+env_surface_score_margin_coef, experiment_id, max_decision_steps, run_tag}`.
+
+| Field | v6i17 | v6i18 |
+|-------|-------|-------|
+| `experiment_id` | `v6i17` | `v6i18` |
+| `max_decision_steps` | `320` | `240` |
+| `env_stalemate_max_steps` | `120` | `80` |
+| `env_surface_score_margin_coef` | `0.0` | `0.15` |
+| `env_surface_blue_capture_tempo_bonus` | `0.0` | `0.25` |
+| `env_surface_red_flag_touch_penalty` | `0.0` | `0.20` |
+| `env_surface_red_carrier_progress_penalty` | `0.0` | `0.025` |
+| `env_surface_blue_near_cap_bonus` | `0.0` | `0.015` |
+| `run_tag` | `v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12` | `v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12` |
+
+**Launch command (completed):**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i18 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i18_margin_tempo_surface_5u_seed1 --checkpoint-dir artifacts\v6i18_margin_tempo_surface_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Checkpoint:** `artifacts/v6i18_margin_tempo_surface_5u_seed1/final_v6i18_margin_tempo_surface_5u_seed1_2v2.zip`
+
+**Training mechanism gates (final update 21):** PASS — `reward_contract_specialist_mean=0.157`, `shared_actor_max_abs_delta=0.0`, `rollout_win_margin_mean=2.38`, `strategy_wr_spread=0.5` (first non-zero z WR spread in this fork chain), OP8–OP12 present in telemetry, router/q_phi effectively off, balanced z assignment active. Surface coefs resolved in run config (`env_surface_*` nonzero; shorter `max_decision_steps=240`, `env_stalemate_max_steps=80`). Surface components are not logged as separate CSV columns; they flow through the GPU env reward path.
+
+**Forced-z fingerprint eval (completed):**
+
+```powershell
+uv run python experiments/run_forced_z_eval.py --checkpoint artifacts\v6i18_margin_tempo_surface_5u_seed1\final_v6i18_margin_tempo_surface_5u_seed1_2v2.zip --out-dir artifacts\v6i18_margin_tempo_surface_5u_seed1\forced_z_fingerprint_eps2 --opponents OP8 OP9 OP10 OP11 OP12 --episodes 2 --oracle-metric win_margin --device cuda --progress-every 8
+```
+
+**Eval caveat:** canonical forced-z protocol uses `max_decision_steps=400` and does not replay v6i18 surface reward coefs; margin/tempo gates are therefore measured on behavior telemetry and episode outcomes under the standard eval env, not the training surface.
+
+| Gate | Target | v6i18 result | Pass? |
+|------|--------|--------------|-------|
+| `behavior_pair_distance_mean` | `>0.06` | **0.0391** | FAIL |
+| pairs above threshold | ≥1–2 | **0** | FAIL |
+| `unique_best_z_count` | `>1` | **1** (`z0` every cell) | FAIL |
+| forced-z WR | informative only | **100%** all 80 eps | saturated |
+| score margin by z | differs | z0=2.40, z1=2.30, z2=2.65, z3=2.30 (spread 0.35) | weak |
+| time-to-first-score by z | differs | z0=35.4, z1=46.4, z2=47.7, z3=39.5 (spread 12.3 steps) | weak |
+| intercept/escort by z | role ownership | intercept 0.088–0.216, escort 0.260–0.317 | weak |
+
+Stage-C gates: oracle WR advantage 0%, best-z varies = FAIL. Global best fixed-z by margin is z2 (2.65) but per-cell oracle picks z0 everywhere under `win_margin` metric.
+
+**Verdict:** `EVALUATED_FAIL` on promotion gates. Margin/tempo surface changed training telemetry (`strategy_wr_spread`, rollout win margin) but did **not** produce forced-z specialist separation above the v6i14/v6i15 ~0.04 ceiling. The answer to “do margin/tempo consequences create z-specialist separation where harder opponents alone did not?” is **no** at 5 updates.
+
+**Router training:** remains **blocked** (ignore ladder verdict `ORACLE_GAP_PLUS_CONTEXT` from eval script; user gate is margin/tempo/role separation).
+
+**Recommended next fork (per user decision tree):** explicit arena handicaps/asymmetry or real `map_pool` layout variation — **not** another contract or surface coefficient sweep.
+
+**Artifacts:**
+- Training: `artifacts/v6i18_margin_tempo_surface_5u_seed1/`
+- Forced-z: `artifacts/v6i18_margin_tempo_surface_5u_seed1/forced_z_fingerprint_eps2/`
+
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis

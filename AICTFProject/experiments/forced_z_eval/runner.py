@@ -26,6 +26,7 @@ def _make_env(protocol: ForcedZProtocol, map_name: str, seed: int) -> Any:
         rules_profile="OURS",
         device=protocol.device,
         seed=seed,
+        **dict(protocol.env_reward_kwargs),
     )
     return GPUCTFVecEnv(cfg)
 
@@ -113,7 +114,7 @@ def _run_reuse_env_block(
     from rl.custom_ppo import load_custom_ppo_policy
 
     if not quiet:
-        print(audit_protocol_note())
+        print(audit_protocol_note(protocol))
         print(f"Checkpoint : {protocol.checkpoint}")
         print(f"Episodes   : {protocol.episodes_per_cell} per (opponent, z, map)")
         print(f"Device     : {protocol.device}")

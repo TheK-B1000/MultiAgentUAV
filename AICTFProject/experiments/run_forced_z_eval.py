@@ -55,6 +55,7 @@ from experiments.forced_z_eval.protocol import (  # noqa: E402
     ForcedZProtocol,
     audit_protocol_note,
 )
+from experiments.forced_z_eval.env_overrides import resolve_forced_z_env_overrides  # noqa: E402
 from experiments.forced_z_eval.runner import run_forced_z_episodes  # noqa: E402
 
 
@@ -73,6 +74,13 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--stochastic", action="store_true")
     p.add_argument("--no-behavior-telemetry", action="store_true")
     p.add_argument("--progress-every", type=int, default=25)
+    p.add_argument("--max-decision-steps", type=int, default=None, help="Override episode horizon (default 400 or from run config)")
+    p.add_argument("--run-config", default=None, help="Training run_config.json with max_decision_steps and env_surface_* fields")
+    p.add_argument(
+        "--inherit-training-config",
+        action="store_true",
+        help="Load env horizon/surface overrides from sibling *_run_config.json next to checkpoint",
+    )
     return p.parse_args()
 
 
@@ -182,6 +190,12 @@ def main() -> None:
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     run_dir = Path(args.out_dir or (SCRIPT_DIR / "forced_z_runs" / stamp))
+    max_steps, env_reward_kwargs, run_config_source = resolve_forced_z_env_overrides(
+        checkpoint=str(args.checkpoint),
+        run_config_path=args.run_config,
+        inherit_training_config=bool(args.inherit_training_config),
+        max_decision_steps=args.max_decision_steps,
+    )
     protocol = ForcedZProtocol(
         checkpoint=str(args.checkpoint),
         opponents=tuple(args.opponents),
@@ -190,6 +204,9 @@ def main() -> None:
         episodes_per_cell=int(args.episodes),
         base_seed=int(args.base_seed),
         deterministic_actions=not bool(args.stochastic),
+        max_decision_steps=int(max_steps),
+        env_reward_kwargs=dict(env_reward_kwargs),
+        training_run_config=run_config_source,
         device=str(args.device),
         collect_behavior_mean=not bool(args.no_behavior_telemetry),
         progress_every=int(args.progress_every),
@@ -232,7 +249,7 @@ def main() -> None:
         atomic_write_json(run_dir / "partial_summary.json", _partial_summary(protocol, completed_conditions, episode_count))
 
     try:
-        print(audit_protocol_note())
+        print(audit_protocol_note(protocol))
         cells = run_forced_z_episodes(protocol, on_cell_complete=_on_cell_complete)
         analyze_run(protocol, cells, run_dir, oracle_metric=args.oracle_metric)
         write_manifest(

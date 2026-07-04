@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 from experiments.forced_z_eval.analysis.complementarity import build_complementarity_report
 from experiments.forced_z_eval.analysis.stage_c import build_stage_c_report
 from experiments.forced_z_eval.io import append_episode_rows, load_episode_results, write_manifest, write_run_artifacts
@@ -113,6 +115,42 @@ class ForcedZEvalIOTests(unittest.TestCase):
             self.assertTrue((run_dir / "episode_results.csv").is_file())
             _, loaded_cells = load_episode_results(run_dir)
             self.assertEqual(len(loaded_cells[("OP8", 0, "map_b")]), 2)
+
+
+class ForcedZEnvOverrideTests(unittest.TestCase):
+    def test_v6i18_run_config_maps_surface_fields(self) -> None:
+        from experiments.forced_z_eval.env_overrides import (
+            env_reward_kwargs_from_resolved_config,
+            find_run_config_for_checkpoint,
+            resolve_forced_z_env_overrides,
+        )
+
+        ckpt = (
+            PROJECT_ROOT
+            / "artifacts/v6i18_margin_tempo_surface_5u_seed1/final_v6i18_margin_tempo_surface_5u_seed1_2v2.zip"
+        )
+        if not ckpt.is_file():
+            self.skipTest("v6i18 artifact not present")
+        run_cfg = find_run_config_for_checkpoint(ckpt)
+        self.assertIsNotNone(run_cfg)
+        steps, env_kwargs, source = resolve_forced_z_env_overrides(
+            checkpoint=str(ckpt),
+            inherit_training_config=True,
+        )
+        self.assertEqual(steps, 240)
+        self.assertAlmostEqual(env_kwargs["surface_score_margin_coef"], 0.15)
+        self.assertEqual(env_kwargs["stalemate_max_steps"], 80)
+        self.assertIsNotNone(source)
+
+        flat = {
+            "max_decision_steps": 240,
+            "env_surface_score_margin_coef": 0.15,
+            "env_stalemate_max_steps": 80,
+        }
+        self.assertEqual(
+            env_reward_kwargs_from_resolved_config(flat)["surface_score_margin_coef"],
+            0.15,
+        )
 
 
 if __name__ == "__main__":
