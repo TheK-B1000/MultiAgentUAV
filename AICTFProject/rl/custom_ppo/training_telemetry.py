@@ -102,6 +102,15 @@ if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
+def _map_id_from_episode_info(er: dict[str, Any], info: dict[str, Any]) -> int:
+    """Read map pool index without treating 0 as missing."""
+    if isinstance(er, dict) and er.get("map_id") is not None:
+        return int(er["map_id"])
+    if info.get("map_id") is not None:
+        return int(info["map_id"])
+    return -1
+
+
 class TrainingTelemetry:
     """Episode/update CSV writers + persistent e3-step CSV file handle.
 
@@ -449,7 +458,7 @@ class TrainingTelemetry:
             "mode": str(getattr(cfg, "mode", "FIXED_OPPONENT")),
             "map_set": str(info.get("map_set", getattr(cfg, "map_set", "train"))).lower(),
             "map_layout": str(er.get("map_layout", info.get("map_layout", "map_a_open"))),
-            "map_id": int(er.get("map_id", info.get("map_id", -1)) or -1),
+            "map_id": _map_id_from_episode_info(er, info),
             "map_vertical_mirror": int(er.get("map_vertical_mirror", int(bool(info.get("map_vertical_mirror", False)))) or 0),
             "opponent": _opponent_legend(cfg, info),
             "opponent_id": _opponent_id_csv_from_info(cfg, info),

@@ -424,6 +424,20 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i20 / asymmetry-handicap surface diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic`
+  as an asymmetric consequence-pressure diagnostic over v6i19. Classification:
+  `DIAGNOSTIC` non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The resolved diff vs
+  `v6i19_map_pool_surface_diagnostic` is exactly
+  `{env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+  env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+  experiment_id, run_tag}`. Router training remains off, `balanced_episode` z
+  assignment remains active, OP8/OP9/OP10/OP11/OP12 and the two-layout map pool
+  stay active, and the inherited sharp 3x contract/capacity settings stay
+  unchanged. Added focused tests in
+  `tests/test_v6i20_asymmetry_handicap_surface.py` and regenerated
+  `tests/preset_snapshots.json`.
 - **v6i18 / margin-tempo surface diagnostic:** Registered
   `apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic` as a
   consequence-surface diagnostic over v6i17. Classification: `DIAGNOSTIC`

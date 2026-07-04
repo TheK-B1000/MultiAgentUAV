@@ -965,3 +965,32 @@ def apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic(cfg: PPOConfig)
     cfg.experiment_id = "v6i19"
     cfg.run_tag = "v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I20A: asymmetric consequence pressure over the v6i19 map-pool scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i20_asymmetry_handicap_surface_diagnostic.
+    Parent preset: v6i19_map_pool_surface_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can z-specialists separate when the arena makes enemy
+    progress and slow conversion more expensive, creating tradeoffs that one
+    generalist behavior may not satisfy cleanly?
+
+    Delta table vs v6i19:
+      map_pool / opponents changed: no, OP8..OP12 x two layouts inherited.
+      Contract / z-capacity / router / shared-actor freeze: unchanged.
+      Horizon / stalemate changed: no, v6i18/v6i19 timing surface inherited.
+      Consequence asymmetry changed: yes, stronger enemy-pressure penalties and
+      stronger blue tempo / near-cap conversion pressure.
+    """
+    cfg = apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic(cfg)
+    cfg.env_surface_blue_capture_tempo_bonus = 0.45
+    cfg.env_surface_red_flag_touch_penalty = 0.50
+    cfg.env_surface_red_carrier_progress_penalty = 0.075
+    cfg.env_surface_blue_near_cap_bonus = 0.035
+    cfg.experiment_id = "v6i20"
+    cfg.run_tag = "v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12"
+    return cfg

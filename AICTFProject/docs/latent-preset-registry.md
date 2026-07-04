@@ -186,6 +186,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i16_capacity_sharp_contracts` (aliases include `v6i16`; arms: `v6i16_sharp_contracts`, `v6i16_capacity`) | `v6i15_contract_pressure_3x` | `DIAGNOSTIC` (non-Summer scaffold) | Capacity + contract-feature ablation. Arm A sharpens the handcrafted contract features, Arm B increases z-pathway leverage, and Arm C combines both. Router remains off, balanced-episode z assignment is preserved, and all arms stay at 3x contract pressure. Pinned by `tests/test_v6i16_capacity_feature_ablation.py`. |
 | `v6i17_surface_pressure_diagnostic` (aliases include `v6i17`, `v6i17_harder_asymmetric_opponents`) | `v6i16_capacity_sharp_contracts` | `DIAGNOSTIC` (non-Summer scaffold) | Surface-pressure diagnostic. It keeps the v6i16 combined contract/capacity scaffold but expands the training opponent surface from OP8/OP9/OP10 to OP8/OP9/OP10/OP11/OP12. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z behavior, margin, tempo, or role-fingerprint separation rather than oracle gap alone. Pinned by `tests/test_v6i17_surface_pressure_diagnostic.py`. |
 | `v6i18_margin_tempo_surface_diagnostic` (aliases include `v6i18`, `v6i18_margin_tempo_surface`) | `v6i17_surface_pressure_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Margin/tempo consequence-surface diagnostic. It keeps the v6i17 contract/capacity/opponent scaffold fixed, leaves router training off, and changes only the reward/horizon surface: shorter episodes plus score-margin, tempo, near-cap, red-touch, and red-carrier-progress pressure. Promotion requires forced-z margin, tempo, role, or behavior-fingerprint separation; win rate alone is secondary. Pinned by `tests/test_v6i18_margin_tempo_surface.py`. |
+| `v6i20_asymmetry_handicap_surface_diagnostic` (aliases include `v6i20`, `v6i20_asymmetry_handicap_surface`, `v6i20_handicap_surface`) | `v6i19_map_pool_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Asymmetric consequence-pressure diagnostic. It keeps the v6i19 map-pool scaffold fixed and strengthens only the existing enemy-progress penalties and blue tempo/conversion bonuses. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z tradeoff separation by opponent × map, not win-rate saturation or oracle gap alone. Pinned by `tests/test_v6i20_asymmetry_handicap_surface.py`. |
 
 ---
 
@@ -991,6 +992,52 @@ forced-z fingerprints over all `map_pool` layouts x OP8..OP12 grouped by
 opponent x map x z. Router training remains blocked unless
 `behavior_pair_distance_mean > 0.06`, `unique_best_z_count > 1`, pairs above
 threshold, and margin/tempo/role metrics separate by z.
+
+### 6.26 v6i20_asymmetry_handicap_surface_diagnostic (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i20 inherits `v6i19_map_pool_surface_diagnostic` directly. The scientific
+delta is to test whether v6i19 failed because layout variation and mild
+margin/tempo pressure still allowed one generalist behavior to pass every
+context. It keeps the v6i19 specialist-birth machinery fixed and strengthens
+only asymmetric consequence pressure: enemy flag touches and enemy carrier
+progress become more expensive, while fast blue capture and near-cap conversion
+become more valuable.
+
+This row deliberately keeps router training blocked. It is not paper-faithful
+and not a Summer-compatible extension.
+
+Resolved-config diff vs `v6i19_map_pool_surface_diagnostic` is exactly:
+`{env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+experiment_id, run_tag}`.
+
+| Field | v6i19 value | This preset | Note |
+|-------|-------------|-------------|------|
+| `experiment_id` | `v6i19` | `v6i20` | Artifact and protocol identity. |
+| `env_surface_blue_capture_tempo_bonus` | `0.25` | `0.45` | Stronger fast-capture pressure. |
+| `env_surface_red_flag_touch_penalty` | `0.20` | `0.50` | Stronger penalty for allowing red flag touches. |
+| `env_surface_red_carrier_progress_penalty` | `0.025` | `0.075` | Stronger penalty for red carrier progress. |
+| `env_surface_blue_near_cap_bonus` | `0.015` | `0.035` | Stronger near-cap conversion pressure. |
+| `run_tag` | `v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12` | `v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12` | Artifact namespace advertises the asymmetry diagnostic. |
+
+All other v6i19 scaffold fields stay unchanged: OP8..OP12 pool, two-layout
+`map_pool`, `max_decision_steps = 240`, `env_stalemate_max_steps = 80`,
+`env_surface_score_margin_coef = 0.15`, router off, `balanced_episode`, sharp
+3x contracts, v6i16 z capacity, and frozen shared actor.
+
+Aliases: `v6i20`, `v6i20_asymmetry_handicap_surface_diagnostic`,
+`v6i20_asymmetry_handicap_surface`, `v6i20_handicap_surface`,
+`latent_v6i20_asymmetry_handicap_surface_diagnostic`, and
+`plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic`.
+
+Promotion logic: 5-update diagnostic from the v6i9 generalist anchor, then
+surface-matched forced-z fingerprints over OP8..OP12 x both map-pool layouts.
+Router training remains blocked unless the tradeoff table separates by z:
+score margin, time-to-first-score, enemy flag touches allowed, enemy carrier
+progress, returns/interceptions, escort allocation, or near-cap conversions.
+The strict gates remain `unique_best_z_count > 1`,
+`behavior_pair_distance_mean > 0.06`, at least one pair above threshold, and
+best-z variation across opponent x map cells.
 
 ---
 

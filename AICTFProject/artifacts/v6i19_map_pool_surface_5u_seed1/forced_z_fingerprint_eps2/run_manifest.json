@@ -1,5 +1,5 @@
 {
-  "checkpoint": "artifacts\\v6i18_margin_tempo_surface_5u_seed1\\final_v6i18_margin_tempo_surface_5u_seed1_2v2.zip",
+  "checkpoint": "artifacts\\v6i19_map_pool_surface_5u_seed1\\final_v6i19_map_pool_surface_5u_seed1_2v2.zip",
   "opponents": [
     "OP8",
     "OP9",
@@ -29,14 +29,14 @@
     "surface_red_carrier_progress_penalty": 0.025,
     "surface_blue_near_cap_bonus": 0.015
   },
-  "training_run_config": "artifacts\\v6i18_margin_tempo_surface_5u_seed1\\v6i18_margin_tempo_surface_5u_seed1_2v2_run_config.json",
+  "training_run_config": "artifacts\\v6i19_map_pool_surface_5u_seed1\\v6i19_map_pool_surface_5u_seed1_2v2_run_config.json",
   "device": "cuda",
   "collect_behavior_mean": true,
   "progress_every": 8,
   "status": "completed",
-  "started_at_utc": "2026-07-04T19:48:14.643904+00:00",
-  "updated_at_utc": "2026-07-04T20:18:38.599743+00:00",
-  "pid": 50664,
+  "started_at_utc": "2026-07-04T20:18:49.600237+00:00",
+  "updated_at_utc": "2026-07-04T20:45:29.090200+00:00",
+  "pid": 34192,
   "completed_conditions": [
     {
       "opponent": "OP8",

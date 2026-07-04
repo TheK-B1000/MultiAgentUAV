@@ -1451,7 +1451,7 @@ Stage-C gates: oracle WR advantage 0%, best-z varies = FAIL. Global best fixed-z
 - Training: `artifacts/v6i18_margin_tempo_surface_5u_seed1/`
 - Forced-z: `artifacts/v6i18_margin_tempo_surface_5u_seed1/forced_z_fingerprint_eps2/`
 
-### 3.18 v6i19 map-pool surface diagnostic -- `IMPLEMENTED_PENDING_SMOKE`
+### 3.18 v6i19 map-pool surface diagnostic -- `EVALUATED_FAIL` (2026-07-04)
 
 **Scientific delta vs v6i18:** v6i18 failed on forced-z fingerprints under a fixed
 layout even with margin/tempo surface pressure. v6i19 keeps the v6i18 scaffold
@@ -1463,25 +1463,119 @@ off; contracts, z capacity, shared-actor freeze, and surface coefs unchanged.
 
 **Resolved-config diff vs v6i18:** exactly `{experiment_id, map_pool, run_tag}`.
 
-**Infrastructure added:** `PPOConfig.map_pool`, GPU per-env layout sampling at
-episode reset, `map_id` + `map_layout` in episode telemetry, forced-z already
-groups by opponent x map x z via `--maps`.
+**Training (valid complete):** relaunched 5-update run from v6i9 anchor.
+Checkpoint `artifacts/v6i19_map_pool_surface_5u_seed1/final_v6i19_map_pool_surface_5u_seed1_2v2.zip`.
+Both layouts appeared in episode telemetry (`map_b_split_lane` 19 eps,
+`map_b_split_lane_v2` 13 eps). Map-pool plumbing gate passed.
 
-**First smoke command:**
+**Forced-z eval (authoritative, surface-matched):**
+`artifacts/v6i19_map_pool_surface_5u_seed1/forced_z_fingerprint_eps2/`
+(`--inherit-training-config`, `max_decision_steps=240`, OP8–OP12 ×
+`map_b` + `map_b_split_lane_v2`, 2 eps/cell).
 
-```powershell
-uv run python rl/train_ppo.py --preset v6i19 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i19_map_pool_surface_5u_seed1 --checkpoint-dir artifacts\v6i19_map_pool_surface_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
-```
+| Gate | Result |
+|------|--------|
+| `unique_best_z_count` | **1** (z0 in all 10 opponent×map cells) |
+| `behavior_pair_distance_mean` | **0.0413** (≈ V6I18 0.0412) |
+| `pairs_above_threshold` | **0** |
+| WR | **100%** saturated (all cells) |
+| Global best-fixed z | z2 (margin 2.65); per-cell oracle still z0 |
+| Stage C gate 2 (best-z varies) | **FAIL** |
 
-**Forced-z eval template (use `--inherit-training-config` for v6i18 surface replay):**
+**Verdict:** map-pool layout variation did **not** break the clone wall. Same
+failure shape as V6I14–V6I18. Ladder `ORACLE_GAP_PLUS_CONTEXT` is **not** a
+router unblock signal.
 
-```powershell
-uv run python experiments/run_forced_z_eval.py --checkpoint artifacts\v6i19_map_pool_surface_5u_seed1\final_v6i19_map_pool_surface_5u_seed1_2v2.zip --out-dir artifacts\v6i19_map_pool_surface_5u_seed1\forced_z_fingerprint_eps2 --inherit-training-config --opponents OP8 OP9 OP10 OP11 OP12 --maps map_b map_b_split_lane_v2 --episodes 2 --oracle-metric win_margin --device cuda --progress-every 8
-```
+**Next fork (if continuing specialist-birth line):** explicit arena
+asymmetry/handicap — not more map/reward/surface polishing. Router training
+remains blocked.
 
-**Promotion gates:** same as v6i18 but judged on opponent x map x z grouping;
-`unique_best_z_count > 1`, `behavior_pair_distance_mean > 0.06`, margin/tempo/role
-separation required. Router training remains blocked until gates pass.
+### 3.19 v6i20 asymmetry-handicap surface diagnostic -- `EVALUATED_FAIL` (2026-07-04)
+
+**Scientific delta vs v6i19:** v6i19 proved that map-pool infrastructure and
+surface-matched eval work, but layout variation did not break the clone wall.
+v6i20 keeps the v6i19 scaffold fixed and strengthens only asymmetric
+consequence pressure: red flag touches and red carrier progress are more
+expensive, while blue fast-capture and near-cap conversion pressure are
+stronger.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This inherits
+handcrafted z-role contract rewards, v6i16 z-pathway capacity changes,
+v6i18 margin/tempo surface rewards, and v6i19 map-pool sampling. It is not
+paper-faithful and not a Summer-compatible extension.
+
+**Parent:** `v6i19_map_pool_surface_diagnostic`. Router remains off,
+`balanced_episode` z assignment remains active, OP8/OP9/OP10/OP11/OP12 and the
+two-layout `map_pool` remain active, `latent_contract_specialist` stays enabled
+at 3x with `variant="sharp"`, z-specific pathways remain trainable, and the
+shared actor trunk remains frozen through `v6i9_training_stage = "repertoire"`.
+
+**Resolved-config diff vs v6i19:** exactly
+`{env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+experiment_id, run_tag}`.
+
+| Field | v6i19 | v6i20 |
+|-------|-------|-------|
+| `experiment_id` | `v6i19` | `v6i20` |
+| `env_surface_blue_capture_tempo_bonus` | `0.25` | `0.45` |
+| `env_surface_red_flag_touch_penalty` | `0.20` | `0.50` |
+| `env_surface_red_carrier_progress_penalty` | `0.025` | `0.075` |
+| `env_surface_blue_near_cap_bonus` | `0.015` | `0.035` |
+| `run_tag` | `v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12` | `v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12` |
+
+**Training (valid complete):** 5-update run from v6i9 anchor succeeded.
+Checkpoint `artifacts/v6i20_asymmetry_handicap_surface_5u_seed1/final_v6i20_asymmetry_handicap_surface_5u_seed1_2v2.zip`.
+Mechanism gates passed: stronger surface coefs resolved, map pool active,
+`shared_actor_max_abs_delta=0.0`, router gradients zero, contract reward live.
+`strategy_wr_spread=0.5` appeared once on update 20 — **not** promotion
+evidence (5 updates, noisy training-time metric).
+
+**Forced-z eval (authoritative, completed):**
+`artifacts/v6i20_asymmetry_handicap_surface_5u_seed1/forced_z_fingerprint_eps2/`
+(`--inherit-training-config`, `max_decision_steps=240`, stronger v6i20 surface
+coefs inherited).
+
+Grid: OP8..OP12 x `map_b` / `map_b_split_lane_v2` x z0..z3 x 2 episodes =
+80 episodes.
+
+| Gate | Target | v6i20 result | Pass? |
+|------|--------|--------------|-------|
+| `unique_best_z_count` | `>1` | **1** (`z0` every opponent x map cell) | FAIL |
+| `behavior_pair_distance_mean` | `>0.06` | **0.0413** | FAIL |
+| `behavior_pair_distance_max` | above prior ceiling | **0.0570** | FAIL |
+| pairs above threshold | >=1 | **0** | FAIL |
+| forced-z WR | informative only | **100%** all 80 eps | saturated |
+| Stage-C | best-z varies and oracle beats fixed WR | **FAIL** | FAIL |
+
+Tradeoff table by z:
+
+| z | WR | margin | time-to-first-score | intercept-near-carrier | escort | defense pressure |
+|---|----|--------|---------------------|------------------------|--------|------------------|
+| z0 | 1.000 | 2.350 | 35.4 | 0.171 | 0.314 | 0.736 |
+| z1 | 1.000 | 2.150 | 46.4 | 0.207 | 0.265 | 0.733 |
+| z2 | 1.000 | 2.650 | 41.3 | 0.090 | 0.264 | 0.720 |
+| z3 | 1.000 | 2.350 | 39.6 | 0.186 | 0.304 | 0.751 |
+
+Stage-C details: oracle WR `100%`, best-fixed WR `100%`, WR advantage `0%`,
+oracle margin `2.85`, best-fixed margin `2.35`, best fixed z by Stage-C is z0,
+global best fixed z by margin summary is z2. The ladder verdict
+`ORACLE_GAP_PLUS_CONTEXT` is not accepted as a router-unblock signal because
+the strict behavior and context-variation gates failed.
+
+**Verdict:** explicit asymmetric consequence pressure did not break the clone
+wall. V6I20 has the same failure shape as V6I19: the arena/eval plumbing works,
+but the forced-z repertoire still lacks behaviorally distinct, context-varying
+specialists. Router training remains blocked.
+
+**Next fork:** do not run more coefficient polish on this scaffold. If
+continuing the specialist-birth line, move to a stronger intervention:
+explicit environment handicap mechanics, limited shared-layer unfreeze under
+asymmetry, or separate specialist pretraining / role-conditioned scenario
+curricula.
+
+Failure band to beat: V6I18/V6I19 (`distance ≈ 0.04`, `unique_best_z=1`, z0
+everywhere, WR saturated).
 
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
