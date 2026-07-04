@@ -449,6 +449,7 @@ class TrainingTelemetry:
             "mode": str(getattr(cfg, "mode", "FIXED_OPPONENT")),
             "map_set": str(info.get("map_set", getattr(cfg, "map_set", "train"))).lower(),
             "map_layout": str(er.get("map_layout", info.get("map_layout", "map_a_open"))),
+            "map_id": int(er.get("map_id", info.get("map_id", -1)) or -1),
             "map_vertical_mirror": int(er.get("map_vertical_mirror", int(bool(info.get("map_vertical_mirror", False)))) or 0),
             "opponent": _opponent_legend(cfg, info),
             "opponent_id": _opponent_id_csv_from_info(cfg, info),

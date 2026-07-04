@@ -113,6 +113,7 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i16_capacity_sharp_contracts,
     apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic,
     apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic,
+    apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic,
 )
 
 __all__ = [
@@ -224,4 +225,5 @@ __all__ = [
     "apply_plan_faithful_latent_v6i16_capacity_sharp_contracts",
     "apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic",
     "apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic",
+    "apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic",
 ]

@@ -1451,6 +1451,38 @@ Stage-C gates: oracle WR advantage 0%, best-z varies = FAIL. Global best fixed-z
 - Training: `artifacts/v6i18_margin_tempo_surface_5u_seed1/`
 - Forced-z: `artifacts/v6i18_margin_tempo_surface_5u_seed1/forced_z_fingerprint_eps2/`
 
+### 3.18 v6i19 map-pool surface diagnostic -- `IMPLEMENTED_PENDING_SMOKE`
+
+**Scientific delta vs v6i18:** v6i18 failed on forced-z fingerprints under a fixed
+layout even with margin/tempo surface pressure. v6i19 keeps the v6i18 scaffold
+fixed and adds only per-episode `map_pool` sampling so opponent x map context can
+create layout-driven role tradeoffs.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). Router remains
+off; contracts, z capacity, shared-actor freeze, and surface coefs unchanged.
+
+**Resolved-config diff vs v6i18:** exactly `{experiment_id, map_pool, run_tag}`.
+
+**Infrastructure added:** `PPOConfig.map_pool`, GPU per-env layout sampling at
+episode reset, `map_id` + `map_layout` in episode telemetry, forced-z already
+groups by opponent x map x z via `--maps`.
+
+**First smoke command:**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i19 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i19_map_pool_surface_5u_seed1 --checkpoint-dir artifacts\v6i19_map_pool_surface_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Forced-z eval template (use `--inherit-training-config` for v6i18 surface replay):**
+
+```powershell
+uv run python experiments/run_forced_z_eval.py --checkpoint artifacts\v6i19_map_pool_surface_5u_seed1\final_v6i19_map_pool_surface_5u_seed1_2v2.zip --out-dir artifacts\v6i19_map_pool_surface_5u_seed1\forced_z_fingerprint_eps2 --inherit-training-config --opponents OP8 OP9 OP10 OP11 OP12 --maps map_b map_b_split_lane_v2 --episodes 2 --oracle-metric win_margin --device cuda --progress-every 8
+```
+
+**Promotion gates:** same as v6i18 but judged on opponent x map x z grouping;
+`unique_best_z_count > 1`, `behavior_pair_distance_mean > 0.06`, margin/tempo/role
+separation required. Router training remains blocked until gates pass.
+
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis

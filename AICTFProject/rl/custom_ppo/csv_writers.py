@@ -143,6 +143,7 @@ def _episode_fieldnames() -> list[str]:
         "mode",
         "map_set",
         "map_layout",
+        "map_id",
         "map_vertical_mirror",
         "opponent",
         "opponent_id",

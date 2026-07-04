@@ -225,7 +225,11 @@ class _MetricsMixin:
         self.metric_red_intercept_lower_crossings += ril
 
     def _route_telemetry_available(self) -> bool:
-        return is_split_lane_layout(str(getattr(self, "map_layout", ""))) and hasattr(self, "obstacle_active")
+        if getattr(self, "_map_pool", ()):
+            return bool(self.obstacle_active.any().item())
+        return is_split_lane_layout(str(getattr(self, "map_layout", ""))) and hasattr(
+            self, "obstacle_active"
+        )
 
     def _classify_routes(self, y: torch.Tensor, alive: torch.Tensor) -> torch.Tensor:
         if not self._route_telemetry_available():
@@ -404,7 +408,8 @@ class _MetricsMixin:
                     "opponent_key": self._opponent_key[i],
                     "rules_profile": self.rules_profile,
                     "map_set": self.map_set,
-                    "map_layout": str(getattr(self, "map_layout", "map_a_open")),
+                    "map_layout": self._map_layout_for_env(i),
+                    "map_id": int(self._map_id_for_env(i)),
                     "map_vertical_mirror": bool(self.map_vertical_mirror[i].item()),
                     "dense_reward": float(d_np[i]),
                     "sparse_points": float(s_np[i]),

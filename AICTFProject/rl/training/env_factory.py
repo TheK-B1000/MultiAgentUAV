@@ -127,6 +127,9 @@ def build_training_env(
     if reward_kw:
         parts = [f"{k}={v}" for k, v in sorted(reward_kw.items())]
         print("[PPO] GPU env reward overrides: " + ", ".join(parts))
+    map_pool = tuple(getattr(cfg, "map_pool", ()) or ())
+    if map_pool:
+        print("[PPO] map_pool (per-episode uniform sample): " + ", ".join(map_pool))
     rrc: RouterRewardConfig | None = None
     if bool(getattr(cfg, "router_reward_enabled", False)):
         rrc = RouterRewardConfig(
@@ -147,6 +150,7 @@ def build_training_env(
         n_agents_per_team=max_agents,
         map_set=str(getattr(cfg, "map_set", "train")).lower(),
         map_layout=str(getattr(cfg, "map_layout", "map_a_open")).lower(),
+        map_pool=tuple(getattr(cfg, "map_pool", ()) or ()),
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
         rules_profile="OURS",

@@ -11,6 +11,7 @@ from typing import Tuple
 import torch
 
 from .._maps import (
+    MAP_B_SPLIT_LANE,
     MAP_B_SPLIT_LANE_V2,
     is_split_lane_layout,
     norm_rect_to_cells,
@@ -37,41 +38,46 @@ class _MapStateMixin:
         idx = torch.where(env_mask)[0]
         if idx.numel() == 0:
             return
-        self.map_vertical_mirror[idx] = False
-        self.obstacle_rects[idx] = 0.0
-        self.obstacle_active[idx] = False
-        if not is_split_lane_layout(self.map_layout):
-            return
         mirror_p = max(
             0.0, min(1.0, float(getattr(self.cfg, "map_b_vertical_mirror_prob", 0.5)))
         )
-        mirrors = torch.rand((idx.numel(),), generator=self._rng, device=self.device) < mirror_p
-        self.map_vertical_mirror[idx] = mirrors
-        if self.map_layout == MAP_B_SPLIT_LANE_V2:
-            base_norm = split_lane_v2_rect_norm(mirror_y=False)
-            mirror_norm = split_lane_v2_rect_norm(mirror_y=True)
-        else:
-            base_norm = split_lane_rect_norm(
-                x_min=float(self.cfg.map_b_wall_x_min_norm),
-                x_max=float(self.cfg.map_b_wall_x_max_norm),
-                y_min=float(self.cfg.map_b_wall_y_min_norm),
-                y_max=float(self.cfg.map_b_wall_y_max_norm),
-                mirror_y=False,
+        for env_i in idx.detach().cpu().tolist():
+            env_i = int(env_i)
+            layout = self._map_layout_for_env(env_i)
+            self.map_vertical_mirror[env_i] = False
+            self.obstacle_rects[env_i] = 0.0
+            self.obstacle_active[env_i] = False
+            if not is_split_lane_layout(layout):
+                continue
+            mirror = bool(
+                (torch.rand((1,), generator=self._rng, device=self.device) < mirror_p).item()
             )
-            mirror_norm = split_lane_rect_norm(
-                x_min=float(self.cfg.map_b_wall_x_min_norm),
-                x_max=float(self.cfg.map_b_wall_x_max_norm),
-                y_min=float(self.cfg.map_b_wall_y_min_norm),
-                y_max=float(self.cfg.map_b_wall_y_max_norm),
-                mirror_y=True,
-            )
-        base_rect = norm_rect_to_cells(base_norm, cols=self.cols, rows=self.rows)
-        mirror_rect = norm_rect_to_cells(mirror_norm, cols=self.cols, rows=self.rows)
-        base = torch.tensor(base_rect, dtype=self.obstacle_rects.dtype, device=self.device)
-        mirrored = torch.tensor(mirror_rect, dtype=self.obstacle_rects.dtype, device=self.device)
-        rects = torch.where(mirrors[:, None], mirrored[None, :], base[None, :])
-        self.obstacle_rects[idx, 0, :] = rects
-        self.obstacle_active[idx, 0] = True
+            self.map_vertical_mirror[env_i] = mirror
+            if layout == MAP_B_SPLIT_LANE_V2:
+                base_norm = split_lane_v2_rect_norm(mirror_y=False)
+                mirror_norm = split_lane_v2_rect_norm(mirror_y=True)
+            else:
+                base_norm = split_lane_rect_norm(
+                    x_min=float(self.cfg.map_b_wall_x_min_norm),
+                    x_max=float(self.cfg.map_b_wall_x_max_norm),
+                    y_min=float(self.cfg.map_b_wall_y_min_norm),
+                    y_max=float(self.cfg.map_b_wall_y_max_norm),
+                    mirror_y=False,
+                )
+                mirror_norm = split_lane_rect_norm(
+                    x_min=float(self.cfg.map_b_wall_x_min_norm),
+                    x_max=float(self.cfg.map_b_wall_x_max_norm),
+                    y_min=float(self.cfg.map_b_wall_y_min_norm),
+                    y_max=float(self.cfg.map_b_wall_y_max_norm),
+                    mirror_y=True,
+                )
+            base_rect = norm_rect_to_cells(base_norm, cols=self.cols, rows=self.rows)
+            mirror_rect = norm_rect_to_cells(mirror_norm, cols=self.cols, rows=self.rows)
+            base = torch.tensor(base_rect, dtype=self.obstacle_rects.dtype, device=self.device)
+            mirrored = torch.tensor(mirror_rect, dtype=self.obstacle_rects.dtype, device=self.device)
+            rect = mirrored if mirror else base
+            self.obstacle_rects[env_i, 0, :] = rect
+            self.obstacle_active[env_i, 0] = True
 
     def _points_in_obstacles(
         self, x: torch.Tensor, y: torch.Tensor
@@ -247,9 +253,7 @@ class _MapStateMixin:
             falls back to a lateral escape: (near_x, own_y).  This sidesteps the
             wall in x without requiring a diagonal that crosses the wall face.
         """
-        if not is_split_lane_layout(self.map_layout) or not bool(
-            self.obstacle_active.any().item()
-        ):
+        if not bool(self.obstacle_active.any().item()):
             return target_x, target_y
         rect = self.obstacle_rects[:, 0, :].to(dtype=target_x.dtype, device=target_x.device)
         active = self.obstacle_active[:, 0:1].to(device=target_x.device)
@@ -266,7 +270,10 @@ class _MapStateMixin:
 
         max_x = float(max(0, self.cols - 1))
         max_y = float(max(0, self.rows - 1))
-        clearance = 2.0 if self.map_layout == MAP_B_SPLIT_LANE_V2 else 1.5
+        if getattr(self, "_map_pool", ()):
+            clearance = 2.0
+        else:
+            clearance = 2.0 if self.map_layout == MAP_B_SPLIT_LANE_V2 else 1.5
         center_x = (x0 + x1) * 0.5
 
         # Detour-end corridor lines (y just above / below the wall).

@@ -959,6 +959,39 @@ near-cap conversion, or role fingerprints separate by z. Win rate can remain
 100% and still be useful only if the non-binary consequence metrics separate;
 oracle gap alone is not promotion evidence.
 
+### 6.25 v6i19_map_pool_surface_diagnostic (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i19 inherits `v6i18_margin_tempo_surface_diagnostic` directly. The scientific
+delta is to test whether fixed-map margin/tempo pressure failed because every
+episode saw the same layout. It keeps the v6i18 specialist-birth machinery and
+consequence surface fixed and adds only per-episode `map_pool` sampling.
+
+This row deliberately keeps router training blocked. It is not paper-faithful and
+not a Summer-compatible extension.
+
+Resolved-config diff vs `v6i18_margin_tempo_surface_diagnostic` is exactly:
+`{experiment_id, map_pool, run_tag}`.
+
+| Field | v6i18 value | This preset | Note |
+|-------|-------------|-------------|------|
+| `experiment_id` | `v6i18` | `v6i19` | Artifact and protocol identity. |
+| `map_pool` | `()` | `("map_b_split_lane", "map_b_split_lane_v2")` | Uniform per-episode layout sample; `map_id` recorded in telemetry. |
+| `run_tag` | `v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12` | `v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12` | Artifact namespace advertises map-pool diagnostic. |
+
+All other v6i18 scaffold fields stay unchanged: margin/tempo surface coefs,
+shorter horizon/stalemate, OP8..OP12 pool, router off, `balanced_episode`,
+sharp 3x contracts, v6i16 z capacity, frozen shared actor.
+
+Aliases: `v6i19`, `v6i19_map_pool_surface_diagnostic`, `v6i19_map_pool_surface`,
+`latent_v6i19_map_pool_surface_diagnostic`,
+`plan_faithful_latent_v6i19_map_pool_surface_diagnostic`.
+
+Promotion logic: 5-update diagnostic from the v6i9 generalist anchor, then
+forced-z fingerprints over all `map_pool` layouts x OP8..OP12 grouped by
+opponent x map x z. Router training remains blocked unless
+`behavior_pair_distance_mean > 0.06`, `unique_best_z_count > 1`, pairs above
+threshold, and margin/tempo/role metrics separate by z.
+
 ---
 
 ## 7. Run-tag artifact history (canonical vs on-disk)

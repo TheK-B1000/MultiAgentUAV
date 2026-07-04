@@ -100,6 +100,21 @@ def _normalize_opponent_pool_weights(cfg: PPOConfig) -> None:
     cfg.opponent_pool_weights = normalized
 
 
+def _normalize_map_pool(cfg: PPOConfig) -> None:
+    from gpu_env._maps import normalize_map_layout
+
+    cfg.map_layout = normalize_map_layout(str(getattr(cfg, "map_layout", "map_a_open") or "map_a_open"))
+    raw = tuple(str(x).strip() for x in getattr(cfg, "map_pool", ()) or () if str(x).strip())
+    if not raw:
+        cfg.map_pool = ()
+        return
+    pool = tuple(normalize_map_layout(x) for x in raw)
+    if len(pool) < 1:
+        raise ValueError("map_pool must contain at least one layout when set.")
+    cfg.map_pool = pool
+    cfg.map_layout = pool[0]
+
+
 def _strip_eval_only_opponents_from_training_pool(cfg: PPOConfig) -> None:
     """Remove eval-only scripted opponents from ``cfg.opponent_pool`` when training samples that pool."""
     if bool(getattr(cfg, "allow_op4_in_training_pool", False)):
@@ -249,6 +264,8 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
         _strip_eval_only_opponents_from_training_pool(cfg)
         _normalize_opponent_pool_weights(cfg)
 
+    _normalize_map_pool(cfg)
+
     if bool(getattr(cfg, "use_latent_strategy", False)):
         update_mode = str(getattr(cfg, "actor_cf_update_mode", "combined") or "combined")
         cfg.actor_cf_update_mode = validate_actor_cf_update_mode(update_mode)
@@ -274,6 +291,7 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
 
 __all__ = [
     "EVAL_ONLY_TRAINING_OPPONENT_TAGS",
+    "_normalize_map_pool",
     "_normalize_opponent_pool_weights",
     "_normalize_train_mode",
     "_strip_eval_only_opponents_from_training_pool",

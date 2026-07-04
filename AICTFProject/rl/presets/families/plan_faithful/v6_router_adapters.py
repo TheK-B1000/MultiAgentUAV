@@ -941,3 +941,27 @@ def apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic(cfg: PPOCon
     cfg.experiment_id = "v6i18"
     cfg.run_tag = "v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I19: per-episode map pool over the v6i18 margin/tempo surface scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i19_map_pool_surface_diagnostic.
+    Parent preset: v6i18_margin_tempo_surface_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can z-specialists separate when opponent x map context
+    creates real layout-driven role tradeoffs?
+
+    Delta table vs v6i18:
+      map_pool changed: yes, uniform per-episode sample over validated layouts.
+      Consequence surface changed: no, inherited from v6i18.
+      Contract / z-capacity / router / shared-actor freeze: unchanged.
+    """
+    cfg = apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic(cfg)
+    cfg.map_pool = ("map_b", "map_b_split_lane_v2")
+    cfg.map_layout = "map_b"
+    cfg.experiment_id = "v6i19"
+    cfg.run_tag = "v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12"
+    return cfg

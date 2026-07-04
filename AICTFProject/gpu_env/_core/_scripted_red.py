@@ -8,6 +8,7 @@ import torch
 
 from macro_actions import MacroAction
 
+from .._maps import MAP_B_SPLIT_LANE_V2
 from .._paths import _resolve_snapshot_path
 
 
@@ -137,7 +138,7 @@ class _ScriptedRedMixin:
         idx_env = torch.arange(B, device=device)
         max_x = float(max(0, self.cols - 1))
         max_y = float(max(0, self.rows - 1))
-        split_lane_v2 = str(getattr(self, "map_layout", "")) == "map_b_split_lane_v2"
+        split_lane_v2 = self._map_layout_mask((MAP_B_SPLIT_LANE_V2,))
         if split_lane_v2 and (not is_blue):
             op5_mask = torch.as_tensor(
                 [str(k).upper() in ("OP5", "OP5_RUSHER") for k in self._opponent_key],

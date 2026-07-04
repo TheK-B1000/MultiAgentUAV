@@ -82,6 +82,7 @@ class PPOConfig:
     max_decision_steps: int = 400
     map_set: str = "train"
     map_layout: str = "map_a_open"
+    map_pool: tuple[str, ...] = field(default_factory=tuple)
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     # Uniform random scripted opponent per episode: either mode=OPPONENT_POOL or FIXED_OPPONENT + True.

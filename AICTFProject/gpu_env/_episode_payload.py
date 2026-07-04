@@ -17,6 +17,7 @@ def _build_episode_result_payload(info: dict) -> dict:
         "scripted_tag": okey if okind == "scripted" else "",
         "species_tag": "BALANCED",
         "map_layout": str(info.get("map_layout", "map_a_open")),
+        "map_id": int(info.get("map_id", -1)),
         "map_vertical_mirror": int(bool(info.get("map_vertical_mirror", False))),
         "collisions_per_episode": int(info["collision_events_per_episode"]),
         "collision_events_per_episode": int(info["collision_events_per_episode"]),
