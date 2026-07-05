@@ -1706,7 +1706,16 @@ pinned near 3.0.
 uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21c_adaptive_hardpool_denial_calibration
 ```
 
-**Status:** implemented + pinned tests; calibration eval pending.
+**Calibration eval (v6i9 generalist, 2026-07-05):** `EVALUATED_FAIL` (tier-1 and
+final). Mean blue WR **96.8%** (down from v6i21B 98.0%, v6i21 99.2%); mean blue
+score **2.81** (denial metric moving — min cell **2.24** on OP9/split_lane).
+**9/10** cells saturated; **0/10** in-band. Best cell: **OP12/split_lane** WR
+**84%**, red **1.96**. Tier-1: passed hard-red gate (2 cells), failed mean WR
+below 90%, saturated fewer than 5, in-band, blue-not-pinned (max still 3.0). Artifact:
+`artifacts/v6i21c_adaptive_hardpool_denial_calibration/calibration_report.json`.
+
+**Status:** calibrated; partial denial progress but arena still saturated. Router
+and specialist birth remain blocked.
 
 ### 3.22 v6i21D adaptive hardpool brutal denial calibration -- `IMPLEMENTED` (2026-07-05)
 
