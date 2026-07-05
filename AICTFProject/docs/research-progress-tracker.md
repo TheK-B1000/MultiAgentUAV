@@ -1577,6 +1577,39 @@ curricula.
 Failure band to beat: V6I18/V6I19 (`distance ≈ 0.04`, `unique_best_z=1`, z0
 everywhere, WR saturated).
 
+### 3.20 v6i21 adaptive OP8-OP12 hardpool calibration -- `IMPLEMENTED` (2026-07-04)
+
+**Scientific delta vs v6i20:** reward/surface polish failed to break the clone
+wall. v6i21 upgrades **OP8-OP12 in place** (same IDs, no OP13-OP17) to adaptive
+hardpool v2: intra-episode memory tracks blue lane preference, escort density,
+overcommit, near-cap patterns, and fast conversions; red roles/routes shift to
+punish repetition (intercept lane bias, escort split pressure, counter on
+overcommit, emergency near-cap collapse).
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine change, not paper-faithful.
+Router remains blocked.
+
+**Resolved-config diff vs v6i20:** exactly `{experiment_id, run_tag}`.
+
+**Comparability note:** pre-v6i21 OP8-OP12 forced-z / WR results are **not**
+directly comparable to post-v6i21 OP8-OP12.
+
+**Implementation:** `gpu_env/_core/_bt_adaptive.py`, profile/dynamics updates in
+`_bt_profiles.py` and `opponent_params.py`. Preset aliases: `v6i21`,
+`v6i21_adaptive_op8_op12_hardpool_calibration`.
+
+**Calibration command (first gate — WR band, not specialist birth):**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21_adaptive_hardpool_calibration
+```
+
+Target: mean blue WR 35-65%, hard cells below 50%, no cell 95%+, red scores
+sometimes. Do **not** launch router or specialist training until calibration
+passes.
+
+**Status:** implemented + pinned tests; calibration eval pending.
+
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis

@@ -62,6 +62,7 @@ import torch
 from macro_actions import MacroAction
 
 from ._bt_profiles import BT_OPPONENT_KEYS, build_profile_tensors, is_bt_opponent
+from ._bt_adaptive import _BTAdaptiveMixin
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ ROLE_2V1_WING   = 6
 N_ROLES         = 7
 
 
-class _BTRedMixin:
+class _BTRedMixin(_BTAdaptiveMixin):
     """
     Behavior-tree NPC brain for OP5..OP12 scripted opponents.
 
@@ -128,6 +129,7 @@ class _BTRedMixin:
         # Branch label cache: integer code for which BT branch fired last step.
         # Branch codes match role constants above.
         self.bt_active_branch = torch.full((B, N), ROLE_ATTACKER, dtype=i32, device=dev)
+        self._alloc_adaptive_memory(B, dev)
 
     def _reset_bt_telemetry(self, env_mask: torch.Tensor) -> None:
         """Zero all BT telemetry for environments in env_mask (called on episode reset)."""
@@ -151,6 +153,7 @@ class _BTRedMixin:
         self.bt_last_x[idx]            = 0.0
         self.bt_last_y[idx]            = 0.0
         self.bt_active_branch[idx]     = ROLE_ATTACKER
+        self._reset_adaptive_memory(env_mask)
 
     # ──────────────────────────────────────────────────────────────────────
     # Team blackboard: shared per-step situational snapshot
@@ -1026,11 +1029,15 @@ class _BTRedMixin:
         target_x, target_y : [B, Nr] float tensors.
         """
         prof = build_profile_tensors(self._opponent_key, device=self.device, batch_size=self.B)
+        self._update_adaptive_memory(prof)
         prev_roles = self.bt_red_role.clone()
         bb = self._build_team_blackboard(prof)
+        bb = self._extend_blackboard_adaptive(bb, prof)
         roles = self._bt_assign_roles(bb)
+        roles = self._bt_apply_adaptive_role_overrides(bb, roles, prof)
         self._bt_update_telemetry(bb, roles, prev_roles)
         tx, ty = self._bt_route_target(bb, roles)
+        tx, ty = self._bt_apply_adaptive_route_overrides(bb, roles, tx, ty, prof)
         mine_x, mine_y, want = self._bt_plan_mines(bb, roles, prof)
         tx, ty = self._bt_apply_mine_routes(tx, ty, mine_x, mine_y, want, prof)
         self.bt_mine_target_x[:, :self.Nr] = mine_x.detach()

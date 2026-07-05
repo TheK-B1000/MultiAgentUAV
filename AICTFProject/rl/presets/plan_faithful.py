@@ -115,6 +115,7 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic,
     apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic,
     apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic,
+    apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration,
 )
 
 __all__ = [
@@ -228,4 +229,5 @@ __all__ = [
     "apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic",
     "apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic",
     "apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic",
+    "apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration",
 ]

@@ -187,6 +187,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i17_surface_pressure_diagnostic` (aliases include `v6i17`, `v6i17_harder_asymmetric_opponents`) | `v6i16_capacity_sharp_contracts` | `DIAGNOSTIC` (non-Summer scaffold) | Surface-pressure diagnostic. It keeps the v6i16 combined contract/capacity scaffold but expands the training opponent surface from OP8/OP9/OP10 to OP8/OP9/OP10/OP11/OP12. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z behavior, margin, tempo, or role-fingerprint separation rather than oracle gap alone. Pinned by `tests/test_v6i17_surface_pressure_diagnostic.py`. |
 | `v6i18_margin_tempo_surface_diagnostic` (aliases include `v6i18`, `v6i18_margin_tempo_surface`) | `v6i17_surface_pressure_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Margin/tempo consequence-surface diagnostic. It keeps the v6i17 contract/capacity/opponent scaffold fixed, leaves router training off, and changes only the reward/horizon surface: shorter episodes plus score-margin, tempo, near-cap, red-touch, and red-carrier-progress pressure. Promotion requires forced-z margin, tempo, role, or behavior-fingerprint separation; win rate alone is secondary. Pinned by `tests/test_v6i18_margin_tempo_surface.py`. |
 | `v6i20_asymmetry_handicap_surface_diagnostic` (aliases include `v6i20`, `v6i20_asymmetry_handicap_surface`, `v6i20_handicap_surface`) | `v6i19_map_pool_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Asymmetric consequence-pressure diagnostic. It keeps the v6i19 map-pool scaffold fixed and strengthens only the existing enemy-progress penalties and blue tempo/conversion bonuses. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z tradeoff separation by opponent × map, not win-rate saturation or oracle gap alone. Pinned by `tests/test_v6i20_asymmetry_handicap_surface.py`. |
+| `v6i21_adaptive_op8_op12_hardpool_calibration` (aliases include `v6i21`, `v6i21_adaptive_op8_op12_hardpool`, `v6i21_adaptive_hardpool_calibration`) | `v6i20_asymmetry_handicap_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Calibration fork after in-place OP8-OP12 upgrade to adaptive hardpool v2 (`gpu_env/_core/_bt_adaptive.py`). Same opponent IDs; engine behavior changed at v6i21. Pre-v6i21 OP8-OP12 WR/fingerprint results are not directly comparable. First gate: blue WR calibration band 35-65% via `experiments/run_v6i21_adaptive_hardpool_calibration.py`. Router blocked. Pinned by `tests/test_v6i21_adaptive_hardpool_calibration.py`. |
 
 ---
 
@@ -1038,6 +1039,39 @@ progress, returns/interceptions, escort allocation, or near-cap conversions.
 The strict gates remain `unique_best_z_count > 1`,
 `behavior_pair_distance_mean > 0.06`, at least one pair above threshold, and
 best-z variation across opponent x map cells.
+
+---
+
+### 6.27 v6i21_adaptive_op8_op12_hardpool_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21 inherits `v6i20_asymmetry_handicap_surface_diagnostic` directly. The
+scientific change is **not** in the preset config: OP8-OP12 were upgraded
+in-place in the BT engine to adaptive hardpool v2 with intra-episode memory
+(lane repetition, escort density, overcommit, near-cap collapse, fast-conversion
+response). Same opponent names; stronger adaptive counter-play.
+
+**Historical comparability:** OP8-OP12 results from runs before v6i21 are **not**
+directly comparable to post-v6i21 OP8-OP12 results.
+
+**Resolved-config diff vs v6i20:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i20 | v6i21 |
+|-------|-------|-------|
+| `experiment_id` | `v6i20` | `v6i21` |
+| `run_tag` | `v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12` | `v6i21_adaptive_op8_op12_hardpool_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py`, `gpu_env/_core/_bt_profiles.py`
+(levels 8-12), `opponent_params.py` (OP8-OP12 dynamics).
+
+Aliases: `v6i21`, `v6i21_adaptive_op8_op12_hardpool`,
+`v6i21_adaptive_op8_op12_hardpool_calibration`, `v6i21_adaptive_hardpool_calibration`,
+`latent_v6i21_adaptive_op8_op12_hardpool_calibration`,
+`plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration`.
+
+First gate: calibration eval only (`experiments/run_v6i21_adaptive_hardpool_calibration.py`).
+Target mean blue WR 35-65%, no cell at 95%+. Router and specialist-birth training
+remain blocked until calibration passes and a follow-on forced-z grid shows tradeoff
+separation.
 
 ---
 

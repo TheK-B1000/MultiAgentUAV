@@ -177,9 +177,10 @@ class TestCounterCaptureWhenInterceptInfeasible(unittest.TestCase):
         core, _ = _make_core(opponent,
                               red_score=0 if trailing else 1,
                               blue_score=1 if trailing else 0)
-        # Blue carrier is almost home — red cannot intercept.
+        # Blue carrier mid-lane (not near cap): red cannot intercept in time, but
+        # adaptive emergency collapse must not trigger (ec_to_home_dist > threshold).
         core.blue_carrying[0, 0] = True
-        core.blue_x[0, 0] = 1.0    # very close to blue home (left side)
+        core.blue_x[0, 0] = 8.0
         core.blue_y[0, 0] = 10.0
         core.blue_flag_home[0, 0] = 0.0
         core.blue_flag_home[0, 1] = 10.0
@@ -189,6 +190,25 @@ class TestCounterCaptureWhenInterceptInfeasible(unittest.TestCase):
         core.red_x[0, 1] = 18.0
         core.red_y[0, 1] = 15.0
         return core
+
+    def test_op12_emergency_intercept_when_near_cap(self) -> None:
+        """Adaptive OP12 collapses on near-cap carrier instead of countering."""
+        core, _ = _make_core("OP12")
+        core.blue_carrying[0, 0] = True
+        core.blue_x[0, 0] = 1.0
+        core.blue_y[0, 0] = 10.0
+        core.blue_flag_home[0, 0] = 0.0
+        core.blue_flag_home[0, 1] = 10.0
+        core.red_x[0, 0] = 18.0
+        core.red_y[0, 0] = 5.0
+        core.red_x[0, 1] = 18.0
+        core.red_y[0, 1] = 15.0
+        roles, _, _ = _run_bt(core, "OP12")
+        self.assertIn(
+            ROLE_INTERCEPTOR,
+            roles,
+            f"OP12 adaptive should INTERCEPT near-cap carrier, got roles={roles}",
+        )
 
     def test_op12_counter_fires_when_infeasible(self) -> None:
         core = self._setup_infeasible("OP12")
@@ -451,7 +471,7 @@ class TestOP11vsOP12BehaviorDifference(unittest.TestCase):
     def _infeasible_carrier_state(self, opponent: str, red_score: int = 1):
         core, _ = _make_core(opponent, red_score=red_score, blue_score=0)
         core.blue_carrying[0, 0] = True
-        core.blue_x[0, 0] = 1.0     # almost home
+        core.blue_x[0, 0] = 8.0
         core.blue_y[0, 0] = 10.0
         core.blue_flag_home[0, 0] = 0.0
         core.blue_flag_home[0, 1] = 10.0

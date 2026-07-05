@@ -994,3 +994,26 @@ def apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic(cfg: 
     cfg.experiment_id = "v6i20"
     cfg.run_tag = "v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21: adaptive OP8-OP12 hardpool calibration fork over v6i20.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21_adaptive_op8_op12_hardpool_calibration.
+    Parent preset: v6i20_asymmetry_handicap_surface_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: after upgrading OP8-OP12 in-place to adaptive hardpool v2,
+    does blue WR fall into the 35-65% calibration band against strong checkpoints?
+
+    Delta table vs v6i20:
+      opponent_pool / map_pool / surface / contract / router: unchanged.
+      OP8-OP12 behavior: upgraded in engine code (``_bt_adaptive.py``), not via
+      new opponent IDs. Pre-v6i21 OP8-OP12 results are not directly comparable.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic(cfg)
+    cfg.experiment_id = "v6i21"
+    cfg.run_tag = "v6i21_adaptive_op8_op12_hardpool_calibration"
+    return cfg
