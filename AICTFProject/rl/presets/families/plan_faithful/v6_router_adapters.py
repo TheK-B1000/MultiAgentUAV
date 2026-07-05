@@ -1017,3 +1017,49 @@ def apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration(cfg:
     cfg.experiment_id = "v6i21"
     cfg.run_tag = "v6i21_adaptive_op8_op12_hardpool_calibration"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i21c_adaptive_hardpool_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21C: denial / physical-pressure calibration fork over v6i21.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21c_adaptive_hardpool_denial_calibration.
+    Parent preset: v6i21_adaptive_op8_op12_hardpool_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21B failed saturation gates, does stronger
+    denial (predictive intercept, collapse locks, physical pressure) break
+    blue WR below 90% without PPO retraining?
+
+    Delta table vs v6i21:
+      OP8-OP12 denial tuning lives in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``, ``_step.py``, ``_rules.py``).
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration(cfg)
+    cfg.experiment_id = "v6i21c"
+    cfg.run_tag = "v6i21c_adaptive_hardpool_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21D: brutal denial upper-bound calibration fork over v6i21C.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21d_adaptive_hardpool_brutal_denial_calibration.
+    Parent preset: v6i21c_adaptive_hardpool_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: can OP8-OP12 be made physically/adaptively hard enough
+    to break the v6i9 blue generalist's saturated win rate at all?
+
+    Delta table vs v6i21C:
+      OP8-OP12 brutal denial tuning lives in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``, ``_dynamics.py``,
+      ``_step.py``, ``_rules.py``).
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21c_adaptive_hardpool_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21d"
+    cfg.run_tag = "v6i21d_adaptive_hardpool_brutal_denial_calibration"
+    return cfg

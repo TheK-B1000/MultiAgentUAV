@@ -42,6 +42,12 @@ DEFAULT_OPPONENTS = ("OP8", "OP9", "OP10", "OP11", "OP12")
 DEFAULT_MAPS = ("map_b", "map_b_split_lane_v2")
 TARGET_WR_LOW = 0.35
 TARGET_WR_HIGH = 0.65
+TIER1_WR_CEILING = 0.85
+TIER1_SATURATED_MAX = 3
+TIER1_MIN_IN_BAND = 1
+TIER1_MIN_BELOW_75 = 2
+TIER1_HARD_RED_SCORE = 1.0
+TIER1_BLUE_SCORE_CEILING = 2.50
 
 
 def _parse_args() -> argparse.Namespace:
@@ -108,7 +114,22 @@ def main() -> int:
     valid_wr = [r["win_rate"] for r in rows if r["episodes"] > 0]
     mean_wr = sum(valid_wr) / len(valid_wr) if valid_wr else float("nan")
     saturated = sum(1 for w in valid_wr if w >= 0.95)
+    below_75 = sum(1 for w in valid_wr if w < 0.75)
     in_band = sum(1 for w in valid_wr if TARGET_WR_LOW <= w <= TARGET_WR_HIGH)
+    blue_means = [r["blue_score_mean"] for r in rows if r["episodes"] > 0]
+    red_means = [r["red_score_mean"] for r in rows if r["episodes"] > 0]
+    max_blue = max(blue_means) if blue_means else float("nan")
+    min_blue = min(blue_means) if blue_means else float("nan")
+    hard_red_cells = sum(1 for r in rows if r.get("red_score_mean", 0.0) > TIER1_HARD_RED_SCORE)
+    tier1_pass = bool(valid_wr) and (
+        mean_wr < TIER1_WR_CEILING
+        and saturated <= TIER1_SATURATED_MAX
+        and below_75 >= TIER1_MIN_BELOW_75
+        and in_band >= TIER1_MIN_IN_BAND
+        and hard_red_cells >= 1
+        and max_blue < 3.0
+        and min_blue < TIER1_BLUE_SCORE_CEILING
+    )
     report = {
         "checkpoint": args.checkpoint,
         "opponents": list(args.opponents),
@@ -116,18 +137,32 @@ def main() -> int:
         "episodes_per_cell": int(args.episodes),
         "cells": rows,
         "mean_win_rate": mean_wr,
+        "mean_blue_score": sum(blue_means) / len(blue_means) if blue_means else float("nan"),
+        "max_blue_score": max_blue,
+        "min_blue_score": min_blue,
         "cells_in_target_band": in_band,
+        "cells_below_75_wr": below_75,
         "cells_saturated_95plus": saturated,
+        "cells_hard_red_score_gt_1": hard_red_cells,
         "target_band": [TARGET_WR_LOW, TARGET_WR_HIGH],
+        "tier1_gates": {
+            "mean_wr_below_85": mean_wr < TIER1_WR_CEILING if valid_wr else False,
+            "saturated_lte_3": saturated <= TIER1_SATURATED_MAX,
+            "below_75_at_least_2": below_75 >= TIER1_MIN_BELOW_75,
+            "in_band_at_least_1": in_band >= TIER1_MIN_IN_BAND,
+            "hard_red_score_cell": hard_red_cells >= 1,
+            "blue_score_not_pinned": max_blue < 3.0 and min_blue < TIER1_BLUE_SCORE_CEILING,
+        },
+        "calibration_pass_tier1": tier1_pass,
         "calibration_pass": bool(valid_wr) and TARGET_WR_LOW <= mean_wr <= TARGET_WR_HIGH and saturated == 0,
-        "note": "OP8-OP12 upgraded in-place at v6i21; pre-v6i21 hardpool results not comparable.",
+        "note": "OP8-OP12 upgraded in-place at v6i21; v6i21D is a brutal denial upper-bound calibration. Pre-v6i21 OP8-OP12 results not comparable.",
     }
     out_path = out_dir / "calibration_report.json"
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(f"\nMean WR={mean_wr:.1%}  in-band cells={in_band}/{len(valid_wr)}  saturated={saturated}")
-    print(f"Calibration pass={report['calibration_pass']}")
+    print(f"\nMean WR={mean_wr:.1%}  blue={report['mean_blue_score']:.2f}  in-band cells={in_band}/{len(valid_wr)}  saturated={saturated}")
+    print(f"Tier-1 pass={tier1_pass}  Final pass={report['calibration_pass']}")
     print(f"Wrote {out_path}")
-    return 0 if report["calibration_pass"] else 1
+    return 0 if tier1_pass else 1
 
 
 if __name__ == "__main__":

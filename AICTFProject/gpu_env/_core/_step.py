@@ -134,12 +134,37 @@ class _StepMixin:
         elif rm.numel() > B:
             rm = rm[:B]
         red_speed_cap = torch.full_like(self.red_speed, float(self.cfg.max_speed_cps)) * rm[:, None]
+        if hasattr(self, "_adaptive_hardpool_pressure_mask") and hasattr(self, "bt_red_role"):
+            hardpool_pressure = self._adaptive_hardpool_pressure_mask()
+            red_speed_overdrive_mask = hardpool_pressure[:, None].expand_as(self.red_speed)
+            if bool(hardpool_pressure.any().item()):
+                home = self.red_flag_home
+                near_flag = torch.sqrt(
+                    (self.red_x - home[:, 0:1]) ** 2 + (self.red_y - home[:, 1:2]) ** 2 + 1e-8
+                ) <= float(getattr(self, "_RED_INTERCEPTOR_NEAR_FLAG_DIST", 8.0))
+                is_interceptor = self.bt_red_role == 3
+                int_boost = torch.where(
+                    hardpool_pressure[:, None] & near_flag & is_interceptor & self.red_alive,
+                    torch.full_like(red_speed_cap, float(getattr(self, "_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.22))),
+                    torch.ones_like(red_speed_cap),
+                )
+                red_speed_cap = red_speed_cap * int_boost
+        else:
+            red_speed_overdrive_mask = None
 
         self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, blue_oob, yaw_cmd_blue = self._integrate_side(
             self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, self.blue_alive, targets["btx"], targets["bty"], speed_cap=blue_speed_cap
         )
         self.red_x, self.red_y, self.red_heading, self.red_speed, red_oob, _ = self._integrate_side(
-            self.red_x, self.red_y, self.red_heading, self.red_speed, self.red_alive, targets["rtx"], targets["rty"], speed_cap=red_speed_cap
+            self.red_x,
+            self.red_y,
+            self.red_heading,
+            self.red_speed,
+            self.red_alive,
+            targets["rtx"],
+            targets["rty"],
+            speed_cap=red_speed_cap,
+            speed_overdrive_mask=red_speed_overdrive_mask,
         )
         self.blue_x, self.blue_y, self.blue_speed, blue_wall_hit = self._revert_obstacle_hits(
             snapshot["prev_blue_x"],

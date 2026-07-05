@@ -188,6 +188,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i18_margin_tempo_surface_diagnostic` (aliases include `v6i18`, `v6i18_margin_tempo_surface`) | `v6i17_surface_pressure_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Margin/tempo consequence-surface diagnostic. It keeps the v6i17 contract/capacity/opponent scaffold fixed, leaves router training off, and changes only the reward/horizon surface: shorter episodes plus score-margin, tempo, near-cap, red-touch, and red-carrier-progress pressure. Promotion requires forced-z margin, tempo, role, or behavior-fingerprint separation; win rate alone is secondary. Pinned by `tests/test_v6i18_margin_tempo_surface.py`. |
 | `v6i20_asymmetry_handicap_surface_diagnostic` (aliases include `v6i20`, `v6i20_asymmetry_handicap_surface`, `v6i20_handicap_surface`) | `v6i19_map_pool_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Asymmetric consequence-pressure diagnostic. It keeps the v6i19 map-pool scaffold fixed and strengthens only the existing enemy-progress penalties and blue tempo/conversion bonuses. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z tradeoff separation by opponent × map, not win-rate saturation or oracle gap alone. Pinned by `tests/test_v6i20_asymmetry_handicap_surface.py`. |
 | `v6i21_adaptive_op8_op12_hardpool_calibration` (aliases include `v6i21`, `v6i21_adaptive_op8_op12_hardpool`, `v6i21_adaptive_hardpool_calibration`) | `v6i20_asymmetry_handicap_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Calibration fork after in-place OP8-OP12 upgrade to adaptive hardpool v2 (`gpu_env/_core/_bt_adaptive.py`). Same opponent IDs; engine behavior changed at v6i21 and was pressure-tuned in place at v6i21B. Pre-v6i21 and pre-v6i21B OP8-OP12 WR/fingerprint results are not directly comparable. First gate: blue WR calibration band 35-65% via `experiments/run_v6i21_adaptive_hardpool_calibration.py`. Router blocked. Pinned by `tests/test_v6i21_adaptive_hardpool_calibration.py`. |
+| `v6i21d_adaptive_hardpool_brutal_denial_calibration` (aliases include `v6i21d`, `v6i21d_adaptive_hardpool_brutal_denial`) | `v6i21c_adaptive_hardpool_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Upper-bound denial calibration. Same OP8-OP12 IDs, no router, no PPO training, no checkpoint change. Engine tuning pushes blue carrier penalty, red respawn, red overdrive, near-cap collapse, and cap-lane denial hard enough to test whether the arena can break v6i9 blue saturation at all. Pinned by `tests/test_v6i21d_adaptive_hardpool_brutal_denial_calibration.py`. |
 
 ---
 
@@ -1081,6 +1082,41 @@ First gate: calibration eval only (`experiments/run_v6i21_adaptive_hardpool_cali
 Target mean blue WR 35-65%, no cell at 95%+. Router and specialist-birth training
 remain blocked until calibration passes and a follow-on forced-z grid shows tradeoff
 separation.
+
+---
+
+### 6.28 v6i21d_adaptive_hardpool_brutal_denial_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21D inherits `v6i21c_adaptive_hardpool_denial_calibration` directly. The
+scientific change is an upper-bound calibration question: can the same OP8-OP12
+IDs be made physically/adaptively hard enough to break the v6i9 generalist's
+saturated blue WR at all?
+
+This is not a fair final opponent setting. It is a pressure-ceiling probe before
+any PPO, router, or specialist-birth run.
+
+**Resolved-config diff vs v6i21C:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21C | v6i21D |
+|-------|--------|--------|
+| `experiment_id` | `v6i21c` | `v6i21d` |
+| `run_tag` | `v6i21c_adaptive_hardpool_denial_calibration` | `v6i21d_adaptive_hardpool_brutal_denial_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py`,
+`gpu_env/_core/_bt_profiles.py`, `gpu_env/_core/_dynamics.py`,
+`gpu_env/_core/_step.py`, `gpu_env/_core/_rules.py`, and
+`opponent_params.py`.
+
+Aliases: `v6i21d`, `v6i21d_adaptive_hardpool_brutal_denial_calibration`,
+`v6i21d_adaptive_hardpool_brutal_denial`,
+`latent_v6i21d_adaptive_hardpool_brutal_denial_calibration`, and
+`plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration`.
+
+First gate: 10-episode smoke against the v6i9 generalist after v6i21C finishes.
+Break-saturation target: mean blue WR below 85%, no more than 3/10 cells at
+95%+, at least two cells below 75%, red scores rising, and blue score below
+2.5 in several cells. If it overshoots into very low blue WR, tune back in a
+follow-up calibration. Router and specialist-birth training remain blocked.
 
 ---
 

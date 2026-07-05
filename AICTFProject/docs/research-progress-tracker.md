@@ -1680,11 +1680,68 @@ blue WR **99.2%**; **0/10** in-band; **10/10** saturated. Artifact:
 against any of the three blue anchors (v6i9 generalist, v6i9 repertoire, v6i20
 surface). Saturation is checkpoint-agnostic, not anchor-specific.
 
-**Status:** v6i21B implemented and calibrated; focused tests passed; **v6i21B
-pressure patch failed WR gate (98.0% mean, 9/10 saturated)** plus v6i20 and
-v6i9-repertoire anchor runs also failed. Router and specialist birth remain
-blocked — next step is a stronger pressure pass (v6i21C) or structural hardpool
-change, not router/specialist work.
+**Status:** v6i21B calibrated and failed (98.0% mean, 9/10 saturated). Router and
+specialist birth remain blocked.
+
+### 3.21 v6i21C adaptive hardpool denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21B:** adaptive memory was active but too soft — blue
+still autopilots to ~3 captures. v6i21C strengthens **denial** on the same
+OP8-OP12 IDs: predictive intercept, earlier/larger near-cap collapse with longer
+role locks, dual flag retrieval, stronger cap-lane blocking, aggressive OP12
+counter on overcommit/carrier-loss, physical pressure (red speed 1.10-1.15,
+interceptor near-flag boost 1.22, blue carrier 0.87×, red respawn 0.80×).
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only; router blocked.
+
+**Resolved-config diff vs v6i21:** exactly `{experiment_id, run_tag}`.
+
+**Tier-1 calibration gates:** mean blue WR below 90%; saturated fewer than 5/10;
+at least 1 cell in 35-65%; red_score above 1.0 in a hard cell; blue_score not
+pinned near 3.0.
+
+**Calibration command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21c_adaptive_hardpool_denial_calibration
+```
+
+**Status:** implemented + pinned tests; calibration eval pending.
+
+### 3.22 v6i21D adaptive hardpool brutal denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21C:** v6i21C is connected but still appears saturated
+in the visible cells. v6i21D is an upper-bound pressure test over the same
+OP8-OP12 IDs: harsher blue carrier speed penalty, real hardpool-only red speed
+overdrive, stronger interceptor near-flag boost, faster red respawn, larger
+near-cap collapse zone, longer collapse/retrieval locks, harder cap-lane
+blocking, and stricter calibration gates.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth, no new OP IDs, no blue checkpoint change.
+
+**Resolved-config diff vs v6i21C:** exactly `{experiment_id, run_tag}`.
+
+**Break-saturation gates for D:** mean blue WR below 85%; no more than 3/10
+cells at 95%+; at least 2 cells below 75%; at least 1 cell with red_score above
+1.0; blue_score not pinned near 3.0 and at least one cell below 2.5.
+
+**10-episode smoke command after v6i21C finishes:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21D_adaptive_hardpool_brutal_denial_smoke10
+```
+
+If blue remains 95-100%, push harder. If blue drops to 0-20%, back off. If blue
+lands roughly 35-80%, run the full 25-episode calibration:
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21D_adaptive_hardpool_brutal_denial_calibration
+```
+
+**Status:** implemented + focused tests passed. v6i21C calibration is still
+running at implementation time, so the D smoke has not been launched yet.
+Router and specialist birth remain blocked.
 
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
