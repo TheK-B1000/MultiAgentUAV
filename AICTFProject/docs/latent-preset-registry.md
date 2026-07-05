@@ -189,6 +189,11 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i20_asymmetry_handicap_surface_diagnostic` (aliases include `v6i20`, `v6i20_asymmetry_handicap_surface`, `v6i20_handicap_surface`) | `v6i19_map_pool_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Asymmetric consequence-pressure diagnostic. It keeps the v6i19 map-pool scaffold fixed and strengthens only the existing enemy-progress penalties and blue tempo/conversion bonuses. Router remains off, balanced-episode z assignment is preserved, and promotion requires forced-z tradeoff separation by opponent × map, not win-rate saturation or oracle gap alone. Pinned by `tests/test_v6i20_asymmetry_handicap_surface.py`. |
 | `v6i21_adaptive_op8_op12_hardpool_calibration` (aliases include `v6i21`, `v6i21_adaptive_op8_op12_hardpool`, `v6i21_adaptive_hardpool_calibration`) | `v6i20_asymmetry_handicap_surface_diagnostic` | `DIAGNOSTIC` (non-Summer scaffold) | Calibration fork after in-place OP8-OP12 upgrade to adaptive hardpool v2 (`gpu_env/_core/_bt_adaptive.py`). Same opponent IDs; engine behavior changed at v6i21 and was pressure-tuned in place at v6i21B. Pre-v6i21 and pre-v6i21B OP8-OP12 WR/fingerprint results are not directly comparable. First gate: blue WR calibration band 35-65% via `experiments/run_v6i21_adaptive_hardpool_calibration.py`. Router blocked. Pinned by `tests/test_v6i21_adaptive_hardpool_calibration.py`. |
 | `v6i21d_adaptive_hardpool_brutal_denial_calibration` (aliases include `v6i21d`, `v6i21d_adaptive_hardpool_brutal_denial`) | `v6i21c_adaptive_hardpool_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Upper-bound denial calibration. Same OP8-OP12 IDs, no router, no PPO training, no checkpoint change. Engine tuning pushes blue carrier penalty, red respawn, red overdrive, near-cap collapse, and cap-lane denial hard enough to test whether the arena can break v6i9 blue saturation at all. Pinned by `tests/test_v6i21d_adaptive_hardpool_brutal_denial_calibration.py`. |
+| `v6i21e_targeted_denial_balance_calibration` (aliases include `v6i21e`, `v6i21e_targeted_denial_balance`) | `v6i21d_adaptive_hardpool_brutal_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Targeted balance after v6i21D smoke: harden OP8/OP10/OP11 only (carrier hunter, escort-break/cutoff, anti-repeat collapse). OP9/OP12 unchanged. No router, no PPO training. Pinned by `tests/test_v6i21e_targeted_denial_balance_calibration.py`. |
+| `v6i21f_op8_carrier_denial_calibration` (aliases include `v6i21f`, `v6i21f_op8_carrier_denial`) | `v6i21e_targeted_denial_balance_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | OP8-only carrier denial after v6i21E smoke left OP8 saturated with rising red scores and blue still at 3.0. Pure cap-lane / carrier-hunter monster; OP9–OP12 unchanged. Pinned by `tests/test_v6i21f_op8_carrier_denial_calibration.py`. |
+| `v6i21g_easy_cell_conversion_denial_calibration` (aliases include `v6i21g`, `v6i21g_easy_cell_conversion_denial`) | `v6i21f_op8_carrier_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Targeted correction after v6i21F failed OP8 and left OP10/OP11 saturated. Restores OP8/OP11 cap-lane body-blocking, makes OP10 cut off conversion instead of chasing, and raises OP8/OP10/OP11 2v2 pressure. OP9/OP12 unchanged. Pinned by `tests/test_v6i21g_easy_cell_conversion_denial_calibration.py`. |
+| `v6i21h_saturation_surrogate_calibration` (aliases include `v6i21h`, `v6i21h_saturation_surrogate`) | `v6i21g_easy_cell_conversion_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Saturation fix after bespoke OP8/OP10/OP11 geometry failed. OP8 reuses OP9-like fortress pressure; OP10/OP11 reuse OP12-like counter pressure; failed custom adaptive route overrides are disabled. Pinned by `tests/test_v6i21h_saturation_surrogate_calibration.py`. |
+| `v6i21i_op8_extreme_physical_calibration` (aliases include `v6i21i`, `v6i21i_op8_extreme_physical`) | `v6i21h_saturation_surrogate_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | OP8-only physical upper-bound test. Crushes blue carrier speed and gives OP8 red explicit overdrive/interceptor boost to test whether OP8 can break saturation at all. Pinned by `tests/test_v6i21i_op8_extreme_physical_calibration.py`. |
 
 ---
 
@@ -1117,6 +1122,111 @@ Break-saturation target: mean blue WR below 85%, no more than 3/10 cells at
 95%+, at least two cells below 75%, red scores rising, and blue score below
 2.5 in several cells. If it overshoots into very low blue WR, tune back in a
 follow-up calibration. Router and specialist-birth training remain blocked.
+
+---
+
+### 6.29 v6i21e_targeted_denial_balance_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21E inherits `v6i21d_adaptive_hardpool_brutal_denial_calibration` directly. After
+v6i21D smoke showed the denial lever works (80% mean WR, 4/10 in-band) but OP8/OP10/OP11
+cells remain saturated, v6i21E applies **targeted** per-opponent hardening without
+touching OP9/OP12.
+
+**Resolved-config diff vs v6i21D:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21D | v6i21E |
+|-------|--------|--------|
+| `experiment_id` | `v6i21d` | `v6i21e` |
+| `run_tag` | `v6i21d_adaptive_hardpool_brutal_denial_calibration` | `v6i21e_targeted_denial_balance_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py` (per-level OP8/OP10/OP11 overrides),
+`gpu_env/_core/_bt_profiles.py` (OP8/OP10/OP11 profile scalars),
+`opponent_params.py` (OP8/OP10/OP11 2v2 dynamics only).
+
+Aliases: `v6i21e`, `v6i21e_targeted_denial_balance_calibration`,
+`v6i21e_targeted_denial_balance`,
+`latent_v6i21e_targeted_denial_balance_calibration`, and
+`plan_faithful_latent_v6i21e_targeted_denial_balance_calibration`.
+
+Smoke target: mean blue WR 60-75%, 6+/10 cells in 35-65% band, at most 2/10
+saturated. Router and specialist-birth training remain blocked until full
+25-episode calibration passes.
+
+---
+
+### 6.30 v6i21f_op8_carrier_denial_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21F inherits `v6i21e_targeted_denial_balance_calibration` directly. After v6i21E
+smoke showed OP8 still saturated (100/100 WR, blue pinned at 3.0 despite rising red
+scores), v6i21F applies an OP8-only patch: disable counter-capture and 2v1 scoring,
+dual intercept on predictive lead + cap-lane body, wider near-cap collapse, longer
+interceptor locks, lower coordinated-attack probability. OP9–OP12 unchanged.
+
+**Resolved-config diff vs v6i21E:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21E | v6i21F |
+|-------|--------|--------|
+| `experiment_id` | `v6i21e` | `v6i21f` |
+| `run_tag` | `v6i21e_targeted_denial_balance_calibration` | `v6i21f_op8_carrier_denial_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py` (OP8-only overrides),
+`gpu_env/_core/_bt_profiles.py` (OP8 profile), `opponent_params.py` (OP8 2v2 only).
+
+Aliases: `v6i21f`, `v6i21f_op8_carrier_denial_calibration`, `v6i21f_op8_carrier_denial`,
+`latent_v6i21f_op8_carrier_denial_calibration`, and
+`plan_faithful_latent_v6i21f_op8_carrier_denial_calibration`.
+
+---
+
+### 6.31 v6i21g_easy_cell_conversion_denial_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21G inherits `v6i21f_op8_carrier_denial_calibration` directly. v6i21F showed
+that pure OP8 carrier hunting reduced red scoring without breaking blue caps,
+while OP10 split_lane and both OP11 cells stayed saturated. v6i21G corrects the
+easy-cell geometry: OP8/OP11 cap-lane body-blocking is restored, OP10 cuts off
+conversion instead of chasing carrier position, and OP8/OP10/OP11 2v2 pressure is
+raised. OP9/OP12 remain unchanged.
+
+**Resolved-config diff vs v6i21F:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21F | v6i21G |
+|-------|--------|--------|
+| `experiment_id` | `v6i21f` | `v6i21g` |
+| `run_tag` | `v6i21f_op8_carrier_denial_calibration` | `v6i21g_easy_cell_conversion_denial_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py` (OP8/OP10/OP11 route overrides),
+`gpu_env/_core/_bt_profiles.py` (OP8/OP10/OP11 profile scalars), and
+`opponent_params.py` (OP8/OP10/OP11 2v2 dynamics only).
+
+Aliases: `v6i21g`, `v6i21g_easy_cell_conversion_denial_calibration`,
+`v6i21g_easy_cell_conversion_denial`,
+`latent_v6i21g_easy_cell_conversion_denial_calibration`, and
+`plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration`.
+
+---
+
+### 6.32 v6i21h_saturation_surrogate_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21H inherits `v6i21g_easy_cell_conversion_denial_calibration` directly. G
+confirmed that bespoke OP8/OP10/OP11 denial geometry still saturated; OP9 and
+OP12 remained the only calibrated shapes. H stops adding new geometry and reuses
+those working shapes: OP8 becomes OP9-like fortress pressure, while OP10/OP11
+become OP12-like counter pressure. The failed OP8 dual-denial, OP10 escort-break,
+and OP11 repeat-intercept adaptive route overrides are disabled.
+
+**Resolved-config diff vs v6i21G:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21G | v6i21H |
+|-------|--------|--------|
+| `experiment_id` | `v6i21g` | `v6i21h` |
+| `run_tag` | `v6i21g_easy_cell_conversion_denial_calibration` | `v6i21h_saturation_surrogate_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py`,
+`gpu_env/_core/_bt_profiles.py`, and `opponent_params.py`.
+
+Aliases: `v6i21h`, `v6i21h_saturation_surrogate_calibration`,
+`v6i21h_saturation_surrogate`, `latent_v6i21h_saturation_surrogate_calibration`,
+and `plan_faithful_latent_v6i21h_saturation_surrogate_calibration`.
 
 ---
 

@@ -346,9 +346,9 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.05, 0.14
                 c_prob = 0.92
             else:
-                s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.10, 0.22
-                c_prob = 0.96
+                s_low, s_high = 1.35, 1.45
+                d_low, d_high = 0.16, 0.34
+                c_prob = 0.94
         elif key in ("OP9", "OP9_FORTRESS"):
             # Adaptive fortress / flag denial: collapses cap lane after fast conversions.
             attacker_style = 0
@@ -389,7 +389,7 @@ def sample_batched_opponent_params(
                 c_prob = 0.90
             else:
                 s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.10, 0.22
+                d_low, d_high = 0.10, 0.24
                 c_prob = 0.94
         elif key in ("OP11", "OP11_BT_BALANCED"):
             # Adaptive balanced anti-meta: lane prediction + emergency collapse.
@@ -414,8 +414,9 @@ def sample_batched_opponent_params(
                 sync_nc_low, sync_nc_high = 2, 5
             else:
                 s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.12, 0.28
-                c_prob = 0.92
+                d_low, d_high = 0.10, 0.24
+                c_prob = 0.94
+                role_switch_prob = 0.06
         elif key in ("OP12", "OP12_COUNTER"):
             # Adaptive counter-capture: punishes blue overcommit on enemy half.
             attacker_style = 1

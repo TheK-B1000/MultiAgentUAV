@@ -26,14 +26,35 @@ class _BTAdaptiveMixin:
     _LANE_EMA_ALPHA = 0.14
     _CARRIER_EMA_ALPHA = 0.20
     # v6i21D brutal denial calibration: upper-bound pressure test, not final balance.
+    # v6i21E targeted balance: per-level overrides for OP8/OP10/OP11 only (OP9/OP12 unchanged).
+    # v6i21F OP8 carrier denial: pure cap-lane / carrier-hunter monster (no counter-scoring).
+    # v6i21G targeted easy-cell denial: restore cap-lane body-blocking for OP8/OP11,
+    # and make OP10 cut off conversion instead of chasing the carrier.
+    # v6i21H saturation fix: disable failed OP8/OP10/OP11 bespoke geometry and
+    # let profile-level fortress/counter shapes do the work.
+    # v6i21I OP8 extreme: physical upper bound for OP8 only.
     _NEAR_CAP_DIST = 12.0
+    _OP8_NEAR_CAP_DIST_MULT = 1.45
+    _OP8_PREDICTIVE_LEAD_FRAC = 0.32
+    _OP8_INTERCEPT_BLOCK_EXTRA = 0.10
+    _OP8_CAP_BODY_X_FRAC = 0.80
+    _OP10_HIGH_ESCORT_DENSITY = 0.14
+    _OP10_CARRIER_CUTOFF_BLEND = 0.24
+    _OP8_CAP_LANE_BODY_FRAC = 0.95
+    _OP11_CAP_LANE_BODY_FRAC = 0.85
+    _OP8_DUAL_DENIAL_ENABLED = False
+    _OP10_ESCORT_BREAK_ENABLED = False
+    _OP11_REPEAT_INTERCEPT_ENABLED = False
     _FAST_CONVERSION_STEPS = 70
     _REPEAT_LANE_STREAK = 2
     _HIGH_ESCORT_DENSITY = 0.25
     _HIGH_OVERCOMMIT = 0.25
     _BLUE_CARRIER_SPEED_MULT = 0.75
+    _OP8_BLUE_CARRIER_SPEED_MULT = 0.35
     _RED_RESPAWN_MULT = 0.50
+    _OP8_RED_SPEED_MULT = 1.60
     _RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.35
+    _OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.85
     _RED_INTERCEPTOR_NEAR_FLAG_DIST = 11.0
     _COLLAPSE_ROLE_LOCK_BONUS = 20
     _INTERCEPT_BLOCK_BOOST_COLLAPSE = 0.50
@@ -102,6 +123,30 @@ class _BTAdaptiveMixin:
 
     def _adaptive_active_mask(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
         return self._bt_opponent_mask() & prof["adaptive_enabled"]
+
+    def _repeat_lane_streak_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP8/OP11 punish lane repetition after one repeat; others keep global streak."""
+        bt = prof["bt_level"]
+        thresh = torch.full_like(bt, self._REPEAT_LANE_STREAK, dtype=torch.int32)
+        return torch.where((bt == 8) | (bt == 11), torch.ones_like(thresh), thresh)
+
+    def _high_escort_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP10 escort-break fires earlier; other levels keep global density gate."""
+        bt = prof["bt_level"].to(dtype=torch.float32, device=self.device)
+        thresh = torch.full((self.B,), self._HIGH_ESCORT_DENSITY, dtype=torch.float32, device=self.device)
+        return torch.where(bt == 10.0, torch.full_like(thresh, self._OP10_HIGH_ESCORT_DENSITY), thresh)
+
+    def _near_cap_dist_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP8 widens near-cap collapse zone; other levels keep global distance."""
+        bt = prof["bt_level"].to(dtype=torch.float32, device=self.device)
+        base = torch.full((self.B,), self._NEAR_CAP_DIST, dtype=torch.float32, device=self.device)
+        return torch.where(bt == 8.0, base * self._OP8_NEAR_CAP_DIST_MULT, base)
+
+    def _near_cap_ticks_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP8/OP11 collapse on first near-cap tick; others require one accumulated tick."""
+        bt = prof["bt_level"]
+        thresh = torch.ones_like(bt, dtype=torch.int32)
+        return torch.where((bt == 8) | (bt == 11), torch.zeros_like(thresh), thresh)
 
     def _update_adaptive_memory(self, prof: Dict[str, torch.Tensor]) -> None:
         """Track blue patterns each step for adaptive hardpool opponents."""
@@ -189,7 +234,8 @@ class _BTAdaptiveMixin:
         home_dx = self.blue_flag_home[:, 0] - ec_x
         home_dy = self.blue_flag_home[:, 1] - ec_y
         ec_home_dist = torch.sqrt(home_dx ** 2 + home_dy ** 2 + 1e-8)
-        near_cap = blue_carry_any & (ec_home_dist < self._NEAR_CAP_DIST)
+        near_cap_dist = self._near_cap_dist_threshold(prof)
+        near_cap = blue_carry_any & (ec_home_dist < near_cap_dist)
         cap_ticks = torch.where(
             active & near_cap,
             self.bt_adapt_near_cap_ticks + 1,
@@ -228,16 +274,20 @@ class _BTAdaptiveMixin:
         preferred_lane_y_t = torch.full((self.B,), preferred_lane_y, device=self.device)
         preferred_lane_y_t = preferred_lane_y_t + lane_bias * float(self.rows) * 0.22
 
+        near_cap_dist = self._near_cap_dist_threshold(prof)
+        near_cap_ticks_needed = self._near_cap_ticks_threshold(prof)
         emergency_collapse = (
             active
             & bb["blue_carry_any"]
             & (
-                (self.bt_adapt_near_cap_ticks >= 1)
-                | (bb["ec_to_home_dist"] < self._NEAR_CAP_DIST)
+                (self.bt_adapt_near_cap_ticks >= near_cap_ticks_needed)
+                | (bb["ec_to_home_dist"] < near_cap_dist)
             )
         )
-        repeat_lane = active & (self.bt_adapt_repeat_lane_streak >= self._REPEAT_LANE_STREAK)
-        high_escort = active & (self.bt_adapt_escort_density >= self._HIGH_ESCORT_DENSITY)
+        repeat_lane = active & (
+            self.bt_adapt_repeat_lane_streak >= self._repeat_lane_streak_threshold(prof)
+        )
+        high_escort = active & (self.bt_adapt_escort_density >= self._high_escort_threshold(prof))
         high_overcommit = active & (self.bt_adapt_overcommit >= self._HIGH_OVERCOMMIT)
         fast_blue = active & (self.bt_adapt_fast_conversion_count >= 1)
 
@@ -354,31 +404,112 @@ class _BTAdaptiveMixin:
                 )
                 lock[:, j] = torch.where(assign, prof["lock_counter"], lock[:, j])
 
-        # OP10 split pressure when blue stacks escort.
+        # OP10 split pressure when blue stacks escort; also cut off the carrier.
+        is_op10 = prof["bt_level"] == 10
         escort_break = (
-            bb["adapt_high_escort"]
+            bool(self._OP10_ESCORT_BREAK_ENABLED)
+            & bb["adapt_high_escort"]
             & bb["blue_carry_any"]
-            & prof["enable_2v1"]
-            & (prof["bt_level"] == 10)
+            & is_op10
         )
         if escort_break.any():
-            dxx = self.red_x - bb["ec_x"][:, None]
-            dyy = self.red_y - bb["ec_y"][:, None]
-            flank_dist = torch.sqrt(dxx ** 2 + dyy ** 2 + 1e-8)
-            flank_dist = torch.where(eligible & (out == ROLE_ATTACKER), flank_dist, flank_dist.new_full((), 1e9))
-            wing = torch.argmax(flank_dist, dim=1)
+            if bool(prof["enable_2v1"].any().item()):
+                dxx = self.red_x - bb["ec_x"][:, None]
+                dyy = self.red_y - bb["ec_y"][:, None]
+                flank_dist = torch.sqrt(dxx ** 2 + dyy ** 2 + 1e-8)
+                flank_dist = torch.where(eligible & (out == ROLE_ATTACKER), flank_dist, flank_dist.new_full((), 1e9))
+                wing = torch.argmax(flank_dist, dim=1)
+                for j in range(Nr):
+                    assign = escort_break & prof["enable_2v1"] & (wing == j) & eligible[:, j]
+                    out[:, j] = torch.where(
+                        assign,
+                        torch.full((B,), ROLE_2V1_WING, dtype=torch.int32, device=device),
+                        out[:, j],
+                    )
+                    lock[:, j] = torch.where(assign, prof["lock_2v1"], lock[:, j])
+            if bool(prof["enable_intercept"].any().item()):
+                cutoff_dist = torch.sqrt(
+                    (self.red_x - bb["ec_x"][:, None]) ** 2 + (self.red_y - bb["ec_y"][:, None]) ** 2 + 1e-8
+                )
+                already_int = out == ROLE_INTERCEPTOR
+                cutoff_dist = torch.where(eligible & (~already_int), cutoff_dist, cutoff_dist.new_full((), 1e9))
+                cutter = torch.argmin(cutoff_dist, dim=1)
+                cutoff_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
+                for j in range(Nr):
+                    assign = escort_break & prof["enable_intercept"] & (cutter == j) & eligible[:, j]
+                    out[:, j] = torch.where(
+                        assign,
+                        torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
+                        out[:, j],
+                    )
+                    lock[:, j] = torch.where(assign, cutoff_lock, lock[:, j])
+
+        # OP11 anti-repeat: second intercept when lane repetition is detected.
+        is_op11 = prof["bt_level"] == 11
+        repeat_intercept = (
+            bool(self._OP11_REPEAT_INTERCEPT_ENABLED)
+            & is_op11
+            & bb["adapt_repeat_lane"]
+            & bb["blue_carry_any"]
+            & prof["enable_intercept"]
+        )
+        if repeat_intercept.any():
+            lane_y = bb["adapt_preferred_lane_y"]
+            lane_dist = torch.sqrt(
+                (self.red_x - bb["ec_x"][:, None]) ** 2 + (self.red_y - lane_y[:, None]) ** 2 + 1e-8
+            )
+            already_int = out == ROLE_INTERCEPTOR
+            lane_dist = torch.where(eligible & (~already_int), lane_dist, lane_dist.new_full((), 1e9))
+            lane_int = torch.argmin(lane_dist, dim=1)
+            lane_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
             for j in range(Nr):
-                assign = escort_break & (wing == j) & eligible[:, j]
+                assign = repeat_intercept & (lane_int == j) & eligible[:, j]
                 out[:, j] = torch.where(
                     assign,
-                    torch.full((B,), ROLE_2V1_WING, dtype=torch.int32, device=device),
+                    torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
                     out[:, j],
                 )
-                lock[:, j] = torch.where(assign, prof["lock_2v1"], lock[:, j])
+                lock[:, j] = torch.where(assign, lane_lock, lock[:, j])
 
-        active = bb["adaptive_active"][:, None]
-        out = torch.where(active, out, roles)
-        lock = torch.where(active, lock, self.bt_role_lock_ticks)
+        # OP8 pure carrier denial: both agents intercept; no counter-scoring while blue carries.
+        is_op8 = prof["bt_level"] == 8
+        op8_denial = (
+            bool(self._OP8_DUAL_DENIAL_ENABLED)
+            & is_op8
+            & bb["blue_carry_any"]
+            & prof["enable_intercept"]
+        )
+        if op8_denial.any():
+            home_x = bb["blue_flag_home"][:, 0]
+            home_y = bb["blue_flag_home"][:, 1]
+            ec_x = bb["ec_x"]
+            ec_y = bb["ec_y"]
+            lead = self._OP8_PREDICTIVE_LEAD_FRAC
+            pred_x = ec_x + (home_x - ec_x) * lead
+            pred_y = ec_y + (home_y - ec_y) * lead
+            body_x = ec_x + (home_x - ec_x) * self._OP8_CAP_BODY_X_FRAC
+            body_y = home_y
+            denial_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
+            denial_eligible = eligible.clone()
+            for target_x, target_y in ((pred_x, pred_y), (body_x, body_y)):
+                dist = torch.sqrt(
+                    (self.red_x - target_x[:, None]) ** 2 + (self.red_y - target_y[:, None]) ** 2 + 1e-8
+                )
+                dist = torch.where(denial_eligible, dist, dist.new_full((), 1e9))
+                agent = torch.argmin(dist, dim=1)
+                for j in range(Nr):
+                    assign = op8_denial & (agent == j) & denial_eligible[:, j]
+                    out[:, j] = torch.where(
+                        assign,
+                        torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
+                        out[:, j],
+                    )
+                    lock[:, j] = torch.where(assign, denial_lock, lock[:, j])
+                    denial_eligible[:, j] = denial_eligible[:, j] & (~assign)
+
+        active_mask = active[:, None]
+        out = torch.where(active_mask, out, roles)
+        lock = torch.where(active_mask, lock, self.bt_role_lock_ticks)
         self.bt_red_role = out
         self.bt_role_lock_ticks = lock
         return out
@@ -405,10 +536,24 @@ class _BTAdaptiveMixin:
             + prof["intercept_block_trailing_bonus"] * bb["trailing"].float()
             + block_boost
         ).clamp(max=0.98)
-
+        bt_level = prof["bt_level"]
+        is_op8 = bt_level == 8
+        block_frac = block_frac + torch.where(is_op8, self._OP8_INTERCEPT_BLOCK_EXTRA, 0.0)
+        block_frac = block_frac.clamp(max=0.98)
         lane_y = bb["adapt_preferred_lane_y"]
         repeat = bb["adapt_repeat_lane"]
-        is_lane_op = (prof["bt_level"] == 8) | (prof["bt_level"] == 11)
+        is_lane_op = (bt_level == 8) | (bt_level == 11)
+        is_op10 = bt_level == 10
+        is_op11 = bt_level == 11
+        cap_lane_body = torch.where(
+            is_op8,
+            torch.full((B,), self._OP8_CAP_LANE_BODY_FRAC, device=device),
+            torch.where(
+                is_op11,
+                torch.full((B,), self._OP11_CAP_LANE_BODY_FRAC, device=device),
+                torch.full((B,), self._CAP_LANE_BODY_FRAC, device=device),
+            ),
+        )
 
         for j in range(Nr):
             role_j = roles[:, j]
@@ -417,19 +562,44 @@ class _BTAdaptiveMixin:
             home_y = bb["blue_flag_home"][:, 1]
             ec_x = bb["ec_x"]
             ec_y = bb["ec_y"]
-            lead = self._PREDICTIVE_LEAD_FRAC
-            pred_x = ec_x + (home_x - ec_x) * lead
-            pred_y = ec_y + (home_y - ec_y) * lead
+            lead_t = torch.where(
+                is_op8,
+                torch.full((B,), self._OP8_PREDICTIVE_LEAD_FRAC, device=device),
+                torch.full((B,), self._PREDICTIVE_LEAD_FRAC, device=device),
+            )
+            pred_x = ec_x + (home_x - ec_x) * lead_t
+            pred_y = ec_y + (home_y - ec_y) * lead_t
             bx = pred_x + (home_x - pred_x) * block_frac
             by = pred_y + (home_y - pred_y) * block_frac
+            cutoff_blend = torch.full((B,), self._OP10_CARRIER_CUTOFF_BLEND, device=device)
+            bx = torch.where(
+                is_op10 & int_mask,
+                (1.0 - cutoff_blend) * bx + cutoff_blend * ec_x,
+                bx,
+            )
+            by = torch.where(
+                is_op10 & int_mask,
+                (1.0 - cutoff_blend) * by + cutoff_blend * ec_y,
+                by,
+            )
+            op8_int = is_op8 & int_mask
+            bx = torch.where(op8_int & (j == 0), pred_x + (home_x - pred_x) * block_frac, bx)
+            by = torch.where(op8_int & (j == 0), pred_y + (home_y - pred_y) * block_frac, by)
+            body_bx = ec_x + (home_x - ec_x) * self._OP8_CAP_BODY_X_FRAC
+            bx = torch.where(op8_int & (j == 1), body_bx, bx)
+            by = torch.where(op8_int & (j == 1), home_y, by)
             by = torch.where(
                 repeat & is_lane_op,
-                0.55 * by + 0.45 * lane_y,
+                torch.where(
+                    is_op11,
+                    0.35 * by + 0.65 * lane_y,
+                    0.55 * by + 0.45 * lane_y,
+                ),
                 by,
             )
             by = torch.where(
                 bb["adapt_emergency_collapse"],
-                bb["ec_y"] + (home_y - bb["ec_y"]) * self._CAP_LANE_BODY_FRAC,
+                bb["ec_y"] + (home_y - bb["ec_y"]) * cap_lane_body,
                 by,
             )
             tx[:, j] = torch.where(int_mask, torch.clamp(bx, 0.0, max_x), tx[:, j])

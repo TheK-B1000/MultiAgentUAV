@@ -1752,7 +1752,154 @@ uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoin
 running at implementation time, so the D smoke has not been launched yet.
 Router and specialist birth remain blocked.
 
-### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
+**10-episode smoke eval (2026-07-05):** `PARTIAL_SUCCESS` — first real pressure
+signal. Mean blue WR **80.0%** (vs 99.2% v6i21 / 98.0% v6i21B / 96.8% v6i21C);
+**4/10** cells in 35-65% band; **5/10** saturated; mean blue score **2.54**.
+In-band cells: OP9 (both maps), OP12 (both maps). Still saturated: OP8 map_b,
+OP10 (both), OP11 (both). Borderline: OP8 split_lane 90%. Artifact:
+`artifacts/v6i21D_adaptive_hardpool_brutal_denial_smoke10/calibration_report.json`.
+
+**Verdict:** denial lever found; grid uneven. Router and specialist birth remain
+blocked. Next: targeted OP8/OP10/OP11 hardening (v6i21E), not router.
+
+### 3.23 v6i21E targeted denial balance calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21D:** v6i21D smoke proved the arena can pressure blue
+but left OP8/OP10/OP11 saturated while OP9/OP12 landed in-band. v6i21E hardens
+only the weak opponents: OP8 carrier-hunter + wider cap-lane collapse, OP10
+earlier escort-break + carrier cutoff intercept, OP11 faster anti-repeat collapse.
+OP9/OP12 engine constants and dynamics unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth, no new OP IDs.
+
+**Resolved-config diff vs v6i21D:** exactly `{experiment_id, run_tag}`.
+
+**10-episode smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21E_targeted_denial_balance_smoke10
+```
+
+Smoke target: mean WR 60-75%, 6+/10 in-band, at most 2/10 saturated. If smoke
+passes balance gates, run full 25-episode calibration before unblocking router.
+
+**Status:** **10-episode smoke `MIXED`/`FAIL`** (2026-07-05). Full 10 cells × 10
+episodes; mean blue WR **80.0%**; **4/10** in 35–65% band; **5/10** saturated;
+mean blue score **2.60**. In-band: OP9 (both), OP12 (both). OP10 map_b improved
+(100%→90%). OP8 100/100 (worse than D on split_lane). OP11 100/100. Tier-1 and
+final pass both false. Artifact:
+`artifacts/v6i21E_targeted_denial_balance_smoke10/calibration_report.json`.
+Superseded for OP8 by v6i21F smoke.
+
+### 3.24 v6i21F OP8 carrier denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21E:** v6i21E smoke showed OP9/OP12 in-band and OP10 map_b
+improving (100%→90%), but OP8 remained 100/100 with rising red scores and blue
+still pinned at 3.0 — red activity without conversion denial. v6i21F makes OP8 a
+pure carrier-hunter / cap-lane denial monster: counter-capture and 2v1 scoring
+disabled, dual intercept on carrier path, wider near-cap collapse, longer
+interceptor locks, lower coordinated-attack probability. OP9–OP12 unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only OP8 patch. No router, no
+PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21E:** exactly `{experiment_id, run_tag}`.
+
+**10-episode smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21F_op8_carrier_denial_smoke10
+```
+
+**Status:** **10-episode smoke `FAIL`** (2026-07-05). Mean WR **80.0%**; **4/10**
+in-band; **5/10** saturated; mean blue **2.59**. OP9/OP12 unchanged from E
+(in-band). OP8 still **100/100** but red scores **collapsed** (0.2/0.1 vs
+0.9/1.2 on E) — denial posture reduced red scoring without breaking blue caps.
+OP11 still 100/100. Tier-1 and final pass false. Artifact:
+`artifacts/v6i21F_op8_carrier_denial_smoke10/calibration_report.json`. OP8
+hypothesis not confirmed; next lever is OP11 (and OP10 split_lane), not more
+global OP8 pressure.
+
+### 3.25 v6i21G easy-cell conversion denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21F:** v6i21F made OP8 more carrier-focused but did not
+deny conversion. v6i21G targets the remaining easy cells directly: OP8/OP11
+restore cap-lane body-blocking during emergency collapse, OP10 cuts off the cap
+path instead of blending heavily toward carrier chase, and OP8/OP10/OP11 2v2
+speed/coordination pressure increases. OP9/OP12 are unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21F:** exactly `{experiment_id, run_tag}`.
+
+**10-episode smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21G_easy_cell_conversion_denial_smoke10
+```
+
+**Status:** implemented + focused tests passed. Full 10-cell smoke and a
+patched-cell 3-episode smoke both exceeded tool timeouts without writing a
+report and were stopped by the agent; no G calibration result should be inferred
+from those partial attempts. Router and specialist birth remain blocked.
+
+**Interrupted background smoke partials:** after relaunching G with captured
+stdout, OP8, OP10, and OP11 map_b remained saturated:
+OP8 map_b `100%/3.00/0.10`, OP8 split `100%/3.00/0.10`,
+OP10 map_b `100%/3.00/0.20`, OP10 split `100%/3.00/0.50`,
+OP11 map_b `100%/3.00/1.50`. OP9 stayed in-band (`50%`, `60%`). The run was
+interrupted before final JSON. Conclusion: bespoke OP8/OP10/OP11 geometry still
+fails; use calibrated surrogate shapes.
+
+### 3.26 v6i21H saturation surrogate calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21G:** G confirmed the failed pattern. H replaces the
+remaining saturated custom shapes with already-calibrated pressure shapes:
+OP8 becomes OP9-like fortress pressure, OP10/OP11 become OP12-like counter
+pressure, and the failed OP8 dual-denial, OP10 escort-break, and OP11
+repeat-intercept adaptive route overrides are disabled.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21G:** exactly `{experiment_id, run_tag}`.
+
+**Targeted smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --opponents OP8 OP10 OP11 --out-dir artifacts\v6i21H_saturation_surrogate_patched_cells_smoke10 --progress-every 1
+```
+
+**Status:** implemented + focused tests passed. Evaluation pending.
+
+### 3.27 v6i21I OP8 extreme physical calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21H:** H restored red pressure for OP8 but blue still
+won 100/100. v6i21I makes OP8 an explicit physical upper-bound test: OP8-only
+blue carrier speed multiplier `0.35`, OP8 red speed multiplier `1.60`, OP8
+near-flag interceptor boost `1.85`, and OP8 2v2 speed range `1.35-1.45`.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only OP8 calibration. No
+router, no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21H:** exactly `{experiment_id, run_tag}`.
+
+**OP8-only smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --opponents OP8 --out-dir artifacts\v6i21I_op8_extreme_physical_smoke10 --progress-every 1
+```
+
+**Status:** **OP8-only smoke `PARTIAL_SUCCESS`** (2026-07-05). Extreme physical
+pressure **broke OP8 saturation** for the first time: map_b **80%** WR (blue
+2.90, red 1.90), split_lane **70%** WR (blue 2.80, red 2.00). Mean WR **75%**;
+**0/2** saturated; red scores finally threaten conversions. Not yet in 35–65%
+band; tier-1 and final pass false. Refutes "OP8 is structurally unblockable" —
+issue was insufficient physical pressure, not scoring/tagging geometry. Artifact:
+`artifacts/v6i21I_op8_extreme_physical_smoke10/calibration_report.json`. Next:
+dial OP8 physical knobs toward in-band without overshooting OP9/OP12 balance.
 
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis
 "episode-start context can explain enough return variance for V/A routing"

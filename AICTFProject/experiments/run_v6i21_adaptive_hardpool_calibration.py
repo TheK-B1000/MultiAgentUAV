@@ -155,7 +155,7 @@ def main() -> int:
         },
         "calibration_pass_tier1": tier1_pass,
         "calibration_pass": bool(valid_wr) and TARGET_WR_LOW <= mean_wr <= TARGET_WR_HIGH and saturated == 0,
-        "note": "OP8-OP12 upgraded in-place at v6i21; v6i21D is a brutal denial upper-bound calibration. Pre-v6i21 OP8-OP12 results not comparable.",
+        "note": "OP8-OP12 upgraded in-place at v6i21; v6i21E targets OP8/OP10/OP11 balance on v6i21D denial base. Pre-v6i21 OP8-OP12 results not comparable.",
     }
     out_path = out_dir / "calibration_report.json"
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")

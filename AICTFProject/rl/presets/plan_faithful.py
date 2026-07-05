@@ -118,6 +118,11 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration,
     apply_plan_faithful_latent_v6i21c_adaptive_hardpool_denial_calibration,
     apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration,
+    apply_plan_faithful_latent_v6i21e_targeted_denial_balance_calibration,
+    apply_plan_faithful_latent_v6i21f_op8_carrier_denial_calibration,
+    apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration,
+    apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration,
+    apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration,
 )
 
 __all__ = [
@@ -234,4 +239,9 @@ __all__ = [
     "apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration",
     "apply_plan_faithful_latent_v6i21c_adaptive_hardpool_denial_calibration",
     "apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration",
+    "apply_plan_faithful_latent_v6i21e_targeted_denial_balance_calibration",
+    "apply_plan_faithful_latent_v6i21f_op8_carrier_denial_calibration",
+    "apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration",
+    "apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration",
+    "apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration",
 ]

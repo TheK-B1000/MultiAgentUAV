@@ -1063,3 +1063,118 @@ def apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibratio
     cfg.experiment_id = "v6i21d"
     cfg.run_tag = "v6i21d_adaptive_hardpool_brutal_denial_calibration"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i21e_targeted_denial_balance_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21E: targeted denial balance calibration fork over v6i21D.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21e_targeted_denial_balance_calibration.
+    Parent preset: v6i21d_adaptive_hardpool_brutal_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21D smoke showed OP9/OP12 in-band but OP8/OP10/OP11
+    still saturated, can targeted per-opponent hardening balance the 10-cell grid
+    without over-tightening OP9/OP12?
+
+    Delta table vs v6i21D:
+      OP8/OP10/OP11 targeted tuning lives in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``). OP9/OP12 unchanged.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21e"
+    cfg.run_tag = "v6i21e_targeted_denial_balance_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21f_op8_carrier_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21F: OP8-only carrier denial calibration fork over v6i21E.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21f_op8_carrier_denial_calibration.
+    Parent preset: v6i21e_targeted_denial_balance_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21E smoke showed OP9/OP12 in-band but OP8 still
+    saturated with rising red scores and blue still at 3.0, can OP8 become a pure
+    carrier-hunter / cap-lane denial monster without touching OP9-OP12?
+
+    Delta table vs v6i21E:
+      OP8-only denial tuning in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``). OP9-OP12 unchanged.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21e_targeted_denial_balance_calibration(cfg)
+    cfg.experiment_id = "v6i21f"
+    cfg.run_tag = "v6i21f_op8_carrier_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21G: easy-cell conversion denial calibration fork over v6i21F.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21g_easy_cell_conversion_denial_calibration.
+    Parent preset: v6i21f_op8_carrier_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21F failed to move OP8 and left OP10/OP11
+    saturated, can targeted cap-lane body blocking and conversion-denial geometry
+    reduce the remaining easy cells while preserving OP9/OP12 pressure?
+
+    Delta table vs v6i21F:
+      OP8/OP10/OP11 route/profile/2v2 dynamics tuning lives in engine code
+      (``_bt_adaptive.py``, ``_bt_profiles.py``, ``opponent_params.py``).
+      OP9/OP12 unchanged. experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21f_op8_carrier_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21g"
+    cfg.run_tag = "v6i21g_easy_cell_conversion_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21H: saturation fix using calibrated surrogate opponent shapes.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21h_saturation_surrogate_calibration.
+    Parent preset: v6i21g_easy_cell_conversion_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after OP8/OP10/OP11 bespoke denial geometry failed, can
+    the remaining saturated cells be fixed by reusing the calibrated OP9/OP12
+    pressure shapes instead of adding more geometry?
+
+    Delta table vs v6i21G:
+      OP8 profile/dynamics are moved to OP9-like fortress pressure.
+      OP10/OP11 profile/dynamics are moved to OP12-like counter pressure.
+      Failed OP8/OP10/OP11 bespoke adaptive route overrides are disabled.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21h"
+    cfg.run_tag = "v6i21h_saturation_surrogate_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21I: OP8 extreme physical upper-bound calibration.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21i_op8_extreme_physical_calibration.
+    Parent preset: v6i21h_saturation_surrogate_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: can OP8 break saturation at all if blue carrier speed is
+    crushed and OP8 red gets explicit physical overdrive?
+
+    Delta table vs v6i21H:
+      OP8-only physical pressure lives in engine code (``_step.py``,
+      ``_bt_adaptive.py``, ``opponent_params.py``).
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration(cfg)
+    cfg.experiment_id = "v6i21i"
+    cfg.run_tag = "v6i21i_op8_extreme_physical_calibration"
+    return cfg

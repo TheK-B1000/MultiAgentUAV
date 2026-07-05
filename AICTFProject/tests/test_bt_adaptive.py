@@ -38,9 +38,29 @@ class BTAdaptiveProfileTests(unittest.TestCase):
         self.assertLessEqual(_BTAdaptiveMixin._BLUE_CARRIER_SPEED_MULT, 0.75)
         self.assertGreaterEqual(_BTAdaptiveMixin._RED_INTERCEPTOR_NEAR_FLAG_BOOST, 1.35)
         self.assertLessEqual(_BTAdaptiveMixin._RED_RESPAWN_MULT, 0.50)
-        self.assertGreaterEqual(profile_for_level(8).intercept_block_base, 0.82)
+        self.assertGreaterEqual(profile_for_level(8).intercept_block_base, 0.84)
+        self.assertFalse(profile_for_level(8).enable_counter)
+        self.assertFalse(profile_for_level(8).enable_2v1)
         self.assertGreaterEqual(profile_for_level(9).intercept_block_base, 0.84)
+        self.assertGreaterEqual(profile_for_level(10).intercept_block_base, 0.76)
+        self.assertGreaterEqual(profile_for_level(11).intercept_block_base, 0.76)
         self.assertGreaterEqual(profile_for_level(12).lock_counter, 30)
+
+    def test_v6i21h_surrogate_saturation_fix_constants(self) -> None:
+        self.assertFalse(_BTAdaptiveMixin._OP8_DUAL_DENIAL_ENABLED)
+        self.assertFalse(_BTAdaptiveMixin._OP10_ESCORT_BREAK_ENABLED)
+        self.assertFalse(_BTAdaptiveMixin._OP11_REPEAT_INTERCEPT_ENABLED)
+        self.assertTrue(profile_for_level(8).enable_mines)
+        self.assertFalse(profile_for_level(8).enable_counter)
+        self.assertTrue(profile_for_level(10).counter_always)
+        self.assertTrue(profile_for_level(11).counter_always)
+        self.assertLessEqual(profile_for_level(10).intercept_block_base, 0.80)
+        self.assertLessEqual(profile_for_level(11).intercept_block_base, 0.80)
+
+    def test_v6i21i_op8_extreme_physical_constants(self) -> None:
+        self.assertLessEqual(_BTAdaptiveMixin._OP8_BLUE_CARRIER_SPEED_MULT, 0.35)
+        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_SPEED_MULT, 1.60)
+        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST, 1.85)
 
     def test_op8_through_op12_2v2_speed_ranges_boost_red(self) -> None:
         gen = torch.Generator(device="cpu")
@@ -54,7 +74,13 @@ class BTAdaptiveProfileTests(unittest.TestCase):
                 device="cpu",
                 generator=gen,
             )
-            self.assertGreaterEqual(float(params["speed_mult"].min().item()), 1.20, key)
+            if key == "OP8":
+                self.assertGreaterEqual(float(params["speed_mult"].min().item()), 1.35, key)
+                self.assertGreaterEqual(float(params["coordinated_attack"].float().mean().item()), 0.70, key)
+            else:
+                self.assertGreaterEqual(float(params["speed_mult"].min().item()), 1.20, key)
+            if key == "OP10":
+                self.assertLessEqual(float(params["speed_mult"].max().item()), 1.25, key)
 
     def test_speed_overdrive_mask_allows_hardpool_red_to_exceed_base_cap(self) -> None:
         env = GPUCTFVecEnv(
