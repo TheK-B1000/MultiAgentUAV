@@ -1,0 +1,116 @@
+{
+  "checkpoint": "artifacts\\v6i20_asymmetry_handicap_surface_5u_seed1\\final_v6i20_asymmetry_handicap_surface_5u_seed1_2v2.zip",
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "maps": [
+    "map_b",
+    "map_b_split_lane_v2"
+  ],
+  "episodes_per_cell": 25,
+  "cells": [
+    {
+      "opponent": "OP8",
+      "map": "map_b",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 3.0,
+      "red_score_mean": 0.4,
+      "seed": 42
+    },
+    {
+      "opponent": "OP8",
+      "map": "map_b_split_lane_v2",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.76,
+      "red_score_mean": 0.44,
+      "seed": 142
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.96,
+      "red_score_mean": 0.44,
+      "seed": 1042
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b_split_lane_v2",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.96,
+      "red_score_mean": 0.28,
+      "seed": 1142
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.88,
+      "red_score_mean": 0.84,
+      "seed": 2042
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b_split_lane_v2",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 3.0,
+      "red_score_mean": 0.88,
+      "seed": 2142
+    },
+    {
+      "opponent": "OP11",
+      "map": "map_b",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.88,
+      "red_score_mean": 0.36,
+      "seed": 3042
+    },
+    {
+      "opponent": "OP11",
+      "map": "map_b_split_lane_v2",
+      "episodes": 25,
+      "win_rate": 0.96,
+      "blue_score_mean": 2.96,
+      "red_score_mean": 0.4,
+      "seed": 3142
+    },
+    {
+      "opponent": "OP12",
+      "map": "map_b",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 3.0,
+      "red_score_mean": 0.28,
+      "seed": 4042
+    },
+    {
+      "opponent": "OP12",
+      "map": "map_b_split_lane_v2",
+      "episodes": 25,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.88,
+      "red_score_mean": 0.64,
+      "seed": 4142
+    }
+  ],
+  "mean_win_rate": 0.9960000000000001,
+  "cells_in_target_band": 0,
+  "cells_saturated_95plus": 10,
+  "target_band": [
+    0.35,
+    0.65
+  ],
+  "calibration_pass": false,
+  "note": "OP8-OP12 upgraded in-place at v6i21; pre-v6i21 hardpool results not comparable."
+}

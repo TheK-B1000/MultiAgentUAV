@@ -346,8 +346,8 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.05, 0.14
                 c_prob = 0.92
             else:
-                s_low, s_high = 0.92, 1.10
-                d_low, d_high = 0.05, 0.14
+                s_low, s_high = 1.05, 1.16
+                d_low, d_high = 0.08, 0.18
                 c_prob = 0.95
         elif key in ("OP9", "OP9_FORTRESS"):
             # Adaptive fortress / flag denial: collapses cap lane after fast conversions.
@@ -367,8 +367,8 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.12, 0.26
                 c_prob = 0.88
             else:
-                s_low, s_high = 0.80, 0.98
-                d_low, d_high = 0.10, 0.24
+                s_low, s_high = 1.02, 1.12
+                d_low, d_high = 0.14, 0.30
         elif key in ("OP10", "OP10_ESCORT"):
             # Adaptive escort breaker: split pressure when blue stacks escort.
             attacker_style = 1
@@ -387,8 +387,8 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.05, 0.14
                 c_prob = 0.90
             else:
-                s_low, s_high = 0.94, 1.12
-                d_low, d_high = 0.05, 0.14
+                s_low, s_high = 1.06, 1.18
+                d_low, d_high = 0.08, 0.18
         elif key in ("OP11", "OP11_BT_BALANCED"):
             # Adaptive balanced anti-meta: lane prediction + emergency collapse.
             attacker_style = 1
@@ -411,8 +411,9 @@ def sample_batched_opponent_params(
                 sync_c_low, sync_c_high = 2, 6
                 sync_nc_low, sync_nc_high = 2, 5
             else:
-                s_low, s_high = 0.88, 1.06
-                d_low, d_high = 0.10, 0.26
+                s_low, s_high = 1.04, 1.16
+                d_low, d_high = 0.14, 0.32
+                c_prob = 0.72
         elif key in ("OP12", "OP12_COUNTER"):
             # Adaptive counter-capture: punishes blue overcommit on enemy half.
             attacker_style = 1
@@ -431,8 +432,9 @@ def sample_batched_opponent_params(
                 d_low, d_high = 0.05, 0.16
                 c_prob = 0.86
             else:
-                s_low, s_high = 0.90, 1.10
-                d_low, d_high = 0.05, 0.15
+                s_low, s_high = 1.06, 1.20
+                d_low, d_high = 0.08, 0.20
+                c_prob = 0.90
         elif key == "OP4":
             # Held-out eval opponent: never used in training. Make it deliberately broad and
             # stochastic so robustness matters more than memorizing one scripted style.

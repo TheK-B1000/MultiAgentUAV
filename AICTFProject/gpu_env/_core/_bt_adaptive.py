@@ -22,13 +22,35 @@ class _BTAdaptiveMixin:
     """Episode-local adaptive blackboard for levels 8..12."""
 
     _ADAPTIVE_LEVEL_MIN = 8
-    _LANE_EMA_ALPHA = 0.08
-    _CARRIER_EMA_ALPHA = 0.12
-    _NEAR_CAP_DIST = 5.0
-    _FAST_CONVERSION_STEPS = 45
-    _REPEAT_LANE_STREAK = 8
-    _HIGH_ESCORT_DENSITY = 0.45
-    _HIGH_OVERCOMMIT = 0.55
+    _LANE_EMA_ALPHA = 0.12
+    _CARRIER_EMA_ALPHA = 0.18
+    _NEAR_CAP_DIST = 7.0
+    _FAST_CONVERSION_STEPS = 60
+    _REPEAT_LANE_STREAK = 4
+    _HIGH_ESCORT_DENSITY = 0.35
+    _HIGH_OVERCOMMIT = 0.40
+    _BLUE_CARRIER_SPEED_MULT = 0.95
+    _ADAPTIVE_HARDPOOL_KEYS = frozenset(
+        {
+            "OP8",
+            "OP8_INTERCEPTOR",
+            "OP9",
+            "OP9_FORTRESS",
+            "OP10",
+            "OP10_ESCORT",
+            "OP11",
+            "OP11_BT_BALANCED",
+            "OP12",
+            "OP12_COUNTER",
+        }
+    )
+
+    def _adaptive_hardpool_pressure_mask(self) -> torch.Tensor:
+        return torch.as_tensor(
+            [str(k).strip().upper() in self._ADAPTIVE_HARDPOOL_KEYS for k in self._opponent_key],
+            dtype=torch.bool,
+            device=self.device,
+        )
 
     def _alloc_adaptive_memory(self, B: int, dev: torch.device) -> None:
         f32 = torch.float32
@@ -142,16 +164,11 @@ class _BTAdaptiveMixin:
                 self.bt_adapt_escort_density,
             )
 
-        own_flag_home = (
-            torch.abs(self.red_flag_pos[:, 0] - self.red_flag_home[:, 0]) < 1.5
-        ) & (
-            torch.abs(self.red_flag_pos[:, 1] - self.red_flag_home[:, 1]) < 1.5
-        )
         over = blue_on_enemy.sum(dim=1).float() / blue_alive.sum(dim=1).float().clamp(min=1.0)
         self.bt_adapt_overcommit = torch.where(
-            active & (~own_flag_home),
+            active,
             (1.0 - alpha_lane) * self.bt_adapt_overcommit + alpha_lane * over,
-            self.bt_adapt_overcommit * 0.98,
+            self.bt_adapt_overcommit,
         )
 
         home_dx = self.blue_flag_home[:, 0] - ec_x
@@ -196,7 +213,7 @@ class _BTAdaptiveMixin:
             active
             & bb["blue_carry_any"]
             & (
-                (self.bt_adapt_near_cap_ticks >= 2)
+                (self.bt_adapt_near_cap_ticks >= 1)
                 | (bb["ec_to_home_dist"] < self._NEAR_CAP_DIST)
             )
         )
@@ -215,7 +232,7 @@ class _BTAdaptiveMixin:
             adapt_fast_conversion=fast_blue,
             adapt_intercept_block_boost=torch.where(
                 emergency_collapse | fast_blue,
-                torch.full((self.B,), 0.18, device=self.device),
+                torch.full((self.B,), 0.28, device=self.device),
                 torch.zeros((self.B,), device=self.device),
             ),
         )
@@ -239,7 +256,13 @@ class _BTAdaptiveMixin:
         eligible = self.red_alive & (~self.red_tagged)
 
         # Emergency near-cap: pull a second agent into intercept when carrier is close.
-        need_extra_int = bb["adapt_emergency_collapse"] & bb["blue_carry_any"] & prof["enable_intercept"]
+        counter_already_assigned = (out == ROLE_COUNTER).any(dim=1)
+        need_extra_int = (
+            bb["adapt_emergency_collapse"]
+            & bb["blue_carry_any"]
+            & prof["enable_intercept"]
+            & (~counter_already_assigned)
+        )
         if need_extra_int.any():
             mid_x = bb["ec_x"] + (bb["blue_flag_home"][:, 0] - bb["ec_x"]) * 0.35
             mid_y = bb["ec_y"] + (bb["blue_flag_home"][:, 1] - bb["ec_y"]) * 0.35
@@ -262,8 +285,6 @@ class _BTAdaptiveMixin:
         is_op12ish = prof["is_op12"] | (prof["bt_level"] == 12)
         counter_push = (
             bb["adapt_high_overcommit"]
-            & bb["own_flag_at_home"]
-            & bb["blue_carry_any"]
             & prof["enable_counter"]
             & is_op12ish
         )
@@ -332,7 +353,7 @@ class _BTAdaptiveMixin:
             prof["intercept_block_base"]
             + prof["intercept_block_trailing_bonus"] * bb["trailing"].float()
             + block_boost
-        ).clamp(max=0.92)
+        ).clamp(max=0.96)
 
         lane_y = bb["adapt_preferred_lane_y"]
         repeat = bb["adapt_repeat_lane"]
@@ -350,7 +371,7 @@ class _BTAdaptiveMixin:
             )
             by = torch.where(
                 bb["adapt_emergency_collapse"],
-                bb["ec_y"] + (bb["blue_flag_home"][:, 1] - bb["ec_y"]) * 0.15,
+                bb["ec_y"] + (bb["blue_flag_home"][:, 1] - bb["ec_y"]) * 0.08,
                 by,
             )
             tx[:, j] = torch.where(int_mask, torch.clamp(bx, 0.0, max_x), tx[:, j])

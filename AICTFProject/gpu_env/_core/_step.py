@@ -115,6 +115,15 @@ class _StepMixin:
     def _advance_dynamics_phase(self, targets: Dict[str, torch.Tensor], snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         bscale = self.rt_blue_speed_scale.reshape(self.B, 1).expand_as(self.blue_speed)
         blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps)) * bscale
+        if hasattr(self, "_adaptive_hardpool_pressure_mask"):
+            hardpool_pressure = self._adaptive_hardpool_pressure_mask()
+            blue_carrier = self.blue_carrying & self.blue_alive & (~self.blue_tagged)
+            carrier_penalty = torch.where(
+                hardpool_pressure[:, None] & blue_carrier,
+                torch.full_like(blue_speed_cap, float(getattr(self, "_BLUE_CARRIER_SPEED_MULT", 0.95))),
+                torch.ones_like(blue_speed_cap),
+            )
+            blue_speed_cap = blue_speed_cap * carrier_penalty
         B = self.B
         rm = self.red_speed_mult.reshape(-1).to(device=self.red_speed.device, dtype=self.red_speed.dtype)
         if rm.numel() < B:

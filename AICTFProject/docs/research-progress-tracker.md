@@ -1608,7 +1608,83 @@ Target: mean blue WR 35-65%, hard cells below 50%, no cell 95%+, red scores
 sometimes. Do **not** launch router or specialist training until calibration
 passes.
 
-**Status:** implemented + pinned tests; calibration eval pending.
+**Calibration eval (v6i9 generalist, 2026-07-04):** `EVALUATED_FAIL` — still
+too easy. 10 cells × 25 episodes; mean blue WR **99.2%**; **0/10** cells in
+35–65% band; **10/10** cells ≥95%. Red scores occasionally (0.28–0.92 mean) but
+never threatens wins. Blue margin ~2.6–3.0. OP8–OP12 show no meaningful
+difficulty spread (all saturated). Artifact:
+`artifacts/v6i21_adaptive_hardpool_calibration/calibration_report.json`.
+
+| Cell | map | WR | blue | red |
+|------|-----|-----|------|-----|
+| OP8 | map_b | 100% | 3.00 | 0.40 |
+| OP8 | split_lane_v2 | 96% | 2.76 | 0.44 |
+| OP9 | map_b | 100% | 2.96 | 0.44 |
+| OP9 | split_lane_v2 | 100% | 2.96 | 0.32 |
+| OP10 | map_b | 100% | 2.88 | 0.80 |
+| OP10 | split_lane_v2 | 100% | 3.00 | 0.92 |
+| OP11 | map_b | 100% | 2.88 | 0.32 |
+| OP11 | split_lane_v2 | 96% | 2.96 | 0.32 |
+| OP12 | map_b | 100% | 3.00 | 0.28 |
+| OP12 | split_lane_v2 | 100% | 2.88 | 0.64 |
+
+**Verdict:** OP8–OP12 v2 adaptive hardpool is **not yet hard enough** for the
+already-trained v6i9 champion. Do **not** touch router or z-specialist birth
+until calibration passes.
+
+**v6i21B pressure tuning (2026-07-04):** implemented as an in-place calibration
+patch over the same OP8-OP12 IDs, not a new PPO preset. The patch lowers adaptive
+trigger thresholds, makes near-cap collapse fire earlier, strengthens intercept
+block points, lets OP12 counter-push on blue overcommit before a blue flag grab,
+removes 2v2 sub-base red speed ranges for OP8-OP12, and applies a hardpool-only
+blue carrier speed multiplier of 0.95 while blue carries the red flag. Touched
+files: `gpu_env/_core/_bt_adaptive.py`, `gpu_env/_core/_bt_profiles.py`,
+`gpu_env/_core/_step.py`, `opponent_params.py`. Calibration artifact target:
+`artifacts/v6i21B_adaptive_hardpool_pressure_tuning`.
+
+**v6i21B calibration command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21B_adaptive_hardpool_pressure_tuning
+```
+
+**Calibration eval (v6i9 generalist, v6i21B engine, 2026-07-05):** `EVALUATED_FAIL`
+— marginal improvement only. 10 cells × 25 episodes; mean blue WR **98.0%**
+(vs 99.2% pre-v6i21B); **0/10** in 35–65% band; **9/10** ≥95% (vs 10/10).
+OP12 shows strongest red pressure (1.40–1.60 mean red vs 0.28–0.64 pre-v6i21B);
+OP9 split_lane dropped to 92%. Still Bad Result A. Artifact:
+`artifacts/v6i21B_adaptive_hardpool_pressure_tuning/calibration_report.json`.
+
+| Cell | map | WR | blue | red |
+|------|-----|-----|------|-----|
+| OP8 | map_b | 100% | 2.88 | 0.52 |
+| OP8 | split_lane_v2 | 100% | 2.92 | 0.48 |
+| OP9 | map_b | 96% | 2.84 | 0.68 |
+| OP9 | split_lane_v2 | 92% | 2.68 | 0.76 |
+| OP10 | map_b | 100% | 3.00 | 0.72 |
+| OP10 | split_lane_v2 | 100% | 3.00 | 0.96 |
+| OP11 | map_b | 100% | 3.00 | 0.48 |
+| OP11 | split_lane_v2 | 96% | 2.88 | 0.80 |
+| OP12 | map_b | 100% | 3.00 | 1.60 |
+| OP12 | split_lane_v2 | 96% | 2.96 | 1.40 |
+
+**Calibration eval (v6i20 5u checkpoint, 2026-07-05):** `EVALUATED_FAIL` — mean
+blue WR **99.6%**; **0/10** in-band; **10/10** saturated. Artifact:
+`artifacts/v6i21_adaptive_hardpool_calibration_v6i20/calibration_report.json`.
+
+**Calibration eval (v6i9 repertoire, 2026-07-05):** `EVALUATED_FAIL` — mean
+blue WR **99.2%**; **0/10** in-band; **10/10** saturated. Artifact:
+`artifacts/v6i21_adaptive_hardpool_calibration_v6i9_repertoire/calibration_report.json`.
+
+**Multi-anchor verdict:** OP8–OP12 v2 adaptive hardpool is **not hard enough**
+against any of the three blue anchors (v6i9 generalist, v6i9 repertoire, v6i20
+surface). Saturation is checkpoint-agnostic, not anchor-specific.
+
+**Status:** v6i21B implemented and calibrated; focused tests passed; **v6i21B
+pressure patch failed WR gate (98.0% mean, 9/10 saturated)** plus v6i20 and
+v6i9-repertoire anchor runs also failed. Router and specialist birth remain
+blocked — next step is a stronger pressure pass (v6i21C) or structural hardpool
+change, not router/specialist work.
 
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
