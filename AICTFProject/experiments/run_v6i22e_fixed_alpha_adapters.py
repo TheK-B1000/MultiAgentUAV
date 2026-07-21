@@ -279,9 +279,10 @@ def _stage2_adapter_trunk_norm_ratio(trainer, device: str, latent_k: int) -> dic
                 contribution = alpha * a_norm / max(h_norm, 1e-8)
                 hidden_norms.append(h_norm)
                 adapter_norms.append(a_norm)
+                label = "MEANINGFUL (>1%)" if contribution > 0.01 else "NEGLIGIBLE (<1%)"
                 print(f"  z{z}: |h|={h_norm:.4f}  |A_z(h)|={a_norm:.4f}  "
                       f"alpha*|A_z(h)|/|h|={contribution:.4f}  "
-                      f"({'MEANINGFUL (>1%)' if contribution > 0.01 else 'NEGLIGIBLE (<1%)')}")
+                      f"({label})")
             else:
                 hidden_norms.append(float("nan"))
                 adapter_norms.append(float("nan"))
