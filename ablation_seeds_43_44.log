@@ -64,3 +64,58 @@ Traceback (most recent call last):
   File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\console.py", line 2038, in _check_buffer
   File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\console.py", line 2067, in _write_buffer
 ImportError: sys.meta_path is None, Python is likely shutting down
+[PPO] Agents: 2 per team (2v2) | mode=CURRICULUM_LEAGUE | run_tag='ppo_ablate_ours_seed44_2v2'
+[PPO] Reward ablation: full (defaults)
+[PPO] Total timesteps: 1,000,000
+[PPO] Saves: final_ppo_ablate_ours_seed44_2v2.zip | snapshots/ckpts: ppo_ablate_ours_seed44_2v2_*
+[PPO] Checkpoint dir: checkpoints_sb3\2v2
+[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.
+[PPO] Progress: steps every 50k timesteps; W/L/D summary + per-phase (OP1/OP2/OP3) every 1000 episodes.
+[League] 2v2: using league mix (OP3=60%, species=20%, snapshots=20%)
+[PPO] Using GPU-native batched env: n_envs=8, agents=2v2, device=cuda
+[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=2, clip_range=0.10, ent_coef=0.005, batch_size=1024, target_kl=0.02
+[PPO] Phase OP1 complete: W=200 L=0 D=0 WR=100.0%
+[PPO] Phase OP2 complete: W=200 L=0 D=0 WR=100.0%
+[PPO] ep=1000 mode=CURR phase=OP3 opp=OP3 | total W=734 L=185 D=81 WR=73.4%
+[PPO] ep=2000 mode=CURR phase=OP3 opp=OP3 | total W=1267 L=498 D=235 WR=63.3%
+[PPO] ep=3000 mode=CURR phase=OP3 opp=OP3 | total W=1809 L=815 D=376 WR=60.3%
+[PPO] ep=4000 mode=CURR phase=OP3 opp=OP3 | total W=2363 L=1129 D=508 WR=59.1%
+[PPO] ep=5000 mode=CURR phase=OP3 opp=OP3 | total W=2910 L=1412 D=678 WR=58.2%
+[PPO] ep=6000 mode=CURR phase=OP3 opp=OP3 | total W=3461 L=1732 D=807 WR=57.7%
+[PPO] ep=7000 mode=CURR phase=OP3 opp=OP3 | total W=4017 L=2030 D=953 WR=57.4%
+[PPO] ep=8000 mode=CURR phase=OP3 opp=OP3 | total W=4544 L=2365 D=1091 WR=56.8%
+[PPO] ep=9000 mode=CURR phase=OP3 opp=OP3 | total W=5104 L=2662 D=1234 WR=56.7%
+[PPO] ep=10000 mode=CURR phase=OP3 opp=OP3 | total W=5628 L=2990 D=1382 WR=56.3%
+[PPO] OOM. Model saved to: checkpoints_sb3\2v2\oom_save_ppo_ablate_ours_seed44_2v2.zip
+[PPO] To continue: restart with lower memory (e.g. --device cpu, or reduce n_envs/n_steps in code for 8v8). Load the saved .zip and train with remaining steps if your setup supports resume.
+Traceback (most recent call last):
+  File "K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py", line 2374, in <module>
+    train_ppo(cfg)
+  File "K:\MultiAgentUAV\AICTFProject\rl\train_ppo.py", line 2115, in train_ppo
+    model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks, **learn_kwargs)
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\stable_baselines3\ppo\ppo.py", line 311, in learn
+    return super().learn(
+           ^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\stable_baselines3\common\on_policy_algorithm.py", line 337, in learn
+    self.train()
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\stable_baselines3\ppo\ppo.py", line 207, in train
+    for rollout_data in self.rollout_buffer.get(self.batch_size):
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\stable_baselines3\common\buffers.py", line 814, in get
+    self.observations[key] = self.swap_and_flatten(obs)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\stable_baselines3\common\buffers.py", line 75, in swap_and_flatten
+    return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+numpy._core._exceptions._ArrayMemoryError: Unable to allocate 350. MiB for an array with shape (8, 2048, 2, 7, 20, 20) and data type float32
+Exception ignored in: <function tqdm.__del__ at 0x00000134FB758A40>
+Traceback (most recent call last):
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\tqdm\std.py", line 1148, in __del__
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\tqdm\rich.py", line 121, in close
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\progress.py", line 1189, in __exit__
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\progress.py", line 1175, in stop
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\live.py", line 162, in stop
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\console.py", line 870, in __exit__
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\console.py", line 826, in _exit_buffer
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\console.py", line 2038, in _check_buffer
+  File "K:\MultiAgentUAV\AICTFProject\.venv\Lib\site-packages\rich\console.py", line 2067, in _write_buffer
+ImportError: sys.meta_path is None, Python is likely shutting down

@@ -195,16 +195,25 @@ python rl/run_ablations.py --dry-run --agents 2
 python rl/run_ablations.py --list
 ```
 
-**Run the full matrix (2v2):**
+**Run the full matrix sequentially (one GPU job at a time — recommended):**
 
 ```bash
-python rl/run_ablations.py --agents 2 --total-steps 1000000
+# Stop any other training first, then:
+python rl/run_ablations.py --full --agents 2 --total-steps 1000000 --n-envs 4 --resume-oom --skip-finished
 ```
+
+This queues all 4 arms × seeds 42/43/44 (12 jobs), runs them **one-by-one**, auto-loads `oom_save_*.zip` when present, skips arms that already have `final_*.zip`, and **stops on the first failure** so a later arm does not start after an OOM.
 
 **Subset / multi-seed:**
 
 ```bash
 python rl/run_ablations.py --only ours,no_shaping --seeds 42,43 --agents 2
+```
+
+Preview:
+
+```bash
+python rl/run_ablations.py --dry-run --full --n-envs 4 --resume-oom
 ```
 
 **Single training run with reward ablation:**

@@ -540,6 +540,18 @@ class BatchedCTFCore:
             "n_agents": torch.tensor(self.Nb, device=self.device),
         }
 
+    def _prune_stale_snapshot_cache(self) -> None:
+        """Evict cached policies whose backing file has been deleted (e.g. by
+        LeagueCallback._enforce_league_snapshot_limit rotating out old league
+        snapshots). Without this, every unique snapshot path ever loaded during
+        a run accumulates a full loaded SB3 model in host RAM forever, which is
+        a slow, unbounded memory leak over long league-mode training runs."""
+        if not self._snapshot_policy_cache:
+            return
+        stale = [path for path in self._snapshot_policy_cache if not os.path.isfile(path)]
+        for path in stale:
+            del self._snapshot_policy_cache[path]
+
     def _load_snapshot_policy(self, snapshot_key: str) -> Optional[Any]:
         resolved = _resolve_snapshot_path(snapshot_key)
         if resolved is None:
@@ -548,6 +560,7 @@ class BatchedCTFCore:
             mtime = float(os.path.getmtime(resolved))
         except OSError:
             return None
+        self._prune_stale_snapshot_cache()
         cached = self._snapshot_policy_cache.get(resolved)
         if cached is not None:
             cached_mtime, cached_model = cached

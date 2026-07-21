@@ -1,0 +1,12 @@
+[PPO] Agents: 2 per team (2v2) | mode=CURRICULUM_NO_LEAGUE | run_tag='ppo_ablate_no_league_2v2'
+[PPO] Reward ablation: full (defaults)
+[PPO] Total timesteps: 1,000,000
+[PPO] Saves: final_ppo_ablate_no_league_2v2.zip | snapshots/ckpts: ppo_ablate_no_league_2v2_*
+[PPO] Checkpoint dir: K:\MultiAgentUAV\AICTFProject\checkpoints_sb3\2v2
+[PPO] Quiet mode: no per-episode logs (faster). Use --verbose-training to enable.
+[PPO] Progress: steps every 50k timesteps; W/L/D summary + per-phase (OP1/OP2/OP3) every 1000 episodes.
+[PPO] Using GPU-native batched env: n_envs=32, agents=2v2, device=cuda
+[PPO] Using stable MARL PPO: lr=1.5e-4, n_epochs=2, clip_range=0.10, ent_coef=0.005, batch_size=1024, target_kl=0.02
+[PPO] Phase OP1 complete: W=200 L=0 D=0 WR=100.0%
+[PPO] Phase OP2 complete: W=200 L=0 D=0 WR=100.0%
+[PPO] ep=1000 mode=PAPER phase=OP3 opp=OP3 W=738 L=192 D=70 WR=73.8%

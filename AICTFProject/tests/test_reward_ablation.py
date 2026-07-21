@@ -77,6 +77,13 @@ def test_ablation_matrix_covers_reviewer_axes():
 def test_build_command_and_select():
     specs = select_ablations("ours,no_shaping")
     assert [s.name for s in specs] == ["ours", "no_shaping"]
+    # --only order is preserved (non-league-first queues rely on this)
+    assert [s.name for s in select_ablations("no_league,no_curriculum,ours,no_shaping")] == [
+        "no_league",
+        "no_curriculum",
+        "ours",
+        "no_shaping",
+    ]
     cmd = build_command(
         specs[1],
         n_agents=2,
@@ -86,11 +93,16 @@ def test_build_command_and_select():
         device="cpu",
         checkpoint_dir=None,
         python_exe=sys.executable,
+        n_envs=4,
+        load_path="checkpoints_sb3/2v2/oom_save_foo.zip",
     )
     assert "--reward-ablation" in cmd
     assert "no_shaping" in cmd
+    assert "--n-envs" in cmd and "4" in cmd
+    assert "--load" in cmd
     assert build_run_tag(specs[0], 2, 42, 1) == "ppo_ablate_ours_2v2"
     assert build_run_tag(specs[0], 2, 43, 2) == "ppo_ablate_ours_seed43_2v2"
+    assert build_run_tag(specs[0], 2, 43, 1) == "ppo_ablate_ours_seed43_2v2"
 
 
 def test_resolve_python_prefers_project_venv():

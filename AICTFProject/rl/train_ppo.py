@@ -1951,6 +1951,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     load_path = getattr(cfg, "load_path", None)
     if load_path and os.path.isfile(load_path):
         from stable_baselines3 import PPO as _PPO
+        from stable_baselines3.common.buffers import DictRolloutBuffer, RolloutBuffer
         print(f"[PPO] Resuming from checkpoint: {load_path}")
         model = _PPO.load(
             load_path,
@@ -1964,6 +1965,30 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         )
         # Ensure cfg/run_tag/checkpoint_dir are kept from current run, not from the checkpoint.
         model.cfg = cfg
+        # Rollout shape may change on relaunch (e.g. 8x2048 -> 32x512). Rebuild the
+        # rollout buffer so resume does not keep the old buffer geometry.
+        model.n_steps = int(cfg.n_steps)
+        model.n_envs = int(venv.num_envs)
+        model.batch_size = int(batch_size)
+        try:
+            from gymnasium import spaces as _gym_spaces
+            use_dict = isinstance(venv.observation_space, _gym_spaces.Dict)
+        except Exception:
+            use_dict = hasattr(venv.observation_space, "spaces")
+        rb_cls = DictRolloutBuffer if use_dict else RolloutBuffer
+        model.rollout_buffer = rb_cls(
+            model.n_steps,
+            model.observation_space,
+            model.action_space,
+            device=model.device,
+            gae_lambda=float(model.gae_lambda),
+            gamma=float(model.gamma),
+            n_envs=int(model.n_envs),
+        )
+        print(
+            f"[PPO] Resume rollout rebuild: n_envs={model.n_envs} n_steps={model.n_steps} "
+            f"batch_size={model.batch_size} buffer={rb_cls.__name__}"
+        )
     else:
         model = PPO(
             policy=MaskedMultiInputPolicy,
@@ -2112,14 +2137,34 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
 
     try:
         try:
-            model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks, **learn_kwargs)
+            learn_timesteps = int(cfg.total_timesteps)
+            # SB3 semantics: with reset_num_timesteps=False, learn(N) trains until
+            # num_timesteps reaches (current + N). Pass the *remaining* budget so we
+            # stop at cfg.total_timesteps instead of training another full N steps.
+            if load_path and os.path.isfile(load_path):
+                already = int(getattr(model, "num_timesteps", 0) or 0)
+                target = int(cfg.total_timesteps)
+                remaining = max(0, target - already)
+                learn_kwargs["reset_num_timesteps"] = False
+                print(
+                    f"[PPO] Resume mode: already={already:,} target={target:,} "
+                    f"remaining={remaining:,} (SB3 adds remaining onto num_timesteps)"
+                )
+                if remaining <= 0:
+                    print(f"[PPO] Checkpoint already at/past target ({already:,}>={target:,}); skipping learn().")
+                    learn_timesteps = 0
+                else:
+                    learn_timesteps = remaining
+            if learn_timesteps > 0:
+                model.learn(total_timesteps=learn_timesteps, callback=callbacks, **learn_kwargs)
         except (TypeError, ImportError) as prog_exc:
             # Older SB3 may not accept progress_bar; or tqdm/rich missing (SB3 adds ProgressBarCallback).
             if learn_kwargs.get("progress_bar") and ("progress_bar" in str(prog_exc) or "tqdm" in str(prog_exc).lower() or "rich" in str(prog_exc).lower()):
-                model.learn(total_timesteps=int(cfg.total_timesteps), callback=callbacks)
+                resume_kw = {k: v for k, v in learn_kwargs.items() if k != "progress_bar"}
+                model.learn(total_timesteps=int(learn_timesteps), callback=callbacks, **resume_kw)
             else:
                 raise
-    except (MemoryError, torch.cuda.OutOfMemoryError, RuntimeError) as exc:
+    except (MemoryError, torch.cuda.OutOfMemoryError, RuntimeError, OSError) as exc:
         # Treat both CUDA OOM and CPU/NumPy memory errors (e.g. ArrayMemoryError) as OOM so we always try to save.
         _exc_name_lower = type(exc).__name__.lower()
         _msg_lower = str(exc).lower()
@@ -2304,6 +2349,18 @@ if __name__ == "__main__":
         )
         parser.add_argument("--seed", type=int, default=None, help="RNG seed (default: 42)")
         parser.add_argument(
+            "--n-envs",
+            type=int,
+            default=None,
+            help="Parallel envs (default: 8). Lower (e.g. 4 or 2) reduces host-RAM for rollout buffers.",
+        )
+        parser.add_argument(
+            "--n-steps",
+            type=int,
+            default=None,
+            help="Rollout length per env (default: 2048). Lower reduces host-RAM.",
+        )
+        parser.add_argument(
             "--agents",
             type=int,
             default=None,
@@ -2329,6 +2386,10 @@ if __name__ == "__main__":
         cfg.reward_ablation = normalize_reward_ablation(args.reward_ablation)
         if args.seed is not None:
             cfg.seed = int(args.seed)
+        if args.n_envs is not None:
+            cfg.n_envs = max(1, int(args.n_envs))
+        if args.n_steps is not None:
+            cfg.n_steps = max(64, int(args.n_steps))
         if args.mode is not None:
             if args.run_tag is not None:
                 cfg.run_tag = args.run_tag
