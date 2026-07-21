@@ -155,6 +155,63 @@ class TrainMode(str, Enum):
     SELF_PLAY = "SELF_PLAY"                   # Self-play: vs past snapshots of self
 
 
+# Reward leave-one-out presets applied to GPUFieldConfig.
+# "full" keeps dataclass defaults. "no_shaping" zeros dense/PBRS/team heuristics
+# while keeping terminal + sparse offense events. "terminal" keeps win/lose/draw only.
+REWARD_ABLATION_PRESETS: Dict[str, Dict[str, float]] = {
+    "full": {},
+    "no_shaping": {
+        "pbrs_attack_coef": 0.0,
+        "pbrs_return_coef": 0.0,
+        "pbrs_defense_coef": 0.0,
+        "team_defense_presence_reward": 0.0,
+        "team_escort_reward": 0.0,
+        "team_intercept_reward": 0.0,
+        "spin_penalty_coef": 0.0,
+        "idle_penalty_coef": 0.0,
+        "stalemate_penalty": 0.0,
+    },
+    "terminal": {
+        "pbrs_attack_coef": 0.0,
+        "pbrs_return_coef": 0.0,
+        "pbrs_defense_coef": 0.0,
+        "team_defense_presence_reward": 0.0,
+        "team_escort_reward": 0.0,
+        "team_intercept_reward": 0.0,
+        "spin_penalty_coef": 0.0,
+        "idle_penalty_coef": 0.0,
+        "stalemate_penalty": 0.0,
+        "flag_pickup_reward": 0.0,
+        "flag_carry_home_reward": 0.0,
+        "enemy_mav_kill_reward": 0.0,
+        "enabled_mine_reward": 0.0,
+        "action_failed_punishment": 0.0,
+        "sparse_weight": 0.0,
+    },
+}
+REWARD_ABLATION_ALIASES: Dict[str, str] = {
+    "shaped": "full",
+    "sparse": "no_shaping",
+    "no_dense": "no_shaping",
+    "dense_off": "no_shaping",
+    "winlose": "terminal",
+    "terminal_only": "terminal",
+}
+
+
+def normalize_reward_ablation(name: Optional[str]) -> str:
+    raw = str(name or "full").strip().lower().replace("-", "_")
+    return REWARD_ABLATION_ALIASES.get(raw, raw)
+
+
+def reward_overrides_for_ablation(name: Optional[str]) -> Dict[str, float]:
+    key = normalize_reward_ablation(name)
+    if key not in REWARD_ABLATION_PRESETS:
+        known = ", ".join(sorted(REWARD_ABLATION_PRESETS))
+        raise ValueError(f"Unknown reward ablation {name!r}. Expected one of: {known}")
+    return dict(REWARD_ABLATION_PRESETS[key])
+
+
 @dataclass
 class PPOConfig:
     seed: int = 42
@@ -212,10 +269,13 @@ class PPOConfig:
     max_blue_agents: int = 2
     print_reset_shapes: bool = False
     reward_mode: str = "TEAM_SUM"
+    # Reward ablation: full | no_shaping | terminal (see REWARD_ABLATION_PRESETS).
+    reward_ablation: str = "full"
     use_obs_builder: bool = True
     include_opponent_context: bool = False
     obs_debug_validate_locality: bool = False
     normalize_vec: bool = False
+    load_path: Optional[str] = None
 
     enable_opponent_tracking: bool = True
     opponent_tracking_window: int = 100
@@ -1629,6 +1689,10 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
     print(f"[PPO] Agents: {max_agents} per team ({team_size}) | mode={mode} | run_tag={cfg.run_tag!r}")
     if raw_mode != mode:
         print(f"[PPO] Mode alias normalized: {raw_mode} -> {mode}")
+    reward_key = normalize_reward_ablation(getattr(cfg, "reward_ablation", "full"))
+    cfg.reward_ablation = reward_key
+    reward_overrides = reward_overrides_for_ablation(reward_key)
+    print(f"[PPO] Reward ablation: {reward_key}" + (f" overrides={reward_overrides}" if reward_overrides else " (defaults)"))
     print(f"[PPO] Total timesteps: {cfg.total_timesteps:,}")
     print(f"[PPO] Saves: final_{cfg.run_tag}.zip | snapshots/ckpts: {cfg.run_tag}_*")
     print(f"[PPO] Checkpoint dir: {cfg.checkpoint_dir}")
@@ -1790,6 +1854,7 @@ def train_ppo(cfg: Optional[PPOConfig] = None) -> None:
         rules_profile="OURS",
         device=str(cfg.device),
         seed=int(cfg.seed),
+        **reward_overrides,
     )
     print(f"[PPO] Using GPU-native batched env: n_envs={gpu_cfg.n_envs}, agents={gpu_cfg.max_blue_agents}v{gpu_cfg.max_red_agents}, device={gpu_cfg.device}")
     venv = VecMonitor(GPUCTFVecEnv(gpu_cfg))
@@ -2161,7 +2226,7 @@ def _ensure_run_tag_has_agent_suffix(run_tag: str, n_agents: int) -> str:
 
 def _normalize_train_mode(mode: str) -> str:
     """Accept friendly CLI aliases and map them to the internal canonical mode names."""
-    raw = str(mode).upper().strip()
+    raw = str(mode).upper().strip().replace("-", "_")
     aliases = {
         "LEAGUE": TrainMode.CURRICULUM_LEAGUE.value,
         "CURRICULUM_LEAGUE": TrainMode.CURRICULUM_LEAGUE.value,
@@ -2170,26 +2235,48 @@ def _normalize_train_mode(mode: str) -> str:
         "CURRICULUM_NO_LEAGUE": TrainMode.CURRICULUM_NO_LEAGUE.value,
         "FIXED": TrainMode.FIXED_OPPONENT.value,
         "FIXED_OPPONENT": TrainMode.FIXED_OPPONENT.value,
+        "NO_CURRICULUM": TrainMode.FIXED_OPPONENT.value,
         "SELFPLAY": TrainMode.SELF_PLAY.value,
-        "SELF-PLAY": TrainMode.SELF_PLAY.value,
         "SELF_PLAY": TrainMode.SELF_PLAY.value,
     }
     return aliases.get(raw, raw)
 
 
-def _default_run_tag_for_mode(mode: str, fixed_opponent_tag: str = "OP3", n_agents: int = 2) -> str:
+def _append_reward_ablation_to_run_tag(run_tag: str, reward_ablation: str, n_agents: int) -> str:
+    """Insert _rew_<ablation> before the agent suffix when reward != full."""
+    key = normalize_reward_ablation(reward_ablation)
+    if key == "full":
+        return run_tag
+    token = f"_rew_{key}"
+    if token in run_tag:
+        return run_tag
+    suffix = _agents_suffix(n_agents)
+    tag_suffix = f"_{suffix}"
+    if run_tag.endswith(tag_suffix):
+        return run_tag[: -len(tag_suffix)] + token + tag_suffix
+    return run_tag + token
+
+
+def _default_run_tag_for_mode(
+    mode: str,
+    fixed_opponent_tag: str = "OP3",
+    n_agents: int = 2,
+    reward_ablation: str = "full",
+) -> str:
     """Return a unique default run_tag per mode and agent size so runs don't overwrite each other."""
     m = _normalize_train_mode(mode)
     suffix = _agents_suffix(n_agents)
     if m == TrainMode.CURRICULUM_LEAGUE.value:
-        return f"ppo_league_{suffix}"
-    if m == TrainMode.CURRICULUM_NO_LEAGUE.value:
-        return f"ppo_paper_{suffix}"
-    if m == TrainMode.FIXED_OPPONENT.value:
-        return f"ppo_fixed_{fixed_opponent_tag.lower()}_{suffix}"
-    if m == TrainMode.SELF_PLAY.value:
-        return f"ppo_self_play_{suffix}"
-    return f"ppo_run_{suffix}"
+        tag = f"ppo_league_{suffix}"
+    elif m == TrainMode.CURRICULUM_NO_LEAGUE.value:
+        tag = f"ppo_paper_{suffix}"
+    elif m == TrainMode.FIXED_OPPONENT.value:
+        tag = f"ppo_fixed_{fixed_opponent_tag.lower()}_{suffix}"
+    elif m == TrainMode.SELF_PLAY.value:
+        tag = f"ppo_self_play_{suffix}"
+    else:
+        tag = f"ppo_run_{suffix}"
+    return _append_reward_ablation_to_run_tag(tag, reward_ablation, n_agents)
 
 
 if __name__ == "__main__":
@@ -2202,13 +2289,20 @@ if __name__ == "__main__":
     else:
         parser = argparse.ArgumentParser(description="Train PPO (CTF)")
         parser.add_argument("--mode", type=str, default=None,
-                            help="Train mode: CURRICULUM_LEAGUE (League), CURRICULUM_NO_LEAGUE (Paper=curriculum no league), FIXED_OPPONENT, SELF_PLAY")
+                            help="Train mode: CURRICULUM_LEAGUE (League), CURRICULUM_NO_LEAGUE (Paper), FIXED_OPPONENT / NO_CURRICULUM, SELF_PLAY")
         parser.add_argument("--run-tag", type=str, default=None,
                             help="Run name for checkpoints (default: unique per mode)")
         parser.add_argument("--total-steps", type=int, default=None, help="Total timesteps")
         parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory for checkpoints/snapshots (e.g. /content/drive/MyDrive/ppo_checkpoints)")
         parser.add_argument("--load", type=str, default=None, help="Optional path to a .zip checkpoint to resume from")
         parser.add_argument("--fixed-opponent", type=str, default="OP3", help="For FIXED_OPPONENT mode (e.g. OP1, OP2, OP3)")
+        parser.add_argument(
+            "--reward-ablation",
+            type=str,
+            default="full",
+            help="Reward preset: full (default), no_shaping (zero PBRS/team dense), terminal (win/lose/draw only)",
+        )
+        parser.add_argument("--seed", type=int, default=None, help="RNG seed (default: 42)")
         parser.add_argument(
             "--agents",
             type=int,
@@ -2232,12 +2326,18 @@ if __name__ == "__main__":
             cfg.max_blue_agents = n
         elif getattr(args, "agents", None) is not None:
             cfg.max_blue_agents = int(args.agents)
+        cfg.reward_ablation = normalize_reward_ablation(args.reward_ablation)
+        if args.seed is not None:
+            cfg.seed = int(args.seed)
         if args.mode is not None:
             if args.run_tag is not None:
                 cfg.run_tag = args.run_tag
             else:
-                cfg.run_tag = _default_run_tag_for_mode(cfg.mode, args.fixed_opponent, cfg.max_blue_agents)
+                cfg.run_tag = _default_run_tag_for_mode(
+                    cfg.mode, args.fixed_opponent, cfg.max_blue_agents, cfg.reward_ablation
+                )
         cfg.run_tag = _ensure_run_tag_has_agent_suffix(cfg.run_tag, cfg.max_blue_agents)
+        cfg.run_tag = _append_reward_ablation_to_run_tag(cfg.run_tag, cfg.reward_ablation, cfg.max_blue_agents)
         # Separate checkpoint dir per team size. On Colab, save to Drive so runs persist (no 15h loss on disconnect).
         n_agents = cfg.max_blue_agents
         suffix = _agents_suffix(n_agents)

@@ -177,6 +177,52 @@ Replace `!` with nothing on local PC.
 
 ---
 
+## Ablations (curriculum / league / reward shaping)
+
+Leave-one-out matrix matching the paper revision plan:
+
+| Name | Meaning | Mode | Reward |
+|------|---------|------|--------|
+| `ours` | Full method | `CURRICULUM_LEAGUE` | `full` |
+| `no_league` | −league | `CURRICULUM_NO_LEAGUE` | `full` |
+| `no_curriculum` | −curriculum (fixed OP3) | `FIXED_OPPONENT` | `full` |
+| `no_shaping` | −dense/PBRS/team shaping | `CURRICULUM_LEAGUE` | `no_shaping` |
+
+**Preview commands (recommended first):**
+
+```bash
+python rl/run_ablations.py --dry-run --agents 2
+python rl/run_ablations.py --list
+```
+
+**Run the full matrix (2v2):**
+
+```bash
+python rl/run_ablations.py --agents 2 --total-steps 1000000
+```
+
+**Subset / multi-seed:**
+
+```bash
+python rl/run_ablations.py --only ours,no_shaping --seeds 42,43 --agents 2
+```
+
+**Single training run with reward ablation:**
+
+```bash
+python rl/train_ppo.py --mode CURRICULUM_LEAGUE --max-blue-agents 2 --reward-ablation no_shaping
+python rl/train_ppo.py --mode NO_CURRICULUM --fixed-opponent OP3 --max-blue-agents 2
+```
+
+Checkpoints use tags like `ppo_ablate_no_league_2v2` (matrix) or `ppo_league_rew_no_shaping_2v2` (direct CLI).
+
+Reward presets:
+- `full` — shaped reward (default)
+- `no_shaping` / `sparse` — zero PBRS + team dense bonuses; keep terminal + offense events
+- `terminal` — win/lose/draw only
+
+---
+
 ## Quick reference
 
 | Step | Colab | Local PC |
