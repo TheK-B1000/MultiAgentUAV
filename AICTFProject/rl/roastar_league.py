@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Set, Tuple
+import json
+import os
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from .episode_result import path_to_snapshot_key
 from .league import EloLeague, OpponentSpec
@@ -150,3 +152,41 @@ class ROAStarLeague(EloLeague):
         self._last_kind = opp_spec.kind
         self._last_key = opp_spec.key
         return opp_spec
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize the PFSP/Elo state needed to resume this league in a later
+        process (ratings, snapshot pool, win-rate stats, exploiter provenance)."""
+        return {
+            "ratings": dict(self.ratings),
+            "snapshots": list(self.snapshots),
+            "win_rate_stats": {k: [wins, games] for k, (wins, games) in self.win_rate_stats.items()},
+            "exploiter_snapshots": sorted(self.exploiter_snapshots),
+        }
+
+    def load_state_dict(self, state: Dict[str, Any]) -> None:
+        """Merge a previously-serialized state (from to_dict()) into this league."""
+        self.ratings.update(state.get("ratings", {}) or {})
+        for path in state.get("snapshots", []) or []:
+            if path not in self.snapshots:
+                self.snapshots.append(path)
+        for key, wg in (state.get("win_rate_stats", {}) or {}).items():
+            wins, games = wg
+            self.win_rate_stats[key] = (float(wins), int(games))
+        self.exploiter_snapshots.update(state.get("exploiter_snapshots", []) or [])
+
+    def save_state(self, path: str) -> None:
+        out_dir = os.path.dirname(os.path.abspath(path))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    def load_state_from_file(self, path: str) -> bool:
+        """Load and merge persisted state from disk if it exists. Returns whether
+        anything was loaded (False if the file doesn't exist yet, e.g. first run)."""
+        if not path or not os.path.isfile(path):
+            return False
+        with open(path, "r", encoding="utf-8") as f:
+            state = json.load(f)
+        self.load_state_dict(state)
+        return True
